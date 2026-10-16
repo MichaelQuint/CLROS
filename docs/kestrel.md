@@ -70,10 +70,16 @@ prefix: exact fd1/fd2 byte framing, output/call/counter bindings, contiguous cal
 ordinals and restored-return observations, existing epoll sequence binding, and
 original sealed syscall/return/IRQ instruction lookup. It accounts for1,211
 complete calls,13 writes/1,358 stdout bytes and one retained epoll wait. The final
-incomplete syscall remains a separately hashed fragment. Full syscall/memory/
-scheduler replay and parent/native/packet/runner joins are still required;
-complete smoke admission remains closed. No new guest run or issue closure is
-part of this host parser step.
+incomplete syscall remains a separately hashed fragment.
+[Step1356](../done/step1356.md) adds explicit continuing semantic replay over
+the existing memory/thread/signal/FIFO/epoll/socket model: nine clones,271 IRQs,
+53 drains and648 completed transfers retain ten live workers. File-generation,
+output scratch, peek and shutdown/reset controls reject impossible observations.
+The two accepted connections account for537 sent and159 consumed bytes; their
+packet/content join remains separate. See [app-model](app-model.md) for the
+replay boundary. Parent/native/source/packet/runner joins and stable-batch
+qualification are still required; complete smoke admission remains closed.
+No new guest run or issue closure is part of these host parser steps.
 
 ## Transport decision experiments
 

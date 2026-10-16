@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -22,8 +23,19 @@ public static partial class QemuTranscripts
         ReadOnlySpan<byte> start="TEST_START m10.004\r\n"u8;
         int at=raw.AsSpan().IndexOf(start);
         Need(at>=2 && raw[at-2]==13 && raw[at-1]==10 && raw.AsSpan(at+start.Length).IndexOf(start)<0,"web_raw_start");
-        var observed=ValidateNativeAotWebPrefix(root,File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root)),program!,raw.AsSpan(at));
+        string[] parent=DecodeUtf8(raw[..at]).Split("\r\n",StringSplitOptions.None);
+        int[] tableRows=Enumerable.Range(0,parent.Length).Where(i=>parent[i].StartsWith("M16_004_TABLES ",StringComparison.Ordinal)).ToArray();
+        int[] readbackRows=Enumerable.Range(0,parent.Length).Where(i=>parent[i].StartsWith("M16_004_READBACK ",StringComparison.Ordinal)).ToArray();
+        Need(tableRows.Length==1 && readbackRows.Length==1 && readbackRows[0]==tableRows[0]+1,"web_parent_root_rows");
+        var tables=ReadRecord(parent[tableRows[0]],"M16_004_TABLES","root:dec","used:dec","leaves:dec","ranges:dec");
+        const string restored=" restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
+        string readback=parent[readbackRows[0]];Need(readback.EndsWith(restored,StringComparison.Ordinal),"web_parent_readback");
+        var kernel=ReadRecord(readback[..^restored.Length],"M16_004_READBACK","old:dec");
+        var replay=ValidateNativeAotWebContinuingPrefix(root,File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root)),program!,
+            raw.AsSpan(at),tables["root"],kernel["old"]);
+        var observed=replay.Observations;
         output.WriteLine($"WEB_PREFIX_OBSERVATIONS calls={observed.Calls} writes={observed.Writes} stdout={observed.StdoutBytes} stderr={observed.StderrBytes} pendingEpoll={observed.PendingEpollWaits} fragmentBytes={observed.TrailingFragment.Length} acceptance=pending");
+        output.WriteLine($"WEB_PREFIX_REPLAY clones={replay.Protocol.Clones} irqs={replay.Protocol.Irqs} drains={replay.Protocol.Drains} transfers={replay.Protocol.Transfers} active={replay.Active} ready={replay.Ready} selected={replay.Current} returning={replay.ReturningToSupervisor} entropyRemaining={replay.EntropyRemaining} accepts={replay.SocketAccepts} sent={replay.Sent} received={replay.Received} acceptance=pending");
         // A live HTTP exchange alone cannot pass the full smoke gate. The finite
         // runtime parser requires guest exit/reap and must never be given invented
         // completion rows for this continuing profile. Keep acceptance closed
@@ -60,6 +72,120 @@ public static partial class QemuTranscripts
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         return ReadWebObservations(rawTail,configuration.Arguments,configuration.Environment,configuration.SettingsBytes,
             program!.IsSyscallReturn,program!.IsInstruction);
+    }
+
+    /// <summary>Replayed complete prefix and retained in-flight owner state.
+    /// Transfers count only completed supervisor observations. An unfinished
+    /// syscall/IRQ/return is never counted as completed. Parent/native/packet/
+    /// runner/source qualification remains outside this leaf report.</summary>
+    public readonly record struct WebReplayReport(WebObservationReport Observations,ThreadingProtocolReport Protocol,
+        int Active,int Ready,ulong Current,string Boundary,bool ReturningToSupervisor,uint EntropyRemaining,int SocketAccepts,ulong Sent,ulong Received);
+
+    /// <summary>Replay original web memory, syscall, FIFO/thread, signal, wait,
+    /// descriptor and socket observations through the complete captured prefix.
+    /// Exact original package/prepared lookup and caller-supplied parent roots
+    /// are borrowed, not executed. Unsupported or inconsistent observations
+    /// throw. A live owner at host capture end supplies no guest cleanup or
+    /// complete QEMU/native/packet/runner/source acceptance.</summary>
+    public static WebReplayReport ValidateNativeAotWebContinuingPrefix(string root,byte[] package,NativeAotWebProgram program,
+        ReadOnlySpan<byte> rawTail,ulong userRoot,ulong kernelRoot)
+    {
+        var observed=ValidateNativeAotWebPrefix(root,package,program,rawTail);
+        var configuration=NativeAotWebProgram.DescribeConfiguration(package);
+        var framed=NativeAotThreadingOutput.ReadWeb(rawTail);
+        string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-observed.TrailingFragment.Length)];
+        string[] original=complete[..^2].Split("\r\n",StringSplitOptions.None);
+        const string suffix=" source=immutable-package copied=user";
+        var config=ReadRecord(original.Single(r=>r.StartsWith("M10_004_CONFIG ",StringComparison.Ordinal))[..^suffix.Length],"M10_004_CONFIG","fd:dec","bytes:dec");
+        var view=OS.Manifest.LinuxElfPackage.Validate(package);
+        return ReplayWeb(framed,observed,package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
+            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]));
+    }
+
+    /// <summary>Value-only synthetic control seam for the same continuing
+    /// semantic model. Caller ELF, roots, settings counts and instruction
+    /// predicates grant no prepared-program, app, source or guest authority.
+    /// Borrowed raw rows are framed and replayed; invalid observations throw.</summary>
+    public static WebReplayReport InspectNativeAotWebReplayForTests(byte[] elf,ReadOnlySpan<byte> raw,
+        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd)
+    {
+        var framed=NativeAotThreadingOutput.ReadWeb(raw);
+        int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);Need(last>=0,"web_replay_records");
+        string fragment=framed.NormalizedTail[(last+2)..];if(fragment.Length!=0)WebFragment(fragment);
+        string[] rows=framed.NormalizedTail[..last].Split("\r\n",StringSplitOptions.None);
+        var observations=new WebObservationReport(ReadLinuxCallWaits(rows,allowEpoll:true).Count,framed.WriteLengths.Count,
+            Encoding.UTF8.GetByteCount(framed.Stdout),Encoding.UTF8.GetByteCount(framed.Stderr),0,fragment,
+            Convert.ToHexString(SHA256.HashData(raw)),Convert.ToHexString(SHA256.HashData(raw[..(raw.Length-fragment.Length)])));
+        return ReplayWeb(framed,observations,elf,instruction,syscall,userRoot,kernelRoot,settingsBytes,settingsFd);
+    }
+
+    private static WebReplayReport ReplayWeb(NativeAotThreadingOutput.Capture framed,WebObservationReport observed,byte[] elf,
+        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd)
+    {
+        string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-observed.TrailingFragment.Length)];
+        string[] original=complete[..^2].Split("\r\n",StringSplitOptions.None);
+        int[] configRows=Enumerable.Range(0,original.Length).Where(i=>original[i].StartsWith("M10_004_CONFIG ",StringComparison.Ordinal)).ToArray();
+        Need(configRows.Length==1 && configRows[0]+1<original.Length,"web_replay_settings_call");
+        var settingsCall=ReadLinuxCallWaits(original,allowEpoll:true).SingleOrDefault(c=>c.RecordIndex==configRows[0]+1);
+        Need(settingsCall.Identity!=0 && original[configRows[0]+1].Contains(" nr=17 ",StringComparison.Ordinal),"web_replay_settings_call");
+        string[] rows=original.Where(r=>!r.StartsWith("M10_004_",StringComparison.Ordinal) && r is not
+            ("TEST_START m10.004" or "CLROS_M10_004_READY" or "TEST_PASS m10.004")).ToArray();
+        var capture=NativeAotSocketGuest.ReadReadiness(new(framed.Stdout,string.Join("\r\n",rows)+"\r\n",
+            framed.WriteLengths.ToArray(),framed.WriteChannels.ToArray(),framed.Stderr));
+        observed=observed with { PendingEpollWaits=capture.PendingWaits };
+        return new ThreadingProtocol("MinimalApiSmoke",Rows(capture.Output),elf,instruction,syscall,capture.Output.WriteLengths,
+            userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
+            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal)).ValidateWeb(observed);
+    }
+
+    private sealed partial class ThreadingProtocol
+    {
+        internal WebReplayReport ValidateWeb(WebObservationReport observations)
+        {
+            Need(web,"web_replay_profile");
+            try { _=Validate();throw new ToolFailure("web_replay_unexpected_finite_return"); }
+            catch(WebBoundary boundary)
+            {
+                Need(position==rows.Length && active>0 && !stopping && calls==observations.Calls && writes==writeLengths.Count &&
+                    irqs>0 && clones>0 && entropyBytes>0 && entropyBytes<=entropyLimit && barrierRegistered && signalPipeCreated && stackProbe &&
+                    new ulong[]{2,3,8,11,13,18,35}.All(actions.Contains),"web_replay_incomplete_startup");
+                Need(history.Count(t=>!t.Reaped)==active && ready.All(t=>!t.Reaped && (t!=socketSelected || webReturningToSupervisor)) &&
+                    socketDescriptors.Values.Any(d=>!d.Port && d.Phase==2) && socketAccepts>=2 && socketSent>0 && socketReceived>0,"web_replay_live_owner");
+                ulong current=socketSelected?.Identity??0;
+                WebReplayFragment(observations.TrailingFragment,boundary.Expected);
+                int completedTransfers=rows.Count(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal))*2;
+                return new(observations,new(calls,clones,reaped,irqs,drains,ticks,completedTransfers,signalReturns),
+                    active,ready.Count,current,boundary.Expected,webReturningToSupervisor,checked(entropyLimit-(uint)entropyBytes),socketAccepts,socketSent,socketReceived);
+            }
+        }
+
+        private void WebReplayFragment(string fragment,string expected)
+        {
+            if(fragment.Length==0)return;
+            string[] tokens=fragment.Split(' ');string kind=tokens[0];
+            bool network=kind is "M16_012_POLL" or "M16_012_WAKE";
+            bool allowed=expected switch
+            {
+                "M16_008_SUPERVISOR"=>kind==expected && webReturningToSupervisor,
+                "M16_009_IRQ"=>network || kind is "M16_008_CALL" or "M16_009_IRQ" or "M16_008_SYSCALL_TIME",
+                "M16_009_DRAIN"=>network || kind is "M16_009_DRAIN" or "M16_008_SYSCALL_TIME",
+                "dispatch_or_idle"=>network || ready.Count>0 && kind is "M16_008_CALL" or "M16_009_IRQ" or "M16_008_RESUME",
+                _=>kind==expected
+            };
+            Need(allowed,"web_replay_fragment_stage");
+            // The final numeric token may itself be incomplete. Only a field
+            // followed by a delimiter supplies a complete identity observation.
+            if(tokens.Length<3)return;
+            ulong identity=ulong.Parse(tokens[1][9..],CultureInfo.InvariantCulture);
+            if(network)
+                Need(kind=="M16_012_POLL"?identity==(socketSelected?.Identity??0):
+                    history.Any(t=>!t.Reaped && t.Identity==identity && t.WaitSource==3),"web_replay_fragment_owner");
+            else
+            {
+                ulong owner=socketSelected?.Identity??(ready.TryPeek(out var next)?next.Identity:0);
+                Need(owner!=0 && identity==owner,"web_replay_fragment_owner");
+            }
+        }
     }
 
     private static readonly string[] WebCallFields="identity nr a0 a1 a2 a3 a4 a5 rip rsp flags fs gs clock valueBits action status".Split(' ').Select(x=>x+":dec").ToArray();

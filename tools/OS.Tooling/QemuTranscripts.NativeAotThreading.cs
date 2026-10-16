@@ -159,7 +159,11 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket;
+        private readonly bool broader,socket,web;
+        private readonly uint webSettingsBytes;
+        private readonly int webSettingsFd;
+        private readonly (ulong Identity,ulong Ordinal) webSettingsCall;
+        private readonly IReadOnlyList<uint> writeChannels;
         private readonly uint entropyLimit;
         private readonly RuntimePhases? phases;
         private LinuxThreadExecutionBudget budget;
@@ -178,21 +182,27 @@ public static partial class QemuTranscripts
         private static readonly string[] Fields="identity nr a0 a1 a2 a3 a4 a5 rip rsp flags fs gs clock valueBits action status".Split(' ').Select(k=>k+":dec").ToArray();
 
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
-            IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null)
+            IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
+            uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
-            socket=app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            web=app=="MinimalApiSmoke";socket=web || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
+            this.webSettingsCall=webSettingsCall;
+            Need(!web || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
+                webSettingsCall.Identity!=0 && webSettingsCall.Ordinal!=0,"web_replay_configuration");
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
             Need(rows is not null && rows.Length is >=25 and <=100000 && instruction is not null && syscall is not null &&
-                lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n is >0 and <=4096) && lengths.Sum()<=4096,"threading_protocol_input");
+                lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) && lengths.Sum()<=(web?65536:4096),"threading_protocol_input");
             this.app=app; this.instruction=instruction!; this.syscall=syscall!; writeLengths=lengths!.ToArray();
             exitTails=FindExitTails(elf,this.instruction,this.syscall);
             waits=ReadLinuxCallWaits(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
             returns=ReadLinuxCallReturns(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
             this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
-            memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=broader||socket?256U:32U;
+            memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
             Need(socket==(socketCapture is not null),"socket_protocol_capture");
             if(socket)socketObservations=socketCapture!.Readiness.ToDictionary(x=>x.RecordIndex);
+            writeChannels=web?socketCapture!.Output.WriteChannels:Enumerable.Repeat(1U,lengths!.Count).ToArray();
             if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!,hpetFrequencyHz);}
             else Need(stdout is null,"threading_unexpected_stdout");
             slots=new RuntimeThread?[capacity]; generations=Enumerable.Repeat(1UL,capacity).ToArray();
@@ -201,34 +211,40 @@ public static partial class QemuTranscripts
         }
         private static ulong Entry(byte[] elf) => System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan(24,8));
         private static ulong Bits(long value)=>unchecked((ulong)value);
-        private string Take(){Need(position<rows.Length,"threading_truncated");return rows[position++];}
+        private bool webReturningToSupervisor;
+        private sealed class WebBoundary(string expected):Exception { internal string Expected=>expected; }
+        private string Take(string expected="record")
+        { if(web && position==rows.Length)throw new WebBoundary(expected);Need(position<rows.Length,"threading_truncated");return rows[position++]; }
         private bool Starts(string prefix)=>position<rows.Length && rows[position].StartsWith(prefix,StringComparison.Ordinal);
-        private void Exact(string expected)=>Need(Take()==expected,"threading_order_"+expected);
-        private Dictionary<string,ulong> Row(string prefix,params string[] fields)=>ReadRecord(Take(),prefix,fields);
+        private void Exact(string expected)=>Need(Take(expected)==expected,"threading_order_"+expected);
+        private Dictionary<string,ulong> Row(string prefix,params string[] fields)=>ReadRecord(Take(prefix),prefix,fields);
 
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
-            int bytes=socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=web?8681864:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
             var armed=LinuxSyscallArm(Take()); const string policy=" timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
             string line=Take(); Need(line.EndsWith(policy,StringComparison.Ordinal),"threading_bound_policy");
             var bound=ReadRecord(line[..^policy.Length],"M16_008_BOUND","root:dec","pool:dec","workers:dec","code:dec","metadata:dec","userImage:dec");
+            uint poolPages=web?LinuxThreadProgram.CodePages+LinuxThreadProgram.MetadataPages+LinuxThreadProgram.SwitchPages+
+                LinuxThreadProgram.MaximumWorkers*18+LinuxThreadProgram.IrqPages+1:LinuxThreadProgram.PoolPages;
             Need(armed["root"]==userRoot && bound["root"]==kernelRoot && kernelRoot is >=4096 and <=0xfffff000 && kernelRoot%4096==0 &&
-                bound["pool"]>=4096 && bound["pool"]<=0x100000000UL-LinuxThreadProgram.PoolPages*4096UL && bound["pool"]%4096==0 &&
+                bound["pool"]>=4096 && bound["pool"]<=0x100000000UL-poolPages*4096UL && bound["pool"]%4096==0 &&
                 bound["workers"]==(ulong)capacity && bound["code"]==LinuxThreadProgram.Bytes &&
                 bound["metadata"]==LinuxThreadProgram.MetadataPages*4096UL && bound["userImage"]==728,"threading_parent_geometry");
-            DistinctExtents([(userRoot,4096),(kernelRoot,4096),(bound["pool"],LinuxThreadProgram.PoolPages*4096UL)],"threading_roots_pool");
+            DistinctExtents([(userRoot,4096),(kernelRoot,4096),(bound["pool"],poolPages*4096UL)],"threading_roots_pool");
             {
                 var b=Row("M16_008_BUDGET","started:dec","epochs:dec","steps:dec","nanos:dec");
-                Need(budget.Begin((uint)capacity,b["started"],application:true) && b["epochs"]==budget.MaximumEpochs &&
+                Need(budget.Begin((uint)capacity,b["started"],application:true,continuingWeb:web) && b["epochs"]==budget.MaximumEpochs &&
                     b["steps"]==budget.MaximumSteps && b["nanos"]==LinuxThreadExecutionBudget.RuntimeNanoseconds,"runtime_budget_policy");
             }
             while(active!=0)
             {
                 SocketObservations(supervisor:true);
+                if(web && position==rows.Length)throw new WebBoundary("dispatch_or_idle");
                 Need((uint)(transfers/2+ticks+socketIdlePolls)<budget.MaximumSteps,"threading_transfer_bound");
                 if(ready.Count==0)
                 {
@@ -265,11 +281,12 @@ public static partial class QemuTranscripts
                         if(output)
                         {
                             Need(writes<writeLengths.Count,"threading_extra_write");
-                            string prefix="M16_005_WRITE fd=1 bytes="+writeLengths[writes].ToString(CultureInfo.InvariantCulture)+" data=";
+                            string prefix="M16_005_WRITE fd="+writeChannels[writes].ToString(CultureInfo.InvariantCulture)+" bytes="+writeLengths[writes].ToString(CultureInfo.InvariantCulture)+" data=";
                             Need(Take().StartsWith(prefix,StringComparison.Ordinal),"threading_write_envelope");
                         }
                         int index=position; var r=Row("M16_008_CALL",Fields);
-                        Need(r["identity"]==t.Identity && syscall(r["rip"]) && output==(r["nr"]==1 && r["a0"]==1),"threading_call_binding");
+                        Need(r["identity"]==t.Identity && syscall(r["rip"]) && output==(r["nr"]==1 &&
+                            (web?r["a0"] is 1 or 2 && unchecked((long)r["valueBits"])>0:r["a0"]==1)),"threading_call_binding");
                         SignalObservation(t,r,returns[index]);
                         Need((r["flags"]&0x400)==0,"threading_syscall_df");
                         if(t.TailRip!=0)
@@ -315,10 +332,12 @@ public static partial class QemuTranscripts
                     Need(exit["identity"]==t.Identity && exit["clearTidResult"]==clear,"threading_clear_tid");
                     if(t.ClearTid!=0) Wake(t.ClearTid,0,1,uint.MaxValue);
                 }
+                webReturningToSupervisor=web;
                 transfers+=2;
                 var supervisor=Row("M16_008_SUPERVISOR","identity:dec","action:dec","transfers:dec","ready:dec","active:dec");
                 Need(supervisor["identity"]==t.Identity && supervisor["action"]==action && supervisor["transfers"]==(ulong)transfers &&
                     supervisor["ready"]==(ulong)ready.Count && supervisor["active"]==(ulong)active,"threading_supervisor");
+                webReturningToSupervisor=false;
                 if(Starts("M16_008_TIMING "))
                 {Need(action==1 && !ending && !exiting,"threading_timing_irq_only");LinuxTiming(Take(),t.Identity,(ulong)epochs);}
                 if(exiting)
@@ -333,6 +352,7 @@ public static partial class QemuTranscripts
                 }
                 socketSelected=null;
             }
+            Need(!web,"web_replay_unexpected_termination");
             Need(stopping && reaped==clones+1 && writes==writeLengths.Count && irqs>0 && history.All(t=>t.Reaped),"threading_complete_lifetimes");
             if(broader)
             {

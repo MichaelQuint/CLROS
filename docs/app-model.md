@@ -804,8 +804,23 @@ framer preserves finite-app behavior and explicitly decodes both web output
 channels; payload bytes cannot become structural markers. Startup/config/
 listener observations bind to their calls, writes bind to fd/result/request
 length, and output counters bind to prior envelopes. The final unfinished row
-is retained separately. Full semantic replay and complete smoke admission
-remain pending; this host validation adds no fresh guest acceptance.
+is retained separately. This host validation adds no fresh guest acceptance.
+
+[Step1356](../done/step1356.md) extends the existing memory/syscall/thread/
+signal/FIFO/epoll/socket replay through that original complete prefix. Its
+explicit web policy checks the measured package, worker geometry, budget,
+4096-byte entropy, file operations and live owner. The M10 config call binds
+settings to an open-description generation; fd reuse grants no settings data.
+Scalar output follows the actual8192-byte scratch limit. MSG_PEEK retains an
+unread lower bound, and shutdown/reset results follow each socket description.
+The original1,211 calls, nine clones,271 IRQs,53 drains and648 complete transfers
+leave ten live threads, six ready and selected worker4294967305; no worker is
+reaped. Two accepted sockets account for537 sent and159 consumed bytes. EOF
+retains its actual parser/return stage and incomplete row without replaying it;
+only completed supervisor rows count as transfers. Sixteen original-capture
+mutations reject and two complete-row EOF boundaries pass. Parent/native/
+source/packet/runner joins and stable-batch qualification remain pending; full
+smoke admission stays closed and #217 remains open.
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
