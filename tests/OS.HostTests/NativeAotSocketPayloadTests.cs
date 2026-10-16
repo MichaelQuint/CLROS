@@ -59,6 +59,37 @@ internal static class NativeAotSocketPayloadTests
         Reject(() => NativeAotSocketPayload.PublishArguments("[]", destination));
     }
 
+    private static string AsyncOutput() => Output.Replace("nativeaot.socket", "nativeaot.socket.async", StringComparison.Ordinal)
+        .Replace("SOCKET_LISTEN", "SOCKET_ASYNC_LISTEN", StringComparison.Ordinal)
+        .Replace("SOCKET_CONNECTION", "SOCKET_ASYNC_CONNECTION", StringComparison.Ordinal)
+        .Replace("accept_blocked=", "accept_pending=", StringComparison.Ordinal)
+        .Replace("receive_blocked=", "receive_pending=", StringComparison.Ordinal)
+        .Replace("send_blocked=", "send_pending=", StringComparison.Ordinal)
+        .Replace("TEST_PASS", "SOCKET_ASYNC_TERMINAL cancelled_accept=1 closed_accept=1\nTEST_PASS", StringComparison.Ordinal);
+
+    [HostTest("nativeaot.socket async output binds pending operations cancellation and close separately from EAGAIN")]
+    private static void AsyncObservedOutput()
+    {
+        var observed = NativeAotSocketPayload.ValidateAsyncOutput(AsyncOutput());
+        HostCheck.Equal(61, observed.Received); HostCheck.Equal(65572, observed.Sent);
+        HostCheck.Equal(4, observed.PendingAccepts); HostCheck.Equal(8, observed.PendingReceives);
+        HostCheck.Equal(6, observed.PendingSends); HostCheck.Equal(3, observed.PartialSends);
+    }
+
+    [HostTest("nativeaot.socket async output rejects sync traces missing terminal wakes and contradictory counters")]
+    private static void AsyncRejectedOutput()
+    {
+        string output = AsyncOutput();
+        foreach (string text in new[] { Output, output.Replace("cancelled_accept=1", "cancelled_accept=0", StringComparison.Ordinal),
+            output.Replace("closed_accept=1", "closed_accept=0", StringComparison.Ordinal),
+            output.Replace("SOCKET_ASYNC_TERMINAL cancelled_accept=1 closed_accept=1\n", "", StringComparison.Ordinal),
+            output.Replace("send_pending=6", "send_pending=-1", StringComparison.Ordinal),
+            output.Replace("SOCKET_ASYNC_CONNECTION index=0", "SOCKET_CONNECTION index=0", StringComparison.Ordinal),
+            output.Replace("TEST_PASS nativeaot.socket.async", "TEST_PASS nativeaot.socket", StringComparison.Ordinal),
+            output.Replace("received=61", "received=62", StringComparison.Ordinal), output + "unexpected\n" })
+            Reject(() => NativeAotSocketPayload.ValidateAsyncOutput(text));
+    }
+
     private static void Reject(Action action)
     {
         bool rejected = false;

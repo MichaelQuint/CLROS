@@ -1,5 +1,13 @@
 # Networking
 
+[Step1338](../done/step1338.md) adds a separate `--async` socket measurement
+mode and extends fresh Linux qualification to run both modes from one published
+ELF. It requires pending accept/read/write observations and epoll calls in the
+async child's own traces, plus cancellation/close of pending accepts. The
+managed Windows run passes with four pending accepts and one pending receive,
+but zero pending sends; it supplies no Linux write-wake or guest evidence.
+Fresh Linux native qualification of this mode is pending.
+
 [Step1337](../done/step1337.md) adds the development-only IPv4 passive TCP
 socket adapter in the shared Linux descriptor namespace. Host checks exercise
 genuine TCP-owner handshakes/frames, partial I/O, copy-failure retention, endpoint

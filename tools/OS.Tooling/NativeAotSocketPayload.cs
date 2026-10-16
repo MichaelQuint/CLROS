@@ -58,7 +58,7 @@ public static class NativeAotSocketPayload
         await RunPeerCoreAsync(port, output, deadline.Token);
     }
 
-    private static async Task RunPeerCoreAsync(int port, TextWriter output, CancellationToken token)
+    private static async Task RunPeerCoreAsync(int port, TextWriter output, CancellationToken token, int initialHoldMilliseconds = 250)
     {
         byte[] request = "CLROS_SOCKET_REQUEST"u8.ToArray();
         byte[] reply = "CLROS_SOCKET_REPLY"u8.ToArray();
@@ -78,7 +78,7 @@ public static class NativeAotSocketPayload
             await SendAllAsync(socket, request.AsMemory(0, 5), token);
             await SendAllAsync(socket, request.AsMemory(5), token);
             int expected = index == 0 ? 65536 : reply.Length;
-            if (index == 0) await Task.Delay(250, token);
+            if (index == 0) await Task.Delay(initialHoldMilliseconds, token);
             else socket.Shutdown(SocketShutdown.Send);
             int received = 0;
             while (received < expected)
@@ -102,6 +102,12 @@ public static class NativeAotSocketPayload
     /// <summary>Observed counters from four finite connections. Partial/blocked
     /// sends are observations, not required on every host and not guest proof.</summary>
     public sealed record Observation(int Received, int Sent, int PartialSends, int BlockedSends);
+
+    /// <summary>Actual incomplete ValueTasks observed before await. These are
+    /// distinct from synchronous EAGAIN counters; native traces must independently
+    /// establish the epoll/syscall path. Cancellation and close are required too.</summary>
+    public sealed record AsyncObservation(int Received, int Sent, int PartialSends,
+        int PendingSends, int PendingAccepts, int PendingReceives);
 
     /// <summary>Checks the actual fixture's complete ordered stdout. Independent
     /// malformed/missing/failure/counter controls can test this parser; only its
@@ -136,6 +142,36 @@ public static class NativeAotSocketPayload
             key + "=" + totals[i].ToString(CultureInfo.InvariantCulture)));
         Need(lines[6] == pass, "socket_output_terminal");
         return new(totals[0], totals[1], totals[5], totals[4]);
+    }
+
+    /// <summary>Validate the separate async fixture, including genuinely pending
+    /// accept cancellation/close and exact four-connection byte/EOF/reset totals.
+    /// A parser pass is not execution or epoll acceptance.</summary>
+    public static AsyncObservation ValidateAsyncOutput(string text)
+    {
+        Need(text.Length <= 32768, "socket_async_output_size");
+        string[] lines = text.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Need(lines.Length == 8 && lines[0] == "TEST_START nativeaot.socket.async" &&
+            lines[1] == "SOCKET_ASYNC_LISTEN port=8080 connections=4 deadline_ms=30000" &&
+            lines[6] == "SOCKET_ASYNC_TERMINAL cancelled_accept=1 closed_accept=1" &&
+            lines[7].StartsWith("TEST_PASS nativeaot.socket.async connections=4 ", StringComparison.Ordinal), "socket_async_output_order");
+        for (int index = 0; index < 4; index++)
+            Need(lines[index + 2].StartsWith("SOCKET_ASYNC_CONNECTION index=" + index.ToString(CultureInfo.InvariantCulture) + " ",
+                StringComparison.Ordinal), "socket_async_output_order");
+        // The same wire protocol/counter sums are checked by the existing strict
+        // parser; only the profile and genuinely different pending labels vary.
+        string common = string.Join('\n', lines.Where((_, index) => index != 6))
+            .Replace("nativeaot.socket.async", "nativeaot.socket", StringComparison.Ordinal)
+            .Replace("SOCKET_ASYNC_LISTEN", "SOCKET_LISTEN", StringComparison.Ordinal)
+            .Replace("SOCKET_ASYNC_CONNECTION", "SOCKET_CONNECTION", StringComparison.Ordinal)
+            .Replace("accept_pending=", "accept_blocked=", StringComparison.Ordinal)
+            .Replace("receive_pending=", "receive_blocked=", StringComparison.Ordinal)
+            .Replace("send_pending=", "send_blocked=", StringComparison.Ordinal);
+        Observation validated = ValidateOutput(common);
+        int Total(string key) => int.Parse(lines[7].Split(' ').Single(value => value.StartsWith(key + "=", StringComparison.Ordinal))
+            .AsSpan(key.Length + 1), NumberStyles.None, CultureInfo.InvariantCulture);
+        return new(validated.Received, validated.Sent, validated.PartialSends, validated.BlockedSends,
+            Total("accept_pending"), Total("receive_pending"));
     }
 
     /// <summary>Reuses the original publisher's recorded argument vector after
@@ -186,6 +222,7 @@ public static class NativeAotSocketPayload
         var native = new Dictionary<string, string>(StringComparer.Ordinal);
         NativeAotPayload.Inspection? image = null;
         Observation? observed = null;
+        AsyncObservation? asyncObserved = null;
         async Task Run(string name, string executable, string[] arguments, TimeSpan timeout)
         {
             string log = Path.Combine(destination, name);
@@ -225,31 +262,14 @@ public static class NativeAotSocketPayload
                 File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
             await Run("elf", "readelf", ["-h", "-l", "-d", "-n", "-W", executable], TimeSpan.FromMinutes(2));
             await Run("symbols", "nm", ["-a", executable], TimeSpan.FromMinutes(2));
-            using var process = NativeAotWebPayload.Start("strace", ["-ff", "-s", "256", "-o", Path.Combine(destination, App + "-trace"), executable], publish);
-            Task stdout = NativeAotWebPayload.CaptureAsync(process.StandardOutput, Path.Combine(destination, "run.stdout.log"), process);
-            Task stderr = NativeAotWebPayload.CaptureAsync(process.StandardError, Path.Combine(destination, "run.stderr.log"), process);
-            using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-            Task peer = RunPeerCoreAsync(8080, output, deadline.Token);
-            try
-            {
-                Task exited = process.WaitForExitAsync(deadline.Token);
-                Task first = await Task.WhenAny(peer, exited);
-                Need(first != exited || process.ExitCode == 0, "socket_payload_exited_early");
-                await peer; await exited;
-                Need(process.ExitCode == 0, "socket_payload_exit");
-                await Task.WhenAll(stdout, stderr).WaitAsync(deadline.Token);
-            }
-            finally
-            {
-                deadline.Cancel();
-                await NativeAotWebPayload.StopSessionAsync(process);
-                try { await peer; } catch (OperationCanceledException) { }
-                await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(10));
-            }
-            observed = ValidateOutput(await File.ReadAllTextAsync(Path.Combine(destination, "run.stdout.log")));
-            string[] traces = Directory.GetFiles(destination, App + "-trace.*");
+            observed = ValidateOutput(await RunSocketAsync(executable, publish, destination, false, commands, output));
+            asyncObserved = ValidateAsyncOutput(await RunSocketAsync(executable, publish, destination, true, commands, output));
+            Need(asyncObserved.PendingAccepts > 0 && asyncObserved.PendingReceives > 0 && asyncObserved.PendingSends > 0,
+                "socket_async_waits_not_observed");
+            string[] traces = Directory.GetFiles(destination, App + "*-trace.*");
             Need(traces.Length is > 0 and <= 64, "socket_trace_inventory");
             var calls = new SortedSet<string>(StringComparer.Ordinal);
+            var asyncCalls = new SortedSet<string>(StringComparer.Ordinal);
             foreach (string file in traces)
             {
                 Need(new FileInfo(file).Length is > 0 and <= 4 * 1024 * 1024, "socket_trace_size");
@@ -259,15 +279,21 @@ public static class NativeAotSocketPayload
                 foreach (string line in text.Split('\n'))
                 {
                     Match match = Regex.Match(line, "^([a-zA-Z0-9_]+)\\(");
-                    if (match.Success) calls.Add(match.Groups[1].Value);
+                    if (match.Success)
+                    {
+                        string call = match.Groups[1].Value; calls.Add(call);
+                        if (Path.GetFileName(file).StartsWith(App + "-async-trace.", StringComparison.Ordinal)) asyncCalls.Add(call);
+                    }
                 }
             }
             Need(calls.Contains("execve") && calls.Contains("exit_group") && calls.Contains("socket"), "socket_trace_incomplete");
+            Need(asyncCalls.Contains("epoll_ctl") && (asyncCalls.Contains("epoll_pwait") || asyncCalls.Contains("epoll_wait")), "socket_async_trace_incomplete");
             Need(SourcePaths().Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')).SequenceEqual(sources.Keys) &&
                 sources.All(row => NativeAotWebPayload.HashFile(Path.Combine(root, row.Key)) == row.Value) &&
                 ToolingBuildInputs.Validate(root).Count == 0 && native.All(row => NativeAotWebPayload.HashFile(row.Key) == row.Value), "socket_inputs_changed");
             NativeAotWebPayload.ValidateQualification(recipeRoot, recipeEvidence);
             await File.WriteAllLinesAsync(Path.Combine(destination, "observed-syscalls.txt"), calls);
+            await File.WriteAllLinesAsync(Path.Combine(destination, "async-observed-syscalls.txt"), asyncCalls);
         }
         finally
         {
@@ -277,10 +303,43 @@ public static class NativeAotSocketPayload
         var outputs = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) != "qualification.lock")
             .ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile);
         await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new {
-            schema = "clros.nativeaot.socket.v1", sdk = NativeAotPayload.SdkVersion, runtime = NativeAotPayload.RuntimeVersion,
+            schema = "clros.nativeaot.socket.v2", sdk = NativeAotPayload.SdkVersion, runtime = NativeAotPayload.RuntimeVersion,
             image = image ?? throw new InvalidDataException("socket_inspection_missing"),
             observed = observed ?? throw new InvalidDataException("socket_observations_missing"),
+            asyncObserved = asyncObserved ?? throw new InvalidDataException("socket_async_observations_missing"),
             sources, native, outputs, boundary = "Linux builder loopback only; no CLROS guest or epoll acceptance." }));
+    }
+
+    private static async Task<string> RunSocketAsync(string executable, string publish, string destination,
+        bool asynchronous, List<object> commands, TextWriter output)
+    {
+        string name = asynchronous ? "async" : "run";
+        string trace = App + (asynchronous ? "-async" : "") + "-trace";
+        string[] arguments = ["-ff", "-s", "256", "-o", Path.Combine(destination, trace), executable];
+        if (asynchronous) arguments = [.. arguments, "--async"];
+        commands.Add(new { name, executable = "strace", arguments });
+        using var process = NativeAotWebPayload.Start("strace", arguments, publish);
+        Task stdout = NativeAotWebPayload.CaptureAsync(process.StandardOutput, Path.Combine(destination, name + ".stdout.log"), process);
+        Task stderr = NativeAotWebPayload.CaptureAsync(process.StandardError, Path.Combine(destination, name + ".stderr.log"), process);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+        Task peer = RunPeerCoreAsync(8080, output, deadline.Token, asynchronous ? 1000 : 250);
+        try
+        {
+            Task exited = process.WaitForExitAsync(deadline.Token);
+            Task first = await Task.WhenAny(peer, exited);
+            Need(first != exited || process.ExitCode == 0, "socket_payload_exited_early_" + name);
+            await peer; await exited;
+            Need(process.ExitCode == 0, "socket_payload_exit_" + name);
+            await Task.WhenAll(stdout, stderr).WaitAsync(deadline.Token);
+        }
+        finally
+        {
+            deadline.Cancel();
+            await NativeAotWebPayload.StopSessionAsync(process);
+            try { await peer; } catch (OperationCanceledException) { }
+            await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        return await File.ReadAllTextAsync(Path.Combine(destination, name + ".stdout.log"));
     }
 
     private static void Need(bool condition, string message)
