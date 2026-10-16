@@ -2,6 +2,17 @@
 
 ## Start here
 
+`done/step1332.md` qualifies #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153
+and shared integration #734 at implementation `fd296378`: 5,341 full-host checks
+across 700 fixtures (94 Native), three strict TCP guests and20 fresh ancestors,
+with exact original source/native/producer joins. The default-off finite service
+proves retained Virtio-net queues, real bounded TCP lifetimes, independent packets,
+240-second TIME-WAIT and an actual cooperative progress/exit/reap witness.
+The separate8-page network and32-page worker firmware reservations remain retained;
+the original two-page allocator is preserved. No Linux app is entered by this
+network profile. Next follow #689 sockets/#690 epoll and the M10 app ladder before
+guest Kestrel. Refresh exact dependencies; no numbered/cloud/production gate advances.
+
 `done/step1307.md` qualifies #191/#192 -> #686 -> #687 -> #193 -> #194 -> #688
 and shared integration #733: 5,202 full-host checks across 687 fixtures (94 Native),
 44 strict captures across 32 batch profiles, three retained strict GC-stress
@@ -10,8 +21,8 @@ The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
 RuntimeMatrix now run in CLROS guests. Supplemental raw-state evidence proves
 an exit-requested worker blocked by active upstream GC before later exit/reap;
 it does not prove already-entered DetachCurrentThread. No guest Kestrel or new
-numbered/cloud/production gate is accepted. Next follow #691's continuing network
-owner and #148-#153 TCP, then #689 sockets/#690 epoll. Refresh exact dependencies.
+numbered/cloud/production gate is accepted. Step1332 adds the later finite
+continuing-network/TCP qualification; sockets/epoll remain the next boundary.
 
 `done/step1225.md` qualifies the .NET 11 OS/tooling migration at implementation
 source `d728d2c`: 4,783 full-host checks, original native review and
@@ -39,8 +50,8 @@ Kestrel remains incomplete.
    ancestors pass. #187 and children #721/#723-#726 are qualified in step1224:
    4,776 full-host checks, six original native bodies, three 115-record timer
    guests and ten ancestors pass. #188 lifecycle is qualified in step1230;
-   Step1307 qualifies the later #191/#192 through #688 batch; continuing network,
-   TCP, sockets and epoll precede Kestrel.
+   Step1307 qualifies the later #191/#192 through #688 batch; step1332 qualifies
+   finite continuing network/TCP. Sockets and epoll precede guest Kestrel.
    Review step1207 preserves
    the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric
@@ -191,10 +202,9 @@ A one-attempt live block-contract adapter and protective LBA0 validation are
 accepted in `done/step1147.md`. General workload manifest/package loading, continuing storage
 and Gate 7 remain incomplete.
 PAL and app-model progress remains host-tested contract/planning evidence;
-networking includes UDP/TCP checksum
-slices through active/passive handshakes, HTTP GET payload frames, and active
-close FIN/ACK frame generation. It is not a functional kernel, not cloud-ready,
-and not production-ready.
+step1332 adds the qualified default-off finite continuing-network/TCP service.
+General networking, Linux socket/epoll integration and guest Kestrel remain
+incomplete. CLROS is not cloud-ready or production-ready.
 
 Never claim Kestrel, hosted .NET, real `ExitBootServices`, live PCI/storage/
 networking, cloud-provider support, cloud readiness, or production readiness

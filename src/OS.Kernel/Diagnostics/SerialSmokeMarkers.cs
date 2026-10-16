@@ -2,6 +2,9 @@ namespace OS.Kernel.Diagnostics;
 
 public static class SerialSmokeMarkers
 {
+    public const string M07026Start = "TEST_START m07-026";
+    public const string M07026Ready = "CLROS_M07_026_READY";
+    public const string M07026Pass = "TEST_PASS m07-026";
     public const string M09009Start = "TEST_START m09.009";
     public const string M09009Ready = "CLROS_M09_009_READY";
     public const string M09010Start = "TEST_START m09.010";

@@ -8,6 +8,9 @@ public sealed class EfiProfile
     public IReadOnlyDictionary<string, bool> Flags => flags;
     public bool IsEnabled(string name) => flags.TryGetValue(Full(name), out bool enabled) && enabled;
     private static string Full(string name) => name.StartsWith("Enable", StringComparison.Ordinal) ? name : "Enable" + name + "Probe";
+    private static readonly string[] NetworkPrerequisites = ["M01LoadedImageStack", "M01LiveAllocator", "AcpiPhysicalDiscovery",
+        "M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival", "M05PciEnumeration", "M05VirtioNegotiation",
+        "M05VirtqueuePolling", "M07VirtioNet", "M07ArpReceive", "M16002", "M16003"];
     private EfiProfile(string bootPolicy, Dictionary<string, bool> flags) { BootPolicy = bootPolicy; this.flags = flags; }
     public IEnumerable<string> CommandArguments() => new[] { "--boot-policy", BootPolicy }.Concat(flags.Where(p => p.Value).Select(p => "--" + p.Key));
 
@@ -18,6 +21,18 @@ public sealed class EfiProfile
         {
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
+        }
+        if (flags["EnableM07026Probe"])
+        {
+            foreach (string parent in NetworkPrerequisites.Select(Full))
+            {
+                if (explicitlySelected.TryGetValue(parent, out bool enabled) && !enabled)
+                    throw new ToolFailure("m07_026_explicit_false_prerequisite", parent);
+                flags[parent] = true;
+            }
+            foreach (var flag in flags)
+                if (flag.Value && flag.Key != "EnableM07026Probe" && !NetworkPrerequisites.Select(Full).Contains(flag.Key))
+                    throw new ToolFailure("m07_026_profile_conflict", flag.Key);
         }
         if (flags["EnableM09010Probe"])
         {
@@ -152,7 +167,8 @@ public sealed class EfiProfile
             }
             foreach (var flag in flags)
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
-                    !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") && !required.Contains(flag.Key))
+                    !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
+                    !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
         bool diagnostic = flags.Values.Any(v => v);

@@ -124,7 +124,7 @@ public static unsafe class VirtioNetQueue
         return Status(common, a, 11);
     }
 
-    private static VirtioNetQueueStatus Configure(VirtioMappedRegion common, VirtioMappedRegion notify,
+    internal static VirtioNetQueueStatus Configure(VirtioMappedRegion common, VirtioMappedRegion notify,
         uint multiplier, VirtqueuePollingAccess a, VirtqueueSplitRingPlan plan, ushort index,
         ref VirtioNetQueueReceipt q, ref VirtioNetQueueResult r)
     {

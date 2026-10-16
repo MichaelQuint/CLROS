@@ -5,7 +5,7 @@ internal static class QemuCommandBuilder
         return options.QemuPath + " " + string.Join(" ", BuildArguments(options, ovmfCodePath).Select(Quote));
     }
 
-    public static IReadOnlyList<string> BuildArguments(RunnerOptions options, string ovmfCodePath)
+    public static IReadOnlyList<string> BuildArguments(RunnerOptions options, string ovmfCodePath, string? ethernetPeerNetdev = null)
     {
         bool separateBoot = options.VirtioBlockBootImagePath is not null;
         List<string> arguments =
@@ -41,7 +41,7 @@ internal static class QemuCommandBuilder
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,
                 "-device", "virtio-blk-pci,drive=gptdata,addr=06.0,disable-legacy=on,romfile=" } : Array.Empty<string>(),
             "-netdev",
-            "user,id=n0",
+            options.ContinuingNetworkPeer ? ethernetPeerNetdev ?? "socket,id=n0,connect=127.0.0.1:<ephemeral>" : "user,id=n0",
             "-device",
             options.VirtioNegotiationDevice ? "virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=" +
                 (options.ArpReceiveFixture ? ",mac=02:00:00:00:00:01" : "") : "virtio-net-pci,netdev=n0"

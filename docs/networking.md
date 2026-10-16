@@ -1,5 +1,76 @@
 # Networking
 
+[Step1332](../done/step1332.md) qualifies #691 -> #148 -> #149 -> #150 -> #151 ->
+#152 -> #153 and shared #734 at implementation `fd296378`. The complete unfiltered
+host gate passes5,341 checks across700 fixtures (94 Native), with unchanged
+inputs, no failures/timeouts and no reuse. Three fresh strict TCP commands and20
+fresh affected ancestors pass with exact source/native/producer joins.
+
+Each TCP capture passes260 ordered/unique markers,80 independent wire steps and
+an exact150-packet corpus, including the original queue warmup. Five connection
+lifetimes, four buffer-pair scrubs, real240-second TIME-WAIT and original NIC
+reset/bus-master disable/fence/DMA-pool cleanup complete. A guarded cooperative
+worker advances2,223/2,229/2,242 times; maximum observed gap154,676,900ns stays
+within the admitted one-second bound. Normal exit17, one reap, mapping restoration
+and32 scrubbed retained worker pages complete in every capture.
+
+All813 raw source inputs match between isolated trees and the independently
+checked source archive. Original native reviews retain their bounded ABI/stack
+scope; complete object/EFI/method-map equality carries the unchanged native-code
+review across the final project-policy repair. All53 producer/input identities
+match before/after the guest sequence;500 original files are hash-verified in
+retained evidence. Earlier failures and interrupted gates remain in steps1309-1331.
+
+This is a finite default-off service on one QEMU/OVMF vCPU. Malformed used-batch
+and full16-bit ring-index wrap controls are host evidence; the live captures prove
+actual queue reuse/fullness and independent TCP traffic. Separate8-page network
+and32-page worker firmware reservations remain retained; the original two-page
+allocator is preserved. No Linux application is entered by this network profile.
+The separate unchanged Hello/runtime acceptance remains in step1307. Next are
+#689 Linux sockets, #690 epoll and the M10 actual Kestrel ladder. No numbered,
+cloud or production gate advances.
+
+The default-off `EnableM07026Probe` retains size-eight Virtio RX/TX rings and
+image-backed owners across20 ARP and12 tagged ICMP exchanges, then the complete
+TCP scenario and a final cleanup echo. Actual owned HPET callbacks drive bounded
+polling, SYN/data retries and lifetimes. Sends copy into retained NIC backing.
+Fresh reset, bus-master disable and fence precede DMA scrub/pool release. The
+separate eight-page firmware reservation remains owned/mapped; the original
+two-page allocator is preserved. See [steps1309](../done/step1309.md),
+[1310](../done/step1310.md) and [1311](../done/step1311.md) for ownership details.
+
+The TCP scenario covers table/backlog pressure, stale generations and wrapped
+reuse; SYN loss/duplicate/invalid ACK; receive overlap/right clipping/gaps/window
+reopening; segmented short writes, partial/old/future ACK and original-byte
+retries; half-close, simultaneous FIN, exact/challenged RST, send/handshake timeout
+and TIME-WAIT restart/reap. [Step1321](../done/step1321.md) binds these retained
+owners to the guest and independent host wire corpus. The peer uses literal wire
+expectations, not guest TCP codecs. Independent PCAP admission checks every
+packet, tuple, checksum, payload and timer, including the exact original queue
+warmup prefix and all original serial/package parents. Only packet-observation
+retry comparisons allow two milliseconds of skew; owned lifetimes retain their
+exact bounds. `qemu validate-network <serial-log> <pcap> <package>` replays retained
+inputs read-only without launching a guest or granting batch acceptance.
+
+The profile defaults to285 seconds and accepts260..295. On fresh artifacts,
+prepare the mechanical Threads package once, then run:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads
+dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" --OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" --TimeoutSeconds 285
+```
+
+This package is staged only; the network profile does not enter a Linux app.
+[Steps1322](../done/step1322.md) and [1323](../done/step1323.md) preserve the
+code-slot collision and repeated-FIN assertion failures and their scoped repairs.
+[Step1326](../done/step1326.md) preserves the failed partial full-host attempt,
+repairs cross-profile/authority admission and records189 focused passing checks
+across13 unchanged-input receipts without reuse. A fresh unfiltered full-host
+run, complete original native ABI/transitive stack review, strict fresh repeated
+guests/packets and affected ancestors remain required before review/merge and
+evidence-based closure. Sockets/epoll, guest Kestrel, isolation and new numbered,
+cloud or production gates remain incomplete.
+
 The #141–#144 / #635 receive-and-ARP batch is qualified in
 [step1164](../done/step1164.md): 4,441 full-host checks, linked native review,
 a 194-record guest receipt, independent request/reply libpcap and thirteen
@@ -25,7 +96,7 @@ Development history is in steps1158â€“1161.
 
 ## Current Status
 
-Networking is at the packet-primitive stage. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. The qualified profiles above prove a fixed TX frame and one matching ARP receive/cache transaction; continuing RX and a continuing network driver remain incomplete.
+The default-off finite continuing service is qualified in [step1332](../done/step1332.md). The following inventory records the individual host-tested helper contracts. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. The earlier fixed-TX/ARP profiles retain their historical scope; step1332 adds finite retained RX/TX and TCP lifetimes. Application sockets and general workload networking remain incomplete.
 
 The kernel-facing native manifest can now record one bounded listen endpoint as metadata for future hosted-workload binding. That metadata is host-tested through manifest parsing, launch-plan creation, bind-policy validation against a future PAL IPv4 bind endpoint, mock socket-table bind composition, and mock socket-table listener creation; it does not export PAL functions, open a live socket, enter real TCP listen state, wait on a scheduler, or prove Kestrel behavior.
 
@@ -223,9 +294,19 @@ Kernel-facing packet code should prefer the non-throwing `TryRead` and `TryWrite
 
 ## Unsupported Behavior
 
-continuing virtio-net enumeration/queue/notification and packet I/O, multi-buffer receive assembly, checksum offload, GSO, ARP retransmission/cache-aging timers and continuing ARP dispatch/resolution, NIC-backed IPv4 neighbor routing, IPv4 fragmentation/reassembly, IPv4 options, ICMP dispatch/routing beyond caller-buffer echo packet/frame encode/parse and receive-dispatch metadata, UDP/TCP checksum enforcement beyond the current caller-owned UDP transmit/receive, active/passive TCP frame, live TCP receive-dispatch beyond the host-tested caller-owned dispatcher, HTTP GET outbound request, and TCP handshake receive-validation slices, UDP socket delivery, DHCP retransmission/timers/lease renewal, live DNS over UDP packet I/O, DNS retry/cache/CNAME/AAAA support, a complete TCP state machine, live listener connection tables, exported manifest-approved socket bind/listen enforcement, TCP retransmission/timer/window behavior, HTTP client connection handling over real sockets, live HTTP server accept/read/write loops beyond the host-tested static response transaction, exported socket/PAL integration, and Kestrel-compatible behavior are pending.
+Beyond the qualified finite M07-026 profile, the following remain incomplete:
 
-Beyond the qualified finite profiles, current helpers remain packet buffer primitives and host-only socket table contracts. Continuing packet allocation, receive loops, NIC drivers, retries/timers, exported `OSHost_*` socket functions and guest socket APIs remain incomplete.
+- General continuing workload/device APIs, multi-buffer receive assembly,
+  checksum offload/GSO, dynamic ARP/routing, IPv4 fragmentation/options and
+  general ICMP/UDP delivery.
+- Live DHCP lease/retry behavior, DNS packet I/O/cache/CNAME/AAAA, and a general
+  TCP stack including unsupported congestion/transport behavior.
+- Application socket/epoll integration, exported manifest-approved/PAL socket
+  operations, real HTTP client/server socket workloads and guest Kestrel.
+
+Legacy packet-buffer helpers and the host-only `OSHost_*` mock tables retain
+those individual scopes. Step1332 qualifies the explicit bounded retained
+queue/TCP owners; it does not qualify the mock tables as live application sockets.
 
 ## Tests
 
@@ -513,7 +594,10 @@ Beyond the qualified finite profiles, current helpers remain packet buffer primi
 4. local/remote sequence metadata update;
 5. marking closing, removing to a closed slot, and reusing that slot;
 6. invalid endpoint/default sequence/default result rejection;
-7. no-managed-reference layout checks for table key, sequence, entry, and result types.
+7. no-managed-reference layout checks for table key, sequence, entry, and result types;
+8. owned half-open/closed lifetimes, exhausted64-slot capacity, generation exhaustion,
+   stale/foreign/copied/previous-epoch handles, corrupt/aliased metadata,
+   initialized zero sequences, release scrub and allocation-free warmed operations.
 
 `tests/OS.HostTests/TcpPassiveOpenHandshakeTests.cs` covers:
 
@@ -1782,7 +1866,20 @@ pseudo-headers, timers, sockets, or NIC-backed packet I/O.
 
 `TcpListenerBacklogSocketBridge` is a host-only metadata bridge from a caller-owned backlog table into the in-process `OSHostSocketTable` mock accept queue. It does not export `OSHost_SocketAccept`, create a live TCP listener, own listener connection tables, block or wake scheduler waits, transfer payload data, or prove hosted .NET 10, ASP.NET Minimal API, or Kestrel support.
 
-`TcpConnectionTable` is a caller-owned metadata table for established TCP stream tuples only. It tracks endpoint, sequence, and lifecycle metadata in value entries and can reuse closed slots, but it does not implement retransmission, timers, receive windows, send queues, listener accept state, socket/PAL handles, concurrency control, route selection, ARP, NIC-backed packet I/O, hosted .NET 10, ASP.NET Minimal API, or Kestrel support.
+`TcpConnectionTable` retains its span metadata API and adds an exclusive owned
+API over1..64 mapped caller-owned entries and generation words. Opaque handles
+join owner address, unique lifetime epoch and nonwrapping slot generation. A
+half-open or closed unreleased connection holds its tuple; only explicit release
+clears the entry and permits reuse. One serialized kernel caller must retain all
+backing, validate actual protocol events and release external packet/timer leases
+before metadata release. The table performs no NIC I/O, socket acceptance, timer,
+retransmission, receive-window or send-queue processing. Its new ownership API has
+host development evidence only. Sequence metadata has an explicit initialization
+flag so zero remains a valid sequence number, as required by
+[RFC9293 section3.4](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.4).
+Default metadata remains invalid; this internal layout change still needs the
+new native compile/ABI/guest qualification. No hosted .NET, Kestrel, cloud or
+production support is established.
 
 `OS.Std.Net.InternetChecksum` and `Ipv4TransportChecksum` are checksum primitives. Current enforcement is limited to outbound IPv4 UDP checksum generation in `EthernetIpv4UdpPacket.TryWrite`, non-zero IPv4 UDP checksum validation in `UdpReceiveDispatcher`, active-connect outbound SYN/final ACK generation plus inbound SYN-ACK validation in `TcpIpv4FramePlanner`, passive-open outbound SYN-ACK generation plus inbound SYN/final ACK validation in `TcpPassiveIpv4FramePlanner`, outbound active-close FIN/ACK checksum generation in `TcpConnectionCloseIpv4FramePlanner`, established payload send/receive frame checksums in `TcpEstablishedStreamIpv4FramePlanner`, inbound established payload/passive FIN/RST receive dispatch plus passive-close ACK checksum writing in `TcpReceiveDispatcher`, and HTTP GET request checksum generation plus response checksum validation in `HttpTcpClientGetPlanner`; they do not provide live NIC receive checksums, do not validate live NIC packets, and do not provide socket, hosted .NET 10, ASP.NET Minimal API, or Kestrel proof.
 

@@ -154,13 +154,38 @@ public static class EfiProjectAdmission
     public static string[] ExpectedCompileItems(EfiProfile profile)
     {
         bool linux = profile.IsEnabled("EnableM16008Probe");
+        bool network = profile.IsEnabled("EnableM07026Probe");
         bool wait = profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe");
         bool lifecycle = linux || wait || profile.IsEnabled("EnableM09006Probe");
-        bool timer = lifecycle || profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe");
+        bool timer = lifecycle || profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe") || network;
         // Mirror the reviewed conditional links; retain static inventory order
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.NetworkService.cs|" or
+            @"Boot\EfiEntry.NetworkTcp.cs|" or
+            @"Boot\EfiEntry.NetworkScheduler.cs|" or
+            @"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs|Threading\KernelThreadProgressProgram.cs" or
+            @"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs|Drivers\ContinuingVirtioNet.cs" or
+            @"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs|Drivers\ContinuingVirtioNetDevice.cs" or
+            @"..\OS.Kernel\Net\Ipv4Header.cs|Net\Ipv4Header.cs" or
+            @"..\OS.Kernel\Net\IcmpEchoPacket.cs|Net\IcmpEchoPacket.cs" or
+            @"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs|Net\Ipv4IcmpEchoFrame.cs" or
+            @"..\OS.Kernel\Net\TcpConnectionTable.cs|Net\TcpConnectionTable.cs" or
+            @"..\OS.Kernel\Net\TcpListenerBacklog.cs|Net\TcpListenerBacklog.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveOpenHandshake.cs|Net\TcpPassiveOpenHandshake.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveIpv4FramePlanner.cs|Net\TcpPassiveIpv4FramePlanner.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveListenerBacklogBridge.cs|Net\TcpPassiveListenerBacklogBridge.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveConnection.cs|Net\TcpPassiveConnection.cs" or
+            @"..\OS.Kernel\Net\TcpHeader.cs|Net\TcpHeader.cs" or
+            @"..\OS.Kernel\Net\Ipv4TransportChecksum.cs|Net\Ipv4TransportChecksum.cs" or
+            @"..\OS.Kernel\Net\TcpEstablishedStream.cs|Net\TcpEstablishedStream.cs" or
+            @"..\OS.Kernel\Net\TcpEstablishedStreamIpv4FramePlanner.cs|Net\TcpEstablishedStreamIpv4FramePlanner.cs" or
+            @"..\OS.Kernel\Net\TcpConnectionClose.cs|Net\TcpConnectionClose.cs" or
+            @"..\OS.Kernel\Net\TcpReceiveWindow.cs|Net\TcpReceiveWindow.cs" or
+            @"..\OS.Kernel\Net\TcpSendWindow.cs|Net\TcpSendWindow.cs" or
+            @"..\OS.Kernel\Net\TcpSendWindow.Close.cs|Net\TcpSendWindow.Close.cs" or
+            @"..\..\std\no-runtime\shared\Net\InternetChecksum.cs|Std\Net\InternetChecksum.cs" => profile.IsEnabled("EnableM07026Probe"),
             @"Boot\EfiEntry.LinuxUserInterrupts.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs" => profile.IsEnabled("EnableM16009Probe"),
             @"Boot\EfiEntry.ThreadWait.cs|" or
@@ -173,12 +198,12 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Threading\KernelThreadWait.cs|Threading\KernelThreadWait.cs" or
             @"..\OS.Kernel\Threading\KernelThreadTable.cs|Threading\KernelThreadTable.cs" or
             @"..\OS.Kernel\Threading\KernelThreadEntry.cs|Threading\KernelThreadEntry.cs" or
-            @"..\OS.Kernel\Threading\KernelThreadProgram.cs|Threading\KernelThreadProgram.cs" => lifecycle,
+            @"..\OS.Kernel\Threading\KernelThreadProgram.cs|Threading\KernelThreadProgram.cs" => lifecycle || network,
             @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs" or
             @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs" => contexts,
             @"..\OS.Kernel\Threading\DeadlineQueue.cs|Threading\DeadlineQueue.cs" or
-            @"..\OS.Kernel\Threading\SchedulerTimer.cs|Threading\SchedulerTimer.cs" or
             @"..\OS.Kernel\Pal\OSHostHandle.cs|Pal\OSHostHandle.cs" or
+            @"..\OS.Kernel\Threading\SchedulerTimer.cs|Threading\SchedulerTimer.cs" => timer || network,
             @"..\OS.Kernel\Threading\X64TimerInterrupt.cs|Threading\X64TimerInterrupt.cs" => timer,
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs|Compatibility\LinuxX64\LinuxSignalMask.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs|Compatibility\LinuxX64\LinuxSignalServices.cs" or

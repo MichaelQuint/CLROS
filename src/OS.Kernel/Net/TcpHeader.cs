@@ -48,6 +48,35 @@ public readonly struct TcpHeader
 
     public ushort UrgentPointer { get; }
 
+    /// <summary>Read a validated SYN's bounded option bytes. Absent MSS uses
+    /// IPv4's default536. Ignore unknown length-bearing options; reject malformed,
+    /// duplicate or zero MSS without publishing an output. This owns no packet
+    /// identity/checksum validation and must not negotiate from non-SYN traffic.</summary>
+    public static PacketParseStatus TryReadMaximumSegmentSize(ReadOnlySpan<byte> options, out ushort maximumSegmentSize)
+    {
+        maximumSegmentSize = 0;
+        if (options.Length > MaxHeaderLength - MinHeaderLength || (options.Length & 3) != 0) return PacketParseStatus.InvalidLength;
+        ushort candidate = 536; bool found = false;
+        for (int i = 0; i < options.Length;)
+        {
+            byte kind = options[i];
+            if (kind == 0) break;
+            if (kind == 1) { i++; continue; }
+            if (i + 1 >= options.Length) return PacketParseStatus.InvalidLength;
+            int length = options[i + 1];
+            if (length < 2 || length > options.Length - i) return PacketParseStatus.InvalidLength;
+            if (kind == 2)
+            {
+                if (found || length != 4) return PacketParseStatus.InvalidLength;
+                candidate = (ushort)((options[i + 2] << 8) | options[i + 3]);
+                if (candidate == 0) return PacketParseStatus.InvalidLength;
+                found = true;
+            }
+            i += length;
+        }
+        maximumSegmentSize = candidate; return PacketParseStatus.Success;
+    }
+
     public static PacketParseStatus TryParse(
         ReadOnlySpan<byte> segment,
         out TcpHeader header,

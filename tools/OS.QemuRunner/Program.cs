@@ -126,6 +126,8 @@ try
         orderedMarkers: options.OrderedMarkers,
         uniqueMarkers: options.UniqueMarkers);
 
+    using ContinuingNetworkPeer? networkPeer = options.ContinuingNetworkPeer
+        ? new(TimeSpan.FromMinutes(5), runTcp: true) : null;
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
     process.StartInfo.UseShellExecute = false;
@@ -133,7 +135,7 @@ try
     process.StartInfo.RedirectStandardInput = options.WatchStartup;
     process.StartInfo.RedirectStandardOutput = options.WatchStartup;
 
-    foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path))
+    foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path, networkPeer?.NetdevArgument))
     {
         process.StartInfo.ArgumentList.Add(argument);
     }
@@ -154,6 +156,7 @@ try
     bool forbiddenMarkerSeen = false;
     bool timedOut = false;
     bool startupTimedOut = false;
+    bool networkPeerInitiatedFailure = false;
     QemuStartupDeadline? startup = options.WatchStartup ? new(options.StartupTimeoutSeconds) : null;
     const long terminalDrainMilliseconds = 750;
     Stopwatch stopwatch = Stopwatch.StartNew();
@@ -192,6 +195,8 @@ try
         {
             lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
         }
+
+        if (networkPeer is not null && streamingMarkers.HasSeenRequiredMarker("M07_026_ROW stage=3")) networkPeer.AllowTcp();
 
         if (options.StartupTimeoutSeconds <= options.TimeoutSeconds &&
             startup?.HasExpired(stopwatch.ElapsedMilliseconds, streamingMarkers) == true)
@@ -235,6 +240,14 @@ try
                 ref processCleanupFailed,
                 ref qemuExitedSpontaneously,
                 ref qemuExitCode);
+            break;
+        }
+
+        if (networkPeer?.Completion.IsFaulted == true || networkPeer?.Completion.IsCanceled == true)
+        {
+            networkPeerInitiatedFailure = true;
+            TerminateProcessAndClassify(process, ref processTerminationRequested,
+                ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
             break;
         }
 
@@ -379,6 +392,20 @@ try
         streamingOutOfOrderMarkers);
     IReadOnlyList<string> duplicateUniqueMarkers =
         streamingResult.DuplicateUniqueMarkerHits ?? Array.Empty<string>();
+    string? networkPeerFailure = null;
+    if (networkPeer is not null)
+    {
+        bool completed = networkPeer.Completion.IsCompletedSuccessfully;
+        bool stopped = networkPeer.Stop();
+        Console.WriteLine("NETWORK_PEER_RESULT complete=" + completed + " stopped=" + stopped +
+            " arpReplies=" + networkPeer.ArpReplies + " echoReplies=" + networkPeer.EchoReplies + " tcpPackets=" + networkPeer.TcpPackets);
+        if (!completed || !stopped)
+        {
+            networkPeerFailure = !stopped ? "network_peer_cleanup_failed" : networkPeer.Completion.IsFaulted
+                ? "network_peer_failed_" + networkPeer.Completion.Exception!.GetBaseException().GetType().Name
+                : "network_peer_incomplete";
+        }
+    }
     if (serialReadFailure is not null ||
         IsStreamingStructuralFailure(streamingResult.Status))
     {
@@ -535,11 +562,25 @@ try
         return 18;
     }
 
-    if (markerSeen &&
+    bool serialSucceeded = markerSeen &&
         streamingResult.Passed &&
         streamingResult.TerminalState == SerialMarkerTerminalState.Success &&
         streamingResult.SuccessTerminalCount == 1 &&
-        summary.HasAllRequiredMarkers)
+        summary.HasAllRequiredMarkers;
+    // Stopping QEMU for a primary failure can itself break the peer transport.
+    // Reject an initiating peer failure or an otherwise successful serial run;
+    // retain the original guest, process and timeout diagnosis otherwise.
+    if (networkPeerFailure is not null && !timedOut && httpProbeResult?.Passed != false &&
+        ((networkPeerInitiatedFailure && !qemuExitedSpontaneously) || serialSucceeded))
+    {
+        WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers,
+            forbiddenMarkers, networkPeerFailure, httpProbeResult, summary.AppExitResults,
+            summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke " + networkPeerFailure);
+        return 19;
+    }
+
+    if (serialSucceeded)
     {
         if (options.HttpProbe is not null)
         {
@@ -1921,6 +1962,7 @@ sealed class RunnerOptions
     public bool PciBarTestDevice { get; private set; }
     public bool VirtioNegotiationDevice { get; private set; }
     public bool ArpReceiveFixture { get; private set; }
+    public bool ContinuingNetworkPeer { get; private set; }
     public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
     public string? VirtioBlockBootImagePath { get; private set; }
@@ -2036,6 +2078,10 @@ sealed class RunnerOptions
                     if (options.ArpReceiveFixture) throw new ArgumentException("--arp-receive-fixture may be specified only once.");
                     options.ArpReceiveFixture = true;
                     break;
+                case "--continuing-network-peer":
+                    if (options.ContinuingNetworkPeer) throw new ArgumentException("--continuing-network-peer may be specified only once.");
+                    options.ContinuingNetworkPeer = true;
+                    break;
                 case "--virtio-block-boot-image":
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
@@ -2109,11 +2155,15 @@ sealed class RunnerOptions
             throw new ArgumentException("--ethernet-capture requires the dedicated modern network fixture.");
         if (options.ArpReceiveFixture && (!options.VirtioNegotiationDevice || options.EthernetCapturePath is null))
             throw new ArgumentException("--arp-receive-fixture requires the captured dedicated modern network fixture.");
+        if (options.ContinuingNetworkPeer && (!options.ArpReceiveFixture || options.TimeoutSeconds > 295 ||
+            options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
+            throw new ArgumentException("--continuing-network-peer requires the captured ARP fixture, a timeout at most 295 seconds and the ordinary diagnostic exit path.");
         return options;
     }
 
     public static void PrintHelp()
     {
+        Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");

@@ -368,7 +368,36 @@ public static class TcpEstablishedStreamIpv4FramePlanner
         ref TcpEstablishedStream stream,
         in TcpEstablishedStreamIpv4FramePlannerInfo info,
         ReadOnlySpan<byte> frame,
-        out TcpEstablishedStreamIpv4FramePlanResult result)
+        out TcpEstablishedStreamIpv4FramePlanResult result) => ReceiveFrameCore(ref stream, info, frame, false, false, out result);
+
+    /// <summary>Validate original Ethernet/IP/TCP identity and checksum, then
+    /// apply window trimming rather than the legacy strict in-order helper.
+    /// Buffer/ACK/TX lifetime remains with the exclusive live receive owner.</summary>
+    public static TcpEstablishedStreamIpv4FramePlanStatus ReceiveWindowFrame(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
+        ReceiveFrameCore(ref stream, info, frame, true, false, out result);
+
+    internal static TcpEstablishedStreamIpv4FramePlanStatus ReceiveFinWindowFrame(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
+        ReceiveFrameCore(ref stream, info, frame, true, false, out result, true);
+
+    /// <summary>Read-only original frame/endpoint/checksum admission. Success
+    /// describes validated packet metadata, never delivered bytes or ACK progress.
+    /// Protocol flags, sequence acceptability and ACK/window decisions belong to
+    /// the owner. This does not mutate stream metadata or its borrowed buffer.</summary>
+    public static TcpEstablishedStreamIpv4FramePlanStatus ValidateFrame(
+        in TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result)
+    {
+        var view = stream;
+        return ReceiveFrameCore(ref view, info, frame, false, true, out result);
+    }
+
+    private static TcpEstablishedStreamIpv4FramePlanStatus ReceiveFrameCore(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ReadOnlySpan<byte> frame, bool windowed, bool validateOnly, out TcpEstablishedStreamIpv4FramePlanResult result, bool allowFin = false)
     {
         TcpEstablishedStreamIpv4FramePlanStatus identityStatus = ValidateIdentity(stream, info);
         if (identityStatus != TcpEstablishedStreamIpv4FramePlanStatus.Success)
@@ -454,10 +483,21 @@ public static class TcpEstablishedStreamIpv4FramePlanner
             return result.Status;
         }
 
+        if (validateOnly)
+        {
+            if (tcpHeader.SourcePort != stream.RemotePort || tcpHeader.DestinationPort != stream.LocalPort)
+            { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed, TcpEstablishedStreamStatus.UnexpectedPorts, PacketParseStatus.Success); return result.Status; }
+            result = TcpEstablishedStreamIpv4FramePlanResult.Success(TcpEstablishedStreamStatus.Success,
+                tcpParseStatus, ethernetHeader, ipv4Header, tcpHeader, 0, tcpSegmentOffset, tcpSegmentLength,
+                tcpSegmentLength - tcpHeader.HeaderLength, info, stream.LocalPort, stream.RemotePort,
+                stream.LocalNextSequenceNumber, stream.RemoteNextSequenceNumber);
+            return result.Status;
+        }
         TcpEstablishedStream pending = stream;
-        TcpEstablishedStreamStatus streamStatus = pending.ReceiveSegment(
-            tcpSegment,
-            out TcpEstablishedStreamReceiveResult receiveResult);
+        TcpEstablishedStreamReceiveResult receiveResult;
+        TcpEstablishedStreamStatus streamStatus = windowed
+            ? allowFin ? pending.ReceiveWindowFinSegment(tcpSegment, out receiveResult) : pending.ReceiveWindowSegment(tcpSegment, out receiveResult)
+            : pending.ReceiveSegment(tcpSegment, out receiveResult);
         if (streamStatus != TcpEstablishedStreamStatus.Success)
         {
             result = TcpEstablishedStreamIpv4FramePlanResult.Fail(
@@ -493,6 +533,45 @@ public static class TcpEstablishedStreamIpv4FramePlanner
             stream.RemotePort,
             stream.LocalNextSequenceNumber,
             stream.RemoteNextSequenceNumber);
+        return result.Status;
+    }
+
+    /// <summary>Write one cumulative pure ACK with the actual free receive
+    /// window. This does not advance either sequence or imply TX admission.
+    /// Short output writes nothing. Payload/checksum/frame helpers are shared
+    /// with the existing planner; caller retains the output until TX returns.</summary>
+    public static TcpEstablishedStreamIpv4FramePlanStatus TryWriteAckFrame(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ushort window, Span<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
+        TryWriteControlFrame(ref stream, info, window, 0x10, frame, out result);
+
+    internal static TcpEstablishedStreamIpv4FramePlanStatus TryWriteControlFrame(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ushort window, byte flags, Span<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result)
+    {
+        if (flags != 0x10 && flags != 0x11)
+        { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed, TcpEstablishedStreamStatus.InvalidFlags, PacketParseStatus.Success); return result.Status; }
+        var identity = ValidateIdentity(stream, info);
+        if (identity != TcpEstablishedStreamIpv4FramePlanStatus.Success)
+        { result = Fail(stream, info, identity); return result.Status; }
+        if (frame.Length < HeaderBytes)
+        { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.FrameBufferTooSmall); return result.Status; }
+        Span<byte> segment = stackalloc byte[TcpHeader.MinHeaderLength];
+        var status = TcpHeader.TryWrite(segment, stream.LocalPort, stream.RemotePort,
+            stream.LocalNextSequenceNumber, stream.RemoteNextSequenceNumber, flags,
+            window, checksum: 0, urgentPointer: 0, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, out int count);
+        if (status == PacketParseStatus.Success) status = TryWriteTcpChecksum(segment.Slice(0, count), info.LocalAddress, info.RemoteAddress);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpChecksumFailed); return result.Status; }
+        status = TryWriteFrame(info, frame, segment.Slice(0, count), out var ethernet, out var ipv4, out int bytes);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(stream, info, MapFrameWriteFailure(status)); return result.Status; }
+        status = TcpHeader.TryParse(segment.Slice(0, count), out var tcp, out _, out _);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpSegmentParseFailed); return result.Status; }
+        result = TcpEstablishedStreamIpv4FramePlanResult.Success(TcpEstablishedStreamStatus.Success,
+            status, ethernet, ipv4, tcp, bytes, EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength,
+            count, 0, info, stream.LocalPort, stream.RemotePort, stream.LocalNextSequenceNumber, stream.RemoteNextSequenceNumber);
         return result.Status;
     }
 

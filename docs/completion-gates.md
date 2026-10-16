@@ -9,13 +9,25 @@ workloads now execute in CLROS. Supplemental raw-state evidence covers an
 exit-requested worker blocked by active upstream GC before later exit/reap;
 it does not show already-entered DetachCurrentThread. This advances only those
 finite application profiles. **Only the existing numbered Gate 2 passes.**
-Guest Kestrel, continuing network/socket/epoll services, isolation, cloud and
+Guest Kestrel, Linux socket/epoll services, isolation, cloud and
 production remain incomplete.
+
+[Step1332](../done/step1332.md) qualifies the default-off finite continuing-network/
+TCP batch at `fd296378`: 5,341 full-host checks across700 fixtures (94 Native),
+three strict TCP captures and20 fresh affected ancestors, with original native,
+raw source and producer joins. Retained queues, independently captured packets,
+bounded connection/window/retry/close lifetimes, real240-second TIME-WAIT and
+actual cooperative progress/exit/reap/restoration pass. Separate8-page network
+and32-page worker firmware reservations remain retained; the original two-page
+allocator is preserved. The network profile does not enter a Linux app.
+This finite qualification advances no numbered gate. General networking,
+sockets/epoll and guest Kestrel require their own evidence.
+Development and failed/interrupted qualification history remains in steps1309-1331.
 
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;
-step1307 supersedes pending thread/runtime claims for its exact qualified scope.
+steps1307 and1332 supersede pending claims only for their exact qualified scopes.
 
 Development [step1234](../done/step1234.md) wires #191/#192's mechanical wait/TLS
 profiles and exact transcript admission. Focused checks and freestanding C#

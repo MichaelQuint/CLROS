@@ -6,6 +6,19 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["qemu", "validate-network", var networkSerial, var networkPcap, var networkPackage])
+            {
+                Console.WriteLine("TEST_START qemu.network.capture");
+                using FileStream networkSerialLock = new(networkSerial, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using FileStream networkPacketLock = new(networkPcap, FileMode.Open, FileAccess.Read, FileShare.Read);
+                using FileStream networkPackageLock = new(networkPackage, FileMode.Open, FileAccess.Read, FileShare.Read);
+                QemuTranscripts.AssertM03AcpiBootstrapTranscript(networkSerial, firstRealExit: true, ownedSurvival: true,
+                    pciEnumeration: true, virtioNegotiation: true, virtqueuePolling: true, virtioNet: true, arpReceive: true,
+                    linuxElfPackagePath: networkPackage, workloadServiceLoop: true, networkService: true);
+                QemuTranscripts.AssertM07026Capture(networkSerial, networkPcap);
+                Console.WriteLine("TEST_PASS qemu.network.capture");
+                return 0;
+            }
             if(args is ["linux","runtime-package",var runtimeApp,var runtimeEvidence,var runtimeDestination])
             {
                 Console.WriteLine("TEST_START linux.runtime-package");
@@ -98,6 +111,7 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
+                Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("linux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
                 Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|NestedAlternateStack|AlternateStackExhaustion]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;

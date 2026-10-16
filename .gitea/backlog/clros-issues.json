@@ -16167,7 +16167,7 @@
         "M07-026"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16180,7 +16180,7 @@
       "ownedPaths": [
         "src/OS.Kernel/Net/TcpConnectionTable.cs",
         "tests/OS.HostTests/TcpConnectionTableTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -16200,7 +16200,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Introduce bounded TCP control-block storage with explicit ownership.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "Bounded live connection capacity, duplicate tuples, stale generations and recycled/wrapped ownership. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Allocate and recycle bounded live connection slots; reject exhausted capacity, duplicate endpoint tuples and stale generations without affecting existing connections.",
@@ -16233,14 +16233,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_013_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Introduce bounded TCP control-block storage with explicit ownership.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-014",
@@ -16251,7 +16252,7 @@
         "M07-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:test",
         "evidence:qemu",
         "component:network",
@@ -16268,7 +16269,7 @@
         "tests/OS.HostTests/TcpPassiveOpenHandshakeTests.cs",
         "tests/OS.HostTests/TcpPassiveIpv4FramePlannerTests.cs",
         "tests/OS.HostTests/TcpListenerBacklogTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -16288,7 +16289,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove passive SYN-to-SYN-ACK-to-ACK.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "Actual passive SYN/SYN-ACK/ACK, duplicate/lost SYN-ACK, invalid ACK, backlog pressure and handshake timeout. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Drive passive SYN/SYN-ACK/ACK through continuing RX/TX; test duplicate SYN, lost SYN-ACK, invalid ACK, backlog exhaustion and handshake timeout with packet evidence.",
@@ -16321,14 +16322,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_014_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Prove passive SYN-to-SYN-ACK-to-ACK.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-015",
@@ -16339,7 +16341,7 @@
         "M07-014"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16356,7 +16358,7 @@
         "tests/OS.HostTests/TcpEstablishedStreamTests.cs",
         "tests/OS.HostTests/TcpEstablishedStreamSocketBridgeTests.cs",
         "tests/OS.HostTests/TcpReceiveDispatcherTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -16376,7 +16378,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Receive payload, advance windows, and emit ACK.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "Once-only receive bytes, overlap/right clipping/gaps, sequence wrap, ACK/window/backpressure and reopening. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Deliver in-order bytes once, preserve receive-window backpressure and ACK progress; exercise duplicate, overlapping, out-of-order, zero-window and wraparound sequence inputs.",
@@ -16409,14 +16411,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_015_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Receive payload, advance windows, and emit ACK.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-016",
@@ -16427,7 +16430,7 @@
         "M07-015"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16442,7 +16445,7 @@
         "src/OS.Kernel/Net/TcpEstablishedStreamIpv4FramePlanner.cs",
         "tests/OS.HostTests/TcpEstablishedStreamTests.cs",
         "tests/OS.HostTests/TcpEstablishedStreamIpv4FramePlannerTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -16462,7 +16465,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Send payload with segmentation and partial-ack handling.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "MSS/window-bounded segmentation, original unacknowledged bytes, validated partial/old/future ACK, short writes and zero-window reopening. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Segment writes against MTU/MSS/window limits, retain unacknowledged bytes and advance only by validated ACKs; exercise partial ACK, short writes, duplicate ACK and zero-window reopening.",
@@ -16495,14 +16498,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_016_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Send payload with segmentation and partial-ack handling.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-017",
@@ -16513,7 +16517,7 @@
         "M07-016"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16526,7 +16530,7 @@
       "ownedPaths": [
         "src/OS.Kernel/Net/TcpRetransmission.cs",
         "tests/OS.HostTests/TcpRetransmissionTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -16546,7 +16550,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement retransmission, RTO, duplicate ACK, and timeout behavior.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "Owned-clock original-byte retries/RTO/limits, loss/duplicate/reorder cases, actual timeout and bounded cooperative progress through packet pumps and final TIME-WAIT. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Use the owned monotonic clock for bounded retransmission/RTO and retry limits. Inject loss, reordering and duplicate ACKs; show eventual progress or a reported timeout, bounded memory and no scheduler starvation.",
@@ -16579,14 +16583,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_017_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement retransmission, RTO, duplicate ACK, and timeout behavior.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-018",
@@ -16597,7 +16602,7 @@
         "M07-017"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16612,7 +16617,7 @@
         "src/OS.Kernel/Net/TcpConnectionCloseIpv4FramePlanner.cs",
         "tests/OS.HostTests/TcpConnectionCloseTests.cs",
         "tests/OS.HostTests/TcpConnectionCloseIpv4FramePlannerTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -16632,7 +16637,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement FIN/ACK close, peer reset, and half-close behavior.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "FIN/ACK, half-close, simultaneous close, challenged/exact RST, timeout/TIME-WAIT restart, five connection lifetimes and four buffer-pair scrubs with stale ownership rejection. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Exercise FIN/ACK in both directions, half-close, peer reset and timeout; reclaim each connection and queued buffer exactly once, rejecting late packets against recycled slots.",
@@ -16665,14 +16670,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_018_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement FIN/ACK close, peer reset, and half-close behavior.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-019",
@@ -32266,9 +32272,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -32280,7 +32286,7 @@
         "M07-009",
         "M16-003"
       ],
-      "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
+      "currentEvidence": "Retained size-eight Virtio-net RX/TX, actual queue pressure/reuse,20 ARP and12 tagged ICMP exchanges, copied TX, reset/bus-master-disable/fence/DMA-pool cleanup. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Extend the accepted single-transaction adapter into a continuing owned lifetime. Replenish RX, reclaim TX, poll with a bounded budget/timer and retain/reset DMA safely on shutdown or error. Initial configuration uses explicit static IPv4 and existing ARP; DHCP, DNS, outbound HTTP and MSI-X conversion are not first-web prerequisites.",
@@ -32311,7 +32317,7 @@
       "ownedPaths": [
         "src/OS.Kernel/Drivers/ContinuingVirtioNet.cs",
         "tests/OS.HostTests/ContinuingVirtioNetTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -32345,7 +32351,8 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM07026Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M07_026_READY"
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",

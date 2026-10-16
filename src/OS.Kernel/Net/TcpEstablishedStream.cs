@@ -235,6 +235,7 @@ public ref struct TcpEstablishedStream
     private Span<byte> _receiveBuffer;
     private int _receiveOffset;
     private int _unreadBytes;
+    private uint _minimumAcknowledgement;
 
     private TcpEstablishedStream(
         ushort localPort,
@@ -250,6 +251,7 @@ public ref struct TcpEstablishedStream
         _receiveBuffer = receiveBuffer;
         _receiveOffset = 0;
         _unreadBytes = 0;
+        _minimumAcknowledgement = localNextSequenceNumber;
     }
 
     public ushort LocalPort { get; }
@@ -285,7 +287,24 @@ public ref struct TcpEstablishedStream
 
     public TcpEstablishedStreamStatus ReceiveSegment(
         scoped ReadOnlySpan<byte> segment,
-        out TcpEstablishedStreamReceiveResult result)
+        out TcpEstablishedStreamReceiveResult result) => ReceiveSegmentCore(segment, false, out result);
+
+    /// <summary>Receive only the new contiguous part within the free window.
+    /// Trim an already-received prefix and a suffix beyond capacity. Gaps are
+    /// dropped without buffering. Duplicate/gap/full statuses require a cumulative
+    /// ACK from the live owner. This helper owns no checksums, TX or persistent
+    /// lifetime; caller-owned buffer contents survive only through its lease.</summary>
+    public TcpEstablishedStreamStatus ReceiveWindowSegment(
+        scoped ReadOnlySpan<byte> segment,
+        out TcpEstablishedStreamReceiveResult result) => ReceiveSegmentCore(segment, true, out result);
+
+    // FIN sequence consumption/EOF belongs to the retained receive owner after
+    // these original payload bytes fit its window; never fabricate a stripped packet.
+    internal TcpEstablishedStreamStatus ReceiveWindowFinSegment(scoped ReadOnlySpan<byte> segment,
+        out TcpEstablishedStreamReceiveResult result) => ReceiveSegmentCore(segment, true, out result, true);
+
+    private TcpEstablishedStreamStatus ReceiveSegmentCore(scoped ReadOnlySpan<byte> segment,
+        bool windowed, out TcpEstablishedStreamReceiveResult result, bool allowFin = false)
     {
         PacketParseStatus parseStatus = TcpHeader.TryParse(
             segment,
@@ -308,7 +327,8 @@ public ref struct TcpEstablishedStream
             return result.Status;
         }
 
-        if (!HasAllowedPayloadFlags(header.Flags))
+        if (!HasAllowedPayloadFlags(header.Flags) &&
+            !(allowFin && (header.Flags & (FlagFin | FlagAck)) == (FlagFin | FlagAck) && (header.Flags & ~0x19) == 0))
         {
             result = CreateReceiveFailure(
                 TcpEstablishedStreamStatus.InvalidFlags,
@@ -316,7 +336,13 @@ public ref struct TcpEstablishedStream
             return result.Status;
         }
 
-        if (header.AcknowledgementNumber != LocalNextSequenceNumber)
+        bool validAcknowledgement = windowed
+            ? unchecked(header.AcknowledgementNumber - _minimumAcknowledgement) <= unchecked(LocalNextSequenceNumber - _minimumAcknowledgement)
+            : header.AcknowledgementNumber == LocalNextSequenceNumber;
+        // The retained close dispatcher already admitted this original ACK.
+        // An old cumulative ACK releases no send bytes but may carry new data.
+        if (allowFin && unchecked((int)(header.AcknowledgementNumber - _minimumAcknowledgement)) < 0) validAcknowledgement = true;
+        if (!validAcknowledgement)
         {
             result = CreateReceiveFailure(
                 TcpEstablishedStreamStatus.InvalidAcknowledgementNumber,
@@ -326,6 +352,15 @@ public ref struct TcpEstablishedStream
 
         if (payload.Length == 0)
         {
+            if (windowed)
+            {
+                int delta = unchecked((int)(header.SequenceNumber - RemoteNextSequenceNumber));
+                if (delta < 0 || (delta != 0 && delta >= ReceiveAvailable))
+                {
+                    result = CreateReceiveFailure(delta < 0 ? TcpEstablishedStreamStatus.DuplicateSegment : TcpEstablishedStreamStatus.OutOfOrderSegment, parseStatus);
+                    return result.Status;
+                }
+            }
             result = CreateReceiveFailure(
                 TcpEstablishedStreamStatus.NoPayload,
                 parseStatus);
@@ -335,10 +370,16 @@ public ref struct TcpEstablishedStream
         int sequenceComparison = CompareSequence(header.SequenceNumber, RemoteNextSequenceNumber);
         if (sequenceComparison < 0)
         {
-            result = CreateReceiveFailure(
-                TcpEstablishedStreamStatus.DuplicateSegment,
-                parseStatus);
-            return result.Status;
+            uint oldBytes = unchecked(RemoteNextSequenceNumber - header.SequenceNumber);
+            if (windowed && oldBytes < (uint)payload.Length)
+                payload = payload.Slice((int)oldBytes);
+            else
+            {
+                result = CreateReceiveFailure(
+                    TcpEstablishedStreamStatus.DuplicateSegment,
+                    parseStatus);
+                return result.Status;
+            }
         }
 
         if (sequenceComparison > 0)
@@ -351,10 +392,15 @@ public ref struct TcpEstablishedStream
 
         if (payload.Length > ReceiveAvailable)
         {
-            result = CreateReceiveFailure(
-                TcpEstablishedStreamStatus.ReceiveBufferTooSmall,
-                parseStatus);
-            return result.Status;
+            if (windowed && ReceiveAvailable > 0)
+                payload = payload.Slice(0, ReceiveAvailable);
+            else
+            {
+                result = CreateReceiveFailure(
+                    TcpEstablishedStreamStatus.ReceiveBufferTooSmall,
+                    parseStatus);
+                return result.Status;
+            }
         }
 
         EnsureContiguousTail(payload.Length);
@@ -508,6 +554,17 @@ public ref struct TcpEstablishedStream
             RemoteNextSequenceNumber);
     }
 
+    // The persistent receiver validates its stored bounds/handle before borrowing
+    // this temporary view. These APIs never retain a Span in persistent metadata.
+    internal int ReceiveOffset => _receiveOffset;
+    internal static TcpEstablishedStream Restore(ushort localPort, ushort remotePort,
+        uint localNext, uint remoteNext, Span<byte> buffer, int offset, int unread, uint minimumAcknowledgement)
+    {
+        var stream = Create(localPort, remotePort, localNext, remoteNext, buffer);
+        stream._receiveOffset = offset; stream._unreadBytes = unread;
+        stream._minimumAcknowledgement = minimumAcknowledgement; return stream;
+    }
+
     private void EnsureContiguousTail(int bytesRequired)
     {
         if (_receiveOffset + _unreadBytes + bytesRequired <= _receiveBuffer.Length)
@@ -553,6 +610,6 @@ public ref struct TcpEstablishedStream
 
     private static void Copy(ReadOnlySpan<byte> source, Span<byte> destination)
     {
-        _ = OS.Std.MemoryExtensions.TryCopyTo(source, destination);
+        _ = OS.Std.Memory.BufferOperations.MemoryCopy(source, destination);
     }
 }

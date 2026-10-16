@@ -75,7 +75,8 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
     // Keep this historical inventory scoped to its existing profiles. The new
     // cooperative/timer exclusions are independently checked by their M09 fixtures.
     string[] errorConditions = project.Descendants("Error")
-        .Where(element => !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_", StringComparison.Ordinal) &&
+        .Where(element => !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m07_026_", StringComparison.Ordinal) &&
+            !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_", StringComparison.Ordinal) &&
             !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_", StringComparison.Ordinal) &&
             !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_006_", StringComparison.Ordinal) &&
             !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_009_", StringComparison.Ordinal) &&

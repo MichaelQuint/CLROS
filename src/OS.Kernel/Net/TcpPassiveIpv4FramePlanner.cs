@@ -40,7 +40,8 @@ public readonly struct TcpPassiveIpv4FramePlannerInfo
         ushort windowSize = 0x4000,
         byte timeToLive = 64,
         ushort identification = 0,
-        ushort tcpChecksum = 0)
+        ushort tcpChecksum = 0,
+        ushort maximumSegmentSize = 0)
     {
         LocalMac = localMac;
         RemoteMac = remoteMac;
@@ -53,6 +54,7 @@ public readonly struct TcpPassiveIpv4FramePlannerInfo
         TimeToLive = timeToLive;
         Identification = identification;
         TcpChecksum = tcpChecksum;
+        MaximumSegmentSize = maximumSegmentSize;
     }
 
     public MacAddress LocalMac { get; }
@@ -76,6 +78,10 @@ public readonly struct TcpPassiveIpv4FramePlannerInfo
     public ushort Identification { get; }
 
     public ushort TcpChecksum { get; }
+
+    /// <summary>Local receive MSS advertised in SYN-ACK; zero keeps the legacy
+    /// no-option reply. This does not describe the peer's negotiated send limit.</summary>
+    public ushort MaximumSegmentSize { get; }
 }
 
 public readonly struct TcpPassiveIpv4FramePlanResult
@@ -284,6 +290,8 @@ public struct TcpPassiveIpv4FramePlanner
 
     public uint RemoteNextSequenceNumber => _handshake.RemoteNextSequenceNumber;
 
+    public int RequiredReplyBytes => HeaderBytes + (_info.MaximumSegmentSize == 0 ? 0 : 4);
+
     public static TcpPassiveIpv4FramePlanner Create(TcpPassiveIpv4FramePlannerInfo info)
     {
         return new TcpPassiveIpv4FramePlanner(info);
@@ -301,7 +309,7 @@ public struct TcpPassiveIpv4FramePlanner
             return result.Status;
         }
 
-        if (outboundFrame.Length < HeaderBytes)
+        if (outboundFrame.Length < RequiredReplyBytes)
         {
             result = Fail(
                 TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall,
@@ -358,12 +366,15 @@ public struct TcpPassiveIpv4FramePlanner
         }
 
         TcpPassiveOpenHandshake pending = _handshake;
-        Span<byte> outboundSegment = stackalloc byte[TcpHeader.MinHeaderLength];
+        Span<byte> outboundSegment = stackalloc byte[TcpHeader.MinHeaderLength + 4];
+        Span<byte> synOptions = stackalloc byte[4];
+        int optionCount = WriteMssOption(synOptions);
         TcpPassiveOpenHandshakeStatus tcpStatus = pending.ReceiveSynAndWriteSynAck(
             tcpSegment,
             outboundSegment,
             _info.WindowSize,
             checksum: 0,
+            synOptions.Slice(0, optionCount),
             out TcpPassiveOpenHandshakeTransitionResult transitionResult);
 
         if (tcpStatus != TcpPassiveOpenHandshakeStatus.Success)
@@ -536,6 +547,54 @@ public struct TcpPassiveIpv4FramePlanner
             pending.RemoteInitialSequenceNumber,
             pending.RemoteNextSequenceNumber);
         return result.Status;
+    }
+
+    /// <summary>Serialize the original pending SYN-ACK without changing the
+    /// handshake or its sequence numbers. Output is caller-owned; short output
+    /// writes nothing. Timers, TX admission and retry budgets belong to the
+    /// connection owner. Established/failed/listen states are unsupported.</summary>
+    public TcpPassiveIpv4FramePlanStatus WritePendingSynAckFrame(
+        Span<byte> outboundFrame, out TcpPassiveIpv4FramePlanResult result)
+    {
+        var identity = ValidateIdentity();
+        if (identity != TcpPassiveIpv4FramePlanStatus.Success) { result = Fail(identity); return result.Status; }
+        if (_handshake.State != TcpPassiveOpenHandshakeState.SynReceived)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.InvalidState, TcpPassiveOpenHandshakeStatus.InvalidState, PacketParseStatus.Success); return result.Status; }
+        if (outboundFrame.Length < RequiredReplyBytes)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall, TcpPassiveOpenHandshakeStatus.BufferTooSmall, PacketParseStatus.BufferTooSmall); return result.Status; }
+
+        Span<byte> segment = stackalloc byte[TcpHeader.MinHeaderLength + 4];
+        Span<byte> synOptions = stackalloc byte[4];
+        int optionCount = WriteMssOption(synOptions);
+        var status = TcpHeader.TryWrite(segment, _info.LocalPort, _info.RemotePort,
+            _info.InitialSequenceNumber, _handshake.RemoteNextSequenceNumber,
+            TcpPassiveOpenHandshake.FlagSyn | TcpPassiveOpenHandshake.FlagAck,
+            _info.WindowSize, checksum: 0, urgentPointer: 0,
+            synOptions.Slice(0, optionCount), ReadOnlySpan<byte>.Empty, out int count);
+        if (status == PacketParseStatus.Success)
+            status = TryWriteTcpChecksum(segment.Slice(0, count), _info.LocalAddress, _info.RemoteAddress);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.TcpSegmentWriteFailed, TcpPassiveOpenHandshakeStatus.SegmentWriteFailed, status); return result.Status; }
+        status = TryWriteFrame(outboundFrame, segment.Slice(0, count),
+            out EthernetHeader ethernet, out Ipv4Header ipv4, out int bytes);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(MapFrameWriteFailure(status), TcpPassiveOpenHandshakeStatus.Success, status); return result.Status; }
+        status = TcpHeader.TryParse(segment.Slice(0, count), out TcpHeader tcp, out _, out _);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.TcpSegmentWriteFailed, TcpPassiveOpenHandshakeStatus.SegmentWriteFailed, status); return result.Status; }
+        result = TcpPassiveIpv4FramePlanResult.Success(_handshake.State, TcpPassiveOpenHandshakeStatus.Success,
+            status, ethernet, ipv4, tcp, bytes, EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength,
+            count, _info, _handshake.LocalNextSequenceNumber,
+            _handshake.RemoteInitialSequenceNumber, _handshake.RemoteNextSequenceNumber);
+        return result.Status;
+    }
+
+    private int WriteMssOption(Span<byte> options)
+    {
+        if (_info.MaximumSegmentSize == 0) return 0;
+        options[0] = 2; options[1] = 4;
+        options[2] = (byte)(_info.MaximumSegmentSize >> 8); options[3] = (byte)_info.MaximumSegmentSize;
+        return 4;
     }
 
     private PacketParseStatus TryWriteFrame(
@@ -752,7 +811,8 @@ public struct TcpPassiveIpv4FramePlanner
         if (_info.LocalMac.IsZero
             || _info.LocalMac.IsBroadcast
             || _info.LocalAddress == default
-            || _info.LocalPort == 0)
+            || _info.LocalPort == 0
+            || _info.MaximumSegmentSize > 1460)
         {
             return TcpPassiveIpv4FramePlanStatus.InvalidLocalIdentity;
         }
