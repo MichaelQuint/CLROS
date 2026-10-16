@@ -42,6 +42,7 @@ public static unsafe class LinuxSocketServices
         internal LinuxDescriptorServices.State* Descriptors;
         internal Endpoint* Slots;
         internal uint Count, Initialized;
+        internal LinuxSocketNetwork.State* Network;
         internal Ipv4Address InterfaceAddress;
         internal ushort AllowedPort;
         public readonly uint RetainedConnections
@@ -258,6 +259,7 @@ public static unsafe class LinuxSocketServices
 
     internal static bool Finish(State* state)
     {
+        if (state->Network != null) return false;
         for (uint i = 0; i < state->Count; i++) if (state->Slots[i].Phase != 0) return false;
         state->Descriptors->Sockets = null; state->Initialized = 2; return true;
     }
@@ -431,6 +433,21 @@ public static unsafe class LinuxSocketServices
     }
     private static bool Find(State* state, uint fd, out uint index, out uint flags) =>
         LinuxDescriptorServices.SocketDescription(state->Descriptors, fd, out index, out flags);
+
+    internal static bool Listener(State* state, out uint fd, out LinuxDescriptorServices.Token token)
+    {
+        fd = 0; token = default;
+        if (!Current(state)) return false;
+        for (uint i = 0; i < state->Descriptors->Owner.DescriptorCount; i++)
+            if (Find(state, i, out uint index, out _) && state->Slots[index].Phase == Listening)
+            { fd = i; return LinuxDescriptorServices.Capture(state->Descriptors, i, out token); }
+        return false;
+    }
+    internal static bool IsClosing(State* state, TcpSendWindow.Owner* sender)
+    {
+        for (uint i = 0; i < state->Count; i++) if (state->Slots[i].Sender == sender) return state->Slots[i].Phase == Closing;
+        return false;
+    }
     private static bool Nonblocking(State* state, uint index)
     { LinuxDescriptorServices.SocketReferences(state->Descriptors, index, out uint flags); return (flags & LinuxDescriptorServices.NonBlock) != 0; }
     private static bool Existing(State* state, uint fd) => fd < state->Descriptors->Owner.DescriptorCount && state->Descriptors->Owner.Slots[fd].Description != 0;

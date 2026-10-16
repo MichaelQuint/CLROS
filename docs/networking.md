@@ -1,5 +1,19 @@
 # Networking
 
+[Step1341](../done/step1341.md) adds the development packet/timer owner connecting
+real TCP frames to the Linux socket adapter. Exact tuple/generation lookup selects
+retained passive handshakes and stream windows. Valid final-ACK payload enters the
+stream before socket transfer; socket accept pressure retains private established
+windows until capacity returns. Listener dup follows its original description,
+while close/reuse cannot redirect it. Pending retry exhaustion retains the original
+hard deadline and still permits a final ACK. Full normal240-second TIME-WAIT,
+reset/fd-close and buffer/table scrub have focused host evidence. Separate explicit
+abort cleanup requires detached threads and every fd closed; it claims no graceful
+wire completion. Descriptor/thread alias guards include network ownership. Native
+source3 wait completion/commit branches are feature guarded; their enabled EFI
+publication, combined NIC/profile invocation and actual guest exchange remain
+pending. No current issue or gate is accepted by this development slice.
+
 [Step1340](../done/step1340.md) implements development-only bounded epoll over
 the shared socket descriptions. Packed Linux x64 events preserve all64 opaque
 data bits; level delivery, edge drain/rearm, MOD, dup/last-close, fd reuse and

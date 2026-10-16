@@ -281,6 +281,10 @@ public static unsafe partial class EfiEntry
             bool completed = c->Gates[index].Status == LinuxSyscallGateStatus.Blocked;
             if (completed)
             {
+#if CLROS_LINUX_SOCKETS
+                if (view.WaitSource == 3) completion = c->Process.CompleteEpollWait(c->Key, 2);
+                else
+#endif
                 completion = view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
                 if (completion.Action != LinuxSyscallAction.Return)
@@ -545,7 +549,11 @@ public static unsafe partial class EfiEntry
                 if (action == LinuxSyscallAction.Blocked)
                 {
                     bool handoff;
-                    bool committed = c->Slots[index].PipeOperation.IsActive
+                    bool committed =
+#if CLROS_LINUX_SOCKETS
+                        c->Slots[index].WaitSource == 3 ? c->Process.CommitEpollWait(c->Key, 2, worker, out handoff) :
+#endif
+                        c->Slots[index].PipeOperation.IsActive
                         ? c->Process.CommitPipeWait(c->Key, 2, worker, out handoff) : c->Process.CommitFutexWait(c->Key, 2, worker, out handoff);
                     if (!committed || !handoff && !c->Threads.Yield(c->Key, 2, new(worker.Identity), worker).Succeeded) return 0;
                 }
