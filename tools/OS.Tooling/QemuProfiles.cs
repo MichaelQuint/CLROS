@@ -27,6 +27,10 @@ public static class QemuProfiles
             emit?.Invoke("QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true");
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
+        // The socket leaf needs its original package/index and independent
+        // application peer transcript. The scripted M07 TCP guest cannot
+        // authorize this combined native workload while that runner is pending.
+        Require(!profile.IsEnabled("M16011"), "socket_guest_orchestration_pending");
         NativeAotRuntimeSelection.Bind(options, profile.Flags);
         string runtimeApp = NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
         if (runtimeApp.Length != 0 && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)

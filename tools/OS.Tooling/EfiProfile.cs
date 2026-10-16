@@ -11,6 +11,8 @@ public sealed class EfiProfile
     private static readonly string[] NetworkPrerequisites = ["M01LoadedImageStack", "M01LiveAllocator", "AcpiPhysicalDiscovery",
         "M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival", "M05PciEnumeration", "M05VirtioNegotiation",
         "M05VirtqueuePolling", "M07VirtioNet", "M07ArpReceive", "M16002", "M16003"];
+    private static readonly string[] SocketNetworkExtensions = ["M05ApicSetup", "M16004", "M16005", "M16006", "M16007",
+        "M16008", "M16009", "M16011", "M16012"];
     private EfiProfile(string bootPolicy, Dictionary<string, bool> flags) { BootPolicy = bootPolicy; this.flags = flags; }
     public IEnumerable<string> CommandArguments() => new[] { "--boot-policy", BootPolicy }.Concat(flags.Where(p => p.Value).Select(p => "--" + p.Key));
 
@@ -22,6 +24,21 @@ public sealed class EfiProfile
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
         }
+        if (flags["EnableM16012Probe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM16011Probe", out bool parent) && !parent)
+                throw new ToolFailure("m16_012_explicit_false_prerequisite", "EnableM16011Probe");
+            flags["EnableM16011Probe"] = true;
+        }
+        if (flags["EnableM16011Probe"])
+        {
+            foreach (string parent in new[] { "EnableM07026Probe", "EnableM16009Probe" })
+            {
+                if (explicitlySelected.TryGetValue(parent, out bool enabled) && !enabled)
+                    throw new ToolFailure("m16_011_explicit_false_prerequisite", parent);
+                flags[parent] = true;
+            }
+        }
         if (flags["EnableM07026Probe"])
         {
             foreach (string parent in NetworkPrerequisites.Select(Full))
@@ -31,7 +48,8 @@ public sealed class EfiProfile
                 flags[parent] = true;
             }
             foreach (var flag in flags)
-                if (flag.Value && flag.Key != "EnableM07026Probe" && !NetworkPrerequisites.Select(Full).Contains(flag.Key))
+                if (flag.Value && flag.Key != "EnableM07026Probe" && !NetworkPrerequisites.Select(Full).Contains(flag.Key) &&
+                    !(flags["EnableM16011Probe"] && SocketNetworkExtensions.Select(Full).Contains(flag.Key)))
                     throw new ToolFailure("m07_026_profile_conflict", flag.Key);
         }
         if (flags["EnableM09010Probe"])
@@ -168,6 +186,7 @@ public sealed class EfiProfile
             foreach (var flag in flags)
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
                     !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
+                    !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe") &&
                     !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
@@ -222,8 +241,12 @@ public sealed class EfiProfile
         if (!IsEnabled("M06BlockMsix")) Conflict("M06VirtioBlockQueueSetup", "M05ApicSetup", "m06_block_queue_profile_conflict");
         Set("M05BarDma", ["M05PciEnumeration"], true, "m05_bar_dma_requires_pci");
         Set("M05ApicSetup", ["M05PciEnumeration"], true, "m05_apic_requires_pci");
-        Set("M05ApicSetup", ["M05BarDma", "M05VirtqueuePolling"], false, "m05_apic_profile_conflict");
-        if (IsEnabled("M05ApicSetup")) Need("M05VirtioNegotiation", "M05VirtqueueInterrupt", "m05_apic_negotiation_requires_interrupt");
+        Set("M05ApicSetup", ["M05BarDma"], false, "m05_apic_profile_conflict");
+        if (!IsEnabled("M16011"))
+        {
+            Set("M05ApicSetup", ["M05VirtqueuePolling"], false, "m05_apic_profile_conflict");
+            if (IsEnabled("M05ApicSetup")) Need("M05VirtioNegotiation", "M05VirtqueueInterrupt", "m05_apic_negotiation_requires_interrupt");
+        }
         Set("M05VirtqueueInterrupt", ["M05ApicSetup", "M05VirtioNegotiation"], true, "m05_virtqueue_interrupt_requires_apic_negotiation");
         Conflict("M05VirtqueueInterrupt", "M05VirtqueuePolling", "m05_virtqueue_interrupt_polling_conflict");
         Set("M05VirtqueuePolling", ["M05VirtioNegotiation"], true, "m05_virtqueue_polling_requires_negotiation");

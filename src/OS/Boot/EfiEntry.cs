@@ -1950,6 +1950,9 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_007_PROBE
             if (!InitializeLinuxDescriptors(state)) return LinuxSyscallAdmissionFailure(state, "descriptors");
+#if CLROS_LINUX_SOCKETS
+            if (!InitializeLinuxSocketNetwork(state)) return LinuxSyscallAdmissionFailure(state, "socket-network");
+#endif
             admission.EnableDescriptors = true; access.Descriptors = &DispatchLinuxDescriptors;
 #endif
 #if !M16_008_PROBE
@@ -2946,7 +2949,7 @@ public static unsafe partial class EfiEntry
                     {
 #if M05_APIC_SETUP_PROBE
                         if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
-#if M16_008_PROBE
+#if M16_008_PROBE && !CLROS_LINUX_SOCKETS
 #if M09_011_PROBE
                         if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedNativeAotSuspension(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #elif M09_012_PROBE

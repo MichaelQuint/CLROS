@@ -162,6 +162,11 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.LinuxSockets.cs|" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs|Compatibility\LinuxX64\LinuxSocketNetwork.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs|Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" => profile.IsEnabled("EnableM16011Probe"),
             @"Boot\EfiEntry.NetworkService.cs|" or
             @"Boot\EfiEntry.NetworkTcp.cs|" or
             @"Boot\EfiEntry.NetworkScheduler.cs|" or
@@ -242,6 +247,7 @@ public static class EfiProjectAdmission
             HashSet<string> expectedSymbols = new(["TRACE", "NOSTDLIB_EFI", configuration == "Debug" ? "DEBUG" : "RELEASE", workload == "SingleMinimalApi" ? "OS_PROFILE_SINGLE_MINIMAL_API" : "OS_PROFILE_MULTI_MINIMAL_API"], StringComparer.Ordinal);
             if (profile.BootPolicy == "VerifiedExit") expectedSymbols.Add("CLROS_NORMAL_VERIFIED_EXIT");
             foreach (var pair in EfiContracts.ProbeSymbols) if (profile.IsEnabled(pair.Key)) expectedSymbols.Add(pair.Value);
+            if (profile.IsEnabled("EnableM16011Probe")) expectedSymbols.Add("CLROS_LINUX_SOCKETS");
             var symbols = Text(values["DefineConstants"]).Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToHashSet(StringComparer.Ordinal);
             Require(symbols.SetEquals(expectedSymbols), "evaluated_define_constants_mismatch", workload);
             JsonArray compile = Array(items["Compile"], "evaluated_item_count_mismatch"), analyzers = Array(items["Analyzer"], "evaluated_item_count_mismatch"), inputs = Array(items["_ClrosX64SerializerGeneratorInput"], "evaluated_item_count_mismatch");

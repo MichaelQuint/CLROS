@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "892bea5f58cf00caca60989e39b41c7d2cb44cec7bae55d25c8799985e77b5ce";
-    public const string CanonicalProjectSha256 = "ab78c12c9738b6dcbdbb94fef5e36afcd6af93d2dd85db348f0251bfdfbfc52a";
-    public const string EfiEntrySourceSha256 = "aabd2f740275365af3de50bdf6463866ef4d01a5b0c97d6aa21d6978d4a4abc8";
+    public const string ProjectSourceSha256 = "248998bacd8a4a1631e761cf8446bba172dea82ccb1326671e0b8e3c9c268d02";
+    public const string CanonicalProjectSha256 = "9a7659e2bc42f606d29a7682c7c58bff477cd8e826a5add29f75cdadeaaaebca";
+    public const string EfiEntrySourceSha256 = "e936d5269174c0fcfdc13e5b43f20d3e606ae3c8d3c81ee615e904c05a748c39";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -365,6 +365,11 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadMemory.cs|",
         @"Boot\EfiEntry.LinuxThreadRun.cs|",
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",
+        @"Boot\EfiEntry.LinuxSockets.cs|",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs|Compatibility\LinuxX64\LinuxSocketNetwork.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs|Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -459,6 +464,8 @@ public static partial class EfiContracts
         "EnableM16008Probe",
         "EnableM16009Probe",
         "EnableM16010Probe",
+        "EnableM16011Probe",
+        "EnableM16012Probe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

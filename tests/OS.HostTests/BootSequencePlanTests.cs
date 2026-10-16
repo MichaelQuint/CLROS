@@ -706,6 +706,7 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedSchedulerTimer(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,",
              "public static unsafe bool RunOwnedKernelThreads(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,",
              "public static unsafe bool RunOwnedLinuxDescriptors(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
+             "public static unsafe bool RunOwnedLinuxSockets(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
@@ -755,6 +756,10 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM16011Probe = true;",
+             "public const bool EnableM16011Probe = false;",
+             "public const bool EnableM16012Probe = true;",
+             "public const bool EnableM16012Probe = false;",
              "public const bool EnableM09012Probe = true;",
              "public const bool EnableM09012Probe = false;",
              "public const bool EnableM09011Probe = true;",

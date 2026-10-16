@@ -22,7 +22,8 @@ internal static unsafe class M07026EfiIntegrationTests
             HostCheck.Equal(13, profile.Flags.Count(x => x.Value));
             foreach (var parent in profile.Flags.Where(x => x.Value && x.Key != "EnableM07026Probe"))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + parent.Key, "false"], build).Profile());
-            foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key)))
+            foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key))
+                .Except(["EnableM16011Probe", "EnableM16012Probe"]))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + extra], build).Profile());
             Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--BootPolicy", "VerifiedExit"], build).Profile());
         }

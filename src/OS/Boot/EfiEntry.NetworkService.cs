@@ -42,6 +42,9 @@ public static unsafe partial class EfiEntry
                 if (!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) ||
                     !FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(NetworkOwnerStorage), PageProtection.Read | PageProtection.Write) ||
                     !FirstExitImageMappings.Contains(ranges, count, (ulong)tcp, (ulong)sizeof(NetworkTcpStorage), PageProtection.Read | PageProtection.Write)) return false;
+#if CLROS_LINUX_SOCKETS
+                if (!LinuxSocketImageMapped(ranges, count)) return false;
+#endif
                 ulong candidate = 0xffffffff;
                 if (services->AllocatePages(1, 2, 8, &candidate) != 0) return false;
                 state->NetworkArena = candidate; // Retain even a rejected successful firmware allocation.
@@ -63,10 +66,22 @@ public static unsafe partial class EfiEntry
                 state->AdapterConsole != null || state->AdapterServices != null ||
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->NetworkPhase = 1;
-            if (!LinuxText(state, "TEST_START m07-026\r\n") || !RunNetworkScheduledService(state))
+            if (!LinuxText(state, "TEST_START m07-026\r\n") ||
+#if CLROS_LINUX_SOCKETS
+                !RunNetworkServiceCore(state))
+#else
+                !RunNetworkScheduledService(state))
+#endif
             { _ = LinuxText(state, "TEST_FAIL m07-026 service\r\n"); return false; }
             state->NetworkPhase = 3;
-            return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n");
+            return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n")
+#if CLROS_LINUX_SOCKETS
+                && LinuxText(state, "CLROS_M16_011_READY\r\nTEST_PASS m16-011\r\n")
+#if M16_012_PROBE
+                && LinuxText(state, "CLROS_M16_012_READY\r\nTEST_PASS m16-012\r\n")
+#endif
+#endif
+                ;
         }
 
         private static bool RunNetworkServiceCore(Storage* state)
@@ -146,6 +161,9 @@ public static unsafe partial class EfiEntry
 
         private static bool RunNetworkExchanges(Storage* state, NetDevice.State* device)
         {
+#if CLROS_LINUX_SOCKETS
+            return RunLinuxSocketNetwork(state, device);
+#else
             Span<byte> tx = stackalloc byte[1514]; Span<byte> rx = stackalloc byte[1514];
             var localMac = new MacAddress(2, 0, 0, 0, 0, 1);
             var local = new Ipv4Address(10, 0, 2, 15); var peer = new Ipv4Address(10, 0, 2, 2);
@@ -198,6 +216,7 @@ public static unsafe partial class EfiEntry
                 if (!ReadNetworkTime(state, out now) || now >= deadline) return false;
             }
             return false;
+#endif
         }
 
         private static bool WaitNetworkFrame(Storage* state, NetDevice.State* device, Span<byte> frame, out uint bytes)

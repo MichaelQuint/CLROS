@@ -366,6 +366,9 @@ public static unsafe partial class EfiEntry
                     image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return 0;
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
+#if CLROS_LINUX_SOCKETS
+            if (!PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
+#endif
             LinuxSyscallFrame call = *frame;
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;

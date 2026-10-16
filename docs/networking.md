@@ -1,5 +1,18 @@
 # Networking
 
+[Step1342](../done/step1342.md) wires the default-off M16-011/M16-012 EFI
+profile through the retained live NIC lifetime. Linux workers exclusively own
+the cooperative pool; real NIC packets and hardware-clock deadlines are pumped
+at restored syscall/idle boundaries. Descriptor close, real transport drain,
+table retirement and NIC reset precede socket completion markers. The fixed
+diagnostic requires manifest Any:8080 and retains unresolved ownership on failure.
+The enabled no-stdlib C# profile compiles; native publication and guest execution
+are pending. Sealed sync/async packages now reuse the same unchanged Linux ELF
+after exact original receipt/output/source admission. QEMU rejects these leaves
+until their original instruction index, application peer and strict transcript
+are wired; the older scripted TCP transcript cannot authorize them. No current
+socket/application issue or additional gate is accepted.
+
 [Step1341](../done/step1341.md) adds the development packet/timer owner connecting
 real TCP frames to the Linux socket adapter. Exact tuple/generation lookup selects
 retained passive handshakes and stream windows. Valid final-ACK payload enters the
@@ -10,9 +23,10 @@ hard deadline and still permits a final ACK. Full normal240-second TIME-WAIT,
 reset/fd-close and buffer/table scrub have focused host evidence. Separate explicit
 abort cleanup requires detached threads and every fd closed; it claims no graceful
 wire completion. Descriptor/thread alias guards include network ownership. Native
-source3 wait completion/commit branches are feature guarded; their enabled EFI
-publication, combined NIC/profile invocation and actual guest exchange remain
-pending. No current issue or gate is accepted by this development slice.
+source3 wait completion/commit branches are feature guarded. Step1342 adds the
+combined NIC/profile source and C# compilation; enabled native publication and
+actual guest exchange remain pending. No current issue or gate is accepted by
+this development slice.
 
 [Step1340](../done/step1340.md) implements development-only bounded epoll over
 the shared socket descriptions. Packed Linux x64 events preserve all64 opaque
