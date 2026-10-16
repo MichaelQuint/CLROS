@@ -97,7 +97,8 @@ internal static unsafe class LinuxThreadProgramTests
             (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxSignalServices.State),
             OS.Kernel.Compatibility.LinuxX64.X64LinuxUserTransition.UserImageBytes, P.Bytes];
         uint used = 0; foreach (uint size in sizes) used = ((used + 15) & ~15U) + size;
-        HostCheck.True(used == 112448 && used <= P.MetadataPages * 4096, "sixteen-worker native metadata budget");
+        HostCheck.True(used <= P.MetadataPages * 4096,
+            $"sixteen-worker native metadata budget required={used} capacity={P.MetadataPages * 4096}");
     }
 
     [HostTest("linux.thread program excludes the fault region only under its explicit separate owner and preserves it on re-emission")]

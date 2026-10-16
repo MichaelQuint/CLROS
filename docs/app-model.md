@@ -725,9 +725,13 @@ historical ABI and evidence.
 envelope for the Minimal API's appsettings. Its bounded records, hashes,
 duplicate-path rejection, staged copy and read-only file access pass focused
 host checks. The canonical layout is in [the manifest specification](manifest.md#linux-elf-immutable-data-envelope-version-2).
-Actual V2 guest staging, manifest-backed file/config projection and application
-startup remain unqualified. The fresh Linux builder web/socket runs are
-component evidence, separate from CLROS guest application hosting.
+[Step1347](../done/step1347.md) adds three complete, byte-identical M16-002 V2
+staging guests. The exact8,682,537-byte package survives firmware exit with
+closed handles, a valid reservation ledger, read-only/NX ownership, and matching
+payload/whole-package hashes. This preserves immutable config bytes; entry stays
+false. Manifest-backed file/config projection and application startup remain
+unqualified, and stable batch acceptance is pending. Linux builder web/socket
+runs remain separate from CLROS guest application hosting.
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than

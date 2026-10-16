@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "248998bacd8a4a1631e761cf8446bba172dea82ccb1326671e0b8e3c9c268d02";
-    public const string CanonicalProjectSha256 = "9a7659e2bc42f606d29a7682c7c58bff477cd8e826a5add29f75cdadeaaaebca";
-    public const string EfiEntrySourceSha256 = "e936d5269174c0fcfdc13e5b43f20d3e606ae3c8d3c81ee615e904c05a748c39";
+    public const string ProjectSourceSha256 = "cc7a6188219b0011832a2f413aae86ba591cb2bd333ec9fbe403644079a3dbe3";
+    public const string CanonicalProjectSha256 = "a56b5d67e119f5493f2ebfa4b3bac3c946525228ed5cc0d9cb929ca1471ed9e1";
+    public const string EfiEntrySourceSha256 = "6fddd0f7d6c10db783eb0c1e3ed5cf2ebc3cdea12332176c524e94bd41be60e6";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";

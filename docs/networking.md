@@ -1,5 +1,13 @@
 # Networking
 
+[Step1347](../done/step1347.md) adds the complete sync runner pass, three
+byte-identical V2 package-staging guests, and six bounded original-native body
+reviews. The first stable full-host attempt fails nine profile/control checks
+before the native lane; all49 focused repair checks then pass. Direct MSBuild
+now explicitly excludes both socket leaves from the standalone cooperative
+profile. Full-host qualification, remaining call/stack closure, socket repetitions
+and affected ancestors still precede acceptance. No current issue closes.
+
 [Step1346](../done/step1346.md) records one complete live M16-012 runner pass
 with the original async socket ELF. Pending accept/receive/send are each1;
 four connections exchange61 request/65,572 response bytes, with two EOFs,
@@ -9,7 +17,7 @@ The external peer holds its first request until the accepted guest fd returns
 EAGAIN and its caller parks. This only controls stimulus; the sealed program,
 strict parent/scheduler/packet records and original process results still supply
 the evidence. The unchanged publisher and guest ELF are preserved. Full-host,
-original scoped native review, fresh sync, repetitions and affected ancestors
+remaining scoped native review, repetitions and affected ancestors
 remain pending before #689/#690 acceptance. No Kestrel gate advances.
 
 [Step1345](../done/step1345.md) wires the original sync/async socket packages,
