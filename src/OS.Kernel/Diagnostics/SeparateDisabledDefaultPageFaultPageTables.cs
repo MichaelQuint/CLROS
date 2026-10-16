@@ -170,10 +170,10 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
     public const ulong MaximumRangePages = 16;
     public const ulong MaximumTablePages = 55;
     public const ulong MaximumEntries = MaximumTablePages * EntriesPerPage;
-    // Original retained image plus the combined Linux thread/startup, PCI and
-    // APIC envelope and the second application backing span (40 declarations).
+    // Original retained image plus Linux thread/startup, APIC and the live
+    // polling NIC socket union (47 declarations, rounded to a bound of 48).
     // Writable UC ranges remain one page each; table/per-range caps are unchanged.
-    public const ulong MaximumRetainedRanges = 40;
+    public const ulong MaximumRetainedRanges = 48;
     public const ulong MaximumRetainedRangePages = 4096;
     public const ulong MaximumRetainedMappedPages = 12288;
     private const ulong LowCanonicalEnd = 0x0000_8000_0000_0000;

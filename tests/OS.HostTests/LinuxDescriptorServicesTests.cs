@@ -12,6 +12,7 @@ internal static unsafe class LinuxDescriptorServicesTests
         public LinuxMemoryServices.Admission Memory;
         public uint InputCopies, OutputCopies, SinkCalls, SinkBytes, Channel, FailInputAt;
         public bool FailOutput, FailSink;
+        public byte* RequiredOutputSource;
         public fixed byte Sink[8192];
     }
 
@@ -107,7 +108,7 @@ internal static unsafe class LinuxDescriptorServicesTests
     private static byte CopyOut(void* context, ulong address, byte* source, uint bytes)
     {
         Model* model = (Model*)context; model->OutputCopies++;
-        if (model->FailOutput) return 0;
+        if (model->FailOutput || model->RequiredOutputSource != null && model->RequiredOutputSource != source) return 0;
         for (uint i = 0; i < bytes; i++)
         { byte* target = UserByte(model, address + i, true); if (target == null) return 0; *target = source[i]; }
         return 1;

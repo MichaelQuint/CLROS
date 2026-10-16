@@ -1,18 +1,28 @@
 # Networking
 
-[Step1344](../done/step1344.md) adds the development socket leaf to the existing
-worker/signal/memory transcript protocol. Source3 waits share deadline/FIFO
-ordering with futex waits, retain their original port across fd reuse, and require
-actual wake/complete/resume or timer-free repark observations. Per-connection
-syscall byte totals, EOF/reset/shutdown and final descriptor closes must agree.
-New native poll records distinguish supervisor and selected-worker clocks and
-count actual idle steps; descriptor/signal winners are observed before subsequent
-clock advances. Immediate positive-timeout expiry retains its actual native
-deadline and call ordinal. A dedicated runner option provides captured modern
-usernet with loopback TCP forwarding. Eighty-two focused controls and enabled no-stdlib C#
-compilation pass. The complete package/peer/packet/parent QEMU orchestration is
-still guarded; no NativeAOT publication, full-host or socket guest acceptance is
-added, and #689/#690/#737 remain open.
+[Step1345](../done/step1345.md) wires the original sync/async socket packages,
+sealed instruction index, independent peer child, exact forward-port identity,
+full firmware/APIC/NIC parents and packet/transport cleanup checks. The original
+sync guest and peer complete four connections: 61 request bytes,65,572 reply bytes,
+two EOF cases, one reset and15 partial sends. Actual240-second TIME-WAIT retention,
+four transport retirements, four worker reaps, descriptor/buffer cleanup, NIC reset
+and allocator restoration are captured. The live outer run still fails its host
+checker; corrected report-only replay passes the captured leaf, parents, peer
+literals and packet checks. This is development evidence, not accepted #689/#690
+completion. Full-host, original native review, fresh complete runner validation,
+async and affected ancestor qualification remain pending. Kestrel remains incomplete.
+
+The combined profile now fits its47 retained mapping declarations and18-entry
+reservation ledger; every ledger append checks capacity before writing. The user
+root permits only borrowed, single-page, NX supervisor UC identity device mappings
+above4GiB within its64GiB virtual policy. They must remain outside the declared
+dynamic reservation; owned user backing and page tables stay below4GiB. Receive
+copies through the already admitted descriptor scratch extent and delivers queued
+bytes before a later reset error. It preserves unread TCP bytes on copy failure.
+The packet checker anchors after original firmware traffic and counts only the
+checked QEMU IPv6 router advertisement as ignored background traffic; this adds
+no application IPv6 support. Step1344's source3 deadline/FIFO, wake/repark,
+instruction/return and generation checks remain in force.
 
 [Step1343](../done/step1343.md) seals the original socket ELF's LLVM instruction
 lookup: 398,041 starts and186 syscall continuations, independently bound to all

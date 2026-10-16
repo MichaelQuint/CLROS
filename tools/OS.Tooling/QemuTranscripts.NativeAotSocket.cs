@@ -62,8 +62,10 @@ public static partial class QemuTranscripts
         private void SocketObservations(bool supervisor=false)
         {
             if(!socket)return;
-            while(Starts("M16_012_POLL ") || Starts("M16_012_WAKE "))
+            while(true)
             {
+                SocketTransportObservations();
+                if(!Starts("M16_012_POLL ") && !Starts("M16_012_WAKE "))break;
                 Need(socketObservations.TryGetValue(position,out var observed),"socket_observation_position");
                 if(observed.Kind==NativeAotSocketGuest.ObservationKind.Poll && observed.Identity!=(socketSelected?.Identity??0))break;
                 position++;
@@ -88,6 +90,18 @@ public static partial class QemuTranscripts
                 }
                 else Need(t!.EpollWinner==observed.Completion && t.Completion.HasValue,"socket_wake_winner");
                 t.EpollObserved=true;
+            }
+        }
+
+        private void SocketTransportObservations()
+        {
+            if(!socket)return;
+            while(position<rows.Length && IsSocketTransport(rows[position]))
+            {
+                var r=SocketTransport(Take());Need(r["clock"]<=long.MaxValue,"socket_transport_clock");
+                // Transport clocks do not advance the released thread table.
+                // The mandatory parent/packet consumer owns full handle/tuple,
+                // TIME-WAIT, retire, NIC and wire accounting for these rows.
             }
         }
 
@@ -182,7 +196,9 @@ public static partial class QemuTranscripts
                             (descriptor.StatusUnknown || (v&0x800)==(descriptor.Flags&0x800)),"socket_get_statusflags");
                         descriptor.Flags=(descriptor.Flags&~0x800U)|((uint)v&0x800);descriptor.StatusUnknown=false;break;
                     case 4:
-                        Need((c&~0x802UL)==0 && v==0,"socket_set_statusflags");
+                        // The unchanged musl path also supplies O_LARGEFILE;
+                        // the descriptor service ignores that access flag.
+                        Need((c&~0x8802UL)==0 && v==0,"socket_set_statusflags");
                         descriptor.Flags=(descriptor.Flags&~0x800U)|((uint)c&0x800);descriptor.StatusUnknown=false;break;
                     default:throw new ToolFailure("socket_unmeasured_fcntl");
                 }
@@ -276,11 +292,13 @@ public static partial class QemuTranscripts
                 (app!="NativeAotSocketSmokeAsync" || socketBlocks>0 && socketResumes>0),"socket_workload_lifetimes");
             foreach(int fd in Enumerable.Range(0,16).Where(fd=>fd<3 || files.Contains(fd) || fd==pipeRead || fd==pipeWrite).ToArray())
             {
+                SocketTransportObservations();
                 var close=Row("M16_011_CLOSE","fd:dec","valueBits:dec");
                 Need(close["fd"]==(ulong)fd && close["valueBits"]==0,"socket_final_close");
                 if(socketDescriptors.ContainsKey(fd))SocketClose(fd);else files.Remove(fd);
                 if(fd==pipeRead)pipeRead=0;if(fd==pipeWrite)pipeWrite=0;
             }
+            SocketTransportObservations();
             Need(socketDescriptors.Count==0 && pipeRead==0 && pipeWrite==0,"socket_final_descriptors");
         }
     }

@@ -42,7 +42,42 @@ internal static unsafe class LinuxSocketEfiProfileTests
             string? reason = null;
             try { _ = QemuProfiles.Create(QemuSmokeOptions.Parse(["--BuildEfi", "--" + leaf])); }
             catch (ToolFailure failure) { reason = failure.Reason; }
-            HostCheck.Equal("socket_guest_orchestration_pending", reason);
+            HostCheck.Equal("socket_disassembly_required", reason);
+        }
+    }
+
+    [HostTest("socket runner binds exact mode entropy final teardown markers and complete runtime drain budget")]
+    private static void GuestPlan()
+    {
+        foreach(bool asynchronous in new[]{false,true})
+        {
+            string leaf=asynchronous?"M16012":"M16011";
+            string[] args=["--BuildEfi","--Enable"+leaf+"Probe","--LinuxThreadingDisassembly","original-llvm.txt","--LinuxElfPackage","original.pkg","--DryRun"];
+            var options=QemuSmokeOptions.Parse(args);var plan=QemuProfiles.Create(options);
+            HostCheck.Equal(asynchronous?"NativeAotSocketSmokeAsync":"NativeAotSocketSmoke",options.LinuxThreadingApplication);
+            HostCheck.True(options.TimeoutSeconds==600&&options.FirmwareRngSource=="virtio");
+            HostCheck.Equal("TEST_PASS m16-"+(asynchronous?"012":"011"),plan.Ordered[^1]);
+            HostCheck.True(plan.Ordered.Contains("M16_011_BOUND")&&plan.Unique.Contains("M16_011_PEER"));
+            foreach(string[] extra in new string[][]{
+                ["--LinuxThreadingApplication",asynchronous?"NativeAotSocketSmoke":"NativeAotSocketSmokeAsync"],
+                ["--TimeoutSeconds","599"],["--LinuxElfImageVariant","DigestFault"],
+                ["--LinuxHelloDisassembly","hello.txt"],["--RequireMarker","CLROS_M07_026_READY"]})
+                Reject(()=>QemuProfiles.Create(QemuSmokeOptions.Parse([..args,..extra])));
+            List<string>? runner=null;
+            int result=QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(),options,TextWriter.Null,(name,arguments)=>
+            {
+                HostCheck.Equal("OS.QemuRunner",name);runner=arguments.ToList();
+                return Task.FromResult(new ProcessResult(0,"","",false,false,false,TimeSpan.Zero));
+            }).GetAwaiter().GetResult();
+            HostCheck.True(result==0&&runner is not null&&!runner.Contains("--continuing-network-peer")&&runner.Contains("--ethernet-capture"));
+            int port=runner!.IndexOf("--socket-forward-port");HostCheck.True(port>=0&&runner[port+1]=="20080");
+            HostCheck.True(runner.Sum(value=>value.Length+3)<30000,"socket runner command line remains bounded");
+            string root=HostToolProcess.FindRepositoryRoot();
+            var direct=ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..runner],root)
+                {Timeout=TimeSpan.FromSeconds(30),OutputCharacterLimit=128*1024},CancellationToken.None).GetAwaiter().GetResult();
+            HostCheck.True(direct.Succeeded,direct.FailureReason+direct.StandardOutput+direct.StandardError);
+            HostCheck.True(direct.StandardOutput.Contains("hostfwd=tcp:127.0.0.1:20080-:8080",StringComparison.Ordinal));
+            HostCheck.True(direct.StandardOutput.Contains("REQUIRED_MARKERS "+string.Join(';',plan.Required),StringComparison.Ordinal));
         }
     }
 

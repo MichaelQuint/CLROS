@@ -143,11 +143,14 @@ public static unsafe class TcpReceiveWindow
     /// <summary>Copy bounded unread bytes once, scrub consumed storage and
     /// schedule a window update. No data/short destination consumes nothing.
     /// Destination and result are distinct caller storage outside all ownership.
-    /// Sequence progress acknowledges receipt, not application consumption.</summary>
-    public static Status Read(Owner* owner, Span<byte> destination, out TcpEstablishedStreamReadResult result)
+    /// Sequence progress acknowledges receipt, not application consumption.
+    /// retainedClosed permits unread bytes from an actually closed, retained
+    /// table handle after the caller identifies its terminal error; it creates
+    /// no FIN/EOF and grants no authority over released or stale storage.</summary>
+    public static Status Read(Owner* owner, Span<byte> destination, out TcpEstablishedStreamReadResult result, bool retainedClosed = false)
     {
         result = default;
-        bool allowClosed = Storage(owner, (ulong)sizeof(Owner)) && owner->PeerClosed == 1;
+        bool allowClosed = Storage(owner, (ulong)sizeof(Owner)) && (owner->PeerClosed == 1 || retainedClosed);
         var status = Validate(owner, out var entry, allowClosed); if (status != Status.Success) return status;
         if (owner->PeerClosed != 0 && owner->Unread == 0) return Status.EndOfStream;
         fixed (byte* output = destination)

@@ -11,8 +11,9 @@ internal static class NativeAotSocketProtocolTests
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal)
             .Replace("packageBytes=1320176","packageBytes=2117424",StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal);
+        v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         v.Call(291,5,[0x80000]);v.Call(41,6,[2,0x80001,6]);
-        v.Call(16,0,[6,0x5421,0x500200]);v.Call(72,0x802,[6,3]);v.Call(72,0,[6,4,0x802]);
+        v.Call(16,0,[6,0x5421,0x500200]);v.Call(72,0x802,[6,3]);v.Call(72,0,[6,4,0x8802]);
         v.Call(49,0,[6,0x500200,16]);v.Call(50,0,[6,4]);v.Call(233,0,[5,1,6,0x500300]);
         var poller=v.Clone(2,2);var timed=v.Clone(3,3);
         v.Irq(10,3,3);v.Select(poller);
@@ -146,5 +147,6 @@ internal static class NativeAotSocketProtocolTests
         Reject(rows.Where(row=>!row.StartsWith("M16_008_CALL",StringComparison.Ordinal) || !row.Contains(" nr=48 ",StringComparison.Ordinal)),"linux_call_ordinal");
         Reject(rows.Where(row=>row!="M16_011_CLOSE fd=5 valueBits=0"),"record");
         Reject(rows.Select(row=>row=="M16_011_CLOSE fd=5 valueBits=0"?"M16_011_CLOSE fd=7 valueBits=0":row),"socket_final_close");
+        Reject(rows.Select(row=>row.Replace("a2=34818","a2=100354",StringComparison.Ordinal)),"socket_set_statusflags");
     }
 }

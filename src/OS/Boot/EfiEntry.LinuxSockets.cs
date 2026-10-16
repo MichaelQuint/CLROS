@@ -16,6 +16,15 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
         private const uint LinuxSocketConnections = 8, LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
+        // Borrowed observations only. A release is reported after the original
+        // handle becomes stale and its network slot disappears or is reused.
+        private struct LinuxSocketLifetime
+        {
+            internal TcpConnectionTable.Handle Handle;
+            internal TcpConnectionKey Key;
+            internal ulong MaximumDeadline, Duration;
+            internal uint Active, WaitObserved, DrainObserved;
+        }
         // Image-resident ownership outlives every borrowed callback, including a
         // rejected native transfer. Never reuse or free this storage after fault.
         private struct LinuxSocketStorage
@@ -27,10 +36,14 @@ public static unsafe partial class EfiEntry
             internal SocketNetwork.State Network;
             internal TcpConnectionTable.Owner Table;
             internal MacAddress Peer;
-            internal uint Phase, Failed;
+            internal uint Phase, Failed, Draining;
             internal ulong Polls, Received, Copied, Started;
+            internal ulong ResolveSent, ResolveReceived, ResolveStarted, ResolveEnded;
+            internal ulong ArpReceived, Accepted, Ignored, Capacity, ArpCopied;
+            internal ulong Fresh, Retired, Ended, MaximumDeadline;
             internal fixed byte Endpoints[2048], Ports[32], Registrations[2560], Slots[8192], Entries[1024];
             internal fixed ulong Generations[8];
+            internal fixed ulong Lifetimes[128];
             internal fixed ulong WakeIdentities[(int)LinuxNativeWorkers], WakeSequences[(int)LinuxNativeWorkers];
             internal fixed byte Buffers[327680], Input[1536], Output[1536];
         }
@@ -60,9 +73,21 @@ public static unsafe partial class EfiEntry
                     state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
                     state->ApicPhase == 2, device->Running, state, &RunOwnedLinuxSyscalls));
                 return ran && o->Phase == 3 && o->Failed == 0 &&
+                    LinuxText(state, "M16_011_WIRE received=") && LinuxNumber(state, o->Received) &&
+                    LinuxText(state, " arp=") && LinuxNumber(state, o->ArpReceived) &&
+                    LinuxText(state, " accepted=") && LinuxNumber(state, o->Accepted) &&
+                    LinuxText(state, " ignored=") && LinuxNumber(state, o->Ignored) &&
+                    LinuxText(state, " capacity=") && LinuxNumber(state, o->Capacity) &&
+                    LinuxText(state, " arpCopied=") && LinuxNumber(state, o->ArpCopied) &&
+                    LinuxText(state, " tcpCopied=") && LinuxNumber(state, o->Copied) && LinuxText(state, "\r\n") &&
                     LinuxText(state, "M16_011_END polls=") && LinuxNumber(state, o->Polls) &&
                     LinuxText(state, " received=") && LinuxNumber(state, o->Received) &&
                     LinuxText(state, " copied=") && LinuxNumber(state, o->Copied) &&
+                    LinuxText(state, " fresh=") && LinuxNumber(state, o->Fresh) &&
+                    LinuxText(state, " retired=") && LinuxNumber(state, o->Retired) &&
+                    LinuxText(state, " start=") && LinuxNumber(state, o->Started) &&
+                    LinuxText(state, " end=") && LinuxNumber(state, o->Ended) &&
+                    LinuxText(state, " maxDeadline=") && LinuxNumber(state, o->MaximumDeadline) &&
                     LinuxText(state, " retained=0 buffers=scrubbed descriptors=closed workers=reaped\r\n");
             }
         }
@@ -75,7 +100,9 @@ public static unsafe partial class EfiEntry
                     state->LinuxView.Manifest.Ipv4 != 0 || state->LinuxView.Manifest.Port != 8080 ||
                     sizeof(LinuxSocketServices.Endpoint) * 16 > 2048 || sizeof(LinuxEpollServices.Port) * 4 > 32 ||
                     sizeof(LinuxEpollServices.Registration) * 64 > 2560 || sizeof(SocketNetwork.Slot) * 8 > 8192 ||
-                    sizeof(TcpConnectionTableEntry) * 8 > 1024 || !ReadNetworkTime(state, out ulong now)) return false;
+                    sizeof(TcpConnectionTableEntry) * 8 > 1024 || (sizeof(LinuxSocketLifetime) & 7) != 0 ||
+                    sizeof(LinuxSocketLifetime) * 8 > 1024 ||
+                    !ReadNetworkTime(state, out ulong now)) return false;
                 if (!LinuxSocketServices.Begin(&o->Sockets, &state->LinuxDescriptors, (LinuxSocketServices.Endpoint*)o->Endpoints,
                         16, new(10, 0, 2, 15), 8080) ||
                     !LinuxEpollServices.Begin(&o->Epoll, &state->LinuxDescriptors, (LinuxEpollServices.Port*)o->Ports, 4,
@@ -101,6 +128,7 @@ public static unsafe partial class EfiEntry
             var request = new ArpPacket(ArpPacket.OperationRequest, localMac, local, default, new(10, 0, 2, 2));
             if (EthernetHeader.TryWrite(tx, new(new(255, 255, 255, 255, 255, 255), localMac, EthernetHeader.EtherTypeArp)) != PacketParseStatus.Success ||
                 ArpPacket.TryWrite(tx.Slice(14), request, out _) != PacketParseStatus.Success || !ReadNetworkTime(o->Boot, out ulong now) || now > ~0UL - 2_000_000_000) return false;
+            o->ResolveStarted = now;
             ulong deadline = now + 2_000_000_000; bool sent = false;
             for (uint poll = 0; poll < 1_000_000; poll++)
             {
@@ -110,9 +138,20 @@ public static unsafe partial class EfiEntry
                     var copy = NetDevice.Send(o->Device, tx.Slice(0, 60));
                     if (copy is not (NetDevice.Status.Success or NetDevice.Status.Full)) return false;
                     sent = copy == NetDevice.Status.Success;
+                    if (sent) o->ResolveSent++;
                 }
                 var received = NetDevice.Receive(o->Device, rx, out uint bytes);
-                if (received == NetDevice.Status.Success && NetworkArpReply(rx.Slice(0, (int)bytes), localMac, local, new(10, 0, 2, 2), out o->Peer)) return true;
+                if (received == NetDevice.Status.Success)
+                {
+                    o->ResolveReceived++;
+                    if (NetworkArpReply(rx.Slice(0, (int)bytes), localMac, local, new(10, 0, 2, 2), out o->Peer))
+                        return ReadNetworkTime(o->Boot, out o->ResolveEnded) &&
+                            LinuxText(o->Boot, "M16_011_PEER mac=") && LinuxNumber(o->Boot, PackNetworkMac(o->Peer)) &&
+                            LinuxText(o->Boot, " sent=") && LinuxNumber(o->Boot, o->ResolveSent) &&
+                            LinuxText(o->Boot, " received=") && LinuxNumber(o->Boot, o->ResolveReceived) &&
+                            LinuxText(o->Boot, " start=") && LinuxNumber(o->Boot, o->ResolveStarted) &&
+                            LinuxText(o->Boot, " end=") && LinuxNumber(o->Boot, o->ResolveEnded) && LinuxText(o->Boot, "\r\n");
+                }
                 if (received is not (NetDevice.Status.Success or NetDevice.Status.Empty) || !ReadNetworkTime(o->Boot, out now) || now >= deadline) return false;
             }
             return false;
@@ -120,7 +159,8 @@ public static unsafe partial class EfiEntry
 
         private static bool PumpLinuxSocketFrames(LinuxSocketStorage* o)
         {
-            if (o->Phase != 2 || o->Failed != 0 || !o->Device->Running || NetDevice.Poll(o->Device, 8, out _) != NetDevice.Status.Success) return false;
+            if (o->Phase != 2 || o->Failed != 0 || !o->Device->Running ||
+                NetDevice.Poll(o->Device, 8, out _) != NetDevice.Status.Success || !ObserveLinuxSocketLifetimes(o)) return false;
             Span<byte> input = new(o->Input, 1514), output = new(o->Output, 1514); o->Polls++;
             for (uint i = 0; i < 8; i++)
             {
@@ -131,6 +171,7 @@ public static unsafe partial class EfiEntry
                 if (EthernetHeader.TryParse(frame, out var ethernet, out var payload) == PacketParseStatus.Success &&
                     ethernet.EtherType == EthernetHeader.EtherTypeArp)
                 {
+                    o->ArpReceived++;
                     if (ArpPacket.TryParse(payload, out var arp) == PacketParseStatus.Success && arp.Operation == ArpPacket.OperationRequest &&
                         arp.SenderMac == o->Peer && arp.SenderAddress == new Ipv4Address(10, 0, 2, 2) && arp.TargetAddress == new Ipv4Address(10, 0, 2, 15))
                     {
@@ -139,14 +180,84 @@ public static unsafe partial class EfiEntry
                             ArpPacket.TryWrite(output.Slice(14), new(ArpPacket.OperationReply, mac, arp.TargetAddress, o->Peer, arp.SenderAddress), out _) != PacketParseStatus.Success) return false;
                         var copied = NetDevice.Send(o->Device, output.Slice(0, 60));
                         if (copied is not (NetDevice.Status.Success or NetDevice.Status.Full)) return false;
+                        if (copied == NetDevice.Status.Success) o->ArpCopied++;
                     }
                     continue;
                 }
                 var accepted = SocketNetwork.Receive(&o->Network, frame, output);
-                if (accepted is not (SocketNetwork.Status.Success or SocketNetwork.Status.Ignored or SocketNetwork.Status.Capacity)) return false;
+                if (accepted == SocketNetwork.Status.Success) o->Accepted++;
+                else if (accepted == SocketNetwork.Status.Ignored) o->Ignored++;
+                else if (accepted == SocketNetwork.Status.Capacity) o->Capacity++;
+                else return false;
+                if (!ObserveLinuxSocketLifetimes(o)) return false;
             }
-            return SocketNetwork.Pump(&o->Network, output) == SocketNetwork.Status.Success && o->Failed == 0;
+            return ObserveLinuxSocketLifetimes(o) && SocketNetwork.Pump(&o->Network, output) == SocketNetwork.Status.Success &&
+                o->Failed == 0 && ObserveLinuxSocketLifetimes(o);
         }
+
+        // Serialized snapshots surround each transport mutation. Fixed storage
+        // tracks at most one current lifetime per network slot; no packet logs,
+        // callbacks, table mutations or synthetic retirement are introduced.
+        private static bool ObserveLinuxSocketLifetimes(LinuxSocketStorage* o)
+        {
+            if (o->Network.Count != LinuxSocketConnections || !ReadNetworkTime(o->Boot, out ulong now)) return false;
+            var observations = (LinuxSocketLifetime*)o->Lifetimes;
+            for (uint i = 0; i < LinuxSocketConnections; i++)
+            {
+                var slot = o->Network.Slots + i; var held = observations + i;
+                var handle = slot->Handshake.Connection;
+                bool same = held->Active != 0 && handle.OwnerAddress == held->Handle.OwnerAddress &&
+                    handle.Epoch == held->Handle.Epoch && handle.Generation == held->Handle.Generation && handle.Index == held->Handle.Index;
+                if (held->Active != 0 && (slot->Phase == 0 || !same))
+                {
+                    if (TcpConnectionTable.ReadOwned(&o->Table, held->Handle, out _) != TcpConnectionTable.OwnershipStatus.StaleHandle ||
+                        !WriteLinuxSocketLifetime(o, "M16_011_SLOT event=1", i, held, now) ||
+                        !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, held->MaximumDeadline) ||
+                        !LinuxText(o->Boot, " duration=") || !LinuxNumber(o->Boot, held->Duration) || !LinuxText(o->Boot, "\r\n")) return false;
+                    o->Retired++; *held = default;
+                }
+                if (slot->Phase == 0) continue;
+                if (handle.OwnerAddress != (ulong)&o->Table ||
+                    TcpConnectionTable.ReadOwned(&o->Table, handle, out var entry) != TcpConnectionTable.OwnershipStatus.Success) return false;
+                if (held->Active == 0)
+                {
+                    held->Handle = handle; held->Key = entry.Key; held->Active = 1;
+                    if (!WriteLinuxSocketLifetime(o, "M16_011_SLOT event=0", i, held, now) ||
+                        !LinuxText(o->Boot, " deadline=0 duration=0\r\n")) return false;
+                    o->Fresh++;
+                }
+                else if (!held->Key.HasSameEndpoint(entry.Key)) return false;
+                if (slot->Phase < 2 || slot->Sender.CloseState != TcpConnectionCloseState.TimeWait) continue;
+                ulong deadline = slot->Sender.TimeWaitDeadlineNanoseconds, duration = slot->Sender.TimeWaitDuration;
+                if (deadline == 0 || duration == 0) return false;
+                if (deadline > held->MaximumDeadline) held->MaximumDeadline = deadline;
+                if (deadline > o->MaximumDeadline) o->MaximumDeadline = deadline;
+                held->Duration = duration;
+                bool draining = o->Draining != 0;
+                if (held->WaitObserved != 0 && (!draining || held->DrainObserved != 0)) continue;
+                if (!WriteLinuxSocketLifetime(o, "M16_011_TIMEWAIT", i, held, now) ||
+                    !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, deadline) ||
+                    !LinuxText(o->Boot, " duration=") || !LinuxNumber(o->Boot, duration) ||
+                    !LinuxText(o->Boot, " drain=") || !LinuxNumber(o->Boot, draining ? 1UL : 0UL) || !LinuxText(o->Boot, "\r\n")) return false;
+                held->WaitObserved = 1; if (draining) held->DrainObserved = 1;
+            }
+            return true;
+        }
+
+        private static bool WriteLinuxSocketLifetime(LinuxSocketStorage* o, string marker, uint index, LinuxSocketLifetime* held, ulong now) =>
+            LinuxText(o->Boot, marker) && LinuxText(o->Boot, " slot=") && LinuxNumber(o->Boot, index) &&
+            LinuxText(o->Boot, " owner=") && LinuxNumber(o->Boot, held->Handle.OwnerAddress) &&
+            LinuxText(o->Boot, " epoch=") && LinuxNumber(o->Boot, held->Handle.Epoch) &&
+            LinuxText(o->Boot, " generation=") && LinuxNumber(o->Boot, held->Handle.Generation) &&
+            LinuxText(o->Boot, " index=") && LinuxNumber(o->Boot, held->Handle.Index) &&
+            LinuxText(o->Boot, " local=") && LinuxNumber(o->Boot, PackLinuxSocketAddress(held->Key.LocalAddress)) &&
+            LinuxText(o->Boot, " localPort=") && LinuxNumber(o->Boot, held->Key.LocalPort) &&
+            LinuxText(o->Boot, " remote=") && LinuxNumber(o->Boot, PackLinuxSocketAddress(held->Key.RemoteAddress)) &&
+            LinuxText(o->Boot, " remotePort=") && LinuxNumber(o->Boot, held->Key.RemotePort) &&
+            LinuxText(o->Boot, " clock=") && LinuxNumber(o->Boot, now);
+
+        private static uint PackLinuxSocketAddress(Ipv4Address address) => ((uint)address.Octet0 << 24) |
+            ((uint)address.Octet1 << 16) | ((uint)address.Octet2 << 8) | address.Octet3;
 
         private static bool PollLinuxSocketNetwork(LinuxNativeControl* c, bool observe = true)
         {
@@ -214,6 +325,8 @@ public static unsafe partial class EfiEntry
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
             {
                 if (o->Boot != state || o->Phase != 2 || state->LinuxDescriptors.ThreadOwner != 0) return false;
+                if (!abort)
+                { o->Draining = 1; if (!ObserveLinuxSocketLifetimes(o)) return false; }
                 for (uint fd = 0; fd < LinuxDescriptorServices.MaximumDescriptors; fd++)
                     if (LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out _))
                     {
@@ -230,8 +343,10 @@ public static unsafe partial class EfiEntry
                     ulong deadline = now + 270_000_000_000;
                     while (o->Network.RetainedConnections != 0)
                         if (!PumpLinuxSocketFrames(o) || !ReadNetworkTime(state, out now) || now >= deadline) return false;
+                    if (!ObserveLinuxSocketLifetimes(o) || o->Fresh != o->Retired) return false;
                 }
                 if (!SocketNetwork.End(&o->Network) || TcpConnectionTable.RetireOwned(&o->Table) != TcpConnectionTable.OwnershipStatus.Success) return false;
+                if (!abort && (!ReadNetworkTime(state, out o->Ended) || o->Ended < o->MaximumDeadline)) return false;
                 o->Phase = 3; return true;
             }
         }

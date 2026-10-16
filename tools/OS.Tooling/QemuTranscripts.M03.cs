@@ -5,8 +5,11 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false,NativeAotSocketProgram? socketProgram=null)
     {
+        bool socket=socketProgram is not null;
+        Need(!socket || networkService&&linuxThreads&&linuxSignals&&linuxDescriptors&&linuxMemory&&linuxSyscalls&&linuxStartup&&workloadServiceLoop&&
+            apicSetup&&virtioNegotiation&&virtqueuePolling&&virtioNet&&arpReceive&&!virtqueueInterrupt&&helloProgram is null&&threadingProgram is null&&runtimeProgram is null,"socket_parent_profile");
         Need(!cooperativeSwitch || !kernelThreads && !waitAddress && !privateTls && firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation &&
             !physicalMapping && !ownedAcpiSelection && !monotonicClock && !pciEnumeration && !barDma &&
             !virtioNegotiation && !virtqueuePolling && !apicSetup && !virtqueueInterrupt && !virtioBlockQueueSetup &&
@@ -41,7 +44,7 @@ public static partial class QemuTranscripts
         Need(!barDma || pciEnumeration, "m05_bar_dma_requires_pci");
         Need(!virtioNegotiation || pciEnumeration && !barDma, "m05_virtio_requires_exclusive_pci");
         Need(!virtqueuePolling || virtioNegotiation, "m05_queue_requires_negotiation");
-        Need(!apicSetup || pciEnumeration && !barDma && !virtqueuePolling && (!virtioNegotiation || virtqueueInterrupt), "m05_apic_profile_invalid");
+        Need(!apicSetup || pciEnumeration && !barDma && (!virtqueuePolling || socket) && (!virtioNegotiation || virtqueueInterrupt || socket), "m05_apic_profile_invalid");
         Need(!virtqueueInterrupt || apicSetup && virtioNegotiation && !virtqueuePolling, "m05_irq_profile_invalid");
         Need(!virtioBlockQueueSetup || pciEnumeration && !barDma && !virtioNegotiation && (!apicSetup || blockMsix) && !virtqueuePolling && !virtqueueInterrupt, "m06_block_queue_profile_invalid");
         Need(!virtioBlockRead || virtioBlockQueueSetup, "m06_block_read_requires_queue");
@@ -74,9 +77,17 @@ public static partial class QemuTranscripts
         Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
         Need(runtimeProgram is null || linuxSignals && helloProgram is null && threadingProgram is null, "runtime_profile_invalid");
         if (networkService) terminal = "TEST_PASS m07-026\r\n";
-        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads);
+        if(socket)terminal=NativeAotSocketSelection.Terminal(socketProgram!.Asynchronous).Pass+"\r\n";
+        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads,socketProgram);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
+        if(socket)
+        {
+            var combined=ValidateSocketNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),socketProgram!);
+            AssertSocketCapture(path+".pcap",combined.Proof);lines=combined.Parent;
+            networkService=linuxThreads=linuxSignals=linuxDescriptors=linuxMemory=linuxSyscalls=linuxStartup=workloadServiceLoop=false;
+            virtioNegotiation=virtqueuePolling=virtioNet=arpReceive=false;linuxElfPackagePath="";
+        }
         if (networkService)
         {
             Need(arpReceive && workloadServiceLoop && linuxElfPackagePath.Length != 0 &&

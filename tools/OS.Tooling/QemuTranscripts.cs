@@ -67,13 +67,14 @@ public static partial class QemuTranscripts
     }
     internal static string[] FirmwareProtocol(string path, string terminal, bool noSuffix, bool allowShortSuffix, string reason, bool blockBoot = false,
         NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null,
-        bool linuxThreads = false)
+        bool linuxThreads = false,NativeAotSocketProgram? socketProgram=null)
     {
         byte[] bytes = File.ReadAllBytes(path);
         int prefixBytes = blockBoot ? QemuContracts.BlockFirmwarePrefixBytes : FirmwarePrefixBytes;
         string prefixHash = blockBoot ? QemuContracts.BlockFirmwarePrefixSha256 : FirmwarePrefixSha256;
         Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
         Need(runtimeProgram is null || helloProgram is null && threadingProgram is null,"runtime_program_conflict");
+        Need(socketProgram is null || helloProgram is null && threadingProgram is null && runtimeProgram is null,"socket_program_conflict");
         // Thread diagnostics include complete call/return/wait images. The
         // declared profile still requires its exact bounded leaf afterward.
         Need(bytes.Length >= prefixBytes && bytes.Length <= (!linuxThreads && helloProgram is null && threadingProgram is null && runtimeProgram is null ? 32768 : 8 * 1024 * 1024), reason + "_raw_extent");
@@ -96,6 +97,7 @@ public static partial class QemuTranscripts
         if (helloProgram is not null) owned = NormalizeHelloWrites(owned);
         if (threadingProgram is not null) owned = NormalizeThreadingWrites(owned,threadingProgram.Application);
         if (runtimeProgram is not null) owned = NormalizeRuntimeWrites(owned,runtimeProgram.Application);
+        if (socketProgram is not null) owned = NormalizeSocketWrites(owned,socketProgram.Asynchronous);
         Need(!Regex.IsMatch(owned, @"[^\x20-\x7E\r\n]"), reason + "_non_ascii");
         string[] split = owned.Split("\r\n", StringSplitOptions.None);
         Need(split[^1].Length == 0 && split[..^1].All(x => !x.Contains('\r') && !x.Contains('\n')), reason + "_framing");

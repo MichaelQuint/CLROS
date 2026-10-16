@@ -116,7 +116,9 @@ public static unsafe class LinuxMemoryServices
         for (uint i = 0; i < memory.StaticCount; i++)
             if (memory.StaticRanges[i].Pages > 32768 ||
                 Overlap(memory.StaticRanges[i].PhysicalStart, memory.StaticRanges[i].Pages * Page, memory.PoolPhysical, memory.PoolPages * Page) ||
-                Overlap(memory.StaticRanges[i].VirtualStart, memory.StaticRanges[i].Pages * Page, DynamicStart, X64UserAddressSpace.UserEnd - DynamicStart))
+                (Overlap(memory.StaticRanges[i].VirtualStart, memory.StaticRanges[i].Pages * Page, DynamicStart, X64UserAddressSpace.UserEnd - DynamicStart) &&
+                    (!X64UserAddressSpace.IsRetainedHighDevice(memory.StaticRanges[i]) ||
+                    Overlap(memory.StaticRanges[i].VirtualStart, memory.StaticRanges[i].Pages * Page, DynamicStart, memory.ReservationBytes))))
                 return false;
         X64UserAddressSpace.Clear(memory.CandidateTables, memory.TablePages);
         var root = X64UserAddressSpace.Build(memory.StaticRanges, memory.StaticCount,

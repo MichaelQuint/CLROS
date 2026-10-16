@@ -230,20 +230,24 @@ public static unsafe class LinuxSocketServices
         Endpoint* e = state->Slots + index;
         if (e->Phase != Connected) return NotConnected;
         if (!Connection(e, out var entry)) return -5;
-        if (e->Sender->CloseState == TcpConnectionCloseState.Reset)
+        bool reset = e->Sender->CloseState == TcpConnectionCloseState.Reset;
+        if (reset && e->Receiver->UnreadBytes == 0)
         { if (e->ErrorConsumed != 0) return 0; e->ErrorConsumed = 1; return Reset; }
         if (requested == 0 || e->ReadShutdown != 0) return 0;
-        if (entry.State == TcpConnectionLifecycleState.Closed && e->Receiver->PeerClosed == 0) return -5;
+        if (entry.State == TcpConnectionLifecycleState.Closed && e->Receiver->PeerClosed == 0 && !reset) return -5;
         var a = state->Descriptors->Owner; var receiver = e->Receiver;
-        if (TcpReceiveWindow.Validate(receiver, out _, receiver->PeerClosed != 0) != TcpReceiveWindow.Status.Success) return -5;
+        if (TcpReceiveWindow.Validate(receiver, out _, receiver->PeerClosed != 0 || reset) != TcpReceiveWindow.Status.Success) return -5;
         if (receiver->UnreadBytes == 0) return receiver->EndOfStream ? 0 :
             Nonblocking(state, index) || (flags & 0x40) != 0 ? Again : Unsupported;
         uint bytes = (uint)(requested < a.ScratchBytes ? requested : a.ScratchBytes);
         if (bytes > receiver->UnreadBytes) bytes = (uint)receiver->UnreadBytes;
         // Copy-out may fail even after page validation. Leave the TCP window
         // untouched until the entire borrowed prefix has reached user memory.
-        if (!LinuxDescriptorServices.Output(state->Descriptors, address, receiver->Buffer + receiver->Offset, bytes)) return Fault;
-        return TcpReceiveWindow.Read(receiver, new Span<byte>(a.Scratch, (int)bytes), out var read) == TcpReceiveWindow.Status.Success &&
+        // The native copy boundary admits the descriptor scratch extent, not
+        // an arbitrary transport-owned receive buffer.
+        for (uint i = 0; i < bytes; i++) a.Scratch[i] = receiver->Buffer[receiver->Offset + i];
+        if (!LinuxDescriptorServices.Output(state->Descriptors, address, a.Scratch, bytes)) return Fault;
+        return TcpReceiveWindow.Read(receiver, new Span<byte>(a.Scratch, (int)bytes), out var read, reset) == TcpReceiveWindow.Status.Success &&
             read.BytesRead == bytes ? bytes : -5;
     }
 

@@ -74,7 +74,9 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
-#if M07_026_PROBE
+#if M16_011_PROBE
+            18;
+#elif M07_026_PROBE
             11;
 #elif M16_008_PROBE
             17;
@@ -398,10 +400,13 @@ public static unsafe partial class EfiEntry
             }
             state->PreparationCheckpoint = 30;
             SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
-            if (!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) ||
-                !FirstExitImageMappings.Contains(ranges, count, references.AdapterState, references.AdapterStateBytes, PageProtection.Read | PageProtection.Write) ||
-                !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
-                !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
+            if (!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count)) return false;
+            state->PreparationCheckpoint = 301;
+            if (!FirstExitImageMappings.Contains(ranges, count, references.AdapterState, references.AdapterStateBytes, PageProtection.Read | PageProtection.Write)) return false;
+            state->PreparationCheckpoint = 302;
+            if (!FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write)) return false;
+            state->PreparationCheckpoint = 303;
+            if (!FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE || M07_026_PROBE
             state->PreparationCheckpoint = 34;
@@ -1050,30 +1055,30 @@ public static unsafe partial class EfiEntry
         {
             BootReservedRange* ledger = (BootReservedRange*)state->LinuxLedger;
             if ((ulong)sizeof(BootReservedRange) > 64 || !M01StageTwoAdapter.CopyOriginalExitReservations(ledger, LinuxLedgerCapacity, out uint count) || count != 5) return false;
-            if (!LinuxReservation(BootReservationKind.LinuxElfPackage, state->LinuxPackage, state->LinuxPages, ledger + count++) ||
-                !LinuxReservation(BootReservationKind.Cr3TransitionStub, code, FirstExitCodeBundle.Bytes / 4096, ledger + count++) ||
-                !LinuxReservation(BootReservationKind.DiagnosticState, data, FirstExitOwnedArena.PageCount, ledger + count++) ||
-                !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.LinuxElfPackage, state->LinuxPackage, state->LinuxPages, ledger, ref count) ||
+                !LinuxReservation(BootReservationKind.Cr3TransitionStub, code, FirstExitCodeBundle.Bytes / 4096, ledger, ref count) ||
+                !LinuxReservation(BootReservationKind.DiagnosticState, data, FirstExitOwnedArena.PageCount, ledger, ref count) ||
+                !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger, ref count)) return false;
 #if M07_026_PROBE
-            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->NetworkArena, 8, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->NetworkArena, 8, ledger, ref count)) return false;
 #endif
 #if M16_004_PROBE
-            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger + count++) ||
-                !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger, ref count) ||
+                !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, ledger, ref count)) return false;
 #endif
 #if M16_005_PROBE
-            if (!LinuxReservation(BootReservationKind.LinuxSyscallCode, state->LinuxSyscallCode, 1, ledger + count++) ||
-                !LinuxReservation(BootReservationKind.LinuxSyscallData, state->LinuxSyscallData, X64LinuxUserTransition.DataPages, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.LinuxSyscallCode, state->LinuxSyscallCode, 1, ledger, ref count) ||
+                !LinuxReservation(BootReservationKind.LinuxSyscallData, state->LinuxSyscallData, X64LinuxUserTransition.DataPages, ledger, ref count)) return false;
 #endif
 #if M16_006_PROBE
-            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxMemoryPool, LinuxMemoryPoolPages(state), ledger + count++) ||
-                !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxMemoryPool, LinuxMemoryPoolPages(state), ledger, ref count) ||
+                !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables, ledger, ref count)) return false;
 #endif
 #if M16_007_PROBE
-            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->LinuxDescriptorArena, LinuxDescriptorPages, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->LinuxDescriptorArena, LinuxDescriptorPages, ledger, ref count)) return false;
 #endif
 #if M16_008_PROBE || M07_026_PROBE
-            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->CooperativePool, CooperativePoolPages, ledger + count++)) return false;
+            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->CooperativePool, CooperativePoolPages, ledger, ref count)) return false;
 #endif
             for (uint i = 1; i < count; i++)
             {
@@ -1088,11 +1093,13 @@ public static unsafe partial class EfiEntry
             if (!BootReservationTableValidator.Validate(ledger, count, LinuxLedgerCapacity).Succeeded) return false;
             state->LinuxLedgerCount = count; return true;
         }
-        private static bool LinuxReservation(BootReservationKind kind, ulong address, ulong pages, BootReservedRange* output)
+        private static bool LinuxReservation(BootReservationKind kind, ulong address, ulong pages, BootReservedRange* ledger, ref uint count)
         {
-            if (PhysicalAddress.TryCreateFromUefiBoundary(address, out var physical) != AddressValueStatus.Success ||
+            // Bound every append before writing, including partially prepared
+            // combined profiles. A rejected entry does not advance the ledger.
+            if (count >= LinuxLedgerCapacity || PhysicalAddress.TryCreateFromUefiBoundary(address, out var physical) != AddressValueStatus.Success ||
                 BootReservedRange.TryCreate(kind, physical, pages, out var value) != BootReservedRangeStatus.Success) return false;
-            *output = value; return true;
+            ledger[count++] = value; return true;
         }
 
         // The combined profile reserves workers first. Reject an aliased Linux
@@ -1198,30 +1205,30 @@ public static unsafe partial class EfiEntry
             byte* manifest = (byte*)state->LinuxPackage + view.ManifestOffset;
             byte* bridge = state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset;
             byte* cpu = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
-            if (!X64LinuxElfReadBackBridge.Validate(bridge, X64LinuxElfReadBackBridge.Bytes) ||
-                !X64OwnedClockAccess.Validate(cpu, X64OwnedClockAccess.Bytes)) return FailLinuxStartup(state);
+            if (!X64LinuxElfReadBackBridge.Validate(bridge, X64LinuxElfReadBackBridge.Bytes)) return FailLinuxStartup(state, 1);
+            if (!X64OwnedClockAccess.Validate(cpu, X64OwnedClockAccess.Bytes)) return FailLinuxStartup(state, 2);
             var cpuid = (delegate* unmanaged<uint, uint, uint*, void>)(cpu + X64OwnedClockAccess.CpuidOffset);
             uint* words = stackalloc uint[4]; cpuid(0, 0, words);
-            if (words[0] < 1) return FailLinuxStartup(state);
+            if (words[0] < 1) return FailLinuxStartup(state, 3);
             cpuid(1, 0, words); state->LinuxHwcap = words[3];
             if (LinuxElfMapping.Materialize(elf, view.PayloadBytes, view.Manifest.MemoryBytes, view.Manifest.StackBytes,
-                (byte*)state->LinuxImageBacking, (uint)state->LinuxImagePlan.ImageBytes, out state->LinuxImagePlan) != LinuxElfMaterializeStatus.Ready ||
-                LinuxElfStartup.Build(manifest, view.ManifestBytes, elf, view.PayloadBytes, state->LinuxEntropyRetained.Data, 32,
+                (byte*)state->LinuxImageBacking, (uint)state->LinuxImagePlan.ImageBytes, out state->LinuxImagePlan) != LinuxElfMaterializeStatus.Ready) return FailLinuxStartup(state, 4);
+            if (LinuxElfStartup.Build(manifest, view.ManifestBytes, elf, view.PayloadBytes, state->LinuxEntropyRetained.Data, 32,
                     (byte*)(state->LinuxImageBacking + state->LinuxImagePlan.ImageBytes), view.Manifest.StackBytes,
-                    0x70000000UL - view.Manifest.StackBytes, state->LinuxHwcap, out state->LinuxInitialStack) != LinuxElfStartupStatus.Ready ||
-                !BuildLinuxUserRanges(state)) return FailLinuxStartup(state);
+                    0x70000000UL - view.Manifest.StackBytes, state->LinuxHwcap, out state->LinuxInitialStack) != LinuxElfStartupStatus.Ready) return FailLinuxStartup(state, 5);
+            if (!BuildLinuxUserRanges(state)) return FailLinuxStartup(state, 6);
             state->LinuxUserRoot = X64UserAddressSpace.Build((X64UserMappingRange*)state->LinuxUserRanges, state->LinuxUserRangeCount,
                 (ulong*)state->LinuxUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, state->Memory.Tables.Preconditions);
-            if (!state->LinuxUserRoot.Succeeded) return FailLinuxStartup(state);
+            if (!state->LinuxUserRoot.Succeeded) return FailLinuxStartup(state, 7);
             var readCr3 = (delegate* unmanaged<ulong>)(bridge + X64LinuxElfReadBackBridge.ReadCr3Offset);
             ulong original = readCr3();
-            if (original != (ulong)state->Memory.Entries) return FailLinuxStartup(state);
+            if (original != (ulong)state->Memory.Entries) return FailLinuxStartup(state, 8);
             state->LinuxStartupPhase = 4;
             var enter = (delegate* unmanaged<ulong, void*, delegate* unmanaged<void*, byte>, byte>)bridge;
             byte readBack = enter(state->LinuxUserRoot.Root, state, &ReadLinuxUserRoot);
             if (readCr3() != original) return false; // No clearing while this root could still be active.
             if (readBack != 1 || state->LinuxStartupPhase != 5 || !ScrubLinuxEntropy(state) ||
-                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return FailLinuxStartup(state);
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return FailLinuxStartup(state, 9);
             state->LinuxStartupPhase = 6;
             return LinuxText(state, "M16_004_IMAGE base=") && LinuxNumber(state, state->LinuxImagePlan.ImageStart) &&
                 LinuxText(state, " bytes=") && LinuxNumber(state, state->LinuxImagePlan.ImageBytes) &&
@@ -1265,8 +1272,23 @@ public static unsafe partial class EfiEntry
             state->LinuxStartupPhase = 5; return 1;
         }
 
-        private static bool FailLinuxStartup(Storage* state)
+        private static bool FailLinuxStartup(Storage* state, uint stage)
         {
+            _ = LinuxText(state, "M16_004_REJECTED stage=") && LinuxNumber(state, stage) &&
+                LinuxText(state, " rootStatus=") && LinuxNumber(state, (uint)state->LinuxUserRoot.Status) &&
+                LinuxText(state, " ranges=") && LinuxNumber(state, state->LinuxUserRangeCount) && LinuxText(state, "\r\n");
+            if (stage == 7)
+                for (uint i = 0; i < state->LinuxUserRangeCount && i < X64UserAddressSpace.MaximumRanges; i++)
+                {
+                    var range = ((X64UserMappingRange*)state->LinuxUserRanges)[i];
+                    _ = LinuxText(state, "M16_004_REJECT_RANGE index=") && LinuxNumber(state, i) &&
+                        LinuxText(state, " virtual=") && LinuxNumber(state, range.VirtualStart) &&
+                        LinuxText(state, " physical=") && LinuxNumber(state, range.PhysicalStart) &&
+                        LinuxText(state, " pages=") && LinuxNumber(state, range.Pages) &&
+                        LinuxText(state, " protection=") && LinuxNumber(state, (uint)range.Protection) &&
+                        LinuxText(state, " cache=") && LinuxNumber(state, (uint)range.Cache) &&
+                        LinuxText(state, " user=") && LinuxNumber(state, range.User ? 1UL : 0UL) && LinuxText(state, "\r\n");
+                }
             // After exit these pages remain reserved by the original owner. Clear
             // contents and unpublish the candidate; do not pretend they are freed.
             if (state->LinuxImageBacking != 0) LinuxElfMapping.Clear((byte*)state->LinuxImageBacking, (uint)(state->LinuxImagePages * Page));

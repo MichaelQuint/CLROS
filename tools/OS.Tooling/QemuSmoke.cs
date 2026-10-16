@@ -9,7 +9,7 @@ public static class QemuSmoke
     {
         root = Path.GetFullPath(root);
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
-        { Timeout = name == "OS.QemuRunner" && NativeAotRuntimeSelection.Application(options.Flags).Length != 0
+        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0)
             ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
             OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
@@ -27,9 +27,15 @@ public static class QemuSmoke
         NativeAotHelloProgram? helloProgram = null;
         NativeAotThreadingProgram? threadingProgram = null;
         NativeAotRuntimeProgram? runtimeProgram = null;
+        NativeAotSocketProgram? socketProgram=null;
+        NativeAotSocketPeer.Completion? socketPeer=null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            bool sockets=NativeAotSocketSelection.Application(plan.Flags).Length!=0;
+            if(sockets&&!options.DryRun)
+                foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
+                    if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
                 throw new ToolFailure("hello_profile_requires_m16_009");
             if (plan.IsEnabled("EnableM16002Probe") && !options.DryRun)
@@ -43,12 +49,13 @@ public static class QemuSmoke
                         string package=Path.GetFullPath(options.LinuxElfPackage,root), disassembly=Path.GetFullPath(options.LinuxThreadingDisassembly,root);
                         var comparison=OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal;
                         foreach(string path in new[]{options.Image,options.EfiArtifact,options.SerialLog,options.SummaryLog,
-                            options.SummaryLog+".stderr.log",options.SerialLog+".pcap",options.M01RawObservationLog})
+                            options.SummaryLog+".stderr.log",options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log",options.M01RawObservationLog})
                             if(path.Length!=0 && (string.Equals(package,Path.GetFullPath(path,root),comparison) ||
                                 string.Equals(disassembly,Path.GetFullPath(path,root),comparison)))throw new ToolFailure("threading_input_output_alias");
                         if(string.Equals(package,disassembly,comparison))throw new ToolFailure("threading_input_alias");
                         threadingDisassemblyInput=new FileStream(disassembly,FileMode.Open,FileAccess.Read,FileShare.Read);
-                        if (NativeAotRuntimeSelection.Application(plan.Flags).Length != 0)
+                        if(sockets)socketProgram=NativeAotSocketProgram.Read(root,plan.IsEnabled("EnableM16012Probe"),package,disassembly);
+                        else if (NativeAotRuntimeSelection.Application(plan.Flags).Length != 0)
                             runtimeProgram=NativeAotRuntimeProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
                         else threadingProgram=NativeAotThreadingProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
                     }
@@ -164,20 +171,45 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
-            if (plan.IsEnabled("EnableM07026Probe")) arguments.Add("--continuing-network-peer");
+            if (plan.IsEnabled("EnableM07026Probe")&&!sockets) arguments.Add("--continuing-network-peer");
+            if(sockets&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            IReadOnlyList<string> required = plan.Required.SequenceEqual(plan.Ordered) ? [] : plan.Required;
-            foreach (var (name, values) in new[] { ("--require-marker", required), ("--require-ordered-marker", plan.Ordered), ("--require-unique-marker", plan.Unique), ("--forbid-marker", plan.Forbidden), ("--marker-preset", plan.Presets) })
+            if(sockets)
+            {
+                // Preserve required insertion order while sending each ordered
+                // marker only once. The combined profile otherwise exceeds the
+                // Windows process command-line limit before QEMU can start.
+                foreach(string value in plan.Required)
+                    arguments.AddRange([plan.Ordered.Contains(value,StringComparer.Ordinal)?"--require-ordered-marker":"--require-marker",value]);
+            }
+            else
+            {
+                IReadOnlyList<string> required = plan.Required.SequenceEqual(plan.Ordered) ? [] : plan.Required;
+                foreach (var (name,values) in new[]{("--require-marker",required),("--require-ordered-marker",plan.Ordered)})
+                    foreach(string value in values)arguments.AddRange([name,value]);
+            }
+            foreach (var (name, values) in new[] { ("--require-unique-marker", plan.Unique), ("--forbid-marker", plan.Forbidden), ("--marker-preset", plan.Presets) })
                 foreach (string value in values) arguments.AddRange([name, value]);
             if (qemu.Length != 0) arguments.AddRange(["--qemu", qemu]);
             if (ovmf.Length != 0) arguments.AddRange(["--ovmf-code", ovmf]);
             if (options.DryRun) arguments.Add("--dry-run");
             ProcessResult runner;
-            if (capture is null) runner = await Run("OS.QemuRunner", arguments);
+            if(sockets&&!options.DryRun)
+            {
+                socketPeer=await NativeAotSocketPeer.RunAsync(root,options.SerialLog+".peer.log",async(port,token)=>
+                {
+                    var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--socket-forward-port",port.ToString(CultureInfo.InvariantCulture)],root)
+                        {Timeout=TimeSpan.FromSeconds((capture is null?options.TimeoutSeconds+60:timeout+30)),OutputCharacterLimit=16*1024*1024,
+                            EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
+                    output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
+                },cancellation,token=>NativeAotSocketPeer.WaitForAcceptAsync(Path.GetFullPath(options.SerialLog,root),plan.IsEnabled("EnableM16012Probe"),token));
+                runner=socketPeer.Runner;
+            }
+            else if (capture is null) runner = await Run("OS.QemuRunner", arguments);
             else
             {
                 runner = await ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, "OS.QemuRunner"), .. arguments], root)
@@ -189,15 +221,18 @@ public static class QemuSmoke
             if (runner.ExitCode != 0 && capture is not null) return runner.ExitCode;
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
-            using AuthorityFiles? threadingEvidence = threadingProgram is null && runtimeProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
+            using AuthorityFiles? threadingEvidence = socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
+                threadingProgram is null && runtimeProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
             if (capture is not null)
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram);
+            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
             threadingEvidence?.VerifyUnchanged();
             return validated;
         }
+        catch(OperationCanceledException)when(!cancellation.IsCancellationRequested)
+        {output.WriteLine("TEST_FAIL qemu.smoke socket_orchestration_timeout");return 1;}
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
         finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); }

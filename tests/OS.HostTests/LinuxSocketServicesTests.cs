@@ -149,6 +149,7 @@ internal static unsafe class LinuxSocketServicesTests
         HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, "xyz"u8, ack: 704, flags: 0x18), out _));
         m.Files.Context->FailOutput = true; HostCheck.Equal(-14L, m.Call(45, fd, Output, 2));
         HostCheck.Equal(3, f.Receiver->UnreadBytes); m.Files.Context->FailOutput = false;
+        m.Files.Context->RequiredOutputSource = m.Files.Admission.Scratch;
         HostCheck.Equal(2L, m.Call(45, fd, Output, 2)); HostCheck.Equal((byte)'x', m.Files.Memory.At(Output)[0]);
         HostCheck.Equal(1L, m.Call(0, fd, Output, 9)); HostCheck.Equal((byte)'z', m.Files.Memory.At(Output)[0]);
         HostCheck.Equal(-11L, m.Call(45, fd, Output, 1)); HostCheck.Equal(0L, m.Call(3, fd));
@@ -175,7 +176,12 @@ internal static unsafe class LinuxSocketServicesTests
         using (var f = Connection())
         {
             uint fd = m.Accept(m.Listen(), f), dup = (uint)m.Call(72, fd, 0, 0);
-            HostCheck.Equal(Tx.Status.ConnectionReset, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, ReadOnlySpan<byte>.Empty, ack: 700, flags: 0x14), out _));
+            HostCheck.Equal(Tx.Status.Success,Tx.ReceiveFrame(f.Owner,Wire.Packet(100,"R"u8,ack:700,flags:0x18),out _));
+            HostCheck.Equal(Tx.Status.ConnectionReset, Tx.ReceiveFrame(f.Owner, Wire.Packet(101, ReadOnlySpan<byte>.Empty, ack: 700, flags: 0x14), out _));
+            HostCheck.Equal(Rx.Status.TableRejected,Rx.Read(f.Receiver,new byte[1],out _));
+            m.Files.Context->FailOutput=true;HostCheck.Equal(-14L,m.Call(45,fd,Output,1));m.Files.Context->FailOutput=false;
+            HostCheck.Equal(1,f.Receiver->UnreadBytes);HostCheck.Equal(1L,m.Call(45,fd,Output,1));
+            HostCheck.Equal((byte)'R',*m.Files.Memory.At(Output));HostCheck.Equal(0,f.Receiver->UnreadBytes);
             *(uint*)m.Files.Memory.At(Output) = 4; m.Files.Context->FailOutput = true;
             HostCheck.Equal(-14L, m.Call(55, fd, 1, 4, User, Output)); m.Files.Context->FailOutput = false;
             HostCheck.Equal(-104L, m.Call(45, fd, Output, 1)); HostCheck.Equal(-32L, m.Call(44, fd, User, 1));
