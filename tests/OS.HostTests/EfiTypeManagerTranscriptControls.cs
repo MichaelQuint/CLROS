@@ -88,7 +88,8 @@ internal static class EfiTypeManagerTranscriptControls
             (12, "orderedSeen=" + plan.Ordered.Count, "orderedSeen=" + (plan.Ordered.Count - 1)), (12,"status=Passed","status=Timeout"),
             (13,"milliseconds=750","milliseconds=749"),(13,"milliseconds","Milliseconds"),(14,"runner-terminated","exited"),(14,"runner-terminated","cleanup-failed") })
         { string[] bad = [..runner]; bad[row] = bad[row].Replace(from, to, StringComparison.Ordinal); Check(bad, false); }
-        foreach (string extra in new[] { "TEST_FAIL x", "OS_SMOKE_FAIL", "QEMU_PROCESS_CLEANUP_FAILED", "TEST_START qemu.smoke" }) Check([..runner, extra], false);
+        foreach (string extra in new[] { "TEST_FAIL x", "OS_SMOKE_FAIL", "QEMU_PROCESS_CLEANUP_FAILED", "TEST_START qemu.smoke",
+            "NETWORK_PEER_RESULT complete=True stopped=True arpReplies=21 echoReplies=12 tcpPackets=80" }) Check([..runner, extra], false);
         foreach ((string from, string to) in new (string, string)[] { ("QEMU_SMOKE_STATUS pass","QEMU_SMOKE_STATUS fail"), ("FAIL_REASON none","FAIL_REASON timeout"),
             ("MISSING_MARKERS none","MISSING_MARKERS x"),("DUPLICATE_UNIQUE_MARKERS none","DUPLICATE_UNIQUE_MARKERS x"),("SERIAL_LOG " + serialPath,"SERIAL_LOG different") })
         { string changed = text.Replace(from, to, StringComparison.Ordinal); HostCheck.True(changed != text, "summary mutation changes fixture"); Save(changed); Check(runner, false); }

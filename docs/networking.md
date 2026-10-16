@@ -1,5 +1,13 @@
 # Networking
 
+[Step1327](../done/step1327.md) records a fresh frozen-source development guest
+whose EFI bytes and compiler method map match the reviewed image below. All
+TCP/cleanup and independent packet checks pass; the outer validator then rejects
+the peer-result row omitted from its legacy schema. The corrected full validator
+requires that exact row and passes positive/negative complete-run controls.
+The failed command and partial host gates remain retained; final frozen host,
+repeated guest and ancestor qualification are still pending.
+
 The continuing-network/TCP batch is implemented under shared #734 and remains
 unqualified: #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153 are open.
 [Step1324](../done/step1324.md) records one complete real development guest at

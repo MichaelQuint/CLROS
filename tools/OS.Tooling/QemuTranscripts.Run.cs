@@ -87,6 +87,12 @@ public static partial class QemuTranscripts
     {
         var lines = original.ToList();
         bool entropy = plan.IsEnabled("EnableM03FirmwareEntropySeedProbe") || plan.IsEnabled("EnableM16004Probe");
+        if (plan.IsEnabled("EnableM07026Probe"))
+        {
+            Need(!entropy && lines.Count == 18 && lines[15] ==
+                "NETWORK_PEER_RESULT complete=True stopped=True arpReplies=21 echoReplies=12 tcpPackets=80", "m07_026_peer_runner_result");
+            lines.RemoveAt(15);
+        }
         if (entropy)
         {
             Need(lines.Count == 18 && lines[7] == "FIRMWARE_RNG_SOURCE virtio", "qemu_runner_source"); lines.RemoveAt(7);

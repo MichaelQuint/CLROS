@@ -99,6 +99,8 @@ internal static class ContinuingNetworkTranscriptTests
             string pcap = Path.Combine(directory, "ethernet.pcap"); File.WriteAllBytes(pcap, Pcap(Frames()));
             var replay = HostToolProcess.RunTool("qemu", "validate-network", serial, pcap, packagePath);
             HostCheck.True(replay.ExitCode == 0 && replay.Output.Contains("TEST_PASS qemu.network.capture", StringComparison.Ordinal), replay.Error + replay.Output);
+            File.Copy(pcap, serial + ".pcap");
+            ContinuingNetworkRunnerTranscriptControls.Run(directory, serial, rows, packagePath);
             foreach (int index in new[] { owned + 2, owned + 7 + 1, owned + 7 + 6 })
             {
                 string[] bad = (string[])rows.Clone(); bad[index] += " extra"; Reject(() => Inspect(bad));
