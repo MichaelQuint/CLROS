@@ -1,5 +1,16 @@
 # Networking
 
+[Step1328](../done/step1328.md) adds a development scheduler witness for #152's
+literal no-starvation criterion. One retained cooperative worker advances on its
+guarded stack between packet pumps and during final TIME-WAIT, then exits and is
+reaped before mappings are restored and its pool is scrubbed. The strict parser
+joins progress, dispatches, elapsed time and cleanup. Its additional 32-page
+firmware reservation remains retained. Focused controls and corrected native
+publication pass; native execution and fresh complete batch
+qualification of this revision are pending. The previous full-host run was
+stopped at 4,894 passing checks across 677 fixtures; that partial run grants no
+full-host acceptance. All eight batch issues remain open.
+
 [Step1327](../done/step1327.md) records a fresh frozen-source development guest
 whose EFI bytes and compiler method map match the reviewed image below. All
 TCP/cleanup and independent packet checks pass; the outer validator then rejects

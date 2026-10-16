@@ -3,6 +3,7 @@ using OS.Kernel.Diagnostics;
 using OS.Tooling;
 using OS.Drivers;
 using OS.Kernel.Platform;
+using OS.Kernel.Threading;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -54,7 +55,7 @@ internal static unsafe class M07026EfiIntegrationTests
             result.Output.Contains("socket,id=n0,connect=127.0.0.1:<ephemeral>", StringComparison.Ordinal));
     }
 
-    [HostTest("m07-026 actual combined helper ranges preserve emitted clock PCI and fence bytes", HostLane.Fast, 2)]
+    [HostTest("m07-026 actual combined helper ranges preserve network and cooperative bytes", HostLane.Fast, 2)]
     private static void HelperLayout()
     {
         var profile = EfiOptions.Parse(["--EnableM07026Probe"], true).Profile();
@@ -66,7 +67,11 @@ internal static unsafe class M07026EfiIntegrationTests
             .SelectMany(x => x.Declaration.Variables).Single(x => x.Identifier.Text == name).Initializer!.Value).Token.Value!);
         (string Name, uint Start, uint Bytes)[] helpers = [("clock",Offset("ClockAccessOffset"),X64OwnedClockAccess.Bytes),
             ("pci-read",Offset("PciReadOffset"),X64PciConfigurationRead.Bytes), ("pci-bar",Offset("PciBarOffset"),X64PciBarAccess.Bytes),
-            ("queue-fence",Offset("QueueFenceOffset"),X64VirtqueueMemoryFence.Bytes)];
+            ("queue-fence",Offset("QueueFenceOffset"),X64VirtqueueMemoryFence.Bytes),
+            ("context-observer",Offset("CooperativeObserveOffset"),ThreadContextSwitch.ObserverBytes),
+            ("fx-snapshot",Offset("CooperativeFxOffset"),ThreadContextSwitch.FxSnapshotBytes),
+            ("owned-segments",Offset("CooperativeSegmentsOffset"),ThreadContextSwitch.OwnedSegmentsBytes),
+            ("guard-publication",Offset("CooperativePublishOffset"),X64PhysicalMappingPublication.GuardRequiredBytes)];
         foreach (var helper in helpers) HostCheck.True(helper.Start >= 4608 && helper.Start + helper.Bytes <= Offset("StackEntryOffset"));
         for (int i = 0; i < helpers.Length; i++)
             for (int j = 0; j < i; j++) HostCheck.True(helpers[i].Start >= helpers[j].Start + helpers[j].Bytes ||
@@ -75,10 +80,22 @@ internal static unsafe class M07026EfiIntegrationTests
         HostCheck.True(X64OwnedClockAccess.Emit(code + helpers[0].Start, 8192 - helpers[0].Start) &&
             X64PciConfigurationRead.Emit(code + helpers[1].Start, 8192 - helpers[1].Start) &&
             X64PciBarAccess.Emit(code + helpers[2].Start, 8192 - helpers[2].Start) &&
-            X64VirtqueueMemoryFence.Emit(code + helpers[3].Start, 8192 - helpers[3].Start));
+            X64VirtqueueMemoryFence.Emit(code + helpers[3].Start, 8192 - helpers[3].Start) &&
+            ThreadContextSwitch.EmitObserver(code + helpers[4].Start, helpers[4].Bytes) &&
+            ThreadContextSwitch.EmitFxSnapshot(code + helpers[5].Start, helpers[5].Bytes) &&
+            ThreadContextSwitch.EmitOwnedSegments(code + helpers[6].Start, helpers[6].Bytes) &&
+            X64PhysicalMappingPublication.EmitGuardPublication(code + helpers[7].Start, helpers[7].Bytes));
         HostCheck.True(X64OwnedClockAccess.Validate(code + helpers[0].Start, helpers[0].Bytes) &&
             X64PciConfigurationRead.Validate(code + helpers[1].Start, helpers[1].Bytes) &&
             X64PciBarAccess.Validate(code + helpers[2].Start, helpers[2].Bytes) &&
-            X64VirtqueueMemoryFence.Validate(code + helpers[3].Start, helpers[3].Bytes));
+            X64VirtqueueMemoryFence.Validate(code + helpers[3].Start, helpers[3].Bytes) &&
+            X64PhysicalMappingPublication.ValidateGuardPublication(code + helpers[7].Start, helpers[7].Bytes));
+        byte* scratch = stackalloc byte[(int)ThreadContextSwitch.ObserverBytes];
+        HostCheck.True(ThreadContextSwitch.EmitObserver(scratch, ThreadContextSwitch.ObserverBytes));
+        HostCheck.True(new ReadOnlySpan<byte>(scratch, (int)helpers[4].Bytes).SequenceEqual(new ReadOnlySpan<byte>(code + helpers[4].Start, (int)helpers[4].Bytes)));
+        HostCheck.True(ThreadContextSwitch.EmitFxSnapshot(scratch, ThreadContextSwitch.ObserverBytes));
+        HostCheck.True(new ReadOnlySpan<byte>(scratch, (int)helpers[5].Bytes).SequenceEqual(new ReadOnlySpan<byte>(code + helpers[5].Start, (int)helpers[5].Bytes)));
+        HostCheck.True(ThreadContextSwitch.EmitOwnedSegments(scratch, ThreadContextSwitch.ObserverBytes));
+        HostCheck.True(new ReadOnlySpan<byte>(scratch, (int)helpers[6].Bytes).SequenceEqual(new ReadOnlySpan<byte>(code + helpers[6].Start, (int)helpers[6].Bytes)));
     }
 }

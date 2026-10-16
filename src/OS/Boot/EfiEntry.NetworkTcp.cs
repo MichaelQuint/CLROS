@@ -204,7 +204,7 @@ public static unsafe partial class EfiEntry
             TcpTx.Status closed = TcpTx.Status.NotDue;
             for (uint poll = 0; poll < 1000000000; poll++)
             {
-                if (!PollNetworkTcp(owner) || NetDevice.Receive(owner->Device, rx, out _) != NetDevice.Status.Empty) return false;
+                if (!PollNetworkTcp(owner, true) || NetDevice.Receive(owner->Device, rx, out _) != NetDevice.Status.Empty) return false;
                 closed = TcpTx.PumpClose(&b->Sender, tx, out _);
                 if (closed == TcpTx.Status.Success) break;
                 if (closed != TcpTx.Status.NotDue || owner->Table.Count != 1 || b->Sender.CloseState != TcpConnectionCloseState.TimeWait) return false;
@@ -291,8 +291,8 @@ public static unsafe partial class EfiEntry
             return false;
         }
 
-        private static bool PollNetworkTcp(NetworkTcpStorage* owner) =>
-            owner->Failed == 0 && NetDevice.Poll(owner->Device, 8, out _) == NetDevice.Status.Success;
+        private static bool PollNetworkTcp(NetworkTcpStorage* owner, bool timeWait = false) =>
+            owner->Failed == 0 && NetworkSchedulerPoll(owner->Boot, timeWait) && NetDevice.Poll(owner->Device, 8, out _) == NetDevice.Status.Success;
 
         private static ulong NetworkTcpNow(void* context)
         {

@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "34159e92b8622740c2fec0f7fda15d20bcfaab7cca1521116054f0c1147c7112";
-    public const string CanonicalProjectSha256 = "f88b7656c7e7eb8271c419881820fb71dfbb04da852b8fea344a37ace9afca1b";
-    public const string EfiEntrySourceSha256 = "d05a36d8206909bc6171123b320d6e19c0eaccd4f18ff7e57dd99fd0e87eb3c2";
+    public const string ProjectSourceSha256 = "b2dffafb493c536807de25fae50da66d35b337b839e7ba02f2a149d47450a4d3";
+    public const string CanonicalProjectSha256 = "5c4cc10804f68aad42d7bbd1525f35fb1c3053cf1f9d0feb5f18bf21a7fe45f4";
+    public const string EfiEntrySourceSha256 = "dff791cf2bc16706b930b132384dc1b06dd2cd8abb7270213ed7693ae653abae";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -190,6 +190,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs|Drivers\ContinuingVirtioNetDevice.cs",
         @"Boot\EfiEntry.NetworkService.cs|",
         @"Boot\EfiEntry.NetworkTcp.cs|",
+        @"Boot\EfiEntry.NetworkScheduler.cs|",
+        @"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs|Threading\KernelThreadProgressProgram.cs",
         @"..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs|Drivers\FixedEthernetFrameReclaimDescriptors.cs",
         @"..\OS.Kernel\Drivers\VirtioNetHeader.cs|Drivers\VirtioNetHeader.cs",
         @"..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs|Drivers\VirtioNetReceiveFrameClassifier.cs",

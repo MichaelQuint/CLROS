@@ -104,9 +104,13 @@ public static unsafe class KernelThreadProgram
         a.ContextArena == b.ContextArena && a.ContextArenaBytes == b.ContextArenaBytes && a.CodeStart == b.CodeStart && a.CodeBytes == b.CodeBytes &&
         a.SwitchStackGuardStart == b.SwitchStackGuardStart && a.SwitchStackBytes == b.SwitchStackBytes;
 
-    internal static bool EncodeInfrastructure(byte* output, Plan p, bool compare) => Encode(output, p, compare, false);
+    // The progress worker can reject entry before reaching a transfer stub.
+    // Its opt-in recovery must first leave the small worker stack. Existing
+    // profiles retain their original recovery bytes and admission contract.
+    internal static bool EncodeInfrastructure(byte* output, Plan p, bool compare, bool recoverySwitchStack = false) =>
+        Encode(output, p, compare, false, recoverySwitchStack);
 
-    private static bool Encode(byte* output, Plan p, bool compare, bool workers = true)
+    private static bool Encode(byte* output, Plan p, bool compare, bool workers = true, bool recoverySwitchStack = false)
     {
         ulong code = p.Owner.CodeStart;
         for (uint i = 0; i < 2; i++)
@@ -144,6 +148,8 @@ public static unsafe class KernelThreadProgram
             w.Pad(); if (!w.Valid) return false;
         }
         ThreadContextSwitch.StubWriter recovery = new(output == null ? null : output + Recovery, code + Recovery, compare, 512);
+        if (recoverySwitchStack)
+            recovery.Immediate(4, p.Owner.SwitchStackGuardStart + p.Owner.SwitchStackBytes - ThreadContextSwitch.Page - 64);
         recovery.Bytes(0xfc, 1); recovery.Fx(true, p.Stub.HelperFx);
         recovery.Immediate(1, p.Stub.CallbackContext); recovery.Immediate(2, (ulong)p.Supervisor.Context); recovery.Immediate(11, p.RecoverCallback);
         recovery.Bytes(0x20ec8348, 4); recovery.Bytes(0xd3ff41, 3); recovery.Bytes(0x20c48348, 4); recovery.Bytes(0x013c, 2); recovery.Reject(code + Terminal);

@@ -63,7 +63,7 @@ public static unsafe partial class EfiEntry
                 state->AdapterConsole != null || state->AdapterServices != null ||
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->NetworkPhase = 1;
-            if (!LinuxText(state, "TEST_START m07-026\r\n") || !RunNetworkServiceCore(state))
+            if (!LinuxText(state, "TEST_START m07-026\r\n") || !RunNetworkScheduledService(state))
             { _ = LinuxText(state, "TEST_FAIL m07-026 service\r\n"); return false; }
             state->NetworkPhase = 3;
             return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n");
@@ -191,7 +191,7 @@ public static unsafe partial class EfiEntry
             ulong deadline = now + 2000000000;
             for (uint poll = 0; poll < 1000000; poll++)
             {
-                if (NetDevice.Poll(device, 8, out _) != NetDevice.Status.Success) return false;
+                if (!NetworkSchedulerPoll(state, false) || NetDevice.Poll(device, 8, out _) != NetDevice.Status.Success) return false;
                 if (device->ReclaimedTransmits == 32)
                     return device->ReceivedFrames == 32 && WriteNetworkRow(state, 3, 12, device->ReceivedFrames, device->ReclaimedTransmits, deadline) &&
                         RunNetworkTcp(state, device, resolved, tx, rx);
@@ -207,7 +207,7 @@ public static unsafe partial class EfiEntry
             ulong deadline = now + 2000000000;
             for (uint poll = 0; poll < 1000000; poll++)
             {
-                if (NetDevice.Poll(device, 8, out _) != NetDevice.Status.Success) return false;
+                if (!NetworkSchedulerPoll(state, false) || NetDevice.Poll(device, 8, out _) != NetDevice.Status.Success) return false;
                 var status = NetDevice.Receive(device, frame, out bytes);
                 if (status == NetDevice.Status.Success) return true;
                 if (status != NetDevice.Status.Empty || !ReadNetworkTime(state, out now) || now >= deadline) return false;

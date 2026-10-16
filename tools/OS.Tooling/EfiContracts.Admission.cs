@@ -3,7 +3,8 @@ namespace OS.Tooling;
 public static partial class EfiContracts
 {
     public static IReadOnlyList<string> ReviewedSourceIncludes { get; } = Array.AsReadOnly<string>([
-        @"Boot\EfiEntry.NetworkTcp.cs",
+        @"Boot\EfiEntry.NetworkTcp.cs", @"Boot\EfiEntry.NetworkScheduler.cs",
+        @"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs",
         @"Boot\EfiEntry.NetworkService.cs", @"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs",
         @"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs", @"..\OS.Kernel\Net\Ipv4Header.cs",
         @"..\OS.Kernel\Net\IcmpEchoPacket.cs", @"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs",

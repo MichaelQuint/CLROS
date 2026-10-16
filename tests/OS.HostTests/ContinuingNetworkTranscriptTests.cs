@@ -9,7 +9,7 @@ internal static class ContinuingNetworkTranscriptTests
     private static void Transcript()
     {
         string[] rows = Records();
-        int tail = 10 + QemuTranscripts.M07026TcpRecords, start = rows.Length - tail;
+        int tail = 10 + QemuTranscripts.M07026TcpRecords + QemuTranscripts.M07026SchedulerStages, start = rows.Length - tail;
         HostCheck.Equal(start, QemuTranscripts.ValidateNetworkServiceTail(rows).Length);
         foreach (int index in Enumerable.Range(start, tail))
         {
@@ -21,11 +21,20 @@ internal static class ContinuingNetworkTranscriptTests
         for (int stage = 0; stage < 7; stage++)
         {
             string[] bad = (string[])rows.Clone();
-            int index = start + 1 + stage + (stage >= 4 ? QemuTranscripts.M07026TcpRecords : 0);
+            int index = start + 2 + stage + (stage >= 4 ? QemuTranscripts.M07026TcpRecords : 0);
             bad[index] = bad[index].Replace("stage=" + stage, "stage=" + ((stage + 1) % 7));
             Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
         }
         foreach ((string from, string to) in new[] { ("a=20", "a=19"), ("b=32", "b=31"), ("d=90525193470466", "d=90525193470467"), (" c=0 d=", " c=1 d="), ("a=8 b=0 c=8", "a=8 b=1 c=8") })
+        {
+            string[] bad = rows.Select(x => x.Replace(from, to, StringComparison.Ordinal)).ToArray();
+            HostCheck.True(!bad.SequenceEqual(rows)); Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
+        }
+        foreach ((string from, string to) in new[] { ("a=4194304 b=32", "a=2097152 b=32"),
+            ("a=2400 b=200 c=2200 d=100000000", "a=2400 b=200 c=0 d=100000000"),
+            ("a=2400 b=200 c=2200 d=100000000", "a=2399 b=200 c=2200 d=100000000"),
+            ("d=100000000", "d=1000000001"), ("a=4802 b=1 c=0 d=32", "a=4800 b=1 c=0 d=32"),
+            ("a=4802 b=1 c=0 d=32", "a=4802 b=0 c=0 d=32") })
         {
             string[] bad = rows.Select(x => x.Replace(from, to, StringComparison.Ordinal)).ToArray();
             HostCheck.True(!bad.SequenceEqual(rows)); Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
@@ -119,7 +128,7 @@ internal static class ContinuingNetworkTranscriptTests
         // This fixture checks only the new leaf and existing ARP parent. Real
         // package/service records are checked separately by the full M03 parser.
         return [.. parent.Take(owned), .. Enumerable.Repeat("parent validated separately", 24), .. parent.Skip(owned),
-            "TEST_START m07-026", "M07_026_ROW stage=0 a=2097152 b=32768 c=4295000064 d=8",
+            "TEST_START m07-026", "M07_026_SCHED stage=0 a=4194304 b=32 c=1 d=0", "M07_026_ROW stage=0 a=2097152 b=32768 c=4295000064 d=8",
             "M07_026_ROW stage=1 a=8 b=8 c=1 d=0", "M07_026_ROW stage=2 a=20 b=20 c=20 d=90525193470466",
             "M07_026_ROW stage=3 a=12 b=32 c=32 d=2000000050", .. QemuTranscripts.M07026TcpStarts,
             "M07_026_TCP stage=0 a=2 b=1 c=4 d=2", "M07_026_TCP stage=1 a=2 b=1 c=1 d=6",
@@ -133,6 +142,7 @@ internal static class ContinuingNetworkTranscriptTests
             .. QemuTranscripts.M07026TcpEnds,
             $"M07_026_ROW stage=4 a={33 + ContinuingTcpScenario.Packets.Count(x => !x.FromGuest)} b={33 + ContinuingTcpScenario.Packets.Count(x => x.FromGuest)} c=1 d=2",
             "M07_026_ROW stage=5 a=8 b=0 c=8 d=1", $"M07_026_ROW stage=6 a={allocator[0]} b={allocator[1]} c={allocator[2]} d={command}",
+            "M07_026_SCHED stage=1 a=2400 b=200 c=2200 d=100000000", "M07_026_SCHED stage=2 a=4802 b=1 c=0 d=32",
             "CLROS_M07_026_READY", "TEST_PASS m07-026"];
     }
 

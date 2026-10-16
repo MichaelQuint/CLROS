@@ -6,6 +6,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public const int M07026TcpStages = 11;
+    public const int M07026SchedulerStages = 3;
     public static IReadOnlyList<string> M07026TcpStarts { get; } = Array.AsReadOnly(Enumerable.Range(13, 6).Select(i => $"TEST_START m07.{i:000}").ToArray());
     public static IReadOnlyList<string> M07026TcpEnds { get; } = Array.AsReadOnly(Enumerable.Range(13, 6).SelectMany(i => new[] { $"CLROS_M07_{i:000}_READY", $"TEST_PASS m07.{i:000}" }).ToArray());
     public static int M07026TcpRecords => M07026TcpStarts.Count + M07026TcpStages + M07026TcpEnds.Count;
@@ -14,9 +15,10 @@ public static partial class QemuTranscripts
         "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST", "M16_002_PACKAGE_DIGEST", "M16_002_OWNED",
         "CLROS_M16_002_READY", "TEST_PASS m16-002", .. M16ServiceLoopMarkers,
         .. QemuContracts.M07ArpReceiveMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count),
-        "TEST_START m07-026", .. Enumerable.Range(0, 4).Select(i => "M07_026_ROW stage=" + i + " "),
+        "TEST_START m07-026", "M07_026_SCHED stage=0 ", .. Enumerable.Range(0, 4).Select(i => "M07_026_ROW stage=" + i + " "),
         .. M07026TcpStarts, .. Enumerable.Range(0, M07026TcpStages).Select(i => "M07_026_TCP stage=" + i + " "), .. M07026TcpEnds,
         .. Enumerable.Range(4, 3).Select(i => "M07_026_ROW stage=" + i + " "),
+        "M07_026_SCHED stage=1 ", "M07_026_SCHED stage=2 ",
         "CLROS_M07_026_READY", "TEST_PASS m07-026"]);
 
     // Validate the finite child, preserving the original complete parents for
@@ -24,12 +26,12 @@ public static partial class QemuTranscripts
     public static string[] ValidateNetworkServiceTail(string[] lines)
     {
         Need(lines.Length == M07026Markers.Count, "m07_026_record_count");
-        int start = lines.Length - 10 - M07026TcpRecords;
+        int start = lines.Length - 10 - M07026TcpRecords - M07026SchedulerStages;
         Need(lines[start] == "TEST_START m07-026" && lines[^2] == "CLROS_M07_026_READY" &&
             lines[^1] == "TEST_PASS m07-026", "m07_026_tail_identity");
         Dictionary<string, ulong> Row(int stage)
         {
-            var row = ReadRecord(lines[start + stage + 1 + (stage >= 4 ? M07026TcpRecords : 0)], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
+            var row = ReadRecord(lines[start + stage + 2 + (stage >= 4 ? M07026TcpRecords : 0)], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
             Need(row["stage"] == (uint)stage, "m07_026_row_order"); return row;
         }
         var dma = Row(0); var full = Row(1); var arp = Row(2); var ip = Row(3); var stop = Row(4); var pool = Row(5); var restored = Row(6);
@@ -39,7 +41,20 @@ public static partial class QemuTranscripts
         Need(arp["a"] == 20 && arp["b"] == 20 && arp["c"] >= 12 && arp["c"] <= 20 &&
             arp["d"] > 0 && arp["d"] < 0xffffffffffff && (arp["d"] & 0x010000000000) == 0, "m07_026_arp");
         Need(ip["a"] == 12 && ip["b"] == 32 && ip["c"] == 32 && ip["d"] >= 2000000000, "m07_026_ip");
-        var tcp = ValidateNetworkTcpRows(lines, start + 5);
+        var tcp = ValidateNetworkTcpRows(lines, start + 6, out ulong timeWaitInterval);
+        var scheduled = ReadRecord(lines[start + 1], "M07_026_SCHED", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
+        var progress = ReadRecord(lines[^4], "M07_026_SCHED", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
+        var reaped = ReadRecord(lines[^3], "M07_026_SCHED", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
+        Need(scheduled["stage"] == 0 && scheduled["a"] >= 4096 && (scheduled["a"] & 4095) == 0 &&
+            scheduled["a"] <= 0x100000000UL - 131072 && scheduled["b"] == 32 && scheduled["c"] == 1 && scheduled["d"] == 0,
+            "m07_scheduler_owned_ready");
+        Need(progress["stage"] == 1 && progress["a"] is >= 4 and <= 4096 && progress["b"] >= 2 && progress["c"] >= 2 &&
+            progress["b"] <= progress["a"] && progress["c"] <= progress["a"] && progress["a"] == progress["b"] + progress["c"] &&
+            progress["d"] is > 0 and <= 1000000000 && (progress["c"] + 1) * progress["d"] >= timeWaitInterval,
+            "m07_scheduler_runnable_progress");
+        Need(reaped["stage"] == 2 && reaped["a"] == 2 * (progress["a"] + 1) && reaped["b"] == 1 && reaped["c"] == 0 && reaped["d"] == 32,
+            "m07_scheduler_off_stack_reap_restore");
+        Need(scheduled["a"] + 131072 <= dma["a"] || dma["a"] + 32768 <= scheduled["a"], "m07_scheduler_dma_disjoint");
         Need(stop["a"] == tcp["c"] && stop["b"] == tcp["d"] && stop["c"] is >= 1 and <= 1024 &&
             stop["d"] == 2, "m07_026_quiescence");
         Need(pool["a"] == 8 && pool["b"] == 0 && pool["c"] == 8 && pool["d"] == 1, "m07_026_pool_release_retained_reservation");
@@ -59,7 +74,7 @@ public static partial class QemuTranscripts
         return lines[..start];
     }
 
-    private static Dictionary<string, ulong> ValidateNetworkTcpRows(string[] lines, int start)
+    private static Dictionary<string, ulong> ValidateNetworkTcpRows(string[] lines, int start, out ulong timeWaitInterval)
     {
         foreach (string marker in M07026TcpStarts) Need(lines[start++] == marker, "m07_tcp_start_marker");
         Dictionary<string, ulong>[] rows = new Dictionary<string, ulong>[M07026TcpStages];
@@ -80,7 +95,9 @@ public static partial class QemuTranscripts
         var timeout = rows[7]; var pending = rows[8]; var closed = rows[9]; var final = rows[10];
         Need(timeout["a"] == 2 && timeout["c"] >= timeout["b"] && timeout["c"] - timeout["b"] >= 7000000000 && timeout["d"] == 1 &&
             pending["a"] == 3 && pending["c"] >= pending["b"] && pending["d"] == 1, "m07_tcp_bounded_timeout");
-        Need(closed["a"] == wait["b"] && closed["b"] >= closed["a"] && closed["c"] == 0 && closed["d"] == 5, "m07_tcp_time_wait_reap");
+        Need(closed["a"] == wait["b"] && closed["b"] >= closed["a"] && closed["b"] >= pending["c"] &&
+            closed["c"] == 0 && closed["d"] == 5, "m07_tcp_time_wait_reap");
+        timeWaitInterval = closed["b"] - pending["c"];
         ulong sent = (ulong)ContinuingTcpScenario.Packets.Count(x => x.FromGuest), received = (ulong)ContinuingTcpScenario.Packets.Count(x => !x.FromGuest);
         Need(final["a"] == 31 && final["b"] == sent && final["c"] == 33 + received && final["d"] == 33 + sent && rows[4]["d"] < sent,
             "m07_tcp_packet_accounting");
