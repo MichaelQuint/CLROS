@@ -8,8 +8,9 @@ internal static class LinuxHelloTranscriptTests
     [HostTest("nativeaot.hello complete pool envelope rejects old geometry physical overflow and late pool root overlap")]
     private static void PoolEnvelope()
     {
-        var rows = Build(); _ = Inspect(Change(rows, "M16_008_BOUND ", "pool", 0xfff5e000));
-        Reject(Change(rows, "M16_008_BOUND ", "pool", 0xfff5f000));
+        var rows = Build(); _ = Inspect(Change(rows, "M16_008_BOUND ", "pool", 0xfff1e000));
+        Reject(Change(rows, "M16_008_BOUND ", "pool", 0xfff1f000));
+        Reject(Change(rows, "M16_008_BOUND ", "pool", 0xfff5e000));
         Reject(Change(rows, "M16_008_BOUND ", "code", 16384)); Reject(Change(rows, "M16_008_BOUND ", "metadata", 45056));
         var overlap = Change(Change(rows, "M16_008_BOUND ", "root", 0x300000), "M16_008_BOUND ", "pool", 0x29c000);
         bool rejected = false;

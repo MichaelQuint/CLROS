@@ -1,12 +1,21 @@
 # App Model
 
+[Step1379](../done/step1379.md) retains the configuration r07 batch's later
+signal/partial-pipe ancestor fault: pending signal delivery reaches a native
+page-audit stack probe inside the four-page worker's lower guard. The development
+repair gives M16-009 and its runtime/socket descendants eight usable pages,
+retaining both guards and a226-page pool; continuing web keeps sixteen usable
+pages and mechanical M16-008 keeps four. Signal, Hello and runtime transcript
+checks use the selected full pool extent. This is a scoped stack-exhaustion
+repair awaiting fresh native/guest and stable combined validation, not acceptance.
+
 [Step1372](../done/step1372.md) records a failed fresh socket-async ancestor
 in the configuration batch: a supervisor call pushes into worker3's lower
 guard. Original native memory-admission frames and the epoll completion route
 are retained; the full outer stack is not reconstructed. The development repair
 gives only M16-012 eight usable worker pages between its two guards, with a
 226-page pool and matching transcript extent checks. Ordinary workers retain
-four usable pages; continuing web retains sixteen. Twenty focused checks and
+four usable pages at that checkpoint; continuing web retains sixteen. Twenty focused checks and
 scoped original native geometry/frame joins pass. One strict fresh async guest
 also passes with complete reap/descriptor/network cleanup and matching reviewed
 native bytes. Fresh stable-batch validation remains pending; this repair is not

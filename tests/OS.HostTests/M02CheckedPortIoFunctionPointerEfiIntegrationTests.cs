@@ -73,9 +73,10 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
     XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02CheckedPortIoBindingProbe")).ToArray();
     XElement[] symbols = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02CheckedPortIoBindingProbe)' == 'true'").ToArray();
     // Keep this historical inventory scoped to its existing profiles. The new
-    // cooperative/timer exclusions are independently checked by their M09 fixtures.
+    // cooperative/timer and containment exclusions have their own exact fixtures.
     string[] errorConditions = project.Descendants("Error")
         .Where(element => !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m07_026_", StringComparison.Ordinal) &&
+            !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("socket_containment_", StringComparison.Ordinal) &&
             !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_", StringComparison.Ordinal) &&
             !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_", StringComparison.Ordinal) &&
             !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_006_", StringComparison.Ordinal) &&

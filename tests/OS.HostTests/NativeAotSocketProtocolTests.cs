@@ -95,11 +95,13 @@ internal static class NativeAotSocketProtocolTests
     {
         static string[] At(IEnumerable<string> rows, ulong pool) => rows.Select(row => row.Replace(
             "pool=2097152", FormattableString.Invariant($"pool={pool}"), StringComparison.Ordinal)).ToArray();
-        // This tail fits the original sync pool, but not the larger async pool.
-        HostCheck.Equal(3, Inspect(At(Vector().Rows, 0xfff40000)).Reaped);
-        Reject(At(Vector(true).Rows, 0xfff40000), "threading_parent_geometry", true);
-        // The full async extent may end exactly at the physical limit.
-        HostCheck.Equal(3, Inspect(At(Vector(true).Rows, 0xfff1e000), true).Reaped);
+        // Both socket modes inherit the full signal/callback worker extent.
+        foreach (bool asynchronous in new[] { false, true })
+        {
+            Reject(At(Vector(asynchronous).Rows, 0xfff40000), "threading_parent_geometry", asynchronous);
+            HostCheck.Equal(3, Inspect(At(Vector(asynchronous).Rows, 0xfff1e000), asynchronous).Reaped);
+            Reject(At(Vector(asynchronous).Rows, 0xfff1f000), "threading_parent_geometry", asynchronous);
+        }
     }
 
     [HostTest("socket protocol retains real repark without fabricating a syscall timer or drain")]
