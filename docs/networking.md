@@ -18,6 +18,16 @@ incomplete. Continue the owned #217-#220 application ladder under #737.
 The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 adds open repairs to the accepted finite network surface:
 
+[Step1369](../done/step1369.md) implements the M07-027/M07-028 host-development
+repair: continuing sockets have no implicit total/idle deadline, retry/close
+expiry reports peer-local ETIMEDOUT, and unsupported in-buffer RX content is
+recycled with actual replenishment notification. Corrupt clock, completion,
+ownership, fence and MMIO failures remain terminal. The118 focused checks across
+nine fixtures pass, including unchanged legacy bounded timer behavior. Original
+native, full-host and actual timeout/rejected-frame guest qualification remain
+pending; these two issues and the Kestrel ladder remain open. The following
+reproductions describe the accepted baseline that this development slice repairs.
+
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
   into shared `TransportFailure`. A host reproduction retained two connections

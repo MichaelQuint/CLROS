@@ -46,9 +46,12 @@ public static unsafe partial class TcpSendWindow
         internal byte CloseEnabled, WriteShutdown, FinPending;
         internal TcpConnectionCloseState CloseStateValue;
         internal ulong CloseLimit, CloseDeadline, TimeWaitDuration, TimeWaitDeadline;
-        internal byte Phase;
+        internal byte Phase, TimeoutError;
         public readonly bool Active => Phase == 1;
         public readonly bool RequiresCleanup => Phase == 2;
+        /// <summary>Actual retry or configured deadline exhaustion. The owner
+        /// retains all backing until explicit timeout retirement and closed reap.</summary>
+        public readonly bool TimedOut => TimeoutError == 1;
         public readonly bool Retired => Phase == 3;
         public readonly int BufferedBytes => Count;
         public readonly int InFlightBytes => Sent;
@@ -107,25 +110,28 @@ public static unsafe partial class TcpSendWindow
     /// as Pump and Acknowledge. The trusted supplied clock/context must remain
     /// valid through closed cleanup and never reenter. Initial RTO is at least
     /// one second, its cap at least sixty seconds, retries1..16, and the fixed
-    /// lifetime bounds all calls including TX pressure/zero windows. Invalid
+    /// lifetime bounds all calls including TX pressure/zero windows. Explicit
+    /// continuing mode requires a zero lifetime and leaves the total application
+    /// budget to its enclosing owner; retry and configured close limits remain.
+    /// It supplies no implicit idle timeout or zero-window persist. Invalid
     /// configuration changes nothing. This is a serialized passive transport,
     /// without general congestion control, fast recovery or persist probes.</summary>
     public static Status ConfigureRetransmission(Owner* owner, void* clockContext,
         delegate*<void*, ulong> nowNanoseconds, ulong lifetimeNanoseconds,
         ulong initialRtoNanoseconds = 1_000_000_000, ulong maximumRtoNanoseconds = 60_000_000_000,
-        byte maximumRetransmissions = 5)
+        byte maximumRetransmissions = 5, bool continuing = false)
     {
         var status = Validate(owner, out _); if (status != Status.Success) return status;
         if (owner->Timed != 0 || owner->Sent != 0) return Status.InvalidState;
         if (initialRtoNanoseconds < 1_000_000_000 || maximumRtoNanoseconds < 60_000_000_000 ||
             maximumRtoNanoseconds < initialRtoNanoseconds || maximumRtoNanoseconds > (~0UL / 16) ||
-            lifetimeNanoseconds <= initialRtoNanoseconds || lifetimeNanoseconds > (~0UL / 16) ||
+            (continuing ? lifetimeNanoseconds != 0 : lifetimeNanoseconds <= initialRtoNanoseconds || lifetimeNanoseconds > (~0UL / 16)) ||
             maximumRetransmissions is 0 or > 16 || nowNanoseconds == null) return Status.InvalidOptions;
         ulong initial = owner->HandshakeRetried != 0 && initialRtoNanoseconds < 3_000_000_000 ? 3_000_000_000 : initialRtoNanoseconds;
-        if (lifetimeNanoseconds <= initial) return Status.InvalidOptions;
+        if (!continuing && lifetimeNanoseconds <= initial) return Status.InvalidOptions;
         ulong now = nowNanoseconds(clockContext);
-        if (lifetimeNanoseconds > ~0UL - now) return Status.InvalidClock;
-        owner->LastNow = now; owner->HardDeadline = now + lifetimeNanoseconds;
+        if ((continuing ? maximumRtoNanoseconds : lifetimeNanoseconds) > ~0UL - now) return Status.InvalidClock;
+        owner->LastNow = now; owner->HardDeadline = continuing ? 0 : now + lifetimeNanoseconds;
         owner->Rto = initial; owner->MinimumRto = initialRtoNanoseconds;
         owner->MaximumRto = maximumRtoNanoseconds; owner->RetryLimit = maximumRetransmissions;
         owner->ClockContext = clockContext; owner->Clock = nowNanoseconds;
@@ -221,7 +227,7 @@ public static unsafe partial class TcpSendWindow
         status = Time(owner, out ulong now); if (status != Status.Success) return status;
         if (owner->Sent == 0 && owner->FinPending == 0) return Status.NothingToSend;
         if (now < owner->RetryAt) return Status.NotDue;
-        if (owner->RetryCount == owner->RetryLimit) { owner->Phase = 2; return Status.Timeout; }
+        if (owner->RetryCount == owner->RetryLimit) { owner->Phase = 2; owner->TimeoutError = 1; return Status.Timeout; }
         // Preserve the original segment extent: a shorter retry can make a later
         // combined retry transmit its tail less than one RTO after the last copy.
         int count = owner->Sent;
@@ -339,8 +345,15 @@ public static unsafe partial class TcpSendWindow
         if (now < owner->LastNow) { owner->Phase = 2; return Status.InvalidClock; }
         owner->LastNow = now;
         if (owner->CloseEnabled != 0 && owner->CloseStateValue == TcpConnectionCloseState.TimeWait) return Status.Success;
-        if (now < owner->HardDeadline && (owner->CloseDeadline == 0 || now < owner->CloseDeadline)) return Status.Success;
-        owner->Phase = 2; return Status.Timeout;
+        if (owner->HardDeadline == 0)
+        {
+            ulong headroom = owner->MaximumRto;
+            if (owner->CloseEnabled != 0 && owner->CloseDeadline == 0 && owner->CloseLimit > headroom) headroom = owner->CloseLimit;
+            if (headroom > ~0UL - now) { owner->Phase = 2; return Status.InvalidClock; }
+        }
+        if ((owner->HardDeadline == 0 || now < owner->HardDeadline) &&
+            (owner->CloseDeadline == 0 || now < owner->CloseDeadline)) return Status.Success;
+        owner->Phase = 2; owner->TimeoutError = 1; return Status.Timeout;
     }
 
     private static ulong Deadline(ulong now, ulong delay) => delay > ~0UL - now ? ~0UL : now + delay;
@@ -381,6 +394,7 @@ public static unsafe partial class TcpSendWindow
             owner->Count < 0 || owner->Count > owner->CapacityValue - owner->Offset || owner->Sent < 0 || owner->Sent > owner->Count ||
             unchecked(owner->Next - owner->Una) != (uint)owner->Sent + owner->FinPending || owner->Una != entry.Sequence.LocalAcknowledgedSequenceNumber ||
             owner->Next != entry.Sequence.LocalNextSequenceNumber || owner->PeerMss == 0 || owner->Mtu is < 68 or > 1500 || owner->Send == null ||
+            owner->TimeoutError > 1 || owner->TimeoutError != 0 && owner->Phase != 2 ||
             owner->Timed > 1 || owner->Timed != 0 && (owner->Clock == null || owner->MinimumRto < 1_000_000_000 ||
                 owner->Rto < owner->MinimumRto || owner->Rto > owner->MaximumRto || owner->RetryLimit is 0 or > 16 ||
                 owner->RetryCount > owner->RetryLimit || owner->Sent > owner->PeerMss || owner->Sent > owner->Mtu - 40) ||
