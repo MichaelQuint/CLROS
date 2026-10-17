@@ -1034,6 +1034,16 @@ older retained host evidence. Hydrated string data, transitive stacks, external
 runtime/GC/EH behavior and original absolute native-input admission remain
 outside the review; it supplies no current package authority or guest acceptance.
 
+[Step1385](../done/step1385.md) recovers both original selected Linux logging
+packages through unchanged source/output/absolute-native-input validation. A
+preliminary guest reaches observed startup and listen, then exposes a runner
+ordering defect: its pre-HTTP check requires logging markers produced only by
+the later HTTP exercise. The narrow runner fix passes seven actual-runner HTTP
+checks, including the new deferred-marker regression. The failed capture and
+earlier failed checks remain retained. Corrected logging/quota/startup guests
+and current stable full-host qualification remain pending; #218/#737 and PR740
+remain open. Package recovery and focused host success grant no guest acceptance.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

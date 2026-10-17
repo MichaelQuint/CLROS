@@ -175,6 +175,9 @@ try
     IReadOnlyList<string> probeMarkers = options.ContinuingWeb
         ? options.RequiredMarkers.TakeWhile(marker => marker != "TEST_START m10.005").ToArray()
         : options.RequiredMarkers;
+    IReadOnlyList<string> probeOrderedMarkers = options.ContinuingWeb
+        ? options.OrderedMarkers.TakeWhile(marker => marker != "TEST_START m10.005").ToArray()
+        : options.OrderedMarkers;
     bool forbiddenMarkerSeen = false;
     bool timedOut = false;
     bool startupTimedOut = false;
@@ -329,7 +332,7 @@ try
         preProbeSerial,
         probeMarkers,
         options.ForbiddenMarkers,
-        options.OrderedMarkers);
+        probeOrderedMarkers);
     if (options.HttpProbe is not null
         && !timedOut
         && preProbeSummary.HasAllRequiredMarkers

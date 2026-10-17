@@ -35,6 +35,13 @@ older retained Linux ELF and both host logging traces. No concrete defect was
 found within that scope; current original package authority and logging/startup
 guest qualification remain pending. See the [app-model ledger](app-model.md).
 
+[Step1385](../done/step1385.md) recovers the original normal/quota logging
+packages without weakening admission, then fixes a pre-HTTP ordered-marker
+deadlock found by a failed preliminary guest. Seven actual-runner HTTP checks
+pass, including the independent deferred-logging-marker regression. Corrected
+logging/startup guests and current-source full-host acceptance remain pending;
+the package export is now resolved, while #218/#737 and PR740 stay open.
+
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
 separate 8081 environment value and immutable settings. The owned QEMU process

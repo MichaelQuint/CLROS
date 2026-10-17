@@ -22,6 +22,7 @@ internal static class QemuRunnerHttpProbeTests
             Run("qemu.runner.http_probe times out deterministically", () => TestTimesOutDeterministically(tempRoot), ref failures);
             Run("qemu.runner.continuing_web validates bounded selection", () => TestContinuingWebSelection(tempRoot), ref failures);
             Run("qemu.runner.continuing_web rejects occupied endpoint before launch", () => TestContinuingWebOccupiedPort(tempRoot), ref failures);
+            Run("qemu.runner.continuing_web probes after ordered startup before deferred logs", () => TestContinuingWebDeferredLogs(tempRoot), ref failures);
         }
         finally
         {
@@ -277,6 +278,28 @@ internal static class QemuRunnerHttpProbeTests
             && summary.Contains("WEB_CONFIG_PROBE_RESULT not_run", StringComparison.Ordinal);
     }
 
+    private static bool TestContinuingWebDeferredLogs(string tempRoot)
+    {
+        FakeQemuHttpEndpoint fake = CreateFakeQemuHttpEndpoint(tempRoot, 200, "OS_MINIMAL_API_OK", false, continuingWeb: true);
+        List<string> arguments = ContinuingWebArguments(tempRoot, new Uri(fake.Url).Port);
+        string summaryPath = arguments[arguments.IndexOf("--summary-log") + 1];
+        arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, "deferred-web.raw"),
+            "--ovmf-code", CreateEmptyFile(tempRoot, "deferred-web-OVMF_CODE.fd"),
+            "--serial-log", Path.Combine(tempRoot, "deferred-web.serial"), "--timeout", "8"]);
+        foreach (string marker in new[] { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "CLROS_M10_004_READY", "TEST_PASS m10.004",
+            "TEST_START m10.005", "M10_005_LOGS", "CLROS_M10_005_READY", "TEST_PASS m10.005" })
+            arguments.AddRange(["--require-ordered-marker", marker]);
+        ProcessResult result = RunQemuRunner([.. arguments]);
+        string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : "";
+        return PassOrReport("ordered startup before deferred logs", result.ExitCode == 0 &&
+            result.Output.Split("HTTP_PROBE_PASS endpoint=", StringSplitOptions.None).Length == 6 &&
+            summary.Contains("WEB_PROCESS_TERMINATION_REQUESTED true", StringComparison.Ordinal) &&
+            summary.Contains("WEB_ENDPOINT_STOPPED_REFUSED true", StringComparison.Ordinal) &&
+            summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal) &&
+            summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal) &&
+            summary.Contains("FAIL_REASON none", StringComparison.Ordinal), new(result, summaryPath));
+    }
+
     private static ProbeRunResult RunQemuRunnerWithProbe(
         string tempRoot,
         int actualStatusCode,
@@ -329,7 +352,7 @@ internal static class QemuRunnerHttpProbeTests
         string tempRoot,
         int statusCode,
         string body,
-        bool hangBeforeResponse)
+        bool hangBeforeResponse, bool continuingWeb = false)
     {
         int port = ReserveFreeLoopbackPort();
         string qemuScript = Path.Combine(tempRoot, "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
@@ -349,7 +372,7 @@ internal static class QemuRunnerHttpProbeTests
             ":serve",
             "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
             "if \"%serial%\"==\"\" exit /b 12",
-            QemuTestControl.Command("http", "%serial%", port.ToString(), statusCode.ToString(), Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"),
+            QemuTestControl.Command(continuingWeb ? "web" : "http", "%serial%", port.ToString(), statusCode.ToString(), Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"),
             "exit /b %ERRORLEVEL%"
         ];
 
