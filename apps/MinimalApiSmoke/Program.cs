@@ -98,7 +98,8 @@ internal sealed class AppStartupWitness
 }
 
 // A one-shot bounded diagnostic, never run by ordinary HTTP requests. Eight
-// owned threads rendezvous before writing; each is joined before HTTP success.
+// owned threads run in two groups of four so runtime threads retain capacity;
+// each group rendezvous before writing and joins before the next group starts.
 // The Linux-only native call observes the real writev result and errno rather
 // than translating a managed stream error into an assumed descriptor result.
 internal static class LinuxLoggingExercise
@@ -109,44 +110,50 @@ internal static class LinuxLoggingExercise
     {
         if (!OperatingSystem.IsLinux()) return Results.StatusCode(501);
         if (Interlocked.Exchange(ref started, 1) != 0) return Results.StatusCode(409);
-        using var ready = new CountdownEvent(8);
-        using var release = new ManualResetEventSlim(false);
-        var threads = new Thread[8];
-        int failed = 0, startedThreads = 0;
-        bool allReady;
-        try
+        int failed = 0;
+        const int groupSize = 4;
+        for (int first = 0; first < 8; first += groupSize)
         {
-            for (int worker = 0; worker < threads.Length; worker++)
+            using var ready = new CountdownEvent(groupSize);
+            using var release = new ManualResetEventSlim(false);
+            var threads = new Thread[groupSize];
+            int startedThreads = 0;
+            bool allReady;
+            try
             {
-                int identity = worker;
-                threads[worker] = new Thread(() =>
+                for (int worker = 0; worker < threads.Length; worker++)
                 {
-                    try
+                    int identity = first + worker;
+                    threads[worker] = new Thread(() =>
                     {
-                        ready.Signal();
-                        if (!release.Wait(TimeSpan.FromSeconds(30))) { Interlocked.Exchange(ref failed, 1); return; }
-                        for (int record = 0; record < 4; record++)
+                        try
                         {
-                            Console.Out.WriteLine($"CLROS_LOG fd=1 worker={identity} record={record}");
-                            if (!WriteRecord(identity, record)) Interlocked.Exchange(ref failed, 1);
+                            ready.Signal();
+                            if (!release.Wait(TimeSpan.FromSeconds(30))) { Interlocked.Exchange(ref failed, 1); return; }
+                            for (int record = 0; record < 4; record++)
+                            {
+                                Console.Out.WriteLine($"CLROS_LOG fd=1 worker={identity} record={record}");
+                                if (!WriteRecord(identity, record)) Interlocked.Exchange(ref failed, 1);
+                            }
                         }
-                    }
-                    catch { Interlocked.Exchange(ref failed, 1); }
-                }, 256 * 1024) { IsBackground = true };
-                threads[worker].Start();
-                startedThreads++;
+                        catch { Interlocked.Exchange(ref failed, 1); }
+                    }, 256 * 1024) { IsBackground = true };
+                    threads[worker].Start();
+                    startedThreads++;
+                }
+                allReady = ready.Wait(TimeSpan.FromSeconds(30));
             }
-            allReady = ready.Wait(TimeSpan.FromSeconds(30));
+            finally
+            {
+                release.Set();
+                for (int worker = 0; worker < startedThreads; worker++)
+                    // A stuck writer must not outlive this diagnostic or its events.
+                    // Terminate the owned fixture process rather than return HTTP.
+                    if (!threads[worker].Join(TimeSpan.FromSeconds(5))) Environment.Exit(70);
+            }
+            if (!allReady || failed != 0) return Results.StatusCode(500);
         }
-        finally
-        {
-            release.Set();
-            for (int worker = 0; worker < startedThreads; worker++)
-                // A stuck writer must not outlive this diagnostic or its events.
-                // Terminate the owned fixture process rather than return HTTP.
-                if (!threads[worker].Join(TimeSpan.FromSeconds(5))) Environment.Exit(70);
-        }
-        if (!allReady || failed != 0 || !InvalidDescriptor()) return Results.StatusCode(500);
+        if (!InvalidDescriptor()) return Results.StatusCode(500);
         return Results.Text("CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", "text/plain");
     }
 

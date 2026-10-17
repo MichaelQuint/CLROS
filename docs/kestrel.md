@@ -42,6 +42,15 @@ pass, including the independent deferred-logging-marker regression. Corrected
 logging/startup guests and current-source full-host acceptance remain pending;
 the package export is now resolved, while #218/#737 and PR740 stay open.
 
+[Step1386](../done/step1386.md) records the next failed guest: health and
+configuration pass, but the eight-worker diagnostic encounters the existing
+16-thread process limit. Run the eight worker identities in two joined groups
+of four, retaining all 64 records and the invalid-descriptor observation.
+Fresh original Linux qualification and source/output/package audits pass;
+the rebuilt payload has a separately checked complete decoder index and bounded
+native review. This is development evidence. Current-source full-host and
+logging/quota/startup guest acceptance remain pending.
+
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
 separate 8081 environment value and immutable settings. The owned QEMU process

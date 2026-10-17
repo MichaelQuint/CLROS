@@ -1044,6 +1044,17 @@ earlier failed checks remain retained. Corrected logging/quota/startup guests
 and current stable full-host qualification remain pending; #218/#737 and PR740
 remain open. Package recovery and focused host success grant no guest acceptance.
 
+[Step1386](../done/step1386.md) retains the subsequent guest's passing health
+and configuration probes and failed logging POST. Starting eight diagnostic
+workers exhausts the existing 16-thread limit alongside runtime threads.
+The fixture now starts two joined groups of four, retaining eight distinct
+identities, 64 records and the final invalid-fd observation. Fresh original
+Linux qualification passes; an independent audit joins 820 source files,
+all 152 outputs and both exact packages. The rebuilt ELF/index and bounded
+app-native review are recorded separately. Current-source full-host and
+logging/quota/startup guest qualification remain pending; #218/#737 and PR740
+remain open.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
