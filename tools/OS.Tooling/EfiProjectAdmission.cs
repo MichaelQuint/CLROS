@@ -163,7 +163,8 @@ public static class EfiProjectAdmission
         return EfiContracts.CompileItems.Where(item => item switch
         {
             @"Boot\EfiEntry.LinuxWeb.cs|" or
-            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs" => profile.IsEnabled("EnableM10004Probe"),
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs|Compatibility\LinuxX64\LinuxAppStartupObservation.cs" => profile.IsEnabled("EnableM10004Probe"),
             @"Boot\EfiEntry.LinuxSockets.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs" or

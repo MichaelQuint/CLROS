@@ -43,6 +43,15 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " reserved=") || !LinuxNumber(state, state->LinuxMemory.ReservedBytes) ||
                     !LinuxText(state, "\r\n")) return false;
             }
+            // A rejected bind is still the first bind attempt. Observe it before
+            // the general errno return so later output/retry cannot erase failure.
+            if (call.Number == 49)
+            {
+                if (!c->WebStartup.RecordBind(c->Threads.Current.Value,
+                    result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
+                    call.Argument0 < LinuxDescriptorServices.MaximumDescriptors)) return false;
+                c->WebBoundFd = (uint)call.Argument0 + 1;
+            }
             if (result.Action != LinuxSyscallAction.Return || result.Value < 0) return true;
             if ((c->WebFlags & 2) == 0 && result.Value > 0 && call.Number is 0 or 17 or 19 &&
                 call.Argument0 < descriptors.DescriptorCount)
@@ -68,8 +77,6 @@ public static unsafe partial class EfiEntry
                     }
                 }
             }
-            if (call.Number == 49 && result.Value == 0 && call.Argument0 < LinuxDescriptorServices.MaximumDescriptors)
-                c->WebBoundFd = (uint)call.Argument0 + 1;
             if (call.Number == 50 && result.Value == 0 && c->WebBoundFd != 0 && call.Argument0 + 1 == c->WebBoundFd)
             {
                 c->WebFlags |= 4;
@@ -93,7 +100,11 @@ public static unsafe partial class EfiEntry
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || source == null || bytes == 0 || bytes > 8192) return false;
             if (channel == 2)
-            { if (c->WebStderrBytes > ulong.MaxValue - bytes) return false; c->WebStderrBytes += bytes; return true; }
+            {
+                if (c->WebStderrBytes > ulong.MaxValue - bytes ||
+                    !c->WebStartup.Observe(c->Threads.Current.Value, source, bytes)) return false;
+                c->WebStderrBytes += bytes; return true;
+            }
             if (channel != 1 || c->WebStdoutBytes > ulong.MaxValue - bytes) return false;
             c->WebStdoutBytes += bytes;
             string started = "\n      Application started. Press Ctrl+C to shut down.\n";
@@ -111,7 +122,8 @@ public static unsafe partial class EfiEntry
         {
             if ((c->WebFlags & 16) != 0 || (c->WebFlags & 15) != 15) return true;
             if (c->Failed != 0 || c->Stopping != 0 || c->Process.Failed || c->Process.ActiveThreads == 0 ||
-                c->State->LinuxSyscallFailed != 0 || c->State->LinuxSyscallFaults != 0) return false;
+                c->State->LinuxSyscallFailed != 0 || c->State->LinuxSyscallFaults != 0 ||
+                !c->WebStartup.StartupComplete || !c->WebStartup.SuccessfulBind) return false;
             Storage* state = c->State;
             if (!LinuxText(state, "M10_004_LIVE argc=") || !LinuxNumber(state, state->LinuxInitialStack.ArgumentCount) ||
                 !LinuxText(state, " envc=") || !LinuxNumber(state, state->LinuxInitialStack.EnvironmentCount) ||

@@ -909,6 +909,16 @@ app ABI. The host qualifier does not invoke or qualify CLROS log-quota
 exhaustion. Current guest source admission still rejects a changed app until
 its newly measured ELF and exact source pins are reviewed together.
 
+The source-only startup follow-up adds `LinuxAppStartupObservation` to the web
+owner. It matches the four initial stderr lines across copied fragments from
+one verified current thread and requires them before the first successful bind.
+Malformed/foreign fragments and early, repeated or failed binds fail permanently;
+bind observation precedes the general errno return. A different verified thread
+may perform the bind. Existing live publication additionally checks this state.
+Four model checks (including zero managed allocation) and eleven focused
+source/inventory/legacy checks pass. This does not yet emit M10-006 readiness or
+qualify constructors, binding, logging quota or Kestrel in a CLROS guest.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

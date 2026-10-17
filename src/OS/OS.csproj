@@ -924,6 +924,7 @@
 		<Compile Include="Boot\EfiEntry.LinuxSockets.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxWeb.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs" Link="Compatibility\LinuxX64\LinuxAppLogBudget.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs" Link="Compatibility\LinuxX64\LinuxAppStartupObservation.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs" Link="Compatibility\LinuxX64\LinuxSocketServices.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs" Link="Compatibility\LinuxX64\LinuxEpollServices.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs" Link="Compatibility\LinuxX64\LinuxSocketNetwork.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
