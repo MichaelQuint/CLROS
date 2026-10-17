@@ -26,6 +26,10 @@ public static unsafe partial class EfiEntry
             internal Storage* State;
             internal ulong Key, AliasSerial;
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
+#if M10_004_PROBE
+            internal uint WebFlags, WebBoundFd, WebStartMatch;
+            internal ulong WebConfigBytes, WebStdoutBytes, WebStderrBytes;
+#endif
 #if M16_009_PROBE
             internal uint UserTimer, UserAcknowledged, UserDrain, UserPreempted;
             internal ulong TimingStart, TimingArm, TimingCapture, TimingReady;
@@ -167,7 +171,8 @@ public static unsafe partial class EfiEntry
             {
                 ulong guard = pool + (NativeProgram.WorkerPage + i * NativeProgram.WorkerPages) * Page, entry = pool + NativeProgram.Entries + i * NativeProgram.WorkerStride;
                 NativeContext* saved = (NativeContext*)(contexts + i * NativeContext.Bytes);
-                if (NativeContext.Initialize(saved, NativeContext.Bytes, entry, guard + 5 * Page - 40, mask) != NativeContext.Status.Ok) return false;
+                ulong initialRsp = guard + (NativeProgram.WorkerPages - 1) * Page - 40;
+                if (NativeContext.Initialize(saved, NativeContext.Bytes, entry, initialRsp, mask) != NativeContext.Status.Ok) return false;
                 var d = new NativeSwitch.Descriptor { Identity = 0x100000001UL + i, CurrentIdentity = 0x100000001UL + i,
                     Context = saved, ContextBytes = NativeContext.Bytes, StackGuardStart = guard, StackBytes = NativeProgram.WorkerPages * Page,
                     ResumeRip = entry, Kind = NativeSwitch.ResumeKind.Entry };
@@ -398,6 +403,9 @@ public static unsafe partial class EfiEntry
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
+#if M10_004_PROBE
+            if (!LinuxWebObserveCall(c, call, result)) return LinuxNativeAbort(c, index);
+#endif
 #if M16_009_PROBE
             timing = timing && timingRead(state, &dispatched) == 1;
 #endif
@@ -665,7 +673,8 @@ public static unsafe partial class EfiEntry
             ulong now = 0;
             delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
             bool application = LinuxUsesApplicationLimits(c->State);
-            return (!application || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now, application);
+            return (!application || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now, application,
+                continuingWeb: OS.Kernel.Diagnostics.Probes.EnableM10004Probe);
         }
 
         // Valid only after real workers/IRQ/native references have drained.

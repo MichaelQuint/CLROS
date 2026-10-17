@@ -29,15 +29,25 @@ public static class QemuProfiles
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
         // The socket union binds its original package/index and independent
         // peer, packet, transport and firmware evidence in the full runner.
-        bool sockets=NativeAotSocketSelection.Bind(options,profile.Flags);
-        if(!sockets)NativeAotRuntimeSelection.Bind(options, profile.Flags);
-        string runtimeApp = sockets?"":NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
+        bool containment=NativeAotSocketContainmentSelection.Bind(options,profile.Flags);
+        bool web=NativeAotWebSelection.Bind(options,profile.Flags);
+        bool sockets=!containment&&!web&&NativeAotSocketSelection.Bind(options,profile.Flags);
+        if(!sockets&&!containment&&!web)NativeAotRuntimeSelection.Bind(options, profile.Flags);
+        string runtimeApp = sockets||containment||web?"":NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
+        if(containment && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=180;
         if ((sockets||runtimeApp.Length != 0) && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
             options.TimeoutSeconds = 600;
         Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (sockets||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
         Require(!sockets||options.TimeoutSeconds>=600,"socket_timeout_must_cover_runtime_and_transport_drain");
+        Require(!containment||options.TimeoutSeconds>=120 && options.TimeoutSeconds<=295-QemuCaptureSession.RunnerCaptureAllowanceSeconds,
+            "socket_containment_timeout_out_of_range");
+        if(web)
+        {
+            if(!options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=240;
+            Require(options.TimeoutSeconds is >=30 and <=285,"web_timeout_must_fit_owned_runtime_budget");
+        }
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
-        if (Enabled("M07026")&&!sockets)
+        if (Enabled("M07026")&&!sockets&&!containment&&!web)
         {
             if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = 285;
             Require(options.TimeoutSeconds is >= 260 and <= 295, "m07_026_timeout_must_cover_real_time_wait");
@@ -93,7 +103,7 @@ public static class QemuProfiles
         {
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = sockets?NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready:Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            string terminal = web?"CLROS_M10_004_READY":containment?"CLROS_M07_027_READY":sockets?NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready:Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
@@ -157,13 +167,23 @@ public static class QemuProfiles
             ordered = Merge(records); unique = Merge(once ?? records); forbidden = Merge(forbidden, failures);
         }
         if (normal) { Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
-        else if(sockets)
+        else if(web)
+        {
+            Select(QemuTranscripts.WebMarkers(),["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8",
+                "M16_002_STAGE_REJECTED","M16_008_OWNER_END","M16_009_RESTORE","CLROS_M16_009_READY","M16_011_END","CLROS_M07_026_READY"],true);
+        }
+        else if(sockets||containment)
         {
             string[] repeated=["M16_008_CALL","M16_008_SUPERVISOR","M16_008_EXIT","M16_008_REAP"];
-            var records=QemuTranscripts.SocketMarkers(Enabled("M16012"));
+            var records=containment?QemuTranscripts.SocketContainmentMarkers():QemuTranscripts.SocketMarkers(Enabled("M16012"));
             Select(records,["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
                 "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"],true,records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)).ToArray());
             ordered=Merge(records.Where(x=>!repeated.Contains(x,StringComparer.Ordinal)));
+            if(containment)
+            {
+                required=Merge(required,["M07_028_DROP","M07_027_TIMEOUT"]);
+                unique=Merge(unique,["M07_028_DROP","M07_027_TIMEOUT"]);
+            }
         }
         else if (Enabled("M16009"))
         {
@@ -343,7 +363,10 @@ public static class QemuProfiles
         ("M09012", @"^(M09_012_|CLROS_M09_012_READY|TEST_(START|PASS) m09\.012)", "m09_012"),
         ("M16010", @"^(M16_010_|CLROS_M16_010_READY|TEST_(START|PASS) m16-010)", "m16_010"),
         ("M16011", @"^(M16_011_|M16_012_(POLL|WAKE|REPARK|COMPLETE|EXPIRE)|CLROS_M16_011_READY|TEST_(START|PASS) m16-011)", "m16_011"),
+        ("M10004", @"^(M10_004_|CLROS_M10_004_READY|TEST_(START|PASS) m10\.004)", "m10_004"),
         ("M16012", @"^(CLROS_M16_012_READY|TEST_(START|PASS) m16-012)", "m16_012"),
+        ("M07027", @"^(M07_027_|CLROS_M07_027_READY|TEST_(START|PASS) m07[.]027)", "m07_027"),
+        ("M07028", @"^(M07_028_|CLROS_M07_028_READY|TEST_(START|PASS) m07[.]028)", "m07_028"),
         ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
         ("M09005", @"^(M09_005_|CLROS_M09_005_READY|TEST_(START|PASS) m09\.005)", "m09_005"),
         ("M09009", @"^(M09_009_|CLROS_M09_009_READY|TEST_(START|PASS) m09\.009)", "m09_009"),

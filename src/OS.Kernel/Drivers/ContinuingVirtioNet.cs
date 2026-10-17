@@ -37,7 +37,7 @@ public static unsafe class ContinuingVirtioNet
         internal delegate* unmanaged<void*, byte> Fence;
         internal ushort RxAvailable, RxUsed, TxAvailable, TxUsed;
         internal byte TxMask, Phase;
-        internal ulong Received, Reclaimed;
+        internal ulong Received, Reclaimed, Dropped;
         public readonly bool Faulted => Phase == 2;
         public readonly bool Retired => Phase == 3;
         public readonly ushort ReceiveAvailableIndex => RxAvailable;
@@ -45,6 +45,9 @@ public static unsafe class ContinuingVirtioNet
         public readonly ushort TransmitAvailableIndex => TxAvailable;
         public readonly ushort TransmitUsedIndex => TxUsed;
         public readonly ulong ReceivedFrames => Received;
+        /// <summary>Unsupported packets whose validated receive buffers were
+        /// recycled without publishing payload. Saturation faults before reuse.</summary>
+        public readonly ulong DroppedFrames => Dropped;
         public readonly ulong ReclaimedTransmits => Reclaimed;
     }
 
@@ -166,10 +169,14 @@ public static unsafe class ContinuingVirtioNet
 
     /// <summary>Copy one complete no-offload single-buffer RX frame, then repost
     /// that same owned buffer. ShortBuffer returns required Ethernet bytes without
-    /// consumption or output writes. No borrowed DMA span escapes. Invalid used
-    /// records/header or ordering faults poison state and retain reset ownership.
+    /// consumption of that frame or output writes. Unsupported in-buffer content
+    /// is dropped/recycled, at most eight buffers per call. A bounded merged
+    /// discard waits for its complete chain; no merged payload is delivered.
+    /// Empty/ShortBuffer can therefore follow replenishment. No borrowed DMA
+    /// span escapes. Unsafe used records/counts and ordering faults poison state.
     /// Output may contain the frame if a later repost fails; consume it only on
-    /// Success. The adapter must notify queue0 after successful replenishment.</summary>
+    /// Success. The adapter must notify queue0 whenever the available index
+    /// advances, including Empty/ShortBuffer after preceding drops.</summary>
     public static Status Receive(State* state, Span<byte> destination, out uint bytes)
     {
         bytes = 0;
@@ -180,15 +187,50 @@ public static unsafe class ContinuingVirtioNet
         if (status != Status.Success) return status;
         if (pending == 0) return Status.Empty;
         byte* entry = UsedEntry(state, false, state->RxUsed);
-        ushort id = (ushort)*(uint*)entry; uint length = *(uint*)(entry + 4);
-        byte* buffer = Buffer(state, false, id);
-        var policy = VirtioNetHeaderChecksumPolicy.Validate(BoundedVirtioFeatures.NetSingleBufferReceive,
-            new ReadOnlySpan<byte>(buffer, (int)length));
-        if (!policy.Succeeded || length > MaximumFrameBytes + 12) return Fail(state, Status.InvalidFrame);
-        bytes = length - 12;
-        if (destination.Length < bytes) return Status.ShortBuffer;
-        if (state->Received == ~0UL) return Fail(state, Status.InvalidState);
-        for (int i = 0; i < bytes; i++) destination[i] = buffer[12 + i];
+        // Consume at most one queue's worth of policy rejects. A good packet
+        // following them is delivered normally; no extra owner/adapter status
+        // or unbounded polling is required.
+        uint budget = QueueSize;
+        while (budget != 0)
+        {
+            entry = UsedEntry(state, false, state->RxUsed);
+            ushort id = (ushort)*(uint*)entry; uint length = *(uint*)(entry + 4);
+            byte* buffer = Buffer(state, false, id);
+            uint buffers = length < 12 ? 1U : (uint)(buffer[10] | buffer[11] << 8);
+            bool invalidCount = buffers == 0;
+            if (invalidCount) buffers = 1;
+            // A merged packet cannot borrow beyond this owner's entire ring.
+            // Wait for all of a bounded discard chain before recycling it.
+            if (buffers > QueueSize) return Fail(state, Status.InvalidCompletion);
+            if (buffers > pending || buffers > budget) return Status.Empty;
+            var policy = VirtioNetHeaderChecksumPolicy.Validate(BoundedVirtioFeatures.NetSingleBufferReceive,
+                new ReadOnlySpan<byte>(buffer, (int)length));
+            if (invalidCount || !policy.Succeeded || length > MaximumFrameBytes + 12)
+            {
+                if (state->Dropped == ~0UL) return Fail(state, Status.InvalidState);
+                for (uint i = 0; i < buffers; i++)
+                {
+                    ushort rejected = (ushort)*(uint*)UsedEntry(state, false, state->RxUsed);
+                    status = RecycleReceive(state, rejected); if (status != Status.Success) return status;
+                }
+                state->Dropped++; budget -= buffers;
+                status = Pending(state, false, out pending, out _);
+                if (status != Status.Success) return status;
+                if (pending == 0) return Status.Empty;
+                continue;
+            }
+            bytes = length - 12;
+            if (destination.Length < bytes) return Status.ShortBuffer;
+            if (state->Received == ~0UL) return Fail(state, Status.InvalidState);
+            for (int i = 0; i < bytes; i++) destination[i] = buffer[12 + i];
+            status = RecycleReceive(state, id); if (status != Status.Success) return status;
+            state->Received++; return Status.Success;
+        }
+        return Status.Empty;
+    }
+
+    private static Status RecycleReceive(State* state, ushort id)
+    {
         var token = state->Tokens[id];
         if (VirtqueueDescriptors.TryReclaim(&state->Rx, token) != VirtqueueDescriptorStatus.Success ||
             VirtqueueDescriptors.TryPublish(&state->Rx, token) != VirtqueueDescriptorStatus.Success)
@@ -199,7 +241,7 @@ public static unsafe class ContinuingVirtioNet
         state->RxAvailable = unchecked((ushort)(state->RxAvailable + 1));
         *(ushort*)(available + 2) = state->RxAvailable;
         if (!Barrier(state)) return Fail(state, Status.OrderingFailed);
-        state->RxUsed = unchecked((ushort)(state->RxUsed + 1)); state->Received++;
+        state->RxUsed = unchecked((ushort)(state->RxUsed + 1));
         return Status.Success;
     }
 
@@ -246,7 +288,7 @@ public static unsafe class ContinuingVirtioNet
             uint id = *(uint*)entry, length = *(uint*)(entry + 4);
             if (id >= QueueSize || (seen & (1 << (int)id)) != 0 ||
                 (tx && ((s->TxMask & (1 << (int)id)) == 0 || length != 0)) ||
-                (!tx && (length < 26 || length > BufferBytes))) return Fail(s, Status.InvalidCompletion);
+                (!tx && length > BufferBytes)) return Fail(s, Status.InvalidCompletion);
             seen |= (byte)(1 << (int)id);
         }
         return Status.Success;

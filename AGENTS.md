@@ -2,21 +2,22 @@
 
 ## Start here
 
-`done/step1351.md` qualifies #214 -> #215 -> #216 and #689 -> #690 at
-implementation `3726e31`: 5,433 full-host checks across713 fixtures (94 Native),
-three complete original sync and three async socket guests, three V2 staging
-guests and33 fresh strict ancestors, with exact original native/source joins.
-The unchanged System.Net.Sockets and SocketAsyncEngine fixtures exchange real
-QEMU TCP bytes and drain their owned lifetimes. V2 staging does not enter the app.
-Next finish owned #217 configuration -> #218 serial output -> #219 upstream
-startup -> #220 Kestrel sockets under #737, then refresh exact dependencies.
-The separate PR739 configuration work is development evidence
-only. No guest Kestrel or new numbered/cloud/production gate is accepted.
+`done/step1380.md` qualifies #217 manifest configuration and #741/#742 network
+containment at implementation `3ef7316d`: 5,537 full-host checks across 731
+fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original native/source/package/serial/packet joins. Signal/runtime
+workers now have eight usable pages between both guards; web keeps sixteen and
+mechanical threads four. Native stack bounds remain scoped and partial.
+Step1351 retains the earlier #214/#215/#216 and #689/#690 qualifications.
+Next finish owned #218 output -> #219 startup -> #220 Kestrel sockets under
+#737; refresh exact dependencies, including #745 vectors and #759 realtime.
+No complete Kestrel, new numbered, isolation, cloud or production gate is accepted.
 
 The October 16 architecture review is now ordered in
 `docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16`
-and the canonical backlog. Preserve #737/PR739 ownership. M07-027/M07-028 and
-M16-013 precede #220 acceptance; continuing-policy/entropy/TCP/memory repairs
+and the canonical backlog. Preserve the current #737 application owner.
+M07-027/M07-028 are qualified; M16-013 and startup still precede #220 acceptance; continuing-policy/entropy/TCP/memory repairs
 precede #224/#225. M16-017 fault containment belongs before process termination
 and crash-isolation acceptance. Host Roslyn/generator and measured performance
 work follow the local Kestrel gate. Planning issues do not reopen accepted

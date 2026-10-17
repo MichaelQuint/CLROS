@@ -5,6 +5,30 @@ using Nic = OS.Drivers.ContinuingVirtioNetDevice;
 
 internal static unsafe class ContinuingVirtioNetDeviceTests
 {
+    [HostTest("m07-028 device notifies RX after drops even when the result is Empty or ShortBuffer", HostLane.Fast, 10)]
+    private static bool NotifyAfterDrops()
+    {
+        using var f = new Fixture(); HostCheck.Equal(Nic.Status.Success, f.Start());
+        Span<byte> output = stackalloc byte[14]; output.Fill(0xcc);
+        f.Rx(0); f.Data[4096] = 1;
+        HostCheck.Equal(Nic.Status.Empty, Nic.Receive(f.State, output, out uint bytes));
+        HostCheck.Equal(0U, bytes); HostCheck.Equal(2U, f.Hardware->RxNotifies);
+        HostCheck.True(f.State->Running && output.IndexOfAnyExcept((byte)0xcc) < 0);
+        f.Rx(1); HostCheck.Equal(Nic.Status.Success, Nic.Receive(f.State, output, out bytes));
+        HostCheck.Equal(14U, bytes); HostCheck.Equal(3U, f.Hardware->RxNotifies);
+        f.Rx(2); f.Data[4096 + 2 * 1536] = 1; f.Rx(3); output.Fill(0xcc);
+        HostCheck.Equal(Nic.Status.ShortBuffer, Nic.Receive(f.State, output[..13], out bytes));
+        HostCheck.Equal(14U, bytes); HostCheck.Equal(4U, f.Hardware->RxNotifies);
+        HostCheck.True(output.IndexOfAnyExcept((byte)0xcc) < 0);
+        HostCheck.Equal(Nic.Status.Success, Nic.Receive(f.State, output, out bytes));
+        HostCheck.Equal(5U, f.Hardware->RxNotifies); HostCheck.Equal(2UL, f.State->DroppedFrames);
+        HostCheck.Equal(2UL, f.State->ReceivedFrames);
+        f.Rx(4); f.Data[4096 + 4 * 1536] = 1; f.Hardware->NotifyFailure = true;
+        HostCheck.Equal(Nic.Status.WriteFailed, Nic.Receive(f.State, output, out _));
+        HostCheck.True(!f.State->Running); HostCheck.Equal(255UL, f.Pool->AllocatedMask);
+        f.Hardware->NotifyFailure = false; HostCheck.Equal(Nic.Status.Success, Nic.Stop(f.State)); return true;
+    }
+
     [HostTest("net.device actual queue readback notification and repeated retained packets", HostLane.Fast, 0)]
     private static bool Continuing()
     {

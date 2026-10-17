@@ -78,7 +78,7 @@ internal static class AuthorityFilesTests
         finally { File.SetAttributes(file, FileAttributes.Normal); }
     }
 
-    [HostTest("authority reader locks file writes and deletes through verification")]
+    [HostTest("authority reader preserves Windows sharing and detects Unix mutation and replacement")]
     private static void Locks()
     {
         string root = Scratch(), path = Path.Combine(root, "input.bin");
@@ -87,13 +87,54 @@ internal static class AuthorityFilesTests
         {
             var record = files.Open(root, path, "input", "input", 3, singleLink: true);
             HostCheck.True(record.ReadBytes(3, "read").SequenceEqual(new byte[] { 1, 2, 3 }));
-            bool writeRejected = false, deleteRejected = false;
-            try { using var forbidden = File.OpenWrite(path); } catch (IOException) { writeRejected = true; }
-            try { File.Delete(path); } catch (IOException) { deleteRejected = true; }
-            HostCheck.True(writeRejected && deleteRejected);
-            files.VerifyUnchanged();
+            if (OperatingSystem.IsWindows())
+            {
+                bool writeRejected = false, deleteRejected = false;
+                try { using var forbidden = File.OpenWrite(path); } catch (IOException) { writeRejected = true; }
+                try { File.Delete(path); } catch (IOException) { deleteRejected = true; }
+                HostCheck.True(writeRejected && deleteRejected); files.VerifyUnchanged();
+            }
+            else
+            {
+                // Larger than the stream buffer: native changes must reach the copied bytes.
+                byte[] original = Enumerable.Repeat((byte)0x11, 131089).ToArray();
+                string snapshot = Path.Combine(root, "snapshot.bin"); File.WriteAllBytes(snapshot, original);
+                var mutable = files.Open(root, snapshot, "snapshot", "snapshot", original.Length, singleLink: true);
+                File.WriteAllBytes(snapshot, Enumerable.Repeat((byte)0x22, original.Length).ToArray());
+                try { Reject(() => mutable.ReadBytes(original.Length, "read"), "authority_input_changed"); }
+                finally { File.WriteAllBytes(snapshot, original); }
+                files.VerifyUnchanged(); File.Delete(path); File.WriteAllBytes(path, [1, 2, 3]);
+                Reject(files.VerifyUnchanged, "authority_input_changed");
+            }
         }
         File.WriteAllBytes(path, [4, 5, 6]);
+    }
+
+    [HostTest("authority reader respects host path and distinct filename casing")]
+    private static void PlatformPaths()
+    {
+        string root = Scratch(), upper = Path.Combine(root, "Input.bin"), lower = Path.Combine(root, "input.bin");
+        File.WriteAllBytes(upper, [1, 2, 3]);
+        using AuthorityFiles files = new();
+        var first = files.Open(root, upper, "upper", "case", 3, singleLink: true);
+        if (OperatingSystem.IsWindows())
+        {
+            var alias = files.Open(root, lower, "same Windows file", "case", 3, singleLink: true);
+            HostCheck.True(ReferenceEquals(first, alias));
+            AuthorityFiles.RequirePlainPath(root.ToUpperInvariant(), upper.ToUpperInvariant(), "case_path");
+        }
+        else
+        {
+            File.WriteAllBytes(lower, [4, 5, 6]);
+            var second = files.Open(root, lower, "distinct Unix file", "case", 3, singleLink: true);
+            HostCheck.True(!ReferenceEquals(first, second)); AuthorityFiles.RequireDistinct(first, second);
+            HostCheck.True(second.ReadBytes(3, "case_read").SequenceEqual(new byte[] { 4, 5, 6 }));
+            string sibling = root + "-case", siblingCase = root + "-CASE";
+            Directory.CreateDirectory(sibling); Directory.CreateDirectory(siblingCase);
+            string outside = Path.Combine(siblingCase, "outside"); File.WriteAllText(outside, "outside");
+            Reject(() => AuthorityFiles.RequirePlainPath(sibling, outside, "case_root"), "case_root");
+        }
+        files.VerifyUnchanged();
     }
 
     [HostTest("authority reader bounds initial and repeated reads and rejects empty inputs")]

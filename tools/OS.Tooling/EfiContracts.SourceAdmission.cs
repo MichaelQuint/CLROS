@@ -3,6 +3,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.LinuxWeb.cs"] = "reviewed_m10_continuing_web_observation_source_identity",
         [@"Boot\EfiEntry.NetworkTcp.cs"] = "reviewed_m07_live_tcp_fixture_source_identity",
         [@"Boot\EfiEntry.NetworkScheduler.cs"] = "reviewed_m07_cooperative_progress_owner_source_identity",
         [@"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs"] = "reviewed_m07_cooperative_progress_program_source_identity",
@@ -73,6 +74,8 @@ public static partial class EfiContracts
         [@"..\..\std\no-runtime\shared\Ascii.cs"] = "reviewed_shared_ascii_unmanaged_subset",
         [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "reviewed_shared_overlap_safe_copy",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "reviewed_m16_linux_descriptors_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Package.cs"] = "reviewed_m10_linux_configuration_view_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Paths.cs"] = "reviewed_m10_linux_package_path_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs"] = "reviewed_m16_linux_pipe_source_identity",
         [@"..\..\std\no-runtime\shared\Text\AsciiTextBuilder.cs"] = "reviewed_m16_proc_formatter_source_identity",
         [@"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs"] = "reviewed_m16_proc_formatter_source_identity",

@@ -2,6 +2,23 @@
 
 ## NativeAOT-first milestone
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+The three qualified web captures return exact selected 22-byte health and
+238-byte configuration bodies. CLI binds 8080 while configuration observes the
+separate 8081 environment value and immutable settings. The owned QEMU process
+survives both probes, then dies with its endpoint refused. This is the M10-004
+configuration slice; default-body, realtime/HTTP Date, repeated service, vectors,
+async/cancellation/shutdown and local Gate 14 acceptance remain pending.
+
 [Step1335](../done/step1335.md) records fresh #214/#215 builder evidence under shared
 integration [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). The existing
 three-app publisher is retained byte-for-byte: the accepted original runtime
@@ -24,8 +41,9 @@ M16-001/#679 through M16-007/#685 and the bounded scheduler/timer foundations
 have historical qualification. The .NET11 migration, #188 lifecycle and
 #191/#192 through #688 finite runtime batch are qualified in steps1225/1230/1307.
 Step1332 qualifies continuing network/TCP; step1351 qualifies the original finite
-socket/SocketAsyncEngine fixtures for #689/#690. Continue owned #217 configuration,
-#218 stdout/stderr, #219 upstream app startup and #220 real Kestrel socket I/O
+socket/SocketAsyncEngine fixtures for #689/#690. Step1380 qualifies #217
+configuration. Continue owned #218 stdout/stderr, #219 upstream app startup and
+#220 real Kestrel socket I/O
 under #737. Follow the exact managed issue dependencies.
 Mechanical ELF startup/write/exit does not run the upstream runtime.
 M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
@@ -41,7 +59,99 @@ First acceptance uses one upstream static NativeAOT Minimal API, HTTP/1.1
 IPv4 port8080 and /healthz body `OS_MINIMAL_API_OK`, with the unchanged
 Kestrel evidence markers. Three fresh post-exit boots, external probes,
 request churn/async/cancellation/shutdown and a negative probe after guest
-termination are required. No guest Kestrel execution is currently qualified.
+termination are required. The full Kestrel milestone remains incomplete.
+
+## Historical development receipts
+
+The following pending/failure statements describe their named checkpoints.
+Step1380 supersedes them only for the qualified M10-004 slice.
+
+[Step1354](../done/step1354.md) adds a default-off `EnableM10004Probe`
+development profile for the unchanged original web ELF. It retains the live
+network/runtime owner, observes actual entry, immutable configuration reads,
+bind/listen and standard upstream startup output, and probes `/healthz` then
+`/config` through the existing runner's owned QEMU process. The selected package
+uses a distinct configuration body and environment endpoint8081 while CLI and
+socket policy still bind8080. Measured interval, mapping, native-stack and finite
+entropy limits are explicit web-profile bounds. Kestrel's one-byte `MSG_PEEK`
+copies without consuming the TCP receive window.
+
+These are development diagnostics. Step1354 deliberately returned
+`web_continuing_evidence_admission_pending` while independent continuing
+transcript, original native, packet and runner joins were incomplete. The later
+consumer steps below enable owner admission for qualification. No finite
+exit/reap or DMA teardown is invented for
+a continuing process. The retained r12 diagnostic returns exact200/22-byte
+selected health and200/238-byte configuration responses; an independent bounded
+PCAP reassembly matches both bodies. The runner's QEMU remains alive across
+both probes, then is confirmed dead with a refused endpoint. #217 and the
+dependent M10 tickets remain open; the first
+default-body/HTTP1.1, repeated-load, async/cancellation/shutdown and local claim
+gates remain pending.
+
+[Step1355](../done/step1355.md) adds host validation of the retained r12 complete
+prefix: exact fd1/fd2 byte framing, output/call/counter bindings, contiguous call
+ordinals and restored-return observations, existing epoll sequence binding, and
+original sealed syscall/return/IRQ instruction lookup. It accounts for1,211
+complete calls,13 writes/1,358 stdout bytes and one retained epoll wait. The final
+incomplete syscall remains a separately hashed fragment.
+[Step1356](../done/step1356.md) adds explicit continuing semantic replay over
+the existing memory/thread/signal/FIFO/epoll/socket model: nine clones,271 IRQs,
+53 drains and648 completed transfers retain ten live workers. File-generation,
+output scratch, peek and shutdown/reset controls reject impossible observations.
+The two accepted connections account for537 sent and159 consumed bytes; their
+packet/content join remains separate. See [app-model](app-model.md) for the
+replay boundary. Parent/native/source/packet/runner joins and stable-batch
+qualification are still required; complete smoke admission remains closed.
+[Step1357](../done/step1357.md) subsequently joins the complete original235-record
+firmware/owned/package/startup/service/APIC/NIC/ARP parent, roots, clocks and
+retained live DMA to the leaf. Native/source/runner/independent packet joins
+and stable-batch qualification still precede acceptance.
+[Step1358](../done/step1358.md) validates the original PCAP's checksums, TCP
+lifetimes/sequences and exact selected HTTP streams against those parents and
+leaf byte counts. The second client FIN remains unacknowledged in the capture;
+no shutdown or TIME_WAIT drain is invented. Native/source/runner admission and
+stable-batch qualification remain pending.
+[Step1359](../done/step1359.md) joins runner selection, child lifetime,
+probe deadlines/liveness and exact summary bytes to the raw serial and HTTP
+expectations. Three runner checks, three profile checks and25 retained-input
+mutations pass. The retained capture uses an explicitly synthetic outer process
+result/window for inspection; it is not a fresh runner qualification. Current
+native/source admission, complete stack-path accounting and stable-batch
+qualification remain pending.
+No new guest run or issue closure is part of these host parser steps.
+[Step1360](../done/step1360.md) wires the existing complete EFI verifier into
+the continuing runner and retains its inputs through validation. The raw image
+must contain the exact selected boot EFI and package; app/source inventories
+are rechecked afterward. Seven focused checks and seven retained-image
+mutations pass. Old r12 provenance correctly rejects against current sources;
+fresh stable native/guest qualification is still pending.
+[Step1361](../done/step1361.md) enables the complete owner-admitted path for
+qualification. Borrowed transcript inspection emits observations only;
+`QemuSmoke` emits `TEST_PASS qemu.smoke.web` after the actual runner and final
+held source/native/image/evidence checks. Original scoped stack joins measure
+6440 bytes for threaded output from gateway stack top and8872 bytes for the
+retained supervisor failure path. Fresh native/full-host/guest qualification
+still precedes #217 acceptance.
+[Step1362](../done/step1362.md) corrects a concrete pre-switch startup stack
+contract: the original heap-reservation path needs more than the declared32KiB
+diagnostic body budget. Only M10-004 now reserves a64KiB declaration within the
+existing main stack. Fresh native verification passes; all1741 method bodies
+agree with r12 except that budget immediate, with corresponding PE/debug
+metadata changes. The earlier candidate is retained as rejected before any
+qualification guest or full-host run. Combined qualification remains pending.
+[Step1363](../done/step1363.md) retains the subsequent stopped full-host gate:
+eleven legacy expectation failures, zero qualification guests. Explicit strict
+inventory/profile/source-pin repairs pass75 focused checks. The next complete
+fast phase finds three later descendant-matrix omissions and blocks native work;
+those test-only repairs pass20 focused checks. A fresh combined full-host/current
+guest gate is still required before #217 acceptance.
+The r05 full-host run then passes5,482 checks across720 fixtures. Its first
+qualification QEMU exits before executing guest code because the retained
+read-only image handle conflicts with QEMU's writable AHCI disk open. The
+continuing-web runner now uses a temporary snapshot overlay, preserving the
+locked, byte-verified base image. Six focused runner checks and paused QEMU
+launch controls pass; fresh combined qualification remains pending.
 
 ## Architecture review prerequisites
 

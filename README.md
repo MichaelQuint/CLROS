@@ -25,7 +25,17 @@ compiler and guest evidence.
 
 ## Current accepted evidence
 
-The latest runtime qualification is [step1351](done/step1351.md): **5,433 full-host
+[Step1380](done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+The earlier socket/staging qualification is [step1351](done/step1351.md): **5,433 full-host
 checks across 713 fixtures (94 Native), three sync and three async socket guests,
 three V2 staging guests and 33 fresh strict ancestors**. The unchanged upstream
 socket fixtures exchange real TCP bytes and drain their owned lifetimes. V2
@@ -37,10 +47,9 @@ ancestors**, with original native/source/producer joins. The default-off finite
 network service retains Virtio-net queues through ARP/ICMP and real TCP ownership,
 handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
 cooperative worker advances throughout and exits/reaps before checked cleanup.
-Step1351 adds bounded Linux sockets and epoll. Guest Kestrel acceptance remains
-incomplete. [PR #739](http://192.168.4.35:3000/admin/CLROS/pulls/739) reports
-development guest `/healthz` and `/config` responses; it is unmerged and does
-not close the continuing-service or Gate 14 requirements.
+Step1351 adds bounded Linux sockets and epoll. Step1380 qualifies the selected
+configuration slice incorporated from PR739. The full Kestrel ladder, continuing
+service and Gate 14 requirements remain incomplete.
 
 [Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
 across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles
@@ -74,7 +83,7 @@ Step1225 lists the finite set requalified on .NET 11.
 | Hardware timer | Four owned interrupts, safe deferred wake and IDT/IST/APIC/mapping restoration. [Step1224](done/step1224.md). |
 | Cooperative lifecycle | Repeated hardware-backed waits, retained joins, deferred cancellation and supervisor-only scrub/reuse. [Step1230](done/step1230.md). |
 | Continuing network/TCP | Finite retained queues, independent wire captures, bounded TCP lifetimes and a cooperative progress witness. [Step1332](done/step1332.md). |
-| Linux sockets/epoll and web prerequisites | Unchanged upstream sync/async socket guests, Linux-host web publish and immutable V2 guest staging. [Step1351](done/step1351.md). |
+| Linux sockets/epoll and web prerequisites | Finite socket/staging scope in [step1351](done/step1351.md); bounded configuration and network containment in [step1380](done/step1380.md). |
 
 Runtime and network qualification remain separate bounded profiles.
 Only Gate 2 passes within its documented scope. The
@@ -109,9 +118,9 @@ The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 The [architecture review implementation order](docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 places fixes at the acceptance stage that needs them:
 
-1. Preserve owned #217 configuration -> #218 output -> #219 startup under
-   [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). Localize connection
-   timeouts and unsupported RX drops, then qualify vectored socket I/O before
+1. Continue owned #218 output -> #219 startup under
+   [#737](http://192.168.4.35:3000/admin/CLROS/issues/737), preserving step1380's
+   configuration and network containment. Qualify vectored socket I/O before
    [#220's Kestrel socket ladder](http://192.168.4.35:3000/admin/CLROS/issues/220).
 2. Add owned realtime before external HTTP acceptance; retained development
    responses currently carry Unix-epoch dates. Before repeated-service and

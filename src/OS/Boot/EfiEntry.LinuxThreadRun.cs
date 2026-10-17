@@ -65,6 +65,11 @@ public static unsafe partial class EfiEntry
                     }
                 }
             }
+#if M10_004_PROBE
+            // Keep this supervisor stack, original PTEs, mappings and live owners.
+            // A continuing web driver has no successful guest return or teardown.
+            return LinuxWebRetainFailure(state, c, 1);
+#else
             // A returned but failed driver may still own a resumable worker.
             // Drain only through its genuine scheduled exit path. A failed
             // transfer with Current/Handoff retained never authorizes a guess.
@@ -103,6 +108,7 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " userBacked=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
                 LinuxText(state, " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
             return ran && logged && !failed && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0;
+#endif
         }
 
         // Release ends live process authority. Authenticate that exact retained
@@ -203,12 +209,16 @@ public static unsafe partial class EfiEntry
                 if (!LinuxNativeReapExited(c)) return false;
                 if (c->Process.ActiveThreads == 0)
                 {
+#if M10_004_PROBE
+                    return false; // Unexpected web termination, never finite completion.
+#else
                     // Completion must not bypass the elapsed ceiling just
                     // because the final dispatch exited every remaining worker.
                     ulong finished = 0;
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                     return c->Failed == 0 && !c->Process.Failed &&
                         (!c->Budget.HasElapsedLimit || clock(c->State, &finished) == 1 && c->Budget.Observe(finished));
+#endif
                 }
                 // Expiry is checked only on the restored supervisor. Previously
                 // armed IRQs have already acknowledged/drained in Transfer.
@@ -218,21 +228,42 @@ public static unsafe partial class EfiEntry
                     ulong now = 0;
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                     bool clockRead = !c->Budget.HasElapsedLimit || clock(c->State, &now) == 1;
+#if M10_004_PROBE
+                    if (!clockRead || !c->Budget.Continue(now, c->Epoch, step)) return false;
+#else
                     if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step)) &&
                         !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Budget.HasElapsedLimit && clockRead)) return false;
+#endif
                 }
+#if M10_004_PROBE
+                if (c->Stopping != 0 || c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 ||
+                    c->State->LinuxSyscallFailed != 0) return false;
+#else
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
                     !LinuxNativeStop(c, 2, step)) return false;
+#endif
 #if CLROS_LINUX_SOCKETS
                 if (c->Stopping == 0 && !PollLinuxSocketNetwork(c))
-                { if (!LinuxNativeStop(c, 2, step)) return false; }
+                {
+#if M10_004_PROBE
+                    return false;
+#else
+                    if (!LinuxNativeStop(c, 2, step)) return false;
+#endif
+                }
 #endif
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok) return false;
                 if (c->Threads.ReadyCount != 0)
                 { if (!LinuxNativeDispatch(c)) return false; }
 #if CLROS_LINUX_SOCKETS
                 else if (c->Stopping == 0)
-                { if (!IdleLinuxSocketNetwork(c) && !LinuxNativeStop(c, 3, step)) return false; }
+                {
+#if M10_004_PROBE
+                    if (!IdleLinuxSocketNetwork(c)) return false;
+#else
+                    if (!IdleLinuxSocketNetwork(c) && !LinuxNativeStop(c, 3, step)) return false;
+#endif
+                }
 #else
                 else if (c->Threads.DeadlineCount != 0 && c->Stopping == 0)
                 {
@@ -241,6 +272,9 @@ public static unsafe partial class EfiEntry
 #endif
                 else if (!LinuxNativeStop(c, 4, step)) return false;
             }
+#if M10_004_PROBE
+            return false; // Counter ceiling reached; the outer owner retains everything.
+#else
             // The bounded driver itself has made no native transfer here.
             // Cancellation still needs actual continuations, so use a separate
             // finite drain budget rather than freeing still-live resources.
@@ -252,6 +286,7 @@ public static unsafe partial class EfiEntry
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok || c->Threads.ReadyCount == 0 || !LinuxNativeDispatch(c)) return false;
             }
             return false;
+#endif
         }
 
         // First-stop evidence distinguishes budget, failed-owner, idle,

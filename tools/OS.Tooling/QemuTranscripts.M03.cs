@@ -5,9 +5,9 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false,NativeAotSocketProgram? socketProgram=null)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false,NativeAotSocketProgram? socketProgram=null,NativeAotSocketContainmentProgram? containmentProgram=null,string containmentPeerLine="")
     {
-        bool socket=socketProgram is not null;
+        bool socket=socketProgram is not null||containmentProgram is not null;
         Need(!socket || networkService&&linuxThreads&&linuxSignals&&linuxDescriptors&&linuxMemory&&linuxSyscalls&&linuxStartup&&workloadServiceLoop&&
             apicSetup&&virtioNegotiation&&virtqueuePolling&&virtioNet&&arpReceive&&!virtqueueInterrupt&&helloProgram is null&&threadingProgram is null&&runtimeProgram is null,"socket_parent_profile");
         Need(!cooperativeSwitch || !kernelThreads && !waitAddress && !privateTls && firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation &&
@@ -77,14 +77,18 @@ public static partial class QemuTranscripts
         Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
         Need(runtimeProgram is null || linuxSignals && helloProgram is null && threadingProgram is null, "runtime_profile_invalid");
         if (networkService) terminal = "TEST_PASS m07-026\r\n";
-        if(socket)terminal=NativeAotSocketSelection.Terminal(socketProgram!.Asynchronous).Pass+"\r\n";
-        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads,socketProgram);
+        if(socket)terminal=containmentProgram is not null?"TEST_PASS m07.027\r\n":NativeAotSocketSelection.Terminal(socketProgram!.Asynchronous).Pass+"\r\n";
+        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads,socketProgram,containmentProgram);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
         if(socket)
         {
-            var combined=ValidateSocketNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),socketProgram!);
-            AssertSocketCapture(path+".pcap",combined.Proof);lines=combined.Parent;
+            var combined=containmentProgram is not null?
+                ValidateSocketContainmentNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),containmentProgram):
+                ValidateSocketNetworkTail(lines,File.ReadAllBytes(path),File.ReadAllBytes(linuxElfPackagePath),socketProgram!);
+            if(containmentProgram is not null)AssertSocketContainmentCapture(path+".pcap",combined.Proof,ReadSocketContainmentPeerResult(containmentPeerLine));
+            else AssertSocketCapture(path+".pcap",combined.Proof);
+            lines=combined.Parent;
             networkService=linuxThreads=linuxSignals=linuxDescriptors=linuxMemory=linuxSyscalls=linuxStartup=workloadServiceLoop=false;
             virtioNegotiation=virtqueuePolling=virtioNet=arpReceive=false;linuxElfPackagePath="";
         }
@@ -203,6 +207,29 @@ public static partial class QemuTranscripts
         if (gptPartition) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_GPT ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
+        var rows = AssertCopiedAcpiRecords(lines);
+        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
+        if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
+        if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
+        if (pciEnumeration) AssertM05PciEnumerationRecords(barDma || virtioNegotiation || apicSetup || virtioBlockQueueSetup ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
+        if (barDma) AssertM05BarDmaRecords(lines);
+        if (virtqueueInterrupt) AssertM05VirtqueueInterruptRecords(lines);
+        else if (apicSetup) AssertM05ApicSetupRecords(lines);
+        if (virtioNegotiation && !virtqueueInterrupt) AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
+        if (virtqueuePolling) AssertM05VirtqueuePollingRecords(lines);
+        if (virtioBlockQueueSetup) AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
+        if (virtioBlockRead) AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
+        if (liveBlockContract) AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
+        if (gptPartition) AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
+        if (fatRead) AssertM06FatReadRecords(packageRead ? lines[..QemuContracts.M06FatReadMarkers().Count] : lines);
+        if (packageRead) AssertM06PackageReadRecords(lines, packageVariant);
+        if (monotonicClock) AssertM05MonotonicClockRecords(lines);
+    }
+
+    // Shared copied-table checks over borrowed observations; firmware and
+    // exact profile inventories are validated by each caller.
+    private static IReadOnlyList<Dictionary<string, ulong>> AssertCopiedAcpiRecords(IReadOnlyList<string> lines)
+    {
         string[] roles = ["rsdp", "root", "mcfg", "apic", "hpet"];
         var rows = new List<Dictionary<string, ulong>>();
         var physical = new List<(decimal Start, decimal End)>();
@@ -244,22 +271,7 @@ public static partial class QemuTranscripts
         var retained = ReadRecord(lines[24], "CLROS_M03_002_RETAIN", "total:dec", "descriptors:dec", "guards:dec", "tail:dec", "mismatches:dec");
         Need(total <= 266240 && retained["total"] == total && retained["descriptors"] == 5 && retained["guards"] == 32 &&
             retained["tail"] == 266240 - total && retained["mismatches"] == 0, "m03_acpi_retained_accounting");
-        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
-        if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
-        if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
-        if (pciEnumeration) AssertM05PciEnumerationRecords(barDma || virtioNegotiation || apicSetup || virtioBlockQueueSetup ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
-        if (barDma) AssertM05BarDmaRecords(lines);
-        if (virtqueueInterrupt) AssertM05VirtqueueInterruptRecords(lines);
-        else if (apicSetup) AssertM05ApicSetupRecords(lines);
-        if (virtioNegotiation && !virtqueueInterrupt) AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
-        if (virtqueuePolling) AssertM05VirtqueuePollingRecords(lines);
-        if (virtioBlockQueueSetup) AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
-        if (virtioBlockRead) AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
-        if (liveBlockContract) AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
-        if (gptPartition) AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
-        if (fatRead) AssertM06FatReadRecords(packageRead ? lines[..QemuContracts.M06FatReadMarkers().Count] : lines);
-        if (packageRead) AssertM06PackageReadRecords(lines, packageVariant);
-        if (monotonicClock) AssertM05MonotonicClockRecords(lines);
+        return rows;
     }
 
     public static void AssertM03OwnedSubsystemRecords(IReadOnlyList<string> lines, IReadOnlyList<Dictionary<string, ulong>> acpiRows, bool panic = false, bool normalBoot = false)

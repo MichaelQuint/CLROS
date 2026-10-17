@@ -206,7 +206,7 @@ public static unsafe class LinuxSocketServices
         if (e->Phase != Connected) return NotConnected;
         if (!Connection(e, out var entry)) return -5;
         if (e->Sender->CloseState == TcpConnectionCloseState.Reset)
-        { if (e->ErrorConsumed != 0) return BrokenPipe; e->ErrorConsumed = 1; return Reset; }
+        { if (e->ErrorConsumed != 0) return BrokenPipe; e->ErrorConsumed = 1; return e->Sender->TimedOut ? -110 : Reset; }
         if (e->Sender->WritesClosed || entry.State == TcpConnectionLifecycleState.Closed) return BrokenPipe;
         if (!Nonblocking(state, index) && (flags & 0x40) == 0) return Unsupported;
         return e->Sender->BufferedBytes >= e->SendBytes ? Again : 0;
@@ -220,19 +220,21 @@ public static unsafe class LinuxSocketServices
         if (bytes == 0) return Again;
         var result = TcpSendWindow.Queue(e->Sender,
             new ReadOnlySpan<byte>(state->Descriptors->Owner.Scratch, (int)bytes), out int accepted);
+        if (result == TcpSendWindow.Status.Timeout && TcpSendWindow.RetireTimedOut(e->Sender) == TcpSendWindow.Status.Success)
+        { e->ErrorConsumed = 1; return -110; }
         return result == TcpSendWindow.Status.Success ? accepted : result == TcpSendWindow.Status.WouldBlock ? Again : -5;
     }
 
     internal static long Receive(State* state, uint index, ulong address, ulong requested, ulong flags)
     {
-        if ((flags & ~0x40UL) != 0) return -95;
+        if ((flags & ~0x42UL) != 0) return -95; // MSG_PEEK | MSG_DONTWAIT.
         if (requested > LinuxDescriptorServices.MaximumIo) return Invalid;
         Endpoint* e = state->Slots + index;
         if (e->Phase != Connected) return NotConnected;
         if (!Connection(e, out var entry)) return -5;
         bool reset = e->Sender->CloseState == TcpConnectionCloseState.Reset;
         if (reset && e->Receiver->UnreadBytes == 0)
-        { if (e->ErrorConsumed != 0) return 0; e->ErrorConsumed = 1; return Reset; }
+        { if (e->ErrorConsumed != 0) return 0; e->ErrorConsumed = 1; return e->Sender->TimedOut ? -110 : Reset; }
         if (requested == 0 || e->ReadShutdown != 0) return 0;
         if (entry.State == TcpConnectionLifecycleState.Closed && e->Receiver->PeerClosed == 0 && !reset) return -5;
         var a = state->Descriptors->Owner; var receiver = e->Receiver;
@@ -247,6 +249,7 @@ public static unsafe class LinuxSocketServices
         // an arbitrary transport-owned receive buffer.
         for (uint i = 0; i < bytes; i++) a.Scratch[i] = receiver->Buffer[receiver->Offset + i];
         if (!LinuxDescriptorServices.Output(state->Descriptors, address, a.Scratch, bytes)) return Fault;
+        if ((flags & 2) != 0) return bytes; // Peeking never advances the window or schedules an ACK.
         return TcpReceiveWindow.Read(receiver, new Span<byte>(a.Scratch, (int)bytes), out var read, reset) == TcpReceiveWindow.Status.Success &&
             read.BytesRead == bytes ? bytes : -5;
     }
@@ -366,7 +369,13 @@ public static unsafe class LinuxSocketServices
     {
         if (how > 2) return Invalid;
         if (e->Phase != Connected) return NotConnected;
-        if (how != 0 && !e->Sender->WritesClosed && TcpSendWindow.ShutdownWrite(e->Sender) != TcpSendWindow.Status.Success) return -5;
+        if (how != 0 && !e->Sender->WritesClosed)
+        {
+            var result = TcpSendWindow.ShutdownWrite(e->Sender);
+            if (result == TcpSendWindow.Status.Timeout && TcpSendWindow.RetireTimedOut(e->Sender) == TcpSendWindow.Status.Success)
+            { e->ErrorConsumed = 1; return -110; }
+            if (result != TcpSendWindow.Status.Success) return -5;
+        }
         if (how != 1) e->ReadShutdown = 1;
         return 0;
     }
@@ -390,7 +399,7 @@ public static unsafe class LinuxSocketServices
     private static long GetOption(State* state, Endpoint* e, ulong level, ulong name, ulong address, ulong length)
     {
         int value;
-        if (level == 1 && name == 4) value = e->Sender != null && e->Sender->CloseState == TcpConnectionCloseState.Reset && e->ErrorConsumed == 0 ? 104 : 0;
+        if (level == 1 && name == 4) value = e->Sender != null && e->Sender->CloseState == TcpConnectionCloseState.Reset && e->ErrorConsumed == 0 ? e->Sender->TimedOut ? 110 : 104 : 0;
         else if (level == 1 && name == 2) value = (int)e->ReuseAddress;
         else if (level == 6 && name == 1) value = (int)e->NoDelay;
         else if (level == 1 && name is 7 or 8) value = (int)(name == 7 ? e->SendBytes : e->ReceiveBytes);

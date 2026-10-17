@@ -6,6 +6,23 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["linux", "web-index", var webElf, var webDump])
+            {
+                Console.WriteLine("TEST_START linux.web-index");
+                webElf = Path.GetFullPath(webElf); webDump = Path.GetFullPath(webDump);
+                using AuthorityFiles files = new();
+                var elf = files.Open(Path.GetDirectoryName(webElf)!, webElf, "web ELF", "web_index_elf", 16 * 1024 * 1024, singleLink: true);
+                var dump = files.Open(Path.GetDirectoryName(webDump)!, webDump, "web disassembly", "web_index_dump", NativeAotWebProgram.MaximumDisassemblyBytes, singleLink: true);
+                AuthorityFiles.RequireDistinct(elf, dump);
+                var report = NativeAotWebProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "web_index_elf"), dump.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes, "web_index_dump"));
+                files.VerifyUnchanged(); Console.WriteLine("TEST_PASS linux.web-index report_only=true " + report); return 0;
+            }
+            if (args is ["linux", "web-program", var webPackage, var webProgramDump])
+            {
+                Console.WriteLine("TEST_START linux.web-program");
+                var program = NativeAotWebProgram.Read(Repository.FindRoot(), webPackage, webProgramDump);
+                Console.WriteLine("TEST_PASS linux.web-program " + program.Metadata); return 0;
+            }
             if(args is ["qemu","inspect-socket",var inspectMode,var inspectPackage,var inspectDump,var inspectSerial])
             {
                 if(inspectMode is not ("sync" or "async"))throw new ArgumentException("socket_inspect_mode");
@@ -138,6 +155,11 @@ public static class ToolCommand
             {NativeAotSocketPeer.RunReceiveGatedPeerAsync(Repository.FindRoot(),peerPortNumber,peerSerial,Console.Out).GetAwaiter().GetResult();return 0;}
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket")
                 return NativeAotSocketPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-containment")
+                return NativeAotSocketContainmentPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "web" && args[2] == "package" &&
+                (args.Contains("--manifest", StringComparer.Ordinal) || args.Contains("--settings", StringComparer.Ordinal)))
+                return NativeAotWebPackage.RunConfigured(Repository.FindRoot(), args[2..], Console.Out);
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "web")
                 return NativeAotWebPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "threading")

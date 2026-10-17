@@ -1,5 +1,21 @@
 # App Model
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+The repaired signal/runtime pool has 226 pages: eight usable worker pages and
+both guards. Continuing web retains sixteen usable pages; mechanical M16-008
+retains four. [Step1372](../done/step1372.md) and [step1379](../done/step1379.md)
+preserve the original guard faults and partial native path bounds. The successful
+batch does not establish whole-stack or arbitrary callback safety.
+
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
 thread/runtime batch and shared #733: 5,202 full-host checks, 44 strict captures
 across 32 profiles, three retained strict GC repetitions and 24 fresh ancestors.
@@ -7,8 +23,9 @@ The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
 RuntimeMatrix execute in CLROS with original native/provenance joins and complete
 cleanup. A separate raw-state diagnostic proves an exit-requested worker blocked
 by active upstream GC before later exit/reap. It supplies no DetachCurrentThread
-entry or strict-runner claim. Continuing networking, sockets/epoll and Kestrel
-remain incomplete; no numbered/cloud/production gate changes.
+entry or strict-runner claim. That step did not qualify networking, sockets or
+Kestrel; later bounded scopes are recorded above. No numbered/cloud/production
+gate changes.
 
 ## Continuing service and resource follow-ups
 
@@ -770,6 +787,153 @@ M16-002 EFI/object/map identities match those retained V2 runs. Manifest-backed
 file/config projection and application startup remain unqualified. Linux builder
 Kestrel and CLROS finite socket guests remain distinct from guest Kestrel hosting.
 
+[Step1349](../done/step1349.md) adds the next development slice: validated V1/V2
+packages project their executable and up to seven immutable data files into the
+existing descriptor owner below `/app/`. The EFI consumer retains exact borrowed
+data extents and copied paths in its existing arena. Both ordinary and threaded
+copy-out use the same live-view source boundary. Six focused configuration checks
+include actual descriptor open/read, failed-copy cursor preservation, write and
+undeclared-path rejection; compile/source checks and enabled no-stdlib C# compilation
+also pass. This is host and C# compilation evidence only. Native publication,
+guest observation of selected configuration, complete argv/envp qualification and
+#217 acceptance remain pending.
+
+[Step1350](../done/step1350.md) adds focused path observations needed by the
+unchanged pinned web payload: Linux x64 `stat/lstat`, `getcwd`, `readlink`, and
+the `O_NOCTTY` open flag added by its shipping PAL. An explicit package process ID
+enables the extension and must match the attached thread owner. CWD is `/`;
+the declared executable and data views supply file metadata and parent directories.
+Only that owner's proc links identify its executable. Paths stay canonical and
+bounded; no directory handles, enumeration, writable files or cwd changes are
+implemented. The66 unique focused checks include actual gateway/thread/descriptor
+routing, identity mismatch, source/copy failures and `ENOTDIR` for file parents.
+Enabled M16-007 C# compilation and M16-012 preflight pass. Native/guest qualification
+and #217 completion remain pending.
+
+[Step1352](../done/step1352.md) adds explicit bounded manifest/settings selection
+to the existing web package command. The original producer/ELF checks remain,
+and the default package bytes are unchanged. Eight focused package checks pass,
+including selected argv/envp through `LinuxElfStartup`, exact immutable JSON
+through descriptor reads, and independent malformed/no-publication controls.
+This is host composition evidence only; native/guest configuration, upstream
+startup and #217 acceptance remain pending. See [the manifest specification](manifest.md#linux-elf-immutable-data-envelope-version-2)
+for selection syntax and ownership.
+
+[Step1353](../done/step1353.md) adds separate host instruction admission for the
+unchanged qualified web ELF. A retained independent LLVM22.1.3 section audit
+joins1,403,696 starts/4,492,823 bytes and all198 syscall continuations across five
+executable sections. The89 executable-load padding bytes outside those sections
+grant no starts. `linux web-program <package> <dump>` requires the exact ELF,
+bounded V2 web policy, immutable JSON object, current app/build/publisher sources
+and the reviewed complete index. Source-file locks and final directory/override
+checks reject changed source closure. A value-only `linux web-index <elf> <dump>`
+report grants no prepared lookup authority. Original and selected packages pass
+admission; altered ELF/policy, omitted instructions, aliases and concurrent source
+additions reject. The original web producer and socket admission remain intact.
+Sixteen focused host checks and actual Linux selected packaging/file-authority
+controls pass. No web guest profile is enabled or qualified by this host lookup.
+
+[Step1354](../done/step1354.md) adds the separate default-off M10-004 continuing
+web profile. Actual guest observations distinguish entry, the complete51-byte
+immutable settings read, listen8080 and upstream application-started output.
+The existing runner requires an exact selected health body and separate
+`/config` JSON from its still-live QEMU process, then confirms its termination
+and a refused stopped endpoint. Diagnostic HTTP uses HTTP1.0 with connection
+close; this does not satisfy the later default-body/HTTP1.1 milestone.
+Measured web-only mapping/interval/worker-stack bounds and a finite4096-byte
+pre-EBS entropy reservoir preserve the original profiles' limits. Entropy is
+fresh, consumed once, and never refilled or expanded. `MSG_PEEK` leaves the
+receive window unchanged. Continuing evidence admission and #217 acceptance
+remain pending. The retained r12 diagnostic and independent bounded packet
+reassembly match the exact22-byte health body and238-byte configuration JSON,
+including environment8081 despite the actual8080 listener. Its runner confirms
+the same QEMU alive across both probes, then dead with a refused endpoint.
+See the step's retained failures and explicit diagnostic boundary.
+
+[Step1355](../done/step1355.md) validates the retained diagnostic's complete
+prefix against the prepared original instruction lookup. The shared byte
+framer preserves finite-app behavior and explicitly decodes both web output
+channels; payload bytes cannot become structural markers. Startup/config/
+listener observations bind to their calls, writes bind to fd/result/request
+length, and output counters bind to prior envelopes. The final unfinished row
+is retained separately. This host validation adds no fresh guest acceptance.
+
+[Step1356](../done/step1356.md) extends the existing memory/syscall/thread/
+signal/FIFO/epoll/socket replay through that original complete prefix. Its
+explicit web policy checks the measured package, worker geometry, budget,
+4096-byte entropy, file operations and live owner. The M10 config call binds
+settings to an open-description generation; fd reuse grants no settings data.
+Scalar output follows the actual8192-byte scratch limit. MSG_PEEK retains an
+unread lower bound, and shutdown/reset results follow each socket description.
+The original1,211 calls, nine clones,271 IRQs,53 drains and648 complete transfers
+leave ten live threads, six ready and selected worker4294967305; no worker is
+reaped. Two accepted sockets account for537 sent and159 consumed bytes. EOF
+retains its actual parser/return stage and incomplete row without replaying it;
+only completed supervisor rows count as transfers. Sixteen original-capture
+mutations reject and two complete-row EOF boundaries pass. Parent/native/
+source/packet/runner joins and stable-batch qualification remain pending; full
+smoke admission stays closed and #217 remains open.
+
+[Step1357](../done/step1357.md) joins the complete235-record original parent
+prefix to this leaf: exact firmware bytes, copied ACPI/owned survival, immutable
+package digest, image/argv/envp stack geometry, service clock, PCI/APIC, NIC/ARP
+and the live network DMA/peer. Observed roots, HPET periods, service/peer/leaf
+clock order and disjoint DMA/worker-pool extents must agree. Twelve mutations
+of the retained capture reject. Native/source/runner/independent packet joins
+and stable-batch qualification remain pending; this adds no fresh guest or
+accepted #217/Kestrel evidence.
+
+[Step1358](../done/step1358.md) adds anchored PCAP validation and joins the
+two ordered remote-port lifetimes to the leaf's159 consumed/537 sent bytes.
+IPv4/TCP checksums, sequence/ACK bounds, consistent retransmissions, exact
+selected HTTP requests/bodies and EOF-delimited configuration completion must
+agree. The original23 TCP records contain two FINs in each direction, with
+only one client FIN acknowledged by the guest. Its completed active close
+binds the matching retained TIME_WAIT witness; no expiry/release is inferred.
+Serial, summary and PCAP are held as distinct unchanged files. Eight focused
+checks pass and eleven original-input mutations reject. Native/source/runner
+admission and stable-batch qualification still precede accepted #217/Kestrel.
+
+[Step1359](../done/step1359.md) joins the actual runner invocation window and
+selected QEMU/OVMF/forward port to captured process timestamps, liveness across
+both probes, requested termination, death and endpoint refusal. It recomputes
+the complete stdout, streaming metrics, observed rows and byte-exact summary
+from raw serial and immutable package expectations. Six focused checks and25
+retained-input rejection controls pass; the latter explicitly borrow a
+synthetic outer process result/window. The EFI verifier also requires the four
+web observer/publisher/failure bodies only for the selected web profile.
+Current native/source and complete stack-path qualification remain pending;
+the full smoke guard stays closed and #217/#737 stay open.
+
+[Step1360](../done/step1360.md) retains complete current EFI provenance and
+original app source locks through the web runner, including final source/app
+inventory checks. A read-only extraction of the existing fault fixture checks
+exact boot EFI/package bytes, directory sizes and both contiguous FAT copies
+inside the selected64-MiB raw image. Seven focused checks pass; seven retained
+image mutations reject. The original r12 image joins its retained EFI/package,
+while its old EFI source closure correctly rejects as stale. Current positive
+native/runner qualification and complete stack-path review remain pending.
+
+[Step1361](../done/step1361.md) completes the continuing admission wiring.
+Borrowed inspection cannot emit the owner's success marker. The actual runner
+owner verifies unchanged held native/source/image and capture inputs before
+`TEST_PASS qemu.smoke.web`. The original full249-marker plan and combined
+borrowed inspection pass; original added output and supervisor stack paths
+are joined without using an arbitrary margin for unknown callees. Fresh
+current artifact and stable-batch qualification remain required for acceptance.
+
+[Step1362](../done/step1362.md) raises only the web diagnostic declaration to
+64KiB after original startup heap mapping exceeds the former32KiB contract.
+The actual main stack and other profiles' declarations are unchanged. Fresh
+source/native verification passes with a single budget-immediate code change;
+the corrected source still needs the combined full-host/current guest batch.
+[Step1363](../done/step1363.md) records the stopped first full-host attempt
+(eleven legacy expectation failures, zero qualification guests) and75 passing
+focused checks after explicit inventory/profile/source-pin repairs. Its next
+complete fast phase finds three later descendant-matrix omissions and blocks
+native work. Those test-only repairs pass20 focused checks; combined acceptance
+remains pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
@@ -790,10 +954,10 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Step1307 qualifies only its exact pinned thread/runtime
-workloads. Kestrel support is mandatory; continuing network, TCP and Linux
-socket/epoll prerequisites remain incomplete. Broad workload claim boundaries are
-tracked in `docs/completion-gates.md`.
+application target. Steps1307/1332/1351/1380 qualify their named bounded
+runtime, network, socket and configuration profiles. Kestrel support remains
+mandatory; #218 -> #219 -> #220 and the later service/gate prerequisites remain
+open. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 

@@ -17,7 +17,10 @@ public sealed class QemuCaptureSession : IDisposable
     public string ScratchDirectory { get; private init; } = "";
     public int GuestTimeoutSeconds { get; private init; }
     public const int CaptureTimeoutSeconds = 60;
-    public int RunnerTimeoutSeconds => GuestTimeoutSeconds + CaptureTimeoutSeconds + 15;
+    /// <summary>Extra runner lifetime reserved for raw capture and final cleanup,
+    /// after the selected guest execution budget.</summary>
+    public const int RunnerCaptureAllowanceSeconds = CaptureTimeoutSeconds + 15;
+    public int RunnerTimeoutSeconds => GuestTimeoutSeconds + RunnerCaptureAllowanceSeconds;
     public IReadOnlyDictionary<string, string?> Environment { get; private init; } = new Dictionary<string, string?>();
     public IReadOnlyDictionary<string, string> Identities { get; private init; } = new Dictionary<string, string>();
     private static void Need(bool value, string reason) => QemuTranscripts.Need(value, reason);

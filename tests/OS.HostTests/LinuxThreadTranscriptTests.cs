@@ -37,7 +37,7 @@ internal static class LinuxThreadTranscriptTests
         string[] Parse(string text,bool threads=true)
         {
             File.WriteAllText(path,text,new System.Text.UTF8Encoding(false));
-            try{return (string[])frame.Invoke(null,[path,"TEST_PASS m16-008\r\n",true,false,"test_thread",false,null,null,null,threads,null])!;}
+            try{return (string[])frame.Invoke(null,[path,"TEST_PASS m16-008\r\n",true,false,"test_thread",false,null,null,null,threads,null,null])!;}
             catch(System.Reflection.TargetInvocationException error)when(error.InnerException is ToolFailure){throw error.InnerException;}
         }
         void Bad(string text,string reason,bool threads=true)

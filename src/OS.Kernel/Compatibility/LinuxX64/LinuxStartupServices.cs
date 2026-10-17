@@ -19,13 +19,16 @@ public static unsafe class LinuxStartupServices
     /// individual requests still have the original 32-byte bound. No refill or
     /// deterministic expansion is provided.</summary>
     public const uint RuntimeEntropyBytes = 256;
+    /// <summary>Explicit finite web lifetime of genuinely captured bytes;
+    /// requests remain bounded to 32 bytes, with no refill or expansion.</summary>
+    public const uint WebEntropyBytes = 4096;
 
     /// <summary>Immutable facts and borrowed capabilities. Physical/available
     /// bytes are actual owned snapshots, not Linux-host values. The IRQ-off
     /// single-context owner excludes other resource consumers during execution.
     /// AvailableBytes includes the unused pool; pool commitments are deducted.
     /// Entropy must be separate from AT_RANDOM and never published elsewhere.
-    /// CapturedEntropyBytes is exactly 32 or 256 genuinely acquired bytes; the
+    /// CapturedEntropyBytes is exactly 32, 256 or 4096 genuinely acquired bytes; the
     /// complete borrowed extent stays exclusive through owner cleanup.
     /// </summary>
     public struct Admission
@@ -225,7 +228,7 @@ public static unsafe class LinuxStartupServices
             !Overlap(source, bytes, (ulong)m.CandidateTables, m.TablePages * 4096UL) &&
             !Overlap(source, bytes, (ulong)m.StaticRanges, m.StaticCount * (ulong)sizeof(OS.Kernel.Memory.X64UserMappingRange));
     }
-    private static bool ValidEntropyBytes(uint bytes) => bytes == EntropyBytes || bytes == RuntimeEntropyBytes;
+    private static bool ValidEntropyBytes(uint bytes) => bytes == EntropyBytes || bytes == RuntimeEntropyBytes || bytes == WebEntropyBytes;
 
     /// <summary>Burn the unconsumed reservoir when its serialized owner stops.
     /// Borrowed storage must still be mapped/exclusive. This never resets the

@@ -32,9 +32,9 @@ M16-013 through M16-021, M11-019 through M11-021 and M15-016. They update existi
 entropy, logging, packet-corpus, Kestrel lifecycle/churn, budget, termination,
 crash-isolation and sustained-load issues and their parent checklists.
 [The workload roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
-explains their order. These are open implementation plans; no accepted finite
-issue is reopened or newly closed. Preserve live #737/PR739 ownership and human
-addenda. Use current `content_version` values for body writes and require scoped
+explains their order. Step1380 qualifies M10-004 and M07-027/M07-028; the
+remaining review plans stay open. Preserve the current #737 application owner
+and human addenda. Use current `content_version` values for body writes and require scoped
 readback/convergence; a label alone does not grant shared-lane ownership.
 
 The second pass creates five additional findings with retained reproduction

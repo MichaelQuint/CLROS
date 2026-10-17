@@ -276,7 +276,10 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
-        bool sockets = selected.Contains("EnableM16011Probe") || selected.Contains("EnableM16012Probe");
+        bool containment = selected.Contains("EnableM07027Probe") || selected.Contains("EnableM07028Probe");
+        if (containment && (selected.Contains("EnableM16012Probe") || selected.Contains("EnableM10004Probe")))
+            return "socket_containment_profile_conflict";
+        bool sockets = containment || selected.Contains("EnableM16011Probe") || selected.Contains("EnableM16012Probe") || selected.Contains("EnableM10004Probe");
         if (selected.Contains("EnableM07026Probe") || sockets)
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe",
@@ -284,7 +287,7 @@ internal static class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM10004Probe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name)))) return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
             if (sockets) return null;
@@ -433,7 +436,7 @@ internal static class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM10004Probe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]

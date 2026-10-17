@@ -175,7 +175,14 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
     // Writable UC ranges remain one page each; table/per-range caps are unchanged.
     public const ulong MaximumRetainedRanges = 48;
     public const ulong MaximumRetainedRangePages = 4096;
+#if M10_004_PROBE
+    // The original 8.7MB web package and its image/stack join the existing 32MiB
+    // application pool. Retain a bounded aggregate of 64MiB for this profile;
+    // every range, table count, low physical extent and overlap guard still applies.
+    public const ulong MaximumRetainedMappedPages = 16384;
+#else
     public const ulong MaximumRetainedMappedPages = 12288;
+#endif
     private const ulong LowCanonicalEnd = 0x0000_8000_0000_0000;
     private const PageProtection Code = PageProtection.Read | PageProtection.Execute;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;

@@ -11,6 +11,8 @@ public static class NativeAotSocketSelection
     public static string Application(IReadOnlyDictionary<string,bool> flags,string? selected=null)
     {
         bool On(string name)=>flags.TryGetValue("Enable"+name+"Probe",out bool enabled)&&enabled;
+        if(NativeAotSocketContainmentSelection.Selected(flags))return "";
+        if(On("M10004"))return ""; // Shared socket owners do not select the finite socket fixture.
         string app=On("M16012")?"NativeAotSocketSmokeAsync":On("M16011")?"NativeAotSocketSmoke":"";
         if(app.Length==0)return "";
         if(On("M09011")||On("M09012")||On("M16010"))throw new ToolFailure("socket_runtime_conflict");

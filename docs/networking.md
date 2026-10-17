@@ -1,5 +1,15 @@
 # Networking
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
 [Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
 socket/epoll batch at implementation `3726e31`: 5,433 full-host checks across713
 fixtures (94 Native), scoped original native review, three complete sync and
@@ -10,24 +20,30 @@ worker reap, descriptor/buffer cleanup, NIC reset and allocator restoration prec
 success; normal240-second TIME-WAIT is retained. The original payload is unchanged.
 Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
 The shared native-body joins do not prove whole-stack closure or arbitrary
-workloads. Real guest Kestrel and new numbered/cloud/production gates remain
-incomplete. Continue the owned #217-#220 application ladder under #737.
+workloads. The full Kestrel ladder and new numbered/cloud/production gates remain
+incomplete. Continue the owned #218-#220 application ladder under #737.
 
 ## Architecture review follow-ups
 
-The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
-adds open repairs to the accepted finite network surface:
+Step1380 qualifies M07-027/M07-028 after the development work in
+[steps1369-1379](../done/step1369.md). Three fresh original containment guests
+each exchange the exact three-peer streams, survive one local ETIMEDOUT and a
+1518-byte VLAN drop/recycle, then reap five workers and scrub/release owned
+resources. Healthy old connections remain usable beyond 30 seconds. Packet
+delivery, a live scheduler witness, descriptor generations, timeout errno and
+subsequent EOF/EPIPE are independently joined. Corrupt completion/ownership
+controls remain terminal host negatives, not guest content-policy successes.
+Each run records 83 RX, 71 accepted and 12 ignored frames. TX counts are
+104/105/104, with each run matched to its own captured transmissions; no
+individual RX outcome or cause for the TX difference is inferred.
 
-- [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
-  hard-coded 30-second connection lifetime can turn a healthy old connection
-  into shared `TransportFailure`. A host reproduction retained two connections
-  and observed the next pump return `InvalidState`. Separate per-connection
-  timeout policy from owner corruption and diagnostic total lifetime.
-- [M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742): a valid
-  DMA completion containing an unsupported 1518-byte VLAN frame faults the RX
-  owner in the host model. Drop/recycle content-policy rejects; preserve terminal
-  handling for unsafe completion metadata. External reachability depends on the
-  backend delivering that frame and has not been proved by this review.
+The retained pre-repair host reproductions and failed strict startup-SYN
+aggregate remain defect evidence in the named steps and issue attachments.
+Their earlier pending claims are superseded only for these two bounded repairs.
+Whole-stack safety, general Linux compatibility and the full Kestrel ladder
+remain unqualified. The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+keeps the remaining work at its required acceptance stage:
+
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.
   [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744) retires

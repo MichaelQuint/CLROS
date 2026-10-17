@@ -223,8 +223,7 @@ internal static unsafe class LinuxElfPackageTests
         HostCheck.True(rejected);
     }
 
-    [HostTest("linux.elf fault image fixture preserves EFI and changes only declared bytes")]
-    private static void ImageFaults()
+    private static (byte[] Image,byte[] Package,byte[] Efi) ImageVector()
     {
         byte[] image = new byte[64 * 1024 * 1024], package = Package(), efi = new byte[1024];
         efi[0] = (byte)'M'; efi[1] = (byte)'Z';
@@ -246,6 +245,36 @@ internal static unsafe class LinuxElfPackageTests
         foreach (uint n in new uint[] { 2, 3, 4, 6, 7 }) Link(n, 0x0fffffff); Link(5, 6);
         uint count = ((uint)package.Length + 511) / 512;
         for (uint i = 0; i < count; i++) Link(8 + i, i + 1 == count ? 0x0fffffffu : 9 + i);
+        return(image,package,efi);
+    }
+
+    [HostTest("linux.elf image inspection requires exact EFI package sizes and both FAT copies")]
+    private static void ImageIdentity()
+    {
+        var (image,package,efi)=ImageVector();
+        var locations=OS.Tooling.LinuxElfImageFixture.Inspect(image,efi,package);
+        HostCheck.True(image.AsSpan(locations.EfiStart,efi.Length).SequenceEqual(efi) &&
+            image.AsSpan(locations.PackageStart,package.Length).SequenceEqual(package));
+        void Reject(byte[] disk,byte[] boot,byte[] app)
+        {
+            bool rejected=false;try{_ = OS.Tooling.LinuxElfImageFixture.Inspect(disk,boot,app);}catch(OS.Tooling.ToolFailure){rejected=true;}
+            HostCheck.True(rejected);
+        }
+        foreach(int at in new[]{locations.EfiStart+100,locations.PackageStart+package.Length-1,locations.PackageEntry+28,
+            2048*512+32*512+1024*512+5*4})
+        {image[at]^=1;Reject(image,efi,package);image[at]^=1;}
+        efi[100]^=1;Reject(image,efi,package);efi[100]^=1;
+        package[^1]^=1;Reject(image,efi,package);package[^1]^=1;
+        Reject(new byte[512],efi,package);
+        _ = OS.Tooling.LinuxElfImageFixture.Inspect(image,efi,package);
+    }
+
+    [HostTest("linux.elf fault image fixture preserves EFI and changes only declared bytes")]
+    private static void ImageFaults()
+    {
+        var (image,package,efi)=ImageVector();
+        const int data=2048*512+32*512+1024*512*2;
+        int Cluster(uint n)=>data+((int)n-2)*512;
         string root = Path.Combine(Path.GetTempPath(), "clros-linux-elf-fixture-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
         string disk = Path.Combine(root, "image.raw"), elf = Path.Combine(root, "boot.efi"), input = Path.Combine(root, "app.pkg");
