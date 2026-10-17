@@ -52,12 +52,16 @@ public static partial class QemuTranscripts
     {
         ulong[] anchor=PrefixRow(proof.Nic,"M07_NET D",4);Need(anchor[0]<=uint.MaxValue,"socket_capture_anchor_width");
         var control=ReadSocketContainmentPackets(capture,(uint)anchor[0],proof.Arp);var wire=control.Totals;
+        ulong unanswered=(ulong)control.UnansweredStartupSyns;
         // The device recycles the unsupported VLAN below the delivered-frame
         // counters. PCAP sees that extra incoming frame; the exact drop row and
         // available-ring publication account for it independently.
+        // Before the sole initial SYN-ACK, the peer can send bounded startup
+        // retries. Join their observed extra count to the exact aggregate RX
+        // outcomes; do not infer which individual SYN the guest ignored.
         Need(proof.Containment is not null && wire.PeerReceived==proof.Peer["received"] && wire.PumpReceived==proof.Wire["received"]+1 &&
-            wire.PumpArp==proof.Wire["arp"] && wire.PumpIgnored==proof.Wire["ignored"]+1 &&
-            wire.PumpReceived-wire.PumpArp-wire.PumpIgnored==proof.Wire["accepted"] &&
+            wire.PumpArp==proof.Wire["arp"] && wire.PumpIgnored+unanswered==proof.Wire["ignored"]+1 &&
+            wire.PumpReceived-wire.PumpArp-wire.PumpIgnored-unanswered==proof.Wire["accepted"] &&
             wire.PumpArpCopied==proof.Wire["arpCopied"] && wire.PumpTcpCopied==proof.Wire["tcpCopied"] &&
             peer.HeadTransmissions==(ulong)control.HeadTransmissions && peer.HealthyReplies==30 && peer.VlanFrames==1 &&
             peer.ArpReplies==2+wire.PumpArp,"socket_containment_capture_serial_peer_join");

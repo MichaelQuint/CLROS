@@ -6,9 +6,9 @@ internal static class SocketContainmentNetworkTests
     private const string Peer="SOCKET_CONTAINMENT_PEER_RESULT complete=True stopped=True arpReplies=2 headTransmissions=8 healthyReplies=30 vlanFrames=1";
     private static string Fields(int role,ulong clock)=>FormattableString.Invariant(
         $"slot={role} owner=4096 epoch=1 generation=1 index={role} local=167772687 localPort=8080 remote=167772674 remotePort={41000+role} clock={clock}");
-    private static string[] Rows()
+    private static string[] Rows(int startupRetries=0)
     {
-        var reference=SocketContainmentPacketTests.ReferenceCapture();var rows=NativeAotSocketIntegrationTests.Envelope(false).ToList();
+        var reference=SocketContainmentPacketTests.ReferenceCapture(startupRetries);var rows=NativeAotSocketIntegrationTests.Envelope(false).ToList();
         void HexRow(string prefix,params ulong[] fields)
         {
             int at=rows.FindIndex(row=>row.StartsWith(prefix+" ",StringComparison.Ordinal));
@@ -30,11 +30,25 @@ internal static class SocketContainmentNetworkTests
             "M16_011_SLOT event=1 "+Fields(2,70_001_000_000)+" deadline=0 duration=0"]);
         rows.InsertRange(rows.IndexOf("TEST_START m16-011")+1,["TEST_START m07.027","TEST_START m07.028"]);
         rows[rows.FindIndex(row=>row.StartsWith("M16_011_WIRE ",StringComparison.Ordinal))]=
-            "M16_011_WIRE received=71 arp=0 accepted=71 ignored=0 capacity=0 arpCopied=0 tcpCopied=44";
+            $"M16_011_WIRE received={71+startupRetries} arp=0 accepted=71 ignored={startupRetries} capacity=0 arpCopied=0 tcpCopied=44";
         rows[rows.FindIndex(row=>row.StartsWith("M16_011_END ",StringComparison.Ordinal))]=
-            "M16_011_END polls=100 received=71 copied=44 fresh=3 retired=3 start=0 end=70001000000 maxDeadline=0 retained=0 buffers=scrubbed descriptors=closed workers=reaped";
-        rows[rows.FindIndex(row=>row.StartsWith("M07_026_ROW stage=4 ",StringComparison.Ordinal))]="M07_026_ROW stage=4 a=72 b=45 c=1 d=2";
+            $"M16_011_END polls=100 received={71+startupRetries} copied=44 fresh=3 retired=3 start=0 end=70001000000 maxDeadline=0 retained=0 buffers=scrubbed descriptors=closed workers=reaped";
+        rows[rows.FindIndex(row=>row.StartsWith("M07_026_ROW stage=4 ",StringComparison.Ordinal))]=$"M07_026_ROW stage=4 a={72+startupRetries} b=45 c=1 d=2";
         rows.AddRange(["CLROS_M07_028_READY","TEST_PASS m07.028","CLROS_M07_027_READY","TEST_PASS m07.027"]);return rows.ToArray();
+    }
+    [HostTest("containment parent joins observed unanswered startup SYNs without assigning individual RX outcomes")]
+    private static void StartupHandshake()
+    {
+        var rows=Rows(12);var reference=SocketContainmentPacketTests.ReferenceCapture(12);
+        var value=QemuTranscripts.InspectSocketContainmentEvidenceForTests(rows,reference.Capture,Peer);
+        HostCheck.Equal(12,value.UnansweredStartupSyns);
+        foreach(string pair in new[]{"accepted=72 ignored=11","accepted=70 ignored=13"})
+        {
+            bool rejected=false;
+            try{_=QemuTranscripts.InspectSocketContainmentEvidenceForTests(rows.Select(row=>row.Replace("accepted=71 ignored=12",pair,StringComparison.Ordinal)).ToArray(),reference.Capture,Peer);}
+            catch(ToolFailure error){rejected=error.Reason=="socket_containment_capture_serial_peer_join";}
+            HostCheck.True(rejected);
+        }
     }
     private static void Reject(string[] rows,string reason,string peer=Peer)
     {

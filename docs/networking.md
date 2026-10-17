@@ -83,9 +83,15 @@ explicitly integrated on this branch, with derived initial RSP and full pool
 extent controls. Drop observations now identify a valid frame delivered in the
 same receive call, so one VLAN plus one delivered frame requires two reposts.
 Eighty-nine distinct focused checks pass, original input admission passes and
-the selected no-stdlib source compiles. Original EFI review, actual strict guest
-execution and stable full-host/ancestor qualification remain pending. These
-repairs and the Kestrel ladder remain open; see [the command](qemu.md#containment-diagnostic-development).
+the selected no-stdlib source compiles. [Step1377](../done/step1377.md) adds scoped
+original EFI review. The first real guest and raw peer finish, but the strict
+consumer rejects its aggregate RX join: twelve unanswered startup SYNs were
+omitted from the packet model. The corrected consumer counts those observed
+extras separately, requires an unambiguous exact handshake and retains exact
+aggregate counters; it does not assign individual RX outcomes. Forty-four
+focused checks pass. Fresh strict guest and stable full-host/ancestor
+qualification remain pending. These repairs and the Kestrel ladder remain open;
+see [the command](qemu.md#containment-diagnostic-development).
 
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection

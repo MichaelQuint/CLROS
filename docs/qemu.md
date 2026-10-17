@@ -23,7 +23,8 @@ EnableM07028Probe selects the same paired case. Both probes default off and
 require the original containment app, canonical package and sealed complete
 instruction index. The runner owns a captured raw Ethernet peer; it rejects
 other peers/forwarding and requires actual completion and confirmed cleanup.
-The selected timeout range is120..295 seconds. Original SocketSmoke sync/async
+The selected guest timeout range is120..220 seconds; raw capture and cleanup add
+75 seconds within the raw peer's295-second lifetime. Original SocketSmoke sync/async
 profiles retain their separate packages, peers and600-second drain budgets.
 
 Required markers include TEST_START/TEST_PASS m07.027 and m07.028, the genuine
@@ -33,6 +34,14 @@ replay and independent peer/wire counters remain mandatory. One safe VLAN drop
 can be followed by one valid delivery in the same receive call; delivered=0/1
 binds the exact one/two available-ring reposts. Dry-run, source compilation and
 synthetic controls do not prove guest behavior or close either issue.
+
+[Step1377](../done/step1377.md) retains the first real capture as a failed strict
+run. Its twelve unanswered startup SYNs now have a separate observed count and
+exact aggregate RX join. Only role0 may retry before its sole SYN-ACK, at least
+500ms apart within30 seconds (at most59 extras). Every role requires the exact
+handshake ACK before data; duplicate SYN-ACKs, later SYNs and startup resets
+reject. Ambiguous accepted-duplicate/TX-backpressure traces fail the aggregate
+join. A fresh strict run remains required after this consumer correction.
 
 [Step1272](../done/step1272.md) adds an explicit development selector for either
 focused runtime workload through the existing M16-009 profile:

@@ -38,7 +38,8 @@ public static class QemuProfiles
             options.TimeoutSeconds = 600;
         Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (sockets||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
         Require(!sockets||options.TimeoutSeconds>=600,"socket_timeout_must_cover_runtime_and_transport_drain");
-        Require(!containment||options.TimeoutSeconds is >=120 and <=295,"socket_containment_timeout_out_of_range");
+        Require(!containment||options.TimeoutSeconds>=120 && options.TimeoutSeconds<=295-QemuCaptureSession.RunnerCaptureAllowanceSeconds,
+            "socket_containment_timeout_out_of_range");
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
         if (Enabled("M07026")&&!sockets&&!containment)
         {

@@ -6,8 +6,33 @@ internal static class SocketContainmentPacketTests
     private const ulong Peer = 0x020000000002;
     private sealed record Wire(ulong Time, byte[] Frame);
     private sealed record Fixture(List<Wire> Records, uint Anchor, QemuArpReceiveReceipt Arp);
-    internal static (byte[] Capture,uint Anchor,QemuArpReceiveReceipt Arp) ReferenceCapture()
-    { var fixture=Create();return(Capture(fixture.Records),fixture.Anchor,fixture.Arp); }
+    internal static (byte[] Capture,uint Anchor,QemuArpReceiveReceipt Arp) ReferenceCapture(int startupRetries=0)
+    { var fixture=Create(startupRetries:startupRetries);return(Capture(fixture.Records),fixture.Anchor,fixture.Arp); }
+
+    [HostTest("containment PCAP bounds unanswered startup SYNs and requires one unambiguous completed handshake")]
+    private static void StartupHandshake()
+    {
+        foreach(int retries in new[]{0,12,59})
+        {
+            var f=Create(startupRetries:retries);var value=Inspect(f,Capture(f.Records));
+            HostCheck.Equal(retries,value.UnansweredStartupSyns);
+            HostCheck.Equal(72UL+(ulong)retries,value.Totals.PumpReceived);
+            HostCheck.Equal(1UL,value.Totals.PumpIgnored);
+        }
+        Reject(Create(startupRetries:60));
+        var compressed=Create(startupRetries:2);int firstSyn=compressed.Records.FindIndex(row=>IsTcp(row,false,41000)&&row.Frame[47]==2);
+        compressed.Records[firstSyn+1]=compressed.Records[firstSyn+1] with{Time=compressed.Records[firstSyn].Time+1};Reject(compressed);
+        var duplicate=Create();int synAck=duplicate.Records.FindIndex(row=>IsTcp(row,true,41000)&&row.Frame[47]==0x12);
+        duplicate.Records.Insert(synAck,duplicate.Records[synAck]);Reject(duplicate);
+        var late=Create();int syn=late.Records.FindIndex(row=>IsTcp(row,false,41000)&&row.Frame[47]==2);
+        var first=late.Records[syn];late.Records.Insert(syn+2,first with{Time=late.Records[syn+1].Time});Reject(late);
+        var other=Create();syn=other.Records.FindIndex(row=>IsTcp(row,false,41001)&&row.Frame[47]==2);
+        other.Records.Insert(syn,other.Records[syn]);Reject(other);
+        var missing=Create();int ack=missing.Records.FindIndex(row=>IsTcp(row,false,41000)&&row.Frame[47]==0x10);
+        missing.Records.RemoveAt(ack);Reject(missing);
+        var reset=Create();synAck=reset.Records.FindIndex(row=>IsTcp(row,true,41000)&&row.Frame[47]==0x12);
+        Change(reset,synAck,bytes=>bytes[47]=0x14);Reject(reset);
+    }
 
     [HostTest("containment PCAP independently proves retries timed healthy traffic VLAN and exact resets")]
     private static void Complete()
@@ -105,7 +130,7 @@ internal static class SocketContainmentPacketTests
     }
 
     // Independent byte vectors: do not invoke the active peer or kernel codec.
-    private static Fixture Create(bool fins = false, bool acknowledged = true, bool late = false)
+    private static Fixture Create(bool fins = false, bool acknowledged = true, bool late = false,int startupRetries=0)
     {
         List<Wire> records = []; ulong now = 1_000_000;
         byte[] anchor = new byte[60], request = new byte[60], reply = new byte[60];
@@ -118,13 +143,15 @@ internal static class SocketContainmentPacketTests
             records.Add(new(now++, Tcp(outgoing, (ushort)(41000 + role), sequence, ack, flags, payload ?? [])));
         for (int role = 0; role < 3; role++)
         {
+            if(role==0)for(int retry=0;retry<startupRetries;retry++)
+            {Add(false,role,client[role]-1,0,2);now+=500_000;}
             Add(false, role, client[role] - 1, 0, 2); Add(true, role, server[role] - 1, client[role], 0x12);
             Add(false, role, client[role], server[role], 0x10); Add(false, role, client[role], server[role], 0x18, [(byte)role]);
             client[role]++; Add(true, role, server[role], client[role], 0x10);
         }
         for (int round = 0; round < 15; round++)
         {
-            now = 10_000_000 + (ulong)round * 5_000_001;
+            now = 10_000_000 + (ulong)startupRetries*500_000 + (ulong)round * 5_000_001;
             if (round <= 7) Add(true, 0, server[0], client[0], 0x18, Enumerable.Range(0, 1024).Select(i => (byte)(i % 251)).ToArray());
             if (round == 7)
             {

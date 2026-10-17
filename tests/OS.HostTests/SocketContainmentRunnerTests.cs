@@ -16,8 +16,15 @@ internal static class SocketContainmentRunnerTests
                 HostCheck.True(plan.Ordered.Contains(marker));
             foreach(string marker in new[]{"M07_027_TIMEOUT","M07_028_DROP"})HostCheck.True(plan.Required.Contains(marker)&&plan.Unique.Contains(marker));
             foreach(string[] extra in new string[][]{["--LinuxThreadingApplication","NativeAotSocketSmoke"],["--LinuxThreadingApplication","NativeAotSocketSmokeAsync"],
-                ["--TimeoutSeconds","119"],["--TimeoutSeconds","296"],["--LinuxElfImageVariant","DigestFault"],["--LinuxHelloDisassembly","hello.txt"],
+                ["--TimeoutSeconds","119"],["--TimeoutSeconds","221"],["--TimeoutSeconds","295"],["--TimeoutSeconds","296"],
+                ["--LinuxElfImageVariant","DigestFault"],["--LinuxHelloDisassembly","hello.txt"],
                 ["--RequireMarker","CLROS_M16_011_READY"]})Reject(()=>QemuProfiles.Create(QemuSmokeOptions.Parse([..Args(leaf),..extra])));
+            foreach(int seconds in new[]{120,220})
+            {
+                var bounded=QemuSmokeOptions.Parse([..Args(leaf),"--TimeoutSeconds",seconds.ToString()]);
+                _=QemuProfiles.Create(bounded);
+                HostCheck.True(bounded.TimeoutSeconds+QemuCaptureSession.RunnerCaptureAllowanceSeconds<=295);
+            }
         }
         foreach(string leaf in new[]{"M16011","M16012"})Reject(()=>QemuProfiles.Create(QemuSmokeOptions.Parse([..Args(leaf),"--LinuxThreadingApplication","NativeAotSocketContainment"])));
     }
@@ -36,11 +43,16 @@ internal static class SocketContainmentRunnerTests
         HostCheck.True(captured.Contains("--socket-containment-peer")&&captured.Contains("--ethernet-capture")&&
             !captured.Contains("--socket-forward-port")&&!captured.Contains("--continuing-network-peer"));
         HostCheck.True(captured.Sum(value=>value.Length+3)<30000);
-        var direct=ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..captured],root)
-            {Timeout=TimeSpan.FromSeconds(30),OutputCharacterLimit=128*1024},CancellationToken.None).GetAwaiter().GetResult();
-        HostCheck.True(direct.Succeeded,direct.FailureReason+direct.StandardOutput+direct.StandardError);
-        HostCheck.True(direct.StandardOutput.Contains("-netdev socket,id=n0,connect=127.0.0.1:<ephemeral>",StringComparison.Ordinal)&&
-            !direct.StandardOutput.Contains("hostfwd=",StringComparison.Ordinal));
+        foreach(int guestSeconds in new[]{120,220})
+        {
+            var expanded=captured.ToList();
+            expanded[expanded.IndexOf("--timeout")+1]=(guestSeconds+QemuCaptureSession.RunnerCaptureAllowanceSeconds).ToString();
+            var direct=ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..expanded],root)
+                {Timeout=TimeSpan.FromSeconds(30),OutputCharacterLimit=128*1024},CancellationToken.None).GetAwaiter().GetResult();
+            HostCheck.True(direct.Succeeded,direct.FailureReason+direct.StandardOutput+direct.StandardError);
+            HostCheck.True(direct.StandardOutput.Contains("-netdev socket,id=n0,connect=127.0.0.1:<ephemeral>",StringComparison.Ordinal)&&
+                !direct.StandardOutput.Contains("hostfwd=",StringComparison.Ordinal));
+        }
     }
 
     [HostTest("containment full runner rejects missing sealed program before reading public guest evidence")]

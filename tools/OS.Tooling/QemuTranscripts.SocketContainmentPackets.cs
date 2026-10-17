@@ -6,10 +6,12 @@ public static partial class QemuTranscripts
 {
     /// <summary>Value-only three-peer wire observations. PCAP times are host
     /// microseconds; they are not network-owner clocks or guest acceptance.
-    /// ExpiredBytesObserved counts distinct bytes seen on wire, not app writes.</summary>
+    /// ExpiredBytesObserved counts distinct bytes seen on wire, not app writes.
+    /// UnansweredStartupSyns counts extra role0 SYNs before its sole SYN-ACK;
+    /// it does not assign an individual kernel RX outcome.</summary>
     public readonly record struct SocketContainmentPacketInspection(SocketPacketInspection Totals, int ExpiredBytesObserved,
         int HeadTransmissions, ulong FirstHeadMicroseconds, ulong LastHeadMicroseconds,
-        ulong HealthyElapsedMicroseconds, ulong VlanMicroseconds);
+        ulong HealthyElapsedMicroseconds, ulong VlanMicroseconds, int UnansweredStartupSyns);
 
     private sealed class ContainmentWireFlow(int role)
     {
@@ -17,9 +19,9 @@ public static partial class QemuTranscripts
         internal readonly uint Client = (uint)(10001 + role * 10000);
         internal readonly bool[] Sent = new bool[role == 0 ? 32768 : 15];
         internal uint Server;
-        internal bool SynAck, Fin, Reset;
-        internal int Received, SentThrough;
-        internal ulong FirstReply, LastReply;
+        internal bool SynAck, HandshakeAck, Fin, Reset;
+        internal int Received, SentThrough, SynRequests;
+        internal ulong FirstReply, LastReply, FirstSyn, LastSyn;
     }
 
     /// <summary>Inspect a borrowed bounded classic PCAP against independent
@@ -92,16 +94,27 @@ public static partial class QemuTranscripts
                 Need(payload.Length == 0 && ack == 0 && sequence == 10000 + role * 10000 && role <= flows.Count &&
                     (role == 0 || flows[role - 1].Received != 0), "socket_containment_wire_syn");
                 if (role == flows.Count) flows.Add(new(role));
-                Need(!flows[role].Reset && flows[role].Received <= 1, "socket_containment_wire_syn_retry"); continue;
+                var pending=flows[role];
+                Need(!pending.SynAck && !pending.Reset && ++pending.SynRequests <= (role==0?60:1),
+                    "socket_containment_wire_syn_retry");
+                if(pending.SynRequests==1)pending.FirstSyn=clock;
+                else Need(clock-pending.LastSyn>=500_000 && clock-pending.FirstSyn<30_000_000,
+                    "socket_containment_wire_syn_retry_timing");
+                pending.LastSyn=clock;continue;
             }
             Need(role < flows.Count, "socket_containment_wire_unowned"); var flow = flows[role];
-            if (outgoing && !flow.SynAck && flags == 0x14)
-            { Need(sequence == 0 && ack == flow.Client && payload.Length == 0, "socket_containment_wire_listener_reset"); continue; }
             if (outgoing && flags == 0x12)
             {
-                Need(!flow.Reset && payload.Length == 0 && ack == flow.Client && (!flow.SynAck || sequence + 1 == flow.Server), "socket_wire_syn_ack");
+                Need(!flow.SynAck && !flow.Reset && payload.Length == 0 && ack == flow.Client, "socket_wire_syn_ack");
                 flow.SynAck = true; flow.Server = unchecked(sequence + 1); continue;
             }
+            if(incoming && !flow.HandshakeAck)
+            {
+                Need(flow.SynAck && flags==0x10 && payload.Length==0 && sequence==flow.Client && ack==flow.Server,
+                    "socket_containment_wire_handshake_ack");
+                flow.HandshakeAck=true;continue;
+            }
+            Need(flow.HandshakeAck,"socket_containment_wire_handshake_ack");
             // Final close can race the peer's explicit abort: PCAP arrival of
             // RST does not mean the guest has consumed that RX buffer yet.
             if (outgoing && flags == 0x11)
@@ -156,6 +169,6 @@ public static partial class QemuTranscripts
                 flow.LastReply - flow.FirstReply >= 70_000_000), "socket_containment_wire_complete");
         int expired = flows[0].Sent.Count(value => value);
         return new(new(3, 33, expired + 30, 2, 0, flows.Count(flow => flow.Fin), peerReceived, pumpReceived, arpReceived, arpCopied, tcpCopied, ignored),
-            expired, heads, firstHead, lastHead, flows.Skip(1).Min(flow => flow.LastReply - flow.FirstReply), vlan);
+            expired, heads, firstHead, lastHead, flows.Skip(1).Min(flow => flow.LastReply - flow.FirstReply), vlan,flows[0].SynRequests-1);
     }
 }
