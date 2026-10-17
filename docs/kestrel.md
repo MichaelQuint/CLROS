@@ -774,7 +774,8 @@ consumers are implemented with focused checks. It retains the normal process
 budget by default, requires real EIO after 64 copied callbacks and later selected
 health200 under the same exhausted budget. Actual descriptor writev coalesces
 its vectors; rejected quota charges cannot fabricate partial vector returns.
-Native review, stable full-host and guest qualification remain unfinished. The
+The scoped original native code/ABI/stack review passes; stable full-host and
+guest qualification remain unfinished. The
 prepared Linux package transfer was rejected before execution by tool policy
 with no stated reason. See [step1365](../done/step1365.md) and
 [step1368](../done/step1368.md).

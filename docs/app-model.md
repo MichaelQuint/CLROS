@@ -981,8 +981,9 @@ coalesces its vectors into one callback: the 64th callback succeeds and the next
 charge returns EIO without copied output or a quota refund. A separate copied
 observer joins those charges/results and rejects fabricated partial returns.
 The quota runner requires exercise500/empty, repeat409 and later selected
-health200 in the same live process. Focused controls pass; original native review,
-stable full-host and actual guest quota qualification remain unfinished. See
+health200 in the same live process. Focused controls and the scoped original
+native code/ABI/stack review pass. Stable full-host and actual guest quota
+qualification remain unfinished. See
 [step1368](../done/step1368.md).
 
 The memory adapter must distinguish sparse virtual reservations from committed
