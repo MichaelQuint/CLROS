@@ -48,6 +48,14 @@ instruction/package admission and complete guest joins remain pending. The
 final-FIN ordering fix still requires the real closing scenario. No accepted
 socket/runtime evidence is broadened.
 
+[Step1373](../done/step1373.md) admits only the original containment package
+and sealed decoded instruction index. All five executable sections, entry and
+179 syscall continuations are independently checked; five original-input
+mutations reject. Eighteen focused checks pass. The separate package explicitly
+retains publication-only provenance: no app execution or guest behavior follows
+from admission. Full syscall/scheduler/packet/peer joins, the selected high-level
+profile and stable native/full-host/guest qualification remain pending.
+
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
   into shared `TransportFailure`. A host reproduction retained two connections
