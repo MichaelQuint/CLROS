@@ -34,6 +34,17 @@ configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment
 precedes terminate/reap and real two-app crash-isolation acceptance.
 
+The second pass identifies three service-composition gaps. M16-019 supplies
+owned UTC before external HTTP acceptance, since a rejected realtime syscall
+becomes Unix-epoch `DateTime.UtcNow` in the pinned PAL. M16-020 prevents an
+unmasked pending signal from being stranded when pipe/epoll readiness is consumed
+by another worker before resumption. A finite no-progress guard can still stop
+the owner; the review does not prove an infinite kernel hang or guest GC deadlock.
+M16-021 later reconciles successfully installed SIGPIPE actions with I/O policy,
+or explicitly rejects unsupported dispositions. Until then the ignored-SIGPIPE
+profile is a restriction, not general signal compatibility. See the
+[second-pass evidence](repo-audit.md#second-pass-interactions-and-failure-recovery).
+
 ## Historical development receipts
 
 The dated development states below are superseded for this batch by step1307;

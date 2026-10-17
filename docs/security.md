@@ -43,6 +43,21 @@ per-process commit budgets. Host-side effects/context/ownership analysis
 generation (M11-021) supplement hardware isolation and runtime validation;
 annotations alone are not safety proofs.
 
+The second pass adds [M07-032 handshake-reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) and
+[M07-033 continuing TCP ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758). The latter must use an independently
+owned secret supplied by M11-012, preserve old-segment protections, and avoid
+both predictable diagnostic seeds and permanent admission exhaustion.
+The host tests establish availability defects, not remote exploitability.
+
+[M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759) is also a workload capability: the pinned
+PAL silently converts failed realtime reads into epoch time, observed in retained
+development HTTP. Certificate/token validity would depend on trustworthy time;
+no such exploit was tested. [M16-020](http://192.168.4.35:3000/admin/CLROS/issues/760) prevents actionable signals
+being stranded behind renewed waits; a guest GC deadlock remains unproved.
+[M16-021](http://192.168.4.35:3000/admin/CLROS/issues/761) must either enforce restricted SIGPIPE admission or honor
+the accepted live disposition. Successful declarations must agree with behavior
+across the signal, I/O, time and workload owners.
+
 ## Current Status
 
 Security is policy baseline only.

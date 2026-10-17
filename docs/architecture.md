@@ -65,6 +65,14 @@ tests. Generated implementation and generated expectations are not independent
 ABI evidence. Preserve the x86-64-v2 x87/SSE context contract; AVX/XSAVE requires
 its own CPU and context-save qualification.
 
+The second review pass gives M11-021 concrete composition controls: a profile
+cannot declare realtime when the pinned PAL silently falls back to epoch time,
+or accept a signal disposition that its I/O owner assumes is always ignored.
+Generated attributes/manifests should expose those incompatibilities at build
+or admission time, with independently authored behavior tests. A pending-signal
+wait race also needs runtime scheduling tests; source declarations cannot prove
+the absence of missed wakeups. See [the reproduced cases](repo-audit.md#second-pass-interactions-and-failure-recovery).
+
 M15-016 establishes reproducible CLROS measurements and, when feasible, a Nanos
 comparison using identical workload hashes, CPU, memory, acceleration and network
 conditions. M07-031 TCP flight, M16-018 mutation-scoped audit caching and #242

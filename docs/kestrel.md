@@ -54,10 +54,19 @@ RX content-drop containment (M07-028) and checked vectored I/O (M16-013).
 Exercise the pinned Kestrel multi-segment response path with independent exact
 bytes and partial-write/backpressure evidence.
 
+External HTTP #223 now requires [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759).
+Both retained PR739 r12 responses contain the syntactically valid date
+`Thu, 01 Jan 1970 00:00:00 GMT`; its validator accepts formatting without checking
+plausibility. Compare the date with an independent UTC observation interval and
+declared tolerance, and demonstrate advancing guest `DateTime.UtcNow`.
+
 Repeated-service #224 additionally needs TCP persist, compact TIME-WAIT,
-explicit continuing execution policy and replenished randomness. Async/churn
-#225 needs fragmented physical backing and a guest-verified GC/native resource
-budget. Keep the original finite profiles and their markers reproducible.
+explicit continuing execution policy, replenished randomness, pending-handshake
+reset cleanup (M07-032) and continuing ISNs (M07-033). Async/churn #225 needs
+fragmented physical backing, a guest-verified GC/native resource budget and
+pending-signal checks before renewed interruptible waits (M16-020). Keep the
+original finite profiles and their markers reproducible. M16-021's broader
+SIGPIPE policy work follows the local gate; the ignored profile remains explicit.
 The [canonical order](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 links every ticket and separates later isolation, compiler tooling and measured
 performance work. No new numbered gate passes from this planning update.
