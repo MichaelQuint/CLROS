@@ -22,7 +22,7 @@ public static unsafe partial class EfiEntry
                 descriptors.Views[1].Bytes == 0 || descriptors.Views[1].Bytes > 65536) return false;
             if ((c->WebFlags & 1) == 0)
             {
-                if (!LinuxText(state, "M10_004_ENTER identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                if (!LinuxText(state, "TEST_START m10.006\r\nM10_004_ENTER identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
                     !LinuxText(state, " rip=") || !LinuxNumber(state, call.Rip) ||
                     !LinuxText(state, " argc=") || !LinuxNumber(state, state->LinuxInitialStack.ArgumentCount) ||
                     !LinuxText(state, " envc=") || !LinuxNumber(state, state->LinuxInitialStack.EnvironmentCount) ||
@@ -30,6 +30,8 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, "\r\n")) return false;
                 c->WebFlags |= 1;
             }
+            if (c->WebStartup.Failed)
+            { LinuxText(state, "TEST_FAIL m10.006 startup-observation\r\n"); return false; }
             if (result.Action == LinuxSyscallAction.Return && result.Value == -12 && call.Number is 9 or 10 or 11 or 12 or 28)
             {
                 // Snapshot only committed owner counters after an atomic errno
@@ -49,8 +51,11 @@ public static unsafe partial class EfiEntry
             {
                 if (!c->WebStartup.RecordBind(c->Threads.Current.Value,
                     result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
-                    call.Argument0 < LinuxDescriptorServices.MaximumDescriptors)) return false;
+                    call.Argument0 < LinuxDescriptorServices.MaximumDescriptors))
+                { LinuxText(state, "TEST_FAIL m10.006 bind-observation\r\n"); return false; }
                 c->WebBoundFd = (uint)call.Argument0 + 1;
+                if (!LinuxText(state, "M10_006_BIND identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                    !LinuxText(state, " fd=") || !LinuxNumber(state, call.Argument0) || !LinuxText(state, "\r\n")) return false;
             }
             if (result.Action != LinuxSyscallAction.Return || result.Value < 0) return true;
             if ((c->WebFlags & 2) == 0 && result.Value > 0 && call.Number is 0 or 17 or 19 &&
@@ -101,9 +106,14 @@ public static unsafe partial class EfiEntry
             if (c == null || c->Phase != 3 || c->Published != 1 || source == null || bytes == 0 || bytes > 8192) return false;
             if (channel == 2)
             {
+                bool wasComplete = c->WebStartup.StartupComplete;
                 if (c->WebStderrBytes > ulong.MaxValue - bytes ||
                     !c->WebStartup.Observe(c->Threads.Current.Value, source, bytes)) return false;
-                c->WebStderrBytes += bytes; return true;
+                c->WebStderrBytes += bytes;
+                if (!wasComplete && c->WebStartup.StartupComplete &&
+                    (!LinuxText(state, "M10_006_STARTUP writer=") || !LinuxNumber(state, c->WebStartup.WriterIdentity) ||
+                    !LinuxText(state, " stages=4\r\n"))) return false;
+                return true;
             }
             if (channel != 1 || c->WebStdoutBytes > ulong.MaxValue - bytes) return false;
             c->WebStdoutBytes += bytes;
@@ -133,7 +143,8 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " stderrBytes=") || !LinuxNumber(state, c->WebStderrBytes) ||
                 !LinuxText(state, " active=") || !LinuxNumber(state, c->Process.ActiveThreads) ||
                 !LinuxText(state, " clock=") || !LinuxNumber(state, c->Threads.ObservedTicks) ||
-                !LinuxText(state, " owner=retained externalHttp=required\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\n")) return false;
+                !LinuxText(state, " owner=retained externalHttp=required\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\n" +
+                    "CLROS_M10_006_READY\r\nTEST_PASS m10.006\r\n")) return false;
             c->WebFlags |= 16; return true;
         }
 

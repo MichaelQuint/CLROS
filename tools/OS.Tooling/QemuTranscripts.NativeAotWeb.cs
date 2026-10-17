@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
 
@@ -9,7 +10,8 @@ public static partial class QemuTranscripts
     internal static IReadOnlyList<string> WebMarkers() => [
         ..SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011"),
         "TEST_START m10.004",..M16LinuxSignalMarkers.Take(3),"M16_011_BOUND ","M16_005_ARMED","M16_008_BOUND","M16_008_BUDGET",
-        "M10_004_ENTER","M10_004_CONFIG","M10_004_LISTEN","M10_004_LIVE","CLROS_M10_004_READY","TEST_PASS m10.004"];
+        "TEST_START m10.006","M10_004_ENTER","M10_004_CONFIG","M10_006_STARTUP","M10_006_BIND","M10_004_LISTEN",
+        "M10_004_LIVE","CLROS_M10_004_READY","TEST_PASS m10.004","CLROS_M10_006_READY","TEST_PASS m10.006"];
 
     // This consumer checks borrowed observations only. QemuSmoke owns current
     // native/source/image admission, the actual runner and the final success.
@@ -67,8 +69,10 @@ public static partial class QemuTranscripts
         Need(program is not null && string.Equals(Path.GetFullPath(root),program.SourceRoot,
             OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),"web_prepared_owner");
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
-        return ReadWebObservations(rawTail,configuration.Arguments,configuration.Environment,configuration.SettingsBytes,
+        var result=ReadWebObservations(rawTail,configuration.Arguments,configuration.Environment,configuration.SettingsBytes,
             program!.IsSyscallReturn,program!.IsInstruction);
+        _=ReadWebStartup(rawTail);
+        return result;
     }
 
     /// <summary>Replayed complete prefix and retained in-flight owner state.
@@ -125,8 +129,9 @@ public static partial class QemuTranscripts
         Need(configRows.Length==1 && configRows[0]+1<original.Length,"web_replay_settings_call");
         var settingsCall=ReadLinuxCallWaits(original,allowEpoll:true).SingleOrDefault(c=>c.RecordIndex==configRows[0]+1);
         Need(settingsCall.Identity!=0 && original[configRows[0]+1].Contains(" nr=17 ",StringComparison.Ordinal),"web_replay_settings_call");
-        string[] rows=original.Where(r=>!r.StartsWith("M10_004_",StringComparison.Ordinal) && r is not
-            ("TEST_START m10.004" or "CLROS_M10_004_READY" or "TEST_PASS m10.004")).ToArray();
+        string[] rows=original.Where(r=>!r.StartsWith("M10_004_",StringComparison.Ordinal) && !r.StartsWith("M10_006_",StringComparison.Ordinal) && r is not
+            ("TEST_START m10.004" or "CLROS_M10_004_READY" or "TEST_PASS m10.004" or
+             "TEST_START m10.006" or "CLROS_M10_006_READY" or "TEST_PASS m10.006")).ToArray();
         var capture=NativeAotSocketGuest.ReadReadiness(new(framed.Stdout,string.Join("\r\n",rows)+"\r\n",
             framed.WriteLengths.ToArray(),framed.WriteChannels.ToArray(),framed.Stderr));
         observed=observed with { PendingEpollWaits=capture.PendingWaits };
@@ -187,6 +192,100 @@ public static partial class QemuTranscripts
 
     private static readonly string[] WebCallFields="identity nr a0 a1 a2 a3 a4 a5 rip rsp flags fs gs clock valueBits action status".Split(' ').Select(x=>x+":dec").ToArray();
     private static readonly string[] WebCallSuffix="ordinal waitSource waitDeadline waitSequence signalDepth signalFrame blockedSignals returnRip returnRsp returnFlags returnFs returnGs returnValueBits".Split(' ');
+
+    /// <summary>Value-only startup/writer observations. No execution, listening,
+    /// package, scheduler, native or external HTTP authority follows from this report.</summary>
+    public readonly record struct WebStartupReport(ulong WriterIdentity,ulong BindIdentity,int StartupWriteRecords);
+
+    /// <summary>Checks borrowed synthetic startup serial framing and joins actual
+    /// copied stderr fragments to complete write/bind call identities and results.
+    /// Input is synchronous and unchanged; malformed, missing, failed or reordered
+    /// observations throw. Current prepared-program consumers additionally run
+    /// this check after full web observations; text alone grants no acceptance.</summary>
+    public static WebStartupReport InspectNativeAotWebStartupForTests(ReadOnlySpan<byte> raw)=>ReadWebStartup(raw);
+
+    private static unsafe WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw)
+    {
+        var framed=NativeAotThreadingOutput.ReadWeb(raw);
+        int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);
+        Need(last>=0,"web_startup_records");
+        string[] rows=framed.NormalizedTail[..last].Split("\r\n",StringSplitOptions.None);
+        int Marker(string marker,bool prefix=false)
+        {
+            int[] found=Enumerable.Range(0,rows.Length).Where(i=>prefix?rows[i].StartsWith(marker,StringComparison.Ordinal):rows[i]==marker).ToArray();
+            Need(found.Length==1,"web_startup_marker");return found[0];
+        }
+        int start=Marker("TEST_START m10.006"),startup=Marker("M10_006_STARTUP ",true),bind=Marker("M10_006_BIND ",true),
+            ready=Marker("CLROS_M10_006_READY"),pass=Marker("TEST_PASS m10.006");
+        Need(start<startup && startup<bind && bind<ready && pass==ready+1 && ready>=2 &&
+            rows[ready-1]=="TEST_PASS m10.004" && rows[ready-2]=="CLROS_M10_004_READY" &&
+            !rows.Any(r=>r.StartsWith("TEST_FAIL",StringComparison.Ordinal) ||
+                r.StartsWith("M10_006_",StringComparison.Ordinal) &&
+                !r.StartsWith("M10_006_STARTUP ",StringComparison.Ordinal) && !r.StartsWith("M10_006_BIND ",StringComparison.Ordinal)),
+            "web_startup_order");
+        var startupRow=ReadRecord(rows[startup],"M10_006_STARTUP","writer:dec","stages:dec");
+        var bindRow=ReadRecord(rows[bind],"M10_006_BIND","identity:dec","fd:dec");
+        int listen=Marker("M10_004_LISTEN ",true);
+        const string listenSuffix=" address=0 port=8080 owner=live";
+        Need(rows[listen].EndsWith(listenSuffix,StringComparison.Ordinal),"web_startup_listen");
+        var listener=ReadRecord(rows[listen][..^listenSuffix.Length],"M10_004_LISTEN","fd:dec");
+        var waits=ReadLinuxCallWaits(rows,allowEpoll:true).ToDictionary(c=>c.RecordIndex);
+        var returns=ReadLinuxCallReturns(rows,allowEpoll:true).ToDictionary(c=>c.RecordIndex);
+        string[] calls=ValidateLinuxCallOrdinals(rows,allowEpoll:true);
+        byte[] stderr=Encoding.UTF8.GetBytes(framed.Stderr);
+        var observed=new LinuxAppStartupObservation();
+        List<(int Offset,int Bytes,int Row)> pendingParts=[];
+        int writes=0,stderrOffset=0,pending=0,firstWrite=-1,completedWrite=-1,completedCall=-1,bindCall=-1,prefixWrites=0;
+        uint channel=0;ulong boundFd=0;
+        fixed(byte* source=stderr)
+        for(int i=0;i<rows.Length;i++)
+        {
+            if(rows[i].StartsWith("M16_005_WRITE ",StringComparison.Ordinal))
+            {
+                Need(writes<framed.WriteLengths.Count,"web_startup_write");
+                uint fd=framed.WriteChannels[writes];int bytes=framed.WriteLengths[writes++];
+                Need(rows[i]==$"M16_005_WRITE fd={fd} bytes={bytes} data=" && (pending==0 || channel==fd),"web_startup_write");
+                channel=fd;pending+=bytes;
+                if(fd==2)
+                {
+                    Need(stderrOffset<=stderr.Length-bytes,"web_startup_bytes");
+                    if(firstWrite<0)firstWrite=i;
+                    pendingParts.Add((stderrOffset,bytes,i));stderrOffset+=bytes;
+                }
+            }
+            if(waits.TryGetValue(i,out var wait))
+            {
+                var call=ReadRecord(calls[i],"M16_008_CALL",WebCallFields);var returned=returns[i];
+                Need(call["identity"]==wait.Identity && returned.Identity==wait.Identity && returned.ValueBits==call["valueBits"],"web_startup_call");
+                bool output=call["nr"] is 1 or 20 && call["a0"] is 1 or 2 && unchecked((long)call["valueBits"])>0;
+                Need(pending==0?!output:output && call["a0"]==channel && call["valueBits"]==(ulong)pending &&
+                    call["action"]==1 && call["status"]==1,"web_startup_write_call");
+                foreach(var part in pendingParts)
+                {
+                    bool wasComplete=observed.StartupComplete;
+                    Need(observed.Observe(wait.Identity,source+part.Offset,(uint)part.Bytes),"web_startup_prefix");
+                    if(!wasComplete)
+                    {
+                        prefixWrites++;
+                        if(observed.StartupComplete){completedWrite=part.Row;completedCall=i;}
+                    }
+                }
+                pendingParts.Clear();pending=0;
+                if(call["nr"]==49)
+                {
+                    Need(observed.RecordBind(wait.Identity,call["action"]==1 && call["status"]==1 && call["valueBits"]==0),"web_startup_bind");
+                    bindCall=i;boundFd=call["a0"];
+                }
+            }
+            if(i==ready)Need(observed.StartupComplete && observed.SuccessfulBind,"web_startup_live");
+        }
+        Need(pending==0 && writes==framed.WriteLengths.Count && stderrOffset==stderr.Length &&
+            observed.SuccessfulBind && start<firstWrite && startup==completedWrite+1 && completedCall>startup &&
+            bind>completedCall && bindCall==bind+1 && listen>bindCall && listen<ready && listener["fd"]==boundFd && startupRow["stages"]==4 &&
+            startupRow["writer"]==observed.WriterIdentity && bindRow["identity"]==observed.BindIdentity &&
+            bindRow["fd"]==boundFd,"web_startup_join");
+        return new(observed.WriterIdentity,observed.BindIdentity,prefixWrites);
+    }
 
     private static WebObservationReport ReadWebObservations(ReadOnlySpan<byte> raw,uint arguments,uint environment,uint settingsBytes,
         Func<ulong,bool>? syscall,Func<ulong,bool>? instruction)
