@@ -18,6 +18,12 @@ checks pass across 19 fixtures. Fresh original Linux/package/native and guest
 qualification remain pending. The required original Linux package transfer was
 rejected by tool policy without a stated reason; no equivalent retry was made.
 
+[Step1382](../done/step1382.md) separates immutable socket-producer pins from
+the exact current logging consumer after five full-host source-identity failures.
+Twenty focused checks and both retained socket producer rejoins pass. Fresh
+original EFI bytes match the bounded native review; the corrected full-host
+gate and actual guest logging/quota qualification remain pending.
+
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
 separate 8081 environment value and immutable settings. The owned QEMU process

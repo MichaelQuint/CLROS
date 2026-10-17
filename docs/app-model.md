@@ -1009,6 +1009,12 @@ unchanged from its retained source, and 116 focused checks across 19 fixtures
 pass. This source integration adds no logging/startup guest acceptance; fresh
 original package/native and guest qualification remain pending.
 
+[Step1382](../done/step1382.md) preserves the original socket producer receipt
+while pinning the exact revised logging consumer separately. Twenty focused
+checks and real retained sync/async package rejoins pass; fresh original native
+bytes match the bounded review. The first full-host run failed five source-pin
+cases and remains incomplete. Corrected full-host and logging guests are pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

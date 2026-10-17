@@ -16,13 +16,18 @@ public static class NativeAotSocketPackage
     private const int ElfBytes = 2_117_424;
     /// <summary>Raw SHA256 of the one retained original ELF used by both modes.</summary>
     public const string ElfSha256 = "8DDAC5986AFF981448D8B1F3BAF5FDA09E89368C578A7389BBB243FA5BFABE3D";
-    private static readonly (string Path, string Hash)[] Sources = [
+    // The retained receipt binds its original producer source. The current
+    // consumer includes the separately reviewed logging extension; changing
+    // that helper does not rewrite the original receipt or republish its ELF.
+    private const string WebPayloadSource = "tools/OS.Tooling/NativeAotWebPayload.cs";
+    private const string CurrentWebPayloadSha256 = "874627AC6B6450000FE935C03B1694C5EEB9C3213C8A2577CA426B4073238690";
+    private static readonly (string Path, string Hash)[] ProducerSources = [
         ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
-        ("tools/OS.Tooling/NativeAotWebPayload.cs", "4194B7F5E58900EFA1AA10DB1CAA919D326D8339B1F1866AB9E6DEC1D990FEB8"),
+        (WebPayloadSource, "4194B7F5E58900EFA1AA10DB1CAA919D326D8339B1F1866AB9E6DEC1D990FEB8"),
         ("tools/OS.Tooling/NativeAotSocketPayload.cs", "950FDC045A55DCD1E57FC1E72B579B042102FB001C445C6AF8072DB1E98E59D9"),
         ("apps/NativeAotSocketSmoke/Program.cs", "45ACEEBA92D225EBDC2E877111138D78778C62D7FF8ACDC4932CF40CD6CE5AF8"),
         ("apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj", "D8AFB29D1F4465AD7D3EF3F4A292255DBC5E6975FFD4AD02948E912B1D88564B")];
@@ -34,9 +39,10 @@ public static class NativeAotSocketPackage
         "\nargs=" + (asynchronous ? "--async" : "") + "\ndigest=" + ElfSha256.ToLowerInvariant() +
         "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=0.0.0.0:8080\nenv.CLROS_USER_IRQS=1\n";
 
-    /// <summary>Requires current relevant raw app/build/producer inputs only.
+    /// <summary>Requires exact reviewed current raw app/build/consumer inputs.
     /// Additional app files or local restore/build policy reject; bin/obj are
-    /// excluded. Unrelated kernel/tool edits confer no original-source claim.</summary>
+    /// excluded. The immutable receipt separately retains its producer pins;
+    /// current consumer identity grants no original-source or publication claim.</summary>
     public static void RequireCurrentSources(string root)
     {
         root = Path.GetFullPath(root);
@@ -55,7 +61,11 @@ public static class NativeAotSocketPackage
             else files.Add(Path.GetRelativePath(directory, path).Replace('\\', '/'));
         }
         Need(files.Order(StringComparer.Ordinal).SequenceEqual(new[] { App + ".csproj", "Program.cs" }.Order(StringComparer.Ordinal)), "source_inventory");
-        foreach (var source in Sources) Need(Hash(Read(root, source.Path, 1024 * 1024)) == source.Hash, "source_identity " + source.Path);
+        foreach (var source in ProducerSources)
+        {
+            string expected = source.Path == WebPayloadSource ? CurrentWebPayloadSha256 : source.Hash;
+            Need(Hash(Read(root, source.Path, 1024 * 1024)) == expected, "source_identity " + source.Path);
+        }
     }
 
     /// <summary>Reads the immutable original receipt, all 32 retained outputs,
@@ -71,7 +81,7 @@ public static class NativeAotSocketPackage
         Need(data.GetProperty("schema").GetString() == "clros.nativeaot.socket.v2" &&
             data.GetProperty("sdk").GetString() == NativeAotPayload.SdkVersion &&
             data.GetProperty("runtime").GetString() == NativeAotPayload.RuntimeVersion, "producer_policy");
-        foreach (var source in Sources) Need(data.GetProperty("sources").GetProperty(source.Path).GetString() == source.Hash, "producer_source");
+        foreach (var source in ProducerSources) Need(data.GetProperty("sources").GetProperty(source.Path).GetString() == source.Hash, "producer_source");
         var outputs = data.GetProperty("outputs").EnumerateObject().ToArray(); Need(outputs.Length == 32, "output_inventory");
         foreach (var item in outputs) Need(Hash(Read(evidenceRoot, Qualification + item.Name, 16 * 1024 * 1024)) == item.Value.GetString(), "output_identity " + item.Name);
         string directory = Path.Combine(evidenceRoot, Qualification);
