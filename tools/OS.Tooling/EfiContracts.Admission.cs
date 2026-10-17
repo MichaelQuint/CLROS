@@ -29,6 +29,8 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxWeb.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogQuotaObservation.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs",

@@ -8,6 +8,10 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs"] = "d075d65313f6927335b17e2edb318571a30e8c3f757ee6c07cd347ff3987ab65",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs"] = "bcf81db5bd40f9dacc9994250ff3ba665b2af6cc4fd2ca9ebffa44d09c0d2549",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs"] = "32a909c59bf3dd4d24d64d82fec6d1188c6ee5c5d93c317976b5d9a3adb919f3",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogQuotaObservation.cs"] = "5d6771055fd8f99b1d22f8d2251ebd5bd7ad15f003b08ec4670920d610b5665f",
                 [@"Boot\EfiEntry.LinuxWeb.cs"] = "44eaf5e824562b78f5aa5a32a33b6e2604a2e90c737b754274a1d78ca5d919ff",
                 [@"Boot\EfiEntry.NetworkScheduler.cs"] = "39d4142955198c26e73d109277c81d51a54aab1862e57a742200c3010de8bac1",
                 [@"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs"] = "7d3bc54dd737d3d6462e0bcb35597b783d3e5e107fc6719a8c1668cb0ba77700",
