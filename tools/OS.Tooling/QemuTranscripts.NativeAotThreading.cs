@@ -277,9 +277,21 @@ public static partial class QemuTranscripts
                         t.Epoll=null;t.EpollMaximum=t.EpollWinner=0;t.EpollObserved=t.EpollEligible=false;
                     }
                     if(!prepareBlocked)ExpectDelivery(t);
+                    bool exitTailContinued=false;
                     while(!prepareBlocked)
                     {
                         SocketObservations();
+                        if(t.TailRip!=0 && Starts("M16_009_IRQ "))
+                        {
+                            Need(!exitTailContinued,"threading_exit_tail_irq_repeat");
+                            var tail=Row("M16_009_IRQ","identity:dec","epoch:dec","nanos:dec","rip:dec","rsp:dec","flags:dec","fs:dec","gs:dec","valueBits:dec");
+                            Need(tail["identity"]==t.Identity && instruction(tail["rip"]),"threading_exit_tail_irq_binding");
+                            Envelope(t,tail["rip"],tail["rsp"],tail["flags"],tail["fs"],tail["gs"],0);
+                            Need(tail["valueBits"]==(tail["rip"]==t.TailRip+8?60UL:0),"threading_exit_tail_rax");
+                            Epoch(tail);irqs++;t.LastUserIrq=(ulong)epochs;
+                            t.SavedRsp=tail["rsp"];t.SavedRip=tail["rip"];exitTailContinued=true;
+                            continue; // Actual direct IRQ continuation; no FIFO enqueue/transfer.
+                        }
                         if(!Starts("M16_008_CALL ") && !Starts("M16_005_WRITE"))break;
                         bool output=Starts("M16_005_WRITE");
                         if(output)
@@ -313,11 +325,15 @@ public static partial class QemuTranscripts
                     if(prepareBlocked){t.Parking=false;if(t.Completion.HasValue)Enqueue(t);}
                     else if(ending)
                     {
-                        var drain=Row("M16_009_DRAIN","identity:dec","epoch:dec","nanos:dec");
-                        Need(drain["identity"]==t.Identity && (!stopping || drain["nanos"]==clock),"threading_drain_binding");
-                        Epoch(drain); drains++;
-                        if(action==6 || !exiting && t.Completion.HasValue) Enqueue(t);
-                        t.Parking=false;
+                        if(exitTailContinued)Need(exiting && action==4 && t.NormalExit,"threading_exit_tail_irq_exit");
+                        else
+                        {
+                            var drain=Row("M16_009_DRAIN","identity:dec","epoch:dec","nanos:dec");
+                            Need(drain["identity"]==t.Identity && (!stopping || drain["nanos"]==clock),"threading_drain_binding");
+                            Epoch(drain); drains++;
+                            if(action==6 || !exiting && t.Completion.HasValue) Enqueue(t);
+                            t.Parking=false;
+                        }
                     }
                     else
                     {

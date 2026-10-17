@@ -58,6 +58,14 @@ Only a prevalidated quota package can replay output EIO. Offline original
 parent/2,094-call replay and packet joins pass; the original command remains
 failed. Fresh strict guest batch and full-host acceptance remain pending.
 
+[Step1388](../done/step1388.md) retains the next failed strict guest and repairs
+an exit-tail IRQ race: a different worker reuses the self-unmapped stack before
+the exiting worker resumes. Keep the exact remap rejection. Only the already
+authenticated immutable no-stack tail resumes directly after IRQ acknowledgement
+to its actual exit syscall. Focused checks, native publication, original
+code/relocation joins and bounded callback/unwind review pass. Fresh guest and
+full-host qualification remain pending; the failed batch started no full gate.
+
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
 separate 8081 environment value and immutable settings. The owned QEMU process

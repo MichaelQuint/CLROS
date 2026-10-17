@@ -1063,6 +1063,16 @@ distinct HTTP lifetimes. Offline original parent/2,094-call replay and packet
 joins pass; the original strict command remains failed. Fresh strict guest
 batch and current-source full-host qualification remain pending.
 
+[Step1388](../done/step1388.md) records a failed fresh logging guest in which
+an IRQ yields after musl self-unmaps a thread stack, and another worker reuses
+that range before the old exit tail resumes. The existing remap guard correctly
+rejects it. After full IRQ/owner/image authentication and acknowledgement,
+resume only the exact immutable no-stack tail directly to its actual syscall60;
+retain the timer borrow for ordinary gateway cleanup. Replay records that IRQ
+without inventing a scheduler transfer or drain. Focused/native publication
+and bounded original callback/unwind review pass. Fresh guest, ancestors and
+stable full-host acceptance remain pending; #218/#737 and PR740 remain open.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
