@@ -130,6 +130,8 @@ try
 
     using ContinuingNetworkPeer? networkPeer = options.ContinuingNetworkPeer
         ? new(TimeSpan.FromMinutes(5), runTcp: true) : null;
+    using SocketContainmentPeer? containmentPeer = options.SocketContainmentPeer
+        ? new(TimeSpan.FromSeconds(options.TimeoutSeconds)) : null;
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
     process.StartInfo.UseShellExecute = false;
@@ -137,7 +139,7 @@ try
     process.StartInfo.RedirectStandardInput = options.WatchStartup;
     process.StartInfo.RedirectStandardOutput = options.WatchStartup;
 
-    foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path, networkPeer?.NetdevArgument))
+    foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path, containmentPeer?.NetdevArgument ?? networkPeer?.NetdevArgument))
     {
         process.StartInfo.ArgumentList.Add(argument);
     }
@@ -263,7 +265,8 @@ try
             break;
         }
 
-        if (networkPeer?.Completion.IsFaulted == true || networkPeer?.Completion.IsCanceled == true)
+        if (networkPeer?.Completion.IsFaulted == true || networkPeer?.Completion.IsCanceled == true ||
+            containmentPeer?.Completion.IsFaulted == true || containmentPeer?.Completion.IsCanceled == true)
         {
             networkPeerInitiatedFailure = true;
             TerminateProcessAndClassify(process, ref processTerminationRequested,
@@ -479,6 +482,17 @@ try
     IReadOnlyList<string> duplicateUniqueMarkers =
         streamingResult.DuplicateUniqueMarkerHits ?? Array.Empty<string>();
     string? networkPeerFailure = null;
+    if (containmentPeer is not null)
+    {
+        bool completed = containmentPeer.Completion.IsCompletedSuccessfully;
+        bool stopped = containmentPeer.Stop();
+        Console.WriteLine("SOCKET_CONTAINMENT_PEER_RESULT complete=" + completed + " stopped=" + stopped +
+            " arpReplies=" + containmentPeer.ArpReplies + " headTransmissions=" + containmentPeer.HeadTransmissions +
+            " healthyReplies=" + containmentPeer.HealthyReplies + " vlanFrames=" + containmentPeer.VlanFrames);
+        if (!completed || !stopped)
+            networkPeerFailure = !stopped ? "socket_containment_peer_cleanup_failed" : containmentPeer.Completion.IsFaulted
+                ? "socket_containment_peer_failed_" + containmentPeer.Completion.Exception!.GetBaseException().GetType().Name : "socket_containment_peer_incomplete";
+    }
     if (networkPeer is not null)
     {
         bool completed = networkPeer.Completion.IsCompletedSuccessfully;
@@ -2189,6 +2203,7 @@ sealed class RunnerOptions
     public bool VirtioNegotiationDevice { get; private set; }
     public bool ArpReceiveFixture { get; private set; }
     public bool ContinuingNetworkPeer { get; private set; }
+    public bool SocketContainmentPeer { get; private set; }
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
     public string SuccessTerminalMarker => ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
@@ -2318,6 +2333,10 @@ sealed class RunnerOptions
                     if (options.ContinuingNetworkPeer) throw new ArgumentException("--continuing-network-peer may be specified only once.");
                     options.ContinuingNetworkPeer = true;
                     break;
+                case "--socket-containment-peer":
+                    if (options.SocketContainmentPeer) throw new ArgumentException("--socket-containment-peer may be specified only once.");
+                    options.SocketContainmentPeer = true;
+                    break;
                 case "--socket-forward-port":
                     if (options.SocketForwardPort is not null) throw new ArgumentException("--socket-forward-port may be specified only once.");
                     string socketPort = ReadValue(args, ref i, arg);
@@ -2417,8 +2436,11 @@ sealed class RunnerOptions
         if (options.ContinuingNetworkPeer && (!options.ArpReceiveFixture || options.TimeoutSeconds > 295 ||
             options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--continuing-network-peer requires the captured ARP fixture, a timeout at most 295 seconds and the ordinary diagnostic exit path.");
+        if (options.SocketContainmentPeer && (!options.ArpReceiveFixture || options.TimeoutSeconds is < 120 or > 295 ||
+            options.ContinuingNetworkPeer || options.ContinuingWeb || options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
+            throw new ArgumentException("--socket-containment-peer requires the captured ARP fixture, a120..295-second timeout and ordinary diagnostic exit without another peer.");
         if (options.SocketForwardPort is not null && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.EthernetCapturePath is null ||
-            options.ContinuingNetworkPeer || (options.HttpProbe is not null && !options.ContinuingWeb) || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
+            options.ContinuingNetworkPeer || options.SocketContainmentPeer || (options.HttpProbe is not null && !options.ContinuingWeb) || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--socket-forward-port requires the captured dedicated modern ARP network fixture and ordinary diagnostic exit path, without --continuing-network-peer or HTTP probing.");
         options.ValidateContinuingWeb();
         return options;
@@ -2426,6 +2448,7 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
+        Console.WriteLine("--socket-containment-peer selects the finite three-socket timeout/VLAN raw Ethernet peer; requires captured modern ARP networking and a120..295-second timeout. Peer completion does not establish guest acceptance.");
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
         Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409 and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");

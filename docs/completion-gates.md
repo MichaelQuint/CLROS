@@ -1,13 +1,27 @@
 # CLROS Completion Gates
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+Only the existing numbered Gate 2 passes. The selected health/configuration
+responses do not qualify #218/#219/#220, realtime/HTTP Date, repeated service,
+vector I/O, isolation or local Gate 14. No numbered checkbox changes here.
+
 [Step1351](../done/step1351.md) qualifies the bounded #214/#215/#216 and
 #689/#690 batch at implementation `3726e31`: 5,433 full-host checks across713
 fixtures (94 Native), scoped original native/source joins, three sync and three
 async unchanged System.Net.Sockets guests, three immutable V2 staging guests
 and33 fresh strict ancestors. The builder separately runs real Kestrel HTTP;
 CLROS runs the finite socket fixtures, while V2 staging keeps entry=false.
-These are distinct evidence boundaries. Configuration/app startup and guest
-Kestrel remain incomplete. Only existing numbered Gate2 passes; no isolation,
+These are distinct evidence boundaries. At that checkpoint, configuration/app
+startup and guest Kestrel remained incomplete. Only existing numbered Gate2 passes; no isolation,
 cloud or production gate advances.
 
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
@@ -37,11 +51,12 @@ Development and failed/interrupted qualification history remains in steps1309-13
 ## Architecture review acceptance boundaries
 
 The [October 16 ordered follow-ups](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
-change prerequisites, not gate results. Step1351 remains the latest accepted
-runtime/socket package; PR739's reported development HTTP is separate.
+change prerequisites, not gate results. Step1351 retains its finite socket
+package scope; step1380 adds bounded configuration and M07-027/M07-028 repair
+qualification. The remaining application/service prerequisites stay open.
 
-- #220 requires M07-027/M07-028 network failure containment and M16-013 actual
-  vectored socket/Kestrel I/O, alongside its existing startup/epoll dependencies.
+- #220 uses step1380's qualified M07-027/M07-028 network containment and still
+  requires M16-013 actual vectored socket/Kestrel I/O plus its startup/epoll dependencies.
 - #223 requires M16-019 owned realtime and an independently plausible HTTP Date.
   A correctly formatted Unix-epoch response does not pass time acceptance.
 - #224 requires persist, compact TIME-WAIT, continuing execution policy,
@@ -68,7 +83,7 @@ numbered, cloud or production gate advances from this review.
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;
-steps1307,1332 and1351 supersede pending claims only for their exact qualified scopes.
+steps1307,1332,1351 and1380 supersede pending claims only for their exact qualified scopes.
 
 Development [step1234](../done/step1234.md) wires #191/#192's mechanical wait/TLS
 profiles and exact transcript admission. Focused checks and freestanding C#

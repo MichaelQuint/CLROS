@@ -17,6 +17,8 @@ public sealed class QemuEthernetPeer : IDisposable
 {
     public const int MinimumFrameBytes = 14;
     public const int MaximumFrameBytes = 1514;
+    public const int MaximumTaggedFrameBytes = 1518;
+    private readonly int maximumFrameBytes;
     private readonly object gate = new();
     private readonly TcpListener listener;
     private readonly CancellationTokenSource lifetime;
@@ -29,11 +31,14 @@ public sealed class QemuEthernetPeer : IDisposable
     private int reading, writing;
     private long framesRead, framesWritten;
 
-    /// <summary>Starts an ephemeral IPv4 loopback listener for 1ms..5min, including accept time.</summary>
-    public QemuEthernetPeer(TimeSpan maximumLifetime)
+    /// <summary>Starts an ephemeral IPv4 loopback listener for1ms..5min, including
+    /// accept time. The explicit tagged diagnostic additionally admits exactly
+    ///1518-byte802.1Q frames; ordinary sessions retain the1514-byte bound.</summary>
+    public QemuEthernetPeer(TimeSpan maximumLifetime, bool allowTaggedDiagnostic = false)
     {
         if (maximumLifetime < TimeSpan.FromMilliseconds(1) || maximumLifetime > TimeSpan.FromMinutes(5))
             throw new ArgumentOutOfRangeException(nameof(maximumLifetime));
+        maximumFrameBytes = allowTaggedDiagnostic ? MaximumTaggedFrameBytes : MaximumFrameBytes;
         listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start(1);
         Port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -86,13 +91,14 @@ public sealed class QemuEthernetPeer : IDisposable
     }
 
     /// <summary>
-    /// Reads exactly one frame into a buffer of at least MaximumFrameBytes. Invalid buffer
+    /// Reads exactly one frame into a buffer of at least MaximumFrameBytes, or
+    /// MaximumTaggedFrameBytes in the explicit tagged diagnostic. Invalid buffer
     /// capacity or overlapping reads consume nothing. An incomplete frame closes both directions.
     /// The returned count and counter describe complete frames only.
     /// </summary>
     public async ValueTask<int> ReadFrameAsync(Memory<byte> destination, CancellationToken cancellationToken = default)
     {
-        if (destination.Length < MaximumFrameBytes) throw new ArgumentException("A full Ethernet frame buffer is required.", nameof(destination));
+        if (destination.Length < maximumFrameBytes) throw new ArgumentException("A full Ethernet frame buffer is required.", nameof(destination));
         if (Interlocked.CompareExchange(ref reading, 1, 0) != 0) throw new InvalidOperationException("A frame read is already pending.");
         try
         {
@@ -102,8 +108,9 @@ public sealed class QemuEthernetPeer : IDisposable
             {
                 await connection.ReadExactlyAsync(readHeader, linked.Token).ConfigureAwait(false);
                 uint count = BinaryPrimitives.ReadUInt32BigEndian(readHeader);
-                if (count < MinimumFrameBytes || count > MaximumFrameBytes) throw new InvalidDataException("Invalid Ethernet frame length.");
+                if (count < MinimumFrameBytes || count > maximumFrameBytes) throw new InvalidDataException("Invalid Ethernet frame length.");
                 await connection.ReadExactlyAsync(destination[..(int)count], linked.Token).ConfigureAwait(false);
+                if (!ValidExtendedFrame(destination.Span[..(int)count])) throw new InvalidDataException("Invalid diagnostic VLAN frame.");
                 Interlocked.Increment(ref framesRead);
                 return (int)count;
             }
@@ -124,7 +131,7 @@ public sealed class QemuEthernetPeer : IDisposable
     /// </summary>
     public async ValueTask WriteFrameAsync(ReadOnlyMemory<byte> frame, CancellationToken cancellationToken = default)
     {
-        if (frame.Length < MinimumFrameBytes || frame.Length > MaximumFrameBytes) throw new ArgumentOutOfRangeException(nameof(frame));
+        if (frame.Length < MinimumFrameBytes || frame.Length > maximumFrameBytes || !ValidExtendedFrame(frame.Span)) throw new ArgumentOutOfRangeException(nameof(frame));
         if (Interlocked.CompareExchange(ref writing, 1, 0) != 0) throw new InvalidOperationException("A frame write is already pending.");
         try
         {
@@ -169,6 +176,9 @@ public sealed class QemuEthernetPeer : IDisposable
             return stream ?? throw new InvalidOperationException("Accept the connection before transferring frames.");
         }
     }
+
+    private static bool ValidExtendedFrame(ReadOnlySpan<byte> frame) => frame.Length <= MaximumFrameBytes ||
+        frame.Length == MaximumTaggedFrameBytes && BinaryPrimitives.ReadUInt16BigEndian(frame[12..]) == 0x8100;
 
     private void ThrowIfClosed()
     {

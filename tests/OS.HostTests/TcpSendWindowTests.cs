@@ -11,6 +11,29 @@ using Wire = TcpReceiveWindowTests;
 
 internal static unsafe class TcpSendWindowTests
 {
+    [HostTest("m07-027 continuing timer admission and copied TX reject unrepresentable deadlines", HostLane.Fast, 13)]
+    private static void ContinuingTimerBounds()
+    {
+        using var f = new Fixture(); var io = f.Operations();
+        HostCheck.Equal(Tx.Status.InvalidOptions, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 0));
+        HostCheck.Equal(Tx.Status.InvalidOptions, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 100_000_000_000, continuing: true));
+        f.Hardware->Now = ulong.MaxValue;
+        HostCheck.Equal(Tx.Status.InvalidClock, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 0, continuing: true));
+        HostCheck.True(f.Owner->Active && !f.Owner->TimedOut);
+        f.Hardware->Now = ulong.MaxValue - 61_000_000_000;
+        HostCheck.Equal(Tx.Status.Success, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 0, continuing: true));
+        HostCheck.Equal(Tx.Status.InvalidState, Tx.RetireTimedOut(f.Owner));
+        HostCheck.Equal(Tx.Status.Success, Tx.Queue(f.Owner, "sent"u8, out int accepted)); HostCheck.Equal(4, accepted);
+        f.Hardware->AdvanceOnSend = 2_000_000_000;
+        HostCheck.Equal(Tx.Status.InvalidClock, Tx.Pump(f.Owner, new byte[1514], out _));
+        HostCheck.Equal(704U, f.Owner->NextSequence); HostCheck.Equal(4, f.Owner->InFlightBytes);
+        HostCheck.True(f.Owner->RequiresCleanup && !f.Owner->TimedOut);
+        HostCheck.Equal(Tx.Status.InvalidState, Tx.RetireTimedOut(f.Owner));
+        f.Close(); HostCheck.Equal(Tx.Status.Success, Tx.ReleaseClosed(f.Owner));
+        HostCheck.Equal(Rx.Status.Success, Rx.ReleaseClosed(f.Receiver));
+        HostCheck.Equal(Tcb.OwnershipStatus.Success, Tcb.ReleaseOwned(f.Table, f.Handle));
+    }
+
     [HostTest("net.tcp.send.owner copies bounded short writes and retains bytes until ACK", HostLane.Fast, 0)]
     private static void QueueAndRetain()
     {

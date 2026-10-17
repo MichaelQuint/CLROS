@@ -22,22 +22,36 @@ public static unsafe class LinuxThreadProgram
 
     // One retained native pool: RX program, supervisor RW/NX metadata, guarded
     // 16-page switch stack, sixteen guarded worker stacks (four data pages,
-    // sixteen for the continuing web profile), guarded
+    // eight for signal/runtime callbacks, sixteen for continuing web), guarded
     // four-page IRQ stack and private IDT. The owner publishes/restores leaves;
     // these offsets alone grant no mappings, executable authority or lifetime.
     public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 28;
     public const uint SwitchGuardPage = MetadataPage + MetadataPages, SwitchPages = 18;
     public const uint WorkerPage = SwitchGuardPage + SwitchPages;
+    /// <summary>Bounded signal/runtime callback extent including both unmapped
+    /// guards. Layout values grant no page publication or execution authority.</summary>
+    public const uint SignalWorkerPages = 10;
+    /// <summary>Retained async socket name for the same guarded callback extent.</summary>
+    public const uint AsyncWorkerPages = SignalWorkerPages;
 #if M10_004_PROBE
     // The web interval and mapping scratch arrays enlarge the measured native
     // Protect/Apply/table-admission chain. Sixteen data pages retain margin;
     // both unmapped guards and every derived worker/IRQ/pool bound stay in force.
     public const uint WorkerPages = 18;
+#elif M16_009_PROBE || M16_012_PROBE || M07_027_PROBE
+    // Pending signal delivery after partial pipe completion retains callbacks
+    // around descriptor/page audits, as async completion does. Both original
+    // native paths exhausted four usable pages. Keep eight between both guards;
+    // the switch/IRQ stacks and mechanical thread-only profile stay unchanged.
+    public const uint WorkerPages = SignalWorkerPages;
 #else
     public const uint WorkerPages = 6;
 #endif
     public const uint IrqGuardPage = WorkerPage + MaximumWorkers * WorkerPages, IrqPages = 6;
     public const uint IrqTopPage = IrqGuardPage + IrqPages - 1, IdtPage = IrqGuardPage + IrqPages, PoolPages = IdtPage + 1;
+    /// <summary>Selected signal/runtime pool extent for host transcript checks;
+    /// includes all worker guards, the IRQ extent and private IDT.</summary>
+    public const uint SignalPoolPages = WorkerPage + MaximumWorkers * SignalWorkerPages + IrqPages + 1;
 
     /// <summary>Identify only guard leaves inside this fixed pool. Publication
     /// remains the external IRQ-off owner's responsibility. Out-of-range pages

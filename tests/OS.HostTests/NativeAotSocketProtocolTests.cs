@@ -90,6 +90,20 @@ internal static class NativeAotSocketProtocolTests
             HostCheck.True(report.Clones==2 && report.Reaped==3 && report.Irqs==2 && report.Transfers==16);
         }
     }
+    [HostTest("socket protocol bounds the entire async worker pool below four GiB")]
+    private static void AsyncPoolExtent()
+    {
+        static string[] At(IEnumerable<string> rows, ulong pool) => rows.Select(row => row.Replace(
+            "pool=2097152", FormattableString.Invariant($"pool={pool}"), StringComparison.Ordinal)).ToArray();
+        // Both socket modes inherit the full signal/callback worker extent.
+        foreach (bool asynchronous in new[] { false, true })
+        {
+            Reject(At(Vector(asynchronous).Rows, 0xfff40000), "threading_parent_geometry", asynchronous);
+            HostCheck.Equal(3, Inspect(At(Vector(asynchronous).Rows, 0xfff1e000), asynchronous).Reaped);
+            Reject(At(Vector(asynchronous).Rows, 0xfff1f000), "threading_parent_geometry", asynchronous);
+        }
+    }
+
     [HostTest("socket protocol retains real repark without fabricating a syscall timer or drain")]
     private static void Repark()
     {

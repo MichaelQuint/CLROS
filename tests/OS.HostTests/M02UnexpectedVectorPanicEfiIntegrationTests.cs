@@ -239,6 +239,7 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         // own their independent complete exclusion checks in their fixtures.
         var errors=project.Descendants("Error").Where(x=>
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m07_026_",StringComparison.Ordinal) &&
+            !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("socket_containment_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_006_",StringComparison.Ordinal) &&

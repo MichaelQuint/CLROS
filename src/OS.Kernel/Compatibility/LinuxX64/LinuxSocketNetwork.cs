@@ -132,7 +132,7 @@ public static unsafe class LinuxSocketNetwork
             }
             var received = Tx.ReceiveFrame(&slot->Sender, frame, out _);
             if (received is Tx.Status.InvalidPacket or Tx.Status.InvalidAck or Tx.Status.OldAck) return Status.Ignored;
-            return Healthy(received) ? Status.Success : Fail(state);
+            return TransportResult(state, slot, received);
         }
         if (found != TcpConnectionTable.OwnershipStatus.NotFound) return Fail(state);
         if (tcp.Flags != 2 || !LinuxSocketServices.Listener(state->Sockets, out uint listenerFd, out var listener)) return Status.Ignored;
@@ -157,7 +157,9 @@ public static unsafe class LinuxSocketNetwork
     /// FIN/TIME-WAIT and exact closed reap work for every retained connection.
     /// Caller drains received NIC frames first and refreshes thread readiness
     /// after this call. Capacity/full TX preserves ownership. Failure never frees
-    /// backing; run explicit CloseDescriptors/abort shutdown before End.</summary>
+    /// backing; run explicit CloseDescriptors/abort shutdown before End. Retry
+    /// and close expiry retire only their connection. No implicit total or idle
+    /// lifetime applies; the application/qualification owner supplies its budget.</summary>
     public static Status Pump(State* state, Span<byte> output)
     {
         if (!Current(state)) return Status.InvalidState;
@@ -199,11 +201,15 @@ public static unsafe class LinuxSocketNetwork
                 }
                 continue;
             }
-            if (!Healthy(Tx.Pump(&slot->Sender, output, out _)) ||
-                !Healthy(Tx.PumpRetransmission(&slot->Sender, output, out _))) return Fail(state);
+            var sent = TransportResult(state, slot, Tx.Pump(&slot->Sender, output, out _));
+            if (sent == Status.TransportFailure) return sent;
+            if (sent == Status.Ignored) continue;
+            var retry = TransportResult(state, slot, Tx.PumpRetransmission(&slot->Sender, output, out _));
+            if (retry == Status.TransportFailure) return retry;
+            if (retry == Status.Ignored) continue;
             var ack = Rx.PumpAck(&slot->Receiver, output, out _);
             if (ack is not (Rx.Status.Success or Rx.Status.NothingToAck or Rx.Status.WouldBlock)) return Fail(state);
-            if (!Healthy(Tx.PumpClose(&slot->Sender, output, out _))) return Fail(state);
+            if (TransportResult(state, slot, Tx.PumpClose(&slot->Sender, output, out _)) == Status.TransportFailure) return Status.TransportFailure;
         }
         return Status.Success;
     }
@@ -255,7 +261,7 @@ public static unsafe class LinuxSocketNetwork
         if (Rx.Initialize(&slot->Receiver, state->Table, slot->Handshake.Connection, buffer, state->ReceiveBytes, info,
                 state->Io.Context, state->Io.Send) != Rx.Status.Success ||
             Tx.Initialize(&slot->Sender, &slot->Receiver, &slot->Handshake, buffer + state->ReceiveBytes, state->SendBytes, 1500) != Tx.Status.Success ||
-            Tx.ConfigureRetransmission(&slot->Sender, state->Io.Context, state->Io.NowNanoseconds, 30_000_000_000) != Tx.Status.Success ||
+            Tx.ConfigureRetransmission(&slot->Sender, state->Io.Context, state->Io.NowNanoseconds, 0, continuing: true) != Tx.Status.Success ||
             Tx.ConfigureClose(&slot->Sender, 30_000_000_000) != Tx.Status.Success) return Fail(state);
         Status result = Status.Success;
         if (initialPayloadFrame.Length != 0)
@@ -265,7 +271,11 @@ public static unsafe class LinuxSocketNetwork
             // before any application can observe the accepted socket.
             var received = Tx.ReceiveFrame(&slot->Sender, initialPayloadFrame, out _);
             if (received is Tx.Status.InvalidPacket or Tx.Status.InvalidAck or Tx.Status.OldAck) result = Status.Ignored;
-            else if (!Healthy(received)) return Fail(state);
+            else
+            {
+                result = TransportResult(state, slot, received);
+                if (result != Status.Success) return result;
+            }
         }
         if (RefreshListener(state, slot) && LinuxSocketServices.EnqueueAccepted(state->Sockets, slot->Listener, slot->ListenerFd, &slot->Receiver, &slot->Sender)) slot->Phase = 3;
         return result;
@@ -295,6 +305,12 @@ public static unsafe class LinuxSocketNetwork
         if (Tx.ReleaseClosed(&slot->Sender) != Tx.Status.Success || Rx.ReleaseClosed(&slot->Receiver) != Rx.Status.Success ||
             TcpConnectionTable.ReleaseOwned(state->Table, handle) != TcpConnectionTable.OwnershipStatus.Success) return false;
         *slot = default; return true;
+    }
+    private static Status TransportResult(State* state, Slot* slot, Tx.Status result)
+    {
+        if (Healthy(result)) return Status.Success;
+        if (result == Tx.Status.Timeout && Tx.RetireTimedOut(&slot->Sender) == Tx.Status.Success) return Status.Ignored;
+        return Fail(state);
     }
     private static bool Healthy(Tx.Status status) => status is Tx.Status.Success or Tx.Status.NoData or Tx.Status.NothingToSend or
         Tx.Status.WindowClosed or Tx.Status.WouldBlock or Tx.Status.AwaitingAck or Tx.Status.NotDue or Tx.Status.WaitingForDrain or

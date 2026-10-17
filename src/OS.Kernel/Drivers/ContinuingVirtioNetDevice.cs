@@ -66,6 +66,7 @@ public static unsafe class ContinuingVirtioNetDevice
         public readonly RingEngine.Status LastRingStatus => RingResult;
         public readonly VirtioNetQueueResult Receipt => Queue;
         public readonly ulong ReceivedFrames => Ring.ReceivedFrames;
+        public readonly ulong DroppedFrames => Ring.DroppedFrames;
         public readonly ulong ReclaimedTransmits => Ring.ReclaimedTransmits;
     }
 
@@ -166,7 +167,9 @@ public static unsafe class ContinuingVirtioNetDevice
     }
 
     /// <summary>Copy a checked RX frame and actually notify queue0 after repost.
-    /// ShortBuffer preserves the used entry and reports required bytes. Discard
+    /// ShortBuffer preserves the valid used entry and reports required bytes.
+    /// Empty/ShortBuffer can follow safe content drops; notify every actual
+    /// replenishment before returning either nonfatal outcome. Discard
     /// output on every other failure, including notification failure after copy.
     /// Faulted state must be stopped before any further packet operation.</summary>
     public static Status Receive(State* s, Span<byte> destination, out uint bytes)
@@ -175,10 +178,13 @@ public static unsafe class ContinuingVirtioNetDevice
         if (!Running(s)) return Status.InvalidState;
         fixed (byte* p = destination) if (destination.Length != 0 && !CallerBuffer(s, (ulong)p, (ulong)destination.Length)) return Status.InvalidStorage;
         s->RingResult = RingEngine.Receive(&s->Ring, destination, out bytes);
-        if (s->RingResult != RingEngine.Status.Success) return RingStatus(s);
-        s->Queue.Receive.AvailableIndex = s->Ring.ReceiveAvailableIndex;
-        if (s->Input.Mmio.Write16(s->Input.Mmio.Context, s->Queue.Receive.Notify, 0) != 1) return Fault(s, Status.WriteFailed);
-        return Status.Success;
+        if (s->RingResult is not (RingEngine.Status.Success or RingEngine.Status.Empty or RingEngine.Status.ShortBuffer)) return RingStatus(s);
+        if (s->Queue.Receive.AvailableIndex != s->Ring.ReceiveAvailableIndex)
+        {
+            s->Queue.Receive.AvailableIndex = s->Ring.ReceiveAvailableIndex;
+            if (s->Input.Mmio.Write16(s->Input.Mmio.Context, s->Queue.Receive.Notify, 0) != 1) return Fault(s, Status.WriteFailed);
+        }
+        return s->RingResult == RingEngine.Status.Success ? Status.Success : RingStatus(s);
     }
 
     /// <summary>Bounded actual reset/readback, bus-master disable and fence must

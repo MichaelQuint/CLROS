@@ -159,7 +159,8 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket,web;
+        private readonly bool broader,socket,web,containment;
+        private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
         private readonly int webSettingsFd;
         private readonly (ulong Identity,ulong Ordinal) webSettingsCall;
@@ -183,10 +184,11 @@ public static partial class QemuTranscripts
 
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
-            uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default)
+            uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
-            web=app=="MinimalApiSmoke";socket=web || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            containment=app==NativeAotSocketContainmentPublisher.Application;
+            web=app=="MinimalApiSmoke";socket=web || containment || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
             this.webSettingsCall=webSettingsCall;
             Need(!web || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
@@ -200,9 +202,10 @@ public static partial class QemuTranscripts
             returns=ReadLinuxCallReturns(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
             this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
-            Need(socket==(socketCapture is not null),"socket_protocol_capture");
-            if(socket)socketObservations=socketCapture!.Readiness.ToDictionary(x=>x.RecordIndex);
-            writeChannels=web?socketCapture!.Output.WriteChannels:Enumerable.Repeat(1U,lengths!.Count).ToArray();
+            Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
+            this.containmentCapture=containmentCapture;
+            if(socket)socketObservations=(containment?containmentCapture!.Scheduling:socketCapture!).Readiness.ToDictionary(x=>x.RecordIndex);
+            writeChannels=web?socketCapture!.Output.WriteChannels:Enumerable.Repeat(1U,writeLengths.Count).ToArray();
             if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!,hpetFrequencyHz);}
             else Need(stdout is null,"threading_unexpected_stdout");
             slots=new RuntimeThread?[capacity]; generations=Enumerable.Repeat(1UL,capacity).ToArray();
@@ -222,14 +225,14 @@ public static partial class QemuTranscripts
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
-            int bytes=web?8681864:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=web?8681864:containment?NativeAotSocketContainmentPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
             var armed=LinuxSyscallArm(Take()); const string policy=" timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
             string line=Take(); Need(line.EndsWith(policy,StringComparison.Ordinal),"threading_bound_policy");
             var bound=ReadRecord(line[..^policy.Length],"M16_008_BOUND","root:dec","pool:dec","workers:dec","code:dec","metadata:dec","userImage:dec");
-            uint poolPages=web?WebThreadPoolPages:LinuxThreadProgram.PoolPages;
+            uint poolPages=web?WebThreadPoolPages:LinuxThreadProgram.SignalPoolPages;
             Need(armed["root"]==userRoot && bound["root"]==kernelRoot && kernelRoot is >=4096 and <=0xfffff000 && kernelRoot%4096==0 &&
                 bound["pool"]>=4096 && bound["pool"]<=0x100000000UL-poolPages*4096UL && bound["pool"]%4096==0 &&
                 bound["workers"]==(ulong)capacity && bound["code"]==LinuxThreadProgram.Bytes &&

@@ -64,6 +64,7 @@ internal static unsafe class LinuxSocketNetworkTests
         internal Network.Status Receive(byte[] frame) => Network.Receive(State, frame, Frame);
         internal void Pump(ulong now = 0)
         { if (now != 0) Hardware->Now = now; HostCheck.Equal(Network.Status.Success, Network.Pump(State, Frame)); }
+        internal void Refresh() => HostCheck.True(LinuxEpollServices.Refresh(Epoll));
         internal uint Connect(ushort port = 40000, uint sequence = 99)
         {
             HostCheck.Equal(Network.Status.Success, Receive(Syn(port, sequence)));
@@ -265,5 +266,98 @@ internal static unsafe class LinuxSocketNetworkTests
         HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 5).SequenceEqual("third"u8));
         var duplicate = m.Receive(third); HostCheck.True(duplicate is Network.Status.Success or Network.Status.Ignored);
         HostCheck.Equal(-11L, m.Call(45, fd, Output, 32)); m.Finish();
+    }
+
+    [HostTest("m16-011 fresh traffic keeps both accepted peers live beyond the first establishment deadline", HostLane.Fast, 14)]
+    private static void FreshTrafficBeyondEstablishmentDeadline()
+    {
+        using Model m = new(); uint listener = m.Listen(), first = m.Connect(), a = m.Accept(listener);
+        m.Hardware->Now = 20_000_000_000; uint second = m.Connect(40001, 199), b = m.Accept(listener);
+        m.Hardware->Now = 29_000_000_000;
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, "fresh!"u8, first)));
+        HostCheck.Equal(6L, m.Call(45, a, Output, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 6).SequenceEqual("fresh!"u8));
+
+        m.Pump(30_000_002_000);
+        HostCheck.True(!m.State->RequiresShutdown); HostCheck.Equal(2U, m.State->RetainedConnections); HostCheck.Equal(2, m.Table->Count);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(106, "first!"u8, first)));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "second"u8, second, port: 40001)));
+        HostCheck.Equal(6L, m.Call(45, a, Output, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 6).SequenceEqual("first!"u8));
+        HostCheck.Equal(6L, m.Call(45, b, Output, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 6).SequenceEqual("second"u8));
+        m.Files.Text(User, "reply"); HostCheck.Equal(5L, m.Call(44, a, User, 5)); HostCheck.Equal(5L, m.Call(44, b, User, 5));
+        m.Pump();
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(112, ReadOnlySpan<byte>.Empty, first + 5, flags: 0x10)));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(206, ReadOnlySpan<byte>.Empty, second + 5, port: 40001, flags: 0x10)));
+        HostCheck.Equal(-11L, m.Call(45, a, Output, 1)); HostCheck.Equal(-11L, m.Call(45, b, Output, 1));
+        HostCheck.True(!m.State->RequiresShutdown); HostCheck.Equal(2, m.Table->Count); m.Finish();
+    }
+
+    [HostTest("m07-027 retry exhaustion reports only its peer timeout and preserves healthy socket progress", HostLane.Fast, 15)]
+    private static void RetryTimeoutIsLocal()
+    {
+        using Model m = new(); uint listener = m.Listen(), first = m.Connect(), a = m.Accept(listener);
+        uint second = m.Connect(40001, 199), b = m.Accept(listener);
+        uint epoll = (uint)m.Call(291); *(uint*)m.Files.Memory.At(User) = 5; *(ulong*)m.Files.Memory.At(User + 4) = 0xabc;
+        HostCheck.Equal(0L, m.Call(233, epoll, 1, a, User));
+        m.Refresh(); HostCheck.Equal(1L, m.Call(232, epoll, Output, 1, 0));
+        m.Files.Text(User, "lost"); HostCheck.Equal(4L, m.Call(44, a, User, 4)); m.Pump();
+        foreach (ulong seconds in new ulong[] { 1, 3, 7, 15, 31, 63 }) m.Pump(seconds * 1_000_000_000 + 1000);
+        HostCheck.True(!m.State->RequiresShutdown);
+        m.Refresh(); HostCheck.Equal(1L, m.Call(232, epoll, Output, 1, 0));
+        HostCheck.Equal(29U, *(uint*)m.Files.Memory.At(Output));
+        HostCheck.Equal(-110L, m.Call(45, a, Output, 1)); HostCheck.Equal(0L, m.Call(45, a, Output, 1));
+        m.Refresh(); HostCheck.Equal(1L, m.Call(232, epoll, Output, 1, 0));
+        HostCheck.Equal(21U, *(uint*)m.Files.Memory.At(Output));
+        HostCheck.Equal(-32L, m.Call(44, a, User, 4));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "alive"u8, second, port: 40001)));
+        HostCheck.Equal(5L, m.Call(45, b, Output, 8));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 5).SequenceEqual("alive"u8));
+        HostCheck.Equal(0L, m.Call(3, a)); m.Pump(); HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.Equal(1, m.Table->Count);
+        HostCheck.True(new ReadOnlySpan<byte>(m.Buffers, 8192 + 32768).IndexOfAnyExcept((byte)0) < 0);
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, "stale"u8, first)));
+        HostCheck.Equal(-9L, m.Call(45, a, Output, 1)); m.Finish();
+    }
+
+    [HostTest("m07-027 a send observing peer close expiry returns timeout without faulting other sockets", HostLane.Fast, 16)]
+    private static void SyscallCloseTimeoutIsLocal()
+    {
+        using Model m = new(); uint listener = m.Listen(), first = m.Connect(), a = m.Accept(listener);
+        uint second = m.Connect(40001, 199), b = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, first, flags: 0x11)));
+        m.Hardware->Now = 30_000_002_000; m.Files.Text(User, "late");
+        HostCheck.Equal(-110L, m.Call(44, a, User, 4)); m.Pump();
+        HostCheck.True(!m.State->RequiresShutdown);
+        HostCheck.Equal(-32L, m.Call(44, a, User, 4));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "alive"u8, second, port: 40001)));
+        HostCheck.Equal(5L, m.Call(45, b, Output, 8)); m.Finish();
+    }
+
+    [HostTest("m07-027 timeout SO_ERROR is consumed only after successful application copy", HostLane.Fast, 18)]
+    private static void TimeoutSocketErrorCopy()
+    {
+        using Model m = new(); uint listener = m.Listen(); m.Connect(); uint fd = m.Accept(listener);
+        m.Files.Text(User, "lost"); HostCheck.Equal(4L, m.Call(44, fd, User, 4)); m.Pump();
+        foreach (ulong seconds in new ulong[] { 1, 3, 7, 15, 31, 63 }) m.Pump(seconds * 1_000_000_000 + 1000);
+        *(uint*)m.Files.Memory.At(User + 64) = 4;
+        var call = new LinuxSyscallFrame { Number = 55, Argument0 = fd, Argument1 = 1, Argument2 = 4,
+            Argument3 = 0xdead0000, Argument4 = User + 64 };
+        HostCheck.Equal(-14L, Fds.Dispatch(m.Files.State, call));
+        call.Argument3 = Output; HostCheck.Equal(0L, Fds.Dispatch(m.Files.State, call));
+        HostCheck.Equal(110, *(int*)m.Files.Memory.At(Output));
+        HostCheck.Equal(0L, Fds.Dispatch(m.Files.State, call)); HostCheck.Equal(0, *(int*)m.Files.Memory.At(Output));
+        HostCheck.Equal(0L, m.Call(45, fd, Output, 1)); HostCheck.True(!m.State->RequiresShutdown); m.Finish();
+    }
+
+    [HostTest("m07-027 a reversed trusted clock still faults the shared owner and retains backing", HostLane.Fast, 17)]
+    private static void CorruptClockRemainsFatal()
+    {
+        using Model m = new(); uint listener = m.Listen(); m.Connect(); m.Accept(listener); m.Connect(40001, 199); m.Accept(listener);
+        m.Hardware->Now = 999;
+        HostCheck.Equal(Network.Status.TransportFailure, Network.Pump(m.State, m.Frame));
+        HostCheck.True(m.State->RequiresShutdown);
+        HostCheck.Equal(2U, m.State->RetainedConnections); HostCheck.Equal(2, m.Table->Count); m.Finish();
     }
 }

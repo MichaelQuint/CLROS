@@ -122,9 +122,9 @@ public static partial class QemuTranscripts
             string line = Take(); Need(line.EndsWith(suffix, StringComparison.Ordinal), "hello_bound_policy");
             var bound = ReadRecord(line[..^suffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
             Need(armed["root"] == userRoot && bound["root"] == kernelRoot && kernelRoot is >= 4096 and <= 0xfffff000 && kernelRoot % 4096 == 0 &&
-                bound["pool"] >= 4096 && bound["pool"] <= 0x100000000UL - LinuxThreadProgram.PoolPages * 4096UL && bound["pool"] % 4096 == 0 &&
+                bound["pool"] >= 4096 && bound["pool"] <= 0x100000000UL - LinuxThreadProgram.SignalPoolPages * 4096UL && bound["pool"] % 4096 == 0 &&
                 bound["workers"] == 4 && bound["code"] == LinuxThreadProgram.Bytes && bound["metadata"] == LinuxThreadProgram.MetadataPages * 4096UL && bound["userImage"] == 728, "hello_parent_geometry");
-            DistinctExtents([(kernelRoot,4096),(userRoot,4096),(bound["pool"],LinuxThreadProgram.PoolPages*4096UL)], "hello_roots_pool");
+            DistinctExtents([(kernelRoot,4096),(userRoot,4096),(bound["pool"],LinuxThreadProgram.SignalPoolPages*4096UL)], "hello_roots_pool");
             var limits = Row("M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");
             Need(budget.Begin(4, limits["started"], application: true) && limits["epochs"] == budget.MaximumEpochs &&
                 limits["steps"] == budget.MaximumSteps && limits["nanos"] == LinuxThreadExecutionBudget.RuntimeNanoseconds,

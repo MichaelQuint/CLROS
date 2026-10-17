@@ -1,5 +1,21 @@
 # App Model
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+The repaired signal/runtime pool has 226 pages: eight usable worker pages and
+both guards. Continuing web retains sixteen usable pages; mechanical M16-008
+retains four. [Step1372](../done/step1372.md) and [step1379](../done/step1379.md)
+preserve the original guard faults and partial native path bounds. The successful
+batch does not establish whole-stack or arbitrary callback safety.
+
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
 thread/runtime batch and shared #733: 5,202 full-host checks, 44 strict captures
 across 32 profiles, three retained strict GC repetitions and 24 fresh ancestors.
@@ -7,8 +23,9 @@ The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
 RuntimeMatrix execute in CLROS with original native/provenance joins and complete
 cleanup. A separate raw-state diagnostic proves an exit-requested worker blocked
 by active upstream GC before later exit/reap. It supplies no DetachCurrentThread
-entry or strict-runner claim. Continuing networking, sockets/epoll and Kestrel
-remain incomplete; no numbered/cloud/production gate changes.
+entry or strict-runner claim. That step did not qualify networking, sockets or
+Kestrel; later bounded scopes are recorded above. No numbered/cloud/production
+gate changes.
 
 ## Continuing service and resource follow-ups
 
@@ -986,6 +1003,12 @@ native code/ABI/stack review pass. Stable full-host and actual guest quota
 qualification remain unfinished. See
 [step1368](../done/step1368.md).
 
+[Step1381](../done/step1381.md) integrates the qualified step1380 base into
+the existing logging branch. All eight reviewed app/logging source files remain
+unchanged from its retained source, and 116 focused checks across 19 fixtures
+pass. This source integration adds no logging/startup guest acceptance; fresh
+original package/native and guest qualification remain pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
@@ -1006,10 +1029,10 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Step1307 qualifies only its exact pinned thread/runtime
-workloads. Kestrel support is mandatory; continuing network, TCP and Linux
-socket/epoll prerequisites remain incomplete. Broad workload claim boundaries are
-tracked in `docs/completion-gates.md`.
+application target. Steps1307/1332/1351/1380 qualify their named bounded
+runtime, network, socket and configuration profiles. Kestrel support remains
+mandatory; #218 -> #219 -> #220 and the later service/gate prerequisites remain
+open. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 

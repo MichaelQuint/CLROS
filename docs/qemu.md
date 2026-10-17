@@ -9,6 +9,42 @@ status. The original strict captures retain their measured quiet/termination
 authority. Select `NativeAotRuntimeSmoke` explicitly for the original payload;
 M16-010 otherwise selects `NativeAotRuntimeMatrix`. Guest Kestrel remains pending.
 
+## Containment diagnostic (development)
+
+[Step1376](../done/step1376.md) implements a separate original three-peer
+timeout/VLAN case. This command is supported and its source/plan controls pass;
+actual guest qualification is still pending:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM07027Probe -LinuxElfPackage <original-containment.pkg> -LinuxThreadingDisassembly <retained-containment-llvm.txt> -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 180 -RequireMarker CLROS_M07_027_READY -SerialLog <fresh-serial.log> -SummaryLog <fresh-summary.log>
+```
+
+EnableM07028Probe selects the same paired case. Both probes default off and
+require the original containment app, canonical package and sealed complete
+instruction index. The runner owns a captured raw Ethernet peer; it rejects
+other peers/forwarding and requires actual completion and confirmed cleanup.
+The selected guest timeout range is120..220 seconds; raw capture and cleanup add
+75 seconds within the raw peer's295-second lifetime. Original SocketSmoke sync/async
+profiles retain their separate packages, peers and600-second drain budgets.
+
+Required markers include TEST_START/TEST_PASS m07.027 and m07.028, the genuine
+M07_027_TIMEOUT/M07_028_DROP observations and final ready pairs after NIC cleanup.
+Original serial/summary/PCAP, package/source/EFI joins, full scheduler/syscall
+replay and independent peer/wire counters remain mandatory. One safe VLAN drop
+can be followed by one valid delivery in the same receive call; delivered=0/1
+binds the exact one/two available-ring reposts. Dry-run, source compilation and
+synthetic controls do not prove guest behavior or close either issue.
+
+[Step1377](../done/step1377.md) retains the first real capture as a failed strict
+run. Its twelve unanswered startup SYNs now have a separate observed count and
+exact aggregate RX join. Only role0 may retry before its sole SYN-ACK, at least
+500ms apart within30 seconds (at most59 extras). Every role requires the exact
+handshake ACK before data; duplicate SYN-ACKs, later SYNs and startup resets
+reject. Ambiguous accepted-duplicate/TX-backpressure traces fail the aggregate
+join. [Step1378](../done/step1378.md) records a fresh strict pass at291c40b2;
+that capture predates the application/containment merge. The combined source
+requires fresh stable qualification before issue acceptance.
+
 [Step1272](../done/step1272.md) adds an explicit development selector for either
 focused runtime workload through the existing M16-009 profile:
 

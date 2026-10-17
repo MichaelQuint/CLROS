@@ -7,11 +7,12 @@ internal static class LinuxSignalTranscriptTests
     private static void PoolEnvelope()
     {
         var rows = Synthetic("AlternateStack"); var package = LinuxSignalProofFixture.CreatePackage("AlternateStack");
-        QemuTranscripts.ValidateLinuxSignalTail(Change(rows, 4, "pool", 0xfff5e000), package, 0x200000, 0x100000);
-        Reject(Change(rows, 4, "pool", 0xfff5f000), package);
+        QemuTranscripts.ValidateLinuxSignalTail(Change(rows, 4, "pool", 0xfff1e000), package, 0x200000, 0x100000);
+        Reject(Change(rows, 4, "pool", 0xfff1f000), package);
+        Reject(Change(rows, 4, "pool", 0xfff5e000), package);
         Reject(Change(rows, 4, "code", 16384), package); Reject(Change(rows, 4, "metadata", 45056), package);
         bool rejected = false;
-        try { QemuTranscripts.ValidateLinuxSignalTail(Change(rows, 4, "pool", 0x9c000), package, 0x200000, 0x100000); }
+        try { QemuTranscripts.ValidateLinuxSignalTail(Change(rows, 4, "pool", 0x50000), package, 0x200000, 0x100000); }
         catch (ToolFailure failure) { rejected = failure.Reason == "m16_009_roots_pool_alias"; }
         HostCheck.True(rejected);
     }

@@ -160,6 +160,18 @@ public static unsafe partial class TcpSendWindow
         return AbortCore(owner, false);
     }
 
+    /// <summary>Retire only an actual timed-out retained connection, publishing
+    /// reset-like transport closure with its distinct timeout observation. The
+    /// serialized caller must have received Timeout from this exact owner.
+    /// No frame is emitted or backing released; closed reap remains mandatory.
+    /// Invalid/corrupt ownership is rejected without claiming peer retirement.</summary>
+    public static Status RetireTimedOut(Owner* owner)
+    {
+        var status = Validate(owner, out _, allowFault: true); if (status != Status.Success) return status;
+        if (owner->Phase != 2 || owner->TimeoutError != 1) return Status.InvalidState;
+        return AbortCore(owner, true);
+    }
+
     private static Status AbortCore(Owner* owner, bool reset)
     {
         var status = CloseTable(owner, reset);
@@ -173,6 +185,7 @@ public static unsafe partial class TcpSendWindow
             TcpConnectionLifecycleState.Established, TcpConnectionLifecycleState.Closed);
         if (status != TcpConnectionTable.OwnershipStatus.Success) return Status.TableRejected;
         owner->CloseStateValue = reset ? TcpConnectionCloseState.Reset : TcpConnectionCloseState.Closed;
+        if (!reset) owner->TimeoutError = 0;
         owner->RetryAt = 0; owner->WriteShutdown = 1; owner->Phase = 2; return Status.Success;
     }
 
