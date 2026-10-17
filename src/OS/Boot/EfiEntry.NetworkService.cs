@@ -73,6 +73,9 @@ public static unsafe partial class EfiEntry
                 !RunNetworkScheduledService(state))
 #endif
             { _ = LinuxText(state, "TEST_FAIL m07-026 service\r\n"); return false; }
+#if M10_004_PROBE
+            return LinuxWebRetainFailure(state, null, 7);
+#else
             state->NetworkPhase = 3;
             return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n")
 #if CLROS_LINUX_SOCKETS
@@ -85,6 +88,7 @@ public static unsafe partial class EfiEntry
 #endif
 #endif
                 ;
+#endif
         }
 
         private static bool RunNetworkServiceCore(Storage* state)
@@ -148,6 +152,9 @@ public static unsafe partial class EfiEntry
                 bool success = NetDevice.Start(device, admission) == NetDevice.Status.Success;
                 success = success && WriteNetworkRow(state, 0, page, ContinuingVirtioNet.BackingBytes, negotiated.Selected, 8) &&
                     RunNetworkExchanges(state, device);
+#if M10_004_PROBE
+                return LinuxWebRetainFailure(state, null, success ? 5U : 6U);
+#else
                 bool safe = !device->RequiresCleanup || NetDevice.Stop(device) == NetDevice.Status.Success;
                 safe &= device->Retired && pool->AllocatedMask == 0;
                 if (safe) for (uint i = 0; i < ContinuingVirtioNet.BackingBytes; i++) if (((byte*)page)[i] != 0) safe = false;
@@ -159,6 +166,7 @@ public static unsafe partial class EfiEntry
                     WriteNetworkRow(state, 4, device->ReceivedFrames, device->ReclaimedTransmits, device->Receipt.ResetReads, device->Receipt.Fences) &&
                     WriteNetworkRow(state, 5, pool->Count, pool->AllocatedMask, 8, 1) &&
                     WriteNetworkRow(state, 6, before.FreePageCount, after.FreePageCount, after.AllocatedPageCount, command & 0xffff);
+#endif
             }
         }
 

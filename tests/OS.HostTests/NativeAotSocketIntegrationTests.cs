@@ -200,7 +200,7 @@ internal static class NativeAotSocketIntegrationTests
         uint sum=0;for(int i=0;i<bytes.Length;i+=2)sum+=(uint)bytes[i]*256+(i+1<bytes.Length?bytes[i+1]:0U);
         while(sum>65535)sum=(sum&65535)+(sum>>16);return (ushort)~sum;
     }
-    private static byte[] Tcp(bool outgoing,ushort port,uint sequence,uint ack,byte flags,ReadOnlySpan<byte> payload)
+    internal static byte[] Tcp(bool outgoing,ushort port,uint sequence,uint ack,byte flags,ReadOnlySpan<byte> payload)
     {
         byte[] frame=new byte[54+payload.Length];
         Convert.FromHexString(outgoing?"52550A0002020200000000010800":"02000000000152550A0002020800").CopyTo(frame,0);
@@ -216,7 +216,7 @@ internal static class NativeAotSocketIntegrationTests
         BinaryPrimitives.WriteUInt16BigEndian(pseudo.AsSpan(10),checked((ushort)tcp.Length));tcp.CopyTo(pseudo.AsSpan(12));
         BinaryPrimitives.WriteUInt16BigEndian(tcp[16..],Checksum(pseudo));return frame;
     }
-    private static byte[] Capture(IEnumerable<byte[]> frames)
+    internal static byte[] Capture(IEnumerable<byte[]> frames)
     {
         using MemoryStream bytes=new();bytes.Write(Convert.FromHexString("D4C3B2A10200040000000000000000000000010001000000"));
         using BinaryWriter writer=new(bytes,Encoding.UTF8,true);uint time=0;
@@ -227,7 +227,7 @@ internal static class NativeAotSocketIntegrationTests
     // capture. This background packet grants no guest IPv6 capability.
     private static byte[] RouterAdvertisement()=>Convert.FromHexString(
         "33330000000152560000000286DD6000000000383AFFFE800000000000000000000000000002FF0200000000000000000000000000018600155E4000070800000000000000000101525600000002030440C0000151800000384000000000FEC00000000000000000000000000000");
-    private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Packets()
+    internal static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Packets()
     {
         byte[] anchor=new byte[60],warmup=new byte[60];Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor,0);anchor.CopyTo(warmup,0);
         "CLROS-M07"u8.CopyTo(anchor.AsSpan(14));byte[] request=EthernetFrameItExistingClassifierTests.Request.ToArray();

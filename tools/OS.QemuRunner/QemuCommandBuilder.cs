@@ -35,7 +35,9 @@ internal static class QemuCommandBuilder
             "-device",
             "ich9-ahci,id=ahci",
             "-drive",
-            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
+            // The web verifier holds the exact image read-only. AHCI needs a
+            // writable disk, so keep its writes in QEMU's temporary overlay.
+            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
             "-device",
             options.VirtioBlockQueueDevice && !separateBoot ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,

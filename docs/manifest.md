@@ -44,8 +44,10 @@ It revalidates the digest; there is no writable namespace or app execution.
 
 ## Linux ELF immutable-data envelope version 2
 
-[Step1336](../done/step1336.md) implements V2/profile2 for #216. This extension is
-host-tested; fresh M16-002 guest staging and stable batch acceptance are pending.
+[Step1336](../done/step1336.md) implements V2/profile2 for #216. Its focused host
+checks and three complete M16-002 staging guests in [step1347](../done/step1347.md)
+pass; [step1351](../done/step1351.md) accepts this staging scope after the shared
+full-host/native/guest gate. Application entry remains separate.
 V1/profile1 retains its exact layout. V2 keeps the same64-byte header and native
 manifest version1, followed by the ELF and a bounded immutable-data table:
 
@@ -55,7 +57,7 @@ manifest version1, followed by the ELF and a bounded immutable-data table:
 - Each record has uint32 record bytes, path bytes, data bytes and reserved0 at
   offsets0/4/8/12, then32 raw SHA256 digest bytes, path bytes and data bytes.
 - Record bytes equal48 +path bytes +data bytes. Each nonempty data file is at
-  most65,536 bytes; paths use existing canonical relative ASCII rules, start
+  most65,536 bytes; paths contain at most128 bytes, use canonical relative ASCII rules, start
   `apps/`, and cannot duplicate another file or the executable path.
 
 Validation hashes every data file before publication. `Copy` revalidates the
@@ -70,6 +72,34 @@ MinimalApiSmoke ELF and exact `apps/appsettings.json`. It includes no TPA,
 CoreCLR, framework DLLs or implicit legacy conversion. Its pass marker is
 `nativeaot.web.package`; read-only validation uses `nativeaot.web.validate`.
 Only actual qualification emits `nativeaot.web`.
+
+[Step1352](../done/step1352.md) adds explicit caller selection with the trailing
+options `--manifest <file> --settings <file>`. Both files must be distinct,
+nonempty, plain single-link files below the calling root; they remain locked and
+unchanged through completion. Limits are4,096 manifest bytes and65,536 settings
+bytes. The settings must be a JSON object. The existing Linux package validator
+checks the selected manifest and exact original ELF digest; the settings retain
+the fixed `apps/appsettings.json` path. The original Linux producer is still
+revalidated separately. Selected configuration does not become builder evidence.
+The default command retains its exact previous package bytes.
+
+The focused host check composes selected package bytes with `LinuxElfStartup`
+and readonly descriptor views: argv carries `--contentRoot /app/apps`, envp
+retains a distinct `ASPNETCORE_URLS`, and a descriptor read returns distinct JSON.
+This proves host composition only; no selected guest configuration or Kestrel
+acceptance follows. Malformed bounds, keys, paths, schema and stale ELF digest
+reject before package publication. Actual guest observations remain required.
+
+[Step1353](../done/step1353.md) restores the original web producer file byte for
+byte and routes selected-package CLI arguments in `ToolCommand` instead. This
+preserves the accepted socket package's producer-source pin. Selected packaging
+passes on the retained Linux builder with original producer revalidation, using
+the bounded Linux x64 file-identity implementation. File identity/link count/
+length match independent `stat` observations; hard links, path replacement and
+case-only root escapes reject. Windows file-identity behavior is preserved.
+Every returned byte snapshot also matches its admitted length and digest; final
+path/content checks alone cannot admit bytes changed and restored by a Unix writer.
+The resulting selected package remains host/Linux-builder evidence only.
 
 The disk-manifest batch has a separate bounded pointer validator in
 `OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).

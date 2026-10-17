@@ -59,7 +59,8 @@ public static partial class QemuTranscripts
             ulong beforeClock=clock;
             Need(r["clock"]==clock || readsClock || socket,"threading_unowned_clock_change"); Clock(r["clock"]);
             ulong action=1,status=1;
-            if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
+            if(web && WebFileCall(r,witness)) { }
+            else if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
             else switch(nr)
             {
                 case 9:
@@ -181,13 +182,18 @@ public static partial class QemuTranscripts
                     }
                     break;
                 case 2: case 257:
-                    Need(memory.Covered(nr==2?a:b,1,1) && (nr!=257 || a==Bits(-100)) && ((nr==2?b:c)&~0x98000UL)==0,"threading_open");
-                    if(v!=Bits(-2)){Need(v==(ulong)LowestFd() && v is >=3 and <16,"threading_open_fd");files.Add((int)v);}break;
+                    Need(memory.Covered(nr==2?a:b,1,1) && (nr!=257 || a==Bits(-100)) && ((nr==2?b:c)&~(web?0x98100UL:0x98000UL))==0,"threading_open");
+                    if(v!=Bits(-2))
+                    {
+                        Need(v==(ulong)LowestFd() && v is >=3 and <16,"threading_open_fd");files.Add((int)v);
+                        if(web)webFileGenerations.Add((int)v,++webFileGeneration);
+                    }break;
                 case 3:
                     Need(v==0 && a<=int.MaxValue,"threading_close_result");
                     if((int)a==pipeWrite){pipeWrite=0;foreach(var waiter in history.Where(x=>!x.Reaped&&x.WaitSource==2&&x.Completion is null))Complete(waiter,0);}
                     else if((int)a==pipeRead)pipeRead=0;
-                    else Need(files.Remove((int)a),"threading_close_fd");break;
+                    else Need(files.Remove((int)a),"threading_close_fd");
+                    if(web)webFileGenerations.Remove((int)a);break;
                 case 0:
                     Need(c>0 && c<=8192 && memory.Covered(b,c,3),"threading_read_buffer");
                     if(a==(ulong)pipeRead && pipeRead!=0)
@@ -199,11 +205,12 @@ public static partial class QemuTranscripts
                     }
                     else Need(v<=c && (a==0?v==0:a<=int.MaxValue && files.Contains((int)a)),"threading_file_read");break;
                 case 1:
-                    Need(c>0 && c<=4096 && memory.Covered(b,c,1),"threading_write_buffer");
-                    if(a==1)
+                    Need(c>0 && c<=(web?65536UL:4096UL) && memory.Covered(b,c,1),"threading_write_buffer");
+                    if(a==1 || web && a==2)
                     {
-                        Need(output && writes<writeLengths.Count && c==(ulong)writeLengths[writes] && v==c,"threading_stdout_pair");
-                        stdoutBytes+=writeLengths[writes++];phases?.Write(stdoutBytes);
+                        Need(output && writes<writeLengths.Count && a==writeChannels[writes] &&
+                            (web?v==(ulong)writeLengths[writes] && v==Math.Min(c,8192UL):c==(ulong)writeLengths[writes] && v==c),"threading_stdout_pair");
+                        if(a==1)stdoutBytes+=writeLengths[writes];writes++;phases?.Write(stdoutBytes);
                     }
                     else
                     {
@@ -219,6 +226,7 @@ public static partial class QemuTranscripts
                 case 60:
                     Need(a==0 && v==0,"threading_thread_exit");t.Exiting=t.NormalExit=true;normalExits++;action=4;status=2;break;
                 case 231:
+                    Need(!web,"web_replay_unexpected_group_exit");
                     Need(a==0 && v==0 && writes==writeLengths.Count,"threading_group_exit");stopping=true;action=2;status=2;
                     foreach(var other in slots.Where(x=>x is not null).Select(x=>x!))
                     {other.Exiting=other.GroupRetired=true;if(other.WaitSource!=0 && other.Completion is null)other.Completion=-125;if(other!=t && !ready.Contains(other))Enqueue(other);}

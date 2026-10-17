@@ -18,7 +18,8 @@ public unsafe partial struct LinuxThreadServices
             !LinuxDescriptorServices.Audit(descriptors)) return false;
         var a = descriptors->Owner;
         // These are exact native capability addresses, not logical method equality.
-        if (!a.SigpipeIgnored || a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
+        if (!a.SigpipeIgnored || a.PackageProcessId != 0 && a.PackageProcessId != _owner.ProcessId ||
+            a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
             (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
         for (uint i = 0; i < 24; i++)
         {

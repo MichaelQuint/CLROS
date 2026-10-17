@@ -246,4 +246,95 @@ internal static unsafe class LinuxSocketServicesTests
         var disabled = CSharpSyntaxTree.ParseText(sockets, new CSharpParseOptions(preprocessorSymbols: ["NOSTDLIB_EFI"])).GetCompilationUnitRoot();
         HostCheck.Equal(0, disabled.Members.Count);
     }
+
+    [HostTest("m16-011 recvfrom peek preserves exact receive bytes window and ACK metadata", HostLane.Fast, 10)]
+    private static void PeekPreservesWindow()
+    {
+        using var m = new Model(); using var f = Connection(); uint fd = m.Accept(m.Listen(), f);
+        HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, "abcdef"u8, ack: 700, flags: 0x18), out _));
+        HostCheck.Equal(Rx.Status.Success, Rx.PumpAck(f.Receiver, new byte[1514], out _));
+        byte[] owner = new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).ToArray();
+        byte[] buffer = new ReadOnlySpan<byte>(f.ReceiveBuffer, 8).ToArray();
+        m.Files.Context->RequiredOutputSource = m.Files.Admission.Scratch;
+        HostCheck.Equal(2L, m.Call(45, fd, Output, 2, 2));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 2).SequenceEqual("ab"u8));
+        HostCheck.Equal(6L, m.Call(45, fd, Output, 64, 0x42));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 6).SequenceEqual("abcdef"u8));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).SequenceEqual(owner));
+        HostCheck.True(new ReadOnlySpan<byte>(f.ReceiveBuffer, 8).SequenceEqual(buffer));
+        HostCheck.Equal(6, f.Receiver->UnreadBytes); HostCheck.Equal((ushort)2, f.Receiver->AvailableWindow);
+        HostCheck.Equal(106U, f.Receiver->AcknowledgementNumber); HostCheck.True(!f.Receiver->HasPendingAck);
+        HostCheck.Equal(Rx.Status.NothingToAck, Rx.PumpAck(f.Receiver, new byte[1514], out _));
+        HostCheck.Equal(6L, m.Call(0, fd, Output, 8));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 6).SequenceEqual("abcdef"u8));
+        HostCheck.Equal(0, f.Receiver->UnreadBytes); HostCheck.Equal((ushort)8, f.Receiver->AvailableWindow);
+        HostCheck.True(f.Receiver->HasPendingAck);
+        HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
+    }
+
+    [HostTest("m16-011 peek rejects invalid outputs flags and vector calls without consuming TCP", HostLane.Fast, 11)]
+    private static void PeekFailures()
+    {
+        using var m = new Model(); using var f = Connection(); uint fd = m.Accept(m.Listen(), f);
+        HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, "xyz"u8, ack: 700, flags: 0x18), out _));
+        byte[] owner = new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).ToArray();
+        new Span<byte>(m.Files.Memory.At(Output), 8).Fill(0xa5);
+        uint copies = m.Files.Context->OutputCopies;
+        HostCheck.Equal(-14L, m.Call(45, fd, User + 32768, 3, 2));
+        HostCheck.Equal(copies, m.Files.Context->OutputCopies);
+        m.Files.Context->FailOutput = true;
+        HostCheck.Equal(-14L, m.Call(45, fd, Output, 3, 0x42)); m.Files.Context->FailOutput = false;
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 8).IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.Equal(-95L, m.Call(45, fd, Output, 3, 0x102));
+        HostCheck.Equal(-95L, m.Call(45, fd, Output, 3, 2, User, Output));
+        HostCheck.Equal(-22L, m.Call(45, fd, Output, Fds.MaximumIo + 1, 2));
+        HostCheck.Equal(-38L, m.Call(47, fd, User, 2)); // recvmsg remains unsupported, including vector peek.
+        HostCheck.Equal(0L, m.Call(45, fd, 0, 0, 2));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).SequenceEqual(owner));
+        HostCheck.True(new ReadOnlySpan<byte>(f.ReceiveBuffer, 3).SequenceEqual("xyz"u8));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 8).IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.Equal(3L, m.Call(45, fd, Output, 8));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 3).SequenceEqual("xyz"u8));
+        HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
+    }
+
+    [HostTest("m16-011 peek preserves nonblocking FIN and reset receive outcomes", HostLane.Fast, 12)]
+    private static void PeekTerminalStates()
+    {
+        using (var m = new Model())
+        using (var f = Connection())
+        {
+            uint fd = m.Accept(m.Listen(), f);
+            HostCheck.Equal(-11L, m.Call(45, fd, Output, 1, 2));
+            HostCheck.Equal(0L, m.Call(45, fd, 0, 0, 0x42));
+            HostCheck.Equal(0L, m.Call(72, fd, 4, 2));
+            HostCheck.Equal(-38L, m.Call(45, fd, Output, 1, 2));
+            HostCheck.Equal(-11L, m.Call(45, fd, Output, 1, 0x42));
+            HostCheck.Equal(Tx.Status.PeerClosed, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, "end"u8, ack: 700, flags: 0x19), out _));
+            byte[] owner = new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).ToArray();
+            HostCheck.Equal(3L, m.Call(45, fd, Output, 8, 2));
+            HostCheck.Equal(3L, m.Call(45, fd, Output, 8, 0x42));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).SequenceEqual(owner));
+            HostCheck.Equal(3L, m.Call(45, fd, Output, 8));
+            HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 3).SequenceEqual("end"u8));
+            HostCheck.Equal(0L, m.Call(45, fd, Output, 8, 2));
+            HostCheck.True(f.Receiver->EndOfStream);
+            HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
+        }
+        using (var m = new Model())
+        using (var f = Connection())
+        {
+            uint fd = m.Accept(m.Listen(), f);
+            HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, "R"u8, ack: 700, flags: 0x18), out _));
+            HostCheck.Equal(Tx.Status.ConnectionReset, Tx.ReceiveFrame(f.Owner, Wire.Packet(101, ReadOnlySpan<byte>.Empty, ack: 700, flags: 0x14), out _));
+            byte[] owner = new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).ToArray();
+            HostCheck.Equal(1L, m.Call(45, fd, Output, 1, 2));
+            HostCheck.Equal(1L, m.Call(45, fd, Output, 1, 0x42));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).SequenceEqual(owner));
+            HostCheck.Equal(1L, m.Call(45, fd, Output, 1)); HostCheck.Equal((byte)'R', *m.Files.Memory.At(Output));
+            HostCheck.Equal(-104L, m.Call(45, fd, Output, 1, 2));
+            HostCheck.Equal(0L, m.Call(45, fd, Output, 1, 0x42));
+            HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
+        }
+    }
 }

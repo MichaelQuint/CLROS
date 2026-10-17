@@ -2,6 +2,11 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M10_004_PROBE
+    public const bool EnableM10004Probe = true;
+#else
+    public const bool EnableM10004Probe = false;
+#endif
 #if M16_011_PROBE
     public const bool EnableM16011Probe = true;
 #else
@@ -327,7 +332,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 65;
+    public const int ProbeCatalogCount = 66;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -611,6 +616,10 @@ public static partial class Probes
     public static ProbeDefinition GetM16012Probe() =>
         new("app.linux-epoll", nameof(EnableM16012Probe), EnableM16012Probe,
             ProbeRisk.Destructive, "Finite original SocketAsyncEngine workload with real epoll parking and NIC readiness.");
+
+    public static ProbeDefinition GetM10004Probe() =>
+        new("app.nativeaot-web", nameof(EnableM10004Probe), EnableM10004Probe,
+            ProbeRisk.Destructive, "Continuing original Minimal API with selected configuration and live socket owners; external HTTP proof required.");
 
     public static ProbeDefinition GetM09004Probe() =>
         new("thread.cooperative-switch", nameof(EnableM09004Probe), EnableM09004Probe,
@@ -989,6 +998,9 @@ public static partial class Probes
                 return true;
             case 64:
                 definition = GetM16012Probe();
+                return true;
+            case 65:
+                definition = GetM10004Probe();
                 return true;
             default:
                 definition = default;

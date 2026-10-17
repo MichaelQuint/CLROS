@@ -64,6 +64,14 @@ public static unsafe partial class EfiEntry
                     !ReadNetworkTime(state, out o->Started)) return false;
                 o->Boot = state; o->Device = device; o->Phase = 1;
                 if (!ResolveLinuxSocketPeer(o)) return false;
+#if M10_004_PROBE
+                if (!LinuxText(state, "TEST_START m10.004\r\n")) return LinuxWebRetainFailure(state, null, 2);
+                bool ran = BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
+                    state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
+                    state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
+                    state->ApicPhase == 2, device->Running, state, &RunOwnedLinuxSyscalls);
+                return LinuxWebRetainFailure(state, null, ran ? 3U : 4U);
+#else
                 if (!LinuxText(state, "TEST_START m16-011\r\n")) return false;
 #if M16_012_PROBE
                 if (!LinuxText(state, "TEST_START m16-012\r\n")) return false;
@@ -92,6 +100,7 @@ public static unsafe partial class EfiEntry
                     LinuxText(state, " end=") && LinuxNumber(state, o->Ended) &&
                     LinuxText(state, " maxDeadline=") && LinuxNumber(state, o->MaximumDeadline) &&
                     LinuxText(state, " retained=0 buffers=scrubbed descriptors=closed workers=reaped\r\n");
+#endif
             }
         }
 

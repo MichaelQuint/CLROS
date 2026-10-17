@@ -27,7 +27,7 @@ public static class NativeAotSocketContainmentGuest
     public static Capture Read(ReadOnlySpan<byte> rawTail)
     {
         var output = NativeAotThreadingOutput.Read(NativeAotSocketContainmentPublisher.Application, rawTail);
-        var scheduling = NativeAotSocketGuest.ReadObservations(output);
+        var scheduling = NativeAotSocketGuest.ReadReadiness(output);
         var application = NativeAotSocketContainmentOutput.Read(output.Stdout);
         string[] rows = output.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
         return new(scheduling, application, QemuTranscripts.ReadSocketContainmentTransport(rows));

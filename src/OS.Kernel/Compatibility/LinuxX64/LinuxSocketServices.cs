@@ -227,7 +227,7 @@ public static unsafe class LinuxSocketServices
 
     internal static long Receive(State* state, uint index, ulong address, ulong requested, ulong flags)
     {
-        if ((flags & ~0x40UL) != 0) return -95;
+        if ((flags & ~0x42UL) != 0) return -95; // MSG_PEEK | MSG_DONTWAIT.
         if (requested > LinuxDescriptorServices.MaximumIo) return Invalid;
         Endpoint* e = state->Slots + index;
         if (e->Phase != Connected) return NotConnected;
@@ -249,6 +249,7 @@ public static unsafe class LinuxSocketServices
         // an arbitrary transport-owned receive buffer.
         for (uint i = 0; i < bytes; i++) a.Scratch[i] = receiver->Buffer[receiver->Offset + i];
         if (!LinuxDescriptorServices.Output(state->Descriptors, address, a.Scratch, bytes)) return Fault;
+        if ((flags & 2) != 0) return bytes; // Peeking never advances the window or schedules an ACK.
         return TcpReceiveWindow.Read(receiver, new Span<byte>(a.Scratch, (int)bytes), out var read, reset) == TcpReceiveWindow.Status.Success &&
             read.BytesRead == bytes ? bytes : -5;
     }

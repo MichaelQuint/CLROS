@@ -10,10 +10,10 @@ public sealed class ToolFailure(string reason, string detail = "") : Exception(r
     public string Detail { get; } = detail;
 }
 
-/// <summary>Exact local file authorities held open without write/delete sharing until verification finishes.</summary>
+/// <summary>Exact local file snapshots held open with read sharing and verified identity/content.</summary>
 public sealed class AuthorityFiles : IDisposable
 {
-    private readonly Dictionary<string, AuthorityFile> records = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, AuthorityFile> records = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
 
     public static void RequirePlainPath(string root, string path, string reason)
     {
@@ -22,7 +22,8 @@ public sealed class AuthorityFiles : IDisposable
         catch (Exception error) when (error is ArgumentException or IOException or NotSupportedException)
         { throw new ToolFailure(reason, "type=" + error.GetType().Name); }
         string prefix = Path.EndsInDirectorySeparator(fullRoot) ? fullRoot : fullRoot + Path.DirectorySeparatorChar;
-        if (!fullPath.Equals(fullRoot, StringComparison.OrdinalIgnoreCase) && !fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        StringComparison comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (!fullPath.Equals(fullRoot, comparison) && !fullPath.StartsWith(prefix, comparison))
             throw new ToolFailure(reason, "path=" + fullPath);
         string current = Path.GetPathRoot(fullPath) ?? throw new ToolFailure(reason, "root=missing");
         foreach (string segment in fullPath[current.Length..].Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar], StringSplitOptions.RemoveEmptyEntries))
@@ -136,9 +137,16 @@ public sealed class AuthorityFile : IDisposable
     {
         long length = stream.Length;
         if (length < 0 || length > maximum || length > int.MaxValue) throw new ToolFailure(reason, $"path={Path} bytes={length} maximum={maximum}");
+        if (length != Length) throw new ToolFailure("authority_input_changed", "path=" + Path + " read_length=true");
         byte[] bytes = new byte[(int)length];
         long position = stream.Position;
-        try { stream.Position = 0; stream.ReadExactly(bytes); return bytes; }
+        try
+        {
+            stream.Position = 0; stream.ReadExactly(bytes);
+            if (!Convert.ToHexString(SHA256.HashData(bytes)).Equals(Sha256, StringComparison.OrdinalIgnoreCase))
+                throw new ToolFailure("authority_input_changed", "path=" + Path + " read_hash=true");
+            return bytes;
+        }
         catch (EndOfStreamException) { throw new ToolFailure(reason, "path=" + Path + " prematureEof=true"); }
         finally { stream.Position = position; }
     }

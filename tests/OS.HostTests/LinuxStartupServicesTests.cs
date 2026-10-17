@@ -525,6 +525,84 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.Equal(-11L, owner.Call(318, Output, 1, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 1));
     }
 
+    [HostTest("linux.startup explicit web entropy serves its complete finite lifetime without reuse")]
+    private static void WebEntropy()
+    {
+        HostCheck.Equal(32U, LinuxStartupServices.EntropyBytes);
+        HostCheck.Equal(256U, LinuxStartupServices.RuntimeEntropyBytes);
+        HostCheck.Equal(4096U, LinuxStartupServices.WebEntropyBytes);
+        using var owner = new Owner(LinuxStartupServices.WebEntropyBytes); owner.Begin();
+        uint used = 0;
+        while (used < 4096)
+        {
+            // Include a 16-byte request after 244 bytes have already been used.
+            uint count = used == 224 ? 20U : used == 244 ? 16U : Math.Min(32U, 4096 - used);
+            long allocations = GC.GetAllocatedBytesForCurrentThread();
+            long result = owner.Call(318, Output + used, count);
+            allocations = GC.GetAllocatedBytesForCurrentThread() - allocations;
+            HostCheck.Equal((long)count, result); HostCheck.Equal(0L, allocations);
+            used += count; HostCheck.Equal(4096U - used, owner.State->RemainingEntropy);
+        }
+        for (uint i = 0; i < 4096; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 4096).IndexOfAnyExcept((byte)0) == -1);
+        uint copies = owner.Context->Copies;
+        HostCheck.Equal(-38L, owner.Call(318, Output, 16)); HostCheck.Equal(-11L, owner.Call(318, Output, 16, 1));
+        HostCheck.Equal(copies, owner.Context->Copies);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+        HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+        HostCheck.Equal(0U, owner.State->RemainingEntropy);
+    }
+
+    [HostTest("linux.startup web entropy keeps request bounds burns attempted copies and discards without refill")]
+    private static void WebEntropyFailures()
+    {
+        using var owner = new Owner(LinuxStartupServices.WebEntropyBytes); owner.Begin();
+        HostCheck.Equal(-14L, owner.Call(318, Output + 4090, 16));
+        HostCheck.Equal(-22L, owner.Call(318, Output, 33)); HostCheck.Equal(-22L, owner.Call(318, Output, 8, 4));
+        HostCheck.Equal(0L, owner.Call(318, 0, 0));
+        HostCheck.Equal(4096U, owner.State->RemainingEntropy); HostCheck.Equal(0U, owner.Context->Copies);
+        new Span<byte>(owner.Memory.At(Output), 32).Fill(0xa5);
+        owner.Context->FailCopy = true; owner.Context->PartialCopyBytes = 7;
+        HostCheck.Equal(-14L, owner.Call(318, Output, 32));
+        HostCheck.Equal(4064U, owner.State->RemainingEntropy);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 32).IndexOfAnyExcept((byte)0) == -1);
+        for (int i = 0; i < 7; i++) HostCheck.Equal((byte)(i + 1), owner.Memory.At(Output)[i]);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output) + 7, 25).IndexOfAnyExcept((byte)0xa5) == -1);
+        owner.Context->FailCopy = false;
+        HostCheck.Equal(16L, owner.Call(318, Output + 32, 16));
+        for (int i = 0; i < 16; i++) HostCheck.Equal((byte)(i + 33), owner.Memory.At(Output + 32)[i]);
+        HostCheck.Equal(4048U, owner.State->RemainingEntropy);
+        HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 4096).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(0U, owner.State->RemainingEntropy);
+        HostCheck.Equal(-38L, owner.Call(318, Output, 8)); HostCheck.Equal(-11L, owner.Call(318, Output, 8, 1));
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+    }
+
+    [HostTest("linux.startup explicit web entropy admits only its full exclusive captured extent")]
+    private static void WebEntropyAdmission()
+    {
+        using var owner = new Owner(LinuxStartupServices.WebEntropyBytes); var before = new Snapshot(owner);
+        foreach (uint count in new uint[] { 512, 4095, 4097, 8192, uint.MaxValue })
+        {
+            var admission = owner.Admission(); admission.CapturedEntropyBytes = count;
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        }
+        ulong[] protectedStarts = [(ulong)owner.State, (ulong)owner.Memory.State, (ulong)owner.Memory.Memory.Pool,
+            (ulong)owner.Memory.Memory.Tables, (ulong)owner.Memory.Memory.CandidateTables, (ulong)owner.Memory.Memory.StaticRanges];
+        foreach (ulong start in protectedStarts)
+        {
+            var admission = owner.Admission(); admission.Entropy = (byte*)(start - 2048);
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        }
+        var overflow = owner.Admission(); overflow.Entropy = (byte*)(ulong.MaxValue - 2047);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, overflow)); before.AssertUnchanged(owner);
+        new Span<byte>(owner.Entropy, 4096).Clear();
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission())); before.AssertUnchanged(owner);
+        HostCheck.Equal(0U, owner.Context->Reads);
+        owner.Entropy[4095] = 0x71; owner.Begin(); HostCheck.Equal(4096U, owner.State->RemainingEntropy);
+    }
+
     [HostTest("linux.startup full runtime entropy extent rejects suffix aliases and overflow before any read or reservation")]
     private static void RuntimeEntropyAdmission()
     {

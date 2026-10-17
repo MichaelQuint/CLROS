@@ -66,6 +66,17 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
     }
     public void Dispose() => locks.Dispose();
 
+    // A continuing runner may retain this verified context across execution.
+    // Re-enumerate default compile inputs as well as checking held file identity:
+    // a new tooling source must not evade the original source-closure snapshot.
+    internal void VerifyHeldInputs()
+    {
+        if(evidence is null)throw new ToolFailure("artifact_not_verified");
+        VerifySnapshot(locks,Root,SourceClosurePaths(Root),evidence["sourceClosureInputs"],
+            "source_closure",Text("sourceClosureSha256"),MaximumTextBytes,singleLink:true);
+        locks.VerifyUnchanged();
+    }
+
     public void Verify()
     {
         profile = options.Profile(line => emit(line.Replace("EFI_PROFILE_", "EFI_ARTIFACT_", StringComparison.Ordinal)));

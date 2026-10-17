@@ -41,7 +41,9 @@ exact aggregate RX join. Only role0 may retry before its sole SYN-ACK, at least
 500ms apart within30 seconds (at most59 extras). Every role requires the exact
 handshake ACK before data; duplicate SYN-ACKs, later SYNs and startup resets
 reject. Ambiguous accepted-duplicate/TX-backpressure traces fail the aggregate
-join. A fresh strict run remains required after this consumer correction.
+join. [Step1378](../done/step1378.md) records a fresh strict pass at291c40b2;
+that capture predates the application/containment merge. The combined source
+requires fresh stable qualification before issue acceptance.
 
 [Step1272](../done/step1272.md) adds an explicit development selector for either
 focused runtime workload through the existing M16-009 profile:

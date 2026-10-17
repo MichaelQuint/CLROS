@@ -69,6 +69,23 @@ internal static class LinuxThreadExecutionBudgetTests
         HostCheck.True(budget.Continue(long.MaxValue, 1, 1));
     }
 
+    [HostTest("linux.thread-budget continuing web admission preserves real time ceiling and independent bounded counters")]
+    private static void ContinuingWeb()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(!budget.Begin(16, 100, continuingWeb: true));
+        HostCheck.Equal(0u, budget.MaximumSteps); HostCheck.Equal(0u, budget.MaximumEpochs);
+        HostCheck.True(budget.Begin(16, 100, application: true, continuingWeb: true) && budget.HasElapsedLimit);
+        HostCheck.True(budget.Continue(101, 8192, 16384));
+        HostCheck.True(budget.Continue(300_000_000_099, LinuxThreadExecutionBudget.WebMaximumEpochs - 1,
+            LinuxThreadExecutionBudget.WebMaximumSteps - 1));
+        HostCheck.True(!budget.Continue(300_000_000_099, LinuxThreadExecutionBudget.WebMaximumEpochs, 1));
+        HostCheck.True(!budget.Continue(300_000_000_099, 1, LinuxThreadExecutionBudget.WebMaximumSteps));
+        HostCheck.True(!budget.Continue(300_000_000_100, 1, 1) && !budget.Observe(99));
+        HostCheck.Equal(300_000_000_099UL, budget.ObservedNanoseconds);
+        HostCheck.True(!budget.Begin(1, 0, application: true, continuingWeb: true));
+    }
+
     [HostTest("linux.thread-budget final completion observes real time without requiring another arm or consuming an expired clock")]
     private static void Completion()
     {

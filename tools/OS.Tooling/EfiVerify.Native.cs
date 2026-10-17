@@ -71,6 +71,8 @@ internal sealed partial class EfiVerification
         BindProfile(profile.IsEnabled("M16007"), "m16_descriptors", new[] { "PrepareLinuxDescriptors", "DispatchLinuxDescriptors",
             "WriteDescriptorOutput" }
             .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
+        BindProfile(profile.IsEnabled("M10004"), "m10_web", new[]{"LinuxWebObserveCall","LinuxWebObserveOutput","LinuxWebPublishLive","LinuxWebRetainFailure"}
+            .Select(n=>"OS_OS_Boot_EfiEntry_M03FirstExitAdapter__"+n).ToArray());
         VerifyLinuxCopyBindings(profile, map, image);
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution") || profile.IsEnabled("M04ConstructorFailure"), "compiler_cctor", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase");

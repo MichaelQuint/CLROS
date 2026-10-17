@@ -47,12 +47,13 @@ public static class NativeAotSocketGuest
             var observed = NativeAotSocketPayload.ValidateAsyncOutput(output.Stdout);
             Need(observed.PendingAccepts > 0 && observed.PendingReceives > 0 && observed.PendingSends > 0, "pending_async_operations");
         }
-        return ReadObservations(output);
+        return ReadReadiness(output);
     }
 
-    // Common value-only wait decoder. Public original modes still perform
-    // their exact application and pending-operation validation before entry.
-    internal static Capture ReadObservations(NativeAotThreadingOutput.Capture output)
+    // Shared value-only readiness binding after the caller has framed output.
+    // This deliberately permits pending waits at a continuing capture boundary;
+    // complete scheduling/lifetime replay remains a separate requirement.
+    internal static Capture ReadReadiness(NativeAotThreadingOutput.Capture output)
     {
         Need(output.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "raw_terminal");
         string[] rows = output.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);

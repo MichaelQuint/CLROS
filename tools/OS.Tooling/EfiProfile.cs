@@ -12,7 +12,7 @@ public sealed class EfiProfile
         "M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival", "M05PciEnumeration", "M05VirtioNegotiation",
         "M05VirtqueuePolling", "M07VirtioNet", "M07ArpReceive", "M16002", "M16003"];
     private static readonly string[] SocketNetworkExtensions = ["M05ApicSetup", "M16004", "M16005", "M16006", "M16007",
-        "M16008", "M16009", "M16011", "M16012"];
+        "M16008", "M16009", "M16011", "M16012", "M10004"];
     private EfiProfile(string bootPolicy, Dictionary<string, bool> flags) { BootPolicy = bootPolicy; this.flags = flags; }
     public IEnumerable<string> CommandArguments() => new[] { "--boot-policy", BootPolicy }.Concat(flags.Where(p => p.Value).Select(p => "--" + p.Key));
 
@@ -33,8 +33,15 @@ public sealed class EfiProfile
                     throw new ToolFailure("socket_containment_explicit_false_prerequisite", parent);
                 flags[parent] = true;
             }
-            if (flags["EnableM16012Probe"])
-                throw new ToolFailure("socket_containment_profile_conflict", "EnableM16012Probe");
+            foreach(string conflict in new[]{"EnableM16012Probe","EnableM10004Probe"})
+                if(flags[conflict])throw new ToolFailure("socket_containment_profile_conflict",conflict);
+        }
+        if (flags["EnableM10004Probe"])
+        {
+            _ = NativeAotWebSelection.Application(flags);
+            if (explicitlySelected.TryGetValue("EnableM16012Probe", out bool parent) && !parent)
+                throw new ToolFailure("web_explicit_false_prerequisite", "EnableM16012Probe");
+            flags["EnableM16012Probe"] = true;
         }
         if (flags["EnableM16012Probe"])
         {
@@ -199,7 +206,7 @@ public sealed class EfiProfile
             foreach (var flag in flags)
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
                     !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
-                    !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe") &&
+                    !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe" or "EnableM10004Probe") &&
                     !(containment && flag.Key is "EnableM07027Probe" or "EnableM07028Probe") &&
                     !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);

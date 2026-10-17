@@ -22501,7 +22501,7 @@
         "M16-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22538,7 +22538,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Load manifest arguments, environment and configuration for the NativeAOT app",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Development PR739/steps1349-1354 adds immutable configuration views, original web instruction admission and a default-off continuing profile. Retained r12 diagnostic returns exact200/22-byte selected health and200/238-byte config JSON from the unchanged original Kestrel ELF; independent bounded PCAP payload reassembly matches both. Actual CLI binds8080 while config observes environment8081. Runner-owned QEMU remains alive across probes, then is confirmed dead with a refused endpoint. Focused checks and targeted native stack review pass. Complete continuing transcript/native/packet/source admission deliberately remains closed; no full-host/ancestor batch or #217 acceptance. Dependencies216/685 are accepted in step1351; continue owned217 under737 before dependent218-220.",
       "implementationNotes": [
         "Populate Linux argv/envp and immutable files only from validated manifest configuration. Bound counts/lengths, reject duplicate/invalid keys and unauthorized paths, and prove the guest observes the selected values.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",

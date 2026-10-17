@@ -89,8 +89,11 @@ consumer rejects its aggregate RX join: twelve unanswered startup SYNs were
 omitted from the packet model. The corrected consumer counts those observed
 extras separately, requires an unambiguous exact handshake and retains exact
 aggregate counters; it does not assign individual RX outcomes. Forty-four
-focused checks pass. Fresh strict guest and stable full-host/ancestor
-qualification remain pending. These repairs and the Kestrel ladder remain open;
+focused checks pass. [Step1378](../done/step1378.md) records one fresh strict
+containment pass at291c40b2 with840 raw source joins and identical reviewed
+native files, then combines that implementation with the application branch.
+The combined source still needs stable native/full-host/guest/ancestor
+qualification. These repairs and the Kestrel ladder remain open;
 see [the command](qemu.md#containment-diagnostic-development).
 
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the

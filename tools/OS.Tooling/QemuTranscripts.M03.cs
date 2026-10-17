@@ -207,6 +207,29 @@ public static partial class QemuTranscripts
         if (gptPartition) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_GPT ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
+        var rows = AssertCopiedAcpiRecords(lines);
+        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
+        if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
+        if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
+        if (pciEnumeration) AssertM05PciEnumerationRecords(barDma || virtioNegotiation || apicSetup || virtioBlockQueueSetup ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
+        if (barDma) AssertM05BarDmaRecords(lines);
+        if (virtqueueInterrupt) AssertM05VirtqueueInterruptRecords(lines);
+        else if (apicSetup) AssertM05ApicSetupRecords(lines);
+        if (virtioNegotiation && !virtqueueInterrupt) AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
+        if (virtqueuePolling) AssertM05VirtqueuePollingRecords(lines);
+        if (virtioBlockQueueSetup) AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
+        if (virtioBlockRead) AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
+        if (liveBlockContract) AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
+        if (gptPartition) AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
+        if (fatRead) AssertM06FatReadRecords(packageRead ? lines[..QemuContracts.M06FatReadMarkers().Count] : lines);
+        if (packageRead) AssertM06PackageReadRecords(lines, packageVariant);
+        if (monotonicClock) AssertM05MonotonicClockRecords(lines);
+    }
+
+    // Shared copied-table checks over borrowed observations; firmware and
+    // exact profile inventories are validated by each caller.
+    private static IReadOnlyList<Dictionary<string, ulong>> AssertCopiedAcpiRecords(IReadOnlyList<string> lines)
+    {
         string[] roles = ["rsdp", "root", "mcfg", "apic", "hpet"];
         var rows = new List<Dictionary<string, ulong>>();
         var physical = new List<(decimal Start, decimal End)>();
@@ -248,22 +271,7 @@ public static partial class QemuTranscripts
         var retained = ReadRecord(lines[24], "CLROS_M03_002_RETAIN", "total:dec", "descriptors:dec", "guards:dec", "tail:dec", "mismatches:dec");
         Need(total <= 266240 && retained["total"] == total && retained["descriptors"] == 5 && retained["guards"] == 32 &&
             retained["tail"] == 266240 - total && retained["mismatches"] == 0, "m03_acpi_retained_accounting");
-        if (ownedSurvival) AssertM03OwnedSubsystemRecords(physicalMapping || ownedAcpiSelection || monotonicClock || pciEnumeration ? lines[..76] : lines, rows, ownedPanic, normalBoot);
-        if (physicalMapping) AssertM05PhysicalMappingRecords(lines);
-        if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
-        if (pciEnumeration) AssertM05PciEnumerationRecords(barDma || virtioNegotiation || apicSetup || virtioBlockQueueSetup ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
-        if (barDma) AssertM05BarDmaRecords(lines);
-        if (virtqueueInterrupt) AssertM05VirtqueueInterruptRecords(lines);
-        else if (apicSetup) AssertM05ApicSetupRecords(lines);
-        if (virtioNegotiation && !virtqueueInterrupt) AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
-        if (virtqueuePolling) AssertM05VirtqueuePollingRecords(lines);
-        if (virtioBlockQueueSetup) AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
-        if (virtioBlockRead) AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
-        if (liveBlockContract) AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
-        if (gptPartition) AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
-        if (fatRead) AssertM06FatReadRecords(packageRead ? lines[..QemuContracts.M06FatReadMarkers().Count] : lines);
-        if (packageRead) AssertM06PackageReadRecords(lines, packageVariant);
-        if (monotonicClock) AssertM05MonotonicClockRecords(lines);
+        return rows;
     }
 
     public static void AssertM03OwnedSubsystemRecords(IReadOnlyList<string> lines, IReadOnlyList<Dictionary<string, ulong>> acpiRows, bool panic = false, bool normalBoot = false)

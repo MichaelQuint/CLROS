@@ -44,8 +44,8 @@ public static partial class QemuTranscripts
         internal uint Flags=flags;
         internal int Phase; // 0 created, 1 bound, 2 listening, 3 accepted.
         internal int Connection=-1,Eof,Reset,TimedOut,ShutdownErrors;
-        internal ulong Sent,Received;
-        internal bool WriteClosed,StatusUnknown,SendBlocked;
+        internal ulong Sent,Received,PeekBytes;
+        internal bool WriteClosed,ReadClosed,StatusUnknown,SendBlocked;
         internal readonly Dictionary<int,SocketDescriptor> Watches=[];
     }
 
@@ -154,7 +154,7 @@ public static partial class QemuTranscripts
         private void SocketClose(int fd)
         {
             Need(socketDescriptors.Remove(fd,out var value) && files.Remove(fd),"socket_close_owner");
-            if(value!.Phase==3)
+            if(value!.Phase==3 && !web)
             {
                 if(containment)ContainmentClose(value);
                 else
@@ -278,7 +278,7 @@ public static partial class QemuTranscripts
             {
                 case 49:
                     Need(descriptor.Phase==0 && c==16 && memory.Covered(b,16,1) && v==0,"socket_bind");descriptor.Phase=1;break;
-                case 50:Need(descriptor.Phase is 1 or 2 && b==(containment?3UL:4UL) && v==0,"socket_listen");descriptor.Phase=2;break;
+                case 50:Need(descriptor.Phase is 1 or 2 && b==(containment?3UL:web?512UL:4UL) && v==0,"socket_listen");descriptor.Phase=2;break;
                 case 43:case 288:
                     Need(descriptor.Phase==2 && (b==0 || memory.Covered(b,16,3) && memory.Covered(c,4,3)) &&
                         (nr==43 || (d&~0x80800UL)==0),"socket_accept_arguments");
@@ -287,18 +287,43 @@ public static partial class QemuTranscripts
                     SocketInstall(v,false,nr==288?(uint)d:0,3);socketDescriptors[(int)v].Connection=socketAccepts++;break;
                 case 44:case 45:
                     Need(descriptor.Phase==3 && c is >0 and <=65536 && e==0 && f==0 &&
-                        (d&~(nr==44?0x4040UL:0x40UL))==0 && memory.Covered(b,nr==44?Math.Min(c,8192):c,nr==44?1U:3U),"socket_io_arguments");
+                        (d&~(nr==44?0x4040UL:web?0x42UL:0x40UL))==0 && memory.Covered(b,nr==44?Math.Min(c,8192):c,nr==44?1U:3U),"socket_io_arguments");
                     if(containment){ContainmentIo(descriptor,nr,c,result);break;}
                     Need(result is -11 or -104 or -32 || result>=0 && result<=(long)Math.Min(c,8192),"socket_io_result");
+                    if(web)
+                    {
+                        if(nr==44)
+                            Need(result!=0 && (!descriptor.WriteClosed || result is -32 or -104) &&
+                                (descriptor.Reset==0 || result==-32),"web_socket_send_state");
+                        else
+                        {
+                            Need(result!=-32 && (!descriptor.ReadClosed || result is 0 or -104) &&
+                                (descriptor.Reset==0 || result>=0),"web_socket_receive_state");
+                            if(!descriptor.ReadClosed && descriptor.PeekBytes!=0)
+                                Need(result>0 && (ulong)result>=Math.Min(c,Math.Min(8192UL,descriptor.PeekBytes)),"web_socket_unread_peek");
+                            if(result>0)
+                                descriptor.PeekBytes=(d&2)!=0?Math.Max(descriptor.PeekBytes,(ulong)result):
+                                    descriptor.PeekBytes>=(ulong)result?descriptor.PeekBytes-(ulong)result:0;
+                        }
+                        if(result==-104)Need(descriptor.Reset==0,"web_socket_reset_consumed");
+                    }
                     if(result>0)
                     {
                         if(nr==44){Need(!descriptor.WriteClosed,"socket_send_after_shutdown");socketSent+=(ulong)result;descriptor.Sent+=(ulong)result;}
-                        else {socketReceived+=(ulong)result;descriptor.Received+=(ulong)result;}
+                        else
+                        {
+                            Need(!descriptor.ReadClosed,"socket_receive_after_shutdown");
+                            if((d&2)==0){socketReceived+=(ulong)result;descriptor.Received+=(ulong)result;}
+                        }
                     }
                     if(nr==45 && result==0)descriptor.Eof++;
                     if(result==-104)descriptor.Reset++;
                     break;
-                case 48:Need(!containment && descriptor.Phase==3 && b==1 && v==0,"socket_shutdown");descriptor.WriteClosed=true;break;
+                case 48:Need(!containment && descriptor.Phase==3 && (web?b is 0 or 1 or 2:b==1) && v==0,"socket_shutdown");
+                    if(b is 1 or 2)descriptor.WriteClosed=true;
+                    if(b is 0 or 2){descriptor.ReadClosed=true;descriptor.PeekBytes=0;}break;
+                case 51:
+                    Need(web && descriptor.Phase is >=1 and <=3 && memory.Covered(b,16,3) && memory.Covered(c,4,3) && v==0,"web_socket_name");break;
                 case 54:
                     Need(memory.Covered(d,e,1) && (e==4 && (b==1 && c is 2 or 7 || b==6 && c==1) && v==0 ||
                         b==1 && c==13 && e==8 && result==-22),"socket_option");break;

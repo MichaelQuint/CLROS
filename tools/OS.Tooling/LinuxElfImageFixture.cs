@@ -12,6 +12,23 @@ public sealed record LinuxElfImageReceipt(string Variant, string OriginalSha256,
 /// before changing only the payload's last byte or its directory size field.</summary>
 public static class LinuxElfImageFixture
 {
+    /// <summary>Byte offsets of the exact boot EFI, package and package directory
+    /// entry in an inspected image. Borrowed bytes are never executed or retained;
+    /// these locations grant no native provenance or guest authority.</summary>
+    public readonly record struct Locations(int EfiStart,int PackageStart,int PackageEntry);
+
+    /// <summary>Inspect a borrowed 64-MiB raw image against complete expected EFI
+    /// and validated Linux package bytes. Requires the bounded FAT32 directory
+    /// route, sizes and both contiguous FAT copies; mismatch throws ToolFailure.
+    /// This neither mutates inputs nor qualifies boot, provenance or execution.</summary>
+    public static Locations Inspect(byte[] image,byte[] efi,byte[] package)
+    {
+        if(image.Length!=64*1024*1024)throw new ToolFailure("m16_002_fixture_image_size");
+        if(efi.Length is <=0 or >16*1024*1024)throw new ToolFailure("m16_002_fixture_input_size");
+        if(!LinuxElfPackage.Validate(package).Succeeded)throw new ToolFailure("m16_002_fixture_package");
+        return Locate(image,efi,package);
+    }
+
     public static LinuxElfImageReceipt Apply(string imagePath, string efiPath, string packagePath, string variant)
     {
         if (variant is not ("DigestFault" or "Oversized")) throw new ToolFailure("m16_002_image_variant");
@@ -21,6 +38,23 @@ public static class LinuxElfImageFixture
         using var file = new FileStream(imagePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         if (file.Length != 64 * 1024 * 1024) throw new ToolFailure("m16_002_fixture_image_size");
         byte[] image = new byte[(int)file.Length]; file.ReadExactly(image);
+        var locations=Locate(image,efi,package);
+        string before = Convert.ToHexString(SHA256.HashData(image)).ToLowerInvariant();
+        int change = variant == "DigestFault" ? locations.PackageStart + (int)view.PayloadOffset + (int)view.PayloadBytes - 1 : locations.PackageEntry + 28;
+        byte[] original = image.AsSpan(change, variant == "DigestFault" ? 1 : 4).ToArray();
+        if (variant == "DigestFault") image[change] ^= 1;
+        else BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(change, 4), LinuxElfPackage.MaximumBytes + 1);
+        int changed = 0; for (int i = 0; i < original.Length; i++) if (original[i] != image[change + i]) changed++;
+        if(changed==0)throw new ToolFailure("m16_002_fixture_geometry");
+        file.Position = 0; file.Write(image); file.Flush(true); file.Position = 0;
+        byte[] readback = new byte[image.Length]; file.ReadExactly(readback);
+        if(!readback.AsSpan().SequenceEqual(image))throw new ToolFailure("m16_002_fixture_geometry");
+        return new(variant, before, Convert.ToHexString(SHA256.HashData(image)).ToLowerInvariant(),
+            Convert.ToHexString(SHA256.HashData(efi)).ToLowerInvariant(), Convert.ToHexString(SHA256.HashData(package)).ToLowerInvariant(), change, changed);
+    }
+
+    private static Locations Locate(byte[] image,byte[] efi,byte[] package)
+    {
         const int partition = 2048 * 512;
         int U16(int at) => BinaryPrimitives.ReadUInt16LittleEndian(image.AsSpan(at, 2));
         uint U32(int at) => BinaryPrimitives.ReadUInt32LittleEndian(image.AsSpan(at, 4));
@@ -65,21 +99,10 @@ public static class LinuxElfImageFixture
             Need(image.AsSpan(start, expected.Length).SequenceEqual(expected)); return start;
         }
         uint boot = First(Entry(First(Entry(root, "EFI        ", true)), "BOOT       ", true));
-        _ = FileStart(Entry(boot, "BOOTX64 EFI", false), efi);
+        int efiStart = FileStart(Entry(boot, "BOOTX64 EFI", false), efi);
         uint os = First(Entry(root, "OS         ", true)); int packageEntry = Entry(os, "APP     PKG", false);
         int packageStart = FileStart(packageEntry, package);
-        string before = Convert.ToHexString(SHA256.HashData(image)).ToLowerInvariant();
-        int change = variant == "DigestFault" ? packageStart + (int)view.PayloadOffset + (int)view.PayloadBytes - 1 : packageEntry + 28;
-        byte[] original = image.AsSpan(change, variant == "DigestFault" ? 1 : 4).ToArray();
-        if (variant == "DigestFault") image[change] ^= 1;
-        else BinaryPrimitives.WriteUInt32LittleEndian(image.AsSpan(change, 4), LinuxElfPackage.MaximumBytes + 1);
-        int changed = 0; for (int i = 0; i < original.Length; i++) if (original[i] != image[change + i]) changed++;
-        Need(changed > 0);
-        file.Position = 0; file.Write(image); file.Flush(true); file.Position = 0;
-        byte[] readback = new byte[image.Length]; file.ReadExactly(readback);
-        Need(readback.AsSpan().SequenceEqual(image));
-        return new(variant, before, Convert.ToHexString(SHA256.HashData(image)).ToLowerInvariant(),
-            Convert.ToHexString(SHA256.HashData(efi)).ToLowerInvariant(), Convert.ToHexString(SHA256.HashData(package)).ToLowerInvariant(), change, changed);
+        return new(efiStart,packageStart,packageEntry);
     }
     private static byte[] Read(string path, int maximum)
     {
