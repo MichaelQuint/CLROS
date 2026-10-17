@@ -882,6 +882,14 @@ complete fast phase finds three later descendant-matrix omissions and blocks
 native work. Those test-only repairs pass20 focused checks; combined acceptance
 remains pending.
 
+[Step1364](../done/step1364.md) stages `LinuxAppLogBudget` for the next owned
+logging slice. One externally serialized process owner charges bounded fd1/fd2
+body bytes and records before delivery; failed delivery retains its charge and
+rejected/exhausted requests change nothing. Five host checks reuse real Linux
+descriptor write/writev dispatch, including partial/error behavior and quota
+exhaustion. This helper is not linked into EFI or called by boot yet; #218 and
+its guest stdout/stderr/concurrency acceptance remain pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
