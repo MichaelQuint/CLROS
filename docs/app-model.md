@@ -10,6 +10,41 @@ by active upstream GC before later exit/reap. It supplies no DetachCurrentThread
 entry or strict-runner claim. Continuing networking, sockets/epoll and Kestrel
 remain incomplete; no numbered/cloud/production gate changes.
 
+## Continuing service and resource follow-ups
+
+The [architecture review order](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+keeps the qualified finite application profiles separate from a continuing
+service. M16-014 must replace lifetime syscall/elapsed diagnostic guards with
+explicit resource limits, bounded work, cancellation and a progress watchdog;
+merely raising 4096 calls or 300 seconds is insufficient. Existing #240 supplies
+continuing randomness with a reviewed construction and explicit source-failure
+policy, rather than an ever-larger finite startup reservoir.
+
+M16-015 addresses the current requirement for contiguous physical backing even
+when a virtual mapping could use discontiguous owned frames. The review's
+16-page-pool characterization returns `ENOMEM` for six requested pages while
+eight pages are free in two holes; owner audits still pass. Preserve mapping
+atomicity, brk/fixed-map ownership, futex leases and scrub/reuse semantics.
+
+M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
+native allocations, stacks, page tables and sockets to actual committed-page
+entitlement. Firmware/system RAM totals are not an app allocation guarantee.
+No GC sizing failure was demonstrated by the source review. Verify the selected
+configuration inside the guest before claiming a working budget. M14-006/#291
+extends this model to private process budgets; M16-017 user-fault containment
+precedes terminate/reap and real two-app crash-isolation acceptance.
+
+The second pass identifies three service-composition gaps. M16-019 supplies
+owned UTC before external HTTP acceptance, since a rejected realtime syscall
+becomes Unix-epoch `DateTime.UtcNow` in the pinned PAL. M16-020 prevents an
+unmasked pending signal from being stranded when pipe/epoll readiness is consumed
+by another worker before resumption. A finite no-progress guard can still stop
+the owner; the review does not prove an infinite kernel hang or guest GC deadlock.
+M16-021 later reconciles successfully installed SIGPIPE actions with I/O policy,
+or explicitly rejects unsupported dispositions. Until then the ignored-SIGPIPE
+profile is a restriction, not general signal compatibility. See the
+[second-pass evidence](repo-audit.md#second-pass-interactions-and-failure-recovery).
+
 ## Historical development receipts
 
 The dated development states below are superseded for this batch by step1307;

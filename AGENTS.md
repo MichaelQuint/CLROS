@@ -13,6 +13,15 @@ startup -> #220 Kestrel sockets under #737, then refresh exact dependencies.
 The separate PR739 configuration work is development evidence
 only. No guest Kestrel or new numbered/cloud/production gate is accepted.
 
+The October 16 architecture review is now ordered in
+`docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16`
+and the canonical backlog. Preserve #737/PR739 ownership. M07-027/M07-028 and
+M16-013 precede #220 acceptance; continuing-policy/entropy/TCP/memory repairs
+precede #224/#225. M16-017 fault containment belongs before process termination
+and crash-isolation acceptance. Host Roslyn/generator and measured performance
+work follow the local Kestrel gate. Planning issues do not reopen accepted
+finite profiles or claim their fixes are implemented.
+
 `done/step1332.md` qualifies #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153
 and shared integration #734 at implementation `fd296378`: 5,341 full-host checks
 across 700 fixtures (94 Native), three strict TCP guests and20 fresh ancestors,

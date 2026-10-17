@@ -13,6 +13,48 @@ The shared native-body joins do not prove whole-stack closure or arbitrary
 workloads. Real guest Kestrel and new numbered/cloud/production gates remain
 incomplete. Continue the owned #217-#220 application ladder under #737.
 
+## Architecture review follow-ups
+
+The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+adds open repairs to the accepted finite network surface:
+
+- [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
+  hard-coded 30-second connection lifetime can turn a healthy old connection
+  into shared `TransportFailure`. A host reproduction retained two connections
+  and observed the next pump return `InvalidState`. Separate per-connection
+  timeout policy from owner corruption and diagnostic total lifetime.
+- [M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742): a valid
+  DMA completion containing an unsupported 1518-byte VLAN frame faults the RX
+  owner in the host model. Drop/recycle content-policy rejects; preserve terminal
+  handling for unsafe completion metadata. External reachability depends on the
+  backend delivering that frame and has not been proved by this review.
+- [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
+  zero-window persist recovery, including a lost window-reopening update.
+  [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744) retires
+  active-close bulk buffers into bounded compact TIME-WAIT records while keeping
+  the 240-second policy and tuple protection. Both precede repeated-service #224.
+- [M16-013](http://192.168.4.35:3000/admin/CLROS/issues/745) adds
+  checked `msghdr`/`iovec` semantics for the actual pinned socket/Kestrel vector
+  path before #220. Small successful HTTP responses do not cover that path.
+- [M07-032](http://192.168.4.35:3000/admin/CLROS/issues/757) handles validated peer RST in SYN-RECEIVED.
+  The host reproduction currently retains the pending slot and retransmits
+  SYN-ACK until its deadline, blocking another client when capacity is full.
+- [M07-033](http://192.168.4.35:3000/admin/CLROS/issues/758) replaces the finite diagnostic ISN allocator
+  for continuing profiles. Near its admitted upper boundary, one completed
+  connection exhausts future admission even with zero retained slots. Use
+  reviewed secret/tuple/time-based ISNs and modular arithmetic while retaining
+  generation and TIME-WAIT protections; simply wrapping the global counter is
+  insufficient. Both new issues precede #224; unpredictability is a construction
+  requirement, with no sequence-injection exploit claimed by the review.
+- After a matched workload baseline, [M07-031](http://192.168.4.35:3000/admin/CLROS/issues/751)
+  replaces one-segment timed flight with bounded congestion-controlled flight.
+  At 1460-byte MSS and 10ms RTT, one segment per RTT gives about 146KB/s before
+  overhead; that is an analytical bound, not a measured CLROS benchmark.
+
+These issues require independent loss/reorder/backpressure controls, another
+connection's progress, a scheduler witness and complete retirement/reset
+accounting in real guests. They are not implemented by this roadmap update.
+
 ## Development history
 
 The following entries preserve their original pending/failure boundaries;

@@ -1,5 +1,90 @@
 # Repository Audit
 
+## October 16 architecture review
+
+Reviewed accepted `e5bd99e6c8202988810cc479b92f1c51ef695e2d` across the EFI
+boundary, `OS.Kernel` and canonical `std/no-runtime/shared` (linked by
+`src/OS.Std.NoRuntime.Shared`). Step1351 qualifies bounded sync/async sockets
+and V2 staging, after step1307 runtime and step1332 finite TCP. The older status
+paragraphs below retain historical scope. PR739 at
+`e40db8091e8b61b6d2b18f837feb96e9965109a2` reports development guest HTTP;
+it remains separate from accepted master and complete Kestrel acceptance.
+
+Fresh review evidence: host build passed; 13 epoll checks and the 4,375-check
+fast lane across 619 fixtures passed. Two temporary tests deliberately asserted
+the desired behavior and failed: a recently active 30-second-old connection
+poisoned the shared network owner, and an in-buffer unsupported VLAN frame
+faulted RX. A separate passing characterization established `ENOMEM` with eight
+free pages split across two holes for a six-page mapping. Temporary test changes
+were removed and the clean source rebuilt. Reproduction patches/logs are linked
+from the corresponding issues; these tests did not qualify fixes or live attacks.
+
+| Finding or opportunity | Tracking and evidence level |
+| --- | --- |
+| Healthy connection deadline becomes common owner failure | [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741), host reproduction |
+| Unsupported packet content becomes terminal RX state | [M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742), host reproduction; backend reachability unproved |
+| Missing zero-window persist and costly TIME-WAIT retention | [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743), [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744), source review |
+| Missing checked vector syscalls for Kestrel's multi-segment path | [M16-013](http://192.168.4.35:3000/admin/CLROS/issues/745), pinned source trace; small HTTP success is insufficient |
+| Finite syscall/time/entropy guards do not define continuing service | [M16-014](http://192.168.4.35:3000/admin/CLROS/issues/746), existing [#240](http://192.168.4.35:3000/admin/CLROS/issues/240), deliberate finite limits |
+| Physical contiguity causes avoidable allocation failure | [M16-015](http://192.168.4.35:3000/admin/CLROS/issues/747), host characterization; no corruption found |
+| System RAM facts are not a GC/native app entitlement | [M16-016](http://192.168.4.35:3000/admin/CLROS/issues/748), source concern requiring runtime measurement |
+| CPL3 invalid-opcode/divide faults retain terminal handlers | [M16-017](http://192.168.4.35:3000/admin/CLROS/issues/749), static trace; live reproduction pending |
+| One-segment flight, full audits and synchronous serial cost | [M07-031](http://192.168.4.35:3000/admin/CLROS/issues/751), [M16-018](http://192.168.4.35:3000/admin/CLROS/issues/752), existing [#242](http://192.168.4.35:3000/admin/CLROS/issues/242); measure against [M15-016](http://192.168.4.35:3000/admin/CLROS/issues/750) before claiming benefit |
+| Build-time effects/context/ownership, ABI and capabilities | M11-019 -> M11-020 -> M11-021, proposed host tooling with independent controls in [architecture](architecture.md#build-time-assurance-and-measured-optimization) |
+
+Preserve the strengths already present: checked candidate-root publication,
+W+X rejection, scrub/reuse, ELF bounds/overlap validation, signal return-state
+checks and descriptor generations. No new reachable memory-corruption defect
+was proved in the inspected memory/ELF/shared paths. This is not exhaustive
+proof of safety. Implementation ordering lives in the
+[canonical workload roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16);
+the manifest carries exact dependencies and acceptance.
+
+### Second pass: interactions and failure recovery
+
+The second pass reviewed master `7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4`;
+runtime source is unchanged from `e5bd99e6`. It reused one parallel reviewer
+for signal/wait and ownership paths. PR739 was separately read at
+`e759827ce349bcb19895cbe269f08feac3fc72c9`, still open and unmerged.
+The findings below are additional to the first pass. Reproduction patches and
+logs are attached to their issues.
+
+| Finding | Source and observed consequence | Tracking |
+| --- | --- | --- |
+| P1: Pending signal survives an I/O retry that parks again | `LinuxThreadServices.Interrupts.cs:15`, `Pipes.cs:109-129`, `Epoll.cs:93-116`. Write one byte, signal the woken reader, then consume its byte in another thread: completion is `Blocked`, and return preparation is `Rejected`. The EFI worker returns to the supervisor before signal delivery. A guest GC deadlock is unproved. | [M16-020](http://192.168.4.35:3000/admin/CLROS/issues/760), before async/cancellation churn |
+| P1: Realtime failure silently becomes the Unix epoch | `LinuxStartupServices.cs:178` refuses `CLOCK_REALTIME`; the pinned PAL returns zero on failure. Both HTTP responses in retained PR739 r12 PCAP carry `Date: Thu, 01 Jan 1970 00:00:00 GMT`. Parsing a valid RFC1123 string misses this. | [M16-019](http://192.168.4.35:3000/admin/CLROS/issues/759), before external HTTP acceptance |
+| P1: Passive-handshake reset retains a scarce connection slot | `LinuxSocketNetwork.cs:122-130` routes pending RST through final-ACK parsing. A valid reset is ignored; the slot remains, SYN-ACK retransmits, and a second SYN sees `Capacity`. | [M07-032](http://192.168.4.35:3000/admin/CLROS/issues/757), before repeated service |
+| P1: Diagnostic ISN counter permanently exhausts admission | `LinuxSocketNetwork.cs:140-151` rejects after the sequence source crosses its upper guard, even after every connection/fd is released. A public-constructor boundary test reproduces this without simulating tens of thousands of guest connections. The EFI seed is also predictable; no injection exploit was demonstrated. | [M07-033](http://192.168.4.35:3000/admin/CLROS/issues/758), with continuing entropy before repeated service |
+| P2: Accepted SIGPIPE handler conflicts with fixed ignored policy | `LinuxSignalServices.cs:138-156` accepts the handler, but `LinuxDescriptorServices.Pipes.cs:81,94-95` uses immutable `SigpipeIgnored`. A broken write returns `EPIPE` and resumes ordinary code without the handler. | [M16-021](http://192.168.4.35:3000/admin/CLROS/issues/761), explicit restriction now; reconcile before general process termination |
+
+Four desired-behavior assertions fail on the reviewed source; one realtime
+characterization passes by confirming the existing refusal and modeling the
+pinned PAL's failure branch. All temporary test edits were saved as an exact
+patch, removed, and the source rebuilt. The original network, startup and
+signal-interrupt fixtures then pass **50 checks** (14 + 20 + 16). These results
+identify defects; they do not implement or qualify repairs.
+
+The realtime finding also has retained guest evidence, independently rechecked
+for PCAP frame bounds, IPv4/TCP checksums and the two response headers. The PCAP
+SHA-256 is `074F817586534799127F61FAE01870DD5229487E46BC429D1337680BBFB3DAE9`;
+serial is `63EF51C7DCCC35D6D6BB06B7AE3B21FCD2E45CFABA7256F4E4E55B3FEABC9A29`.
+Both match PR739's `done/step1354.md`; serial records 21 realtime rejections.
+This is reinspection of a development capture, not a new QEMU run or complete
+Kestrel qualification. The [pinned native PAL](https://raw.githubusercontent.com/dotnet/dotnet/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/native/libs/System.Native/pal_datetime.c)
+explains the epoch conversion; [Kestrel's date manager](https://raw.githubusercontent.com/dotnet/dotnet/820230c386db5b0106c5430b3e5aee92a7826bf5/src/aspnetcore/src/Servers/Kestrel/Core/src/Internal/Http/DateHeaderValueManager.cs)
+consumes application UTC time. Time-dependent TLS/token consequences have not
+been tested and are not asserted as exploits.
+
+The proposed fixes retain valid-data/partial-progress/timeout precedence,
+signal masks and restart policy, exact TCP tuple/generation ownership and
+finite diagnostic profiles. Descriptor reuse, timed-futex restart, nested
+signal restoration, shared checksums and overlap copies were also inspected;
+no further defensible defect was established in those paths. This review is
+not exhaustive proof of safety. [Step1367](../done/step1367.md) records commands,
+artifacts, transient review-harness failures and the unchanged acceptance boundary.
+
+## Historical audit snapshots
+
 The #134/#136â€“#140/#633 bounded driver batch is qualified in
 [step1162](../done/step1162.md): 4,422 full-host checks across 552 groups pass with
 zero reuse/input changes. Linked native review, IRQ/recovery/net guests, exact

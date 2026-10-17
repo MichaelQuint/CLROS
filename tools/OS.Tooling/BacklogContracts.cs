@@ -16,10 +16,10 @@ public static class BacklogContracts
     public static IReadOnlyDictionary<string, int> Children { get; } = new ReadOnlyDictionary<string, int>(new Dictionary<string, int>(StringComparer.Ordinal)
     {
         ["M00"] = 23, ["M01"] = 36, ["M02"] = 20, ["M03"] = 11,
-        ["M04"] = 24, ["M05"] = 21, ["M06"] = 19, ["M07"] = 26,
-        ["M08"] = 20, ["M09"] = 30, ["M10"] = 14, ["M11"] = 18,
-        ["M12"] = 18, ["M13"] = 18, ["M14"] = 18, ["M15"] = 15,
-        ["M16"] = 12
+        ["M04"] = 24, ["M05"] = 21, ["M06"] = 19, ["M07"] = 33,
+        ["M08"] = 20, ["M09"] = 30, ["M10"] = 14, ["M11"] = 21,
+        ["M12"] = 18, ["M13"] = 18, ["M14"] = 18, ["M15"] = 16,
+        ["M16"] = 21
     });
     public static int ChildCount => Children.Values.Sum();
     public static int IssueCount => Children.Count + ChildCount;

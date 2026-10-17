@@ -19,6 +19,47 @@ async socket guests, three V2 staging guests and33 strict ancestors. The owned
 #217-#220 application ladder remains before guest Kestrel. No new numbered,
 cloud or production gate changes.
 
+## Architecture review implementation order (2026-10-16)
+
+This order incorporates the review of accepted source
+`e5bd99e6c8202988810cc479b92f1c51ef695e2d`, plus a second pass at master
+`7c297c3f` with unchanged runtime source. Both passes' host reproductions and
+characterizations identify follow-up work; they do not revoke step1351's finite
+qualification or qualify a repair.
+[PR739](http://192.168.4.35:3000/admin/CLROS/pulls/739), observed at
+`e759827ce349bcb19895cbe269f08feac3fc72c9`, reports development guest HTTP
+responses. Reinspection of retained r12 packets finds Unix-epoch Date headers;
+owned realtime is a new external-HTTP acceptance prerequisite. Continuing
+admission and the application ladder remain open.
+Refresh that moving branch before implementation. Exact dependencies, owned
+paths, commands and acceptance are in `.gitea/backlog/clros-issues.json`.
+
+| Acceptance stage | Implementation order and required issue work |
+| --- | --- |
+| Current owned application startup | Continue #217 -> #218 -> #219 under #737. In the same shared lane, [M07-027 connection-local deadlines](http://192.168.4.35:3000/admin/CLROS/issues/741) -> [M07-028 RX content rejection](http://192.168.4.35:3000/admin/CLROS/issues/742). Neither permits an ordinary peer or unsupported packet to poison the common owner. |
+| Kestrel socket ladder #220 | Require those network repairs and [M16-013 checked sendmsg/recvmsg vectors](http://192.168.4.35:3000/admin/CLROS/issues/745), after #219 and qualified epoll. Exercise actual multi-segment Kestrel responses, then continue #221 -> #222. |
+| External HTTP #223 | After startup, [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759) supplies checked UTC and application-time evidence. Validate HTTP Date against an independently recorded time interval and declared tolerance, in addition to status/body/hash. A well-formed 1970 date must fail acceptance. |
+| Repeated service #224 | After #223, qualify [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |
+| Async/memory churn #225 and local Gate 14 | [M16-020 pending signals before renewed waits](http://192.168.4.35:3000/admin/CLROS/issues/760) closes the consumed-readiness race before churn. [M16-015 fragmented physical backing](http://192.168.4.35:3000/admin/CLROS/issues/747) -> [M16-016 GC/native budgets](http://192.168.4.35:3000/admin/CLROS/issues/748) also feed #225. Then preserve #226 evidence and close #227's local gate only against its complete criteria. |
+| Two protected local applications | After local Kestrel, [M16-017 CPL3 #UD/#DE containment](http://192.168.4.35:3000/admin/CLROS/issues/749) and [M16-021 SIGPIPE disposition consistency](http://192.168.4.35:3000/admin/CLROS/issues/761) precede #292's general terminate/reap acceptance. Retain the explicit ignored-SIGPIPE restriction until qualified. #291 extends M16-016's resource model; #298 still needs a second protected app surviving failure. Keep the existing M14 process/address-space/descriptor/fairness ladder. |
+| Measured performance | After the local gate, [M15-016 matched workload baselines](http://192.168.4.35:3000/admin/CLROS/issues/750) feeds [M07-031 congestion-controlled flight](http://192.168.4.35:3000/admin/CLROS/issues/751), [M16-018 mutation-scoped audits](http://192.168.4.35:3000/admin/CLROS/issues/752), and existing [#242 bounded release logging](http://192.168.4.35:3000/admin/CLROS/issues/242). Existing #308 retains sustained production load qualification. |
+| C# build-time assurance and specialization | After the local gate, [M11-019 Roslyn effects/context/ownership checks](http://192.168.4.35:3000/admin/CLROS/issues/753) -> [M11-020 independently checked ABI generation](http://192.168.4.35:3000/admin/CLROS/issues/754). ABI generation also waits for M16-017. [M11-021 capability/resource generation](http://192.168.4.35:3000/admin/CLROS/issues/755) then consumes the per-process service boundary #294 and M16-016 budgets. These tools do not block first web or two-app qualification. |
+
+The local Gate 14 leaf is **M10-014/#227**, following M10-013/#226;
+milestone and issue numbers are different namespaces. The manifest dependency
+graph is authoritative. Do not choose a later optional ticket by numeric order.
+Existing #160 packet corpus, #240 entropy, #242 logging, #291 budgets, #298
+crash isolation and #308 sustained load are reused rather than duplicated.
+
+Claimed shared ownership remains with #737 and the live application tickets.
+New issue readiness does not authorize concurrent edits to that lane. Preserve
+unrelated body addenda and refreshed content versions during tracker sync.
+Implement focused slices, then qualify one stable related guest batch with
+original native/source joins and affected ancestors. Host checks, source
+analysis, documentation or a longer diagnostic timeout cannot close a guest
+issue. See [review evidence](repo-audit.md#october-16-architecture-review) and
+[completion gates](completion-gates.md#architecture-review-acceptance-boundaries).
+
 ## Context
 
 CLROS has two related but different workload targets:
