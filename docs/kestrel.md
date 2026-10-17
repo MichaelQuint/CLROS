@@ -43,6 +43,25 @@ Kestrel evidence markers. Three fresh post-exit boots, external probes,
 request churn/async/cancellation/shutdown and a negative probe after guest
 termination are required. No guest Kestrel execution is currently qualified.
 
+## Architecture review prerequisites
+
+[PR739](http://192.168.4.35:3000/admin/CLROS/pulls/739) reports development
+guest `/healthz` and `/config` responses at the October 16 review snapshot.
+It is unmerged and does not supply complete continuing-service acceptance.
+Preserve #737's ownership and #217 -> #218 -> #219 work. Before #220 closure,
+the managed graph now requires connection-local timeout handling (M07-027),
+RX content-drop containment (M07-028) and checked vectored I/O (M16-013).
+Exercise the pinned Kestrel multi-segment response path with independent exact
+bytes and partial-write/backpressure evidence.
+
+Repeated-service #224 additionally needs TCP persist, compact TIME-WAIT,
+explicit continuing execution policy and replenished randomness. Async/churn
+#225 needs fragmented physical backing and a guest-verified GC/native resource
+budget. Keep the original finite profiles and their markers reproducible.
+The [canonical order](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+links every ticket and separates later isolation, compiler tooling and measured
+performance work. No new numbered gate passes from this planning update.
+
 ## Transport decision experiments
 
 The primary route uses the pinned static `linux-musl-x64` payload and Kestrel's

@@ -37,6 +37,43 @@ a 122-record real diagnostic capture, and a 79-record ordinary regression.
 The default-off profile proves quiescent BAR sizing/restoration and owned-page
 address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
+## Build-time assurance and measured optimization
+
+The [October 16 review order](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+retains upstream NativeAOT application GC/EH and the restricted Linux adapter.
+The first repairs concern failure containment and continuing service semantics.
+The following C# opportunities are tracked proposals after local Kestrel:
+
+| Issue | Proposed result | Required independent control |
+| --- | --- | --- |
+| M11-019 | Host Roslyn analysis of allocations/throws, call effects, firmware/IRQ/root context and obvious owner-copy/borrow misuse | Positive and negative semantic fixtures; unresolved calls/function pointers require explicit reviewed boundaries |
+| M11-020 | Incremental generation of one bounded ABI's declarations, offsets and codecs | Authoritative byte/layout vectors, original native disassembly and actual guest ABI preservation, independent of the generator |
+| M11-021 | Explicit workload capabilities, quotas and evidence inventories generated from immutable policy | Runtime enforcement, hostile-input/undeclared-operation guest controls and image-size accounting |
+
+Suggested attributes such as `KernelNoAllocation`, `KernelNoThrow`,
+`RequiresInterruptsDisabled` and `RequiresInactiveUserRoot` have no enforced
+semantics until the checker exists. `readonly`, `ref struct` and `scoped` can
+express lexical borrowing but do not prove linear ownership, DMA lifetime or
+mapping validity. Keep Roslyn on the build host; optional hosted Roslyn in
+M15-010/#314 is a different future workload. The existing
+`OS.X64TextSerializerGenerator` is a native object emitter, not a Roslyn generator.
+
+Start with a standalone host checker: `EfiProjectAdmission` currently admits
+exactly the two SDK NetAnalyzers assemblies. Adding analyzer/generator inputs
+to EFI requires deliberate pinned admission/provenance changes and negative
+tests. Generated implementation and generated expectations are not independent
+ABI evidence. Preserve the x86-64-v2 x87/SSE context contract; AVX/XSAVE requires
+its own CPU and context-save qualification.
+
+M15-016 establishes reproducible CLROS measurements and, when feasible, a Nanos
+comparison using identical workload hashes, CPU, memory, acceleration and network
+conditions. M07-031 TCP flight, M16-018 mutation-scoped audit caching and #242
+bounded deferred logging then need measured benefit and correctness controls.
+Record boot-to-response, throughput, tail latency, idle CPU, committed memory,
+image/native code size and failure recovery. Workload specialization may reduce
+cost, while generic specialization may grow code. No speed, size or security
+superiority is established by choosing C# or by this review.
+
 ## Current Status
 
 The bounded read-only PCI ECAM batch #97-#100/#610 is accepted in

@@ -25,13 +25,22 @@ compiler and guest evidence.
 
 ## Current accepted evidence
 
-The latest qualification is [step1332](done/step1332.md): **5,341 full-host checks
+The latest runtime qualification is [step1351](done/step1351.md): **5,433 full-host
+checks across 713 fixtures (94 Native), three sync and three async socket guests,
+three V2 staging guests and 33 fresh strict ancestors**. The unchanged upstream
+socket fixtures exchange real TCP bytes and drain their owned lifetimes. V2
+staging preserves the immutable package without entering the application.
+
+[Step1332](done/step1332.md) separately qualifies **5,341 full-host checks
 across 700 fixtures (94 Native), three strict TCP captures and 20 fresh affected
 ancestors**, with original native/source/producer joins. The default-off finite
 network service retains Virtio-net queues through ARP/ICMP and real TCP ownership,
 handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
 cooperative worker advances throughout and exits/reaps before checked cleanup.
-Linux sockets, epoll and guest Kestrel remain incomplete.
+Step1351 adds bounded Linux sockets and epoll. Guest Kestrel acceptance remains
+incomplete. [PR #739](http://192.168.4.35:3000/admin/CLROS/pulls/739) reports
+development guest `/healthz` and `/config` responses; it is unmerged and does
+not close the continuing-service or Gate 14 requirements.
 
 [Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
 across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles
@@ -65,6 +74,7 @@ Step1225 lists the finite set requalified on .NET 11.
 | Hardware timer | Four owned interrupts, safe deferred wake and IDT/IST/APIC/mapping restoration. [Step1224](done/step1224.md). |
 | Cooperative lifecycle | Repeated hardware-backed waits, retained joins, deferred cancellation and supervisor-only scrub/reuse. [Step1230](done/step1230.md). |
 | Continuing network/TCP | Finite retained queues, independent wire captures, bounded TCP lifetimes and a cooperative progress witness. [Step1332](done/step1332.md). |
+| Linux sockets/epoll and web prerequisites | Unchanged upstream sync/async socket guests, Linux-host web publish and immutable V2 guest staging. [Step1351](done/step1351.md). |
 
 Runtime and network qualification remain separate bounded profiles.
 Only Gate 2 passes within its documented scope. The
@@ -96,16 +106,23 @@ The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 
 ## Next implementation
 
-The existing development thread remains paused until explicitly resumed.
+The [architecture review implementation order](docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+places fixes at the acceptance stage that needs them:
 
-The immediate sequence after the qualified thread/runtime and network batches is:
-
-1. Complete [#689 Linux sockets](http://192.168.4.35:3000/admin/CLROS/issues/689)
-   and [#690 epoll](http://192.168.4.35:3000/admin/CLROS/issues/690), then
-   qualify the actual socket/async engine workloads.
-2. Follow the M10 NativeAOT app/publish/configuration ladder and prove guest
-   Kestrel `/healthz` with an independent external HTTP request.
-3. Qualify two isolated local applications before provider-specific deployment.
+1. Preserve owned #217 configuration -> #218 output -> #219 startup under
+   [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). Localize connection
+   timeouts and unsupported RX drops, then qualify vectored socket I/O before
+   [#220's Kestrel socket ladder](http://192.168.4.35:3000/admin/CLROS/issues/220).
+2. Before repeated-service acceptance, add TCP persist and compact TIME-WAIT,
+   continuing execution policy, replenished randomness, fragmented memory
+   backing and explicit GC/native resource budgets. Then complete external
+   HTTP, churn, shutdown and the exact local Gate 14 evidence.
+3. Add user-fault containment and qualify two hardware-isolated local apps
+   before provider-specific deployment.
+4. After the local service baseline, measure TCP/audit/logging improvements and
+   add host-side Roslyn contract checks, ABI generation and workload capability
+   generation. These are tracked implementation proposals, with no performance
+   or security superiority claim until measured and qualified.
 
 Use the [managed issue manifest](.gitea/backlog/clros-issues.json) for exact
 acceptance, owned paths and dependencies, and the

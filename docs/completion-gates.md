@@ -34,6 +34,30 @@ This finite qualification advances no numbered gate. General networking,
 sockets/epoll and guest Kestrel require their own evidence.
 Development and failed/interrupted qualification history remains in steps1309-1331.
 
+## Architecture review acceptance boundaries
+
+The [October 16 ordered follow-ups](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+change prerequisites, not gate results. Step1351 remains the latest accepted
+runtime/socket package; PR739's reported development HTTP is separate.
+
+- #220 requires M07-027/M07-028 network failure containment and M16-013 actual
+  vectored socket/Kestrel I/O, alongside its existing startup/epoll dependencies.
+- #224 requires persist, compact TIME-WAIT, continuing execution policy and
+  replenished randomness. #225 additionally requires fragmented backing and
+  guest-verified GC/native allocation budgets. The existing #226 -> #227 evidence
+  and local Gate 14 closure chain remains authoritative.
+- M16-017 requires real CPL3 #UD/#DE capture/termination and supervisor progress;
+  #298 still needs a second protected app serving through that failure. Host
+  models or a single restored supervisor do not qualify multi-app isolation.
+- Roslyn checks, generated ABI/capability declarations and benchmark tooling
+  remain future work. Native/guest qualification is required when emitted kernel
+  code or its build closure changes; a generator pass is not a safety proof.
+
+The review reproduced two host failures and characterized fragmentation; it did
+not run new full/native/QEMU qualification or implement these repairs. Preserve
+the failed reproductions and prior accepted finite receipts. No numbered, cloud
+or production gate is advanced by issue creation or documentation updates.
+
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;
