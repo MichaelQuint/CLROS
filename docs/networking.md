@@ -23,9 +23,11 @@ repair: continuing sockets have no implicit total/idle deadline, retry/close
 expiry reports peer-local ETIMEDOUT, and unsupported in-buffer RX content is
 recycled with actual replenishment notification. Corrupt clock, completion,
 ownership, fence and MMIO failures remain terminal. The118 focused checks across
-nine fixtures pass, including unchanged legacy bounded timer behavior. Original
-native, full-host and actual timeout/rejected-frame guest qualification remain
-pending; these two issues and the Kestrel ladder remain open. The following
+nine fixtures pass, including unchanged legacy bounded timer behavior. A scoped
+original emitted-code/ABI review and exact752,772-byte/647-relocation EFI join
+also pass; cumulative stack closure is not established. Full-host and actual
+timeout/rejected-frame guest qualification remain pending; these two issues and
+the Kestrel ladder remain open. The following
 reproductions describe the accepted baseline that this development slice repairs.
 
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
