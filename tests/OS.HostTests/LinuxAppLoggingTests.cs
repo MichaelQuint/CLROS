@@ -110,6 +110,144 @@ internal static unsafe class LinuxAppLoggingTests
         HostCheck.Equal(0L, allocated);
     }
 
+    [HostTest("m10-005 copied log observation joins split records eight writers writev and later EBADF")]
+    private static void CopiedObservation()
+    {
+        LinuxAppLogObservation logs = default;
+        HostCheck.True(!logs.Complete && !logs.Failed);
+        HostCheck.True(LogText(ref logs, 2, 10, "CLROS_APP_ENTRY minimal.api.smoke\n"));
+        HostCheck.True(LogCall(ref logs, 10, 1, 2, 32));
+        HostCheck.True(LogText(ref logs, 1, 10, "      Application started.\n"));
+        HostCheck.True(LogCall(ref logs, 10, 1, 1, 27));
+        for (int worker = 0; worker < 8; worker++) for (int record = 0; record < 4; record++)
+        {
+            ulong identity = (ulong)worker + 100;
+            string row = $"CLROS_LOG fd=1 worker={worker} record={record}\n";
+            HostCheck.True(LogText(ref logs, 1, identity, row[..9]));
+            HostCheck.True(LogText(ref logs, 1, identity, row[9..^1]));
+            HostCheck.True(LogCall(ref logs, identity, 1, 1, 32));
+            HostCheck.True(LogText(ref logs, 1, identity, "\n"));
+            HostCheck.True(LogCall(ref logs, identity, 1, 1, 1));
+            HostCheck.True(LogText(ref logs, 2, identity, row.Replace("fd=1", "fd=2")[..^1]));
+            HostCheck.True(LogText(ref logs, 2, identity, "\n"));
+            HostCheck.True(LogCall(ref logs, identity, 20, 2, 33));
+        }
+        HostCheck.Equal(32U, logs.StdoutRecords); HostCheck.Equal(32U, logs.StderrRecords);
+        HostCheck.Equal(32U, logs.WritevRecords); HostCheck.True(!logs.Complete);
+        HostCheck.True(LogCall(ref logs, 10, 20, 1234, -9) && logs.Complete);
+        HostCheck.True(!LogCall(ref logs, 10, 20, 1234, -9) && logs.Failed && !logs.Complete);
+    }
+
+    [HostTest("m10-005 copied log observation rejects malformed duplicate foreign and unjoined records permanently")]
+    private static void InvalidCopiedObservation()
+    {
+        foreach (string text in new[] { "CLROS_LOG fd=2 worker=0 record=0\n", "CLROS_LOG fd=1 worker=8 record=0\n",
+            "CLROS_LOG fd=1 worker=0 record=4\n", "CLROS_LOG fd=1 worker=0 record=0\r\n",
+            "CLROS_LOG fd=1 worker=0 record=0 extra\n" })
+        {
+            LinuxAppLogObservation logs = default;
+            HostCheck.True(!LogText(ref logs, 1, 100, text) && logs.Failed && !logs.Complete);
+            HostCheck.True(!LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=0 record=0\n"));
+        }
+        foreach (int mode in Enumerable.Range(0, 4))
+        {
+            LinuxAppLogObservation logs = default;
+            HostCheck.True(LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=0 record=0\n"));
+            bool accepted = mode switch
+            {
+                0 => LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=0 record=0\n"),
+                1 => LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=1 record=0\n"),
+                2 => LogText(ref logs, 2, 101, "CLROS_LOG fd=2 worker=0 record=0\n"),
+                _ => LogCall(ref logs, 10, 20, 1234, -9)
+            };
+            HostCheck.True(!accepted && logs.Failed && !logs.Complete);
+        }
+        LinuxAppLogObservation changed = default;
+        HostCheck.True(LogText(ref changed, 1, 100, "CLROS_LOG"));
+        HostCheck.True(!LogText(ref changed, 1, 101, " fd=1 worker=0 record=0\n") && changed.Failed);
+        foreach (var call in new[] { (101UL, 20UL, 2UL, 33L), (100UL, 1UL, 2UL, 33L),
+            (100UL, 20UL, 1UL, 33L), (100UL, 20UL, 2UL, 32L), (100UL, 20UL, 2UL, -5L) })
+        {
+            LinuxAppLogObservation logs = default;
+            HostCheck.True(LogText(ref logs, 1, 100, "CLROS_LOG fd=1 worker=0 record=0\n"));
+            HostCheck.True(LogCall(ref logs, 100, 1, 1, 33));
+            HostCheck.True(LogText(ref logs, 2, 100, "CLROS_LOG fd=2 worker=0 record=0\n"));
+            HostCheck.True(!LogCall(ref logs, call.Item1, call.Item2, call.Item3, call.Item4) && logs.Failed);
+        }
+        LinuxAppLogObservation pending = default;
+        HostCheck.True(LogText(ref pending, 1, 100, "CLROS_LOG fd=1 worker=0 record=0\n"));
+        HostCheck.True(LogCall(ref pending, 100, 1, 1, 33));
+        HostCheck.True(LogText(ref pending, 2, 100, "CLROS_LOG fd=2 worker=0 record=0\n"));
+        HostCheck.True(!LogText(ref pending, 2, 100, "CLROS_LOG fd=2 worker=0 record=1\n"));
+        foreach (int mode in Enumerable.Range(0, 5))
+        {
+            LinuxAppLogObservation logs = default; byte value = 65;
+            HostCheck.True(!logs.Observe(mode == 0 ? 3U : 1U, mode == 1 ? 0UL : 1UL,
+                mode == 2 ? null : &value, mode == 3 ? 0U : mode == 4 ? 8193U : 1U) && logs.Failed);
+        }
+        LinuxAppLogObservation noWriter = default;
+        HostCheck.True(!LogCall(ref noWriter, 0, 1, 1, 1) && noWriter.Failed);
+    }
+
+    [HostTest("m10-005 copied stderr stays in one syscall and preserves each worker source order")]
+    private static void CopiedObservationCallOrder()
+    {
+        const string output = "CLROS_LOG fd=1 worker=0 record=0\n", error = "CLROS_LOG fd=2 worker=0 record=0\n";
+        foreach (int split in new[] { 1, 8, 9, 32 })
+        {
+            LinuxAppLogObservation logs = default;
+            HostCheck.True(LogText(ref logs, 1, 100, output) && LogCall(ref logs, 100, 1, 1, 33));
+            HostCheck.True(LogText(ref logs, 2, 100, error[..split]));
+            bool firstCall = LogCall(ref logs, 100, 20, 2, split);
+            if (split < 9) HostCheck.True(firstCall && !LogText(ref logs, 2, 100, error[split..]));
+            else HostCheck.True(!firstCall);
+            HostCheck.True(logs.Failed && !logs.Complete && logs.WritevRecords == 0);
+        }
+        LinuxAppLogObservation extra = default;
+        HostCheck.True(LogText(ref extra, 1, 100, output) && LogCall(ref extra, 100, 1, 1, 33));
+        HostCheck.True(LogText(ref extra, 2, 100, error + new string('x', 32)));
+        HostCheck.True(!LogCall(ref extra, 100, 20, 2, 33) && extra.Failed);
+        foreach (int mode in Enumerable.Range(0, 3))
+        {
+            LinuxAppLogObservation logs = default;
+            if (mode != 0) HostCheck.True(LogText(ref logs, 1, 100, output) && LogCall(ref logs, 100, 1, 1, 33));
+            string reordered = mode switch { 0 => error, 1 => output.Replace("record=0", "record=1"),
+                _ => error.Replace("record=0", "record=1") };
+            HostCheck.True(!LogText(ref logs, mode == 1 ? 1U : 2U, 100, reordered) && logs.Failed);
+        }
+    }
+
+    [HostTest("m10-005 copied log observation uses no managed allocations")]
+    private static void CopiedObservationAllocation()
+    {
+        byte[] row = Encoding.ASCII.GetBytes("CLROS_LOG fd=1 worker=0 record=0\n");
+        LinuxAppLogObservation warm = default, logs = default;
+        fixed (byte* source = row)
+        {
+            warm.Observe(1, 100, source, 33); LogCall(ref warm, 100, 1, 1, 33);
+            bool accepted = true; long before = GC.GetAllocatedBytesForCurrentThread();
+            for (uint worker = 0; worker < 8; worker++) for (uint record = 0; record < 4; record++)
+            {
+                source[22] = (byte)('0' + worker); source[31] = (byte)('0' + record);
+                source[13] = (byte)'1'; accepted &= logs.Observe(1, worker + 100, source, 33);
+                accepted &= LogCall(ref logs, worker + 100, 1, 1, 33);
+                source[13] = (byte)'2'; accepted &= logs.Observe(2, worker + 100, source, 33);
+                accepted &= LogCall(ref logs, worker + 100, 20, 2, 33);
+            }
+            accepted &= LogCall(ref logs, 10, 20, 1234, -9);
+            long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+            HostCheck.True(accepted && logs.Complete); HostCheck.Equal(0L, allocated);
+        }
+    }
+
+    private static bool LogText(ref LinuxAppLogObservation logs, uint fd, ulong identity, string text)
+    {
+        byte[] bytes = Encoding.ASCII.GetBytes(text);
+        fixed (byte* source = bytes) return logs.Observe(fd, identity, source, (uint)bytes.Length);
+    }
+    private static bool LogCall(ref LinuxAppLogObservation logs, ulong identity, ulong number, ulong fd, long value)
+        => logs.RecordCall(identity, new LinuxSyscallFrame { Number = number, Argument0 = fd }, new(LinuxSyscallAction.Return, value));
+
     // Descriptor callbacks retain their existing model at offset0. Only the
     // output callback is replaced; real page validation/copy/dispatch still runs.
     private struct LoggingModel

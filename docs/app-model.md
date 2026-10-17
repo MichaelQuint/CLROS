@@ -926,6 +926,15 @@ Two raw replay checks with fourteen negative variants and eight source/profile
 checks pass. These are host checks; constructors, binding, logging quota and
 Kestrel remain unqualified in a CLROS guest.
 
+The subsequent copied-log observer tracks all64 diagnostic rows, eight distinct
+verified writers, each worker's stdout-then-stderr order and records0..3. Each
+stderr row must occupy one actual33-byte writev; its later invalid-fd call must
+return EBADF9. It is wired only into the existing serialized web owner, after
+owned serial delivery and before the general errno return. Nine model checks
+(including zero allocation), conditional source admission and inventory checks
+pass. M10-005 successful markers, full raw replay, controlled guest quota
+exhaustion and stable batch qualification remain unfinished.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

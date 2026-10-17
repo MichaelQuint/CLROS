@@ -32,6 +32,8 @@ public static unsafe partial class EfiEntry
             }
             if (c->WebStartup.Failed)
             { LinuxText(state, "TEST_FAIL m10.006 startup-observation\r\n"); return false; }
+            if (!c->WebLogs.RecordCall(c->Threads.Current.Value, call, result))
+            { LinuxText(state, "TEST_FAIL m10.005 log-observation\r\n"); return false; }
             if (result.Action == LinuxSyscallAction.Return && result.Value == -12 && call.Number is 9 or 10 or 11 or 12 or 28)
             {
                 // Snapshot only committed owner counters after an atomic errno
@@ -104,6 +106,7 @@ public static unsafe partial class EfiEntry
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || source == null || bytes == 0 || bytes > 8192) return false;
+            if (!c->WebLogs.Observe(channel, c->Threads.Current.Value, source, bytes)) return false;
             if (channel == 2)
             {
                 bool wasComplete = c->WebStartup.StartupComplete;

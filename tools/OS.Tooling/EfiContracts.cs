@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "b2bc1c17140a15776b105d3db4e1593c0def1d3df9893a1bb198bd7f4d34eb11";
-    public const string CanonicalProjectSha256 = "76e152dabfb03418f7ff46d010c1dbefc2016b4888d7f8daf8ac78f8347722f3";
+    public const string ProjectSourceSha256 = "c744741b4687cb081b0ab6c0db2b669710f3782456612af56457109fe8e66f82";
+    public const string CanonicalProjectSha256 = "58e6aee5a97ae838b462aeebec12394ea7fe6824865481d0ebb916904d7af69e";
     public const string EfiEntrySourceSha256 = "191a7eefbc1ecf3b9eba7521b141e99640bd2e5c9f94a27e93bdb1b1d1efafd1";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -371,6 +371,7 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxWeb.cs|",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs|Compatibility\LinuxX64\LinuxAppStartupObservation.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs|Compatibility\LinuxX64\LinuxAppLogObservation.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs|Compatibility\LinuxX64\LinuxSocketNetwork.cs",
