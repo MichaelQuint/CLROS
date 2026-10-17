@@ -7,8 +7,10 @@ are retained; the full outer stack is not reconstructed. The development repair
 gives only M16-012 eight usable worker pages between its two guards, with a
 226-page pool and matching transcript extent checks. Ordinary workers retain
 four usable pages; continuing web retains sixteen. Twenty focused checks and
-scoped original native geometry/frame joins pass. A targeted guest and fresh
-stable-batch validation remain pending; this repair is not accepted completion.
+scoped original native geometry/frame joins pass. One strict fresh async guest
+also passes with complete reap/descriptor/network cleanup and matching reviewed
+native bytes. Fresh stable-batch validation remains pending; this repair is not
+accepted completion.
 
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
 thread/runtime batch and shared #733: 5,202 full-host checks, 44 strict captures
