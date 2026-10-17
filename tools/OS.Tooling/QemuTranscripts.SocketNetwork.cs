@@ -220,22 +220,8 @@ public static partial class QemuTranscripts
             {
                 CheckSocketArp(frame,outgoing,arp.PeerMac,out _);if(outgoing)arpCopied++;else arpReceived++;continue;
             }
-            Need(type==0x0800 && frame.Length>=34 && MatchNetworkMac(frame,outgoing?arp.PeerMac:0x020000000001),"socket_wire_ipv4");
-            var ip=frame[14..];int ihl=(ip[0]&15)*4,total=BinaryPrimitives.ReadUInt16BigEndian(ip[2..]);
-            Need((ip[0]>>4)==4 && ihl>=20 && ihl<=60 && total>=ihl && total<=1500 && total<=ip.Length &&
-                (BinaryPrimitives.ReadUInt16BigEndian(ip[6..])&0x3fff)==0 && ip[8]!=0 && NetworkChecksum(ip[..ihl]) &&
-                BinaryPrimitives.ReadUInt32BigEndian(ip[12..])==(outgoing?0x0a00020fU:0x0a000202U) &&
-                BinaryPrimitives.ReadUInt32BigEndian(ip[16..])==(outgoing?0x0a000202U:0x0a00020fU),"socket_wire_ip_envelope");
-            if(ip[9]!=6){Need(incoming && ip[9]==17,"socket_wire_non_tcp");ignored++;continue;}
-            var tcp=ip.Slice(ihl,total-ihl);Need(tcp.Length>=20,"socket_wire_tcp_extent");int header=(tcp[12]>>4)*4;
-            Need(header>=20 && header<=tcp.Length,"socket_wire_tcp_header");
-            byte[] checksum=new byte[12+tcp.Length];ip.Slice(12,8).CopyTo(checksum);checksum[9]=6;
-            BinaryPrimitives.WriteUInt16BigEndian(checksum.AsSpan(10),checked((ushort)tcp.Length));tcp.CopyTo(checksum.AsSpan(12));
-            Need(NetworkChecksum(checksum),"socket_wire_tcp_checksum");
-            uint source=BinaryPrimitives.ReadUInt16BigEndian(tcp),destination=BinaryPrimitives.ReadUInt16BigEndian(tcp[2..]);
-            Need((outgoing?source:destination)==8080,"socket_wire_port");uint remote=outgoing?destination:source;
-            uint sequence=BinaryPrimitives.ReadUInt32BigEndian(tcp[4..]),ack=BinaryPrimitives.ReadUInt32BigEndian(tcp[8..]);byte flags=tcp[13];
-            Need((flags&0xc0)==0 && (flags&0x20)==0,"socket_wire_tcp_flags");var payload=tcp[header..];
+            if(!ReadSocketTcpPacket(frame,outgoing,arp.PeerMac,out var packet)){ignored++;continue;}
+            uint remote=packet.Remote,sequence=packet.Sequence,ack=packet.Acknowledgement;byte flags=packet.Flags;var payload=packet.Payload;
             if(outgoing)tcpCopied++;
             current.TryGetValue(remote,out var flow);
             if(incoming && (flags&0x12)==2)

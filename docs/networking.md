@@ -56,6 +56,15 @@ retains publication-only provenance: no app execution or guest behavior follows
 from admission. Full syscall/scheduler/packet/peer joins, the selected high-level
 profile and stable native/full-host/guest qualification remain pending.
 
+[Step1374](../done/step1374.md) adds bounded raw stdout/readiness decoding
+and an independent three-peer containment PCAP consumer. Checked wire bytes,
+withheld data acknowledgements, timed retransmissions, fifteen healthy rounds,
+the exact1518-byte VLAN and final resets have focused rejection controls. The
+original four-peer consumer retains its stream/close assertions and shares only
+the private IPv4/TCP envelope decoder. These are value-only host consumers;
+full syscall/descriptor/scheduler and parent/peer joins remain required before
+the separate guest case can be accepted.
+
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
   into shared `TransportFailure`. A host reproduction retained two connections

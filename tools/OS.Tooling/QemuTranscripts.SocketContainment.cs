@@ -24,9 +24,9 @@ public static partial class QemuTranscripts
     /// retirement of both healthy old peers. Reject stale, duplicate, early or
     /// incomplete observations. Does not accept a guest lifecycle by itself.</summary>
     public static SocketContainmentTransport InspectSocketContainmentTransportForTests(string[] rows)
-        => SocketContainmentLifetimes(rows);
+        => ReadSocketContainmentTransport(rows);
 
-    private static SocketContainmentTransport SocketContainmentLifetimes(string[] rows)
+    internal static SocketContainmentTransport ReadSocketContainmentTransport(string[] rows)
     {
         Need(rows is not null && rows.Length is > 0 and <= 65536, "socket_containment_transport_extent");
         List<ContainmentLifetime> all = [];

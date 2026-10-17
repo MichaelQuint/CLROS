@@ -47,6 +47,13 @@ public static class NativeAotSocketGuest
             var observed = NativeAotSocketPayload.ValidateAsyncOutput(output.Stdout);
             Need(observed.PendingAccepts > 0 && observed.PendingReceives > 0 && observed.PendingSends > 0, "pending_async_operations");
         }
+        return ReadObservations(output);
+    }
+
+    // Common value-only wait decoder. Public original modes still perform
+    // their exact application and pending-operation validation before entry.
+    internal static Capture ReadObservations(NativeAotThreadingOutput.Capture output)
+    {
         Need(output.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "raw_terminal");
         string[] rows = output.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
         var waits = QemuTranscripts.ReadLinuxCallWaits(rows, allowEpoll: true);

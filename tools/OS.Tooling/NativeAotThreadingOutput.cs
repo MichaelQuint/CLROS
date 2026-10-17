@@ -40,7 +40,7 @@ public static class NativeAotThreadingOutput
     {
         Need(application is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke" or
             "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke" or
-            "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync", "application");
+            "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync" or "NativeAotSocketContainment", "application");
         Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
         byte[] stdout = new byte[4096], normalized = new byte[rawTail.Length];
         List<int> lengths = [];
@@ -93,6 +93,7 @@ public static class NativeAotThreadingOutput
             case "NativeAotRuntimeSmoke": ValidateRuntimeSmokeOutput(text); break;
             case "NativeAotSocketSmoke": NativeAotSocketPayload.ValidateOutput(text); break;
             case "NativeAotSocketSmokeAsync": NativeAotSocketPayload.ValidateAsyncOutput(text); break;
+            case "NativeAotSocketContainment": _ = NativeAotSocketContainmentOutput.Read(text); break;
         }
         return new(text, tail, lengths.ToArray());
     }
