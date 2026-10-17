@@ -25,7 +25,7 @@ public static partial class QemuTranscripts
     /// throws. Caller data grants no native, source, packet or guest authority.
     /// Inputs are not executed, mutated or retained.</summary>
     public static WebRunnerReport InspectNativeAotWebRunnerForTests(QemuSmokeOptions options,QemuSmokePlan plan,
-        ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration)
+        ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration,bool logQuota=false)
     {
         RequireCompleteProcess(runner,"web_runner_incomplete");
         Need(runner.ExitCode==0 && runner.StandardError.Length==0 && raw.Length is >0 and <=8*1024*1024 &&
@@ -83,9 +83,9 @@ public static partial class QemuTranscripts
         ulong healthTimeout=healthStart["timeout_seconds"],configTimeout=configStart["timeout_seconds"];
         Need(healthTimeout is >0 and <=20 && configTimeout is >0 and <=20 && health<=healthTimeout*1000 && config<=configTimeout*1000,"web_runner_http_deadline");
         string healthHash=Hash(body),configHash=Hash(configuration);
-        const string logBody="CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
+        string logBody=logQuota?"":"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
         (string Prefix,string Path,string Method,int Status,string Body,ulong Milliseconds)[] extra=[
-            ("WEB_LOG_PROBE","/__clros/logexercise","POST",200,logBody,logging),
+            ("WEB_LOG_PROBE","/__clros/logexercise","POST",logQuota?500:200,logBody,logging),
             ("WEB_LOG_REPEAT_PROBE","/__clros/logexercise","POST",409,"",repeat),
             ("WEB_HEALTH_AFTER_PROBE","/healthz","GET",200,body,after)];
         List<string> extraStdout=[],extraSummary=[];
@@ -120,6 +120,7 @@ public static partial class QemuTranscripts
             "HTTP_PROBE_ENDPOINT "+endpoint,"HTTP_PROBE_EXPECTED_STATUS 200","HTTP_PROBE_EXPECTED_BODY_BYTES "+bodyBytes,"HTTP_PROBE_TIMEOUT_SECONDS 20",
             "HTTP_PROBE_RESULT pass","HTTP_PROBE_REASON none","HTTP_PROBE_STATUS 200","HTTP_PROBE_BODY_BYTES "+bodyBytes,
             "HTTP_PROBE_BODY_SHA256 "+healthHash,"HTTP_PROBE_ELAPSED_MS "+health,"CONTINUING_WEB true",
+            "WEB_LOG_CASE "+(logQuota?"records64":"normal"),
             "WEB_CONFIG_PROBE_URL "+endpoint+"/config","WEB_CONFIG_PROBE_EXPECTED_STATUS 200","WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES "+configBytes,
             "WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_RESULT pass","WEB_CONFIG_PROBE_REASON none","WEB_CONFIG_PROBE_STATUS 200",
             "WEB_CONFIG_PROBE_BODY_BYTES "+configBytes,"WEB_CONFIG_PROBE_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_ELAPSED_MS "+config,

@@ -32,14 +32,25 @@ public static unsafe partial class EfiEntry
             }
             if (c->WebStartup.Failed)
             { LinuxText(state, "TEST_FAIL m10.006 startup-observation\r\n"); return false; }
-            if (!c->WebLogs.RecordCall(c->Threads.Current.Value, call, result))
+            bool quota = state->LinuxLogRecordLimit == LinuxAppLogBudget.QuotaRecordLimit;
+            if (!(quota ? c->WebQuota.RecordCall(c->Threads.Current.Value, call, result) : c->WebLogs.RecordCall(c->Threads.Current.Value, call, result)))
             { LinuxText(state, "TEST_FAIL m10.005 log-observation\r\n"); return false; }
-            if (c->WebLogs.Complete && (c->WebFlags & 64) == 0)
+            if ((quota ? c->WebQuota.Complete : c->WebLogs.Complete) && (c->WebFlags & 64) == 0)
             {
                 if ((c->WebFlags & 48) != 48 || c->Failed != 0 || c->Stopping != 0 ||
                     c->Process.Failed || state->LinuxSyscallFailed != 0 || state->LinuxSyscallFaults != 0)
                 { LinuxText(state, "TEST_FAIL m10.005 log-lifetime\r\n"); return false; }
-                if (!LinuxText(state, "M10_005_LOGS stdout=") || !LinuxNumber(state, c->WebLogs.StdoutRecords) ||
+                if (quota)
+                {
+                    if (!LinuxText(state, "M10_005_LOGS case=records64 copiedRecords=") || !LinuxNumber(state, c->WebQuota.CopiedRecords) ||
+                        !LinuxText(state, " copiedBytes=") || !LinuxNumber(state, c->WebQuota.CopiedBytes) ||
+                        !LinuxText(state, " stdout=") || !LinuxNumber(state, c->WebQuota.StdoutRecords) ||
+                        !LinuxText(state, " stderr=") || !LinuxNumber(state, c->WebQuota.StderrRecords) ||
+                        !LinuxText(state, " deniedCalls=") || !LinuxNumber(state, c->WebQuota.DeniedCalls) ||
+                        !LinuxText(state, " eioCalls=") || !LinuxNumber(state, c->WebQuota.EioCalls) ||
+                        !LinuxText(state, "\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n")) return false;
+                }
+                else if (!LinuxText(state, "M10_005_LOGS stdout=") || !LinuxNumber(state, c->WebLogs.StdoutRecords) ||
                     !LinuxText(state, " stderr=") || !LinuxNumber(state, c->WebLogs.StderrRecords) ||
                     !LinuxText(state, " writers=8 writev=") || !LinuxNumber(state, c->WebLogs.WritevRecords) ||
                     !LinuxText(state, " invalidErrno=9\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n")) return false;
@@ -117,8 +128,9 @@ public static unsafe partial class EfiEntry
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || source == null || bytes == 0 || bytes > 8192) return false;
-            if (!c->WebLogs.Observe(channel, c->Threads.Current.Value, source, bytes)) return false;
-            if ((c->WebFlags & 32) == 0 && c->WebLogs.StdoutRecords + c->WebLogs.StderrRecords != 0)
+            bool quota = state->LinuxLogRecordLimit == LinuxAppLogBudget.QuotaRecordLimit;
+            if (!(quota ? c->WebQuota.Observe(channel, c->Threads.Current.Value, source, bytes) : c->WebLogs.Observe(channel, c->Threads.Current.Value, source, bytes))) return false;
+            if ((c->WebFlags & 32) == 0 && (quota ? c->WebQuota.StdoutRecords + c->WebQuota.StderrRecords : c->WebLogs.StdoutRecords + c->WebLogs.StderrRecords) != 0)
             {
                 if (!LinuxText(state, "TEST_START m10.005\r\n")) return false;
                 c->WebFlags |= 32;
@@ -145,6 +157,22 @@ public static unsafe partial class EfiEntry
                 if (c->WebStartMatch == started.Length) { c->WebFlags |= 8; c->WebStartMatch = 0; }
             }
             return LinuxWebPublishLive(c);
+        }
+
+        // Rejected bytes never reach serial or the copied-payload observer. Join
+        // only an actual exhausted owner charge; RecordCall checks its real errno
+        // after dispatch. Early exhaustion fails closed.
+        private static bool LinuxWebObserveQuotaDenial(Storage* state, uint channel, uint bytes)
+        {
+            LinuxNativeControl* c = LinuxNativeOwner(state);
+            if (c == null || c->Phase != 3 || c->Published != 1 || (c->WebFlags & 48) != 48 ||
+                !c->WebQuota.Deny(channel, c->Threads.Current.Value, bytes, state->LinuxLogBudget.ChargedRecords, state->LinuxLogBudget.ChargedBytes))
+            { _ = LinuxText(state, "TEST_FAIL m10.005 quota-observation\r\n"); return false; }
+            return LinuxText(state, "M10_005_QUOTA_DENY identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
+                LinuxText(state, " fd=") && LinuxNumber(state, channel) && LinuxText(state, " bytes=") && LinuxNumber(state, bytes) &&
+                LinuxText(state, " chargedRecords=") && LinuxNumber(state, state->LinuxLogBudget.ChargedRecords) &&
+                LinuxText(state, " chargedBytes=") && LinuxNumber(state, state->LinuxLogBudget.ChargedBytes) &&
+                LinuxText(state, " copiedCallBytes=") && LinuxNumber(state, c->WebQuota.CopiedCallBytes) && LinuxText(state, "\r\n");
         }
 
         private static bool LinuxWebPublishLive(LinuxNativeControl* c)

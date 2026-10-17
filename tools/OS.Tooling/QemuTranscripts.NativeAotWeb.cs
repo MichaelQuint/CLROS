@@ -31,7 +31,7 @@ public static partial class QemuTranscripts
         var packets=ValidateWebPackets(package,raw,File.ReadAllBytes(Path.GetFullPath(options.SerialLog+".pcap",root)),capture.Parent,replay,context.ForwardPort);
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         var runnerReport=InspectNativeAotWebRunnerForTests(options,plan,runner,raw,
-            File.ReadAllBytes(Path.GetFullPath(options.SummaryLog,root)),context,configuration.Body,configuration.Json);
+            File.ReadAllBytes(Path.GetFullPath(options.SummaryLog,root)),context,configuration.Body,configuration.Json,configuration.LogQuota);
         var observed=replay.Observations;
         output.WriteLine($"WEB_PREFIX_PARENT records={capture.Parent.Records} userRoot={capture.Parent.UserRoot} kernelRoot={capture.Parent.KernelRoot} periodFs={capture.Parent.Period} dma={capture.Parent.Dma} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_OBSERVATIONS calls={observed.Calls} writes={observed.Writes} stdout={observed.StdoutBytes} stderr={observed.StderrBytes} pendingEpoll={observed.PendingEpollWaits} fragmentBytes={observed.TrailingFragment.Length} acceptance=pending");
@@ -73,7 +73,7 @@ public static partial class QemuTranscripts
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         var result=ReadWebObservations(rawTail,configuration.Arguments,configuration.Environment,configuration.SettingsBytes,
             program!.IsSyscallReturn,program!.IsInstruction);
-        _=ReadWebStartup(rawTail,true,out _);
+        _=ReadWebStartup(rawTail,true,configuration.LogQuota,out _,out _);
         return result;
     }
 
@@ -205,6 +205,12 @@ public static partial class QemuTranscripts
     /// Borrowed bytes grant no execution, native, source, runner or HTTP authority.</summary>
     public readonly record struct WebLoggingReport(uint StdoutRecords,uint StderrRecords,uint Writers,uint WritevRecords,uint InvalidErrno);
 
+    /// <summary>Copied callbacks and actual denied/EIO results at the
+    /// first joined EIO. Later rejected calls are still validated. Borrowed text
+    /// grants no execution, package, runner, native or HTTP authority.</summary>
+    public readonly record struct WebLogQuotaReport(uint CopiedRecords,uint CopiedBytes,uint StdoutRecords,uint StderrRecords,
+        uint DeniedCalls,uint EioCalls);
+
     /// <summary>Checks borrowed synthetic startup serial framing and joins actual
     /// copied stderr fragments to complete write/bind call identities and results.
     /// Input is synchronous and unchanged; malformed, missing, failed or reordered
@@ -219,15 +225,25 @@ public static partial class QemuTranscripts
     public static WebLoggingReport InspectNativeAotWebLoggingForTests(ReadOnlySpan<byte> raw)
     { _=ReadWebStartup(raw,true,out var logging);return logging; }
 
+    /// <summary>Checks the explicit records64 control against copied bytes,
+    /// owner counters and real syscall results. Incomplete/contradictory rows
+    /// throw. This synthetic seam supplies no guest or HTTP acceptance.</summary>
+    public static WebLogQuotaReport InspectNativeAotWebLogQuotaForTests(ReadOnlySpan<byte> raw)
+    { _=ReadWebStartup(raw,true,true,out _,out var quota);return quota; }
+
     private static bool WebLoggingRow(string row)=>row.StartsWith("M10_005",StringComparison.Ordinal) ||
         row.StartsWith("CLROS_M10_005",StringComparison.Ordinal) || row.StartsWith("TEST_START m10.005",StringComparison.Ordinal) ||
         row.StartsWith("TEST_PASS m10.005",StringComparison.Ordinal);
 
     private static WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw)=>ReadWebStartup(raw,false,out _);
 
-    private static unsafe WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw,bool requireLogging,out WebLoggingReport logging)
+    private static WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw,bool requireLogging,out WebLoggingReport logging)
+        =>ReadWebStartup(raw,requireLogging,false,out logging,out _);
+
+    private static unsafe WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw,bool requireLogging,bool quotaCase,
+        out WebLoggingReport logging,out WebLogQuotaReport quotaReport)
     {
-        logging=default;
+        logging=default;quotaReport=default;
         var framed=NativeAotThreadingOutput.ReadWeb(raw);
         int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);
         Need(last>=0,"web_startup_records");
@@ -252,11 +268,14 @@ public static partial class QemuTranscripts
         {
             Need(!rows.Any(r=>r.StartsWith("OS_SMOKE_FAIL",StringComparison.Ordinal)),"web_logging_failure");
             Need(rows.Where(WebLoggingRow).All(r=>r is "TEST_START m10.005" or "CLROS_M10_005_READY" or "TEST_PASS m10.005" ||
-                r.StartsWith("M10_005_LOGS ",StringComparison.Ordinal)),"web_logging_unknown_marker");
+                r.StartsWith("M10_005_LOGS ",StringComparison.Ordinal) || quotaCase &&
+                r.StartsWith("M10_005_QUOTA_DENY ",StringComparison.Ordinal)),"web_logging_unknown_marker");
             logStart=Marker("TEST_START m10.005");logSummary=Marker("M10_005_LOGS ",true);
             logReady=Marker("CLROS_M10_005_READY");logPass=Marker("TEST_PASS m10.005");
             Need(logStart>pass && logSummary>logStart && logReady==logSummary+1 && logPass==logReady+1,"web_logging_order");
-            logRow=ReadRecord(rows[logSummary],"M10_005_LOGS","stdout:dec","stderr:dec","writers:dec","writev:dec","invalidErrno:dec");
+            logRow=quotaCase?ReadRecord(rows[logSummary],"M10_005_LOGS case=records64","copiedRecords:dec","copiedBytes:dec",
+                "stdout:dec","stderr:dec","deniedCalls:dec","eioCalls:dec"):
+                ReadRecord(rows[logSummary],"M10_005_LOGS","stdout:dec","stderr:dec","writers:dec","writev:dec","invalidErrno:dec");
         }
         var startupRow=ReadRecord(rows[startup],"M10_006_STARTUP","writer:dec","stages:dec");
         var bindRow=ReadRecord(rows[bind],"M10_006_BIND","identity:dec","fd:dec");
@@ -270,6 +289,8 @@ public static partial class QemuTranscripts
         byte[] stdout=Encoding.UTF8.GetBytes(framed.Stdout),stderr=Encoding.UTF8.GetBytes(framed.Stderr);
         var observed=new LinuxAppStartupObservation();
         var logs=new LinuxAppLogObservation();
+        var quota=new LinuxAppLogQuotaObservation();
+        Dictionary<string,ulong>? denial=null;int denialRow=-1;
         List<(uint Fd,int Offset,int Bytes,int Row)> pendingParts=[];
         int writes=0,stdoutOffset=0,stderrOffset=0,pending=0,firstWrite=-1,completedWrite=-1,completedCall=-1,bindCall=-1,prefixWrites=0;
         int firstLogWrite=-1,firstLogCall=-1,completeLogCall=-1;
@@ -278,6 +299,12 @@ public static partial class QemuTranscripts
         fixed(byte* source=stderr)
         for(int i=0;i<rows.Length;i++)
         {
+            if(quotaCase && rows[i].StartsWith("M10_005_QUOTA_DENY ",StringComparison.Ordinal))
+            {
+                Need(denial is null && i>logStart,"web_quota_denial_order");
+                denial=ReadRecord(rows[i],"M10_005_QUOTA_DENY","identity:dec","fd:dec","bytes:dec",
+                    "chargedRecords:dec","chargedBytes:dec","copiedCallBytes:dec");denialRow=i;
+            }
             if(rows[i].StartsWith("M16_005_WRITE ",StringComparison.Ordinal))
             {
                 Need(writes<framed.WriteLengths.Count,"web_startup_write");
@@ -321,20 +348,45 @@ public static partial class QemuTranscripts
                     }
                     if(requireLogging)
                     {
-                        uint before=logs.StdoutRecords+logs.StderrRecords;
-                        Need(logs.Observe(part.Fd,wait.Identity,bytes,(uint)part.Bytes),"web_logging_bytes");
-                        if(firstLogWrite<0 && logs.StdoutRecords+logs.StderrRecords>before)
+                        uint before=quotaCase?quota.StdoutRecords+quota.StderrRecords:logs.StdoutRecords+logs.StderrRecords;
+                        Need(quotaCase?quota.Observe(part.Fd,wait.Identity,bytes,(uint)part.Bytes):logs.Observe(part.Fd,wait.Identity,bytes,(uint)part.Bytes),"web_logging_bytes");
+                        if(firstLogWrite<0 && (quotaCase?quota.StdoutRecords+quota.StderrRecords:logs.StdoutRecords+logs.StderrRecords)>before)
                         { firstLogWrite=part.Row;firstLogCall=i; }
                     }
                 }
                 if(requireLogging)
                 {
-                    if(call["nr"]==20 && call["a0"]==1234)Need(call["status"]==1 && call["a2"]==1,"web_logging_invalid_call");
-                    bool wasComplete=logs.Complete;uint vectors=logs.WritevRecords;
-                    Need(logs.RecordCall(wait.Identity,new LinuxSyscallFrame { Number=call["nr"],Argument0=call["a0"] },
-                        new((LinuxSyscallAction)call["action"],unchecked((long)call["valueBits"]))),"web_logging_call");
-                    if(logs.WritevRecords!=vectors)Need(call["a2"]==2,"web_logging_vector_count");
-                    if(!wasComplete && logs.Complete)completeLogCall=i;
+                    LinuxSyscallFrame frame=new() { Number=call["nr"],Argument0=call["a0"],Argument2=call["a2"] };
+                    var result=new LinuxSyscallResult((LinuxSyscallAction)call["action"],unchecked((long)call["valueBits"]));
+                    if(quotaCase)
+                    {
+                        if(denial is not null)
+                        {
+                            Need(denial["identity"]==wait.Identity && denial["fd"]==call["a0"] &&
+                                denial["copiedCallBytes"]==quota.CopiedCallBytes &&
+                                (pendingParts.Count==0 || denialRow>pendingParts[^1].Row) && call["status"]==1 &&
+                                denial["fd"]<=uint.MaxValue && denial["bytes"]<=uint.MaxValue &&
+                                denial["chargedRecords"]<=uint.MaxValue && denial["chargedBytes"]<=uint.MaxValue &&
+                                quota.Deny((uint)denial["fd"],wait.Identity,(uint)denial["bytes"],(uint)denial["chargedRecords"],(uint)denial["chargedBytes"]),"web_quota_denial_join");
+                        }
+                        Need(quota.RecordCall(wait.Identity,frame,result),"web_quota_call");
+                        if(completeLogCall<0 && quota.Complete)
+                        {
+                            completeLogCall=i;
+                            quotaReport=new(quota.CopiedRecords,quota.CopiedBytes,quota.StdoutRecords,quota.StderrRecords,
+                                quota.DeniedCalls,quota.EioCalls);
+                        }
+                        if(denial is not null)Need(denialRow==i-(completeLogCall==i?4:1),"web_quota_denial_position");
+                        denial=null;denialRow=-1;
+                    }
+                    else
+                    {
+                        if(call["nr"]==20 && call["a0"]==1234)Need(call["status"]==1 && call["a2"]==1,"web_logging_invalid_call");
+                        bool wasComplete=logs.Complete;uint vectors=logs.WritevRecords;
+                        Need(logs.RecordCall(wait.Identity,frame,result),"web_logging_call");
+                        if(logs.WritevRecords!=vectors)Need(call["a2"]==2,"web_logging_vector_count");
+                        if(!wasComplete && logs.Complete)completeLogCall=i;
+                    }
                 }
                 pendingParts.Clear();pending=0;
                 if(call["nr"]==49)
@@ -345,7 +397,7 @@ public static partial class QemuTranscripts
             }
             if(i==ready)Need(observed.StartupComplete && observed.SuccessfulBind,"web_startup_live");
         }
-        Need(pending==0 && writes==framed.WriteLengths.Count && stdoutOffset==stdout.Length && stderrOffset==stderr.Length &&
+        Need(denial is null && pending==0 && writes==framed.WriteLengths.Count && stdoutOffset==stdout.Length && stderrOffset==stderr.Length &&
             observed.SuccessfulBind && start<firstWrite && startup==completedWrite+1 && completedCall>startup &&
             bind>completedCall && bindCall==bind+1 && listen>bindCall && listen<ready && listener["fd"]==boundFd && startupRow["stages"]==4 &&
             startupRow["writer"]==observed.WriterIdentity && bindRow["identity"]==observed.BindIdentity &&
@@ -353,11 +405,22 @@ public static partial class QemuTranscripts
         if(requireLogging)
         {
             var totals=logRow!;
-            Need(logs.Complete && firstLogWrite>pass && logStart==firstLogWrite+1 && firstLogCall>logStart &&
-                completeLogCall==logPass+1 && logSummary==completeLogCall-3 && totals["stdout"]==logs.StdoutRecords &&
+            Need(firstLogWrite>pass && logStart==firstLogWrite+1 && firstLogCall>logStart &&
+                completeLogCall==logPass+1 && logSummary==completeLogCall-3,"web_logging_join");
+            if(quotaCase)
+            {
+                Need(quota.Complete && totals["copiedRecords"]==quotaReport.CopiedRecords && totals["copiedBytes"]==quotaReport.CopiedBytes &&
+                    totals["stdout"]==quotaReport.StdoutRecords && totals["stderr"]==quotaReport.StderrRecords &&
+                    totals["deniedCalls"]==quotaReport.DeniedCalls &&
+                    totals["eioCalls"]==quotaReport.EioCalls,"web_quota_summary_join");
+            }
+            else
+            {
+                Need(logs.Complete && totals["stdout"]==logs.StdoutRecords &&
                 totals["stderr"]==logs.StderrRecords && totals["writers"]==8 && totals["writev"]==logs.WritevRecords &&
                 totals["invalidErrno"]==9,"web_logging_join");
-            logging=new(logs.StdoutRecords,logs.StderrRecords,8,logs.WritevRecords,9);
+                logging=new(logs.StdoutRecords,logs.StderrRecords,8,logs.WritevRecords,9);
+            }
         }
         return new(observed.WriterIdentity,observed.BindIdentity,prefixWrites);
     }
@@ -365,7 +428,7 @@ public static partial class QemuTranscripts
     private static WebObservationReport ReadWebObservations(ReadOnlySpan<byte> raw,uint arguments,uint environment,uint settingsBytes,
         Func<ulong,bool>? syscall,Func<ulong,bool>? instruction)
     {
-        Need(arguments==5 && environment is >=2 and <=3 && settingsBytes is >0 and <=65536,"web_observation_policy");
+        Need(arguments==5 && environment is >=2 and <=4 && settingsBytes is >0 and <=65536,"web_observation_policy");
         var framed=NativeAotThreadingOutput.ReadWeb(raw);
         int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);
         Need(last>=0,"web_observation_records");

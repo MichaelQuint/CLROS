@@ -769,9 +769,15 @@ log records, eight verified writers, exact writev/EBADF observations and startup
 before bind. The existing runner performs health/configuration, the explicit
 logging POST, repeat409 and later health. Raw serial, exact runner summaries and
 five ordered HTTP/TCP flows are independently joined. Focused checks pass;
-controlled guest quota exhaustion and native/stable guest qualification remain
-unfinished. The prepared Linux package transfer was rejected before execution
-by tool policy with no stated reason. See [step1365](../done/step1365.md).
+the explicit `records64` manifest control and matching serial/runner/packet
+consumers are implemented with focused checks. It retains the normal process
+budget by default, requires real EIO after 64 copied callbacks and later selected
+health200 under the same exhausted budget. Actual descriptor writev coalesces
+its vectors; rejected quota charges cannot fabricate partial vector returns.
+Native review, stable full-host and guest qualification remain unfinished. The
+prepared Linux package transfer was rejected before execution by tool policy
+with no stated reason. See [step1365](../done/step1365.md) and
+[step1368](../done/step1368.md).
 
 1. Preserve the accepted memory/descriptor/thread/signal/runtime and unchanged Hello evidence through [step1307](../done/step1307.md). Keep application runtime ownership separate from kernel helpers.
 2. Finish the current dependency-compatible #737 integration batch. Its #217 predecessor requires a successful frozen full-host gate and fresh guest/ancestor captures; implementation and focused checks alone do not qualify it.

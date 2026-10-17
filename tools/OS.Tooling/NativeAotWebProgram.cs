@@ -27,7 +27,7 @@ public sealed class NativeAotWebProgram
     /// <summary>Accepts RIP immediately after a decoded original SYSCALL.</summary>
     public bool IsSyscallReturn(ulong address) => index.IsSyscallReturn(address);
 
-    internal readonly record struct Configuration(string Body, string Json, uint Arguments, uint Environment, uint SettingsBytes);
+    internal readonly record struct Configuration(string Body, string Json, uint Arguments, uint Environment, uint SettingsBytes, bool LogQuota);
 
     // The external proof deliberately admits one small, explicit configuration
     // shape. General IConfiguration precedence is an application concern. The
@@ -43,8 +43,10 @@ public sealed class NativeAotWebProgram
         {
             int at = line.IndexOf('='); environment.Add(line[4..at], line[(at + 1)..]);
         }
-        Need(environment.Keys.All(x => x is "CLROS_USER_IRQS" or "DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE" or "ASPNETCORE_URLS") &&
+        Need(environment.Keys.All(x => x is "CLROS_USER_IRQS" or "DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE" or "ASPNETCORE_URLS" or "CLROS_LOG_BUDGET_CASE") &&
             environment.GetValueOrDefault("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE") == "false", "configuration_environment");
+        bool quota = environment.ContainsKey("CLROS_LOG_BUDGET_CASE");
+        Need(!quota || environment["CLROS_LOG_BUDGET_CASE"] == "records64", "configuration_log_budget");
         string endpoint = environment.GetValueOrDefault("ASPNETCORE_URLS", "http://0.0.0.0:8080");
         Need(endpoint is "http://0.0.0.0:8080" or "http://0.0.0.0:8081", "configuration_endpoint");
         fixed (byte* source = package)
@@ -58,7 +60,7 @@ public sealed class NativeAotWebProgram
             string response = JsonSerializer.Serialize(new { appId = "minimal.api.smoke", contractId = "kestrel.smoke.package.v0",
                 expectedBodyKey = "OS_SMOKE_EXPECTED_BODY", expectedBody = body, expectedBodyBytes = Encoding.UTF8.GetByteCount(body),
                 listenEndpoint = endpoint, healthPath = "/healthz" });
-            return new(body, response, 5, m.EnvironmentCount, data.DataBytes);
+            return new(body, response, 5, m.EnvironmentCount, data.DataBytes, quota);
         }
     }
     private static string StrictText(ReadOnlySpan<byte> bytes) => new UTF8Encoding(false, true).GetString(bytes);

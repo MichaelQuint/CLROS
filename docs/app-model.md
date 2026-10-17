@@ -974,8 +974,16 @@ POST logexercise, repeat409 and later health from the same owned process.
 Packet replay requires each complete response/EOF before the next probe;
 teardown ACKs may overlap. Focused raw, startup, runner, packet, profile and
 source checks pass. Package transfer remains blocked by tool policy without a
-stated reason. Controlled guest quota exhaustion, original native review and
-stable full-host/guest qualification remain unfinished.
+stated reason. The explicit immutable-manifest selector
+`env.CLROS_LOG_BUDGET_CASE=records64` now selects a 64-callback control while
+absence retains the 1-MiB/4096-callback process budget. Actual descriptor writev
+coalesces its vectors into one callback: the 64th callback succeeds and the next
+charge returns EIO without copied output or a quota refund. A separate copied
+observer joins those charges/results and rejects fabricated partial returns.
+The quota runner requires exercise500/empty, repeat409 and later selected
+health200 in the same live process. Focused controls pass; original native review,
+stable full-host and actual guest quota qualification remain unfinished. See
+[step1368](../done/step1368.md).
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than

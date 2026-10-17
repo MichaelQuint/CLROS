@@ -29,7 +29,7 @@ public static partial class QemuTranscripts
         var lifetimes=SocketLifetimes(complete[..^2].Split("\r\n",StringSplitOptions.None),continuingWeb:true);
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         var report=InspectNativeAotWebPacketsForTests(packets,parent.FrameAnchor,parent.Arp,
-            lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json);
+            lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json,configuration.LogQuota);
         Need(report.Connections==leaf.SocketAccepts && (ulong)report.Received==leaf.Received &&
             (ulong)report.Sent==leaf.Sent,"web_packet_leaf_join");
         Need(report.TimeWaitPorts.All(port=>lifetimes.Any(l=>l.RemotePort==port && l.Waits>0)),"web_packet_time_wait_join");
@@ -59,7 +59,7 @@ public static partial class QemuTranscripts
     /// Caller values grant no execution, parent, native or runner authority.
     /// Malformed, unsupported or incomplete traffic throws; inputs are not kept.</summary>
     public static WebPacketInspection InspectNativeAotWebPacketsForTests(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,
-        IReadOnlyList<uint> ports,int forward,string body,string configuration)
+        IReadOnlyList<uint> ports,int forward,string body,string configuration,bool logQuota=false)
     {
         Need(ports.Count==5 && ports.Distinct().Count()==5 && ports.All(p=>p is >0 and <=65535) && forward is >0 and <=65535 &&
             body.Length>0 && Encoding.UTF8.GetByteCount(body)<=1024 && configuration.Length>0 &&
@@ -169,7 +169,7 @@ public static partial class QemuTranscripts
             var flow=flows[i];Need(flow.ClientReady && flow.ClientSeen==flow.Request.Length &&
                 flow.ServerSeen==flow.ResponseExtent && flow.ResponseExtent>0 && (i==0 || flow.ServerFin),"web_wire_stream_complete");
             WebHttpResponse(flow.Response.AsSpan(0,flow.ResponseExtent),i switch { 1=>configuration,
-                2=>"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9",3=>"",_=>body },i);
+                2=>logQuota?"":"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9",3=>"",_=>body },i,logQuota);
         }
         return new(5,tcpRecords,flows.Sum(f=>f.Request.Length),flows.Sum(f=>f.ResponseExtent),flows.Count(f=>f.ClientFin),
             flows.Count(f=>f.ServerFin),flows.Count(f=>f.ClientFinAcked),flows.Count(f=>f.ServerFinAcked),
@@ -177,18 +177,19 @@ public static partial class QemuTranscripts
             Array.AsReadOnly(flows.Where(f=>f.ServerFinFirst && f.ClientFinAcked && f.ServerFinAcked).Select(f=>f.Port).ToArray()));
     }
 
-    private static void WebHttpResponse(ReadOnlySpan<byte> bytes,string expected,int phase)
+    private static void WebHttpResponse(ReadOnlySpan<byte> bytes,string expected,int phase,bool logQuota)
     {
         int end=bytes.IndexOf("\r\n\r\n"u8);Need(end is >0 and <=2048,"web_wire_http_header");
         string[] lines=DecodeUtf8(bytes[..end].ToArray()).Split("\r\n",StringSplitOptions.None);
-        Need(lines[0]==(phase==3?"HTTP/1.1 409 Conflict":"HTTP/1.1 200 OK"),"web_wire_http_status");Dictionary<string,string> headers=new(StringComparer.OrdinalIgnoreCase);
+        bool quotaFailure=logQuota && phase==2;
+        Need(lines[0]==(phase==3?"HTTP/1.1 409 Conflict":quotaFailure?"HTTP/1.1 500 Internal Server Error":"HTTP/1.1 200 OK"),"web_wire_http_status");Dictionary<string,string> headers=new(StringComparer.OrdinalIgnoreCase);
         foreach(string line in lines.Skip(1))
         {
             int colon=line.IndexOf(": ",StringComparison.Ordinal);
             Need(colon>0 && !Controls.IsMatch(line) && headers.TryAdd(line[..colon],line[(colon+2)..]),"web_wire_http_headers");
         }
-        bool length=phase!=1,contentType=phase!=3;
-        Need(headers.Count==(phase is 1 or 3?4:5) && headers.Keys.All(k=>k is "Connection" or "Date" or "Server" ||
+        bool length=phase!=1,contentType=phase!=3 && !quotaFailure;
+        Need(headers.Count==(phase==1 || !contentType?4:5) && headers.Keys.All(k=>k is "Connection" or "Date" or "Server" ||
                 contentType && k=="Content-Type" || length && k=="Content-Length") &&
             headers.GetValueOrDefault("Connection")=="close" && headers.GetValueOrDefault("Server")=="Kestrel" &&
             headers.GetValueOrDefault("Content-Type")== (phase==1?"application/json; charset=utf-8":contentType?"text/plain":null) &&

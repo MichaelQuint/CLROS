@@ -219,7 +219,8 @@ public static class QemuSmoke
                 arguments.AddRange(["--socket-forward-port",port.ToString(CultureInfo.InvariantCulture),"--continuing-web",
                     "--http-probe-url","http://127.0.0.1:"+port.ToString(CultureInfo.InvariantCulture)+"/healthz",
                     "--http-probe-expected-status","200","--http-probe-expected-body",options.DryRun?"OS_CONFIG_SELECTED_R01":webConfiguration.Body,
-                    "--http-probe-timeout","20","--web-config-body",options.DryRun?"{}":webConfiguration.Json]);
+                    "--http-probe-timeout","20","--web-config-body",options.DryRun?"{}":webConfiguration.Json,
+                    "--web-log-case",!options.DryRun && webConfiguration.LogQuota?"records64":"normal"]);
             }
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);

@@ -271,6 +271,30 @@ internal static unsafe class LinuxAppLoggingTests
         }
     }
 
+    [HostTest("m10-005 raw quota joins coalesced callbacks EIO and later denials")]
+    private static void RawQuotaLogging()
+    {
+        byte[] raw = LoggingRaw("quota_none"), before = (byte[])raw.Clone();
+        var report = QemuTranscripts.InspectNativeAotWebLogQuotaForTests(raw);
+        HostCheck.Equal(64U, report.CopiedRecords); HostCheck.Equal(3U, report.StdoutRecords);
+        HostCheck.Equal(2U, report.StderrRecords); HostCheck.Equal(1U, report.DeniedCalls);
+        HostCheck.Equal(1U, report.EioCalls);
+        HostCheck.True(raw.AsSpan().SequenceEqual(before));
+        foreach (string mutation in new[] { "counter", "identity", "result", "vector", "denial_missing", "pending", "after_copy", "summary", "early", "short_scalar" })
+        {
+            bool rejected = false;
+            try { QemuTranscripts.InspectNativeAotWebLogQuotaForTests(LoggingRaw("quota_" + mutation)); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected, mutation);
+        }
+        bool normalRejected = false;
+        try { QemuTranscripts.InspectNativeAotWebLoggingForTests(raw); } catch (ToolFailure) { normalRejected = true; }
+        HostCheck.True(normalRejected);
+        bool quotaRejected = false;
+        try { QemuTranscripts.InspectNativeAotWebLogQuotaForTests(LoggingRaw("none")); } catch (ToolFailure) { quotaRejected = true; }
+        HostCheck.True(quotaRejected);
+    }
+
     private static byte[] LoggingRaw(string mutation)
     {
         const ulong writer = 0x100000001, binder = 0x100000005, firstWorker = 0x100000006;
@@ -293,6 +317,30 @@ internal static unsafe class LinuxAppLoggingTests
         text.Append("M10_004_LISTEN fd=6 address=0 port=8080 owner=live\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\nCLROS_M10_006_READY\r\nTEST_PASS m10.006\r\n");
         const string framework = "info: logging fixture\n";
         text.Append(Frame(1, framework)).Append(Call(writer, 1, 1, framework.Length, framework.Length));
+        if (mutation.StartsWith("quota_", StringComparison.Ordinal))
+        {
+            for (int i = 0; i < 57; i++) text.Append(Frame(1, framework)).Append(Call(writer, 1, 1, framework.Length, framework.Length));
+            string row = "CLROS_LOG fd=1 worker=0 record=0\n", error = row.Replace("fd=1", "fd=2", StringComparison.Ordinal);
+            text.Append(Frame(1, row)).Append(start).Append(Call(firstWorker, 1, 1, 33, mutation == "quota_short_scalar" ? 34 : 33));
+            text.Append(Frame(2, error)).Append(Call(firstWorker, 20, 2, 33, 2));
+            text.Append(Frame(1, row.Replace("record=0", "record=1", StringComparison.Ordinal))).Append(Call(firstWorker, 1, 1, 33, 33));
+            text.Append(Frame(2, error.Replace("record=0", "record=1", StringComparison.Ordinal))).Append(Call(firstWorker, 20, 2, 33, 2));
+            text.Append(Frame(1, row.Replace("record=0", "record=2", StringComparison.Ordinal))).Append(Call(firstWorker, 1, 1, 33, 33));
+            int copiedBytes = prefix.Length + framework.Length * 58 + 165;
+            string Deny(int fd, int bytes, int copied, ulong identity = firstWorker) =>
+                $"M10_005_QUOTA_DENY identity={identity} fd={fd} bytes={bytes} chargedRecords=64 chargedBytes={copiedBytes} copiedCallBytes={copied}\r\n";
+            string eio = Deny(2, 33, 0, mutation == "quota_identity" ? firstWorker + 1 : firstWorker);
+            if (mutation == "quota_counter") eio = eio.Replace("chargedRecords=64", "chargedRecords=63", StringComparison.Ordinal);
+            string quotaSummary = $"M10_005_LOGS case=records64 copiedRecords=64 copiedBytes={copiedBytes} stdout=3 stderr=2 deniedCalls=1 eioCalls=1\r\n";
+            if (mutation == "quota_summary") quotaSummary = quotaSummary.Replace("eioCalls=1", "eioCalls=2", StringComparison.Ordinal);
+            if (mutation != "quota_denial_missing") text.Append(eio);
+            text.Append(quotaSummary).Append(ready).Append(pass).Append(Call(firstWorker, 20, 2, mutation == "quota_result" ? 32 : -5, mutation == "quota_vector" ? 0 : 2));
+            text.Append(Deny(1, 33, 0));
+            if (mutation != "quota_pending") text.Append(Call(firstWorker, 1, 1, -5, 33));
+            if (mutation == "quota_after_copy") text.Append(Frame(1, row)).Append(Call(firstWorker, 1, 1, 33, 33));
+            if (mutation == "quota_early") text.Replace(start, "").Insert(text.ToString().IndexOf("M10_006_BIND", StringComparison.Ordinal), start);
+            return Encoding.ASCII.GetBytes(text.ToString());
+        }
         if (mutation == "early_invalid") text.Append(Call(binder, 20, 1234, -9, 1));
         string firstBody = "", firstOutputCall = "", lastErrorCall = "";
         for (int worker = 0; worker < 8; worker++) for (int step = 0; step < 4; step++)
@@ -369,6 +417,104 @@ internal static unsafe class LinuxAppLoggingTests
     private static bool LogCall(ref LinuxAppLogObservation logs, ulong identity, ulong number, ulong fd, long value)
         => logs.RecordCall(identity, new LinuxSyscallFrame { Number = number, Argument0 = fd }, new(LinuxSyscallAction.Return, value));
 
+    [HostTest("m10-005 real record quota preserves coalesced writev then EIO without refund or copied overflow")]
+    private static void DescriptorQuotaControl()
+    {
+        using var owner = new LinuxDescriptorServicesTests.Owner();
+        LoggingModel model = new() { Descriptor = *owner.Context, QuotaCase = true, Writer = 100 };
+        HostCheck.True(model.Budget.Initialize(Budget.DefaultByteLimit, Budget.QuotaRecordLimit));
+        Attach(owner, &model); owner.Begin();
+        for (int i = 0; i < 59; i++) HostCheck.Equal(10L, QuotaWrite(owner, ref model, "framework\n"));
+        HostCheck.Equal(33L, QuotaWrite(owner, ref model, "CLROS_LOG fd=1 worker=0 record=0\n"));
+        HostCheck.Equal(33L, QuotaWritev(owner, ref model, "CLROS_LOG fd=2 worker=0 record=0\n"));
+        HostCheck.Equal(33L, QuotaWrite(owner, ref model, "CLROS_LOG fd=1 worker=0 record=1\n"));
+        HostCheck.Equal(33L, QuotaWritev(owner, ref model, "CLROS_LOG fd=2 worker=0 record=1\n"));
+        HostCheck.Equal(33L, QuotaWrite(owner, ref model, "CLROS_LOG fd=1 worker=0 record=2\n"));
+        HostCheck.Equal(64U, model.Quota.CopiedRecords); HostCheck.Equal(755U, model.Quota.CopiedBytes);
+        HostCheck.Equal(0U, model.Quota.DeniedCalls);
+        HostCheck.Equal(0U, model.Quota.EioCalls); HostCheck.True(!model.Quota.Complete && !model.ObservationFailed);
+        uint delivered = model.DeliveredRecords;
+        HostCheck.Equal(-5L, QuotaWritev(owner, ref model, "CLROS_LOG fd=2 worker=0 record=2\n"));
+        HostCheck.True(model.Quota.Complete && !model.ObservationFailed);
+        HostCheck.Equal(1U, model.Quota.EioCalls); HostCheck.Equal(1U, model.Quota.DeniedCalls);
+        HostCheck.Equal(-5L, QuotaWrite(owner, ref model, "CLROS_LOG fd=1 worker=0 record=3\n"));
+        HostCheck.Equal(2U, model.Quota.EioCalls); HostCheck.Equal(2U, model.Quota.DeniedCalls);
+        HostCheck.Equal(delivered, model.DeliveredRecords); HostCheck.Equal(64U, model.Budget.ChargedRecords);
+        HostCheck.Equal(755U, model.Budget.ChargedBytes); HostCheck.True(model.Quota.Complete && !model.ObservationFailed);
+        var unjoined = model.Quota;
+        HostCheck.True(unjoined.Deny(1, 100, 33, 64, 755) && !unjoined.Complete);
+        HostCheck.True(unjoined.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, -5)) && unjoined.Complete);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Admission.Scratch, 8192).IndexOfAnyExcept((byte)0) == -1);
+    }
+
+    [HostTest("m10-005 quota rejects startup-only exhaustion mismatched charge identity result and copied overflow")]
+    private static void InvalidQuotaControl()
+    {
+        LinuxAppLogQuotaObservation early = default;
+        byte[] noise = "framework\n"u8.ToArray();
+        fixed (byte* text = noise) for (int i = 0; i < 64; i++)
+        {
+            HostCheck.True(early.Observe(1, 100, text, 10));
+            HostCheck.True(early.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 10 }, new(LinuxSyscallAction.Return, 10)));
+        }
+        HostCheck.True(!early.Deny(1, 100, 10, 64, 640) && early.Failed && !early.Complete);
+        LinuxAppLogQuotaObservation partial = default;
+        fixed (byte* text = noise) for (int i = 0; i < 62; i++)
+        {
+            HostCheck.True(partial.Observe(1, 100, text, 10));
+            HostCheck.True(partial.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 10 }, new(LinuxSyscallAction.Return, 10)));
+        }
+        byte[] first = "CLROS_LOG fd=1 worker=0 record=0\n"u8.ToArray();
+        byte[] second = "CLROS_LOG fd=2 worker=0 record=0\n"u8.ToArray();
+        fixed (byte* row = first)
+        {
+            HostCheck.True(partial.Observe(1, 100, row, 33));
+            HostCheck.True(partial.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, 33)));
+        }
+        fixed (byte* row = second)
+        {
+            HostCheck.True(partial.Observe(2, 100, row, 32));
+        }
+        HostCheck.True(!partial.Deny(2, 100, 1, 64, 685) && partial.Failed);
+        for (int mutation = 0; mutation < 6; mutation++)
+        {
+            using var owner = new LinuxDescriptorServicesTests.Owner();
+            LoggingModel model = new() { Descriptor = *owner.Context, QuotaCase = true, Writer = 100 };
+            HostCheck.True(model.Budget.Initialize(Budget.DefaultByteLimit, Budget.QuotaRecordLimit));
+            Attach(owner, &model); owner.Begin();
+            for (int i = 0; i < 63; i++) HostCheck.Equal(10L, QuotaWrite(owner, ref model, "framework\n"));
+            HostCheck.Equal(33L, QuotaWrite(owner, ref model, "CLROS_LOG fd=1 worker=0 record=0\n"));
+            var quota = model.Quota;
+            bool accepted;
+            if (mutation < 2) accepted = quota.Deny(1, 100, 33, mutation == 0 ? 63U : 64U, mutation == 1 ? 662U : 663U);
+            else
+            {
+                HostCheck.True(quota.Deny(1, 100, 33, 64, 663));
+                if (mutation == 2) accepted = quota.Deny(1, 100, 33, 64, 663);
+                else if (mutation == 3) accepted = quota.RecordCall(101, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, -5));
+                else if (mutation == 4) accepted = quota.RecordCall(100, new() { Number = 1, Argument0 = 1, Argument2 = 33 }, new(LinuxSyscallAction.Return, 33));
+                else fixed (byte* text = noise) accepted = quota.Observe(1, 100, text, 10);
+            }
+            HostCheck.True(!accepted && quota.Failed && !quota.Complete, "quota mutation " + mutation);
+        }
+    }
+
+    private static long QuotaWrite(LinuxDescriptorServicesTests.Owner owner, ref LoggingModel model, string row)
+    {
+        owner.Text(Data, row); long value = owner.Call(1, 1, Data, (ulong)row.Length);
+        model.ObservationFailed |= !model.Quota.RecordCall(model.Writer,
+            new() { Number = 1, Argument0 = 1, Argument2 = (ulong)row.Length }, new(LinuxSyscallAction.Return, value)); return value;
+    }
+
+    private static long QuotaWritev(LinuxDescriptorServicesTests.Owner owner, ref LoggingModel model, string row)
+    {
+        owner.Text(Data, row); ulong* vectors = (ulong*)owner.Memory.At(Vectors);
+        vectors[0] = Data; vectors[1] = (ulong)row.Length - 1; vectors[2] = Data + (ulong)row.Length - 1; vectors[3] = 1;
+        long value = owner.Call(20, 2, Vectors, 2);
+        model.ObservationFailed |= !model.Quota.RecordCall(model.Writer,
+            new() { Number = 20, Argument0 = 2, Argument2 = 2 }, new(LinuxSyscallAction.Return, value)); return value;
+    }
+
     // Descriptor callbacks retain their existing model at offset0. Only the
     // output callback is replaced; real page validation/copy/dispatch still runs.
     private struct LoggingModel
@@ -377,7 +523,9 @@ internal static unsafe class LinuxAppLoggingTests
         public Budget Budget;
         public Budget.ChargeStatus LastCharge;
         public uint DeliveredRecords;
-        public bool FailDelivery;
+        public bool FailDelivery, QuotaCase, ObservationFailed;
+        public ulong Writer;
+        public LinuxAppLogQuotaObservation Quota;
     }
     private static void Attach(LinuxDescriptorServicesTests.Owner owner, LoggingModel* model)
     {
@@ -390,8 +538,12 @@ internal static unsafe class LinuxAppLoggingTests
         LoggingModel* model = (LoggingModel*)context; model->Descriptor.SinkCalls++;
         if (source != model->Descriptor.RequiredOutputSource) return 0;
         model->LastCharge = model->Budget.Charge(channel, bytes);
+        if (model->QuotaCase && model->LastCharge == Budget.ChargeStatus.QuotaExceeded)
+            model->ObservationFailed |= !model->Quota.Deny(channel, model->Writer, bytes, model->Budget.ChargedRecords, model->Budget.ChargedBytes);
         if (model->LastCharge != Budget.ChargeStatus.Accepted || model->FailDelivery) return 0;
         new ReadOnlySpan<byte>(source, (int)bytes).CopyTo(new Span<byte>(model->Descriptor.Sink, 8192));
-        model->Descriptor.Channel = channel; model->Descriptor.SinkBytes = bytes; model->DeliveredRecords++; return 1;
+        model->Descriptor.Channel = channel; model->Descriptor.SinkBytes = bytes; model->DeliveredRecords++;
+        if (model->QuotaCase) model->ObservationFailed |= !model->Quota.Observe(channel, model->Writer, source, bytes);
+        return model->ObservationFailed ? (byte)0 : (byte)1;
     }
 }

@@ -6,7 +6,7 @@ internal static class NativeAotWebPacketTests
 {
     private const string Body="SELECTED",Config="{\"value\":\"SELECTED\"}";
     private const string LogBody="CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
-    private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Vector(bool finalAck=false,bool clientHalfClose=false,string mutation="none")
+    private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Vector(bool finalAck=false,bool clientHalfClose=false,string mutation="none",bool quota=false)
     {
         var original=NativeAotSocketIntegrationTests.Packets();var frames=original.Frames.Take(8).ToList();
         for(int i=0;i<5;i++)
@@ -24,11 +24,12 @@ internal static class NativeAotWebPacketTests
             Add(false,client,server,0x18,request);client+=(uint)request.Length;Add(true,server,client,0x10);
             bool early=clientHalfClose && i==0;
             if(early){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
-            string content=i switch { 1=>Config,2=>LogBody,3=>"",_=>Body };
+            string content=i switch { 1=>Config,2=>quota?"":LogBody,3=>"",_=>Body };
             if(i==2 && mutation=="logging-body" || i==4 && mutation=="later-health")content="WRONG";
-            byte[] response=Encoding.ASCII.GetBytes((i==3 && mutation!="repeat-status"?"HTTP/1.1 409 Conflict\r\n":"HTTP/1.1 200 OK\r\n")+
+            bool quotaFailure=quota && i==2;
+            byte[] response=Encoding.ASCII.GetBytes((i==3 && mutation!="repeat-status"?"HTTP/1.1 409 Conflict\r\n":quotaFailure?"HTTP/1.1 500 Internal Server Error\r\n":"HTTP/1.1 200 OK\r\n")+
                 (i!=1?$"Content-Length: {content.Length}\r\n":"")+"Connection: close\r\n"+
-                (i==3?"":$"Content-Type: {(i==1?"application/json; charset=utf-8":"text/plain")}\r\n")+
+                (i==3 || quotaFailure?"":$"Content-Type: {(i==1?"application/json; charset=utf-8":"text/plain")}\r\n")+
                 $"Date: Thu, 01 Jan 1970 00:00:00 GMT\r\nServer: Kestrel\r\n\r\n{content}");
             Add(true,server,client,0x18,response.AsSpan(0,5));server+=5;
             Add(true,server,client,0x18,response.AsSpan(5));server+=(uint)response.Length-5;Add(false,client,server,0x10);
@@ -39,10 +40,19 @@ internal static class NativeAotWebPacketTests
         return(frames,original.Anchor,original.Arp);
     }
     private static QemuTranscripts.WebPacketInspection Inspect(List<byte[]> frames,uint anchor,QemuArpReceiveReceipt arp,
-        string body=Body,int forward=22080)=>QemuTranscripts.InspectNativeAotWebPacketsForTests(
-            NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,[41000,41001,41002,41003,41004],forward,body,Config);
+        string body=Body,int forward=22080,bool quota=false)=>QemuTranscripts.InspectNativeAotWebPacketsForTests(
+            NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,[41000,41001,41002,41003,41004],forward,body,Config,quota);
     private static void Reject(Action action)
     {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
+
+    [HostTest("web quota packets require empty 500 repeat 409 and later selected health")]
+    private static void Quota()
+    {
+        var v=Vector(quota:true);HostCheck.Equal(5,Inspect(v.Frames,v.Anchor,v.Arp,quota:true).Connections);
+        Reject(()=>Inspect(v.Frames,v.Anchor,v.Arp));
+        var normal=Vector();Reject(()=>Inspect(normal.Frames,normal.Anchor,normal.Arp,quota:true));
+        var failed=Vector(mutation:"later-health",quota:true);Reject(()=>Inspect(failed.Frames,failed.Anchor,failed.Arp,quota:true));
+    }
     private static List<byte[]> Change(List<byte[]> frames,int index,Func<byte[],byte[]> change)
     {var result=frames.ToList();result[index]=change((byte[])result[index].Clone());return result;}
 

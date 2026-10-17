@@ -165,6 +165,7 @@ public static unsafe partial class EfiEntry
 #endif
 #if M10_004_PROBE
             internal LinuxAppLogBudget LinuxLogBudget;
+            internal uint LinuxLogRecordLimit;
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
@@ -1741,7 +1742,10 @@ public static unsafe partial class EfiEntry
                 FirmwareExited = true, SingleOwnerValidated = true, SigpipeIgnored = true
             };
 #if M10_004_PROBE
-            if (!state->LinuxLogBudget.Initialize(1024 * 1024, 4096)) return false;
+            if (!LinuxAppLogBudget.TryReadRecordLimit((byte*)state->LinuxPackage + state->LinuxView.ManifestOffset,
+                state->LinuxView.ManifestBytes, state->LinuxView.Manifest, out uint logRecords) ||
+                !state->LinuxLogBudget.Initialize(LinuxAppLogBudget.DefaultByteLimit, logRecords)) return false;
+            state->LinuxLogRecordLimit = logRecords;
 #endif
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
@@ -1805,7 +1809,13 @@ public static unsafe partial class EfiEntry
 #if M10_004_PROBE
             // The shared syscall gate serializes all writers. Charge before any
             // serial side effect; a partial/failed sink never refunds its quota.
-            if (state->LinuxLogBudget.Charge(channel, bytes) != LinuxAppLogBudget.ChargeStatus.Accepted) return 0;
+            var charge = state->LinuxLogBudget.Charge(channel, bytes);
+            if (charge != LinuxAppLogBudget.ChargeStatus.Accepted)
+            {
+                if (charge == LinuxAppLogBudget.ChargeStatus.QuotaExceeded && state->LinuxLogRecordLimit == LinuxAppLogBudget.QuotaRecordLimit)
+                    _ = LinuxWebObserveQuotaDenial(state, channel, bytes);
+                return 0;
+            }
 #endif
             if (!LinuxText(state, "M16_005_WRITE fd=") || !LinuxNumber(state, channel) || !LinuxText(state, " bytes=") ||
                 !LinuxNumber(state, bytes) || !LinuxText(state, " data=")) return 0;

@@ -1639,6 +1639,7 @@ static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions opti
     ContinuingWebEvidence web = options.WebEvidence!;
     HttpProbeOptions config = options.WebConfigProbe!.Value;
     builder.AppendLine("CONTINUING_WEB true");
+    builder.Append("WEB_LOG_CASE ").AppendLine(options.WebLogCase);
     builder.Append("WEB_CONFIG_PROBE_URL ").AppendLine(config.Url);
     builder.AppendLine("WEB_CONFIG_PROBE_EXPECTED_STATUS 200");
     builder.Append("WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES ").AppendLine(config.ExpectedBodyByteLength.ToString());
@@ -2195,6 +2196,8 @@ sealed class RunnerOptions
     public HttpProbeOptions? WebLogProbe { get; private set; }
     public HttpProbeOptions? WebLogRepeatProbe { get; private set; }
     public ContinuingWebEvidence? WebEvidence { get; private set; }
+    public string WebLogCase { get; private set; } = "normal";
+    private bool webLogCaseConfigured;
     private string? webConfigBody;
     public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
@@ -2331,6 +2334,13 @@ sealed class RunnerOptions
                     if (options.webConfigBody is not null) throw new ArgumentException("--web-config-body may be specified only once.");
                     options.webConfigBody = ReadValue(args, ref i, arg);
                     break;
+                case "--web-log-case":
+                    if (options.webLogCaseConfigured) throw new ArgumentException("--web-log-case may be specified only once.");
+                    options.webLogCaseConfigured = true;
+                    options.WebLogCase = ReadValue(args, ref i, arg);
+                    if (options.WebLogCase is not ("normal" or "records64"))
+                        throw new ArgumentException("--web-log-case must be normal or records64.");
+                    break;
                 case "--virtio-block-boot-image":
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
@@ -2418,7 +2428,8 @@ sealed class RunnerOptions
     {
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
-        Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config before terminating its QEMU and checks the stopped endpoint refuses connections.");
+        Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409 and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");
+        Console.WriteLine("--web-log-case normal|records64 requires --continuing-web (default normal); normal expects logging POST 200 with the exact success body, records64 expects 500 with an empty body. Repeat POST 409 and final health 200 are required in both cases.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
@@ -2591,6 +2602,7 @@ sealed class RunnerOptions
     {
         if (!ContinuingWeb)
         {
+            if (webLogCaseConfigured) throw new ArgumentException("--web-log-case requires --continuing-web.");
             if (webConfigBody is not null) throw new ArgumentException("--web-config-body requires --continuing-web.");
             return;
         }
@@ -2610,7 +2622,9 @@ sealed class RunnerOptions
         WebConfigProbe = new HttpProbeOptions("http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/config",
             200, webConfigBody, true, probe.TimeoutSeconds);
         string loggingUrl = "http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/__clros/logexercise";
-        WebLogProbe = new(loggingUrl, 200, "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", true, probe.TimeoutSeconds, post: true);
+        bool quota = WebLogCase == "records64";
+        WebLogProbe = new(loggingUrl, quota ? 500 : 200,
+            quota ? "" : "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", true, probe.TimeoutSeconds, post: true);
         WebLogRepeatProbe = new(loggingUrl, 409, "", true, probe.TimeoutSeconds, post: true);
         WebEvidence = new ContinuingWebEvidence();
     }
