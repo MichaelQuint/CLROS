@@ -54,10 +54,24 @@ internal static class SocketContainmentPeerTests
         using TcpClient client = new();
         await client.ConnectAsync(IPAddress.Loopback, peer.Port);
         NetworkStream stream = client.GetStream();
+        byte[] firmware = new byte[60]; firmware[12] = 0x86; firmware[13] = 0xdd;
+        await Write(stream, firmware);
+        byte[] anchor = new byte[60];
+        Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor, 0);
+        "CLROS-M07"u8.CopyTo(anchor.AsSpan(14)); await Write(stream, anchor);
+        byte[] bootArp = new byte[60], bootReply = new byte[60];
+        Convert.FromHexString("FFFFFFFFFFFF020000000001080600010800060400010200000000010A00020F0000000000000A000202").CopyTo(bootArp, 0);
+        Convert.FromHexString("020000000001020000000002080600010800060400020200000000020A0002020200000000010A00020F").CopyTo(bootReply, 0);
+        for (int i = 0; i < 2; i++)
+        {
+            await Write(stream, bootArp);
+            HostCheck.True((await Read(stream)).AsSpan().SequenceEqual(bootReply));
+        }
         for (int role = 0; role < 3; role++)
         {
             ushort port = (ushort)(41000 + role); uint local = (uint)(10000 + role * 10000), guest = (uint)(900 + role * 1000);
             byte[] syn = await Read(stream);
+            if (role == 0) HostCheck.Equal(2, peer.ArpReplies);
             HostCheck.True(syn.AsSpan().SequenceEqual(ContinuingTcpScenario.Write(new(false, port, local, 0, 2, 4096), 0x020000000002)));
             if (role == 0)
             {

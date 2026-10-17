@@ -20,7 +20,7 @@ public sealed class SocketContainmentPeer : IDisposable
     private readonly Connection[] connections = [new(0), new(1), new(2)];
     private Task<int>? pendingRead;
     private bool disposed;
-    private int frames, headTransmissions, healthyReplies, vlanFrames;
+    private int frames, arpReplies, headTransmissions, healthyReplies, vlanFrames;
     private long firstHead = -1, lastHead;
 
     private sealed class Connection(int role)
@@ -48,10 +48,12 @@ public sealed class SocketContainmentPeer : IDisposable
     public int HeadTransmissions => Volatile.Read(ref headTransmissions);
     public int HealthyReplies => Volatile.Read(ref healthyReplies);
     public int VlanFrames => Volatile.Read(ref vlanFrames);
+    public int ArpReplies => Volatile.Read(ref arpReplies);
 
     private async Task RunAsync()
     {
         await transport.AcceptConnectionAsync(stop.Token).ConfigureAwait(false);
+        await BootPreludeAsync().ConfigureAwait(false);
         for (int role = 0; role < connections.Length; role++)
             await EstablishAsync(connections[role], role).ConfigureAwait(false);
         Stopwatch clock = Stopwatch.StartNew();
@@ -131,6 +133,27 @@ public sealed class SocketContainmentPeer : IDisposable
         for (int role = 1; role < 3; role++) await SendAsync(connections[role], 0x14).ConfigureAwait(false);
     }
 
+    private async Task BootPreludeAsync()
+    {
+        bool owned = false;
+        while (ArpReplies < 2)
+        {
+            int length = await transport.ReadFrameAsync(input, stop.Token).ConfigureAwait(false);
+            if (!owned)
+            {
+                // Ignore firmware traffic until the exact owned M07 anchor.
+                // The parent ARP fixture and socket peer resolution each need
+                // one real reply before the first application SYN is useful.
+                if (++frames > 4096) throw new InvalidDataException("Socket containment frame bound.");
+                ReadOnlySpan<byte> header = [2, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 0x88, 0xb5];
+                owned = length == 60 && input.AsSpan(0, 14).SequenceEqual(header) &&
+                    input.AsSpan(14, 9).SequenceEqual("CLROS-M07"u8) && !input.AsSpan(23, 37).ContainsAnyExcept((byte)0);
+                continue;
+            }
+            if (!await ReplyArpAsync(length).ConfigureAwait(false)) throw new InvalidDataException("Missing socket containment boot ARP.");
+        }
+    }
+
     private async Task EstablishAsync(Connection peer, int role)
     {
         Stopwatch deadline = Stopwatch.StartNew(); long nextSyn = 0;
@@ -183,7 +206,8 @@ public sealed class SocketContainmentPeer : IDisposable
             throw new InvalidDataException("Invalid containment ARP request.");
         byte[] reply = new byte[60];
         Convert.FromHexString("020000000001020000000002080600010800060400020200000000020A0002020200000000010A00020F").CopyTo(reply, 0);
-        await transport.WriteFrameAsync(reply, stop.Token).ConfigureAwait(false); return true;
+        await transport.WriteFrameAsync(reply, stop.Token).ConfigureAwait(false);
+        Interlocked.Increment(ref arpReplies); return true;
     }
 
     /// <summary>A validated guest TCP observation. Payload is a fresh caller-owned

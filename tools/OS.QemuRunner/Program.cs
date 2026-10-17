@@ -402,7 +402,8 @@ try
         bool completed = containmentPeer.Completion.IsCompletedSuccessfully;
         bool stopped = containmentPeer.Stop();
         Console.WriteLine("SOCKET_CONTAINMENT_PEER_RESULT complete=" + completed + " stopped=" + stopped +
-            " headTransmissions=" + containmentPeer.HeadTransmissions + " healthyReplies=" + containmentPeer.HealthyReplies + " vlanFrames=" + containmentPeer.VlanFrames);
+            " arpReplies=" + containmentPeer.ArpReplies + " headTransmissions=" + containmentPeer.HeadTransmissions +
+            " healthyReplies=" + containmentPeer.HealthyReplies + " vlanFrames=" + containmentPeer.VlanFrames);
         if (!completed || !stopped)
             networkPeerFailure = !stopped ? "socket_containment_peer_cleanup_failed" : containmentPeer.Completion.IsFaulted
                 ? "socket_containment_peer_failed_" + containmentPeer.Completion.Exception!.GetBaseException().GetType().Name : "socket_containment_peer_incomplete";

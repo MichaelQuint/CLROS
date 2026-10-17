@@ -36,6 +36,9 @@ Seventeen focused checks and the no-stdlib source compile pass. Original payload
 publication/admission, high-level profile/evidence consumers, changed EFI native
 review, full-host and real guest controls remain pending. The accepted socket
 app and its original package/source authority remain unchanged.
+The raw peer now handles the exact owned boot anchor and both ARP exchanges
+before TCP. Eight final focused peer/stdout checks pass; strict stdout values
+alone do not establish package, syscall, scheduler or packet authority.
 
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
