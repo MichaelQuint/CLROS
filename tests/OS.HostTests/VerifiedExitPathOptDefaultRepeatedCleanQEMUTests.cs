@@ -55,6 +55,22 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
             !Probes.EnableM03OwnedSubsystemPanicProbe, "dangerous probes remain default-off");
     }
 
+    [HostTest("m03.011 every diagnostic participates in default and conflict policy inventory", HostLane.Fast, 5)]
+    private static void PolicyInventory()
+    {
+        XDocument xml = XDocument.Load(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/OS.csproj"));
+        XElement[] policy = [xml.Descendants("ClrosBootPolicy").Single(node => node.Value == "Diagnostic"),
+            xml.Descendants("Error").Single(node => node.Attribute("Text")?.Value == "clros_boot_policy_probe_conflict")];
+        string[] expected = OS.Tooling.EfiContracts.DiagnosticProbes.Order(StringComparer.Ordinal).ToArray();
+        foreach (XElement node in policy)
+        {
+            string[] actual = Regex.Matches(node.Attribute("Condition")?.Value ?? "", @"\$\((Enable\w+Probe)\)")
+                .Select(match => match.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            Need(actual.SequenceEqual(expected), "complete diagnostic policy inventory missing=" +
+                string.Join(',', expected.Except(actual)) + " extra=" + string.Join(',', actual.Except(expected)));
+        }
+    }
+
     [HostTest("m03.011 ordinary project policy is independent of diagnostic switches", HostLane.Native, 3)]
     private static void ProjectPolicy()
     {
