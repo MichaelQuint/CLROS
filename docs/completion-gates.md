@@ -42,21 +42,28 @@ runtime/socket package; PR739's reported development HTTP is separate.
 
 - #220 requires M07-027/M07-028 network failure containment and M16-013 actual
   vectored socket/Kestrel I/O, alongside its existing startup/epoll dependencies.
-- #224 requires persist, compact TIME-WAIT, continuing execution policy and
-  replenished randomness. #225 additionally requires fragmented backing and
-  guest-verified GC/native allocation budgets. The existing #226 -> #227 evidence
-  and local Gate 14 closure chain remains authoritative.
+- #223 requires M16-019 owned realtime and an independently plausible HTTP Date.
+  A correctly formatted Unix-epoch response does not pass time acceptance.
+- #224 requires persist, compact TIME-WAIT, continuing execution policy,
+  replenished randomness, M07-032 pending-reset cleanup and M07-033 continuing
+  ISNs. #225 additionally requires fragmented backing, guest-verified GC/native
+  budgets and M16-020 pending-signal checks before renewed waits. The existing
+  #226 -> #227 evidence and local Gate 14 closure chain remains authoritative.
 - M16-017 requires real CPL3 #UD/#DE capture/termination and supervisor progress;
   #298 still needs a second protected app serving through that failure. Host
   models or a single restored supervisor do not qualify multi-app isolation.
+- M16-021 requires accepted SIGPIPE dispositions to agree with I/O behavior,
+  or be explicitly restricted, before #292 general process termination acceptance.
 - Roslyn checks, generated ABI/capability declarations and benchmark tooling
   remain future work. Native/guest qualification is required when emitted kernel
   code or its build closure changes; a generator pass is not a safety proof.
 
-The review reproduced two host failures and characterized fragmentation; it did
-not run new full/native/QEMU qualification or implement these repairs. Preserve
-the failed reproductions and prior accepted finite receipts. No numbered, cloud
-or production gate is advanced by issue creation or documentation updates.
+The first pass reproduced two host failures and characterized fragmentation.
+The second adds four expected host failures, a realtime characterization and
+independent reinspection of retained PR739 development packets carrying epoch
+dates. Neither pass ran new full/native/QEMU qualification or implemented these
+repairs. Preserve failed reproductions and prior accepted finite receipts. No
+numbered, cloud or production gate advances from this review.
 
 ## Historical qualification snapshots
 

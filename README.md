@@ -113,12 +113,16 @@ places fixes at the acceptance stage that needs them:
    [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). Localize connection
    timeouts and unsupported RX drops, then qualify vectored socket I/O before
    [#220's Kestrel socket ladder](http://192.168.4.35:3000/admin/CLROS/issues/220).
-2. Before repeated-service acceptance, add TCP persist and compact TIME-WAIT,
-   continuing execution policy, replenished randomness, fragmented memory
-   backing and explicit GC/native resource budgets. Then complete external
-   HTTP, churn, shutdown and the exact local Gate 14 evidence.
-3. Add user-fault containment and qualify two hardware-isolated local apps
-   before provider-specific deployment.
+2. Add owned realtime before external HTTP acceptance; retained development
+   responses currently carry Unix-epoch dates. Before repeated-service and
+   async-churn acceptance, repair pending-handshake resets, continuing TCP
+   sequence allocation and pending-signal waits, alongside TCP persist,
+   compact TIME-WAIT, continuing execution policy, replenished randomness,
+   fragmented backing and GC/native budgets. Complete shutdown and exact
+   local Gate 14 evidence.
+3. Add user-fault containment, reconcile accepted SIGPIPE dispositions with
+   I/O behavior, and qualify two hardware-isolated local apps before deployment
+   to a specific provider.
 4. After the local service baseline, measure TCP/audit/logging improvements and
    add host-side Roslyn contract checks, ABI generation and workload capability
    generation. These are tracked implementation proposals, with no performance
@@ -129,6 +133,10 @@ acceptance, owned paths and dependencies, and the
 [LAN Gitea backlog](http://192.168.4.35:3000/admin/CLROS/issues) for current claims.
 Refresh both before starting work. Follow the dependency graph rather than
 numeric issue order; optional research is not a first-web prerequisite.
+
+The [second review pass](docs/repo-audit.md#second-pass-interactions-and-failure-recovery)
+adds four expected-failing host regressions and independently rechecks retained
+guest time evidence. The fixes remain open; no completion gate changes.
 
 ## Build and test
 
