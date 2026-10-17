@@ -51,6 +51,7 @@ public static partial class QemuTranscripts
             return ulong.Parse(value,CultureInfo.InvariantCulture);
         }
         ulong pid=Decimal("WEB_PROCESS_ID"),life=Decimal("WEB_PROCESS_LIFETIME_MS"),health=Decimal("HTTP_PROBE_ELAPSED_MS"),config=Decimal("WEB_CONFIG_PROBE_ELAPSED_MS");
+        ulong logging=Decimal("WEB_LOG_PROBE_ELAPSED_MS"),repeat=Decimal("WEB_LOG_REPEAT_PROBE_ELAPSED_MS"),after=Decimal("WEB_HEALTH_AFTER_PROBE_ELAPSED_MS");
         string first=Value("WEB_PROCESS_START_UTC"),last=Value("WEB_PROCESS_END_UTC"),exit=Value("WEB_PROCESS_EXIT_CODE");
         Need(DateTime.TryParseExact(first,"O",CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind,out var started) && started.Kind==DateTimeKind.Utc &&
             DateTime.TryParseExact(last,"O",CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind,out var ended) && ended.Kind==DateTimeKind.Utc,"web_runner_child_timestamps");
@@ -62,7 +63,8 @@ public static partial class QemuTranscripts
             started>=context.StartedUtc.UtcDateTime && ended<=context.CompletedUtc.UtcDateTime &&
             runner.Duration.TotalMilliseconds>=life && runner.Duration.TotalSeconds<=options.TimeoutSeconds+60 &&
             Math.Abs((context.CompletedUtc-context.StartedUtc).TotalMilliseconds-runner.Duration.TotalMilliseconds)<=5000 &&
-            health<=20000 && config<=20000 && health+config<=life && int.TryParse(exit,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int exitCode) &&
+            health<=20000 && config<=20000 && logging<=20000 && repeat<=20000 && after<=20000 &&
+            health+config+logging+repeat+after<=life && int.TryParse(exit,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int exitCode) &&
             exitCode.ToString(CultureInfo.InvariantCulture)==exit,"web_runner_child_lifetime");
         string serial=DecodeUtf8(raw);var stream=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
             successTerminalMarker:"TEST_PASS m10.004",orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
@@ -75,12 +77,31 @@ public static partial class QemuTranscripts
         Need(bodyBytes is >0 and <=1024 && configBytes is >0 and <=4096,"web_runner_http_expectations");
         Need(runner.StandardOutput.EndsWith("\r\n",StringComparison.Ordinal),"web_runner_stdout_end");
         string[] stdout=runner.StandardOutput[..^2].Split("\r\n",StringSplitOptions.None);
-        Need(stdout.Length==23,"web_runner_stdout_count");
+        Need(stdout.Length==29,"web_runner_stdout_count");
         var healthStart=ReadRecord(stdout[14],$"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={bodyBytes}","timeout_seconds:dec");
         var configStart=ReadRecord(stdout[16],$"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={configBytes}","timeout_seconds:dec");
         ulong healthTimeout=healthStart["timeout_seconds"],configTimeout=configStart["timeout_seconds"];
         Need(healthTimeout is >0 and <=20 && configTimeout is >0 and <=20 && health<=healthTimeout*1000 && config<=configTimeout*1000,"web_runner_http_deadline");
         string healthHash=Hash(body),configHash=Hash(configuration);
+        const string logBody="CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
+        (string Prefix,string Path,string Method,int Status,string Body,ulong Milliseconds)[] extra=[
+            ("WEB_LOG_PROBE","/__clros/logexercise","POST",200,logBody,logging),
+            ("WEB_LOG_REPEAT_PROBE","/__clros/logexercise","POST",409,"",repeat),
+            ("WEB_HEALTH_AFTER_PROBE","/healthz","GET",200,body,after)];
+        List<string> extraStdout=[],extraSummary=[];
+        for(int i=0;i<extra.Length;i++)
+        {
+            var p=extra[i];int length=Encoding.UTF8.GetByteCount(p.Body);string hash=Hash(p.Body);
+            string start=$"HTTP_PROBE_START endpoint={endpoint} expected_status={p.Status} expected_body_bytes={length}";
+            ulong timeout=ReadRecord(stdout[18+i*2],start,"timeout_seconds:dec")["timeout_seconds"];
+            Need(timeout is >0 and <=20 && p.Milliseconds<=timeout*1000,"web_runner_logging_deadline");
+            extraStdout.Add(start+" timeout_seconds="+timeout);
+            extraStdout.Add($"HTTP_PROBE_PASS endpoint={endpoint} status={p.Status} body_bytes={length} body_sha256={hash} elapsed_ms={p.Milliseconds}");
+            extraSummary.AddRange([p.Prefix+"_URL "+endpoint+p.Path,p.Prefix+"_METHOD "+p.Method,
+                p.Prefix+"_EXPECTED_STATUS "+p.Status,p.Prefix+"_EXPECTED_BODY_BYTES "+length,p.Prefix+"_EXPECTED_BODY_SHA256 "+hash,
+                p.Prefix+"_RESULT pass",p.Prefix+"_REASON none",p.Prefix+"_STATUS "+p.Status,p.Prefix+"_BODY_BYTES "+length,
+                p.Prefix+"_BODY_SHA256 "+hash,p.Prefix+"_ELAPSED_MS "+p.Milliseconds]);
+        }
         string Format(IReadOnlyList<string> values)=>values.Count==0?"none":string.Join(';',values);
         string[] selected=["IMAGE_ARTIFACT "+options.Image,"SERIAL_LOG "+options.SerialLog,"WORKLOAD_PROFILE SingleMinimalApi","FIRMWARE_RNG_SOURCE virtio",
             "SOCKET_FORWARD_PORT "+context.ForwardPort,"MARKER_PRESETS "+Format(plan.Presets),"REQUIRED_MARKERS "+Format(plan.Required),
@@ -91,6 +112,7 @@ public static partial class QemuTranscripts
             $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={bodyBytes} body_sha256={healthHash} elapsed_ms={health}",
             $"HTTP_PROBE_START endpoint={endpoint} expected_status=200 expected_body_bytes={configBytes} timeout_seconds={configTimeout}",
             $"HTTP_PROBE_PASS endpoint={endpoint} status=200 body_bytes={configBytes} body_sha256={configHash} elapsed_ms={config}",
+            ..extraStdout,
             metrics,"SERIAL_MARKER_DRAIN milliseconds=750","QEMU_PROCESS_RESULT disposition=runner-terminated exitCode="+exit,
             "SUMMARY_LOG "+options.SummaryLog,"TEST_PASS qemu.smoke"];
         Need(runner.StandardOutput==string.Join("\r\n",expected)+"\r\n","web_runner_stdout");
@@ -101,9 +123,11 @@ public static partial class QemuTranscripts
             "WEB_CONFIG_PROBE_URL "+endpoint+"/config","WEB_CONFIG_PROBE_EXPECTED_STATUS 200","WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES "+configBytes,
             "WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_RESULT pass","WEB_CONFIG_PROBE_REASON none","WEB_CONFIG_PROBE_STATUS 200",
             "WEB_CONFIG_PROBE_BODY_BYTES "+configBytes,"WEB_CONFIG_PROBE_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_ELAPSED_MS "+config,
+            ..extraSummary,
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID "+pid,
             "WEB_PROCESS_START_UTC "+first,"WEB_PROCESS_END_UTC "+last,"WEB_PROCESS_LIFETIME_MS "+life,
             "WEB_PROCESS_ALIVE_BEFORE_HEALTH true","WEB_PROCESS_ALIVE_AFTER_HEALTH true","WEB_PROCESS_ALIVE_AFTER_CONFIG true",
+            "WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true","WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
             "WEB_PROCESS_TERMINATION_REQUESTED true","WEB_PROCESS_DEATH_CONFIRMED true","WEB_PROCESS_SPONTANEOUS_EXIT false",
             "WEB_PROCESS_EXIT_CODE "+exit,"WEB_PROCESS_FAILURE none"];
         string[] rawLines=ReadThreadingSerialLines(serial);

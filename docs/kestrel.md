@@ -735,8 +735,19 @@ The first Kestrel proof depends on several major unfinished areas. Until those a
 
 ## Next Steps
 
-1. Implement #684 memory/startup services, then #685 descriptors with mechanical fixtures; preserve sparse virtual reservation and physical-commit accounting as described in [the workload roadmap](workload-profiles.md#pinned-payload-requirements-and-trace-limits).
-2. Qualify #686 mechanical threads/TLS/futex and per-thread signal masks; #687 implements signal startup/delivery, runs the first pinned Hello and then checks suspension. #688 repeats Hello and adds full runtime exercise. Keep application runtime ownership separate from kernel helpers.
-3. Integrate continuing NIC/TCP (#691 and its dependencies), then M16 socket/epoll services and the unchanged upstream Minimal API payload. The optional transport comparison informs this integration without replacing its acceptance.
+The current #218/#219 development slice reuses one exactly pinned revised app.
+Its immutable Linux recipe, source joins and complete decoder index pass; those
+are Linux-host/static evidence. The normal web source now requires all64 copied
+log records, eight verified writers, exact writev/EBADF observations and startup
+before bind. The existing runner performs health/configuration, the explicit
+logging POST, repeat409 and later health. Raw serial, exact runner summaries and
+five ordered HTTP/TCP flows are independently joined. Focused checks pass;
+controlled guest quota exhaustion and native/stable guest qualification remain
+unfinished. The prepared Linux package transfer was rejected before execution
+by tool policy with no stated reason. See [step1365](../done/step1365.md).
+
+1. Preserve the accepted memory/descriptor/thread/signal/runtime and unchanged Hello evidence through [step1307](../done/step1307.md). Keep application runtime ownership separate from kernel helpers.
+2. Finish the current dependency-compatible #737 integration batch. Its #217 predecessor requires a successful frozen full-host gate and fresh guest/ancestor captures; implementation and focused checks alone do not qualify it.
+3. Complete #218 logging quota and #219 startup evidence, then follow #220 and the tracker dependencies. Resolve package preparation, review original native changes and validate a stable batch together. The optional transport comparison remains separate research.
 4. Capture three fresh guest boots, external `/healthz` traffic, request churn/cancellation/shutdown and a failed probe after termination before claiming Kestrel. Follow the exact tracker dependencies and evidence markers.
 5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.

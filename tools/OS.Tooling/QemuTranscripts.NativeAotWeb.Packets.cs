@@ -61,7 +61,7 @@ public static partial class QemuTranscripts
     public static WebPacketInspection InspectNativeAotWebPacketsForTests(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,
         IReadOnlyList<uint> ports,int forward,string body,string configuration)
     {
-        Need(ports.Count==2 && ports.Distinct().Count()==2 && ports.All(p=>p is >0 and <=65535) && forward is >0 and <=65535 &&
+        Need(ports.Count==5 && ports.Distinct().Count()==5 && ports.All(p=>p is >0 and <=65535) && forward is >0 and <=65535 &&
             body.Length>0 && Encoding.UTF8.GetByteCount(body)<=1024 && configuration.Length>0 &&
             Encoding.UTF8.GetByteCount(configuration)<=4096,"web_wire_expectations");
         _=QemuEthernetCapture.Inspect(bytes,anchor);
@@ -108,9 +108,19 @@ public static partial class QemuTranscripts
                 Need(payload.Length==0 && ack==0,"web_wire_syn");
                 if(flow is null)
                 {
-                    Need(flows.Count<2 && remote==ports[flows.Count],"web_wire_original_tuple");
-                    string path=flows.Count==0?"/healthz":"/config";
-                    byte[] request=Encoding.ASCII.GetBytes($"GET {path} HTTP/1.0\r\nHost: 127.0.0.1:{forward}\r\nConnection: close\r\nAccept: */*\r\n\r\n");
+                    Need(flows.Count<5 && remote==ports[flows.Count],"web_wire_original_tuple");
+                    if(flows.Count!=0)
+                    {
+                        var previous=flows[^1];
+                        // The raw reader waits for response EOF before the next
+                        // probe. Remaining teardown ACKs may still overlap.
+                        Need(previous.ServerFin && previous.ResponseExtent>0 && previous.ServerSeen==previous.ResponseExtent,
+                            "web_wire_probe_order");
+                    }
+                    string path=flows.Count switch { 1=>"/config",2 or 3=>"/__clros/logexercise",_=>"/healthz" };
+                    bool post=flows.Count is 2 or 3;
+                    byte[] request=Encoding.ASCII.GetBytes($"{(post?"POST":"GET")} {path} HTTP/1.0\r\nHost: 127.0.0.1:{forward}\r\nConnection: close\r\nAccept: */*\r\n"+
+                        (post?"Content-Length: 0\r\n":"")+"\r\n");
                     flow=new(remote,sequence,request);flows.Add(flow);
                 }
                 else Need(unchecked(sequence+1)==flow.Client && !flow.ClientFin && !flow.ServerFin,"web_wire_syn_retry");
@@ -152,36 +162,39 @@ public static partial class QemuTranscripts
                 if(outgoing){if(!flow.ServerFin)flow.ServerFinFirst=!flow.ClientFin;flow.ServerFin=true;}else flow.ClientFin=true;
             }
         }
-        Need(prefixStage==3 && resolved && resolutionSent==1 && flows.Count==2,"web_wire_complete");
+        Need(prefixStage==3 && resolved && resolutionSent==1 && flows.Count==5,"web_wire_complete");
         _=QemuEthernetCapture.InspectArp(bytes.AsSpan(0,prefixEnd),arp);
         for(int i=0;i<flows.Count;i++)
         {
             var flow=flows[i];Need(flow.ClientReady && flow.ClientSeen==flow.Request.Length &&
                 flow.ServerSeen==flow.ResponseExtent && flow.ResponseExtent>0 && (i==0 || flow.ServerFin),"web_wire_stream_complete");
-            WebHttpResponse(flow.Response.AsSpan(0,flow.ResponseExtent),i==0?body:configuration,i==0);
+            WebHttpResponse(flow.Response.AsSpan(0,flow.ResponseExtent),i switch { 1=>configuration,
+                2=>"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9",3=>"",_=>body },i);
         }
-        return new(2,tcpRecords,flows.Sum(f=>f.Request.Length),flows.Sum(f=>f.ResponseExtent),flows.Count(f=>f.ClientFin),
+        return new(5,tcpRecords,flows.Sum(f=>f.Request.Length),flows.Sum(f=>f.ResponseExtent),flows.Count(f=>f.ClientFin),
             flows.Count(f=>f.ServerFin),flows.Count(f=>f.ClientFinAcked),flows.Count(f=>f.ServerFinAcked),
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body))),Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(configuration))),
             Array.AsReadOnly(flows.Where(f=>f.ServerFinFirst && f.ClientFinAcked && f.ServerFinAcked).Select(f=>f.Port).ToArray()));
     }
 
-    private static void WebHttpResponse(ReadOnlySpan<byte> bytes,string expected,bool health)
+    private static void WebHttpResponse(ReadOnlySpan<byte> bytes,string expected,int phase)
     {
         int end=bytes.IndexOf("\r\n\r\n"u8);Need(end is >0 and <=2048,"web_wire_http_header");
         string[] lines=DecodeUtf8(bytes[..end].ToArray()).Split("\r\n",StringSplitOptions.None);
-        Need(lines[0]=="HTTP/1.1 200 OK","web_wire_http_status");Dictionary<string,string> headers=new(StringComparer.OrdinalIgnoreCase);
+        Need(lines[0]==(phase==3?"HTTP/1.1 409 Conflict":"HTTP/1.1 200 OK"),"web_wire_http_status");Dictionary<string,string> headers=new(StringComparer.OrdinalIgnoreCase);
         foreach(string line in lines.Skip(1))
         {
             int colon=line.IndexOf(": ",StringComparison.Ordinal);
             Need(colon>0 && !Controls.IsMatch(line) && headers.TryAdd(line[..colon],line[(colon+2)..]),"web_wire_http_headers");
         }
-        Need(headers.Count==(health?5:4) && headers.Keys.All(k=>k is "Connection" or "Content-Type" or "Date" or "Server" || health && k=="Content-Length") &&
+        bool length=phase!=1,contentType=phase!=3;
+        Need(headers.Count==(phase is 1 or 3?4:5) && headers.Keys.All(k=>k is "Connection" or "Date" or "Server" ||
+                contentType && k=="Content-Type" || length && k=="Content-Length") &&
             headers.GetValueOrDefault("Connection")=="close" && headers.GetValueOrDefault("Server")=="Kestrel" &&
-            headers.GetValueOrDefault("Content-Type")== (health?"text/plain":"application/json; charset=utf-8") &&
+            headers.GetValueOrDefault("Content-Type")== (phase==1?"application/json; charset=utf-8":contentType?"text/plain":null) &&
             DateTimeOffset.TryParseExact(headers.GetValueOrDefault("Date"),"r",CultureInfo.InvariantCulture,DateTimeStyles.AssumeUniversal,out _),"web_wire_http_headers");
         byte[] body=Encoding.UTF8.GetBytes(expected);
-        Need((!health || headers.GetValueOrDefault("Content-Length")==body.Length.ToString(CultureInfo.InvariantCulture)) &&
+        Need((!length || headers.GetValueOrDefault("Content-Length")==body.Length.ToString(CultureInfo.InvariantCulture)) &&
             bytes[(end+4)..].SequenceEqual(body),"web_wire_http_body");
     }
 }

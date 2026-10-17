@@ -41,7 +41,8 @@ internal static class NativeAotWebProfileTests
         var options = Options(); var plan = QemuProfiles.Create(options);
         HostCheck.Equal(240, options.TimeoutSeconds);
         HostCheck.Equal("MinimalApiSmoke", options.LinuxThreadingApplication);
-        foreach (string marker in new[] { "M10_004_ENTER", "M10_004_CONFIG", "M10_004_LISTEN", "M10_004_LIVE", "CLROS_M10_004_READY", "TEST_PASS m10.004" })
+        foreach (string marker in new[] { "M10_004_ENTER", "M10_004_CONFIG", "M10_004_LISTEN", "M10_004_LIVE", "CLROS_M10_004_READY", "TEST_PASS m10.004",
+            "TEST_START m10.005", "M10_005_LOGS", "CLROS_M10_005_READY", "TEST_PASS m10.005" })
             HostCheck.True(plan.Required.Contains(marker) && plan.Ordered.Contains(marker));
         // The inherited boot prefix already contains OS_SMOKE_PASS before real
         // firmware exit; it is never the continuing application's terminal.

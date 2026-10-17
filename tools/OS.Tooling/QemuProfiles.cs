@@ -100,7 +100,7 @@ public static class QemuProfiles
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
             string terminal = web?"CLROS_M10_004_READY":sockets?NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready:Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
-            Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal), "m16_002_marker_override");
+            Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal || web && (x is "CLROS_M10_005_READY" or "CLROS_M10_006_READY")), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
         }
@@ -354,7 +354,7 @@ public static class QemuProfiles
         ("M09012", @"^(M09_012_|CLROS_M09_012_READY|TEST_(START|PASS) m09\.012)", "m09_012"),
         ("M16010", @"^(M16_010_|CLROS_M16_010_READY|TEST_(START|PASS) m16-010)", "m16_010"),
         ("M16011", @"^(M16_011_|M16_012_(POLL|WAKE|REPARK|COMPLETE|EXPIRE)|CLROS_M16_011_READY|TEST_(START|PASS) m16-011)", "m16_011"),
-        ("M10004", @"^(M10_00[46]_|CLROS_M10_00[46]_READY|TEST_(START|PASS) m10\.00[46])", "m10_004"),
+        ("M10004", @"^(M10_00[456]_|CLROS_M10_00[456]_READY|TEST_(START|PASS) m10\.00[456])", "m10_004"),
         ("M16012", @"^(CLROS_M16_012_READY|TEST_(START|PASS) m16-012)", "m16_012"),
         ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
         ("M09005", @"^(M09_005_|CLROS_M09_005_READY|TEST_(START|PASS) m09\.005)", "m09_005"),

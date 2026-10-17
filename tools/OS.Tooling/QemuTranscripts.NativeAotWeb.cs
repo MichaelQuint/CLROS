@@ -11,7 +11,8 @@ public static partial class QemuTranscripts
         ..SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011"),
         "TEST_START m10.004",..M16LinuxSignalMarkers.Take(3),"M16_011_BOUND ","M16_005_ARMED","M16_008_BOUND","M16_008_BUDGET",
         "TEST_START m10.006","M10_004_ENTER","M10_004_CONFIG","M10_006_STARTUP","M10_006_BIND","M10_004_LISTEN",
-        "M10_004_LIVE","CLROS_M10_004_READY","TEST_PASS m10.004","CLROS_M10_006_READY","TEST_PASS m10.006"];
+        "M10_004_LIVE","CLROS_M10_004_READY","TEST_PASS m10.004","CLROS_M10_006_READY","TEST_PASS m10.006",
+        "TEST_START m10.005","M10_005_LOGS","CLROS_M10_005_READY","TEST_PASS m10.005"];
 
     // This consumer checks borrowed observations only. QemuSmoke owns current
     // native/source/image admission, the actual runner and the final success.
@@ -62,7 +63,8 @@ public static partial class QemuTranscripts
     /// <summary>Join web prefix observations to an exact original package and
     /// its sealed prepared instruction lookup. Every completed syscall/return
     /// and user IRQ binds to original instruction starts. Inputs are synchronous
-    /// borrows; stale/mismatched package, owner or observations throw. This leaf
+    /// borrows; complete copied startup/logging observations are mandatory.
+    /// Stale/mismatched package, owner or observations throw. This leaf
     /// still grants no full syscall/scheduler/native/packet/runner acceptance.</summary>
     public static WebObservationReport ValidateNativeAotWebPrefix(string root,byte[] package,NativeAotWebProgram program,ReadOnlySpan<byte> rawTail)
     {
@@ -71,7 +73,7 @@ public static partial class QemuTranscripts
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         var result=ReadWebObservations(rawTail,configuration.Arguments,configuration.Environment,configuration.SettingsBytes,
             program!.IsSyscallReturn,program!.IsInstruction);
-        _=ReadWebStartup(rawTail);
+        _=ReadWebStartup(rawTail,true,out _);
         return result;
     }
 
@@ -100,7 +102,7 @@ public static partial class QemuTranscripts
         var config=ReadRecord(original.Single(r=>r.StartsWith("M10_004_CONFIG ",StringComparison.Ordinal))[..^suffix.Length],"M10_004_CONFIG","fd:dec","bytes:dec");
         var view=OS.Manifest.LinuxElfPackage.Validate(package);
         return ReplayWeb(framed,observed,package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
-            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]));
+            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]),loggingValidated:true);
     }
 
     /// <summary>Value-only synthetic control seam for the same continuing
@@ -121,7 +123,7 @@ public static partial class QemuTranscripts
     }
 
     private static WebReplayReport ReplayWeb(NativeAotThreadingOutput.Capture framed,WebObservationReport observed,byte[] elf,
-        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd)
+        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,bool loggingValidated=false)
     {
         string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-observed.TrailingFragment.Length)];
         string[] original=complete[..^2].Split("\r\n",StringSplitOptions.None);
@@ -129,7 +131,9 @@ public static partial class QemuTranscripts
         Need(configRows.Length==1 && configRows[0]+1<original.Length,"web_replay_settings_call");
         var settingsCall=ReadLinuxCallWaits(original,allowEpoll:true).SingleOrDefault(c=>c.RecordIndex==configRows[0]+1);
         Need(settingsCall.Identity!=0 && original[configRows[0]+1].Contains(" nr=17 ",StringComparison.Ordinal),"web_replay_settings_call");
-        string[] rows=original.Where(r=>!r.StartsWith("M10_004_",StringComparison.Ordinal) && !r.StartsWith("M10_006_",StringComparison.Ordinal) && r is not
+        Need(loggingValidated || !original.Any(WebLoggingRow),"web_replay_logging_unvalidated");
+        string[] rows=original.Where(r=>!(loggingValidated && WebLoggingRow(r)) &&
+            !r.StartsWith("M10_004_",StringComparison.Ordinal) && !r.StartsWith("M10_006_",StringComparison.Ordinal) && r is not
             ("TEST_START m10.004" or "CLROS_M10_004_READY" or "TEST_PASS m10.004" or
              "TEST_START m10.006" or "CLROS_M10_006_READY" or "TEST_PASS m10.006")).ToArray();
         var capture=NativeAotSocketGuest.ReadReadiness(new(framed.Stdout,string.Join("\r\n",rows)+"\r\n",
@@ -197,6 +201,10 @@ public static partial class QemuTranscripts
     /// package, scheduler, native or external HTTP authority follows from this report.</summary>
     public readonly record struct WebStartupReport(ulong WriterIdentity,ulong BindIdentity,int StartupWriteRecords);
 
+    /// <summary>Replayed copied catalog counts and the later actual EBADF result.
+    /// Borrowed bytes grant no execution, native, source, runner or HTTP authority.</summary>
+    public readonly record struct WebLoggingReport(uint StdoutRecords,uint StderrRecords,uint Writers,uint WritevRecords,uint InvalidErrno);
+
     /// <summary>Checks borrowed synthetic startup serial framing and joins actual
     /// copied stderr fragments to complete write/bind call identities and results.
     /// Input is synchronous and unchanged; malformed, missing, failed or reordered
@@ -204,11 +212,26 @@ public static partial class QemuTranscripts
     /// this check after full web observations; text alone grants no acceptance.</summary>
     public static WebStartupReport InspectNativeAotWebStartupForTests(ReadOnlySpan<byte> raw)=>ReadWebStartup(raw);
 
-    private static unsafe WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw)
+    /// <summary>Checks borrowed raw startup and normal logging observations using
+    /// the copied-byte observers and actual syscall identities/results. Requires
+    /// complete ordered unique markers, both catalogs and the final EBADF join.
+    /// Invalid input throws; bytes are unchanged and no process is started.</summary>
+    public static WebLoggingReport InspectNativeAotWebLoggingForTests(ReadOnlySpan<byte> raw)
+    { _=ReadWebStartup(raw,true,out var logging);return logging; }
+
+    private static bool WebLoggingRow(string row)=>row.StartsWith("M10_005",StringComparison.Ordinal) ||
+        row.StartsWith("CLROS_M10_005",StringComparison.Ordinal) || row.StartsWith("TEST_START m10.005",StringComparison.Ordinal) ||
+        row.StartsWith("TEST_PASS m10.005",StringComparison.Ordinal);
+
+    private static WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw)=>ReadWebStartup(raw,false,out _);
+
+    private static unsafe WebStartupReport ReadWebStartup(ReadOnlySpan<byte> raw,bool requireLogging,out WebLoggingReport logging)
     {
+        logging=default;
         var framed=NativeAotThreadingOutput.ReadWeb(raw);
         int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);
         Need(last>=0,"web_startup_records");
+        if(requireLogging && last+2<framed.NormalizedTail.Length)WebFragment(framed.NormalizedTail[(last+2)..]);
         string[] rows=framed.NormalizedTail[..last].Split("\r\n",StringSplitOptions.None);
         int Marker(string marker,bool prefix=false)
         {
@@ -223,6 +246,18 @@ public static partial class QemuTranscripts
                 r.StartsWith("M10_006_",StringComparison.Ordinal) &&
                 !r.StartsWith("M10_006_STARTUP ",StringComparison.Ordinal) && !r.StartsWith("M10_006_BIND ",StringComparison.Ordinal)),
             "web_startup_order");
+        int logStart=-1,logSummary=-1,logReady=-1,logPass=-1;
+        Dictionary<string,ulong>? logRow=null;
+        if(requireLogging)
+        {
+            Need(!rows.Any(r=>r.StartsWith("OS_SMOKE_FAIL",StringComparison.Ordinal)),"web_logging_failure");
+            Need(rows.Where(WebLoggingRow).All(r=>r is "TEST_START m10.005" or "CLROS_M10_005_READY" or "TEST_PASS m10.005" ||
+                r.StartsWith("M10_005_LOGS ",StringComparison.Ordinal)),"web_logging_unknown_marker");
+            logStart=Marker("TEST_START m10.005");logSummary=Marker("M10_005_LOGS ",true);
+            logReady=Marker("CLROS_M10_005_READY");logPass=Marker("TEST_PASS m10.005");
+            Need(logStart>pass && logSummary>logStart && logReady==logSummary+1 && logPass==logReady+1,"web_logging_order");
+            logRow=ReadRecord(rows[logSummary],"M10_005_LOGS","stdout:dec","stderr:dec","writers:dec","writev:dec","invalidErrno:dec");
+        }
         var startupRow=ReadRecord(rows[startup],"M10_006_STARTUP","writer:dec","stages:dec");
         var bindRow=ReadRecord(rows[bind],"M10_006_BIND","identity:dec","fd:dec");
         int listen=Marker("M10_004_LISTEN ",true);
@@ -232,11 +267,14 @@ public static partial class QemuTranscripts
         var waits=ReadLinuxCallWaits(rows,allowEpoll:true).ToDictionary(c=>c.RecordIndex);
         var returns=ReadLinuxCallReturns(rows,allowEpoll:true).ToDictionary(c=>c.RecordIndex);
         string[] calls=ValidateLinuxCallOrdinals(rows,allowEpoll:true);
-        byte[] stderr=Encoding.UTF8.GetBytes(framed.Stderr);
+        byte[] stdout=Encoding.UTF8.GetBytes(framed.Stdout),stderr=Encoding.UTF8.GetBytes(framed.Stderr);
         var observed=new LinuxAppStartupObservation();
-        List<(int Offset,int Bytes,int Row)> pendingParts=[];
-        int writes=0,stderrOffset=0,pending=0,firstWrite=-1,completedWrite=-1,completedCall=-1,bindCall=-1,prefixWrites=0;
+        var logs=new LinuxAppLogObservation();
+        List<(uint Fd,int Offset,int Bytes,int Row)> pendingParts=[];
+        int writes=0,stdoutOffset=0,stderrOffset=0,pending=0,firstWrite=-1,completedWrite=-1,completedCall=-1,bindCall=-1,prefixWrites=0;
+        int firstLogWrite=-1,firstLogCall=-1,completeLogCall=-1;
         uint channel=0;ulong boundFd=0;
+        fixed(byte* outputSource=stdout)
         fixed(byte* source=stderr)
         for(int i=0;i<rows.Length;i++)
         {
@@ -250,7 +288,12 @@ public static partial class QemuTranscripts
                 {
                     Need(stderrOffset<=stderr.Length-bytes,"web_startup_bytes");
                     if(firstWrite<0)firstWrite=i;
-                    pendingParts.Add((stderrOffset,bytes,i));stderrOffset+=bytes;
+                    pendingParts.Add((fd,stderrOffset,bytes,i));stderrOffset+=bytes;
+                }
+                else
+                {
+                    Need(fd==1 && stdoutOffset<=stdout.Length-bytes,"web_startup_bytes");
+                    pendingParts.Add((fd,stdoutOffset,bytes,i));stdoutOffset+=bytes;
                 }
             }
             if(waits.TryGetValue(i,out var wait))
@@ -260,15 +303,38 @@ public static partial class QemuTranscripts
                 bool output=call["nr"] is 1 or 20 && call["a0"] is 1 or 2 && unchecked((long)call["valueBits"])>0;
                 Need(pending==0?!output:output && call["a0"]==channel && call["valueBits"]==(ulong)pending &&
                     call["action"]==1 && call["status"]==1,"web_startup_write_call");
+                if(requireLogging && output)Need(call["nr"]==1?
+                    call["a2"] is >0 and <=LinuxDescriptorServices.MaximumIo && call["valueBits"]<=call["a2"]:
+                    call["a2"] is >0 and <=LinuxDescriptorServices.MaximumVectors,"web_logging_write_request");
                 foreach(var part in pendingParts)
                 {
-                    bool wasComplete=observed.StartupComplete;
-                    Need(observed.Observe(wait.Identity,source+part.Offset,(uint)part.Bytes),"web_startup_prefix");
-                    if(!wasComplete)
+                    byte* bytes=(part.Fd==1?outputSource:source)+part.Offset;
+                    if(part.Fd==2)
                     {
-                        prefixWrites++;
-                        if(observed.StartupComplete){completedWrite=part.Row;completedCall=i;}
+                        bool wasComplete=observed.StartupComplete;
+                        Need(observed.Observe(wait.Identity,bytes,(uint)part.Bytes),"web_startup_prefix");
+                        if(!wasComplete)
+                        {
+                            prefixWrites++;
+                            if(observed.StartupComplete){completedWrite=part.Row;completedCall=i;}
+                        }
                     }
+                    if(requireLogging)
+                    {
+                        uint before=logs.StdoutRecords+logs.StderrRecords;
+                        Need(logs.Observe(part.Fd,wait.Identity,bytes,(uint)part.Bytes),"web_logging_bytes");
+                        if(firstLogWrite<0 && logs.StdoutRecords+logs.StderrRecords>before)
+                        { firstLogWrite=part.Row;firstLogCall=i; }
+                    }
+                }
+                if(requireLogging)
+                {
+                    if(call["nr"]==20 && call["a0"]==1234)Need(call["status"]==1 && call["a2"]==1,"web_logging_invalid_call");
+                    bool wasComplete=logs.Complete;uint vectors=logs.WritevRecords;
+                    Need(logs.RecordCall(wait.Identity,new LinuxSyscallFrame { Number=call["nr"],Argument0=call["a0"] },
+                        new((LinuxSyscallAction)call["action"],unchecked((long)call["valueBits"]))),"web_logging_call");
+                    if(logs.WritevRecords!=vectors)Need(call["a2"]==2,"web_logging_vector_count");
+                    if(!wasComplete && logs.Complete)completeLogCall=i;
                 }
                 pendingParts.Clear();pending=0;
                 if(call["nr"]==49)
@@ -279,11 +345,20 @@ public static partial class QemuTranscripts
             }
             if(i==ready)Need(observed.StartupComplete && observed.SuccessfulBind,"web_startup_live");
         }
-        Need(pending==0 && writes==framed.WriteLengths.Count && stderrOffset==stderr.Length &&
+        Need(pending==0 && writes==framed.WriteLengths.Count && stdoutOffset==stdout.Length && stderrOffset==stderr.Length &&
             observed.SuccessfulBind && start<firstWrite && startup==completedWrite+1 && completedCall>startup &&
             bind>completedCall && bindCall==bind+1 && listen>bindCall && listen<ready && listener["fd"]==boundFd && startupRow["stages"]==4 &&
             startupRow["writer"]==observed.WriterIdentity && bindRow["identity"]==observed.BindIdentity &&
             bindRow["fd"]==boundFd,"web_startup_join");
+        if(requireLogging)
+        {
+            var totals=logRow!;
+            Need(logs.Complete && firstLogWrite>pass && logStart==firstLogWrite+1 && firstLogCall>logStart &&
+                completeLogCall==logPass+1 && logSummary==completeLogCall-3 && totals["stdout"]==logs.StdoutRecords &&
+                totals["stderr"]==logs.StderrRecords && totals["writers"]==8 && totals["writev"]==logs.WritevRecords &&
+                totals["invalidErrno"]==9,"web_logging_join");
+            logging=new(logs.StdoutRecords,logs.StderrRecords,8,logs.WritevRecords,9);
+        }
         return new(observed.WriterIdentity,observed.BindIdentity,prefixWrites);
     }
 

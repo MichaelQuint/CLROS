@@ -34,6 +34,17 @@ public static unsafe partial class EfiEntry
             { LinuxText(state, "TEST_FAIL m10.006 startup-observation\r\n"); return false; }
             if (!c->WebLogs.RecordCall(c->Threads.Current.Value, call, result))
             { LinuxText(state, "TEST_FAIL m10.005 log-observation\r\n"); return false; }
+            if (c->WebLogs.Complete && (c->WebFlags & 64) == 0)
+            {
+                if ((c->WebFlags & 48) != 48 || c->Failed != 0 || c->Stopping != 0 ||
+                    c->Process.Failed || state->LinuxSyscallFailed != 0 || state->LinuxSyscallFaults != 0)
+                { LinuxText(state, "TEST_FAIL m10.005 log-lifetime\r\n"); return false; }
+                if (!LinuxText(state, "M10_005_LOGS stdout=") || !LinuxNumber(state, c->WebLogs.StdoutRecords) ||
+                    !LinuxText(state, " stderr=") || !LinuxNumber(state, c->WebLogs.StderrRecords) ||
+                    !LinuxText(state, " writers=8 writev=") || !LinuxNumber(state, c->WebLogs.WritevRecords) ||
+                    !LinuxText(state, " invalidErrno=9\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n")) return false;
+                c->WebFlags |= 64;
+            }
             if (result.Action == LinuxSyscallAction.Return && result.Value == -12 && call.Number is 9 or 10 or 11 or 12 or 28)
             {
                 // Snapshot only committed owner counters after an atomic errno
@@ -107,6 +118,11 @@ public static unsafe partial class EfiEntry
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || source == null || bytes == 0 || bytes > 8192) return false;
             if (!c->WebLogs.Observe(channel, c->Threads.Current.Value, source, bytes)) return false;
+            if ((c->WebFlags & 32) == 0 && c->WebLogs.StdoutRecords + c->WebLogs.StderrRecords != 0)
+            {
+                if (!LinuxText(state, "TEST_START m10.005\r\n")) return false;
+                c->WebFlags |= 32;
+            }
             if (channel == 2)
             {
                 bool wasComplete = c->WebStartup.StartupComplete;
