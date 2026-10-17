@@ -6,6 +6,21 @@ internal static class NativeAotWebPacketTests
 {
     private const string Body="SELECTED",Config="{\"value\":\"SELECTED\"}";
     private const string LogBody="CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
+
+    [HostTest("web transport requires all five distinct HTTP lifetimes while retaining live state")]
+    private static void Lifetimes()
+    {
+        string Row(int i)=>$"M16_011_SLOT event=0 slot={i} owner=8192 epoch=1 generation=1 index={i} local=167772687 localPort=8080 remote=167772674 remotePort={30000+i} clock={i+1} deadline=0 duration=0";
+        string[] rows=Enumerable.Range(0,5).Select(Row).ToArray();
+        var report=QemuTranscripts.InspectSocketTransportForTests(rows,continuingWeb:true);
+        HostCheck.True(report.Fresh==5 && report.Retired==0 && report.TimeWaitLifetimes==0);
+        foreach(var invalid in new[]{rows[..2],rows[..4],rows.Append(Row(5)).ToArray(),
+            rows.Select(x=>x.Replace("remotePort=30004","remotePort=30000",StringComparison.Ordinal)).ToArray()})
+        {
+            bool rejected=false;try{QemuTranscripts.InspectSocketTransportForTests(invalid,continuingWeb:true);}catch(ToolFailure error){rejected=error.Message=="socket_transport_complete";}
+            HostCheck.True(rejected);
+        }
+    }
     private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Vector(bool finalAck=false,bool clientHalfClose=false,string mutation="none",bool quota=false)
     {
         var original=NativeAotSocketIntegrationTests.Packets();var frames=original.Frames.Take(8).ToList();

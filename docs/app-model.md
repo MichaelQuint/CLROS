@@ -1055,6 +1055,14 @@ app-native review are recorded separately. Current-source full-host and
 logging/quota/startup guest qualification remain pending; #218/#737 and PR740
 remain open.
 
+[Step1387](../done/step1387.md) records five passing probes in the rebuilt
+guest, followed by strict-consumer rejection. Replay now uses the admitted
+ELF size, joins writev output/table access and invalid-fd results, and admits
+output EIO only for a prevalidated quota package. Transport requires all five
+distinct HTTP lifetimes. Offline original parent/2,094-call replay and packet
+joins pass; the original strict command remains failed. Fresh strict guest
+batch and current-source full-host qualification remain pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

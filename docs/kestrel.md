@@ -51,6 +51,13 @@ the rebuilt payload has a separately checked complete decoder index and bounded
 native review. This is development evidence. Current-source full-host and
 logging/quota/startup guest acceptance remain pending.
 
+[Step1387](../done/step1387.md) retains the rebuilt guest's five passing HTTP
+probes and corrects stale strict-consumer assumptions: admitted ELF length,
+writev output/invalid-fd replay and five distinct HTTP connection lifetimes.
+Only a prevalidated quota package can replay output EIO. Offline original
+parent/2,094-call replay and packet joins pass; the original command remains
+failed. Fresh strict guest batch and full-host acceptance remain pending.
+
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
 separate 8081 environment value and immutable settings. The owned QEMU process

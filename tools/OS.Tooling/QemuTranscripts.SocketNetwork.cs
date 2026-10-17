@@ -27,10 +27,11 @@ public static partial class QemuTranscripts
     /// <summary>Check original handle/tuple lifetimes and actual TIME-WAIT
     /// deadline retention in supplied rows. Inputs are borrowed; malformed,
     /// stale, duplicate, early or incomplete releases throw. Parent and wire
-    /// evidence are deliberately outside this synthetic inspection seam.</summary>
-    public static SocketTransportInspection InspectSocketTransportForTests(string[] rows)
+    /// evidence are deliberately outside this synthetic inspection seam.
+    /// Continuing web requires five distinct lifetimes and retains live state.</summary>
+    public static SocketTransportInspection InspectSocketTransportForTests(string[] rows,bool continuingWeb=false)
     {
-        var result=SocketLifetimes(rows);return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
+        var result=SocketLifetimes(rows,continuingWeb);return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
     private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false)
     {
@@ -66,7 +67,7 @@ public static partial class QemuTranscripts
                 lifetime!.MaximumDeadline=r["deadline"];lifetime.Waits++;lifetime.Drain=r["drain"]==1;
             }
         }
-        Need(continuingWeb?all.Count==2 && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==2:
+        Need(continuingWeb?all.Count==5 && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==5:
             all.Count==4 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Any(v=>v.Waits!=0),"socket_transport_complete");return all;
     }
 

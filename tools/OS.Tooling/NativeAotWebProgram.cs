@@ -12,7 +12,7 @@ namespace OS.Tooling;
 public sealed class NativeAotWebProgram
 {
     internal const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    private const int ElfBytes = 8_746_056;
+    internal const int ElfBytes = 8_746_056;
     private const string ElfSha256 = "1F231C5ACBE23B0712EA514EF8410DD2F2E6CF7DAC604C82569FC1BB2D44A0E0";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }

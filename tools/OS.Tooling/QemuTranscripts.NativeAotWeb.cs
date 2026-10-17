@@ -102,7 +102,8 @@ public static partial class QemuTranscripts
         var config=ReadRecord(original.Single(r=>r.StartsWith("M10_004_CONFIG ",StringComparison.Ordinal))[..^suffix.Length],"M10_004_CONFIG","fd:dec","bytes:dec");
         var view=OS.Manifest.LinuxElfPackage.Validate(package);
         return ReplayWeb(framed,observed,package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
-            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]),loggingValidated:true);
+            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]),
+            loggingValidated:true,logQuota:configuration.LogQuota);
     }
 
     /// <summary>Value-only synthetic control seam for the same continuing
@@ -123,7 +124,7 @@ public static partial class QemuTranscripts
     }
 
     private static WebReplayReport ReplayWeb(NativeAotThreadingOutput.Capture framed,WebObservationReport observed,byte[] elf,
-        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,bool loggingValidated=false)
+        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,bool loggingValidated=false,bool logQuota=false)
     {
         string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-observed.TrailingFragment.Length)];
         string[] original=complete[..^2].Split("\r\n",StringSplitOptions.None);
@@ -141,7 +142,7 @@ public static partial class QemuTranscripts
         observed=observed with { PendingEpollWaits=capture.PendingWaits };
         return new ThreadingProtocol("MinimalApiSmoke",Rows(capture.Output),elf,instruction,syscall,capture.Output.WriteLengths,
             userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
-            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal)).ValidateWeb(observed);
+            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal),webLogQuota:loggingValidated && logQuota).ValidateWeb(observed);
     }
 
     private sealed partial class ThreadingProtocol
