@@ -906,8 +906,10 @@ Only the pinned `linux-musl-x64` publish directly imports libc `writev`; the
 generic three-app publisher and historical recipe are unchanged. This is a
 diagnostic for the restricted Linux application profile, not a new portable
 app ABI. The host qualifier does not invoke or qualify CLROS log-quota
-exhaustion. Current guest source admission still rejects a changed app until
-its newly measured ELF and exact source pins are reviewed together.
+exhaustion. The revised app passes the immutable Linux recipe; its newly
+measured ELF and exact source pins are joined to an independently reviewed
+complete instruction index. Current admission pins that one revision. Package
+preparation, original native review and a stable guest batch remain pending.
 
 The startup follow-up adds `LinuxAppStartupObservation` to the web
 owner. It matches the four initial stderr lines across copied fragments from
