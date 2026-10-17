@@ -123,6 +123,12 @@ inventory/profile/source-pin repairs pass75 focused checks. The next complete
 fast phase finds three later descendant-matrix omissions and blocks native work;
 those test-only repairs pass20 focused checks. A fresh combined full-host/current
 guest gate is still required before #217 acceptance.
+The r05 full-host run then passes5,482 checks across720 fixtures. Its first
+qualification QEMU exits before executing guest code because the retained
+read-only image handle conflicts with QEMU's writable AHCI disk open. The
+continuing-web runner now uses a temporary snapshot overlay, preserving the
+locked, byte-verified base image. Six focused runner checks and paused QEMU
+launch controls pass; fresh combined qualification remains pending.
 
 ## Transport decision experiments
 
