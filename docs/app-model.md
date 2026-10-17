@@ -893,6 +893,22 @@ authority/scratch/length checks and descriptor partial/error behavior. Eleven
 focused source/inventory/legacy checks pass. Native and real guest stdout/stderr,
 concurrency and quota qualification remain pending; #218 is not complete.
 
+The next web recipe uses the distinct `clros.nativeaot.web.v2` receipt. It
+requires real entry, static-constructor, instance-constructor and built-app
+stderr observations, followed by the one-shot `POST /__clros/logexercise`.
+Eight owned threads each write four stdout lines and four stderr vectors; the
+Linux trace must show eight distinct native writers, exact returned lengths
+and one `writev(1234)` returning `EBADF`. Repetition returns HTTP 409, and health
+must still succeed. Constructor markers alone grant no listener or guest
+startup readiness. The explicit diagnostic returns HTTP 501 outside Linux;
+ordinary configuration and HTTP endpoints retain their portable behavior.
+Only the pinned `linux-musl-x64` publish directly imports libc `writev`; the
+generic three-app publisher and historical recipe are unchanged. This is a
+diagnostic for the restricted Linux application profile, not a new portable
+app ABI. The host qualifier does not invoke or qualify CLROS log-quota
+exhaustion. Current guest source admission still rejects a changed app until
+its newly measured ELF and exact source pins are reviewed together.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
