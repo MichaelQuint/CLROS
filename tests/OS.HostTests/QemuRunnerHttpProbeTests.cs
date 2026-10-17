@@ -228,6 +228,7 @@ internal static class QemuRunnerHttpProbeTests
             !accepted.Output.Contains("TEST_PASS m10.004", StringComparison.Ordinal) ||
             !accepted.Output.Contains("OS_SMOKE_PASS", StringComparison.Ordinal) ||
             !accepted.Output.Contains("hostfwd=tcp:127.0.0.1:20080-:8080", StringComparison.Ordinal) ||
+            !accepted.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=", StringComparison.Ordinal) ||
             accepted.Output.Contains("selected", StringComparison.Ordinal)) return false;
         bool Reject(string key, string? value = null, bool remove = false)
         {
