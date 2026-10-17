@@ -1022,6 +1022,18 @@ four focused input checks precede r03. These are host and ancestor regressions,
 not logging/quota/startup guest acceptance. The required current original Linux
 logging package/owner receipt remains absent; #218/#737 and PR740 stay open.
 
+[Step1384](../done/step1384.md) reviews the already-retained Linux ELF from
+producer `8c1cd1b9`, whose seven application/build inputs still match current
+raw bytes. All 152 retained outputs match their receipt. Eight application and
+generated-interop bodies (3,167 bytes), with eight bounded linked native helper
+extents, show no concrete defect within that scope. Both retained Linux host
+trace sets put entry/static-constructor/constructor/built markers before
+bind/listen and retain 64 successful worker records, 32 `writev` calls, expected
+`EBADF`, logging200, duplicate409 and subsequent health200. This is inspection of
+older retained host evidence. Hydrated string data, transitive stacks, external
+runtime/GC/EH behavior and original absolute native-input admission remain
+outside the review; it supplies no current package authority or guest acceptance.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

@@ -30,6 +30,11 @@ A normal post-commit rebuild fixes that input mismatch without relaxing guards.
 The current original Linux logging package/owner receipt and actual logging,
 quota and startup guests remain pending; PR740 and #218/#737 stay open.
 
+[Step1384](../done/step1384.md) adds a bounded review of eight bodies in the
+older retained Linux ELF and both host logging traces. No concrete defect was
+found within that scope; current original package authority and logging/startup
+guest qualification remain pending. See the [app-model ledger](app-model.md).
+
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
 separate 8081 environment value and immutable settings. The owned QEMU process
