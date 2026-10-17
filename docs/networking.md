@@ -39,6 +39,11 @@ app and its original package/source authority remain unchanged.
 The raw peer now handles the exact owned boot anchor and both ARP exchanges
 before TCP. Eight final focused peer/stdout checks pass; strict stdout values
 alone do not establish package, syscall, scheduler or packet authority.
+[Step1371](../done/step1371.md) adds exact transport lifetime/drop/timeout joins
+and a source-checked Linux publication command for that separate app. All15
+focused controls pass; original publication and complete guest joins remain
+pending at the source checkpoint. The final-FIN ordering fix still requires the
+real closing scenario. No accepted socket/runtime evidence is broadened.
 
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection

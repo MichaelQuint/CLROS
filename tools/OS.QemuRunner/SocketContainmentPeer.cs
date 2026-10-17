@@ -28,7 +28,7 @@ public sealed class SocketContainmentPeer : IDisposable
         internal readonly ushort Port = (ushort)(41000 + role);
         internal readonly uint InitialNext = (uint)(10001 + role * 10000);
         internal uint LocalNext = (uint)(10001 + role * 10000), GuestNext, GuestStart;
-        internal bool Responded;
+        internal bool Responded, FinSeen;
         internal int LastRound = -1;
     }
 
@@ -85,6 +85,15 @@ public sealed class SocketContainmentPeer : IDisposable
             if (packet.Flags == 0x12 && packet.Sequence == unchecked(peer.GuestStart - 1) &&
                 packet.Acknowledgement == peer.InitialNext && packet.Payload.Length == 0)
             {
+                await SendAsync(peer, 0x10).ConfigureAwait(false); continue;
+            }
+            if (packet.Flags == 0x11 && packet.Port != 41000 && peer.LastRound == 14 && packet.Payload.Length == 0 &&
+                packet.Acknowledgement == peer.LocalNext && packet.Sequence == unchecked(peer.GuestNext - (peer.FinSeen ? 1U : 0U)))
+            {
+                // The app can dispose one healthy socket after its last send
+                // while the other final response is still in transit. ACK only
+                // that exact final FIN; reset both peers after the case joins.
+                if (!peer.FinSeen) { peer.GuestNext++; peer.FinSeen = true; }
                 await SendAsync(peer, 0x10).ConfigureAwait(false); continue;
             }
             if (packet.Acknowledgement < peer.InitialNext || packet.Acknowledgement > peer.LocalNext || packet.Flags is not (0x10 or 0x18))

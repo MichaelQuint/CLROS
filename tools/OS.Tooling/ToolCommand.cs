@@ -138,6 +138,8 @@ public static class ToolCommand
             {NativeAotSocketPeer.RunReceiveGatedPeerAsync(Repository.FindRoot(),peerPortNumber,peerSerial,Console.Out).GetAwaiter().GetResult();return 0;}
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket")
                 return NativeAotSocketPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-containment")
+                return NativeAotSocketContainmentPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "web")
                 return NativeAotWebPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "threading")
