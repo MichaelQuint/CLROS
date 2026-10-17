@@ -163,6 +163,9 @@ public static unsafe partial class EfiEntry
             internal uint LinuxDescriptorPhase;
             internal LinuxDescriptorServices.State LinuxDescriptors;
 #endif
+#if M10_004_PROBE
+            internal LinuxAppLogBudget LinuxLogBudget;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
 #endif
@@ -1737,6 +1740,9 @@ public static unsafe partial class EfiEntry
 #endif
                 FirmwareExited = true, SingleOwnerValidated = true, SigpipeIgnored = true
             };
+#if M10_004_PROBE
+            if (!state->LinuxLogBudget.Initialize(1024 * 1024, 4096)) return false;
+#endif
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
             return LinuxText(state, "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
@@ -1795,8 +1801,13 @@ public static unsafe partial class EfiEntry
         {
             Storage* state = (Storage*)context;
             if (!LinuxSyscallAuthority(state) || state->LinuxDescriptorPhase != 4 || (channel != 1 && channel != 2) ||
-                source != (byte*)(state->LinuxDescriptorArena + LinuxDescriptorScratch) || bytes == 0 || bytes > 8192 ||
-                !LinuxText(state, "M16_005_WRITE fd=") || !LinuxNumber(state, channel) || !LinuxText(state, " bytes=") ||
+                source != (byte*)(state->LinuxDescriptorArena + LinuxDescriptorScratch) || bytes == 0 || bytes > 8192) return 0;
+#if M10_004_PROBE
+            // The shared syscall gate serializes all writers. Charge before any
+            // serial side effect; a partial/failed sink never refunds its quota.
+            if (state->LinuxLogBudget.Charge(channel, bytes) != LinuxAppLogBudget.ChargeStatus.Accepted) return 0;
+#endif
+            if (!LinuxText(state, "M16_005_WRITE fd=") || !LinuxNumber(state, channel) || !LinuxText(state, " bytes=") ||
                 !LinuxNumber(state, bytes) || !LinuxText(state, " data=")) return 0;
             for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
             if (!LinuxText(state, "\r\n")) return 0;

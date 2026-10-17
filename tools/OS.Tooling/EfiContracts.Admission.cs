@@ -27,6 +27,7 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadRun.cs", @"Boot\EfiEntry.LinuxThreadTimer.cs",
         @"Boot\EfiEntry.LinuxSockets.cs",
         @"Boot\EfiEntry.LinuxWeb.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs",
