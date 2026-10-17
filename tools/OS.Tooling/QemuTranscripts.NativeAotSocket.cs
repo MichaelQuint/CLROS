@@ -43,9 +43,9 @@ public static partial class QemuTranscripts
         internal readonly bool Port=port;
         internal uint Flags=flags;
         internal int Phase; // 0 created, 1 bound, 2 listening, 3 accepted.
-        internal int Connection=-1,Eof,Reset;
+        internal int Connection=-1,Eof,Reset,TimedOut,ShutdownErrors;
         internal ulong Sent,Received;
-        internal bool WriteClosed,StatusUnknown;
+        internal bool WriteClosed,StatusUnknown,SendBlocked;
         internal readonly Dictionary<int,SocketDescriptor> Watches=[];
     }
 
@@ -58,6 +58,7 @@ public static partial class QemuTranscripts
         private RuntimeThread? socketSelected;
         private bool socketIdleAllowed;
         private ulong socketSent,socketReceived;
+        private bool containmentTimeoutObserved,containmentDropObserved;
 
         private void SocketObservations(bool supervisor=false)
         {
@@ -96,6 +97,20 @@ public static partial class QemuTranscripts
         private void SocketTransportObservations()
         {
             if(!socket)return;
+            if(containment)
+            {
+                while(position<rows.Length && (rows[position].StartsWith("M16_011_SLOT ",StringComparison.Ordinal) ||
+                    rows[position].StartsWith("M07_027_TIMEOUT ",StringComparison.Ordinal) || rows[position].StartsWith("M07_028_DROP ",StringComparison.Ordinal)))
+                {
+                    // The mandatory containment capture already validates all
+                    // exact fields, identities, clocks and ordering. Consume
+                    // only those rows, at their original scheduler positions.
+                    string row=Take();
+                    if(row.StartsWith("M07_027_TIMEOUT ",StringComparison.Ordinal))containmentTimeoutObserved=true;
+                    if(row.StartsWith("M07_028_DROP ",StringComparison.Ordinal))containmentDropObserved=true;
+                }
+                return;
+            }
             while(position<rows.Length && IsSocketTransport(rows[position]))
             {
                 var r=SocketTransport(Take());Need(r["clock"]<=long.MaxValue,"socket_transport_clock");
@@ -141,9 +156,13 @@ public static partial class QemuTranscripts
             Need(socketDescriptors.Remove(fd,out var value) && files.Remove(fd),"socket_close_owner");
             if(value!.Phase==3)
             {
-                int i=value.Connection;
-                Need(value.Received==(i==1?1UL:20UL) && value.Sent==(i==0?65536UL:i==1?0UL:18UL) &&
-                    value.Eof==(i>=2?1:0) && value.Reset==(i==1?1:0) && value.WriteClosed==(i>=2),"socket_connection_io");
+                if(containment)ContainmentClose(value);
+                else
+                {
+                    int i=value.Connection;
+                    Need(value.Received==(i==1?1UL:20UL) && value.Sent==(i==0?65536UL:i==1?0UL:18UL) &&
+                        value.Eof==(i>=2?1:0) && value.Reset==(i==1?1:0) && value.WriteClosed==(i>=2),"socket_connection_io");
+                }
             }
             foreach(var port in socketDescriptions.Where(d=>d.Port))
                 foreach(int target in port.Watches.Where(pair=>pair.Value==value).Select(pair=>pair.Key).ToArray())port.Watches.Remove(target);
@@ -259,15 +278,17 @@ public static partial class QemuTranscripts
             {
                 case 49:
                     Need(descriptor.Phase==0 && c==16 && memory.Covered(b,16,1) && v==0,"socket_bind");descriptor.Phase=1;break;
-                case 50:Need(descriptor.Phase is 1 or 2 && b==4 && v==0,"socket_listen");descriptor.Phase=2;break;
+                case 50:Need(descriptor.Phase is 1 or 2 && b==(containment?3UL:4UL) && v==0,"socket_listen");descriptor.Phase=2;break;
                 case 43:case 288:
                     Need(descriptor.Phase==2 && (b==0 || memory.Covered(b,16,3) && memory.Covered(c,4,3)) &&
                         (nr==43 || (d&~0x80800UL)==0),"socket_accept_arguments");
                     if(result==-11)break;
+                    Need(!containment || socketAccepts<3,"socket_containment_accept_bound");
                     SocketInstall(v,false,nr==288?(uint)d:0,3);socketDescriptors[(int)v].Connection=socketAccepts++;break;
                 case 44:case 45:
                     Need(descriptor.Phase==3 && c is >0 and <=65536 && e==0 && f==0 &&
                         (d&~(nr==44?0x4040UL:0x40UL))==0 && memory.Covered(b,nr==44?Math.Min(c,8192):c,nr==44?1U:3U),"socket_io_arguments");
+                    if(containment){ContainmentIo(descriptor,nr,c,result);break;}
                     Need(result is -11 or -104 or -32 || result>=0 && result<=(long)Math.Min(c,8192),"socket_io_result");
                     if(result>0)
                     {
@@ -277,7 +298,7 @@ public static partial class QemuTranscripts
                     if(nr==45 && result==0)descriptor.Eof++;
                     if(result==-104)descriptor.Reset++;
                     break;
-                case 48:Need(descriptor.Phase==3 && b==1 && v==0,"socket_shutdown");descriptor.WriteClosed=true;break;
+                case 48:Need(!containment && descriptor.Phase==3 && b==1 && v==0,"socket_shutdown");descriptor.WriteClosed=true;break;
                 case 54:
                     Need(memory.Covered(d,e,1) && (e==4 && (b==1 && c is 2 or 7 || b==6 && c==1) && v==0 ||
                         b==1 && c==13 && e==8 && result==-22),"socket_option");break;
@@ -288,7 +309,10 @@ public static partial class QemuTranscripts
 
         private void SocketFinish()
         {
-            Need(socketAccepts==4 && socketSent==65572 && socketReceived==61 && clones>=2 &&
+            if(containment)
+                Need(socketAccepts==3 && socketSent==containmentCapture!.Application.Queued+30 && socketReceived==33 && clones>=2 &&
+                    containmentTimeoutObserved && containmentDropObserved,"socket_containment_workload_lifetimes");
+            else Need(socketAccepts==4 && socketSent==65572 && socketReceived==61 && clones>=2 &&
                 (app!="NativeAotSocketSmokeAsync" || socketBlocks>0 && socketResumes>0),"socket_workload_lifetimes");
             foreach(int fd in Enumerable.Range(0,16).Where(fd=>fd<3 || files.Contains(fd) || fd==pipeRead || fd==pipeWrite).ToArray())
             {

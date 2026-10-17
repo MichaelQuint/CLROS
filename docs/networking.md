@@ -65,6 +65,15 @@ the private IPv4/TCP envelope decoder. These are value-only host consumers;
 full syscall/descriptor/scheduler and parent/peer joins remain required before
 the separate guest case can be accepted.
 
+[Step1375](../done/step1375.md) adds that separate full leaf replay: three
+descriptor lifetimes, queued-byte/stdout agreement, one peer-local ETIMEDOUT,
+then EOF and EPIPE, and both healthy16-byte receive/15-byte send streams. The
+pinned Unix runtime maps EPIPE to the app's managed SocketError.Shutdown.
+Existing scheduler, signal, wait-generation, syscall-return and off-stack reap
+checks apply. All65 focused socket/threading checks pass. Parent/NIC/PCAP/peer
+joins, high-level profile selection, guarded-stack integration and stable
+native/full-host/guest qualification remain pending; no issue is accepted.
+
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
   into shared `TransportFailure`. A host reproduction retained two connections

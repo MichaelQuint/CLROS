@@ -159,7 +159,8 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket;
+        private readonly bool broader,socket,containment;
+        private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint entropyLimit;
         private readonly RuntimePhases? phases;
         private LinuxThreadExecutionBudget budget;
@@ -178,10 +179,12 @@ public static partial class QemuTranscripts
         private static readonly string[] Fields="identity nr a0 a1 a2 a3 a4 a5 rip rsp flags fs gs clock valueBits action status".Split(' ').Select(k=>k+":dec").ToArray();
 
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
-            IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null)
+            IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,
+            NativeAotSocketGuest.Capture? socketCapture=null,NativeAotSocketContainmentGuest.Capture? containmentCapture=null)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
-            socket=app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            containment=app==NativeAotSocketContainmentPublisher.Application;
+            socket=containment || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
             Need(rows is not null && rows.Length is >=25 and <=100000 && instruction is not null && syscall is not null &&
                 lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n is >0 and <=4096) && lengths.Sum()<=4096,"threading_protocol_input");
@@ -191,8 +194,9 @@ public static partial class QemuTranscripts
             returns=ReadLinuxCallReturns(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
             this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=broader||socket?256U:32U;
-            Need(socket==(socketCapture is not null),"socket_protocol_capture");
-            if(socket)socketObservations=socketCapture!.Readiness.ToDictionary(x=>x.RecordIndex);
+            Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
+            this.containmentCapture=containmentCapture;
+            if(socket)socketObservations=(containment?containmentCapture!.Scheduling:socketCapture!).Readiness.ToDictionary(x=>x.RecordIndex);
             if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!,hpetFrequencyHz);}
             else Need(stdout is null,"threading_unexpected_stdout");
             slots=new RuntimeThread?[capacity]; generations=Enumerable.Repeat(1UL,capacity).ToArray();
@@ -209,7 +213,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
-            int bytes=socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=containment?NativeAotSocketContainmentPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
