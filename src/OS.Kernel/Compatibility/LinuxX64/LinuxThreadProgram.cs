@@ -22,17 +22,26 @@ public static unsafe class LinuxThreadProgram
 
     // One retained native pool: RX program, supervisor RW/NX metadata, guarded
     // 16-page switch stack, sixteen guarded worker stacks (four data pages,
-    // sixteen for the continuing web profile), guarded
+    // eight for async sockets, sixteen for continuing web), guarded
     // four-page IRQ stack and private IDT. The owner publishes/restores leaves;
     // these offsets alone grant no mappings, executable authority or lifetime.
     public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 28;
     public const uint SwitchGuardPage = MetadataPage + MetadataPages, SwitchPages = 18;
     public const uint WorkerPage = SwitchGuardPage + SwitchPages;
+    /// <summary>Async socket worker extent including its two unmapped guards.
+    /// This is a fixed pool layout, not stack publication or execution authority.</summary>
+    public const uint AsyncWorkerPages = 10;
 #if M10_004_PROBE
     // The web interval and mapping scratch arrays enlarge the measured native
     // Protect/Apply/table-admission chain. Sixteen data pages retain margin;
     // both unmapped guards and every derived worker/IRQ/pool bound stay in force.
     public const uint WorkerPages = 18;
+#elif M16_012_PROBE
+    // Async completion retains epoll/copy callbacks around the memory audit.
+    // Its original native Admit/Encode call exhausted a four-page worker.
+    // Eight data pages keep that bounded callback path between both guards;
+    // the switch/IRQ stacks and other profiles retain their existing bounds.
+    public const uint WorkerPages = AsyncWorkerPages;
 #else
     public const uint WorkerPages = 6;
 #endif

@@ -1,5 +1,15 @@
 # App Model
 
+[Step1372](../done/step1372.md) records a failed fresh socket-async ancestor
+in the configuration batch: a supervisor call pushes into worker3's lower
+guard. Original native memory-admission frames and the epoll completion route
+are retained; the full outer stack is not reconstructed. The development repair
+gives only M16-012 eight usable worker pages between its two guards, with a
+226-page pool and matching transcript extent checks. Ordinary workers retain
+four usable pages; continuing web retains sixteen. Twenty focused checks and
+scoped original native geometry/frame joins pass. A targeted guest and fresh
+stable-batch validation remain pending; this repair is not accepted completion.
+
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
 thread/runtime batch and shared #733: 5,202 full-host checks, 44 strict captures
 across 32 profiles, three retained strict GC repetitions and 24 fresh ancestors.
