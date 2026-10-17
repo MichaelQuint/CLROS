@@ -2,6 +2,23 @@
 
 ## NativeAOT-first milestone
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+The three qualified web captures return exact selected 22-byte health and
+238-byte configuration bodies. CLI binds 8080 while configuration observes the
+separate 8081 environment value and immutable settings. The owned QEMU process
+survives both probes, then dies with its endpoint refused. This is the M10-004
+configuration slice; default-body, realtime/HTTP Date, repeated service, vectors,
+async/cancellation/shutdown and local Gate 14 acceptance remain pending.
+
 [Step1335](../done/step1335.md) records fresh #214/#215 builder evidence under shared
 integration [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). The existing
 three-app publisher is retained byte-for-byte: the accepted original runtime
@@ -24,8 +41,9 @@ M16-001/#679 through M16-007/#685 and the bounded scheduler/timer foundations
 have historical qualification. The .NET11 migration, #188 lifecycle and
 #191/#192 through #688 finite runtime batch are qualified in steps1225/1230/1307.
 Step1332 qualifies continuing network/TCP; step1351 qualifies the original finite
-socket/SocketAsyncEngine fixtures for #689/#690. Continue owned #217 configuration,
-#218 stdout/stderr, #219 upstream app startup and #220 real Kestrel socket I/O
+socket/SocketAsyncEngine fixtures for #689/#690. Step1380 qualifies #217
+configuration. Continue owned #218 stdout/stderr, #219 upstream app startup and
+#220 real Kestrel socket I/O
 under #737. Follow the exact managed issue dependencies.
 Mechanical ELF startup/write/exit does not run the upstream runtime.
 M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
@@ -41,7 +59,12 @@ First acceptance uses one upstream static NativeAOT Minimal API, HTTP/1.1
 IPv4 port8080 and /healthz body `OS_MINIMAL_API_OK`, with the unchanged
 Kestrel evidence markers. Three fresh post-exit boots, external probes,
 request churn/async/cancellation/shutdown and a negative probe after guest
-termination are required. No guest Kestrel execution is currently qualified.
+termination are required. The full Kestrel milestone remains incomplete.
+
+## Historical development receipts
+
+The following pending/failure statements describe their named checkpoints.
+Step1380 supersedes them only for the qualified M10-004 slice.
 
 [Step1354](../done/step1354.md) adds a default-off `EnableM10004Probe`
 development profile for the unchanged original web ELF. It retains the live

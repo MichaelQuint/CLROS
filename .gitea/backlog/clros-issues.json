@@ -22501,7 +22501,7 @@
         "M16-007"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22538,7 +22538,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Load manifest arguments, environment and configuration for the NativeAOT app",
-      "currentEvidence": "Development PR739/steps1349-1354 adds immutable configuration views, original web instruction admission and a default-off continuing profile. Retained r12 diagnostic returns exact200/22-byte selected health and200/238-byte config JSON from the unchanged original Kestrel ELF; independent bounded PCAP payload reassembly matches both. Actual CLI binds8080 while config observes environment8081. Runner-owned QEMU remains alive across probes, then is confirmed dead with a refused endpoint. Focused checks and targeted native stack review pass. Complete continuing transcript/native/packet/source admission deliberately remains closed; no full-host/ancestor batch or #217 acceptance. Dependencies216/685 are accepted in step1351; continue owned217 under737 before dependent218-220.",
+      "currentEvidence": "Step1380 qualifies the bounded manifest argv/env/immutable-configuration slice at implementation 3ef7316d: 5,537 full-host checks across 731 fixtures (94 Native),three owner-admitted original web guests and 21 related captures, with 20,400 raw source joins and 216 retained originals. Selected 22-byte health/238-byte configuration responses, CLI 8080 versus observed environment 8081, immutable 51-byte settings, independent packet reassembly and owned QEMU death/refused endpoint all pass. Source/native reviews remain scoped;#218/#219/#220/#737 and full Kestrel/Gate14 remain open.",
       "implementationNotes": [
         "Populate Linux argv/envp and immutable files only from validated manifest configuration. Bound counts/lengths, reject duplicate/invalid keys and unauthorized paths, and prove the guest observes the selected values.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22582,7 +22582,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-005",
@@ -32445,9 +32445,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32459,7 +32459,7 @@
         "M16-011",
         "M07-018"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Host reproduction: establish connections at t=1us and t=20s, deliver/read six fresh bytes on the first at t=29s, then Pump after t=30s. Observed TransportFailure, shared Failed=1, next Pump InvalidState, two retained connections. LinuxSocketNetwork hard-codes a 30s total lifetime; TcpSendWindow.Time treats its expiry as unhealthy even with recent traffic. No fresh guest reproduction was run.",
+      "currentEvidence": "Step1380 qualifies connection-local expiry at implementation 3ef7316d: 5,537 full-host checks across 731 fixtures (94 Native),three complete original containment guests plus 21 related captures. Independent healthy peers stay usable beyond 30 seconds while one held peer receives ETIMEDOUT then EOF/EPIPE;shared Failed stays 0, fd generations, actual scheduler progress, reap/restore and buffer cleanup join original syscalls/serial/PCAP/native/source. Corruption controls remain terminal. No whole-stack, general networking, Kestrel or numbered/cloud/production claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32536,9 +32536,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32550,7 +32550,7 @@
         "M07-027",
         "M07-026"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Host reproduction supplies a valid 12-byte modern Virtio header plus a 1518-byte VLAN Ethernet frame (used length1530 within1536-byte storage). Receive returns InvalidFrame and permanently faults the owner at the 1514-byte supported-frame limit. Backend delivery/external exploitability has not been demonstrated in QEMU.",
+      "currentEvidence": "Step1380 qualifies unsupported RX content recycling at implementation 3ef7316d: 5,537 full-host checks across 731 fixtures (94 Native),three complete original containment guests plus 21 related captures. A delivered 1518-byte VLAN frame increments the drop count, reposts its descriptor and permits later healthy traffic;all three captures join 83 RX/71 accepted/12 ignored and 104/105/104 TX. Invalid storage lengths, stale IDs, provenance and publication controls remain fail-closed host negatives. Original native/source/packet joins and deterministic cleanup pass;no whole-stack, Kestrel or numbered/cloud/production claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",

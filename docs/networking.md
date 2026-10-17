@@ -1,5 +1,15 @@
 # Networking
 
+[Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
+network containment at implementation `3ef7316d`: 5,537 full-host checks across
+731 fixtures (94 Native), three web and three containment captures, three repaired
+signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
+retain exact original source/object/EFI/package/serial/packet joins. Selected
+configuration is observed inside the upstream NativeAOT application; the healthy
+old peers survive another connection's timeout and unsupported RX content.
+The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
 [Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
 socket/epoll batch at implementation `3726e31`: 5,433 full-host checks across713
 fixtures (94 Native), scoped original native review, three complete sync and
@@ -10,102 +20,30 @@ worker reap, descriptor/buffer cleanup, NIC reset and allocator restoration prec
 success; normal240-second TIME-WAIT is retained. The original payload is unchanged.
 Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
 The shared native-body joins do not prove whole-stack closure or arbitrary
-workloads. Real guest Kestrel and new numbered/cloud/production gates remain
-incomplete. Continue the owned #217-#220 application ladder under #737.
+workloads. The full Kestrel ladder and new numbered/cloud/production gates remain
+incomplete. Continue the owned #218-#220 application ladder under #737.
 
 ## Architecture review follow-ups
 
-The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
-adds open repairs to the accepted finite network surface:
+Step1380 qualifies M07-027/M07-028 after the development work in
+[steps1369-1379](../done/step1369.md). Three fresh original containment guests
+each exchange the exact three-peer streams, survive one local ETIMEDOUT and a
+1518-byte VLAN drop/recycle, then reap five workers and scrub/release owned
+resources. Healthy old connections remain usable beyond 30 seconds. Packet
+delivery, a live scheduler witness, descriptor generations, timeout errno and
+subsequent EOF/EPIPE are independently joined. Corrupt completion/ownership
+controls remain terminal host negatives, not guest content-policy successes.
+Each run records 83 RX, 71 accepted and 12 ignored frames. TX counts are
+104/105/104, with each run matched to its own captured transmissions; no
+individual RX outcome or cause for the TX difference is inferred.
 
-[Step1369](../done/step1369.md) implements the M07-027/M07-028 host-development
-repair: continuing sockets have no implicit total/idle deadline, retry/close
-expiry reports peer-local ETIMEDOUT, and unsupported in-buffer RX content is
-recycled with actual replenishment notification. Corrupt clock, completion,
-ownership, fence and MMIO failures remain terminal. The118 focused checks across
-nine fixtures pass, including unchanged legacy bounded timer behavior. A scoped
-original emitted-code/ABI review and exact752,772-byte/647-relocation EFI join
-also pass; cumulative stack closure is not established. Full-host and actual
-timeout/rejected-frame guest qualification remain pending; these two issues and
-the Kestrel ladder remain open. The following
-reproductions describe the accepted baseline that this development slice repairs.
+The retained pre-repair host reproductions and failed strict startup-SYN
+aggregate remain defect evidence in the named steps and issue attachments.
+Their earlier pending claims are superseded only for these two bounded repairs.
+Whole-stack safety, general Linux compatibility and the full Kestrel ladder
+remain unqualified. The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+keeps the remaining work at its required acceptance stage:
 
-[Step1370](../done/step1370.md) adds a separate three-peer containment app,
-an explicit raw Ethernet runner peer and genuine timeout/drop observations.
-Seventeen focused checks and the no-stdlib source compile pass. Original payload
-publication/admission, high-level profile/evidence consumers, changed EFI native
-review, full-host and real guest controls remain pending. The accepted socket
-app and its original package/source authority remain unchanged.
-The raw peer now handles the exact owned boot anchor and both ARP exchanges
-before TCP. Eight final focused peer/stdout checks pass; strict stdout values
-alone do not establish package, syscall, scheduler or packet authority.
-[Step1371](../done/step1371.md) adds exact transport lifetime/drop/timeout joins
-and a source-checked Linux publication command for that separate app. All15
-focused controls pass. The original Linux containment ELF is now published and
-retained with its compiler object, managed assembly, original tooling producer
-and checked source/recipe inputs. Publication does not execute the app;
-instruction/package admission and complete guest joins remain pending. The
-final-FIN ordering fix still requires the real closing scenario. No accepted
-socket/runtime evidence is broadened.
-
-[Step1373](../done/step1373.md) admits only the original containment package
-and sealed decoded instruction index. All five executable sections, entry and
-179 syscall continuations are independently checked; five original-input
-mutations reject. Eighteen focused checks pass. The separate package explicitly
-retains publication-only provenance: no app execution or guest behavior follows
-from admission. Full syscall/scheduler/packet/peer joins, the selected high-level
-profile and stable native/full-host/guest qualification remain pending.
-
-[Step1374](../done/step1374.md) adds bounded raw stdout/readiness decoding
-and an independent three-peer containment PCAP consumer. Checked wire bytes,
-withheld data acknowledgements, timed retransmissions, fifteen healthy rounds,
-the exact1518-byte VLAN and final resets have focused rejection controls. The
-original four-peer consumer retains its stream/close assertions and shares only
-the private IPv4/TCP envelope decoder. These are value-only host consumers;
-full syscall/descriptor/scheduler and parent/peer joins remain required before
-the separate guest case can be accepted.
-
-[Step1375](../done/step1375.md) adds that separate full leaf replay: three
-descriptor lifetimes, queued-byte/stdout agreement, one peer-local ETIMEDOUT,
-then EOF and EPIPE, and both healthy16-byte receive/15-byte send streams. The
-pinned Unix runtime maps EPIPE to the app's managed SocketError.Shutdown.
-Existing scheduler, signal, wait-generation, syscall-return and off-stack reap
-checks apply. All65 focused socket/threading checks pass. Parent/NIC/PCAP/peer
-joins, high-level profile selection, guarded-stack integration and stable
-native/full-host/guest qualification remain pending; no issue is accepted.
-
-[Step1376](../done/step1376.md) implements the paired default-off M07-027/
-M07-028 high-level case, including exact original program input, independent raw
-peer completion, full parent APIC/NIC/packet/counter joins and the issue's dotted
-guest markers. Either probe selects both and the synchronous socket prerequisite
-union; async/runtime substitution rejects. The guarded async-stack repair is
-explicitly integrated on this branch, with derived initial RSP and full pool
-extent controls. Drop observations now identify a valid frame delivered in the
-same receive call, so one VLAN plus one delivered frame requires two reposts.
-Eighty-nine distinct focused checks pass, original input admission passes and
-the selected no-stdlib source compiles. [Step1377](../done/step1377.md) adds scoped
-original EFI review. The first real guest and raw peer finish, but the strict
-consumer rejects its aggregate RX join: twelve unanswered startup SYNs were
-omitted from the packet model. The corrected consumer counts those observed
-extras separately, requires an unambiguous exact handshake and retains exact
-aggregate counters; it does not assign individual RX outcomes. Forty-four
-focused checks pass. [Step1378](../done/step1378.md) records one fresh strict
-containment pass at291c40b2 with840 raw source joins and identical reviewed
-native files, then combines that implementation with the application branch.
-The combined source still needs stable native/full-host/guest/ancestor
-qualification. These repairs and the Kestrel ladder remain open;
-see [the command](qemu.md#containment-diagnostic-development).
-
-- [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
-  hard-coded 30-second connection lifetime can turn a healthy old connection
-  into shared `TransportFailure`. A host reproduction retained two connections
-  and observed the next pump return `InvalidState`. Separate per-connection
-  timeout policy from owner corruption and diagnostic total lifetime.
-- [M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742): a valid
-  DMA completion containing an unsupported 1518-byte VLAN frame faults the RX
-  owner in the host model. Drop/recycle content-policy rejects; preserve terminal
-  handling for unsafe completion metadata. External reachability depends on the
-  backend delivering that frame and has not been proved by this review.
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.
   [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744) retires
