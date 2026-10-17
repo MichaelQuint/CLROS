@@ -12,6 +12,9 @@ internal static class SocketContainmentTransportTests
         HostCheck.True(((IList<QemuTranscripts.SocketContainmentLifetime>)value.Lifetimes).IsReadOnly);
         var wrapped = Rows(); wrapped[3] = wrapped[3].Replace("availableBefore=58 availableAfter=59", "availableBefore=65535 availableAfter=0", StringComparison.Ordinal);
         HostCheck.Equal(0UL, QemuTranscripts.InspectSocketContainmentTransportForTests(wrapped).AvailableAfter);
+        var coalesced = Rows(); coalesced[3] = coalesced[3].Replace("availableAfter=59 delivered=0", "availableAfter=60 delivered=1", StringComparison.Ordinal);
+        HostCheck.Equal(1UL, QemuTranscripts.InspectSocketContainmentTransportForTests(coalesced).DeliveredAfterDrop);
+        var unaccounted = Rows(); unaccounted[3] = unaccounted[3].Replace("availableAfter=59", "availableAfter=60", StringComparison.Ordinal); Reject(unaccounted);
     }
 
     [HostTest("socket containment rejects stale ownership duplicate peers and missing retirement", HostLane.Fast, 1)]
@@ -59,7 +62,7 @@ internal static class SocketContainmentTransportTests
         "M16_011_SLOT event=0 " + Fields(0, 1000) + " deadline=0 duration=0",
         "M16_011_SLOT event=0 " + Fields(1, 2000) + " deadline=0 duration=0",
         "M16_011_SLOT event=0 " + Fields(2, 3000) + " deadline=0 duration=0",
-        "M07_028_DROP before=0 after=1 availableBefore=58 availableAfter=59 clock=35000000000 running=1",
+        "M07_028_DROP before=0 after=1 availableBefore=58 availableAfter=59 delivered=0 clock=35000000000 running=1",
         "M07_027_TIMEOUT " + Fields(0, 63_000_001_000) + " sharedFailed=0",
         "M16_011_SLOT event=1 " + Fields(0, 70_000_100_000) + " deadline=0 duration=0",
         "M16_011_SLOT event=1 " + Fields(1, 70_000_200_000) + " deadline=0 duration=0",

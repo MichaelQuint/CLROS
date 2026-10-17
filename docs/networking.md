@@ -74,6 +74,19 @@ checks apply. All65 focused socket/threading checks pass. Parent/NIC/PCAP/peer
 joins, high-level profile selection, guarded-stack integration and stable
 native/full-host/guest qualification remain pending; no issue is accepted.
 
+[Step1376](../done/step1376.md) implements the paired default-off M07-027/
+M07-028 high-level case, including exact original program input, independent raw
+peer completion, full parent APIC/NIC/packet/counter joins and the issue's dotted
+guest markers. Either probe selects both and the synchronous socket prerequisite
+union; async/runtime substitution rejects. The guarded async-stack repair is
+explicitly integrated on this branch, with derived initial RSP and full pool
+extent controls. Drop observations now identify a valid frame delivered in the
+same receive call, so one VLAN plus one delivered frame requires two reposts.
+Eighty-nine distinct focused checks pass, original input admission passes and
+the selected no-stdlib source compiles. Original EFI review, actual strict guest
+execution and stable full-host/ancestor qualification remain pending. These
+repairs and the Kestrel ladder remain open; see [the command](qemu.md#containment-diagnostic-development).
+
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
   into shared `TransportFailure`. A host reproduction retained two connections

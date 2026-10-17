@@ -167,7 +167,7 @@ public static unsafe partial class EfiEntry
             {
                 ulong guard = pool + (NativeProgram.WorkerPage + i * NativeProgram.WorkerPages) * Page, entry = pool + NativeProgram.Entries + i * NativeProgram.WorkerStride;
                 NativeContext* saved = (NativeContext*)(contexts + i * NativeContext.Bytes);
-                if (NativeContext.Initialize(saved, NativeContext.Bytes, entry, guard + 5 * Page - 40, mask) != NativeContext.Status.Ok) return false;
+                if (NativeContext.Initialize(saved, NativeContext.Bytes, entry, guard + (NativeProgram.WorkerPages - 1) * Page - 40, mask) != NativeContext.Status.Ok) return false;
                 var d = new NativeSwitch.Descriptor { Identity = 0x100000001UL + i, CurrentIdentity = 0x100000001UL + i,
                     Context = saved, ContextBytes = NativeContext.Bytes, StackGuardStart = guard, StackBytes = NativeProgram.WorkerPages * Page,
                     ResumeRip = entry, Kind = NativeSwitch.ResumeKind.Entry };

@@ -68,6 +68,9 @@ public static unsafe partial class EfiEntry
 #if M16_012_PROBE
                 if (!LinuxText(state, "TEST_START m16-012\r\n")) return false;
 #endif
+#if M07_027_PROBE && M07_028_PROBE
+                if (!LinuxText(state, "TEST_START m07.027\r\nTEST_START m07.028\r\n")) return false;
+#endif
                 bool ran = CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
                     state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
@@ -180,6 +183,7 @@ public static unsafe partial class EfiEntry
                         !LinuxText(o->Boot, " after=") || !LinuxNumber(o->Boot, o->Device->DroppedFrames) ||
                         !LinuxText(o->Boot, " availableBefore=") || !LinuxNumber(o->Boot, available) ||
                         !LinuxText(o->Boot, " availableAfter=") || !LinuxNumber(o->Boot, after) ||
+                        !LinuxText(o->Boot, " delivered=") || !LinuxNumber(o->Boot, received == NetDevice.Status.Success ? 1UL : 0UL) ||
                         !LinuxText(o->Boot, " clock=") || !LinuxNumber(o->Boot, now) ||
                         !LinuxText(o->Boot, " running=1\r\n")) return false;
                 }

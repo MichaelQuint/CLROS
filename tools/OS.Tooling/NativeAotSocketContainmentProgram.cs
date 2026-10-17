@@ -37,4 +37,21 @@ public sealed class NativeAotSocketContainmentProgram
             throw new InvalidDataException("socket_containment_instruction_identity");
         NativeAotSocketContainmentPackage.RequireCurrentSources(root); return new(root, parsed);
     }
+
+    /// <summary>Read bounded distinct single-link original inputs under
+    /// read-only locks. Consume owned snapshots through Create and verify their
+    /// unchanged identity. Files remain caller owned; aliases, invalid text or
+    /// changing inputs reject before a sealed program is returned.</summary>
+    public static NativeAotSocketContainmentProgram Read(string root, string packagePath, string disassemblyPath)
+    {
+        packagePath=Path.GetFullPath(packagePath);disassemblyPath=Path.GetFullPath(disassemblyPath);
+        using AuthorityFiles files=new();
+        var package=files.Open(Path.GetDirectoryName(packagePath)!,packagePath,"containment package","socket_containment_package",
+            NativeAotSocketContainmentPackage.ElfBytes+4096,singleLink:true);
+        var dump=files.Open(Path.GetDirectoryName(disassemblyPath)!,disassemblyPath,"containment disassembly","socket_containment_disassembly",32*1024*1024,singleLink:true);
+        AuthorityFiles.RequireDistinct(package,dump);
+        var program=Create(root,package.ReadBytes(NativeAotSocketContainmentPackage.ElfBytes+4096,"socket_containment_package"),
+            dump.ReadUtf8(32*1024*1024,"socket_containment_disassembly"));
+        files.VerifyUnchanged();return program;
+    }
 }

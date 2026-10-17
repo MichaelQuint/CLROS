@@ -296,6 +296,18 @@ public static partial class Probes
     public const bool EnableM07026Probe = false;
 #endif
 
+#if M07_027_PROBE
+    public const bool EnableM07027Probe = true;
+#else
+    public const bool EnableM07027Probe = false;
+#endif
+
+#if M07_028_PROBE
+    public const bool EnableM07028Probe = true;
+#else
+    public const bool EnableM07028Probe = false;
+#endif
+
 #if M07_ARP_RECEIVE_PROBE
     public const bool EnableM07ArpReceiveProbe = true;
 #else

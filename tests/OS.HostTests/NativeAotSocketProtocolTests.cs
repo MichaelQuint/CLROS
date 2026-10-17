@@ -90,6 +90,16 @@ internal static class NativeAotSocketProtocolTests
             HostCheck.True(report.Clones==2 && report.Reaped==3 && report.Irqs==2 && report.Transfers==16);
         }
     }
+    [HostTest("socket protocol bounds the entire async worker pool below four GiB")]
+    private static void AsyncPoolExtent()
+    {
+        static string[] At(IEnumerable<string> rows,ulong pool)=>rows.Select(row=>row.Replace("pool=2097152",
+            FormattableString.Invariant($"pool={pool}"),StringComparison.Ordinal)).ToArray();
+        HostCheck.Equal(3,Inspect(At(Vector().Rows,0xfff40000)).Reaped);
+        Reject(At(Vector(true).Rows,0xfff40000),"threading_parent_geometry",true);
+        HostCheck.Equal(3,Inspect(At(Vector(true).Rows,0xfff1e000),true).Reaped);
+    }
+
     [HostTest("socket protocol retains real repark without fabricating a syscall timer or drain")]
     private static void Repark()
     {

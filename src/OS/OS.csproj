@@ -124,6 +124,8 @@
 		<EnableM07VirtioNetProbe Condition="'$(EnableM07VirtioNetProbe)' == ''">false</EnableM07VirtioNetProbe>
 		<EnableM07ArpReceiveProbe Condition="'$(EnableM07ArpReceiveProbe)' == ''">false</EnableM07ArpReceiveProbe>
 		<EnableM07026Probe Condition="'$(EnableM07026Probe)' == ''">false</EnableM07026Probe>
+		<EnableM07027Probe Condition="'$(EnableM07027Probe)' == ''">false</EnableM07027Probe>
+		<EnableM07028Probe Condition="'$(EnableM07028Probe)' == ''">false</EnableM07028Probe>
 		<EnableM06BlockMsixProbe Condition="'$(EnableM06BlockMsixProbe)' == ''">false</EnableM06BlockMsixProbe>
 		<EnableM06BlockMsixPollingRecoveryProbe Condition="'$(EnableM06BlockMsixPollingRecoveryProbe)' == ''">false</EnableM06BlockMsixPollingRecoveryProbe>
 		<EnableM06FatReadProbe Condition="'$(EnableM06FatReadProbe)' == ''">false</EnableM06FatReadProbe>
@@ -488,6 +490,12 @@
 	<PropertyGroup Condition="'$(EnableM07026Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M07_026_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM07027Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M07_027_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM07028Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M07_028_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM06BlockMsixProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_BLOCK_MSIX_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -603,6 +611,8 @@
 			'$(EnableM07VirtioNetProbe)' == 'true' or
 			'$(EnableM07ArpReceiveProbe)' == 'true' or
 			'$(EnableM07026Probe)' == 'true' or
+			'$(EnableM07027Probe)' == 'true' or
+			'$(EnableM07028Probe)' == 'true' or
 			'$(EnableM09004Probe)' == 'true' or
 			'$(EnableM09005Probe)' == 'true' or
 			'$(EnableM09006Probe)' == 'true' or
@@ -1032,6 +1042,8 @@
 			'$(EnableM07VirtioNetProbe)' == 'true' or
 			'$(EnableM07ArpReceiveProbe)' == 'true' or
 			'$(EnableM07026Probe)' == 'true' or
+			'$(EnableM07027Probe)' == 'true' or
+			'$(EnableM07028Probe)' == 'true' or
 			'$(EnableM09004Probe)' == 'true' or
 			'$(EnableM09005Probe)' == 'true' or
 			'$(EnableM09006Probe)' == 'true' or
@@ -2148,6 +2160,10 @@
 		<Error Condition="'$(EnableM16007Probe)' != 'true' and '$(EnableM16007Probe)' != 'false'" Text="m16_007_switch_invalid" />
 		<Error Condition="'$(EnableM16008Probe)' != 'true' and '$(EnableM16008Probe)' != 'false'" Text="m16_008_switch_invalid" />
 		<Error Condition="'$(EnableM16009Probe)' != 'true' and '$(EnableM16009Probe)' != 'false'" Text="m16_009_switch_invalid" />
+		<Error Condition="'$(EnableM07027Probe)' != 'true' and '$(EnableM07027Probe)' != 'false'" Text="m07_027_switch_invalid" />
+		<Error Condition="'$(EnableM07028Probe)' != 'true' and '$(EnableM07028Probe)' != 'false'" Text="m07_028_switch_invalid" />
+		<Error Condition="('$(EnableM07027Probe)' == 'true' or '$(EnableM07028Probe)' == 'true') and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM01LoadedImageStackProbe)' != 'true' or '$(EnableM01LiveAllocatorProbe)' != 'true' or '$(EnableAcpiPhysicalDiscoveryProbe)' != 'true' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true' or '$(EnableM05PciEnumerationProbe)' != 'true' or '$(EnableM05VirtioNegotiationProbe)' != 'true' or '$(EnableM05VirtqueuePollingProbe)' != 'true' or '$(EnableM07VirtioNetProbe)' != 'true' or '$(EnableM07ArpReceiveProbe)' != 'true' or '$(EnableM16002Probe)' != 'true' or '$(EnableM16003Probe)' != 'true' or '$(EnableM05ApicSetupProbe)' != 'true' or '$(EnableM16004Probe)' != 'true' or '$(EnableM16005Probe)' != 'true' or '$(EnableM16006Probe)' != 'true' or '$(EnableM16007Probe)' != 'true' or '$(EnableM16008Probe)' != 'true' or '$(EnableM16009Probe)' != 'true' or '$(EnableM16011Probe)' != 'true' or '$(EnableM07026Probe)' != 'true' or '$(EnableM07027Probe)' != 'true' or '$(EnableM07028Probe)' != 'true')" Text="socket_containment_requires_socket_union" />
+		<Error Condition="('$(EnableM07027Probe)' == 'true' or '$(EnableM07028Probe)' == 'true') and ('$(EnableExitBootServicesFreshMapProbe)' == 'true' or '$(EnableM01OwnedPagingProbe)' == 'true' or '$(EnableM02CheckedPortIoBindingProbe)' == 'true' or '$(EnableM02Com1OwnedPortIoProbe)' == 'true' or '$(EnableM02DoubleFaultIstProbe)' == 'true' or '$(EnableM02GuardedIstStackAllocationProbe)' == 'true' or '$(EnableM02IdtrContinuedExecutionProbe)' == 'true' or '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' or '$(EnableM02OwnedCom1ReadyProbe)' == 'true' or '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' or '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' or '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' or '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' or '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' or '$(EnableM02SafeStubProbe)' == 'true' or '$(EnableM02Ud2VectorStateProbe)' == 'true' or '$(EnableM02UnexpectedVectorPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM03FirmwareEntropySeedProbe)' == 'true' or '$(EnableM03MemoryMapCaptureProbe)' == 'true' or '$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03TypedExitBootServicesCallProbe)' == 'true' or '$(EnableM04ArithmeticConformanceProbe)' == 'true' or '$(EnableM04CheckedReferenceBarrierProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04ConstructorFailureProbe)' == 'true' or '$(EnableM04EhCatalogProbe)' == 'true' or '$(EnableM04FilteredCatchProbe)' == 'true' or '$(EnableM04FrameDispatchProbe)' == 'true' or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true' or '$(EnableM04IndependentEndianConformanceProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04LayoutContractProbe)' == 'true' or '$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or '$(EnableM04NestedFinallyCatchProbe)' == 'true' or '$(EnableM04NormalFinallyProbe)' == 'true' or '$(EnableM04RethrowProbe)' == 'true' or '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or '$(EnableM04RhpNewFastProbe)' == 'true' or '$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true' or '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or '$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or '$(EnableM04StringAllocationExhaustionProbe)' == 'true' or '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' or '$(EnableM04StringAllocationProbe)' == 'true' or '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' or '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' or '$(EnableM04SzArrayAllocationProbe)' == 'true' or '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' or '$(EnableM04UnhandledExceptionProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM05BarDmaProbe)' == 'true' or '$(EnableM05MonotonicClockProbe)' == 'true' or '$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true' or '$(EnableM05VirtqueueInterruptProbe)' == 'true' or '$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' or '$(EnableM06BlockMsixProbe)' == 'true' or '$(EnableM06FatReadProbe)' == 'true' or '$(EnableM06GptPartitionProbe)' == 'true' or '$(EnableM06LiveBlockContractProbe)' == 'true' or '$(EnableM06PackageReadProbe)' == 'true' or '$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' or '$(EnableM06VirtioBlockReadProbe)' == 'true' or '$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM09011Probe)' == 'true' or '$(EnableM09012Probe)' == 'true' or '$(EnableM16010Probe)' == 'true' or '$(EnableM16012Probe)' == 'true' or '$(EnableUefiGoneSimulationProbe)' == 'true')" Text="socket_containment_profile_conflict" />
 		<Error Condition="'$(EnableM16011Probe)' != 'true' and '$(EnableM16011Probe)' != 'false'" Text="m16_011_switch_invalid" />
 		<Error Condition="'$(EnableM16012Probe)' != 'true' and '$(EnableM16012Probe)' != 'false'" Text="m16_012_switch_invalid" />
 		<Error Condition="'$(EnableM16012Probe)' == 'true' and '$(EnableM16011Probe)' != 'true'" Text="m16_012_requires_socket_parent" />

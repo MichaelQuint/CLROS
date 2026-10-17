@@ -220,11 +220,14 @@ public static partial class QemuTranscripts
             var armed=LinuxSyscallArm(Take()); const string policy=" timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
             string line=Take(); Need(line.EndsWith(policy,StringComparison.Ordinal),"threading_bound_policy");
             var bound=ReadRecord(line[..^policy.Length],"M16_008_BOUND","root:dec","pool:dec","workers:dec","code:dec","metadata:dec","userImage:dec");
+            uint poolPages=containment || app=="NativeAotSocketSmokeAsync"?
+                LinuxThreadProgram.WorkerPage+LinuxThreadProgram.MaximumWorkers*LinuxThreadProgram.AsyncWorkerPages+
+                LinuxThreadProgram.IrqPages+1:LinuxThreadProgram.PoolPages;
             Need(armed["root"]==userRoot && bound["root"]==kernelRoot && kernelRoot is >=4096 and <=0xfffff000 && kernelRoot%4096==0 &&
-                bound["pool"]>=4096 && bound["pool"]<=0x100000000UL-LinuxThreadProgram.PoolPages*4096UL && bound["pool"]%4096==0 &&
+                bound["pool"]>=4096 && bound["pool"]<=0x100000000UL-poolPages*4096UL && bound["pool"]%4096==0 &&
                 bound["workers"]==(ulong)capacity && bound["code"]==LinuxThreadProgram.Bytes &&
                 bound["metadata"]==LinuxThreadProgram.MetadataPages*4096UL && bound["userImage"]==728,"threading_parent_geometry");
-            DistinctExtents([(userRoot,4096),(kernelRoot,4096),(bound["pool"],LinuxThreadProgram.PoolPages*4096UL)],"threading_roots_pool");
+            DistinctExtents([(userRoot,4096),(kernelRoot,4096),(bound["pool"],poolPages*4096UL)],"threading_roots_pool");
             {
                 var b=Row("M16_008_BUDGET","started:dec","epochs:dec","steps:dec","nanos:dec");
                 Need(budget.Begin((uint)capacity,b["started"],application:true) && b["epochs"]==budget.MaximumEpochs &&

@@ -9,6 +9,31 @@ status. The original strict captures retain their measured quiet/termination
 authority. Select `NativeAotRuntimeSmoke` explicitly for the original payload;
 M16-010 otherwise selects `NativeAotRuntimeMatrix`. Guest Kestrel remains pending.
 
+## Containment diagnostic (development)
+
+[Step1376](../done/step1376.md) implements a separate original three-peer
+timeout/VLAN case. This command is supported and its source/plan controls pass;
+actual guest qualification is still pending:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM07027Probe -LinuxElfPackage <original-containment.pkg> -LinuxThreadingDisassembly <retained-containment-llvm.txt> -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 180 -RequireMarker CLROS_M07_027_READY -SerialLog <fresh-serial.log> -SummaryLog <fresh-summary.log>
+```
+
+EnableM07028Probe selects the same paired case. Both probes default off and
+require the original containment app, canonical package and sealed complete
+instruction index. The runner owns a captured raw Ethernet peer; it rejects
+other peers/forwarding and requires actual completion and confirmed cleanup.
+The selected timeout range is120..295 seconds. Original SocketSmoke sync/async
+profiles retain their separate packages, peers and600-second drain budgets.
+
+Required markers include TEST_START/TEST_PASS m07.027 and m07.028, the genuine
+M07_027_TIMEOUT/M07_028_DROP observations and final ready pairs after NIC cleanup.
+Original serial/summary/PCAP, package/source/EFI joins, full scheduler/syscall
+replay and independent peer/wire counters remain mandatory. One safe VLAN drop
+can be followed by one valid delivery in the same receive call; delivered=0/1
+binds the exact one/two available-ring reposts. Dry-run, source compilation and
+synthetic controls do not prove guest behavior or close either issue.
+
 [Step1272](../done/step1272.md) adds an explicit development selector for either
 focused runtime workload through the existing M16-009 profile:
 

@@ -18,7 +18,8 @@ public static partial class QemuTranscripts
         internal uint RemotePort=checked((uint)first["remotePort"]);
     }
     private sealed record SocketNetworkProof(string[] Nic,QemuArpReceiveReceipt Arp,Dictionary<string,ulong> Peer,
-        Dictionary<string,ulong> Wire,Dictionary<string,ulong> End,Dictionary<string,ulong> Stop,List<SocketLifetime> Lifetimes);
+        Dictionary<string,ulong> Wire,Dictionary<string,ulong> End,Dictionary<string,ulong> Stop,List<SocketLifetime> Lifetimes,
+        SocketContainmentTransport? Containment=null);
 
     /// <summary>Value-only transport observation accounting for synthetic
     /// controls. It grants no firmware, packet, process or guest authority.</summary>
@@ -115,19 +116,22 @@ public static partial class QemuTranscripts
         var result=SocketNetworkEnvelope(rows,asynchronous).Proof.Lifetimes;
         return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
-    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous)
+    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false)
     {
         int parentsEnd=QemuContracts.M03OwnedSubsystemMarkers.Count+7+M16LinuxStartupMarkers.Count+M16ServiceLoopMarkers.Count;
         int apicEnd=parentsEnd+QemuContracts.M05ApicSetupMarkers.Count-QemuContracts.M03OwnedSubsystemMarkers.Count;
         int networkStart=apicEnd+QemuContracts.M07ArpReceiveMarkers.Count-QemuContracts.M05PciEnumerationMarkers.Count;
+        Need(lines.Length>networkStart+12 && !(containment&&asynchronous),"socket_parent_extent");
         int cursor=networkStart;
         void Exact(string expected){Need(cursor<lines.Length&&lines[cursor++]==expected,"socket_parent_order_"+expected);}
         Exact("TEST_START m07-026");var dma=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");
         var peer=ReadRecord(lines[cursor++],"M16_011_PEER","mac:dec","sent:dec","received:dec","start:dec","end:dec");
         Exact("TEST_START m16-011");if(asynchronous)Exact("TEST_START m16-012");
+        if(containment){Exact("TEST_START m07.027");Exact("TEST_START m07.028");}
         int leafStart=cursor;Need(lines[leafStart]=="TEST_START m16-009","socket_parent_leaf");
         int leafEnd=Array.IndexOf(lines,"TEST_PASS m16-009",leafStart)+1;Need(leafEnd>leafStart,"socket_parent_leaf_end");
-        var lifetimes=SocketLifetimes(lines[leafStart..leafEnd]);cursor=leafEnd;
+        List<SocketLifetime> lifetimes=containment?[]:SocketLifetimes(lines[leafStart..leafEnd]);
+        var control=containment?ReadSocketContainmentTransport(lines[leafStart..leafEnd]):null;cursor=leafEnd;
         var wire=ReadRecord(lines[cursor++],"M16_011_WIRE","received:dec","arp:dec","accepted:dec","ignored:dec","capacity:dec","arpCopied:dec","tcpCopied:dec");
         const string cleanup=" retained=0 buffers=scrubbed descriptors=closed workers=reaped";string endLine=lines[cursor++];
         Need(endLine.EndsWith(cleanup,StringComparison.Ordinal),"socket_network_cleanup");
@@ -135,17 +139,21 @@ public static partial class QemuTranscripts
         Dictionary<string,ulong> Row(uint stage){var value=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");Need(value["stage"]==stage,"socket_network_stage");return value;}
         var stop=Row(4);var pool=Row(5);var allocator=Row(6);
         Exact("CLROS_M07_026_READY");Exact("TEST_PASS m07-026");Exact("CLROS_M16_011_READY");Exact("TEST_PASS m16-011");
-        if(asynchronous){Exact("CLROS_M16_012_READY");Exact("TEST_PASS m16-012");}Need(cursor==lines.Length,"socket_parent_extra_record");
+        if(asynchronous){Exact("CLROS_M16_012_READY");Exact("TEST_PASS m16-012");}
+        if(containment){Exact("CLROS_M07_028_READY");Exact("TEST_PASS m07.028");Exact("CLROS_M07_027_READY");Exact("TEST_PASS m07.027");}
+        Need(cursor==lines.Length,"socket_parent_extra_record");
         string[] apic=[..lines[..QemuContracts.M03OwnedSubsystemMarkers.Count],..lines[parentsEnd..apicEnd]];
         Need(apic.Length==QemuContracts.M05ApicSetupMarkers.Count,"socket_apic_extent");AssertM05ApicSetupRecords(apic);
         string[] nic=[..apic[..QemuContracts.M05PciEnumerationMarkers.Count],..lines[apicEnd..networkStart]];
         var arp=AssertM07ArpReceiveRecords(nic);
         Need(peer["mac"]==arp.PeerMac && peer["sent"]==1 && peer["received"]>=1 && peer["start"]>=end["start"] &&
-            peer["end"]>=peer["start"] && peer["end"]<=lifetimes.Min(v=>v.First["clock"]),"socket_peer_parent");
-        Need(end["fresh"]==4 && end["retired"]==4 && end["polls"]>0 && end["received"]==wire["received"] &&
+            peer["end"]>=peer["start"] && peer["end"]<=(containment?control!.Lifetimes.Min(v=>v.Created):lifetimes.Min(v=>v.First["clock"])),"socket_peer_parent");
+        ulong maxDeadline=containment?0:lifetimes.Max(v=>v.MaximumDeadline);
+        Need(end["fresh"]==(containment?3UL:4UL) && end["retired"]==end["fresh"] && end["polls"]>0 && end["received"]==wire["received"] &&
             end["copied"]==wire["tcpCopied"] && wire["received"]==wire["arp"]+wire["accepted"]+wire["ignored"]+wire["capacity"] &&
-            wire["capacity"]==0 && end["maxDeadline"]==lifetimes.Max(v=>v.MaximumDeadline) && end["end"]>=end["maxDeadline"] &&
-            end["end"]>=lifetimes.Max(v=>v.Retired),"socket_network_accounting");
+            wire["capacity"]==0 && end["maxDeadline"]==maxDeadline && end["end"]>=end["maxDeadline"] &&
+            end["end"]>=(containment?control!.Lifetimes.Max(v=>v.Retired):lifetimes.Max(v=>v.Retired)),"socket_network_accounting");
+        if(containment)Need(control!.DropClock>=end["start"] && control.TimeoutClock<=end["end"],"socket_containment_network_clock");
         Need(dma["stage"]==0 && dma["a"]>=4096 && dma["a"]%4096==0 && dma["a"]<=0x100000000UL-32768 && dma["b"]==32768 &&
             dma["c"]==QemuContracts.M07ArpReceiveFeatures && dma["d"]==8 && stop["a"]==peer["received"]+wire["received"] &&
             stop["b"]==peer["sent"]+wire["arpCopied"]+wire["tcpCopied"] && stop["c"] is >=1 and <=1024 && stop["d"]==2 &&
@@ -154,7 +162,7 @@ public static partial class QemuTranscripts
         Need(allocator["a"]==baseline[0] && allocator["b"]==baseline[1] && allocator["c"]==baseline[2] && allocator["d"]==binding[2] &&
             (dma["a"]+32768<=oldPages[0]||oldPages[0]+8192<=dma["a"]) &&
             (dma["a"]+32768<=binding[3]||binding[3]+16384<=dma["a"]),"socket_allocator_association");
-        return (parentsEnd,apic,new(nic,arp,peer,wire,end,stop,lifetimes));
+        return (parentsEnd,apic,new(nic,arp,peer,wire,end,stop,lifetimes,control));
     }
 
     private sealed class SocketWireFlow(uint port,int index,uint sequence)

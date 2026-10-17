@@ -9,7 +9,7 @@ public static class QemuSmoke
     {
         root = Path.GetFullPath(root);
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
-        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0)
+        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0||NativeAotSocketContainmentSelection.Selected(options.Flags))
             ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
             OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
@@ -28,12 +28,14 @@ public static class QemuSmoke
         NativeAotThreadingProgram? threadingProgram = null;
         NativeAotRuntimeProgram? runtimeProgram = null;
         NativeAotSocketProgram? socketProgram=null;
+        NativeAotSocketContainmentProgram? containmentProgram=null;
         NativeAotSocketPeer.Completion? socketPeer=null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
             bool sockets=NativeAotSocketSelection.Application(plan.Flags).Length!=0;
-            if(sockets&&!options.DryRun)
+            bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
+            if((sockets||containment)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
@@ -54,7 +56,8 @@ public static class QemuSmoke
                                 string.Equals(disassembly,Path.GetFullPath(path,root),comparison)))throw new ToolFailure("threading_input_output_alias");
                         if(string.Equals(package,disassembly,comparison))throw new ToolFailure("threading_input_alias");
                         threadingDisassemblyInput=new FileStream(disassembly,FileMode.Open,FileAccess.Read,FileShare.Read);
-                        if(sockets)socketProgram=NativeAotSocketProgram.Read(root,plan.IsEnabled("EnableM16012Probe"),package,disassembly);
+                        if(containment)containmentProgram=NativeAotSocketContainmentProgram.Read(root,package,disassembly);
+                        else if(sockets)socketProgram=NativeAotSocketProgram.Read(root,plan.IsEnabled("EnableM16012Probe"),package,disassembly);
                         else if (NativeAotRuntimeSelection.Application(plan.Flags).Length != 0)
                             runtimeProgram=NativeAotRuntimeProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
                         else threadingProgram=NativeAotThreadingProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
@@ -171,14 +174,15 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
-            if (plan.IsEnabled("EnableM07026Probe")&&!sockets) arguments.Add("--continuing-network-peer");
+            if(containment)arguments.Add("--socket-containment-peer");
+            else if (plan.IsEnabled("EnableM07026Probe")&&!sockets) arguments.Add("--continuing-network-peer");
             if(sockets&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            if(sockets)
+            if(sockets||containment)
             {
                 // Preserve required insertion order while sending each ordered
                 // marker only once. The combined profile otherwise exceeds the
@@ -222,13 +226,14 @@ public static class QemuSmoke
             if (runner.ExitCode != 0 && capture is not null) return runner.ExitCode;
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
-            using AuthorityFiles? threadingEvidence = socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
+            using AuthorityFiles? threadingEvidence = containmentProgram is not null?QemuTranscripts.HoldSocketContainmentEvidence(root,options):
+                socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
                 threadingProgram is null && runtimeProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
             if (capture is not null)
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
+            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer,containmentProgram);
             threadingEvidence?.VerifyUnchanged();
             return validated;
         }

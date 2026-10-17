@@ -6,6 +6,8 @@ internal static class SocketContainmentPacketTests
     private const ulong Peer = 0x020000000002;
     private sealed record Wire(ulong Time, byte[] Frame);
     private sealed record Fixture(List<Wire> Records, uint Anchor, QemuArpReceiveReceipt Arp);
+    internal static (byte[] Capture,uint Anchor,QemuArpReceiveReceipt Arp) ReferenceCapture()
+    { var fixture=Create();return(Capture(fixture.Records),fixture.Anchor,fixture.Arp); }
 
     [HostTest("containment PCAP independently proves retries timed healthy traffic VLAN and exact resets")]
     private static void Complete()

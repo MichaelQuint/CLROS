@@ -48,7 +48,7 @@ internal static class NativeAotSocketContainmentProtocolTests
                 v.Call(44, -32, [7, 0x500800, 1, 0, 0, 0]);
             }
             v.Clock = 10_000 + (ulong)round * 5_000_000_000;
-            if (round == 7) v.Rows.Add("M07_028_DROP before=0 after=1 availableBefore=58 availableAfter=59 clock=35000010000 running=1");
+            if (round == 7) v.Rows.Add("M07_028_DROP before=0 after=1 availableBefore=58 availableAfter=59 delivered=0 clock=35000010000 running=1");
             for (ulong fd = 8; fd < 10; fd++)
             { v.Call(45, 1, [fd, 0x500800, 1, 0, 0, 0]); v.Call(44, 1, [fd, 0x500800, 1, 0, 0, 0]); }
         }
@@ -86,6 +86,15 @@ internal static class NativeAotSocketContainmentProtocolTests
     [HostTest("containment protocol replays three original descriptor lifetimes exact errors and full off-stack reap")]
     private static void Complete()
     { var value = Inspect(Vector()); HostCheck.Equal(2, value.Clones); HostCheck.Equal(3, value.Reaped); HostCheck.Equal(2, value.Irqs); }
+
+    [HostTest("containment protocol bounds the entire guarded pool below four GiB")]
+    private static void PoolExtent()
+    {
+        static string[] At(IEnumerable<string> rows,ulong pool)=>rows.Select(row=>row.Replace("pool=2097152",
+            FormattableString.Invariant($"pool={pool}"),StringComparison.Ordinal)).ToArray();
+        Reject(At(Vector(),0xfff40000),"threading_parent_geometry");
+        HostCheck.Equal(3,Inspect(At(Vector(),0xfff1e000)).Reaped);
+    }
 
     [HostTest("containment protocol requires ETIMEDOUT then EOF then EPIPE on only the saturated peer")]
     private static void ErrorSequence()

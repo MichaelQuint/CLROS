@@ -159,7 +159,7 @@ internal static class NativeAotSocketIntegrationTests
 
     // The existing independent PCI/APIC and NIC/ARP vectors are composed here.
     // Placeholder startup and leaf rows deliberately grant no app authority.
-    private static string[] Envelope(bool asynchronous)
+    internal static string[] Envelope(bool asynchronous)
     {
         string[] nic=M07ArpReceiveEfiIntegrationTests.Capture(),apic=M05ApicSetupEfiIntegrationTests.Capture();
         ulong[] Parent(string prefix)=>nic.Single(row=>row.StartsWith(prefix+" ",StringComparison.Ordinal)).Split(' ')[2..].Select(v=>Convert.ToUInt64(v[2..],16)).ToArray();

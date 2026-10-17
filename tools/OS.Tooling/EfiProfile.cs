@@ -24,6 +24,18 @@ public sealed class EfiProfile
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
         }
+        bool containment = flags["EnableM07027Probe"] || flags["EnableM07028Probe"];
+        if (containment)
+        {
+            foreach (string parent in new[] { "EnableM07027Probe", "EnableM07028Probe", "EnableM16011Probe" })
+            {
+                if (explicitlySelected.TryGetValue(parent, out bool enabled) && !enabled)
+                    throw new ToolFailure("socket_containment_explicit_false_prerequisite", parent);
+                flags[parent] = true;
+            }
+            if (flags["EnableM16012Probe"])
+                throw new ToolFailure("socket_containment_profile_conflict", "EnableM16012Probe");
+        }
         if (flags["EnableM16012Probe"])
         {
             if (explicitlySelected.TryGetValue("EnableM16011Probe", out bool parent) && !parent)
@@ -49,6 +61,7 @@ public sealed class EfiProfile
             }
             foreach (var flag in flags)
                 if (flag.Value && flag.Key != "EnableM07026Probe" && !NetworkPrerequisites.Select(Full).Contains(flag.Key) &&
+                    !(containment && flag.Key is "EnableM07027Probe" or "EnableM07028Probe") &&
                     !(flags["EnableM16011Probe"] && SocketNetworkExtensions.Select(Full).Contains(flag.Key)))
                     throw new ToolFailure("m07_026_profile_conflict", flag.Key);
         }
@@ -187,6 +200,7 @@ public sealed class EfiProfile
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
                     !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
                     !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe") &&
+                    !(containment && flag.Key is "EnableM07027Probe" or "EnableM07028Probe") &&
                     !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
