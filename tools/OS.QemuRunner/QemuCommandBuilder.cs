@@ -41,7 +41,7 @@ internal static class QemuCommandBuilder
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,
                 "-device", "virtio-blk-pci,drive=gptdata,addr=06.0,disable-legacy=on,romfile=" } : Array.Empty<string>(),
             "-netdev",
-            options.ContinuingNetworkPeer ? ethernetPeerNetdev ?? "socket,id=n0,connect=127.0.0.1:<ephemeral>" :
+            options.ContinuingNetworkPeer || options.SocketContainmentPeer ? ethernetPeerNetdev ?? "socket,id=n0,connect=127.0.0.1:<ephemeral>" :
                 options.SocketForwardPort is int port ? "user,id=n0,hostfwd=tcp:127.0.0.1:" + port.ToString(System.Globalization.CultureInfo.InvariantCulture) + "-:8080" : "user,id=n0",
             "-device",
             options.VirtioNegotiationDevice ? "virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=" +

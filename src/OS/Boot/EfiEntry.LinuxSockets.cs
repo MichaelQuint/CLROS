@@ -23,7 +23,7 @@ public static unsafe partial class EfiEntry
             internal TcpConnectionTable.Handle Handle;
             internal TcpConnectionKey Key;
             internal ulong MaximumDeadline, Duration;
-            internal uint Active, WaitObserved, DrainObserved;
+            internal uint Active, WaitObserved, DrainObserved, TimeoutObserved;
         }
         // Image-resident ownership outlives every borrowed callback, including a
         // rejected native transfer. Never reuse or free this storage after fault.
@@ -164,9 +164,26 @@ public static unsafe partial class EfiEntry
             Span<byte> input = new(o->Input, 1514), output = new(o->Output, 1514); o->Polls++;
             for (uint i = 0; i < 8; i++)
             {
+                ulong dropped = o->Device->DroppedFrames;
+                ushort available = o->Device->Receipt.Receive.AvailableIndex;
                 var received = NetDevice.Receive(o->Device, input, out uint bytes);
+                if (received is not (NetDevice.Status.Success or NetDevice.Status.Empty)) return false;
+                if (o->Device->DroppedFrames != dropped)
+                {
+                    // Observe the real device transition after ownership/fences
+                    // and queue notification. This does not manufacture a drop
+                    // or change a completion, packet, timer or scheduler state.
+                    ushort after = o->Device->Receipt.Receive.AvailableIndex;
+                    if (!o->Device->Running || o->Device->DroppedFrames < dropped || after == available ||
+                        !ReadNetworkTime(o->Boot, out ulong now) ||
+                        !LinuxText(o->Boot, "M07_028_DROP before=") || !LinuxNumber(o->Boot, dropped) ||
+                        !LinuxText(o->Boot, " after=") || !LinuxNumber(o->Boot, o->Device->DroppedFrames) ||
+                        !LinuxText(o->Boot, " availableBefore=") || !LinuxNumber(o->Boot, available) ||
+                        !LinuxText(o->Boot, " availableAfter=") || !LinuxNumber(o->Boot, after) ||
+                        !LinuxText(o->Boot, " clock=") || !LinuxNumber(o->Boot, now) ||
+                        !LinuxText(o->Boot, " running=1\r\n")) return false;
+                }
                 if (received == NetDevice.Status.Empty) break;
-                if (received != NetDevice.Status.Success) return false;
                 o->Received++; var frame = input.Slice(0, (int)bytes);
                 if (EthernetHeader.TryParse(frame, out var ethernet, out var payload) == PacketParseStatus.Success &&
                     ethernet.EtherType == EthernetHeader.EtherTypeArp)
@@ -227,6 +244,13 @@ public static unsafe partial class EfiEntry
                     o->Fresh++;
                 }
                 else if (!held->Key.HasSameEndpoint(entry.Key)) return false;
+                if (slot->Phase >= 2 && slot->Sender.TimedOut && held->TimeoutObserved == 0)
+                {
+                    if (entry.State != TcpConnectionLifecycleState.Closed || slot->Sender.CloseState != TcpConnectionCloseState.Reset ||
+                        o->Network.Failed != 0 || !WriteLinuxSocketLifetime(o, "M07_027_TIMEOUT", i, held, now) ||
+                        !LinuxText(o->Boot, " sharedFailed=0\r\n")) return false;
+                    held->TimeoutObserved = 1;
+                }
                 if (slot->Phase < 2 || slot->Sender.CloseState != TcpConnectionCloseState.TimeWait) continue;
                 ulong deadline = slot->Sender.TimeWaitDeadlineNanoseconds, duration = slot->Sender.TimeWaitDuration;
                 if (deadline == 0 || duration == 0) return false;

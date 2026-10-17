@@ -30,6 +30,13 @@ timeout/rejected-frame guest qualification remain pending; these two issues and
 the Kestrel ladder remain open. The following
 reproductions describe the accepted baseline that this development slice repairs.
 
+[Step1370](../done/step1370.md) adds a separate three-peer containment app,
+an explicit raw Ethernet runner peer and genuine timeout/drop observations.
+Seventeen focused checks and the no-stdlib source compile pass. Original payload
+publication/admission, high-level profile/evidence consumers, changed EFI native
+review, full-host and real guest controls remain pending. The accepted socket
+app and its original package/source authority remain unchanged.
+
 - [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741): the
   hard-coded 30-second connection lifetime can turn a healthy old connection
   into shared `TransportFailure`. A host reproduction retained two connections
