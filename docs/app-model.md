@@ -1013,7 +1013,14 @@ original package/native and guest qualification remain pending.
 while pinning the exact revised logging consumer separately. Twenty focused
 checks and real retained sync/async package rejoins pass; fresh original native
 bytes match the bounded review. The first full-host run failed five source-pin
-cases and remains incomplete. Corrected full-host and logging guests are pending.
+cases and remains incomplete. [Step1383](../done/step1383.md) passes the corrected
+full-host r03 at `1221f0b0`: 5,566 checks across 734 fixtures (94 Native), unchanged
+inputs and zero reuse. Eight fresh ordinary ancestors retain 6,832 source joins
+and 72 original native files. Complete r02 remains failed because a nested build
+changed the pre-commit generator's revision stamp; the post-commit rebuild and
+four focused input checks precede r03. These are host and ancestor regressions,
+not logging/quota/startup guest acceptance. The required current original Linux
+logging package/owner receipt remains absent; #218/#737 and PR740 stay open.
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than

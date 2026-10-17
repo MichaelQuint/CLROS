@@ -21,8 +21,14 @@ rejected by tool policy without a stated reason; no equivalent retry was made.
 [Step1382](../done/step1382.md) separates immutable socket-producer pins from
 the exact current logging consumer after five full-host source-identity failures.
 Twenty focused checks and both retained socket producer rejoins pass. Fresh
-original EFI bytes match the bounded native review; the corrected full-host
-gate and actual guest logging/quota qualification remain pending.
+original EFI bytes match the bounded native review. [Step1383](../done/step1383.md)
+then passes 5,566 full-host checks across 734 fixtures (94 Native) at `1221f0b0`,
+with unchanged inputs and no reuse. Eight fresh ordinary ancestors pass their
+original source/native/serial audit. The preceding complete r02 is retained as
+failed: a nested build changed a pre-commit generator DLL's revision stamp.
+A normal post-commit rebuild fixes that input mismatch without relaxing guards.
+The current original Linux logging package/owner receipt and actual logging,
+quota and startup guests remain pending; PR740 and #218/#737 stay open.
 
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
