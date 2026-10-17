@@ -27,6 +27,16 @@ Do not bulk-apply unrelated historical body changes when updating one batch.
 
 ## Current Status
 
+The October 16 architecture review adds M07-027 through M07-031, M16-013
+through M16-018, M11-019 through M11-021 and M15-016. It updates existing
+entropy, logging, packet-corpus, Kestrel lifecycle/churn, budget, termination,
+crash-isolation and sustained-load issues and their parent checklists.
+[The workload roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+explains their order. These are open implementation plans; no accepted finite
+issue is reopened or newly closed. Preserve live #737/PR739 ownership and human
+addenda. Use current `content_version` values for body writes and require scoped
+readback/convergence; a label alone does not grant shared-lane ownership.
+
 The October 8 M03 reconciliation in [step1095](../done/step1095.md) aligns
 epic #57 and milestone 5 with the accepted #68/#594 closure. The canonical
 manifest records M03 closed, M03-EPIC closed/agent:done, and M05-001 (#94)

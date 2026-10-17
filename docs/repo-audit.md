@@ -1,5 +1,47 @@
 # Repository Audit
 
+## October 16 architecture review
+
+Reviewed accepted `e5bd99e6c8202988810cc479b92f1c51ef695e2d` across the EFI
+boundary, `OS.Kernel` and canonical `std/no-runtime/shared` (linked by
+`src/OS.Std.NoRuntime.Shared`). Step1351 qualifies bounded sync/async sockets
+and V2 staging, after step1307 runtime and step1332 finite TCP. The older status
+paragraphs below retain historical scope. PR739 at
+`e40db8091e8b61b6d2b18f837feb96e9965109a2` reports development guest HTTP;
+it remains separate from accepted master and complete Kestrel acceptance.
+
+Fresh review evidence: host build passed; 13 epoll checks and the 4,375-check
+fast lane across 619 fixtures passed. Two temporary tests deliberately asserted
+the desired behavior and failed: a recently active 30-second-old connection
+poisoned the shared network owner, and an in-buffer unsupported VLAN frame
+faulted RX. A separate passing characterization established `ENOMEM` with eight
+free pages split across two holes for a six-page mapping. Temporary test changes
+were removed and the clean source rebuilt. Reproduction patches/logs are linked
+from the corresponding issues; these tests did not qualify fixes or live attacks.
+
+| Finding or opportunity | Tracking and evidence level |
+| --- | --- |
+| Healthy connection deadline becomes common owner failure | [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741), host reproduction |
+| Unsupported packet content becomes terminal RX state | [M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742), host reproduction; backend reachability unproved |
+| Missing zero-window persist and costly TIME-WAIT retention | [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743), [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744), source review |
+| Missing checked vector syscalls for Kestrel's multi-segment path | [M16-013](http://192.168.4.35:3000/admin/CLROS/issues/745), pinned source trace; small HTTP success is insufficient |
+| Finite syscall/time/entropy guards do not define continuing service | [M16-014](http://192.168.4.35:3000/admin/CLROS/issues/746), existing [#240](http://192.168.4.35:3000/admin/CLROS/issues/240), deliberate finite limits |
+| Physical contiguity causes avoidable allocation failure | [M16-015](http://192.168.4.35:3000/admin/CLROS/issues/747), host characterization; no corruption found |
+| System RAM facts are not a GC/native app entitlement | [M16-016](http://192.168.4.35:3000/admin/CLROS/issues/748), source concern requiring runtime measurement |
+| CPL3 invalid-opcode/divide faults retain terminal handlers | [M16-017](http://192.168.4.35:3000/admin/CLROS/issues/749), static trace; live reproduction pending |
+| One-segment flight, full audits and synchronous serial cost | [M07-031](http://192.168.4.35:3000/admin/CLROS/issues/751), [M16-018](http://192.168.4.35:3000/admin/CLROS/issues/752), existing [#242](http://192.168.4.35:3000/admin/CLROS/issues/242); measure against [M15-016](http://192.168.4.35:3000/admin/CLROS/issues/750) before claiming benefit |
+| Build-time effects/context/ownership, ABI and capabilities | M11-019 -> M11-020 -> M11-021, proposed host tooling with independent controls in [architecture](architecture.md#build-time-assurance-and-measured-optimization) |
+
+Preserve the strengths already present: checked candidate-root publication,
+W+X rejection, scrub/reuse, ELF bounds/overlap validation, signal return-state
+checks and descriptor generations. No new reachable memory-corruption defect
+was proved in the inspected memory/ELF/shared paths. This is not exhaustive
+proof of safety. Implementation ordering lives in the
+[canonical workload roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16);
+the manifest carries exact dependencies and acceptance.
+
+## Historical audit snapshots
+
 The #134/#136â€“#140/#633 bounded driver batch is qualified in
 [step1162](../done/step1162.md): 4,422 full-host checks across 552 groups pass with
 zero reuse/input changes. Linked native review, IRQ/recovery/net guests, exact

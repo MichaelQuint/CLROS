@@ -15078,11 +15078,12 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M07: Live Networking.",
-      "currentEvidence": "The first nine keyed children #136-#144 qualify separate bounded fixed TX and modern RX/header/ARP profiles in done/step1162.md and done/step1164.md. Latest qualification: 4,441 full-host checks, linked native review, 194 ARP guest records, independent request/reply libpcap and thirteen ancestor regressions. Continuing RX/I/O, real timers and live DHCP/DNS/TCP/HTTP remain incomplete; sixteen keyed children, epic and milestone stay open. Gate8 and hosted .NET/Kestrel remain unproved.",
+      "currentEvidence": "Step1332 qualifies the finite continuing NIC/TCP batch at fd296378: 5341 full-host checks, three strict TCP guests,20 ancestors, independent wire evidence,240-second TIME-WAIT and an actual scheduler progress/reap witness. Step1351 adds bounded upstream socket/epoll guests. General networking, DHCP/DNS and Gate8 remain incomplete. Architecture-review children M07-027 through031 address service containment, persist, retention and measured throughput; they are open, not new acceptance.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
+        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied.",
+        "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries."
       ],
       "referenceInfluences": [
         {
@@ -17203,7 +17204,8 @@
       "milestone": "M07",
       "parentKey": "M07-EPIC",
       "dependencyKeys": [
-        "M07-024"
+        "M07-024",
+        "M07-028"
       ],
       "labels": [
         "agent:blocked",
@@ -17233,7 +17235,7 @@
       ],
       "collisionLane": null,
       "summary": "Add malformed Ethernet/IP/UDP/TCP/DNS/HTTP packet corpus tests.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "Finite continuing TCP and upstream socket/epoll guests are qualified in steps1332/1351. A review host reproduction shows unsupported in-buffer VLAN content faults the NIC owner; M07-028 repairs that specific path. The broader malformed-packet corpus and its guest recovery controls remain open.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed Ethernet/IP/UDP/TCP/DNS/HTTP packet corpus tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -17260,7 +17262,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the valid packet or socket transition required by: Add malformed Ethernet/IP/UDP/TCP/DNS/HTTP packet corpus tests.",
         "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice.",
+        "Extend M07-028 with an independent malformed/unsupported packet corpus; distinguish content drops from corrupt DMA completion metadata and prove subsequent valid traffic remains usable."
       ],
       "requiredMarkers": [
         "TEST_START m07.025",
@@ -19823,7 +19826,7 @@
       "summary": "Run a bounded single-BSP CPL0 cooperative lifecycle over the existing saved-context, ready/deadline queue and APIC timer contracts: fully initialize then publish workers, execute yield/park/wake/tick-sleep/join/return/exit/deferred cancellation, and reclaim only from a retained supervisor stack. Hardware interrupts make waits eligible; arbitrary interrupted workers are not resumed through the cooperative CALL ABI.",
       "currentEvidence": "Qualified in done/step1230.md at frozen .NET 11/C#14 implementation e0dac79d5066765a8b6e3252de3ba0530e2c4ea9: 4,806 full-host checks across 626 fixtures (94 Native), scoped original native review and all 875 original lifecycle code-body joins; three byte-identical 177-application-record lifecycle guests plus 15 fresh ancestors pass. Each lifecycle guest executes seven real APIC ticks, 38 cooperative transfers, five retained join observations, both cancellation/deadline orders and four supervisor reaps. All 23 internal page leases return; the 32-page firmware reservation remains retained. Independent 18-capture object/image/review/transcript audit passes. Steps1228-1229 preserve failed development/first-full attempts and fixture corrections. No unchanged guest Hello, application threads, upstream runtime or Kestrel acceptance.",
       "implementationNotes": [
-      "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Read docs/workload-profiles.md, docs/pal.md (Next: bounded lifecycle), docs/host-requirements.md, docs/efi-build.md, work/PAL/pal-design.md and steps1218/1224. Use the pinned .NET 11 toolchain with C#14, caller-owned bounded unmanaged storage and explicit status results. No hidden allocation, reflection or general kernel EH. Upstream applications retain their own GC/EH.",
         "Claim lane:nativeaot-integration and inspect all live claims before editing. The listed integration surface is authorized for this slice; small companion types matching KernelThread*.cs are allowed. Coordinate any newly discovered shared-file overlap before editing; do not manufacture contract-only child tickets for already listed wiring. Preserve one main public type per file and document ownership, execution context, failure atomicity and unsupported cases.",
         "Implement in three cohesive stages: (1) bounded slot/state/wait owner and rollback tests, (2) actual first-entry/return/yield plus repeated timer-backed waits, (3) default-off guest, original native review and stable qualification. Keep short development captures separate from the final frozen batch.",
@@ -22199,11 +22202,12 @@
       ],
       "collisionLane": null,
       "summary": "Local SingleMinimalApi NativeAOT Kestrel",
-      "currentEvidence": "The MinimalApiSmoke package contract exists; Kestrel has not started or served a guest request.",
+      "currentEvidence": "Step1351 accepts the pinned web publisher and immutable V2 staging, plus bounded unchanged sync/async socket guests. PR739 at e40db8091e8b61b6d2b18f837feb96e9965109a2 reports development CLROS Kestrel /healthz and /config responses; it is unmerged and does not qualify continuing-service admission or the complete M10 ladder. #217-#220 remain owned under #737; Gate14 remains open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
+        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied.",
+        "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -22769,7 +22773,10 @@
       "parentKey": "M10-EPIC",
       "dependencyKeys": [
         "M10-006",
-        "M16-012"
+        "M16-012",
+        "M07-027",
+        "M07-028",
+        "M16-013"
       ],
       "labels": [
         "agent:blocked",
@@ -22809,13 +22816,14 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Pass the Kestrel socket ladder over Linux adapters and live CLROS TCP",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1351 qualifies bounded upstream sockets/epoll. PR739 reports unmerged development health/config HTTP at e40db8091e8b61b6d2b18f837feb96e9965109a2; the full Kestrel socket ladder is not accepted. M07-027/M07-028 containment and M16-013 checked vector I/O now precede this issue's closure; preserve #737 ownership.",
       "implementationNotes": [
         "Run the real System.Net.Sockets create/bind/listen/accept/send/receive/close ladder against M16 socket/epoll adapters. Exercise EAGAIN, partial I/O, readiness rearm, timeout and reset using an external client; do not substitute PAL fakes.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Claim lane:nativeaot-integration before shared boot/app/tooling edits. Keep live profile defaults off, add explicit source admission, and record the actual supported runnable command and expected markers.",
-        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences."
+        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences.",
+        "Architecture review ordering (2026-10-16): M07-027/M07-028 localize ordinary network failures; M16-013 supplies checked vectored I/O before this socket ladder is accepted. Preserve #737/PR739 ownership and its development evidence. Small /healthz or /config success does not qualify large/multi-segment responses."
       ],
       "referenceInfluences": [
         {
@@ -22832,7 +22840,8 @@
       "acceptanceCriteria": [
         "Run the real System.Net.Sockets create/bind/listen/accept/send/receive/close ladder against M16 socket/epoll adapters. Exercise EAGAIN, partial I/O, readiness rearm, timeout and reset using an external client; do not substitute PAL fakes.",
         "Independent negative cases reject malformed input, missing/failure markers and stale artifacts. Preserve historical accepted evidence and update canonical docs with the exact achieved boundary.",
-        "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence."
+        "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence.",
+        "Include actual pinned Kestrel multi-segment/large responses and independent partial-I/O validation after M16-013; retain healthy connection progress across the M07-027 deadline and M07-028 rejected-frame controls."
       ],
       "requiredMarkers": [
         "TEST_START m10.007",
@@ -23138,7 +23147,11 @@
       "milestone": "M10",
       "parentKey": "M10-EPIC",
       "dependencyKeys": [
-        "M10-010"
+        "M10-010",
+        "M07-029",
+        "M07-030",
+        "M16-014",
+        "M11-012"
       ],
       "labels": [
         "agent:blocked",
@@ -23178,7 +23191,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Finite socket qualifications and PR739 development HTTP do not prove continuing request lifetimes beyond the30s connection,300s runtime and4096 syscall guard boundaries. Architecture-review dependencies add connection-local failure handling, persist, compact TIME-WAIT, explicit service policy and replenished randomness before repeated-service acceptance.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23201,7 +23214,9 @@
       "acceptanceCriteria": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Independent negative cases reject malformed input, missing/failure markers and stale artifacts. Preserve historical accepted evidence and update canonical docs with the exact achieved boundary.",
-        "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence."
+        "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence.",
+        "Complete more than eight sequential server-active closes without waiting for all bulk buffers to spend240 seconds in TIME-WAIT; preserve compact retirement protection.",
+        "Recover a lost zero-window reopening update while another connection advances. Continue requests beyond the old30s/300s/4096-call limits under the explicit service policy, and exercise replenished randomness without false success."
       ],
       "requiredMarkers": [
         "TEST_START m10.011",
@@ -23230,7 +23245,9 @@
       "milestone": "M10",
       "parentKey": "M10-EPIC",
       "dependencyKeys": [
-        "M10-011"
+        "M10-011",
+        "M16-015",
+        "M16-016"
       ],
       "labels": [
         "agent:blocked",
@@ -23270,7 +23287,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Add an async/cancellation route and repeated-request churn.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1351's finite async socket fixture is accepted; PR739 development HTTP does not qualify arbitrary async request/memory churn. M16-015 characterizes avoidable fragmented-pool ENOMEM and M16-016 requires measurement of effective GC/native budget; both repairs remain open prerequisites for this issue.",
       "implementationNotes": [
         "Add an async/cancellation fixture route to the real MinimalApiSmoke app and run request churn with timer/ThreadPool activity and forced collections. Assert cancellation propagation, no deadlock, bounded resources and continued /healthz service.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23293,7 +23310,8 @@
       "acceptanceCriteria": [
         "Add an async/cancellation fixture route to the real MinimalApiSmoke app and run request churn with timer/ThreadPool activity and forced collections. Assert cancellation propagation, no deadlock, bounded resources and continued /healthz service.",
         "Independent negative cases reject malformed input, missing/failure markers and stale artifacts. Preserve historical accepted evidence and update canonical docs with the exact achieved boundary.",
-        "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence."
+        "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence.",
+        "Measure bounded physical/metadata fragmentation and effective GC/native/stack/socket budgets during actual async/cancellation churn; terminate only the offending workload on exhausted entitlement and preserve checked cleanup."
       ],
       "requiredMarkers": [
         "TEST_START m10.012",
@@ -23525,11 +23543,12 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M11: Images, CI, and Security.",
-      "currentEvidence": "Image, QEMU, libvirt, CI, and security plans exist, but reproducible release and hardening gates remain open.",
+      "currentEvidence": "Image, QEMU, libvirt, CI and security contracts/profiles exist; reproducible release and broad hardening gates remain open. Review follow-ups move continuing randomness into the M10 prerequisite graph and add host effects/context/ownership analysis, independently validated ABI generation and explicit capability/resource generation. Those proposals add no security acceptance.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
+        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied.",
+        "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries."
       ],
       "referenceInfluences": [
         {
@@ -24485,50 +24504,61 @@
     },
     {
       "key": "M11-012",
-      "title": "[M11-012] Seed a post-firmware entropy pool and expose status-coded randomness.",
+      "title": "[M11-012] Provide replenished post-firmware randomness for continuing NativeAOT services",
       "milestone": "M11",
       "parentKey": "M11-EPIC",
       "dependencyKeys": [
-        "M11-011"
+        "M16-014",
+        "M03-003"
       ],
       "labels": [
         "agent:blocked",
-        "priority:p2",
+        "priority:p1",
         "type:implementation",
-        "evidence:host",
+        "evidence:qemu",
         "component:security",
         "phase:m11-release",
-        "reference:test-only"
+        "lane:nativeaot-integration"
       ],
-      "priority": "priority:p2",
+      "priority": "priority:p1",
       "ownedPaths": [
-        "src/OS.Kernel/Security/SeedPostFirmwareEntropyPoolStatusCodedRandomness.cs",
-        "tests/OS.HostTests/SeedPostFirmwareEntropyPoolStatusCodedRandomnessTests.cs",
-        "docs/image-builder.md",
-        "docs/security.md",
-        "docs/completion-gates.md"
-      ],
-      "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
-        "README.md",
-        "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
-        "done/** (reserve a new step only after implementation evidence exists)"
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxStartupServices.cs",
+        "src/OS.Kernel/Boot/AnyFirmwareDerivedEntropySeedNeededFirmwareShutdown.cs",
+        "src/OS.Kernel/Security/ContinuingRandomService.cs",
+        "tests/OS.HostTests/LinuxStartupServicesTests.cs",
+        "tests/OS.HostTests/ContinuingRandomServiceTests.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreads.cs",
+        "docs/security.md",
+        "docs/workload-profiles.md"
       ],
-      "collisionLane": null,
-      "summary": "Seed a post-firmware entropy pool and expose status-coded randomness.",
-      "currentEvidence": "Image, QEMU, libvirt, CI, and security plans exist, but reproducible release and hardening gates remain open.",
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Replace finite startup entropy exhaustion with a bounded, reviewed continuing randomness service.",
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxStartupServices limits one getrandom request to32 bytes and consumes a finite256-byte runtime reservoir; PR739 enlarges web storage to4096 but does not replenish it. Exhaustion fails closed; it is not a predictable random fallback.",
       "implementationNotes": [
-        "Implement exactly one bounded slice: Seed a post-firmware entropy pool and expose status-coded randomness.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 11 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "This existing issue is moved ahead of M10-011 continuing-service acceptance; it no longer waits for unrelated release acquisition policy M11-011. Preserve its original firmware seed boundary.",
+        "Use an audited CSPRNG design with explicit seed provenance, initialization/readiness, bounded state, reseed and hardware/source-failure policy. Do not invent a PRNG, use clock/counter fallback or claim statistical tests prove cryptographic security.",
+        "Implement measured getrandom partial/nonblocking/flags semantics and supported lengths without unbounded kernel work. Larger reservoirs alone are not completion.",
+        "Preserve the active #737/PR739 lane owner. Focused host checks first; qualify original native code, a guest consuming beyond the old256/4096-byte pools and affected runtime ancestors at a stable boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise the valid firmware handoff sequence for: Seed a post-firmware entropy pool and expose status-coded randomness.",
-        "Failure cases: Cover EFI_BUFFER_TOO_SMALL, descriptor growth, stale map key, retry exhaustion, copied-range overflow, missing tables, invalid signatures/checksums, and prohibited firmware use after exit as applicable.",
-        "Explicitly inapplicable here: TCP retransmission, application imports, and provider resource cleanup are outside this firmware slice."
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
       ],
       "referenceInfluences": [
         {
@@ -24538,14 +24568,10 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Seed a post-firmware entropy pool and expose status-coded randomness.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise the valid firmware handoff sequence for: Seed a post-firmware entropy pool and expose status-coded randomness.",
-        "Applicable failure cases are asserted: Cover EFI_BUFFER_TOO_SMALL, descriptor growth, stale map key, retry exhaustion, copied-range overflow, missing tables, invalid signatures/checksums, and prohibited firmware use after exit as applicable.",
-        "The evidence report explicitly records these non-goals: TCP retransmission, application imports, and provider resource cleanup are outside this firmware slice."
+        "Known-answer tests for the selected reviewed construction and independent seed/reseed/failure controls pass; secrets and entropy state never enter logs.",
+        "Actual guest calls repeatedly consume more than4096 bytes, including supported requests larger than32 bytes, with correct partial/nonblocking/error behavior and bounded work.",
+        "Uninitialized/depleted source, reseed failure, counter overflow and shutdown zeroization fail safely; no reused deterministic fallback is accepted.",
+        "Exact source/native/guest evidence and the cryptographic review boundary are recorded before M10-011 closure."
       ],
       "requiredMarkers": [
         "TEST_START m11.012",
@@ -24553,17 +24579,19 @@
         "TEST_FAIL m11.012 <reason>"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "git diff --check",
-        "git status --short"
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxStartupServicesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ContinuingRandomServiceTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "git diff --check"
       ],
       "documentationPaths": [
-        "docs/image-builder.md",
         "docs/security.md",
-        "docs/completion-gates.md"
+        "docs/workload-profiles.md",
+        "docs/kestrel.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Seed a post-firmware entropy pool and expose status-coded randomness.\" It does not by itself prove the M11 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Only measured continuing randomness with reviewed construction and explicit source-failure policy. No production cryptographic assurance or general workload claim from host vectors or larger finite reservoirs.",
       "desiredState": "open"
     },
     {
@@ -24655,37 +24683,48 @@
       "milestone": "M11",
       "parentKey": "M11-EPIC",
       "dependencyKeys": [
-        "M11-013"
+        "M11-013",
+        "M15-016"
       ],
       "labels": [
         "agent:blocked",
         "priority:p2",
         "type:implementation",
-        "evidence:host",
+        "evidence:qemu",
         "component:security",
         "phase:m11-release",
-        "reference:test-only"
+        "reference:test-only",
+        "lane:nativeaot-integration"
       ],
       "priority": "priority:p2",
       "ownedPaths": [
-        "src/OS.Kernel/Security/ReduceReleaseLogsWhilePreservingStableBootPanic.cs",
-        "tests/OS.HostTests/ReduceReleaseLogsWhilePreservingStableBootPanicTests.cs",
-        "docs/image-builder.md",
-        "docs/security.md",
-        "docs/completion-gates.md"
-      ],
-      "forbiddenPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
-        "README.md",
-        "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
-        "done/** (reserve a new step only after implementation evidence exists)"
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreads.cs",
+        "src/OS.Kernel/Diagnostics/BoundedWorkloadTrace.cs",
+        "tests/OS.HostTests/BoundedWorkloadTraceTests.cs",
+        "docs/diagnostics.md",
+        "docs/security.md"
       ],
-      "collisionLane": null,
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
       "summary": "Reduce release logs while preserving stable boot, panic, workload, and evidence markers.",
-      "currentEvidence": "Image, QEMU, libvirt, CI, and security plans exist, but reproducible release and hardening gates remain open.",
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. EfiEntry.LinuxThreads emits a synchronous serial record for every syscall. This serves finite qualification but can dominate continuing IRQ-off work. No speedup was measured.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Reduce release logs while preserving stable boot, panic, workload, and evidence markers.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -24694,7 +24733,8 @@
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Positive case: Execute or validate the well-formed runtime/application case required by: Reduce release logs while preserving stable boot, panic, workload, and evidence markers.",
         "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
+        "Use the M15-016 measurements. Keep qualification markers/log policy unchanged; introduce explicit service/release logging with a bounded binary event buffer, rate limits and deferred formatting outside critical work. Never drop panic/ownership-failure evidence silently. No host allocations, locks or blocking formatting in IRQ-off paths."
       ],
       "referenceInfluences": [
         {
@@ -24711,7 +24751,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Reduce release logs while preserving stable boot, panic, workload, and evidence markers.",
         "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
+        "Measure syscall/request latency and maximum IRQ-off logging work before/after; test full-ring/drop accounting, cancellation and panic drain without secrets or unbounded stalls. Existing strict serial qualifiers remain byte/marker-compatible or are explicitly requalified."
       ],
       "requiredMarkers": [
         "TEST_START m11.014",
@@ -24722,7 +24763,8 @@
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
         "git diff --check",
-        "git status --short"
+        "git status --short",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter BoundedWorkloadTraceTests"
       ],
       "documentationPaths": [
         "docs/image-builder.md",
@@ -28128,11 +28170,12 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M14: MultiMinimalApi Isolation.",
-      "currentEvidence": "Single-workload planning exists; process isolation and multi-app execution are unproven.",
+      "currentEvidence": "Step1307 qualifies bounded unchanged NativeAOT Hello/runtime and step1351 qualifies bounded sockets/epoll. PR739 reports development single-app HTTP, not accepted local Kestrel or multi-app isolation. Separate protected process roots, private descriptors/budgets, scheduling and second-app survival remain unqualified. M16-017 supplies the CPL3 fault mechanism before terminate/reap and crash-isolation acceptance.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
-        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied."
+        "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied.",
+        "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries."
       ],
       "referenceInfluences": [
         {
@@ -28613,7 +28656,8 @@
       "milestone": "M14",
       "parentKey": "M14-EPIC",
       "dependencyKeys": [
-        "M14-005"
+        "M14-005",
+        "M16-016"
       ],
       "labels": [
         "agent:blocked",
@@ -28655,7 +28699,8 @@
         "Positive case: Exercise a valid aligned, non-overflowing case for: Add per-process stack, heap, page, socket, and log limits.",
         "Failure cases: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
         "Explicitly inapplicable here: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
+        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
+        "Extend the single-app M16-016 entitlement model to each process; account for GC heap, native runtime, stacks, page tables, sockets, logs and shared fixed overhead. A truthful system RAM report does not grant physical pool capacity."
       ],
       "referenceInfluences": [
         {
@@ -28702,7 +28747,8 @@
       "milestone": "M14",
       "parentKey": "M14-EPIC",
       "dependencyKeys": [
-        "M14-006"
+        "M14-006",
+        "M16-017"
       ],
       "labels": [
         "agent:blocked",
@@ -29237,7 +29283,8 @@
       "milestone": "M14",
       "parentKey": "M14-EPIC",
       "dependencyKeys": [
-        "M14-012"
+        "M14-012",
+        "M16-017"
       ],
       "labels": [
         "agent:blocked",
@@ -29296,7 +29343,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Crash one app while the other continues serving.",
         "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
+        "Execute real CPL3 UD2/divide-by-zero in one protected app, then verify its signal/exit/reap and complete resource return while an independent second app continues external HTTP; retain CPL0 terminal-fault negative controls. Reuse M16-017 instead of implementing another exception mechanism."
       ],
       "requiredMarkers": [
         "TEST_START m14.013",
@@ -29788,12 +29836,13 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M15: Production and Hosted-Tier Expansion.",
-      "currentEvidence": "Production recovery, sustained load, release provenance, Roslyn, PowerShell, and optional DOOM proof remain deferred.",
+      "currentEvidence": "Production recovery, sustained load and release/provider gates remain deferred. New M15-016 is an early local-service measurement leaf after M10-014; it does not require provider completion and makes no Nanos superiority claim. Host-side Roslyn analysis/generation in M11-019 through021 is distinct from optional hosted Roslyn/PowerShell workloads here.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied.",
-        "The child checklist marks optional tracks explicitly; optional issues may remain open when the required exit path is reviewed."
+        "The child checklist marks optional tracks explicitly; optional issues may remain open when the required exit path is reviewed.",
+        "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -30043,13 +30092,17 @@
       "milestone": "M15",
       "parentKey": "M15-EPIC",
       "dependencyKeys": [
-        "M15-003"
+        "M15-003",
+        "M15-016",
+        "M07-031",
+        "M16-018",
+        "M11-014"
       ],
       "labels": [
         "agent:blocked",
         "priority:p3",
         "type:test",
-        "evidence:host",
+        "evidence:qemu",
         "component:security",
         "phase:m15-production"
       ],
@@ -30080,7 +30133,8 @@
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Positive case: Complete the guarded production behavior and preserve recovery/provenance evidence for: Add sustained Kestrel load, memory-churn, connection-churn, and long-running timer tests.",
         "Failure cases: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
-        "Explicitly inapplicable here: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates."
+        "Explicitly inapplicable here: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
+        "Reuse M15-016 measurement tooling and original raw distributions. Include connection churn beyond active-slot counts, long-lived connections, zero-window/loss/reorder recovery, entropy replenishment, memory fragmentation, GC/native quotas and clean shutdown. Performance and resource ceilings must be declared, not inferred from a finite health response."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -30091,7 +30145,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded production behavior and preserve recovery/provenance evidence for: Add sustained Kestrel load, memory-churn, connection-churn, and long-running timer tests.",
         "Applicable failure cases are asserted: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
-        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates."
+        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
+        "Preserve exact workload/environment hashes, failures and p99/CPU/committed-memory/native-code/image metrics across repeated sustained guest runs. Publish Nanos comparison only when the same payload and machine contract are matched."
       ],
       "requiredMarkers": [
         "TEST_START m15.004",
@@ -30977,10 +31032,11 @@
       ],
       "collisionLane": null,
       "summary": "Run pinned upstream NativeAOT applications through a restricted Linux x64 syscall ABI implemented in C#.",
-      "currentEvidence": "Architecture and roadmap only. No Linux ELF or Kestrel guest execution.",
+      "currentEvidence": "Steps1200-1209 qualify bounded ELF/user/memory/descriptor foundations; step1307 qualifies unchanged pinned NativeAOT Hello and finite runtime workloads; step1351 qualifies unchanged sync/async socket/epoll guests. The M16-001 through012 leaves retain their accepted finite scope. New M16-013 through018 cover vectors, continuing service, fragmented backing, actual app budgets, user-fault containment and measured audit cost. Broad Linux compatibility, complete Kestrel, isolation and production remain incomplete.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
-        "M16 foundation and M07 continuing TCP feed M10 single-app Kestrel; M14 local isolation follows before AWS/Azure. Start M16-001 now. The static publishing gate must fail visibly if the exact dependency closure is unavailable; do not silently substitute a custom runtime."
+        "M16 foundation and M07 continuing TCP feed M10 single-app Kestrel; M14 local isolation follows before AWS/Azure. Start M16-001 now. The static publishing gate must fail visibly if the exact dependency closure is unavailable; do not silently substitute a custom runtime.",
+        "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -32366,6 +32422,1313 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Only this ticket's measured live guest behavior. Not broad Linux compatibility, CoreCLR, cloud readiness, production readiness or general kernel EH."
+    },
+    {
+      "key": "M07-027",
+      "title": "[M07-027] Keep connection deadlines local and preserve the shared socket network",
+      "summary": "Keep connection deadlines local and preserve the shared socket network",
+      "milestone": "M07",
+      "parentKey": "M07-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:network",
+        "phase:m07-network",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-011",
+        "M07-018"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Host reproduction: establish connections at t=1us and t=20s, deliver/read six fresh bytes on the first at t=29s, then Pump after t=30s. Observed TransportFailure, shared Failed=1, next Pump InvalidState, two retained connections. LinuxSocketNetwork hard-codes a 30s total lifetime; TcpSendWindow.Time treats its expiry as unhealthy even with recent traffic. No fresh guest reproduction was run.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Move total diagnostic lifetime to the enclosing qualification policy. Define separate retry/idle/application timeout policy; ordinary peer expiry/reset must retire or error only its connection, publish correct descriptor/epoll readiness and preserve other clients. Retain fail-closed behavior for corrupted owner/DMA invariants.",
+        "Start from the attached review reproduction; add it to the existing official HostTests fixture. Qualify an actual socket/epoll guest with one expired peer, a healthy old connection and a second independently progressing connection.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
+        "src/OS.Kernel/Net/TcpSendWindow.cs",
+        "src/OS.Kernel/Net/TcpSendWindow.Close.cs",
+        "tests/OS.HostTests/LinuxSocketNetworkTests.cs",
+        "tests/OS.HostTests/TcpSendWindowTests.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "A healthy connection with recent traffic remains usable beyond 30 seconds; a genuinely timed-out peer cannot set the shared network Failed bit.",
+        "Assert exact per-connection errno/readiness, no stale fd reuse, deterministic cleanup and zero leaked buffers; a corruption control still faults the owner.",
+        "Independent guest peer and scheduler progress witness survive the timeout; retain serial and PCAP evidence with exact payload/source joins.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m07.027",
+        "TEST_PASS m07.027",
+        "TEST_FAIL m07.027 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter TcpSendWindowTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M07-028",
+      "title": "[M07-028] Drop unsupported RX frames without poisoning the Virtio-net owner",
+      "summary": "Drop unsupported RX frames without poisoning the Virtio-net owner",
+      "milestone": "M07",
+      "parentKey": "M07-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:virtio",
+        "phase:m07-network",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M07-027",
+        "M07-026"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Host reproduction supplies a valid 12-byte modern Virtio header plus a 1518-byte VLAN Ethernet frame (used length1530 within1536-byte storage). Receive returns InvalidFrame and permanently faults the owner at the 1514-byte supported-frame limit. Backend delivery/external exploitability has not been demonstrated in QEMU.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Distinguish unsupported packet content/size inside a validated DMA buffer from broken ring IDs, used lengths beyond the owned storage, invalid DMA provenance and publication ordering. Drop/recycle content-policy rejects with bounded counters; preserve terminal device failure for unsafe completion metadata.",
+        "Use the attached host reproduction, then inject a rejected frame followed by valid traffic using a backend that demonstrably delivers it; record any backend filtering instead of claiming network reachability from a host model.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Drivers/ContinuingVirtioNet.cs",
+        "tests/OS.HostTests/ContinuingVirtioNetTests.cs",
+        "src/OS.Kernel/Drivers/VirtioNetHeader.cs",
+        "tools/OS.QemuRunner/ContinuingNetworkPeer.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "A 1518-byte VLAN frame and other in-buffer unsupported frames are consumed/recycled without Phase2, leaked descriptors or lost subsequent valid packets.",
+        "Out-of-storage completion lengths, duplicate/stale IDs and corrupt ring provenance still fail closed before unsafe access.",
+        "Real guest traffic and an independent scheduler witness continue after rejection; packet capture establishes the input reached the backend/guest boundary being claimed.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m07.028",
+        "TEST_PASS m07.028",
+        "TEST_FAIL m07.028 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ContinuingVirtioNetTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M07-029",
+      "title": "[M07-029] Implement bounded TCP zero-window persist recovery",
+      "summary": "Implement bounded TCP zero-window persist recovery",
+      "milestone": "M07",
+      "parentKey": "M07-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:network",
+        "phase:m07-network",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M07-028",
+        "M07-017"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: TcpSendWindow.Pump returns WindowClosed when Window=0; PumpRetransmission returns NothingToSend with no in-flight bytes. Lost window-reopening updates can strand queued data. Persist probes are explicitly unsupported; no new guest loss test was run.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Follow RFC9293 section3.8.6.1 (https://www.rfc-editor.org/rfc/rfc9293.html#section-3.8.6.1). Track persist separately from retransmission with bounded exponential backoff, sequence ownership and no busy spin. A zero window alone is not owner failure.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Net/TcpSendWindow.cs",
+        "src/OS.Kernel/Net/TcpSendWindow.Close.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs",
+        "tests/OS.HostTests/TcpSendWindowTests.cs",
+        "tests/OS.HostTests/LinuxSocketNetworkTests.cs",
+        "tools/OS.QemuRunner/ContinuingNetworkPeer.Tcp.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Queue data with zero advertised window and no outstanding segment; drop the first reopening update; a probe elicits a fresh window and byte-exact transfer resumes.",
+        "Test duplicate ACKs, sequence wrap, reset/close/cancellation, timer bounds and another connection's progress during prolonged zero window.",
+        "Qualify the packet-loss scenario in a real guest with independent PCAP and cleanup evidence before M10-011 closes.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m07.029",
+        "TEST_PASS m07.029",
+        "TEST_FAIL m07.029 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter TcpSendWindowTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M07-030",
+      "title": "[M07-030] Retire TCP buffers into compact TIME-WAIT records",
+      "summary": "Retire TCP buffers into compact TIME-WAIT records",
+      "milestone": "M07",
+      "parentKey": "M07-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:implementation",
+        "evidence:qemu",
+        "component:network",
+        "phase:m07-network",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M07-029",
+        "M07-018"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: the web socket owner has eight connections with8192 RX/32768 TX bytes each. Active closes retain full slots until240-second TIME-WAIT expiry. Eight closes can exhaust admission although active data work has ended; this is a bounded-capacity limitation, not memory corruption.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Use a separately bounded tuple/sequence/deadline TIME-WAIT table and release bulk RX/TX ownership when safe. Preserve240-second policy and duplicate FIN/ACK behavior. Do not shorten MSL or allow unsafe tuple reuse to make churn pass.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs",
+        "src/OS.Kernel/Net/TcpSendWindow.Close.cs",
+        "src/OS.Kernel/Net/TcpTimeWaitTable.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "tests/OS.HostTests/LinuxSocketNetworkTests.cs",
+        "tests/OS.HostTests/TcpTimeWaitTableTests.cs",
+        "tools/OS.QemuRunner/ContinuingNetworkPeer.Tcp.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "More than eight sequential server-active-close connections succeed before the first TIME-WAIT expires while retired tuples remain protected.",
+        "Assert bounded table exhaustion, late/duplicate packets, tuple collision, exact deadlines, scrub/reuse, no stale generation and no owner-wide failure.",
+        "Record actual guest timing/packets and memory high-water values; compact records must reduce retained bulk storage without weakening close semantics.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m07.030",
+        "TEST_PASS m07.030",
+        "TEST_FAIL m07.030 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter TcpTimeWaitTableTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-013",
+      "title": "[M16-013] Support checked Linux sendmsg/recvmsg vectors required by Kestrel",
+      "summary": "Support checked Linux sendmsg/recvmsg vectors required by Kestrel",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-012",
+        "M10-006"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Gateway/descriptor dispatch at the review snapshot omits syscall46 sendmsg and47 recvmsg. The pinned Kestrel SocketSender maps multi-segment ReadOnlySequence to Socket BufferList; upstream System.Native uses message/vectored I/O. PR739 small health/config responses do not establish the vector path.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Reinspect exact pinned native imports and observed calls. Implement bounded x64 msghdr/iovec preflight, count/total-length overflow handling, partial transfer across vectors, nonblocking errno, flags and explicit ancillary-data rejection/support. Snapshot metadata before suspension; do not retain unchecked application pointers across yield.",
+        "Primary source: https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/aspnetcore/src/Servers/Kestrel/Transport.Sockets/src/Internal/SocketSender.cs and src/runtime/src/native/libs/System.Native/pal_networking.c at that same revision.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketMessages.cs",
+        "tests/OS.HostTests/LinuxSocketServicesTests.cs",
+        "tests/OS.HostTests/LinuxSocketMessagesTests.cs",
+        "apps/NativeAotSocketSmoke/Program.cs",
+        "apps/MinimalApiSmoke/Program.cs",
+        "tools/OS.Tooling/NativeAotSocketPayload.cs",
+        "tools/OS.Tooling/NativeAotWebPayload.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Actual pinned Socket BufferList and Kestrel multi-segment response paths transfer byte-exact data through the guest; record the syscall path and source/payload hashes.",
+        "Host negatives cover null/cross-page/unmapped vectors, count/length overflow, unsupported control data/flags, stale fd, partial writes, cancellation, reset and copy-out fault without unearned consumption.",
+        "External peer validates a response larger than one segment with deliberate short writes/backpressure; a small health response alone cannot close this issue.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m16.013",
+        "TEST_PASS m16.013",
+        "TEST_FAIL m16.013 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketMessagesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketServicesTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-014",
+      "title": "[M16-014] Separate finite qualification budgets from continuing service policy",
+      "summary": "Separate finite qualification budgets from continuing service policy",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:runtime",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-010",
+        "M16-013"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxSyscallGateway permits4096 calls per thread lifetime; EfiEntry begins the gate once and clears it at reap. LinuxThreadExecutionBudget has a300s runtime ceiling. PR739 increases other counters but preserves the elapsed cap. These deliberate finite guards cannot define a continuing service.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Keep sealed finite diagnostic profiles reproducible. Introduce explicit continuing service policy with bounded resources, fair per-turn work, cancellation and a progress watchdog. Do not merely raise limits or remove checks. Timeouts must not masquerade as ordinary application exit or acceptance.",
+        "Record the actual same-thread syscall count and elapsed guest time; distribute neither work nor reboots to evade the old limits.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadExecutionBudget.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreads.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadRun.cs",
+        "tests/OS.HostTests/LinuxSyscallGatewayTests.cs",
+        "tests/OS.HostTests/LinuxThreadExecutionBudgetTests.cs",
+        "apps/MinimalApiSmoke/Program.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "One continuing guest thread exceeds4096 valid calls and the service exceeds300s while continuing external requests, timer/worker progress and bounded memory are observed.",
+        "Budget/quotas, counter overflow, no-progress worker, cancellation and clean shutdown have deterministic results; finite negative qualifiers still stop exactly as designed.",
+        "Explicit operational policy is manifest/profile-bound and sealed in evidence; no arbitrary workload or unbounded service claim follows from one longer run.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m16.014",
+        "TEST_PASS m16.014",
+        "TEST_FAIL m16.014 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSyscallGatewayTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxThreadExecutionBudgetTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-015",
+      "title": "[M16-015] Allow fragmented physical backing for contiguous Linux virtual mappings",
+      "summary": "Allow fragmented physical backing for contiguous Linux virtual mappings",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:memory",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-014"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Fresh characterization at the review snapshot: four4-page mappings fill a16-page pool; freeing the first and third leaves8 free pages in two holes. Mapping6 pages returns-ENOMEM(-12), while freeing the remaining maps makes it succeed. Audit passes; the one-PhysicalStart-per-region representation requires contiguous physical backing.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Start with the attached characterization. Introduce bounded page/extent metadata supporting a contiguous virtual interval backed by discontiguous owned frames. A bitmap alone cannot fix a region represented by one PhysicalStart. Preserve candidate-root atomicity and existing brk/fixed-map provenance.",
+        "Do not expand the physical-address/CPU contract or reclaim firmware pages as part of this fix.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxMemoryServices.cs",
+        "src/OS.Kernel/Memory/X64UserAddressSpace.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadMemory.cs",
+        "tests/OS.HostTests/LinuxMemoryServicesTests.cs",
+        "tests/OS.HostTests/X64UserAddressSpaceTests.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "The16-page/two-hole case maps6 pages successfully, with exact frame ownership and no aliasing; real native allocation churn also continues under bounded backing.",
+        "Test metadata/table exhaustion rollback, fixed replacement, protection/advice, partial unmap, brk shrink/regrow, futex leases, scrub on release/reuse and zero/BSS semantics.",
+        "Existing protected foreign-page and memory/runtime guests remain qualified; new guest fragmentation evidence joins the exact source, mappings and payload.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m16.015",
+        "TEST_PASS m16.015",
+        "TEST_FAIL m16.015 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxMemoryServicesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter X64UserAddressSpaceTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-016",
+      "title": "[M16-016] Bind NativeAOT GC and native allocation budgets to the actual app pool",
+      "summary": "Bind NativeAOT GC and native allocation budgets to the actual app pool",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:memory",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-015",
+        "M10-004"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: sysinfo/proc facts include firmware conventional memory while mmap backing is a fixed16/32MiB pool. No configured GCHeapHardLimit was found. System totals may be truthful but are not an app allocation guarantee; a resulting GC failure has not been demonstrated.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Measure the pinned runtime's actual GC sizing/configuration behavior first. Separate advertised system totals from an immutable app commit budget, and reserve headroom for native runtime, stacks, page tables, sockets and kernel. Use the pinned runtime's supported GC configuration; verify it takes effect inside the guest.",
+        "Reference: https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector . Do not fake total RAM to mask an unaccounted pool.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxStartupServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Manifest/NativeManifestParser.cs",
+        "src/OS.Kernel/Manifest/LinuxAppConfiguration.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadMemory.cs",
+        "tools/OS.Tooling/NativeAotWebPayload.cs",
+        "tests/OS.HostTests/LinuxStartupServicesTests.cs",
+        "tests/OS.HostTests/LinuxAppConfigurationTests.cs",
+        "apps/NativeAotRuntimeSmoke/Program.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "The effective guest GC limit plus measured non-GC allocations fits the app's committed-page entitlement; changing VM RAM cannot silently enlarge that entitlement.",
+        "Invalid/oversized/conflicting configuration, native allocation pressure, GC pressure and quota exhaustion preserve accounting and produce bounded process failure without shared-owner corruption.",
+        "Runtime and Kestrel churn report GC/native/stack/socket peaks and all returned leases; carry this budget model into M14-006.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m16.016",
+        "TEST_PASS m16.016",
+        "TEST_FAIL m16.016 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxStartupServicesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxAppConfigurationTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-017",
+      "title": "[M16-017] Contain CPL3 invalid-opcode and divide faults within the workload",
+      "summary": "Contain CPL3 invalid-opcode and divide faults within the workload",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:security",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-014",
+        "M16-009"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Static trace only: X64LinuxUserTransition clones the IDT and replaces GP/PF (plus owned interrupt entries); #UD/#DE retain terminal FirstExit fault stubs. The normalized terminal path emits CLI/HLT. No guest UD2/divide reproduction was run; per-app fault containment is explicitly incomplete.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Extend the owned normalized CPL3 exception boundary for vectors0/6 with correct stack/error-code shape, provenance and full state restoration. Deliver supported SIGFPE/SIGILL semantics or terminate/reap the workload according to explicit policy. Kernel faults must retain terminal fail-closed behavior.",
+        "Use C#-authored mechanical guest bytes and the existing native serializer/review infrastructure; do not add native source or general kernel exception unwinding. This is an isolation prerequisite, not a first-healthz dependency.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/X64LinuxUserTransition.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/X64LinuxUserTransition.Faults.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalServices.cs",
+        "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs",
+        "src/OS/Boot/EfiEntry.LinuxSignals.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadRun.cs",
+        "tools/OS.Tooling/LinuxUserFaultProofFixture.cs",
+        "tests/OS.HostTests/X64LinuxUserTransitionTests.cs",
+        "tests/OS.HostTests/LinuxUserFaultProofFixtureTests.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/security.md",
+        "docs/app-model.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Actual CPL3 UD2 and divide-by-zero cases produce the specified signal/exit and return control to a progressing supervisor with complete lease/TLS/descriptor cleanup.",
+        "CPL0 origins, malformed frames/selectors/flags and nested fault controls cannot use the recoverable user path.",
+        "Independent original native-stack review and repeated real guest captures precede M14-007; M14-013 additionally proves a second protected app stays available.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m16.017",
+        "TEST_PASS m16.017",
+        "TEST_FAIL m16.017 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter X64LinuxUserTransitionTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxUserFaultProofFixtureTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/security.md",
+        "docs/app-model.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M15-016",
+      "title": "[M15-016] Establish reproducible CLROS and Nanos workload performance baselines",
+      "summary": "Establish reproducible CLROS and Nanos workload performance baselines",
+      "milestone": "M15",
+      "parentKey": "M15-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "phase:m15-production",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-014"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Review found no comparable CLROS/Nanos performance measurements. TcpSendWindow currently admits one timed outstanding segment, suggesting about146KB/s at1460B MSS/10ms RTT before overhead; this is a model, not a benchmark.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "This is build-host tooling only. Do not link Roslyn or host dependencies into EFI/kernel/std. Run focused host checks; native/guest requalification is required only if later emitted kernel code or its build closure changes.",
+        "Create a C# host harness with immutable result schema, exact workload hashes, pinned competitor revision/config and CPU/RAM/vCPU/acceleration/NIC/MTU/RTT equality. Compare the same NativeAOT payload where both systems support it; disclose unsupported differences instead of silently substituting workloads.",
+        "Measure boot-to-first-valid-response, throughput, p50/p99 latency, idle CPU, committed/resident memory, image/native code size, cold/warm runs, connection churn and loss/reorder recovery. Repeats must record raw distributions, failures and cleanup.",
+        "This early measurement leaf depends on local Kestrel, not provider completion. It feeds performance work; it does not block the first web or isolation proof."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.Tooling/WorkloadBenchmark.cs",
+        "tools/OS.QemuRunner/WorkloadBenchmarkPeer.cs",
+        "tests/OS.HostTests/WorkloadBenchmarkTests.cs",
+        "docs/architecture.md",
+        "docs/workload-profiles.md",
+        "docs/networking.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "A repeatable local CLROS baseline is retained with independent HTTP validation, raw data and source/tool/image/config joins; optional Nanos comparisons identify exact software and environment differences.",
+        "Stale payloads, missing metrics, mismatched CPU/acceleration, failed HTTP, timeout and leaked QEMU children fail the harness.",
+        "No claim of superiority without matched measurements; sustained production qualification stays in M15-004.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m15.016",
+        "TEST_PASS m15.016",
+        "TEST_FAIL m15.016 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter WorkloadBenchmarkTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/architecture.md",
+        "docs/workload-profiles.md",
+        "docs/networking.md"
+      ],
+      "evidenceBoundary": "Host-side analysis/generation or measurement tooling only. No guest execution, safety proof, performance superiority, provider or production claim follows from a tool pass."
+    },
+    {
+      "key": "M07-031",
+      "title": "[M07-031] Add a bounded congestion-controlled TCP flight window",
+      "summary": "Add a bounded congestion-controlled TCP flight window",
+      "milestone": "M07",
+      "parentKey": "M07-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:implementation",
+        "evidence:qemu",
+        "component:network",
+        "phase:m07-network",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M15-016",
+        "M07-030"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. TcpSendWindow.Pump returns AwaitingAck while timed Sent is nonzero, and LinuxSocketNetwork always configures timing. One-segment flight limits throughput as RTT rises; no measured speedup exists.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Use the M15-016 baseline to justify a bounded outstanding-segment ring with peer window/cwnd, ACK progress, RTO and loss recovery. Simply deleting AwaitingAck is unsafe. Keep ownership, partial ACK, sequence wrap and exact retransmission-byte rules.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Net/TcpSendWindow.cs",
+        "src/OS.Kernel/Net/TcpSendWindow.Close.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs",
+        "tests/OS.HostTests/TcpSendWindowTests.cs",
+        "tests/OS.HostTests/LinuxSocketNetworkTests.cs",
+        "tools/OS.QemuRunner/ContinuingNetworkPeer.Tcp.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Guest transfer puts multiple segments in flight within both advertised and congestion windows, with exact bytes under delay/loss/reorder and no retransmission aliasing.",
+        "Compare throughput/p99/CPU/memory at declared RTTs against the sealed baseline; report regressions and bounded storage costs.",
+        "Retain fairness, persist, reset/half-close/TIME-WAIT and cleanup controls; passing a microbenchmark is not production qualification.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m07.031",
+        "TEST_PASS m07.031",
+        "TEST_FAIL m07.031 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter TcpSendWindowTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/networking.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-018",
+      "title": "[M16-018] Reduce syscall audit cost with mutation-scoped validation",
+      "summary": "Reduce syscall audit cost with mutation-scoped validation",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:implementation",
+        "evidence:qemu",
+        "component:runtime",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M15-016",
+        "M16-016"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Static review: descriptor dispatch performs full owner audit; storage validation reaches LinuxMemoryServices and X64UserAddressSpace table audits. Epoll can repeat these checks. Mapping commits also rebuild/copy candidate tables. Cost has not been profiled; SocketReadiness was not found to run a full recursive audit per watch.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
+        "Profile accepted workloads first. Cache validation only behind owner/generation/mutation boundaries with explicit invalidation. Retain per-use pointer/length/permission/lifetime checks and complete audits at publication/qualification boundaries. Do not remove checks merely because inputs usually are trusted.",
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxEpollServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxMemoryServices.cs",
+        "src/OS.Kernel/Memory/X64UserAddressSpace.cs",
+        "tests/OS.HostTests/LinuxDescriptorServicesTests.cs",
+        "tests/OS.HostTests/LinuxEpollServicesTests.cs",
+        "tests/OS.HostTests/LinuxMemoryServicesTests.cs",
+        "tests/OS.HostTests/X64UserAddressSpaceTests.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Before/after syscall and request latency, CPU and memory costs are measured against M15-016 with no correctness regression.",
+        "Stale generation, fd reuse, mapping mutation, corruption, failed rollback and suspended-operation tests invalidate caches and preserve fail-closed semantics.",
+        "Native/guest ABI and protected-memory ancestors pass at the stable boundary; qualification profiles retain exhaustive audit coverage.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m16.018",
+        "TEST_PASS m16.018",
+        "TEST_FAIL m16.018 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxDescriptorServicesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxEpollServicesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxMemoryServicesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter X64UserAddressSpaceTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M11-019",
+      "title": "[M11-019] Add host-side Roslyn checks for kernel effects, context and ownership",
+      "summary": "Add host-side Roslyn checks for kernel effects, context and ownership",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:security",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-014"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. No first-party DiagnosticAnalyzer/IIncrementalGenerator was found. EFI admission permits exactly the two SDK NetAnalyzers assemblies. Proposed attributes alone cannot prove no allocation, no throw, IRQ context or ownership.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "This is build-host tooling only. Do not link Roslyn or host dependencies into EFI/kernel/std. Run focused host checks; native/guest requalification is required only if later emitted kernel code or its build closure changes.",
+        "Start as a separate host checker using pinned Roslyn semantic IOperation/symbol analysis. Stage no-allocation/no-throw first, then firmware/IRQ/inactive-root context and obvious live-owner-copy/ignored-status/borrow-across-handoff diagnostics. Suggested attributes: KernelNoAllocation, KernelNoThrow, RequiresInterruptsDisabled, RequiresInactiveUserRoot; names and supported semantics require review.",
+        "Track direct/transitive calls, boxing, captures, implicit allocation, exceptions, unresolved dispatch and function pointers. Unknown effects need explicit reviewed boundaries, not silent success. readonly/ref struct/scoped aid lexical borrowing but are not linear ownership or DMA proofs.",
+        "Do not insert a third analyzer into the EFI compiler yet. Any later build integration must deliberately update EfiProjectAdmission and sealed provenance with negative controls; diagnostic-only annotations cannot claim runtime safety."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.Tooling/KernelContractAnalysis.cs",
+        "tools/OS.Tooling/OS.Tooling.csproj",
+        "tests/OS.HostTests/KernelContractAnalysisTests.cs",
+        "tests/OS.HostTests/OS.HostTests.csproj",
+        "std/no-runtime/shared/KernelContractAttributes.cs",
+        "docs/architecture.md",
+        "docs/security.md",
+        "docs/nativeaot-nostdlib-limits.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Independent positive/negative C# fixtures detect direct and transitive forbidden effects, hidden allocations and unsupported dispatch while documenting false-positive/coverage limits.",
+        "Context/ownership diagnostics exercise invalidated generations, copies of live owners, ignored status and borrows crossing yield; suppressions identify a reviewed boundary.",
+        "Checker output is deterministic, C#14/.NET11 pins are retained, and normal kernel/EFI references remain free of Roslyn packages.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m11.019",
+        "TEST_PASS m11.019",
+        "TEST_FAIL m11.019 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter KernelContractAnalysisTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/architecture.md",
+        "docs/security.md",
+        "docs/nativeaot-nostdlib-limits.md"
+      ],
+      "evidenceBoundary": "Host-side analysis/generation or measurement tooling only. No guest execution, safety proof, performance superiority, provider or production claim follows from a tool pass."
+    },
+    {
+      "key": "M11-020",
+      "title": "[M11-020] Generate bounded ABI declarations with independent native layout checks",
+      "summary": "Generate bounded ABI declarations with independent native layout checks",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:std",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M11-019",
+        "M16-017"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. C# ABI declarations, offsets and native stubs are manually coordinated. OS.X64TextSerializerGenerator emits native objects; it is not a Roslyn source generator. Existing independent native review remains essential.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "This is build-host tooling only. Do not link Roslyn or host dependencies into EFI/kernel/std. Run focused host checks; native/guest requalification is required only if later emitted kernel code or its build closure changes.",
+        "Pilot one bounded ABI (for example x64 iovec/msghdr or signal frame) using explicit sizes, offsets, signedness and ownership/length annotations. Generate declarations/codecs/constants with IIncrementalGenerator or an equivalent pinned host build step; never reflect at runtime.",
+        "Preserve independent authoritative ABI vectors, original compiler disassembly and real guest argument/return preservation tests. Generating both implementation and its only oracle from one declaration cannot validate ABI correctness.",
+        "Integrate only after audited generator identity, inputs, deterministic output and analyzer allowlist changes are included in EFI admission/provenance. Avoid broad source moves and duplicate shared types."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.Tooling/AbiDeclarationGenerator.cs",
+        "tools/OS.Tooling/EfiProjectAdmission.cs",
+        "tools/OS.Tooling/OS.Tooling.csproj",
+        "tests/OS.HostTests/AbiDeclarationGeneratorTests.cs",
+        "std/no-runtime/shared/AbiContractAttributes.cs",
+        "src/OS/OS.csproj",
+        "docs/architecture.md",
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/efi-build.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Equivalent input produces byte-identical C# output; incremental updates invalidate exactly affected artifacts, and malformed/conflicting/overflowing declarations fail with stable diagnostics.",
+        "An independent native/layout fixture rejects intentionally wrong size/offset/calling convention even when the generated code and generated constants agree.",
+        "The first migrated ABI passes original native and guest regression qualification; generated artifact size and build cost are recorded.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m11.020",
+        "TEST_PASS m11.020",
+        "TEST_FAIL m11.020 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter AbiDeclarationGeneratorTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/architecture.md",
+        "docs/nativeaot-nostdlib-limits.md",
+        "docs/efi-build.md"
+      ],
+      "evidenceBoundary": "Host-side analysis/generation or measurement tooling only. No guest execution, safety proof, performance superiority, provider or production claim follows from a tool pass."
+    },
+    {
+      "key": "M11-021",
+      "title": "[M11-021] Generate workload capability and resource admission from explicit profiles",
+      "summary": "Generate workload capability and resource admission from explicit profiles",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:app-model",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M11-020",
+        "M14-009",
+        "M16-016"
+      ],
+      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Workload-specific images and source-generated admission are architecture opportunities, not implemented security or size results. Runtime-visible configuration, syscall availability and resource ceilings must stay consistent.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
+        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
+        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "This is build-host tooling only. Do not link Roslyn or host dependencies into EFI/kernel/std. Run focused host checks; native/guest requalification is required only if later emitted kernel code or its build closure changes.",
+        "Generate a bounded capability/resource table and evidence inventory from explicit immutable workload policy, including syscall/family/endpoint permissions and memory/socket/log limits. Enforce it at runtime behind the hardware user boundary; observation of one startup trace is not a complete allowlist.",
+        "Keep Roslyn on the build host, preserve Linux versus OSHost ABI separation and measure NativeAOT code/image growth from generic specialization. Attributes and static analysis supplement isolation; they do not replace page permissions or checked copy-in/out.",
+        "This optimization/security tooling does not become a prerequisite for first Kestrel or two-app isolation. Optional hosted Roslyn in M15-010 is a separate later workload."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.Tooling/WorkloadAdmissionGenerator.cs",
+        "tools/OS.Tooling/EfiProjectAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tests/OS.HostTests/WorkloadAdmissionGeneratorTests.cs",
+        "src/OS.Kernel/Build/WorkloadCapabilities.cs",
+        "std/no-runtime/shared/WorkloadCapabilityAttributes.cs",
+        "docs/architecture.md",
+        "docs/manifest.md",
+        "docs/security.md",
+        "docs/workload-profiles.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Undeclared calls/resources/endpoints fail explicitly; invalid/conflicting profiles and quota overflow fail build/admission without weakening the default-off posture.",
+        "Generated inventory, sealed image inputs and runtime enforcement agree, with independent negative guest controls before any security claim.",
+        "Measure image/native code size, startup time and memory against the same supported policy; disclose coverage and compatibility limits.",
+        "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
+      ],
+      "requiredMarkers": [
+        "TEST_START m11.021",
+        "TEST_PASS m11.021",
+        "TEST_FAIL m11.021 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter WorkloadAdmissionGeneratorTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/architecture.md",
+        "docs/manifest.md",
+        "docs/security.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Host-side analysis/generation or measurement tooling only. No guest execution, safety proof, performance superiority, provider or production claim follows from a tool pass."
     }
   ]
 }

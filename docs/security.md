@@ -18,6 +18,31 @@ No shell is attack-surface reduction, not proof that app exploits cannot
 occur or that CLROS is more secure than hardened Linux/Windows. No new
 security mechanism is implemented by this architecture change.
 
+## Architecture review security work
+
+Open [review issues](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
+place ordinary connection timeouts and unsupported RX packet content behind
+local failure boundaries before the Kestrel socket ladder. Unsafe DMA metadata
+and broken ownership still require fail-closed handling. The host RX
+reproduction does not establish an externally reachable attack on every backend.
+
+M16-017 owns actual CPL3 invalid-opcode/divide-fault containment. Source review
+found vectors 6/0 retain the terminal kernel path while the user transition
+replaces GP/PF entries. This is a static finding; a real guest reproduction,
+correct normalized frame provenance, SIGILL/SIGFPE or explicit workload-exit
+policy, supervisor progress and checked reap are required. CPL0 faults remain
+terminal. M14-013/#298 must additionally keep another protected application
+serving external HTTP during the fault.
+
+Existing M11-012/#240 now precedes repeated-service acceptance: use a reviewed
+CSPRNG, seed/reseed provenance, bounded `getrandom` semantics and safe failure
+handling. Neither a larger reservoir nor statistical output tests establish
+cryptographic security. M16-016 and M14-006/#291 provide explicit single-app and
+per-process commit budgets. Host-side effects/context/ownership analysis
+(M11-019), independently checked ABI generation (M11-020) and explicit capability
+generation (M11-021) supplement hardware isolation and runtime validation;
+annotations alone are not safety proofs.
+
 ## Current Status
 
 Security is policy baseline only.
