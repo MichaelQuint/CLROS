@@ -102,6 +102,16 @@ admission; cleanup retains live borrowers and erases drained generator/seeds.
 Host checks and C# compilation pass; guest randomness and secret ISNs remain
 unqualified. No continuing service or shutdown acceptance follows.
 
+[Step1425](../done/step1425.md) repairs #766's empty `sendmsg` full-buffer
+boundary in development. Empty messages still validate metadata, flags and the
+connected/reset/timeout/write-shutdown policy, then bypass only send-space
+pressure. Scalar `sendto` shares this correction. Existing `write`/`writev`
+zero-length ordering is unchanged.24 focused message/socket checks pass,
+including both original review reproductions, empty aggregates, unchanged
+transport/fd identity and nonempty EAGAIN/short-send/error controls. Service and
+finite-web C# profiles compile. Original native review and affected finite
+vector/socket guest regression remain pending; #766 stays open under #737.
+
 M16-015 addresses the current requirement for contiguous physical backing even
 when a virtual mapping could use discontiguous owned frames. The review's
 16-page-pool characterization returns `ENOMEM` for six requested pages while

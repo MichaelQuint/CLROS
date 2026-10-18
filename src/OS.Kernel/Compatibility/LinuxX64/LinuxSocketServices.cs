@@ -226,7 +226,7 @@ public static unsafe class LinuxSocketServices
         }
     }
 
-    internal static long WritePolicy(State* state, uint index, ulong flags)
+    internal static long WritePolicy(State* state, uint index, ulong flags, bool requireSpace = true)
     {
         if ((flags & ~0x4040UL) != 0) return -95; // MSG_DONTWAIT | MSG_NOSIGNAL.
         Endpoint* e = state->Slots + index;
@@ -236,7 +236,7 @@ public static unsafe class LinuxSocketServices
         { if (e->ErrorConsumed != 0) return BrokenPipe; e->ErrorConsumed = 1; return e->Sender->TimedOut ? -110 : Reset; }
         if (e->Sender->WritesClosed || entry.State == TcpConnectionLifecycleState.Closed) return BrokenPipe;
         if (!Nonblocking(state, index) && (flags & 0x40) == 0) return Unsupported;
-        return e->Sender->BufferedBytes >= e->SendBytes ? Again : 0;
+        return requireSpace && e->Sender->BufferedBytes >= e->SendBytes ? Again : 0;
     }
 
     internal static long SendCopied(State* state, uint index, uint bytes)
@@ -401,7 +401,7 @@ public static unsafe class LinuxSocketServices
     private static long Send(State* state, uint index, ulong address, ulong bytes, ulong flags)
     {
         if (bytes > LinuxDescriptorServices.MaximumIo) return Invalid;
-        long policy = WritePolicy(state, index, flags); if (policy != 0) return policy;
+        long policy = WritePolicy(state, index, flags, bytes != 0); if (policy != 0) return policy;
         if (bytes == 0) return 0;
         var a = state->Descriptors->Owner;
         uint wanted = (uint)(bytes < a.ScratchBytes ? bytes : a.ScratchBytes);
@@ -446,7 +446,7 @@ public static unsafe class LinuxSocketServices
         if (result != 0) return result;
         if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 46, fd, address, flags,
             header[2], vectors, (uint)header[3], total) != 1) return -5;
-        result = WritePolicy(state, index, flags); if (result != 0) return result;
+        result = WritePolicy(state, index, flags, total != 0); if (result != 0) return result;
         if (total == 0) return 0;
         var a = state->Descriptors->Owner;
         uint wanted = total < a.ScratchBytes ? total : a.ScratchBytes, copied = 0;

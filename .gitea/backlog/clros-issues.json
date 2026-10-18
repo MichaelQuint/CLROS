@@ -34307,7 +34307,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -34318,7 +34318,7 @@
       "dependencyKeys": [
         "M16-013"
       ],
-      "currentEvidence": "Review range352105e01cc86357c3e80f03e9d2f9cb1f02b30b..6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0, October18. New SendMessage path introduced by4b33e0ff5 calls WritePolicy at LinuxSocketServices.cs:449 before its total==0 return at450. WritePolicy:239 returns-EAGAIN when BufferedBytes reaches SendBytes. Two normal-harness regressions fill a4-byte window, then use either msg_iovlen=0 or one{NULL,0} vector: expected0, actual-11, buffer unchanged. All six original LinuxSocketMessageTests pass in that run. Temporary test edits are saved as a reproducible patch and removed; no runtime fix or guest failure is claimed.",
+      "currentEvidence": "Owned by shared integration #737 in the continuing-service foundations batch on codex/continuing-service-foundations-20261018 after development commit3b07b676 (2026-10-18). Exact predecessor #745 read back closed; incorporate this small compatibility repair before frozen-batch qualification and #224. Claimed implementation only; original review reproduction remains defect evidence. No new native, guest, continuing service or gate acceptance. Previous evidence: Review range352105e01cc86357c3e80f03e9d2f9cb1f02b30b..6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0, October18. New SendMessage path introduced by4b33e0ff5 calls WritePolicy at LinuxSocketServices.cs:449 before its total==0 return at450. WritePolicy:239 returns-EAGAIN when BufferedBytes reaches SendBytes. Two normal-harness regressions fill a4-byte window, then use either msg_iovlen=0 or one{NULL,0} vector: expected0, actual-11, buffer unchanged. All six original LinuxSocketMessageTests pass in that run. Temporary test edits are saved as a reproducible patch and removed; no runtime fix or guest failure is claimed.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/kestrel.md and docs/repo-audit.md. Preserve accepted step1405/1419 scope and the active shared integration owner#737. Incorporate this small slice into that owner's batch or obtain explicit lane handoff; readiness does not authorize concurrent edits.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",

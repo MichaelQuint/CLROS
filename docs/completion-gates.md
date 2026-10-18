@@ -11,7 +11,11 @@ compilation. [Step1424](../done/step1424.md) adds separately seeded/leased TCP
 ISN development with6 independent policy checks,27 network checks and C#
 compilation. Actual guest entropy/ISNs, the complete service runner,
 original native review and stable-batch full-host/QEMU/PCAP
-qualification remain pending. All six tickets stay open. No gate advances.
+qualification remain pending. These six tickets and #766 stay open.
+[Step1425](../done/step1425.md) adds development-only empty-send capacity repair
+with24 focused host checks and service/finite-web C# compilation. Its original
+native review and finite vector/socket guest regression remain pending.
+No gate advances.
 
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 `88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),

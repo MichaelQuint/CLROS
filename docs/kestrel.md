@@ -1,5 +1,12 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1425](../done/step1425.md) adds a development-only correction for #766:
+empty `sendmsg` and scalar `sendto` bypass full send-buffer pressure after the
+existing metadata/endpoint/error/flag checks.24 focused host checks pass;
+affected native and finite vector/socket guest regression is deferred to the
+stable seven-ticket service-foundation batch. #766 remains open and this adds
+no continuing-service or Kestrel qualification.
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
 757 fixtures (94 Native), three normal web and three quota prefixes, three finite
