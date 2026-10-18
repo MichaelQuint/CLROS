@@ -34042,7 +34042,9 @@
         "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.cs",
         "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Runner.cs",
         "tests/OS.HostTests/NativeAotWebRunnerTests.cs",
-        "tools/OS.QemuRunner/Program.cs"
+        "tools/OS.QemuRunner/Program.cs",
+        "tools/OS.Tooling/QemuTranscripts.RealtimeAdmission.cs",
+        "tests/OS.HostTests/RealtimeAdmissionControlTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

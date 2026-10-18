@@ -247,6 +247,11 @@ public static unsafe partial class EfiEntry
             internal OwnedRealtimeClock.State Realtime;
             internal OwnedRealtimeClock.FirmwareTime RealtimeSnapshot;
             internal ulong RealtimeCaptureTicks;
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+            internal uint RealtimeAdmissionControl;
+            internal ulong RealtimeRejectedStatus;
+            internal byte RealtimeRejectedMonth;
+#endif
 #endif
 #endif
 #if M16_003_PROBE
@@ -331,6 +336,9 @@ public static unsafe partial class EfiEntry
                     // Only this pre-entry branch may use firmware output. Partial
                     // allocations remain reserved until VM teardown on failure.
                     state->Phase = 5;
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+                    WriteRealtimeAdmissionRejection(state, console, serial);
+#endif
                     WritePreparationFailure(console, serial, state->PreparationCheckpoint, state->TableMemoryType);
                     return;
                 }

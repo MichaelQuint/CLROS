@@ -16,6 +16,7 @@ public static class QemuProfiles
         Require(options.DiskFormat is "raw" or "qcow2", "qemu.smoke.invalid_args disk_format=" + options.DiskFormat);
         Dictionary<string, bool> flags = new(options.Flags, StringComparer.Ordinal);
         bool Selected(string name) => flags.TryGetValue("Enable" + name + "Probe", out bool selected) && selected;
+        Require(!Selected("M16019Unavailable") && !Selected("M16019Invalid"),"realtime_rejection_requires_separate_capture");
         if (new[] { "M02OwnedGdtTssTerminal", "M02Ud2VectorState", "M02GuardedIstStackAllocation", "M02OwnedX64GdtEncoding", "M02PanicSafeOwnedCom1", "M02OwnedCom1Ready" }.Any(Selected)
             && new[] { "M02Com1OwnedPortIo", "M02CheckedPortIoBinding", "M02SafeStub" }.All(Selected))
         {

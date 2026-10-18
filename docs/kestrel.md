@@ -1,5 +1,18 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1412](../done/step1412.md) adds default-off unavailable/invalid UTC admission
+controls for #759. Each requires a successful firmware read and valid calendar
+before changing the copied status or month. The ordinary admission path must
+refuse preparation at checkpoint96, release package/startup owners and report
+that firmware remains active without workload entry or readiness. These are
+copied-source fault controls; they do not establish actual firmware failure.
+Both selected EFI managed compilations pass. A separate strict rejection-capture
+inspector requires the original firmware prefix, exact cleanup and failure tail
+through EOF; ordinary QEMU smoke rejects either fault selection. Focused host
+checks are synthetic. Source admission currently rejects the unreviewed realtime
+source inventory; original source/native review and actual positive/negative
+guest captures remain required at the stable-batch boundary. No acceptance advances.
+
 [Step1411](../done/step1411.md) connects the control consumers through production
 parent, runtime and packet validation. The mandatory runner report is checked
 first. Original drop/timeout rows remain at their scheduler positions; the
@@ -9,7 +22,7 @@ fd closed at timeout while the same healthy accepted object stays open with
 exact first-response I/O, then completes the second exchange. Existing FIFO,
 wait, memory, descriptor and TIME-WAIT checks remain. Thirty focused synthetic
 checks pass. No new guest, EFI native or full-host qualification is claimed;
-unavailable/invalid guest UTC controls and stable-batch qualification remain.
+actual unavailable/invalid guest UTC captures and stable-batch qualification remain.
 
 [Step1410](../done/step1410.md) adds development-only consumers for the runner
 reports and control packet streams. Production runner inspection requires exact

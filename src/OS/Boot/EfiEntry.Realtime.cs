@@ -1,5 +1,6 @@
 #if M10_004_PROBE
 using OS.Kernel.Platform;
+using OS.Kernel.Diagnostics;
 
 namespace OS.Boot;
 
@@ -42,16 +43,60 @@ public static unsafe partial class EfiEntry
             ulong before = state->Clock.Ticks;
             OwnedRealtimeClock.FirmwareTime snapshot = default;
             var getTime = (delegate* unmanaged<OwnedRealtimeClock.FirmwareTime*, void*, ulong>)function;
-            if (getTime(&snapshot, null) != 0 || !OwnedMonotonicClock.Read(ref state->Clock) ||
-                state->Clock.Ticks < before || state->Clock.Ticks - before > state->Clock.FrequencyHz ||
-                !OwnedRealtimeClock.TryFirmwareUtc(snapshot, unspecifiedTimezoneIsUtc: true,
-                    out long seconds, out uint nanoseconds) ||
-                !OwnedRealtimeClock.Begin(ref state->Realtime, seconds, nanoseconds,
-                    state->Clock.Ticks, state->Clock.FrequencyHz, maximumElapsedSeconds: 600)) return false;
-            state->RealtimeSnapshot = snapshot;
+            ulong sourceStatus = getTime(&snapshot, null);
+            if (sourceStatus != 0 || !OwnedMonotonicClock.Read(ref state->Clock) ||
+                state->Clock.Ticks < before || state->Clock.Ticks - before > state->Clock.FrequencyHz) return false;
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+            if (!OwnedRealtimeClock.TryFirmwareUtc(snapshot, unspecifiedTimezoneIsUtc: true,out _,out _)) return false;
+#endif
+#if M16_019_UNAVAILABLE_PROBE
+            // Fault only the copied result after a successful actual GetTime.
+            // Ordinary admission must reject; do not manufacture a terminal.
+            sourceStatus = 0x8000000000000003UL;
+#elif M16_019_INVALID_PROBE
+            snapshot.Month = 0;
+#endif
+            bool admitted = AdmitRealtime(state, sourceStatus, snapshot);
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+            if (!admitted && !state->Realtime.IsAvailable)
+            {
+                state->RealtimeAdmissionControl = Probes.EnableM16019UnavailableProbe ? 1U : 2U;
+                state->RealtimeRejectedStatus = sourceStatus; state->RealtimeRejectedMonth = snapshot.Month;
+            }
+#endif
+            if (!admitted) return false;
             state->RealtimeCaptureTicks = state->Clock.Ticks - before;
             return true;
         }
+
+        private static bool AdmitRealtime(Storage* state, ulong sourceStatus, OwnedRealtimeClock.FirmwareTime snapshot)
+        {
+            if (sourceStatus != 0 || !OwnedRealtimeClock.TryFirmwareUtc(snapshot, unspecifiedTimezoneIsUtc: true,
+                out long seconds, out uint nanoseconds) || !OwnedRealtimeClock.Begin(ref state->Realtime, seconds, nanoseconds,
+                    state->Clock.Ticks, state->Clock.FrequencyHz, maximumElapsedSeconds: 600)) return false;
+            state->RealtimeSnapshot = snapshot;
+            return true;
+        }
+
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+        // Firmware output is valid only on the existing pre-entry rejection
+        // branch. No post-exit kernel or workload entry occurred.
+        private static void WriteRealtimeAdmissionRejection(Storage* state, EfiSimpleTextOutputProtocol* console, EfiSerialIoProtocol* serial)
+        {
+            if (state->PreparationCheckpoint != 96 || state->RealtimeAdmissionControl == 0 || state->Realtime.IsAvailable) return;
+            string start = "TEST_START m16.019\r\nM16_019_UTC_REJECT case=";
+            for (int i = 0; i < start.Length; i++) Write(console, serial, (byte)start[i]);
+            WriteUnsignedDecimal(console, serial, state->RealtimeAdmissionControl);
+            string status = " sourceStatus=";
+            for (int i = 0; i < status.Length; i++) Write(console, serial, (byte)status[i]);
+            WriteUnsignedDecimal(console, serial, state->RealtimeRejectedStatus);
+            string month = " month=";
+            for (int i = 0; i < month.Length; i++) Write(console, serial, (byte)month[i]);
+            WriteUnsignedDecimal(console, serial, state->RealtimeRejectedMonth);
+            string end = " available=0 firmware=1 entered=0 ready=0\r\nTEST_FAIL m16.019 admission\r\n";
+            for (int i = 0; i < end.Length; i++) Write(console, serial, (byte)end[i]);
+        }
+#endif
 
         // Read only the copied map. GetTime must reside in an original runtime
         // code descriptor without EFI_MEMORY_XP; no callback survives preparation.

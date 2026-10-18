@@ -104,6 +104,8 @@
 		<EnableM16012Probe Condition="'$(EnableM16012Probe)' == ''">false</EnableM16012Probe>
 		<EnableM16013Probe Condition="'$(EnableM16013Probe)' == ''">false</EnableM16013Probe>
 		<EnableM10004Probe Condition="'$(EnableM10004Probe)' == ''">false</EnableM10004Probe>
+		<EnableM16019UnavailableProbe Condition="'$(EnableM16019UnavailableProbe)' == ''">false</EnableM16019UnavailableProbe>
+		<EnableM16019InvalidProbe Condition="'$(EnableM16019InvalidProbe)' == ''">false</EnableM16019InvalidProbe>
 		<EnableM09004Probe Condition="'$(EnableM09004Probe)' == ''">false</EnableM09004Probe>
 		<EnableM09005Probe Condition="'$(EnableM09005Probe)' == ''">false</EnableM09005Probe>
 		<EnableM09006Probe Condition="'$(EnableM09006Probe)' == ''">false</EnableM09006Probe>
@@ -413,6 +415,12 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM10004Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M10_004_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16019UnavailableProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_019_UNAVAILABLE_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16019InvalidProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_019_INVALID_PROBE</DefineConstants>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM09004Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M09_004_PROBE</DefineConstants>
@@ -2351,6 +2359,11 @@
 			<LinkerArg Include="/OPT:REF" />
 			<LinkerArg Include="/OPT:ICF" />
 		</ItemGroup>
+	</Target>
+
+	<Target Name="ValidateRealtimeAdmissionControls" BeforeTargets="CoreCompile">
+		<Error Condition="('$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true') and '$(EnableM10004Probe)' != 'true'" Text="realtime_rejection_requires_web_profile" />
+		<Error Condition="'$(EnableM16019UnavailableProbe)' == 'true' and '$(EnableM16019InvalidProbe)' == 'true'" Text="realtime_rejection_controls_conflict" />
 	</Target>
 
 	<Import Project="..\..\tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.targets" />

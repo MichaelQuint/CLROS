@@ -14,8 +14,10 @@ qualification remain pending; the Kestrel ledger owns the exact capture shape.
 [Step1410](../done/step1410.md) checks control reports and packet streams with
 focused synthetic evidence. Runtime/lifetime joins and production integration
 are implemented in [step1411](../done/step1411.md), with30 focused synthetic
-checks. Guest time negatives and stable-batch qualification remain pending;
-no issue or guest acceptance advances.
+checks. [Step1412](../done/step1412.md) implements default-off copied-source UTC
+admission faults and a separate strict failure-capture inspector. Both EFI managed
+selections compile; source admission/native review and actual guest time captures
+remain pending with stable-batch qualification. No issue or guest acceptance advances.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
 5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,

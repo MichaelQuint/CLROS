@@ -2,6 +2,16 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_019_UNAVAILABLE_PROBE
+    public const bool EnableM16019UnavailableProbe = true;
+#else
+    public const bool EnableM16019UnavailableProbe = false;
+#endif
+#if M16_019_INVALID_PROBE
+    public const bool EnableM16019InvalidProbe = true;
+#else
+    public const bool EnableM16019InvalidProbe = false;
+#endif
 #if M10_004_PROBE
     public const bool EnableM10004Probe = true;
 #else
@@ -337,7 +347,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 67;
+    public const int ProbeCatalogCount = 69;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -629,6 +639,14 @@ public static partial class Probes
     public static ProbeDefinition GetM10004Probe() =>
         new("app.nativeaot-web", nameof(EnableM10004Probe), EnableM10004Probe,
             ProbeRisk.Destructive, "Continuing original Minimal API with selected configuration and live socket owners; external HTTP proof required.");
+
+    public static ProbeDefinition GetM16019UnavailableProbe() =>
+        new("app.realtime-unavailable", nameof(EnableM16019UnavailableProbe), EnableM16019UnavailableProbe,
+            ProbeRisk.Destructive, "Copied UTC-result fault: real web preparation must reject before entry; no firmware failure claim.");
+
+    public static ProbeDefinition GetM16019InvalidProbe() =>
+        new("app.realtime-invalid", nameof(EnableM16019InvalidProbe), EnableM16019InvalidProbe,
+            ProbeRisk.Destructive, "Copied UTC-calendar fault: real web preparation must reject before entry; no service success claim.");
 
     public static ProbeDefinition GetM09004Probe() =>
         new("thread.cooperative-switch", nameof(EnableM09004Probe), EnableM09004Probe,
@@ -1013,6 +1031,12 @@ public static partial class Probes
                 return true;
             case 66:
                 definition = GetM16013Probe();
+                return true;
+            case 67:
+                definition = GetM16019UnavailableProbe();
+                return true;
+            case 68:
+                definition = GetM16019InvalidProbe();
                 return true;
             default:
                 definition = default;
