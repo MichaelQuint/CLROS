@@ -102,6 +102,18 @@ admission; cleanup retains live borrowers and erases drained generator/seeds.
 Host checks and C# compilation pass; guest randomness and secret ISNs remain
 unqualified. No continuing service or shutdown acceptance follows.
 
+[Step1426](../done/step1426.md) adds a dedicated `MinimalApiService` diagnostic
+fixture with explicit service arguments/configuration. One owned worker is
+designed to exercise direct getpid/getrandom, progress observations and a
+checked >300-second/>4096-call stop before Kestrel shutdown and joined exit.
+The fixed service envelope binds8080, `/app/apps`,64MiB,16 threads/descriptors
+and one immutable configuration file. Envelope validation grants no original
+ELF or instruction authority. Nine focused envelope/profile/web-program checks
+and two Windows entry rejections pass. The fixture builds; its worker has not
+executed. It is not yet selected by the guest pipeline: service publication,
+reviewed decoder identity, native startup observations and a complete
+peer/packet/lifecycle inspector remain pending behind the existing runner guard.
+
 [Step1425](../done/step1425.md) repairs #766's empty `sendmsg` full-buffer
 boundary in development. Empty messages still validate metadata, flags and the
 connected/reset/timeout/write-shutdown policy, then bypass only send-space

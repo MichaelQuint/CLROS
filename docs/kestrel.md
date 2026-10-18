@@ -1,5 +1,13 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1426](../done/step1426.md) adds a separately configured service fixture and
+exact bounded V2 envelope in development. The existing pinned MinimalApiSmoke
+sources/ELF authority remain unchanged. Nine focused checks and two Windows
+entry refusals pass; no new service worker, Linux host or guest execution was
+observed. Service publication, code/index binding, native startup/teardown
+observations and the complete external lifecycle/packet inspector precede
+guest admission and qualification.
+
 [Step1425](../done/step1425.md) adds a development-only correction for #766:
 empty `sendmsg` and scalar `sendto` bypass full send-buffer pressure after the
 existing metadata/endpoint/error/flag checks.24 focused host checks pass;

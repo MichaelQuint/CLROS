@@ -16,6 +16,14 @@ service, whole-stack, numbered, isolation, cloud and production remain incomplet
 Continue the six claimed service foundations and M16-022's empty-send correction
 below before #224; preserve shared owner #737.
 
+[Step1426](../done/step1426.md) adds the separate `MinimalApiService` fixture
+and canonical envelope for this continuing batch. The envelope requires the
+explicit v1 service argument/configuration,8080/content root,64MiB and16
+threads/descriptors. This is development scaffolding for actual worker/random/
+HTTP/shutdown evidence; its worker has not executed. The ordinary pinned web
+application stays unchanged. The guest pipeline retains its service-runner
+guard until original code/index and full lifecycle/packet checks exist.
+
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
 profiles, three retained strict GC repetitions and 24 fresh ancestors. The exact

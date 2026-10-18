@@ -17,6 +17,12 @@ with24 focused host checks and service/finite-web C# compilation. Its original
 native review and finite vector/socket guest regression remain pending.
 No gate advances.
 
+[Step1426](../done/step1426.md) adds the distinct service fixture and canonical
+bounded envelope, with9 focused checks and two Windows rejection controls.
+Neither envelope validation nor compilation executes the service worker or
+admits its ELF to a guest. The service runner remains guarded pending its own
+publication/source/decoder and complete lifecycle/packet validation.
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 `88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),
 six strict web/quota prefixes, three policy/vector guests and eight affected
