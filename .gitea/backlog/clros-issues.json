@@ -24567,7 +24567,7 @@
         "M03-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -24606,7 +24606,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Replace finite startup entropy exhaustion with a bounded, reviewed continuing randomness service.",
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxStartupServices limits one getrandom request to32 bytes and consumes a finite256-byte runtime reservoir; PR739 enlarges web storage to4096 but does not replenish it. Exhaustion fails closed; it is not a predictable random fallback.",
+      "currentEvidence": "Owned continuing-service foundations batch from merged PR765/base 6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0 (2026-10-18). Seven external prerequisites were read back closed. Implement in dependency order #743 -\u003E #744, #746 -\u003E #240, and #757 plus #240 -\u003E #758, under shared integration #737. Claimed for implementation only; no new host, guest, service, Kestrel, numbered, isolation, cloud or production acceptance. Previous finding: Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxStartupServices limits one getrandom request to32 bytes and consumes a finite256-byte runtime reservoir; PR739 enlarges web storage to4096 but does not replenish it. Exhaustion fails closed; it is not a predictable random fallback.",
       "implementationNotes": [
         "This existing issue is moved ahead of M10-011 continuing-service acceptance; it no longer waits for unrelated release acquisition policy M11-011. Preserve its original firmware seed boundary.",
         "Use an audited CSPRNG design with explicit seed provenance, initialization/readiness, bounded state, reseed and hardware/source-failure policy. Do not invent a PRNG, use clock/counter fallback or claim statistical tests prove cryptographic security.",
@@ -32670,7 +32670,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32682,7 +32682,7 @@
         "M07-028",
         "M07-017"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: TcpSendWindow.Pump returns WindowClosed when Window=0; PumpRetransmission returns NothingToSend with no in-flight bytes. Lost window-reopening updates can strand queued data. Persist probes are explicitly unsupported; no new guest loss test was run.",
+      "currentEvidence": "Owned continuing-service foundations batch from merged PR765/base 6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0 (2026-10-18). Seven external prerequisites were read back closed. Implement in dependency order #743 -\u003E #744, #746 -\u003E #240, and #757 plus #240 -\u003E #758, under shared integration #737. Claimed for implementation only; no new host, guest, service, Kestrel, numbered, isolation, cloud or production acceptance. Previous finding: Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: TcpSendWindow.Pump returns WindowClosed when Window=0; PumpRetransmission returns NothingToSend with no in-flight bytes. Lost window-reopening updates can strand queued data. Persist probes are explicitly unsupported; no new guest loss test was run.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32759,7 +32759,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -32771,7 +32771,7 @@
         "M07-029",
         "M07-018"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: the web socket owner has eight connections with8192 RX/32768 TX bytes each. Active closes retain full slots until240-second TIME-WAIT expiry. Eight closes can exhaust admission although active data work has ended; this is a bounded-capacity limitation, not memory corruption.",
+      "currentEvidence": "Owned continuing-service foundations batch from merged PR765/base 6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0 (2026-10-18). Seven external prerequisites were read back closed. Implement in dependency order #743 -\u003E #744, #746 -\u003E #240, and #757 plus #240 -\u003E #758, under shared integration #737. Claimed for implementation only; no new host, guest, service, Kestrel, numbered, isolation, cloud or production acceptance. Previous finding: Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: the web socket owner has eight connections with8192 RX/32768 TX bytes each. Active closes retain full slots until240-second TIME-WAIT expiry. Eight closes can exhaust admission although active data work has ended; this is a bounded-capacity limitation, not memory corruption.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32946,7 +32946,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32958,7 +32958,7 @@
         "M10-010",
         "M16-013"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxSyscallGateway permits4096 calls per thread lifetime; EfiEntry begins the gate once and clears it at reap. LinuxThreadExecutionBudget has a300s runtime ceiling. PR739 increases other counters but preserves the elapsed cap. These deliberate finite guards cannot define a continuing service.",
+      "currentEvidence": "Owned continuing-service foundations batch from merged PR765/base 6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0 (2026-10-18). Seven external prerequisites were read back closed. Implement in dependency order #743 -\u003E #744, #746 -\u003E #240, and #757 plus #240 -\u003E #758, under shared integration #737. Claimed for implementation only; no new host, guest, service, Kestrel, numbered, isolation, cloud or production acceptance. Previous finding: Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxSyscallGateway permits4096 calls per thread lifetime; EfiEntry begins the gate once and clears it at reap. LinuxThreadExecutionBudget has a300s runtime ceiling. PR739 increases other counters but preserves the elapsed cap. These deliberate finite guards cannot define a continuing service.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33802,7 +33802,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33814,7 +33814,7 @@
         "M07-014",
         "M07-028"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host reproduction: a valid exact-sequence RST|ACK after SYN/SYN-ACK returns Ignored, retains the only pending slot, sends another SYN-ACK at one second, and rejects an unrelated SYN with Capacity. Shared Failed remains false. LinuxSocketNetwork.cs:122-130 sends all non-SYN pending traffic through ReceiveAck, which rejects RST as an invalid final ACK. The current pending lifetime is ten seconds; established-reset handling is separate. This is not M07-027's common-owner timeout defect.",
+      "currentEvidence": "Owned continuing-service foundations batch from merged PR765/base 6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0 (2026-10-18). Seven external prerequisites were read back closed. Implement in dependency order #743 -\u003E #744, #746 -\u003E #240, and #757 plus #240 -\u003E #758, under shared integration #737. Claimed for implementation only; no new host, guest, service, Kestrel, numbered, isolation, cloud or production acceptance. Previous finding: Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host reproduction: a valid exact-sequence RST|ACK after SYN/SYN-ACK returns Ignored, retains the only pending slot, sends another SYN-ACK at one second, and rejects an unrelated SYN with Capacity. Shared Failed remains false. LinuxSocketNetwork.cs:122-130 sends all non-SYN pending traffic through ReceiveAck, which rejects RST as an invalid final ACK. The current pending lifetime is ten seconds; established-reset handling is separate. This is not M07-027\u0027s common-owner timeout defect.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33894,7 +33894,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33906,7 +33906,7 @@
         "M07-032",
         "M11-012"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host boundary reproduction initializes the public network contract with valid ISN uint.MaxValue-65536, establishes and resets one connection, closes its fd and pumps until retained/table counts are zero. The next SYN still returns Capacity. LinuxSocketNetwork.cs:140-151 permanently rejects once NextSequence crosses uint.MaxValue-65536. Each admission consumes65536; the EFI diagnostic seed at EfiEntry.LinuxSockets.cs:111-113 exposes only a small masked monotonic domain and predictable increments. This proves exhausted admission at the boundary, not a remote sequence-injection exploit or a measured 65000-connection guest run.",
+      "currentEvidence": "Owned continuing-service foundations batch from merged PR765/base 6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0 (2026-10-18). Seven external prerequisites were read back closed. Implement in dependency order #743 -\u003E #744, #746 -\u003E #240, and #757 plus #240 -\u003E #758, under shared integration #737. Claimed for implementation only; no new host, guest, service, Kestrel, numbered, isolation, cloud or production acceptance. Previous finding: Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host boundary reproduction initializes the public network contract with valid ISN uint.MaxValue-65536, establishes and resets one connection, closes its fd and pumps until retained/table counts are zero. The next SYN still returns Capacity. LinuxSocketNetwork.cs:140-151 permanently rejects once NextSequence crosses uint.MaxValue-65536. Each admission consumes65536; the EFI diagnostic seed at EfiEntry.LinuxSockets.cs:111-113 exposes only a small masked monotonic domain and predictable increments. This proves exhausted admission at the boundary, not a remote sequence-injection exploit or a measured 65000-connection guest run.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
