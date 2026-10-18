@@ -1,5 +1,18 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1414](../done/step1414.md) retains four original EFI candidates and two
+actual pre-entry UTC copied-source rejection guests. Both exact nine-row tails
+show released package/startup backing, two closed handles and checkpoint96 with
+no workload entry/readiness. Dedicated bounded Windows jobs terminate the
+spinning rejected guests; they grant no ordinary smoke or service success.
+The first fresh normal web guest serves exact external health and the runner
+finishes, but complete replay rejects successful CLOCK_REALTIME under its older
+unsupported-ID0 rule. The scoped correction admits checked successful ID0 only
+for the realtime-dependent web fixture; other profiles retain their unsupported
+contract. Focused replay checks precede fresh strict qualification. The failed
+web capture remains failed; positive UTC, full-host, remaining native/ancestor
+and service-batch acceptance remain pending.
+
 [Step1412](../done/step1412.md) adds default-off unavailable/invalid UTC admission
 controls for #759. Each requires a successful firmware read and valid calendar
 before changing the copied status or month. The ordinary admission path must

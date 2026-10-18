@@ -18,6 +18,11 @@ checks. [Step1412](../done/step1412.md) implements default-off copied-source UTC
 admission faults and a separate strict failure-capture inspector. Both EFI managed
 selections compile; source admission/native review and actual guest time captures
 remain pending with stable-batch qualification. No issue or guest acceptance advances.
+[Step1414](../done/step1414.md) adds actual dedicated pre-entry UTC rejection
+observations and original EFI candidates. Normal web serves exact health, but
+strict replay rejects the newly supported successful realtime syscall. The
+scoped replay correction remains subordinate to fresh stable-batch validation;
+the failed normal capture grants no positive UTC or service acceptance.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
 5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,

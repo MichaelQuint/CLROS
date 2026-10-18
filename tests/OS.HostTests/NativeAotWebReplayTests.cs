@@ -9,13 +9,15 @@ internal static class NativeAotWebReplayTests
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
         long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null,int? zeroSendMessage=null,bool zeroAfterShutdown=false,
-        bool controls=false,bool quota=false,bool badOpen=false,bool healthyClosed=false,bool retireAfterRequest=false)
+        bool controls=false,bool quota=false,bool badOpen=false,bool healthyClosed=false,bool retireAfterRequest=false,
+        ulong? clockId=null,long clockResult=0,ulong clockAddress=0x500800)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
             .Replace("packageBytes=1320176","packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
             .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
+        if(clockId is ulong id)v.Call(228,clockResult,[id,clockAddress]);
         v.Call(2,5,[0x500200,0x88100,0]);v.Call(5,0,[5,0x500800]);
         if(earlySettings)v.Call(17,51,[5,0x500800,1024,0]);
         v.Rows.Add("M10_004_CONFIG fd=5 bytes=51 source=immutable-package copied=user");
@@ -76,6 +78,33 @@ internal static class NativeAotWebReplayTests
             Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota);
     private static void Reject(Action action)
     { bool failed=false;try{action();}catch(ToolFailure){failed=true;}HostCheck.True(failed); }
+
+    private static void RejectClock(Action action)
+    { string? reason=null;try{action();}catch(ToolFailure error){reason=error.Reason;}HostCheck.Equal("threading_monotonic_clock",reason); }
+
+    [HostTest("web runtime replay requires checked successful realtime and preserves monotonic and unsupported clock IDs")]
+    private static void Realtime()
+    {
+        foreach(ulong id in new ulong[]{0,1,6})HostCheck.Equal(2,Inspect(Vector(clockId:id)).SocketAccepts);
+        foreach(long result in new long[]{-22,-5})RejectClock(()=>Inspect(Vector(clockId:0,clockResult:result)));
+        foreach(ulong address in new ulong[]{0,ulong.MaxValue})RejectClock(()=>Inspect(Vector(clockId:0,clockAddress:address)));
+        foreach(ulong id in new ulong[]{2,7})
+        { HostCheck.Equal(2,Inspect(Vector(clockId:id,clockResult:-22)).SocketAccepts);RejectClock(()=>Inspect(Vector(clockId:id))); }
+        foreach(ulong id in new ulong[]{1,6})RejectClock(()=>Inspect(Vector(clockId:id,clockResult:-22)));
+    }
+
+    [HostTest("ordinary socket runtime replay retains unsupported realtime without borrowing web admission")]
+    private static void RealtimeScope()
+    {
+        QemuTranscripts.ThreadingProtocolReport Run(long result)
+        {
+            var vector=NativeAotSocketProtocolTests.Vector(policyPrefix:v=>v.Call(228,result,[0,0x500800]));
+            return QemuTranscripts.InspectNativeAotSocketProtocolForTests(false,NativeAotThreadingTranscriptTests.Elf(),
+                Encoding.UTF8.GetBytes(string.Join("\r\n",vector.Rows)+"\r\n"),
+                address=>address==0x400200 || address==0x400202,address=>address==0x400202,8192,12288);
+        }
+        _=Run(-22);RejectClock(()=>Run(0));
+    }
     private static List<string> CallChange(int number,Func<string,string> change)
     {
         var rows=Vector();int index=rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr="+number+" ",StringComparison.Ordinal));

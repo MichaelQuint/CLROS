@@ -1,5 +1,14 @@
 # EFI Build
 
+[Step1414](../done/step1414.md) preserves four candidates at `ff7366fd`, each with
+874 exact source joins and ten original native inputs. Their complete managed
+code and original REL32 targets join to the retained EFI. Bounded clock, EFI
+adapter, fault-control, initializer and HPET-parent reviews retain their explicit
+body/frame/data limits; retained parent and entry comparisons remain separate.
+Two actual UTC rejection guests pass their dedicated inspector. The fresh normal
+web capture fails the older realtime replay expectation after external health;
+publication and runner success do not qualify that capture or the service batch.
+
 [Step1413](../done/step1413.md) admits the reviewed finite realtime source closure
 for candidate publication. Three new identities cover the calendar, owned clock
 and pre-entry EFI adapter; four existing identities and the entry identity follow
