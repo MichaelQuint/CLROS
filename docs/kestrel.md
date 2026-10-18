@@ -36,6 +36,14 @@ review and stable full-host/CLROS guest qualification remain pending.
 No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
 gate advances. See the step for exact commands, hashes and retained failures.
 
+[Step1398](../done/step1398.md) retains the first changed-payload publication:
+the three-app native publisher passed, but web qualification failed because its
+logging checker still expected36 stderr rows. The actual output includes the
+new final vector-stage row. The repaired checker requires37 rows, the exact final
+stage and all32 original stderr log records; focused negative controls and replay
+over the retained raw Linux output pass. The original web result remains failed.
+Fresh qualification with the corrected producer remains required.
+
 The immutable [steps1381-1388](../done/step1381.md) retain development history:
 source-pin repairs, the original Linux/package/native reviews, failed runner and
 worker-limit captures, five-request consumer fixes and the exit-tail IRQ repair.

@@ -154,7 +154,8 @@ public static class NativeAotWebPayload
             "CLROS_APP_CTOR minimal.api.smoke", "CLROS_APP_BUILT minimal.api.smoke"];
         Require(!stderr.Contains('\r') && stderr.EndsWith('\n'), "logging_stderr_framing");
         string[] errors = stderr[..^1].Split('\n');
-        Require(errors.Length == 36 && errors.Take(4).SequenceEqual(startup), "logging_startup");
+        Require(errors.Length == 37 && errors.Take(4).SequenceEqual(startup), "logging_startup");
+        Require(errors[^1] == "CLROS_VECTOR_STAGED bytes=49152 blocks=3", "vector_app_stage");
         Require(!stdout.Contains('\r') && stdout.EndsWith('\n') &&
             !stdout.Split('\n').Any(line => line.StartsWith("TEST_FAIL", StringComparison.Ordinal) ||
                 line.StartsWith("CLROS_APP_FAIL", StringComparison.Ordinal)), "logging_stdout_framing");
@@ -162,7 +163,7 @@ public static class NativeAotWebPayload
             .Select(record => $"CLROS_LOG fd={fd} worker={worker} record={record}")).Order(StringComparer.Ordinal).ToArray();
         string[] outputRows = stdout.Split('\n').Where(line => line.StartsWith("CLROS_LOG", StringComparison.Ordinal)).ToArray();
         Require(outputRows.Order(StringComparer.Ordinal).SequenceEqual(Catalog(1)) &&
-            errors.Skip(4).Order(StringComparer.Ordinal).SequenceEqual(Catalog(2)), "logging_records");
+            errors.Skip(4).SkipLast(1).Order(StringComparer.Ordinal).SequenceEqual(Catalog(2)), "logging_records");
         HashSet<(int Worker, int Record)> seen = []; Dictionary<int, string> writers = []; int invalid = 0;
         foreach (var trace in traces) foreach (string row in trace.Value.Split('\n'))
         {

@@ -51,7 +51,7 @@ internal static class NativeAotWebPayloadTests
     {
         foreach (string mutation in new[] { "none", "missing_stdout", "duplicate_stderr", "startup_order", "missing_vector",
             "duplicate_vector", "short_vector", "same_native_thread", "wrong_errno", "extra_stderr", "unterminated_stderr",
-            "unterminated_stdout", "stdout_failure" })
+            "unterminated_stdout", "stdout_failure", "missing_stage", "duplicate_stage", "wrong_stage", "early_stage" })
         {
             var (stdout, stderr, traces) = LoggingFixture();
             switch (mutation)
@@ -68,6 +68,11 @@ internal static class NativeAotWebPayloadTests
                 case "unterminated_stderr": stderr = stderr[..^1]; break;
                 case "unterminated_stdout": stdout = stdout[..^1]; break;
                 case "stdout_failure": stdout += "TEST_FAIL logging.fixture\n"; break;
+                case "missing_stage": stderr = stderr.Replace("CLROS_VECTOR_STAGED bytes=49152 blocks=3\n", "", StringComparison.Ordinal); break;
+                case "duplicate_stage": stderr += "CLROS_VECTOR_STAGED bytes=49152 blocks=3\n"; break;
+                case "wrong_stage": stderr = stderr.Replace("blocks=3", "blocks=2", StringComparison.Ordinal); break;
+                case "early_stage": stderr = stderr.Replace("CLROS_VECTOR_STAGED bytes=49152 blocks=3\n", "", StringComparison.Ordinal)
+                    .Replace("CLROS_APP_BUILT minimal.api.smoke\n", "CLROS_APP_BUILT minimal.api.smoke\nCLROS_VECTOR_STAGED bytes=49152 blocks=3\n", StringComparison.Ordinal); break;
             }
             bool rejected = false;
             try { NativeAotWebPayload.ValidateLoggingEvidence(stdout, stderr, traces); }
@@ -81,7 +86,7 @@ internal static class NativeAotWebPayloadTests
         string Line(int fd, int worker, int record) => $"CLROS_LOG fd={fd} worker={worker} record={record}";
         string stdout = string.Join('\n', Enumerable.Range(0, 8).SelectMany(w => Enumerable.Range(0, 4).Select(r => Line(1, w, r)))) + "\n";
         string stderr = "CLROS_APP_ENTRY minimal.api.smoke\nCLROS_APP_CCTOR minimal.api.smoke\nCLROS_APP_CTOR minimal.api.smoke\nCLROS_APP_BUILT minimal.api.smoke\n" +
-            string.Join('\n', Enumerable.Range(0, 8).SelectMany(w => Enumerable.Range(0, 4).Select(r => Line(2, w, r)))) + "\n";
+            string.Join('\n', Enumerable.Range(0, 8).SelectMany(w => Enumerable.Range(0, 4).Select(r => Line(2, w, r)))) + "\nCLROS_VECTOR_STAGED bytes=49152 blocks=3\n";
         var traces = new Dictionary<string, string>(StringComparer.Ordinal)
         { ["fixture.1"] = "writev(1234, [{iov_base=\"!\", iov_len=1}], 1) = -1 EBADF (Bad file descriptor)\n" };
         for (int worker = 0; worker < 8; worker++)
