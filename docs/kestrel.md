@@ -1,5 +1,16 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1406](../done/step1406.md) adds development-only #759 realtime plumbing in
+the owned #220/#221/#222/#759/#223 batch. A copied, validated UEFI time is anchored
+to the same HPET owner before firmware exit. The finite web fixture declares
+`-rtc base=utc,clock=host`; only that UTC-RTC contract permits an unspecified
+firmware timezone. Seasonal rules are unsupported. The seed expires after
+600 monotonic seconds, and a failed realtime syscall aborts the web application
+before the PAL can substitute Unix epoch. Focused host checks and the selected
+EFI managed build pass. Native publication/review, positive and negative guest
+time controls, trusted HTTP Date intervals, and the remaining service ladder
+are pending. These changes do not qualify #759 or alter step1405's accepted scope.
+
 [Step1405](../done/step1405.md) qualifies bounded #219 upstream startup and
 #745 checked socket vectors. Frozen implementation `8ef72134` passes 5,619
 unfiltered full-host checks across 751 fixtures (94 Native), six strict web/quota

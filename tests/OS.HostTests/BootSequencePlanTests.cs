@@ -690,6 +690,7 @@ internal static class BootSequencePlanTests
              "public static bool IsWorkloadServiceLoopEnabled() =>",
              "public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool PrepareOwnedRealtime(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,",

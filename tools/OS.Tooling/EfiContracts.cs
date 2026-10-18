@@ -51,7 +51,7 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "7bf253b45882dd1041e42f17511f82cc5d1d85d853f3759bde42c0f496fef8a2";
+    public const string ProjectSourceSha256 = "1a51925695183a9666f371370e1d51331a0cbf31dcf751149e6125a19d664e3c";
     public const string CanonicalProjectSha256 = "91ec1c6c376167a90fa8fa15825e913812b63cb05cb7f1da3828326bdfc0f418";
     public const string EfiEntrySourceSha256 = "6d8ec65640bbc69edbfce0e31e55a774a377b68f2e39c4224c9afb1c20519653";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
@@ -169,6 +169,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs|Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs",
         @"..\OS.Kernel\Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs|Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs",
         @"..\OS.Kernel\Platform\OwnedMonotonicClock.cs|Platform\OwnedMonotonicClock.cs",
+        @"..\OS.Kernel\Platform\OwnedRealtimeClock.cs|Platform\OwnedRealtimeClock.cs",
+        @"..\..\std\no-runtime\shared\Time\GregorianUtc.cs|Std\Time\GregorianUtc.cs",
         @"..\OS.Kernel\Drivers\BoundedPCIConfigurationSpaceInterface.cs|Drivers\BoundedPCIConfigurationSpaceInterface.cs",
         @"..\OS.Kernel\Drivers\ECAMPageVendorDeviceHeader.cs|Drivers\ECAMPageVendorDeviceHeader.cs",
         @"..\OS.Kernel\Drivers\PCIBusesDevicesFunctionsBoundedDiagnostics.cs|Drivers\PCIBusesDevicesFunctionsBoundedDiagnostics.cs",
@@ -369,6 +371,7 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",
         @"Boot\EfiEntry.LinuxSockets.cs|",
         @"Boot\EfiEntry.LinuxWeb.cs|",
+        @"Boot\EfiEntry.Realtime.cs|",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs|Compatibility\LinuxX64\LinuxAppStartupObservation.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs|Compatibility\LinuxX64\LinuxAppLogObservation.cs",

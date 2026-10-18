@@ -6,7 +6,9 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// facts, a live monotonic clock and separately captured fresh entropy. All
 /// pointers/callbacks remain exclusive and mapped for this one-use lifetime.
 /// Call under the kernel root with the target user root inactive, then audit and
-/// reload it before resumption. No threads, signals, wall clock, blocking entropy
+/// reload it before resumption. Optional realtime borrows an exclusively owned,
+/// pre-exit seeded clock using this same monotonic epoch and frequency. No
+/// threads, signals, clock synchronization, blocking entropy
 /// refill, demand paging or broad Linux compatibility is implied. Negative errno
 /// reports unsupported/malformed/exhausted requests; there are no allocations or
 /// firmware calls. Output callbacks must copy the complete preflighted range.
@@ -30,6 +32,10 @@ public static unsafe class LinuxStartupServices
     /// Entropy must be separate from AT_RANDOM and never published elsewhere.
     /// CapturedEntropyBytes is exactly 32, 256 or 4096 genuinely acquired bytes; the
     /// complete borrowed extent stays exclusive through owner cleanup.
+    /// Realtime, when present, stays exclusively mapped through cleanup and uses
+    /// this exact monotonic source/frequency. RequireRealtime prevents heap
+    /// admission without an available UTC owner. No firmware authority crosses
+    /// this boundary; optional absence retains the unsupported realtime errno.
     /// </summary>
     public struct Admission
     {
@@ -38,11 +44,12 @@ public static unsafe class LinuxStartupServices
         public delegate* unmanaged<void*, ulong*, byte> ReadClock;
         public delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         public delegate* unmanaged<void*, byte> MemoryBarrier;
+        public OS.Kernel.Platform.OwnedRealtimeClock.State* Realtime;
         public ulong FrequencyHz, PhysicalBytes, AvailableBytes, HeapStart, HeapBytes, StackBytes;
         public uint ProcessId;
         public byte* Entropy;
         public uint CapturedEntropyBytes;
-        public bool SingleCpuValidated, FirmwareExited;
+        public bool SingleCpuValidated, FirmwareExited, RequireRealtime;
     }
 
     /// <summary>Caller-owned single-use state; do not copy a live instance.
@@ -88,7 +95,13 @@ public static unsafe class LinuxStartupServices
         bool nonzero = false;
         for (uint i = 0; i < admission.CapturedEntropyBytes; i++) if (admission.Entropy[i] != 0) nonzero = true;
         ulong ticks = 0;
-        if (!nonzero || admission.ReadClock(admission.User.Context, &ticks) != 1) return false;
+        if (!nonzero || admission.ReadClock(admission.User.Context, &ticks) != 1 ||
+            (admission.RequireRealtime && admission.Realtime == null)) return false;
+        if (admission.Realtime != null &&
+            (((ulong)admission.Realtime & 7) != 0 ||
+             (ulong)admission.Realtime > ~0UL - (ulong)sizeof(OS.Kernel.Platform.OwnedRealtimeClock.State) ||
+             admission.Realtime->FrequencyHz != admission.FrequencyHz ||
+             !OS.Kernel.Platform.OwnedRealtimeClock.Read(ref *admission.Realtime, ticks, out _, out _))) return false;
         if (LinuxMemoryServices.ReserveHeap(admission.Memory, admission.HeapStart, admission.HeapBytes) != (long)admission.HeapStart) return false;
         state->Owner = admission; state->CurrentBreak = admission.HeapStart; state->LastTicks = ticks; state->Initialized = 1;
         return true;
@@ -178,11 +191,18 @@ public static unsafe class LinuxStartupServices
     }
     private static long Clock(State* state, uint id, ulong address)
     {
-        if (id != 1 && id != 6) return Invalid; // No fabricated realtime/UTC source.
+        if (id != 1 && id != 6 && (id != 0 || state->Owner.Realtime == null)) return Invalid;
         if (!LinuxSyscallGateway.ValidateRange(address, 16, LinuxUserPageAccess.Write, state->Owner.User)) return Fault;
         if (!Read(state, out ulong ticks)) return Io;
         byte* time = stackalloc byte[16]; ulong frequency = state->Owner.FrequencyHz;
-        *(ulong*)time = ticks / frequency; *(ulong*)(time + 8) = (ticks % frequency) * 1000000000 / frequency;
+        if (id == 0)
+        {
+            if (!OS.Kernel.Platform.OwnedRealtimeClock.Read(ref *state->Owner.Realtime, ticks,
+                    out long seconds, out uint nanoseconds)) return Io;
+            *(long*)time = seconds; *(ulong*)(time + 8) = nanoseconds;
+        }
+        else
+        { *(ulong*)time = ticks / frequency; *(ulong*)(time + 8) = (ticks % frequency) * 1000000000 / frequency; }
         // CLOCK_MONOTONIC_COARSE shares the live monotonic epoch and rounds
         // down to this adapter's declared millisecond resolution.
         if (id == 6) *(ulong*)(time + 8) = *(ulong*)(time + 8) / 1000000 * 1000000;

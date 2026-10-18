@@ -739,6 +739,8 @@
 		<Compile Include="..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs" Link="Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs" />
 		<Compile Include="..\OS.Kernel\Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs" Link="Platform\OwnedACPIDirectorySelectMADTHPETMCFG.cs" />
 		<Compile Include="..\OS.Kernel\Platform\OwnedMonotonicClock.cs" Link="Platform\OwnedMonotonicClock.cs" />
+		<Compile Include="..\OS.Kernel\Platform\OwnedRealtimeClock.cs" Link="Platform\OwnedRealtimeClock.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Time\GregorianUtc.cs" Link="Std\Time\GregorianUtc.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\BoundedPCIConfigurationSpaceInterface.cs" Link="Drivers\BoundedPCIConfigurationSpaceInterface.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\ECAMPageVendorDeviceHeader.cs" Link="Drivers\ECAMPageVendorDeviceHeader.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\PCIBusesDevicesFunctionsBoundedDiagnostics.cs" Link="Drivers\PCIBusesDevicesFunctionsBoundedDiagnostics.cs" />
@@ -939,6 +941,7 @@
 		<Compile Include="Boot\EfiEntry.LinuxThreadTimer.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxSockets.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxWeb.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
+		<Compile Include="Boot\EfiEntry.Realtime.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs" Link="Compatibility\LinuxX64\LinuxAppLogBudget.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs" Link="Compatibility\LinuxX64\LinuxAppStartupObservation.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs" Link="Compatibility\LinuxX64\LinuxAppLogObservation.cs" Condition="'$(EnableM10004Probe)' == 'true'" />

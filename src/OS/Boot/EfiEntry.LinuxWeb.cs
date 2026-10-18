@@ -17,6 +17,11 @@ public static unsafe partial class EfiEntry
             if (c == null || c->Phase != 3 || c->Published != 1 || c->State->NetworkPhase != 2 ||
                 !c->Threads.Current.IsValid || c->Process.ActiveThreads == 0) return false;
             Storage* state = c->State;
+            // This PAL turns a failed realtime acquisition into Unix epoch.
+            // Do not resume a declared realtime-dependent application on that
+            // path, including expiry and checked-copy failure after admission.
+            if (call.Number == 228 && unchecked((uint)call.Argument0) == 0 && result.Value != 0)
+            { LinuxText(state, "TEST_FAIL m16.019 realtime-unavailable\r\n"); return false; }
             var descriptors = state->LinuxDescriptors.Owner;
             if (descriptors.ViewCount != 2 || descriptors.Views[1].Inode != 257 ||
                 descriptors.Views[1].Bytes == 0 || descriptors.Views[1].Bytes > 65536) return false;

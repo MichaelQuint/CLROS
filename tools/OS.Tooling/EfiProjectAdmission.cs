@@ -163,6 +163,7 @@ public static class EfiProjectAdmission
         return EfiContracts.CompileItems.Where(item => item switch
         {
             @"Boot\EfiEntry.LinuxWeb.cs|" or
+            @"Boot\EfiEntry.Realtime.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs|Compatibility\LinuxX64\LinuxAppStartupObservation.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs|Compatibility\LinuxX64\LinuxAppLogObservation.cs" or

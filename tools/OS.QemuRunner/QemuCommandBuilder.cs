@@ -21,6 +21,11 @@ internal static class QemuCommandBuilder
             "file:" + options.SerialLogPath
         ];
 
+        // The finite web fixture may resolve EFI_UNSPECIFIED_TIMEZONE only
+        // under this declared UTC RTC contract. Retain these arguments in the
+        // runner receipt; arbitrary firmware/local-time configurations differ.
+        if (options.ContinuingWeb) arguments.AddRange(["-rtc", "base=utc,clock=host"]);
+
         if (!string.IsNullOrWhiteSpace(ovmfCodePath))
         {
             arguments.AddRange(
