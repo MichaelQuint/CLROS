@@ -22816,7 +22816,16 @@
         "tools/OS.QemuRunner/QemuCommandBuilder.cs",
         "tests/OS.HostTests/WebFrameControlTests.cs",
         "tests/OS.HostTests/WebSocketControlsTests.cs",
-        "tests/OS.HostTests/QemuRunnerHttpProbeTests.cs"
+        "tests/OS.HostTests/QemuRunnerHttpProbeTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Controls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Runner.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Packets.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotSocket.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tests/OS.HostTests/NativeAotWebRunnerTests.cs",
+        "tests/OS.HostTests/NativeAotWebPacketTests.cs"
       ],
       "forbiddenPaths": [
         "README.md",

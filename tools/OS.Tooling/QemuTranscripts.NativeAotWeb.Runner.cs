@@ -18,15 +18,18 @@ public static partial class QemuTranscripts
     /// The original ProcessResult, source/native and image qualification remain
     /// mandatory; this report supplies no guest exit or resource release.</summary>
     public readonly record struct WebRunnerReport(int ProcessId,long LifetimeMilliseconds,int HealthMilliseconds,int ConfigurationMilliseconds,
-        IReadOnlyList<WebUtcObservation> UtcObservations);
+        IReadOnlyList<WebUtcObservation> UtcObservations,WebControlInspection? Controls);
 
     /// <summary>Inspect a borrowed raw serial, runner result and exact summary
     /// against explicit selection/window expectations. Recomputes streaming
     /// metrics, observed rows and tail; inconsistent process/HTTP/summary state
     /// throws. Caller data grants no native, source, packet or guest authority.
-    /// Inputs are not executed, mutated or retained.</summary>
+    /// Controls are mandatory by default. Explicit requireControls=false is a
+    /// historical framing-only seam returning Controls=null; production never
+    /// selects it. Inputs are not executed, mutated or retained.</summary>
     public static WebRunnerReport InspectNativeAotWebRunnerForTests(QemuSmokeOptions options,QemuSmokePlan plan,
-        ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration,bool logQuota=false)
+        ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration,bool logQuota=false,
+        bool requireControls=true)
     {
         RequireCompleteProcess(runner,"web_runner_incomplete");
         Need(runner.ExitCode==0 && runner.StandardError.Length==0 && raw.Length is >0 and <=8*1024*1024 &&
@@ -68,12 +71,17 @@ public static partial class QemuTranscripts
             health<=20000 && config<=20000 && logging<=60000 && repeat<=20000 && vector<=20000 && after<=20000 &&
             health+config+logging+repeat+vector+after<=life && int.TryParse(exit,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int exitCode) &&
             exitCode.ToString(CultureInfo.InvariantCulture)==exit,"web_runner_child_lifetime");
-        int count=logQuota?5:6;
+        string? socketsJson=requireControls?Value("WEB_SOCKET_CONTROLS"):null,framesJson=requireControls?Value("WEB_FRAME_CONTROL"):null;
+        var controls=requireControls?ReadWebControls(socketsJson!,framesJson!,context.ForwardPort):null;
+        int ordinary=logQuota?5:6,count=ordinary+(requireControls?3:0);
         Need(Decimal("WEB_HTTP_UTC_TOLERANCE_SECONDS")==WebUtcToleranceSeconds &&
             Decimal("WEB_HTTP_UTC_WINDOWS")== (ulong)count,"web_runner_utc_policy");
         List<WebUtcObservation> utc=[];List<string> utcRows=["WEB_HTTP_UTC_TOLERANCE_SECONDS "+WebUtcToleranceSeconds,
             "WEB_HTTP_UTC_WINDOWS "+count];
-        ulong[] durations=logQuota?[health,config,logging,repeat,after]:[health,config,logging,repeat,vector,after];
+        List<ulong> durations=logQuota?[health,config,logging,repeat,after]:[health,config,logging,repeat,vector,after];
+        WebSocketControls.Exchange[] exchanges=controls is null?[]:[controls.Sockets.Deadline,controls.Sockets.Before,controls.Sockets.After];
+        durations.AddRange(exchanges.Select(x=>(ulong)x.ElapsedMilliseconds));
+        Need(durations.Aggregate(0UL,(total,value)=>total+value)<=life,"web_runner_probe_lifetime");
         for(int i=0;i<count;i++)
         {
             string prefix="WEB_HTTP_UTC_"+i.ToString(CultureInfo.InvariantCulture);
@@ -85,6 +93,9 @@ public static partial class QemuTranscripts
             Need(begin>=started && end<=ended && begin<=end && (i==0 || begin>=utc[^1].CompletedUtc.UtcDateTime) &&
                 Math.Abs((end-begin).TotalMilliseconds-durations[i])<=5000,"web_runner_utc_interval");
             utc.Add(new(begin,end));utcRows.AddRange([prefix+"_STARTED "+from,prefix+"_COMPLETED "+to]);
+            if(i>=ordinary)
+                Need(utc[^1].StartedUtc==exchanges[i-ordinary].StartedUtc && utc[^1].CompletedUtc==exchanges[i-ordinary].CompletedUtc,
+                    "web_runner_control_utc_join");
         }
         string serial=DecodeUtf8(raw);var stream=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
             successTerminalMarker:"TEST_PASS m10.004",orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
@@ -147,6 +158,7 @@ public static partial class QemuTranscripts
             "WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_RESULT pass","WEB_CONFIG_PROBE_REASON none","WEB_CONFIG_PROBE_STATUS 200",
             "WEB_CONFIG_PROBE_BODY_BYTES "+configBytes,"WEB_CONFIG_PROBE_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_ELAPSED_MS "+config,
             ..extraSummary,
+            ..requireControls?new[]{"WEB_SOCKET_CONTROLS "+socketsJson,"WEB_FRAME_CONTROL "+framesJson,"WEB_PROCESS_ALIVE_AFTER_CONTROLS true"}:Array.Empty<string>(),
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID "+pid,
             "WEB_PROCESS_START_UTC "+first,"WEB_PROCESS_END_UTC "+last,"WEB_PROCESS_LIFETIME_MS "+life,
             ..utcRows,
@@ -156,12 +168,17 @@ public static partial class QemuTranscripts
             "WEB_PROCESS_TERMINATION_REQUESTED true","WEB_PROCESS_DEATH_CONFIRMED true","WEB_PROCESS_SPONTANEOUS_EXIT false",
             "WEB_PROCESS_EXIT_CODE "+exit,"WEB_PROCESS_FAILURE none"];
         string[] rawLines=ReadThreadingSerialLines(serial);
+        if(controls is not null)
+        {
+            string[] events=rawLines.Where(l=>l.StartsWith("M07_027_TIMEOUT",StringComparison.Ordinal) || l.StartsWith("M07_028_DROP",StringComparison.Ordinal)).ToArray();
+            Need(events.SequenceEqual(new[]{controls.Sockets.Observations.DropRow,controls.Sockets.Observations.TimeoutRow}),"web_runner_control_serial_join");
+        }
         expectedSummary.AddRange(rawLines.Where(l=>IsThreadingObservedLine(l,plan)).Select(l=>"OBSERVED_MARKER "+l));
         expectedSummary.AddRange(["APP_EXIT_RESULT none","APP_EXIT_MALFORMED none","MISSING_MARKERS none","OUT_OF_ORDER_MARKERS none",
             "DUPLICATE_UNIQUE_MARKERS none","FORBIDDEN_MARKER_HIT none","FAIL_REASON none","SERIAL_TAIL_LIMIT lines=8 chars=240"]);
         expectedSummary.AddRange(rawLines.TakeLast(8).Select(l=>"SERIAL_TAIL_LINE "+(l.Length>240?l[..237]+"...":l)));
         byte[] encoded=[..Encoding.UTF8.GetPreamble(),..Encoding.UTF8.GetBytes(string.Join("\r\n",expectedSummary)+"\r\n")];
         Need(summaryBytes.AsSpan().SequenceEqual(encoded),"web_runner_summary_bytes");
-        return new((int)pid,(long)life,(int)health,(int)config,utc.AsReadOnly());
+        return new((int)pid,(long)life,(int)health,(int)config,utc.AsReadOnly(),controls);
     }
 }

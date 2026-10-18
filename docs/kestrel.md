@@ -1,5 +1,17 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1410](../done/step1410.md) adds development-only consumers for the runner
+reports and control packet streams. Production runner inspection requires exact
+control schemas, lifecycle, raw HTTP, Date and UTC-window joins; the explicit
+historical seam returns unchecked controls. Packet inspection supports normal
+eight TCP/nine HTTP observations and quota seven/eight, including two responses
+on the same healthy connection, exactly one ordered literal VLAN and validated
+withheld response ACKs for the bad peer. Twenty-six focused synthetic checks pass.
+Original-position kernel timeout/drop replay, live handle/generation/private
+retirement joins and production packet wiring remain pending. Current production
+verification still rejects the new capture shape. No guest or service acceptance
+advances; retain the stable-batch native/full-host/guest boundary.
+
 [Step1409](../done/step1409.md) adds development-only external Kestrel controls
 to the web runner. A bounded loopback QEMU filter preserves unrelated frames,
 withholds only the designated peer's payload-free ACK/FIN/RST after its request,
@@ -7,9 +19,8 @@ and injects one1518-byte VLAN frame. One retained keep-alive connection complete
 health before injection and again after actual peer-local timeout/device-drop
 rows. The runner retains all three raw responses, UTC intervals, exact withheld
 frames and joined frame-owner cleanup. The original Kestrel ELF is unchanged.
-Consumer work remains: eight TCP/nine HTTP observations for normal runs (seven/
-eight for quota), full packet/tuple/generation and UTC joins, and complete runtime
-replay. Current strict consumers reject the new capture shape. No new guest,
+Step1410 implements the report and packet consumers; live handle/generation,
+complete runtime replay and production integration remain. No new guest,
 kernel-native, service, cleanup, whole-stack, cloud or production gate is accepted.
 
 [Step1408](../done/step1408.md) implements development-only #221 policy controls

@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using OS.Tooling;
 
 internal static class NativeAotWebRunnerTests
@@ -8,10 +10,12 @@ internal static class NativeAotWebRunnerTests
     private sealed record Fixture(QemuSmokeOptions Options,QemuSmokePlan Plan,ProcessResult Runner,byte[] Raw,byte[] Summary,QemuTranscripts.WebRunnerContext Context);
     // Independent small protocol fixture: three completed markers and one
     // unfinished unselected kernel row. No firmware/guest authority is claimed.
-    private static Fixture Vector(bool quota=false,int loggingMilliseconds=300,int loggingTimeout=1)
+    private static Fixture Vector(bool quota=false,int loggingMilliseconds=300,int loggingTimeout=1,bool controls=false)
     {
         string[] markers=["TEST_START m10.004","M10_004_LIVE","TEST_PASS m10.004"];
-        string raw=string.Join("\r\n",markers)+"\r\nM16_008_CALL identity=4294967297 nr=202";
+        const string drop="M07_028_DROP before=0 after=1 availableBefore=65535 availableAfter=1 delivered=1 clock=100 running=1";
+        const string timeout="M07_027_TIMEOUT slot=0 owner=8192 epoch=1 generation=2 index=0 local=167772687 localPort=8080 remote=167772674 remotePort=41000 clock=200 sharedFailed=0";
+        string raw=string.Join("\r\n",markers)+"\r\n"+(controls?drop+"\r\n"+timeout+"\r\n":"")+"M16_008_CALL identity=4294967297 nr=202";
         string markerList=string.Join(';',markers),qemu=Path.GetFullPath("qemu.exe"),ovmf=Path.GetFullPath("ovmf.fd");
         string Hash(string value)=>Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(value))).ToLowerInvariant();
         string healthHash=Hash(Body),configHash=Hash(Config);
@@ -33,9 +37,9 @@ internal static class NativeAotWebRunnerTests
                 stage.Prefix+"_RESULT pass",stage.Prefix+"_REASON none",stage.Prefix+"_STATUS "+stage.Status,stage.Prefix+"_BODY_BYTES "+length,
                 stage.Prefix+"_BODY_SHA256 "+hash,stage.Prefix+"_ELAPSED_MS "+stage.Time]);
         }
-        int lifetime=Math.Max(3000,loggingMilliseconds+2000);
+        int lifetime=controls?37000:Math.Max(3000,loggingMilliseconds+2000);
         var first=new DateTimeOffset(2000,1,1,0,0,0,TimeSpan.Zero);
-        List<string> utcRows=["WEB_HTTP_UTC_TOLERANCE_SECONDS 5","WEB_HTTP_UTC_WINDOWS "+(quota?5:6)];
+        List<string> utcRows=["WEB_HTTP_UTC_TOLERANCE_SECONDS 5","WEB_HTTP_UTC_WINDOWS "+((quota?5:6)+(controls?3:0))];
         int elapsed=500,index=0;
         foreach(int duration in new[]{100,200}.Concat(stages.Select(s=>s.Time)))
         {
@@ -43,6 +47,28 @@ internal static class NativeAotWebRunnerTests
             utcRows.Add(prefix+"_STARTED "+first.AddMilliseconds(elapsed).UtcDateTime.ToString("O"));
             elapsed+=duration;
             utcRows.Add(prefix+"_COMPLETED "+first.AddMilliseconds(elapsed).UtcDateTime.ToString("O"));
+        }
+        List<string> controlRows=[];
+        if(controls)
+        {
+            object Exchange(int port,int second,bool keepAlive)
+            {
+                var start=first.AddSeconds(second);var end=start.AddMilliseconds(100);
+                string date=start.ToString("r",System.Globalization.CultureInfo.InvariantCulture);
+                string request="GET /healthz HTTP/1."+(keepAlive?"1":"0")+"\r\nHost: 127.0.0.1:20080\r\nConnection: "+(keepAlive?"keep-alive":"close")+"\r\nAccept: */*\r\n\r\n";
+                string response="HTTP/1.1 200 OK\r\nContent-Length: 17\r\n"+(keepAlive?"":"Connection: close\r\n")+
+                    "Content-Type: text/plain\r\nDate: "+date+"\r\nServer: Kestrel\r\n\r\nOS_MINIMAL_API_OK";
+                utcRows.Add("WEB_HTTP_UTC_"+index+"_STARTED "+start.UtcDateTime.ToString("O"));
+                utcRows.Add("WEB_HTTP_UTC_"+(index++)+"_COMPLETED "+end.UtcDateTime.ToString("O"));
+                return new{SourcePort=port,StartedUtc=start,CompletedUtc=end,ElapsedMilliseconds=100,DateUtc=start,
+                    RequestHex=Convert.ToHexString(Encoding.ASCII.GetBytes(request)),ResponseHex=Convert.ToHexString(Encoding.ASCII.GetBytes(response))};
+            }
+            object sockets=new{Deadline=Exchange(41000,3,false),Before=Exchange(41001,4,true),After=Exchange(41001,34,false),
+                Observations=new{TimeoutRow=timeout,DropRow=drop,TimeoutClock=200,DropClock=100}};
+            object frames=new{QemuOutPort=42000,QemuInPort=42001,Arguments=new[]{"-chardev","socket,id=clroswebout,host=127.0.0.1,port=42000",
+                "-chardev","socket,id=clroswebin,host=127.0.0.1,port=42001","-object","filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout"},
+                ForwardedFrames=100,VlanFrames=1,DroppedFrames=new[]{new{Ordinal=50,Hex=new string('0',108)}},GuestExitExpected=true,Stopped=true,Healthy=true};
+            controlRows.AddRange(["WEB_SOCKET_CONTROLS "+JsonSerializer.Serialize(sockets),"WEB_FRAME_CONTROL "+JsonSerializer.Serialize(frames),"WEB_PROCESS_ALIVE_AFTER_CONTROLS true"]);
         }
         var options=new QemuSmokeOptions{Image="image.raw",SerialLog="serial.log",SummaryLog="summary.log",TimeoutSeconds=Math.Max(30,(lifetime+999)/1000),FirmwareRngSource="virtio"};
         var plan=new QemuSmokePlan("Diagnostic",new Dictionary<string,bool>{{"EnableM10004Probe",true}},markers,markers,markers,["TEST_FAIL","OS_SMOKE_FAIL"],[],false,true);
@@ -55,7 +81,7 @@ internal static class NativeAotWebRunnerTests
             "HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status=200 expected_body_bytes=2 timeout_seconds=1",
             "HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status=200 body_bytes=2 body_sha256="+configHash+" elapsed_ms=200",
             ..extraOut,
-            $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines=4 invalidBytes=0 invalidLines=0 orderedSeen=3 outOfOrder=0 uniqueSeen=3 duplicateUnique=0",
+            $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={(controls?6:4)} invalidBytes=0 invalidLines=0 orderedSeen=3 outOfOrder=0 uniqueSeen=3 duplicateUnique=0",
             "SERIAL_MARKER_DRAIN milliseconds=750","QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1","SUMMARY_LOG summary.log","TEST_PASS qemu.smoke"];
         string[] summary=["QEMU_SMOKE_STATUS pass","IMAGE_ARTIFACT image.raw","SERIAL_LOG serial.log","WORKLOAD_PROFILE SingleMinimalApi",
             "FIRMWARE_RNG_SOURCE virtio","SOCKET_FORWARD_PORT 20080","MARKER_PRESETS none","REQUIRED_MARKERS "+markerList,
@@ -66,6 +92,7 @@ internal static class NativeAotWebRunnerTests
             "WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES 2","WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_RESULT pass","WEB_CONFIG_PROBE_REASON none",
             "WEB_CONFIG_PROBE_STATUS 200","WEB_CONFIG_PROBE_BODY_BYTES 2","WEB_CONFIG_PROBE_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_ELAPSED_MS 200",
             ..extraSummary,
+            ..controlRows,
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID 123",
             "WEB_PROCESS_START_UTC 2000-01-01T00:00:00.0000000Z","WEB_PROCESS_END_UTC "+first.AddMilliseconds(lifetime).UtcDateTime.ToString("O"),"WEB_PROCESS_LIFETIME_MS "+lifetime,
             ..utcRows,
@@ -75,11 +102,12 @@ internal static class NativeAotWebRunnerTests
             "WEB_PROCESS_TERMINATION_REQUESTED true","WEB_PROCESS_DEATH_CONFIRMED true","WEB_PROCESS_SPONTANEOUS_EXIT false","WEB_PROCESS_EXIT_CODE -1","WEB_PROCESS_FAILURE none",
             "OBSERVED_MARKER TEST_START m10.004","OBSERVED_MARKER M10_004_LIVE","OBSERVED_MARKER TEST_PASS m10.004","OBSERVED_MARKER M16_008_CALL identity=4294967297 nr=202",
             "APP_EXIT_RESULT none","APP_EXIT_MALFORMED none","MISSING_MARKERS none","OUT_OF_ORDER_MARKERS none","DUPLICATE_UNIQUE_MARKERS none","FORBIDDEN_MARKER_HIT none","FAIL_REASON none",
-            "SERIAL_TAIL_LIMIT lines=8 chars=240","SERIAL_TAIL_LINE TEST_START m10.004","SERIAL_TAIL_LINE M10_004_LIVE","SERIAL_TAIL_LINE TEST_PASS m10.004","SERIAL_TAIL_LINE M16_008_CALL identity=4294967297 nr=202"];
+            "SERIAL_TAIL_LIMIT lines=8 chars=240","SERIAL_TAIL_LINE TEST_START m10.004","SERIAL_TAIL_LINE M10_004_LIVE","SERIAL_TAIL_LINE TEST_PASS m10.004",
+            ..controls?new[]{"SERIAL_TAIL_LINE "+drop,"SERIAL_TAIL_LINE "+timeout}:Array.Empty<string>(),"SERIAL_TAIL_LINE M16_008_CALL identity=4294967297 nr=202"];
         return new(options,plan,new(0,string.Join("\r\n",stdout)+"\r\n","",false,false,false,TimeSpan.FromMilliseconds(lifetime+1000)),Encoding.UTF8.GetBytes(raw),
             [..Encoding.UTF8.GetPreamble(),..Encoding.UTF8.GetBytes(string.Join("\r\n",summary)+"\r\n")],new(20080,qemu,ovmf,first.AddSeconds(-1),first.AddMilliseconds(lifetime+1000)));
     }
-    private static QemuTranscripts.WebRunnerReport Inspect(Fixture f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebRunnerForTests(f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,quota);
+    private static QemuTranscripts.WebRunnerReport Inspect(Fixture f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebRunnerForTests(f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,quota,requireControls:false);
     private static Fixture Summary(Fixture f,string before,string after)
     {
         string text=Encoding.UTF8.GetString(f.Summary);HostCheck.True(text.Contains(before,StringComparison.Ordinal));
@@ -88,11 +116,99 @@ internal static class NativeAotWebRunnerTests
     private static void Reject(Action action)
     {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
 
+    private static QemuTranscripts.WebRunnerReport InspectControls(Fixture f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebRunnerForTests(
+        f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,quota);
+    private static Fixture ControlJson(Fixture f,bool frame,Func<string,string> change)
+    {
+        string prefix=frame?"WEB_FRAME_CONTROL ":"WEB_SOCKET_CONTROLS ";
+        string row=Encoding.UTF8.GetString(f.Summary).Split("\r\n").Single(r=>r.StartsWith(prefix,StringComparison.Ordinal));
+        return Summary(f,row,prefix+change(row[prefix.Length..]));
+    }
+    private static Fixture ControlJson(Fixture f,bool frame,Action<JsonNode> change)=>ControlJson(f,frame,json=>
+    {var node=JsonNode.Parse(json)!;change(node);return node.ToJsonString();});
+
+    [HostTest("web runner requires controls by default and retains explicit historical unchecked scope")]
+    private static void MandatoryControls()
+    {
+        Reject(()=>InspectControls(Vector()));HostCheck.True(Inspect(Vector()).Controls is null);
+        foreach(bool quota in new[]{false,true})
+        {
+            var f=Vector(quota,controls:true);var r=InspectControls(f,quota);
+            HostCheck.True(r.Controls is not null && r.UtcObservations.Count==(quota?8:9) && r.Controls.Sockets.Before.SourcePort==r.Controls.Sockets.After.SourcePort);
+            Reject(()=>Inspect(f,quota));
+            Reject(()=>InspectControls(Summary(f,"WEB_PROCESS_ALIVE_AFTER_CONTROLS true","WEB_PROCESS_ALIVE_AFTER_CONTROLS false"),quota));
+        }
+    }
+    [HostTest("web runner control schemas reject unknown duplicate missing and wrongly typed properties")]
+    private static void ControlSchema()
+    {
+        var f=Vector(controls:true);
+        foreach(bool frame in new[]{false,true})
+        {
+            Reject(()=>InspectControls(ControlJson(f,frame,json=>"{"+json[1..^1]+",\"Extra\":0}")));
+            string key=frame?"Healthy":"Before";
+            Reject(()=>InspectControls(ControlJson(f,frame,json=>"{\""+key+"\":null,"+json[1..])));
+            Reject(()=>InspectControls(ControlJson(f,frame,n=>{n.AsObject().Remove(key);} )));
+            Reject(()=>InspectControls(ControlJson(f,frame,n=>{n[key]=false;} )));
+            Reject(()=>InspectControls(ControlJson(f,frame,_=>"null")));
+            Reject(()=>InspectControls(ControlJson(f,frame,json=>json+"{}")));
+        }
+    }
+    [HostTest("web runner control frame arguments ports lifecycle and withheld budgets are exact")]
+    private static void ControlFrames()
+    {
+        var f=Vector(controls:true);
+        foreach(string key in new[]{"GuestExitExpected","Stopped","Healthy"})
+            Reject(()=>InspectControls(ControlJson(f,true,n=>{n[key]=false;})));
+        foreach(int port in new[]{0,41000,42000,65536})
+            Reject(()=>InspectControls(ControlJson(f,true,n=>{n["QemuInPort"]=port;})));
+        foreach(string key in new[]{"ForwardedFrames","VlanFrames"})
+            Reject(()=>InspectControls(ControlJson(f,true,n=>{n[key]=0;})));
+        Reject(()=>InspectControls(ControlJson(f,true,n=>{n["VlanFrames"]=2;})));
+        Reject(()=>InspectControls(ControlJson(f,true,n=>{n["Arguments"]![5]="filter-redirector,queue=rx";})));
+        Reject(()=>InspectControls(ControlJson(f,true,n=>{n["DroppedFrames"]!.AsArray().Clear();})));
+        Reject(()=>InspectControls(ControlJson(f,true,n=>{n["DroppedFrames"]![0]!["Hex"]="aa";})));
+        Reject(()=>InspectControls(ControlJson(f,true,n=>{n["DroppedFrames"]![0]!["Ordinal"]=101+1;})));
+        Reject(()=>InspectControls(ControlJson(f,true,n=>{n["DroppedFrames"]!.AsArray().Add(n["DroppedFrames"]![0]!.DeepClone());})));
+        foreach(string value in new[]{"1e2","100.0","9223372036854775808","\"100\""})
+            Reject(()=>InspectControls(ControlJson(f,true,json=>json.Replace("\"ForwardedFrames\":100","\"ForwardedFrames\":"+value,StringComparison.Ordinal))));
+    }
+    [HostTest("web runner control HTTP bytes Dates UTC identity and elapsed bounds reject independent mutations")]
+    private static void ControlExchanges()
+    {
+        var f=Vector(controls:true);
+        foreach(string name in new[]{"Deadline","Before","After"})
+        {
+            Reject(()=>InspectControls(ControlJson(f,false,n=>{n[name]!["RequestHex"]="474554";})));
+            Reject(()=>InspectControls(ControlJson(f,false,n=>{n[name]!["ResponseHex"]="00";})));
+            Reject(()=>InspectControls(ControlJson(f,false,n=>{n[name]!["DateUtc"]="2000-01-01T00:00:00+00:00";})));
+            Reject(()=>InspectControls(ControlJson(f,false,n=>{n[name]!["ElapsedMilliseconds"]=6000;})));
+            Reject(()=>InspectControls(ControlJson(f,false,n=>{n[name]!["StartedUtc"]="2000-01-01T01:00:00+01:00";})));
+        }
+        Reject(()=>InspectControls(ControlJson(f,false,n=>{n["After"]!["SourcePort"]=41002;})));
+        Reject(()=>InspectControls(ControlJson(f,false,n=>{n["Deadline"]!["SourcePort"]=41001;})));
+        Reject(()=>InspectControls(Summary(f,"WEB_HTTP_UTC_6_STARTED 2000-01-01T00:00:03.0000000Z","WEB_HTTP_UTC_6_STARTED 2000-01-01T00:00:02.9000000Z")));
+        Reject(()=>InspectControls(Summary(f,"WEB_HTTP_UTC_WINDOWS 9","WEB_HTTP_UTC_WINDOWS 6")));
+    }
+    [HostTest("web runner control events join unique original serial rows and exact clocks tuple and device isolation")]
+    private static void ControlEvents()
+    {
+        var f=Vector(controls:true);
+        foreach(string key in new[]{"TimeoutClock","DropClock"})
+            Reject(()=>InspectControls(ControlJson(f,false,n=>{n["Observations"]![key]=201;})));
+        Reject(()=>InspectControls(ControlJson(f,false,n=>{n["Observations"]!["TimeoutRow"]=n["Observations"]!["TimeoutRow"]!.GetValue<string>().Replace("sharedFailed=0","sharedFailed=1",StringComparison.Ordinal);} )));
+        Reject(()=>InspectControls(ControlJson(f,false,n=>{n["Observations"]!["DropRow"]=n["Observations"]!["DropRow"]!.GetValue<string>().Replace("delivered=1","delivered=2",StringComparison.Ordinal);} )));
+        string raw=Encoding.UTF8.GetString(f.Raw);
+        // Update neither stream metrics nor report: raw tampering must fail.
+        Reject(()=>InspectControls(f with{Raw=Encoding.UTF8.GetBytes(raw.Replace("clock=200","clock=201",StringComparison.Ordinal))}));
+        Reject(()=>InspectControls(f with{Raw=Encoding.UTF8.GetBytes(raw.Replace("M07_027_TIMEOUT","M07_027_TIMEOUT M07_027_TIMEOUT",StringComparison.Ordinal))}));
+    }
+
     [HostTest("web runner joins actual selection bounded probe deadlines and exact raw summary")]
     private static void Positive()
     {
         var report=Inspect(Vector());HostCheck.True(report.ProcessId==123 && report.LifetimeMilliseconds==3000 &&
-            report.HealthMilliseconds==100 && report.ConfigurationMilliseconds==200 && report.UtcObservations.Count==6);
+            report.HealthMilliseconds==100 && report.ConfigurationMilliseconds==200 && report.UtcObservations.Count==6 && report.Controls is null);
         HostCheck.Equal(new DateTimeOffset(2000,1,1,0,0,0,TimeSpan.Zero).AddMilliseconds(500),report.UtcObservations[0].StartedUtc);
     }
     [HostTest("web runner permits bounded traced logging while preserving other request deadlines")]

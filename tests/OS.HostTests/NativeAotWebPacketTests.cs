@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using OS.Tooling;
+using OS.Tools.QemuRunner;
 
 internal static class NativeAotWebPacketTests
 {
@@ -75,6 +76,100 @@ internal static class NativeAotWebPacketTests
             NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,Enumerable.Range(41000,quota?5:6).Select(i=>(uint)i).ToArray(),forward,body,Config,quota,utc);
     private static void Reject(Action action)
     {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
+
+    private sealed record ControlPackets(List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp,uint[] Ports,
+        QemuTranscripts.WebUtcObservation[] Windows,QemuTranscripts.WebControlInspection Controls,int VlanAt);
+    private static ControlPackets Controls(bool quota=false)
+    {
+        var original=Vector(quota:quota,dates:i=>Date(i));var frames=original.Frames;int ordinary=quota?5:6,vlanAt=0;
+        List<WebSocketControls.Exchange> exchanges=[];byte[] withheld=[];
+        for(int i=0;i<2;i++)
+        {
+            ushort port=(ushort)(41000+ordinary+i);uint client=(uint)(1000+(ordinary+i)*10000),server=client+1000;
+            void Add(bool outgoing,uint seq,uint ack,byte flags,ReadOnlySpan<byte> payload=default)=>
+                frames.Add(NativeAotSocketIntegrationTests.Tcp(outgoing,port,seq,ack,flags,payload));
+            Add(false,client,0,2);Add(true,server,client+1,0x12);client++;server++;Add(false,client,server,0x10);
+            for(int requestIndex=0;requestIndex<(i==0?1:2);requestIndex++)
+            {
+                bool keepAlive=i==1 && requestIndex==0;int second=i==0?12:requestIndex==0?14:44;
+                byte[] request=Encoding.ASCII.GetBytes("GET /healthz HTTP/1."+(keepAlive?"1":"0")+"\r\nHost: 127.0.0.1:22080\r\nConnection: "+
+                    (keepAlive?"keep-alive":"close")+"\r\nAccept: */*\r\n\r\n");
+                var start=Utc.AddSeconds(second);byte[] response=Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nContent-Length: 17\r\n"+
+                    (keepAlive?"":"Connection: close\r\n")+"Content-Type: text/plain\r\nDate: "+start.ToString("r",CultureInfo.InvariantCulture)+"\r\nServer: Kestrel\r\n\r\nOS_MINIMAL_API_OK");
+                Add(false,client,server,0x18,request);client+=(uint)request.Length;
+                Add(true,server,client,0x18,response);server+=(uint)response.Length;
+                if(i==0)withheld=NativeAotSocketIntegrationTests.Tcp(false,port,client,server,0x10,default);
+                else Add(false,client,server,0x10);
+                exchanges.Add(new(port,start,start.AddMilliseconds(100),100,start,Convert.ToHexString(request),Convert.ToHexString(response)));
+                if(keepAlive)
+                {
+                    byte[] vlan=new byte[1518];Convert.FromHexString("020000000001020000000002810000010800").CopyTo(vlan,0);
+                    vlanAt=frames.Count;frames.Add(vlan);
+                }
+            }
+            if(i==1){Add(true,server,client,0x11);server++;Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
+        }
+        var sockets=new WebSocketControls.Report(exchanges[0],exchanges[1],exchanges[2],new("unused in packet seam","unused in packet seam",200,100));
+        var control=new QemuTranscripts.WebControlInspection(sockets,new(42000,42001,[],200,1,[new(50,Convert.ToHexString(withheld))],true,true,true));
+        var windows=Enumerable.Range(0,ordinary).Select(i=>new QemuTranscripts.WebUtcObservation(Utc.AddSeconds(i*2).AddMilliseconds(100),Utc.AddSeconds(i*2).AddMilliseconds(300)))
+            .Concat(exchanges.Select(e=>new QemuTranscripts.WebUtcObservation(e.StartedUtc,e.CompletedUtc))).ToArray();
+        return new(frames,original.Anchor,original.Arp,Enumerable.Range(41000,ordinary+2).Select(p=>(uint)p).ToArray(),windows,control,vlanAt);
+    }
+    private static QemuTranscripts.WebPacketInspection Inspect(ControlPackets f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebPacketsForTests(
+        NativeAotSocketIntegrationTests.Capture(f.Frames),f.Anchor,f.Arp,f.Ports,22080,Body,Config,quota,f.Windows,f.Controls);
+
+    [HostTest("web packets join bad timeout controls and two complete health responses on one retained healthy connection")]
+    private static void ControlStreams()
+    {
+        foreach(bool quota in new[]{false,true})
+        {
+            var f=Controls(quota);var report=Inspect(f,quota);
+            HostCheck.True(report.ControlsChecked && report.UtcChecked && report.Connections==(quota?7:8) && report.Responses.Count==(quota?8:9));
+            HostCheck.True(report.Responses[^1].DateUtc>report.Responses[^2].DateUtc && report.ServerFins==report.Connections-1);
+            Reject(()=>QemuTranscripts.InspectNativeAotWebPacketsForTests(NativeAotSocketIntegrationTests.Capture(f.Frames),f.Anchor,f.Arp,
+                f.Ports,22080,Body,Config,quota,f.Windows));
+        }
+    }
+    [HostTest("web control VLAN is exactly one literal frame between healthy before and after exchanges")]
+    private static void ControlVlan()
+    {
+        var f=Controls();
+        var absent=f.Frames.ToList();absent.RemoveAt(f.VlanAt);Reject(()=>Inspect(f with{Frames=absent}));
+        var twice=f.Frames.ToList();twice.Insert(f.VlanAt,twice[f.VlanAt].ToArray());Reject(()=>Inspect(f with{Frames=twice}));
+        var changed=f.Frames.Select(x=>x.ToArray()).ToList();changed[f.VlanAt][20]=1;Reject(()=>Inspect(f with{Frames=changed}));
+        var early=f.Frames.ToList();byte[] vlan=early[f.VlanAt];early.RemoveAt(f.VlanAt);early.Insert(8,vlan);Reject(()=>Inspect(f with{Frames=early}));
+        var late=f.Frames.ToList();late.RemoveAt(f.VlanAt);late.Add(vlan);Reject(()=>Inspect(f with{Frames=late}));
+        Reject(()=>Inspect(f with{Controls=f.Controls with{Frames=f.Controls.Frames with{VlanFrames=0}}}));
+    }
+    [HostTest("web withheld controls require bad tuple checksum flags complete response ACK and bounded sequence")]
+    private static void ControlWithheld()
+    {
+        var f=Controls();var original=Convert.FromHexString(f.Controls.Frames.DroppedFrames[0].Hex);
+        foreach(byte[] changed in new[]{original[..^1],original.Select((b,i)=>(byte)(i==40?b^1:b)).ToArray(),
+            NativeAotSocketIntegrationTests.Tcp(false,(ushort)f.Ports[^1],1000,2000,0x10,default),
+            NativeAotSocketIntegrationTests.Tcp(false,(ushort)f.Ports[^2],1000,2000,0x18,"payload"u8)})
+            Reject(()=>Inspect(f with{Controls=f.Controls with{Frames=f.Controls.Frames with{DroppedFrames=[new(50,Convert.ToHexString(changed))]}}}));
+        Reject(()=>Inspect(f with{Controls=f.Controls with{Frames=f.Controls.Frames with{DroppedFrames=[]}}}));
+        var leaked=f.Frames.ToList();leaked.Insert(f.VlanAt-6,original);Reject(()=>Inspect(f with{Frames=leaked}));
+        // Valid envelope/checksum with a wrong response ACK must also fail.
+        // Tcp helper independently regenerates both checksums.
+        uint seq=BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(38));
+        byte[] independent=NativeAotSocketIntegrationTests.Tcp(false,(ushort)f.Ports[^2],seq,0,0x10,default);
+        Reject(()=>Inspect(f with{Controls=f.Controls with{Frames=f.Controls.Frames with{DroppedFrames=[new(50,Convert.ToHexString(independent))]}}}));
+    }
+    [HostTest("web control raw HTTP report UTC and retained source port must match complete packet streams")]
+    private static void ControlIdentity()
+    {
+        var f=Controls();
+        foreach(var sockets in new[]{f.Controls.Sockets with{After=f.Controls.Sockets.After with{SourcePort=41099}},
+            f.Controls.Sockets with{Deadline=f.Controls.Sockets.Deadline with{ResponseHex=f.Controls.Sockets.After.ResponseHex}},
+            f.Controls.Sockets with{Before=f.Controls.Sockets.Before with{RequestHex=f.Controls.Sockets.Deadline.RequestHex}},
+            f.Controls.Sockets with{After=f.Controls.Sockets.After with{ResponseHex=f.Controls.Sockets.Before.ResponseHex}}})
+            Reject(()=>Inspect(f with{Controls=f.Controls with{Sockets=sockets}}));
+        Reject(()=>QemuTranscripts.InspectNativeAotWebPacketsForTests(NativeAotSocketIntegrationTests.Capture(f.Frames),f.Anchor,f.Arp,
+            f.Ports,22080,Body,Config,utcWindows:null,controls:f.Controls));
+        var shifted=f.Windows.ToArray();shifted[^1]=new(Utc.AddSeconds(60),Utc.AddSeconds(60.1));Reject(()=>Inspect(f with{Windows=shifted}));
+    }
 
     private static readonly DateTimeOffset Utc=new(2026,10,18,12,0,0,TimeSpan.Zero);
     private static string Date(int i,int offset=0)=>Utc.AddSeconds(i*2+offset).ToString("r",CultureInfo.InvariantCulture);
