@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+[Step1420](../done/step1420.md) is a development checkpoint for #743/#744/#757
+transport repairs and #746 policy contracts. Its 127 focused checks span
+multiple development producers; they are not an unfiltered full-host run.
+Compact TIME-WAIT and continuing-policy APIs still need native profile wiring;
+original native review and stable-batch QEMU/PCAP qualification remain pending.
+All six service-foundation tickets stay open. No completion gate advances.
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 `88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),
 six strict web/quota prefixes, three policy/vector guests and eight affected

@@ -24,6 +24,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Net\TcpReceiveWindow.cs",
         @"..\OS.Kernel\Net\TcpSendWindow.cs",
         @"..\OS.Kernel\Net\TcpSendWindow.Close.cs",
+        @"..\OS.Kernel\Net\TcpTimeWaitTable.cs",
         @"..\..\std\no-runtime\shared\Net\InternetChecksum.cs",
         @"Boot\EfiEntry.LinuxThreads.cs", @"Boot\EfiEntry.LinuxThreadMemory.cs",
         @"Boot\EfiEntry.LinuxThreadRun.cs", @"Boot\EfiEntry.LinuxThreadTimer.cs",

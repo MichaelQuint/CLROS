@@ -311,6 +311,92 @@ internal static unsafe class TcpPassiveConnectionTests
         }
     }
 
+    [HostTest("net.tcp.passive.owner exact reset retires one generation without further TX", HostLane.Fast, 13)]
+    private static void ResetRetires()
+    {
+        foreach (byte flags in new byte[] { 4, 0x14 })
+        {
+            using var f = new Fixture(2); byte[] output = new byte[54];
+            HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output, uint.MaxValue, uint.MaxValue));
+            HostCheck.Equal(Passive.Status.Success, f.Begin(f.Other, output, remotePort: 40001));
+            var handle = f.State->Connection; uint calls = f.Hardware->Calls;
+            byte[] reset = Packet(0, flags == 0x14 ? 0U : 0xdeadbeefU, flags);
+            if (flags == 4) Array.Resize(ref reset, 60); // Ethernet padding is not TCP payload.
+            HostCheck.Equal(Passive.Status.Success, Passive.ReceiveReset(f.State, reset));
+            HostCheck.True(f.State->Retired && !f.State->Connection.IsInitialized && f.Other->Pending);
+            HostCheck.Equal(1, f.Table->Count);
+            HostCheck.Equal(Tcb.OwnershipStatus.StaleHandle, Tcb.ReadOwned(f.Table, handle, out _));
+            HostCheck.Equal(Passive.Status.InvalidState, Passive.ReceiveReset(f.State, reset));
+            HostCheck.Equal(Passive.Status.InvalidState, Passive.Pump(f.State, output, out _));
+            HostCheck.Equal(calls, f.Hardware->Calls);
+            HostCheck.Equal(Passive.Status.Success, Passive.ReceiveAck(f.Other, Packet(Irs + 1, Iss + 1, 0x10, 40001),
+                f.Backlog(), out _, out _));
+            byte[] before = f.Snapshot();
+            HostCheck.Equal(Passive.Status.InvalidState, Passive.ReceiveReset(f.Other, Packet(Irs + 1, Iss + 1, 0x14, 40001)));
+            HostCheck.True(before.AsSpan().SequenceEqual(f.Snapshot()));
+            HostCheck.Equal((ushort)40001, TcpListenerBacklog.Accept(f.Backlog()).Connection.RemotePort);
+        }
+    }
+
+    [HostTest("net.tcp.passive.owner rejected reset frames preserve all lifetime metadata", HostLane.Fast, 14)]
+    private static void ResetGuards()
+    {
+        using var f = new Fixture(); byte[] output = new byte[54];
+        HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output));
+        List<byte[]> bad = [Packet(Irs, Iss + 1, 0x14), Packet(Irs + 2, Iss + 1, 0x14),
+            Packet(Irs + 1, Iss, 0x14), Packet(Irs + 1, Iss + 2, 0x14), Packet(Irs + 1, Iss + 1, 0x14, 40001), new byte[53]];
+        foreach (byte flags in new byte[] { 0, 2, 0x10, 5, 6, 0x24, 0x44, 0x84 }) bad.Add(Packet(Irs + 1, Iss + 1, flags));
+        foreach (int offset in new[] { 0, 6, 29, 33, 36, 46 })
+        { byte[] frame = Packet(Irs + 1, Iss + 1, 0x14); frame[offset] ^= 1; Rechecksum(frame); bad.Add(frame); }
+        foreach (int offset in new[] { 24, 50 })
+        { byte[] frame = Packet(Irs + 1, Iss + 1, 0x14); frame[offset] ^= 1; bad.Add(frame); }
+        foreach (ushort fragment in new ushort[] { 0x2000, 0x8000, 0x4001 }) bad.Add(Packet(Irs + 1, Iss + 1, 0x14, fragment: fragment));
+        foreach (bool options in new[] { false, true })
+        {
+            byte[] frame = Packet(Irs + 1, Iss + 1, 0x14); Array.Resize(ref frame, 58); U16(frame, 16, 44);
+            frame[46] = options ? (byte)0x60 : (byte)0x50; Rechecksum(frame); bad.Add(frame);
+        }
+        // Even after expiry, an invalid packet must not consume or time out the pending owner.
+        f.Hardware->Now = 1200;
+        foreach (byte[] frame in bad)
+        {
+            byte[] before = f.Snapshot();
+            HostCheck.Equal(Passive.Status.InvalidPacket, Passive.ReceiveReset(f.State, frame));
+            HostCheck.True(before.AsSpan().SequenceEqual(f.Snapshot()));
+        }
+        byte[] snapshot = f.Snapshot();
+        HostCheck.Equal(Passive.Status.InvalidStorage, Passive.ReceiveReset(f.State, new ReadOnlySpan<byte>(f.State, 54)));
+        HostCheck.Equal(Passive.Status.InvalidStorage, Passive.ReceiveReset(f.State, new ReadOnlySpan<byte>(f.Table, 54)));
+        HostCheck.Equal(Passive.Status.InvalidStorage, Passive.ReceiveReset(f.State, new ReadOnlySpan<byte>(f.Entries, 54)));
+        HostCheck.True(snapshot.AsSpan().SequenceEqual(f.Snapshot()));
+        HostCheck.Equal(Passive.Status.Timeout, Passive.ReceiveReset(f.State, Packet(Irs + 1, Iss + 1, 0x14)));
+        HostCheck.True(f.State->Retired); HostCheck.Equal(0, f.Table->Count); HostCheck.Equal(1U, f.Hardware->Calls);
+    }
+
+    [HostTest("net.tcp.passive.owner reset respects unsent ACK clock and reused generations", HostLane.Fast, 15)]
+    private static void ResetOwnership()
+    {
+        using var f = new Fixture(); byte[] output = new byte[54], reset = Packet(Irs + 1, Iss + 1, 0x14);
+        f.Hardware->SendResult = 0;
+        HostCheck.Equal(Passive.Status.WouldBlock, f.Begin(f.State, output)); byte[] before = f.Snapshot();
+        HostCheck.Equal(Passive.Status.NotSent, Passive.ReceiveReset(f.State, reset));
+        HostCheck.True(before.AsSpan().SequenceEqual(f.Snapshot()));
+        HostCheck.Equal(Passive.Status.Success, Passive.ReceiveReset(f.State, Packet(Irs + 1, 0, 4)));
+        *f.State = default; f.Hardware->SendResult = 1;
+        HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output)); var old = f.State->Connection;
+        HostCheck.Equal(Tcb.OwnershipStatus.Success, Tcb.TransitionOwned(f.Table, old, TcpConnectionLifecycleState.SynReceived, TcpConnectionLifecycleState.Closed));
+        HostCheck.Equal(Tcb.OwnershipStatus.Success, Tcb.ReleaseOwned(f.Table, old));
+        HostCheck.Equal(Passive.Status.Success, f.Begin(f.Other, output)); before = f.Snapshot();
+        HostCheck.Equal(Passive.Status.TableRejected, Passive.ReceiveReset(f.State, reset));
+        HostCheck.True(before.AsSpan().SequenceEqual(f.Snapshot()));
+        f.Hardware->Now = 99; before = f.Snapshot();
+        HostCheck.Equal(Passive.Status.InvalidClock, Passive.ReceiveReset(f.Other, reset));
+        HostCheck.True(before.AsSpan().SequenceEqual(f.Snapshot()));
+        f.Hardware->Now = 150;
+        HostCheck.Equal(Passive.Status.Success, Passive.ReceiveReset(f.Other, reset));
+        HostCheck.True(f.Other->Retired); HostCheck.Equal(0, f.Table->Count);
+    }
+
     private struct Hardware { public ulong Now, ClockAfterSend; public uint Calls, Sends; public byte SendResult; public fixed byte Frame[1514]; }
     private sealed class Fixture : IDisposable
     {
@@ -333,6 +419,7 @@ internal static unsafe class TcpPassiveConnectionTests
         public Passive.Status Begin(Passive.State* state, byte[] output, uint iss = Iss, uint irs = Irs, ushort remotePort = 40000) =>
             Passive.Begin(state, Table, Info(iss, remotePort), Packet(irs, 0, 2, remotePort), output, Io(), out _);
         public byte[] LastFrame() => new ReadOnlySpan<byte>(Hardware->Frame, 54).ToArray();
+        public byte[] Snapshot() => new ReadOnlySpan<byte>(memory, 8192).ToArray();
         public void Dispose() => NativeMemory.AlignedFree(memory);
     }
     private static ulong Clock(void* context) => ((Hardware*)context)->Now;
@@ -375,6 +462,12 @@ internal static unsafe class TcpPassiveConnectionTests
         HostCheck.Equal(iss, BinaryPrimitives.ReadUInt32BigEndian(frame.AsSpan(38, 4)));
         HostCheck.Equal(next, BinaryPrimitives.ReadUInt32BigEndian(frame.AsSpan(42, 4)));
         HostCheck.Equal((byte)0x12, frame[47]); HostCheck.Equal((ushort)0x3456, BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(48, 2)));
+    }
+    private static void Rechecksum(byte[] frame)
+    {
+        U16(frame, 24, 0); U16(frame, 24, (ushort)~Sum(frame.AsSpan(14, 20))); U16(frame, 50, 0);
+        int tcpBytes = BinaryPrimitives.ReadUInt16BigEndian(frame.AsSpan(16, 2)) - 20;
+        U16(frame, 50, (ushort)~Fold((uint)Sum(frame.AsSpan(26, 8)) + frame[23] + (uint)tcpBytes + Sum(frame.AsSpan(34, tcpBytes))));
     }
     private static ushort Sum(ReadOnlySpan<byte> bytes)
     { uint sum = 0; for (int i = 0; i < bytes.Length; i += 2) sum += (uint)((bytes[i] << 8) | bytes[i + 1]); return Fold(sum); }

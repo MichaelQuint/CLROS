@@ -1,8 +1,13 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using OS.Kernel.Compatibility.LinuxX64;
 
 internal static unsafe class LinuxSyscallGatewayTests
 {
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "TotalCallsValue")]
+    private static extern ref ulong LifetimeCalls(ref LinuxSyscallGateState state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "TotalBytesValue")]
+    private static extern ref ulong LifetimeBytes(ref LinuxSyscallGateState state);
     private struct Model
     {
         public byte* User;
@@ -54,13 +59,82 @@ internal static unsafe class LinuxSyscallGatewayTests
         if (frame->Number == 158) { frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return); }
         return new(LinuxSyscallAction.Return, 23);
     }
-    private static LinuxSyscallGateState ThreadGate(Model* model, byte* scratch)
+    private static LinuxSyscallGateState ThreadGate(Model* model, byte* scratch, bool service = false)
     {
         var access = Access(model); access.Startup = access.Descriptors = &NoopService; access.Threads = &ThreadService;
+        access.UserInterrupts = service;
         var admission = Admission(scratch); admission.EnableStartup = admission.EnableDescriptors = admission.EnableThreads = true;
+        admission.ContinuingService = service;
         admission.MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls;
         LinuxSyscallGateState state = default;
         HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access)); return state;
+    }
+
+    [HostTest("m16-014 one continuing gate exceeds4096 calls across real-owner turn renewals and retains cumulative IO")]
+    private static void ContinuingTurns()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 12, ThreadValue = 16 };
+        var state = ThreadGate(&model, scratch, service: true); var frame = Frame(); frame.Rflags |= 0x200;
+        HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref state, 0));
+        for (ulong turn = 1; turn <= 3; turn++)
+        {
+            HostCheck.True(LinuxSyscallGateway.RenewTurn(ref state, turn));
+            HostCheck.Equal(0U, state.Calls); HostCheck.Equal(0U, state.BytesWritten);
+            HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref state, turn));
+            for (uint call = 0; call < LinuxSyscallGateway.MaximumThreadCalls; call++)
+            {
+                var result = LinuxSyscallGateway.Dispatch(ref state, ref frame);
+                HostCheck.Equal(LinuxSyscallAction.Return, result.Action); HostCheck.Equal(16L, result.Value);
+            }
+            HostCheck.Equal(turn * LinuxSyscallGateway.MaximumThreadCalls, state.TotalCalls);
+            HostCheck.Equal(state.TotalCalls * 16, state.TotalBytesWritten);
+        }
+        HostCheck.Equal(12_288UL, state.TotalCalls); HostCheck.Equal(4096U, state.Calls);
+        HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref state, 2));
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.CallLimit, state.Status);
+        HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref state, 4));
+        var finite = ThreadGate(&model, scratch);
+        HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref finite, 1));
+    }
+
+    [HostTest("m16-014 continuing gate requires explicit preemptible admission and a supervisor turn")]
+    private static void ContinuingAdmission()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 1 };
+        var admission = Admission(scratch); admission.ContinuingService = true;
+        LinuxSyscallGateState state = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, LinuxSyscallGateway.Begin(ref state, admission, Access(&model)));
+        var access = Access(&model); access.Startup = access.Descriptors = &NoopService; access.Threads = &ThreadService;
+        admission.EnableStartup = admission.EnableDescriptors = admission.EnableThreads = true;
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, LinuxSyscallGateway.Begin(ref state, admission, access));
+        state = ThreadGate(&model, scratch, service: true); var frame = Frame(); frame.Rflags |= 0x200;
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(0UL, state.TotalCalls); HostCheck.Equal(0U, model.ThreadCalls);
+    }
+
+    [HostTest("m16-014 continuing lifetime counters reject overflow before callbacks and pending waits cannot renew")]
+    private static void ContinuingCounterBounds()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 4 }; var frame = Frame(); frame.Rflags |= 0x200;
+        var state = ThreadGate(&model, scratch, service: true);
+        HostCheck.True(LinuxSyscallGateway.RenewTurn(ref state, 1)); frame.Number = 202;
+        HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref state, 2));
+        HostCheck.Equal(LinuxSyscallAction.Return, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return)).Action);
+        HostCheck.True(LinuxSyscallGateway.RenewTurn(ref state, ulong.MaxValue));
+        HostCheck.True(!LinuxSyscallGateway.RenewTurn(ref state, 1));
+        foreach (bool callsOverflow in new[] { true, false })
+        {
+            state = ThreadGate(&model, scratch, service: true); HostCheck.True(LinuxSyscallGateway.RenewTurn(ref state, 1));
+            // Trusted-state boundary injection reaches the otherwise infeasible
+            // lifetime overflow, independently of any guest-controlled frame.
+            if (callsOverflow) LifetimeCalls(ref state) = ulong.MaxValue;
+            else LifetimeBytes(ref state) = ulong.MaxValue;
+            uint calls = model.ThreadCalls;
+            HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            HostCheck.Equal(LinuxSyscallGateStatus.CallLimit, state.Status); HostCheck.Equal(calls, model.ThreadCalls);
+        }
     }
 
     [HostTest("linux.gateway sched_yield requires exact staged handoff and rejects successful return without transfer")]

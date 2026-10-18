@@ -2,6 +2,31 @@ namespace OS.Net;
 
 public static unsafe partial class TcpSendWindow
 {
+    /// <summary>Transfer an already-entered TIME-WAIT lifetime into an exclusive
+    /// compact table before allowing bulk cleanup. The serialized network owner
+    /// must have removed every fd reference; unread bytes or a pending receive
+    /// ACK prevent transfer. Retain the tuple, sequences and exact current2MSL
+    /// deadline before closing the original table entry. Full/expired admission
+    /// leaves bulk ownership intact. Success still requires ordinary sender,
+    /// receiver, socket and connection-table reap; no NIC cleanup is implied.</summary>
+    public static TcpTimeWaitTable.Status TransferTimeWait(Owner* owner, TcpTimeWaitTable.Owner* target)
+    {
+        if (Validate(owner, out var entry) != Status.Success || owner->CloseEnabled == 0 ||
+            owner->CloseStateValue != TcpConnectionCloseState.TimeWait || owner->Count != 0 || owner->Sent != 0 ||
+            owner->FinPending != 0 || owner->Receiver->UnreadBytes != 0 || owner->Receiver->HasPendingAck)
+            return TcpTimeWaitTable.Status.InvalidState;
+        if (TcpTimeWaitTable.Read(target, default, out _) != TcpTimeWaitTable.Status.StaleHandle)
+            return TcpTimeWaitTable.Status.InvalidState;
+        if (!Outside(owner, (byte*)target, (ulong)sizeof(TcpTimeWaitTable.Owner)) ||
+            !Outside(owner, (byte*)target->Entries, target->CapacityValue * (ulong)sizeof(TcpTimeWaitTable.Entry)))
+            return TcpTimeWaitTable.Status.InvalidStorage;
+        if (Time(owner, out ulong now) != Status.Success) return TcpTimeWaitTable.Status.InvalidClock;
+        var retained = TcpTimeWaitTable.Retain(target, entry.Key, owner->Next, owner->Receiver->RemoteNext,
+            owner->TimeWaitDeadline, owner->TimeWaitDuration, now, out _);
+        if (retained != TcpTimeWaitTable.Status.Success) return retained;
+        return CloseTable(owner, false) == Status.Success ? TcpTimeWaitTable.Status.Success : TcpTimeWaitTable.Status.InvalidState;
+    }
+
     /// <summary>Enable FIN/reset/half-close on the existing timed connection
     /// before control dispatch. The same serialized owner, actual monotonic
     /// callback, receive backing and copied-TX callback remain retained. The
@@ -186,7 +211,8 @@ public static unsafe partial class TcpSendWindow
         if (status != TcpConnectionTable.OwnershipStatus.Success) return Status.TableRejected;
         owner->CloseStateValue = reset ? TcpConnectionCloseState.Reset : TcpConnectionCloseState.Closed;
         if (!reset) owner->TimeoutError = 0;
-        owner->RetryAt = 0; owner->WriteShutdown = 1; owner->Phase = 2; return Status.Success;
+        owner->RetryAt = 0; owner->PersistAt = 0; owner->PersistDelay = 0;
+        owner->WriteShutdown = 1; owner->Phase = 2; return Status.Success;
     }
 
     private static void StartClose(Owner* owner, ulong now)
@@ -198,6 +224,7 @@ public static unsafe partial class TcpSendWindow
         // with the connection retained if this clock domain cannot represent it.
         if (owner->TimeWaitDuration > ~0UL - now) { owner->Phase = 2; return Status.InvalidClock; }
         owner->CloseStateValue = TcpConnectionCloseState.TimeWait;
+        owner->PersistAt = 0; owner->PersistDelay = 0;
         owner->TimeWaitDeadline = now + owner->TimeWaitDuration; owner->RetryAt = 0; return Status.Success;
     }
 

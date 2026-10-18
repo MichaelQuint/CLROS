@@ -798,6 +798,7 @@
 		<Compile Include="..\OS.Kernel\Net\TcpReceiveWindow.cs" Link="Net\TcpReceiveWindow.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.cs" Link="Net\TcpSendWindow.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Close.cs" Link="Net\TcpSendWindow.Close.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpTimeWaitTable.cs" Link="Net\TcpTimeWaitTable.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\Ipv4Header.cs" Link="Net\Ipv4Header.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\IcmpEchoPacket.cs" Link="Net\IcmpEchoPacket.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs" Link="Net\Ipv4IcmpEchoFrame.cs" Condition="'$(EnableM07026Probe)' == 'true'" />

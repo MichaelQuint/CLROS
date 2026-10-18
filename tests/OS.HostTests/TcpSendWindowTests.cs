@@ -11,6 +11,166 @@ using Wire = TcpReceiveWindowTests;
 
 internal static unsafe class TcpSendWindowTests
 {
+    private const ulong Second = 1_000_000_000;
+
+    [HostTest("m07-029 lost reopening update recovers queued exact bytes without an outstanding segment", HostLane.Fast, 14)]
+    private static void PersistRecovery()
+    {
+        using var f = new Fixture(window: 0); byte[] output = new byte[1514];
+        ConfigurePersist(f); Tx.Queue(f.Owner, "abc"u8, out _);
+        HostCheck.Equal(Tx.Status.WindowClosed, Tx.Pump(f.Owner, output, out _));
+        HostCheck.Equal(0, f.Owner->InFlightBytes);
+        HostCheck.Equal(Tx.Status.NotDue, Tx.PumpRetransmission(f.Owner, output, out _));
+        HostCheck.Equal(Second + 100, f.Owner->PersistDeadlineNanoseconds);
+        f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+        HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out var packet));
+        CheckData(output.AsSpan(0, packet.BytesWritten), 700, 100, 32, "a"u8);
+        HostCheck.Equal(701U, f.Owner->NextSequence); HostCheck.Equal(1, f.Owner->InFlightBytes);
+        HostCheck.Equal(3, f.Owner->BufferedBytes);
+        // The receiver reopens, but its unsolicited update is lost. It returns
+        // a fresh window only when the next real copied probe reaches it.
+        f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+        HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out packet));
+        CheckData(output.AsSpan(0, packet.BytesWritten), 700, 100, 32, "a"u8);
+        HostCheck.Equal(Tx.Status.WindowUpdated, f.Ack(700, out _, window: 32));
+        HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out packet));
+        CheckData(output.AsSpan(0, packet.BytesWritten), 700, 100, 32, "a"u8);
+        HostCheck.Equal(0UL, f.Owner->PersistDeadlineNanoseconds);
+        HostCheck.Equal(Tx.Status.Success, f.Ack(701, out int released)); HostCheck.Equal(1, released);
+        HostCheck.Equal(Tx.Status.Success, Tx.Pump(f.Owner, output, out packet));
+        CheckData(output.AsSpan(0, packet.BytesWritten), 701, 100, 32, "bc"u8);
+        HostCheck.Equal(Tx.Status.Success, f.Ack(703, out released)); HostCheck.Equal(2, released);
+        HostCheck.Equal(0, f.Owner->BufferedBytes);
+    }
+
+    [HostTest("m07-029 persist duplicate ACKs retain deadlines and prolonged zero window stays live", HostLane.Fast, 15)]
+    private static void PersistBackoff()
+    {
+        using var f = new Fixture(window: 0); byte[] output = new byte[1514];
+        ConfigurePersist(f); Tx.Queue(f.Owner, "abc"u8, out _);
+        HostCheck.Equal(Tx.Status.NotDue, Tx.PumpRetransmission(f.Owner, output, out _));
+        ulong interval = Second;
+        for (int i = 0; i < 20; i++)
+        {
+            ulong due = f.Owner->PersistDeadlineNanoseconds;
+            f.Hardware->Now = due - 1;
+            for (int j = 0; j < 3; j++) HostCheck.Equal(Tx.Status.DuplicateAck, f.Ack(700, out _, window: 0));
+            HostCheck.Equal(due, f.Owner->PersistDeadlineNanoseconds);
+            uint calls = f.Hardware->Calls;
+            HostCheck.Equal(Tx.Status.NotDue, Tx.PumpRetransmission(f.Owner, output, out _));
+            HostCheck.Equal(calls, f.Hardware->Calls);
+            f.Hardware->Now = due;
+            HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out var packet));
+            CheckData(output.AsSpan(0, packet.BytesWritten), 700, 100, 32, "a"u8);
+            interval = Math.Min(60 * Second, interval * 2);
+            HostCheck.Equal(due + interval, f.Owner->PersistDeadlineNanoseconds);
+            HostCheck.Equal((byte)0, f.Owner->Retransmissions);
+        }
+        HostCheck.True(f.Hardware->Now > 300 * Second && f.Owner->Active && !f.Owner->TimedOut);
+        HostCheck.Equal(20UL, f.Owner->PersistProbes); HostCheck.Equal(701U, f.Owner->NextSequence);
+        HostCheck.Equal(Tx.Status.Success, Tx.ConfigureClose(f.Owner, 60 * Second));
+        HostCheck.Equal(Tx.Status.ConnectionReset, Tx.ReceiveFrame(f.Owner,
+            Wire.Packet(100, ReadOnlySpan<byte>.Empty, ack: 701, flags: 0x14), out _));
+        HostCheck.Equal(0UL, f.Owner->PersistDeadlineNanoseconds);
+        uint resetCalls = f.Hardware->Calls;
+        HostCheck.Equal(Tx.Status.InvalidState, Tx.PumpRetransmission(f.Owner, output, out _));
+        HostCheck.Equal(resetCalls, f.Hardware->Calls);
+        HostCheck.Equal(Tx.Status.Success, Tx.ReleaseClosed(f.Owner));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Buffer, 32).IndexOfAnyExcept((byte)0) < 0);
+    }
+
+    [HostTest("m07-029 one-byte persist sequence wrap and zero-window ACK own exact retained ranges", HostLane.Fast, 16)]
+    private static void PersistWrap()
+    {
+        using var f = new Fixture(window: 0, iss: uint.MaxValue - 1); byte[] output = new byte[1514];
+        ConfigurePersist(f); Tx.Queue(f.Owner, "ab"u8, out _);
+        Tx.PumpRetransmission(f.Owner, output, out _); f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+        HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out var packet));
+        CheckData(output.AsSpan(0, packet.BytesWritten), uint.MaxValue, 100, 32, "a"u8);
+        HostCheck.Equal(0U, f.Owner->NextSequence);
+        HostCheck.Equal(Tx.Status.InvalidAck, f.Ack(1, out _, window: 0));
+        HostCheck.Equal(Tx.Status.Success, f.Ack(0, out int released, window: 0)); HostCheck.Equal(1, released);
+        f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+        HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out packet));
+        CheckData(output.AsSpan(0, packet.BytesWritten), 0, 100, 32, "b"u8);
+        HostCheck.Equal(Tx.Status.Success, f.Ack(1, out released, window: 0)); HostCheck.Equal(1, released);
+        HostCheck.Equal(Tx.Status.NothingToSend, Tx.PumpRetransmission(f.Owner, output, out _));
+        HostCheck.Equal(0UL, f.Owner->PersistDeadlineNanoseconds);
+    }
+
+    [HostTest("m07-029 persist short full fatal and aliased TX preserve exact copy ownership", HostLane.Fast, 17)]
+    private static void PersistPressure()
+    {
+        using var f = new Fixture(window: 0); byte[] output = new byte[1514];
+        ConfigurePersist(f); Tx.Queue(f.Owner, "ab"u8, out _);
+        Tx.PumpRetransmission(f.Owner, output, out _); f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+        ulong due = f.Owner->PersistDeadlineNanoseconds;
+        HostCheck.Equal(Tx.Status.OutputTooSmall, Tx.PumpRetransmission(f.Owner, output.AsSpan(0, 54), out _));
+        HostCheck.Equal(Tx.Status.InvalidStorage, Tx.PumpRetransmission(f.Owner, new Span<byte>(f.Buffer, 55), out _));
+        f.Hardware->Result = 0;
+        HostCheck.Equal(Tx.Status.WouldBlock, Tx.PumpRetransmission(f.Owner, output, out _));
+        HostCheck.Equal(due, f.Owner->PersistDeadlineNanoseconds); HostCheck.Equal(700U, f.Owner->NextSequence);
+        HostCheck.Equal(0, f.Owner->InFlightBytes); HostCheck.Equal(0UL, f.Owner->PersistProbes);
+        f.Hardware->Result = 2;
+        HostCheck.Equal(Tx.Status.SendFailed, Tx.PumpRetransmission(f.Owner, output, out _));
+        HostCheck.True(f.Owner->RequiresCleanup && !f.Owner->TimedOut);
+        HostCheck.Equal(700U, f.Owner->NextSequence); HostCheck.Equal(2, f.Owner->BufferedBytes);
+    }
+
+    [HostTest("m07-029 zero-window FIN wait probes without consuming sequence and explicit close budget still applies", HostLane.Fast, 18)]
+    private static void PersistClose()
+    {
+        using var f = new Fixture(window: 0); byte[] output = new byte[1514];
+        ConfigurePersist(f); HostCheck.Equal(Tx.Status.Success, Tx.ConfigureClose(f.Owner, 5 * Second));
+        HostCheck.Equal(Tx.Status.Success, Tx.ShutdownWrite(f.Owner));
+        HostCheck.Equal(Tx.Status.WindowClosed, Tx.PumpClose(f.Owner, output, out _));
+        HostCheck.Equal(Tx.Status.NotDue, Tx.PumpRetransmission(f.Owner, output, out _));
+        f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+        HostCheck.Equal(Tx.Status.Success, Tx.PumpRetransmission(f.Owner, output, out var packet));
+        CheckChecksums(output.AsSpan(0, packet.BytesWritten)); HostCheck.Equal(54, packet.BytesWritten);
+        HostCheck.Equal(699U, BinaryPrimitives.ReadUInt32BigEndian(output.AsSpan(38, 4)));
+        HostCheck.Equal((byte)0x10, output[47]); HostCheck.Equal(700U, f.Owner->NextSequence);
+        f.Hardware->Now = 5 * Second + 100;
+        HostCheck.Equal(Tx.Status.Timeout, Tx.PumpRetransmission(f.Owner, output, out _));
+        HostCheck.Equal(Tx.Status.Success, Tx.RetireTimedOut(f.Owner));
+        HostCheck.Equal(0UL, f.Owner->PersistDeadlineNanoseconds);
+    }
+
+    private static void ConfigurePersist(Fixture f)
+    {
+        var io = f.Operations();
+        HostCheck.Equal(Tx.Status.Success, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 0, continuing: true));
+    }
+
+    [HostTest("m07-029 persist clock headroom regression and cancellation retain copied-byte ownership", HostLane.Fast, 19)]
+    private static void PersistClockAndCancel()
+    {
+        for (int mode = 0; mode < 3; mode++)
+        {
+            using var f = new Fixture(window: 0); byte[] output = new byte[1514];
+            ConfigurePersist(f); Tx.Queue(f.Owner, "ab"u8, out _);
+            Tx.PumpRetransmission(f.Owner, output, out _);
+            f.Hardware->Now = f.Owner->PersistDeadlineNanoseconds;
+            if (mode == 0) f.Hardware->AdvanceOnSend = ulong.MaxValue - f.Hardware->Now - 30 * Second;
+            HostCheck.Equal(mode == 0 ? Tx.Status.InvalidClock : Tx.Status.Success,
+                Tx.PumpRetransmission(f.Owner, output, out _));
+            HostCheck.Equal(701U, f.Owner->NextSequence); HostCheck.Equal(1, f.Owner->InFlightBytes);
+            if (mode == 1)
+            {
+                f.Hardware->Now = 100;
+                HostCheck.Equal(Tx.Status.InvalidClock, Tx.PumpRetransmission(f.Owner, output, out _));
+            }
+            uint calls = f.Hardware->Calls;
+            HostCheck.Equal(Tx.Status.Success, Tx.AbortConnection(f.Owner));
+            HostCheck.Equal(0UL, f.Owner->PersistDeadlineNanoseconds);
+            HostCheck.Equal(Tx.Status.InvalidState, Tx.PumpRetransmission(f.Owner, output, out _));
+            HostCheck.Equal(calls, f.Hardware->Calls);
+            HostCheck.Equal(Tx.Status.Success, Tx.ReleaseClosed(f.Owner));
+            HostCheck.Equal(0UL, f.Owner->PersistProbes);
+            HostCheck.True(new ReadOnlySpan<byte>(f.Buffer, 32).IndexOfAnyExcept((byte)0) < 0);
+        }
+    }
+
     [HostTest("m07-027 continuing timer admission and copied TX reject unrepresentable deadlines", HostLane.Fast, 13)]
     private static void ContinuingTimerBounds()
     {

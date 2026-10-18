@@ -78,6 +78,15 @@ merely raising 4096 calls or 300 seconds is insufficient. Existing #240 supplies
 continuing randomness with a reviewed construction and explicit source-failure
 policy, rather than an ever-larger finite startup reservoir.
 
+[Step1420](../done/step1420.md) adds host-tested continuing-policy contracts:
+explicit preemptible per-turn syscall quotas, cumulative counters with overflow
+rejection, a 30-second runnable-progress watchdog, genuine-idle handling and
+latched cancellation. One host gate completes 12,288 calls across three owner
+turns; the budget model observes progress beyond 300 seconds. These APIs are not
+yet wired into the native driver or a sealed service profile. Existing EFI
+profiles retain their finite limits; no continuing guest service, entropy or
+shutdown acceptance follows from these host checks.
+
 M16-015 addresses the current requirement for contiguous physical backing even
 when a virtual mapping could use discontiguous owned frames. The review's
 16-page-pool characterization returns `ENOMEM` for six requested pages while

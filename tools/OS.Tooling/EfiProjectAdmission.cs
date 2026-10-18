@@ -196,6 +196,7 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Net\TcpReceiveWindow.cs|Net\TcpReceiveWindow.cs" or
             @"..\OS.Kernel\Net\TcpSendWindow.cs|Net\TcpSendWindow.cs" or
             @"..\OS.Kernel\Net\TcpSendWindow.Close.cs|Net\TcpSendWindow.Close.cs" or
+            @"..\OS.Kernel\Net\TcpTimeWaitTable.cs|Net\TcpTimeWaitTable.cs" or
             @"..\..\std\no-runtime\shared\Net\InternetChecksum.cs|Std\Net\InternetChecksum.cs" => profile.IsEnabled("EnableM07026Probe"),
             @"Boot\EfiEntry.LinuxUserInterrupts.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs" => profile.IsEnabled("EnableM16009Probe"),

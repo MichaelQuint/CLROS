@@ -31,6 +31,7 @@ public static partial class EfiContracts
         [@"..\OS.Kernel\Net\TcpReceiveWindow.cs"] = "reviewed_m07_retained_tcp_source_identity",
         [@"..\OS.Kernel\Net\TcpSendWindow.cs"] = "reviewed_m07_retained_tcp_source_identity",
         [@"..\OS.Kernel\Net\TcpSendWindow.Close.cs"] = "reviewed_m07_retained_tcp_source_identity",
+        [@"..\OS.Kernel\Net\TcpTimeWaitTable.cs"] = "reviewed_m07_retained_tcp_source_identity",
         [@"..\OS.Kernel\Net\Ipv4Header.cs"] = "reviewed_m07_ipv4_packet_source_identity",
         [@"..\OS.Kernel\Net\IcmpEchoPacket.cs"] = "reviewed_m07_icmp_packet_source_identity",
         [@"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs"] = "reviewed_m07_icmp_ethernet_source_identity",

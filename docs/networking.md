@@ -73,6 +73,14 @@ Whole-stack safety, general Linux compatibility and the full Kestrel ladder
 remain unqualified. The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 keeps the remaining work at its required acceptance stage:
 
+[Step1420](../done/step1420.md) records development-only persist and pending-RST
+integration, plus explicit compact TIME-WAIT mode. Focused host models recover
+queued bytes, reuse one bulk slot across twelve active closes, preserve duplicate
+FIN ACKs under TX pressure and keep table exhaustion local. Compact mode is not
+yet enabled by an EFI profile. No new original-native/full-host/guest packet or
+cleanup qualification is accepted; #743/#744/#757 remain open in the six-ticket
+service-foundation batch.
+
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.
   [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744) retires
@@ -82,7 +90,7 @@ keeps the remaining work at its required acceptance stage:
   checked `msghdr`/`iovec` semantics for the actual pinned socket/Kestrel vector
   path before #220. Small successful HTTP responses do not cover that path.
 - [M07-032](http://192.168.4.35:3000/admin/CLROS/issues/757) handles validated peer RST in SYN-RECEIVED.
-  The host reproduction currently retains the pending slot and retransmits
+  The pre-repair host reproduction retained the pending slot and retransmitted
   SYN-ACK until its deadline, blocking another client when capacity is full.
 - [M07-033](http://192.168.4.35:3000/admin/CLROS/issues/758) replaces the finite diagnostic ISN allocator
   for continuing profiles. Near its admitted upper boundary, one completed
