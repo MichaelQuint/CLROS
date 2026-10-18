@@ -22686,7 +22686,7 @@
         "M16-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22723,7 +22723,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Start the upstream NativeAOT Minimal API before socket binding",
-      "currentEvidence": "Step1389 qualifies predecessor #218 finite logging at2bfbaeee; step1380 configuration and steps1307/1351 runtime/socket evidence retain their exact scopes. Successful current startup observations do not close #219: AppStartupWitness construction remains outside the failure-marker try and its constructor-failure path needs repair/verification. Continue this slice under #737 before #745 vectors and #220-#223, including #759 realtime. No startup, general Kestrel or numbered gate acceptance.",
+      "currentEvidence": "Step1405 qualifies bounded upstream NativeAOT startup at8ef72134:5619 unchanged unfiltered full-host checks/751 fixtures/94Native, three strict normal web and three quota prefixes, plus eight strict socket/runtime ancestors. Actual entry/cctor/ctor/build precede bind; real constructor-failure execution and stale/malformed/startup/failure-marker negatives retain their host scope. Original package/source/native/serial/packet joins pass. Web workers remain active until runner-owned termination; no guest app exit/resource-cleanup claim. Vector captures stay at0086b219 with an exact evidence/web-pin-only forward source join. Continue220 under737;759 realtime precedes223. No general Kestrel, whole-stack, numbered, isolation, cloud or production gate advances.",
       "implementationNotes": [
         "Prove real upstream NativeAOT entry, constructors and application startup before bind. Emit distinct start and failure markers; do not mark ready if runtime initialization, configuration or listener creation failed.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22767,7 +22767,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-007",
@@ -32802,9 +32802,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32816,7 +32816,7 @@
         "M16-012",
         "M10-006"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Gateway/descriptor dispatch at the review snapshot omits syscall46 sendmsg and47 recvmsg. The pinned Kestrel SocketSender maps multi-segment ReadOnlySequence to Socket BufferList; upstream System.Native uses message/vectored I/O. PR739 small health/config responses do not establish the vector path.",
+      "currentEvidence": "Step1405 qualifies bounded checked sendmsg/recvmsg. Three strict0086b219 BufferList guests retain524352-byte streams, actual short sends/EAGAIN, partial request, reset, pending-disposal/later-health and terminal transport cleanup. Three strict8ef72134 upstream Kestrel web prefixes deliver49152 exact binary bytes with a native short send crossing an iovec before later health; three quota controls and eight strict ancestors pass separately. Current unfiltered full-host5619 checks/751 fixtures/94Native and original scoped native/source/packet joins pass. All kernel/vector sources are unchanged across the final three-web-pin/evidence-only transition. Limits remain16vectors/65536aggregate; names/control/unmeasured flags unsupported and ignored-SIGPIPE scope retained. No general Kestrel, continuing-service cleanup, whole-stack, numbered, cloud or production claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",

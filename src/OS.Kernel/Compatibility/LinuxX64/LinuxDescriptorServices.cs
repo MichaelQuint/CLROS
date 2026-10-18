@@ -183,7 +183,7 @@ public static unsafe partial class LinuxDescriptorServices
             case 257: value = Open(state, fd, frame.Argument1, frame.Argument2); break;
             case 293: value = Pipe(state, frame.Argument0, frame.Argument1); break;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-            case 41: case 42: case 43: case 44: case 45: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
+            case 41: case 42: case 43: case 44: case 45: case 46: case 47: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
                 value = state->Sockets == null ? Unsupported : LinuxSocketServices.Dispatch(state->Sockets, frame); break;
             case 213: case 232: case 233: case 281: case 291:
                 value = state->Epoll == null ? Unsupported : LinuxEpollServices.Dispatch(state->Epoll, frame); break;

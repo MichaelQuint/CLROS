@@ -159,7 +159,7 @@ internal static class NativeAotSocketIntegrationTests
 
     // The existing independent PCI/APIC and NIC/ARP vectors are composed here.
     // Placeholder startup and leaf rows deliberately grant no app authority.
-    internal static string[] Envelope(bool asynchronous)
+    internal static string[] Envelope(bool asynchronous,bool vectors=false)
     {
         string[] nic=M07ArpReceiveEfiIntegrationTests.Capture(),apic=M05ApicSetupEfiIntegrationTests.Capture();
         ulong[] Parent(string prefix)=>nic.Single(row=>row.StartsWith(prefix+" ",StringComparison.Ordinal)).Split(' ')[2..].Select(v=>Convert.ToUInt64(v[2..],16)).ToArray();
@@ -169,13 +169,14 @@ internal static class NativeAotSocketIntegrationTests
             ..apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count),..nic.Skip(QemuContracts.M05PciEnumerationMarkers.Count),
             "TEST_START m07-026",$"M07_026_ROW stage=0 a=268435456 b=32768 c={QemuContracts.M07ArpReceiveFeatures} d=8",
             "M16_011_PEER mac=90525193470466 sent=1 received=1 start=0 end=0","TEST_START m16-011",
-            ..asynchronous?new[]{"TEST_START m16-012"}:Array.Empty<string>(),"TEST_START m16-009",..Transport(),"TEST_PASS m16-009",
+            ..asynchronous?new[]{"TEST_START m16-012"}:Array.Empty<string>(),..vectors?new[]{"TEST_START m16-013"}:Array.Empty<string>(),"TEST_START m16-009",..Transport(),"TEST_PASS m16-009",
             "M16_011_WIRE received=10 arp=0 accepted=10 ignored=0 capacity=0 arpCopied=0 tcpCopied=20",
             "M16_011_END polls=100 received=10 copied=20 fresh=4 retired=4 start=0 end=240000000005 maxDeadline=240000000005 retained=0 buffers=scrubbed descriptors=closed workers=reaped",
             "M07_026_ROW stage=4 a=11 b=21 c=1 d=2","M07_026_ROW stage=5 a=8 b=0 c=8 d=1",
             $"M07_026_ROW stage=6 a={allocator[0]} b={allocator[1]} c={allocator[2]} d={binding[2]}",
             "CLROS_M07_026_READY","TEST_PASS m07-026","CLROS_M16_011_READY","TEST_PASS m16-011",
-            ..asynchronous?new[]{"CLROS_M16_012_READY","TEST_PASS m16-012"}:Array.Empty<string>()];
+            ..asynchronous?new[]{"CLROS_M16_012_READY","TEST_PASS m16-012"}:Array.Empty<string>(),
+            ..vectors?new[]{"CLROS_M16_013_READY","TEST_PASS m16-013"}:Array.Empty<string>()];
     }
     [HostTest("socket wrapper joins original APIC NIC cleanup DMA and transport observations in both modes")]
     private static void Parents()
@@ -227,7 +228,7 @@ internal static class NativeAotSocketIntegrationTests
     // capture. This background packet grants no guest IPv6 capability.
     private static byte[] RouterAdvertisement()=>Convert.FromHexString(
         "33330000000152560000000286DD6000000000383AFFFE800000000000000000000000000002FF0200000000000000000000000000018600155E4000070800000000000000000101525600000002030440C0000151800000384000000000FEC00000000000000000000000000000");
-    internal static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Packets()
+    internal static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Packets(bool vectors=false)
     {
         byte[] anchor=new byte[60],warmup=new byte[60];Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor,0);anchor.CopyTo(warmup,0);
         "CLROS-M07"u8.CopyTo(anchor.AsSpan(14));byte[] request=EthernetFrameItExistingClassifierTests.Request.ToArray();
@@ -239,17 +240,17 @@ internal static class NativeAotSocketIntegrationTests
             ushort port=(ushort)(40000+index);uint client=(uint)(1000+index*100000),server=(uint)(9000+index*100000);
             void Add(bool outgoing,uint seq,uint ack,byte flags,ReadOnlySpan<byte> payload=default)=>frames.Add(Tcp(outgoing,port,seq,ack,flags,payload));
             Add(false,client,0,2);Add(true,server,client+1,0x12);client++;server++;Add(false,client,server,0x10);
-            byte[] sent=index==1?[0x52]:"CLROS_SOCKET_REQUEST"u8.ToArray();
+            byte[] sent=vectors?Enumerable.Range(0,64).Select(i=>(byte)((index*37+i*11)%251)).ToArray():index==1?[0x52]:"CLROS_SOCKET_REQUEST"u8.ToArray();
             Add(false,client,server,0x18,sent);client+=(uint)sent.Length;Add(true,server,client,0x10);
             if(index==1){Add(false,client,server,0x14);continue;}
-            if(index>=2){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
-            byte[] payload=index==0?Enumerable.Range(0,65536).Select(i=>(byte)(i%251)).ToArray():"CLROS_SOCKET_REPLY"u8.ToArray();
+            if(vectors?index is 0 or 3:index>=2){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
+            byte[] payload=vectors&&index==2?[]:index==0?Enumerable.Range(0,vectors?524288:65536).Select(i=>(byte)(i%251)).ToArray():vectors?Enumerable.Range(0,64).Select(i=>(byte)(i%251)).ToArray():"CLROS_SOCKET_REPLY"u8.ToArray();
             for(int offset=0;offset<payload.Length;)
             {
                 int count=Math.Min(1024,payload.Length-offset);Add(true,server,client,0x18,payload.AsSpan(offset,count));server+=(uint)count;offset+=count;Add(false,client,server,0x10);
             }
             Add(true,server,client,0x11);server++;
-            if(index==0){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
+            if(vectors?index==2:index==0){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
             else Add(false,client,server,0x10);
         }
         frames.Add(RouterAdvertisement());return(frames,Crc(anchor),new(Crc(reply),42,Crc(request),0x52550a000202));

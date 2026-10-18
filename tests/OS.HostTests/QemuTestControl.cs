@@ -14,7 +14,7 @@ internal static class QemuTestControl
                 {
                     listener.Start();
                     await File.WriteAllTextAsync(args[1], "OS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\n", Encoding.ASCII);
-                    string[] requests = ["GET /healthz ", "GET /config ", "POST /__clros/logexercise ", "POST /__clros/logexercise ", "GET /healthz "];
+                    string[] requests = ["GET /healthz ", "GET /config ", "POST /__clros/logexercise ", "POST /__clros/logexercise ", "GET /__clros/vectors ", "GET /healthz "];
                     for (int step = 0; step < requests.Length; step++)
                     {
                         using var client = await listener.AcceptTcpClientAsync(deadline.Token);
@@ -22,11 +22,14 @@ internal static class QemuTestControl
                         using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
                         string line = await reader.ReadLineAsync(deadline.Token) ?? "";
                         if (!line.StartsWith(requests[step], StringComparison.Ordinal)) throw new InvalidDataException("unexpected_web_probe");
+                        await File.AppendAllTextAsync(args[1]+".requests",line+"\n",Encoding.ASCII);
                         while (await reader.ReadLineAsync(deadline.Token) is { Length: > 0 }) { }
                         string body = step switch { 1 => "{\"selected\":true}", 2 => "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", 3 => "", _ => "OS_MINIMAL_API_OK" };
                         if (step == 2) await File.AppendAllTextAsync(args[1], "TEST_START m10.005\r\nM10_005_LOGS\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n", Encoding.ASCII);
-                        byte[] response = Encoding.ASCII.GetBytes($"HTTP/1.1 {(step == 3 ? "409 Conflict" : "200 OK")}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}");
-                        await stream.WriteAsync(response, deadline.Token);
+                        byte[] payload=step==4?Enumerable.Range(0,49152).Select(i=>(byte)(i%251)).ToArray():Encoding.ASCII.GetBytes(body);
+                        if(step==4 && args.Length>6 && args[6]=="wrong-vector")payload[123]^=1;
+                        byte[] response = Encoding.ASCII.GetBytes($"HTTP/1.1 {(step == 3 ? "409 Conflict" : "200 OK")}\r\nContent-Length: {payload.Length}\r\nConnection: close\r\n\r\n");
+                        await stream.WriteAsync(response, deadline.Token);await stream.WriteAsync(payload,deadline.Token);
                     }
                     listener.Stop();
                     await Task.Delay(30000);

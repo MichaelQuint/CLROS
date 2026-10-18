@@ -237,7 +237,7 @@ internal static unsafe class LinuxSyscallGatewayTests
     {
         byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 12, ThreadValue = -9 }; var state = ThreadGate(&model, scratch);
         var frame = Frame();
-        ulong[] calls = [0, 1, 2, 3, 5, 8, 16, 17, 20, 22, 41, 42, 43, 44, 45, 48, 49, 50, 51, 52, 54, 55, 72, 257, 288, 293];
+        ulong[] calls = [0, 1, 2, 3, 5, 8, 16, 17, 20, 22, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 54, 55, 72, 257, 288, 293];
         foreach (ulong number in calls)
         { frame.Number = number; HostCheck.Equal(-9L, LinuxSyscallGateway.Dispatch(ref state, ref frame).Value); }
         HostCheck.Equal((uint)calls.Length, model.ThreadCalls); // The legacy fd callback would return ENOSYS.

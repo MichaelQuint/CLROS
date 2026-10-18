@@ -11,9 +11,9 @@ const string ExpectedBodyKey = "OS_SMOKE_EXPECTED_BODY";
 const string DefaultListenEndpoint = "http://0.0.0.0:8080";
 
 Console.Error.WriteLine("CLROS_APP_ENTRY minimal.api.smoke");
-var startupWitness = new AppStartupWitness();
 try
 {
+    var startupWitness = new AppStartupWitness();
     // The qualification profile uses immutable configuration and HTTP/1.1 only.
     // Set this before default configuration providers are created, so no watcher starts.
     Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
@@ -43,6 +43,7 @@ try
     // This explicit diagnostic is supported only by the pinned Linux application
     // profile. Normal configuration and HTTP endpoints retain their portable path.
     app.MapPost("/__clros/logexercise", LinuxLoggingExercise.Run);
+    app.MapGet("/__clros/vectors", KestrelVectorExercise.WriteAsync);
 
     app.Run();
     GC.KeepAlive(startupWitness);
@@ -149,7 +150,7 @@ internal static class LinuxLoggingExercise
                 for (int worker = 0; worker < startedThreads; worker++)
                     // A stuck writer must not outlive this diagnostic or its events.
                     // Terminate the owned fixture process rather than return HTTP.
-                    if (!threads[worker].Join(TimeSpan.FromSeconds(5))) Environment.Exit(70);
+                    if (!threads[worker].Join(TimeSpan.FromSeconds(30))) Environment.Exit(70);
             }
             if (!allReady || failed != 0) return Results.StatusCode(500);
         }

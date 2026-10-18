@@ -159,7 +159,7 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket,web,containment,webLogQuota;
+        private readonly bool broader,socket,web,containment,vectors,webLogQuota;
         private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
         private readonly int webSettingsFd;
@@ -189,7 +189,8 @@ public static partial class QemuTranscripts
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
-            web=app=="MinimalApiSmoke";socket=web || containment || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            vectors=app==NativeAotSocketVectorsPublisher.Application;
+            web=app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
             Need(!webLogQuota || web,"web_quota_application");this.webLogQuota=webLogQuota;
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
             this.webSettingsCall=webSettingsCall;
@@ -197,11 +198,17 @@ public static partial class QemuTranscripts
                 webSettingsCall.Identity!=0 && webSettingsCall.Ordinal!=0,"web_replay_configuration");
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
             Need(rows is not null && rows.Length is >=25 and <=100000 && instruction is not null && syscall is not null &&
-                lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) && lengths.Sum()<=(web?65536:4096),"threading_protocol_input");
+                lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) && lengths.Sum()<=(web?65536:vectors?32768:4096),"threading_protocol_input");
             this.app=app; this.instruction=instruction!; this.syscall=syscall!; writeLengths=lengths!.ToArray();
             exitTails=FindExitTails(elf,this.instruction,this.syscall);
             waits=ReadLinuxCallWaits(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
             returns=ReadLinuxCallReturns(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
+            if(socket)
+            {
+                var messages=NativeAotSocketMessages.Read(rows!,returns);
+                socketMessageInputs=messages.ToDictionary(x=>x.RecordIndex);
+                socketMessageCalls=messages.ToDictionary(x=>x.CallRecordIndex);
+            }
             this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
@@ -227,7 +234,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
-            int bytes=web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
@@ -281,6 +288,7 @@ public static partial class QemuTranscripts
                     while(!prepareBlocked)
                     {
                         SocketObservations();
+                        SocketMessageInput(t);
                         if(t.TailRip!=0 && Starts("M16_009_IRQ "))
                         {
                             Need(!exitTailContinued,"threading_exit_tail_irq_repeat");

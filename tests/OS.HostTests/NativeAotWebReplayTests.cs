@@ -1,16 +1,18 @@
 using System.Text;
+using System.Globalization;
 using OS.Tooling;
 
 internal static class NativeAotWebReplayTests
 {
+    private const int WebElfBytes=8_766_792;
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
-        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null)
+        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null,int? zeroSendMessage=null,bool zeroAfterShutdown=false)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
-            .Replace("packageBytes=1320176","packageBytes=8746056",StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
+            .Replace("packageBytes=1320176","packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
             .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         v.Call(2,5,[0x500200,0x88100,0]);v.Call(5,0,[5,0x500800]);
@@ -29,7 +31,10 @@ internal static class NativeAotWebReplayTests
         {
             v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(72,0,[7,4,0x802]);
             v.Call(45,1,[7,0x500800,1,2,0,0]);v.Call(45,20,[7,0x500800,20,0,0,0]);
-            v.Call(44,18,[7,0x500800,18,0,0,0]);v.Call(48,0,[7,2]);
+            v.Call(44,18,[7,0x500800,18,0,0,0]);
+            if(zeroSendMessage is int zero && !zeroAfterShutdown)NativeAotSocketProtocolTests.MessageIo(v,46,zero,0,(uint)i+1);
+            v.Call(48,0,[7,2]);
+            if(zeroSendMessage is int after && zeroAfterShutdown)NativeAotSocketProtocolTests.MessageIo(v,46,after,0,(uint)i+1);
             if(readAfterShutdown is long read)v.Call(45,read,[7,0x500800,1,0,0,0]);
             if(sendAfterShutdown is long send)v.Call(44,send,[7,0x500800,1,0,0,0]);
             v.Call(3,0,[7]);
@@ -62,6 +67,16 @@ internal static class NativeAotWebReplayTests
             report.Observations.StdoutBytes==5 && report.Observations.Calls==report.Protocol.Calls);
     }
 
+    [HostTest("m16-013 web replay preserves zero-length send policy errors and shutdown state")]
+    private static void ZeroLengthMessages()
+    {
+        foreach(int result in new[]{0,-11,-104,-32})HostCheck.Equal(36UL,Inspect(Vector(zeroSendMessage:result)).Sent);
+        foreach(int result in new[]{-104,-32})HostCheck.Equal(36UL,Inspect(Vector(zeroSendMessage:result,zeroAfterShutdown:true)).Sent);
+        Reject(()=>Inspect(Vector(zeroSendMessage:1)));
+        Reject(()=>Inspect(Vector(zeroSendMessage:0,zeroAfterShutdown:true)));
+        Reject(()=>Inspect(Vector(zeroSendMessage:-11,zeroAfterShutdown:true)));
+    }
+
     [HostTest("nativeaot.web replay rejects memory file ownership and positioned-read inconsistencies")]
     private static void Files()
     {
@@ -79,7 +94,7 @@ internal static class NativeAotWebReplayTests
     private static void Ownership()
     {
         var stale=Vector();int policy=stale.FindIndex(r=>r.StartsWith("M16_007_POLICY ",StringComparison.Ordinal));
-        stale[policy]=stale[policy].Replace("packageBytes=8746056","packageBytes=8681864",StringComparison.Ordinal);Reject(()=>Inspect(stale));
+        stale[policy]=stale[policy].Replace("packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),"packageBytes=8681864",StringComparison.Ordinal);Reject(()=>Inspect(stale));
         var budget=Vector();int at=budget.FindIndex(r=>r.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal));
         budget[at]=budget[at].Replace("epochs=1000000","epochs=8192",StringComparison.Ordinal);Reject(()=>Inspect(budget));
         var fifo=Vector();at=fifo.FindIndex(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal));

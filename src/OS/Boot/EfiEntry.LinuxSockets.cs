@@ -15,6 +15,45 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
+        // Called synchronously from the checked socket adapter after complete
+        // metadata/range admission, before payload copies or TCP mutation. The
+        // borrowed vector snapshot stays on the authenticated current stack.
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ObserveLinuxSocketMessage(void* context, ulong number, uint fd, ulong header,
+            ulong flags, ulong table, ulong* vectors, uint count, uint total)
+        {
+            Storage* state = (Storage*)context;
+            LinuxNativeControl* c = LinuxNativeOwner(state);
+            if (c == null || c->Phase != 3 || c->Published != 1 || state->NetworkPhase != 2 ||
+                c->Selected == 0 || c->Selected > c->Capacity || !c->Threads.Current.IsValid ||
+                c->Threads.Current.Value != c->Plan.Bindings[c->Selected - 1].Context.Identity ||
+                number is not (46 or 47) || count > LinuxDescriptorServices.MaximumVectors ||
+                total > LinuxDescriptorServices.MaximumIo ||
+                count != 0 && !LinuxThreadKernelRange(c, (byte*)vectors, count * 16, false) ||
+                !LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out var token)) return 0;
+            LinuxSyscallFrame* frame = (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset);
+            if (frame->Number != number || (uint)frame->Argument0 != fd || frame->Argument1 != header ||
+                frame->Argument2 != flags) return 0;
+            ulong identity = c->Threads.Current.Value, ordinal = c->Gates[c->Selected - 1].Calls;
+            if (ordinal == 0 || !LinuxText(state, "M16_013_MESSAGE identity=") || !LinuxNumber(state, identity) ||
+                !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
+                !LinuxText(state, " nr=") || !LinuxNumber(state, number) ||
+                !LinuxText(state, " fd=") || !LinuxNumber(state, fd) ||
+                !LinuxText(state, " generation=") || !LinuxNumber(state, token.Generation) ||
+                !LinuxText(state, " header=") || !LinuxNumber(state, header) ||
+                !LinuxText(state, " flags=") || !LinuxNumber(state, flags) ||
+                !LinuxText(state, " table=") || !LinuxNumber(state, table) ||
+                !LinuxText(state, " vectors=") || !LinuxNumber(state, count) ||
+                !LinuxText(state, " total=") || !LinuxNumber(state, total) || !LinuxText(state, "\r\n")) return 0;
+            for (uint i = 0; i < count; i++)
+                if (!LinuxText(state, "M16_013_VECTOR identity=") || !LinuxNumber(state, identity) ||
+                    !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
+                    !LinuxText(state, " index=") || !LinuxNumber(state, i) ||
+                    !LinuxText(state, " address=") || !LinuxNumber(state, vectors[i * 2]) ||
+                    !LinuxText(state, " bytes=") || !LinuxNumber(state, vectors[i * 2 + 1]) || !LinuxText(state, "\r\n")) return 0;
+            return 1;
+        }
+
         private const uint LinuxSocketConnections = 8, LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
         // Borrowed observations only. A release is reported after the original
         // handle becomes stale and its network slot disappears or is reused.
@@ -76,6 +115,9 @@ public static unsafe partial class EfiEntry
 #if M16_012_PROBE
                 if (!LinuxText(state, "TEST_START m16-012\r\n")) return false;
 #endif
+#if M16_013_PROBE
+                if (!LinuxText(state, "TEST_START m16-013\r\n")) return false;
+#endif
 #if M07_027_PROBE && M07_028_PROBE
                 if (!LinuxText(state, "TEST_START m07.027\r\nTEST_START m07.028\r\n")) return false;
 #endif
@@ -121,6 +163,7 @@ public static unsafe partial class EfiEntry
                         (LinuxEpollServices.Registration*)o->Registrations, 64) ||
                     TcpConnectionTable.InitializeOwned(&o->Table, (TcpConnectionTableEntry*)o->Entries, LinuxSocketConnections,
                         o->Generations, LinuxSocketConnections, state->NetworkArena ^ 0x4c534f434b455453UL) != TcpConnectionTable.OwnershipStatus.Success) return false;
+                if (!LinuxSocketServices.AttachMessageObserver(&o->Sockets, state, &ObserveLinuxSocketMessage)) return false;
                 // A finite diagnostic seed from the admitted clock, not a
                 // production unpredictable TCP initial-sequence generator.
                 uint sequence = ((uint)now & 0x3fff0000) | 0x10000;

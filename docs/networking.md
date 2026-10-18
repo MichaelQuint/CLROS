@@ -1,5 +1,33 @@
 # Networking
 
+[Step1405](../done/step1405.md) qualifies #745 checked connected-stream vectors
+and #219 startup: 5,619 full-host checks/751 fixtures (94 Native), three finite
+BufferList guests, six real Kestrel web/quota prefixes and eight strict ancestors.
+Vector captures stay at `0086b219`; full-host/web/ancestors stay at `8ef72134`.
+Kernel/vector sources are unchanged across the final web-pin/evidence-only delta.
+Limits remain 16 vectors/65,536 total bytes. The finite fixture proves short sends,
+send EAGAIN, reset, pending disposal/later health and terminal transport cleanup;
+Kestrel proves the exact 49,152-byte entity and a native short send crossing an
+iovec. Web prefixes retain live workers until runner termination. General
+networking/Kestrel, whole-stack and broader gates remain incomplete; #220 follows.
+
+Current vector publication uses the retained original socket recipe and a fresh
+output directory:
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot socket-vectors publish --recipe-root <original-linux-socket-root> --output <fresh-directory>
+dotnet run --project tools/OS.Tooling -- linux socket-vectors-package <original-publication> <fresh-package>
+dotnet run --project tools/OS.Tooling -- linux socket-vectors-program <package> <complete-original-llvm-disassembly>
+```
+
+The explicit guest profile is `--EnableM16013Probe` with the sealed package,
+complete decoder, owned peer and 600-second bound. It requires observed sendmsg
+EAGAIN before guest peer reads, exact remaining vectors, a genuinely pending
+receive before disposal and all four streams/cleanup. The standalone Linux peer
+retains its separate 250-ms gate. Publisher/package/index admission alone grants
+no guest authority. Step1405 records the exact implemented commands and hashes;
+[steps1390-1404](../done/step1390.md) retain development and failed attempts.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
@@ -7,7 +35,8 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+Step1405 adds bounded startup/vector qualification; the #220 service ladder
+remains open under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
 
 [Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
@@ -21,7 +50,7 @@ success; normal240-second TIME-WAIT is retained. The original payload is unchang
 Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
 The shared native-body joins do not prove whole-stack closure or arbitrary
 workloads. The full Kestrel ladder and new numbered/cloud/production gates remain
-incomplete. Continue the owned #218-#220 application ladder under #737.
+incomplete. Continue the owned #220 service ladder under #737.
 
 ## Architecture review follow-ups
 

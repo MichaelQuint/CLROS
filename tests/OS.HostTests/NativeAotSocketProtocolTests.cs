@@ -5,16 +5,18 @@ internal static class NativeAotSocketProtocolTests
 {
     // Independent synthetic rows exercise the full leaf model. They never
     // construct a sealed program, packet capture or guest execution receipt.
-    private static NativeAotThreadingTranscriptTests.Vector Vector(bool asynchronous=false,bool repark=false,bool deadline=false,bool idle=false,
-        bool expiry=false,bool removeWatch=false,bool closedWake=false)
+    internal static NativeAotThreadingTranscriptTests.Vector Vector(bool asynchronous=false,bool repark=false,bool deadline=false,bool idle=false,
+        bool expiry=false,bool removeWatch=false,bool closedWake=false,bool messages=false,bool reusedFile=false,
+        Action<NativeAotThreadingTranscriptTests.Vector,int,uint>? vectorConnection=null,string? vectorOutput=null)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal)
-            .Replace("packageBytes=1320176","packageBytes=2117424",StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal);
+            .Replace("packageBytes=1320176","packageBytes="+(vectorConnection is null?2117424:NativeAotSocketVectorsPackage.ElfBytes),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal);
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         v.Call(291,5,[0x80000]);v.Call(41,6,[2,0x80001,6]);
         v.Call(16,0,[6,0x5421,0x500200]);v.Call(72,0x802,[6,3]);v.Call(72,0,[6,4,0x8802]);
         v.Call(49,0,[6,0x500200,16]);v.Call(50,0,[6,4]);v.Call(233,0,[5,1,6,0x500300]);
+        if(reusedFile){v.Call(2,7,[0x500200,0,0]);v.Call(3,0,[7]);}
         var poller=v.Clone(2,2);var timed=v.Clone(3,3);
         v.Irq(10,3,3);v.Select(poller);
         v.Call(281,0,[5,0x500600,16,deadline?1UL:uint.MaxValue,0,8],3,3,deadline?35UL:0);
@@ -34,11 +36,17 @@ internal static class NativeAotSocketProtocolTests
             v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(72,0,[7,4,0x802]);
             v.Call(54,0,[7,1,7,0x500200,4]);v.Call(54,0,[7,6,1,0x500200,4]);
             int requested=i==1?1:20;
-            while(requested!=0){int count=Math.Min(3,requested);v.Call(45,count,[7,0x500800,(uint)count,0,0,0]);requested-=count;}
-            if(i!=0)v.Call(45,i==1?-104:0,[7,0x500800,1,0,0,0]);
+            uint generation=(uint)i+(reusedFile?2U:1U);
+            if(vectorConnection is not null)vectorConnection(v,i,generation);
+            else
+            {
+            while(requested!=0){int count=Math.Min(3,requested);if(messages)MessageIo(v,47,count,(uint)count,generation);else v.Call(45,count,[7,0x500800,(uint)count,0,0,0]);requested-=count;}
+            if(i!=0){if(messages)MessageIo(v,47,i==1?-104:0,1,generation);else v.Call(45,i==1?-104:0,[7,0x500800,1,0,0,0]);}
             int remaining=i==0?65536:i==1?0:18;
-            while(remaining!=0){int count=Math.Min(8192,remaining);v.Call(44,count,[7,0x500000,(uint)remaining,0,0,0]);remaining-=count;}
-            if(i>=2)v.Call(48,0,[7,1]);v.Call(3,0,[7]);
+            while(remaining!=0){int count=Math.Min(8192,remaining);if(messages)MessageIo(v,46,count,(uint)count,generation);else v.Call(44,count,[7,0x500000,(uint)remaining,0,0,0]);remaining-=count;}
+            if(i>=2)v.Call(48,0,[7,1]);
+            }
+            v.Call(3,0,[7]);
         }
         v.Irq(40,3,3);
         if(!deadline){v.Select(timed);v.Resume(-110);v.Call(60,0,[0],4);v.Drain(50);v.Exit(4,2,3);}
@@ -65,12 +73,49 @@ internal static class NativeAotSocketProtocolTests
             v.Clock+=1_000_000;v.Call(281,0,[5,0x500600,16,1,0,8]);
             v.Rows.Add($"M16_012_EXPIRE identity={v.Main.Id} ordinal={v.Main.Ordinal} deadline={v.Clock} clock={v.Clock}");
         }
-        string stdout=NativeAotSocketPayloadTests.FixtureOutput(asynchronous);int length=Encoding.UTF8.GetByteCount(stdout);
+        string stdout=vectorOutput??NativeAotSocketPayloadTests.FixtureOutput(asynchronous);int length=Encoding.UTF8.GetByteCount(stdout);
         v.Rows.Add($"M16_005_WRITE fd=1 bytes={length} data={stdout}");v.Call(1,length,[1,0x500000,(uint)length]);
         v.Call(231,0,[0],2);v.Drain(v.Clock);v.Exit(2,deadline?0:1,deadline?1:2);
         if(!deadline){v.Select(poller);v.Exit(4,0,1);}
         for(int fd=0;fd<=5;fd++)v.Rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");v.End(3);return v;
     }
+    internal static void MessageIo(NativeAotThreadingTranscriptTests.Vector vector,ulong number,int returned,uint total,uint generation,uint? firstBytes=null,uint gap=0)
+    {
+        const ulong header=0x500100,table=0x500200;
+        vector.Call(number,returned,[7,header,0]);int index=vector.Rows.FindLastIndex(row=>row.StartsWith("M16_008_CALL ",StringComparison.Ordinal));
+        var fields=vector.Rows[index].Split(' ').Skip(1).Select(token=>token.Split('='))
+            .ToDictionary(pair=>pair[0],pair=>ulong.Parse(pair[1],System.Globalization.CultureInfo.InvariantCulture));
+        ulong identity=fields["identity"],ordinal=fields["ordinal"],address=number==46?0x500000UL:0x500800UL;
+        uint first=firstBytes??total/2,second=total-first;
+        bool single=firstBytes.HasValue && second==0;
+        List<string> inputs=[
+            $"M16_013_MESSAGE identity={identity} ordinal={ordinal} nr={number} fd=7 generation={generation} header={header} flags=0 table={table} vectors={(single?1:2)} total={total}",
+            $"M16_013_VECTOR identity={identity} ordinal={ordinal} index=0 address={address} bytes={first}"];
+        if(!single)inputs.Add($"M16_013_VECTOR identity={identity} ordinal={ordinal} index=1 address={address+first+gap} bytes={second}");
+        vector.Rows.InsertRange(index,inputs);
+    }
+
+    [HostTest("m16-013 full synthetic socket replay joins message vectors mappings and descriptor generations")]
+    private static void MessageReplay()
+    {
+        var vector=Vector(messages:true);var report=Inspect(vector.Rows);
+        HostCheck.Equal(3,report.Reaped);HostCheck.True(NativeAotSocketMessages.Read(vector.Rows.ToArray()).Count>10);
+        HostCheck.Equal(3,Inspect(Vector(messages:true,reusedFile:true).Rows).Reaped);
+    }
+
+    [HostTest("m16-013 full synthetic socket replay rejects missing snapshots unmapped vectors and stale generations")]
+    private static void MessageReplayNegatives()
+    {
+        var rows=Vector(messages:true).Rows;
+        Reject(rows.Where(row=>!row.StartsWith("M16_013_",StringComparison.Ordinal)),"socket_message_call_snapshot");
+        Reject(rows.Select(row=>row.StartsWith("M16_013_VECTOR ",StringComparison.Ordinal)?
+            System.Text.RegularExpressions.Regex.Replace(row,@"address=\d+","address=140733193388032"):row),"socket_message_vector_mapping");
+        Reject(rows.Select(row=>row.StartsWith("M16_013_MESSAGE ",StringComparison.Ordinal)?
+            System.Text.RegularExpressions.Regex.Replace(row,@"generation=\d+","generation=1"):row),"socket_message_descriptor_generation");
+        Reject(rows.Select(row=>row.StartsWith("M16_013_MESSAGE ",StringComparison.Ordinal)?
+            System.Text.RegularExpressions.Regex.Replace(row,@"generation=(\d+)",match=>"generation="+(uint.Parse(match.Groups[1].Value)+100)):row),"socket_message_descriptor_generation");
+    }
+
     private static byte[] Raw(IEnumerable<string> rows)=>Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n");
     private static QemuTranscripts.ThreadingProtocolReport Inspect(IEnumerable<string> rows,bool asynchronous=false)=>
         QemuTranscripts.InspectNativeAotSocketProtocolForTests(asynchronous,NativeAotThreadingTranscriptTests.Elf(),Raw(rows),

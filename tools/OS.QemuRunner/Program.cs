@@ -365,7 +365,7 @@ try
                         {
                             // All probes use the same owned process and remaining
                             // deadline. A failed step never advances to a later one.
-                            foreach (int step in new[] { 0, 1, 2 })
+                            foreach (int step in options.WebVectorProbe is null ? new[] { 0, 1, 3 } : new[] { 0, 1, 2, 3 })
                             {
                                 bool healthy = TryFeedSerialLogDelta(options.SerialLogPath, streamingMarkers,
                                     ref serialReadOffset, out SerialMarkerFeedResult delta, out serialReadFailure)
@@ -373,14 +373,15 @@ try
                                     && streamingMarkers.OutOfOrderOccurrenceCount == 0 && streamingMarkers.DuplicateUniqueOccurrenceCount == 0;
                                 if (!healthy) { web.Failure = "serial_failure"; break; }
                                 HttpProbeOptions probe = step switch { 0 => options.WebLogProbe!.Value,
-                                    1 => options.WebLogRepeatProbe!.Value, _ => options.HttpProbe.Value };
+                                    1 => options.WebLogRepeatProbe!.Value, 2 => options.WebVectorProbe!.Value, _ => options.HttpProbe.Value };
                                 HttpProbeResult result = ExecuteContinuingWebProbe(probe, stopwatch, options.TimeoutSeconds);
                                 bool alive = !process.HasExited;
                                 if (step == 0) { web.LogResult = result; web.AliveAfterLog = alive; }
                                 else if (step == 1) { web.LogRepeatResult = result; web.AliveAfterLogRepeat = alive; }
+                                else if (step == 2) { web.VectorResult = result; web.AliveAfterVectors = alive; }
                                 else { web.HealthAfterResult = result; web.AliveAfterFinalHealth = alive; }
                                 if (!alive) { web.Failure = "premature_exit"; break; }
-                                if (!result.Passed) { web.Failure = "logging_http_" + result.Reason; break; }
+                                if (!result.Passed) { web.Failure = (step == 2 ? "vector_http_" : "logging_http_") + result.Reason; break; }
                             }
                         }
                     }
@@ -705,6 +706,7 @@ try
         }
         if (options.ContinuingWeb && httpProbeResult?.Passed == true &&
             (options.WebEvidence!.LogResult?.Passed != true || options.WebEvidence.LogRepeatResult?.Passed != true ||
+             (options.WebVectorProbe is not null && options.WebEvidence.VectorResult?.Passed != true) ||
              options.WebEvidence.HealthAfterResult?.Passed != true))
         {
             WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, [], [], "web_logging_incomplete",
@@ -1669,6 +1671,7 @@ static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions opti
     builder.Append("WEB_CONFIG_PROBE_ELAPSED_MS ").AppendLine(web.ConfigResult?.ElapsedMilliseconds.ToString() ?? "none");
     AppendWebProbe("WEB_LOG_PROBE", options.WebLogProbe!.Value, web.LogResult);
     AppendWebProbe("WEB_LOG_REPEAT_PROBE", options.WebLogRepeatProbe!.Value, web.LogRepeatResult);
+    if (options.WebVectorProbe is not null) AppendWebProbe("WEB_VECTOR_PROBE", options.WebVectorProbe.Value, web.VectorResult);
     AppendWebProbe("WEB_HEALTH_AFTER_PROBE", options.HttpProbe!.Value, web.HealthAfterResult);
     builder.Append("WEB_ENDPOINT_PRELAUNCH_AVAILABLE ").AppendLine(web.PreLaunchAvailable ? "true" : "false");
     builder.Append("WEB_ENDPOINT_STOPPED_REFUSED ").AppendLine(web.StoppedEndpointRefused?.ToString().ToLowerInvariant() ?? "not_run");
@@ -1681,6 +1684,7 @@ static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions opti
     builder.Append("WEB_PROCESS_ALIVE_AFTER_CONFIG ").AppendLine(FormatBool(web.AliveAfterConfig));
     builder.Append("WEB_PROCESS_ALIVE_AFTER_LOG ").AppendLine(FormatBool(web.AliveAfterLog));
     builder.Append("WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT ").AppendLine(FormatBool(web.AliveAfterLogRepeat));
+    if (options.WebVectorProbe is not null) builder.Append("WEB_PROCESS_ALIVE_AFTER_VECTORS ").AppendLine(FormatBool(web.AliveAfterVectors));
     builder.Append("WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH ").AppendLine(FormatBool(web.AliveAfterFinalHealth));
     builder.Append("WEB_PROCESS_TERMINATION_REQUESTED ").AppendLine(FormatBool(web.TerminationRequested));
     builder.Append("WEB_PROCESS_DEATH_CONFIRMED ").AppendLine(FormatBool(web.DeathConfirmed));
@@ -1694,7 +1698,7 @@ static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions opti
         builder.Append(prefix).Append("_METHOD ").AppendLine(probe.IsPost ? "POST" : "GET");
         builder.Append(prefix).Append("_EXPECTED_STATUS ").AppendLine(probe.ExpectedStatusCode.ToString());
         builder.Append(prefix).Append("_EXPECTED_BODY_BYTES ").AppendLine(probe.ExpectedBodyByteLength.ToString());
-        builder.Append(prefix).Append("_EXPECTED_BODY_SHA256 ").AppendLine(ComputeSha256(Encoding.UTF8.GetBytes(probe.ExpectedBody)));
+        builder.Append(prefix).Append("_EXPECTED_BODY_SHA256 ").AppendLine(probe.ExpectedBodySha256);
         builder.Append(prefix).Append("_RESULT ").AppendLine(result is null ? "not_run" : result.Value.Passed ? "pass" : "fail");
         builder.Append(prefix).Append("_REASON ").AppendLine(result?.Reason ?? "none");
         builder.Append(prefix).Append("_STATUS ").AppendLine(result?.StatusCodeText ?? "none");
@@ -1718,17 +1722,22 @@ static bool CheckWebPortAvailable(int port)
 
 static bool CheckWebEndpointRefused(int port)
 {
-    using TcpClient client = new();
     // Windows loopback reports a refused connection after about two seconds.
-    // A shorter cancellation would confuse that negative with a live endpoint.
+    // Process-tree exit can also precede a child's socket release. Require an
+    // actual refusal within one bounded window, including successful retries.
     using CancellationTokenSource cancellation = new(TimeSpan.FromSeconds(3));
-    try
+    while(!cancellation.IsCancellationRequested)
     {
-        client.ConnectAsync(System.Net.IPAddress.Loopback, port, cancellation.Token).AsTask().GetAwaiter().GetResult();
-        return false;
+        using TcpClient client = new();
+        try
+        {
+            client.ConnectAsync(System.Net.IPAddress.Loopback, port, cancellation.Token).AsTask().GetAwaiter().GetResult();
+            Task.Delay(25,cancellation.Token).GetAwaiter().GetResult();
+        }
+        catch (SocketException ex) { return ex.SocketErrorCode == SocketError.ConnectionRefused; }
+        catch (OperationCanceledException) { return false; }
     }
-    catch (SocketException ex) { return ex.SocketErrorCode == SocketError.ConnectionRefused; }
-    catch (OperationCanceledException) { return false; }
+    return false;
 }
 
 static HttpProbeResult ExecuteContinuingWebProbe(HttpProbeOptions probe, Stopwatch lifetime, int deadlineSeconds)
@@ -1736,7 +1745,7 @@ static HttpProbeResult ExecuteContinuingWebProbe(HttpProbeOptions probe, Stopwat
     long remaining = deadlineSeconds * 1000L - lifetime.ElapsedMilliseconds;
     if (remaining < 1000) return HttpProbeResult.Failed("deadline", 0, string.Empty);
     HttpProbeOptions bounded = new(probe.Url, probe.ExpectedStatusCode, probe.ExpectedBody,
-        probe.ExpectedBodyConfigured, Math.Min(probe.TimeoutSeconds, (int)(remaining / 1000)), probe.IsPost);
+        probe.ExpectedBodyConfigured, Math.Min(probe.TimeoutSeconds, (int)(remaining / 1000)), probe.IsPost, probe.VectorBody);
     // HTTP/1.0 closes the connection after JSON, so the existing bounded
     // reader receives entity bytes without HTTP/1.1 chunk framing.
     try { return ExecuteHttpProbe(bounded, http10: true); }
@@ -1768,7 +1777,7 @@ static HttpProbeResult ExecuteHttpProbe(HttpProbeOptions probe, bool http10 = fa
             passed = false;
             reason = "status_mismatch";
         }
-        else if (probe.ExpectedBodyConfigured
+        else if (probe.VectorBody ? !WebVectorResponse.Matches(body) || bodySha256 != WebVectorResponse.Sha256 : probe.ExpectedBodyConfigured
             && !Encoding.UTF8.GetBytes(probe.ExpectedBody).AsSpan().SequenceEqual(body))
         {
             passed = false;
@@ -2213,6 +2222,7 @@ sealed class RunnerOptions
     public HttpProbeOptions? WebConfigProbe { get; private set; }
     public HttpProbeOptions? WebLogProbe { get; private set; }
     public HttpProbeOptions? WebLogRepeatProbe { get; private set; }
+    public HttpProbeOptions? WebVectorProbe { get; private set; }
     public ContinuingWebEvidence? WebEvidence { get; private set; }
     public string WebLogCase { get; private set; } = "normal";
     private bool webLogCaseConfigured;
@@ -2454,8 +2464,8 @@ sealed class RunnerOptions
         Console.WriteLine("--socket-containment-peer selects the finite three-socket timeout/VLAN raw Ethernet peer; requires captured modern ARP networking and a120..295-second timeout. Peer completion does not establish guest acceptance.");
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
-        Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409 and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");
-        Console.WriteLine("--web-log-case normal|records64 requires --continuing-web (default normal); normal expects logging POST 200 with the exact success body, records64 expects 500 with an empty body. Repeat POST 409 and final health 200 are required in both cases.");
+        Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409, the normal-case binary vector response and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");
+        Console.WriteLine("--web-log-case normal|records64 requires --continuing-web (default normal); normal expects logging POST 200 and GET /__clros/vectors with 49152 exact binary bytes, records64 expects logging 500 with an empty body and skips vectors. Repeat POST 409 and final health 200 are required in both cases.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
@@ -2650,8 +2660,12 @@ sealed class RunnerOptions
         string loggingUrl = "http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/__clros/logexercise";
         bool quota = WebLogCase == "records64";
         WebLogProbe = new(loggingUrl, quota ? 500 : 200,
-            quota ? "" : "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", true, probe.TimeoutSeconds, post: true);
+            // Eight traced writers need a larger finite request budget than health.
+            // ExecuteContinuingWebProbe still clamps it to the owned guest deadline.
+            quota ? "" : "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", true, 60, post: true);
         WebLogRepeatProbe = new(loggingUrl, 409, "", true, probe.TimeoutSeconds, post: true);
+        if (!quota) WebVectorProbe = new("http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/__clros/vectors",
+            200, "", true, probe.TimeoutSeconds, vectorBody: true);
         WebEvidence = new ContinuingWebEvidence();
     }
 
@@ -2769,9 +2783,9 @@ sealed class RunnerOptions
 
 sealed class ContinuingWebEvidence
 {
-    public HttpProbeResult? ConfigResult, LogResult, LogRepeatResult, HealthAfterResult;
+    public HttpProbeResult? ConfigResult, LogResult, LogRepeatResult, VectorResult, HealthAfterResult;
     public bool PreLaunchAvailable, AliveBeforeHealth, AliveAfterHealth, AliveAfterConfig;
-    public bool AliveAfterLog, AliveAfterLogRepeat, AliveAfterFinalHealth;
+    public bool AliveAfterLog, AliveAfterLogRepeat, AliveAfterVectors, AliveAfterFinalHealth;
     public bool TerminationRequested, DeathConfirmed, SpontaneousExit;
     public bool? StoppedEndpointRefused;
     public int? ProcessId, ExitCode;
@@ -2781,7 +2795,7 @@ sealed class ContinuingWebEvidence
 
 readonly struct HttpProbeOptions
 {
-    public HttpProbeOptions(string url, int expectedStatusCode, string expectedBody, bool expectedBodyConfigured, int timeoutSeconds, bool post = false)
+    public HttpProbeOptions(string url, int expectedStatusCode, string expectedBody, bool expectedBodyConfigured, int timeoutSeconds, bool post = false, bool vectorBody = false)
     {
         Url = url;
         ExpectedStatusCode = expectedStatusCode;
@@ -2789,10 +2803,12 @@ readonly struct HttpProbeOptions
         ExpectedBodyConfigured = expectedBodyConfigured;
         TimeoutSeconds = timeoutSeconds;
         IsPost = post;
+        VectorBody = vectorBody;
     }
 
     public string Url { get; }
     public bool IsPost { get; }
+    public bool VectorBody { get; }
 
     public int ExpectedStatusCode { get; }
 
@@ -2804,9 +2820,12 @@ readonly struct HttpProbeOptions
     {
         get
         {
-            return Encoding.UTF8.GetByteCount(ExpectedBody);
+            return VectorBody ? WebVectorResponse.Length : Encoding.UTF8.GetByteCount(ExpectedBody);
         }
     }
+
+    public string ExpectedBodySha256 => VectorBody ? WebVectorResponse.Sha256 :
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ExpectedBody))).ToLowerInvariant();
 
     public int TimeoutSeconds { get; }
 }

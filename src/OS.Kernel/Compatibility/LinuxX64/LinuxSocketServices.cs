@@ -9,6 +9,8 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// transport backing. This adapter allocates nothing and never polls firmware or
 /// the NIC. The continuing network owner supplies only genuinely established
 /// TCP lifetimes, pumps packets/timers, and reaps closed ownership explicitly.
+/// Connected stream messages admit at most16 vectors/64KiB through descriptor
+/// scratch; failed receive copies do not consume TCP bytes.
 /// Negative Linux errno reports failure. Blocking socket waits, connect, UDP,
 /// ancillary messages and arbitrary endpoint capabilities are unsupported.</summary>
 public static unsafe class LinuxSocketServices
@@ -45,6 +47,15 @@ public static unsafe class LinuxSocketServices
         internal LinuxSocketNetwork.State* Network;
         internal Ipv4Address InterfaceAddress;
         internal ushort AllowedPort;
+        // Optional trusted diagnostics, bound by the native owner. The callback
+        // may only read borrowed stack vectors during this call; it must not
+        // retain pointers, change descriptors/transport or reenter dispatch.
+        // Context outlives Finish. A failed observation queues/consumes no bytes.
+        internal void* MessageContext;
+        internal delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> ObserveMessage;
+        /// <summary>Whether the serialized owner attached message diagnostics.
+        /// This reports configuration only, not transport or execution evidence.</summary>
+        public readonly bool HasMessageObserver => MessageContext != null && ObserveMessage != null;
         public readonly uint RetainedConnections
         {
             get
@@ -76,6 +87,19 @@ public static unsafe class LinuxSocketServices
         descriptors->Sockets = state; return true;
     }
 
+    /// <summary>Attach one trusted synchronous message observer while the owner
+    /// is serialized and IRQ-off. Context remains valid until Finish. The callback
+    /// receives number/fd/header/flags/table, read-only borrowed iovec pairs,
+    /// count/total; it must not retain pointers, mutate ownership or reenter.
+    /// Return1 to continue, otherwise the syscall returns EIO before transport
+    /// mutation. False leaves configuration unchanged; null/replacement rejected.</summary>
+    public static bool AttachMessageObserver(State* state, void* context,
+        delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> observer)
+    {
+        if (context == null || observer == null || !Current(state) || state->ObserveMessage != null) return false;
+        state->MessageContext = context; state->ObserveMessage = observer; return true;
+    }
+
     /// <summary>Verify the shared description/endpoint accounting. Caller owns
     /// the entire serialized lifetime; this does not establish page provenance.</summary>
     public static bool Audit(State* state, LinuxDescriptorServices.State* descriptors)
@@ -83,6 +107,7 @@ public static unsafe class LinuxSocketServices
         if (!Extent(state, (ulong)sizeof(State)) || !Extent(descriptors, (ulong)sizeof(LinuxDescriptorServices.State)) ||
             state->Self != (ulong)state || state->Initialized != 1 ||
             state->Descriptors != descriptors || descriptors->Sockets != state ||
+            (state->MessageContext == null) != (state->ObserveMessage == null) ||
             state->Count is 0 or > MaximumSockets || !Extent(state->Slots, state->Count * (ulong)sizeof(Endpoint))) return false;
         for (uint i = 0; i < state->Count; i++)
         {
@@ -189,6 +214,8 @@ public static unsafe class LinuxSocketServices
             case 45:
                 if (f.Argument4 != 0 || f.Argument5 != 0) return -95;
                 return Receive(state, index, f.Argument1, f.Argument2, f.Argument3);
+            case 46: return SendMessage(state, index, fd, f.Argument1, f.Argument2);
+            case 47: return ReceiveMessage(state, index, fd, f.Argument1, f.Argument2);
             case 48: return Shutdown(e, f.Argument1);
             case 51: case 52:
                 if (f.Number == 52 && e->Phase != Connected) return NotConnected;
@@ -227,6 +254,16 @@ public static unsafe class LinuxSocketServices
 
     internal static long Receive(State* state, uint index, ulong address, ulong requested, ulong flags)
     {
+        long copied = SnapshotReceive(state, index, requested, flags);
+        if (copied <= 0) return copied;
+        if (!LinuxDescriptorServices.Output(state->Descriptors, address, state->Descriptors->Owner.Scratch, (uint)copied)) return Fault;
+        return CommitReceive(state, index, (uint)copied, flags);
+    }
+
+    // Copy an owned TCP prefix without consuming it. Both scalar and message
+    // reads commit only after every user copy succeeds in this serialized call.
+    private static long SnapshotReceive(State* state, uint index, ulong requested, ulong flags)
+    {
         if ((flags & ~0x42UL) != 0) return -95; // MSG_PEEK | MSG_DONTWAIT.
         if (requested > LinuxDescriptorServices.MaximumIo) return Invalid;
         Endpoint* e = state->Slots + index;
@@ -248,9 +285,15 @@ public static unsafe class LinuxSocketServices
         // The native copy boundary admits the descriptor scratch extent, not
         // an arbitrary transport-owned receive buffer.
         for (uint i = 0; i < bytes; i++) a.Scratch[i] = receiver->Buffer[receiver->Offset + i];
-        if (!LinuxDescriptorServices.Output(state->Descriptors, address, a.Scratch, bytes)) return Fault;
+        return bytes;
+    }
+
+    private static long CommitReceive(State* state, uint index, uint bytes, ulong flags)
+    {
         if ((flags & 2) != 0) return bytes; // Peeking never advances the window or schedules an ACK.
-        return TcpReceiveWindow.Read(receiver, new Span<byte>(a.Scratch, (int)bytes), out var read, reset) == TcpReceiveWindow.Status.Success &&
+        Endpoint* e = state->Slots + index;
+        return TcpReceiveWindow.Read(e->Receiver, new Span<byte>(state->Descriptors->Owner.Scratch, (int)bytes),
+            out var read, e->Sender->CloseState == TcpConnectionCloseState.Reset) == TcpReceiveWindow.Status.Success &&
             read.BytesRead == bytes ? bytes : -5;
     }
 
@@ -268,6 +311,7 @@ public static unsafe class LinuxSocketServices
     {
         if (state->Network != null) return false;
         for (uint i = 0; i < state->Count; i++) if (state->Slots[i].Phase != 0) return false;
+        state->MessageContext = null; state->ObserveMessage = null;
         state->Descriptors->Sockets = null; state->Initialized = 2; return true;
     }
 
@@ -363,6 +407,82 @@ public static unsafe class LinuxSocketServices
         uint wanted = (uint)(bytes < a.ScratchBytes ? bytes : a.ScratchBytes);
         if (!Input(state, address, a.Scratch, wanted)) return Fault;
         return SendCopied(state, index, wanted);
+    }
+
+    // Linux x64 msghdr is56 bytes, with64-bit iov/control lengths. Snapshot all
+    // metadata and validate complete vectors before touching transport state.
+    // Only connected stream messages without names/control data are supported.
+    // Stack metadata and descriptor scratch never survive this IRQ-off dispatch.
+    private static long SnapshotMessage(State* state, ulong address, ulong* header, ulong* vectors,
+        bool receive, out uint total)
+    {
+        total = 0;
+        if (!Input(state, address, (byte*)header, 56)) return Fault;
+        if (header[0] != 0 || (uint)header[1] != 0 || header[4] != 0 || header[5] != 0) return -95;
+        if (header[3] > LinuxDescriptorServices.MaximumVectors) return Invalid;
+        if (receive && (!Writable(state, address + 8, 4) || !Writable(state, address + 40, 8) ||
+            !Writable(state, address + 48, 4))) return Fault;
+        uint count = (uint)header[3];
+        if (count != 0 && !Input(state, header[2], (byte*)vectors, count * 16)) return Fault;
+        for (uint i = 0; i < count; i++)
+        {
+            ulong bytes = vectors[i * 2 + 1];
+            if (bytes > LinuxDescriptorServices.MaximumIo - total) return Invalid;
+            total += (uint)bytes;
+        }
+        var user = state->Descriptors->Owner.User;
+        for (uint i = 0; i < count; i++)
+            if (vectors[i * 2 + 1] != 0 && !LinuxSyscallGateway.ValidateRange(vectors[i * 2], vectors[i * 2 + 1],
+                receive ? LinuxUserPageAccess.Write : LinuxUserPageAccess.Read, user)) return Fault;
+        return 0;
+    }
+
+    private static long SendMessage(State* state, uint index, uint fd, ulong address, ulong flags)
+    {
+        if ((flags & ~0x4040UL) != 0) return -95;
+        ulong* header = stackalloc ulong[7];
+        ulong* vectors = stackalloc ulong[(int)LinuxDescriptorServices.MaximumVectors * 2];
+        long result = SnapshotMessage(state, address, header, vectors, false, out uint total);
+        if (result != 0) return result;
+        if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 46, fd, address, flags,
+            header[2], vectors, (uint)header[3], total) != 1) return -5;
+        result = WritePolicy(state, index, flags); if (result != 0) return result;
+        if (total == 0) return 0;
+        var a = state->Descriptors->Owner;
+        uint wanted = total < a.ScratchBytes ? total : a.ScratchBytes, copied = 0;
+        for (uint i = 0; i < header[3] && copied < wanted; i++)
+        {
+            uint bytes = (uint)(vectors[i * 2 + 1] < wanted - copied ? vectors[i * 2 + 1] : wanted - copied);
+            if (bytes != 0 && !Input(state, vectors[i * 2], a.Scratch + copied, bytes)) return Fault;
+            copied += bytes;
+        }
+        return SendCopied(state, index, copied);
+    }
+
+    private static long ReceiveMessage(State* state, uint index, uint fd, ulong address, ulong flags)
+    {
+        if ((flags & ~0x42UL) != 0) return -95;
+        ulong* header = stackalloc ulong[7];
+        ulong* vectors = stackalloc ulong[(int)LinuxDescriptorServices.MaximumVectors * 2];
+        long result = SnapshotMessage(state, address, header, vectors, true, out uint total);
+        if (result != 0) return result;
+        if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 47, fd, address, flags,
+            header[2], vectors, (uint)header[3], total) != 1) return -5;
+        result = SnapshotReceive(state, index, total, flags); if (result < 0) return result;
+        var a = state->Descriptors->Owner; uint received = (uint)result, copied = 0;
+        for (uint i = 0; i < header[3] && copied < received; i++)
+        {
+            uint bytes = (uint)(vectors[i * 2 + 1] < received - copied ? vectors[i * 2 + 1] : received - copied);
+            if (bytes != 0 && !LinuxDescriptorServices.Output(state->Descriptors, vectors[i * 2], a.Scratch + copied, bytes)) return Fault;
+            copied += bytes;
+        }
+        // Only the kernel-output fields are written back. An iovec may alias the
+        // input header; never restore its pointers or lengths over delivered data.
+        *(ulong*)a.Scratch = 0;
+        if (!LinuxDescriptorServices.Output(state->Descriptors, address + 8, a.Scratch, 4) ||
+            !LinuxDescriptorServices.Output(state->Descriptors, address + 40, a.Scratch, 8) ||
+            !LinuxDescriptorServices.Output(state->Descriptors, address + 48, a.Scratch, 4)) return Fault;
+        return received == 0 ? 0 : CommitReceive(state, index, received, flags);
     }
 
     private static long Shutdown(Endpoint* e, ulong how)

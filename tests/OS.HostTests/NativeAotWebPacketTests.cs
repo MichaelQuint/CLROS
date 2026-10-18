@@ -24,7 +24,7 @@ internal static class NativeAotWebPacketTests
     private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Vector(bool finalAck=false,bool clientHalfClose=false,string mutation="none",bool quota=false)
     {
         var original=NativeAotSocketIntegrationTests.Packets();var frames=original.Frames.Take(8).ToList();
-        for(int i=0;i<5;i++)
+        for(int i=0;i<(quota?5:6);i++)
         {
             ushort port=(ushort)(41000+i);uint client=(uint)(1000+i*10000),server=(uint)(2000+i*10000);
             void Add(bool outgoing,uint seq,uint ack,byte flags,ReadOnlySpan<byte> payload=default)=>
@@ -32,7 +32,7 @@ internal static class NativeAotWebPacketTests
             Add(false,client,0,2);Add(true,server,client+1,0x12);client++;server++;Add(false,client,server,0x10);
             bool post=i is 2 or 3;
             if(i==2 && mutation=="method")post=false;
-            string path=i switch { 1=>"/config",2 or 3=>"/__clros/logexercise",_=>"/healthz" };
+            string path=i switch { 1=>"/config",2 or 3=>"/__clros/logexercise",4 when !quota=>"/__clros/vectors",_=>"/healthz" };
             if(i==2 && mutation=="path")path="/__clros/other";
             byte[] request=Encoding.ASCII.GetBytes($"{(post?"POST":"GET")} {path} HTTP/1.0\r\nHost: 127.0.0.1:22080\r\nConnection: close\r\nAccept: */*\r\n"+
                 (post?"Content-Length: 0\r\n":"")+"\r\n");
@@ -40,14 +40,27 @@ internal static class NativeAotWebPacketTests
             bool early=clientHalfClose && i==0;
             if(early){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
             string content=i switch { 1=>Config,2=>quota?"":LogBody,3=>"",_=>Body };
-            if(i==2 && mutation=="logging-body" || i==4 && mutation=="later-health")content="WRONG";
+            if(i==2 && mutation=="logging-body" || i==(quota?4:5) && mutation=="later-health")content="WRONG";
             bool quotaFailure=quota && i==2;
-            byte[] response=Encoding.ASCII.GetBytes((i==3 && mutation!="repeat-status"?"HTTP/1.1 409 Conflict\r\n":quotaFailure?"HTTP/1.1 500 Internal Server Error\r\n":"HTTP/1.1 200 OK\r\n")+
-                (i!=1?$"Content-Length: {content.Length}\r\n":"")+"Connection: close\r\n"+
-                (i==3 || quotaFailure?"":$"Content-Type: {(i==1?"application/json; charset=utf-8":"text/plain")}\r\n")+
-                $"Date: Thu, 01 Jan 1970 00:00:00 GMT\r\nServer: Kestrel\r\n\r\n{content}");
+            bool binary=!quota&&i==4;
+            byte[] entity=binary?Enumerable.Range(0,49152).Select(at=>(byte)(at%251)).ToArray():Encoding.ASCII.GetBytes(content);
+            int declared=entity.Length;
+            if(binary&&mutation=="vector-byte")entity[32769]^=1;
+            if(binary&&mutation=="vector-truncated")entity=entity[..^1];
+            if(binary&&mutation=="vector-length")declared--;
+            string type=binary&&mutation!="vector-type"?"application/octet-stream":i==1?"application/json; charset=utf-8":"text/plain";
+            byte[] header=Encoding.ASCII.GetBytes((i==3 && mutation!="repeat-status"?"HTTP/1.1 409 Conflict\r\n":quotaFailure?"HTTP/1.1 500 Internal Server Error\r\n":"HTTP/1.1 200 OK\r\n")+
+                (i!=1?$"Content-Length: {declared}\r\n":"")+"Connection: close\r\n"+
+                (i==3 || quotaFailure?"":$"Content-Type: {type}\r\n")+
+                "Date: Thu, 01 Jan 1970 00:00:00 GMT\r\nServer: Kestrel\r\n\r\n");
+            byte[] response=[..header,..entity];
             Add(true,server,client,0x18,response.AsSpan(0,5));server+=5;
-            Add(true,server,client,0x18,response.AsSpan(5));server+=(uint)response.Length-5;Add(false,client,server,0x10);
+            for(int offset=5;offset<response.Length;)
+            {
+                int count=binary?Math.Min(1024,response.Length-offset):response.Length-offset;
+                Add(true,server,client,0x18,response.AsSpan(offset,count));server+=(uint)count;offset+=count;
+                Add(false,client,server,0x10);
+            }
             Add(true,server,client,0x11);server++;Add(false,client,server,0x10);
             if(!early){Add(false,client,server,0x11);client++;}
             if(i==0 || finalAck)Add(true,server,client,0x10);
@@ -56,7 +69,7 @@ internal static class NativeAotWebPacketTests
     }
     private static QemuTranscripts.WebPacketInspection Inspect(List<byte[]> frames,uint anchor,QemuArpReceiveReceipt arp,
         string body=Body,int forward=22080,bool quota=false)=>QemuTranscripts.InspectNativeAotWebPacketsForTests(
-            NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,[41000,41001,41002,41003,41004],forward,body,Config,quota);
+            NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,Enumerable.Range(41000,quota?5:6).Select(i=>(uint)i).ToArray(),forward,body,Config,quota);
     private static void Reject(Action action)
     {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
 
@@ -71,15 +84,30 @@ internal static class NativeAotWebPacketTests
     private static List<byte[]> Change(List<byte[]> frames,int index,Func<byte[],byte[]> change)
     {var result=frames.ToList();result[index]=change((byte[])result[index].Clone());return result;}
 
+    [HostTest("web vector packets require exact binary bytes type length and completion across segments")]
+    private static void BinaryResponse()
+    {
+        foreach(string mutation in new[]{"vector-byte","vector-truncated","vector-length","vector-type"})
+        {
+            var v=Vector(mutation:mutation);Reject(()=>Inspect(v.Frames,v.Anchor,v.Arp));
+        }
+        var valid=Vector();
+        int at=valid.Frames.FindIndex(f=>f.Length>1000&&BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(36))==41004);
+        HostCheck.True(at>=0);
+        var missing=valid.Frames.ToList();missing.RemoveAt(at);Reject(()=>Inspect(missing,valid.Anchor,valid.Arp));
+        var duplicate=valid.Frames.ToList();duplicate.Insert(at+1,duplicate[at]);
+        HostCheck.Equal(Inspect(valid.Frames,valid.Anchor,valid.Arp).Sent,Inspect(duplicate,valid.Anchor,valid.Arp).Sent);
+    }
+
     [HostTest("web packets retain incomplete final close while proving exact selected HTTP streams")]
     private static void Positive()
     {
         var v=Vector();var r=Inspect(v.Frames,v.Anchor,v.Arp);
-        HostCheck.True(r.Connections==5 && r.Received==463 && r.Sent>Body.Length+Config.Length+LogBody.Length &&
-            r.ClientFins==5 && r.ServerFins==5 && r.ServerFinAcks==5 && r.ClientFinAcks==1);
+        HostCheck.True(r.Connections==6 && r.Received==463+Encoding.ASCII.GetByteCount("GET /__clros/vectors HTTP/1.0\r\nHost: 127.0.0.1:22080\r\nConnection: close\r\nAccept: */*\r\n\r\n") &&
+            r.Sent>49152+Body.Length+Config.Length+LogBody.Length && r.ClientFins==6 && r.ServerFins==6 && r.ServerFinAcks==6 && r.ClientFinAcks==1);
         HostCheck.True(r.TimeWaitPorts.SequenceEqual(new uint[]{41000}));
         HostCheck.True(Inspect(Vector(clientHalfClose:true).Frames,v.Anchor,v.Arp).TimeWaitPorts.Count==0);
-        HostCheck.True(Inspect(Vector(true).Frames,v.Anchor,v.Arp).ClientFinAcks==5);
+        HostCheck.True(Inspect(Vector(true).Frames,v.Anchor,v.Arp).ClientFinAcks==6);
         int at=v.Frames.FindIndex(f=>f.Length>100 && BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34))==8080);
         var duplicate=v.Frames.ToList();duplicate.Insert(at+1,duplicate[at]);HostCheck.Equal(r.Sent,Inspect(duplicate,v.Anchor,v.Arp).Sent);
         var reordered=v.Frames.ToList();(reordered[at-1],reordered[at])=(reordered[at],reordered[at-1]);
@@ -124,7 +152,7 @@ internal static class NativeAotWebPacketTests
             var v=Vector(mutation:mutation);Reject(()=>Inspect(v.Frames,v.Anchor,v.Arp));
         }
         var valid=Vector();
-        foreach(ushort port in new ushort[]{41002,41003,41004})
+        foreach(ushort port in new ushort[]{41002,41003,41004,41005})
         {
             var missing=valid.Frames.Where(f=>f.Length<54 ||
                 BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34))!=port &&
@@ -134,8 +162,8 @@ internal static class NativeAotWebPacketTests
         // Keep SYN order and every valid per-flow stream, but complete repeat
         // and final health before the logging response even begins.
         bool Later(byte[] f)=>f.Length>=54 &&
-            (BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34)) is 41003 or 41004 ||
-             BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(36)) is 41003 or 41004);
+            (BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34)) is 41003 or 41004 or 41005 ||
+             BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(36)) is 41003 or 41004 or 41005);
         var later=valid.Frames.Where(Later).ToArray();
         var overlap=valid.Frames.Where(f=>!Later(f)).ToList();
         int beforeLogResponse=overlap.FindIndex(f=>f.Length>54 && BinaryPrimitives.ReadUInt16BigEndian(f.AsSpan(34))==8080 &&

@@ -53,12 +53,34 @@ public static partial class QemuTranscripts
     {
         private readonly Dictionary<int,NativeAotSocketGuest.Readiness> socketObservations=[];
         private readonly Dictionary<int,SocketDescriptor> socketDescriptors=[];
+        private readonly Dictionary<int,NativeAotSocketMessages.Message> socketMessageInputs=[];
+        private readonly Dictionary<int,NativeAotSocketMessages.Message> socketMessageCalls=[];
+        private readonly HashSet<int> preparedSocketMessages=[];
         private readonly List<SocketDescriptor> socketDescriptions=[];
         private int socketIdlePolls,socketAccepts,socketBlocks,socketResumes;
         private RuntimeThread? socketSelected;
         private bool socketIdleAllowed;
         private ulong socketSent,socketReceived;
         private bool containmentTimeoutObserved,containmentDropObserved;
+
+        private void SocketMessageInput(RuntimeThread thread)
+        {
+            if(!socket || !Starts("M16_013_MESSAGE "))return;
+            Need(socketMessageInputs.TryGetValue(position,out var value),"socket_message_input_record");
+            var message=value!;
+            Need(message.Identity==thread.Identity && socketDescriptors.TryGetValue((int)message.Descriptor,out var descriptor) &&
+                !descriptor.Port && descriptor.Phase==3 && preparedSocketMessages.Add(message.CallRecordIndex),"socket_message_input_owner");
+            Need(memory.Covered(message.Header,56,1) &&
+                (message.Vectors.Count==0 || memory.Covered(message.Table,(ulong)message.Vectors.Count*16,1)),"socket_message_metadata_mapping");
+            if(message.Number==47)
+                Need(memory.Covered(message.Header+8,4,3) && memory.Covered(message.Header+40,8,3) &&
+                    memory.Covered(message.Header+48,4,3),"socket_message_header_output");
+            foreach(var vector in message.Vectors)
+                Need(vector.Bytes==0 || memory.Covered(vector.Address,vector.Bytes,message.Number==46?1U:3U),"socket_message_vector_mapping");
+            int fd=(int)message.Descriptor;
+            Need(message.Generation==descriptorGenerations[fd],"socket_message_descriptor_generation");
+            position+=1+message.Vectors.Count;
+        }
 
         private void SocketObservations(bool supervisor=false)
         {
@@ -148,7 +170,7 @@ public static partial class QemuTranscripts
         {
             Need(fd==(ulong)LowestFd() && fd is >=3 and <16 &&
                 (!port || socketDescriptions.Count(d=>d.Port && (socketDescriptors.ContainsValue(d) || history.Any(t=>!t.Reaped && t.Epoll==d)))<4),"socket_new_descriptor");
-            var value=new SocketDescriptor(port,flags){Phase=phase};files.Add((int)fd);
+            var value=new SocketDescriptor(port,flags){Phase=phase};files.Add((int)fd);InstallDescriptorGeneration((int)fd);
             socketDescriptors.Add((int)fd,value);socketDescriptions.Add(value);
         }
         private void SocketClose(int fd)
@@ -157,7 +179,7 @@ public static partial class QemuTranscripts
             if(value!.Phase==3 && !web)
             {
                 if(containment)ContainmentClose(value);
-                else
+                else if(!vectors)
                 {
                     int i=value.Connection;
                     Need(value.Received==(i==1?1UL:20UL) && value.Sent==(i==0?65536UL:i==1?0UL:18UL) &&
@@ -223,7 +245,7 @@ public static partial class QemuTranscripts
                 }
                 return true;
             }
-            if(nr is not (41 or 43 or 44 or 45 or 48 or 49 or 50 or 54 or 55 or 51 or 52 or 232 or 233 or 281 or 288))
+            if(nr is not (41 or 43 or 44 or 45 or 46 or 47 or 48 or 49 or 50 or 54 or 55 or 51 or 52 or 232 or 233 or 281 or 288))
             {
                 Need(descriptor is null || nr is not (0 or 1 or 8),"socket_unmeasured_fd_operation");return false;
             }
@@ -285,21 +307,29 @@ public static partial class QemuTranscripts
                     if(result==-11)break;
                     Need(!containment || socketAccepts<3,"socket_containment_accept_bound");
                     SocketInstall(v,false,nr==288?(uint)d:0,3);socketDescriptors[(int)v].Connection=socketAccepts++;break;
-                case 44:case 45:
-                    Need(descriptor.Phase==3 && c is >0 and <=65536 && e==0 && f==0 &&
-                        (d&~(nr==44?0x4040UL:web?0x42UL:0x40UL))==0 && memory.Covered(b,nr==44?Math.Min(c,8192):c,nr==44?1U:3U),"socket_io_arguments");
-                    if(containment){ContainmentIo(descriptor,nr,c,result);break;}
+                case 44:case 45:case 46:case 47:
+                    bool messageCall=nr is 46 or 47,send=nr is 44 or 46;
+                    if(messageCall)
+                    {
+                        Need(socketMessageCalls.TryGetValue(witness.RecordIndex,out var observed) &&
+                            preparedSocketMessages.Remove(witness.RecordIndex),"socket_message_call_snapshot");
+                        c=observed!.Total;d=observed.Flags;
+                    }
+                    Need(descriptor.Phase==3 && c<=65536 &&
+                        (messageCall || c>0 && e==0 && f==0 && memory.Covered(b,send?Math.Min(c,8192):c,send?1U:3U)) &&
+                        (d&~(send?0x4040UL:web || messageCall?0x42UL:0x40UL))==0,"socket_io_arguments");
+                    if(containment){Need(!messageCall,"socket_containment_unmeasured_message");ContainmentIo(descriptor,nr,c,result);break;}
                     Need(result is -11 or -104 or -32 || result>=0 && result<=(long)Math.Min(c,8192),"socket_io_result");
                     if(web)
                     {
-                        if(nr==44)
-                            Need(result!=0 && (!descriptor.WriteClosed || result is -32 or -104) &&
+                        if(send)
+                            Need((c==0 || result!=0) && (!descriptor.WriteClosed || result is -32 or -104) &&
                                 (descriptor.Reset==0 || result==-32),"web_socket_send_state");
                         else
                         {
                             Need(result!=-32 && (!descriptor.ReadClosed || result is 0 or -104) &&
                                 (descriptor.Reset==0 || result>=0),"web_socket_receive_state");
-                            if(!descriptor.ReadClosed && descriptor.PeekBytes!=0)
+                            if(c!=0 && !descriptor.ReadClosed && descriptor.PeekBytes!=0)
                                 Need(result>0 && (ulong)result>=Math.Min(c,Math.Min(8192UL,descriptor.PeekBytes)),"web_socket_unread_peek");
                             if(result>0)
                                 descriptor.PeekBytes=(d&2)!=0?Math.Max(descriptor.PeekBytes,(ulong)result):
@@ -309,14 +339,14 @@ public static partial class QemuTranscripts
                     }
                     if(result>0)
                     {
-                        if(nr==44){Need(!descriptor.WriteClosed,"socket_send_after_shutdown");socketSent+=(ulong)result;descriptor.Sent+=(ulong)result;}
+                        if(send){Need(!descriptor.WriteClosed,"socket_send_after_shutdown");socketSent+=(ulong)result;descriptor.Sent+=(ulong)result;}
                         else
                         {
                             Need(!descriptor.ReadClosed,"socket_receive_after_shutdown");
                             if((d&2)==0){socketReceived+=(ulong)result;descriptor.Received+=(ulong)result;}
                         }
                     }
-                    if(nr==45 && result==0)descriptor.Eof++;
+                    if(!send && c!=0 && result==0)descriptor.Eof++;
                     if(result==-104)descriptor.Reset++;
                     break;
                 case 48:Need(!containment && descriptor.Phase==3 && (web?b is 0 or 1 or 2:b==1) && v==0,"socket_shutdown");
@@ -337,6 +367,8 @@ public static partial class QemuTranscripts
             if(containment)
                 Need(socketAccepts==3 && socketSent==containmentCapture!.Application.Queued+30 && socketReceived==33 && clones>=2 &&
                     containmentTimeoutObserved && containmentDropObserved,"socket_containment_workload_lifetimes");
+            else if(vectors)Need(socketAccepts==4 && socketSent==524352 && socketReceived==256 && clones>=2 &&
+                socketBlocks>0 && socketResumes>0,"socket_vectors_workload_lifetimes");
             else Need(socketAccepts==4 && socketSent==65572 && socketReceived==61 && clones>=2 &&
                 (app!="NativeAotSocketSmokeAsync" || socketBlocks>0 && socketResumes>0),"socket_workload_lifetimes");
             foreach(int fd in Enumerable.Range(0,16).Where(fd=>fd<3 || files.Contains(fd) || fd==pipeRead || fd==pipeWrite).ToArray())

@@ -23,6 +23,7 @@ internal static class QemuRunnerHttpProbeTests
             Run("qemu.runner.continuing_web validates bounded selection", () => TestContinuingWebSelection(tempRoot), ref failures);
             Run("qemu.runner.continuing_web rejects occupied endpoint before launch", () => TestContinuingWebOccupiedPort(tempRoot), ref failures);
             Run("qemu.runner.continuing_web probes after ordered startup before deferred logs", () => TestContinuingWebDeferredLogs(tempRoot), ref failures);
+            Run("qemu.runner.continuing_web rejects wrong vector bytes before later health", () => TestContinuingWebDeferredLogs(tempRoot, wrongVector: true), ref failures);
         }
         finally
         {
@@ -278,26 +279,49 @@ internal static class QemuRunnerHttpProbeTests
             && summary.Contains("WEB_CONFIG_PROBE_RESULT not_run", StringComparison.Ordinal);
     }
 
-    private static bool TestContinuingWebDeferredLogs(string tempRoot)
+    private static bool TestContinuingWebDeferredLogs(string tempRoot, bool wrongVector = false)
     {
-        FakeQemuHttpEndpoint fake = CreateFakeQemuHttpEndpoint(tempRoot, 200, "OS_MINIMAL_API_OK", false, continuingWeb: true);
+        const string vectorHash = "664d1e34fe80e8713fefa2b9c30df7d7877bbffd850411ffda14f54bd1ce847c";
+        FakeQemuHttpEndpoint fake = CreateFakeQemuHttpEndpoint(tempRoot, 200, "OS_MINIMAL_API_OK", false, continuingWeb: true, wrongVector: wrongVector);
         List<string> arguments = ContinuingWebArguments(tempRoot, new Uri(fake.Url).Port);
         string summaryPath = arguments[arguments.IndexOf("--summary-log") + 1];
-        arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, "deferred-web.raw"),
-            "--ovmf-code", CreateEmptyFile(tempRoot, "deferred-web-OVMF_CODE.fd"),
-            "--serial-log", Path.Combine(tempRoot, "deferred-web.serial"), "--timeout", "8"]);
+        string scenario = wrongVector ? "wrong-vector-web" : "deferred-web", serialPath = Path.Combine(tempRoot, scenario + ".serial");
+        arguments.AddRange(["--qemu", fake.QemuPath, "--image", CreateEmptyFile(tempRoot, scenario + ".raw"),
+            "--ovmf-code", CreateEmptyFile(tempRoot, scenario + "-OVMF_CODE.fd"),
+            "--serial-log", serialPath, "--timeout", "8"]);
         foreach (string marker in new[] { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "CLROS_M10_004_READY", "TEST_PASS m10.004",
             "TEST_START m10.005", "M10_005_LOGS", "CLROS_M10_005_READY", "TEST_PASS m10.005" })
             arguments.AddRange(["--require-ordered-marker", marker]);
         ProcessResult result = RunQemuRunner([.. arguments]);
         string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : "";
-        return PassOrReport("ordered startup before deferred logs", result.ExitCode == 0 &&
-            result.Output.Split("HTTP_PROBE_PASS endpoint=", StringSplitOptions.None).Length == 6 &&
+        string[] expectedRequests = ["GET /healthz HTTP/1.0", "GET /config HTTP/1.0", "POST /__clros/logexercise HTTP/1.0",
+            "POST /__clros/logexercise HTTP/1.0", "GET /__clros/vectors HTTP/1.0", "GET /healthz HTTP/1.0"];
+        bool requestOrder = File.Exists(serialPath + ".requests") && File.ReadAllLines(serialPath + ".requests")
+            .SequenceEqual(expectedRequests.Take(wrongVector ? 5 : 6));
+        bool common = requestOrder &&
+            summary.Contains("WEB_VECTOR_PROBE_URL " + fake.Url.Replace("/healthz", "/__clros/vectors", StringComparison.Ordinal), StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_METHOD GET", StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_EXPECTED_STATUS 200", StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_EXPECTED_BODY_BYTES 49152", StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_EXPECTED_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_BODY_BYTES 49152", StringComparison.Ordinal) &&
+            summary.Contains("WEB_PROCESS_ALIVE_AFTER_VECTORS true", StringComparison.Ordinal) &&
             summary.Contains("WEB_PROCESS_TERMINATION_REQUESTED true", StringComparison.Ordinal) &&
+            summary.Contains("WEB_PROCESS_DEATH_CONFIRMED true", StringComparison.Ordinal) &&
             summary.Contains("WEB_ENDPOINT_STOPPED_REFUSED true", StringComparison.Ordinal) &&
             summary.Contains("MISSING_MARKERS none", StringComparison.Ordinal) &&
-            summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal) &&
-            summary.Contains("FAIL_REASON none", StringComparison.Ordinal), new(result, summaryPath));
+            summary.Contains("OUT_OF_ORDER_MARKERS none", StringComparison.Ordinal);
+        bool passed = common && (wrongVector ? result.ExitCode == 20 &&
+            summary.Contains("WEB_VECTOR_PROBE_RESULT fail", StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_REASON body_mismatch", StringComparison.Ordinal) &&
+            summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT not_run", StringComparison.Ordinal) &&
+            summary.Contains("FAIL_REASON web_vector_http_body_mismatch", StringComparison.Ordinal) : result.ExitCode == 0 &&
+            result.Output.Split("HTTP_PROBE_PASS endpoint=", StringSplitOptions.None).Length == 7 &&
+            summary.Contains("WEB_VECTOR_PROBE_RESULT pass", StringComparison.Ordinal) &&
+            summary.Contains("WEB_VECTOR_PROBE_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) &&
+            summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT pass", StringComparison.Ordinal) &&
+            summary.Contains("FAIL_REASON none", StringComparison.Ordinal));
+        return PassOrReport(wrongVector ? "wrong vector byte before later health" : "ordered startup before deferred logs", passed, new(result, summaryPath));
     }
 
     private static ProbeRunResult RunQemuRunnerWithProbe(
@@ -352,10 +376,13 @@ internal static class QemuRunnerHttpProbeTests
         string tempRoot,
         int statusCode,
         string body,
-        bool hangBeforeResponse, bool continuingWeb = false)
+        bool hangBeforeResponse, bool continuingWeb = false, bool wrongVector = false)
     {
         int port = ReserveFreeLoopbackPort();
         string qemuScript = Path.Combine(tempRoot, "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
+        List<string> control = [continuingWeb ? "web" : "http", "%serial%", port.ToString(), statusCode.ToString(),
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"];
+        if (continuingWeb) control.Add(wrongVector ? "wrong-vector" : "normal");
 
         List<string> script =
         [
@@ -372,7 +399,7 @@ internal static class QemuRunnerHttpProbeTests
             ":serve",
             "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
             "if \"%serial%\"==\"\" exit /b 12",
-            QemuTestControl.Command(continuingWeb ? "web" : "http", "%serial%", port.ToString(), statusCode.ToString(), Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"),
+            QemuTestControl.Command(control.ToArray()),
             "exit /b %ERRORLEVEL%"
         ];
 
