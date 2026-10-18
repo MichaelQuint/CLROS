@@ -19,10 +19,14 @@ below before #224; preserve shared owner #737.
 [Step1426](../done/step1426.md) adds the separate `MinimalApiService` fixture
 and canonical envelope for this continuing batch. The envelope requires the
 explicit v1 service argument/configuration,8080/content root,64MiB and16
-threads/descriptors. This is development scaffolding for actual worker/random/
-HTTP/shutdown evidence; its worker has not executed. The ordinary pinned web
-application stays unchanged. The guest pipeline retains its service-runner
-guard until original code/index and full lifecycle/packet checks exist.
+threads/descriptors. [Step1427](../done/step1427.md) adds its original static-musl
+publication and exact source/ELF/complete-index reader:1,356,654 instructions,
+198 syscall continuations and all five executable sections are checked. A strict
+status reader treats application reports as untrusted telemetry. These are
+development prerequisites; the service worker has not executed. The ordinary
+pinned web application stays unchanged. The guest pipeline retains its runner
+guard until distinct native startup observations and full lifecycle/packet
+checks exist. The seven owned issues remain open; no acceptance gate advances.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
