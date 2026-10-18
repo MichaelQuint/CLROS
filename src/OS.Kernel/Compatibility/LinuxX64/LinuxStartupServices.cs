@@ -1,3 +1,6 @@
+using OS.Std.Hash;
+using OS.Std.Memory;
+
 namespace OS.Kernel.Compatibility.LinuxX64;
 
 /// <summary>
@@ -30,8 +33,9 @@ public static unsafe class LinuxStartupServices
     /// single-context owner excludes other resource consumers during execution.
     /// AvailableBytes includes the unused pool; pool commitments are deducted.
     /// Entropy must be separate from AT_RANDOM and never published elsewhere.
-    /// CapturedEntropyBytes is exactly 32, 256 or 4096 genuinely acquired bytes; the
-    /// complete borrowed extent stays exclusive through owner cleanup.
+    /// Finite CapturedEntropyBytes is exactly32,256 or4096 genuinely acquired
+    /// bytes. Explicit ContinuingRandom instead borrows a private initialized
+    /// generator with no reservoir; both lifetimes stay exclusive through cleanup.
     /// Realtime, when present, stays exclusively mapped through cleanup and uses
     /// this exact monotonic source/frequency. RequireRealtime prevents heap
     /// admission without an available UTC owner. No firmware authority crosses
@@ -49,21 +53,38 @@ public static unsafe class LinuxStartupServices
         public uint ProcessId;
         public byte* Entropy;
         public uint CapturedEntropyBytes;
+        /// <summary>Explicit service-only borrowed generator, initialized from
+        /// independently captured private entropy, never AT_RANDOM or a TCP key.
+        /// ContinuingRandom requires preemptible admission and excludes the finite
+        /// reservoir. Keep it exclusive/mapped through DiscardEntropy; no firmware
+        /// callback or source fallback is retained. Reseed is owner-authorized.</summary>
+        public HmacSha256Drbg.State* Generator;
+        public bool ContinuingRandom;
         public bool SingleCpuValidated, FirmwareExited, RequireRealtime;
     }
 
     /// <summary>Caller-owned single-use state; do not copy a live instance.
-    /// Successful output burns fresh entropy once. After valid preflight an
-    /// attempted copy also burns it on callback failure, preventing reuse of
-    /// partially exposed bytes. Invalid pointers consume no entropy.
+    /// Finite output consumes captured bytes; service output advances its DRBG.
+    /// After valid preflight an attempted copy irrevocably consumes the entire
+    /// generated request even on callback failure. Invalid pointers consume none.
     /// </summary>
     public struct State
     {
         internal Admission Owner;
         internal ulong CurrentBreak, LastTicks;
         internal uint Initialized, UsedEntropy, BarrierRegistered;
+        internal uint EntropyDiscarded;
+        internal ulong GeneratedRequests, GeneratedBytes;
         public readonly ulong Break => CurrentBreak;
+        /// <summary>Unused finite reservoir bytes; always0 for service mode,
+        /// never a DRBG availability or entropy-quality observation.</summary>
         public readonly uint RemainingEntropy => Initialized == 1 ? Owner.CapturedEntropyBytes - UsedEntropy : 0;
+        /// <summary>Lifetime generated service requests, including failed output
+        /// copies; serialized overflow refuses another request before mutation.</summary>
+        public readonly ulong RandomRequests => GeneratedRequests;
+        /// <summary>Lifetime generated service bytes, including failed output
+        /// copies; these are output accounting, not credited physical entropy.</summary>
+        public readonly ulong RandomBytes => GeneratedBytes;
     }
 
     /// <summary>Reserve the actual bounded brk interval with PROT_NONE after
@@ -75,6 +96,7 @@ public static unsafe class LinuxStartupServices
     {
         if (state == null || ((ulong)state & 7) != 0 || (ulong)state > ~0UL - (ulong)sizeof(State) ||
             state->Initialized != 0 || state->UsedEntropy != 0 || state->BarrierRegistered != 0 || state->CurrentBreak != 0 || state->LastTicks != 0 ||
+            state->EntropyDiscarded != 0 || state->GeneratedRequests != 0 || state->GeneratedBytes != 0 ||
             !admission.SingleCpuValidated || !admission.FirmwareExited || admission.ProcessId == 0 ||
             admission.Memory == null || !LinuxMemoryServices.Audit(admission.Memory) ||
             admission.User.Context == null || admission.User.PageAccess == null || admission.ReadClock == null || admission.CopyToUser == null || admission.MemoryBarrier == null ||
@@ -87,12 +109,9 @@ public static unsafe class LinuxStartupServices
             admission.HeapStart < LinuxMemoryServices.DynamicStart || (admission.HeapStart & 4095) != 0 ||
             admission.HeapStart >= LinuxSyscallGateway.UserEnd || admission.HeapBytes == 0 || (admission.HeapBytes & 4095) != 0 ||
             admission.HeapBytes > LinuxSyscallGateway.UserEnd - admission.HeapStart ||
-            admission.Entropy == null || !ValidEntropyBytes(admission.CapturedEntropyBytes) ||
-            (ulong)admission.Entropy > ~0UL - admission.CapturedEntropyBytes ||
-            Overlap((ulong)admission.Entropy, admission.CapturedEntropyBytes, (ulong)state, (ulong)sizeof(State)) ||
             Overlap((ulong)admission.Memory, (ulong)sizeof(LinuxMemoryServices.State), (ulong)state, (ulong)sizeof(State)) ||
-            !EntropyStorage(admission)) return false;
-        bool nonzero = false;
+            !AdmitEntropy(state, admission)) return false;
+        bool nonzero = admission.ContinuingRandom;
         for (uint i = 0; i < admission.CapturedEntropyBytes; i++) if (admission.Entropy[i] != 0) nonzero = true;
         ulong ticks = 0;
         if (!nonzero || admission.ReadClock(admission.User.Context, &ticks) != 1 ||
@@ -114,7 +133,7 @@ public static unsafe class LinuxStartupServices
     public static long Dispatch(State* state, LinuxSyscallFrame frame)
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
-            !ValidEntropyBytes(state->Owner.CapturedEntropyBytes) || state->UsedEntropy > state->Owner.CapturedEntropyBytes ||
+            !EntropyState(state) ||
             !LinuxMemoryServices.Audit(state->Owner.Memory)) return Fault;
         var a = state->Owner;
         switch (frame.Number)
@@ -166,8 +185,9 @@ public static unsafe class LinuxStartupServices
 
     private static long Random(State* state, ulong address, ulong requested, ulong flags)
     {
-        if ((flags & ~3UL) != 0 || requested > EntropyBytes) return Invalid;
+        if ((flags & ~3UL) != 0 || !state->Owner.ContinuingRandom && requested > EntropyBytes) return Invalid;
         if (requested == 0) return 0;
+        if (state->Owner.ContinuingRandom) return ServiceRandom(state, address, requested, flags);
         uint count = (uint)requested;
         if (!LinuxSyscallGateway.ValidateRange(address, count, LinuxUserPageAccess.Write, state->Owner.User)) return Fault;
         uint remaining = state->Owner.CapturedEntropyBytes - state->UsedEntropy;
@@ -180,6 +200,25 @@ public static unsafe class LinuxStartupServices
         state->UsedEntropy += count;
         bool copied = state->Owner.CopyToUser(state->Owner.User.Context, address, bytes, count) == 1;
         for (uint i = 0; i < EntropyBytes; i++) bytes[i] = 0;
+        return copied ? count : Fault;
+    }
+
+    private static long ServiceRandom(State* state, ulong address, ulong requested, ulong flags)
+    {
+        uint count = requested > HmacSha256Drbg.MaximumRequestBytes ? HmacSha256Drbg.MaximumRequestBytes : (uint)requested;
+        // Validate the bounded result prefix before producing any bytes. Once
+        // output is attempted the complete request is consumed, even on partial
+        // copy failure. Reusing generator state would repeat disclosed output.
+        if (!LinuxSyscallGateway.ValidateRange(address, count, LinuxUserPageAccess.Write, state->Owner.User)) return Fault;
+        if (state->EntropyDiscarded != 0 || state->Owner.Generator->RequiresReseed ||
+            state->GeneratedRequests == ulong.MaxValue || state->GeneratedBytes > ulong.MaxValue - count)
+            return (flags & 1) != 0 ? Again : Unsupported;
+        byte* bytes = stackalloc byte[(int)HmacSha256Drbg.MaximumRequestBytes];
+        if (!HmacSha256Drbg.Generate(state->Owner.Generator, bytes, count))
+        { SensitiveMemory.Clear(bytes, HmacSha256Drbg.MaximumRequestBytes); return Io; }
+        state->GeneratedRequests++; state->GeneratedBytes += count;
+        bool copied = state->Owner.CopyToUser(state->Owner.User.Context, address, bytes, count) == 1;
+        SensitiveMemory.Clear(bytes, HmacSha256Drbg.MaximumRequestBytes);
         return copied ? count : Fault;
     }
 
@@ -241,7 +280,9 @@ public static unsafe class LinuxStartupServices
         state->Owner.CopyToUser(state->Owner.User.Context, address, source, bytes) == 1 ? 0 : Fault;
     private static bool EntropyStorage(Admission admission)
     {
-        var m = admission.Memory->Memory; ulong source = (ulong)admission.Entropy, bytes = admission.CapturedEntropyBytes;
+        var m = admission.Memory->Memory;
+        ulong source = admission.ContinuingRandom ? (ulong)admission.Generator : (ulong)admission.Entropy;
+        ulong bytes = admission.ContinuingRandom ? (ulong)sizeof(HmacSha256Drbg.State) : admission.CapturedEntropyBytes;
         return !Overlap(source, bytes, (ulong)admission.Memory, (ulong)sizeof(LinuxMemoryServices.State)) &&
             !Overlap(source, bytes, (ulong)m.Pool, m.PoolPages * 4096UL) &&
             !Overlap(source, bytes, (ulong)m.Tables, m.TablePages * 4096UL) &&
@@ -250,15 +291,46 @@ public static unsafe class LinuxStartupServices
     }
     private static bool ValidEntropyBytes(uint bytes) => bytes == EntropyBytes || bytes == RuntimeEntropyBytes || bytes == WebEntropyBytes;
 
-    /// <summary>Burn the unconsumed reservoir when its serialized owner stops.
+    private static bool AdmitEntropy(State* state, Admission a)
+    {
+        ulong source, bytes;
+        if (a.ContinuingRandom)
+        {
+            source = (ulong)a.Generator; bytes = (ulong)sizeof(HmacSha256Drbg.State);
+            if (!a.User.UserInterrupts || a.Entropy != null || a.CapturedEntropyBytes != 0 || source == 0 || (source & 7) != 0) return false;
+        }
+        else
+        {
+            source = (ulong)a.Entropy; bytes = a.CapturedEntropyBytes;
+            if (a.Generator != null || source == 0 || !ValidEntropyBytes(a.CapturedEntropyBytes)) return false;
+        }
+        return source <= ulong.MaxValue - bytes &&
+            !Overlap(source, bytes, (ulong)state, (ulong)sizeof(State)) && EntropyStorage(a) &&
+            (!a.ContinuingRandom || HmacSha256Drbg.IsInitialized(a.Generator));
+    }
+
+    private static bool EntropyState(State* state) => state->Owner.ContinuingRandom ?
+        state->Owner.Entropy == null && state->Owner.CapturedEntropyBytes == 0 && state->UsedEntropy == 0 &&
+        state->EntropyDiscarded <= 1 && (state->EntropyDiscarded == 1 || HmacSha256Drbg.IsInitialized(state->Owner.Generator)) :
+        state->Owner.Generator == null && ValidEntropyBytes(state->Owner.CapturedEntropyBytes) &&
+        state->UsedEntropy <= state->Owner.CapturedEntropyBytes;
+
+    /// <summary>Burn the unconsumed reservoir or erase the borrowed generator
+    /// after this serialized owner and all borrowers stop.
     /// Borrowed storage must still be mapped/exclusive. This never resets the
     /// lifetime or permits refill; later random requests report exhaustion.
     /// Invalid state returns false without reading the entropy extent.</summary>
     public static bool DiscardEntropy(State* state)
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
-            !ValidEntropyBytes(state->Owner.CapturedEntropyBytes) || state->Owner.Entropy == null ||
-            state->UsedEntropy > state->Owner.CapturedEntropyBytes) return false;
+            !EntropyState(state)) return false;
+        if (state->Owner.ContinuingRandom)
+        {
+            if (state->EntropyDiscarded == 1) return true;
+            if (!HmacSha256Drbg.Erase(state->Owner.Generator)) return false;
+            state->EntropyDiscarded = 1; return true;
+        }
+        if (state->Owner.Entropy == null) return false;
         for (uint i = 0; i < state->Owner.CapturedEntropyBytes; i++) state->Owner.Entropy[i] = 0;
         state->UsedEntropy = state->Owner.CapturedEntropyBytes;
         return true;

@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Memory;
+using OS.Std.Hash;
 
 internal static unsafe class LinuxStartupServicesTests
 {
@@ -506,6 +508,126 @@ internal static unsafe class LinuxStartupServicesTests
         owner.Context->Regress = false; owner.Context->FailClock = true; HostCheck.Equal(-5L, owner.Call(99, Output));
         HostCheck.Equal(-22L, owner.Call(228, 0, Output));
         HostCheck.Equal(-14L, owner.Call(228, 1, ulong.MaxValue));
+    }
+
+    private static LinuxStartupServices.Admission ServiceAdmission(Owner owner, HmacSha256Drbg.State* generator)
+    {
+        var admission = owner.Admission();
+        admission.Entropy = null; admission.CapturedEntropyBytes = 0;
+        admission.Generator = generator; admission.ContinuingRandom = true; admission.User.UserInterrupts = true;
+        return admission;
+    }
+
+    private static void SeedService(HmacSha256Drbg.State* generator)
+    {
+        // Deterministic host-test input only; the native owner must acquire
+        // fresh independent firmware entropy before admitting this capability.
+        byte* seed = stackalloc byte[48]; for (uint i = 0; i < 48; i++) seed[i] = (byte)(i + 1);
+        HostCheck.True(HmacSha256Drbg.Instantiate(generator, seed, seed + 32, null, 0));
+    }
+
+    // CLR field access, not marshalled offsets: Admission contains bool fields
+    // whose marshalled layout differs from the real unsafe owner layout.
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "GeneratedRequests")]
+    private static extern ref ulong ServiceRequestCounter(ref LinuxStartupServices.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "GeneratedBytes")]
+    private static extern ref ulong ServiceByteCounter(ref LinuxStartupServices.State state);
+
+    [HostTest("continuing getrandom returns bounded prefixes beyond the finite pool with separate generator ownership")]
+    private static void ContinuingRandom()
+    {
+        using var owner = new Owner(); HmacSha256Drbg.State generator = default, oracle = default;
+        SeedService(&generator); SeedService(&oracle);
+        HostCheck.Equal((long)(Output + 4096), LinuxMemoryServices.Map(owner.Memory.State, Output + 4096, 4096, 3, 0x100022, ulong.MaxValue, 0));
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, &generator)));
+        HostCheck.Equal(0L, owner.Call(318, ulong.MaxValue, 0));
+        HostCheck.Equal(-22L, owner.Call(318, Output, 1, 4));
+        HostCheck.Equal(8192L, owner.Call(318, Output, 9000));
+        byte* expected = stackalloc byte[8192]; HostCheck.True(HmacSha256Drbg.Generate(&oracle, expected, 8192));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output), 4096).SequenceEqual(new ReadOnlySpan<byte>(expected, 4096)));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output + 4096), 4096).SequenceEqual(new ReadOnlySpan<byte>(expected + 4096, 4096)));
+        HostCheck.Equal(256L, owner.Call(318, Output, 256));
+        HostCheck.True(HmacSha256Drbg.Generate(&oracle, expected, 256));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output), 256).SequenceEqual(new ReadOnlySpan<byte>(expected, 256)));
+        for (uint i = 0; i < 64; i++) HostCheck.Equal(128L, owner.Call(318, Output, 128));
+        foreach (ulong flags in new ulong[] { 1, 2, 3 }) HostCheck.Equal(64L, owner.Call(318, Output, 64, flags));
+        HostCheck.Equal(69UL, owner.State->RandomRequests); HostCheck.Equal(16832UL, owner.State->RandomBytes);
+        HostCheck.Equal(69UL, generator.RequestsSinceReseed); HostCheck.Equal(0U, owner.State->RemainingEntropy);
+        for (uint i = 0; i < owner.EntropyBytes; i++) HostCheck.Equal((byte)(i + 1), owner.Entropy[i]);
+        long allocations = GC.GetAllocatedBytesForCurrentThread(); long result = owner.Call(318, Output, 64);
+        HostCheck.Equal(allocations, GC.GetAllocatedBytesForCurrentThread()); HostCheck.Equal(64L, result);
+        HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+        HostCheck.True(new ReadOnlySpan<byte>(&generator, sizeof(HmacSha256Drbg.State)).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(-11L, owner.Call(318, Output, 8, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 8));
+        HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+        HostCheck.Equal(1L, owner.Call(39)); HostCheck.True(HmacSha256Drbg.Erase(&oracle));
+    }
+
+    [HostTest("continuing entropy admission rejects finite mixing missing preemption aliases and copied generators unchanged")]
+    private static void ContinuingRandomAdmission()
+    {
+        using var owner = new Owner(); HmacSha256Drbg.State generator = default;
+        var before = new Snapshot(owner);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, &generator)));
+        SeedService(&generator);
+        var finite = owner.Admission(); finite.Generator = &generator;
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, finite));
+        var admission = ServiceAdmission(owner, &generator); admission.User.UserInterrupts = false;
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission));
+        admission = ServiceAdmission(owner, &generator); admission.Entropy = owner.Entropy;
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission));
+        admission = ServiceAdmission(owner, &generator); admission.CapturedEntropyBytes = 32;
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission));
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, null)));
+        foreach (ulong source in new ulong[] { (ulong)owner.State, (ulong)owner.Memory.State, (ulong)owner.Memory.Memory.Pool,
+            (ulong)owner.Memory.Memory.Tables, (ulong)owner.Memory.Memory.CandidateTables, (ulong)owner.Memory.Memory.StaticRanges,
+            (ulong)&generator + 1, ulong.MaxValue - 7 })
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, (HmacSha256Drbg.State*)source)));
+        var copy = generator;
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, &copy)));
+        before.AssertUnchanged(owner); HostCheck.Equal(0U, owner.Context->Reads);
+        HostCheck.True(HmacSha256Drbg.Erase(&generator));
+    }
+
+    [HostTest("continuing getrandom preflight consumes nothing and a failed partial copy burns the complete generated request")]
+    private static void ContinuingRandomCopy()
+    {
+        using var owner = new Owner(); HmacSha256Drbg.State generator = default, oracle = default;
+        SeedService(&generator); SeedService(&oracle);
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, &generator)));
+        HostCheck.Equal(-14L, owner.Call(318, Output, 8192)); // Second page is not mapped.
+        HostCheck.Equal(-14L, owner.Call(318, ulong.MaxValue, 32));
+        HostCheck.Equal(0UL, generator.RequestsSinceReseed); HostCheck.Equal(0U, owner.Context->Copies);
+        owner.Context->FailCopy = true; owner.Context->PartialCopyBytes = 7;
+        HostCheck.Equal(-14L, owner.Call(318, Output, 32));
+        byte* expected = stackalloc byte[32]; HostCheck.True(HmacSha256Drbg.Generate(&oracle, expected, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output), 7).SequenceEqual(new ReadOnlySpan<byte>(expected, 7)));
+        HostCheck.Equal(1UL, owner.State->RandomRequests); HostCheck.Equal(32UL, owner.State->RandomBytes);
+        owner.Context->FailCopy = false;
+        HostCheck.Equal(32L, owner.Call(318, Output, 32)); HostCheck.True(HmacSha256Drbg.Generate(&oracle, expected, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output), 32).SequenceEqual(new ReadOnlySpan<byte>(expected, 32)));
+        HostCheck.Equal(2UL, generator.RequestsSinceReseed);
+        HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State) && HmacSha256Drbg.Erase(&oracle));
+    }
+
+    [HostTest("continuing getrandom source exhaustion reseed failure and lifetime overflow never substitute output")]
+    private static void ContinuingRandomUnavailable()
+    {
+        using var owner = new Owner(); HmacSha256Drbg.State generator = default; SeedService(&generator);
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, ServiceAdmission(owner, &generator)));
+        ulong* counter = (ulong*)((byte*)&generator + Marshal.OffsetOf<HmacSha256Drbg.State>("Counter").ToInt32());
+        *counter = HmacSha256Drbg.ReseedInterval + 1;
+        HostCheck.Equal(-11L, owner.Call(318, Output, 16, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 16));
+        HostCheck.True(!HmacSha256Drbg.Reseed(&generator, null));
+        HostCheck.Equal(-11L, owner.Call(318, Output, 16, 3)); HostCheck.Equal(0U, owner.Context->Copies);
+        byte* entropy = stackalloc byte[32]; new Span<byte>(entropy, 32).Fill(0x73);
+        HostCheck.True(HmacSha256Drbg.Reseed(&generator, entropy)); HostCheck.Equal(16L, owner.Call(318, Output, 16));
+        ref ulong requests = ref ServiceRequestCounter(ref *owner.State);
+        requests = ulong.MaxValue; HostCheck.Equal(-11L, owner.Call(318, Output, 8, 1)); requests = 1;
+        ref ulong bytes = ref ServiceByteCounter(ref *owner.State);
+        bytes = ulong.MaxValue - 7; HostCheck.Equal(-38L, owner.Call(318, Output, 8)); bytes = 16;
+        HostCheck.Equal(1UL, generator.RequestsSinceReseed); HostCheck.Equal(1U, owner.Context->Copies);
+        HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
     }
 
     [HostTest("m16-006 fresh entropy is consumed once with genuine exhaustion and burn on attempted copy", HostLane.Fast, 3)]

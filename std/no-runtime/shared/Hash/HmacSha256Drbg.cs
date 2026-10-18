@@ -24,6 +24,11 @@ public static unsafe class HmacSha256Drbg
         public readonly bool RequiresReseed => Counter > ReseedInterval;
     }
 
+    /// <summary>Validate the exact mapped owner address/counter without output
+    /// or mutation. A reseed-required owner remains initialized but Generate
+    /// refuses it. This establishes no entropy provenance or borrowing authority.</summary>
+    public static bool IsInitialized(State* state) => Live(state);
+
     /// <summary>Initialize exclusive zeroed state from32 entropy+16 nonce bytes,
     /// optionally personalized with0..32 bytes. All input must be readable and
     /// disjoint from state. Invalid admission writes nothing. Successful caller

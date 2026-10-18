@@ -90,9 +90,17 @@ epochs renew turn quotas, each runnable worker has its own progress watchdog,
 and explicit application exit uses the genuine off-stack reap/cleanup path.
 Its C# compilation and focused policy checks pass. The QEMU runner rejects this
 leaf until a dedicated complete lifecycle/packet inspector exists. Shared
-HMAC_DRBG primitives pass published vectors, but service syscall entropy and
-secret ISNs are not yet wired. Existing EFI profiles retain their finite limits;
-no continuing guest service, entropy or shutdown acceptance follows.
+HMAC_DRBG primitives pass published vectors. [Step1423](../done/step1423.md)
+wires continuing getrandom into this leaf: independent pre-exit entropy/nonce
+captures, domain personalization, at most8192 output bytes per call, preflight
+before generation and irrevocable consumption on failed copies. Requests beyond
+that bound return a bounded prefix; finite profiles retain their32-byte request
+and32/256/4096-byte reservoir contracts. Reseed exhaustion has no clock fallback
+or post-exit firmware callback: blocking calls report ENOSYS, nonblocking calls
+EAGAIN until the trusted owner supplies fresh entropy. Source failure rejects
+admission; cleanup retains live borrowers and erases drained generator/seeds.
+Host checks and C# compilation pass; guest randomness and secret ISNs remain
+unqualified. No continuing service or shutdown acceptance follows.
 
 M16-015 addresses the current requirement for contiguous physical backing even
 when a virtual mapping could use discontiguous owned frames. The review's

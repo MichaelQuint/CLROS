@@ -5,8 +5,10 @@ transport repairs and #746 policy contracts. Its 127 focused checks span
 multiple development producers; they are not an unfiltered full-host run.
 [Step1421](../done/step1421.md) adds default-off native service/compact TIME-WAIT
 wiring and shared HMAC_DRBG development, with63 focused checks across multiple
-producers and no-stdlib C# compilation. Entropy/ISN integration, the complete
-service runner, original native review and stable-batch full-host/QEMU/PCAP
+producers and no-stdlib C# compilation. [Step1423](../done/step1423.md) wires the
+service entropy adapter/source/cleanup with30 focused startup checks and C#
+compilation. Actual guest entropy, secret ISNs, the complete service runner,
+original native review and stable-batch full-host/QEMU/PCAP
 qualification remain pending. All six tickets stay open. No gate advances.
 
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
