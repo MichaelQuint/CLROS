@@ -7,6 +7,14 @@ preflight pass. This permits candidate publication. It supplies no new native
 body/ABI/stack, CLROS guest or Kestrel qualification; stable acceptance and the
 fresh original web publication remain pending.
 
+[Step1400](../done/step1400.md) publishes/verifies the first M16013 EFI candidate
+and preserves all866 source joins and nine original native files. All763204
+managed code bytes and673 REL32 targets join to that EFI. Ten complete changed
+method extents are extracted; the two send/receive message bodies have bounded
+frame/ABI review. Other bodies, retained callers and whole-stack/guest acceptance
+remain pending. Fresh original Linux web v3 qualification and coherent app/index
+admission also pass; neither result is a new CLROS guest gate.
+
 ## Qualified bounded Linux thread and runtime profiles
 
 [Step1307](../done/step1307.md) joins final 5,202-check full-host acceptance,

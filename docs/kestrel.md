@@ -1,5 +1,15 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1400](../done/step1400.md) completes the fresh original Linux v3 publication
+and binds the current app/source/package/complete instruction index together.
+Both default/configured runs return the exact49152-byte entity before later
+health. The real produced package passes prepared lookup; altered helper and
+extra-source controls reject. The separate EFI vector candidate publishes and
+verifies, with its original866 source inputs and nine native files retained.
+Two message bodies have bounded ABI/frame review; remaining native/stack,
+full-host and CLROS guest qualification are pending.219/745/737 remain open;
+no Kestrel or broader gate is accepted.
+
 ## NativeAOT-first milestone
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742

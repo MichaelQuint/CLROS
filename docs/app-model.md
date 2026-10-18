@@ -1,5 +1,12 @@
 # App Model
 
+[Step1400](../done/step1400.md) supersedes the development publication/admission
+pending states below: fresh original Linux web v3 qualification passes, and the
+current startup/vector app, complete index and real package bind coherently.
+The first EFI vector candidate also publishes/verifies. Native/stack review is
+partial; full-host and CLROS guest qualification remain pending.219/745/737 and
+the later service/time ladder remain open. See the [Kestrel ledger](kestrel.md).
+
 [Step1390](../done/step1390.md) develops the next batch from accepted merge
 `1d5064d8` under #737. Actual witness creation now lies inside the failure-marker
 try; a managed test executes the real app with failing constructor stderr and
