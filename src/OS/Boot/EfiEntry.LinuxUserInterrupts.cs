@@ -104,10 +104,25 @@ public static unsafe partial class EfiEntry
             if (!X64LinuxUserTransition.CaptureInterruptUserImage(data, X64LinuxUserTransition.DataBytes, image,
                 X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User))
                 return LinuxNativeUserInterruptRejected(state, 6);
+            bool exitTail = c->Gates[index].HasExitTail;
+            if (exitTail && (c->User.ReturnPolicy == null || c->User.ReturnPolicy(c->User.Context, &image->Frame) != 1))
+                return LinuxNativeUserInterruptRejected(state, 9);
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
             if (!LinuxNativeAcknowledgeUserTimer(c, index, cpu[3], image->Frame.Rflags, false))
                 return LinuxNativeUserInterruptRejected(state, 7);
+            if (exitTail)
+            {
+                // The exact immutable no-stack tail must reach its final exit
+                // before another user worker can reuse the unmapped stack/TLS.
+                // Keep the acknowledged timer borrow for ordinary gateway cleanup.
+                if (!X64LinuxUserTransition.RestoreActiveUserImage(data, X64LinuxUserTransition.DataBytes, image,
+                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User))
+                    return LinuxNativeUserInterruptRejected(state, 10);
+                c->TimingValid = 0; // No supervisor return occurred at this IRQ.
+                c->Actions[index] = (uint)LinuxSyscallAction.Return;
+                return 1;
+            }
             c->UserPreempted = index + 1; c->Actions[index] = (uint)LinuxSyscallAction.Return;
             return 2; // Original gateway restoration, then actual kernel CALL capture and Yield.
         }

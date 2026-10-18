@@ -159,7 +159,7 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket,web,containment;
+        private readonly bool broader,socket,web,containment,webLogQuota;
         private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
         private readonly int webSettingsFd;
@@ -184,11 +184,13 @@ public static partial class QemuTranscripts
 
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
-            uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null)
+            uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
+            bool webLogQuota=false)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
             web=app=="MinimalApiSmoke";socket=web || containment || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            Need(!webLogQuota || web,"web_quota_application");this.webLogQuota=webLogQuota;
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
             this.webSettingsCall=webSettingsCall;
             Need(!web || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
@@ -225,7 +227,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
-            int bytes=web?8681864:containment?NativeAotSocketContainmentPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
@@ -275,9 +277,21 @@ public static partial class QemuTranscripts
                         t.Epoll=null;t.EpollMaximum=t.EpollWinner=0;t.EpollObserved=t.EpollEligible=false;
                     }
                     if(!prepareBlocked)ExpectDelivery(t);
+                    bool exitTailContinued=false;
                     while(!prepareBlocked)
                     {
                         SocketObservations();
+                        if(t.TailRip!=0 && Starts("M16_009_IRQ "))
+                        {
+                            Need(!exitTailContinued,"threading_exit_tail_irq_repeat");
+                            var tail=Row("M16_009_IRQ","identity:dec","epoch:dec","nanos:dec","rip:dec","rsp:dec","flags:dec","fs:dec","gs:dec","valueBits:dec");
+                            Need(tail["identity"]==t.Identity && instruction(tail["rip"]),"threading_exit_tail_irq_binding");
+                            Envelope(t,tail["rip"],tail["rsp"],tail["flags"],tail["fs"],tail["gs"],0);
+                            Need(tail["valueBits"]==(tail["rip"]==t.TailRip+8?60UL:0),"threading_exit_tail_rax");
+                            Epoch(tail);irqs++;t.LastUserIrq=(ulong)epochs;
+                            t.SavedRsp=tail["rsp"];t.SavedRip=tail["rip"];exitTailContinued=true;
+                            continue; // Actual direct IRQ continuation; no FIFO enqueue/transfer.
+                        }
                         if(!Starts("M16_008_CALL ") && !Starts("M16_005_WRITE"))break;
                         bool output=Starts("M16_005_WRITE");
                         if(output)
@@ -287,7 +301,7 @@ public static partial class QemuTranscripts
                             Need(Take().StartsWith(prefix,StringComparison.Ordinal),"threading_write_envelope");
                         }
                         int index=position; var r=Row("M16_008_CALL",Fields);
-                        Need(r["identity"]==t.Identity && syscall(r["rip"]) && output==(r["nr"]==1 &&
+                        Need(r["identity"]==t.Identity && syscall(r["rip"]) && output==((r["nr"]==1 || web && r["nr"]==20) &&
                             (web?r["a0"] is 1 or 2 && unchecked((long)r["valueBits"])>0:r["a0"]==1)),"threading_call_binding");
                         SignalObservation(t,r,returns[index]);
                         Need((r["flags"]&0x400)==0,"threading_syscall_df");
@@ -311,11 +325,15 @@ public static partial class QemuTranscripts
                     if(prepareBlocked){t.Parking=false;if(t.Completion.HasValue)Enqueue(t);}
                     else if(ending)
                     {
-                        var drain=Row("M16_009_DRAIN","identity:dec","epoch:dec","nanos:dec");
-                        Need(drain["identity"]==t.Identity && (!stopping || drain["nanos"]==clock),"threading_drain_binding");
-                        Epoch(drain); drains++;
-                        if(action==6 || !exiting && t.Completion.HasValue) Enqueue(t);
-                        t.Parking=false;
+                        if(exitTailContinued)Need(exiting && action==4 && t.NormalExit,"threading_exit_tail_irq_exit");
+                        else
+                        {
+                            var drain=Row("M16_009_DRAIN","identity:dec","epoch:dec","nanos:dec");
+                            Need(drain["identity"]==t.Identity && (!stopping || drain["nanos"]==clock),"threading_drain_binding");
+                            Epoch(drain); drains++;
+                            if(action==6 || !exiting && t.Completion.HasValue) Enqueue(t);
+                            t.Parking=false;
+                        }
                     }
                     else
                     {

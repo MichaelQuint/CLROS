@@ -208,6 +208,9 @@ public static partial class QemuTranscripts
                     Need(c>0 && c<=(web?65536UL:4096UL) && memory.Covered(b,c,1),"threading_write_buffer");
                     if(a==1 || web && a==2)
                     {
+                        // Web startup/logging admission separately joins every
+                        // quota denial to its actual EIO with no copied bytes.
+                        if(web && v==Bits(-5)){Need(webLogQuota && !output,"threading_write_error_output");break;}
                         Need(output && writes<writeLengths.Count && a==writeChannels[writes] &&
                             (web?v==(ulong)writeLengths[writes] && v==Math.Min(c,8192UL):c==(ulong)writeLengths[writes] && v==c),"threading_stdout_pair");
                         if(a==1)stdoutBytes+=writeLengths[writes];writes++;phases?.Write(stdoutBytes);
@@ -218,6 +221,21 @@ public static partial class QemuTranscripts
                         var reader=history.Where(x=>!x.Reaped&&x.WaitSource==2&&x.Completion is null).ToArray();
                         Need(reader.Length<=1,"threading_unobserved_pipe_retry");if(reader.Length==1)Complete(reader[0],1);
                     }break;
+                case 20:
+                    // Pointer-table access is replayed here. The preceding web
+                    // logging validator joins actual copied bytes/results;
+                    // table contents are not reconstructed from scalar rows.
+                    Need(web && c is >0 and <=OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumVectors &&
+                        memory.Covered(b,c*16,1),"web_writev_table");
+                    if(a is 1 or 2)
+                    {
+                        if(v==Bits(-5)){Need(webLogQuota && !output,"web_writev_error_output");break;}
+                        Need(output && writes<writeLengths.Count && a==writeChannels[writes] &&
+                            v==(ulong)writeLengths[writes] && v is >0 and <=8192,"web_writev_output");
+                        if(a==1)stdoutBytes+=writeLengths[writes];writes++;phases?.Write(stdoutBytes);
+                    }
+                    else Need(a==1234 && c==1 && v==Bits(-9) && !output,"web_writev_invalid_descriptor");
+                    break;
                 case 8: Need(a<=int.MaxValue && files.Contains((int)a) && c<=2 && v<=8192,"threading_seek");break;
                 case 72: Need(a<=int.MaxValue && files.Contains((int)a) && b==2 && c==1 && v==0,"threading_fcntl");break;
                 case 293:

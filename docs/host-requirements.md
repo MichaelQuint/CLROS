@@ -278,6 +278,17 @@ Those limits are ceilings, not performance claims. Compare actual durations in
 new `results.json` and orchestration summaries before tightening them. CI marker
 preset plans share `EvidenceOrchestration.CiMarkerPresets`; independent byte,
 security and runtime assertions remain explicit tests.
+
+Build the host harness after freezing the implementation commit, before starting
+the full lane. Nested Native fixtures rebuild the serializer generator; its SDK
+assembly revision stamp must already match that commit. Step1383 preserves a
+complete run whose 5,566 fixture checks passed but whose final input guard
+correctly rejected that DLL changing from the earlier commit stamp. Rebuild
+normally at the frozen commit and use a fresh results directory; do not rewrite
+the failed receipt, suppress the guard or reuse its checkpoint as acceptance.
+Documentation/evidence commits should continue to name the exact implementation
+source qualified by each retained run.
+
 ## Setup
 
 Install the exact .NET 11 SDK above from the official .NET installer or existing Visual Studio layout.

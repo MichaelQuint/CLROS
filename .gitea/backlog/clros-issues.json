@@ -22593,7 +22593,7 @@
         "M10-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22630,7 +22630,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Route NativeAOT stdout/stderr through owned process descriptors",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1389 qualifies finite logging at implementation2bfbaeee under #737/PR740:5569 full-host checks/734 fixtures/94 Native, three normal plus three quota strict guests and eight affected ancestors. Original source/native/serial/packet joins pass. Real fd1/fd2 copied write/writev includes eight worker identities, EBADF9 and64-callback quota EIO with repeat409/later health200. The authenticated direct IRQ tail reaches actual exit60 without weakening remap/owner/timer guards. Both profile callback variants and exact unwind are independently reviewed; original failures and corrected bookkeeping provenance remain retained. Post reviewed evidence before guarded merge/closure; keep #737 and #219 open. No general Kestrel, whole-stack, continuing-service, numbered, cloud or production acceptance.",
       "implementationNotes": [
         "Route the guest's actual write/writev to descriptors 1/2 through bounded owned serial logging. Preserve lengths and partial-write/error semantics; exercise concurrent writes, invalid descriptors and log quota exhaustion.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22674,7 +22674,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-006",
@@ -22723,7 +22723,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Start the upstream NativeAOT Minimal API before socket binding",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1389 qualifies predecessor #218 finite logging at2bfbaeee; step1380 configuration and steps1307/1351 runtime/socket evidence retain their exact scopes. Successful current startup observations do not close #219: AppStartupWitness construction remains outside the failure-marker try and its constructor-failure path needs repair/verification. Continue this slice under #737 before #745 vectors and #220-#223, including #759 realtime. No startup, general Kestrel or numbered gate acceptance.",
       "implementationNotes": [
         "Prove real upstream NativeAOT entry, constructors and application startup before bind. Emit distinct start and failure markers; do not mark ready if runtime initialization, configuration or listener creation failed.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22819,7 +22819,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Pass the Kestrel socket ladder over Linux adapters and live CLROS TCP",
-      "currentEvidence": "Step1351 qualifies bounded upstream sockets/epoll. PR739 reports unmerged development health/config HTTP at e40db8091e8b61b6d2b18f837feb96e9965109a2; the full Kestrel socket ladder is not accepted. M07-027/M07-028 containment and M16-013 checked vector I/O now precede this issue's closure; preserve #737 ownership.",
+      "currentEvidence": "Step1351 qualifies bounded upstream sockets/epoll. Step1380/merged PR763 incorporates PR739 configuration and qualifies #217 plus #741/#742 containment; PR739 is closed as incorporated, not directly merged. Step1383 passes PR740 development's full-host and ordinary ancestor regressions at 1221f0b0, without logging/startup or Kestrel socket-ladder acceptance. #218/#219 and checked vector I/O #745 remain prerequisites. Require actual large/multi-segment upstream Kestrel responses, external partial-I/O/readiness/cancellation checks and the exact remaining dependencies; preserve #737 ownership.",
       "implementationNotes": [
         "Run the real System.Net.Sockets create/bind/listen/accept/send/receive/close ladder against M16 socket/epoll adapters. Exercise EAGAIN, partial I/O, readiness rearm, timeout and reset using an external client; do not substitute PAL fakes.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",

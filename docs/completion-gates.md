@@ -7,11 +7,22 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+The later application/service ladder retains its separate prerequisites under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
 
+[Step1389](../done/step1389.md) qualifies finite #218 stdout/stderr logging at
+implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native),
+three normal and three quota guests, and eight affected socket/runtime ancestors.
+Actual copied write/writev, eight workers, EBADF and quota EIO join the original
+source/native/serial/packet evidence. The authenticated exit tail reaches real
+exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
+unaccepted because constructor creation precedes its failure-marker try. Continue
+#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
+gate advances. See the step for exact commands, hashes and retained failures.
+
 Only the existing numbered Gate 2 passes. The selected health/configuration
-responses do not qualify #218/#219/#220, realtime/HTTP Date, repeated service,
+responses alone do not qualify #219/#220, realtime/HTTP Date, repeated service,
 vector I/O, isolation or local Gate 14. No numbered checkbox changes here.
 
 [Step1351](../done/step1351.md) qualifies the bounded #214/#215/#216 and
@@ -53,7 +64,7 @@ Development and failed/interrupted qualification history remains in steps1309-13
 The [October 16 ordered follow-ups](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 change prerequisites, not gate results. Step1351 retains its finite socket
 package scope; step1380 adds bounded configuration and M07-027/M07-028 repair
-qualification. The remaining application/service prerequisites stay open.
+qualification; step1389 adds finite #218 copied logging/quota delivery. The remaining application/service prerequisites stay open.
 
 - #220 uses step1380's qualified M07-027/M07-028 network containment and still
   requires M16-013 actual vectored socket/Kestrel I/O plus its startup/epoll dependencies.

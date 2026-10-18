@@ -12,6 +12,11 @@
     <EnableDiagnostics>false</EnableDiagnostics>
     <DebuggerSupport>false</DebuggerSupport>
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <DirectPInvoke Include="libc!writev" />
+  </ItemGroup>
 
 </Project>

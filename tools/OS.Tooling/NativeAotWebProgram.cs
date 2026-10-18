@@ -5,15 +5,15 @@ using OS.Manifest;
 
 namespace OS.Tooling;
 
-/// <summary>Immutable host lookup for the unchanged qualified MinimalApiSmoke
+/// <summary>Immutable host lookup for the exactly pinned qualified MinimalApiSmoke
 /// ELF and its reviewed complete decoder index. Selected configuration remains
 /// package data. Construction binds relevant current app/build/publisher sources;
 /// it starts no app and grants no guest, HTTP or lifecycle acceptance.</summary>
 public sealed class NativeAotWebProgram
 {
     internal const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    private const int ElfBytes = 8_681_864;
-    private const string ElfSha256 = "09F655FBBC6B325CD444DC7DD873FDDC7131108D2C9743F5A57351F7061D15C9";
+    internal const int ElfBytes = 8_746_056;
+    private const string ElfSha256 = "1F231C5ACBE23B0712EA514EF8410DD2F2E6CF7DAC604C82569FC1BB2D44A0E0";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     /// <summary>Complete decoder identity; a report alone grants no lookup authority.</summary>
@@ -27,7 +27,7 @@ public sealed class NativeAotWebProgram
     /// <summary>Accepts RIP immediately after a decoded original SYSCALL.</summary>
     public bool IsSyscallReturn(ulong address) => index.IsSyscallReturn(address);
 
-    internal readonly record struct Configuration(string Body, string Json, uint Arguments, uint Environment, uint SettingsBytes);
+    internal readonly record struct Configuration(string Body, string Json, uint Arguments, uint Environment, uint SettingsBytes, bool LogQuota);
 
     // The external proof deliberately admits one small, explicit configuration
     // shape. General IConfiguration precedence is an application concern. The
@@ -43,8 +43,10 @@ public sealed class NativeAotWebProgram
         {
             int at = line.IndexOf('='); environment.Add(line[4..at], line[(at + 1)..]);
         }
-        Need(environment.Keys.All(x => x is "CLROS_USER_IRQS" or "DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE" or "ASPNETCORE_URLS") &&
+        Need(environment.Keys.All(x => x is "CLROS_USER_IRQS" or "DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE" or "ASPNETCORE_URLS" or "CLROS_LOG_BUDGET_CASE") &&
             environment.GetValueOrDefault("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE") == "false", "configuration_environment");
+        bool quota = environment.ContainsKey("CLROS_LOG_BUDGET_CASE");
+        Need(!quota || environment["CLROS_LOG_BUDGET_CASE"] == "records64", "configuration_log_budget");
         string endpoint = environment.GetValueOrDefault("ASPNETCORE_URLS", "http://0.0.0.0:8080");
         Need(endpoint is "http://0.0.0.0:8080" or "http://0.0.0.0:8081", "configuration_endpoint");
         fixed (byte* source = package)
@@ -58,7 +60,7 @@ public sealed class NativeAotWebProgram
             string response = JsonSerializer.Serialize(new { appId = "minimal.api.smoke", contractId = "kestrel.smoke.package.v0",
                 expectedBodyKey = "OS_SMOKE_EXPECTED_BODY", expectedBody = body, expectedBodyBytes = Encoding.UTF8.GetByteCount(body),
                 listenEndpoint = endpoint, healthPath = "/healthz" });
-            return new(body, response, 5, m.EnvironmentCount, data.DataBytes);
+            return new(body, response, 5, m.EnvironmentCount, data.DataBytes, quota);
         }
     }
     private static string StrictText(ReadOnlySpan<byte> bytes) => new UTF8Encoding(false, true).GetString(bytes);
@@ -85,10 +87,10 @@ public sealed class NativeAotWebProgram
         sources.VerifyUnchanged(); return new(root, parsed);
     }
 
-    // LLVM22.1.3: all4,492,823 bytes of five executable sections, every198
-    // syscall continuation and the original entry. The89 executable-load bytes
-    // outside these sections grant no starts. This is not a control-flow proof.
-    private static Inspection Reviewed => new(1_403_696, 198, "AD452578C22F851551EC079DF6FB02C811319A9BD7AF11D4AA2D921DCE7AAE0D");
+    // LLVM22.1.3: all4,509,367 bytes of five executable sections, every198
+    // syscall continuation and the original entry. Executable-load bytes outside
+    // these sections grant no starts. This is not a control-flow proof.
+    private static Inspection Reviewed => new(1_408_333, 198, "C2A6B4AFF0C484004A968F5E086AE6EC269A8FA8F3E946CD0F0CA9C8CDC3A3A8");
 
     /// <summary>Reads distinct bounded plain single-link package/dump snapshots
     /// under concurrent read locks, then prepares lookup. Files remain caller-owned;
@@ -135,8 +137,8 @@ public sealed class NativeAotWebProgram
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
-        ("apps/MinimalApiSmoke/Program.cs", "199CCD9356157F499840D6587D164A362CEB43CEDB2B61FA8E49FB97B7A7068F"),
-        ("apps/MinimalApiSmoke/MinimalApiSmoke.csproj", "A24556F3658BFD8B96979399784CFDEC17E47D66D165D5340081888E905FFB05"),
+        ("apps/MinimalApiSmoke/Program.cs", "F3FA2B7A1D03171D46EDF132EA79AA96DD6B34B4B5BD1AD6C55BEE8484F12E8E"),
+        ("apps/MinimalApiSmoke/MinimalApiSmoke.csproj", "22CED43801D7BD408D0AE4011B507E7F9AC8733535BFEDE2CBE1394BD3856816"),
         ("apps/MinimalApiSmoke/appsettings.json", "FF0AB2FFB263DF50157F565C6AA386B50D23C9AC9A03F47D53B225C0471A0CE6"),
         ("apps/MinimalApiSmoke/appsettings.Development.json", "817DB0BF2ECCA78364C41DBAF7949BF2504CF47A1C3D0D54F3BE8178FEFC030B")];
 

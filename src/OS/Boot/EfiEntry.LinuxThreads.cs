@@ -29,6 +29,9 @@ public static unsafe partial class EfiEntry
 #if M10_004_PROBE
             internal uint WebFlags, WebBoundFd, WebStartMatch;
             internal ulong WebConfigBytes, WebStdoutBytes, WebStderrBytes;
+            internal LinuxAppStartupObservation WebStartup;
+            internal LinuxAppLogObservation WebLogs;
+            internal LinuxAppLogQuotaObservation WebQuota;
 #endif
 #if M16_009_PROBE
             internal uint UserTimer, UserAcknowledged, UserDrain, UserPreempted;

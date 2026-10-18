@@ -8,6 +8,30 @@ internal static class QemuTestControl
     {
         switch (args[0])
         {
+            case "web":
+                using (var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture)))
+                using (var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                {
+                    listener.Start();
+                    await File.WriteAllTextAsync(args[1], "OS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\nCLROS_M10_004_READY\r\nTEST_PASS m10.004\r\n", Encoding.ASCII);
+                    string[] requests = ["GET /healthz ", "GET /config ", "POST /__clros/logexercise ", "POST /__clros/logexercise ", "GET /healthz "];
+                    for (int step = 0; step < requests.Length; step++)
+                    {
+                        using var client = await listener.AcceptTcpClientAsync(deadline.Token);
+                        using var stream = client.GetStream();
+                        using var reader = new StreamReader(stream, Encoding.ASCII, leaveOpen: true);
+                        string line = await reader.ReadLineAsync(deadline.Token) ?? "";
+                        if (!line.StartsWith(requests[step], StringComparison.Ordinal)) throw new InvalidDataException("unexpected_web_probe");
+                        while (await reader.ReadLineAsync(deadline.Token) is { Length: > 0 }) { }
+                        string body = step switch { 1 => "{\"selected\":true}", 2 => "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", 3 => "", _ => "OS_MINIMAL_API_OK" };
+                        if (step == 2) await File.AppendAllTextAsync(args[1], "TEST_START m10.005\r\nM10_005_LOGS\r\nCLROS_M10_005_READY\r\nTEST_PASS m10.005\r\n", Encoding.ASCII);
+                        byte[] response = Encoding.ASCII.GetBytes($"HTTP/1.1 {(step == 3 ? "409 Conflict" : "200 OK")}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n{body}");
+                        await stream.WriteAsync(response, deadline.Token);
+                    }
+                    listener.Stop();
+                    await Task.Delay(30000);
+                    return 0;
+                }
             case "http":
                 using (var listener = new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback, int.Parse(args[2], System.Globalization.CultureInfo.InvariantCulture)))
                 {

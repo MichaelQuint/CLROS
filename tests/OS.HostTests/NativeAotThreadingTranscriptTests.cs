@@ -67,8 +67,8 @@ internal static class NativeAotThreadingTranscriptTests
         internal void Wait(ulong address,ulong deadline=0)=>Call(202,0,[address,128,2,deadline==0?0UL:0x500600],3,1,deadline);
         internal void Resume(long value)=>Rows.Add($"M16_008_RESUME identity={Current.Id} valueBits={unchecked((ulong)value)} status=1");
         internal void Wake(ulong address)=>Call(202,1,[address,129,1]);
-        internal void Irq(ulong now,int ready,int active,ulong rip=0x400202,ulong flags=514,ulong value=0)
-        {Clock=now;Rows.Add($"M16_009_IRQ identity={Current.Id} epoch={++Epoch} nanos={now} rip={rip} rsp={Current.Rsp} flags={flags} fs={Current.Fs} gs=0 valueBits={value}");Supervisor(1,ready,active);}
+        internal void Irq(ulong now,int ready,int active,ulong rip=0x400202,ulong flags=514,ulong value=0,bool direct=false)
+        {Clock=now;Rows.Add($"M16_009_IRQ identity={Current.Id} epoch={++Epoch} nanos={now} rip={rip} rsp={Current.Rsp} flags={flags} fs={Current.Fs} gs=0 valueBits={value}");if(!direct)Supervisor(1,ready,active);}
         internal void Drain(ulong now){Clock=now;Rows.Add($"M16_009_DRAIN identity={Current.Id} epoch={++Epoch} nanos={now}");}
         internal void Tick(ulong now,int ready){Clock=now;Rows.Add($"M16_008_TICK epoch={++Epoch} nanos={now} ready={ready}");}
         internal void Supervisor(int action,int ready,int active){Transfers+=2;Rows.Add($"M16_008_SUPERVISOR identity={Current.Id} action={action} transfers={Transfers} ready={ready} active={active}");}
@@ -148,11 +148,11 @@ internal static class NativeAotThreadingTranscriptTests
             v.Call(11,0,[worker.Bottom,0x20000],instructionRip:TailRip);
             if(tailIrq)
             {
-                v.Irq(120,2,4,TailRip+3,0x246);v.Select(v.Main);v.Irq(120,2,4);v.Select(worker);
+                v.Irq(120,2,4,TailRip+3,0x246,direct:true);
             }
         }
         v.Call(60,0,[0],4,instructionRip:selfExit?TailRip+10:null,flags:selfExit?0x246UL:514);
-        v.Drain(120);v.Exit(4,1,4,selfExit?-14:0);
+        if(!tailIrq)v.Drain(120);v.Exit(4,1,4,selfExit?-14:0);
         v.Select(v.Main);v.Output();v.Call(231,0,[0],2);v.Drain(120);v.Exit(2,2,3);
         v.Select(final);v.Exit(4,1,2);v.Select(signal);v.Exit(4,0,1);v.End(4);return v;
     }
@@ -247,7 +247,7 @@ internal static class NativeAotThreadingTranscriptTests
     private static void ExitTail()
     {
         Vector plain=SuspensionVector(selfExit:true),irq=SuspensionVector(selfExit:true,tailIrq:true);
-        HostCheck.True(Inspect(plain,tail:true).Reaped==4 && Inspect(irq,tail:true).Transfers==34);
+        HostCheck.True(Inspect(plain,tail:true).Reaped==4 && Inspect(irq,tail:true).Transfers==30);
         Reject(plain,Change(plain,"nr=11 ","rip",0x400202),true);
         Reject(plain,Change(plain,"nr=11 ","a1",0x18000),true);
         Reject(plain,Change(plain,"nr=11 ","a1",0x20001),true);
@@ -261,7 +261,9 @@ internal static class NativeAotThreadingTranscriptTests
         int afterMovIrq=Array.FindIndex(afterMov,r=>r.StartsWith("M16_009_IRQ ",StringComparison.Ordinal) && r.Contains($"rip={TailRip+8} ",StringComparison.Ordinal));
         Reject(irq,afterMov,true);
         afterMov[afterMovIrq]=Regex.Replace(afterMov[afterMovIrq],@"\bvalueBits=[0-9]+","valueBits=60");
-        HostCheck.Equal(34,Inspect(irq,afterMov,tail:true).Transfers);
+        HostCheck.Equal(30,Inspect(irq,afterMov,tail:true).Transfers);
+        var yielded=irq.Rows.ToList();int tailAt=yielded.FindIndex(r=>r.StartsWith("M16_009_IRQ ",StringComparison.Ordinal) && r.Contains($"rip={TailRip+3} ",StringComparison.Ordinal));
+        yielded.Insert(tailAt+1,"M16_008_SUPERVISOR identity=4294967300 action=1 transfers=26 ready=2 active=4");Reject(irq,yielded.ToArray(),true);
         int unmap=irq.Rows.FindIndex(r=>r.Contains("nr=11 ",StringComparison.Ordinal));
         ulong fs=ulong.Parse(Regex.Match(irq.Rows[unmap],@"\bfs=([0-9]+)").Groups[1].Value,CultureInfo.InvariantCulture);
         var forged=irq.Rows.Select((r,i)=>i<unmap?r:Regex.Replace(r,@"\b(fs|returnFs)="+fs+@"\b",

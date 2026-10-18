@@ -9,8 +9,24 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+The later application/service ladder retains its separate prerequisites under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+[Step1389](../done/step1389.md) qualifies finite #218 stdout/stderr logging at
+implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native),
+three normal and three quota guests, and eight affected socket/runtime ancestors.
+Actual copied write/writev, eight workers, EBADF and quota EIO join the original
+source/native/serial/packet evidence. The authenticated exit tail reaches real
+exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
+unaccepted because constructor creation precedes its failure-marker try. Continue
+#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
+gate advances. See the step for exact commands, hashes and retained failures.
+
+The immutable [steps1381-1388](../done/step1381.md) retain development history:
+source-pin repairs, the original Linux/package/native reviews, failed runner and
+worker-limit captures, five-request consumer fixes and the exit-tail IRQ repair.
+Step1389 adds the fresh stable qualification; earlier failures remain failures.
 
 The three qualified web captures return exact selected 22-byte health and
 238-byte configuration bodies. CLI binds 8080 while configuration observes the
@@ -42,8 +58,8 @@ have historical qualification. The .NET11 migration, #188 lifecycle and
 #191/#192 through #688 finite runtime batch are qualified in steps1225/1230/1307.
 Step1332 qualifies continuing network/TCP; step1351 qualifies the original finite
 socket/SocketAsyncEngine fixtures for #689/#690. Step1380 qualifies #217
-configuration. Continue owned #218 stdout/stderr, #219 upstream app startup and
-#220 real Kestrel socket I/O
+configuration; step1389 qualifies finite #218 stdout/stderr. Continue #219 upstream
+app startup, #745 vectors and #220 real Kestrel socket I/O
 under #737. Follow the exact managed issue dependencies.
 Mechanical ELF startup/write/exit does not run the upstream runtime.
 M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
@@ -495,7 +511,7 @@ support.
 | App package layout | Image/package format carries runtime bits, app assembly, dependencies, appsettings, static content if needed, and manifest metadata | Not implemented | Image builder packages the Minimal API fixture and manifest; guest can enumerate/read packaged files |
 | File/config reads | Hosted app can read app assemblies and configuration files without firmware services | Mock package-file handle table/facade, package file-table enumeration, and mock config-value query table/facade only; no exported PAL file/config functions or guest package I/O exists | Guest-side file reads for app binary and config emit pass markers |
 | Environment variables | Manifest-provided key/value data reaches the hosted runtime and app configuration | Kernel-facing native manifest parser carries bounded `env.KEY=value` metadata and a mock PAL environment query/enumeration table plus facade can be built from native launch-plan metadata; no exported PAL query or hosted propagation exists | Fixture endpoint returns a deterministic value sourced from manifest environment |
-| Logging/stdout | Console/log writes from hosted runtime and app route through OS serial/logging APIs | Mock stdout/stderr app-log table, `OSHost_WriteLogBytes`-shaped in-process facade, and native app exit marker formatter only; no exported `OSHost_WriteLogBytes`, guest serial routing, hosted runtime console binding, real app output, or observed app exit exists | Fixture startup, request logs, and app lifecycle/exit markers appear in serial output without host-only interception |
+| Logging/stdout | Actual NativeAOT fd1/fd2 write/writev reaches owned copied serial delivery | Step1389 qualifies finite eight-worker output, EBADF and records64 quota EIO in real CLROS guests. Legacy OSHost/CoreCLR logging facades remain host-only; no general lifecycle or continuing-service claim | Preserve exact bytes, ownership and budget semantics as later startup/service scopes are qualified |
 | virtio-net | Guest owns NIC discovery, RX/TX queues, packet buffers, and link diagnostics | Not implemented | Guest sends and receives packets through virtio-net with deterministic failure markers |
 | Sockets | Hosted runtime sees socket-like APIs backed by OS networking or a documented PAL network boundary | Mock create/bind/listen/accept-queue/send/receive/poll/shutdown/options/endpoint-query table plus host-only backlog-to-mock-accept-queue and established-stream-to-mock-socket inbound bridges only; no exports, live TCP, scheduler waits, or guest behavior | Socket create/bind/listen/accept/send/receive path is guest-tested |
 | TCP | OS networking provides TCP listen, accept, read, write, close, timeout, retransmission, and error behavior sufficient for Kestrel | Host-tested TCP packet, handshake, active/passive IPv4 frame-planner, established stream, close/reset, caller-owned listener backlog metadata, passive-backlog bridge, listener-backlog-to-mock-accept-queue bridge, and established-stream-to-mock-socket inbound bridge only; no complete listener, exported socket, retransmission, timer, or guest packet-I/O behavior exists | Guest accepts an inbound TCP connection and returns deterministic bytes |
@@ -792,8 +808,14 @@ The first Kestrel proof depends on several major unfinished areas. Until those a
 
 ## Next Steps
 
-1. Implement #684 memory/startup services, then #685 descriptors with mechanical fixtures; preserve sparse virtual reservation and physical-commit accounting as described in [the workload roadmap](workload-profiles.md#pinned-payload-requirements-and-trace-limits).
-2. Qualify #686 mechanical threads/TLS/futex and per-thread signal masks; #687 implements signal startup/delivery, runs the first pinned Hello and then checks suspension. #688 repeats Hello and adds full runtime exercise. Keep application runtime ownership separate from kernel helpers.
-3. Integrate continuing NIC/TCP (#691 and its dependencies), then M16 socket/epoll services and the unchanged upstream Minimal API payload. The optional transport comparison informs this integration without replacing its acceptance.
+Step1389 qualifies finite logging and quota delivery. The selected package,
+five HTTP lifetimes and actual copied serial output retain exact original joins.
+The next batch repairs #219 constructor failure coverage, then implements actual
+vectored socket/Kestrel I/O and the declared #220-#223 prerequisites. Successful
+current health/config/logging probes do not close those broader issues.
+
+1. Preserve the accepted memory/descriptor/thread/signal/runtime scopes through [step1307](../done/step1307.md).
+2. Preserve [step1380](../done/step1380.md) configuration/containment and [step1389](../done/step1389.md) finite logging under continuing integration #737.
+3. Complete #219 -> #745 -> #220 -> #221 -> #222 -> #223, including #759 owned realtime before HTTP Date acceptance. Implement compatible slices first, then qualify the stable batch together.
 4. Capture three fresh guest boots, external `/healthz` traffic, request churn/cancellation/shutdown and a failed probe after termination before claiming Kestrel. Follow the exact tracker dependencies and evidence markers.
 5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.

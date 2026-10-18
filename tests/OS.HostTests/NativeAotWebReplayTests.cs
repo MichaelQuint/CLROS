@@ -6,11 +6,11 @@ internal static class NativeAotWebReplayTests
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
-        long? readAfterShutdown=null,long? sendAfterShutdown=null)
+        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
-            .Replace("packageBytes=1320176","packageBytes=8681864",StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
+            .Replace("packageBytes=1320176","packageBytes=8746056",StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
             .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         v.Call(2,5,[0x500200,0x88100,0]);v.Call(5,0,[5,0x500800]);
@@ -36,6 +36,8 @@ internal static class NativeAotWebReplayTests
         }
         for(int i=0;i<20;i++)v.Call(318,16,[0x500800,16,0]);
         v.Rows.Add("M16_005_WRITE fd=1 bytes=5 data=hello");v.Call(1,5,[1,0x500800,5]);
+        if(invalidDescriptor)v.Call(20,-9,[1234,0x500800,1]);
+        if(failedWrite is ulong failed)v.Call(failed,-5,[1,0x500800,failed==1?5UL:2UL]);
         if(groupExit)v.Call(231,0,[0],2);
         return v.Rows;
     }
@@ -76,6 +78,8 @@ internal static class NativeAotWebReplayTests
     [HostTest("nativeaot.web replay rejects changed budget FIFO generation and capture-owner observations")]
     private static void Ownership()
     {
+        var stale=Vector();int policy=stale.FindIndex(r=>r.StartsWith("M16_007_POLICY ",StringComparison.Ordinal));
+        stale[policy]=stale[policy].Replace("packageBytes=8746056","packageBytes=8681864",StringComparison.Ordinal);Reject(()=>Inspect(stale));
         var budget=Vector();int at=budget.FindIndex(r=>r.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal));
         budget[at]=budget[at].Replace("epochs=1000000","epochs=8192",StringComparison.Ordinal);Reject(()=>Inspect(budget));
         var fifo=Vector();at=fifo.FindIndex(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal));
@@ -126,5 +130,22 @@ internal static class NativeAotWebReplayTests
         Reject(()=>Inspect(Vector(readAfterShutdown:-104,sendAfterShutdown:-104)));
         HostCheck.True(Inspect(Vector(readAfterShutdown:0,sendAfterShutdown:-32)).SocketAccepts==2);
         HostCheck.True(Inspect(Vector(readAfterShutdown:-104,sendAfterShutdown:-32)).SocketAccepts==2);
+    }
+
+    [HostTest("nativeaot.web replay joins vector output table access channel and invalid descriptor results")]
+    private static void VectorOutput()
+    {
+        var rows=Vector(invalidDescriptor:true);
+        int at=rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 ",StringComparison.Ordinal));
+        HostCheck.True(at>0 && rows[at-1]=="M16_005_WRITE fd=1 bytes=5 data=hello");
+        rows[at-1]="M16_005_WRITE fd=2 bytes=5 data=hello";
+        rows[at]=rows[at].Replace(" nr=1 a0=1 "," nr=20 a0=2 ",StringComparison.Ordinal).Replace(" a2=5 "," a2=2 ",StringComparison.Ordinal);
+        var report=Inspect(rows);HostCheck.True(report.Observations.StdoutBytes==0 && report.Observations.StderrBytes==5 && report.Observations.Writes==1);
+        foreach(var mutation in new[]{(" a1=5244928 "," a1=1 "),(" a2=2 "," a2=17 "),(" a0=2 "," a0=3 ")})
+        {var changed=rows.ToList();changed[at]=changed[at].Replace(mutation.Item1,mutation.Item2,StringComparison.Ordinal);Reject(()=>Inspect(changed));}
+        var invalid=rows.ToList();int bad=invalid.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" a0=1234 ",StringComparison.Ordinal));
+        HostCheck.True(bad>=0);invalid[bad]=invalid[bad].Replace("valueBits=18446744073709551607 ","valueBits=18446744073709551611 ",StringComparison.Ordinal)
+            .Replace("returnValueBits=18446744073709551607","returnValueBits=18446744073709551611",StringComparison.Ordinal);Reject(()=>Inspect(invalid));
+        Reject(()=>Inspect(Vector(failedWrite:1)));Reject(()=>Inspect(Vector(failedWrite:20)));
     }
 }

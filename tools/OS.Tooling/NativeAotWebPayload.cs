@@ -20,6 +20,7 @@ public static class NativeAotWebPayload
     private const string SdkVersion = NativeAotPayload.SdkVersion;
     private const string RuntimeVersion = NativeAotPayload.RuntimeVersion;
     private const string DefaultWebBody = "OS_MINIMAL_API_OK";
+    private const string LoggingBody = "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
     private static readonly string[] PayloadApps = ["NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke"];
     public sealed record QualificationReceipt(string Schema, string Sdk, string Runtime,
         IReadOnlyDictionary<string, string> Sources, IReadOnlyDictionary<string, string> Outputs);
@@ -71,7 +72,7 @@ public static class NativeAotWebPayload
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt("clros.nativeaot.web.v1", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt("clros.nativeaot.web.v2", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -97,7 +98,7 @@ public static class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema == "clros.nativeaot.web.v1" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema == "clros.nativeaot.web.v2" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -134,6 +135,65 @@ public static class NativeAotWebPayload
         ValidateHttpEvidence(configured.RootElement.GetRawText(), configuredBody);
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-trace");
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
+        foreach (string suffix in new[] { "", "-default" }) ValidateRecordedLogging(destination, suffix);
+    }
+
+    /// <summary>
+    /// Host-only grammar checks over borrowed Linux output/strace bytes. Requires
+    /// complete constructor observations, both log streams, eight distinct native
+    /// writer traces and the actual invalid-fd errno. Starts no process and grants
+    /// no publication, native-code or CLROS guest authority.
+    /// </summary>
+    public static void ValidateLoggingEvidence(string stdout, string stderr, IReadOnlyDictionary<string, string> traces)
+    {
+        Require(stdout.Length <= 4 * 1024 * 1024 && stderr.Length <= 1024 * 1024 &&
+            traces.Count is > 0 and <= 128 && traces.All(t => t.Value.Length <= 16 * 1024 * 1024), "logging_size");
+        string[] startup = ["CLROS_APP_ENTRY minimal.api.smoke", "CLROS_APP_CCTOR minimal.api.smoke",
+            "CLROS_APP_CTOR minimal.api.smoke", "CLROS_APP_BUILT minimal.api.smoke"];
+        Require(!stderr.Contains('\r') && stderr.EndsWith('\n'), "logging_stderr_framing");
+        string[] errors = stderr[..^1].Split('\n');
+        Require(errors.Length == 36 && errors.Take(4).SequenceEqual(startup), "logging_startup");
+        Require(!stdout.Contains('\r') && stdout.EndsWith('\n') &&
+            !stdout.Split('\n').Any(line => line.StartsWith("TEST_FAIL", StringComparison.Ordinal) ||
+                line.StartsWith("CLROS_APP_FAIL", StringComparison.Ordinal)), "logging_stdout_framing");
+        string[] Catalog(uint fd) => Enumerable.Range(0, 8).SelectMany(worker => Enumerable.Range(0, 4)
+            .Select(record => $"CLROS_LOG fd={fd} worker={worker} record={record}")).Order(StringComparer.Ordinal).ToArray();
+        string[] outputRows = stdout.Split('\n').Where(line => line.StartsWith("CLROS_LOG", StringComparison.Ordinal)).ToArray();
+        Require(outputRows.Order(StringComparer.Ordinal).SequenceEqual(Catalog(1)) &&
+            errors.Skip(4).Order(StringComparer.Ordinal).SequenceEqual(Catalog(2)), "logging_records");
+        HashSet<(int Worker, int Record)> seen = []; Dictionary<int, string> writers = []; int invalid = 0;
+        foreach (var trace in traces) foreach (string row in trace.Value.Split('\n'))
+        {
+            if (row.StartsWith("writev(1234,", StringComparison.Ordinal))
+            { Require(row.Contains(" = -1 EBADF ", StringComparison.Ordinal), "logging_invalid_fd"); invalid++; }
+            if (!row.StartsWith("writev(2,", StringComparison.Ordinal) || !row.Contains("CLROS_LOG", StringComparison.Ordinal)) continue;
+            Require(row.Length <= 1024, "logging_writev_size");
+            Match match = Regex.Match(row, @"^writev\(2,.*CLROS_LOG fd=2 worker=([0-7]) record=([0-3]).* = ([1-9][0-9]*)$", RegexOptions.CultureInvariant);
+            Require(match.Success, "logging_writev");
+            int worker = int.Parse(match.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+            int record = int.Parse(match.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture);
+            Require(int.TryParse(match.Groups[3].Value, out int bytes) &&
+                bytes == Encoding.ASCII.GetByteCount($"CLROS_LOG fd=2 worker={worker} record={record}\n") &&
+                seen.Add((worker, record)), "logging_writev_count");
+            Require(!writers.TryGetValue(worker, out string? owner) || owner == trace.Key, "logging_writer_owner");
+            writers[worker] = trace.Key;
+        }
+        Require(invalid == 1 && seen.Count == 32 && writers.Count == 8 &&
+            writers.Values.Distinct(StringComparer.Ordinal).Count() == 8, "logging_trace_inventory");
+    }
+
+    private static void ValidateRecordedLogging(string directory, string suffix)
+    {
+        using JsonDocument receipt = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "web-logging" + suffix + ".json")));
+        var row = receipt.RootElement;
+        Require(row.GetProperty("status").GetInt32() == 200 && row.GetProperty("body").GetString() == LoggingBody &&
+            row.GetProperty("repeatStatus").GetInt32() == 409 && row.GetProperty("healthAfter").GetInt32() == 200,
+            "logging_http");
+        string prefix = "WebMinimalApiSmoke" + suffix;
+        var traces = Directory.GetFiles(directory, prefix + "-trace.*")
+            .ToDictionary(path => Path.GetFileName(path)!, File.ReadAllText, StringComparer.Ordinal);
+        ValidateLoggingEvidence(File.ReadAllText(Path.Combine(directory, prefix + "-run.stdout.log")),
+            File.ReadAllText(Path.Combine(directory, prefix + "-run.stderr.log")), traces);
     }
 
     /// <summary>Validates complete observed stdout from the two finite original apps.
@@ -225,7 +285,7 @@ public static class NativeAotWebPayload
         Task stdout = CaptureAsync(process.StandardOutput, log + ".stdout.log", process);
         Task stderr = CaptureAsync(process.StandardError, log + ".stderr.log", process);
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(5) };
+        using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(30) };
         try
         {
             while (true)
@@ -255,6 +315,16 @@ public static class NativeAotWebPayload
                 bodyBytes = config.RootElement.GetProperty("expectedBodyBytes").GetInt32() });
             ValidateHttpEvidence(evidence, expectedBody);
             await File.WriteAllTextAsync(Path.Combine(destination, "web-http" + suffix + ".json"), evidence);
+            using var logging = await client.PostAsync(endpoint + "/__clros/logexercise", null, deadline.Token);
+            string loggingBody = await logging.Content.ReadAsStringAsync(deadline.Token);
+            Require(logging.StatusCode == HttpStatusCode.OK && loggingBody == LoggingBody, "logging_http");
+            using var repeat = await client.PostAsync(endpoint + "/__clros/logexercise", null, deadline.Token);
+            Require(repeat.StatusCode == HttpStatusCode.Conflict, "logging_repeat");
+            using var healthAfter = await client.GetAsync(endpoint + "/healthz", deadline.Token);
+            Require(healthAfter.StatusCode == HttpStatusCode.OK &&
+                await healthAfter.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "logging_health_after");
+            await File.WriteAllTextAsync(Path.Combine(destination, "web-logging" + suffix + ".json"),
+                JsonSerializer.Serialize(new { status = 200, body = loggingBody, repeatStatus = 409, healthAfter = 200 }));
             string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token))
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
@@ -265,6 +335,7 @@ public static class NativeAotWebPayload
             Require(process.ExitCode == 0, "http_shutdown_exit");
             await Task.WhenAll(stdout, stderr).WaitAsync(deadline.Token);
             ValidateHttpTraces(destination, Path.GetFileName(trace));
+            ValidateRecordedLogging(destination, suffix);
         }
         finally
         {

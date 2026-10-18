@@ -7,8 +7,19 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+The later application/service ladder retains its separate prerequisites under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+[Step1389](../done/step1389.md) qualifies finite #218 stdout/stderr logging at
+implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native),
+three normal and three quota guests, and eight affected socket/runtime ancestors.
+Actual copied write/writev, eight workers, EBADF and quota EIO join the original
+source/native/serial/packet evidence. The authenticated exit tail reaches real
+exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
+unaccepted because constructor creation precedes its failure-marker try. Continue
+#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
+gate advances. See the step for exact commands, hashes and retained failures.
 
 The repaired signal/runtime pool has 226 pages: eight usable worker pages and
 both guards. Continuing web retains sixteen usable pages; mechanical M16-008
@@ -934,6 +945,35 @@ complete fast phase finds three later descendant-matrix omissions and blocks
 native work. Those test-only repairs pass20 focused checks; combined acceptance
 remains pending.
 
+[Step1389](../done/step1389.md) qualifies the current finite logging adapter.
+An externally serialized process owner charges copied fd1/fd2 body bytes and
+records before serial delivery. Failed delivery retains the charge; rejected or
+exhausted requests change nothing. Normal budget is1MiB/4096 callbacks. The
+sealed `CLROS_LOG_BUDGET_CASE=records64` package control is admitted only after
+complete configuration/manifest prevalidation and changes only that process's
+record ceiling. It grants no general environment-controlled authority.
+
+Eight logging identities execute in two joined groups of four. Fresh group
+events are released in finally and every started worker is joined before the
+next group; the16-thread bound stays intact. Normal guests prove32 stdout and
+32 stderr records,32 writev calls and EBADF9 for fd1234. Quota guests prove64
+copied callbacks followed by a joined EIO denial. Five distinct HTTP connections
+observe health/config, diagnostic200 or quota500, repeat409 and later health200.
+Owned buffers and lengths, partial/error semantics, exact ELF admission and
+independent malformed/missing/failure/stale negatives remain checked.
+
+The exact authenticated no-stack exit tail resumes directly after real IRQ ACK
+to actual exit60. Full active image restoration, timer cleanup ownership and all
+owner/remap/signal guards remain; ordinary byte2 yielding is unchanged. Fourteen
+strict current guests and original native/source joins cover the finite batch;
+the bounded native review supplies no callee or whole-stack authority.
+
+Earlier [step1364](../done/step1364.md) through [step1388](../done/step1388.md)
+retain the immutable development/failure history. Step1389 consolidates their
+current logging status. #219 startup remains open: move constructor creation
+inside its protected failure-marker scope and verify that failure path before
+claiming startup acceptance. General service, Kestrel and isolation remain open.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
@@ -954,9 +994,9 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Steps1307/1332/1351/1380 qualify their named bounded
-runtime, network, socket and configuration profiles. Kestrel support remains
-mandatory; #218 -> #219 -> #220 and the later service/gate prerequisites remain
+application target. Steps1307/1332/1351/1380/1389 qualify their named bounded
+runtime, network, socket, configuration and logging profiles. Kestrel support remains
+mandatory; #219 -> #745 -> #220 and the later service/gate prerequisites remain
 open. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.

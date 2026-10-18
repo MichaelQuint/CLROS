@@ -8,7 +8,11 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"Boot\EfiEntry.LinuxWeb.cs"] = "519d2992ddf07b588c5cd8e3f46e4f5e753345b79281b6a878736a72906af3dd",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs"] = "d075d65313f6927335b17e2edb318571a30e8c3f757ee6c07cd347ff3987ab65",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs"] = "bcf81db5bd40f9dacc9994250ff3ba665b2af6cc4fd2ca9ebffa44d09c0d2549",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs"] = "32a909c59bf3dd4d24d64d82fec6d1188c6ee5c5d93c317976b5d9a3adb919f3",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogQuotaObservation.cs"] = "5d6771055fd8f99b1d22f8d2251ebd5bd7ad15f003b08ec4670920d610b5665f",
+                [@"Boot\EfiEntry.LinuxWeb.cs"] = "44eaf5e824562b78f5aa5a32a33b6e2604a2e90c737b754274a1d78ca5d919ff",
                 [@"Boot\EfiEntry.NetworkScheduler.cs"] = "39d4142955198c26e73d109277c81d51a54aab1862e57a742200c3010de8bac1",
                 [@"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs"] = "7d3bc54dd737d3d6462e0bcb35597b783d3e5e107fc6719a8c1668cb0ba77700",
                 [@"Boot\EfiEntry.NetworkTcp.cs"] = "485a543d00efa57137f37f4a49926d1bf3a99946ea5026245483eb9cc529473e",
@@ -48,9 +52,9 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs"] = "b0437465fef58a208f434e69ac974300de31b8ceedf99b4d3ec8cb478b50c1a6",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs"] = "ed28c30aec8b2e060404478bc06aa7fdfba947d8dc5e62b77c1e262dfa777c9b",
                 [@"Boot\EfiEntry.LinuxSignals.cs"] = "82950a5dc67e16df8e1eb6bd2a8fb64150bb2c4262b1ddda36e5881bb94e891e",
-                [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "d51d5a1dc78faf7737ab37bedfe245bb73790eee0315ac5135168f8332a92d87",
+                [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "ad83b94413a1abba3c3ab6ad7f82790e5d6251c9df128c55b711821a669a51b0",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs"] = "219e55b5e409430e472d4a8cf3d7d9edf1f6250fe3ec3b80c9bf4aad39beb5a3",
-                [@"Boot\EfiEntry.LinuxThreads.cs"] = "02fefb03a340eae698a820022f5ed7757fc79d5875ce83e442958916a4eb15ff",
+                [@"Boot\EfiEntry.LinuxThreads.cs"] = "200252caf75777eb5429bbccab478449ba31b204c8723be5cf9b41db880321ae",
                 [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "dee1d1b05742b6106fa77a898eea9538e129c16013557480a313caad8cfed99a",
                 [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "15541ef20aa80372e1e19ab3a048b0f15eddab98cea4f27d2c26caed66820853",
                 [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "1246c16c469b767e7b69b22d5d360cb235781eb0e1d076b6a05f2dd39b02f373",

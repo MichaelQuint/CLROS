@@ -152,6 +152,10 @@ internal static unsafe class LinuxExitTailTests
                 if(offset!=0)*(ulong*)(data+0x178)=0;
                 HostCheck.True(Transition.CaptureInterruptUserImage(data,Transition.DataBytes,image,Transition.UserImageBytes,0xffff,user));
                 HostCheck.True(image->Frame.Rip==irq.Rip && image->Gpr[0]==100 && image->Value==(offset==8?60:0));
+                data[0x10]=0xa7;data[Transition.KernelFxOffset]=0x93;
+                HostCheck.True(Transition.RestoreActiveUserImage(data,Transition.DataBytes,image,Transition.UserImageBytes,0xffff,user));
+                HostCheck.True(data[0x10]==0xa7 && data[Transition.KernelFxOffset]==0x93 && *(ulong*)(data+Transition.PhaseOffset)==1,
+                    "direct IRQ return retains the live supervisor restoration envelope");
                 *(ulong*)(data+Transition.PhaseOffset)=2;data[0x10]=0xa7;data[Transition.KernelFxOffset]=0x93;
                 HostCheck.True(Transition.InstallUserImage(data,Transition.DataBytes,image,Transition.UserImageBytes,0xffff,user));
                 HostCheck.True(data[0x10]==0xa7 && data[Transition.KernelFxOffset]==0x93,"supervisor restoration storage retained");

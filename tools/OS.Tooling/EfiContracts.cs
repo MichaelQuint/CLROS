@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "5ae17efa71d27db5472275dc8586263c2142ce81ea5a0f94104d8f0b58df806b";
-    public const string CanonicalProjectSha256 = "e64adf8fa95f2a96c6da273f5cab85b4d956eae6f818e1fd2039f9ef439b1bec";
-    public const string EfiEntrySourceSha256 = "ddda8e696cb102b70b7e8e5b6a1d97d888f097fb09471a0ea70d6637e596f8ed";
+    public const string ProjectSourceSha256 = "038ed2daf78f90265dceefd91c09d5bca7ba8cb809a00407ef5b82a2ce864607";
+    public const string CanonicalProjectSha256 = "2a10ece8e4a98ca2627b02343ff61539d2d68eabd109be6ce7e0e78a78108b71";
+    public const string EfiEntrySourceSha256 = "6d8ec65640bbc69edbfce0e31e55a774a377b68f2e39c4224c9afb1c20519653";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -369,6 +369,10 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",
         @"Boot\EfiEntry.LinuxSockets.cs|",
         @"Boot\EfiEntry.LinuxWeb.cs|",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs|Compatibility\LinuxX64\LinuxAppStartupObservation.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogObservation.cs|Compatibility\LinuxX64\LinuxAppLogObservation.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogQuotaObservation.cs|Compatibility\LinuxX64\LinuxAppLogQuotaObservation.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs|Compatibility\LinuxX64\LinuxSocketNetwork.cs",
