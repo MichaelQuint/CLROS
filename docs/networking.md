@@ -73,7 +73,7 @@ Whole-stack safety, general Linux compatibility and the full Kestrel ladder
 remain unqualified. The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 keeps the remaining work at its required acceptance stage:
 
-[Step1420](../done/step1420.md) records development-only persist and pending-RST
+[Owned development receipt](../done/step1422.md) records development-only persist and pending-RST
 integration, plus explicit compact TIME-WAIT mode. Focused host models recover
 queued bytes, reuse one bulk slot across twelve active closes, preserve duplicate
 FIN ACKs under TX pressure and keep table exhaustion local. [Step1421](../done/step1421.md)

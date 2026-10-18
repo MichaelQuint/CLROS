@@ -1,6 +1,6 @@
 # CLROS Completion Gates
 
-[Step1420](../done/step1420.md) is a development checkpoint for #743/#744/#757
+[Owned development receipt](../done/step1422.md) is a development checkpoint for #743/#744/#757
 transport repairs and #746 policy contracts. Its 127 focused checks span
 multiple development producers; they are not an unfiltered full-host run.
 [Step1421](../done/step1421.md) adds default-off native service/compact TIME-WAIT
@@ -20,8 +20,14 @@ actual socket dispatch-table bindings retain their bounded review scopes.
 
 Web workers remain active until runner termination; guest app-exit/reap/resource
 cleanup remains unqualified. **Only the existing numbered Gate2 passes.**
-Repeated service #224 still needs #743/#744/#746/#240/#757/#758; general Kestrel,
+Repeated service #224 still needs #743/#744/#746/#240/#757/#758 and #766; general Kestrel,
 whole-stack, isolation, local Gate14, cloud and production remain incomplete.
+
+[Step1420](../done/step1420.md) adds a host-reproduced empty-send compatibility
+follow-up and corrects current handoff/time-API wording without qualifying a fix.
+Step1419's `realtime/gettimeofday` wording overstates the API scope: the measured
+ABI is syscall228 `clock_gettime(CLOCK_REALTIME)` with `timespec`; syscall96
+`gettimeofday` remains `ENOSYS`. No `timeval` or fallback qualification is claimed.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup and #745 checked
 socket vectors: 5,619 full-host checks across751 fixtures (94 Native), three finite
