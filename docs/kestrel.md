@@ -853,12 +853,19 @@ resource evidence; CloudReady remains unqualified.
 
 ## Next Steps
 
-Step1405 qualifies bounded startup/vectors with the exact captured scopes above.
-Continue the declared #220-#223 service ladder, including #759 owned realtime.
-Current selected HTTP prefixes do not close those broader issues.
+Step1419 qualifies the bounded #220-#223 socket/health/UTC ladder after step1405
+startup/vectors. General service and shutdown/reap remain separate from these
+finite prefixes. Step1420 corrects the current handoff and adds #766's reproduced
+empty-send boundary; no runtime fix is included in that review.
 
 1. Preserve the accepted memory/descriptor/thread/signal/runtime scopes through [step1307](../done/step1307.md).
 2. Preserve [step1380](../done/step1380.md) configuration/containment and [step1389](../done/step1389.md) finite logging under continuing integration #737.
-3. Complete #220 -> #221 -> #222 -> #223, including #759 owned realtime before HTTP Date acceptance. Implement compatible slices first, then qualify the stable batch together.
-4. Capture three fresh guest boots, external `/healthz` traffic, request churn/cancellation/shutdown and a failed probe after termination before claiming Kestrel. Follow the exact tracker dependencies and evidence markers.
+3. Under #737, complete #743/#744/#746/#240/#757/#758 and #766 before #224 repeated service. The empty-send correction follows accepted #745; preserve genuine reset/shutdown errors and nonempty backpressure.
+4. Complete #760/#747/#748 and the exact #225 async/churn prerequisites, then #226/#227. Retain fresh guest boots, external `/healthz`, cancellation/shutdown, resource reuse and stopped-guest refusal at the appropriate gate. Earlier finite receipts do not close these service requirements.
 5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.
+
+Time-API evidence correction: step1419's `realtime/gettimeofday` layout wording
+must be read as the implemented syscall228 `clock_gettime(CLOCK_REALTIME)` and
+x64 `timespec`. Syscall96 `gettimeofday` is explicitly unsupported and tested as
+`ENOSYS`; neither a `timeval` layout nor a fallback is qualified. The immutable
+receipt is preserved, with this correction recorded in step1420 and #759.

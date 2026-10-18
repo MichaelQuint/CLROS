@@ -13,7 +13,8 @@ Socket ladder/policy, exact health, stopped-guest refusal and plausible advancin
 external HTTP Date pass with the declared finite UTC contract and original
 source/native joins. Web workers remain active until runner termination; general
 service, whole-stack, numbered, isolation, cloud and production remain incomplete.
-Continue the six dependency-compatible service foundations below before #224.
+Continue the six claimed service foundations and M16-022's empty-send correction
+below before #224; preserve shared owner #737.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
@@ -24,8 +25,8 @@ unchanged pinned Hello and NativeAOT runtime workloads now execute in CLROS.
 retained queues and a real cooperative progress/cleanup witness.
 [Step1351](../done/step1351.md) qualifies finite Linux sockets/epoll and the
 web builder/V2 staging prerequisites: 5,433 full-host checks, three sync/three
-async socket guests, three V2 staging guests and33 strict ancestors. The owned
-#219/#745/#220 application ladder remains before full Kestrel acceptance.
+async socket guests, three V2 staging guests and33 strict ancestors. Later
+steps1405/1419 qualify the finite #219/#745/#220 ladder; full service is separate.
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
@@ -77,6 +78,10 @@ paths, commands and acceptance are in `.gitea/backlog/clros-issues.json`.
 The local Gate 14 leaf is **M10-014/#227**, following M10-013/#226;
 milestone and issue numbers are different namespaces. The manifest dependency
 graph is authoritative. Do not choose a later optional ticket by numeric order.
+The October18 review adds [M16-022/#766](http://192.168.4.35:3000/admin/CLROS/issues/766)
+after accepted M16-013 and before #224: valid empty messages must not wait for
+send capacity. Integrate it under #737 without displacing the six claimed
+continuing-service foundations. This is a reproduced host defect, not a fix.
 Existing #160 packet corpus, #240 entropy, #242 logging, #291 budgets, #298
 crash isolation and #308 sustained load are reused rather than duplicated.
 

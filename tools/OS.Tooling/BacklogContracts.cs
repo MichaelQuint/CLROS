@@ -19,7 +19,7 @@ public static class BacklogContracts
         ["M04"] = 24, ["M05"] = 21, ["M06"] = 19, ["M07"] = 33,
         ["M08"] = 20, ["M09"] = 30, ["M10"] = 14, ["M11"] = 21,
         ["M12"] = 18, ["M13"] = 18, ["M14"] = 18, ["M15"] = 16,
-        ["M16"] = 21
+        ["M16"] = 22
     });
     public static int ChildCount => Children.Values.Sum();
     public static int IssueCount => Children.Count + ChildCount;
