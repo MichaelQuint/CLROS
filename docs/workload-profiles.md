@@ -16,7 +16,7 @@ retained queues and a real cooperative progress/cleanup witness.
 [Step1351](../done/step1351.md) qualifies finite Linux sockets/epoll and the
 web builder/V2 staging prerequisites: 5,433 full-host checks, three sync/three
 async socket guests, three V2 staging guests and33 strict ancestors. The owned
-#218-#220 application ladder remains before full Kestrel acceptance.
+#219/#745/#220 application ladder remains before full Kestrel acceptance.
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
@@ -24,8 +24,19 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+The later application/service ladder retains its separate prerequisites under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+[Step1389](../done/step1389.md) qualifies finite #218 stdout/stderr logging at
+implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native),
+three normal and three quota guests, and eight affected socket/runtime ancestors.
+Actual copied write/writev, eight workers, EBADF and quota EIO join the original
+source/native/serial/packet evidence. The authenticated exit tail reaches real
+exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
+unaccepted because constructor creation precedes its failure-marker try. Continue
+#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
+gate advances. See the step for exact commands, hashes and retained failures.
 
 ## Architecture review implementation order (2026-10-16)
 
@@ -45,7 +56,7 @@ paths, commands and acceptance are in `.gitea/backlog/clros-issues.json`.
 
 | Acceptance stage | Implementation order and required issue work |
 | --- | --- |
-| Current owned application startup | Step1380 qualifies #217 and [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741)/[M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742). Continue #218 -> #219 under #737, preserving that bounded configuration/network evidence. |
+| Current owned application startup | Step1380 qualifies #217 and [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741)/[M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742). Step1389 adds finite #218 logging. Continue #219 -> #745 -> #220 under #737, preserving the bounded accepted scopes. |
 | Kestrel socket ladder #220 | Preserve the qualified network repairs and require [M16-013 checked sendmsg/recvmsg vectors](http://192.168.4.35:3000/admin/CLROS/issues/745), after #219 and qualified epoll. Exercise actual multi-segment Kestrel responses, then continue #221 -> #222. |
 | External HTTP #223 | After startup, [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759) supplies checked UTC and application-time evidence. Validate HTTP Date against an independently recorded time interval and declared tolerance, in addition to status/body/hash. A well-formed 1970 date must fail acceptance. |
 | Repeated service #224 | After #223, qualify [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |

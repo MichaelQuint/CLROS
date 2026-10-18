@@ -22593,7 +22593,7 @@
         "M10-004"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22630,7 +22630,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Route NativeAOT stdout/stderr through owned process descriptors",
-      "currentEvidence": "Owned PR740/#737 retains accepted base5a9ec488/step1380 and the earlier implementation1221f0b0 full-host/eight-ancestor scope. Steps1385-1387 repair runner ordering, worker capacity and strict size/writev/quota/five-lifetime checks; fresh Linux/package/native and offline capture audits pass. Step1388 retains the next failed strict guest: an IRQ yields after musl self-unmaps its stack; another worker reuses the range before the old exit tail resumes. The existing remap check correctly rejects it. Only the authenticated immutable no-stack tail now resumes directly after IRQ ACK to actual exit60, retaining timer cleanup ownership. Focused checks, real native publication, original code/676 relocation joins and bounded callback/unwind review pass. New guest, affected ancestors and current-source full-host qualification remain pending; the failed batch started no full gate. Keep #218/#737 and PR740 open, then follow #219 and #745/#220. No logging/startup batch, general Kestrel, whole-stack, continuing-service, numbered, cloud or production acceptance.",
+      "currentEvidence": "Step1389 qualifies finite logging at implementation2bfbaeee under #737/PR740:5569 full-host checks/734 fixtures/94 Native, three normal plus three quota strict guests and eight affected ancestors. Original source/native/serial/packet joins pass. Real fd1/fd2 copied write/writev includes eight worker identities, EBADF9 and64-callback quota EIO with repeat409/later health200. The authenticated direct IRQ tail reaches actual exit60 without weakening remap/owner/timer guards. Both profile callback variants and exact unwind are independently reviewed; original failures and corrected bookkeeping provenance remain retained. Post reviewed evidence before guarded merge/closure; keep #737 and #219 open. No general Kestrel, whole-stack, continuing-service, numbered, cloud or production acceptance.",
       "implementationNotes": [
         "Route the guest's actual write/writev to descriptors 1/2 through bounded owned serial logging. Preserve lengths and partial-write/error semantics; exercise concurrent writes, invalid descriptors and log quota exhaustion.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22674,7 +22674,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-006",
@@ -22723,7 +22723,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Start the upstream NativeAOT Minimal API before socket binding",
-      "currentEvidence": "Step1380 qualifies predecessor configuration #217; runtime and finite sockets retain steps1307/1351. PR740 startup-ordering development remains unaccepted under #737. Steps1385-1387 repair runner/app/strict-consumer behavior; original Linux/package/native and offline capture audits pass. Step1388 retains a fresh guest failing during logging after a self-unmap IRQ lets another worker reuse the stack. The bounded direct tail continuation preserves exact owner/image/remap checks and actual exit60; focused/native publication and scoped callback/unwind review pass. Fresh logging/startup guests, affected ancestors, current-source full-host and #218 acceptance remain pending. Keep #219 blocked on exact prerequisites. No general Kestrel or numbered gate acceptance.",
+      "currentEvidence": "Step1389 qualifies predecessor #218 finite logging at2bfbaeee; step1380 configuration and steps1307/1351 runtime/socket evidence retain their exact scopes. Successful current startup observations do not close #219: AppStartupWitness construction remains outside the failure-marker try and its constructor-failure path needs repair/verification. Continue this slice under #737 before #745 vectors and #220-#223, including #759 realtime. No startup, general Kestrel or numbered gate acceptance.",
       "implementationNotes": [
         "Prove real upstream NativeAOT entry, constructors and application startup before bind. Emit distinct start and failure markers; do not mark ready if runtime initialization, configuration or listener creation failed.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",

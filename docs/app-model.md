@@ -7,8 +7,19 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+The later application/service ladder retains its separate prerequisites under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
+
+[Step1389](../done/step1389.md) qualifies finite #218 stdout/stderr logging at
+implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native),
+three normal and three quota guests, and eight affected socket/runtime ancestors.
+Actual copied write/writev, eight workers, EBADF and quota EIO join the original
+source/native/serial/packet evidence. The authenticated exit tail reaches real
+exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
+unaccepted because constructor creation precedes its failure-marker try. Continue
+#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
+gate advances. See the step for exact commands, hashes and retained failures.
 
 The repaired signal/runtime pool has 226 pages: eight usable worker pages and
 both guards. Continuing web retains sixteen usable pages; mechanical M16-008
@@ -934,144 +945,34 @@ complete fast phase finds three later descendant-matrix omissions and blocks
 native work. Those test-only repairs pass20 focused checks; combined acceptance
 remains pending.
 
-[Step1364](../done/step1364.md) stages `LinuxAppLogBudget` for the next owned
-logging slice. One externally serialized process owner charges bounded fd1/fd2
-body bytes and records before delivery; failed delivery retains its charge and
-rejected/exhausted requests change nothing. Five host checks reuse real Linux
-descriptor write/writev dispatch, including partial/error behavior and quota
-exhaustion. The subsequent source wiring links it only for the web profile and
-charges a 1 MiB body/4,096-record budget before serial output, retaining existing
-authority/scratch/length checks and descriptor partial/error behavior. Eleven
-focused source/inventory/legacy checks pass. Native and real guest stdout/stderr,
-concurrency and quota qualification remain pending; #218 is not complete.
+[Step1389](../done/step1389.md) qualifies the current finite logging adapter.
+An externally serialized process owner charges copied fd1/fd2 body bytes and
+records before serial delivery. Failed delivery retains the charge; rejected or
+exhausted requests change nothing. Normal budget is1MiB/4096 callbacks. The
+sealed `CLROS_LOG_BUDGET_CASE=records64` package control is admitted only after
+complete configuration/manifest prevalidation and changes only that process's
+record ceiling. It grants no general environment-controlled authority.
 
-The next web recipe uses the distinct `clros.nativeaot.web.v2` receipt. It
-requires real entry, static-constructor, instance-constructor and built-app
-stderr observations, followed by the one-shot `POST /__clros/logexercise`.
-Eight owned threads each write four stdout lines and four stderr vectors; the
-Linux trace must show eight distinct native writers, exact returned lengths
-and one `writev(1234)` returning `EBADF`. Repetition returns HTTP 409, and health
-must still succeed. Constructor markers alone grant no listener or guest
-startup readiness. The explicit diagnostic returns HTTP 501 outside Linux;
-ordinary configuration and HTTP endpoints retain their portable behavior.
-Only the pinned `linux-musl-x64` publish directly imports libc `writev`; the
-generic three-app publisher and historical recipe are unchanged. This is a
-diagnostic for the restricted Linux application profile, not a new portable
-app ABI. The host qualifier does not invoke or qualify CLROS log-quota
-exhaustion. The revised app passes the immutable Linux recipe; its newly
-measured ELF and exact source pins are joined to an independently reviewed
-complete instruction index. Current admission pins that one revision. Package
-preparation, original native review and a stable guest batch remain pending.
+Eight logging identities execute in two joined groups of four. Fresh group
+events are released in finally and every started worker is joined before the
+next group; the16-thread bound stays intact. Normal guests prove32 stdout and
+32 stderr records,32 writev calls and EBADF9 for fd1234. Quota guests prove64
+copied callbacks followed by a joined EIO denial. Five distinct HTTP connections
+observe health/config, diagnostic200 or quota500, repeat409 and later health200.
+Owned buffers and lengths, partial/error semantics, exact ELF admission and
+independent malformed/missing/failure/stale negatives remain checked.
 
-The startup follow-up adds `LinuxAppStartupObservation` to the web
-owner. It matches the four initial stderr lines across copied fragments from
-one verified current thread and requires them before the first successful bind.
-Malformed/foreign fragments and early, repeated or failed binds fail permanently;
-bind observation precedes the general errno return. A different verified thread
-may perform the bind. Existing live publication additionally checks this state.
-Four model checks (including zero managed allocation) and eleven focused
-source/inventory/legacy checks pass. The subsequent M10-006 marker/replay slice
-joins the copied stderr fragments to actual write/writev calls and current
-thread identities, then joins the first successful bind to its fd and syscall.
-It requires those observations before the existing live/readiness markers.
-Two raw replay checks with fourteen negative variants and eight source/profile
-checks pass. These are host checks; constructors, binding, logging quota and
-Kestrel remain unqualified in a CLROS guest.
+The exact authenticated no-stack exit tail resumes directly after real IRQ ACK
+to actual exit60. Full active image restoration, timer cleanup ownership and all
+owner/remap/signal guards remain; ordinary byte2 yielding is unchanged. Fourteen
+strict current guests and original native/source joins cover the finite batch;
+the bounded native review supplies no callee or whole-stack authority.
 
-The subsequent copied-log observer tracks all64 diagnostic rows, eight distinct
-verified writers, each worker's stdout-then-stderr order and records0..3. Each
-stderr row must occupy one actual33-byte writev; its later invalid-fd call must
-return EBADF9. It is wired only into the existing serialized web owner, after
-owned serial delivery and before the general errno return. Nine model checks
-(including zero allocation), conditional source admission and inventory checks
-pass. The subsequent normal web slice emits M10-005 start/catalog/readiness
-markers only from those actual observations, and its prepared consumer requires
-the complete raw logging replay. The runner now requires health, configuration,
-POST logexercise, repeat409 and later health from the same owned process.
-Packet replay requires each complete response/EOF before the next probe;
-teardown ACKs may overlap. Focused raw, startup, runner, packet, profile and
-source checks pass. Package transfer remains blocked by tool policy without a
-stated reason. The explicit immutable-manifest selector
-`env.CLROS_LOG_BUDGET_CASE=records64` now selects a 64-callback control while
-absence retains the 1-MiB/4096-callback process budget. Actual descriptor writev
-coalesces its vectors into one callback: the 64th callback succeeds and the next
-charge returns EIO without copied output or a quota refund. A separate copied
-observer joins those charges/results and rejects fabricated partial returns.
-The quota runner requires exercise500/empty, repeat409 and later selected
-health200 in the same live process. Focused controls and the scoped original
-native code/ABI/stack review pass. Stable full-host and actual guest quota
-qualification remain unfinished. See
-[step1368](../done/step1368.md).
-
-[Step1381](../done/step1381.md) integrates the qualified step1380 base into
-the existing logging branch. All eight reviewed app/logging source files remain
-unchanged from its retained source, and 116 focused checks across 19 fixtures
-pass. This source integration adds no logging/startup guest acceptance; fresh
-original package/native and guest qualification remain pending.
-
-[Step1382](../done/step1382.md) preserves the original socket producer receipt
-while pinning the exact revised logging consumer separately. Twenty focused
-checks and real retained sync/async package rejoins pass; fresh original native
-bytes match the bounded review. The first full-host run failed five source-pin
-cases and remains incomplete. [Step1383](../done/step1383.md) passes the corrected
-full-host r03 at `1221f0b0`: 5,566 checks across 734 fixtures (94 Native), unchanged
-inputs and zero reuse. Eight fresh ordinary ancestors retain 6,832 source joins
-and 72 original native files. Complete r02 remains failed because a nested build
-changed the pre-commit generator's revision stamp; the post-commit rebuild and
-four focused input checks precede r03. These are host and ancestor regressions,
-not logging/quota/startup guest acceptance. The required current original Linux
-logging package/owner receipt remains absent; #218/#737 and PR740 stay open.
-
-[Step1384](../done/step1384.md) reviews the already-retained Linux ELF from
-producer `8c1cd1b9`, whose seven application/build inputs still match current
-raw bytes. All 152 retained outputs match their receipt. Eight application and
-generated-interop bodies (3,167 bytes), with eight bounded linked native helper
-extents, show no concrete defect within that scope. Both retained Linux host
-trace sets put entry/static-constructor/constructor/built markers before
-bind/listen and retain 64 successful worker records, 32 `writev` calls, expected
-`EBADF`, logging200, duplicate409 and subsequent health200. This is inspection of
-older retained host evidence. Hydrated string data, transitive stacks, external
-runtime/GC/EH behavior and original absolute native-input admission remain
-outside the review; it supplies no current package authority or guest acceptance.
-
-[Step1385](../done/step1385.md) recovers both original selected Linux logging
-packages through unchanged source/output/absolute-native-input validation. A
-preliminary guest reaches observed startup and listen, then exposes a runner
-ordering defect: its pre-HTTP check requires logging markers produced only by
-the later HTTP exercise. The narrow runner fix passes seven actual-runner HTTP
-checks, including the new deferred-marker regression. The failed capture and
-earlier failed checks remain retained. Corrected logging/quota/startup guests
-and current stable full-host qualification remain pending; #218/#737 and PR740
-remain open. Package recovery and focused host success grant no guest acceptance.
-
-[Step1386](../done/step1386.md) retains the subsequent guest's passing health
-and configuration probes and failed logging POST. Starting eight diagnostic
-workers exhausts the existing 16-thread limit alongside runtime threads.
-The fixture now starts two joined groups of four, retaining eight distinct
-identities, 64 records and the final invalid-fd observation. Fresh original
-Linux qualification passes; an independent audit joins 820 source files,
-all 152 outputs and both exact packages. The rebuilt ELF/index and bounded
-app-native review are recorded separately. Current-source full-host and
-logging/quota/startup guest qualification remain pending; #218/#737 and PR740
-remain open.
-
-[Step1387](../done/step1387.md) records five passing probes in the rebuilt
-guest, followed by strict-consumer rejection. Replay now uses the admitted
-ELF size, joins writev output/table access and invalid-fd results, and admits
-output EIO only for a prevalidated quota package. Transport requires all five
-distinct HTTP lifetimes. Offline original parent/2,094-call replay and packet
-joins pass; the original strict command remains failed. Fresh strict guest
-batch and current-source full-host qualification remain pending.
-
-[Step1388](../done/step1388.md) records a failed fresh logging guest in which
-an IRQ yields after musl self-unmaps a thread stack, and another worker reuses
-that range before the old exit tail resumes. The existing remap guard correctly
-rejects it. After full IRQ/owner/image authentication and acknowledgement,
-resume only the exact immutable no-stack tail directly to its actual syscall60;
-retain the timer borrow for ordinary gateway cleanup. Replay records that IRQ
-without inventing a scheduler transfer or drain. Focused/native publication
-and bounded original callback/unwind review pass. Fresh guest, ancestors and
-stable full-host acceptance remain pending; #218/#737 and PR740 remain open.
+Earlier [step1364](../done/step1364.md) through [step1388](../done/step1388.md)
+retain the immutable development/failure history. Step1389 consolidates their
+current logging status. #219 startup remains open: move constructor creation
+inside its protected failure-marker scope and verify that failure path before
+claiming startup acceptance. General service, Kestrel and isolation remain open.
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
@@ -1093,9 +994,9 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Steps1307/1332/1351/1380 qualify their named bounded
-runtime, network, socket and configuration profiles. Kestrel support remains
-mandatory; #218 -> #219 -> #220 and the later service/gate prerequisites remain
+application target. Steps1307/1332/1351/1380/1389 qualify their named bounded
+runtime, network, socket, configuration and logging profiles. Kestrel support remains
+mandatory; #219 -> #745 -> #220 and the later service/gate prerequisites remain
 open. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
