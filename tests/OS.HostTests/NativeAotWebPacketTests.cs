@@ -1,4 +1,6 @@
 using System.Buffers.Binary;
+using System.Globalization;
+using System.Security.Cryptography;
 using System.Text;
 using OS.Tooling;
 
@@ -21,7 +23,8 @@ internal static class NativeAotWebPacketTests
             HostCheck.True(rejected);
         }
     }
-    private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Vector(bool finalAck=false,bool clientHalfClose=false,string mutation="none",bool quota=false)
+    private static (List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp) Vector(bool finalAck=false,bool clientHalfClose=false,string mutation="none",bool quota=false,
+        Func<int,string>? dates=null)
     {
         var original=NativeAotSocketIntegrationTests.Packets();var frames=original.Frames.Take(8).ToList();
         for(int i=0;i<(quota?5:6);i++)
@@ -52,7 +55,7 @@ internal static class NativeAotWebPacketTests
             byte[] header=Encoding.ASCII.GetBytes((i==3 && mutation!="repeat-status"?"HTTP/1.1 409 Conflict\r\n":quotaFailure?"HTTP/1.1 500 Internal Server Error\r\n":"HTTP/1.1 200 OK\r\n")+
                 (i!=1?$"Content-Length: {declared}\r\n":"")+"Connection: close\r\n"+
                 (i==3 || quotaFailure?"":$"Content-Type: {type}\r\n")+
-                "Date: Thu, 01 Jan 1970 00:00:00 GMT\r\nServer: Kestrel\r\n\r\n");
+                "Date: "+(dates?.Invoke(i)??"Thu, 01 Jan 1970 00:00:00 GMT")+"\r\nServer: Kestrel\r\n\r\n");
             byte[] response=[..header,..entity];
             Add(true,server,client,0x18,response.AsSpan(0,5));server+=5;
             for(int offset=5;offset<response.Length;)
@@ -68,10 +71,64 @@ internal static class NativeAotWebPacketTests
         return(frames,original.Anchor,original.Arp);
     }
     private static QemuTranscripts.WebPacketInspection Inspect(List<byte[]> frames,uint anchor,QemuArpReceiveReceipt arp,
-        string body=Body,int forward=22080,bool quota=false)=>QemuTranscripts.InspectNativeAotWebPacketsForTests(
-            NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,Enumerable.Range(41000,quota?5:6).Select(i=>(uint)i).ToArray(),forward,body,Config,quota);
+        string body=Body,int forward=22080,bool quota=false,IReadOnlyList<QemuTranscripts.WebUtcObservation>? utc=null)=>QemuTranscripts.InspectNativeAotWebPacketsForTests(
+            NativeAotSocketIntegrationTests.Capture(frames),anchor,arp,Enumerable.Range(41000,quota?5:6).Select(i=>(uint)i).ToArray(),forward,body,Config,quota,utc);
     private static void Reject(Action action)
     {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
+
+    private static readonly DateTimeOffset Utc=new(2026,10,18,12,0,0,TimeSpan.Zero);
+    private static string Date(int i,int offset=0)=>Utc.AddSeconds(i*2+offset).ToString("r",CultureInfo.InvariantCulture);
+    private static QemuTranscripts.WebUtcObservation[] Windows()=>Enumerable.Range(0,6)
+        .Select(i=>new QemuTranscripts.WebUtcObservation(Utc.AddSeconds(i*2).AddMilliseconds(100),Utc.AddSeconds(i*2).AddMilliseconds(300))).ToArray();
+
+    [HostTest("web Date joins every trusted UTC interval and hashes only the declared dynamic Date field")]
+    private static void UtcAndHashes()
+    {
+        var v=Vector(dates:i=>Date(i));var report=Inspect(v.Frames,v.Anchor,v.Arp,utc:Windows());
+        var shifted=Vector(dates:i=>Date(i,1));var other=Inspect(shifted.Frames,shifted.Anchor,shifted.Arp,utc:Windows());
+        HostCheck.True(report.UtcChecked && report.Responses.Count==6 && report.Responses[^1].DateUtc>report.Responses[0].DateUtc);
+        for(int i=0;i<6;i++)
+        {
+            HostCheck.Equal(Utc.AddSeconds(i*2),report.Responses[i].DateUtc);
+            HostCheck.True(report.Responses[i].RawSha256!=other.Responses[i].RawSha256);
+            HostCheck.Equal(report.Responses[i].DateNormalizedSha256,other.Responses[i].DateNormalizedSha256);
+        }
+        string expected=Convert.ToHexString(SHA256.HashData("HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\nContent-Type: text/plain\r\nDate: Thu, 01 Jan 1970 00:00:00 GMT\r\nServer: Kestrel\r\n\r\nSELECTED"u8));
+        HostCheck.Equal(expected,report.Responses[0].DateNormalizedSha256);
+        var old=Vector();HostCheck.True(!Inspect(old.Frames,old.Anchor,old.Arp).UtcChecked);
+        Reject(()=>Inspect(old.Frames,old.Anchor,old.Arp,utc:Windows()));
+    }
+
+    [HostTest("web Date rejects well formed stale future regressing and frozen clocks")]
+    private static void UtcFailures()
+    {
+        foreach(var dates in new Func<int,string>[] { i=>Date(i,-6),i=>Date(i,6),i=>i==3?Date(2,-1):Date(i) })
+        {var v=Vector(dates:dates);Reject(()=>Inspect(v.Frames,v.Anchor,v.Arp,utc:Windows()));}
+        var frozen=Vector(dates:_=>Date(0));
+        var close=Enumerable.Range(0,6).Select(i=>new QemuTranscripts.WebUtcObservation(Utc.AddMilliseconds(i*100),Utc.AddMilliseconds(i*100+50))).ToArray();
+        Reject(()=>Inspect(frozen.Frames,frozen.Anchor,frozen.Arp,utc:close));
+        // The finite quota run may complete within one cached header second.
+        var quota=Vector(quota:true,dates:_=>Date(0));
+        HostCheck.True(Inspect(quota.Frames,quota.Anchor,quota.Arp,quota:true,utc:close[..5]).UtcChecked);
+    }
+
+    [HostTest("web UTC windows reject reversal order offset count and overflow with inclusive five second bounds")]
+    private static void UtcWindowFailures()
+    {
+        var v=Vector(dates:i=>Date(i));var windows=Windows();
+        var reversed=windows.ToArray();reversed[0]=new(windows[0].CompletedUtc,windows[0].StartedUtc);
+        var order=windows.ToArray();order[3]=new(Utc.AddSeconds(3),Utc.AddSeconds(3.1));
+        var offset=windows.ToArray();offset[0]=new(windows[0].StartedUtc.ToOffset(TimeSpan.FromHours(1)),windows[0].CompletedUtc);
+        var lower=windows.ToArray();lower[0]=new(DateTimeOffset.MinValue,windows[0].CompletedUtc);
+        var upper=windows.ToArray();upper[^1]=new(windows[^1].StartedUtc,DateTimeOffset.MaxValue);
+        foreach(var invalid in new[]{windows[..5],reversed,order,offset,lower,upper})
+            Reject(()=>Inspect(v.Frames,v.Anchor,v.Arp,utc:invalid));
+        foreach(int seconds in new[]{-5,5})
+        {
+            var exact=Enumerable.Range(0,6).Select(i=>new QemuTranscripts.WebUtcObservation(Utc.AddSeconds(i*2+seconds),Utc.AddSeconds(i*2+seconds))).ToArray();
+            HostCheck.True(Inspect(v.Frames,v.Anchor,v.Arp,utc:exact).UtcChecked);
+        }
+    }
 
     [HostTest("web quota packets require empty 500 repeat 409 and later selected health")]
     private static void Quota()

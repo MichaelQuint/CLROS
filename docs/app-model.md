@@ -3,6 +3,8 @@
 The current owned five-issue service/time batch has development-only realtime
 plumbing in [step1406](../done/step1406.md); see the [Kestrel ledger](kestrel.md)
 for its UTC-RTC contract, finite lifetime and unvalidated guest boundary.
+[Step1407](../done/step1407.md) adds host UTC observation/packet Date checks;
+guest time and the service batch remain unaccepted.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
 5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,

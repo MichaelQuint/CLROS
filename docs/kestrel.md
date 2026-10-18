@@ -1,5 +1,17 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1407](../done/step1407.md) adds development-only external UTC checks. The
+runner records host UTC windows around each HTTP probe; the verifier joins them
+to the owned child lifetime and independently reconstructed packet responses.
+Every Date must fall within its window plus five seconds and never regress;
+normal logging runs must advance. The short quota control may share one cached
+Date second. Exact raw-response hashes are retained; a second hash normalizes
+only the validated29-byte Date field. Seventeen focused checks pass, including
+epoch/stale/future/frozen time and reversed/overflowed interval controls. This
+does not qualify guest UTC or #223. #220 now has an indexed actual wait-token
+rearm sequence; same-Kestrel timeout/rejected-frame progress and #221's real
+guest policy negatives still need implementation/qualification.
+
 [Step1406](../done/step1406.md) adds development-only #759 realtime plumbing in
 the owned #220/#221/#222/#759/#223 batch. A copied, validated UEFI time is anchored
 to the same HPET owner before firmware exit. The finite web fixture declares

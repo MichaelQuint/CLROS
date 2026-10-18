@@ -28,16 +28,20 @@ public static partial class QemuTranscripts
         byte[] package=File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root));
         var capture=ValidateNativeAotWebCapturePrefix(root,package,program!,raw);
         var replay=capture.Leaf;
-        var packets=ValidateWebPackets(package,raw,File.ReadAllBytes(Path.GetFullPath(options.SerialLog+".pcap",root)),capture.Parent,replay,context.ForwardPort);
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         var runnerReport=InspectNativeAotWebRunnerForTests(options,plan,runner,raw,
             File.ReadAllBytes(Path.GetFullPath(options.SummaryLog,root)),context,configuration.Body,configuration.Json,configuration.LogQuota);
+        var packets=ValidateWebPackets(package,raw,File.ReadAllBytes(Path.GetFullPath(options.SerialLog+".pcap",root)),
+            capture.Parent,replay,context.ForwardPort,runnerReport.UtcObservations);
         var observed=replay.Observations;
         output.WriteLine($"WEB_PREFIX_PARENT records={capture.Parent.Records} userRoot={capture.Parent.UserRoot} kernelRoot={capture.Parent.KernelRoot} periodFs={capture.Parent.Period} dma={capture.Parent.Dma} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_OBSERVATIONS calls={observed.Calls} writes={observed.Writes} stdout={observed.StdoutBytes} stderr={observed.StderrBytes} pendingEpoll={observed.PendingEpollWaits} fragmentBytes={observed.TrailingFragment.Length} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_REPLAY clones={replay.Protocol.Clones} irqs={replay.Protocol.Irqs} drains={replay.Protocol.Drains} transfers={replay.Protocol.Transfers} active={replay.Active} ready={replay.Ready} selected={replay.Current} returning={replay.ReturningToSupervisor} entropyRemaining={replay.EntropyRemaining} accepts={replay.SocketAccepts} sent={replay.Sent} received={replay.Received} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_PACKETS connections={packets.Connections} tcpRecords={packets.TcpRecords} received={packets.Received} sent={packets.Sent} clientFins={packets.ClientFins} serverFins={packets.ServerFins} clientFinAcks={packets.ClientFinAcks} serverFinAcks={packets.ServerFinAcks} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_RUNNER pid={runnerReport.ProcessId} lifetimeMs={runnerReport.LifetimeMilliseconds} healthMs={runnerReport.HealthMilliseconds} configMs={runnerReport.ConfigurationMilliseconds} acceptance=pending");
+        output.WriteLine($"WEB_PREFIX_UTC windows={packets.Responses.Count} toleranceSeconds={WebUtcToleranceSeconds} checked={packets.UtcChecked.ToString().ToLowerInvariant()} advanceSeconds={(packets.Responses[^1].DateUtc-packets.Responses[0].DateUtc).TotalSeconds.ToString(CultureInfo.InvariantCulture)} acceptance=pending");
+        for(int i=0;i<packets.Responses.Count;i++)
+            output.WriteLine($"WEB_PREFIX_HTTP index={i} dateUtc={packets.Responses[i].DateUtc:O} rawSha256={packets.Responses[i].RawSha256} dateNormalizedSha256={packets.Responses[i].DateNormalizedSha256} acceptance=pending");
         // A continuing prefix supplies no guest exit/reap or resource release.
         // Never send it to the finite parser or manufacture completion records.
         // The caller must still recheck every held current input before success.

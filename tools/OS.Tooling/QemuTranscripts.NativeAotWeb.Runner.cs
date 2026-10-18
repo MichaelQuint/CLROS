@@ -17,7 +17,8 @@ public static partial class QemuTranscripts
     /// <summary>Joined captured child lifetime and HTTP elapsed observations.
     /// The original ProcessResult, source/native and image qualification remain
     /// mandatory; this report supplies no guest exit or resource release.</summary>
-    public readonly record struct WebRunnerReport(int ProcessId,long LifetimeMilliseconds,int HealthMilliseconds,int ConfigurationMilliseconds);
+    public readonly record struct WebRunnerReport(int ProcessId,long LifetimeMilliseconds,int HealthMilliseconds,int ConfigurationMilliseconds,
+        IReadOnlyList<WebUtcObservation> UtcObservations);
 
     /// <summary>Inspect a borrowed raw serial, runner result and exact summary
     /// against explicit selection/window expectations. Recomputes streaming
@@ -67,6 +68,24 @@ public static partial class QemuTranscripts
             health<=20000 && config<=20000 && logging<=60000 && repeat<=20000 && vector<=20000 && after<=20000 &&
             health+config+logging+repeat+vector+after<=life && int.TryParse(exit,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int exitCode) &&
             exitCode.ToString(CultureInfo.InvariantCulture)==exit,"web_runner_child_lifetime");
+        int count=logQuota?5:6;
+        Need(Decimal("WEB_HTTP_UTC_TOLERANCE_SECONDS")==WebUtcToleranceSeconds &&
+            Decimal("WEB_HTTP_UTC_WINDOWS")== (ulong)count,"web_runner_utc_policy");
+        List<WebUtcObservation> utc=[];List<string> utcRows=["WEB_HTTP_UTC_TOLERANCE_SECONDS "+WebUtcToleranceSeconds,
+            "WEB_HTTP_UTC_WINDOWS "+count];
+        ulong[] durations=logQuota?[health,config,logging,repeat,after]:[health,config,logging,repeat,vector,after];
+        for(int i=0;i<count;i++)
+        {
+            string prefix="WEB_HTTP_UTC_"+i.ToString(CultureInfo.InvariantCulture);
+            string from=Value(prefix+"_STARTED"),to=Value(prefix+"_COMPLETED");
+            Need(DateTime.TryParseExact(from,"O",CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind,out var begin) &&
+                begin.Kind==DateTimeKind.Utc,"web_runner_utc_timestamp");
+            Need(DateTime.TryParseExact(to,"O",CultureInfo.InvariantCulture,DateTimeStyles.RoundtripKind,out var end) &&
+                end.Kind==DateTimeKind.Utc,"web_runner_utc_timestamp");
+            Need(begin>=started && end<=ended && begin<=end && (i==0 || begin>=utc[^1].CompletedUtc.UtcDateTime) &&
+                Math.Abs((end-begin).TotalMilliseconds-durations[i])<=5000,"web_runner_utc_interval");
+            utc.Add(new(begin,end));utcRows.AddRange([prefix+"_STARTED "+from,prefix+"_COMPLETED "+to]);
+        }
         string serial=DecodeUtf8(raw);var stream=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
             successTerminalMarker:"TEST_PASS m10.004",orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
         stream.Feed(raw);var completed=stream.Complete();
@@ -130,6 +149,7 @@ public static partial class QemuTranscripts
             ..extraSummary,
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID "+pid,
             "WEB_PROCESS_START_UTC "+first,"WEB_PROCESS_END_UTC "+last,"WEB_PROCESS_LIFETIME_MS "+life,
+            ..utcRows,
             "WEB_PROCESS_ALIVE_BEFORE_HEALTH true","WEB_PROCESS_ALIVE_AFTER_HEALTH true","WEB_PROCESS_ALIVE_AFTER_CONFIG true",
             "WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true",
             ..logQuota?Array.Empty<string>():new[]{"WEB_PROCESS_ALIVE_AFTER_VECTORS true"},"WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
@@ -142,6 +162,6 @@ public static partial class QemuTranscripts
         expectedSummary.AddRange(rawLines.TakeLast(8).Select(l=>"SERIAL_TAIL_LINE "+(l.Length>240?l[..237]+"...":l)));
         byte[] encoded=[..Encoding.UTF8.GetPreamble(),..Encoding.UTF8.GetBytes(string.Join("\r\n",expectedSummary)+"\r\n")];
         Need(summaryBytes.AsSpan().SequenceEqual(encoded),"web_runner_summary_bytes");
-        return new((int)pid,(long)life,(int)health,(int)config);
+        return new((int)pid,(long)life,(int)health,(int)config,utc.AsReadOnly());
     }
 }

@@ -341,12 +341,18 @@ try
         if (options.ContinuingWeb)
         {
             ContinuingWebEvidence web = options.WebEvidence!;
+            HttpProbeResult Probe(HttpProbeOptions probe)
+            {
+                DateTime first = DateTime.UtcNow;
+                try { return ExecuteContinuingWebProbe(probe, stopwatch, options.TimeoutSeconds); }
+                finally { web.ProbeWindows.Add((first, DateTime.UtcNow)); }
+            }
             if (process.HasExited)
                 web.Failure = "premature_exit";
             else
             {
                 web.AliveBeforeHealth = true;
-                httpProbeResult = ExecuteContinuingWebProbe(options.HttpProbe.Value, stopwatch, options.TimeoutSeconds);
+                httpProbeResult = Probe(options.HttpProbe.Value);
                 web.AliveAfterHealth = !process.HasExited;
                 if (!web.AliveAfterHealth) web.Failure = "premature_exit";
                 else if (httpProbeResult.Value.Passed)
@@ -358,7 +364,7 @@ try
                     if (!serialHealthy) web.Failure = "serial_failure";
                     else
                     {
-                        web.ConfigResult = ExecuteContinuingWebProbe(options.WebConfigProbe!.Value, stopwatch, options.TimeoutSeconds);
+                        web.ConfigResult = Probe(options.WebConfigProbe!.Value);
                         web.AliveAfterConfig = !process.HasExited;
                         if (!web.AliveAfterConfig) web.Failure = "premature_exit";
                         else if (web.ConfigResult.Value.Passed)
@@ -374,7 +380,7 @@ try
                                 if (!healthy) { web.Failure = "serial_failure"; break; }
                                 HttpProbeOptions probe = step switch { 0 => options.WebLogProbe!.Value,
                                     1 => options.WebLogRepeatProbe!.Value, 2 => options.WebVectorProbe!.Value, _ => options.HttpProbe.Value };
-                                HttpProbeResult result = ExecuteContinuingWebProbe(probe, stopwatch, options.TimeoutSeconds);
+                                HttpProbeResult result = Probe(probe);
                                 bool alive = !process.HasExited;
                                 if (step == 0) { web.LogResult = result; web.AliveAfterLog = alive; }
                                 else if (step == 1) { web.LogRepeatResult = result; web.AliveAfterLogRepeat = alive; }
@@ -1679,6 +1685,14 @@ static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions opti
     builder.Append("WEB_PROCESS_START_UTC ").AppendLine(web.StartUtc ?? "none");
     builder.Append("WEB_PROCESS_END_UTC ").AppendLine(web.EndUtc ?? "none");
     builder.Append("WEB_PROCESS_LIFETIME_MS ").AppendLine(web.LifetimeMilliseconds?.ToString() ?? "none");
+    builder.AppendLine("WEB_HTTP_UTC_TOLERANCE_SECONDS 5");
+    builder.Append("WEB_HTTP_UTC_WINDOWS ").AppendLine(web.ProbeWindows.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    for (int i = 0; i < web.ProbeWindows.Count; i++)
+    {
+        string prefix = "WEB_HTTP_UTC_" + i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        builder.Append(prefix).Append("_STARTED ").AppendLine(web.ProbeWindows[i].Started.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+        builder.Append(prefix).Append("_COMPLETED ").AppendLine(web.ProbeWindows[i].Completed.ToString("O", System.Globalization.CultureInfo.InvariantCulture));
+    }
     builder.Append("WEB_PROCESS_ALIVE_BEFORE_HEALTH ").AppendLine(FormatBool(web.AliveBeforeHealth));
     builder.Append("WEB_PROCESS_ALIVE_AFTER_HEALTH ").AppendLine(FormatBool(web.AliveAfterHealth));
     builder.Append("WEB_PROCESS_ALIVE_AFTER_CONFIG ").AppendLine(FormatBool(web.AliveAfterConfig));
@@ -2783,6 +2797,7 @@ sealed class RunnerOptions
 
 sealed class ContinuingWebEvidence
 {
+    public readonly List<(DateTime Started, DateTime Completed)> ProbeWindows = [];
     public HttpProbeResult? ConfigResult, LogResult, LogRepeatResult, VectorResult, HealthAfterResult;
     public bool PreLaunchAvailable, AliveBeforeHealth, AliveAfterHealth, AliveAfterConfig;
     public bool AliveAfterLog, AliveAfterLogRepeat, AliveAfterVectors, AliveAfterFinalHealth;

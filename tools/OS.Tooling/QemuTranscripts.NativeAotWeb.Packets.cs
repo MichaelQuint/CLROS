@@ -22,7 +22,7 @@ public static partial class QemuTranscripts
     }
 
     private static WebPacketInspection ValidateWebPackets(byte[] package,byte[] raw,byte[] packets,
-        WebParentReport parent,WebReplayReport leaf,int forward)
+        WebParentReport parent,WebReplayReport leaf,int forward,IReadOnlyList<WebUtcObservation> utc)
     {
         int at=raw.AsSpan().IndexOf("TEST_START m10.004\r\n"u8);Need(at>=0,"web_packet_leaf");
         var framed=NativeAotThreadingOutput.ReadWeb(raw.AsSpan(at));
@@ -32,7 +32,7 @@ public static partial class QemuTranscripts
         var lifetimes=SocketLifetimes(rows,continuingWeb:true,webConnections:configuration.LogQuota?5:6);
         if(!configuration.LogQuota)_=WebVectorCalls(rows);
         var report=InspectNativeAotWebPacketsForTests(packets,parent.FrameAnchor,parent.Arp,
-            lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json,configuration.LogQuota);
+            lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json,configuration.LogQuota,utc);
         Need(report.Connections==leaf.SocketAccepts && (ulong)report.Received==leaf.Received &&
             (ulong)report.Sent==leaf.Sent,"web_packet_leaf_join");
         Need(report.TimeWaitPorts.All(port=>lifetimes.Any(l=>l.RemotePort==port && l.Waits>0)),"web_packet_time_wait_join");
@@ -43,7 +43,19 @@ public static partial class QemuTranscripts
     /// device stop, TIME_WAIT drain or complete runner/source qualification.</summary>
     public readonly record struct WebPacketInspection(int Connections,int TcpRecords,int Received,int Sent,
         int ClientFins,int ServerFins,int ClientFinAcks,int ServerFinAcks,string HealthSha256,string ConfigurationSha256,
-        IReadOnlyList<uint> TimeWaitPorts);
+        IReadOnlyList<uint> TimeWaitPorts,IReadOnlyList<WebResponseObservation> Responses,bool UtcChecked);
+
+    /// <summary>Borrowed host UTC interval around one complete HTTP probe.
+    /// Production joins it to the owned process/runner receipt; caller values
+    /// alone establish neither trusted time nor guest execution.</summary>
+    public readonly record struct WebUtcObservation(DateTimeOffset StartedUtc,DateTimeOffset CompletedUtc);
+
+    /// <summary>Exact reconstructed response hash and a comparison hash replacing
+    /// only its canonical29-byte Date value with the fixed Unix-epoch text.
+    /// Entity/status/header checks still apply; Date plausibility requires the
+    /// separate UTC-window join. No bytes are removed from the raw evidence.</summary>
+    public readonly record struct WebResponseObservation(DateTimeOffset DateUtc,string RawSha256,string DateNormalizedSha256);
+    public const int WebUtcToleranceSeconds=5;
 
     private sealed class WebWireFlow(uint port,uint client,byte[] request,int responseCapacity)
     {
@@ -60,9 +72,13 @@ public static partial class QemuTranscripts
     /// Checks headers, checksums, sequence/ACK bounds, retransmission equality,
     /// complete request/response bytes and EOF-delimited config completion.
     /// Caller values grant no execution, parent, native or runner authority.
+    /// Optional UTC windows additionally check each Date within5 seconds of its
+    /// host interval, nonregression and normal-run advance. Omitting them is a
+    /// framing-only inspection, as used by historical synthetic host controls.
     /// Malformed, unsupported or incomplete traffic throws; inputs are not kept.</summary>
     public static WebPacketInspection InspectNativeAotWebPacketsForTests(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,
-        IReadOnlyList<uint> ports,int forward,string body,string configuration,bool logQuota=false)
+        IReadOnlyList<uint> ports,int forward,string body,string configuration,bool logQuota=false,
+        IReadOnlyList<WebUtcObservation>? utcWindows=null)
     {
         int connections=logQuota?5:6;
         Need(ports.Count==connections && ports.Distinct().Count()==connections && ports.All(p=>p is >0 and <=65535) && forward is >0 and <=65535 &&
@@ -168,20 +184,42 @@ public static partial class QemuTranscripts
         }
         Need(prefixStage==3 && resolved && resolutionSent==1 && flows.Count==connections,"web_wire_complete");
         _=QemuEthernetCapture.InspectArp(bytes.AsSpan(0,prefixEnd),arp);
+        List<WebResponseObservation> responses=[];
         for(int i=0;i<flows.Count;i++)
         {
             var flow=flows[i];Need(flow.ClientReady && flow.ClientSeen==flow.Request.Length &&
                 flow.ServerSeen==flow.ResponseExtent && flow.ResponseExtent>0 && (i==0 || flow.ServerFin),"web_wire_stream_complete");
-            WebHttpResponse(flow.Response.AsSpan(0,flow.ResponseExtent),i switch { 1=>configuration,
-                2=>logQuota?"":"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9",3=>"",_=>body },i,logQuota);
+            responses.Add(WebHttpResponse(flow.Response.AsSpan(0,flow.ResponseExtent),i switch { 1=>configuration,
+                2=>logQuota?"":"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9",3=>"",_=>body },i,logQuota));
         }
+        if(utcWindows is not null) ValidateWebUtc(responses,utcWindows,requireAdvance:!logQuota);
         return new(connections,tcpRecords,flows.Sum(f=>f.Request.Length),flows.Sum(f=>f.ResponseExtent),flows.Count(f=>f.ClientFin),
             flows.Count(f=>f.ServerFin),flows.Count(f=>f.ClientFinAcked),flows.Count(f=>f.ServerFinAcked),
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(body))),Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(configuration))),
-            Array.AsReadOnly(flows.Where(f=>f.ServerFinFirst && f.ClientFinAcked && f.ServerFinAcked).Select(f=>f.Port).ToArray()));
+            Array.AsReadOnly(flows.Where(f=>f.ServerFinFirst && f.ClientFinAcked && f.ServerFinAcked).Select(f=>f.Port).ToArray()),
+            responses.AsReadOnly(),utcWindows is not null);
     }
 
-    private static void WebHttpResponse(ReadOnlySpan<byte> bytes,string expected,int phase,bool logQuota)
+    private static void ValidateWebUtc(IReadOnlyList<WebResponseObservation> responses,IReadOnlyList<WebUtcObservation> windows,bool requireAdvance)
+    {
+        Need(windows.Count==responses.Count && windows.Count>1,"web_utc_count");
+        const long tolerance=WebUtcToleranceSeconds*TimeSpan.TicksPerSecond;
+        for(int i=0;i<windows.Count;i++)
+        {
+            var window=windows[i];long start=window.StartedUtc.UtcTicks,end=window.CompletedUtc.UtcTicks;
+            Need(window.StartedUtc.Offset==TimeSpan.Zero && window.CompletedUtc.Offset==TimeSpan.Zero &&
+                start>=tolerance && end<=DateTimeOffset.MaxValue.UtcTicks-tolerance && start<=end &&
+                (i==0 || window.StartedUtc>=windows[i-1].CompletedUtc),"web_utc_window");
+            long date=responses[i].DateUtc.UtcTicks;
+            Need(date>=start-tolerance && date<=end+tolerance,"web_utc_date");
+            Need(i==0 || responses[i].DateUtc>=responses[i-1].DateUtc,"web_utc_regression");
+        }
+        // Normal logging already spans multiple seconds. The quota control may
+        // complete within one cached Date second and claims no separate advance.
+        Need(!requireAdvance || responses[^1].DateUtc>responses[0].DateUtc,"web_utc_advance");
+    }
+
+    private static WebResponseObservation WebHttpResponse(ReadOnlySpan<byte> bytes,string expected,int phase,bool logQuota)
     {
         int end=bytes.IndexOf("\r\n\r\n"u8);Need(end is >0 and <=2048,"web_wire_http_header");
         string[] lines=DecodeUtf8(bytes[..end].ToArray()).Split("\r\n",StringSplitOptions.None);
@@ -196,10 +234,16 @@ public static partial class QemuTranscripts
         Need(headers.Count==(phase==1 || !contentType?4:5) && headers.Keys.All(k=>k is "Connection" or "Date" or "Server" ||
                 contentType && k=="Content-Type" || length && k=="Content-Length") &&
             headers.GetValueOrDefault("Connection")=="close" && headers.GetValueOrDefault("Server")=="Kestrel" &&
-            headers.GetValueOrDefault("Content-Type")== (phase==1?"application/json; charset=utf-8":vector?"application/octet-stream":contentType?"text/plain":null) &&
-            DateTimeOffset.TryParseExact(headers.GetValueOrDefault("Date"),"r",CultureInfo.InvariantCulture,DateTimeStyles.AssumeUniversal,out _),"web_wire_http_headers");
+            headers.GetValueOrDefault("Content-Type")== (phase==1?"application/json; charset=utf-8":vector?"application/octet-stream":contentType?"text/plain":null),"web_wire_http_headers");
+        Need(DateTimeOffset.TryParseExact(headers.GetValueOrDefault("Date"),"r",CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal,out var date),"web_wire_http_date");
+        Need(headers["Date"]==date.ToString("r",CultureInfo.InvariantCulture),"web_wire_http_date");
         byte[] body=Encoding.UTF8.GetBytes(expected);
         Need((!length || headers.GetValueOrDefault("Content-Length")== (vector?WebVectorResponse.Length:body.Length).ToString(CultureInfo.InvariantCulture)) &&
             (vector?WebVectorResponse.Matches(bytes[(end+4)..]):bytes[(end+4)..].SequenceEqual(body)),"web_wire_http_body");
+        byte[] normalized=bytes.ToArray();int dateAt=bytes[..end].IndexOf("\r\nDate: "u8);
+        Need(dateAt>=0 && headers["Date"].Length==29,"web_wire_http_date");
+        "Thu, 01 Jan 1970 00:00:00 GMT"u8.CopyTo(normalized.AsSpan(dateAt+8,29));
+        return new(date,Convert.ToHexString(SHA256.HashData(bytes)),Convert.ToHexString(SHA256.HashData(normalized)));
     }
 }

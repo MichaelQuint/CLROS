@@ -34003,7 +34003,11 @@
         "tests/OS.HostTests/QemuRunnerTests.cs",
         "src/OS/Boot/EfiEntry.LinuxWeb.cs",
         "tools/OS.Tooling/EfiProjectAdmission.cs",
-        "tests/OS.HostTests/BootSequencePlanTests.cs"
+        "tests/OS.HostTests/BootSequencePlanTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Runner.cs",
+        "tests/OS.HostTests/NativeAotWebRunnerTests.cs",
+        "tools/OS.QemuRunner/Program.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

@@ -35,6 +35,15 @@ internal static class NativeAotWebRunnerTests
         }
         int lifetime=Math.Max(3000,loggingMilliseconds+2000);
         var first=new DateTimeOffset(2000,1,1,0,0,0,TimeSpan.Zero);
+        List<string> utcRows=["WEB_HTTP_UTC_TOLERANCE_SECONDS 5","WEB_HTTP_UTC_WINDOWS "+(quota?5:6)];
+        int elapsed=500,index=0;
+        foreach(int duration in new[]{100,200}.Concat(stages.Select(s=>s.Time)))
+        {
+            string prefix="WEB_HTTP_UTC_"+index++;
+            utcRows.Add(prefix+"_STARTED "+first.AddMilliseconds(elapsed).UtcDateTime.ToString("O"));
+            elapsed+=duration;
+            utcRows.Add(prefix+"_COMPLETED "+first.AddMilliseconds(elapsed).UtcDateTime.ToString("O"));
+        }
         var options=new QemuSmokeOptions{Image="image.raw",SerialLog="serial.log",SummaryLog="summary.log",TimeoutSeconds=Math.Max(30,(lifetime+999)/1000),FirmwareRngSource="virtio"};
         var plan=new QemuSmokePlan("Diagnostic",new Dictionary<string,bool>{{"EnableM10004Probe",true}},markers,markers,markers,["TEST_FAIL","OS_SMOKE_FAIL"],[],false,true);
         string[] stdout=["QEMU_DISCOVERY result="+qemu+" checked="+qemu,"OVMF_DISCOVERY result="+ovmf+" checked="+ovmf,
@@ -59,6 +68,7 @@ internal static class NativeAotWebRunnerTests
             ..extraSummary,
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID 123",
             "WEB_PROCESS_START_UTC 2000-01-01T00:00:00.0000000Z","WEB_PROCESS_END_UTC "+first.AddMilliseconds(lifetime).UtcDateTime.ToString("O"),"WEB_PROCESS_LIFETIME_MS "+lifetime,
+            ..utcRows,
             "WEB_PROCESS_ALIVE_BEFORE_HEALTH true","WEB_PROCESS_ALIVE_AFTER_HEALTH true","WEB_PROCESS_ALIVE_AFTER_CONFIG true",
             "WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true",
             ..quota?Array.Empty<string>():new[]{"WEB_PROCESS_ALIVE_AFTER_VECTORS true"},"WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
@@ -82,7 +92,8 @@ internal static class NativeAotWebRunnerTests
     private static void Positive()
     {
         var report=Inspect(Vector());HostCheck.True(report.ProcessId==123 && report.LifetimeMilliseconds==3000 &&
-            report.HealthMilliseconds==100 && report.ConfigurationMilliseconds==200);
+            report.HealthMilliseconds==100 && report.ConfigurationMilliseconds==200 && report.UtcObservations.Count==6);
+        HostCheck.Equal(new DateTimeOffset(2000,1,1,0,0,0,TimeSpan.Zero).AddMilliseconds(500),report.UtcObservations[0].StartedUtc);
     }
     [HostTest("web runner permits bounded traced logging while preserving other request deadlines")]
     private static void LoggingDeadline()
@@ -104,6 +115,24 @@ internal static class NativeAotWebRunnerTests
         Reject(()=>Inspect(Summary(f,"WEB_HEALTH_AFTER_PROBE_STATUS 200","WEB_HEALTH_AFTER_PROBE_STATUS 500"),true));
         Reject(()=>Inspect(Summary(f,"WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG false"),true));
     }
+    [HostTest("web runner requires ordered UTC probe windows inside the owned child and matching elapsed bounds")]
+    private static void UtcWindows()
+    {
+        var f=Vector();
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_TOLERANCE_SECONDS 5","WEB_HTTP_UTC_TOLERANCE_SECONDS 6")));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_WINDOWS 6","WEB_HTTP_UTC_WINDOWS 5")));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_0_STARTED 2000-01-01T00:00:00.5000000Z","WEB_HTTP_UTC_0_STARTED 1999-12-31T23:59:59.5000000Z")));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_1_STARTED 2000-01-01T00:00:00.6000000Z","WEB_HTTP_UTC_1_STARTED 2000-01-01T00:00:00.5500000Z")));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_2_COMPLETED 2000-01-01T00:00:01.1000000Z","WEB_HTTP_UTC_2_COMPLETED 2000-01-01T00:00:00.7000000Z")));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_5_COMPLETED 2000-01-01T00:00:01.4500000Z","WEB_HTTP_UTC_5_COMPLETED 2000-01-01T00:00:04.0000000Z")));
+        foreach(string invalid in new[]{"99999-01-01T00:00:00.0000000Z","2000-01-01T00:00:00.5000000+01:00"})
+            Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_0_STARTED 2000-01-01T00:00:00.5000000Z","WEB_HTTP_UTC_0_STARTED "+invalid)));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_0_STARTED 2000-01-01T00:00:00.5000000Z\r\n","")));
+        Reject(()=>Inspect(Summary(f,"WEB_HTTP_UTC_WINDOWS 6","WEB_HTTP_UTC_WINDOWS 6\r\nWEB_HTTP_UTC_WINDOWS 6")));
+        var slow=Vector(loggingMilliseconds:18000,loggingTimeout:30);
+        Reject(()=>Inspect(Summary(slow,"WEB_HTTP_UTC_2_COMPLETED 2000-01-01T00:00:18.8000000Z","WEB_HTTP_UTC_2_COMPLETED 2000-01-01T00:00:00.9000000Z")));
+    }
+
     [HostTest("web runner rejects missing liveness premature exit false death timestamps and stale invocation")]
     private static void Lifetime()
     {
