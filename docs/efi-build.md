@@ -1,5 +1,14 @@
 # EFI Build
 
+[Step1419](../done/step1419.md) qualifies the later bounded service/time batch:
+5,676 unchanged unfiltered host checks, nine strict application captures and
+eight affected ancestors. Exact source/policy forward joins retain the original
+candidate/capture labels below. The scoped native review includes original code,
+relocations, typed layout/ABI/unwind and actual socket dispatch-table bindings.
+The failed step1414 normal capture remains failed; step1416's fresh repetitions
+and step1419's stable gate supply the later positive evidence. General service,
+whole-stack, numbered, cloud and production gates remain incomplete.
+
 [Step1414](../done/step1414.md) preserves four candidates at `ff7366fd`, each with
 874 exact source joins and ten original native inputs. Their complete managed
 code and original REL32 targets join to the retained EFI. Bounded clock, EFI

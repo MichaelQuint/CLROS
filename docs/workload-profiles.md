@@ -6,6 +6,15 @@ Accepted for planning. This document defines workload profile names and gate
 semantics only. It does not add runtime, process, network, storage, hosted
 .NET applications, CoreCLR, ASP.NET Minimal API, or Kestrel evidence.
 
+[Step1419](../done/step1419.md) separately qualifies bounded #220/#221/#222/
+#759/#223: 5,676 unchanged full-host checks/757 fixtures (94 Native), six strict
+web/quota prefixes, three policy/vector guests and eight affected ancestors.
+Socket ladder/policy, exact health, stopped-guest refusal and plausible advancing
+external HTTP Date pass with the declared finite UTC contract and original
+source/native joins. Web workers remain active until runner termination; general
+service, whole-stack, numbered, isolation, cloud and production remain incomplete.
+Continue the six dependency-compatible service foundations below before #224.
+
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
 profiles, three retained strict GC repetitions and 24 fresh ancestors. The exact
@@ -49,16 +58,16 @@ qualification or qualify a repair.
 `e759827ce349bcb19895cbe269f08feac3fc72c9`, reports development guest HTTP
 responses. Reinspection of retained r12 packets finds Unix-epoch Date headers;
 owned realtime is an external-HTTP acceptance prerequisite. Step1380 now
-qualifies the selected configuration/network slice; realtime and the remaining
-application/service ladder stay open. Refresh current master and the tracker
+qualifies the selected configuration/network slice; step1419 adds bounded UTC/HTTP, while the remaining
+continuing-service ladder stays open. Refresh current master and the tracker
 before implementation. Exact dependencies, owned
 paths, commands and acceptance are in `.gitea/backlog/clros-issues.json`.
 
 | Acceptance stage | Implementation order and required issue work |
 | --- | --- |
-| Current owned application startup | Step1380 qualifies #217 and [M07-027](http://192.168.4.35:3000/admin/CLROS/issues/741)/[M07-028](http://192.168.4.35:3000/admin/CLROS/issues/742). Step1389 adds finite #218 logging. Continue #219 -> #745 -> #220 under #737, preserving the bounded accepted scopes. |
-| Kestrel socket ladder #220 | Preserve the qualified network repairs and require [M16-013 checked sendmsg/recvmsg vectors](http://192.168.4.35:3000/admin/CLROS/issues/745), after #219 and qualified epoll. Exercise actual multi-segment Kestrel responses, then continue #221 -> #222. |
-| External HTTP #223 | After startup, [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759) supplies checked UTC and application-time evidence. Validate HTTP Date against an independently recorded time interval and declared tolerance, in addition to status/body/hash. A well-formed 1970 date must fail acceptance. |
+| Qualified application startup | Steps1380/1389/1405 retain #217/#218/#219/#745 and containment prerequisites; step1419 adds bounded #220/#221/#222/#759/#223. Continue the six service foundations under #737 before #224. |
+| Qualified socket ladder #220-#222 | Step1419 adds actual multi-segment Kestrel responses and same-connection progress across timeout/rejected-frame controls, manifest endpoint policy negatives, exact health and stopped-guest refusal. Preserve the accepted vector/epoll and bounded-prefix restrictions. |
+| Qualified external HTTP #223 | Step1419 qualifies [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759), observed Date intervals/tolerance, exact status/body/hash/deadline and stale/epoch rejection. The UTC-RTC/HPET source and finite lifetime remain explicit; repeated service follows separately. |
 | Repeated service #224 | After #223, qualify [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |
 | Async/memory churn #225 and local Gate 14 | [M16-020 pending signals before renewed waits](http://192.168.4.35:3000/admin/CLROS/issues/760) closes the consumed-readiness race before churn. [M16-015 fragmented physical backing](http://192.168.4.35:3000/admin/CLROS/issues/747) -> [M16-016 GC/native budgets](http://192.168.4.35:3000/admin/CLROS/issues/748) also feed #225. Then preserve #226 evidence and close #227's local gate only against its complete criteria. |
 | Two protected local applications | After local Kestrel, [M16-017 CPL3 #UD/#DE containment](http://192.168.4.35:3000/admin/CLROS/issues/749) and [M16-021 SIGPIPE disposition consistency](http://192.168.4.35:3000/admin/CLROS/issues/761) precede #292's general terminate/reap acceptance. Retain the explicit ignored-SIGPIPE restriction until qualified. #291 extends M16-016's resource model; #298 still needs a second protected app surviving failure. Keep the existing M14 process/address-space/descriptor/fairness ladder. |

@@ -1,28 +1,22 @@
 # App Model
 
-The current owned five-issue service/time batch has development-only realtime
-plumbing in [step1406](../done/step1406.md); see the [Kestrel ledger](kestrel.md)
-for its UTC-RTC contract, finite lifetime and unvalidated guest boundary.
-[Step1407](../done/step1407.md) adds host UTC observation/packet Date checks;
-guest time and the service batch remain unaccepted.
-[Step1408](../done/step1408.md) adds explicit guest-only socket policy negatives
-before the vector fixture's healthy exchange; host checks pass, with guest
-qualification pending. The Kestrel ledger owns its exact descriptor boundary.
-[Step1409](../done/step1409.md) wires actual external timeout/VLAN controls into
-the runner using the unchanged Kestrel app. Consumer integration and batch
-qualification remain pending; the Kestrel ledger owns the exact capture shape.
-[Step1410](../done/step1410.md) checks control reports and packet streams with
-focused synthetic evidence. Runtime/lifetime joins and production integration
-are implemented in [step1411](../done/step1411.md), with30 focused synthetic
-checks. [Step1412](../done/step1412.md) implements default-off copied-source UTC
-admission faults and a separate strict failure-capture inspector. Both EFI managed
-selections compile; source admission/native review and actual guest time captures
-remain pending with stable-batch qualification. No issue or guest acceptance advances.
-[Step1414](../done/step1414.md) adds actual dedicated pre-entry UTC rejection
-observations and original EFI candidates. Normal web serves exact health, but
-strict replay rejects the newly supported successful realtime syscall. The
-scoped replay correction remains subordinate to fresh stable-batch validation;
-the failed normal capture grants no positive UTC or service acceptance.
+[Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
+implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
+757 fixtures (94 Native), six strict web/quota prefixes, three finite policy/vector
+guests and eight affected ancestors. The nine application captures retain
+`02859bfd` and exact source/policy forward joins. Actual Kestrel serves the exact
+health and 49,152-byte vector entities; the same healthy connection survives the
+bad-peer timeout and rejected-frame controls. Socket policy negatives, stopped-
+guest refusal and plausible advancing external HTTP Date are checked.
+
+Owned UTC uses the declared UTC-RTC/HPET epoch and finite 600-second lifetime.
+Separate copied-source unavailable/invalid controls reject admission before
+entry/readiness. Web workers remain active until runner termination; guest
+app-exit/resource cleanup, general service, whole-stack, numbered, isolation,
+cloud and production acceptance remain incomplete. Continue #743/#744/#746/
+#240/#757/#758 before repeated service #224. The [Kestrel ledger](kestrel.md)
+owns exact commands, limits and source/native evidence. Steps1406-1418 retain
+implementation and failed attempts without relabeling their original results.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
 5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,
@@ -98,9 +92,9 @@ configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment
 precedes terminate/reap and real two-app crash-isolation acceptance.
 
-The second pass identifies three service-composition gaps. M16-019 supplies
-owned UTC before external HTTP acceptance, since a rejected realtime syscall
-becomes Unix-epoch `DateTime.UtcNow` in the pinned PAL. M16-020 prevents an
+The second pass identifies three service-composition gaps. Step1419 qualifies
+M16-019 owned UTC for the bounded external HTTP scope; a rejected realtime
+syscall previously became Unix-epoch `DateTime.UtcNow` in the pinned PAL. M16-020 prevents an
 unmasked pending signal from being stranded when pipe/epoll readiness is consumed
 by another worker before resumption. A finite no-progress guard can still stop
 the owner; the review does not prove an infinite kernel hang or guest GC deadlock.

@@ -1,49 +1,34 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1418](../done/step1418.md) corrects command-specific rejection expectations
-for the two UTC fault descendants. The third unfiltered attempt passes all
-4,613 checks in 663 fast fixture groups, then exposes one Native-lane expectation
-failure and is stopped before ancestors. Production correctly rejects the
-conflicting profile. The four-file test-only repair passes 18 focused fast
-checks and the previously failing Native case; guest and project bytes stay
-unchanged. A fresh frozen full-host gate and eight affected ancestors remain
-required. The failed attempt is retained without acceptance or fixture reuse.
+[Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
+implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
+757 fixtures (94 Native), three normal web and three quota prefixes, three finite
+policy/vector guests and eight affected ancestors. The nine application captures
+retain `02859bfd`; exact selected-source and project-policy forward joins explain
+the later source labels. Original failures and repairs remain in steps1406-1418.
 
-[Step1417](../done/step1417.md) completes the UTC controls in the project's
-Diagnostic, VerifiedExit and containment policy inventories, updating their two
-reviewed project hashes. The second full-host attempt completes 663 fast fixture
-groups but blocks native work on these two inventory defects. The repair passes
-20 focused checks, actual MSBuild evaluation of all 104 direct switches and four
-evaluated source/toolchain preflights. All 1,222 selected guest compile-source
-joins remain unchanged; only the three policy conditions and reviewed pins
-advance. Fresh unfiltered full-host and affected ancestor qualification remain
-pending; the captures below retain their original labels and bounded scopes.
+Real upstream Kestrel serves exact health/configuration/logging entities, the
+49,152-byte vector response and later health. The same healthy connection survives
+the 30-second bad-peer deadline and rejected VLAN frame. Actual socket policy
+negatives refuse port8081, foreign10.0.2.2, duplicate8080 and descriptor capacity;
+the original vector fixture retains short sends/EAGAIN, reset and disposal.
+External receipts check status/body/hash/deadline, advancing Date windows and
+stopped-guest refusal, with raw HTTP/PCAP/serial evidence retained.
 
-[Step1416](../done/step1416.md) consolidates development for the owned
-#220/#221/#222/#759/#223 batch under #737. At frozen implementation `02859bfd`,
-three normal web, three quota and three finite socket-policy captures pass their
-strict outer validators. Original source, native, serial, packet and external
-peer joins are retained. The web prefixes preserve exact HTTP entities, the
-49,152-byte vector response, later health and the same healthy connection across
-bad-peer timeout and rejected-frame controls. Real socket negatives reject the
-unauthorized port/address, duplicate listener and descriptor-capacity limit.
+Owned UTC copies valid UEFI time before exit and shares the HPET epoch, under the
+declared UTC-RTC contract, five-second observation tolerance and 600-second
+lifetime. Separate copied-source unavailable/invalid controls reject workload
+admission before entry/readiness and release startup/package owners. They do not
+establish actual firmware-read failure or arbitrary-platform clock support.
 
-The copied UEFI UTC seed shares the owned HPET epoch, with the finite UTC-RTC
-policy and 600-second lifetime from [step1406](../done/step1406.md). Captures retain
-plausible advancing HTTP Date windows, raw responses and normalized Date hashes.
-The separate [step1414](../done/step1414.md) unavailable/invalid copied-source
-controls refuse entry/readiness and release startup/package owners; they do not
-establish a failed firmware read. Four original EFI candidates and eight bounded
-native reviews account for changed clock/admission/observer paths and declared
-parent layout deltas, without transitive or whole-stack claims.
-
-The subsequent full-host attempt fails profile/source expectations for the two
-new default-off controls and is stopped before ancestors. Step1416 corrects only
-test expectations; 103 focused checks across 11 fixtures pass. Fresh unfiltered
-full-host, eight affected ancestors and final dependency/tracker acceptance are
-still required. The nine captures retain their original source label. All five
-issues remain open; no new Kestrel/service or numbered acceptance follows yet.
-The implementation and failed-capture history remains in steps1406-1415.
+Original code/relocation joins, complete bounded bodies, typed layout changes,
+ABI/frame/unwind and actual socket dispatch-table targets are reviewed. The new
+ancestor audit retains6,992 source joins and72 original native inputs. Missing
+bodies, uninspected referenced data and transitive/whole-stack safety gain no
+authority. Web prefixes retain live workers until runner termination; guest
+app-exit/reap/resource cleanup, general service, isolation, numbered, cloud and
+production gates remain incomplete. Continue #743/#744/#746/#240/#757/#758 before
+repeated service #224; #737 remains the shared integration owner.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 upstream startup and
 #745 checked socket vectors. Frozen implementation `8ef72134` passes 5,619
