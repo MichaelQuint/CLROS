@@ -179,7 +179,7 @@ public static partial class QemuTranscripts
             if(value!.Phase==3 && !web)
             {
                 if(containment)ContainmentClose(value);
-                else
+                else if(!vectors)
                 {
                     int i=value.Connection;
                     Need(value.Received==(i==1?1UL:20UL) && value.Sent==(i==0?65536UL:i==1?0UL:18UL) &&
@@ -367,6 +367,8 @@ public static partial class QemuTranscripts
             if(containment)
                 Need(socketAccepts==3 && socketSent==containmentCapture!.Application.Queued+30 && socketReceived==33 && clones>=2 &&
                     containmentTimeoutObserved && containmentDropObserved,"socket_containment_workload_lifetimes");
+            else if(vectors)Need(socketAccepts==4 && socketSent==65600 && socketReceived==256 && clones>=2 &&
+                socketBlocks>0 && socketResumes>0,"socket_vectors_workload_lifetimes");
             else Need(socketAccepts==4 && socketSent==65572 && socketReceived==61 && clones>=2 &&
                 (app!="NativeAotSocketSmokeAsync" || socketBlocks>0 && socketResumes>0),"socket_workload_lifetimes");
             foreach(int fd in Enumerable.Range(0,16).Where(fd=>fd<3 || files.Contains(fd) || fd==pipeRead || fd==pipeWrite).ToArray())

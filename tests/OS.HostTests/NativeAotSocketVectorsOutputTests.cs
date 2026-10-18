@@ -3,7 +3,7 @@ using OS.Tooling;
 
 internal static class NativeAotSocketVectorsOutputTests
 {
-    private static string Output()
+    internal static string Output()
     {
         List<string> rows = ["TEST_START nativeaot.socket.vectors",
             "SOCKET_VECTOR_LISTEN port=8080 connections=4 deadline_ms=30000 max_operations=100000"];

@@ -64,6 +64,16 @@ evidence. Retain both original roots and producer bytes; a newer tooling binary
 must not replace the publication's producer. No CLROS vector execution or
 backpressure acceptance follows from package/index admission.
 
+[Step1395](../done/step1395.md) prepares the vector leaf's complete runtime/socket
+replay and a separate finite call checker. Synthetic controls require exact
+remaining BufferList lengths/address gaps, accumulated first3-byte receive
+progress, native short sends and send EAGAIN, reset, a pending receive with an
+observed epoll registration before disposal, and all four closed connections.
+The prepared selection guard binds only the dedicated original app and its exact
+parents/inputs. EFI switch/profile/runner activation, full packet/peer integration
+and original native/guest qualification remain unwired or pending; these host
+controls establish no new guest acceptance.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
