@@ -161,6 +161,9 @@ public static unsafe partial class EfiEntry
             internal OS.Std.Hash.HmacSha256Drbg.State LinuxServiceRandom;
             internal FirmwareEntropyCapture.State LinuxServiceNonceCapture;
             internal FirmwareEntropyCapture.Buffer LinuxServiceNonceScratch, LinuxServiceNonceRetained;
+            internal TcpInitialSequence.Owner LinuxServiceSequence;
+            internal FirmwareEntropyCapture.State LinuxServiceSequenceCapture;
+            internal FirmwareEntropyCapture.Buffer LinuxServiceSequenceScratch, LinuxServiceSequenceRetained;
             internal uint LinuxServiceRandomPhase;
 #endif
 #endif
@@ -1557,19 +1560,23 @@ public static unsafe partial class EfiEntry
             if (state->LinuxServiceRandomPhase != 0) return false;
             state->LinuxServiceRandomPhase = 1;
             bool captured = CaptureLinuxServiceSeed(state, &state->LinuxRandomCapture, &state->LinuxRandomScratch, &state->LinuxRandomRetained) &&
-                CaptureLinuxServiceSeed(state, &state->LinuxServiceNonceCapture, &state->LinuxServiceNonceScratch, &state->LinuxServiceNonceRetained);
+                CaptureLinuxServiceSeed(state, &state->LinuxServiceNonceCapture, &state->LinuxServiceNonceScratch, &state->LinuxServiceNonceRetained) &&
+                CaptureLinuxServiceSeed(state, &state->LinuxServiceSequenceCapture, &state->LinuxServiceSequenceScratch, &state->LinuxServiceSequenceRetained);
             const string domain = "CLROS.getrandom.v1";
             byte* label = stackalloc byte[domain.Length];
             for (int i = 0; i < domain.Length; i++) label[i] = (byte)domain[i];
             bool initialized = false;
             if (captured) initialized = OS.Std.Hash.HmacSha256Drbg.Instantiate(&state->LinuxServiceRandom,
-                state->LinuxRandomRetained.Data, state->LinuxServiceNonceRetained.Data, label, (uint)domain.Length);
+                state->LinuxRandomRetained.Data, state->LinuxServiceNonceRetained.Data, label, (uint)domain.Length) &&
+                TcpInitialSequence.Initialize(&state->LinuxServiceSequence, state->LinuxServiceSequenceRetained.Data, 1);
             // Capture source facts only; seed bytes, keys and DRBG state never
             // enter serial. AT_RANDOM uses its independent LinuxEntropy owner.
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxRandomScratch.Data, 64);
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxRandomRetained.Data, 64);
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceNonceRetained.Data, 64);
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceNonceScratch.Data, 64);
+            OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceSequenceScratch.Data, 64);
+            OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceSequenceRetained.Data, 64);
             if (!initialized) return false;
             state->LinuxServiceRandomPhase = 2;
             return true;
@@ -1579,26 +1586,37 @@ public static unsafe partial class EfiEntry
         {
             // Phase2 may still own a live worker/IRQ continuation. A cleanup
             // rejection must retain its borrowed generator, not erase it early.
-            if (state->CooperativePhase == 2) return false;
+            if (state->CooperativePhase == 2 || state->LinuxServiceSequence.IsBorrowed) return false;
             bool erased = true;
             if (state->LinuxServices.Initialized == 1 && state->LinuxServices.Owner.ContinuingRandom)
                 erased = LinuxStartupServices.DiscardEntropy(&state->LinuxServices);
             else if (OS.Std.Hash.HmacSha256Drbg.IsInitialized(&state->LinuxServiceRandom))
                 erased = OS.Std.Hash.HmacSha256Drbg.Erase(&state->LinuxServiceRandom);
+            ulong sequences = state->LinuxServiceSequence.SequencesIssued;
+            if (TcpInitialSequence.IsInitialized(&state->LinuxServiceSequence))
+                erased = TcpInitialSequence.Erase(&state->LinuxServiceSequence) && erased;
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxRandomScratch.Data, 64);
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxRandomRetained.Data, 64);
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceNonceScratch.Data, 64);
             OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceNonceRetained.Data, 64);
+            OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceSequenceScratch.Data, 64);
+            OS.Std.Memory.SensitiveMemory.Clear(state->LinuxServiceSequenceRetained.Data, 64);
             state->LinuxServiceNonceCapture.SystemTable = null; state->LinuxServiceNonceCapture.BootServices = null;
             state->LinuxServiceNonceCapture.Locate = null; state->LinuxServiceNonceCapture.Rng = null; state->LinuxServiceNonceCapture.GetRng = null;
+            state->LinuxServiceSequenceCapture.SystemTable = null; state->LinuxServiceSequenceCapture.BootServices = null;
+            state->LinuxServiceSequenceCapture.Locate = null; state->LinuxServiceSequenceCapture.Rng = null; state->LinuxServiceSequenceCapture.GetRng = null;
             if (!erased || !FirmwareEntropyCapture.Zero((byte*)&state->LinuxServiceRandom, 0, sizeof(OS.Std.Hash.HmacSha256Drbg.State)) ||
                 !FirmwareEntropyCapture.Zero(state->LinuxRandomScratch.Data, 0, 64) || !FirmwareEntropyCapture.Zero(state->LinuxRandomRetained.Data, 0, 64) ||
-                !FirmwareEntropyCapture.Zero(state->LinuxServiceNonceScratch.Data, 0, 64) || !FirmwareEntropyCapture.Zero(state->LinuxServiceNonceRetained.Data, 0, 64)) return false;
+                !FirmwareEntropyCapture.Zero(state->LinuxServiceNonceScratch.Data, 0, 64) || !FirmwareEntropyCapture.Zero(state->LinuxServiceNonceRetained.Data, 0, 64) ||
+                !FirmwareEntropyCapture.Zero((byte*)&state->LinuxServiceSequence, 0, sizeof(TcpInitialSequence.Owner)) ||
+                !FirmwareEntropyCapture.Zero(state->LinuxServiceSequenceScratch.Data, 0, 64) || !FirmwareEntropyCapture.Zero(state->LinuxServiceSequenceRetained.Data, 0, 64)) return false;
             bool report = state->LinuxServiceRandomPhase != 3 && state->LinuxServices.Initialized == 1;
             state->LinuxServiceRandomPhase = 3;
             return !report || LinuxText(state, "M11_012_END requests=") && LinuxNumber(state, state->LinuxServices.RandomRequests) &&
                 LinuxText(state, " generatedBytes=") && LinuxNumber(state, state->LinuxServices.RandomBytes) &&
-                LinuxText(state, " generator=zero seed=zero firmwareCallbacks=none\r\n");
+                LinuxText(state, " generator=zero seed=zero firmwareCallbacks=none\r\n") &&
+                LinuxText(state, "M07_033_END issued=") && LinuxNumber(state, sequences) &&
+                LinuxText(state, " secret=zero seed=zero lease=released firmwareCallbacks=none\r\n");
         }
 #endif
 
@@ -1627,6 +1645,10 @@ public static unsafe partial class EfiEntry
             uint entropyBytes = LinuxRandomBudget(state);
 #if M16_014_PROBE
             bool entropyReady = state->LinuxServiceRandomPhase == 2 && OS.Std.Hash.HmacSha256Drbg.IsInitialized(&state->LinuxServiceRandom) &&
+                TcpInitialSequence.IsInitialized(&state->LinuxServiceSequence) &&
+                state->LinuxServiceSequenceCapture.Rng == null && state->LinuxServiceSequenceCapture.GetRng == null &&
+                state->LinuxServiceSequenceCapture.SystemTable == null && state->LinuxServiceSequenceCapture.BootServices == null &&
+                state->LinuxServiceSequenceCapture.Locate == null &&
                 state->LinuxServiceNonceCapture.Rng == null && state->LinuxServiceNonceCapture.GetRng == null &&
                 state->LinuxServiceNonceCapture.SystemTable == null && state->LinuxServiceNonceCapture.BootServices == null &&
                 state->LinuxServiceNonceCapture.Locate == null;
@@ -1680,7 +1702,7 @@ public static unsafe partial class EfiEntry
             state->LinuxMemoryCheckpoint = 5;
             state->LinuxUserRoot = state->LinuxMemory.Root; state->LinuxMemoryPhase = 4;
 #if M16_014_PROBE
-            if (!LinuxText(state, "M11_012_SEED source=firmware-rng acquisitions=2 entropyBytes=32 nonceBytes=16 domain=getrandom state=ready firmwareCallbacks=none\r\n")) return false;
+            if (!LinuxText(state, "M11_012_SEED source=firmware-rng acquisitions=2 entropyBytes=32 nonceBytes=16 domain=getrandom state=ready firmwareCallbacks=none\r\nM07_033_SEED source=firmware-rng acquisitions=1 secretBytes=32 domain=tcp-isn state=ready firmwareCallbacks=none\r\n")) return false;
 #endif
             return LinuxText(state, "M16_006_POLICY physical=") && LinuxNumber(state, physical) &&
                 LinuxText(state, " available=") && LinuxNumber(state, available) &&

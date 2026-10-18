@@ -37,6 +37,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs",
+        @"..\OS.Kernel\Net\TcpInitialSequence.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs",

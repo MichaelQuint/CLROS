@@ -7,7 +7,9 @@ multiple development producers; they are not an unfiltered full-host run.
 wiring and shared HMAC_DRBG development, with63 focused checks across multiple
 producers and no-stdlib C# compilation. [Step1423](../done/step1423.md) wires the
 service entropy adapter/source/cleanup with30 focused startup checks and C#
-compilation. Actual guest entropy, secret ISNs, the complete service runner,
+compilation. [Step1424](../done/step1424.md) adds separately seeded/leased TCP
+ISN development with6 independent policy checks,27 network checks and C#
+compilation. Actual guest entropy/ISNs, the complete service runner,
 original native review and stable-batch full-host/QEMU/PCAP
 qualification remain pending. All six tickets stay open. No gate advances.
 

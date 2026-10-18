@@ -83,6 +83,20 @@ deadlines, expiry and fixed-storage high-water marks. Its C# path compiles;
 original native review and guest packet/cleanup qualification remain pending.
 #743/#744/#757 stay open in the six-ticket service-foundation batch.
 
+[Step1424](../done/step1424.md) adds development-only continuing ISNs for #758:
+`M + HMAC-SHA256(secret, domain || tuple)[0..4]` modulo2^32, where M is actual
+monotonic nanoseconds/4000. The32-byte firmware secret has a separate acquisition
+and supervisor owner from AT_RANDOM and getrandom. Exact network leases prevent
+replacement/erasure until every pending, stream and compact TIME-WAIT owner drains.
+New key lifetimes wait240 seconds from their first real-clock borrow; SYNs are
+ignored during quiet time. Tuple protection and duplicate-FIN restart keep the
+existing full240-second TIME-WAIT. Generation/lifetime-counter overflow fails
+closed, while sequence wrap permits continued admission. Finite profiles retain
+their original diagnostic counter. Six independent ISN checks and27 network
+checks pass, including96 host-injected complete lifetimes across sequence wrap;
+this is not a measured guest lifetime count. C# compilation is not original
+native review or guest packet/secret/cleanup qualification. #758 remains open.
+
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.
   [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744) retires

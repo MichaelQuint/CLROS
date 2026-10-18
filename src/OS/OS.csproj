@@ -968,6 +968,7 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs" Link="Compatibility\LinuxX64\LinuxSocketServices.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs" Link="Compatibility\LinuxX64\LinuxEpollServices.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs" Link="Compatibility\LinuxX64\LinuxSocketNetwork.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpInitialSequence.cs" Link="Net\TcpInitialSequence.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />

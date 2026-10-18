@@ -21,7 +21,7 @@ public unsafe partial struct LinuxThreadServices
         if (!a.SigpipeIgnored || a.PackageProcessId != 0 && a.PackageProcessId != _owner.ProcessId ||
             a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
             (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
-        for (uint i = 0; i < 24; i++)
+        for (uint i = 0; i < 25; i++)
         {
             DescriptorExtent(descriptors, i, out ulong start, out ulong bytes);
             if (bytes == 0) continue;
@@ -181,7 +181,7 @@ public unsafe partial struct LinuxThreadServices
     private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
-        for (uint i = 0; i < 24; i++)
+        for (uint i = 0; i < 25; i++)
         {
             // Validated futex words may use application backing; service metadata may not.
             if (i == 8 && !includeUserBacking) continue;
@@ -220,7 +220,7 @@ public unsafe partial struct LinuxThreadServices
             case 17:
                 if (state->Epoll != null) { start = (ulong)state->Epoll->Registrations; bytes = state->Epoll->RegistrationCount * (uint)sizeof(LinuxEpollServices.Registration); }
                 break;
-            case >= 18 and < 24:
+            case >= 18 and < 25:
                 if (state->Sockets != null) LinuxSocketNetwork.ExtentAt(state->Sockets->Network, index - 18, out start, out bytes);
                 break;
 #endif

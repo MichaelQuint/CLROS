@@ -172,6 +172,7 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs|Compatibility\LinuxX64\LinuxSocketNetwork.cs" or
+            @"..\OS.Kernel\Net\TcpInitialSequence.cs|Net\TcpInitialSequence.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs|Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" => profile.IsEnabled("EnableM16011Probe"),
             @"Boot\EfiEntry.NetworkService.cs|" or
             @"Boot\EfiEntry.NetworkTcp.cs|" or

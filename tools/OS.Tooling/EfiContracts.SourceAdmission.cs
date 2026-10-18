@@ -47,6 +47,7 @@ public static partial class EfiContracts
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs"] = "reviewed_m16_bounded_socket_epoll_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs"] = "reviewed_m16_bounded_socket_epoll_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs"] = "reviewed_m16_bounded_socket_epoll_source_identity",
+        [@"..\OS.Kernel\Net\TcpInitialSequence.cs"] = "reviewed_m07_033_tuple_time_hmac_isn_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs"] = "reviewed_m16_bounded_socket_epoll_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "reviewed_m16_thread_signal_mask_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "reviewed_m16_signal_startup_owner_source_identity",

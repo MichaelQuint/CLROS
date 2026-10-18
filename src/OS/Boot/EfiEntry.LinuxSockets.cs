@@ -171,12 +171,23 @@ public static unsafe partial class EfiEntry
                 if (!LinuxSocketServices.AttachMessageObserver(&o->Sockets, state, &ObserveLinuxSocketMessage)) return false;
                 // A finite diagnostic seed from the admitted clock, not a
                 // production unpredictable TCP initial-sequence generator.
+#if M16_014_PROBE
+                uint sequence = 0;
+                TcpInitialSequence.Owner* sequenceOwner = &state->LinuxServiceSequence;
+#else
                 uint sequence = ((uint)now & 0x3fff0000) | 0x10000;
+                TcpInitialSequence.Owner* sequenceOwner = null;
+#endif
                 var io = new TcpPassiveConnection.Operations { Context = o, NowNanoseconds = &LinuxSocketNow, Send = &LinuxSocketSendFrame,
                     LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
                 if (!SocketNetwork.Begin(&o->Network, &o->Sockets, &o->Table, (SocketNetwork.Slot*)o->Slots, LinuxSocketConnections,
                     o->Buffers, LinuxSocketReceive, LinuxSocketSend, new(2, 0, 0, 0, 0, 1), o->Peer, new(10, 0, 2, 2), sequence, io,
-                    compactTimeWait: Probes.EnableM16014Probe)) return false;
+                    compactTimeWait: Probes.EnableM16014Probe, sequence: sequenceOwner)) return false;
+#if M16_014_PROBE
+                if (!LinuxText(state, "M07_033_BOUND quietUntil=") || !LinuxNumber(state, state->LinuxServiceSequence.QuietDeadline) ||
+                    !LinuxText(state, " clock=") || !LinuxNumber(state, now) ||
+                    !LinuxText(state, " tickNanos=4000 quietNanos=240000000000 secret=independent lease=network\r\n")) return false;
+#endif
                 o->Phase = 2;
                 return LinuxText(state, "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live\r\n");
             }
