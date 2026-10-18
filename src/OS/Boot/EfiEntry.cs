@@ -243,6 +243,16 @@ public static unsafe partial class EfiEntry
             internal ulong ClockPhase;
             internal HpetMmioDescription HpetDescription;
             internal OwnedMonotonicClockState Clock;
+#if M10_004_PROBE
+            internal OwnedRealtimeClock.State Realtime;
+            internal OwnedRealtimeClock.FirmwareTime RealtimeSnapshot;
+            internal ulong RealtimeCaptureTicks;
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+            internal uint RealtimeAdmissionControl;
+            internal ulong RealtimeRejectedStatus;
+            internal byte RealtimeRejectedMonth;
+#endif
+#endif
 #endif
 #if M16_003_PROBE
             internal uint ServicePhase;
@@ -326,6 +336,9 @@ public static unsafe partial class EfiEntry
                     // Only this pre-entry branch may use firmware output. Partial
                     // allocations remain reserved until VM teardown on failure.
                     state->Phase = 5;
+#if M16_019_UNAVAILABLE_PROBE || M16_019_INVALID_PROBE
+                    WriteRealtimeAdmissionRejection(state, console, serial);
+#endif
                     WritePreparationFailure(console, serial, state->PreparationCheckpoint, state->TableMemoryType);
                     return;
                 }
@@ -565,6 +578,10 @@ public static unsafe partial class EfiEntry
 #if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE || M16_003_PROBE
             state->PreparationCheckpoint = 95;
             if (!PrepareAdapters(state, services)) return false;
+#endif
+#if M10_004_PROBE
+            state->PreparationCheckpoint = 96;
+            if (!BootSequence.PrepareOwnedRealtime(state->Phase == 2, state, &PrepareRealtime)) return false;
 #endif
             state->ImageHandle = null;
             state->SystemTable = null;
@@ -1565,6 +1582,10 @@ public static unsafe partial class EfiEntry
                 Entropy = entropyBytes == FirmwareEntropyReservoir.Bytes ? state->LinuxRuntimeRandom.Data : state->LinuxRandomRetained.Data,
                 CapturedEntropyBytes = entropyBytes, SingleCpuValidated = true, FirmwareExited = true
             };
+#if M10_004_PROBE
+            startup.Realtime = &state->Realtime;
+            startup.RequireRealtime = true;
+#endif
             if (!LinuxStartupServices.Begin(&state->LinuxServices, startup)) return false;
             state->LinuxMemoryCheckpoint = 5;
             state->LinuxUserRoot = state->LinuxMemory.Root; state->LinuxMemoryPhase = 4;
@@ -5608,7 +5629,14 @@ public static unsafe partial class EfiEntry
                 Read = (delegate* unmanaged<void*, uint, ulong>)(access + X64OwnedClockAccess.ReadOffset),
                 Write = (delegate* unmanaged<void*, uint, ulong, void>)(access + X64OwnedClockAccess.WriteOffset)
             };
+#if M10_004_PROBE
+            // The finite web fixture already acquired its UTC anchor before
+            // exit. Preserve that HPET epoch instead of starting a second owner.
+            return state->Realtime.IsAvailable && state->Clock.Source == OwnedClockSource.Hpet &&
+                state->Clock.Status == OwnedClockStatus.Ready && OwnedMonotonicClock.Read(ref state->Clock);
+#else
             return OwnedMonotonicClock.Start(ref state->Clock, hpet, tsc) && state->Clock.Source == OwnedClockSource.Hpet;
+#endif
         }
 
         private static bool ReadClockProgress(Storage* state, out ulong ticks)

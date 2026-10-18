@@ -22,7 +22,7 @@ internal static class NativeAotSocketVectorsPublisherTests
         HostCheck.True(!Directory.Exists(destination));
     }
 
-    [HostTest("socket vectors publisher binds all three app files and rejects extra sources and build overrides")]
+    [HostTest("socket vectors publisher binds all four app files and rejects extra sources and build overrides")]
     private static void Sources()
     {
         string root=HostToolProcess.FindRepositoryRoot();
@@ -30,11 +30,14 @@ internal static class NativeAotSocketVectorsPublisherTests
         try
         {
             string app=Path.Combine(temporary,"apps","NativeAotSocketVectors");Directory.CreateDirectory(app);
-            foreach(string file in new[]{"Program.cs","SocketVectorsFixture.cs","NativeAotSocketVectors.csproj"})
+            foreach(string file in new[]{"Program.cs","SocketVectorsFixture.cs","SocketPolicyFixture.cs","NativeAotSocketVectors.csproj"})
                 File.Copy(Path.Combine(root,"apps","NativeAotSocketVectors",file),Path.Combine(app,file));
             NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary);
             string source=Path.Combine(app,"SocketVectorsFixture.cs");byte[] original=File.ReadAllBytes(source);
             File.AppendAllText(source,"\n");Reject(()=>NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary));File.WriteAllBytes(source,original);
+            string policySource=Path.Combine(app,"SocketPolicyFixture.cs");byte[] policyOriginal=File.ReadAllBytes(policySource);
+            File.Delete(policySource);Reject(()=>NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary));File.WriteAllBytes(policySource,policyOriginal);
+            File.AppendAllText(policySource,"\n");Reject(()=>NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary));File.WriteAllBytes(policySource,policyOriginal);
             string extra=Path.Combine(app,"Extra.cs");File.WriteAllText(extra,"class Extra {}");
             Reject(()=>NativeAotSocketVectorsPublisher.RequireCurrentSources(temporary));File.Delete(extra);
             string policy=Path.Combine(temporary,"apps","Directory.Packages.props");File.WriteAllText(policy,"<Project />");

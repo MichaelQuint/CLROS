@@ -261,7 +261,9 @@ public static partial class QemuTranscripts
                 case 99: Need(memory.Covered(a,112,3) && v==0,"threading_sysinfo");break;
                 case 204: Need(a is 0 or 1 && b is >=8 and <=4096 && memory.Covered(c,8,3) && v==8,"threading_affinity");break;
                 case 228:
-                    Need(a is 1 or 6?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");
+                    // Only the declared realtime-dependent web fixture owns UTC.
+                    // Other profiles retain their unsupported ID0 contract.
+                    Need(a is 1 or 6 || web && a==0?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");
                     if(a==6 && v==0)phases?.MonotonicRead(clock);
                     break;
                 case 302: Need(a is 0 or 1 && b is 3 or 9 && c==0 && memory.Covered(d,16,3) && v==0,"threading_limit");break;

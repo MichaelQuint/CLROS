@@ -1,5 +1,19 @@
 # CLROS Completion Gates
 
+[Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
+`88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),
+six strict web/quota prefixes, three policy/vector guests and eight affected
+ancestors. The application captures retain `02859bfd` through exact source/policy
+joins. Socket ladder/policy, exact health, stopped-guest refusal and independently
+plausible advancing HTTP Date pass, with the finite UTC contract and separate
+pre-entry copied-source UTC rejection controls. Original native/ABI/unwind and
+actual socket dispatch-table bindings retain their bounded review scopes.
+
+Web workers remain active until runner termination; guest app-exit/reap/resource
+cleanup remains unqualified. **Only the existing numbered Gate2 passes.**
+Repeated service #224 still needs #743/#744/#746/#240/#757/#758; general Kestrel,
+whole-stack, isolation, local Gate14, cloud and production remain incomplete.
+
 [Step1405](../done/step1405.md) qualifies bounded #219 startup and #745 checked
 socket vectors: 5,619 full-host checks across751 fixtures (94 Native), three finite
 BufferList captures, six real upstream Kestrel web/quota prefixes and eight strict
@@ -8,8 +22,8 @@ ABI/frame reviews pass. Vector captures retain `0086b219`; full-host/web/ancesto
 retain `8ef72134`, after an audited web-pin/evidence-only transition.
 
 Web workers remain active until runner-owned termination; guest app-exit/resource
-cleanup is not qualified. Continue #220 under #737, with #759 realtime before
-#223. **Only the existing numbered Gate2 passes.** General Kestrel/service,
+cleanup is not qualified. That checkpoint left #220 and #759/#223 open;
+step1419 separately qualifies their bounded scope. **Only the existing numbered Gate2 passes.** General Kestrel/service,
 whole-stack, isolation, local Gate14, cloud and production acceptance remain open.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
@@ -82,11 +96,11 @@ qualification; step1389 adds finite #218 copied logging/quota delivery, and
 step1405 adds bounded #219 startup/#745 vectors. Remaining service prerequisites
 stay open.
 
-- #220 consumes the qualified containment/socket/epoll, startup and vector
-  prerequisites. It still needs its own complete adversarial socket-ladder
-  acceptance; a selected health response does not replace it.
-- #223 requires M16-019 owned realtime and an independently plausible HTTP Date.
-  A correctly formatted Unix-epoch response does not pass time acceptance.
+- Step1419 qualifies #220's bounded adversarial socket ladder, #221 policy and
+  #222 exact health/stopped-guest refusal, preserving the prerequisite scopes.
+- Step1419 also qualifies #759/#223 owned realtime and independently plausible
+  HTTP Date. A correctly formatted Unix-epoch response is rejected; the declared
+  UTC source, tolerance and finite lifetime remain restrictions.
 - #224 requires persist, compact TIME-WAIT, continuing execution policy,
   replenished randomness, M07-032 pending-reset cleanup and M07-033 continuing
   ISNs. #225 additionally requires fragmented backing, guest-verified GC/native

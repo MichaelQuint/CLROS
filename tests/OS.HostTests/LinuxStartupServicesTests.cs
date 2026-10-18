@@ -416,6 +416,57 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(owner.Context->Fences == 1); HostCheck.Equal(-22L, owner.Call(324, 1));
     }
 
+    [HostTest("linux.startup required realtime rejects missing unavailable and mismatched clocks before heap reservation")]
+    private static void RealtimeAdmission()
+    {
+        using var owner = new Owner(); var admission = owner.Admission(); admission.RequireRealtime = true;
+        var before = new Snapshot(owner);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        OS.Kernel.Platform.OwnedRealtimeClock.State clock = default; admission.Realtime = &clock;
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        HostCheck.True(OS.Kernel.Platform.OwnedRealtimeClock.Begin(ref clock, 1800000000, 0, 10000, 1000000, 60));
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        clock = default;
+        HostCheck.True(OS.Kernel.Platform.OwnedRealtimeClock.Begin(ref clock, 1800000000, 0, 10000, admission.FrequencyHz, 60));
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, admission));
+    }
+
+    [HostTest("linux.startup owned realtime uses x64 timespec fractional carry while preserving monotonic epoch")]
+    private static void RealtimeTimespec()
+    {
+        using var owner = new Owner(); var admission = owner.Admission();
+        OS.Kernel.Platform.OwnedRealtimeClock.State clock = default;
+        HostCheck.True(OS.Kernel.Platform.OwnedRealtimeClock.Begin(ref clock, 1800000000, 999000000,
+            10000, admission.FrequencyHz, 60));
+        admission.Realtime = &clock; admission.RequireRealtime = true;
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, admission));
+        HostCheck.Equal(0L, owner.Call(228, 0, Output));
+        byte* time = owner.Memory.At(Output);
+        HostCheck.Equal(1800000001L, *(long*)time); HostCheck.Equal(1000000UL, *(ulong*)(time + 8));
+        HostCheck.Equal(0L, owner.Call(228, 1, Output));
+        HostCheck.Equal(0UL, *(ulong*)time); HostCheck.Equal(3100000UL, *(ulong*)(time + 8));
+        // This PAL build measures clock_gettime; an unmeasured gettimeofday ABI stays unsupported.
+        HostCheck.Equal(-38L, owner.Call(96, Output));
+    }
+
+    [HostTest("linux.startup realtime checks user faults copy failures and finite expiry")]
+    private static void RealtimeOutputFailures()
+    {
+        using var owner = new Owner(); var admission = owner.Admission();
+        OS.Kernel.Platform.OwnedRealtimeClock.State clock = default;
+        HostCheck.True(OS.Kernel.Platform.OwnedRealtimeClock.Begin(ref clock, 1800000000, 0,
+            10000, admission.FrequencyHz, 1));
+        admission.Realtime = &clock; admission.RequireRealtime = true;
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, admission));
+        new Span<byte>(owner.Memory.At(Output), 16).Fill(0xa5);
+        ulong ticks = owner.Context->Ticks;
+        HostCheck.Equal(-14L, owner.Call(228, 0, Output + 4090)); HostCheck.Equal(ticks, owner.Context->Ticks);
+        owner.Context->FailCopy = true; HostCheck.Equal(-14L, owner.Call(228, 0, Output));
+        owner.Context->FailCopy = false; owner.Context->Ticks = 10000 + admission.FrequencyHz;
+        HostCheck.Equal(-5L, owner.Call(228, 0, Output)); HostCheck.True(!clock.IsAvailable);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output), 16).IndexOfAnyExcept((byte)0xa5) == -1);
+    }
+
     [HostTest("linux.startup coarse monotonic clock uses live epoch with millisecond resolution and checked output")]
     private static void CoarseClock()
     {

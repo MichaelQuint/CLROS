@@ -18,6 +18,18 @@ public static partial class QemuTranscripts
     /// This synthetic seam does not qualify any guest or original program.</summary>
     public static SocketVectorsCallInspection InspectNativeAotSocketVectorsCallsForTests(string[] rows) => VectorSocketCalls(rows);
 
+    /// <summary>Observed policy socket lifetimes before the first normal accept.
+    /// The caller still needs original app/native, copied sockaddr and full
+    /// runtime/network proof. These counts alone qualify no guest execution.</summary>
+    public readonly record struct SocketPolicyCallInspection(int BindDenials,int DuplicateListeners,int CapacitySockets,int ClosedSockets);
+
+    /// <summary>Check borrowed complete syscall returns for two denied binds,
+    /// one competing listener and ten retained sockets exhausting the 16-fd budget
+    /// after standard I/O, the runtime wake pipe and epoll port own fd0 through5.
+    /// Require successful close/reuse before the normal listener/accept. Throws
+    /// on malformed/missing/changed controls; no execution authority is produced.</summary>
+    public static SocketPolicyCallInspection InspectNativeAotSocketPolicyCallsForTests(string[] rows)=>VectorSocketPolicyCalls(rows);
+
     /// <summary>Synthetic complete-leaf seam. Supplied ELF/predicates provide
     /// no sealed program, original package, packet or guest execution authority.
     /// Raw app framing, common runtime ownership and vector calls all must pass.</summary>
@@ -45,6 +57,7 @@ public static partial class QemuTranscripts
         var output = NativeAotThreadingOutput.Read(NativeAotSocketVectorsPublisher.Application, rawTail);
         var capture = NativeAotSocketGuest.ReadReadiness(output); string[] rows = Rows(output);
         int offset = 64 + Encoding.ASCII.GetByteCount(NativeAotSocketVectorsPackage.Manifest);
+        _ = NativeAotSocketVectorsOutput.Read(output.Stdout,requirePolicy:true);
         var owner = program!;
         _ = new ThreadingProtocol(NativeAotSocketVectorsPublisher.Application, rows, package[offset..],
             owner.IsInstruction, owner.IsSyscallReturn, output.WriteLengths, userRoot, kernelRoot, socketCapture: capture).Validate();
@@ -57,6 +70,45 @@ public static partial class QemuTranscripts
         internal uint Received, Sent;
         internal int Eof, Reset, Shutdown;
         internal bool Pending, Watched;
+    }
+
+    private static SocketPolicyCallInspection VectorSocketPolicyCalls(string[] rows)
+    {
+        Need(rows is not null && rows.Length is >0 and <=100000,"socket_policy_extent");
+        var calls=ReadLinuxCallReturns(rows!,allowEpoll:true);HashSet<ulong> open=[];
+        int binds=0,listens=0,created=0,closed=0,capacity=0;bool accepted=false;
+        foreach(var call in calls.OrderBy(c=>c.RecordIndex))
+        {
+            var fields=Regex.Match(rows![call.RecordIndex],@"^M16_008_CALL identity=\d+ nr=(\d+) a0=(\d+) a1=(\d+) a2=(\d+) ",RegexOptions.CultureInvariant);
+            Need(fields.Success,"socket_policy_fields");
+            ulong number=ulong.Parse(fields.Groups[1].Value,CultureInfo.InvariantCulture),fd=ulong.Parse(fields.Groups[2].Value,CultureInfo.InvariantCulture);
+            ulong a1=ulong.Parse(fields.Groups[3].Value,CultureInfo.InvariantCulture),a2=ulong.Parse(fields.Groups[4].Value,CultureInfo.InvariantCulture);
+            long result=unchecked((long)call.ValueBits);
+            if(number is 43 or 288)
+            { Need(fd==6 && (result==-11 || result==7) && binds==5 && listens==2 && created==15 && closed==14 && capacity==10 && open.SetEquals(new ulong[]{6}),"socket_policy_followup");accepted=true;break; }
+            if(number==41 && fd==2 && (a1&15)==1 && a2==6)
+            {
+                if(result==-24)
+                { Need(capacity==0 && binds==4 && listens==1 && open.SetEquals(Enumerable.Range(6,10).Select(i=>(ulong)i)),"socket_policy_capacity");capacity=10;continue; }
+                Need(result is >=6 and <16 && open.Add((ulong)result),"socket_policy_create");created++;
+                if(capacity!=0)Need(created==15 && closed==14 && open.SetEquals(new ulong[]{6}),"socket_policy_reuse");
+            }
+            else if(number==49)
+            {
+                long[] expected=[-13,-13,0,-98,0];
+                Need(binds<expected.Length && result==expected[binds] && a2==16 && open.Contains(fd) && fd==(binds==3?7UL:6UL),"socket_policy_bind");
+                if(binds<2)Need(open.Count==1 && created==binds+1 && closed==binds,"socket_policy_denied_lifetime");
+                if(binds==2)Need(open.Count==1 && created==3 && closed==2,"socket_policy_first_listener");
+                if(binds==3)Need(listens==1 && open.Count==2 && created==4 && closed==2,"socket_policy_duplicate");
+                if(binds==4)Need(capacity==10 && closed==14 && open.Count==1,"socket_policy_main_bind");
+                binds++;
+            }
+            else if(number==50)
+            { Need(result==0 && fd==6 && open.Contains(fd) && (listens==0?binds==3:binds==5) && listens<2,"socket_policy_listen");listens++; }
+            else if(number==3 && open.Contains(fd))
+            { Need(result==0,"socket_policy_close");open.Remove(fd);closed++; }
+        }
+        Need(accepted,"socket_policy_missing_followup");return new(2,1,capacity,closed);
     }
 
     private static SocketVectorsCallInspection VectorSocketCalls(string[] rows)

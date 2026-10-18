@@ -225,6 +225,12 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
         firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    /// <summary>Copy and anchor the finite web fixture's UTC while firmware is
+    /// available. The owner retains numeric state only; failure prevents entry.</summary>
+    public static unsafe bool PrepareOwnedRealtime(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM10004Probe && firmwareAvailable &&
+        context != null && prepare != null && prepare(context);
+
     /// <summary>Run startup only after package verification and firmware revocation.</summary>
     public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
         void* context, delegate*<void*, bool> run) =>

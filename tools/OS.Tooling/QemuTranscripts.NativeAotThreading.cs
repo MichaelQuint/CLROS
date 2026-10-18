@@ -185,7 +185,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
-            bool webLogQuota=false)
+            bool webLogQuota=false,WebControlInspection? webControls=null)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
@@ -210,9 +210,13 @@ public static partial class QemuTranscripts
                 socketMessageCalls=messages.ToDictionary(x=>x.CallRecordIndex);
             }
             this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
+            Need(webControls is null || web,"web_controls_application");this.webControls=webControls;
+            if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets);
             memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
             this.containmentCapture=containmentCapture;
+            socketPolicy=vectors && NativeAotSocketVectorsOutput.Read(socketCapture!.Output.Stdout).Policy;
+            if(socketPolicy)_=VectorSocketPolicyCalls(rows!);
             if(socket)socketObservations=(containment?containmentCapture!.Scheduling:socketCapture!).Readiness.ToDictionary(x=>x.RecordIndex);
             writeChannels=web?socketCapture!.Output.WriteChannels:Enumerable.Repeat(1U,writeLengths.Count).ToArray();
             if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!,hpetFrequencyHz);}

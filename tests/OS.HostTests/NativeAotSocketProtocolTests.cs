@@ -7,13 +7,14 @@ internal static class NativeAotSocketProtocolTests
     // construct a sealed program, packet capture or guest execution receipt.
     internal static NativeAotThreadingTranscriptTests.Vector Vector(bool asynchronous=false,bool repark=false,bool deadline=false,bool idle=false,
         bool expiry=false,bool removeWatch=false,bool closedWake=false,bool messages=false,bool reusedFile=false,
-        Action<NativeAotThreadingTranscriptTests.Vector,int,uint>? vectorConnection=null,string? vectorOutput=null)
+        Action<NativeAotThreadingTranscriptTests.Vector,int,uint>? vectorConnection=null,string? vectorOutput=null,
+        Action<NativeAotThreadingTranscriptTests.Vector>? policyPrefix=null)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal)
             .Replace("packageBytes=1320176","packageBytes="+(vectorConnection is null?2117424:NativeAotSocketVectorsPackage.ElfBytes),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal);
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
-        v.Call(291,5,[0x80000]);v.Call(41,6,[2,0x80001,6]);
+        v.Call(291,5,[0x80000]);policyPrefix?.Invoke(v);v.Call(41,6,[2,0x80001,6]);
         v.Call(16,0,[6,0x5421,0x500200]);v.Call(72,0x802,[6,3]);v.Call(72,0,[6,4,0x8802]);
         v.Call(49,0,[6,0x500200,16]);v.Call(50,0,[6,4]);v.Call(233,0,[5,1,6,0x500300]);
         if(reusedFile){v.Call(2,7,[0x500200,0,0]);v.Call(3,0,[7]);}
@@ -36,7 +37,7 @@ internal static class NativeAotSocketProtocolTests
             v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(72,0,[7,4,0x802]);
             v.Call(54,0,[7,1,7,0x500200,4]);v.Call(54,0,[7,6,1,0x500200,4]);
             int requested=i==1?1:20;
-            uint generation=(uint)i+(reusedFile?2U:1U);
+            uint generation=(uint)i+(reusedFile?2U:1U)+(policyPrefix is null?0U:2U);
             if(vectorConnection is not null)vectorConnection(v,i,generation);
             else
             {

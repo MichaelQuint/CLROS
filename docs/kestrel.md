@@ -1,5 +1,35 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
+implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
+757 fixtures (94 Native), three normal web and three quota prefixes, three finite
+policy/vector guests and eight affected ancestors. The nine application captures
+retain `02859bfd`; exact selected-source and project-policy forward joins explain
+the later source labels. Original failures and repairs remain in steps1406-1418.
+
+Real upstream Kestrel serves exact health/configuration/logging entities, the
+49,152-byte vector response and later health. The same healthy connection survives
+the 30-second bad-peer deadline and rejected VLAN frame. Actual socket policy
+negatives refuse port8081, foreign10.0.2.2, duplicate8080 and descriptor capacity;
+the original vector fixture retains short sends/EAGAIN, reset and disposal.
+External receipts check status/body/hash/deadline, advancing Date windows and
+stopped-guest refusal, with raw HTTP/PCAP/serial evidence retained.
+
+Owned UTC copies valid UEFI time before exit and shares the HPET epoch, under the
+declared UTC-RTC contract, five-second observation tolerance and 600-second
+lifetime. Separate copied-source unavailable/invalid controls reject workload
+admission before entry/readiness and release startup/package owners. They do not
+establish actual firmware-read failure or arbitrary-platform clock support.
+
+Original code/relocation joins, complete bounded bodies, typed layout changes,
+ABI/frame/unwind and actual socket dispatch-table targets are reviewed. The new
+ancestor audit retains6,992 source joins and72 original native inputs. Missing
+bodies, uninspected referenced data and transitive/whole-stack safety gain no
+authority. Web prefixes retain live workers until runner termination; guest
+app-exit/reap/resource cleanup, general service, isolation, numbered, cloud and
+production gates remain incomplete. Continue #743/#744/#746/#240/#757/#758 before
+repeated service #224; #737 remains the shared integration owner.
+
 [Step1405](../done/step1405.md) qualifies bounded #219 upstream startup and
 #745 checked socket vectors. Frozen implementation `8ef72134` passes 5,619
 unfiltered full-host checks across 751 fixtures (94 Native), six strict web/quota

@@ -8,7 +8,8 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
     private static readonly string[] Sources = ["global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",
         "tools/OS.Tooling/NativeAotPayload.cs", "tools/OS.Tooling/NativeAotWebPayload.cs", "tools/OS.Tooling/NativeAotSocketPayload.cs",
         "apps/NativeAotSocketSmoke/Program.cs", "apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj",
-        "apps/NativeAotSocketVectors/Program.cs", "apps/NativeAotSocketVectors/SocketVectorsFixture.cs", "apps/NativeAotSocketVectors/NativeAotSocketVectors.csproj"];
+        "apps/NativeAotSocketVectors/Program.cs", "apps/NativeAotSocketVectors/SocketVectorsFixture.cs",
+        "apps/NativeAotSocketVectors/SocketPolicyFixture.cs", "apps/NativeAotSocketVectors/NativeAotSocketVectors.csproj"];
 
     [HostTest("vectors package rejects changed app files extra sources and build overrides before reading publication")]
     private static void SourceInventory()
@@ -22,7 +23,7 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
                 File.Copy(Path.Combine(root, relative), path);
             }
             NativeAotSocketVectorsPackage.RequireCurrentSources(temporary);
-            foreach (string name in new[] { "Program.cs", "SocketVectorsFixture.cs", "NativeAotSocketVectors.csproj" })
+            foreach (string name in new[] { "Program.cs", "SocketVectorsFixture.cs", "SocketPolicyFixture.cs", "NativeAotSocketVectors.csproj" })
             {
                 string path = Path.Combine(temporary, "apps", "NativeAotSocketVectors", name);
                 byte[] original = File.ReadAllBytes(path); File.AppendAllText(path, "\n");
@@ -44,9 +45,10 @@ internal static unsafe class NativeAotSocketVectorsPackageTests
         byte[] text = Encoding.ASCII.GetBytes(NativeAotSocketVectorsPackage.Manifest);
         var parsed = NativeManifestParser.ParseLinuxElf(text);
         HostCheck.True(parsed.Succeeded && parsed.MemoryBytes == 67108864 && parsed.StackBytes == 1572864 &&
-            parsed.Threads == 16 && parsed.Descriptors == 16 && parsed.EnvironmentCount == 1 && parsed.Args.Length == 0);
+            parsed.Threads == 16 && parsed.Descriptors == 16 && parsed.EnvironmentCount == 1 && parsed.Args.Length == 8);
         HostCheck.True(Encoding.ASCII.GetString(text).Contains("app.path=apps/NativeAotSocketVectors\n", StringComparison.Ordinal) &&
-            Encoding.ASCII.GetString(text).Contains("listen=0.0.0.0:8080\n", StringComparison.Ordinal));
+            Encoding.ASCII.GetString(text).Contains("listen=0.0.0.0:8080\n", StringComparison.Ordinal) &&
+            Encoding.ASCII.GetString(text).Contains("args=--policy\n", StringComparison.Ordinal));
         HostCheck.Equal(NativeAotSocketVectorsPackage.ElfSha256.ToLowerInvariant(), Encoding.ASCII.GetString(text, (int)parsed.Digest.Offset, (int)parsed.Digest.Length));
         fixed (byte* pointer = text) HostCheck.True(LinuxUserInterruptPolicy.TryRead(pointer, (uint)text.Length, parsed, out bool enabled) && enabled);
         Reject(() => NativeAotSocketVectorsPackage.RequirePackage([]), "identity");

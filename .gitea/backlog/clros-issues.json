@@ -22782,7 +22782,7 @@
         "M16-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22810,7 +22810,30 @@
         "tests/OS.HostTests/KestrelSocketSmokeTests.cs",
         "docs/kestrel.md",
         "docs/app-model.md",
-        "docs/workload-profiles.md"
+        "docs/workload-profiles.md",
+        "tools/OS.QemuRunner/WebFrameControl.cs",
+        "tools/OS.QemuRunner/WebSocketControls.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tests/OS.HostTests/WebFrameControlTests.cs",
+        "tests/OS.HostTests/WebSocketControlsTests.cs",
+        "tests/OS.HostTests/QemuRunnerHttpProbeTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Controls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Runner.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Packets.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotSocket.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tests/OS.HostTests/NativeAotWebRunnerTests.cs",
+        "tests/OS.HostTests/NativeAotWebPacketTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Parent.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Transport.cs",
+        "tests/OS.HostTests/NativeAotWebTransportTests.cs",
+        "tests/OS.HostTests/NativeAotWebReplayTests.cs",
+        "src/OS/Boot/EfiEntry.Realtime.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/QemuTranscripts.RealtimeAdmission.cs",
+        "tests/OS.HostTests/RealtimeAdmissionControlTests.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -22819,7 +22842,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Pass the Kestrel socket ladder over Linux adapters and live CLROS TCP",
-      "currentEvidence": "Step1351 qualifies bounded upstream sockets/epoll. Step1380/merged PR763 incorporates PR739 configuration and qualifies #217 plus #741/#742 containment; PR739 is closed as incorporated, not directly merged. Step1383 passes PR740 development's full-host and ordinary ancestor regressions at 1221f0b0, without logging/startup or Kestrel socket-ladder acceptance. #218/#219 and checked vector I/O #745 remain prerequisites. Require actual large/multi-segment upstream Kestrel responses, external partial-I/O/readiness/cancellation checks and the exact remaining dependencies; preserve #737 ownership.",
+      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. Real Kestrel socket ladder,49152-byte multi-segment entity and later health; same healthy handle survives30s bad-peer timeout and rejected VLAN. Actual finite vectors retain short sends/EAGAIN, readiness, reset and disposal. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged.",
       "implementationNotes": [
         "Run the real System.Net.Sockets create/bind/listen/accept/send/receive/close ladder against M16 socket/epoll adapters. Exercise EAGAIN, partial I/O, readiness rearm, timeout and reset using an external client; do not substitute PAL fakes.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22847,10 +22870,10 @@
         "Include actual pinned Kestrel multi-segment/large responses and independent partial-I/O validation after M16-013; retain healthy connection progress across the M07-027 deadline and M07-028 rejected-frame controls."
       ],
       "requiredMarkers": [
-        "TEST_START m10.007",
-        "TEST_PASS m10.007",
-        "TEST_FAIL m10.007 <reason>",
-        "CLROS_M10_007_READY"
+        "TEST_START m10.006",
+        "M10_004_LIVE",
+        "CLROS_M10_004_READY",
+        "TEST_PASS qemu.smoke"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
@@ -22858,14 +22881,16 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M10_007_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM10004Probe --LinuxElfPackage <web.lxp> --LinuxThreadingDisassembly <web-elf.asm> --EfiArtifact <fresh-web.EFI> --Image <fresh-web.raw> --SerialLog <fresh-web.serial.log> --SummaryLog <fresh-web.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 240",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM16013Probe --LinuxElfPackage <socket-policy.lxp> --LinuxThreadingDisassembly <socket-policy-elf.asm> --EfiArtifact <fresh-vectors.EFI> --Image <fresh-vectors.raw> --SerialLog <fresh-vectors.serial.log> --SummaryLog <fresh-vectors.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 600"
       ],
       "documentationPaths": [
         "docs/app-model.md",
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-008",
@@ -22876,7 +22901,7 @@
         "M10-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22904,7 +22929,23 @@
         "tests/OS.HostTests/KestrelEndpointTests.cs",
         "docs/kestrel.md",
         "docs/app-model.md",
-        "docs/workload-profiles.md"
+        "docs/workload-profiles.md",
+        "apps/NativeAotSocketVectors/SocketPolicyFixture.cs",
+        "apps/NativeAotSocketVectors/SocketVectorsFixture.cs",
+        "tools/OS.Tooling/NativeAotSocketVectorsOutput.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketVectors.cs",
+        "tools/OS.Tooling/NativeAotSocketVectorsPackage.cs",
+        "tools/OS.Tooling/NativeAotSocketVectorsPublisher.cs",
+        "tools/OS.Tooling/NativeAotSocketVectorsProgram.cs",
+        "tests/OS.HostTests/NativeAotSocketVectorsOutputTests.cs",
+        "tests/OS.HostTests/NativeAotSocketVectorsTests.cs",
+        "tests/OS.HostTests/NativeAotSocketVectorsCallTests.cs",
+        "tests/OS.HostTests/NativeAotSocketVectorsPublisherTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotSocket.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tests/OS.HostTests/NativeAotSocketProtocolTests.cs",
+        "tests/OS.HostTests/NativeAotSocketVectorsProtocolTests.cs",
+        "tests/OS.HostTests/NativeAotSocketVectorsPackageTests.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -22913,7 +22954,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Bind http://0.0.0.0:8080 from the manifest.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. Manifest0.0.0.0:8080 binding plus actual guest port8081/foreign10.0.2.2 authorization, duplicate8080 and capacity negatives; exact observed Socket.Errors10013/10013/10048/10024. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged.",
       "implementationNotes": [
         "Bind HTTP IPv4 port 8080 from the approved manifest endpoint, enforcing configured port/address policy. Reject unauthorized bind, duplicate listener, invalid address and unavailable socket capacity.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22939,10 +22980,10 @@
         "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence."
       ],
       "requiredMarkers": [
-        "TEST_START m10.008",
-        "TEST_PASS m10.008",
-        "TEST_FAIL m10.008 <reason>",
-        "CLROS_M10_008_READY"
+        "TEST_START m10.006",
+        "M10_004_LIVE",
+        "CLROS_M10_004_READY",
+        "TEST_PASS qemu.smoke"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
@@ -22950,14 +22991,16 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M10_008_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM10004Probe --LinuxElfPackage <web.lxp> --LinuxThreadingDisassembly <web-elf.asm> --EfiArtifact <fresh-web.EFI> --Image <fresh-web.raw> --SerialLog <fresh-web.serial.log> --SummaryLog <fresh-web.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 240",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM16013Probe --LinuxElfPackage <socket-policy.lxp> --LinuxThreadingDisassembly <socket-policy-elf.asm> --EfiArtifact <fresh-vectors.EFI> --Image <fresh-vectors.raw> --SerialLog <fresh-vectors.serial.log> --SummaryLog <fresh-vectors.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 600"
       ],
       "documentationPaths": [
         "docs/app-model.md",
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-009",
@@ -22968,7 +23011,7 @@
         "M10-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -23005,7 +23048,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Serve deterministic GET /healthz body OS_MINIMAL_API_OK.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. Real upstream Kestrel serves exact17-byte OS_MINIMAL_API_OK with HTTP200; external receipts and stopped-guest refusal reject stale endpoint success. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged.",
       "implementationNotes": [
         "Have guest Kestrel serve GET /healthz with HTTP 200 and exact body OS_MINIMAL_API_OK. Verify externally and prove a stopped guest cannot satisfy the probe. Kernel-authored HTTP does not qualify.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23031,10 +23074,10 @@
         "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence."
       ],
       "requiredMarkers": [
-        "TEST_START m10.009",
-        "TEST_PASS m10.009",
-        "TEST_FAIL m10.009 <reason>",
-        "CLROS_M10_009_READY"
+        "TEST_START m10.006",
+        "M10_004_LIVE",
+        "CLROS_M10_004_READY",
+        "TEST_PASS qemu.smoke"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
@@ -23042,14 +23085,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M10_009_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM10004Probe --LinuxElfPackage <web.lxp> --LinuxThreadingDisassembly <web-elf.asm> --EfiArtifact <fresh-web.EFI> --Image <fresh-web.raw> --SerialLog <fresh-web.serial.log> --SummaryLog <fresh-web.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 240"
       ],
       "documentationPaths": [
         "docs/app-model.md",
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-010",
@@ -23061,7 +23105,7 @@
         "M16-019"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -23099,7 +23143,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Probe the guest from an external host client and validate status, body, and hash.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. External client validates status/body/hash/deadline and independently plausible advancing Date, with exact raw HTTP/PCAP/serial joins. Epoch/stale/future/reversed/overflow/missing/failure/stopped-guest controls retain their measured host/guest scope. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged.",
       "implementationNotes": [
         "Extend the existing host-side QEMU HTTP probing path to validate status/body/hash with a deadline. Reject stale endpoint responses, wrong body/status, missing startup/readiness markers and connection failures; retain serial plus HTTP receipts.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23126,10 +23170,10 @@
         "Require M16-019's owned realtime evidence. Validate the independently observed HTTP Date against an explicit UTC source interval/tolerance; a syntactically correct Unix-epoch header must fail, even when status/body/hash match. Retain the raw PCAP and serial CLOCK_REALTIME results."
       ],
       "requiredMarkers": [
-        "TEST_START m10.010",
-        "TEST_PASS m10.010",
-        "TEST_FAIL m10.010 <reason>",
-        "CLROS_M10_010_READY"
+        "TEST_START m10.006",
+        "M10_004_LIVE",
+        "CLROS_M10_004_READY",
+        "TEST_PASS qemu.smoke"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
@@ -23137,14 +23181,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M10_010_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM10004Probe --LinuxElfPackage <web.lxp> --LinuxThreadingDisassembly <web-elf.asm> --EfiArtifact <fresh-web.EFI> --Image <fresh-web.raw> --SerialLog <fresh-web.serial.log> --SummaryLog <fresh-web.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 240"
       ],
       "documentationPaths": [
         "docs/app-model.md",
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-011",
@@ -33942,9 +33987,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33956,7 +34001,7 @@
         "M05-003",
         "M10-006"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. LinuxStartupServices.cs:176-187 accepts monotonic IDs1/6 but returns-EINVAL for CLOCK_REALTIME0; gettimeofday returns-ENOSYS. The pinned System.Native PAL returns0 on failed realtime acquisition, which DateTime.UtcNow exposes as1970. Fresh host characterization confirms-22/-38 and models that documented PAL branch. Independent reinspection of retained PR739 continuing-web-r12 PCAP finds both /healthz and /config Date headers equal Thu,01 Jan1970 00:00:00 GMT, plus21 realtime rejections in serial. PCAP SHA256074F817586534799127F61FAE01870DD5229487E46BC429D1337680BBFB3DAE9 and serial63EF51C7DCCC35D6D6BB06B7AE3B21FCD2E45CFABA7256F4E4E55B3FEABC9A29 match step1354. No fresh QEMU or complete Kestrel acceptance was run.",
+      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. Copied UEFI UTC plus HPET epoch under UTC-RTC/600s lifetime; plausible advancing external Date windows with5s tolerance. Separate copied-source unavailable/invalid controls reject before entry/readiness and release owners; no actual firmware-failure or arbitrary-platform claim. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33995,7 +34040,21 @@
         "docs/kestrel.md",
         "docs/security.md",
         "docs/workload-profiles.md",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "std/no-runtime/shared/Time/GregorianUtc.cs",
+        "tests/OS.HostTests/GregorianUtcTests.cs",
+        "src/OS/Boot/EfiEntry.Realtime.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tests/OS.HostTests/QemuRunnerTests.cs",
+        "src/OS/Boot/EfiEntry.LinuxWeb.cs",
+        "tools/OS.Tooling/EfiProjectAdmission.cs",
+        "tests/OS.HostTests/BootSequencePlanTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Runner.cs",
+        "tests/OS.HostTests/NativeAotWebRunnerTests.cs",
+        "tools/OS.QemuRunner/Program.cs",
+        "tools/OS.Tooling/QemuTranscripts.RealtimeAdmission.cs",
+        "tests/OS.HostTests/RealtimeAdmissionControlTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34021,7 +34080,8 @@
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM10004Probe --LinuxElfPackage <web.lxp> --LinuxThreadingDisassembly <web-elf.asm> --EfiArtifact <fresh-web.EFI> --Image <fresh-web.raw> --SerialLog <fresh-web.serial.log> --SummaryLog <fresh-web.summary.log> --Qemu \"<qemu-system-x86_64.exe>\" --OvmfCode \"<edk2-x86_64-code.fd>\" --FirmwareRngSource virtio --TimeoutSeconds 240"
       ],
       "documentationPaths": [
         "docs/app-model.md",

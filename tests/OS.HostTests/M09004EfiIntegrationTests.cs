@@ -117,7 +117,15 @@ internal static unsafe class M09004EfiIntegrationTests
         string vectorParent = project.Descendants("Error").Single(element =>
             element.Attribute("Text")?.Value == "m16_013_requires_epoll_parent").Attribute("Condition")!.Value;
         HostCheck.Equal("'$(EnableM16013Probe)' == 'true' and '$(EnableM16012Probe)' != 'true'", vectorParent);
-        string ExclusionName(string name) => name == "EnableM16013Probe" ? "EnableM16012Probe" : name;
+        string realtimeParent = project.Descendants("Error").Single(element =>
+            element.Attribute("Text")?.Value == "realtime_rejection_requires_web_profile").Attribute("Condition")!.Value;
+        HostCheck.Equal("('$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true') and '$(EnableM10004Probe)' != 'true'", realtimeParent);
+        string ExclusionName(string name) => name switch
+        {
+            "EnableM16013Probe" => "EnableM16012Probe",
+            "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
+            _ => name
+        };
         string[] declared = project.Descendants("PropertyGroup").SelectMany(group => group.Elements()).Select(element => element.Name.LocalName)
             .Where(name => name.StartsWith("Enable", StringComparison.Ordinal) && name.EndsWith("Probe", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal).ToArray();

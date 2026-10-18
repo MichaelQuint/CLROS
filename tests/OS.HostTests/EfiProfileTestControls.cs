@@ -274,8 +274,14 @@ internal static class EfiProfileTestControls
     }
 
     // Independent expectations shared by cross-profile rejection fixtures.
-    internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
+    internal static string? MissingParentReason(IReadOnlyCollection<string> selected, bool ordinarySmoke = false)
     {
+        bool unavailable = selected.Contains("EnableM16019UnavailableProbe");
+        bool invalidUtc = selected.Contains("EnableM16019InvalidProbe");
+        if ((unavailable || invalidUtc) && ordinarySmoke) return "realtime_rejection_requires_separate_capture";
+        if (unavailable && invalidUtc) return "realtime_rejection_controls_conflict";
+        // Either fault leaf selects the web parent before ordinary profile guards.
+        if (unavailable || invalidUtc) selected = [.. selected, "EnableM10004Probe"];
         if(selected.Contains("EnableM16013Probe") && new[]{"EnableM07027Probe","EnableM07028Probe","EnableM10004Probe",
             "EnableM09011Probe","EnableM09012Probe","EnableM16010Probe"}.Any(selected.Contains))return "socket_vectors_profile_conflict";
         bool containment = selected.Contains("EnableM07027Probe") || selected.Contains("EnableM07028Probe");
@@ -289,7 +295,7 @@ internal static class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM10004Probe", "EnableM07027Probe", "EnableM07028Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name)))) return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
             if (sockets) return null;
@@ -416,6 +422,34 @@ internal static class EfiProfileTestControls
         }
     }
 
+    [HostTest("efi.profile UTC fault descendants preserve command-specific rejection precedence")]
+    private static void UtcFaultRejectionPrecedence()
+    {
+        string? Reason(Action action)
+        {
+            try { action(); return null; }
+            catch (ToolFailure failure) { return failure.Reason; }
+        }
+        var cases = new List<(string[] Flags, string? Expected)>();
+        foreach (string control in new[] { "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe" })
+        {
+            cases.Add(([control], null));
+            cases.Add(([control, "EnableM04ArithmeticConformanceProbe"], "m07_026_profile_conflict"));
+            cases.Add(([control, "EnableM16013Probe"], "socket_vectors_profile_conflict"));
+            cases.Add(([control, "EnableM07027Probe"], "socket_containment_profile_conflict"));
+        }
+        cases.Add((["EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"], "realtime_rejection_controls_conflict"));
+        foreach (var item in cases)
+        {
+            string[] arguments = item.Flags.Select(flag => "--" + flag).ToArray();
+            HostCheck.Equal(item.Expected, MissingParentReason(item.Flags));
+            foreach (bool build in new[] { true, false })
+                HostCheck.Equal(item.Expected, Reason(() => EfiOptions.Parse(arguments, build).Profile()));
+            HostCheck.Equal("realtime_rejection_requires_separate_capture", MissingParentReason(item.Flags, ordinarySmoke: true));
+            HostCheck.Equal("realtime_rejection_requires_separate_capture", Reason(() => QemuProfiles.Create(QemuSmokeOptions.Parse(arguments))));
+        }
+    }
+
     [HostTest("efi.profile service child defaults off and preserves ordinary VerifiedExit")]
     private static void ServiceChildDefaultPolicy()
     {
@@ -438,7 +472,7 @@ internal static class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM10004Probe", "EnableM07027Probe", "EnableM07028Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]

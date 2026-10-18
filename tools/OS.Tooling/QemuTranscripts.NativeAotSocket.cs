@@ -51,6 +51,7 @@ public static partial class QemuTranscripts
 
     private sealed partial class ThreadingProtocol
     {
+        private readonly bool socketPolicy;
         private readonly Dictionary<int,NativeAotSocketGuest.Readiness> socketObservations=[];
         private readonly Dictionary<int,SocketDescriptor> socketDescriptors=[];
         private readonly Dictionary<int,NativeAotSocketMessages.Message> socketMessageInputs=[];
@@ -62,6 +63,10 @@ public static partial class QemuTranscripts
         private bool socketIdleAllowed;
         private ulong socketSent,socketReceived;
         private bool containmentTimeoutObserved,containmentDropObserved;
+        private readonly WebControlInspection? webControls;
+        private readonly List<SocketLifetime>? webLifetimes;
+        private int webControlEvents;
+        private bool webPrivateRetired;
 
         private void SocketMessageInput(RuntimeThread thread)
         {
@@ -133,13 +138,51 @@ public static partial class QemuTranscripts
                 }
                 return;
             }
-            while(position<rows.Length && IsSocketTransport(rows[position]))
+            while(position<rows.Length && (IsSocketTransport(rows[position]) || webControls is not null && IsWebControlEvent(rows[position])))
             {
+                if(IsWebControlEvent(rows[position]))
+                {
+                    Need(webControlEvents<2 && rows[position]==(webControlEvents==0?webControls!.Sockets.Observations.DropRow:
+                        webControls!.Sockets.Observations.TimeoutRow),"web_replay_control_event_order");
+                    WebControlIo(before:true,requirePrivate:webControlEvents==1);
+                    _=Take();webControlEvents++;continue;
+                }
                 var r=SocketTransport(Take());Need(r["clock"]<=long.MaxValue,"socket_transport_clock");
+                if(webControls is not null && r.TryGetValue("event",out ulong slotEvent) && slotEvent==1 &&
+                    r["remotePort"]==(ulong)webControls.Sockets.Deadline.SourcePort)
+                {
+                    var bad=webLifetimes!.Single(l=>l.RemotePort==r["remotePort"]);
+                    Need(webControlEvents==2 && !webPrivateRetired && r["clock"]==bad.Retired,"web_replay_control_retire");
+                    WebBadIo(requirePrivate:true);webPrivateRetired=true;
+                }
                 // Transport clocks do not advance the released thread table.
                 // The mandatory parent/packet consumer owns full handle/tuple,
                 // TIME-WAIT, retire, NIC and wire accounting for these rows.
             }
+        }
+
+        private SocketDescriptor WebControlDescription(int connection)
+        {
+            var descriptor=socketDescriptions.SingleOrDefault(d=>!d.Port && d.Phase==3 && d.Connection==connection);
+            Need(descriptor is not null,"web_replay_control_descriptor");return descriptor!;
+        }
+
+        private void WebBadIo(bool requirePrivate)
+        {
+            var controls=webControls!.Sockets;int ordinary=webLogQuota?5:6;
+            var bad=WebControlDescription(ordinary);
+            Need(socketAccepts==ordinary+2 && bad.Sent==(ulong)controls.Deadline.ResponseHex.Length/2 &&
+                bad.Received==(ulong)controls.Deadline.RequestHex.Length/2 && bad.Reset==0 &&
+                (!requirePrivate || !socketDescriptors.ContainsValue(bad)),"web_replay_control_bad_io");
+        }
+
+        private void WebControlIo(bool before,bool requirePrivate)
+        {
+            WebBadIo(requirePrivate);var controls=webControls!.Sockets;var healthy=WebControlDescription((webLogQuota?5:6)+1);
+            ulong received=(ulong)controls.Before.RequestHex.Length/2,sent=(ulong)controls.Before.ResponseHex.Length/2;
+            if(!before){received+=(ulong)controls.After.RequestHex.Length/2;sent+=(ulong)controls.After.ResponseHex.Length/2;}
+            Need(healthy.Received==received && healthy.Sent==sent && healthy.Reset==0 &&
+                (!before || socketDescriptors.ContainsValue(healthy) && !healthy.WriteClosed && !healthy.ReadClosed),"web_replay_control_healthy_io");
         }
 
         // Return true only when Prepare itself stages another real wait. Such
@@ -208,7 +251,12 @@ public static partial class QemuTranscripts
                 Need((b&~0x8080fUL)==0,"socket_create_flags");
                 if(a!=2)Need(result==-97,"socket_family_probe");
                 else if((b&15)!=1)Need(result==-94,"socket_type_probe");
-                else {Need(c is 0 or 6,"socket_protocol");SocketInstall(v,false,(uint)b&0x80800);}
+                else
+                {
+                    Need(c is 0 or 6,"socket_protocol");
+                    if(result==-24)Need(socketPolicy && LowestFd()==-1,"socket_descriptor_capacity");
+                    else SocketInstall(v,false,(uint)b&0x80800);
+                }
                 return true;
             }
             if(nr is 213 or 291)
@@ -299,8 +347,14 @@ public static partial class QemuTranscripts
             switch(nr)
             {
                 case 49:
-                    Need(descriptor.Phase==0 && c==16 && memory.Covered(b,16,1) && v==0,"socket_bind");descriptor.Phase=1;break;
-                case 50:Need(descriptor.Phase is 1 or 2 && b==(containment?3UL:web?512UL:4UL) && v==0,"socket_listen");descriptor.Phase=2;break;
+                    Need(descriptor.Phase==0 && c==16 && memory.Covered(b,16,1),"socket_bind");
+                    if(result<0)
+                        Need(socketPolicy && (result==-13 || result==-98 && socketDescriptors.Values.Any(other=>
+                            !other.Port && other.Phase==2)),"socket_policy_bind_error");
+                    else {Need(v==0,"socket_bind_result");descriptor.Phase=1;}
+                    break;
+                case 50:Need(descriptor.Phase is 1 or 2 && (socketPolicy?b is 1 or 4:b==(containment?3UL:web?512UL:4UL)) &&
+                    v==0,"socket_listen");descriptor.Phase=2;break;
                 case 43:case 288:
                     Need(descriptor.Phase==2 && (b==0 || memory.Covered(b,16,3) && memory.Covered(c,4,3)) &&
                         (nr==43 || (d&~0x80800UL)==0),"socket_accept_arguments");

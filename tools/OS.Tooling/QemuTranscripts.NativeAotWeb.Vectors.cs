@@ -11,15 +11,17 @@ public static partial class QemuTranscripts
     /// joins remain mandatory; these counts grant no guest authority.</summary>
     public readonly record struct WebVectorCallInspection(int Sends,int ScatterSends,int ShortSends,int BlockedSends,ulong Bytes);
 
-    /// <summary>Require six ordered accepts, the fifth descriptor's native
+    /// <summary>Require six ordered accepts, or eight with explicit transport
+    /// controls, and the fifth descriptor's native
     /// scatter send and actual short return, with at least its complete entity's
     /// byte count before the later health accept. Borrowed rows are never executed or
     /// retained. Unsupported or inconsistent observations throw. This synthetic
     /// seam does not establish source, memory, packet, process or guest identity.</summary>
-    public static WebVectorCallInspection InspectNativeAotWebVectorCallsForTests(string[] rows)=>WebVectorCalls(rows);
+    public static WebVectorCallInspection InspectNativeAotWebVectorCallsForTests(string[] rows,bool transportControls=false)=>WebVectorCalls(rows,transportControls);
 
-    private static WebVectorCallInspection WebVectorCalls(string[] rows)
+    private static WebVectorCallInspection WebVectorCalls(string[] rows,bool transportControls=false)
     {
+        int expectedAccepts=transportControls?8:6;
         var returns=ReadLinuxCallReturns(rows,allowEpoll:true);
         var messages=NativeAotSocketMessages.Read(rows,returns.ToDictionary(call=>call.RecordIndex)).ToDictionary(message=>message.CallRecordIndex);
         Dictionary<uint,int> accepted=[];int count=0,sends=0,scatter=0,shorts=0,blocked=0;
@@ -33,7 +35,7 @@ public static partial class QemuTranscripts
             long result=unchecked((long)call.ValueBits);
             if(number is 43 or 288 && result>=0)
             {
-                Need(result<=uint.MaxValue && count<6 && !accepted.ContainsKey((uint)result),"web_vector_accept");
+                Need(result<=uint.MaxValue && count<expectedAccepts && !accepted.ContainsKey((uint)result),"web_vector_accept");
                 if(count==5)Progress();
                 accepted.Add((uint)result,count++);continue;
             }
@@ -56,7 +58,7 @@ public static partial class QemuTranscripts
             else Need(result<=8192,"web_vector_send_result");
             if(result==-11)blocked++;else bytes+=(ulong)result;
         }
-        Need(count==6,"web_vector_accept_count");Progress();
+        Need(count==expectedAccepts,"web_vector_accept_count");Progress();
         return new(sends,scatter,shorts,blocked,bytes);
     }
 }
