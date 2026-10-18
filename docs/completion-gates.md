@@ -1,5 +1,17 @@
 # CLROS Completion Gates
 
+[Step1405](../done/step1405.md) qualifies bounded #219 startup and #745 checked
+socket vectors: 5,619 full-host checks across751 fixtures (94 Native), three finite
+BufferList captures, six real upstream Kestrel web/quota prefixes and eight strict
+socket/runtime ancestors. Exact original source/native/packet joins and bounded
+ABI/frame reviews pass. Vector captures retain `0086b219`; full-host/web/ancestors
+retain `8ef72134`, after an audited web-pin/evidence-only transition.
+
+Web workers remain active until runner-owned termination; guest app-exit/resource
+cleanup is not qualified. Continue #220 under #737, with #759 realtime before
+#223. **Only the existing numbered Gate2 passes.** General Kestrel/service,
+whole-stack, isolation, local Gate14, cloud and production acceptance remain open.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
@@ -15,15 +27,17 @@ implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native
 three normal and three quota guests, and eight affected socket/runtime ancestors.
 Actual copied write/writev, eight workers, EBADF and quota EIO join the original
 source/native/serial/packet evidence. The authenticated exit tail reaches real
-exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
-unaccepted because constructor creation precedes its failure-marker try. Continue
-#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+exit60; ordinary IRQ yielding and ownership guards remain. That receipt left #219 startup
+unaccepted because constructor creation preceded its failure-marker try. Step1405
+separately qualifies the repair and vectors; #220 and later service/time
+requirements remain open under #737.
 No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
 gate advances. See the step for exact commands, hashes and retained failures.
 
-Only the existing numbered Gate 2 passes. The selected health/configuration
-responses alone do not qualify #219/#220, realtime/HTTP Date, repeated service,
-vector I/O, isolation or local Gate 14. No numbered checkbox changes here.
+Only the existing numbered Gate 2 passes. Step1380's selected health/configuration
+responses alone do not qualify the later service/time/vector/isolation ladder.
+Step1405 adds only its explicitly measured startup/vector scopes, without local
+Gate14 acceptance. No numbered checkbox changes here.
 
 [Step1351](../done/step1351.md) qualifies the bounded #214/#215/#216 and
 #689/#690 batch at implementation `3726e31`: 5,433 full-host checks across713
@@ -64,10 +78,13 @@ Development and failed/interrupted qualification history remains in steps1309-13
 The [October 16 ordered follow-ups](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 change prerequisites, not gate results. Step1351 retains its finite socket
 package scope; step1380 adds bounded configuration and M07-027/M07-028 repair
-qualification; step1389 adds finite #218 copied logging/quota delivery. The remaining application/service prerequisites stay open.
+qualification; step1389 adds finite #218 copied logging/quota delivery, and
+step1405 adds bounded #219 startup/#745 vectors. Remaining service prerequisites
+stay open.
 
-- #220 uses step1380's qualified M07-027/M07-028 network containment and still
-  requires M16-013 actual vectored socket/Kestrel I/O plus its startup/epoll dependencies.
+- #220 consumes the qualified containment/socket/epoll, startup and vector
+  prerequisites. It still needs its own complete adversarial socket-ladder
+  acceptance; a selected health response does not replace it.
 - #223 requires M16-019 owned realtime and an independently plausible HTTP Date.
   A correctly formatted Unix-epoch response does not pass time acceptance.
 - #224 requires persist, compact TIME-WAIT, continuing execution policy,
@@ -731,7 +748,7 @@ numbered gate status.
 | 11. CI | Fail | `dotnet run --project tools/OS.Tooling -- ci smoke --dry-run`, baseline plan-only evidence, and `.gitea/workflows/ci-smoke.yml` exist; CI artifact summaries include planned build, host-test, QEMU dry-run, native-app-marker dry-run, diagnostics/app-args/app-exit/cctor-preflight/fetch-http/fetch-http-endpoint/http-static-response/http-static-tcp-response marker-preset dry-run lanes, qcow2 intent, libvirt intent, qemu-img discovery, and `git diff --check` lanes, but no executed Gitea CI evidence has been captured yet | Run the workflow on a compatible Windows agent, preserve logs/artifacts from a clean checkout, then add real QEMU smoke in CI-compatible hosts |
 | 12. Security | Fail | Host-side manifest validation, source/build-boundary firewall checks, W^X/NX planning for diagnostic and native-app executable memory, PAL page-protection planning, guarded firmware RNG access, and default-deny AWS metadata policy fixtures exist; the separate M01-026 tuple proves one source-bound local-QEMU RW-to-RX probe, publication-cookie audit, targeted invalidation, and page-zero-absence observation during a temporary owned-root interval; the M02 tuple proves one temporary exact-page RW-to-RX transition for the bounded offset-zero safe stub only | Enforce general in-kernel validation, live systemwide W^X/NX page transitions, permanent page-zero policy, reduced release logs, post-firmware entropy handling, app/supervisor metadata policy, malformed-manifest rejection in the guest, and full license/provenance automation |
 | 13. Documentation | Fail | Required docs exist, `docs/documentation-map.md` defines canonical ownership, subsystem docs preserve status/evidence boundaries, immutable done-step files record the current-source M01-026 live-QEMU revalidation in `done/step890.md` while preserving historical r12 evidence in `done/step888.md`, `done/step896.md` plus `done/step897.md` record the first M02 verifier/live tuple, and `done/step920.md` records the bounded M02-010 LoaderData materialization/readback/free tuple | Keep every affected doc current, add/update `done/stepNN.md` for meaningful milestones, keep README build/run flow aligned, and avoid claiming cloud or production readiness until all required gates pass |
-| 14. Hosted-tier, CoreCLR, Roslyn, and PowerShell | Fail | Hosted-tier PAL shape, mock `OSHost_*` tables/facades, workload-profile metadata, and the `kestrel.smoke.package.v0` contract are host-tested/documented; no hosted runtime, CoreCLR `TARGET_OS`, JIT Hello.dll, Roslyn REPL, PowerShell host, or in-guest Kestrel evidence exists | Only claim full long-term OS completion after the external hosted runtime path builds, `OSHost_*` ABI works, JIT Hello.dll runs, Roslyn REPL runs, PowerShell host subset runs, and all hosted-tier docs/tests pass |
+| 14. Hosted-tier, CoreCLR, Roslyn, and PowerShell | Fail | Hosted-tier PAL shape, mock `OSHost_*` tables/facades, workload-profile metadata, and the `kestrel.smoke.package.v0` contract are host-tested/documented; CoreCLR `TARGET_OS`, JIT Hello.dll, Roslyn REPL and PowerShell remain unqualified; step1405's bounded NativeAOT Kestrel prefixes do not satisfy this hosted-tier gate | Only claim full long-term OS completion after the external hosted runtime path builds, `OSHost_*` ABI works, JIT Hello.dll runs, Roslyn REPL runs, PowerShell host subset runs, and all hosted-tier docs/tests pass |
 
 Historical CI numbering note: the previous ledger numbered CI as Gate 12. The
 old failed CI row remains true but is not the canonical numbering above:

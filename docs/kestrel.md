@@ -1,19 +1,26 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1404](../done/step1404.md) retains three strict finite vector guests at
-0086b219: actual short sends/EAGAIN, complete peer/packet/native/source joins and
-terminal cleanup pass. The repaired web app also passes fresh original Linux v3
-qualification. Its current source, original8766792-byte ELF and complete
-1412628-start/198-syscall decoder bind coherently. Nine app bodies and original
-unwind bytes are unchanged; two logging-join immediates become30s. Generated
-read-only metadata differs and carries no identity/equivalence claim.
+[Step1405](../done/step1405.md) qualifies bounded #219 upstream startup and
+#745 checked socket vectors. Frozen implementation `8ef72134` passes 5,619
+unfiltered full-host checks across 751 fixtures (94 Native), six strict web/quota
+prefixes and eight affected socket/runtime ancestors. Three retained strict
+BufferList guests belong to `0086b219`; the intervening change only updates three
+web identity literals and evidence. Their kernel/vector sources are unchanged.
 
-Checked sendmsg/recvmsg retain16-vector/64KiB limits; the finite fixture sends
-512KiB in bounded batches. Only the first logging HTTP request allows60s; other
-request bounds and owned cleanup remain. Fresh repaired web/quota guests,
-actual Kestrel vector consumption, a stable current full-host gate and affected
-ancestors remain pending. The earlier5617-check gate belongs to85a30b4a.
-219/745/737 and PR764 remain open/WIP; no new Kestrel or broader gate is accepted.
+The real upstream constructors/build precede bind. Normal web runs return exact
+health/configuration/logging/repeat, 49,152 binary vector bytes and later health;
+quota runs retain 500/409/later-health controls. The finite BufferList fixture
+observes real short sends/EAGAIN across eight bounded batches totaling 512 KiB,
+then reset, pending-receive disposal, later health and terminal transport cleanup.
+Kernel limits remain 16 vectors/65,536 total bytes. Names, ancillary data and
+unmeasured flags remain unsupported; the ignored-SIGPIPE profile stays explicit.
+
+Web captures are continuing prefixes with live workers and runner-owned
+termination, without guest app-exit/resource-cleanup qualification. The original
+native/source/packet joins and bounded ABI/frame reviews retain their exact
+scope; generated read-only metadata is not called identical. Continue #220 under
+#737, then #221/#222 and #759 before #223. General Kestrel/service, local Gate14,
+whole-stack, isolation, cloud and production acceptance remain incomplete.
 
 ## NativeAOT-first milestone
 
@@ -32,44 +39,14 @@ implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native
 three normal and three quota guests, and eight affected socket/runtime ancestors.
 Actual copied write/writev, eight workers, EBADF and quota EIO join the original
 source/native/serial/packet evidence. The authenticated exit tail reaches real
-exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
-unaccepted. Step1390 moves actual constructor creation inside the failure-marker
-try; fresh native/source and guest qualification remain pending. Continue
-#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+exit60; ordinary IRQ yielding and ownership guards remain. That receipt left #219 startup unaccepted. Step1405 separately qualifies the
+constructor/failure-marker repair and vectors; #220 and the later service/time
+requirements remain open under #737.
 
-[Step1397](../done/step1397.md) develops the normal web runner's sixth request:
-after logging/repeat it requires the exact49152-byte binary `/__clros/vectors`
-response before final health. The quota case retains five requests. Strict
-packet replay checks all binary bytes/headers/segments and ordered connections;
-native call replay additionally requires a positive short send consuming more
-than one nonempty iovec on that large-response descriptor before later health.
-The Linux publisher's v3 receipt retains the complete entity plus its observed
-status/type/length/hash. Historical v2 receipts remain paired with their original
-producer; they do not satisfy the stronger current contract. These changes have
-focused host controls only. Fresh original Kestrel publication/decoder, native
-review and stable full-host/CLROS guest qualification remain pending.
-No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
-gate advances. See the step for exact commands, hashes and retained failures.
-
-[Step1398](../done/step1398.md) retains the first changed-payload publication:
-the three-app native publisher passed, but web qualification failed because its
-logging checker still expected36 stderr rows. The actual output includes the
-new final vector-stage row. The repaired checker requires37 rows, the exact final
-stage and all32 original stderr log records; focused negative controls and replay
-over the retained raw Linux output pass. The original web result remains failed.
-Fresh qualification with the corrected producer remains required.
-
-The immutable [steps1381-1388](../done/step1381.md) retain development history:
-source-pin repairs, the original Linux/package/native reviews, failed runner and
-worker-limit captures, five-request consumer fixes and the exit-tail IRQ repair.
-Step1389 adds the fresh stable qualification; earlier failures remain failures.
-
-The three qualified web captures return exact selected 22-byte health and
-238-byte configuration bodies. CLI binds 8080 while configuration observes the
-separate 8081 environment value and immutable settings. The owned QEMU process
-survives both probes, then dies with its endpoint refused. This is the M10-004
-configuration slice; default-body, realtime/HTTP Date, repeated service, vectors,
-async/cancellation/shutdown and local Gate 14 acceptance remain pending.
+The immutable [steps1390-1404](../done/step1390.md) retain implementation,
+publication, decoder/native review and failed-qualification history. Step1405
+consolidates the later stable result. Step1389 retains its original logging/exit
+scope; the new continuing web prefixes do not relabel it or imply new cleanup.
 
 [Step1335](../done/step1335.md) records fresh #214/#215 builder evidence under shared
 integration [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). The existing
@@ -94,8 +71,8 @@ have historical qualification. The .NET11 migration, #188 lifecycle and
 #191/#192 through #688 finite runtime batch are qualified in steps1225/1230/1307.
 Step1332 qualifies continuing network/TCP; step1351 qualifies the original finite
 socket/SocketAsyncEngine fixtures for #689/#690. Step1380 qualifies #217
-configuration; step1389 qualifies finite #218 stdout/stderr. Continue #219 upstream
-app startup, #745 vectors and #220 real Kestrel socket I/O
+configuration; step1389 qualifies finite #218 stdout/stderr and step1405
+qualifies bounded startup/vectors. Continue #220 real Kestrel socket I/O
 under #737. Follow the exact managed issue dependencies.
 Mechanical ELF startup/write/exit does not run the upstream runtime.
 M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
@@ -271,9 +248,10 @@ critical-path dependencies to the NativeAOT-first implementation sequence.
 
 ## Current Status
 
-Kestrel support is a required CloudReady milestone, but it is not implemented.
-
-The repository currently has EFI/QEMU smoke evidence, host-side manifest validation, kernel-facing source-backed manifest environment metadata, a host-tested manifest socket bind-policy helper for future PAL IPv4 endpoint validation, a host-tested manifest-approved mock socket bind bridge, a host-tested manifest-approved mock listener bridge, early storage and packet/TCP frame-planning primitives, a host-tested caller-owned TCP listener backlog metadata table, a host-tested passive-open-to-listener-backlog bridge, a host-tested listener-backlog-to-mock-accept-queue bridge, a host-tested established-stream-to-mock-socket inbound payload bridge, host-tested PAL socket ABI value contracts, a host-tested mock socket create/bind/listen lifecycle table with accept-queue semantics, Kestrel-oriented mock socket option and endpoint-query contracts, host-tested mock socket partial I/O plus peer close/reset semantics, a host-tested mock package-file handle table over loaded package bytes with file-table enumeration, an `OSHost_*`-shaped package-file facade, a host-tested mock config/environment query table that can be built from native launch-plan metadata including optional listen endpoint config keys, an `OSHost_*`-shaped config/environment facade, a host-tested mock memory table plus an `OSHost_*`-shaped memory facade for allocation/free/protect/query status translation, a host-tested mock timer table plus an `OSHost_*`-shaped timer facade, a host-tested mock wait/event table plus an `OSHost_*`-shaped wait/event facade for immediate manual-reset and auto-reset semantics, a host-tested mock stdout/stderr app-log table plus an `OSHost_WriteLogBytes`-shaped facade, a host-tested native app exit marker formatter, a host-buildable Minimal API fixture, a host-runner HTTP probe proven against local loopback, and documentation for the future hosted tier. The Kestrel-critical PAL contract is documented in `docs/pal.md` and `work/PAL/pal-design.md`, but no `OSHost_*` memory, socket, timer, wait/event, thread/sync, file/config, or log functions are exported or guest-tested. The OS does not have a hosted .NET 10 runtime, CoreCLR PAL integration, real sockets, complete TCP, scheduler/threading, async runtime support, or an in-guest ASP.NET Minimal API application.
+Pinned upstream NativeAOT Kestrel runs in the bounded CLROS profiles above.
+Step1405 qualifies startup and vector I/O; the remaining socket/service/time and
+local Gate14 requirements still govern the single-app milestone. The separate
+CoreCLR/OSHost_* PAL path remains future work described in [pal.md](pal.md).
 
 This document is the prerequisite ledger for Gitea issue #59 and the first smoke-package contract ledger for Gitea issue #149. Use the single local [Claim Boundary And Non-Goals](#claim-boundary-and-non-goals) section plus [docs/completion-gates.md Gate 14](completion-gates.md#gate-14-profile-split) when classifying host-only, mock-only, dry-run, local-loopback, native-tier, or documentation-only evidence.
 
@@ -840,18 +818,17 @@ TEST_PASS kestrel.package.contract rejects unsupported runtime
 
 This document is a prerequisite ledger. The memory table/facade and package-file table are host-only PAL mocks; they do not change the Kestrel claim boundary, exported ABI state, guest memory/page-table state, guest storage state, or networking state.
 
-The first Kestrel proof depends on several major unfinished areas. Until those areas have evidence, the CloudReady status remains blocked at the hosted workload gate.
+The complete single-app milestone still needs the declared service, time and
+resource evidence; CloudReady remains unqualified.
 
 ## Next Steps
 
-Step1389 qualifies finite logging and quota delivery. The selected package,
-five HTTP lifetimes and actual copied serial output retain exact original joins.
-The next batch repairs #219 constructor failure coverage, then implements actual
-vectored socket/Kestrel I/O and the declared #220-#223 prerequisites. Successful
-current health/config/logging probes do not close those broader issues.
+Step1405 qualifies bounded startup/vectors with the exact captured scopes above.
+Continue the declared #220-#223 service ladder, including #759 owned realtime.
+Current selected HTTP prefixes do not close those broader issues.
 
 1. Preserve the accepted memory/descriptor/thread/signal/runtime scopes through [step1307](../done/step1307.md).
 2. Preserve [step1380](../done/step1380.md) configuration/containment and [step1389](../done/step1389.md) finite logging under continuing integration #737.
-3. Complete #219 -> #745 -> #220 -> #221 -> #222 -> #223, including #759 owned realtime before HTTP Date acceptance. Implement compatible slices first, then qualify the stable batch together.
+3. Complete #220 -> #221 -> #222 -> #223, including #759 owned realtime before HTTP Date acceptance. Implement compatible slices first, then qualify the stable batch together.
 4. Capture three fresh guest boots, external `/healthz` traffic, request churn/cancellation/shutdown and a failed probe after termination before claiming Kestrel. Follow the exact tracker dependencies and evidence markers.
 5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.

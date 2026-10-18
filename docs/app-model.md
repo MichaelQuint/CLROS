@@ -1,40 +1,16 @@
 # App Model
 
-[Step1404](../done/step1404.md) binds the repaired web source, fresh original
-Linux ELF and complete decoder together, retaining bounded native/unwind review
-and explicit generated-data limits. Three strict finite vector guests pass at
-0086b219. The real logging joins now allow30s and only the first logging request
-allows60s, with other request bounds/owned cleanup preserved. Fresh web/quota,
-actual Kestrel vectors, current full-host and affected ancestors remain pending.
-219/745/737 remain open; no new startup/Kestrel or broader gate is accepted.
-See the [Kestrel ledger](kestrel.md) for current scope and immutable step history.
+[Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
+5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,
+six web/quota prefixes and eight socket/runtime ancestors. Actual upstream
+constructors/build precede bind; Kestrel delivers the exact 49,152-byte vector
+entity before later health. Web workers remain active until runner termination;
+this is not guest app-exit/resource-cleanup qualification. Continue #220 under
+#737, then the later service/time/gate dependencies. General Kestrel, whole-stack,
+isolation, cloud and production acceptance remain incomplete.
 
-[Step1390](../done/step1390.md) develops the next batch from accepted merge
-`1d5064d8` under #737. Actual witness creation now lies inside the failure-marker
-try; a managed test executes the real app with failing constructor stderr and
-verifies both static/instance failures. Checked socket message vectors also pass
-focused host checks. These changes have no new Linux-native, guest or full-host
-qualification. [Step1391](../done/step1391.md) adds synchronous borrowed-vector
-observations and strict value replay;45 focused checks pass, including exact
-descriptor-generation reconstruction. Native recorder compilation and real
-BufferList/Kestrel guest use remain pending. [Step1392](../done/step1392.md) adds
-the real managed BufferList fixture and a fixed49152-byte Kestrel response; three
-focused host checks pass. Its host run observes a partial request but no partial
-send. #219/#745 and later service/time issues remain open.
-
-[Step1394](../done/step1394.md) retains the original BufferList fixture's Linux
-publication and exact package/complete instruction admission. Focused controls
-join ordered app output, reset, disposal and counters; original publication bytes
-and their producer remain distinct from later host tooling.
-[Step1396](../done/step1396.md) wires the dedicated default-off vector profile,
-sealed program, owned peer and complete parent/packet replay. Focused host controls
-do not qualify its execution. Project hashes cover the reviewed profile guards;
-EFI implementation source pins remain unchanged. Native review and stable
-full-host/CLROS guest qualification are pending.
-[Step1397](../done/step1397.md) adds the large binary web probe and its strict
-runner/packet/native-call consumers. The normal case requires six ordered HTTP
-requests; quota retains five. The publisher's new v3 evidence includes original
-response bytes, but no fresh publication or CLROS guest qualification is claimed.
+The [Kestrel ledger](kestrel.md) owns current commands/scope. Immutable
+[steps1390-1404](../done/step1390.md) retain development and failed attempts.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
@@ -51,9 +27,9 @@ implementation `2bfbaeee`: 5,569 full-host checks across 734 fixtures (94 Native
 three normal and three quota guests, and eight affected socket/runtime ancestors.
 Actual copied write/writev, eight workers, EBADF and quota EIO join the original
 source/native/serial/packet evidence. The authenticated exit tail reaches real
-exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
-unaccepted because constructor creation precedes its failure-marker try. Continue
-#219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+exit60; ordinary IRQ yielding and ownership guards remain. That receipt left #219 startup
+unaccepted. Step1405 separately qualifies its constructor/failure-marker repair
+and vectors; continue #220 under #737, including #759 realtime before #223.
 No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
 gate advances. See the step for exact commands, hashes and retained failures.
 
@@ -1006,9 +982,8 @@ the bounded native review supplies no callee or whole-stack authority.
 
 Earlier [step1364](../done/step1364.md) through [step1388](../done/step1388.md)
 retain the immutable development/failure history. Step1389 consolidates their
-current logging status. #219 startup remains open: move constructor creation
-inside its protected failure-marker scope and verify that failure path before
-claiming startup acceptance. General service, Kestrel and isolation remain open.
+logging scope. Step1405 separately qualifies constructor failure coverage and
+measured vectors. General service, Kestrel and isolation remain open.
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
@@ -1030,10 +1005,10 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Steps1307/1332/1351/1380/1389 qualify their named bounded
-runtime, network, socket, configuration and logging profiles. Kestrel support remains
-mandatory; #219 -> #745 -> #220 and the later service/gate prerequisites remain
-open. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
+application target. Steps1307/1332/1351/1380/1389/1405 qualify their named bounded
+runtime, network, socket, configuration, logging, startup and vector profiles.
+Kestrel support remains mandatory; continue #220 and the later service/gate
+prerequisites. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 

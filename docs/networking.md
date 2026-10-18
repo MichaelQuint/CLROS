@@ -1,99 +1,32 @@
 # Networking
 
-[Step1404](../done/step1404.md) retains three strict finite vector guests at
-0086b219 with real short sends/EAGAIN, exact BufferList remainders, partial
-request/reset/pending-disposal/later-health behavior, full packet/peer/native/
-source joins and terminal cleanup. Kernel limits remain16 vectors/65536 bytes;
-the first response uses eight bounded batches totaling512KiB. Fresh Linux web
-publication and exact package/decoder admission pass separately. Actual repaired
-Kestrel vectors, current full-host/ancestor and dependency acceptance remain
-pending. No general networking/Kestrel or broader gate advances.
+[Step1405](../done/step1405.md) qualifies #745 checked connected-stream vectors
+and #219 startup: 5,619 full-host checks/751 fixtures (94 Native), three finite
+BufferList guests, six real Kestrel web/quota prefixes and eight strict ancestors.
+Vector captures stay at `0086b219`; full-host/web/ancestors stay at `8ef72134`.
+Kernel/vector sources are unchanged across the final web-pin/evidence-only delta.
+Limits remain 16 vectors/65,536 total bytes. The finite fixture proves short sends,
+send EAGAIN, reset, pending disposal/later health and terminal transport cleanup;
+Kestrel proves the exact 49,152-byte entity and a native short send crossing an
+iovec. Web prefixes retain live workers until runner termination. General
+networking/Kestrel, whole-stack and broader gates remain incomplete; #220 follows.
 
-[Step1389](../done/step1389.md) qualifies finite #218 logging separately from the
-network scopes below. [Step1390](../done/step1390.md) develops connected-stream
-Linux x64 sendmsg/recvmsg: at most16 vectors/65536 total bytes, owned descriptor
-scratch and existing nonblocking policies. Complete metadata and ranges are
-checked before copying; all receive payload/header outputs precede TCP consumption.
-Names/control data and unmeasured flags remain unsupported. Focused host checks
-pass. [Step1391](../done/step1391.md) adds synchronous borrowed metadata records
-and strict owner/ordinal/return/mapping joins, including exact descriptor slot
-generations reconstructed from supported installs. Forty-five focused checks
-pass; native recorder compilation, actual BufferList/Kestrel vectors, sealed
-trace/packet joins and stable native/guest/full qualification remain pending
-under #737/#219/#745. No new gate is accepted.
-
-[Step1392](../done/step1392.md) adds `apps/NativeAotSocketVectors`: four external
-peers cover exact BufferList bytes/nonzero offsets, a65536-byte response, real
-peer reset, disposal of a genuinely pending BufferList receive and a later healthy
-reply. The actual managed app implementation and MinimalApiSmoke's fixed49152-byte
-`/__clros/vectors` route pass three focused host checks. Partial receive is observed;
-host send_partial remains zero. Staging three response blocks does not establish
-actual Linux syscall segmentation or backpressure. Step1394 adds the original
-publication/package/index below; explicit guest profile and strict packet
-integration remain pending.
-
-[Step1393](../done/step1393.md) implements the vector publisher and independent
-peer driver, reusing the original containment publication pipeline and live serial
-waiter. Exact app-source/recipe checks and23 focused publisher/peer/original socket
-controls pass across their retained scopes. Live gates require complete joined
-receives and current accepted-fd liveness; they grant stimulus timing only.
-The Linux publication command requires a fresh app cache/output and the immutable
-accepted socket recipe root:
+Current vector publication uses the retained original socket recipe and a fresh
+output directory:
 
 ```text
-dotnet run --project tools/OS.Tooling -- nativeaot socket-vectors publish --recipe-root <original-linux-socket-root> --output <fresh-artifacts-directory>
-```
-
-The preparatory `nativeaot socket-vectors guest-peer --port <forward> --serial
-<owned-serial>` driver gates first3 bytes/reset request consumption, holds the first
-response250ms after a non-consuming first-byte check and verifies257-byte reads.
-Managed execution passes. [Step1394](../done/step1394.md) retains the successful
-original Linux publication: ELF1845008 bytes, SHA256
-`94D330D2BEED5BF11010D6D681D87F7164E55DF8972875CBE6B7BB40A9D77D3B`.
-Exact package admission checks its complete20-output receipt and original
-producer/recipe. The sealed instruction lookup binds349523 original instructions
-and186 syscall continuations across all five executable sections. Strict stdout
-decoding joins each request's progress, final counters, reset and pending-receive
-disposal; only this fixture permits up to32768 stdout bytes for per-read progress.
-These are preparation and focused host controls. [Step1396](../done/step1396.md)
-wires the default-off `EnableM16013Probe` through its complete epoll/socket/runtime
-parents, dedicated package/decoder and owned peer completion. Its final transcript
-joins the original firmware, APIC/NIC teardown, complete runtime leaf, four exact
-binary TCP streams (256 received/65600 sent bytes), reset and acknowledged FINs.
-The original socket and web profiles keep their separate selection and payload
-contracts. The reviewed project hashes cover the new guards; EFI implementation
-source pins remain unchanged pending batch native review. CLROS vector execution and stable
-full-host/native/serial/packet qualification remain pending.
-Step1397 adds the normal Kestrel runner's large binary response, ordered packet
-checks and a native short-send check that requires actual progress across an
-iovec boundary. Host models and the independent process stub pass; fresh original
-Kestrel publication and CLROS execution remain pending. The quota web case keeps
-its existing five-request path.
-The separate original Linux-host run passes exact external bytes/reset/disposal
-and later health. Strace observes two-vector receives/sends and a native short
-send46720 followed by18816 remaining bytes, although the app reports one completed
-send and send_partial0. Native syscall results must establish partial-send
-behavior; app counters alone cannot. This run grants no CLROS guest evidence.
-
-```text
-dotnet run --project tools/OS.Tooling -- linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>
+dotnet run --project tools/OS.Tooling -- nativeaot socket-vectors publish --recipe-root <original-linux-socket-root> --output <fresh-directory>
+dotnet run --project tools/OS.Tooling -- linux socket-vectors-package <original-publication> <fresh-package>
 dotnet run --project tools/OS.Tooling -- linux socket-vectors-program <package> <complete-original-llvm-disassembly>
 ```
 
-The publisher checks current source admission separately from immutable recipe
-evidence. Retain both original roots and producer bytes; a newer tooling binary
-must not replace the publication's producer. No CLROS vector execution or
-backpressure acceptance follows from package/index admission.
-
-[Step1395](../done/step1395.md) prepares the vector leaf's complete runtime/socket
-replay and a separate finite call checker. Synthetic controls require exact
-remaining BufferList lengths/address gaps, accumulated first3-byte receive
-progress, native short sends and send EAGAIN, reset, a pending receive with an
-observed epoll registration before disposal, and all four closed connections.
-The prepared selection guard binds only the dedicated original app and its exact
-parents/inputs. Step1396 adds EFI/profile/runner and packet/owned-peer wiring;
-original native/guest qualification remains pending. These host controls establish
-no new guest acceptance.
+The explicit guest profile is `--EnableM16013Probe` with the sealed package,
+complete decoder, owned peer and 600-second bound. It requires observed sendmsg
+EAGAIN before guest peer reads, exact remaining vectors, a genuinely pending
+receive before disposal and all four streams/cleanup. The standalone Linux peer
+retains its separate 250-ms gate. Publisher/package/index admission alone grants
+no guest authority. Step1405 records the exact implemented commands and hashes;
+[steps1390-1404](../done/step1390.md) retain development and failed attempts.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
@@ -102,7 +35,8 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #219 -> #745 -> #220 application ladder stays open under #737.
+Step1405 adds bounded startup/vector qualification; the #220 service ladder
+remains open under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
 
 [Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
@@ -116,7 +50,7 @@ success; normal240-second TIME-WAIT is retained. The original payload is unchang
 Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
 The shared native-body joins do not prove whole-stack closure or arbitrary
 workloads. The full Kestrel ladder and new numbered/cloud/production gates remain
-incomplete. Continue the owned #219/#745/#220 application ladder under #737.
+incomplete. Continue the owned #220 service ladder under #737.
 
 ## Architecture review follow-ups
 
