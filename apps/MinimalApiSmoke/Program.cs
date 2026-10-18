@@ -11,9 +11,9 @@ const string ExpectedBodyKey = "OS_SMOKE_EXPECTED_BODY";
 const string DefaultListenEndpoint = "http://0.0.0.0:8080";
 
 Console.Error.WriteLine("CLROS_APP_ENTRY minimal.api.smoke");
-var startupWitness = new AppStartupWitness();
 try
 {
+    var startupWitness = new AppStartupWitness();
     // The qualification profile uses immutable configuration and HTTP/1.1 only.
     // Set this before default configuration providers are created, so no watcher starts.
     Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");

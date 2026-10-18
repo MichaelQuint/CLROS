@@ -22686,7 +22686,7 @@
         "M16-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22723,7 +22723,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Start the upstream NativeAOT Minimal API before socket binding",
-      "currentEvidence": "Step1389 qualifies predecessor #218 finite logging at2bfbaeee; step1380 configuration and steps1307/1351 runtime/socket evidence retain their exact scopes. Successful current startup observations do not close #219: AppStartupWitness construction remains outside the failure-marker try and its constructor-failure path needs repair/verification. Continue this slice under #737 before #745 vectors and #220-#223, including #759 realtime. No startup, general Kestrel or numbered gate acceptance.",
+      "currentEvidence": "Step1390 develops startup219 under737 from accepted logging merge1d5064d8. A real managed app test reproduces static-constructor failure outside the marker try; moving actual witness construction inside it passes both static/instance failure paths without a production failure seam. Focused host evidence only; fresh Linux-native app/source admission, guest and stable full-host qualification remain pending. Keep219/737 open while implementing the219/745/220-223/759 batch. Step1389 finite218 logging remains accepted; no new startup, Kestrel or broad gate authority.",
       "implementationNotes": [
         "Prove real upstream NativeAOT entry, constructors and application startup before bind. Emit distinct start and failure markers; do not mark ready if runtime initialization, configuration or listener creation failed.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -32804,7 +32804,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32816,7 +32816,7 @@
         "M16-012",
         "M10-006"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Gateway/descriptor dispatch at the review snapshot omits syscall46 sendmsg and47 recvmsg. The pinned Kestrel SocketSender maps multi-segment ReadOnlySequence to Socket BufferList; upstream System.Native uses message/vectored I/O. PR739 small health/config responses do not establish the vector path.",
+      "currentEvidence": "Step1390 stages checked connected-stream Linux x64 sendmsg46/recvmsg47 through gateway/thread/fd dispatch under737. Snapshot56-byte header and up to16 vectors, bound total65536, retain owned scratch/partial queue semantics and consume TCP only after all payload/header copy-outs. Five grouped vector,13 scalar/socket and16 gateway host checks pass; bounded source and original pinned musl wrapper ABI reviews find no concrete gap. Actual BufferList/Kestrel vector, cancellation/backpressure, strict native trace/replay/packet joins and stable guest/full-host acceptance remain pending. Keep745 open; predecessor219 is development-only. No kernel limit/owner guard relaxation or new broad gate.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",

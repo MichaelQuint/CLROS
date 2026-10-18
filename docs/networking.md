@@ -1,5 +1,14 @@
 # Networking
 
+[Step1389](../done/step1389.md) qualifies finite #218 logging separately from the
+network scopes below. [Step1390](../done/step1390.md) develops connected-stream
+Linux x64 sendmsg/recvmsg: at most16 vectors/65536 total bytes, owned descriptor
+scratch and existing nonblocking policies. Complete metadata and ranges are
+checked before copying; all receive payload/header outputs precede TCP consumption.
+Names/control data and unmeasured flags remain unsupported. Focused host checks
+pass; actual BufferList/Kestrel vectors, trace joins and stable native/guest/full
+qualification remain pending under #737/#219/#745. No new gate is accepted.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
@@ -7,7 +16,7 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+The remaining #219 -> #745 -> #220 application ladder stays open under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
 
 [Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
@@ -21,7 +30,7 @@ success; normal240-second TIME-WAIT is retained. The original payload is unchang
 Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
 The shared native-body joins do not prove whole-stack closure or arbitrary
 workloads. The full Kestrel ladder and new numbered/cloud/production gates remain
-incomplete. Continue the owned #218-#220 application ladder under #737.
+incomplete. Continue the owned #219/#745/#220 application ladder under #737.
 
 ## Architecture review follow-ups
 

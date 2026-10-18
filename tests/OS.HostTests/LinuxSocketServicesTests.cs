@@ -12,7 +12,7 @@ using Wire = TcpReceiveWindowTests;
 internal static unsafe class LinuxSocketServicesTests
 {
     private const ulong User = 0x100000000, Output = User + 24576;
-    private sealed class Model : IDisposable
+    internal sealed class Model : IDisposable
     {
         internal readonly LinuxDescriptorServicesTests.Owner Files;
         internal readonly Sockets.State* State;
@@ -51,14 +51,14 @@ internal static unsafe class LinuxSocketServicesTests
         internal void End() { HostCheck.True(Fds.Audit(Files.State)); HostCheck.True(Fds.End(Files.State)); }
         public void Dispose() { NativeMemory.AlignedFree(State); NativeMemory.Free(Endpoints); Files.Dispose(); }
     }
-    private static TcpSendWindowTests.Fixture Connection()
+    internal static TcpSendWindowTests.Fixture Connection()
     {
         var f = new TcpSendWindowTests.Fixture(capacity: 8, receiveCapacity: 8);
         var io = f.Operations();
         HostCheck.Equal(Tx.Status.Success, Tx.ConfigureRetransmission(f.Owner, io.Context, io.NowNanoseconds, 1_000_000_000_000));
         HostCheck.Equal(Tx.Status.Success, Tx.ConfigureClose(f.Owner, 30_000_000_000)); return f;
     }
-    private static void AbortAndReap(Model m, TcpSendWindowTests.Fixture f)
+    internal static void AbortAndReap(Model m, TcpSendWindowTests.Fixture f)
     {
         if (f.Owner->Active) HostCheck.Equal(Tx.Status.Success, Tx.AbortConnection(f.Owner));
         HostCheck.True(Sockets.ReapClosed(m.State, f.Owner)); HostCheck.Equal(0, f.Table->Count);
@@ -272,7 +272,7 @@ internal static unsafe class LinuxSocketServicesTests
         HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
     }
 
-    [HostTest("m16-011 peek rejects invalid outputs flags and vector calls without consuming TCP", HostLane.Fast, 11)]
+    [HostTest("m16-011 peek rejects invalid outputs flags and message metadata without consuming TCP", HostLane.Fast, 11)]
     private static void PeekFailures()
     {
         using var m = new Model(); using var f = Connection(); uint fd = m.Accept(m.Listen(), f);
@@ -288,7 +288,9 @@ internal static unsafe class LinuxSocketServicesTests
         HostCheck.Equal(-95L, m.Call(45, fd, Output, 3, 0x102));
         HostCheck.Equal(-95L, m.Call(45, fd, Output, 3, 2, User, Output));
         HostCheck.Equal(-22L, m.Call(45, fd, Output, Fds.MaximumIo + 1, 2));
-        HostCheck.Equal(-38L, m.Call(47, fd, User, 2)); // recvmsg remains unsupported, including vector peek.
+        new Span<byte>(m.Files.Memory.At(User), 56).Clear();
+        *(ulong*)m.Files.Memory.At(User) = Output; // Address-bearing stream messages remain unsupported.
+        HostCheck.Equal(-95L, m.Call(47, fd, User, 2));
         HostCheck.Equal(0L, m.Call(45, fd, 0, 0, 2));
         HostCheck.True(new ReadOnlySpan<byte>(f.Receiver, sizeof(Rx.Owner)).SequenceEqual(owner));
         HostCheck.True(new ReadOnlySpan<byte>(f.ReceiveBuffer, 3).SequenceEqual("xyz"u8));

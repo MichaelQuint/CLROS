@@ -1,5 +1,12 @@
 # App Model
 
+[Step1390](../done/step1390.md) develops the next batch from accepted merge
+`1d5064d8` under #737. Actual witness creation now lies inside the failure-marker
+try; a managed test executes the real app with failing constructor stderr and
+verifies both static/instance failures. Checked socket message vectors also pass
+focused host checks. These changes have no new Linux-native, guest or full-host
+qualification. #219/#745 and later service/time issues remain open.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
