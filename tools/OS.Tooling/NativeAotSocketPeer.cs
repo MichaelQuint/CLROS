@@ -184,7 +184,7 @@ public static class NativeAotSocketPeer
         return false;
     }
 
-    private static async Task WaitForSerialAsync(string serial,Func<string,bool> ready,CancellationToken cancellation)
+    internal static async Task WaitForSerialAsync(string serial,Func<string,bool> ready,CancellationToken cancellation)
     {
         while(true)
         {

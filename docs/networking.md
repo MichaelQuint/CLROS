@@ -22,6 +22,24 @@ host send_partial remains zero. Staging three response blocks does not establish
 actual Linux syscall segmentation or backpressure. Native publication, explicit
 guest profile/peer and strict packet integration remain pending.
 
+[Step1393](../done/step1393.md) implements the vector publisher and independent
+peer driver, reusing the original containment publication pipeline and live serial
+waiter. Exact app-source/recipe checks and23 focused publisher/peer/original socket
+controls pass across their retained scopes. Live gates require complete joined
+receives and current accepted-fd liveness; they grant stimulus timing only.
+The Linux publication command requires a fresh app cache/output and the immutable
+accepted socket recipe root:
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot socket-vectors publish --recipe-root <original-linux-socket-root> --output <fresh-artifacts-directory>
+```
+
+The preparatory `nativeaot socket-vectors guest-peer --port <forward> --serial
+<owned-serial>` driver gates first3 bytes/reset request consumption, holds the first
+response250ms and verifies257-byte reads. Managed execution passes; positive Linux
+publication and an admitted vector guest profile/package/native lookup remain
+pending. No CLROS vector execution or backpressure acceptance follows yet.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired

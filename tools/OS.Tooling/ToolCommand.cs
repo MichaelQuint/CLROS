@@ -157,6 +157,11 @@ public static class ToolCommand
                 return NativeAotSocketPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-containment")
                 return NativeAotSocketContainmentPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if(args is ["nativeaot","socket-vectors","guest-peer","--port",var vectorPort,"--serial",var vectorSerial] &&
+                int.TryParse(vectorPort,System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out int vectorPortNumber))
+            {NativeAotSocketVectorsPeer.RunGuestPeerAsync(Repository.FindRoot(),vectorPortNumber,vectorSerial,Console.Out).GetAwaiter().GetResult();return 0;}
+            if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-vectors")
+                return NativeAotSocketVectorsPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "web" && args[2] == "package" &&
                 (args.Contains("--manifest", StringComparer.Ordinal) || args.Contains("--settings", StringComparer.Ordinal)))
                 return NativeAotWebPackage.RunConfigured(Repository.FindRoot(), args[2..], Console.Out);
