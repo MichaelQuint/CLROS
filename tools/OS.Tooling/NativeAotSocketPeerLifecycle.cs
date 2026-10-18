@@ -13,12 +13,13 @@ internal static class NativeAotSocketPeerLifecycle
 
     internal static async Task<Execution> RunAsync(string root,string peerLog,
         Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation,
-        Func<CancellationToken,Task>? beforePeer,string? receiveGateSerial,bool vectors)
+        Func<CancellationToken,Task>? beforePeer,string? receiveGateSerial,bool vectors,bool service=false)
     {
         ArgumentNullException.ThrowIfNull(runRunner);root=Path.GetFullPath(root);
         peerLog=Path.GetFullPath(peerLog,root);
         string gate=receiveGateSerial is null?"":Path.GetFullPath(receiveGateSerial,root);
-        string prefix=vectors?"socket_vectors":"socket";
+        if(vectors&&service)throw new ToolFailure("socket_peer_profile_conflict");
+        string prefix=service?"service":vectors?"socket_vectors":"socket";
         Directory.CreateDirectory(Path.GetDirectoryName(peerLog)!);
         AuthorityFiles.RequirePlainPath(root,Path.GetDirectoryName(peerLog)!,prefix+"_peer_log_path");
         using FileStream log=new(peerLog,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
@@ -42,18 +43,19 @@ internal static class NativeAotSocketPeerLifecycle
                 }
                 await ready;
             }
-            string command=vectors?"socket-vectors":"socket";
+            string command=service?"service":vectors?"socket-vectors":"socket";
             string[] arguments=gate.Length==0?[tool,"nativeaot",command,"peer","--port",port.ToString(System.Globalization.CultureInfo.InvariantCulture)]:
                 [tool,"nativeaot",command,"guest-peer","--port",port.ToString(System.Globalization.CultureInfo.InvariantCulture),"--serial",gate];
             peer=ProcessRunner.RunAsync(new("dotnet",arguments,root)
-                {Timeout=TimeSpan.FromSeconds(130),OutputCharacterLimit=65536},owned.Token);
+                {Timeout=TimeSpan.FromSeconds(service?810:130),OutputCharacterLimit=65536},owned.Token);
             Task<ProcessResult> first=await Task.WhenAny(peer,runner);
             if(!(await first).Succeeded)owned.Cancel();
             ProcessResult result=await runner;if(!result.Succeeded)owned.Cancel();peerResult=await peer;
             QemuTranscripts.RequireCompleteProcess(result,prefix+"_runner_incomplete");
             QemuTranscripts.RequireCompleteProcess(peerResult,prefix+"_peer_incomplete");
             if(!result.Succeeded||!peerResult.Succeeded||peerResult.StandardError.Length!=0)throw new ToolFailure(prefix+"_peer_or_runner_failed");
-            if(vectors)NativeAotSocketVectorsPeer.InspectOutput(peerResult.StandardOutput,requireSendBackpressure:true);
+            if(service)_=NativeAotServicePeer.InspectOutput(peerResult.StandardOutput);
+            else if(vectors)NativeAotSocketVectorsPeer.InspectOutput(peerResult.StandardOutput,requireSendBackpressure:true);
             else NativeAotSocketPeer.InspectOutput(peerResult.StandardOutput);
             inputs.VerifyUnchanged();byte[] bytes=Encoding.UTF8.GetBytes(peerResult.StandardOutput);
             return new(root,port,peerLog,Convert.ToHexString(SHA256.HashData(bytes)),result,gate);

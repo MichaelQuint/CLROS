@@ -8,12 +8,23 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// Malformed input, a changed startup writer or an invalid bind fails permanently.
 /// Later stderr belongs to the log observer. Listening, application lifetime,
 /// source/native identity and external HTTP evidence remain the caller's duty.
+/// A default value observes minimal.api.smoke; ForService explicitly selects
+/// minimal.api.service before any observation and never changes mode in use.
 /// </summary>
 public unsafe struct LinuxAppStartupObservation
 {
     private ulong writer, bindWriter;
     private uint stages, position;
     private bool failed, bound;
+    private readonly bool service;
+
+    private LinuxAppStartupObservation(bool service) { this = default; this.service = service; }
+
+    /// <summary>Create an empty observer for the exact service startup identity.
+    /// No application selection, source identity or execution is authorized.</summary>
+    public static LinuxAppStartupObservation ForService() => new(true);
+    /// <summary>Identity mode fixed at construction, retained after failure/bind.</summary>
+    public readonly bool IsService => service;
 
     /// <summary>Number of complete ordered lines observed, retained on failure.</summary>
     public readonly uint ObservedStages => stages;
@@ -45,7 +56,13 @@ public unsafe struct LinuxAppStartupObservation
         if (writer != currentIdentity) { failed = true; return false; }
         for (uint i = 0; i < bytes; i++)
         {
-            string expected = stages switch
+            string expected = service ? stages switch
+            {
+                0 => "CLROS_APP_ENTRY minimal.api.service\n",
+                1 => "CLROS_APP_CCTOR minimal.api.service\n",
+                2 => "CLROS_APP_CTOR minimal.api.service\n",
+                _ => "CLROS_APP_BUILT minimal.api.service\n"
+            } : stages switch
             {
                 0 => "CLROS_APP_ENTRY minimal.api.smoke\n",
                 1 => "CLROS_APP_CCTOR minimal.api.smoke\n",

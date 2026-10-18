@@ -24,9 +24,14 @@ publication and exact source/ELF/complete-index reader:1,356,654 instructions,
 198 syscall continuations and all five executable sections are checked. A strict
 status reader treats application reports as untrusted telemetry. These are
 development prerequisites; the service worker has not executed. The ordinary
-pinned web application stays unchanged. The guest pipeline retains its runner
-guard until distinct native startup observations and full lifecycle/packet
-checks exist. The seven owned issues remain open; no acceptance gate advances.
+pinned web application stays unchanged. [Step1428](../done/step1428.md) adds the
+distinct native service startup/listening observations, cumulative worker call
+ordinals and a bounded external peer protocol. Its24 focused host checks include
+a real peer-child refusal against a synthetic local endpoint. The service worker
+and successful long-running peer protocol have not executed. The guest pipeline
+retains its runner guard until complete service replay, transport controls and
+lifecycle/packet checks exist. The seven owned issues remain open; no acceptance
+gate advances.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32

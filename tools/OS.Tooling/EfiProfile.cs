@@ -243,6 +243,7 @@ public sealed class EfiProfile
         if (bootPolicy == "VerifiedExit" && diagnostic) throw new ToolFailure("clros_boot_policy_probe_conflict");
         EfiProfile profile = new(bootPolicy, flags);
         profile.Validate(explicitlySelected, emit);
+        _ = NativeAotServiceSelection.Application(flags);
         return profile;
     }
 

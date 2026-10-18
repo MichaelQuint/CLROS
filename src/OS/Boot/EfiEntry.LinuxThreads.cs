@@ -111,6 +111,9 @@ public static unsafe partial class EfiEntry
             if (!LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxNativeControl), out byte* control)) return false;
             c = (LinuxNativeControl*)control;
             *c = default; c->State = state; c->Key = pool ^ 0x4d31363030384f57UL; c->Phase = 1; c->Capacity = state->LinuxView.Manifest.Threads;
+#if M16_014_PROBE
+            c->WebStartup = LinuxAppStartupObservation.ForService();
+#endif
             if (!LinuxNativeTake(ref cursor, end, NativeContext.Bytes, out byte* supervisor) ||
                 !LinuxNativeTake(ref cursor, end, NativeContext.Bytes * LinuxNativeWorkers, out byte* contexts) ||
                 !LinuxNativeTake(ref cursor, end, NativeContext.Bytes, out byte* witness) ||
@@ -484,7 +487,7 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " valueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) &&
                 LinuxText(state, " action=") && LinuxNumber(state, (uint)result.Action) &&
                 LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) &&
-                LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                LinuxText(state, " ordinal=") && LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) &&
                 LinuxText(state, " waitSource=") && LinuxNumber(state, waitView.WaitSource) &&
                 LinuxText(state, " waitDeadline=") && LinuxNumber(state, waitView.WaitDeadline) &&
                 LinuxText(state, " waitSequence=") && LinuxNumber(state, waitView.Wait.IsValid ? waitView.Wait.Sequence : 0) &&
@@ -502,7 +505,7 @@ public static unsafe partial class EfiEntry
                 unchecked((int)call.Argument3) > 0)
                 logged = c->Process.InspectEpollExpiry(c->Key, 2, out ulong expired) &&
                     LinuxText(state, "M16_012_EXPIRE identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
-                    LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                    LinuxText(state, " ordinal=") && LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) &&
                     LinuxText(state, " deadline=") && LinuxNumber(state, expired) &&
                     LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
 #endif
@@ -520,13 +523,24 @@ public static unsafe partial class EfiEntry
             return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;
         }
 
+        // A service renews its bounded per-turn quota; observation ordinals
+        // must still increase throughout this exact worker generation.
+        private static ulong LinuxNativeCallOrdinal(LinuxNativeControl* c, uint index)
+        {
+#if M16_014_PROBE
+            return c->Gates[index].TotalCalls;
+#else
+            return c->Gates[index].Calls;
+#endif
+        }
+
 #if M16_009_PROBE
         // Optional raw HPET observations exclude serial logging. Failed reads
         // suppress the sample; they never bypass the original syscall checks.
         private static bool LinuxNativeSyscallTimingWrite(LinuxNativeControl* c, ulong number,
             ulong entered, ulong admitted, ulong dispatched, ulong prepared) =>
             LinuxText(c->State, "M16_008_SYSCALL_TIME identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
-            LinuxText(c->State, " ordinal=") && LinuxNumber(c->State, c->Gates[c->Selected - 1].Calls) &&
+            LinuxText(c->State, " ordinal=") && LinuxNumber(c->State, LinuxNativeCallOrdinal(c, c->Selected - 1)) &&
             LinuxText(c->State, " nr=") && LinuxNumber(c->State, number) &&
             LinuxText(c->State, " entered=") && LinuxNumber(c->State, entered) &&
             LinuxText(c->State, " admitted=") && LinuxNumber(c->State, admitted) &&

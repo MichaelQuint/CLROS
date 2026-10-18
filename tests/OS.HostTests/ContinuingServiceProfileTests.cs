@@ -12,7 +12,8 @@ internal static class ContinuingServiceProfileTests
         HostCheck.Equal("Diagnostic", profile.BootPolicy);
         foreach (string parent in new[] { "M16014", "M10004", "M16012", "M16011", "M16009", "M16008", "M16007", "M16004", "M07026", "M05ApicSetup" })
             HostCheck.True(profile.IsEnabled(parent));
-        HostCheck.Equal("MinimalApiSmoke", NativeAotWebSelection.Application(profile.Flags));
+        HostCheck.Equal("MinimalApiService", NativeAotServiceSelection.Application(profile.Flags));
+        HostCheck.Equal("", NativeAotWebSelection.Application(profile.Flags));
         HostCheck.True(!profile.IsEnabled("M16013") && !profile.IsEnabled("M07027"));
     }
 
