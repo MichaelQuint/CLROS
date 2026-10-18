@@ -1,5 +1,10 @@
 # Networking
 
+[Step1403](../done/step1403.md) supplies the fresh original vector publication,
+Linux external-peer/strace run, bounded changed-native review and exact package/
+complete decoder admission. Linux observes524352 response bytes,12 short sends
+and64 EAGAINs. Fresh CLROS backpressure remains required; this is no guest gate.
+
 [Step1402](../done/step1402.md) strengthens the development vector fixture after
 the first real guest completes its exchanges but fails strict send-backpressure
 replay. It now sends512KiB in eight at-most64KiB BufferList batches; the external

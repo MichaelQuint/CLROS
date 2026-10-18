@@ -8,7 +8,7 @@ internal static class NativeAotWebRunnerTests
     private sealed record Fixture(QemuSmokeOptions Options,QemuSmokePlan Plan,ProcessResult Runner,byte[] Raw,byte[] Summary,QemuTranscripts.WebRunnerContext Context);
     // Independent small protocol fixture: three completed markers and one
     // unfinished unselected kernel row. No firmware/guest authority is claimed.
-    private static Fixture Vector(bool quota=false)
+    private static Fixture Vector(bool quota=false,int loggingMilliseconds=300,int loggingTimeout=1)
     {
         string[] markers=["TEST_START m10.004","M10_004_LIVE","TEST_PASS m10.004"];
         string raw=string.Join("\r\n",markers)+"\r\nM16_008_CALL identity=4294967297 nr=202";
@@ -18,7 +18,7 @@ internal static class NativeAotWebRunnerTests
         string loggingBody=quota?"":"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
         List<string> extraOut=[],extraSummary=[];
         List<(string Prefix,string Path,string Method,int Status,string Body,int Time)> stages=[
-            ("WEB_LOG_PROBE","/__clros/logexercise","POST",quota?500:200,loggingBody,300),
+            ("WEB_LOG_PROBE","/__clros/logexercise","POST",quota?500:200,loggingBody,loggingMilliseconds),
             ("WEB_LOG_REPEAT_PROBE","/__clros/logexercise","POST",409,"",100),
             ("WEB_HEALTH_AFTER_PROBE","/healthz","GET",200,Body,100)];
         if(!quota)stages.Insert(2,("WEB_VECTOR_PROBE","/__clros/vectors","GET",200,"",150));
@@ -26,14 +26,16 @@ internal static class NativeAotWebRunnerTests
         {
             bool binary=stage.Prefix=="WEB_VECTOR_PROBE";
             int length=binary?49152:Encoding.ASCII.GetByteCount(stage.Body);string hash=binary?"664d1e34fe80e8713fefa2b9c30df7d7877bbffd850411ffda14f54bd1ce847c":Hash(stage.Body);
-            extraOut.Add($"HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status={stage.Status} expected_body_bytes={length} timeout_seconds=1");
+            extraOut.Add($"HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status={stage.Status} expected_body_bytes={length} timeout_seconds={(stage.Prefix=="WEB_LOG_PROBE"?loggingTimeout:1)}");
             extraOut.Add($"HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status={stage.Status} body_bytes={length} body_sha256={hash} elapsed_ms={stage.Time}");
             extraSummary.AddRange([stage.Prefix+"_URL http://127.0.0.1:20080"+stage.Path,stage.Prefix+"_METHOD "+stage.Method,
                 stage.Prefix+"_EXPECTED_STATUS "+stage.Status,stage.Prefix+"_EXPECTED_BODY_BYTES "+length,stage.Prefix+"_EXPECTED_BODY_SHA256 "+hash,
                 stage.Prefix+"_RESULT pass",stage.Prefix+"_REASON none",stage.Prefix+"_STATUS "+stage.Status,stage.Prefix+"_BODY_BYTES "+length,
                 stage.Prefix+"_BODY_SHA256 "+hash,stage.Prefix+"_ELAPSED_MS "+stage.Time]);
         }
-        var options=new QemuSmokeOptions{Image="image.raw",SerialLog="serial.log",SummaryLog="summary.log",TimeoutSeconds=30,FirmwareRngSource="virtio"};
+        int lifetime=Math.Max(3000,loggingMilliseconds+2000);
+        var first=new DateTimeOffset(2000,1,1,0,0,0,TimeSpan.Zero);
+        var options=new QemuSmokeOptions{Image="image.raw",SerialLog="serial.log",SummaryLog="summary.log",TimeoutSeconds=Math.Max(30,(lifetime+999)/1000),FirmwareRngSource="virtio"};
         var plan=new QemuSmokePlan("Diagnostic",new Dictionary<string,bool>{{"EnableM10004Probe",true}},markers,markers,markers,["TEST_FAIL","OS_SMOKE_FAIL"],[],false,true);
         string[] stdout=["QEMU_DISCOVERY result="+qemu+" checked="+qemu,"OVMF_DISCOVERY result="+ovmf+" checked="+ovmf,
             "TEST_START qemu.smoke","IMAGE_ARTIFACT image.raw","SERIAL_LOG serial.log","OVMF_CODE "+ovmf,
@@ -56,7 +58,7 @@ internal static class NativeAotWebRunnerTests
             "WEB_CONFIG_PROBE_STATUS 200","WEB_CONFIG_PROBE_BODY_BYTES 2","WEB_CONFIG_PROBE_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_ELAPSED_MS 200",
             ..extraSummary,
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID 123",
-            "WEB_PROCESS_START_UTC 2000-01-01T00:00:00.0000000Z","WEB_PROCESS_END_UTC 2000-01-01T00:00:03.0000000Z","WEB_PROCESS_LIFETIME_MS 3000",
+            "WEB_PROCESS_START_UTC 2000-01-01T00:00:00.0000000Z","WEB_PROCESS_END_UTC "+first.AddMilliseconds(lifetime).UtcDateTime.ToString("O"),"WEB_PROCESS_LIFETIME_MS "+lifetime,
             "WEB_PROCESS_ALIVE_BEFORE_HEALTH true","WEB_PROCESS_ALIVE_AFTER_HEALTH true","WEB_PROCESS_ALIVE_AFTER_CONFIG true",
             "WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true",
             ..quota?Array.Empty<string>():new[]{"WEB_PROCESS_ALIVE_AFTER_VECTORS true"},"WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
@@ -64,9 +66,8 @@ internal static class NativeAotWebRunnerTests
             "OBSERVED_MARKER TEST_START m10.004","OBSERVED_MARKER M10_004_LIVE","OBSERVED_MARKER TEST_PASS m10.004","OBSERVED_MARKER M16_008_CALL identity=4294967297 nr=202",
             "APP_EXIT_RESULT none","APP_EXIT_MALFORMED none","MISSING_MARKERS none","OUT_OF_ORDER_MARKERS none","DUPLICATE_UNIQUE_MARKERS none","FORBIDDEN_MARKER_HIT none","FAIL_REASON none",
             "SERIAL_TAIL_LIMIT lines=8 chars=240","SERIAL_TAIL_LINE TEST_START m10.004","SERIAL_TAIL_LINE M10_004_LIVE","SERIAL_TAIL_LINE TEST_PASS m10.004","SERIAL_TAIL_LINE M16_008_CALL identity=4294967297 nr=202"];
-        var first=new DateTimeOffset(2000,1,1,0,0,0,TimeSpan.Zero);
-        return new(options,plan,new(0,string.Join("\r\n",stdout)+"\r\n","",false,false,false,TimeSpan.FromSeconds(4)),Encoding.UTF8.GetBytes(raw),
-            [..Encoding.UTF8.GetPreamble(),..Encoding.UTF8.GetBytes(string.Join("\r\n",summary)+"\r\n")],new(20080,qemu,ovmf,first.AddSeconds(-1),first.AddSeconds(4)));
+        return new(options,plan,new(0,string.Join("\r\n",stdout)+"\r\n","",false,false,false,TimeSpan.FromMilliseconds(lifetime+1000)),Encoding.UTF8.GetBytes(raw),
+            [..Encoding.UTF8.GetPreamble(),..Encoding.UTF8.GetBytes(string.Join("\r\n",summary)+"\r\n")],new(20080,qemu,ovmf,first.AddSeconds(-1),first.AddMilliseconds(lifetime+1000)));
     }
     private static QemuTranscripts.WebRunnerReport Inspect(Fixture f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebRunnerForTests(f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,quota);
     private static Fixture Summary(Fixture f,string before,string after)
@@ -82,6 +83,16 @@ internal static class NativeAotWebRunnerTests
     {
         var report=Inspect(Vector());HostCheck.True(report.ProcessId==123 && report.LifetimeMilliseconds==3000 &&
             report.HealthMilliseconds==100 && report.ConfigurationMilliseconds==200);
+    }
+    [HostTest("web runner permits bounded traced logging while preserving other request deadlines")]
+    private static void LoggingDeadline()
+    {
+        _=Inspect(Vector(loggingMilliseconds:25000,loggingTimeout:60));
+        Reject(()=>Inspect(Vector(loggingMilliseconds:60001,loggingTimeout:60)));
+        Reject(()=>Inspect(Vector(loggingTimeout:61)));
+        var f=Vector();string[] rows=f.Runner.StandardOutput.Split("\r\n");
+        rows[20]=rows[20].Replace("timeout_seconds=1","timeout_seconds=21",StringComparison.Ordinal);
+        Reject(()=>Inspect(f with{Runner=f.Runner with{StandardOutput=string.Join("\r\n",rows)}}));
     }
     [HostTest("web runner quota binds empty 500 actual case repeat 409 and later health 200")]
     private static void Quota()

@@ -14,9 +14,9 @@ namespace OS.Tooling;
 public static class NativeAotSocketVectorsPackage
 {
     public const int ElfBytes = 1_845_008;
-    public const string ElfSha256 = "94D330D2BEED5BF11010D6D681D87F7164E55DF8972875CBE6B7BB40A9D77D3B";
+    public const string ElfSha256 = "555316FC6EF4E38B763A118A6F80FA6F7EC4C63942AD6E58830C3D5FADAC5936";
     private const string App = NativeAotSocketVectorsPublisher.Application;
-    private const string ReceiptSha256 = "D7DAB228EBE88E961E778834ED47781A03D9FFA305BAA7724350C35223EC30A9";
+    private const string ReceiptSha256 = "58423980D65D2375D433AE512B84B5DF54F29285EACF80E0047D75D88C339C4E";
     private static readonly (string Name, string Sha256)[] AppSources = [
         ("Program.cs", "B6D30356A7A372FE6A3C355022FB33B219767A8B0F271EB57123044B39340752"),
         ("SocketVectorsFixture.cs", "63C61901A23E85535CFB120F1DA5DEBA07DEDBFA604F83A7D06A26294EBE5D5A"),
@@ -67,7 +67,7 @@ public static class NativeAotSocketVectorsPackage
         Need(Inventory(publicationRoot).SequenceEqual(outputs.Select(output => output.Name)
             .Concat(["publication.json", "publication.lock"]).Order(StringComparer.Ordinal)), "output_inventory");
         Need(Hash(retained["recipe/receipt.json"]) == "E2600BF12DACCC159AECFAE1A3209027905AB2757D228009F0C6ADDC6A084D0B" &&
-            Hash(retained["originals/OS.Tooling.dll"]) == "F4EF8A047C7025EDA400C50621C18BAB50F5FE5E9ECAD9F72E4EF372F57BC519", "producer_identity");
+            Hash(retained["originals/OS.Tooling.dll"]) == "1E04BB1572D483B7767C7302DA3AE5BD84CC085253D12819C236D1466AD29BB3", "producer_identity");
         byte[] elf = retained[App + "/" + App];
         Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity");
         _ = NativeAotPayload.Inspect(elf);

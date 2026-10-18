@@ -64,7 +64,7 @@ public static partial class QemuTranscripts
             started>=context.StartedUtc.UtcDateTime && ended<=context.CompletedUtc.UtcDateTime &&
             runner.Duration.TotalMilliseconds>=life && runner.Duration.TotalSeconds<=options.TimeoutSeconds+60 &&
             Math.Abs((context.CompletedUtc-context.StartedUtc).TotalMilliseconds-runner.Duration.TotalMilliseconds)<=5000 &&
-            health<=20000 && config<=20000 && logging<=20000 && repeat<=20000 && vector<=20000 && after<=20000 &&
+            health<=20000 && config<=20000 && logging<=60000 && repeat<=20000 && vector<=20000 && after<=20000 &&
             health+config+logging+repeat+vector+after<=life && int.TryParse(exit,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int exitCode) &&
             exitCode.ToString(CultureInfo.InvariantCulture)==exit,"web_runner_child_lifetime");
         string serial=DecodeUtf8(raw);var stream=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
@@ -97,7 +97,7 @@ public static partial class QemuTranscripts
             int length=binary?WebVectorResponse.Length:Encoding.UTF8.GetByteCount(p.Body);string hash=binary?WebVectorResponse.Sha256:Hash(p.Body);
             string start=$"HTTP_PROBE_START endpoint={endpoint} expected_status={p.Status} expected_body_bytes={length}";
             ulong timeout=ReadRecord(stdout[18+i*2],start,"timeout_seconds:dec")["timeout_seconds"];
-            Need(timeout is >0 and <=20 && p.Milliseconds<=timeout*1000,"web_runner_logging_deadline");
+            Need(timeout>0 && timeout<=(p.Prefix=="WEB_LOG_PROBE"?60UL:20UL) && p.Milliseconds<=timeout*1000,"web_runner_logging_deadline");
             extraStdout.Add(start+" timeout_seconds="+timeout);
             extraStdout.Add($"HTTP_PROBE_PASS endpoint={endpoint} status={p.Status} body_bytes={length} body_sha256={hash} elapsed_ms={p.Milliseconds}");
             extraSummary.AddRange([p.Prefix+"_URL "+endpoint+p.Path,p.Prefix+"_METHOD "+p.Method,

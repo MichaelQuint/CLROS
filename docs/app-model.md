@@ -1,5 +1,11 @@
 # App Model
 
+[Step1403](../done/step1403.md) admits the larger original vector fixture and
+retains the first new web guest's premature logging-join failure. The diagnostic
+now keeps real joins with30s bounds and a60s first logging request; other request
+bounds remain. Fresh changed-web publication/admission and current full-host/
+guest qualification remain pending. No new startup/Kestrel gate is accepted.
+
 [Step1400](../done/step1400.md) supersedes the development publication/admission
 pending states below: fresh original Linux web v3 qualification passes, and the
 current startup/vector app, complete index and real package bind coherently.

@@ -150,7 +150,7 @@ internal static class LinuxLoggingExercise
                 for (int worker = 0; worker < startedThreads; worker++)
                     // A stuck writer must not outlive this diagnostic or its events.
                     // Terminate the owned fixture process rather than return HTTP.
-                    if (!threads[worker].Join(TimeSpan.FromSeconds(5))) Environment.Exit(70);
+                    if (!threads[worker].Join(TimeSpan.FromSeconds(30))) Environment.Exit(70);
             }
             if (!allReady || failed != 0) return Results.StatusCode(500);
         }

@@ -2660,7 +2660,9 @@ sealed class RunnerOptions
         string loggingUrl = "http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/__clros/logexercise";
         bool quota = WebLogCase == "records64";
         WebLogProbe = new(loggingUrl, quota ? 500 : 200,
-            quota ? "" : "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", true, probe.TimeoutSeconds, post: true);
+            // Eight traced writers need a larger finite request budget than health.
+            // ExecuteContinuingWebProbe still clamps it to the owned guest deadline.
+            quota ? "" : "CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9", true, 60, post: true);
         WebLogRepeatProbe = new(loggingUrl, 409, "", true, probe.TimeoutSeconds, post: true);
         if (!quota) WebVectorProbe = new("http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/__clros/vectors",
             200, "", true, probe.TimeoutSeconds, vectorBody: true);

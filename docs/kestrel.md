@@ -1,5 +1,14 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1403](../done/step1403.md) admits the fresh original512KiB vector ELF,
+package and complete349579-start/186-syscall index. Original Linux execution
+observes12 short sends and64 EAGAINs; bounded changed-native review passes.
+The first new web guest returns health/config, then its five-second logging
+join guard expires while writers progress. The finite join/first-log-request
+budgets now allow30/60s; other request bounds and owned cleanup remain.
+Eighteen focused controls pass. Fresh changed-web publication/admission and
+current full-host/CLROS qualification remain pending; no new gate is accepted.
+
 [Step1400](../done/step1400.md) completes the fresh original Linux v3 publication
 and binds the current app/source/package/complete instruction index together.
 Both default/configured runs return the exact49152-byte entity before later
