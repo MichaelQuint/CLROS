@@ -33,7 +33,7 @@ public static partial class QemuTranscripts
     {
         var result=SocketLifetimes(rows,continuingWeb);return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
-    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false)
+    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5)
     {
         List<SocketLifetime> all=[];Dictionary<string,SocketLifetime> known=[];Dictionary<ulong,SocketLifetime> active=[];
         Dictionary<ulong,ulong> generations=[];ulong clock=0,owner=0,epoch=0;
@@ -67,7 +67,7 @@ public static partial class QemuTranscripts
                 lifetime!.MaximumDeadline=r["deadline"];lifetime.Waits++;lifetime.Drain=r["drain"]==1;
             }
         }
-        Need(continuingWeb?all.Count==5 && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==5:
+        Need(continuingWeb?webConnections is 5 or 6 && all.Count==webConnections && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==webConnections:
             all.Count==4 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Any(v=>v.Waits!=0),"socket_transport_complete");return all;
     }
 

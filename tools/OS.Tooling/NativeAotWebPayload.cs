@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Inspection = OS.Tooling.NativeAotPayload.Inspection;
+using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
 
@@ -72,7 +73,7 @@ public static class NativeAotWebPayload
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt("clros.nativeaot.web.v2", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt("clros.nativeaot.web.v3", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -98,7 +99,7 @@ public static class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema == "clros.nativeaot.web.v2" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema == "clros.nativeaot.web.v3" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -135,7 +136,8 @@ public static class NativeAotWebPayload
         ValidateHttpEvidence(configured.RootElement.GetRawText(), configuredBody);
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-trace");
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
-        foreach (string suffix in new[] { "", "-default" }) ValidateRecordedLogging(destination, suffix);
+        foreach (string suffix in new[] { "", "-default" })
+        { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); }
     }
 
     /// <summary>
@@ -194,6 +196,31 @@ public static class NativeAotWebPayload
             .ToDictionary(path => Path.GetFileName(path)!, File.ReadAllText, StringComparer.Ordinal);
         ValidateLoggingEvidence(File.ReadAllText(Path.Combine(directory, prefix + "-run.stdout.log")),
             File.ReadAllText(Path.Combine(directory, prefix + "-run.stderr.log")), traces);
+    }
+
+    /// <summary>Check the complete borrowed binary HTTP entity and its exact
+    /// observed status/type/length/hash receipt. This host-only value check runs
+    /// no app and grants no original publication, syscall or guest authority.</summary>
+    public static void ValidateVectorEvidence(string json,ReadOnlySpan<byte> body)
+    {
+        Require(json.Length is >0 and <=4096,"vector_http_receipt_size");
+        using var document=JsonDocument.Parse(json);var row=document.RootElement;
+        Require(row.EnumerateObject().Count()==5 && row.GetProperty("status").GetInt32()==200 &&
+            row.GetProperty("contentType").GetString()=="application/octet-stream" &&
+            row.GetProperty("contentLength").GetInt32()==WebVectorResponse.Length &&
+            row.GetProperty("bodyBytes").GetInt32()==WebVectorResponse.Length &&
+            row.GetProperty("sha256").GetString()==WebVectorResponse.Sha256 &&
+            WebVectorResponse.Matches(body),"vector_http_response");
+    }
+
+    private static void ValidateRecordedVectors(string directory,string suffix)
+    {
+        string path=Path.Combine(directory,"web-vectors"+suffix);
+        Require(new FileInfo(path+".bin").Length==WebVectorResponse.Length,"vector_http_response_size");
+        ValidateVectorEvidence(File.ReadAllText(path+".json"),File.ReadAllBytes(path+".bin"));
+        string stderr=File.ReadAllText(Path.Combine(directory,"WebMinimalApiSmoke"+suffix+"-run.stderr.log"));
+        string[] stages=stderr.Replace("\r\n","\n",StringComparison.Ordinal).Split('\n').Where(line=>line.StartsWith("CLROS_VECTOR",StringComparison.Ordinal)).ToArray();
+        Require(stages.SequenceEqual(new[]{"CLROS_VECTOR_STAGED bytes=49152 blocks=3"}),"vector_app_stage");
     }
 
     /// <summary>Validates complete observed stdout from the two finite original apps.
@@ -320,6 +347,18 @@ public static class NativeAotWebPayload
             Require(logging.StatusCode == HttpStatusCode.OK && loggingBody == LoggingBody, "logging_http");
             using var repeat = await client.PostAsync(endpoint + "/__clros/logexercise", null, deadline.Token);
             Require(repeat.StatusCode == HttpStatusCode.Conflict, "logging_repeat");
+            using(var vector=await client.GetAsync(endpoint+"/__clros/vectors",HttpCompletionOption.ResponseHeadersRead,deadline.Token))
+            {
+                Require(vector.StatusCode==HttpStatusCode.OK && vector.Content.Headers.ContentLength==WebVectorResponse.Length &&
+                    vector.Content.Headers.ContentType?.MediaType=="application/octet-stream","vector_http_headers");
+                byte[] bytes=await vector.Content.ReadAsByteArrayAsync(deadline.Token);
+                string vectorEvidence=JsonSerializer.Serialize(new{status=(int)vector.StatusCode,
+                    contentType=vector.Content.Headers.ContentType?.MediaType,contentLength=vector.Content.Headers.ContentLength,
+                    bodyBytes=bytes.Length,sha256=Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()});
+                ValidateVectorEvidence(vectorEvidence,bytes);
+                await File.WriteAllBytesAsync(Path.Combine(destination,"web-vectors"+suffix+".bin"),bytes);
+                await File.WriteAllTextAsync(Path.Combine(destination,"web-vectors"+suffix+".json"),vectorEvidence);
+            }
             using var healthAfter = await client.GetAsync(endpoint + "/healthz", deadline.Token);
             Require(healthAfter.StatusCode == HttpStatusCode.OK &&
                 await healthAfter.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "logging_health_after");

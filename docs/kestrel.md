@@ -18,8 +18,21 @@ three normal and three quota guests, and eight affected socket/runtime ancestors
 Actual copied write/writev, eight workers, EBADF and quota EIO join the original
 source/native/serial/packet evidence. The authenticated exit tail reaches real
 exit60; ordinary IRQ yielding and ownership guards remain. #219 startup remains
-unaccepted because constructor creation precedes its failure-marker try. Continue
+unaccepted. Step1390 moves actual constructor creation inside the failure-marker
+try; fresh native/source and guest qualification remain pending. Continue
 #219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
+
+[Step1397](../done/step1397.md) develops the normal web runner's sixth request:
+after logging/repeat it requires the exact49152-byte binary `/__clros/vectors`
+response before final health. The quota case retains five requests. Strict
+packet replay checks all binary bytes/headers/segments and ordered connections;
+native call replay additionally requires a positive short send consuming more
+than one nonempty iovec on that large-response descriptor before later health.
+The Linux publisher's v3 receipt retains the complete entity plus its observed
+status/type/length/hash. Historical v2 receipts remain paired with their original
+producer; they do not satisfy the stronger current contract. These changes have
+focused host controls only. Fresh original Kestrel publication/decoder, native
+review and stable full-host/CLROS guest qualification remain pending.
 No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
 gate advances. See the step for exact commands, hashes and retained failures.
 

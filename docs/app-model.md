@@ -22,6 +22,10 @@ sealed program, owned peer and complete parent/packet replay. Focused host contr
 do not qualify its execution. Project hashes cover the reviewed profile guards;
 EFI implementation source pins remain unchanged. Native review and stable
 full-host/CLROS guest qualification are pending.
+[Step1397](../done/step1397.md) adds the large binary web probe and its strict
+runner/packet/native-call consumers. The normal case requires six ordered HTTP
+requests; quota retains five. The publisher's new v3 evidence includes original
+response bytes, but no fresh publication or CLROS guest qualification is claimed.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across

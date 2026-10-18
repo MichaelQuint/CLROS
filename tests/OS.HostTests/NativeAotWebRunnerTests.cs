@@ -17,13 +17,15 @@ internal static class NativeAotWebRunnerTests
         string healthHash=Hash(Body),configHash=Hash(Config);
         string loggingBody=quota?"":"CLROS_LOG_OK workers=8 records=64 writev=32 invalid_errno=9";
         List<string> extraOut=[],extraSummary=[];
-        (string Prefix,string Path,string Method,int Status,string Body,int Time)[] stages=[
+        List<(string Prefix,string Path,string Method,int Status,string Body,int Time)> stages=[
             ("WEB_LOG_PROBE","/__clros/logexercise","POST",quota?500:200,loggingBody,300),
             ("WEB_LOG_REPEAT_PROBE","/__clros/logexercise","POST",409,"",100),
             ("WEB_HEALTH_AFTER_PROBE","/healthz","GET",200,Body,100)];
+        if(!quota)stages.Insert(2,("WEB_VECTOR_PROBE","/__clros/vectors","GET",200,"",150));
         foreach(var stage in stages)
         {
-            int length=Encoding.ASCII.GetByteCount(stage.Body);string hash=Hash(stage.Body);
+            bool binary=stage.Prefix=="WEB_VECTOR_PROBE";
+            int length=binary?49152:Encoding.ASCII.GetByteCount(stage.Body);string hash=binary?"664d1e34fe80e8713fefa2b9c30df7d7877bbffd850411ffda14f54bd1ce847c":Hash(stage.Body);
             extraOut.Add($"HTTP_PROBE_START endpoint=http://127.0.0.1:20080 expected_status={stage.Status} expected_body_bytes={length} timeout_seconds=1");
             extraOut.Add($"HTTP_PROBE_PASS endpoint=http://127.0.0.1:20080 status={stage.Status} body_bytes={length} body_sha256={hash} elapsed_ms={stage.Time}");
             extraSummary.AddRange([stage.Prefix+"_URL http://127.0.0.1:20080"+stage.Path,stage.Prefix+"_METHOD "+stage.Method,
@@ -56,7 +58,8 @@ internal static class NativeAotWebRunnerTests
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID 123",
             "WEB_PROCESS_START_UTC 2000-01-01T00:00:00.0000000Z","WEB_PROCESS_END_UTC 2000-01-01T00:00:03.0000000Z","WEB_PROCESS_LIFETIME_MS 3000",
             "WEB_PROCESS_ALIVE_BEFORE_HEALTH true","WEB_PROCESS_ALIVE_AFTER_HEALTH true","WEB_PROCESS_ALIVE_AFTER_CONFIG true",
-            "WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true","WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
+            "WEB_PROCESS_ALIVE_AFTER_LOG true","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT true",
+            ..quota?Array.Empty<string>():new[]{"WEB_PROCESS_ALIVE_AFTER_VECTORS true"},"WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH true",
             "WEB_PROCESS_TERMINATION_REQUESTED true","WEB_PROCESS_DEATH_CONFIRMED true","WEB_PROCESS_SPONTANEOUS_EXIT false","WEB_PROCESS_EXIT_CODE -1","WEB_PROCESS_FAILURE none",
             "OBSERVED_MARKER TEST_START m10.004","OBSERVED_MARKER M10_004_LIVE","OBSERVED_MARKER TEST_PASS m10.004","OBSERVED_MARKER M16_008_CALL identity=4294967297 nr=202",
             "APP_EXIT_RESULT none","APP_EXIT_MALFORMED none","MISSING_MARKERS none","OUT_OF_ORDER_MARKERS none","DUPLICATE_UNIQUE_MARKERS none","FORBIDDEN_MARKER_HIT none","FAIL_REASON none",
@@ -95,7 +98,7 @@ internal static class NativeAotWebRunnerTests
     {
         var f=Vector();
         foreach(string key in new[]{"WEB_PROCESS_ALIVE_BEFORE_HEALTH","WEB_PROCESS_ALIVE_AFTER_HEALTH","WEB_PROCESS_ALIVE_AFTER_CONFIG",
-            "WEB_PROCESS_ALIVE_AFTER_LOG","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT","WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH",
+            "WEB_PROCESS_ALIVE_AFTER_LOG","WEB_PROCESS_ALIVE_AFTER_LOG_REPEAT","WEB_PROCESS_ALIVE_AFTER_VECTORS","WEB_PROCESS_ALIVE_AFTER_FINAL_HEALTH",
             "WEB_PROCESS_TERMINATION_REQUESTED","WEB_PROCESS_DEATH_CONFIRMED","WEB_ENDPOINT_PRELAUNCH_AVAILABLE","WEB_ENDPOINT_STOPPED_REFUSED"})
             Reject(()=>Inspect(Summary(f,key+" true",key+" false")));
         Reject(()=>Inspect(Summary(f,"WEB_PROCESS_SPONTANEOUS_EXIT false","WEB_PROCESS_SPONTANEOUS_EXIT true")));
@@ -124,7 +127,7 @@ internal static class NativeAotWebRunnerTests
     private static void LoggingObservations()
     {
         var f=Vector();
-        foreach(string prefix in new[]{"WEB_LOG_PROBE","WEB_LOG_REPEAT_PROBE","WEB_HEALTH_AFTER_PROBE"})
+        foreach(string prefix in new[]{"WEB_LOG_PROBE","WEB_LOG_REPEAT_PROBE","WEB_VECTOR_PROBE","WEB_HEALTH_AFTER_PROBE"})
         {
             Reject(()=>Inspect(Summary(f,prefix+"_RESULT pass",prefix+"_RESULT not_run")));
             Reject(()=>Inspect(Summary(f,prefix+"_REASON none",prefix+"_REASON failure")));
@@ -135,6 +138,9 @@ internal static class NativeAotWebRunnerTests
         }
         Reject(()=>Inspect(Summary(f,"WEB_LOG_PROBE_METHOD POST","WEB_LOG_PROBE_METHOD GET")));
         Reject(()=>Inspect(Summary(f,"WEB_LOG_REPEAT_PROBE_STATUS 409","WEB_LOG_REPEAT_PROBE_STATUS 200")));
+        Reject(()=>Inspect(Summary(f,"WEB_VECTOR_PROBE_BODY_BYTES 49152","WEB_VECTOR_PROBE_BODY_BYTES 49151")));
+        Reject(()=>Inspect(Summary(f,"WEB_VECTOR_PROBE_METHOD GET","WEB_VECTOR_PROBE_METHOD POST")));
+        Reject(()=>Inspect(Summary(f,"WEB_VECTOR_PROBE_URL http://127.0.0.1:20080/__clros/vectors","WEB_VECTOR_PROBE_URL http://127.0.0.1:20080/healthz")));
         Reject(()=>Inspect(Summary(f,"WEB_HEALTH_AFTER_PROBE_STATUS 200","WEB_HEALTH_AFTER_PROBE_STATUS 500")));
         Reject(()=>Inspect(Summary(f,"WEB_LOG_PROBE_ELAPSED_MS 300","WEB_LOG_PROBE_ELAPSED_MS 3000")));
         string[] stdout=f.Runner.StandardOutput.Split("\r\n",StringSplitOptions.None);

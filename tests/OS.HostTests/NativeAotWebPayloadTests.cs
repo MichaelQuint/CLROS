@@ -7,7 +7,7 @@ internal static class NativeAotWebPayloadTests
     [HostTest("nativeaot.web receipt rejects stale source missing altered and unexpected output")]
     private static void StaleArtifacts()
     {
-        foreach (string mutation in new[] { "source", "missing", "altered", "extra", "pin", "schema" })
+        foreach (string mutation in new[] { "source", "missing", "altered", "extra", "pin", "schema", "old_schema" })
         {
             string root = Path.Combine(Path.GetTempPath(), "clros-web-receipt-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
@@ -25,7 +25,7 @@ internal static class NativeAotWebPayloadTests
                 string output = Path.Combine(evidence, "observed.log"); File.WriteAllText(output, "original");
                 var outputs = new Dictionary<string, string> { ["observed.log"] = Hash(output) };
                 string sdk = mutation == "pin" ? "10.0.100" : NativeAotPayload.SdkVersion;
-                var receipt = new NativeAotWebPayload.QualificationReceipt(mutation == "schema" ? "clros.nativeaot.web.v1" : "clros.nativeaot.web.v2", sdk,
+                var receipt = new NativeAotWebPayload.QualificationReceipt(mutation == "schema" ? "clros.nativeaot.web.v1" : mutation=="old_schema"?"clros.nativeaot.web.v2":"clros.nativeaot.web.v3", sdk,
                     NativeAotPayload.RuntimeVersion, sources, outputs);
                 File.WriteAllText(Path.Combine(evidence, "web-receipt.json"), JsonSerializer.Serialize(receipt));
                 if (mutation == "source") File.AppendAllText(Path.Combine(root, sources.Keys.First()), "changed");
@@ -39,7 +39,7 @@ internal static class NativeAotWebPayloadTests
                 string? failure = null;
                 try { NativeAotWebPayload.ValidateQualification(root, evidence); }
                 catch (InvalidDataException error) { failure = error.Message; }
-                HostCheck.Equal(mutation switch { "pin" or "schema" => "native_receipt_pin", "source" => "source_inputs_changed",
+                HostCheck.Equal(mutation switch { "pin" or "schema" or "old_schema" => "native_receipt_pin", "source" => "source_inputs_changed",
                     _ => "native_evidence_changed" }, failure!);
             }
             finally { Directory.Delete(root, recursive: true); }

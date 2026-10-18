@@ -55,6 +55,11 @@ The original socket and web profiles keep their separate selection and payload
 contracts. The reviewed project hashes cover the new guards; EFI implementation
 source pins remain unchanged pending batch native review. CLROS vector execution and stable
 full-host/native/serial/packet qualification remain pending.
+Step1397 adds the normal Kestrel runner's large binary response, ordered packet
+checks and a native short-send check that requires actual progress across an
+iovec boundary. Host models and the independent process stub pass; fresh original
+Kestrel publication and CLROS execution remain pending. The quota web case keeps
+its existing five-request path.
 The separate original Linux-host run passes exact external bytes/reset/disposal
 and later health. Strace observes two-vector receives/sends and a native short
 send46720 followed by18816 remaining bytes, although the app reports one completed
