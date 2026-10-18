@@ -43,6 +43,7 @@ try
     // This explicit diagnostic is supported only by the pinned Linux application
     // profile. Normal configuration and HTTP endpoints retain their portable path.
     app.MapPost("/__clros/logexercise", LinuxLoggingExercise.Run);
+    app.MapGet("/__clros/vectors", KestrelVectorExercise.WriteAsync);
 
     app.Run();
     GC.KeepAlive(startupWitness);

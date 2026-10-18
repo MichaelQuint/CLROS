@@ -8,8 +8,10 @@ focused host checks. These changes have no new Linux-native, guest or full-host
 qualification. [Step1391](../done/step1391.md) adds synchronous borrowed-vector
 observations and strict value replay;45 focused checks pass, including exact
 descriptor-generation reconstruction. Native recorder compilation and real
-BufferList/Kestrel use remain pending. #219/#745 and later service/time issues
-remain open.
+BufferList/Kestrel guest use remain pending. [Step1392](../done/step1392.md) adds
+the real managed BufferList fixture and a fixed49152-byte Kestrel response; three
+focused host checks pass. Its host run observes a partial request but no partial
+send. #219/#745 and later service/time issues remain open.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across

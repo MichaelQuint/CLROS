@@ -26,6 +26,7 @@
 		<ProjectReference Include="..\..\tools\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
 		<ProjectReference Include="..\..\tools\OS.QemuRunner\OS.QemuRunner.csproj" />
 		<ProjectReference Include="..\..\apps\MinimalApiSmoke\MinimalApiSmoke.csproj" />
+		<ProjectReference Include="..\..\apps\NativeAotSocketVectors\NativeAotSocketVectors.csproj" />
 	</ItemGroup>
 
   <!-- Resolve after SDK targets assign RoslynTargetsPath. Visual Studio selects

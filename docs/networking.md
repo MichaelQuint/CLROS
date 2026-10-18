@@ -13,6 +13,15 @@ pass; native recorder compilation, actual BufferList/Kestrel vectors, sealed
 trace/packet joins and stable native/guest/full qualification remain pending
 under #737/#219/#745. No new gate is accepted.
 
+[Step1392](../done/step1392.md) adds `apps/NativeAotSocketVectors`: four external
+peers cover exact BufferList bytes/nonzero offsets, a65536-byte response, real
+peer reset, disposal of a genuinely pending BufferList receive and a later healthy
+reply. The actual managed app implementation and MinimalApiSmoke's fixed49152-byte
+`/__clros/vectors` route pass three focused host checks. Partial receive is observed;
+host send_partial remains zero. Staging three response blocks does not establish
+actual Linux syscall segmentation or backpressure. Native publication, explicit
+guest profile/peer and strict packet integration remain pending.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
