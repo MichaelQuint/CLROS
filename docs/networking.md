@@ -46,8 +46,15 @@ producer/recipe. The sealed instruction lookup binds349523 original instructions
 and186 syscall continuations across all five executable sections. Strict stdout
 decoding joins each request's progress, final counters, reset and pending-receive
 disposal; only this fixture permits up to32768 stdout bytes for per-read progress.
-These are preparation and focused host controls. An admitted CLROS vector profile,
-complete native/serial/packet replay and stable batch qualification remain pending.
+These are preparation and focused host controls. [Step1396](../done/step1396.md)
+wires the default-off `EnableM16013Probe` through its complete epoll/socket/runtime
+parents, dedicated package/decoder and owned peer completion. Its final transcript
+joins the original firmware, APIC/NIC teardown, complete runtime leaf, four exact
+binary TCP streams (256 received/65600 sent bytes), reset and acknowledged FINs.
+The original socket and web profiles keep their separate selection and payload
+contracts. The reviewed project hashes cover the new guards; EFI implementation
+source pins remain unchanged pending batch native review. CLROS vector execution and stable
+full-host/native/serial/packet qualification remain pending.
 The separate original Linux-host run passes exact external bytes/reset/disposal
 and later health. Strace observes two-vector receives/sends and a native short
 send46720 followed by18816 remaining bytes, although the app reports one completed
@@ -70,9 +77,9 @@ remaining BufferList lengths/address gaps, accumulated first3-byte receive
 progress, native short sends and send EAGAIN, reset, a pending receive with an
 observed epoll registration before disposal, and all four closed connections.
 The prepared selection guard binds only the dedicated original app and its exact
-parents/inputs. EFI switch/profile/runner activation, full packet/peer integration
-and original native/guest qualification remain unwired or pending; these host
-controls establish no new guest acceptance.
+parents/inputs. Step1396 adds EFI/profile/runner and packet/owned-peer wiring;
+original native/guest qualification remains pending. These host controls establish
+no new guest acceptance.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across

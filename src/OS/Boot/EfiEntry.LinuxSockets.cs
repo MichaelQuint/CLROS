@@ -115,6 +115,9 @@ public static unsafe partial class EfiEntry
 #if M16_012_PROBE
                 if (!LinuxText(state, "TEST_START m16-012\r\n")) return false;
 #endif
+#if M16_013_PROBE
+                if (!LinuxText(state, "TEST_START m16-013\r\n")) return false;
+#endif
 #if M07_027_PROBE && M07_028_PROBE
                 if (!LinuxText(state, "TEST_START m07.027\r\nTEST_START m07.028\r\n")) return false;
 #endif

@@ -58,62 +58,8 @@ public static class NativeAotSocketPeer
         Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation=default,
         Func<CancellationToken,Task>? beforePeer=null,string? receiveGateSerial=null)
     {
-        ArgumentNullException.ThrowIfNull(runRunner);root=System.IO.Path.GetFullPath(root);
-        peerLog=System.IO.Path.GetFullPath(peerLog,root);
-        string gate=receiveGateSerial is null?"":System.IO.Path.GetFullPath(receiveGateSerial,root);
-        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(peerLog)!);
-        AuthorityFiles.RequirePlainPath(root,System.IO.Path.GetDirectoryName(peerLog)!,"socket_peer_log_path");
-        using FileStream log=new(peerLog,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-        AuthorityFiles.RequirePlainPath(root,peerLog,"socket_peer_log_path");
-        int port;using(var reservation=new TcpListener(IPAddress.Loopback,0))
-        {reservation.Start();port=((IPEndPoint)reservation.LocalEndpoint).Port;}
-        using CancellationTokenSource owned=CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        using AuthorityFiles inputs=new();string tool=HostTools.ManagedTool(root,"OS.Tooling");
-        _=inputs.Open(System.IO.Path.GetDirectoryName(tool)!,tool,"socket peer executable","socket_peer_executable",32*1024*1024,singleLink:true);
-        Task<ProcessResult>? peer=null,runner=null;ProcessResult? peerResult=null;Task? ready=null;
-        try
-        {
-            runner=runRunner(port,owned.Token);
-            if(beforePeer is not null)
-            {
-                ready=beforePeer(owned.Token);
-                if(await Task.WhenAny(ready,runner)==runner)
-                {
-                    var early=await runner;
-                    throw new ToolFailure("socket_runner_exited_before_peer",$"exit={early.ExitCode} terminationConfirmed={early.TerminationConfirmed} failure={early.FailureReason}");
-                }
-                await ready;
-            }
-            string[] arguments=gate.Length==0?[tool,"nativeaot","socket","peer","--port",port.ToString(System.Globalization.CultureInfo.InvariantCulture)]:
-                [tool,"nativeaot","socket","guest-peer","--port",port.ToString(System.Globalization.CultureInfo.InvariantCulture),"--serial",gate];
-            peer=ProcessRunner.RunAsync(new("dotnet",arguments,root)
-                {Timeout=TimeSpan.FromSeconds(130),OutputCharacterLimit=65536},owned.Token);
-            Task<ProcessResult> first=await Task.WhenAny(peer,runner);
-            if(!(await first).Succeeded)owned.Cancel();
-            ProcessResult result=await runner;if(!result.Succeeded)owned.Cancel();peerResult=await peer;
-            QemuTranscripts.RequireCompleteProcess(result,"socket_runner_incomplete");
-            QemuTranscripts.RequireCompleteProcess(peerResult,"socket_peer_incomplete");
-            if(!result.Succeeded||!peerResult.Succeeded||peerResult.StandardError.Length!=0)throw new ToolFailure("socket_peer_or_runner_failed");
-            InspectOutput(peerResult.StandardOutput);inputs.VerifyUnchanged();
-            byte[] bytes=Encoding.UTF8.GetBytes(peerResult.StandardOutput);
-            return new(root,port,peerLog,Convert.ToHexString(SHA256.HashData(bytes)),result,gate);
-        }
-        finally
-        {
-            owned.Cancel();
-            if(ready is not null)try{await ready;}catch{}
-            if(runner is not null)try{_=await runner;}catch{}
-            if(peer is not null)try{peerResult=await peer;}catch{}
-            if(peerResult is not null)
-            {
-                await log.WriteAsync(Encoding.UTF8.GetBytes(peerResult.StandardOutput),CancellationToken.None);
-                if(peerResult.StandardError.Length!=0)
-                {
-                    using FileStream error=new(peerLog+".stderr.log",FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                    await error.WriteAsync(Encoding.UTF8.GetBytes(peerResult.StandardError),CancellationToken.None);
-                }
-            }
-        }
+        var execution=await NativeAotSocketPeerLifecycle.RunAsync(root,peerLog,runRunner,cancellation,beforePeer,receiveGateSerial,vectors:false);
+        return new(execution.Root,execution.Port,execution.Path,execution.Sha256,execution.Runner,execution.ReceiveGateSerial);
     }
 
     /// <summary>Independent loopback stimulus for the slow emulated async guest.

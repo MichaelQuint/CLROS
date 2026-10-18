@@ -9,7 +9,7 @@ public static class QemuSmoke
     {
         root = Path.GetFullPath(root);
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
-        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0||NativeAotSocketContainmentSelection.Selected(options.Flags)||NativeAotWebSelection.Application(options.Flags).Length!=0)
+        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0||NativeAotSocketContainmentSelection.Selected(options.Flags)||NativeAotSocketVectorsSelection.Selected(options.Flags)||NativeAotWebSelection.Application(options.Flags).Length!=0)
             ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
             OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
@@ -30,6 +30,8 @@ public static class QemuSmoke
         NativeAotSocketProgram? socketProgram=null;
         NativeAotSocketContainmentProgram? containmentProgram=null;
         NativeAotSocketPeer.Completion? socketPeer=null;
+        NativeAotSocketVectorsProgram? vectorsProgram=null;
+        NativeAotSocketVectorsPeer.Completion? vectorsPeer=null;
         NativeAotWebProgram? webProgram=null;
         int webForwardPort=0;
         DateTimeOffset webStarted=default,webCompleted=default;
@@ -41,8 +43,9 @@ public static class QemuSmoke
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
             bool sockets=NativeAotSocketSelection.Application(plan.Flags).Length!=0;
             bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
+            bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
             bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
-            if((sockets||containment||web)&&!options.DryRun)
+            if((sockets||containment||vectors||web)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
@@ -75,6 +78,7 @@ public static class QemuSmoke
                             webConfiguration=NativeAotWebProgram.DescribeConfiguration(bytes);
                             webInputs.VerifyUnchanged();
                         }
+                        else if(vectors)vectorsProgram=NativeAotSocketVectorsProgram.Read(root,package,disassembly);
                         else if(containment)containmentProgram=NativeAotSocketContainmentProgram.Read(root,package,disassembly);
                         else if(sockets)socketProgram=NativeAotSocketProgram.Read(root,plan.IsEnabled("EnableM16012Probe"),package,disassembly);
                         else if (NativeAotRuntimeSelection.Application(plan.Flags).Length != 0)
@@ -209,8 +213,8 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
             if(containment)arguments.Add("--socket-containment-peer");
-            else if (plan.IsEnabled("EnableM07026Probe")&&!sockets&&!web) arguments.Add("--continuing-network-peer");
-            if(sockets&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
+            else if (plan.IsEnabled("EnableM07026Probe")&&!sockets&&!vectors&&!web) arguments.Add("--continuing-network-peer");
+            if((sockets||vectors)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if(web)
             {
                 int port=20080;
@@ -231,7 +235,7 @@ public static class QemuSmoke
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            if(sockets||containment||web)
+            if(sockets||containment||vectors||web)
             {
                 // Preserve required insertion order while sending each ordered
                 // marker only once. The combined profile otherwise exceeds the
@@ -250,16 +254,23 @@ public static class QemuSmoke
             if (qemu.Length != 0) arguments.AddRange(["--qemu", qemu]);
             if (ovmf.Length != 0) arguments.AddRange(["--ovmf-code", ovmf]);
             if (options.DryRun) arguments.Add("--dry-run");
-            ProcessResult runner;
-            if(sockets&&!options.DryRun)
+            async Task<ProcessResult> RunSocketRunner(int port,CancellationToken token)
             {
-                socketPeer=await NativeAotSocketPeer.RunAsync(root,options.SerialLog+".peer.log",async(port,token)=>
-                {
-                    var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--socket-forward-port",port.ToString(CultureInfo.InvariantCulture)],root)
-                        {Timeout=TimeSpan.FromSeconds((capture is null?options.TimeoutSeconds+60:timeout+30)),OutputCharacterLimit=16*1024*1024,
-                            EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
-                    output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
-                },cancellation,token=>NativeAotSocketPeer.WaitForAcceptAsync(Path.GetFullPath(options.SerialLog,root),plan.IsEnabled("EnableM16012Probe"),token),
+                var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--socket-forward-port",port.ToString(CultureInfo.InvariantCulture)],root)
+                    {Timeout=TimeSpan.FromSeconds((capture is null?options.TimeoutSeconds+60:timeout+30)),OutputCharacterLimit=16*1024*1024,
+                        EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
+                output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
+            }
+            ProcessResult runner;
+            if(vectors&&!options.DryRun)
+            {
+                vectorsPeer=await NativeAotSocketVectorsPeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation);
+                runner=vectorsPeer.Runner;
+            }
+            else if(sockets&&!options.DryRun)
+            {
+                socketPeer=await NativeAotSocketPeer.RunAsync(root,options.SerialLog+".peer.log",RunSocketRunner,
+                    cancellation,token=>NativeAotSocketPeer.WaitForAcceptAsync(Path.GetFullPath(options.SerialLog,root),plan.IsEnabled("EnableM16012Probe"),token),
                     receiveGateSerial:plan.IsEnabled("EnableM16012Probe")?options.SerialLog:null);
                 runner=socketPeer.Runner;
             }
@@ -280,7 +291,8 @@ public static class QemuSmoke
             if (runner.ExitCode != 0 && (capture is not null || web)) return runner.ExitCode;
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
-            using AuthorityFiles? threadingEvidence = containmentProgram is not null?QemuTranscripts.HoldSocketContainmentEvidence(root,options):
+            using AuthorityFiles? threadingEvidence = vectorsPeer is not null?QemuTranscripts.HoldSocketVectorsEvidence(root,options,vectorsPeer):
+                containmentProgram is not null?QemuTranscripts.HoldSocketContainmentEvidence(root,options):
                 socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
                 webProgram is not null?QemuTranscripts.HoldWebEvidence(root,options):
                 threadingProgram is null && runtimeProgram is null && webProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
@@ -290,7 +302,7 @@ public static class QemuSmoke
             }
             int validated = webProgram is not null?QemuTranscripts.InspectWebRun(root,options,plan,runner,output,webProgram,
                 new(webForwardPort,qemu,ovmf,webStarted,webCompleted)):
-                QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer,containmentProgram);
+                QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer,containmentProgram,vectorsProgram,vectorsPeer);
             threadingEvidence?.VerifyUnchanged();
             webInputs?.VerifyUnchanged();
             if(webProgram is not null)

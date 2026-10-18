@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace OS.Tooling;
@@ -10,6 +12,42 @@ namespace OS.Tooling;
 /// complete serial and packet validation remain required.</summary>
 public static class NativeAotSocketVectorsPeer
 {
+    /// <summary>Immutable identity of this owned vector peer and its exact
+    /// runner result. No original socket peer Completion is substituted.</summary>
+    public sealed class Completion
+    {
+        internal Completion(string root,int port,string path,string hash,ProcessResult runner,string serial)
+        {Root=root;Port=port;Path=path;Sha256=hash;Runner=runner;SerialPath=serial;}
+        internal string Root {get;}
+        public int Port {get;}
+        public string Path {get;}
+        public string Sha256 {get;}
+        public string SerialPath {get;}
+        public ProcessResult Runner {get;}
+        internal void Verify(AuthorityFiles files)
+        {
+            var file=files.Open(System.IO.Path.GetDirectoryName(Path)!,Path,"original vector socket peer","socket_vectors_peer_log",65536,singleLink:true);
+            byte[] raw=file.ReadBytes(65536,"socket_vectors_peer_log");
+            if(Convert.ToHexString(SHA256.HashData(raw))!=Sha256)throw new ToolFailure("socket_vectors_peer_log_identity");
+            InspectOutput(new UTF8Encoding(false,true).GetString(raw));
+        }
+    }
+
+    /// <summary>Own one fixed guest-peer child beside the supplied runner.
+    /// Wait for its original accept attempt before launch, await both children
+    /// on failure/cancellation, and retain a fresh peer log. Completion binds the
+    /// canonical serial path and the same runner object; final guest joins remain
+    /// required. The runner callback must honor cancellation and confirm exit.</summary>
+    public static async Task<Completion> RunAsync(string root,string peerLog,string serial,
+        Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation=default)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(serial);root=System.IO.Path.GetFullPath(root);
+        serial=System.IO.Path.GetFullPath(serial,root);
+        var execution=await NativeAotSocketPeerLifecycle.RunAsync(root,peerLog,runRunner,cancellation,
+            token=>NativeAotSocketPeer.WaitForAcceptAsync(serial,false,token),serial,vectors:true);
+        return new(execution.Root,execution.Port,execution.Path,execution.Sha256,execution.Runner,execution.ReceiveGateSerial);
+    }
+
     /// <summary>Wait for the original guest's accept attempt, then drive four
     /// peers. Serial observations only delay stimulus. Caller owns output and
     /// raw serial; cancellation closes sockets and propagates without a pass.</summary>

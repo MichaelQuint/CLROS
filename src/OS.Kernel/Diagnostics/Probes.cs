@@ -17,6 +17,11 @@ public static partial class Probes
 #else
     public const bool EnableM16012Probe = false;
 #endif
+#if M16_013_PROBE
+    public const bool EnableM16013Probe = true;
+#else
+    public const bool EnableM16013Probe = false;
+#endif
 #if M09_012_PROBE
     public const bool EnableM09012Probe = true;
 #else
@@ -332,7 +337,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 66;
+    public const int ProbeCatalogCount = 67;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -616,6 +621,10 @@ public static partial class Probes
     public static ProbeDefinition GetM16012Probe() =>
         new("app.linux-epoll", nameof(EnableM16012Probe), EnableM16012Probe,
             ProbeRisk.Destructive, "Finite original SocketAsyncEngine workload with real epoll parking and NIC readiness.");
+
+    public static ProbeDefinition GetM16013Probe() =>
+        new("app.linux-socket-vectors", nameof(EnableM16013Probe), EnableM16013Probe,
+            ProbeRisk.Destructive, "Finite original BufferList workload with checked vector I/O, reset, disposal and live NIC ownership.");
 
     public static ProbeDefinition GetM10004Probe() =>
         new("app.nativeaot-web", nameof(EnableM10004Probe), EnableM10004Probe,
@@ -1001,6 +1010,9 @@ public static partial class Probes
                 return true;
             case 65:
                 definition = GetM10004Probe();
+                return true;
+            case 66:
+                definition = GetM16013Probe();
                 return true;
             default:
                 definition = default;

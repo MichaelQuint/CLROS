@@ -3,7 +3,7 @@ using OS.Tooling;
 
 internal static class NativeAotSocketVectorsSelectionTests
 {
-    // Exercise the isolated internal leaf before EFI/profile plumbing exists.
+    // Keep exact leaf selection controls separate from profile expansion.
     private static readonly Func<QemuSmokeOptions, IReadOnlyDictionary<string, bool>, bool> Bind =
         typeof(NativeAotSocketVectorsSelection).GetMethod("Bind", BindingFlags.NonPublic | BindingFlags.Static)!
             .CreateDelegate<Func<QemuSmokeOptions, IReadOnlyDictionary<string, bool>, bool>>();

@@ -16,8 +16,12 @@ send. #219/#745 and later service/time issues remain open.
 [Step1394](../done/step1394.md) retains the original BufferList fixture's Linux
 publication and exact package/complete instruction admission. Focused controls
 join ordered app output, reset, disposal and counters; original publication bytes
-and their producer remain distinct from later host tooling. CLROS vector profile,
-full native/serial/packet joins and stable batch qualification remain pending.
+and their producer remain distinct from later host tooling.
+[Step1396](../done/step1396.md) wires the dedicated default-off vector profile,
+sealed program, owned peer and complete parent/packet replay. Focused host controls
+do not qualify its execution. Project hashes cover the reviewed profile guards;
+EFI implementation source pins remain unchanged. Native review and stable
+full-host/CLROS guest qualification are pending.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across

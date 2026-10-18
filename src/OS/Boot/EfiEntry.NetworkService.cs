@@ -83,6 +83,9 @@ public static unsafe partial class EfiEntry
 #if M16_012_PROBE
                 && LinuxText(state, "CLROS_M16_012_READY\r\nTEST_PASS m16-012\r\n")
 #endif
+#if M16_013_PROBE
+                && LinuxText(state, "CLROS_M16_013_READY\r\nTEST_PASS m16-013\r\n")
+#endif
 #if M07_027_PROBE && M07_028_PROBE
                 && LinuxText(state, "CLROS_M07_028_READY\r\nTEST_PASS m07.028\r\nCLROS_M07_027_READY\r\nTEST_PASS m07.027\r\n")
 #endif

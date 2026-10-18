@@ -85,16 +85,24 @@ public static partial class QemuTranscripts
         return DecodeUtf8(raw.AsSpan(0,start).ToArray())+capture.Output.NormalizedTail+DecodeUtf8(raw.AsSpan(start+leaf.Length).ToArray());
     }
 
-    internal static IReadOnlyList<string> SocketMarkers(bool asynchronous)=>[
+    private static string NormalizeSocketVectorWrites(string text)
+    {
+        byte[] raw=Encoding.UTF8.GetBytes(text);var leaf=SocketRawLeaf(raw);int start=raw.AsSpan().IndexOf(leaf);
+        var output=NativeAotThreadingOutput.Read(NativeAotSocketVectorsPublisher.Application,leaf);
+        return DecodeUtf8(raw.AsSpan(0,start).ToArray())+output.NormalizedTail+DecodeUtf8(raw.AsSpan(start+leaf.Length).ToArray());
+    }
+
+    internal static IReadOnlyList<string> SocketMarkers(bool asynchronous,bool vectors=false)=>[
         ..QemuContracts.M03OwnedSubsystemMarkers,"TEST_START m16-002","M16_002_STAGED","M16_002_DIGEST","M16_002_PACKAGE_DIGEST",
         "M16_002_OWNED","CLROS_M16_002_READY","TEST_PASS m16-002",..M16LinuxStartupMarkers,..M16ServiceLoopMarkers,
         ..QemuContracts.M05ApicSetupMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count),
         ..QemuContracts.M07ArpReceiveMarkers.Skip(QemuContracts.M05PciEnumerationMarkers.Count),
         "TEST_START m07-026","M07_026_ROW stage=0 ","M16_011_PEER ","TEST_START m16-011",
-        ..asynchronous?new[]{"TEST_START m16-012"}:Array.Empty<string>(),..M16LinuxSignalMarkers.Take(3),
+        ..asynchronous?new[]{"TEST_START m16-012"}:Array.Empty<string>(),..vectors?new[]{"TEST_START m16-013"}:Array.Empty<string>(),..M16LinuxSignalMarkers.Take(3),
         "M16_011_BOUND ",..M16LinuxSignalMarkers.Skip(3),"M16_011_WIRE ","M16_011_END ",
         "M07_026_ROW stage=4 ","M07_026_ROW stage=5 ","M07_026_ROW stage=6 ","CLROS_M07_026_READY","TEST_PASS m07-026",
-        "CLROS_M16_011_READY","TEST_PASS m16-011",..asynchronous?new[]{"CLROS_M16_012_READY","TEST_PASS m16-012"}:Array.Empty<string>()];
+        "CLROS_M16_011_READY","TEST_PASS m16-011",..asynchronous?new[]{"CLROS_M16_012_READY","TEST_PASS m16-012"}:Array.Empty<string>(),
+        ..vectors?new[]{"CLROS_M16_013_READY","TEST_PASS m16-013"}:Array.Empty<string>()];
 
     private static (string[] Parent,SocketNetworkProof Proof) ValidateSocketNetworkTail(string[] lines,byte[] raw,byte[] package,NativeAotSocketProgram program)
     {
@@ -109,6 +117,19 @@ public static partial class QemuTranscripts
         return ([..parent,..envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)],envelope.Proof);
     }
 
+    private static (string[] Parent,SocketNetworkProof Proof) ValidateSocketVectorsNetworkTail(string[] lines,byte[] raw,byte[] package,NativeAotSocketVectorsProgram program)
+    {
+        var envelope=SocketNetworkEnvelope(lines,true,vectors:true);
+        var tables=ReadRecord(lines[QemuContracts.M03OwnedSubsystemMarkers.Count+10],"M16_004_TABLES","root:dec","used:dec","leaves:dec","ranges:dec");
+        const string restored=" restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
+        string readback=lines[QemuContracts.M03OwnedSubsystemMarkers.Count+11];Need(readback.EndsWith(restored,StringComparison.Ordinal),"socket_parent_readback");
+        var kernel=ReadRecord(readback[..^restored.Length],"M16_004_READBACK","old:dec");
+        ValidateNativeAotSocketVectorsTail(program.SourceRoot,package,program,SocketRawLeaf(raw),tables["root"],kernel["old"]);
+        string[] parent=ValidateServiceLoopTail(lines[..envelope.ParentsEnd],true);
+        parent=ValidateLinuxStartupTail(parent,package);parent=ValidateLinuxElfTail(parent,package);
+        return ([..parent,..envelope.Apic.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count)],envelope.Proof);
+    }
+
     /// <summary>Value-only combined APIC/NIC wrapper inspection for synthetic
     /// controls. Validates observed transport/cleanup associations but does not
     /// validate or authorize firmware, package/startup, application execution,
@@ -118,17 +139,27 @@ public static partial class QemuTranscripts
         var result=SocketNetworkEnvelope(rows,asynchronous).Proof.Lifetimes;
         return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
-    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false)
+
+    /// <summary>Value-only vector APIC/NIC wrapper control. Validate its exact
+    /// markers and transport/cleanup associations; placeholder startup or app rows
+    /// supply no package, peer-child, firmware or guest execution authority.</summary>
+    public static SocketTransportInspection InspectSocketVectorNetworkForTests(string[] rows)
+    {
+        var result=SocketNetworkEnvelope(rows,true,vectors:true).Proof.Lifetimes;
+        return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
+    }
+    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false)
     {
         int parentsEnd=QemuContracts.M03OwnedSubsystemMarkers.Count+7+M16LinuxStartupMarkers.Count+M16ServiceLoopMarkers.Count;
         int apicEnd=parentsEnd+QemuContracts.M05ApicSetupMarkers.Count-QemuContracts.M03OwnedSubsystemMarkers.Count;
         int networkStart=apicEnd+QemuContracts.M07ArpReceiveMarkers.Count-QemuContracts.M05PciEnumerationMarkers.Count;
-        Need(lines.Length>networkStart+12 && !(containment&&asynchronous),"socket_parent_extent");
+        Need(lines.Length>networkStart+12 && !(containment&&asynchronous) && (!vectors || asynchronous && !containment),"socket_parent_extent");
         int cursor=networkStart;
         void Exact(string expected){Need(cursor<lines.Length&&lines[cursor++]==expected,"socket_parent_order_"+expected);}
         Exact("TEST_START m07-026");var dma=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");
         var peer=ReadRecord(lines[cursor++],"M16_011_PEER","mac:dec","sent:dec","received:dec","start:dec","end:dec");
         Exact("TEST_START m16-011");if(asynchronous)Exact("TEST_START m16-012");
+        if(vectors)Exact("TEST_START m16-013");
         if(containment){Exact("TEST_START m07.027");Exact("TEST_START m07.028");}
         int leafStart=cursor;Need(lines[leafStart]=="TEST_START m16-009","socket_parent_leaf");
         int leafEnd=Array.IndexOf(lines,"TEST_PASS m16-009",leafStart)+1;Need(leafEnd>leafStart,"socket_parent_leaf_end");
@@ -142,6 +173,7 @@ public static partial class QemuTranscripts
         var stop=Row(4);var pool=Row(5);var allocator=Row(6);
         Exact("CLROS_M07_026_READY");Exact("TEST_PASS m07-026");Exact("CLROS_M16_011_READY");Exact("TEST_PASS m16-011");
         if(asynchronous){Exact("CLROS_M16_012_READY");Exact("TEST_PASS m16-012");}
+        if(vectors){Exact("CLROS_M16_013_READY");Exact("TEST_PASS m16-013");}
         if(containment){Exact("CLROS_M07_028_READY");Exact("TEST_PASS m07.028");Exact("CLROS_M07_027_READY");Exact("TEST_PASS m07.027");}
         Need(cursor==lines.Length,"socket_parent_extra_record");
         string[] apic=[..lines[..QemuContracts.M03OwnedSubsystemMarkers.Count],..lines[parentsEnd..apicEnd]];
@@ -167,13 +199,13 @@ public static partial class QemuTranscripts
         return (parentsEnd,apic,new(nic,arp,peer,wire,end,stop,lifetimes,control));
     }
 
-    private sealed class SocketWireFlow(uint port,int index,uint sequence)
+    private sealed class SocketWireFlow(uint port,int index,uint sequence,bool vectors)
     {
         internal readonly uint Port=port,Client=sequence+1;
         internal readonly int Index=index;
         internal uint Server;internal bool SynAck,ClientFin,ServerFin,ClientFinAcked,ServerFinAcked,Reset;
         internal int ClientSeen,ServerSeen;
-        internal readonly bool[] Request=new bool[index==1?1:20],Reply=new bool[index==0?65536:index==1?0:18];
+        internal readonly bool[] Request=new bool[vectors?64:index==1?1:20],Reply=new bool[index==0?65536:index==1||vectors&&index==2?0:vectors?64:18];
     }
     /// <summary>Value-only original socket wire totals; no execution authority.</summary>
     public readonly record struct SocketPacketInspection(int Connections,int Received,int Sent,int Resets,int ClientFins,int ServerFins,
@@ -187,7 +219,12 @@ public static partial class QemuTranscripts
     public static SocketPacketInspection InspectSocketPacketsForTests(byte[] capture,uint anchor,QemuArpReceiveReceipt arp,IReadOnlyList<uint> ports)
         =>SocketPackets(capture,anchor,arp,ports);
 
-    private static SocketPacketInspection SocketPackets(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,IReadOnlyList<uint> ports)
+    /// <summary>Value-only vector wire inspection. Require exact binary streams,
+    /// tuple order and reset/FIN lifetimes; grant no peer-process or guest authority.</summary>
+    public static SocketPacketInspection InspectSocketVectorPacketsForTests(byte[] capture,uint anchor,QemuArpReceiveReceipt arp,IReadOnlyList<uint> ports)
+        =>SocketPackets(capture,anchor,arp,ports,vectors:true);
+
+    private static SocketPacketInspection SocketPackets(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,IReadOnlyList<uint> ports,bool vectors=false)
     {
         Need(ports.Count==4 && ports.All(p=>p is >0 and <=65535),"socket_wire_ports");
         _=QemuEthernetCapture.Inspect(bytes,anchor);
@@ -241,7 +278,7 @@ public static partial class QemuTranscripts
                 else
                 {
                     Need(flows.Count<4 && remote==ports[flows.Count],"socket_wire_original_tuple");
-                    flow=new(remote,flows.Count,sequence);flows.Add(flow);current[remote]=flow;
+                    flow=new(remote,flows.Count,sequence,vectors);flows.Add(flow);current[remote]=flow;
                 }
                 continue;
             }
@@ -264,20 +301,20 @@ public static partial class QemuTranscripts
             Need(!flow.Reset && (payload.Length==0 || relative+payload.Length<=received.Length),"socket_wire_payload_extent");
             for(int i=0;i<payload.Length;i++)
             {
-                int at=checked((int)relative+i);byte expected=outgoing?flow.Index==0?(byte)(at%251):"CLROS_SOCKET_REPLY"u8[at]:
-                    flow.Index==1?(byte)0x52:"CLROS_SOCKET_REQUEST"u8[at];
+                int at=checked((int)relative+i);byte expected=vectors?outgoing?(byte)(at%251):(byte)((flow.Index*37+at*11)%251):
+                    outgoing?flow.Index==0?(byte)(at%251):"CLROS_SOCKET_REPLY"u8[at]:flow.Index==1?(byte)0x52:"CLROS_SOCKET_REQUEST"u8[at];
                 Need(payload[i]==expected,"socket_wire_literal_payload");received[at]=true;
             }
             if(outgoing)
             {
-                Need(flow.Index<2 || payload.Length==0 || flow.ClientFin,"socket_wire_half_close_order");
+                Need(payload.Length==0 || (vectors?flow.Index is not (0 or 3):flow.Index<2) || flow.ClientFin,"socket_wire_half_close_order");
                 while(flow.ServerSeen<received.Length&&received[flow.ServerSeen])flow.ServerSeen++;
             }
             else while(flow.ClientSeen<received.Length&&received[flow.ClientSeen])flow.ClientSeen++;
             if((flags&1)!=0)
             {
                 Need(flow.Index!=1 && relative+payload.Length==received.Length && received.All(v=>v),"socket_wire_fin_sequence");
-                if(outgoing)flow.ServerFin=true;else {Need(flow.Index!=0 || flow.ServerFin,"socket_wire_active_close_order");flow.ClientFin=true;}
+                if(outgoing)flow.ServerFin=true;else {Need((vectors?flow.Index!=2:flow.Index!=0) || flow.ServerFin,"socket_wire_active_close_order");flow.ClientFin=true;}
             }
         }
         Need(prefixStage==3,"socket_wire_parent_prefix");_=QemuEthernetCapture.InspectArp(bytes.AsSpan(0,prefixEnd),arp);
@@ -342,11 +379,11 @@ public static partial class QemuTranscripts
             (operation!=2 || MatchNetworkMac(packet[18..],outgoing?peer:0x020000000001)),"socket_wire_arp_envelope");
     }
 
-    private static void AssertSocketCapture(string path,SocketNetworkProof proof)
+    private static void AssertSocketCapture(string path,SocketNetworkProof proof,bool vectors=false)
     {
         ulong[] anchor=PrefixRow(proof.Nic,"M07_NET D",4);Need(anchor[0]<=uint.MaxValue,"socket_capture_anchor_width");
-        var report=SocketPackets(File.ReadAllBytes(path),(uint)anchor[0],proof.Arp,proof.Lifetimes.Select(v=>v.RemotePort).ToArray());
-        Need(report.Connections==4 && report.Received==61 && report.Sent==65572 && report.Resets==1 && report.ClientFins==3 && report.ServerFins==3 &&
+        var report=SocketPackets(File.ReadAllBytes(path),(uint)anchor[0],proof.Arp,proof.Lifetimes.Select(v=>v.RemotePort).ToArray(),vectors);
+        Need(report.Connections==4 && report.Received==(vectors?256:61) && report.Sent==(vectors?65600:65572) && report.Resets==1 && report.ClientFins==3 && report.ServerFins==3 &&
             report.PeerReceived==proof.Peer["received"] && report.PumpReceived==proof.Wire["received"] && report.PumpArp==proof.Wire["arp"] &&
             report.PumpIgnored==proof.Wire["ignored"] && report.PumpReceived-report.PumpArp-report.PumpIgnored==proof.Wire["accepted"] &&
             report.PumpArpCopied==proof.Wire["arpCopied"] && report.PumpTcpCopied==proof.Wire["tcpCopied"],"socket_capture_serial_join");
@@ -361,6 +398,20 @@ public static partial class QemuTranscripts
             var summary=files.Open(root,Path.GetFullPath(options.SummaryLog,root),"socket runner summary","socket_summary",16*1024*1024,singleLink:true);
             var capture=files.Open(root,Path.GetFullPath(options.SerialLog+".pcap",root),"socket packet capture","socket_capture",4*1024*1024,singleLink:true);
             peer.Verify(files);var literal=files.Open(root,peer.Path,"socket peer","socket_peer_log",65536,singleLink:true);
+            AuthorityFiles.RequireDistinct(serial,summary,capture,literal);return files;
+        }
+        catch{files.Dispose();throw;}
+    }
+
+    internal static AuthorityFiles HoldSocketVectorsEvidence(string root,QemuSmokeOptions options,NativeAotSocketVectorsPeer.Completion peer)
+    {
+        AuthorityFiles files=new();
+        try
+        {
+            var serial=files.Open(root,Path.GetFullPath(options.SerialLog,root),"socket vectors serial","socket_vectors_serial",8*1024*1024,singleLink:true);
+            var summary=files.Open(root,Path.GetFullPath(options.SummaryLog,root),"socket vectors runner summary","socket_vectors_summary",16*1024*1024,singleLink:true);
+            var capture=files.Open(root,Path.GetFullPath(options.SerialLog+".pcap",root),"socket vectors packet capture","socket_vectors_capture",4*1024*1024,singleLink:true);
+            peer.Verify(files);var literal=files.Open(root,peer.Path,"socket vectors peer","socket_vectors_peer_log",65536,singleLink:true);
             AuthorityFiles.RequireDistinct(serial,summary,capture,literal);return files;
         }
         catch{files.Dispose();throw;}
