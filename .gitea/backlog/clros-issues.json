@@ -22829,7 +22829,11 @@
         "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Parent.cs",
         "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Transport.cs",
         "tests/OS.HostTests/NativeAotWebTransportTests.cs",
-        "tests/OS.HostTests/NativeAotWebReplayTests.cs"
+        "tests/OS.HostTests/NativeAotWebReplayTests.cs",
+        "src/OS/Boot/EfiEntry.Realtime.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/QemuTranscripts.RealtimeAdmission.cs",
+        "tests/OS.HostTests/RealtimeAdmissionControlTests.cs"
       ],
       "forbiddenPaths": [
         "README.md",

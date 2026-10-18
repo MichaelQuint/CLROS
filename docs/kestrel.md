@@ -1,5 +1,13 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1415](../done/step1415.md) corrects the normal large-response call inventory
+for explicit transport controls: eight accepts retain the fifth vector response
+and sixth later health; historical callers still require six. The fresh corrected
+clock capture passes parent/runtime replay, then fails the older six-accept cap
+before packet qualification. That capture remains failed. Diagnose complete
+retained packet/Date joins before fresh strict repetitions; no issue acceptance
+advances from runner success or offline diagnostics.
+
 [Step1414](../done/step1414.md) retains four original EFI candidates and two
 actual pre-entry UTC copied-source rejection guests. Both exact nine-row tails
 show released package/startup backing, two closed handles and checkpoint96 with

@@ -31,7 +31,7 @@ public static partial class QemuTranscripts
         string[] rows=complete[..^2].Split("\r\n",StringSplitOptions.None);
         Need(leaf.TransportControlsChecked,"web_packet_transport_controls");
         var lifetimes=SocketLifetimes(rows,continuingWeb:true,webConnections:configuration.LogQuota?7:8,controls:controls.Sockets);
-        if(!configuration.LogQuota)_=WebVectorCalls(rows);
+        if(!configuration.LogQuota)_=WebVectorCalls(rows,transportControls:true);
         var report=InspectNativeAotWebPacketsForTests(packets,parent.FrameAnchor,parent.Arp,
             lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json,configuration.LogQuota,utc,controls);
         Need(report.ControlsChecked,"web_packet_controls_required");
