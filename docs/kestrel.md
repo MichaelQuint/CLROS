@@ -1,5 +1,16 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1411](../done/step1411.md) connects the control consumers through production
+parent, runtime and packet validation. The mandatory runner report is checked
+first. Original drop/timeout rows remain at their scheduler positions; the
+transport validator binds the full live handle/generation/tuple, the30-second
+close bound and subsequent private retirement. Runtime replay requires the bad
+fd closed at timeout while the same healthy accepted object stays open with
+exact first-response I/O, then completes the second exchange. Existing FIFO,
+wait, memory, descriptor and TIME-WAIT checks remain. Thirty focused synthetic
+checks pass. No new guest, EFI native or full-host qualification is claimed;
+unavailable/invalid guest UTC controls and stable-batch qualification remain.
+
 [Step1410](../done/step1410.md) adds development-only consumers for the runner
 reports and control packet streams. Production runner inspection requires exact
 control schemas, lifecycle, raw HTTP, Date and UTC-window joins; the explicit
@@ -7,10 +18,9 @@ historical seam returns unchecked controls. Packet inspection supports normal
 eight TCP/nine HTTP observations and quota seven/eight, including two responses
 on the same healthy connection, exactly one ordered literal VLAN and validated
 withheld response ACKs for the bad peer. Twenty-six focused synthetic checks pass.
-Original-position kernel timeout/drop replay, live handle/generation/private
-retirement joins and production packet wiring remain pending. Current production
-verification still rejects the new capture shape. No guest or service acceptance
-advances; retain the stable-batch native/full-host/guest boundary.
+Step1411 supplies original-position kernel replay, live handle/generation/private
+retirement joins and production packet wiring. These are implementation and
+focused host evidence; the stable-batch native/full-host/guest boundary remains.
 
 [Step1409](../done/step1409.md) adds development-only external Kestrel controls
 to the web runner. A bounded loopback QEMU filter preserves unrelated frames,
@@ -19,8 +29,7 @@ and injects one1518-byte VLAN frame. One retained keep-alive connection complete
 health before injection and again after actual peer-local timeout/device-drop
 rows. The runner retains all three raw responses, UTC intervals, exact withheld
 frames and joined frame-owner cleanup. The original Kestrel ELF is unchanged.
-Step1410 implements the report and packet consumers; live handle/generation,
-complete runtime replay and production integration remain. No new guest,
+Steps1410/1411 implement the report/packet and live-handle/runtime joins. No new guest,
 kernel-native, service, cleanup, whole-stack, cloud or production gate is accepted.
 
 [Step1408](../done/step1408.md) implements development-only #221 policy controls

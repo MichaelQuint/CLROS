@@ -63,6 +63,10 @@ public static partial class QemuTranscripts
         private bool socketIdleAllowed;
         private ulong socketSent,socketReceived;
         private bool containmentTimeoutObserved,containmentDropObserved;
+        private readonly WebControlInspection? webControls;
+        private readonly List<SocketLifetime>? webLifetimes;
+        private int webControlEvents;
+        private bool webPrivateRetired;
 
         private void SocketMessageInput(RuntimeThread thread)
         {
@@ -134,13 +138,51 @@ public static partial class QemuTranscripts
                 }
                 return;
             }
-            while(position<rows.Length && IsSocketTransport(rows[position]))
+            while(position<rows.Length && (IsSocketTransport(rows[position]) || webControls is not null && IsWebControlEvent(rows[position])))
             {
+                if(IsWebControlEvent(rows[position]))
+                {
+                    Need(webControlEvents<2 && rows[position]==(webControlEvents==0?webControls!.Sockets.Observations.DropRow:
+                        webControls!.Sockets.Observations.TimeoutRow),"web_replay_control_event_order");
+                    WebControlIo(before:true,requirePrivate:webControlEvents==1);
+                    _=Take();webControlEvents++;continue;
+                }
                 var r=SocketTransport(Take());Need(r["clock"]<=long.MaxValue,"socket_transport_clock");
+                if(webControls is not null && r.TryGetValue("event",out ulong slotEvent) && slotEvent==1 &&
+                    r["remotePort"]==(ulong)webControls.Sockets.Deadline.SourcePort)
+                {
+                    var bad=webLifetimes!.Single(l=>l.RemotePort==r["remotePort"]);
+                    Need(webControlEvents==2 && !webPrivateRetired && r["clock"]==bad.Retired,"web_replay_control_retire");
+                    WebBadIo(requirePrivate:true);webPrivateRetired=true;
+                }
                 // Transport clocks do not advance the released thread table.
                 // The mandatory parent/packet consumer owns full handle/tuple,
                 // TIME-WAIT, retire, NIC and wire accounting for these rows.
             }
+        }
+
+        private SocketDescriptor WebControlDescription(int connection)
+        {
+            var descriptor=socketDescriptions.SingleOrDefault(d=>!d.Port && d.Phase==3 && d.Connection==connection);
+            Need(descriptor is not null,"web_replay_control_descriptor");return descriptor!;
+        }
+
+        private void WebBadIo(bool requirePrivate)
+        {
+            var controls=webControls!.Sockets;int ordinary=webLogQuota?5:6;
+            var bad=WebControlDescription(ordinary);
+            Need(socketAccepts==ordinary+2 && bad.Sent==(ulong)controls.Deadline.ResponseHex.Length/2 &&
+                bad.Received==(ulong)controls.Deadline.RequestHex.Length/2 && bad.Reset==0 &&
+                (!requirePrivate || !socketDescriptors.ContainsValue(bad)),"web_replay_control_bad_io");
+        }
+
+        private void WebControlIo(bool before,bool requirePrivate)
+        {
+            WebBadIo(requirePrivate);var controls=webControls!.Sockets;var healthy=WebControlDescription((webLogQuota?5:6)+1);
+            ulong received=(ulong)controls.Before.RequestHex.Length/2,sent=(ulong)controls.Before.ResponseHex.Length/2;
+            if(!before){received+=(ulong)controls.After.RequestHex.Length/2;sent+=(ulong)controls.After.ResponseHex.Length/2;}
+            Need(healthy.Received==received && healthy.Sent==sent && healthy.Reset==0 &&
+                (!before || socketDescriptors.ContainsValue(healthy) && !healthy.WriteClosed && !healthy.ReadClosed),"web_replay_control_healthy_io");
         }
 
         // Return true only when Prepare itself stages another real wait. Such

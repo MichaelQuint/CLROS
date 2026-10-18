@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
 
@@ -13,7 +14,7 @@ public static partial class QemuTranscripts
     private sealed class SocketLifetime(Dictionary<string,ulong> first)
     {
         internal readonly Dictionary<string,ulong> First=first;
-        internal ulong Retired,MaximumDeadline;
+        internal ulong Retired,MaximumDeadline,Timeout;
         internal int Waits;internal bool Drain;
         internal uint RemotePort=checked((uint)first["remotePort"]);
     }
@@ -33,12 +34,33 @@ public static partial class QemuTranscripts
     {
         var result=SocketLifetimes(rows,continuingWeb);return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
-    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5)
+    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5,WebSocketControls.Report? controls=null)
     {
+        Need(controls is null || continuingWeb && webConnections is 7 or 8,"web_transport_selection");
+        Need(!continuingWeb || controls is not null || !rows.Any(IsWebControlEvent),"web_transport_unexpected_controls");
+        if(controls is not null)RequireWebControlEvents(controls);
         List<SocketLifetime> all=[];Dictionary<string,SocketLifetime> known=[];Dictionary<ulong,SocketLifetime> active=[];
-        Dictionary<ulong,ulong> generations=[];ulong clock=0,owner=0,epoch=0;
-        foreach(string row in rows.Where(IsSocketTransport))
+        Dictionary<ulong,ulong> generations=[];ulong clock=0,owner=0,epoch=0;int controlEvents=0;
+        foreach(string row in rows.Where(r=>IsSocketTransport(r) || controls is not null && IsWebControlEvent(r)))
         {
+            if(IsWebControlEvent(row))
+            {
+                Need(controlEvents<2 && row==(controlEvents==0?controls!.Observations.DropRow:controls!.Observations.TimeoutRow),"web_transport_event_order");
+                var observation=WebControlEvent(row);
+                Need(observation["clock"]>=clock && observation["clock"]<=long.MaxValue && all.Count==webConnections,"web_transport_event_clock");clock=observation["clock"];
+                var bad=all.SingleOrDefault(v=>v.RemotePort==controls!.Deadline.SourcePort);
+                var healthy=all.SingleOrDefault(v=>v.RemotePort==controls!.Before.SourcePort);
+                Need(bad is not null && healthy is not null && bad.Retired==0 && healthy.Retired==0 &&
+                    active.Values.Contains(bad) && active.Values.Contains(healthy),"web_transport_event_live");
+                if(controlEvents==1)
+                {
+                    Need(SocketLifetimeFields[..9].All(field=>observation[field[..^4]]==bad!.First[field[..^4]]) &&
+                        bad!.Waits==0 && bad.MaximumDeadline==0 && clock>bad.First["clock"] &&
+                        clock-bad.First["clock"]>=30_000_000_000,"web_transport_timeout_identity");
+                    bad!.Timeout=clock;
+                }
+                controlEvents++;continue;
+            }
             var r=SocketTransport(row);bool slot=row.StartsWith("M16_011_SLOT ",StringComparison.Ordinal);
             Need(r["slot"]<8 && r["index"]<8 && r["owner"]>=4096 && r["owner"]%8==0 && r["epoch"]!=0 && r["generation"]!=0 &&
                 r["local"]==0x0a00020f && r["localPort"]==8080 && r["remote"]==0x0a000202 && r["remotePort"] is >0 and <=65535 &&
@@ -48,6 +70,7 @@ public static partial class QemuTranscripts
             if(slot && r["event"]==0)
             {
                 Need(!known.ContainsKey(key) && !active.ContainsKey(r["slot"]) && active.Values.All(v=>v.First["index"]!=r["index"]) &&
+                    (controls is null || all.All(v=>v.RemotePort!=r["remotePort"])) &&
                     r["generation"]==generations.GetValueOrDefault(r["index"])+1 && r["deadline"]==0 && r["duration"]==0,"socket_transport_fresh");
                 var value=new SocketLifetime(r);known.Add(key,value);active.Add(r["slot"],value);all.Add(value);continue;
             }
@@ -67,8 +90,15 @@ public static partial class QemuTranscripts
                 lifetime!.MaximumDeadline=r["deadline"];lifetime.Waits++;lifetime.Drain=r["drain"]==1;
             }
         }
-        Need(continuingWeb?webConnections is 5 or 6 && all.Count==webConnections && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==webConnections:
-            all.Count==4 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Any(v=>v.Waits!=0),"socket_transport_complete");return all;
+        Need(continuingWeb?(controls is null?webConnections is 5 or 6:webConnections is 7 or 8) && all.Count==webConnections && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==webConnections:
+            all.Count==4 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Any(v=>v.Waits!=0),"socket_transport_complete");
+        if(controls is not null)
+        {
+            var bad=all.Single(v=>v.RemotePort==controls.Deadline.SourcePort);
+            Need(controlEvents==2 && bad.Timeout!=0 && bad.Retired>=bad.Timeout && bad.Waits==0 && bad.MaximumDeadline==0,
+                "web_transport_control_completion");
+        }
+        return all;
     }
 
     internal static ReadOnlySpan<byte> SocketRawLeaf(ReadOnlySpan<byte> raw)

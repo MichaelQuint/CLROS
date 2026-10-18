@@ -26,19 +26,21 @@ public static partial class QemuTranscripts
             "web_prepared_owner");
         byte[] raw=File.ReadAllBytes(Path.GetFullPath(options.SerialLog,root));
         byte[] package=File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root));
-        var capture=ValidateNativeAotWebCapturePrefix(root,package,program!,raw);
-        var replay=capture.Leaf;
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         var runnerReport=InspectNativeAotWebRunnerForTests(options,plan,runner,raw,
             File.ReadAllBytes(Path.GetFullPath(options.SummaryLog,root)),context,configuration.Body,configuration.Json,configuration.LogQuota);
+        Need(runnerReport.Controls is not null,"web_runner_controls_required");
+        var capture=ValidateNativeAotWebCapturePrefix(root,package,program!,raw,runnerReport.Controls);
+        var replay=capture.Leaf;
         var packets=ValidateWebPackets(package,raw,File.ReadAllBytes(Path.GetFullPath(options.SerialLog+".pcap",root)),
-            capture.Parent,replay,context.ForwardPort,runnerReport.UtcObservations);
+            capture.Parent,replay,context.ForwardPort,runnerReport.UtcObservations,runnerReport.Controls!);
         var observed=replay.Observations;
         output.WriteLine($"WEB_PREFIX_PARENT records={capture.Parent.Records} userRoot={capture.Parent.UserRoot} kernelRoot={capture.Parent.KernelRoot} periodFs={capture.Parent.Period} dma={capture.Parent.Dma} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_OBSERVATIONS calls={observed.Calls} writes={observed.Writes} stdout={observed.StdoutBytes} stderr={observed.StderrBytes} pendingEpoll={observed.PendingEpollWaits} fragmentBytes={observed.TrailingFragment.Length} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_REPLAY clones={replay.Protocol.Clones} irqs={replay.Protocol.Irqs} drains={replay.Protocol.Drains} transfers={replay.Protocol.Transfers} active={replay.Active} ready={replay.Ready} selected={replay.Current} returning={replay.ReturningToSupervisor} entropyRemaining={replay.EntropyRemaining} accepts={replay.SocketAccepts} sent={replay.Sent} received={replay.Received} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_PACKETS connections={packets.Connections} tcpRecords={packets.TcpRecords} received={packets.Received} sent={packets.Sent} clientFins={packets.ClientFins} serverFins={packets.ServerFins} clientFinAcks={packets.ClientFinAcks} serverFinAcks={packets.ServerFinAcks} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_RUNNER pid={runnerReport.ProcessId} lifetimeMs={runnerReport.LifetimeMilliseconds} healthMs={runnerReport.HealthMilliseconds} configMs={runnerReport.ConfigurationMilliseconds} acceptance=pending");
+        output.WriteLine($"WEB_PREFIX_CONTROLS transportChecked={replay.TransportControlsChecked.ToString().ToLowerInvariant()} packetsChecked={packets.ControlsChecked.ToString().ToLowerInvariant()} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_UTC windows={packets.Responses.Count} toleranceSeconds={WebUtcToleranceSeconds} checked={packets.UtcChecked.ToString().ToLowerInvariant()} advanceSeconds={(packets.Responses[^1].DateUtc-packets.Responses[0].DateUtc).TotalSeconds.ToString(CultureInfo.InvariantCulture)} acceptance=pending");
         for(int i=0;i<packets.Responses.Count;i++)
             output.WriteLine($"WEB_PREFIX_HTTP index={i} dateUtc={packets.Responses[i].DateUtc:O} rawSha256={packets.Responses[i].RawSha256} dateNormalizedSha256={packets.Responses[i].DateNormalizedSha256} acceptance=pending");
@@ -84,18 +86,23 @@ public static partial class QemuTranscripts
     /// <summary>Replayed complete prefix and retained in-flight owner state.
     /// Transfers count only completed supervisor observations. An unfinished
     /// syscall/IRQ/return is never counted as completed. Parent/native/packet/
-    /// runner/source qualification remains outside this leaf report.</summary>
+    /// runner/source qualification remains outside this leaf report. The
+    /// transport flag additionally requires original control events, exact
+    /// peer I/O and actual fd close/private retirement observations.</summary>
     public readonly record struct WebReplayReport(WebObservationReport Observations,ThreadingProtocolReport Protocol,
-        int Active,int Ready,ulong Current,string Boundary,bool ReturningToSupervisor,uint EntropyRemaining,int SocketAccepts,ulong Sent,ulong Received);
+        int Active,int Ready,ulong Current,string Boundary,bool ReturningToSupervisor,uint EntropyRemaining,int SocketAccepts,ulong Sent,ulong Received,
+        bool TransportControlsChecked);
 
     /// <summary>Replay original web memory, syscall, FIFO/thread, signal, wait,
     /// descriptor and socket observations through the complete captured prefix.
     /// Exact original package/prepared lookup and caller-supplied parent roots
     /// are borrowed, not executed. Unsupported or inconsistent observations
     /// throw. A live owner at host capture end supplies no guest cleanup or
-    /// complete QEMU/native/packet/runner/source acceptance.</summary>
+    /// complete QEMU/native/packet/runner/source acceptance. Optional controls
+    /// join the original live network/descriptor lifetimes; omitting them
+    /// retains historical scope with TransportControlsChecked=false.</summary>
     public static WebReplayReport ValidateNativeAotWebContinuingPrefix(string root,byte[] package,NativeAotWebProgram program,
-        ReadOnlySpan<byte> rawTail,ulong userRoot,ulong kernelRoot)
+        ReadOnlySpan<byte> rawTail,ulong userRoot,ulong kernelRoot,WebControlInspection? controls=null)
     {
         var observed=ValidateNativeAotWebPrefix(root,package,program,rawTail);
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
@@ -107,15 +114,18 @@ public static partial class QemuTranscripts
         var view=OS.Manifest.LinuxElfPackage.Validate(package);
         return ReplayWeb(framed,observed,package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
             program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]),
-            loggingValidated:true,logQuota:configuration.LogQuota);
+            loggingValidated:true,logQuota:configuration.LogQuota,controls:controls);
     }
 
     /// <summary>Value-only synthetic control seam for the same continuing
     /// semantic model. Caller ELF, roots, settings counts and instruction
     /// predicates grant no prepared-program, app, source or guest authority.
-    /// Borrowed raw rows are framed and replayed; invalid observations throw.</summary>
+    /// Borrowed raw rows are framed and replayed; invalid observations throw.
+    /// Optional controls/logQuota select explicit synthetic expectations only;
+    /// production derives these from the owned runner and original package.</summary>
     public static WebReplayReport InspectNativeAotWebReplayForTests(byte[] elf,ReadOnlySpan<byte> raw,
-        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd)
+        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,
+        WebControlInspection? controls=null,bool logQuota=false)
     {
         var framed=NativeAotThreadingOutput.ReadWeb(raw);
         int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);Need(last>=0,"web_replay_records");
@@ -124,11 +134,12 @@ public static partial class QemuTranscripts
         var observations=new WebObservationReport(ReadLinuxCallWaits(rows,allowEpoll:true).Count,framed.WriteLengths.Count,
             Encoding.UTF8.GetByteCount(framed.Stdout),Encoding.UTF8.GetByteCount(framed.Stderr),0,fragment,
             Convert.ToHexString(SHA256.HashData(raw)),Convert.ToHexString(SHA256.HashData(raw[..(raw.Length-fragment.Length)])));
-        return ReplayWeb(framed,observations,elf,instruction,syscall,userRoot,kernelRoot,settingsBytes,settingsFd);
+        return ReplayWeb(framed,observations,elf,instruction,syscall,userRoot,kernelRoot,settingsBytes,settingsFd,logQuota:logQuota,controls:controls);
     }
 
     private static WebReplayReport ReplayWeb(NativeAotThreadingOutput.Capture framed,WebObservationReport observed,byte[] elf,
-        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,bool loggingValidated=false,bool logQuota=false)
+        Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,bool loggingValidated=false,bool logQuota=false,
+        WebControlInspection? controls=null)
     {
         string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-observed.TrailingFragment.Length)];
         string[] original=complete[..^2].Split("\r\n",StringSplitOptions.None);
@@ -146,7 +157,7 @@ public static partial class QemuTranscripts
         observed=observed with { PendingEpollWaits=capture.PendingWaits };
         return new ThreadingProtocol("MinimalApiSmoke",Rows(capture.Output),elf,instruction,syscall,capture.Output.WriteLengths,
             userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
-            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal),webLogQuota:loggingValidated && logQuota).ValidateWeb(observed);
+            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal),webLogQuota:logQuota,webControls:controls).ValidateWeb(observed);
     }
 
     private sealed partial class ThreadingProtocol
@@ -163,10 +174,15 @@ public static partial class QemuTranscripts
                 Need(history.Count(t=>!t.Reaped)==active && ready.All(t=>!t.Reaped && (t!=socketSelected || webReturningToSupervisor)) &&
                     socketDescriptors.Values.Any(d=>!d.Port && d.Phase==2) && socketAccepts>=2 && socketSent>0 && socketReceived>0,"web_replay_live_owner");
                 ulong current=socketSelected?.Identity??0;
+                if(webControls is not null)
+                {
+                    Need(webControlEvents==2 && webPrivateRetired,"web_replay_controls_incomplete");
+                    WebControlIo(before:false,requirePrivate:true);
+                }
                 WebReplayFragment(observations.TrailingFragment,boundary.Expected);
                 int completedTransfers=rows.Count(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal))*2;
                 return new(observations,new(calls,clones,reaped,irqs,drains,ticks,completedTransfers,signalReturns),
-                    active,ready.Count,current,boundary.Expected,webReturningToSupervisor,checked(entropyLimit-(uint)entropyBytes),socketAccepts,socketSent,socketReceived);
+                    active,ready.Count,current,boundary.Expected,webReturningToSupervisor,checked(entropyLimit-(uint)entropyBytes),socketAccepts,socketSent,socketReceived,webControls is not null);
             }
         }
 

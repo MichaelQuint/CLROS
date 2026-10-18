@@ -8,7 +8,8 @@ internal static class NativeAotWebReplayTests
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
-        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null,int? zeroSendMessage=null,bool zeroAfterShutdown=false)
+        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null,int? zeroSendMessage=null,bool zeroAfterShutdown=false,
+        bool controls=false,bool quota=false,bool badOpen=false,bool healthyClosed=false,bool retireAfterRequest=false)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
@@ -27,9 +28,31 @@ internal static class NativeAotWebReplayTests
         v.Call(49,0,[6,0x500200,16]);v.Call(50,0,[6,512]);v.Call(51,0,[6,0x500700,0x500780]);
         var worker=v.Clone(2,2);v.Irq(10,2,2);v.Select(worker);
         v.Wait(0x500200,100);v.Drain(20);v.Supervisor(3,1,2);v.Select(v.Main);
-        for(int i=0;i<2;i++)
+        int ordinary=quota?5:6;var expected=controls?NativeAotWebTransportTests.Report(quota):null;
+        for(int i=0;i<(controls?ordinary+2:2);i++)
         {
-            v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(72,0,[7,4,0x802]);
+            if(controls)v.Rows.Add(i<ordinary?NativeAotWebTransportTests.Fresh(i,1,30000+i,(ulong)(i+1)):
+                NativeAotWebTransportTests.Fresh(i==ordinary?0:ordinary,i==ordinary?2:1,41000+i,(ulong)(i==ordinary?100:101)));
+            int fd=controls && badOpen && i==ordinary+1?8:7;
+            v.Call(288,fd,[6,0x500700,0x500780,0x80000]);v.Call(72,0,[(ulong)fd,4,0x802]);
+            if(controls && i>=ordinary)
+            {
+                var exchange=i==ordinary?expected!.Sockets.Deadline:expected!.Sockets.Before;
+                void Io(OS.Tools.QemuRunner.WebSocketControls.Exchange request)
+                {
+                    int received=request.RequestHex.Length/2,sent=request.ResponseHex.Length/2;
+                    v.Call(45,received,[(ulong)fd,0x500800,(ulong)received,0,0,0]);v.Call(44,sent,[(ulong)fd,0x500800,(ulong)sent,0,0,0]);
+                }
+                Io(exchange);
+                if(i==ordinary){if(!badOpen)v.Call(3,0,[(ulong)fd]);continue;}
+                if(healthyClosed)v.Call(3,0,[(ulong)fd]);
+                v.Rows.Add(expected.Sockets.Observations.DropRow);v.Rows.Add(expected.Sockets.Observations.TimeoutRow);
+                string retired=NativeAotWebTransportTests.Retire(0,2,41000+ordinary,NativeAotWebTransportTests.Timeout+1);
+                if(!retireAfterRequest)v.Rows.Add(retired);
+                Io(expected.Sockets.After);
+                if(retireAfterRequest)v.Rows.Add(retired);
+                v.Call(48,0,[(ulong)fd,2]);v.Call(3,0,[(ulong)fd]);continue;
+            }
             v.Call(45,1,[7,0x500800,1,2,0,0]);v.Call(45,20,[7,0x500800,20,0,0,0]);
             v.Call(44,18,[7,0x500800,18,0,0,0]);
             if(zeroSendMessage is int zero && !zeroAfterShutdown)NativeAotSocketProtocolTests.MessageIo(v,46,zero,0,(uint)i+1);
@@ -38,6 +61,7 @@ internal static class NativeAotWebReplayTests
             if(readAfterShutdown is long read)v.Call(45,read,[7,0x500800,1,0,0,0]);
             if(sendAfterShutdown is long send)v.Call(44,send,[7,0x500800,1,0,0,0]);
             v.Call(3,0,[7]);
+            if(controls && i==0)v.Rows.Add(NativeAotWebTransportTests.Retire(0,1,30000,2));
         }
         for(int i=0;i<20;i++)v.Call(318,16,[0x500800,16,0]);
         v.Rows.Add("M16_005_WRITE fd=1 bytes=5 data=hello");v.Call(1,5,[1,0x500800,5]);
@@ -46,15 +70,58 @@ internal static class NativeAotWebReplayTests
         if(groupExit)v.Call(231,0,[0],2);
         return v.Rows;
     }
-    private static QemuTranscripts.WebReplayReport Inspect(List<string> rows,string fragment="M16_008_CALL identity=4294967297 nr=202")=>
+    private static QemuTranscripts.WebReplayReport Inspect(List<string> rows,string fragment="M16_008_CALL identity=4294967297 nr=202",
+        QemuTranscripts.WebControlInspection? controls=null,bool quota=false)=>
         QemuTranscripts.InspectNativeAotWebReplayForTests(NativeAotThreadingTranscriptTests.Elf(),
-            Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5);
+            Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota);
     private static void Reject(Action action)
     { bool failed=false;try{action();}catch(ToolFailure){failed=true;}HostCheck.True(failed); }
     private static List<string> CallChange(int number,Func<string,string> change)
     {
         var rows=Vector();int index=rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr="+number+" ",StringComparison.Ordinal));
         HostCheck.True(index>=0);rows[index]=change(rows[index]);return rows;
+    }
+
+    [HostTest("web runtime controls consume original events with private bad fd and same live healthy fd before later progress")]
+    private static void Controls()
+    {
+        foreach(bool quota in new[]{false,true})foreach(bool later in new[]{false,true})
+        {
+            var c=NativeAotWebTransportTests.Report(quota);var report=Inspect(Vector(controls:true,quota:quota,retireAfterRequest:later),controls:c,quota:quota);
+            HostCheck.True(report.TransportControlsChecked && report.SocketAccepts==(quota?7:8) && report.Active==2 && report.Protocol.Reaped==0);
+            int ordinary=quota?5:6;
+            HostCheck.Equal((ulong)(ordinary*18+(c.Sockets.Deadline.ResponseHex.Length+c.Sockets.Before.ResponseHex.Length+c.Sockets.After.ResponseHex.Length)/2),report.Sent);
+            HostCheck.Equal((ulong)(ordinary*20+(c.Sockets.Deadline.RequestHex.Length+c.Sockets.Before.RequestHex.Length+c.Sockets.After.RequestHex.Length)/2),report.Received);
+        }
+        HostCheck.True(!Inspect(Vector()).TransportControlsChecked);
+    }
+    [HostTest("web runtime control events cannot be stripped duplicated or moved before healthy response completion")]
+    private static void ControlPositions()
+    {
+        var c=NativeAotWebTransportTests.Report();var rows=Vector(controls:true);
+        Reject(()=>Inspect(rows));
+        int drop=rows.FindIndex(r=>r==c.Sockets.Observations.DropRow);
+        var early=rows.ToList();string row=early[drop];early.RemoveAt(drop);
+        int send=early.FindLastIndex(drop-1,r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=44 ",StringComparison.Ordinal));
+        HostCheck.True(send>0);early.Insert(send,row);Reject(()=>Inspect(early,controls:c));
+        foreach(string kind in new[]{"M07_028_DROP","M07_027_TIMEOUT","M16_011_SLOT event=1 slot=0 owner=8192 epoch=1 generation=2"})
+        {
+            var missing=rows.Where(r=>!r.StartsWith(kind,StringComparison.Ordinal)).ToList();Reject(()=>Inspect(missing,controls:c));
+        }
+        var duplicate=rows.ToList();duplicate.Insert(drop,c.Sockets.Observations.DropRow);Reject(()=>Inspect(duplicate,controls:c));
+    }
+    [HostTest("web runtime timeout requires bad descriptor private and retained healthy descriptor open with exact IO")]
+    private static void ControlDescriptors()
+    {
+        var c=NativeAotWebTransportTests.Report();
+        Reject(()=>Inspect(Vector(controls:true,badOpen:true),controls:c));
+        Reject(()=>Inspect(Vector(controls:true,healthyClosed:true),controls:c));
+        foreach(bool before in new[]{false,true})
+        {
+            var changed=before?c.Sockets with{Before=c.Sockets.Before with{ResponseHex=c.Sockets.Before.ResponseHex+"00"}}:
+                c.Sockets with{Deadline=c.Sockets.Deadline with{RequestHex=c.Sockets.Deadline.RequestHex+"00"}};
+            Reject(()=>Inspect(Vector(controls:true),controls:c with{Sockets=changed}));
+        }
     }
 
     [HostTest("nativeaot.web replay retains live FIFO owner and counts peeks without consuming stream bytes")]

@@ -22,17 +22,19 @@ public static partial class QemuTranscripts
     }
 
     private static WebPacketInspection ValidateWebPackets(byte[] package,byte[] raw,byte[] packets,
-        WebParentReport parent,WebReplayReport leaf,int forward,IReadOnlyList<WebUtcObservation> utc)
+        WebParentReport parent,WebReplayReport leaf,int forward,IReadOnlyList<WebUtcObservation> utc,WebControlInspection controls)
     {
         int at=raw.AsSpan().IndexOf("TEST_START m10.004\r\n"u8);Need(at>=0,"web_packet_leaf");
         var framed=NativeAotThreadingOutput.ReadWeb(raw.AsSpan(at));
         string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-leaf.Observations.TrailingFragment.Length)];
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
         string[] rows=complete[..^2].Split("\r\n",StringSplitOptions.None);
-        var lifetimes=SocketLifetimes(rows,continuingWeb:true,webConnections:configuration.LogQuota?5:6);
+        Need(leaf.TransportControlsChecked,"web_packet_transport_controls");
+        var lifetimes=SocketLifetimes(rows,continuingWeb:true,webConnections:configuration.LogQuota?7:8,controls:controls.Sockets);
         if(!configuration.LogQuota)_=WebVectorCalls(rows);
         var report=InspectNativeAotWebPacketsForTests(packets,parent.FrameAnchor,parent.Arp,
-            lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json,configuration.LogQuota,utc);
+            lifetimes.Select(l=>l.RemotePort).ToArray(),forward,configuration.Body,configuration.Json,configuration.LogQuota,utc,controls);
+        Need(report.ControlsChecked,"web_packet_controls_required");
         Need(report.Connections==leaf.SocketAccepts && (ulong)report.Received==leaf.Received &&
             (ulong)report.Sent==leaf.Sent,"web_packet_leaf_join");
         Need(report.TimeWaitPorts.All(port=>lifetimes.Any(l=>l.RemotePort==port && l.Waits>0)),"web_packet_time_wait_join");
