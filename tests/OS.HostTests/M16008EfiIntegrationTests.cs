@@ -61,9 +61,14 @@ internal static unsafe class M16008EfiIntegrationTests
             HostCheck.Equal(parents.Length + 1, profile.Flags.Count(p => p.Value));
             var web = EfiOptions.Parse(["--" + flag, "--EnableM10004Probe"], build).Profile();
             HostCheck.True(web.IsEnabled("EnableM10004Probe") && profile.Flags.Where(p => p.Value).All(p => web.IsEnabled(p.Key)));
+            var vectors = EfiOptions.Parse(["--" + flag, "--EnableM16013Probe"], build).Profile();
+            HostCheck.True(vectors.IsEnabled("EnableM16013Probe") && vectors.IsEnabled("EnableM16012Probe") &&
+                profile.Flags.Where(p => p.Value).All(p => vectors.IsEnabled(p.Key)));
+            Reject(() => EfiOptions.Parse(["--" + flag, "--EnableM16013Probe", "--EnableM16012Probe:false"], build).Profile(),
+                "m16_013_explicit_false_prerequisite");
             foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM10004Probe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM10004Probe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);

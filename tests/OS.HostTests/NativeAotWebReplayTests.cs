@@ -1,8 +1,10 @@
 using System.Text;
+using System.Globalization;
 using OS.Tooling;
 
 internal static class NativeAotWebReplayTests
 {
+    private const int WebElfBytes=8_766_792;
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
@@ -10,7 +12,7 @@ internal static class NativeAotWebReplayTests
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
-            .Replace("packageBytes=1320176","packageBytes=8746056",StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
+            .Replace("packageBytes=1320176","packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
             .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         v.Call(2,5,[0x500200,0x88100,0]);v.Call(5,0,[5,0x500800]);
@@ -92,7 +94,7 @@ internal static class NativeAotWebReplayTests
     private static void Ownership()
     {
         var stale=Vector();int policy=stale.FindIndex(r=>r.StartsWith("M16_007_POLICY ",StringComparison.Ordinal));
-        stale[policy]=stale[policy].Replace("packageBytes=8746056","packageBytes=8681864",StringComparison.Ordinal);Reject(()=>Inspect(stale));
+        stale[policy]=stale[policy].Replace("packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),"packageBytes=8681864",StringComparison.Ordinal);Reject(()=>Inspect(stale));
         var budget=Vector();int at=budget.FindIndex(r=>r.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal));
         budget[at]=budget[at].Replace("epochs=1000000","epochs=8192",StringComparison.Ordinal);Reject(()=>Inspect(budget));
         var fifo=Vector();at=fifo.FindIndex(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal));

@@ -6,9 +6,12 @@ Both default/configured runs return the exact49152-byte entity before later
 health. The real produced package passes prepared lookup; altered helper and
 extra-source controls reject. The separate EFI vector candidate publishes and
 verifies, with its original866 source inputs and nine native files retained.
-Two message bodies have bounded ABI/frame review; remaining native/stack,
-full-host and CLROS guest qualification are pending.219/745/737 remain open;
-no Kestrel or broader gate is accepted.
+[Step1401](../done/step1401.md) retains bounded native/ABI/unwind review of
+15 changed bodies and a comparison of43 retained callers/memory bodies,40 equal.
+The first full-host attempt stops before Native after22 failed checks across13
+fixtures. Narrow source-pin, probe and fixture repairs pass115 focused checks;
+a fresh full-host gate, current-source native joins and CLROS guests remain
+pending.219/745/737 remain open; no whole-stack, Kestrel or broader gate is accepted.
 
 ## NativeAOT-first milestone
 

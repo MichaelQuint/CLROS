@@ -113,16 +113,22 @@ internal static unsafe class M09004EfiIntegrationTests
         string condition = project.Descendants("Error").Single(element =>
             element.Attribute("Text")?.Value == "m09_004_profile_conflict").Attribute("Condition")!.Value;
         HostCheck.True(condition.StartsWith("'$(EnableM09004Probe)' == 'true' and (", StringComparison.Ordinal));
+        // The vector leaf is excluded through its mandatory epoll parent.
+        string vectorParent = project.Descendants("Error").Single(element =>
+            element.Attribute("Text")?.Value == "m16_013_requires_epoll_parent").Attribute("Condition")!.Value;
+        HostCheck.Equal("'$(EnableM16013Probe)' == 'true' and '$(EnableM16012Probe)' != 'true'", vectorParent);
+        string ExclusionName(string name) => name == "EnableM16013Probe" ? "EnableM16012Probe" : name;
         string[] declared = project.Descendants("PropertyGroup").SelectMany(group => group.Elements()).Select(element => element.Name.LocalName)
             .Where(name => name.StartsWith("Enable", StringComparison.Ordinal) && name.EndsWith("Probe", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal).ToArray();
         foreach (string name in declared)
         {
             bool allowed = name == "EnableM09004Probe" || Parents.Any(parent => name == "Enable" + parent + "Probe");
-            HostCheck.Equal(!allowed, condition.Contains("'$(" + name + ")' != 'false'", StringComparison.Ordinal));
+            HostCheck.Equal(!allowed, condition.Contains("'$(" + ExclusionName(name) + ")' != 'false'", StringComparison.Ordinal));
         }
-        int excluded = declared.Count(name => name != "EnableM09004Probe" &&
-            !Parents.Any(parent => name == "Enable" + parent + "Probe"));
+        int excluded = declared.Where(name => name != "EnableM09004Probe" &&
+            !Parents.Any(parent => name == "Enable" + parent + "Probe"))
+            .Select(ExclusionName).Distinct(StringComparer.Ordinal).Count();
         HostCheck.Equal(excluded, System.Text.RegularExpressions.Regex.Matches(condition, @"'\$\(Enable[A-Za-z0-9]+Probe\)' != 'false'").Count);
     }
 
