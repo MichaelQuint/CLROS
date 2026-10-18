@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1413](../done/step1413.md) admits the reviewed finite realtime source closure
+for candidate publication. Three new identities cover the calendar, owned clock
+and pre-entry EFI adapter; four existing identities and the entry identity follow
+the actual scoped changes. This preserves exact-hash admission and the existing
+no-stdlib rules. Source admission and preflight do not qualify native bodies,
+ABI/stack behavior, guest UTC or the five-issue service batch. Original native
+publication/review and fresh positive/negative guest qualification remain required.
+
 [Step1399](../done/step1399.md) refreshes the seven changed startup/vector source
 identities after scoped source review. All207 normalized source identities now
 match; eight focused admission/inventory controls and the default-off M16013
