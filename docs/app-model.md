@@ -1,21 +1,13 @@
 # App Model
 
-[Step1403](../done/step1403.md) admits the larger original vector fixture and
-retains the first new web guest's premature logging-join failure. The diagnostic
-now keeps real joins with30s bounds and a60s first logging request; other request
-bounds remain. Fresh changed-web publication/admission and current full-host/
-guest qualification remain pending. No new startup/Kestrel gate is accepted.
-
-[Step1400](../done/step1400.md) supersedes the development publication/admission
-pending states below: fresh original Linux web v3 qualification passes, and the
-current startup/vector app, complete index and real package bind coherently.
-The first EFI vector candidate also publishes/verifies. Step1401 completes its
-bounded native review; [Step1402](../done/step1402.md) retains a5617-check full-host
-pass at85a30b4a and the first actual vector guest's native/source joins. That
-guest fails strict send-backpressure replay. The changed512KiB fixture and
-actual-EAGAIN peer gate have focused checks only; fresh Linux publication,
-admission and current full-host/CLROS qualification remain pending.219/745/737 and
-the later service/time ladder remain open. See the [Kestrel ledger](kestrel.md).
+[Step1404](../done/step1404.md) binds the repaired web source, fresh original
+Linux ELF and complete decoder together, retaining bounded native/unwind review
+and explicit generated-data limits. Three strict finite vector guests pass at
+0086b219. The real logging joins now allow30s and only the first logging request
+allows60s, with other request bounds/owned cleanup preserved. Fresh web/quota,
+actual Kestrel vectors, current full-host and affected ancestors remain pending.
+219/745/737 remain open; no new startup/Kestrel or broader gate is accepted.
+See the [Kestrel ledger](kestrel.md) for current scope and immutable step history.
 
 [Step1390](../done/step1390.md) develops the next batch from accepted merge
 `1d5064d8` under #737. Actual witness creation now lies inside the failure-marker

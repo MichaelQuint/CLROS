@@ -1,32 +1,19 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1403](../done/step1403.md) admits the fresh original512KiB vector ELF,
-package and complete349579-start/186-syscall index. Original Linux execution
-observes12 short sends and64 EAGAINs; bounded changed-native review passes.
-The first new web guest returns health/config, then its five-second logging
-join guard expires while writers progress. The finite join/first-log-request
-budgets now allow30/60s; other request bounds and owned cleanup remain.
-Eighteen focused controls pass. Fresh changed-web publication/admission and
-current full-host/CLROS qualification remain pending; no new gate is accepted.
+[Step1404](../done/step1404.md) retains three strict finite vector guests at
+0086b219: actual short sends/EAGAIN, complete peer/packet/native/source joins and
+terminal cleanup pass. The repaired web app also passes fresh original Linux v3
+qualification. Its current source, original8766792-byte ELF and complete
+1412628-start/198-syscall decoder bind coherently. Nine app bodies and original
+unwind bytes are unchanged; two logging-join immediates become30s. Generated
+read-only metadata differs and carries no identity/equivalence claim.
 
-[Step1400](../done/step1400.md) completes the fresh original Linux v3 publication
-and binds the current app/source/package/complete instruction index together.
-Both default/configured runs return the exact49152-byte entity before later
-health. The real produced package passes prepared lookup; altered helper and
-extra-source controls reject. The separate EFI vector candidate publishes and
-verifies, with its original866 source inputs and nine native files retained.
-[Step1401](../done/step1401.md) retains bounded native/ABI/unwind review of
-15 changed bodies and a comparison of43 retained callers/memory bodies,40 equal.
-The first full-host attempt stops before Native after22 failed checks across13
-fixtures. Narrow source-pin, probe and fixture repairs pass115 focused checks;
-[Step1402](../done/step1402.md) retains the subsequent5617-check full-host pass
-at85a30b4a and the actual vector guest's original native/source joins. That guest
-reaches terminal markers and external peer success, but strict replay rejects
-zero sendmsg EAGAIN. The repaired fixture sends512KiB in eight bounded64KiB
-vector batches; its guest peer waits for actual joined send backpressure before
-draining. Forty-one scoped checks pass across twelve fixtures. Fresh changed-app
-Linux publication/admission and current full-host/CLROS qualification remain
-pending.219/745/737 remain open; no whole-stack, Kestrel or broader gate is accepted.
+Checked sendmsg/recvmsg retain16-vector/64KiB limits; the finite fixture sends
+512KiB in bounded batches. Only the first logging HTTP request allows60s; other
+request bounds and owned cleanup remain. Fresh repaired web/quota guests,
+actual Kestrel vector consumption, a stable current full-host gate and affected
+ancestors remain pending. The earlier5617-check gate belongs to85a30b4a.
+219/745/737 and PR764 remain open/WIP; no new Kestrel or broader gate is accepted.
 
 ## NativeAOT-first milestone
 

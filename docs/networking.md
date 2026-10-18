@@ -1,18 +1,13 @@
 # Networking
 
-[Step1403](../done/step1403.md) supplies the fresh original vector publication,
-Linux external-peer/strace run, bounded changed-native review and exact package/
-complete decoder admission. Linux observes524352 response bytes,12 short sends
-and64 EAGAINs. Fresh CLROS backpressure remains required; this is no guest gate.
-
-[Step1402](../done/step1402.md) strengthens the development vector fixture after
-the first real guest completes its exchanges but fails strict send-backpressure
-replay. It now sends512KiB in eight at-most64KiB BufferList batches; the external
-guest peer waits for complete joined sendmsg EAGAIN before reading. Kernel
-vector/scratch limits are unchanged. Forty-one scoped checks pass; the earlier
-5617-check full-host pass remains tied to85a30b4a. Fresh changed-app publication,
-admission and current full-host/guest qualification remain pending. The failed
-guest is retained and no new vector/Kestrel gate is accepted.
+[Step1404](../done/step1404.md) retains three strict finite vector guests at
+0086b219 with real short sends/EAGAIN, exact BufferList remainders, partial
+request/reset/pending-disposal/later-health behavior, full packet/peer/native/
+source joins and terminal cleanup. Kernel limits remain16 vectors/65536 bytes;
+the first response uses eight bounded batches totaling512KiB. Fresh Linux web
+publication and exact package/decoder admission pass separately. Actual repaired
+Kestrel vectors, current full-host/ancestor and dependency acceptance remain
+pending. No general networking/Kestrel or broader gate advances.
 
 [Step1389](../done/step1389.md) qualifies finite #218 logging separately from the
 network scopes below. [Step1390](../done/step1390.md) develops connected-stream

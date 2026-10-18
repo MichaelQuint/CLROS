@@ -13,7 +13,7 @@ public sealed class NativeAotWebProgram
 {
     internal const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
     internal const int ElfBytes = 8_766_792;
-    private const string ElfSha256 = "3FED4A19CE20A4ADEB6735410B40BFC344F76A4CB69B0D77CE107C43ADAD9E1C";
+    private const string ElfSha256 = "E9B8E0F9354ACAB102CCE655E4AD4030DC592A15648A516AFFEDAF45BD86ED87";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     /// <summary>Complete decoder identity; a report alone grants no lookup authority.</summary>
@@ -90,7 +90,7 @@ public sealed class NativeAotWebProgram
     // LLVM22.1.3: all4,524,119 bytes of five executable sections, every198
     // syscall continuation and the original entry. Executable-load bytes outside
     // these sections grant no starts. This is not a control-flow proof.
-    private static Inspection Reviewed => new(1_412_628, 198, "1448EA0156012A2834055C3C70E230C309D8A2FFFB32A76130A5896E1F15A794");
+    private static Inspection Reviewed => new(1_412_628, 198, "BCB3B1A4EB4D5229A51985BAB0C607A9C3BCC0DA5303222D5F4065CB9E38F514");
 
     /// <summary>Reads distinct bounded plain single-link package/dump snapshots
     /// under concurrent read locks, then prepares lookup. Files remain caller-owned;
@@ -137,7 +137,7 @@ public sealed class NativeAotWebProgram
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
-        ("apps/MinimalApiSmoke/Program.cs", "869691F47F1F5F045E59E6B0A44845650DABEB90044E0042831C82FE067B692F"),
+        ("apps/MinimalApiSmoke/Program.cs", "05A93329C6947653256E42D8CE1DA6616C54CD572D2268BE1E7C2473F37541FA"),
         ("apps/MinimalApiSmoke/KestrelVectorExercise.cs", "0A2E42A133FD7D56767686D388D9DA22D464B3955E6AA31BF386D5CDF3A87001"),
         ("apps/MinimalApiSmoke/MinimalApiSmoke.csproj", "22CED43801D7BD408D0AE4011B507E7F9AC8733535BFEDE2CBE1394BD3856816"),
         ("apps/MinimalApiSmoke/appsettings.json", "FF0AB2FFB263DF50157F565C6AA386B50D23C9AC9A03F47D53B225C0471A0CE6"),
