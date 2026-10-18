@@ -1,5 +1,15 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1417](../done/step1417.md) completes the UTC controls in the project's
+Diagnostic, VerifiedExit and containment policy inventories, updating their two
+reviewed project hashes. The second full-host attempt completes 663 fast fixture
+groups but blocks native work on these two inventory defects. The repair passes
+20 focused checks, actual MSBuild evaluation of all 104 direct switches and four
+evaluated source/toolchain preflights. All 1,222 selected guest compile-source
+joins remain unchanged; only the three policy conditions and reviewed pins
+advance. Fresh unfiltered full-host and affected ancestor qualification remain
+pending; the captures below retain their original labels and bounded scopes.
+
 [Step1416](../done/step1416.md) consolidates development for the owned
 #220/#221/#222/#759/#223 batch under #737. At frozen implementation `02859bfd`,
 three normal web, three quota and three finite socket-policy captures pass their
