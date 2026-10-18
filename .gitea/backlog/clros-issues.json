@@ -22782,7 +22782,7 @@
         "M16-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22819,7 +22819,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Pass the Kestrel socket ladder over Linux adapters and live CLROS TCP",
-      "currentEvidence": "Step1351 qualifies bounded upstream sockets/epoll. Step1380/merged PR763 incorporates PR739 configuration and qualifies #217 plus #741/#742 containment; PR739 is closed as incorporated, not directly merged. Step1383 passes PR740 development's full-host and ordinary ancestor regressions at 1221f0b0, without logging/startup or Kestrel socket-ladder acceptance. #218/#219 and checked vector I/O #745 remain prerequisites. Require actual large/multi-segment upstream Kestrel responses, external partial-I/O/readiness/cancellation checks and the exact remaining dependencies; preserve #737 ownership.",
+      "currentEvidence": "The current737 owner incorporates the dependency-compatible220/221/222/759/223 implementation batch after step1405/merged PR764 (219/745 closed with evidence read-back).220 and759 prerequisites are qualified; child acceptance remains ordered220-\u003E221-\u003E222,759-\u003E223. Worktree branch codex/nativeaot-kestrel-ladder-20261018 starts at accepted master2dbf3580. Reuse the exact17 captured scopes and original native/source joins; inspect remaining acceptance gaps before adding code. Only focused development checks until a stable batch; no new acceptance, clock, Kestrel/service or broader gate is claimed. Original planning-only ownership notes below are superseded by this explicit shared-owner claim.",
       "implementationNotes": [
         "Run the real System.Net.Sockets create/bind/listen/accept/send/receive/close ladder against M16 socket/epoll adapters. Exercise EAGAIN, partial I/O, readiness rearm, timeout and reset using an external client; do not substitute PAL fakes.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22876,7 +22876,7 @@
         "M10-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22913,7 +22913,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Bind http://0.0.0.0:8080 from the manifest.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "The current737 owner incorporates the dependency-compatible220/221/222/759/223 implementation batch after step1405/merged PR764 (219/745 closed with evidence read-back).220 and759 prerequisites are qualified; child acceptance remains ordered220-\u003E221-\u003E222,759-\u003E223. Worktree branch codex/nativeaot-kestrel-ladder-20261018 starts at accepted master2dbf3580. Reuse the exact17 captured scopes and original native/source joins; inspect remaining acceptance gaps before adding code. Only focused development checks until a stable batch; no new acceptance, clock, Kestrel/service or broader gate is claimed. Original planning-only ownership notes below are superseded by this explicit shared-owner claim.",
       "implementationNotes": [
         "Bind HTTP IPv4 port 8080 from the approved manifest endpoint, enforcing configured port/address policy. Reject unauthorized bind, duplicate listener, invalid address and unavailable socket capacity.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -22968,7 +22968,7 @@
         "M10-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -23005,7 +23005,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Serve deterministic GET /healthz body OS_MINIMAL_API_OK.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "The current737 owner incorporates the dependency-compatible220/221/222/759/223 implementation batch after step1405/merged PR764 (219/745 closed with evidence read-back).220 and759 prerequisites are qualified; child acceptance remains ordered220-\u003E221-\u003E222,759-\u003E223. Worktree branch codex/nativeaot-kestrel-ladder-20261018 starts at accepted master2dbf3580. Reuse the exact17 captured scopes and original native/source joins; inspect remaining acceptance gaps before adding code. Only focused development checks until a stable batch; no new acceptance, clock, Kestrel/service or broader gate is claimed. Original planning-only ownership notes below are superseded by this explicit shared-owner claim.",
       "implementationNotes": [
         "Have guest Kestrel serve GET /healthz with HTTP 200 and exact body OS_MINIMAL_API_OK. Verify externally and prove a stopped guest cannot satisfy the probe. Kernel-authored HTTP does not qualify.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23061,7 +23061,7 @@
         "M16-019"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -23099,7 +23099,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Probe the guest from an external host client and validate status, body, and hash.",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "The current737 owner incorporates the dependency-compatible220/221/222/759/223 implementation batch after step1405/merged PR764 (219/745 closed with evidence read-back).220 and759 prerequisites are qualified; child acceptance remains ordered220-\u003E221-\u003E222,759-\u003E223. Worktree branch codex/nativeaot-kestrel-ladder-20261018 starts at accepted master2dbf3580. Reuse the exact17 captured scopes and original native/source joins; inspect remaining acceptance gaps before adding code. Only focused development checks until a stable batch; no new acceptance, clock, Kestrel/service or broader gate is claimed. Original planning-only ownership notes below are superseded by this explicit shared-owner claim.",
       "implementationNotes": [
         "Extend the existing host-side QEMU HTTP probing path to validate status/body/hash with a deadline. Reject stale endpoint responses, wrong body/status, missing startup/readiness markers and connection failures; retain serial plus HTTP receipts.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -33944,7 +33944,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33956,7 +33956,7 @@
         "M05-003",
         "M10-006"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. LinuxStartupServices.cs:176-187 accepts monotonic IDs1/6 but returns-EINVAL for CLOCK_REALTIME0; gettimeofday returns-ENOSYS. The pinned System.Native PAL returns0 on failed realtime acquisition, which DateTime.UtcNow exposes as1970. Fresh host characterization confirms-22/-38 and models that documented PAL branch. Independent reinspection of retained PR739 continuing-web-r12 PCAP finds both /healthz and /config Date headers equal Thu,01 Jan1970 00:00:00 GMT, plus21 realtime rejections in serial. PCAP SHA256074F817586534799127F61FAE01870DD5229487E46BC429D1337680BBFB3DAE9 and serial63EF51C7DCCC35D6D6BB06B7AE3B21FCD2E45CFABA7256F4E4E55B3FEABC9A29 match step1354. No fresh QEMU or complete Kestrel acceptance was run.",
+      "currentEvidence": "The current737 owner incorporates the dependency-compatible220/221/222/759/223 implementation batch after step1405/merged PR764 (219/745 closed with evidence read-back).220 and759 prerequisites are qualified; child acceptance remains ordered220-\u003E221-\u003E222,759-\u003E223. Worktree branch codex/nativeaot-kestrel-ladder-20261018 starts at accepted master2dbf3580. Reuse the exact17 captured scopes and original native/source joins; inspect remaining acceptance gaps before adding code. Only focused development checks until a stable batch; no new acceptance, clock, Kestrel/service or broader gate is claimed. Original planning-only ownership notes below are superseded by this explicit shared-owner claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
