@@ -1,5 +1,92 @@
 # Repository Audit
 
+## October 18 incremental review
+
+Reviewed the complete change range from prior review merge
+`352105e01cc86357c3e80f03e9d2f9cb1f02b30b` through frozen accepted master
+`6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0`: 93 commits, four first-parent merge
+batches, 276 changed files, 24,695 additions and 684 deletions. One parallel
+reviewer covered socket-message, package, memory, thread-stack and exit-tail
+ownership. The primary reviewer covered network containment, logging, UTC,
+application fixtures and producer/runner/transcript validation. Later continuing
+service work on another branch is outside this frozen review.
+
+| Batch | Accepted change inspected |
+| --- | --- |
+| PR763 / `5a9ec488` | Configuration/package views, guarded stacks, connection-local timeout retirement and unsupported RX recycling; step1380 |
+| PR740 / `1d5064d8` | Finite stdout/stderr and quota accounting, concurrent log writers and authenticated exit tail; step1389 |
+| PR764 / `2dbf3580` | Upstream startup observation, checked message vectors, native/packet joins and vector fixtures; step1405 |
+| PR765 / `6a698f72` | Bounded Kestrel socket/health/policy, owned realtime, external HTTP/Date and adversarial transport controls; step1419 |
+
+### Findings and corrections
+
+1. **P2: empty `sendmsg` incorrectly depends on buffer capacity.**
+   `LinuxSocketServices.cs:449-450` calls `WritePolicy` before testing `total==0`;
+   the capacity branch at line239 returns `EAGAIN` for a full live send window.
+   Two independently registered normal-harness regressions fill four bytes and
+   then send either an empty vector list or one `{NULL,0}` vector. Both expect0
+   and return-11 with the buffer unchanged. All six existing message cases pass
+   in that same run. This can force an unnecessary readiness wait for a zero-byte
+   operation. No guest Kestrel stall was demonstrated. Track
+   [M16-022/#766](http://192.168.4.35:3000/admin/CLROS/issues/766) after accepted
+   #745 and before #224. Bypass only capacity for empty sends; preserve endpoint
+   errors, shutdown/reset, flags and the current SIGPIPE restriction.
+   [Linux v6.12 tcp_sendmsg_locked](https://github.com/torvalds/linux/blob/v6.12/net/ipv4/tcp.c)
+   checks connection/error/shutdown before the data loop; zero length skips its
+   send-space wait. The related scalar capacity ordering predates this range.
+2. **P2: current handoff instructions point to already-qualified work.**
+   At the reviewed head, README's next implementation and AGENTS' start block
+   still require #218/#219/#220 and owned realtime; the Kestrel next-steps section
+   still requires #220-#223. Their later merged receipts and live closed issues
+   contradict that order. The current guides now preserve those finite successes
+   and direct work to #743/#744/#746/#240/#757/#758 plus #766 before #224, followed
+   by exact #225-#227 dependencies. No accepted predecessor is reopened.
+3. **P3: the time receipt overstates API coverage.** Step1419 lines32-33 claim
+   `realtime/gettimeofday` layouts. `LinuxStartupServices.Dispatch` has no
+   syscall96 path; `LinuxStartupServicesTests.cs:448-449` explicitly requires
+   `ENOSYS`. The measured interface is syscall228 realtime with x64 `timespec`.
+   The original receipt remains immutable; current docs, step1420 and #759
+   explicitly correct its scope. There is no requirement to implement an
+   unmeasured fallback. #745's invalid plural `LinuxSocketMessagesTests` command
+   is also corrected to the actual singular `LinuxSocketMessageTests` fixture.
+
+### Coverage and evidence limits
+
+The review traced malformed/cross-page/aliased vectors, full-range preflight,
+failed-copy consumption, descriptor generations, immutable package offsets and
+process-bound views. It inspected guarded stack geometry and authenticated
+exit-tail IRQ continuation. No additional concrete ownership or bounds defect
+was established in these paths; this is not a proof of complete memory safety.
+
+Networking review covered tuple/generation isolation, timeout retirement,
+shutdown/error mapping, merged RX chain bounds, unsupported-frame recycling and
+notification. Existing persist, compact TIME-WAIT, pending-handshake reset and
+continuing-ISN gaps remain #743/#744/#757/#758; they were not duplicated. Logging
+review covered charge before serial emission, no-refund quotas, failed writes, record
+identity/order and finite worker coordination. Replenishment and permanent
+service policy remain #746/#240/#242.
+
+Clock review covered EFI structure/function ownership, copied pre-exit UTC,
+timezone direction, calendar/range overflow, the shared HPET anchor, regression
+and expiry. The web syscall observer rejects a realtime failure explicitly;
+the previous silent-epoch concern is not reintroduced. The 600-second source
+lifetime remains a declared finite profile. Tooling review covered immutable
+source/file identities, payload/image joins, actual socket observations, native
+inspection boundaries, packet checksums/sequences/retransmissions, exact HTTP
+entities, Date observation intervals and failure/stopped-process controls.
+
+No new full-host/native/QEMU acceptance is claimed. The two failing host cases
+identify the defect; their temporary edits were saved as an exact patch and
+removed. The final unchanged-runtime baseline and metadata checks are recorded
+in [step1420](../done/step1420.md), with downloadable patch/log hashes on #766.
+The only committed C# change is the reviewed backlog inventory count.
+
+Performance/security work remains the existing measured roadmap: #750 supplies
+a matched baseline before #751/#752/#242; #753-#755 supply Roslyn effect/ownership,
+ABI and admission generation with independent controls. This range establishes
+no new comparison against Nanos, broad Linux compatibility, arbitrary NativeAOT
+workload admission, complete service lifetime, isolation, cloud or production.
+
 ## October 16 architecture review
 
 Reviewed accepted `e5bd99e6c8202988810cc479b92f1c51ef695e2d` across the EFI

@@ -47,7 +47,9 @@ Actual copied write/writev, eight workers, EBADF and quota EIO join the original
 source/native/serial/packet evidence. The authenticated exit tail reaches real
 exit60; ordinary IRQ yielding and ownership guards remain. That receipt left #219 startup
 unaccepted. Step1405 separately qualifies its constructor/failure-marker repair
-and vectors; continue #220 under #737, including #759 realtime before #223.
+and vectors. Step1419 subsequently qualifies bounded #220-#223 and #759;
+continue the declared service foundations and #766 empty-send correction under
+#737 before #224, then the separate async/resource prerequisites before #225.
 No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
 gate advances. See the step for exact commands, hashes and retained failures.
 

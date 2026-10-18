@@ -23203,7 +23203,8 @@
         "M16-014",
         "M11-012",
         "M07-032",
-        "M07-033"
+        "M07-033",
+        "M16-022"
       ],
       "labels": [
         "agent:blocked",
@@ -23269,7 +23270,8 @@
         "Record complete commands, profile, hashes, logs and failures in a new done step before evidence-based closure. A host fixture or Linux-builder run is not CLROS guest evidence.",
         "Complete more than eight sequential server-active closes without waiting for all bulk buffers to spend240 seconds in TIME-WAIT; preserve compact retirement protection.",
         "Recover a lost zero-window reopening update while another connection advances. Continue requests beyond the old30s/300s/4096-call limits under the explicit service policy, and exercise replenished randomness without false success.",
-        "Include aborted SYN-RECEIVED recovery before its old timeout and complete slot reuse across the ISN boundary, using M07-032/M07-033. Separate host boundary injection from actual guest lifetime counts; unrelated peers must progress after an abort."
+        "Include aborted SYN-RECEIVED recovery before its old timeout and complete slot reuse across the ISN boundary, using M07-032/M07-033. Separate host boundary injection from actual guest lifetime counts; unrelated peers must progress after an abort.",
+        "Complete M16-022's empty-send capacity correction. A live full send window must still permit zero-byte sendmsg without waiting or changing transport counters; nonzero EAGAIN, endpoint errors, shutdown/reset and MSG_NOSIGNAL behavior remain explicit. Join focused host boundaries to the existing finite vector guest regression before repeated-service closure."
       ],
       "requiredMarkers": [
         "TEST_START m10.011",
@@ -32861,7 +32863,7 @@
         "M16-012",
         "M10-006"
       ],
-      "currentEvidence": "Step1405 qualifies bounded checked sendmsg/recvmsg. Three strict0086b219 BufferList guests retain524352-byte streams, actual short sends/EAGAIN, partial request, reset, pending-disposal/later-health and terminal transport cleanup. Three strict8ef72134 upstream Kestrel web prefixes deliver49152 exact binary bytes with a native short send crossing an iovec before later health; three quota controls and eight strict ancestors pass separately. Current unfiltered full-host5619 checks/751 fixtures/94Native and original scoped native/source/packet joins pass. All kernel/vector sources are unchanged across the final three-web-pin/evidence-only transition. Limits remain16vectors/65536aggregate; names/control/unmeasured flags unsupported and ignored-SIGPIPE scope retained. No general Kestrel, continuing-service cleanup, whole-stack, numbered, cloud or production claim.",
+      "currentEvidence": "Step1405 qualifies bounded checked sendmsg/recvmsg. Three strict0086b219 BufferList guests retain524352-byte streams, actual short sends/EAGAIN, partial request, reset, pending-disposal/later-health and terminal transport cleanup. Three strict8ef72134 upstream Kestrel web prefixes deliver49152 exact binary bytes with a native short send crossing an iovec before later health; three quota controls and eight strict ancestors pass separately. Current unfiltered full-host5619 checks/751 fixtures/94Native and original scoped native/source/packet joins pass. All kernel/vector sources are unchanged across the final three-web-pin/evidence-only transition. Limits remain16vectors/65536aggregate; names/control/unmeasured flags unsupported and ignored-SIGPIPE scope retained. No general Kestrel, continuing-service cleanup, whole-stack, numbered, cloud or production claim. October18 review at6a698f72 reproduces empty sendmsg returning-EAGAIN when a live send window is full (two failing host cases; six original message cases pass). M16-022 follows this accepted finite slice before M10-011; accepted nonempty vector evidence is preserved. The actual host fixture is LinuxSocketMessageTests (singular Message).",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32880,7 +32882,7 @@
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketMessages.cs",
         "tests/OS.HostTests/LinuxSocketServicesTests.cs",
-        "tests/OS.HostTests/LinuxSocketMessagesTests.cs",
+        "tests/OS.HostTests/LinuxSocketMessageTests.cs",
         "apps/NativeAotSocketSmoke/Program.cs",
         "apps/MinimalApiSmoke/Program.cs",
         "tools/OS.Tooling/NativeAotSocketPayload.cs",
@@ -32921,7 +32923,7 @@
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
-        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketMessagesTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketMessageTests",
         "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketServicesTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
@@ -34001,7 +34003,7 @@
         "M05-003",
         "M10-006"
       ],
-      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. Copied UEFI UTC plus HPET epoch under UTC-RTC/600s lifetime; plausible advancing external Date windows with5s tolerance. Separate copied-source unavailable/invalid controls reject before entry/readiness and release owners; no actual firmware-failure or arbitrary-platform claim. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged.",
+      "currentEvidence": "Step1419 qualifies the bounded slice at88b02b4d:5676 unchanged unfiltered full-host checks/757fixtures/94Native, six strict web/quota prefixes, three strict finite policy/vector guests and eight affected ancestors. Copied UEFI UTC plus HPET epoch under UTC-RTC/600s lifetime; plausible advancing external Date windows with5s tolerance. Separate copied-source unavailable/invalid controls reject before entry/readiness and release owners; no actual firmware-failure or arbitrary-platform claim. Application captures retain02859bfd through exact selected-source/project-policy forward joins; original native/code/ABI/unwind and actual socket dispatch-table targets pass scoped review. Web workers remain active until runner termination; no guest app-exit/reap/resource-cleanup, general service, whole-stack, numbered, isolation, cloud or production gate. Continue743/744/746/240/757/758 before224 under737. Failed earlier gates/captures remain failed. Legacy title-derived custom-marker/30s examples are replaced by the actual typed M10004/M16013 commands and observed protocol; functional acceptance criteria are unchanged. Scope correction from step1420: step1419's realtime/gettimeofday-layout wording overstates the measured API. The implemented x64 ABI is clock_gettime(CLOCK_REALTIME), syscall228 with timespec. gettimeofday/syscall96 remains unsupported and its focused host test requires-ENOSYS. No gettimeofday fallback or timeval layout is qualified; the original receipt remains immutable.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34294,6 +34296,84 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+    },
+    {
+      "key": "M16-022",
+      "title": "[M16-022] Keep empty sendmsg independent of live send-buffer capacity",
+      "summary": "Return zero for a valid empty message on a live established stream even when its send window is full, without bypassing endpoint errors or flag validation.",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:ready",
+        "priority:p2",
+        "type:implementation",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-013"
+      ],
+      "currentEvidence": "Review range352105e01cc86357c3e80f03e9d2f9cb1f02b30b..6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0, October18. New SendMessage path introduced by4b33e0ff5 calls WritePolicy at LinuxSocketServices.cs:449 before its total==0 return at450. WritePolicy:239 returns-EAGAIN when BufferedBytes reaches SendBytes. Two normal-harness regressions fill a4-byte window, then use either msg_iovlen=0 or one{NULL,0} vector: expected0, actual-11, buffer unchanged. All six original LinuxSocketMessageTests pass in that run. Temporary test edits are saved as a reproducible patch and removed; no runtime fix or guest failure is claimed.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/kestrel.md and docs/repo-audit.md. Preserve accepted step1405/1419 scope and the active shared integration owner#737. Incorporate this small slice into that owner's batch or obtain explicit lane handoff; readiness does not authorize concurrent edits.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Separate endpoint/error/flag policy from capacity policy, or bypass only the capacity check when total==0. Do not move a blanket zero-length success before reset, timeout, shutdown, fd and supported-flag checks. Keep the bounded ignored-SIGPIPE policy; broader reconciliation remains M16-021.",
+        "Inspect the existing scalar sendto/write and writev paths for the same empty-I/O boundary. The capacity ordering in scalar sendto predates this review; the new reproducible finding is sendmsg. Unify only where it preserves measured Linux semantics and ownership.",
+        "Primary semantics reference: https://github.com/torvalds/linux/blob/v6.12/net/ipv4/tcp.c tcp_sendmsg_locked. Connection/error/shutdown checks precede while(msg_data_left(msg)); a zero-length message never enters its send-space wait.",
+        "Reuse the exact downloadable host patch from this issue in the normal OS.HostTests harness. Keep one cohesive fix and extend LinuxSocketMessageTests with empty/full/closed/reset and nonzero controls. Do not create a subset project or weaken source sealing.",
+        "Focused host checks first, then retain original emitted-native review and affected real finite vector/socket guest regression at the stable integration boundary. A measured new guest subcase must use a real raw syscall or demonstrate that upstream .NET forwards zero-length I/O; high-level Socket APIs may short-circuit it."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "tests/OS.HostTests/LinuxSocketMessageTests.cs",
+        "tests/OS.HostTests/LinuxSocketServicesTests.cs",
+        "apps/NativeAotSocketVectors/SocketVectorsFixture.cs",
+        "tools/OS.Tooling/NativeAotSocketVectorsProgram.cs",
+        "tools/OS.Tooling/NativeAotSocketVectorsOutput.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketVectors.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Both independently reproduced empty cases return0 with a full live send window, with unchanged BufferedBytes, descriptor generation, transmit counters and no yielded wait. Also cover empty vectors with available space and a zero aggregate across multiple vectors.",
+        "Retain exact EBADF/ENOTSOCK, unsupported flags, endpoint reset/timeout/write-shutdown and SIGPIPE-policy results. Nonempty sends still return-EAGAIN when full and return the correct short prefix when partial capacity exists; failed metadata/copy validation cannot enqueue bytes.",
+        "Run the actual LinuxSocketMessageTests and LinuxSocketServicesTests through the normal harness. Retain original native review and affected finite socket/vector guest regression, with exact source/object/EFI/package joins. Distinguish host-only empty cases from guest cases actually observed.",
+        "Record exact commands, logs, patch and input/output hashes, failures and evidence boundaries in a reserved done step. Post evidence before closure. No broad Linux compatibility or continuing-service acceptance follows from this correction."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketMessageTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketServicesTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Two failing host boundary reproductions establish a new sendmsg compatibility defect. Existing finite nonempty-vector/HTTP receipts remain accepted. No new guest run, production exploit, runtime repair or gate acceptance is claimed by this review."
     }
   ]
 }

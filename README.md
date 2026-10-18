@@ -15,7 +15,9 @@ Hardware-protected isolation for multiple applications follows.
 
 **The unchanged pinned .NET11 NativeAOT Hello and bounded runtime workloads now
 run inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime
-batch. Guest Kestrel remains incomplete.
+batch. [Step1419](done/step1419.md) qualifies bounded upstream Kestrel health,
+multi-segment responses and owned UTC. Continuing service and shutdown/reap
+remain incomplete.
 CLROS is not cloud-ready or production-ready.
 
 [Step1225](done/step1225.md) qualifies the pinned .NET 11 OS/tooling migration and
@@ -25,6 +27,16 @@ compiler and guest evidence.
 
 ## Current accepted evidence
 
+[Step1419](done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
+implementation `88b02b4d`: 5,676 unchanged full-host checks across 757 fixtures
+(94 Native), six strict web/quota prefixes, three finite policy/vector guests
+and eight affected ancestors. The application captures retain `02859bfd` through
+exact source/native joins. External HTTP verifies exact entities, advancing Date
+windows and stopped-guest refusal; one healthy connection survives a bad peer's
+timeout and rejected VLAN traffic. Live workers remain until runner termination.
+The clock uses copied UEFI UTC and HPET within a declared 600-second lifetime.
+No general service, isolation, numbered, cloud or production gate advances.
+
 [Step1380](done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired
@@ -32,7 +44,8 @@ signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
 retain exact original source/object/EFI/package/serial/packet joins. Selected
 configuration is observed inside the upstream NativeAOT application; the healthy
 old peers survive another connection's timeout and unsupported RX content.
-The remaining #218 -> #219 -> #220 application ladder stays open under #737.
+Later step1389 qualifies finite #218 logging, step1405 qualifies #219/#745
+startup/vectors, and step1419 qualifies the bounded #220-#223 ladder under #737.
 This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
 
 The earlier socket/staging qualification is [step1351](done/step1351.md): **5,433 full-host
@@ -48,8 +61,8 @@ network service retains Virtio-net queues through ARP/ICMP and real TCP ownershi
 handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
 cooperative worker advances throughout and exits/reaps before checked cleanup.
 Step1351 adds bounded Linux sockets and epoll. Step1380 qualifies the selected
-configuration slice incorporated from PR739. The full Kestrel ladder, continuing
-service and Gate 14 requirements remain incomplete.
+configuration slice incorporated from PR739. Later finite Kestrel acceptance is
+described above; continuing service and Gate14 requirements remain incomplete.
 
 [Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
 across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles
@@ -118,17 +131,18 @@ The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 The [architecture review implementation order](docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 places fixes at the acceptance stage that needs them:
 
-1. Continue owned #218 output -> #219 startup under
-   [#737](http://192.168.4.35:3000/admin/CLROS/issues/737), preserving step1380's
-   configuration and network containment. Qualify vectored socket I/O before
-   [#220's Kestrel socket ladder](http://192.168.4.35:3000/admin/CLROS/issues/220).
-2. Add owned realtime before external HTTP acceptance; retained development
-   responses currently carry Unix-epoch dates. Before repeated-service and
-   async-churn acceptance, repair pending-handshake resets, continuing TCP
-   sequence allocation and pending-signal waits, alongside TCP persist,
-   compact TIME-WAIT, continuing execution policy, replenished randomness,
-   fragmented backing and GC/native budgets. Complete shutdown and exact
-   local Gate 14 evidence.
+1. Preserve [step1419's bounded Kestrel/health/UTC qualification](done/step1419.md)
+   and the accepted configuration, logging, startup and vector predecessors.
+   Continue under [#737](http://192.168.4.35:3000/admin/CLROS/issues/737).
+   Web prefixes retain live workers until runner termination; they do not
+   qualify continuing service or application shutdown/reap.
+2. Before repeated service #224, complete TCP persist #743, compact TIME-WAIT
+   #744, continuing execution policy #746, replenished randomness #240,
+   handshake-reset cleanup #757, continuing ISNs #758 and
+   [empty-send compatibility #766](http://192.168.4.35:3000/admin/CLROS/issues/766).
+   Pending-signal waits #760 and fragmented backing/GC budgets #747/#748
+   additionally precede async churn #225. Then complete #226/#227's exact
+   local Gate14 evidence and shutdown requirements.
 3. Add user-fault containment, reconcile accepted SIGPIPE dispositions with
    I/O behavior, and qualify two hardware-isolated local apps before deployment
    to a specific provider.
@@ -143,9 +157,10 @@ acceptance, owned paths and dependencies, and the
 Refresh both before starting work. Follow the dependency graph rather than
 numeric issue order; optional research is not a first-web prerequisite.
 
-The [second review pass](docs/repo-audit.md#second-pass-interactions-and-failure-recovery)
-adds four expected-failing host regressions and independently rechecks retained
-guest time evidence. The fixes remain open; no completion gate changes.
+The [October 18 incremental review](docs/repo-audit.md#october-18-incremental-review)
+covers the four merged batches since the previous review. Two host reproductions
+confirm the empty-send defect; current handoff and time-API claims are corrected.
+The earlier review findings retain their individual accepted or open scopes.
 
 ## Build and test
 
