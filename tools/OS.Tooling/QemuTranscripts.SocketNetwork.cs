@@ -205,7 +205,7 @@ public static partial class QemuTranscripts
         internal readonly int Index=index;
         internal uint Server;internal bool SynAck,ClientFin,ServerFin,ClientFinAcked,ServerFinAcked,Reset;
         internal int ClientSeen,ServerSeen;
-        internal readonly bool[] Request=new bool[vectors?64:index==1?1:20],Reply=new bool[index==0?65536:index==1||vectors&&index==2?0:vectors?64:18];
+        internal readonly bool[] Request=new bool[vectors?64:index==1?1:20],Reply=new bool[index==0?vectors?524288:65536:index==1||vectors&&index==2?0:vectors?64:18];
     }
     /// <summary>Value-only original socket wire totals; no execution authority.</summary>
     public readonly record struct SocketPacketInspection(int Connections,int Received,int Sent,int Resets,int ClientFins,int ServerFins,
@@ -383,7 +383,7 @@ public static partial class QemuTranscripts
     {
         ulong[] anchor=PrefixRow(proof.Nic,"M07_NET D",4);Need(anchor[0]<=uint.MaxValue,"socket_capture_anchor_width");
         var report=SocketPackets(File.ReadAllBytes(path),(uint)anchor[0],proof.Arp,proof.Lifetimes.Select(v=>v.RemotePort).ToArray(),vectors);
-        Need(report.Connections==4 && report.Received==(vectors?256:61) && report.Sent==(vectors?65600:65572) && report.Resets==1 && report.ClientFins==3 && report.ServerFins==3 &&
+        Need(report.Connections==4 && report.Received==(vectors?256:61) && report.Sent==(vectors?524352:65572) && report.Resets==1 && report.ClientFins==3 && report.ServerFins==3 &&
             report.PeerReceived==proof.Peer["received"] && report.PumpReceived==proof.Wire["received"] && report.PumpArp==proof.Wire["arp"] &&
             report.PumpIgnored==proof.Wire["ignored"] && report.PumpReceived-report.PumpArp-report.PumpIgnored==proof.Wire["accepted"] &&
             report.PumpArpCopied==proof.Wire["arpCopied"] && report.PumpTcpCopied==proof.Wire["tcpCopied"],"socket_capture_serial_join");

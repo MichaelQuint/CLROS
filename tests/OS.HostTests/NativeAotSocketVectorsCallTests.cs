@@ -45,12 +45,13 @@ internal static class NativeAotSocketVectorsCallTests
                 if (index == 1 && change == "after_reset") Message(false, 1, 1, -11);
                 if (index != 1)
                 {
-                    uint expected = index == 0 ? 65536u : 64u, split = expected / 3;
-                    for (uint sent = 0; sent < expected;)
+                    uint expected = index == 0 ? 524288u : 64u, batch = Math.Min(65536u, expected), split = batch / 3;
+                    for (uint sent = 0; sent < (change == "truncated_response" && index == 0 ? batch : expected);)
                     {
-                        uint first = sent < split ? split - sent : expected - sent, second = sent < split ? expected - split : 0;
+                        uint position = sent % batch;
+                        uint first = position < split ? split - position : batch - position, second = position < split ? batch - split : 0;
                         if (sent == 8192 && change != "missing_send_block") Message(true, first, second, -11);
-                        uint count = Math.Min(8192u, expected - sent);
+                        uint count = Math.Min(8192u, batch - position);
                         Message(true, first, second, change == "oversized_return" ? 8193 : count); sent += count;
                     }
                     Call(48, 6, 0, change == "wrong_shutdown" ? 2u : 1u);
@@ -67,8 +68,8 @@ internal static class NativeAotSocketVectorsCallTests
     {
         string[] rows = Calls(), before = (string[])rows.Clone();
         var result = QemuTranscripts.InspectNativeAotSocketVectorsCallsForTests(rows);
-        HostCheck.Equal(10, result.Sends); HostCheck.Equal(9, result.Receives);
-        HostCheck.Equal(7, result.ShortSends); HostCheck.Equal(1, result.SendBlocked);
+        HostCheck.Equal(66, result.Sends); HostCheck.Equal(9, result.Receives);
+        HostCheck.Equal(56, result.ShortSends); HostCheck.Equal(1, result.SendBlocked);
         HostCheck.True(rows.SequenceEqual(before));
         HostCheck.Equal(10, QemuTranscripts.InspectNativeAotSocketVectorsCallsForTests(Calls("repeated_pending")).Receives);
         HostCheck.Equal(10, QemuTranscripts.InspectNativeAotSocketVectorsCallsForTests(Calls("split_gate")).Receives);
@@ -78,7 +79,7 @@ internal static class NativeAotSocketVectorsCallTests
     private static void Invalid()
     {
         foreach (string change in new[] { "missing_snapshot", "wrong_split", "noncontiguous", "wrong_first_partial", "missing_pending",
-            "pending_eof", "wrapped_gap", "missing_watch", "reset_eof", "after_reset", "missing_send_block", "oversized_return", "wrong_shutdown", "fifth_connection" })
+            "pending_eof", "wrapped_gap", "missing_watch", "reset_eof", "after_reset", "missing_send_block", "oversized_return", "wrong_shutdown", "fifth_connection", "truncated_response" })
         {
             bool rejected = false; try { _ = QemuTranscripts.InspectNativeAotSocketVectorsCallsForTests(Calls(change)); }
             catch (ToolFailure) { rejected = true; } HostCheck.True(rejected, change);

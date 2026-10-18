@@ -3,8 +3,12 @@
 [Step1400](../done/step1400.md) supersedes the development publication/admission
 pending states below: fresh original Linux web v3 qualification passes, and the
 current startup/vector app, complete index and real package bind coherently.
-The first EFI vector candidate also publishes/verifies. Native/stack review is
-partial; full-host and CLROS guest qualification remain pending.219/745/737 and
+The first EFI vector candidate also publishes/verifies. Step1401 completes its
+bounded native review; [Step1402](../done/step1402.md) retains a5617-check full-host
+pass at85a30b4a and the first actual vector guest's native/source joins. That
+guest fails strict send-backpressure replay. The changed512KiB fixture and
+actual-EAGAIN peer gate have focused checks only; fresh Linux publication,
+admission and current full-host/CLROS qualification remain pending.219/745/737 and
 the later service/time ladder remain open. See the [Kestrel ledger](kestrel.md).
 
 [Step1390](../done/step1390.md) develops the next batch from accepted merge

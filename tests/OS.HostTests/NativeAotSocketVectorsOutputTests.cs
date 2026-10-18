@@ -13,9 +13,9 @@ internal static class NativeAotSocketVectorsOutputTests
             rows.Add($"SOCKET_VECTOR_RECEIVE index={i} bytes={(i == 0 ? 61 : 64)} total=64 remaining=0");
             rows.Add($"SOCKET_VECTOR_REQUEST index={i} bytes=64");
             if (i == 2) rows.Add("SOCKET_VECTOR_PENDING index=2 pending=1");
-            rows.Add($"SOCKET_VECTOR_CONNECTION index={i} received=64 sent={(i == 0 ? 65536 : i == 3 ? 64 : 0)} accept_blocked=0 receive_calls={(i == 0 ? 4 : 2)} receive_partial={(i == 0 ? 1 : 0)} receive_blocked={(i == 0 ? 1 : 0)} send_calls={(i == 0 ? 10 : i == 3 ? 1 : 0)} send_partial={(i == 0 ? 7 : 0)} send_blocked={(i == 0 ? 2 : 0)} reset={(i == 1 ? 1 : 0)} pending={(i == 2 ? 1 : 0)} aborted={(i == 2 ? 1 : 0)}");
+            rows.Add($"SOCKET_VECTOR_CONNECTION index={i} received=64 sent={(i == 0 ? 524288 : i == 3 ? 64 : 0)} accept_blocked=0 receive_calls={(i == 0 ? 4 : 2)} receive_partial={(i == 0 ? 1 : 0)} receive_blocked={(i == 0 ? 1 : 0)} send_calls={(i == 0 ? 66 : i == 3 ? 1 : 0)} send_partial={(i == 0 ? 56 : 0)} send_blocked={(i == 0 ? 2 : 0)} reset={(i == 1 ? 1 : 0)} pending={(i == 2 ? 1 : 0)} aborted={(i == 2 ? 1 : 0)}");
         }
-        rows.Add("TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=65600 reset=1 pending=1 aborted=1");
+        rows.Add("TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=524352 reset=1 pending=1 aborted=1");
         rows.Add("APP_EXIT nativeaot.socket.vectors 0"); return string.Join('\n', rows) + "\n";
     }
 
@@ -26,7 +26,7 @@ internal static class NativeAotSocketVectorsOutputTests
         {
             var result = NativeAotSocketVectorsOutput.Read(text);
             HostCheck.Equal(4, result.Connections.Count); HostCheck.Equal(1u, result.Connections[0].ReceivePartial);
-            HostCheck.Equal(7u, result.Connections[0].SendPartial);
+            HostCheck.Equal(56u, result.Connections[0].SendPartial);
             HostCheck.True(((IList<NativeAotSocketVectorsOutput.Connection>)result.Connections).IsReadOnly);
         }
         _ = NativeAotSocketVectorsOutput.Read(Output().Replace("port=8080", "port=8081", StringComparison.Ordinal), 8081);
@@ -39,10 +39,10 @@ internal static class NativeAotSocketVectorsOutputTests
         foreach (var change in new (string From, string To)[] {
             ("total=3 remaining=61", "total=4 remaining=60"), ("bytes=61 total=64", "bytes=62 total=64"),
             ("receive_calls=4", "receive_calls=3"), ("receive_partial=1", "receive_partial=0"),
-            ("receive_blocked=1", "receive_blocked=2"), ("send_partial=7", "send_partial=8"),
-            ("send_partial=7", "send_partial=0"), ("send_calls=1 send_partial=0", "send_calls=65 send_partial=64"),
-            ("send_calls=10", "send_calls=2"), ("reset=1 pending=0", "reset=0 pending=0"),
-            ("pending=1 aborted=1", "pending=1 aborted=0"), ("sent=65536", "sent=65535"),
+            ("receive_blocked=1", "receive_blocked=2"), ("send_partial=56", "send_partial=57"),
+            ("send_partial=56", "send_partial=0"), ("send_calls=1 send_partial=0", "send_calls=65 send_partial=64"),
+            ("send_calls=66", "send_calls=2"), ("reset=1 pending=0", "reset=0 pending=0"),
+            ("pending=1 aborted=1", "pending=1 aborted=0"), ("sent=524288", "sent=524287"),
             ("index=1 bytes=64", "index=0 bytes=64"), ("bytes=3 total=3", "bytes=03 total=3"),
             ("accept_blocked=0", "accept_blocked=100000"), ("APP_EXIT nativeaot.socket.vectors 0", "APP_EXIT nativeaot.socket.vectors 1") })
             Reject(output.Replace(change.From, change.To, StringComparison.Ordinal));

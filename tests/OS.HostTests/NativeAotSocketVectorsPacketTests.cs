@@ -8,9 +8,9 @@ internal static class NativeAotSocketVectorsPacketTests
     {
         var fixture=Wire.Packets(vectors:true);
         var report=QemuTranscripts.InspectSocketVectorPacketsForTests(Wire.Capture(fixture.Frames),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]);
-        HostCheck.True(report.Connections==4&&report.Received==256&&report.Sent==65600&&report.Resets==1&&report.ClientFins==3&&report.ServerFins==3);
+        HostCheck.True(report.Connections==4&&report.Received==256&&report.Sent==524352&&report.Resets==1&&report.ClientFins==3&&report.ServerFins==3);
         int payload=fixture.Frames.FindIndex(x=>x.Length>1000);var duplicate=fixture.Frames.ToList();duplicate.Insert(payload+1,duplicate[payload]);
-        HostCheck.Equal(65600,QemuTranscripts.InspectSocketVectorPacketsForTests(Wire.Capture(duplicate),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]).Sent);
+        HostCheck.Equal(524352,QemuTranscripts.InspectSocketVectorPacketsForTests(Wire.Capture(duplicate),fixture.Anchor,fixture.Arp,[40000,40001,40002,40003]).Sent);
         var missing=fixture.Frames.ToList();missing.RemoveAt(missing.FindLastIndex(x=>x.Length>=54&&x[12]==8&&x[13]==0&&x[23]==6));
         Reject(missing,"socket_wire_complete");
         var corrupt=fixture.Frames.Select(x=>(byte[])x.Clone()).ToList();corrupt[payload][54]^=1;

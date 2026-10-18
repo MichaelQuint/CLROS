@@ -47,7 +47,7 @@ internal static class NativeAotSocketVectorsTests
             else
             {
                 peer.Shutdown(SocketShutdown.Send);
-                int expected = index == 0 ? 65_536 : 64, received = 0;
+                int expected = index == 0 ? 524_288 : 64, received = 0;
                 byte[] buffer = new byte[1024];
                 while (received < expected)
                 {
@@ -64,11 +64,11 @@ internal static class NativeAotSocketVectorsTests
         string[] rows = output.Lines;
         HostCheck.Equal(4, rows.Count(row => row.StartsWith("SOCKET_VECTOR_CONNECTION ", StringComparison.Ordinal)));
         string first = rows.Single(row => row.StartsWith("SOCKET_VECTOR_CONNECTION index=0 ", StringComparison.Ordinal));
-        HostCheck.True(first.Contains("received=64 sent=65536 ", StringComparison.Ordinal));
+        HostCheck.True(first.Contains("received=64 sent=524288 ", StringComparison.Ordinal));
         HostCheck.True(!first.Contains("receive_partial=0 ", StringComparison.Ordinal));
         HostCheck.True(rows.Any(row => row.StartsWith("SOCKET_VECTOR_CONNECTION index=1 ", StringComparison.Ordinal) && row.Contains("reset=1 ", StringComparison.Ordinal)));
         HostCheck.True(rows.Any(row => row.StartsWith("SOCKET_VECTOR_CONNECTION index=2 ", StringComparison.Ordinal) && row.Contains("pending=1 aborted=1", StringComparison.Ordinal)));
-        HostCheck.True(rows.Contains("TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=65600 reset=1 pending=1 aborted=1"));
+        HostCheck.True(rows.Contains("TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=524352 reset=1 pending=1 aborted=1"));
         HostCheck.True(rows.Contains("APP_EXIT nativeaot.socket.vectors 0"));
         _ = OS.Tooling.NativeAotSocketVectorsOutput.Read(string.Join('\n', rows) + "\n", port);
         foreach (string row in rows) Console.WriteLine("VECTOR_APP_OUTPUT " + row);

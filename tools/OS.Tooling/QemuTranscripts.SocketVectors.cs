@@ -85,7 +85,7 @@ public static partial class QemuTranscripts
             int index = connection.Index;
             if (number == 3)
             {
-                Need(result == 0 && connection.Received == 64 && connection.Sent == (index == 0 ? 65536 : index == 3 ? 64 : 0) &&
+                Need(result == 0 && connection.Received == 64 && connection.Sent == (index == 0 ? 524288 : index == 3 ? 64 : 0) &&
                     connection.Eof == (index is 0 or 3 ? 1 : 0) && connection.Reset == (index == 1 ? 1 : 0) &&
                     connection.Shutdown == (index is 0 or 3 ? 1 : 0) && connection.Pending == (index == 2) &&
                     (index != 2 || connection.Watched), "socket_vectors_close");
@@ -94,7 +94,7 @@ public static partial class QemuTranscripts
             if (number == 48)
             {
                 Need(index is 0 or 3 && arg1 == 1 && result == 0 && connection.Shutdown++ == 0 && connection.Eof == 1 &&
-                    connection.Sent == (index == 0 ? 65536 : 64), "socket_vectors_shutdown"); continue;
+                    connection.Sent == (index == 0 ? 524288 : 64), "socket_vectors_shutdown"); continue;
             }
             if (number is not (44 or 45 or 46 or 47)) continue; // Common replay validates options/control calls.
             Need(number is 46 or 47 && messages.TryGetValue(call.RecordIndex, out _), "socket_vectors_message_required");
@@ -103,10 +103,11 @@ public static partial class QemuTranscripts
             if (send)
             {
                 Need(index is 0 or 3 && connection.Received == 64 && connection.Eof == 1, "socket_vectors_send_phase"); sends++;
-                uint expected = index == 0 ? 65536u : 64u, split = expected / 3;
-                uint remaining = expected - connection.Sent;
-                VectorShape(message, connection.Sent < split ? split - connection.Sent : remaining,
-                    connection.Sent < split ? expected - split : 0);
+                uint expected = index == 0 ? 524288u : 64u, batch = Math.Min(65536u, expected), split = batch / 3;
+                uint sent = connection.Sent % batch, remaining = batch - sent;
+                Need(connection.Sent < expected,"socket_vectors_send_extent");
+                VectorShape(message, sent < split ? split - sent : remaining,
+                    sent < split ? batch - split : 0);
                 Need(result == -11 || result is > 0 and <= 8192 && (ulong)result <= remaining, "socket_vectors_send_result");
                 if (result == -11) { Need(index == 0, "socket_vectors_send_block_owner"); blocked++; }
                 else

@@ -244,7 +244,7 @@ internal static class NativeAotSocketIntegrationTests
             Add(false,client,server,0x18,sent);client+=(uint)sent.Length;Add(true,server,client,0x10);
             if(index==1){Add(false,client,server,0x14);continue;}
             if(vectors?index is 0 or 3:index>=2){Add(false,client,server,0x11);client++;Add(true,server,client,0x10);}
-            byte[] payload=vectors&&index==2?[]:index==0?Enumerable.Range(0,65536).Select(i=>(byte)(i%251)).ToArray():vectors?Enumerable.Range(0,64).Select(i=>(byte)(i%251)).ToArray():"CLROS_SOCKET_REPLY"u8.ToArray();
+            byte[] payload=vectors&&index==2?[]:index==0?Enumerable.Range(0,vectors?524288:65536).Select(i=>(byte)(i%251)).ToArray():vectors?Enumerable.Range(0,64).Select(i=>(byte)(i%251)).ToArray():"CLROS_SOCKET_REPLY"u8.ToArray();
             for(int offset=0;offset<payload.Length;)
             {
                 int count=Math.Min(1024,payload.Length-offset);Add(true,server,client,0x18,payload.AsSpan(offset,count));server+=(uint)count;offset+=count;Add(false,client,server,0x10);

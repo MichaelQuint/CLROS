@@ -367,7 +367,7 @@ public static partial class QemuTranscripts
             if(containment)
                 Need(socketAccepts==3 && socketSent==containmentCapture!.Application.Queued+30 && socketReceived==33 && clones>=2 &&
                     containmentTimeoutObserved && containmentDropObserved,"socket_containment_workload_lifetimes");
-            else if(vectors)Need(socketAccepts==4 && socketSent==65600 && socketReceived==256 && clones>=2 &&
+            else if(vectors)Need(socketAccepts==4 && socketSent==524352 && socketReceived==256 && clones>=2 &&
                 socketBlocks>0 && socketResumes>0,"socket_vectors_workload_lifetimes");
             else Need(socketAccepts==4 && socketSent==65572 && socketReceived==61 && clones>=2 &&
                 (app!="NativeAotSocketSmokeAsync" || socketBlocks>0 && socketResumes>0),"socket_workload_lifetimes");

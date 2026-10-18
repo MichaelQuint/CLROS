@@ -14,7 +14,7 @@ public static class SocketVectorsFixture
     private const int DeadlineMilliseconds = 30_000, MaximumOperations = 100_000;
 
     /// <summary>Run four serialized peers on --port (default8080). Connections0/3
-    /// half-close after64 request bytes and receive65536/64 response bytes;1 resets
+    /// half-close after64 request bytes and receive524288/64 response bytes;1 resets
     /// after its request;2 sends no more data while a pending receive is disposed.
     /// Each request byte is(index*37+offset*11)%251; reply byte is offset%251.
     /// Output must remain writable for this synchronous call. No pointers escape.</summary>
@@ -47,7 +47,7 @@ public static class SocketVectorsFixture
                     ReceiveTerminal(peer, index == 1, budget, current);
                     if (index != 1)
                     {
-                        SendResponse(peer, index == 0 ? 65_536 : 64, budget, current);
+                        SendResponse(peer, index == 0 ? 524_288 : 64, budget, current);
                         peer.Shutdown(SocketShutdown.Send);
                     }
                 }
@@ -124,21 +124,25 @@ public static class SocketVectorsFixture
     {
         byte[] bytes = new byte[length + 14];
         for (int i = 0; i < length; i++) bytes[7 + i] = (byte)(i % 251);
-        int split = length / 3, sent = 0;
-        List<ArraySegment<byte>> buffers = [new(bytes, 7, split), new(bytes, 7 + split, length - split)];
-        while (sent != length)
+        // Every native call stays within the adapter's reviewed64KiB aggregate.
+        for (int offset = 0; offset < length; offset += 65_536)
         {
-            budget.Check();
-            try
+            int batch = Math.Min(65_536, length - offset), split = batch / 3, sent = 0;
+            List<ArraySegment<byte>> buffers = [new(bytes, 7 + offset, split), new(bytes, 7 + offset + split, batch - split)];
+            while (sent != batch)
             {
-                counts.SendCalls++;
-                int count = peer.Send(buffers, SocketFlags.None);
-                if (count <= 0 || count > length - sent) throw new Failure(15);
-                if (count < length - sent) counts.SendPartial++;
-                sent += count; counts.Sent += count; Advance(buffers, count);
+                budget.Check();
+                try
+                {
+                    counts.SendCalls++;
+                    int count = peer.Send(buffers, SocketFlags.None);
+                    if (count <= 0 || count > batch - sent) throw new Failure(15);
+                    if (count < batch - sent) counts.SendPartial++;
+                    sent += count; counts.Sent += count; Advance(buffers, count);
+                }
+                catch (SocketException failure) when (failure.SocketErrorCode == SocketError.WouldBlock)
+                { counts.SendBlocked++; Thread.Sleep(1); }
             }
-            catch (SocketException failure) when (failure.SocketErrorCode == SocketError.WouldBlock)
-            { counts.SendBlocked++; Thread.Sleep(1); }
         }
     }
 

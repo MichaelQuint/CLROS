@@ -10,7 +10,13 @@ verifies, with its original866 source inputs and nine native files retained.
 15 changed bodies and a comparison of43 retained callers/memory bodies,40 equal.
 The first full-host attempt stops before Native after22 failed checks across13
 fixtures. Narrow source-pin, probe and fixture repairs pass115 focused checks;
-a fresh full-host gate, current-source native joins and CLROS guests remain
+[Step1402](../done/step1402.md) retains the subsequent5617-check full-host pass
+at85a30b4a and the actual vector guest's original native/source joins. That guest
+reaches terminal markers and external peer success, but strict replay rejects
+zero sendmsg EAGAIN. The repaired fixture sends512KiB in eight bounded64KiB
+vector batches; its guest peer waits for actual joined send backpressure before
+draining. Forty-one scoped checks pass across twelve fixtures. Fresh changed-app
+Linux publication/admission and current full-host/CLROS qualification remain
 pending.219/745/737 remain open; no whole-stack, Kestrel or broader gate is accepted.
 
 ## NativeAOT-first milestone

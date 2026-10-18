@@ -18,12 +18,13 @@ internal static class NativeAotSocketVectorsProtocolTests
                 Message(false, index == 1 ? -104 : 0, 1, 1, 1);
                 if (index != 1)
                 {
-                    uint expected = index == 0 ? 65536u : 64u, split = expected / 3;
+                    uint expected = index == 0 ? 524288u : 64u, batch = Math.Min(65536u, expected), split = batch / 3;
                     for (uint sent = 0; sent < expected;)
                     {
-                        uint first = sent < split ? split - sent : expected - sent, second = sent < split ? expected - split : 0;
+                        uint position = sent % batch;
+                        uint first = position < split ? split - position : batch - position, second = position < split ? batch - split : 0;
                         if (sent == 8192) { Message(true, -11, first, second); Message(true, -11, first, second); }
-                        uint count = Math.Min(8192u, expected - sent); Message(true, (int)count, first, second); sent += count;
+                        uint count = Math.Min(8192u, batch - position); Message(true, (int)count, first, second); sent += count;
                     }
                     vector.Call(48, 0, [7, 1]);
                 }
@@ -52,7 +53,7 @@ internal static class NativeAotSocketVectorsProtocolTests
         Reject(rows.Select(row => row.StartsWith("M16_013_MESSAGE ", StringComparison.Ordinal) ? Regex.Replace(row, @"generation=\d+", "generation=99") : row));
         Reject(rows.Select(row => row.StartsWith("M16_013_VECTOR ", StringComparison.Ordinal) ? Regex.Replace(row, @"address=\d+", "address=140733193388032") : row));
         Reject(rows.Where(row => !row.StartsWith("M16_011_CLOSE fd=5 ", StringComparison.Ordinal)));
-        Reject(rows.Select(row => row.Replace("sent=65600", "sent=65601", StringComparison.Ordinal)));
+        Reject(rows.Select(row => row.Replace("sent=524352", "sent=524353", StringComparison.Ordinal)));
     }
 
     private static void Reject(IEnumerable<string> rows)

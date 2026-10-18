@@ -29,7 +29,7 @@ public static class NativeAotSocketVectorsPeer
             var file=files.Open(System.IO.Path.GetDirectoryName(Path)!,Path,"original vector socket peer","socket_vectors_peer_log",65536,singleLink:true);
             byte[] raw=file.ReadBytes(65536,"socket_vectors_peer_log");
             if(Convert.ToHexString(SHA256.HashData(raw))!=Sha256)throw new ToolFailure("socket_vectors_peer_log_identity");
-            InspectOutput(new UTF8Encoding(false,true).GetString(raw));
+            InspectOutput(new UTF8Encoding(false,true).GetString(raw),requireSendBackpressure:true);
         }
     }
 
@@ -60,17 +60,19 @@ public static class NativeAotSocketVectorsPeer
         AuthorityFiles.RequirePlainPath(root,Path.GetDirectoryName(serial)!,"socket_vectors_peer_serial");
         await NativeAotSocketPeer.WaitForAcceptAsync(serial,false,deadline.Token);
         await RunPeerAsync(port,output,(index,total,token)=>NativeAotSocketPeer.WaitForSerialAsync(serial,
-            text=>HasReceiveProgress(text,index,total),token),deadline.Token);
+            text=>HasReceiveProgress(text,index,total),token),deadline.Token,
+            token=>NativeAotSocketPeer.WaitForSerialAsync(serial,HasSendBackpressure,token));
     }
 
     /// <summary>Send exact requests, gate first3 bytes and consumed reset request,
-    /// hold the first response for250ms after observing its first byte without
-    /// consuming it, and verify bytes with257-byte reads.
+    /// peek the first response byte without consuming it, then wait for the
+    /// supplied send-backpressure gate (guest) or250ms (standalone Linux control)
+    /// before verifying bytes with257-byte reads.
     /// The caller supplies actual app progress, owns output and must await this
     /// task. The two-minute deadline/cancellation propagates after socket disposal.
     /// Configured short I/O/hold is stimulus, not proof of blocked or partial sends.</summary>
     public static async Task RunPeerAsync(int port,TextWriter output,Func<int,uint,CancellationToken,Task> waitForReceive,
-        CancellationToken cancellation=default)
+        CancellationToken cancellation=default,Func<CancellationToken,Task>? waitForSendBackpressure=null)
     {
         if(port is <1 or >65535)throw new ArgumentOutOfRangeException(nameof(port));
         ArgumentNullException.ThrowIfNull(output);ArgumentNullException.ThrowIfNull(waitForReceive);
@@ -105,10 +107,18 @@ public static class NativeAotSocketVectorsPeer
             {
                 int peeked=await peer.ReceiveAsync(buffer.AsMemory(0,1),SocketFlags.Peek,token);
                 if(peeked!=1 || buffer[0]!=0)throw new ToolFailure("socket_vectors_peer_first_byte");
-                output.WriteLine("SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 hold_ms=250");
-                await Task.Delay(250,token);
+                if(waitForSendBackpressure is null)
+                {
+                    output.WriteLine("SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 hold_ms=250");
+                    await Task.Delay(250,token);
+                }
+                else
+                {
+                    await waitForSendBackpressure(token);
+                    output.WriteLine("SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 until=sendmsg_eagain");
+                }
             }
-            int expected=index==0?65536:64,received=0;
+            int expected=index==0?524288:64,received=0;
             while(received<expected)
             {
                 int count=await peer.ReceiveAsync(buffer.AsMemory(0,Math.Min(buffer.Length,expected-received)),SocketFlags.None,token);
@@ -137,13 +147,24 @@ public static class NativeAotSocketVectorsPeer
     public static bool HasReceiveProgress(string text,int connection,uint total)
     {
         if(connection is <0 or >3 || total is 0 or >64)return false;
+        return HasProgress(text,connection,total,sendBackpressure:false);
+    }
+
+    /// <summary>Provisional stimulus gate requiring a complete joined sendmsg
+    /// EAGAIN on the first accepted connection while its fd remains live.
+    /// Receive EAGAIN, later/reused fds and partial/malformed snapshots do not
+    /// release reads. Final immutable call/packet validation remains mandatory.</summary>
+    public static bool HasSendBackpressure(string text)=>HasProgress(text,0,0,sendBackpressure:true);
+
+    private static bool HasProgress(string text,int connection,uint total,bool sendBackpressure)
+    {
         int end=text.LastIndexOf('\n');if(end<0)return false;
         string[] rows=text[..(end+1)].Split('\n',StringSplitOptions.RemoveEmptyEntries).Select(row=>row.TrimEnd('\r')).ToArray();
         try
         {
             var calls=QemuTranscripts.ReadLinuxCallReturns(rows,allowEpoll:true).ToDictionary(call=>call.RecordIndex);
             var messages=NativeAotSocketMessages.Read(rows,calls).ToDictionary(message=>message.CallRecordIndex);
-            var accepted=new Dictionary<ulong,int>();ulong[] received=new ulong[4];int count=0;
+            var accepted=new Dictionary<ulong,int>();ulong[] received=new ulong[4];int count=0;bool blocked=false;
             foreach(var call in calls.Values.OrderBy(call=>call.RecordIndex))
             {
                 var match=Regex.Match(rows[call.RecordIndex],@"^M16_008_CALL identity=\d+ nr=(\d+) a0=(\d+) ",RegexOptions.CultureInvariant);
@@ -151,6 +172,11 @@ public static class NativeAotSocketVectorsPeer
                 if(number is 43 or 288 && call.ValueBits is >=3 and <16)
                 { if(count==4 || !accepted.TryAdd(call.ValueBits,count++))return false; }
                 else if(number==3 && call.ValueBits==0)accepted.Remove(fd);
+                else if(number==46 && unchecked((long)call.ValueBits)==-11 && accepted.TryGetValue(fd,out int sender) && sender==0)
+                {
+                    if(!messages.TryGetValue(call.RecordIndex,out var message) || message.Flags!=0 || message.Total==0)return false;
+                    blocked=true;
+                }
                 else if(number is 45 or 47 && unchecked((long)call.ValueBits)>0 && accepted.TryGetValue(fd,out int index))
                 {
                     if(number!=47 || !messages.TryGetValue(call.RecordIndex,out var message) ||
@@ -162,7 +188,7 @@ public static class NativeAotSocketVectorsPeer
                     }
                 }
             }
-            return accepted.Values.Contains(connection) && received[connection]==total;
+            return accepted.Values.Contains(connection) && (sendBackpressure?blocked:received[connection]==total);
         }
         catch(ToolFailure) { }
         return false;
@@ -170,11 +196,12 @@ public static class NativeAotSocketVectorsPeer
 
     /// <summary>Require the exact finite peer output and the recorded EOF/reset
     /// disposal outcome. Supplied text cannot create an execution receipt.</summary>
-    public static void InspectOutput(string text)
+    public static void InspectOutput(string text,bool requireSendBackpressure=false)
     {
-        const string before="TEST_START nativeaot.socket.vectors.peer\n"+
-            "SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 hold_ms=250\n"+
-            "SOCKET_VECTOR_PEER index=0 sent=64 received=65536 close=eof\n"+
+        string before="TEST_START nativeaot.socket.vectors.peer\n"+
+            (requireSendBackpressure?"SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 until=sendmsg_eagain\n":
+                "SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 hold_ms=250\n")+
+            "SOCKET_VECTOR_PEER index=0 sent=64 received=524288 close=eof\n"+
             "SOCKET_VECTOR_PEER index=1 sent=64 received=0 close=reset\n";
         const string after=" disposition=disposed\nSOCKET_VECTOR_PEER index=3 sent=64 received=64 close=eof\nTEST_PASS nativeaot.socket.vectors.peer\n";
         text=text.Replace("\r\n","\n",StringComparison.Ordinal);

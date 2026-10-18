@@ -1,5 +1,14 @@
 # Networking
 
+[Step1402](../done/step1402.md) strengthens the development vector fixture after
+the first real guest completes its exchanges but fails strict send-backpressure
+replay. It now sends512KiB in eight at-most64KiB BufferList batches; the external
+guest peer waits for complete joined sendmsg EAGAIN before reading. Kernel
+vector/scratch limits are unchanged. Forty-one scoped checks pass; the earlier
+5617-check full-host pass remains tied to85a30b4a. Fresh changed-app publication,
+admission and current full-host/guest qualification remain pending. The failed
+guest is retained and no new vector/Kestrel gate is accepted.
+
 [Step1389](../done/step1389.md) qualifies finite #218 logging separately from the
 network scopes below. [Step1390](../done/step1390.md) develops connected-stream
 Linux x64 sendmsg/recvmsg: at most16 vectors/65536 total bytes, owned descriptor

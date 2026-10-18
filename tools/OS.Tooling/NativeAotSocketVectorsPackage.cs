@@ -19,7 +19,7 @@ public static class NativeAotSocketVectorsPackage
     private const string ReceiptSha256 = "D7DAB228EBE88E961E778834ED47781A03D9FFA305BAA7724350C35223EC30A9";
     private static readonly (string Name, string Sha256)[] AppSources = [
         ("Program.cs", "B6D30356A7A372FE6A3C355022FB33B219767A8B0F271EB57123044B39340752"),
-        ("SocketVectorsFixture.cs", "C4212A52061F6FF07553B0138B1592377D2F55DA90A103D2B34D297A7039554D"),
+        ("SocketVectorsFixture.cs", "63C61901A23E85535CFB120F1DA5DEBA07DEDBFA604F83A7D06A26294EBE5D5A"),
         (App + ".csproj", "D8AFB29D1F4465AD7D3EF3F4A292255DBC5E6975FFD4AD02948E912B1D88564B")];
 
     /// <summary>Finite four-peer diagnostic policy: no arguments, sixteen thread

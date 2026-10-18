@@ -27,7 +27,7 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
         HostCheck.Equal(root,(string)typeof(NativeAotSocketVectorsPeer.Completion)
             .GetProperty("Root",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(result)!);
         byte[] raw=File.ReadAllBytes(log);HostCheck.Equal(Convert.ToHexString(SHA256.HashData(raw)),result.Sha256);
-        NativeAotSocketVectorsPeer.InspectOutput(Encoding.UTF8.GetString(raw));
+        NativeAotSocketVectorsPeer.InspectOutput(Encoding.UTF8.GetString(raw),requireSendBackpressure:true);
         using(var files=new AuthorityFiles()){Verify(result,files);files.VerifyUnchanged();}
         HostCheck.True(typeof(NativeAotSocketVectorsPeer.Completion).IsSealed &&
             typeof(NativeAotSocketVectorsPeer.Completion).GetConstructors().Length==0 &&
@@ -113,6 +113,9 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
         {
             using(var peer=await listener.AcceptSocketAsync(token))
             {
+                // Keep the synthetic blocked-send observation visible until
+                // the child drains the response and connects its next peer.
+                if(index!=0)await Append(Call(3,7,0));
                 generation++;await Append(Call(288,6,7));
                 byte[] request=new byte[64];int received=0;
                 await Read(index==0?3:64);
@@ -131,10 +134,19 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
                 }
                 else if(index!=2)
                 {
+                    peer.SendBufferSize=4096;
                     HostCheck.Equal(0,await peer.ReceiveAsync(new byte[1],SocketFlags.None,token));
-                    int length=index==0?65536:64;byte[] response=new byte[length];
+                    int length=index==0?524288:64;byte[] response=new byte[length];
                     for(int i=0;i<length;i++)response[i]=(byte)(i%251);
-                    for(int sent=0;sent<length;){int bytes=await peer.SendAsync(response.AsMemory(sent),SocketFlags.None,token);HostCheck.True(bytes>0);sent+=bytes;}
+                    if(index==0)
+                    {
+                        HostCheck.Equal(1,await peer.SendAsync(response.AsMemory(0,1),SocketFlags.None,token));
+                        uint next=ordinal+1;
+                        await Append($"M16_013_MESSAGE identity=4294967297 ordinal={next} nr=46 fd=7 generation={generation} header=8192 flags=0 table=12288 vectors=2 total=65535\r\n"+
+                            $"M16_013_VECTOR identity=4294967297 ordinal={next} index=0 address=16384 bytes=21844\r\n"+
+                            $"M16_013_VECTOR identity=4294967297 ordinal={next} index=1 address=38228 bytes=43691\r\n"+Call(46,7,-11,8192));
+                    }
+                    for(int sent=index==0?1:0;sent<length;){int bytes=await peer.SendAsync(response.AsMemory(sent),SocketFlags.None,token);HostCheck.True(bytes>0);sent+=bytes;}
                     peer.Shutdown(SocketShutdown.Send);
                 }
                 async Task Read(int end)
@@ -147,8 +159,8 @@ internal static class NativeAotSocketVectorsPeerLifecycleTests
                     }
                 }
             }
-            await Append(Call(3,7,0));
         }
+        await Append(Call(3,7,0));
         return result;
 
         Task Append(string value)=>File.AppendAllTextAsync(serial,value,token);

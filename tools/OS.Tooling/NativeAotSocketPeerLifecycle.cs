@@ -53,7 +53,7 @@ internal static class NativeAotSocketPeerLifecycle
             QemuTranscripts.RequireCompleteProcess(result,prefix+"_runner_incomplete");
             QemuTranscripts.RequireCompleteProcess(peerResult,prefix+"_peer_incomplete");
             if(!result.Succeeded||!peerResult.Succeeded||peerResult.StandardError.Length!=0)throw new ToolFailure(prefix+"_peer_or_runner_failed");
-            if(vectors)NativeAotSocketVectorsPeer.InspectOutput(peerResult.StandardOutput);
+            if(vectors)NativeAotSocketVectorsPeer.InspectOutput(peerResult.StandardOutput,requireSendBackpressure:true);
             else NativeAotSocketPeer.InspectOutput(peerResult.StandardOutput);
             inputs.VerifyUnchanged();byte[] bytes=Encoding.UTF8.GetBytes(peerResult.StandardOutput);
             return new(root,port,peerLog,Convert.ToHexString(SHA256.HashData(bytes)),result,gate);
