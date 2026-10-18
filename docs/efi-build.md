@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1399](../done/step1399.md) refreshes the seven changed startup/vector source
+identities after scoped source review. All207 normalized source identities now
+match; eight focused admission/inventory controls and the default-off M16013
+preflight pass. This permits candidate publication. It supplies no new native
+body/ABI/stack, CLROS guest or Kestrel qualification; stable acceptance and the
+fresh original web publication remain pending.
+
 ## Qualified bounded Linux thread and runtime profiles
 
 [Step1307](../done/step1307.md) joins final 5,202-check full-host acceptance,
