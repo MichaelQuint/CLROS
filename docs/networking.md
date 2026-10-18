@@ -76,10 +76,12 @@ keeps the remaining work at its required acceptance stage:
 [Step1420](../done/step1420.md) records development-only persist and pending-RST
 integration, plus explicit compact TIME-WAIT mode. Focused host models recover
 queued bytes, reuse one bulk slot across twelve active closes, preserve duplicate
-FIN ACKs under TX pressure and keep table exhaustion local. Compact mode is not
-yet enabled by an EFI profile. No new original-native/full-host/guest packet or
-cleanup qualification is accepted; #743/#744/#757 remain open in the six-ticket
-service-foundation batch.
+FIN ACKs under TX pressure and keep table exhaustion local. [Step1421](../done/step1421.md)
+wires compact mode into the default-off M16-014 service leaf. Serialized native
+observations join bulk retirement to retained generations, original/restarted
+deadlines, expiry and fixed-storage high-water marks. Its C# path compiles;
+original native review and guest packet/cleanup qualification remain pending.
+#743/#744/#757 stay open in the six-ticket service-foundation batch.
 
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.

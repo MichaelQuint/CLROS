@@ -52,6 +52,38 @@ internal static class LinuxThreadExecutionBudgetTests
         HostCheck.Equal(100UL, budget.ObservedNanoseconds);
     }
 
+    [HostTest("m16-014 one busy worker cannot borrow another worker's progress watchdog")]
+    private static void WorkerProgressIsolation()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(budget.Begin(2, 100, true, true, true));
+        HostCheck.True(budget.ObserveWorker(100, 0, 0, true));
+        HostCheck.True(budget.ObserveWorker(100, 1, 0, true));
+        HostCheck.True(budget.ObserveProgress(25_000_000_100, 1, true));
+        HostCheck.True(budget.ObserveWorker(25_000_000_100, 1, 1, true));
+        HostCheck.True(!budget.ObserveWorker(30_000_000_100, 0, 1, true));
+        HostCheck.Equal(25_000_000_100UL, budget.ObservedNanoseconds);
+        HostCheck.True(budget.ObserveWorker(30_000_000_100, 1, 2, true));
+        HostCheck.True(!budget.ObserveWorker(30_000_000_100, 1, 1, true));
+        HostCheck.True(!budget.ObserveWorker(30_000_000_100, 2, 0, true));
+    }
+
+    [HostTest("m16-014 parked worker re-arms and only reaped generation reset permits counter reuse")]
+    private static void WorkerIdleAndReap()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(budget.Begin(1, 100, true, true, true));
+        HostCheck.True(budget.ObserveWorker(100, 0, 9, true));
+        HostCheck.True(budget.ObserveWorker(200, 0, 9, false));
+        HostCheck.True(budget.ObserveWorker(3_600_000_000_100, 0, 9, true));
+        HostCheck.True(!budget.ObserveWorker(3_600_000_000_100, 0, 0, true));
+        HostCheck.True(budget.ForgetWorker(0));
+        HostCheck.True(budget.ObserveWorker(3_600_000_000_100, 0, 0, true));
+        HostCheck.True(budget.RequestCancellation() && budget.ForgetWorker(0));
+        HostCheck.True(!budget.ObserveWorker(3_600_000_000_100, 0, 1, false));
+        HostCheck.True(!budget.ForgetWorker(1));
+    }
+
     [HostTest("linux.thread-budget rejects uninitialized invalid and repeated admission without consuming a lifetime")]
     private static void Admission()
     {

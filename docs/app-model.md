@@ -82,10 +82,15 @@ policy, rather than an ever-larger finite startup reservoir.
 explicit preemptible per-turn syscall quotas, cumulative counters with overflow
 rejection, a 30-second runnable-progress watchdog, genuine-idle handling and
 latched cancellation. One host gate completes 12,288 calls across three owner
-turns; the budget model observes progress beyond 300 seconds. These APIs are not
-yet wired into the native driver or a sealed service profile. Existing EFI
-profiles retain their finite limits; no continuing guest service, entropy or
-shutdown acceptance follows from these host checks.
+turns; the budget model observes progress beyond 300 seconds. [Step1421](../done/step1421.md)
+wires a default-off M16-014 leaf into the native driver: only actual hardware
+epochs renew turn quotas, each runnable worker has its own progress watchdog,
+and explicit application exit uses the genuine off-stack reap/cleanup path.
+Its C# compilation and focused policy checks pass. The QEMU runner rejects this
+leaf until a dedicated complete lifecycle/packet inspector exists. Shared
+HMAC_DRBG primitives pass published vectors, but service syscall entropy and
+secret ISNs are not yet wired. Existing EFI profiles retain their finite limits;
+no continuing guest service, entropy or shutdown acceptance follows.
 
 M16-015 addresses the current requirement for contiguous physical backing even
 when a virtual mapping could use discontiguous owned frames. The review's

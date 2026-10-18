@@ -120,7 +120,16 @@ public static unsafe partial class EfiEntry
             if (call.Number == 3 && result.Value == 0 && c->WebBoundFd != 0 && call.Argument0 + 1 == c->WebBoundFd)
             {
                 if ((c->WebFlags & 16) != 0)
+#if M16_014_PROBE
+                {
+                    if (c->ServiceReady != 1 || c->ServiceShutdown != 0 ||
+                        !LinuxText(state, "M16_014_LISTENER_CLOSE identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                        !LinuxText(state, " fd=") || !LinuxNumber(state, call.Argument0) ||
+                        !LinuxText(state, " process=live cleanup=pending\r\n")) return false;
+                }
+#else
                 { _ = LinuxText(state, "TEST_FAIL m10.004 listener_closed\r\n"); return false; }
+#endif
                 c->WebBoundFd = 0; c->WebFlags &= ~4U;
             }
             return LinuxWebPublishLive(c);

@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "63f609b1298e6aaab6f3925ea147a9a569465be090051826dab88c360c7f0efe";
-    public const string CanonicalProjectSha256 = "a57ad2c0da0c8df824d7e0a6a0ab085598ad0f54af7077415a51c688dc7178a6";
+    public const string ProjectSourceSha256 = "74f9d0fabc98178e1951b1a99adbcb235e4d9990eabee8b0624fbe94be483bdf";
+    public const string CanonicalProjectSha256 = "dde402710fc5c402d08833c90839935de9fc35c6833d8472d13cc2eb0f68eae8";
     public const string EfiEntrySourceSha256 = "e8f0fe512e38b49f0af4a6c7b38c9053fbae0b3e5e57eb574709f9c07fbecb35";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -312,6 +312,9 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs|Runtime\BoundedExceptionFrameDispatch.cs",
         @"..\OS.Kernel\Manifest\LinuxElfPackage.cs|Manifest\LinuxElfPackage.cs",
         @"..\..\std\no-runtime\shared\Hash\Sha256.cs|Std\Hash\Sha256.cs",
+        @"..\..\std\no-runtime\shared\Hash\HmacSha256.cs|Std\Hash\HmacSha256.cs",
+        @"..\..\std\no-runtime\shared\Hash\HmacSha256Drbg.cs|Std\Hash\HmacSha256Drbg.cs",
+        @"..\..\std\no-runtime\shared\Memory\SensitiveMemory.cs|Std\Memory\SensitiveMemory.cs",
         @"..\OS.Kernel\Boot\WorkloadServiceLoop.cs|Boot\WorkloadServiceLoop.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs|Compatibility\LinuxX64\LinuxElfLoader.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs|Compatibility\LinuxX64\LinuxElfMapping.cs",
@@ -479,7 +482,7 @@ public static partial class EfiContracts
         "EnableM16009Probe",
         "EnableM16010Probe",
         "EnableM16011Probe",
-        "EnableM16012Probe", "EnableM16013Probe",
+        "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe",
         "EnableM16019InvalidProbe", "EnableM16019UnavailableProbe",
         "EnableUefiGoneSimulationProbe",
     ]);

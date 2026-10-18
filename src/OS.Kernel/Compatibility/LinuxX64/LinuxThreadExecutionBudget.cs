@@ -13,7 +13,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// A separately admitted continuing-service policy uses per-turn syscall quotas,
 /// actual preemption and a progress watchdog instead of that elapsed ceiling.
 /// No hardware, clock, scheduler, mapping, completion or cleanup is supplied.</summary>
-public struct LinuxThreadExecutionBudget
+public unsafe struct LinuxThreadExecutionBudget
 {
     public const ulong RuntimeNanoseconds = 300_000_000_000;
     public const uint WebMaximumEpochs = 1_000_000, WebMaximumSteps = 4_000_000;
@@ -23,6 +23,9 @@ public struct LinuxThreadExecutionBudget
     private bool _service, _cancelled, _runnable;
     private ulong _started, _last;
     private ulong _lastProgress, _progress;
+    private uint _runnableWorkers;
+    private fixed ulong _workerCalls[(int)LinuxThreadProgram.MaximumWorkers];
+    private fixed ulong _workerProgress[(int)LinuxThreadProgram.MaximumWorkers];
     public readonly ulong StartedNanoseconds => _started;
     public readonly ulong ObservedNanoseconds => _last;
     public readonly bool HasElapsedLimit => _workers != 0 && _application && !_service;
@@ -97,5 +100,39 @@ public struct LinuxThreadExecutionBudget
     {
         if (!_service || _workers == 0 || _cancelled) return false;
         _cancelled = true; return true;
+    }
+
+    /// <summary>Observe one actual worker generation before supervisor dispatch.
+    /// The owner authenticates the slot and derives runnable from its real kernel
+    /// thread state. Other workers' calls cannot renew this worker's watchdog.
+    /// A parked worker disarms its CPU-progress watchdog; becoming runnable arms
+    /// a fresh interval. Counter regression, late progress and invalid time reject
+    /// unchanged. Reusing a reaped slot requires ForgetWorker first.</summary>
+    public bool ObserveWorker(ulong now, uint worker, ulong calls, bool runnable)
+    {
+        if (!_service || _workers == 0 || _cancelled || worker >= _workers || now > long.MaxValue || now < _last) return false;
+        fixed (ulong* observed = _workerCalls)
+        fixed (ulong* progress = _workerProgress)
+        {
+            uint bit = 1U << (int)worker;
+            bool armed = (_runnableWorkers & bit) != 0;
+            if (calls < observed[worker] || armed && now - progress[worker] >= ServiceProgressNanoseconds) return false;
+            if (!armed || calls > observed[worker] || !runnable) progress[worker] = now;
+            observed[worker] = calls;
+            _runnableWorkers = runnable ? _runnableWorkers | bit : _runnableWorkers & ~bit;
+        }
+        _last = now; return true;
+    }
+
+    /// <summary>Forget only a generation already reaped off-stack by the trusted
+    /// supervisor. This cleanup operation remains available after cancellation;
+    /// it supplies no reap authority and cannot renew another live generation.</summary>
+    public bool ForgetWorker(uint worker)
+    {
+        if (!_service || _workers == 0 || worker >= _workers) return false;
+        fixed (ulong* observed = _workerCalls)
+        fixed (ulong* progress = _workerProgress)
+        { observed[worker] = 0; progress[worker] = 0; }
+        _runnableWorkers &= ~(1U << (int)worker); return true;
     }
 }

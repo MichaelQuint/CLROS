@@ -80,6 +80,11 @@ public static unsafe partial class EfiEntry
             internal ulong ResolveSent, ResolveReceived, ResolveStarted, ResolveEnded;
             internal ulong ArpReceived, Accepted, Ignored, Capacity, ArpCopied;
             internal ulong Fresh, Retired, Ended, MaximumDeadline;
+#if M16_014_PROBE
+            internal ulong CompactTransfers, CompactFresh, CompactRetired;
+            internal uint BulkHighWater, CompactHighWater;
+            internal fixed ulong CompactGenerations[64], CompactDeadlines[64];
+#endif
             internal fixed byte Endpoints[2048], Ports[32], Registrations[2560], Slots[8192], Entries[1024];
             internal fixed ulong Generations[8];
             internal fixed ulong Lifetimes[128];
@@ -103,7 +108,7 @@ public static unsafe partial class EfiEntry
                     !ReadNetworkTime(state, out o->Started)) return false;
                 o->Boot = state; o->Device = device; o->Phase = 1;
                 if (!ResolveLinuxSocketPeer(o)) return false;
-#if M10_004_PROBE
+#if M10_004_PROBE && !M16_014_PROBE
                 if (!LinuxText(state, "TEST_START m10.004\r\n")) return LinuxWebRetainFailure(state, null, 2);
                 bool ran = BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
@@ -170,7 +175,8 @@ public static unsafe partial class EfiEntry
                 var io = new TcpPassiveConnection.Operations { Context = o, NowNanoseconds = &LinuxSocketNow, Send = &LinuxSocketSendFrame,
                     LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
                 if (!SocketNetwork.Begin(&o->Network, &o->Sockets, &o->Table, (SocketNetwork.Slot*)o->Slots, LinuxSocketConnections,
-                    o->Buffers, LinuxSocketReceive, LinuxSocketSend, new(2, 0, 0, 0, 0, 1), o->Peer, new(10, 0, 2, 2), sequence, io)) return false;
+                    o->Buffers, LinuxSocketReceive, LinuxSocketSend, new(2, 0, 0, 0, 0, 1), o->Peer, new(10, 0, 2, 2), sequence, io,
+                    compactTimeWait: Probes.EnableM16014Probe)) return false;
                 o->Phase = 2;
                 return LinuxText(state, "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live\r\n");
             }
@@ -275,6 +281,9 @@ public static unsafe partial class EfiEntry
         {
             if (o->Network.Count != LinuxSocketConnections || !ReadNetworkTime(o->Boot, out ulong now)) return false;
             var observations = (LinuxSocketLifetime*)o->Lifetimes;
+#if M16_014_PROBE
+            uint bulk = 0;
+#endif
             for (uint i = 0; i < LinuxSocketConnections; i++)
             {
                 var slot = o->Network.Slots + i; var held = observations + i;
@@ -283,6 +292,26 @@ public static unsafe partial class EfiEntry
                     handle.Epoch == held->Handle.Epoch && handle.Generation == held->Handle.Generation && handle.Index == held->Handle.Index;
                 if (held->Active != 0 && (slot->Phase == 0 || !same))
                 {
+#if M16_014_PROBE
+                    // Read the actual retained tuple before recording bulk retirement.
+                    // A compact transfer preserves its original MSL deadline.
+                    var compact = TcpTimeWaitTable.Find(&o->Network.TimeWait, held->Key, out var retained, out var record);
+                    if (compact == TcpTimeWaitTable.Status.Success)
+                    {
+                        if (record.DeadlineNanoseconds < held->MaximumDeadline ||
+                            record.DurationNanoseconds < TcpTimeWaitTable.MinimumDurationNanoseconds ||
+                            !WriteLinuxSocketLifetime(o, "M07_030_TRANSFER", i, held, now) ||
+                            !LinuxText(o->Boot, " compactIndex=") || !LinuxNumber(o->Boot, retained.Index) ||
+                            !LinuxText(o->Boot, " compactGeneration=") || !LinuxNumber(o->Boot, retained.Generation) ||
+                            !LinuxText(o->Boot, " originalDeadline=") || !LinuxNumber(o->Boot, record.OriginalDeadlineNanoseconds) ||
+                            !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, record.DeadlineNanoseconds) ||
+                            !LinuxText(o->Boot, " duration=") || !LinuxNumber(o->Boot, record.DurationNanoseconds) ||
+                            !LinuxText(o->Boot, "\r\n") || o->CompactTransfers == ~0UL) return false;
+                        held->MaximumDeadline = record.DeadlineNanoseconds; held->Duration = record.DurationNanoseconds;
+                        o->CompactTransfers++;
+                    }
+                    else if (compact != TcpTimeWaitTable.Status.NotFound) return false;
+#endif
                     if (TcpConnectionTable.ReadOwned(&o->Table, held->Handle, out _) != TcpConnectionTable.OwnershipStatus.StaleHandle ||
                         !WriteLinuxSocketLifetime(o, "M16_011_SLOT event=1", i, held, now) ||
                         !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, held->MaximumDeadline) ||
@@ -290,6 +319,9 @@ public static unsafe partial class EfiEntry
                     o->Retired++; *held = default;
                 }
                 if (slot->Phase == 0) continue;
+#if M16_014_PROBE
+                bulk++;
+#endif
                 if (handle.OwnerAddress != (ulong)&o->Table ||
                     TcpConnectionTable.ReadOwned(&o->Table, handle, out var entry) != TcpConnectionTable.OwnershipStatus.Success) return false;
                 if (held->Active == 0)
@@ -321,8 +353,62 @@ public static unsafe partial class EfiEntry
                     !LinuxText(o->Boot, " drain=") || !LinuxNumber(o->Boot, draining ? 1UL : 0UL) || !LinuxText(o->Boot, "\r\n")) return false;
                 held->WaitObserved = 1; if (draining) held->DrainObserved = 1;
             }
+#if M16_014_PROBE
+            if (bulk > o->BulkHighWater) o->BulkHighWater = bulk;
+            return ObserveLinuxCompactTimeWait(o, now);
+#else
             return true;
+#endif
         }
+
+#if M16_014_PROBE
+        // Observe fixed metadata around each real transport mutation. Generation
+        // changes require the preceding record's actual deadline to have passed;
+        // duplicate FIN restarts remain visible after the bulk slot is reused.
+        private static bool ObserveLinuxCompactTimeWait(LinuxSocketStorage* o, ulong now)
+        {
+            var owner = &o->Network.TimeWait;
+            if (owner->Capacity != TcpTimeWaitTable.MaximumEntries) return false;
+            uint active = 0;
+            for (uint i = 0; i < owner->Capacity; i++)
+            {
+                ulong generation = owner->Entries[i].Generation, previous = o->CompactGenerations[i];
+                if (previous != 0 && previous != generation)
+                {
+                    if (now < o->CompactDeadlines[i] || o->CompactRetired == ~0UL ||
+                        !LinuxText(o->Boot, "M07_030_RECORD event=1 index=") || !LinuxNumber(o->Boot, i) ||
+                        !LinuxText(o->Boot, " generation=") || !LinuxNumber(o->Boot, previous) ||
+                        !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, o->CompactDeadlines[i]) ||
+                        !LinuxText(o->Boot, " clock=") || !LinuxNumber(o->Boot, now) || !LinuxText(o->Boot, "\r\n")) return false;
+                    o->CompactRetired++; o->CompactDeadlines[i] = 0;
+                }
+                if (generation != 0)
+                {
+                    var handle = new TcpTimeWaitTable.Handle(owner, (ushort)i, generation);
+                    if (TcpTimeWaitTable.Read(owner, handle, out var record) != TcpTimeWaitTable.Status.Success ||
+                        record.DeadlineNanoseconds < o->CompactDeadlines[i]) return false;
+                    active++;
+                    if (generation != previous || record.DeadlineNanoseconds != o->CompactDeadlines[i])
+                    {
+                        if (!LinuxText(o->Boot, "M07_030_RECORD event=") || !LinuxNumber(o->Boot, generation != previous ? 0UL : 2UL) ||
+                            !LinuxText(o->Boot, " index=") || !LinuxNumber(o->Boot, i) ||
+                            !LinuxText(o->Boot, " generation=") || !LinuxNumber(o->Boot, generation) ||
+                            !LinuxText(o->Boot, " originalDeadline=") || !LinuxNumber(o->Boot, record.OriginalDeadlineNanoseconds) ||
+                            !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, record.DeadlineNanoseconds) ||
+                            !LinuxText(o->Boot, " duration=") || !LinuxNumber(o->Boot, record.DurationNanoseconds) ||
+                            !LinuxText(o->Boot, " clock=") || !LinuxNumber(o->Boot, now) || !LinuxText(o->Boot, "\r\n")) return false;
+                        if (generation != previous)
+                        { if (o->CompactFresh == ~0UL) return false; o->CompactFresh++; }
+                        o->CompactDeadlines[i] = record.DeadlineNanoseconds;
+                    }
+                    if (record.DeadlineNanoseconds > o->MaximumDeadline) o->MaximumDeadline = record.DeadlineNanoseconds;
+                }
+                o->CompactGenerations[i] = generation;
+            }
+            if (active > o->CompactHighWater) o->CompactHighWater = active;
+            return active == owner->Count && o->CompactFresh == o->CompactTransfers;
+        }
+#endif
 
         private static bool WriteLinuxSocketLifetime(LinuxSocketStorage* o, string marker, uint index, LinuxSocketLifetime* held, ulong now) =>
             LinuxText(o->Boot, marker) && LinuxText(o->Boot, " slot=") && LinuxNumber(o->Boot, index) &&
@@ -427,6 +513,17 @@ public static unsafe partial class EfiEntry
                 }
                 if (!SocketNetwork.End(&o->Network) || TcpConnectionTable.RetireOwned(&o->Table) != TcpConnectionTable.OwnershipStatus.Success) return false;
                 if (!abort && (!ReadNetworkTime(state, out o->Ended) || o->Ended < o->MaximumDeadline)) return false;
+#if M16_014_PROBE
+                if (!abort && (o->CompactFresh != o->CompactRetired ||
+                    !LinuxText(state, "M07_030_END transfers=") || !LinuxNumber(state, o->CompactTransfers) ||
+                    !LinuxText(state, " retired=") || !LinuxNumber(state, o->CompactRetired) ||
+                    !LinuxText(state, " bulkHighWater=") || !LinuxNumber(state, o->BulkHighWater) ||
+                    !LinuxText(state, " compactHighWater=") || !LinuxNumber(state, o->CompactHighWater) ||
+                    !LinuxText(state, " bytesPerRecord=") || !LinuxNumber(state, (ulong)sizeof(TcpTimeWaitTable.Entry)) ||
+                    !LinuxText(state, " clock=") || !LinuxNumber(state, o->Ended) ||
+                    !LinuxText(state, " deadline=") || !LinuxNumber(state, o->MaximumDeadline) ||
+                    !LinuxText(state, " owner=retired\r\n"))) return false;
+#endif
                 o->Phase = 3; return true;
             }
         }

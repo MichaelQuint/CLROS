@@ -28,6 +28,9 @@ public static class QemuProfiles
             emit?.Invoke("QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true");
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
+        // The service leaf needs its own complete lifecycle/packet inspector.
+        // The continuing web prefix cannot accept its shutdown or renewed quotas.
+        Require(!profile.IsEnabled("M16014"), "continuing_service_runner_pending");
         // The socket union binds its original package/index and independent
         // peer, packet, transport and firmware evidence in the full runner.
         bool vectors=NativeAotSocketVectorsSelection.Bind(options,profile.Flags);
@@ -368,6 +371,7 @@ public static class QemuProfiles
         ("M10004", @"^(M10_00[456]_|CLROS_M10_00[456]_READY|TEST_(START|PASS) m10\.00[456])", "m10_004"),
         ("M16012", @"^(CLROS_M16_012_READY|TEST_(START|PASS) m16-012)", "m16_012"),
         ("M16013", @"^(CLROS_M16_013_READY|TEST_(START|PASS) m16-013)", "m16_013"),
+        ("M16014", @"^(M16_014_|CLROS_M16_014_READY|TEST_(START|PASS) m16\.014)", "m16_014"),
         ("M07027", @"^(M07_027_|CLROS_M07_027_READY|TEST_(START|PASS) m07[.]027)", "m07_027"),
         ("M07028", @"^(M07_028_|CLROS_M07_028_READY|TEST_(START|PASS) m07[.]028)", "m07_028"),
         ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
