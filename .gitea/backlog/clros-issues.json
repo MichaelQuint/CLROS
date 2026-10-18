@@ -22810,7 +22810,13 @@
         "tests/OS.HostTests/KestrelSocketSmokeTests.cs",
         "docs/kestrel.md",
         "docs/app-model.md",
-        "docs/workload-profiles.md"
+        "docs/workload-profiles.md",
+        "tools/OS.QemuRunner/WebFrameControl.cs",
+        "tools/OS.QemuRunner/WebSocketControls.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tests/OS.HostTests/WebFrameControlTests.cs",
+        "tests/OS.HostTests/WebSocketControlsTests.cs",
+        "tests/OS.HostTests/QemuRunnerHttpProbeTests.cs"
       ],
       "forbiddenPaths": [
         "README.md",

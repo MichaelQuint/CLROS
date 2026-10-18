@@ -8,6 +8,9 @@ guest time and the service batch remain unaccepted.
 [Step1408](../done/step1408.md) adds explicit guest-only socket policy negatives
 before the vector fixture's healthy exchange; host checks pass, with guest
 qualification pending. The Kestrel ledger owns its exact descriptor boundary.
+[Step1409](../done/step1409.md) wires actual external timeout/VLAN controls into
+the runner using the unchanged Kestrel app. Consumer integration and batch
+qualification remain pending; the Kestrel ledger owns the exact capture shape.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
 5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,

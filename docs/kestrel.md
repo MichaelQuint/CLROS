@@ -1,5 +1,17 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1409](../done/step1409.md) adds development-only external Kestrel controls
+to the web runner. A bounded loopback QEMU filter preserves unrelated frames,
+withholds only the designated peer's payload-free ACK/FIN/RST after its request,
+and injects one1518-byte VLAN frame. One retained keep-alive connection completes
+health before injection and again after actual peer-local timeout/device-drop
+rows. The runner retains all three raw responses, UTC intervals, exact withheld
+frames and joined frame-owner cleanup. The original Kestrel ELF is unchanged.
+Consumer work remains: eight TCP/nine HTTP observations for normal runs (seven/
+eight for quota), full packet/tuple/generation and UTC joins, and complete runtime
+replay. Current strict consumers reject the new capture shape. No new guest,
+kernel-native, service, cleanup, whole-stack, cloud or production gate is accepted.
+
 [Step1408](../done/step1408.md) implements development-only #221 policy controls
 in the finite socket-vector app's explicit `--policy` mode. Real Socket calls
 must reject port8081, foreign IPv4 10.0.2.2 and a competing listener, then exhaust

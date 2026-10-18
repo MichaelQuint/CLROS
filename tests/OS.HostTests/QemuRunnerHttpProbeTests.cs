@@ -22,7 +22,7 @@ internal static class QemuRunnerHttpProbeTests
             Run("qemu.runner.http_probe times out deterministically", () => TestTimesOutDeterministically(tempRoot), ref failures);
             Run("qemu.runner.continuing_web validates bounded selection", () => TestContinuingWebSelection(tempRoot), ref failures);
             Run("qemu.runner.continuing_web rejects occupied endpoint before launch", () => TestContinuingWebOccupiedPort(tempRoot), ref failures);
-            Run("qemu.runner.continuing_web probes after ordered startup before deferred logs", () => TestContinuingWebDeferredLogs(tempRoot), ref failures);
+            Run("qemu.runner.continuing_web preserves ordered probes but rejects absent control budget", () => TestContinuingWebDeferredLogs(tempRoot), ref failures);
             Run("qemu.runner.continuing_web rejects wrong vector bytes before later health", () => TestContinuingWebDeferredLogs(tempRoot, wrongVector: true), ref failures);
         }
         finally
@@ -232,6 +232,10 @@ internal static class QemuRunnerHttpProbeTests
             !accepted.Output.Contains("hostfwd=tcp:127.0.0.1:20080-:8080", StringComparison.Ordinal) ||
             !accepted.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=", StringComparison.Ordinal) ||
             accepted.Output.Contains("selected", StringComparison.Ordinal)) return false;
+        int redirect=accepted.Output.IndexOf("filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout",StringComparison.Ordinal);
+        int dump=accepted.Output.IndexOf("filter-dump,id=clroscapture,netdev=n0",StringComparison.Ordinal);
+        if(redirect<0 || dump<=redirect || !accepted.Output.Contains("port=<ephemeral-out>",StringComparison.Ordinal) ||
+            !accepted.Output.Contains("port=<ephemeral-in>",StringComparison.Ordinal))return false;
         bool Reject(string key, string? value = null, bool remove = false)
         {
             List<string> changed = [.. valid];
@@ -315,12 +319,14 @@ internal static class QemuRunnerHttpProbeTests
             summary.Contains("WEB_VECTOR_PROBE_RESULT fail", StringComparison.Ordinal) &&
             summary.Contains("WEB_VECTOR_PROBE_REASON body_mismatch", StringComparison.Ordinal) &&
             summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT not_run", StringComparison.Ordinal) &&
-            summary.Contains("FAIL_REASON web_vector_http_body_mismatch", StringComparison.Ordinal) : result.ExitCode == 0 &&
+            summary.Contains("FAIL_REASON web_vector_http_body_mismatch", StringComparison.Ordinal) : result.ExitCode == 20 &&
             result.Output.Split("HTTP_PROBE_PASS endpoint=", StringSplitOptions.None).Length == 7 &&
             summary.Contains("WEB_VECTOR_PROBE_RESULT pass", StringComparison.Ordinal) &&
             summary.Contains("WEB_VECTOR_PROBE_BODY_SHA256 " + vectorHash, StringComparison.Ordinal) &&
             summary.Contains("WEB_HEALTH_AFTER_PROBE_RESULT pass", StringComparison.Ordinal) &&
-            summary.Contains("FAIL_REASON none", StringComparison.Ordinal));
+            summary.Contains("WEB_SOCKET_CONTROLS none",StringComparison.Ordinal) &&
+            summary.Contains("WEB_PROCESS_ALIVE_AFTER_CONTROLS false",StringComparison.Ordinal) &&
+            summary.Contains("FAIL_REASON web_socket_controls_TimeoutException", StringComparison.Ordinal));
         return PassOrReport(wrongVector ? "wrong vector byte before later health" : "ordered startup before deferred logs", passed, new(result, summaryPath));
     }
 

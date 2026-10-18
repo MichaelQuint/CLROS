@@ -5,7 +5,8 @@ internal static class QemuCommandBuilder
         return options.QemuPath + " " + string.Join(" ", BuildArguments(options, ovmfCodePath).Select(Quote));
     }
 
-    public static IReadOnlyList<string> BuildArguments(RunnerOptions options, string ovmfCodePath, string? ethernetPeerNetdev = null)
+    public static IReadOnlyList<string> BuildArguments(RunnerOptions options, string ovmfCodePath, string? ethernetPeerNetdev = null,
+        IReadOnlyList<string>? webFrameArguments = null)
     {
         bool separateBoot = options.VirtioBlockBootImagePath is not null;
         List<string> arguments =
@@ -57,6 +58,15 @@ internal static class QemuCommandBuilder
 
         if (options.PciBarTestDevice)
             arguments.AddRange(["-device", "pci-testdev,addr=06.0,membar=2M"]);
+
+        // Backend TX is SLIRP -> guest. Put the redirector before the dump so
+        // reinjected TX (including the diagnostic VLAN) reaches the guest-side
+        // capture. Guest RX traverses the list in reverse and bypasses TX.
+        if (webFrameArguments is not null && !options.ContinuingWeb) throw new InvalidOperationException("Web filter requires continuing web.");
+        if (options.ContinuingWeb)
+            arguments.AddRange(webFrameArguments ?? new[] { "-chardev", "socket,id=clroswebout,host=127.0.0.1,port=<ephemeral-out>",
+                "-chardev", "socket,id=clroswebin,host=127.0.0.1,port=<ephemeral-in>",
+                "-object", "filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout" });
 
         if (options.EthernetCapturePath is not null)
             arguments.AddRange(["-object", "filter-dump,id=clroscapture,netdev=n0,file=" + options.EthernetCapturePath + ",maxlen=65536"]);
