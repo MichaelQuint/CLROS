@@ -213,6 +213,8 @@ public static partial class QemuTranscripts
             memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
             this.containmentCapture=containmentCapture;
+            socketPolicy=vectors && NativeAotSocketVectorsOutput.Read(socketCapture!.Output.Stdout).Policy;
+            if(socketPolicy)_=VectorSocketPolicyCalls(rows!);
             if(socket)socketObservations=(containment?containmentCapture!.Scheduling:socketCapture!).Readiness.ToDictionary(x=>x.RecordIndex);
             writeChannels=web?socketCapture!.Output.WriteChannels:Enumerable.Repeat(1U,writeLengths.Count).ToArray();
             if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!,hpetFrequencyHz);}

@@ -9,19 +9,35 @@ public static class NativeAotSocketVectorsOutput
 {
     public readonly record struct Connection(uint Index, uint ReceiveCalls, uint ReceivePartial, uint ReceiveBlocked,
         uint SendCalls, uint SendPartial, uint SendBlocked);
-    public sealed record Observation(IReadOnlyList<Connection> Connections);
+    public sealed record Observation(IReadOnlyList<Connection> Connections,bool Policy);
 
     /// <summary>Borrow complete LF/CRLF stdout for the selected port. Require
     /// four ordered exact request/response totals, the observed reset, pending
     /// receive disposal and joined final totals. Reject malformed, omitted or
     /// extra rows with ToolFailure. Returned numeric observations are read-only;
-    /// caller text remains owned by the caller and is not retained.</summary>
-    public static Observation Read(string text, int port = 8080)
+    /// caller text remains owned by the caller and is not retained. An explicit
+    /// policy prefix requires all four exact guest-only controls at port8080;
+    /// requirePolicy rejects its omission before any healthy peer progress.</summary>
+    public static Observation Read(string text, int port = 8080,bool requirePolicy=false)
     {
         Need(port is >= 1 and <= 65535 && text.Length is > 0 and <= 32768 && text.EndsWith('\n'), "extent");
         string[] rows = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n'); int at = 0;
         string Next() { Need(at < rows.Length, "missing_row"); return rows[at++]; }
         Need(Next() == "TEST_START nativeaot.socket.vectors", "start");
+        bool policy=at<rows.Length && rows[at].StartsWith("SOCKET_VECTOR_POLICY ",StringComparison.Ordinal);
+        Need(!requirePolicy || policy,"policy_missing");
+        if(policy)
+        {
+            Need(port==8080,"policy_port");
+            Need(Values(Next(),"SOCKET_VECTOR_POLICY","case","address","port","socket_error")
+                .SequenceEqual(new uint[]{0,0,8081,10013}),"policy_denied_port");
+            Need(Values(Next(),"SOCKET_VECTOR_POLICY","case","address","port","socket_error")
+                .SequenceEqual(new uint[]{1,167772674,8080,10013}),"policy_denied_address");
+            Need(Values(Next(),"SOCKET_VECTOR_POLICY","case","address","port","socket_error")
+                .SequenceEqual(new uint[]{2,0,8080,10048}),"policy_duplicate");
+            Need(Values(Next(),"SOCKET_VECTOR_POLICY","case","opened","limit","socket_error")
+                .SequenceEqual(new uint[]{3,10,16,10024}),"policy_capacity");
+        }
         Need(Values(Next(), "SOCKET_VECTOR_LISTEN", "port", "connections", "deadline_ms", "max_operations")
             .SequenceEqual(new uint[] { (uint)port, 4, 30000, 100000 }), "listen");
         Connection[] connections = new Connection[4];
@@ -51,7 +67,7 @@ public static class NativeAotSocketVectorsOutput
         }
         Need(Next() == "TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=524352 reset=1 pending=1 aborted=1" &&
             Next() == "APP_EXIT nativeaot.socket.vectors 0" && Next().Length == 0 && at == rows.Length, "terminal");
-        return new(Array.AsReadOnly(connections));
+        return new(Array.AsReadOnly(connections),policy);
     }
 
     private static uint[] Values(string row, string prefix, params string[] fields)
@@ -64,7 +80,8 @@ public static class NativeAotSocketVectorsOutput
             string key = fields[i] + "="; Need(words[i].StartsWith(key, StringComparison.Ordinal), "key");
             string number = words[i][key.Length..];
             Need(number.Length > 0 && (number.Length == 1 || number[0] != '0') &&
-                uint.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out values[i]) && values[i] <= 524352, "number");
+                uint.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out values[i]) &&
+                (fields[i] == "address" || values[i] <= 524352), "number");
         }
         return values;
     }

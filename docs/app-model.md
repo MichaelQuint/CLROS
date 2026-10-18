@@ -5,6 +5,9 @@ plumbing in [step1406](../done/step1406.md); see the [Kestrel ledger](kestrel.md
 for its UTC-RTC contract, finite lifetime and unvalidated guest boundary.
 [Step1407](../done/step1407.md) adds host UTC observation/packet Date checks;
 guest time and the service batch remain unaccepted.
+[Step1408](../done/step1408.md) adds explicit guest-only socket policy negatives
+before the vector fixture's healthy exchange; host checks pass, with guest
+qualification pending. The Kestrel ledger owns its exact descriptor boundary.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 startup/#745 vectors:
 5,619 full-host checks/751 fixtures (94 Native), three finite BufferList guests,

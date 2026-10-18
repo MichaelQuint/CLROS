@@ -13,7 +13,9 @@ public static class SocketVectorsFixture
 {
     private const int DeadlineMilliseconds = 30_000, MaximumOperations = 100_000;
 
-    /// <summary>Run four serialized peers on --port (default8080). Connections0/3
+    /// <summary>Run four serialized peers on --port (default8080). Explicit
+    /// --policy first checks the CLROS-only manifest bind and descriptor limits.
+    /// Connections0/3
     /// half-close after64 request bytes and receive524288/64 response bytes;1 resets
     /// after its request;2 sends no more data while a pending receive is disposed.
     /// Each request byte is(index*37+offset*11)%251; reply byte is offset%251.
@@ -22,7 +24,8 @@ public static class SocketVectorsFixture
     {
         output.WriteLine("TEST_START nativeaot.socket.vectors");
         int port = 8080, index = -1, reason = 0, error = 0, exit = 1;
-        if (args.Length != 0 && (args.Length != 2 || args[0] != "--port" ||
+        bool policy = args.Length == 1 && args[0] == "--policy";
+        if (!policy && args.Length != 0 && (args.Length != 2 || args[0] != "--port" ||
             !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out port) || port is < 1 or > 65535))
         {
             output.WriteLine("TEST_FAIL nativeaot.socket.vectors index=-1 reason=1 error=0");
@@ -30,6 +33,9 @@ public static class SocketVectorsFixture
         }
         try
         {
+            // Only the declared CLROS guest supplies this bind/fd policy.
+            // All negative owners close before normal four-peer progress begins.
+            if (policy && !SocketPolicyFixture.Run(output)) throw new Failure(20);
             using Socket listener = new(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
             listener.Blocking = false; listener.Bind(new IPEndPoint(IPAddress.Any, port)); listener.Listen(4);
             output.WriteLine($"SOCKET_VECTOR_LISTEN port={port} connections=4 deadline_ms={DeadlineMilliseconds} max_operations={MaximumOperations}");

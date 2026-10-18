@@ -3,6 +3,35 @@ using OS.Tooling;
 
 internal static class NativeAotSocketVectorsOutputTests
 {
+    internal const string PolicyRows = "SOCKET_VECTOR_POLICY case=0 address=0 port=8081 socket_error=10013\n" +
+        "SOCKET_VECTOR_POLICY case=1 address=167772674 port=8080 socket_error=10013\n" +
+        "SOCKET_VECTOR_POLICY case=2 address=0 port=8080 socket_error=10048\n" +
+        "SOCKET_VECTOR_POLICY case=3 opened=10 limit=16 socket_error=10024\n";
+
+    [HostTest("m10-008 vector stdout requires four exact policy negatives before healthy peer progress")]
+    private static void Policy()
+    {
+        string start="TEST_START nativeaot.socket.vectors\n";
+        string text=Output().Replace(start,start+PolicyRows,StringComparison.Ordinal);
+        HostCheck.True(NativeAotSocketVectorsOutput.Read(text,requirePolicy:true).Policy);
+        HostCheck.True(!NativeAotSocketVectorsOutput.Read(Output()).Policy);
+        void Invalid(string value)
+        { bool rejected=false;try{_ = NativeAotSocketVectorsOutput.Read(value,requirePolicy:true);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected); }
+        Invalid(Output());
+        foreach(var change in new (string From,string To)[]{
+            ("case=0 address=0 port=8081","case=0 address=0 port=8080"),
+            ("address=167772674","address=167772687"),
+            ("socket_error=10048","socket_error=10013"),
+            ("opened=10 limit=16","opened=9 limit=16"),
+            ("opened=10 limit=16","opened=10 limit=32"),
+            ("socket_error=10024","socket_error=10055"),
+            ("case=1 ","case=2 "),
+            ("SOCKET_VECTOR_POLICY case=0 address=0 port=8081 socket_error=10013\n","")})
+            Invalid(text.Replace(change.From,change.To,StringComparison.Ordinal));
+        Invalid(text+PolicyRows);
+        Invalid(text.Replace("APP_EXIT nativeaot.socket.vectors 0","APP_EXIT nativeaot.socket.vectors 1",StringComparison.Ordinal));
+    }
+
     internal static string Output()
     {
         List<string> rows = ["TEST_START nativeaot.socket.vectors",

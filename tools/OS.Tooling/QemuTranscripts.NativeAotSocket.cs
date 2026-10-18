@@ -51,6 +51,7 @@ public static partial class QemuTranscripts
 
     private sealed partial class ThreadingProtocol
     {
+        private readonly bool socketPolicy;
         private readonly Dictionary<int,NativeAotSocketGuest.Readiness> socketObservations=[];
         private readonly Dictionary<int,SocketDescriptor> socketDescriptors=[];
         private readonly Dictionary<int,NativeAotSocketMessages.Message> socketMessageInputs=[];
@@ -208,7 +209,12 @@ public static partial class QemuTranscripts
                 Need((b&~0x8080fUL)==0,"socket_create_flags");
                 if(a!=2)Need(result==-97,"socket_family_probe");
                 else if((b&15)!=1)Need(result==-94,"socket_type_probe");
-                else {Need(c is 0 or 6,"socket_protocol");SocketInstall(v,false,(uint)b&0x80800);}
+                else
+                {
+                    Need(c is 0 or 6,"socket_protocol");
+                    if(result==-24)Need(socketPolicy && LowestFd()==-1,"socket_descriptor_capacity");
+                    else SocketInstall(v,false,(uint)b&0x80800);
+                }
                 return true;
             }
             if(nr is 213 or 291)
@@ -299,8 +305,14 @@ public static partial class QemuTranscripts
             switch(nr)
             {
                 case 49:
-                    Need(descriptor.Phase==0 && c==16 && memory.Covered(b,16,1) && v==0,"socket_bind");descriptor.Phase=1;break;
-                case 50:Need(descriptor.Phase is 1 or 2 && b==(containment?3UL:web?512UL:4UL) && v==0,"socket_listen");descriptor.Phase=2;break;
+                    Need(descriptor.Phase==0 && c==16 && memory.Covered(b,16,1),"socket_bind");
+                    if(result<0)
+                        Need(socketPolicy && (result==-13 || result==-98 && socketDescriptors.Values.Any(other=>
+                            !other.Port && other.Phase==2)),"socket_policy_bind_error");
+                    else {Need(v==0,"socket_bind_result");descriptor.Phase=1;}
+                    break;
+                case 50:Need(descriptor.Phase is 1 or 2 && (socketPolicy?b is 1 or 4:b==(containment?3UL:web?512UL:4UL)) &&
+                    v==0,"socket_listen");descriptor.Phase=2;break;
                 case 43:case 288:
                     Need(descriptor.Phase==2 && (b==0 || memory.Covered(b,16,3) && memory.Covered(c,4,3)) &&
                         (nr==43 || (d&~0x80800UL)==0),"socket_accept_arguments");

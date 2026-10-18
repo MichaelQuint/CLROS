@@ -29,11 +29,11 @@ public sealed class NativeAotSocketVectorsProgram
         int offset = 64 + Encoding.ASCII.GetByteCount(NativeAotSocketVectorsPackage.Manifest);
         var parsed = NativeAotInstructionIndex.Parse(package[offset..], disassembly,
             "socket_vectors_instruction_", "CLROS_SOCKET_INSTRUCTIONS_V1\n", 600_000, 32 * 1024 * 1024);
-        // Pinned original decoder: all1159902 bytes of five executable sections,
-        // entry and186 syscall continuations independently checked. The86 load
-        // padding bytes outside those sections grant no instruction starts.
-        if (parsed.Report != new NativeAotInstructionIndex.Inspection(349_579, 186,
-            "ABC34CB957697BAA4668147FA7EACAD2D17778F11ABD86C8B73559655D230E5E") || !parsed.SyscallContinuationsValid)
+        // Pinned policy-fixture decoder: all1162046 bytes of five executable
+        // sections, entry and186 syscall continuations independently checked.
+        // Load padding outside those sections grants no instruction starts.
+        if (parsed.Report != new NativeAotInstructionIndex.Inspection(350_241, 186,
+            "12CD4B3227A27A20065C1BE9B1F2AB78C6C5C1C15A0A1D0197280E68E6A44C3B") || !parsed.SyscallContinuationsValid)
             throw new InvalidDataException("socket_vectors_instruction_identity");
         NativeAotSocketVectorsPackage.RequireCurrentSources(root); return new(root, parsed);
     }

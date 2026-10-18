@@ -13,23 +13,24 @@ namespace OS.Tooling;
 /// grants neither Linux execution qualification nor CLROS guest acceptance.</summary>
 public static class NativeAotSocketVectorsPackage
 {
-    public const int ElfBytes = 1_845_008;
-    public const string ElfSha256 = "555316FC6EF4E38B763A118A6F80FA6F7EC4C63942AD6E58830C3D5FADAC5936";
+    public const int ElfBytes = 1_849_200;
+    public const string ElfSha256 = "CEC0D9B05F242E31A7D40EDDB5CA2FFFBA7D9326044EF7E3DA5469F8D72E5C91";
     private const string App = NativeAotSocketVectorsPublisher.Application;
-    private const string ReceiptSha256 = "58423980D65D2375D433AE512B84B5DF54F29285EACF80E0047D75D88C339C4E";
+    private const string ReceiptSha256 = "5E18B3E100C4D2DAA5A984F6DC7EB8345E806ACB4103577BFD0C81588C555E6B";
     private static readonly (string Name, string Sha256)[] AppSources = [
         ("Program.cs", "B6D30356A7A372FE6A3C355022FB33B219767A8B0F271EB57123044B39340752"),
-        ("SocketVectorsFixture.cs", "63C61901A23E85535CFB120F1DA5DEBA07DEDBFA604F83A7D06A26294EBE5D5A"),
+        ("SocketVectorsFixture.cs", "B764A02894DBA5660F966AE30FAB5E42B3CB59EDA9180DDB3A8228913D8FAB3A"),
+        ("SocketPolicyFixture.cs", "B0DADF95D3BCD1C33EC36A0EFCBD5B8C5991F34606538BCFE067085AC700AE4E"),
         (App + ".csproj", "D8AFB29D1F4465AD7D3EF3F4A292255DBC5E6975FFD4AD02948E912B1D88564B")];
 
-    /// <summary>Finite four-peer diagnostic policy: no arguments, sixteen thread
-    /// and fd slots, explicit user IRQs and one passive IPv4 bind.</summary>
+    /// <summary>Finite four-peer diagnostic with explicit guest-only --policy
+    /// controls, sixteen thread/fd slots, user IRQs and one passive IPv4 bind.</summary>
     public static string Manifest => "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\napp.path=apps/" + App +
-        "\nargs=\ndigest=" + ElfSha256.ToLowerInvariant() +
+        "\nargs=--policy\ndigest=" + ElfSha256.ToLowerInvariant() +
         "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=0.0.0.0:8080\nenv.CLROS_USER_IRQS=1\n";
 
     /// <summary>Validate current original socket build/consumer inputs and the
-    /// publisher's exact three app files. Generated bin/obj are excluded; source
+    /// publisher's exact four app files. Generated bin/obj are excluded; source
     /// links, overrides and extra app files reject. No publication is performed.</summary>
     public static void RequireCurrentSources(string root)
     {
@@ -67,7 +68,7 @@ public static class NativeAotSocketVectorsPackage
         Need(Inventory(publicationRoot).SequenceEqual(outputs.Select(output => output.Name)
             .Concat(["publication.json", "publication.lock"]).Order(StringComparer.Ordinal)), "output_inventory");
         Need(Hash(retained["recipe/receipt.json"]) == "E2600BF12DACCC159AECFAE1A3209027905AB2757D228009F0C6ADDC6A084D0B" &&
-            Hash(retained["originals/OS.Tooling.dll"]) == "1E04BB1572D483B7767C7302DA3AE5BD84CC085253D12819C236D1466AD29BB3", "producer_identity");
+            Hash(retained["originals/OS.Tooling.dll"]) == "57FFAEB5750E66D3F9DF66C6B433C0BD846F60C5AB25E8217B0BD4104FAA8D3E", "producer_identity");
         byte[] elf = retained[App + "/" + App];
         Need(elf.Length == ElfBytes && Hash(elf) == ElfSha256, "elf_identity");
         _ = NativeAotPayload.Inspect(elf);

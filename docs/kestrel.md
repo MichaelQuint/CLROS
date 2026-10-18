@@ -1,5 +1,18 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1408](../done/step1408.md) implements development-only #221 policy controls
+in the finite socket-vector app's explicit `--policy` mode. Real Socket calls
+must reject port8081, foreign IPv4 10.0.2.2 and a competing listener, then exhaust
+the16-descriptor budget. Standard I/O, the runtime wake pipe and epoll port retain
+six descriptors; ten sockets fill the remaining slots. Every negative owner is
+disposed before the existing four-peer exchange. Strict stdout and syscall
+prefix checks require the errors, close/reuse and later listener progress.
+Thirty-five focused checks across11 fixtures pass, including complete replay,
+source/package guards and real loopback peers. Fresh original Linux publication
+and exact package/decoder admission pass. Stable-batch kernel native/guest
+qualification remains pending; these controls do not yet qualify #221 or
+endpoint-table exhaustion.
+
 [Step1407](../done/step1407.md) adds development-only external UTC checks. The
 runner records host UTC windows around each HTTP probe; the verifier joins them
 to the owned child lifetime and independently reconstructed packet responses.
@@ -10,7 +23,7 @@ only the validated29-byte Date field. Seventeen focused checks pass, including
 epoch/stale/future/frozen time and reversed/overflowed interval controls. This
 does not qualify guest UTC or #223. #220 now has an indexed actual wait-token
 rearm sequence; same-Kestrel timeout/rejected-frame progress and #221's real
-guest policy negatives still need implementation/qualification.
+guest policy negatives still need qualification (step1408 implements the fixture).
 
 [Step1406](../done/step1406.md) adds development-only #759 realtime plumbing in
 the owned #220/#221/#222/#759/#223 batch. A copied, validated UEFI time is anchored
