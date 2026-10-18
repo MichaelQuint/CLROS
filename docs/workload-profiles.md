@@ -19,7 +19,7 @@ below before #224; preserve shared owner #737.
 [Step1426](../done/step1426.md) adds the separate `MinimalApiService` fixture
 and canonical envelope for this continuing batch. The envelope requires the
 explicit v1 service argument/configuration,8080/content root,64MiB and16
-threads/descriptors. [Step1427](../done/step1427.md) adds its original static-musl
+threads/descriptors. [Step1427](../done/step1427.md) records its initial static-musl
 publication and exact source/ELF/complete-index reader:1,356,654 instructions,
 198 syscall continuations and all five executable sections are checked. A strict
 status reader treats application reports as untrusted telemetry. These are
@@ -32,6 +32,16 @@ and successful long-running peer protocol have not executed. The guest pipeline
 retains its runner guard until complete service replay, transport controls and
 lifecycle/packet checks exist. The seven owned issues remain open; no acceptance
 gate advances.
+
+[Step1429](../done/step1429.md) adds explicit service random controls: two16384-byte
+requests permit the adapter's8192-byte partial result while checking the untouched
+suffix; zero-length, invalid-flag8 and NULL-buffer calls check exact errors.
+Separate service readers retain cumulative call/readiness ordinals, allow bounded
+128MiB serial framing and check random metadata/counters/erasure against original
+calls. Finite readers keep their8MiB/4096-call bounds. The revised fixture requires
+its own publication and complete instruction index, retained in step1429.
+These components do not complete scheduling, packet or resource-lifetime replay;
+the runner guard and all seven open issue states remain.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32

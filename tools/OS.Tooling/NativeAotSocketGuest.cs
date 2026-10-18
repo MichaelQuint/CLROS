@@ -50,15 +50,25 @@ public static class NativeAotSocketGuest
         return ReadReadiness(output);
     }
 
+    /// <summary>Frame bounded continuing-service fd1/fd2 bytes and bind epoll
+    /// observations using cumulative generation ordinals. Pending waits remain
+    /// observations, including waits retired later by exit. Borrow raw bytes
+    /// synchronously; invalid framing/owner/sequence/return records throw. This
+    /// checks no app output, complete scheduler, packets, shutdown or authority.</summary>
+    public static Capture ReadService(ReadOnlySpan<byte> rawTail) =>
+        ReadReadiness(NativeAotThreadingOutput.ReadService(rawTail), service: true);
+
     // Shared value-only readiness binding after the caller has framed output.
     // This deliberately permits pending waits at a continuing capture boundary;
     // complete scheduling/lifetime replay remains a separate requirement.
-    internal static Capture ReadReadiness(NativeAotThreadingOutput.Capture output)
+    internal static Capture ReadReadiness(NativeAotThreadingOutput.Capture output) => ReadReadiness(output, service: false);
+
+    private static Capture ReadReadiness(NativeAotThreadingOutput.Capture output, bool service)
     {
         Need(output.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "raw_terminal");
         string[] rows = output.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
-        var waits = QemuTranscripts.ReadLinuxCallWaits(rows, allowEpoll: true);
-        _ = QemuTranscripts.ReadLinuxCallReturns(rows, allowEpoll: true);
+        var waits = service ? QemuTranscripts.ReadLinuxServiceCallWaits(rows) : QemuTranscripts.ReadLinuxCallWaits(rows, allowEpoll: true);
+        _ = service ? QemuTranscripts.ReadLinuxServiceCallReturns(rows) : QemuTranscripts.ReadLinuxCallReturns(rows, allowEpoll: true);
         var calls = waits.ToDictionary(value => value.RecordIndex);
         Dictionary<ulong, (ulong Sequence, ulong Deadline, uint Completion, ulong? Returned)> pending = [];
         Dictionary<ulong, uint> activeSources = [];

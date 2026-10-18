@@ -8,7 +8,7 @@ public static class NativeAotServicePublisher
     public const string Application = NativeAotServicePackage.Application;
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "service", [
         ("Program.cs", "DC48006F173CCD125EFDA43E361CEE73B8BBFB968ED0D1BCA20D04C4E78296A0"),
-        ("ServiceExercise.cs", "D6E48CB9EF1D58E6935BD6275B9DDCD7D46937A44B5FA04BDC200F8884F9F462"),
+        ("ServiceExercise.cs", "6350C94547E72DA6CF85B2FE17876A761D565CE3B5C3B0DCD125A304910D90CF"),
         ("appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5"),
         (Application + ".csproj", "0B267A2A4EE1B931BF1CAD5DC025356345EE74AE8463D1A16B8C27A8D6C5B5D7")]);
 

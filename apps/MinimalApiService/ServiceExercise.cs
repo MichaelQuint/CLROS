@@ -60,8 +60,16 @@ internal sealed class ServiceExercise(Action failed) : IDisposable
         byte[]? random = null;
         try
         {
-            random = new byte[8192];
+            random = new byte[16384];
             Volatile.Write(ref managedWorkerId, Environment.CurrentManagedThreadId);
+            random.AsSpan().Fill(0xa7);
+            fixed (byte* output = random)
+            {
+                if (GetRandom(output, 0, 1) != 0 || random[0] != 0xa7) { Reject(320); return; }
+                if (GetRandom(output, 1, 8) != -1 || Marshal.GetLastPInvokeError() != 22 || random[0] != 0xa7) { Reject(321); return; }
+                if (GetRandom(null, 32, 1) != -1 || Marshal.GetLastPInvokeError() != 14) { Reject(322); return; }
+            }
+            Console.Error.WriteLine("CLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14");
             while (!stop.IsSet)
             {
                 // At40 getpid calls/second, this same worker exceeds4096 calls
@@ -75,9 +83,17 @@ internal sealed class ServiceExercise(Action failed) : IDisposable
                 if (iteration < 2 || (iteration & 15) == 0)
                 {
                     nuint wanted = iteration < 2 ? (nuint)random.Length : 32;
+                    nint received;
+                    random.AsSpan().Fill(0xa7);
                     fixed (byte* output = random)
-                        if (GetRandom(output, wanted, 1) != (nint)wanted) { Reject(318); return; }
-                    Interlocked.Increment(ref randomRequests); Interlocked.Add(ref randomBytes, (long)wanted);
+                        received = GetRandom(output, wanted, 1);
+                    // The same original fixture permits Linux's full result and
+                    // the CLROS adapter's bounded8192-byte prefix. Native syscall
+                    // replay must independently require the actual guest policy.
+                    if (received != (nint)wanted && !(wanted == 16384 && received == 8192)) { Reject(318); return; }
+                    for (int i = (int)received; i < random.Length; i++)
+                        if (random[i] != 0xa7) { Reject(319); return; }
+                    Interlocked.Increment(ref randomRequests); Interlocked.Add(ref randomBytes, (long)received);
                     random.AsSpan().Clear(); // Never return random output through HTTP/serial.
                 }
                 Interlocked.Increment(ref iterations);
