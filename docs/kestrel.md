@@ -1,106 +1,30 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1415](../done/step1415.md) corrects the normal large-response call inventory
-for explicit transport controls: eight accepts retain the fifth vector response
-and sixth later health; historical callers still require six. The fresh corrected
-clock capture passes parent/runtime replay, then fails the older six-accept cap
-before packet qualification. That capture remains failed. Diagnose complete
-retained packet/Date joins before fresh strict repetitions; no issue acceptance
-advances from runner success or offline diagnostics.
+[Step1416](../done/step1416.md) consolidates development for the owned
+#220/#221/#222/#759/#223 batch under #737. At frozen implementation `02859bfd`,
+three normal web, three quota and three finite socket-policy captures pass their
+strict outer validators. Original source, native, serial, packet and external
+peer joins are retained. The web prefixes preserve exact HTTP entities, the
+49,152-byte vector response, later health and the same healthy connection across
+bad-peer timeout and rejected-frame controls. Real socket negatives reject the
+unauthorized port/address, duplicate listener and descriptor-capacity limit.
 
-[Step1414](../done/step1414.md) retains four original EFI candidates and two
-actual pre-entry UTC copied-source rejection guests. Both exact nine-row tails
-show released package/startup backing, two closed handles and checkpoint96 with
-no workload entry/readiness. Dedicated bounded Windows jobs terminate the
-spinning rejected guests; they grant no ordinary smoke or service success.
-The first fresh normal web guest serves exact external health and the runner
-finishes, but complete replay rejects successful CLOCK_REALTIME under its older
-unsupported-ID0 rule. The scoped correction admits checked successful ID0 only
-for the realtime-dependent web fixture; other profiles retain their unsupported
-contract. Focused replay checks precede fresh strict qualification. The failed
-web capture remains failed; positive UTC, full-host, remaining native/ancestor
-and service-batch acceptance remain pending.
+The copied UEFI UTC seed shares the owned HPET epoch, with the finite UTC-RTC
+policy and 600-second lifetime from [step1406](../done/step1406.md). Captures retain
+plausible advancing HTTP Date windows, raw responses and normalized Date hashes.
+The separate [step1414](../done/step1414.md) unavailable/invalid copied-source
+controls refuse entry/readiness and release startup/package owners; they do not
+establish a failed firmware read. Four original EFI candidates and eight bounded
+native reviews account for changed clock/admission/observer paths and declared
+parent layout deltas, without transitive or whole-stack claims.
 
-[Step1412](../done/step1412.md) adds default-off unavailable/invalid UTC admission
-controls for #759. Each requires a successful firmware read and valid calendar
-before changing the copied status or month. The ordinary admission path must
-refuse preparation at checkpoint96, release package/startup owners and report
-that firmware remains active without workload entry or readiness. These are
-copied-source fault controls; they do not establish actual firmware failure.
-Both selected EFI managed compilations pass. A separate strict rejection-capture
-inspector requires the original firmware prefix, exact cleanup and failure tail
-through EOF; ordinary QEMU smoke rejects either fault selection. Focused host
-checks are synthetic. Source admission currently rejects the unreviewed realtime
-source inventory; original source/native review and actual positive/negative
-guest captures remain required at the stable-batch boundary. No acceptance advances.
-
-[Step1411](../done/step1411.md) connects the control consumers through production
-parent, runtime and packet validation. The mandatory runner report is checked
-first. Original drop/timeout rows remain at their scheduler positions; the
-transport validator binds the full live handle/generation/tuple, the30-second
-close bound and subsequent private retirement. Runtime replay requires the bad
-fd closed at timeout while the same healthy accepted object stays open with
-exact first-response I/O, then completes the second exchange. Existing FIFO,
-wait, memory, descriptor and TIME-WAIT checks remain. Thirty focused synthetic
-checks pass. No new guest, EFI native or full-host qualification is claimed;
-actual unavailable/invalid guest UTC captures and stable-batch qualification remain.
-
-[Step1410](../done/step1410.md) adds development-only consumers for the runner
-reports and control packet streams. Production runner inspection requires exact
-control schemas, lifecycle, raw HTTP, Date and UTC-window joins; the explicit
-historical seam returns unchecked controls. Packet inspection supports normal
-eight TCP/nine HTTP observations and quota seven/eight, including two responses
-on the same healthy connection, exactly one ordered literal VLAN and validated
-withheld response ACKs for the bad peer. Twenty-six focused synthetic checks pass.
-Step1411 supplies original-position kernel replay, live handle/generation/private
-retirement joins and production packet wiring. These are implementation and
-focused host evidence; the stable-batch native/full-host/guest boundary remains.
-
-[Step1409](../done/step1409.md) adds development-only external Kestrel controls
-to the web runner. A bounded loopback QEMU filter preserves unrelated frames,
-withholds only the designated peer's payload-free ACK/FIN/RST after its request,
-and injects one1518-byte VLAN frame. One retained keep-alive connection completes
-health before injection and again after actual peer-local timeout/device-drop
-rows. The runner retains all three raw responses, UTC intervals, exact withheld
-frames and joined frame-owner cleanup. The original Kestrel ELF is unchanged.
-Steps1410/1411 implement the report/packet and live-handle/runtime joins. No new guest,
-kernel-native, service, cleanup, whole-stack, cloud or production gate is accepted.
-
-[Step1408](../done/step1408.md) implements development-only #221 policy controls
-in the finite socket-vector app's explicit `--policy` mode. Real Socket calls
-must reject port8081, foreign IPv4 10.0.2.2 and a competing listener, then exhaust
-the16-descriptor budget. Standard I/O, the runtime wake pipe and epoll port retain
-six descriptors; ten sockets fill the remaining slots. Every negative owner is
-disposed before the existing four-peer exchange. Strict stdout and syscall
-prefix checks require the errors, close/reuse and later listener progress.
-Thirty-five focused checks across11 fixtures pass, including complete replay,
-source/package guards and real loopback peers. Fresh original Linux publication
-and exact package/decoder admission pass. Stable-batch kernel native/guest
-qualification remains pending; these controls do not yet qualify #221 or
-endpoint-table exhaustion.
-
-[Step1407](../done/step1407.md) adds development-only external UTC checks. The
-runner records host UTC windows around each HTTP probe; the verifier joins them
-to the owned child lifetime and independently reconstructed packet responses.
-Every Date must fall within its window plus five seconds and never regress;
-normal logging runs must advance. The short quota control may share one cached
-Date second. Exact raw-response hashes are retained; a second hash normalizes
-only the validated29-byte Date field. Seventeen focused checks pass, including
-epoch/stale/future/frozen time and reversed/overflowed interval controls. This
-does not qualify guest UTC or #223. #220 now has an indexed actual wait-token
-rearm sequence; same-Kestrel timeout/rejected-frame progress and #221's real
-guest policy negatives still need qualification (step1408 implements the fixture).
-
-[Step1406](../done/step1406.md) adds development-only #759 realtime plumbing in
-the owned #220/#221/#222/#759/#223 batch. A copied, validated UEFI time is anchored
-to the same HPET owner before firmware exit. The finite web fixture declares
-`-rtc base=utc,clock=host`; only that UTC-RTC contract permits an unspecified
-firmware timezone. Seasonal rules are unsupported. The seed expires after
-600 monotonic seconds, and a failed realtime syscall aborts the web application
-before the PAL can substitute Unix epoch. Focused host checks and the selected
-EFI managed build pass. Native publication/review, positive and negative guest
-time controls, trusted HTTP Date intervals, and the remaining service ladder
-are pending. These changes do not qualify #759 or alter step1405's accepted scope.
+The subsequent full-host attempt fails profile/source expectations for the two
+new default-off controls and is stopped before ancestors. Step1416 corrects only
+test expectations; 103 focused checks across 11 fixtures pass. Fresh unfiltered
+full-host, eight affected ancestors and final dependency/tracker acceptance are
+still required. The nine captures retain their original source label. All five
+issues remain open; no new Kestrel/service or numbered acceptance follows yet.
+The implementation and failed-capture history remains in steps1406-1415.
 
 [Step1405](../done/step1405.md) qualifies bounded #219 upstream startup and
 #745 checked socket vectors. Frozen implementation `8ef72134` passes 5,619
