@@ -1,5 +1,14 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1418](../done/step1418.md) corrects command-specific rejection expectations
+for the two UTC fault descendants. The third unfiltered attempt passes all
+4,613 checks in 663 fast fixture groups, then exposes one Native-lane expectation
+failure and is stopped before ancestors. Production correctly rejects the
+conflicting profile. The four-file test-only repair passes 18 focused fast
+checks and the previously failing Native case; guest and project bytes stay
+unchanged. A fresh frozen full-host gate and eight affected ancestors remain
+required. The failed attempt is retained without acceptance or fixture reuse.
+
 [Step1417](../done/step1417.md) completes the UTC controls in the project's
 Diagnostic, VerifiedExit and containment policy inventories, updating their two
 reviewed project hashes. The second full-host attempt completes 663 fast fixture
