@@ -70,6 +70,7 @@ internal static class NativeAotSocketVectorsTests
         HostCheck.True(rows.Any(row => row.StartsWith("SOCKET_VECTOR_CONNECTION index=2 ", StringComparison.Ordinal) && row.Contains("pending=1 aborted=1", StringComparison.Ordinal)));
         HostCheck.True(rows.Contains("TEST_PASS nativeaot.socket.vectors connections=4 received=256 sent=65600 reset=1 pending=1 aborted=1"));
         HostCheck.True(rows.Contains("APP_EXIT nativeaot.socket.vectors 0"));
+        _ = OS.Tooling.NativeAotSocketVectorsOutput.Read(string.Join('\n', rows) + "\n", port);
         foreach (string row in rows) Console.WriteLine("VECTOR_APP_OUTPUT " + row);
     }
 

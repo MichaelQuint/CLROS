@@ -13,6 +13,12 @@ the real managed BufferList fixture and a fixed49152-byte Kestrel response; thre
 focused host checks pass. Its host run observes a partial request but no partial
 send. #219/#745 and later service/time issues remain open.
 
+[Step1394](../done/step1394.md) retains the original BufferList fixture's Linux
+publication and exact package/complete instruction admission. Focused controls
+join ordered app output, reset, disposal and counters; original publication bytes
+and their producer remain distinct from later host tooling. CLROS vector profile,
+full native/serial/packet joins and stable batch qualification remain pending.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired

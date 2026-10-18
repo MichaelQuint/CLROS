@@ -19,8 +19,9 @@ peer reset, disposal of a genuinely pending BufferList receive and a later healt
 reply. The actual managed app implementation and MinimalApiSmoke's fixed49152-byte
 `/__clros/vectors` route pass three focused host checks. Partial receive is observed;
 host send_partial remains zero. Staging three response blocks does not establish
-actual Linux syscall segmentation or backpressure. Native publication, explicit
-guest profile/peer and strict packet integration remain pending.
+actual Linux syscall segmentation or backpressure. Step1394 adds the original
+publication/package/index below; explicit guest profile and strict packet
+integration remain pending.
 
 [Step1393](../done/step1393.md) implements the vector publisher and independent
 peer driver, reusing the original containment publication pipeline and live serial
@@ -36,9 +37,32 @@ dotnet run --project tools/OS.Tooling -- nativeaot socket-vectors publish --reci
 
 The preparatory `nativeaot socket-vectors guest-peer --port <forward> --serial
 <owned-serial>` driver gates first3 bytes/reset request consumption, holds the first
-response250ms and verifies257-byte reads. Managed execution passes; positive Linux
-publication and an admitted vector guest profile/package/native lookup remain
-pending. No CLROS vector execution or backpressure acceptance follows yet.
+response250ms after a non-consuming first-byte check and verifies257-byte reads.
+Managed execution passes. [Step1394](../done/step1394.md) retains the successful
+original Linux publication: ELF1845008 bytes, SHA256
+`94D330D2BEED5BF11010D6D681D87F7164E55DF8972875CBE6B7BB40A9D77D3B`.
+Exact package admission checks its complete20-output receipt and original
+producer/recipe. The sealed instruction lookup binds349523 original instructions
+and186 syscall continuations across all five executable sections. Strict stdout
+decoding joins each request's progress, final counters, reset and pending-receive
+disposal; only this fixture permits up to32768 stdout bytes for per-read progress.
+These are preparation and focused host controls. An admitted CLROS vector profile,
+complete native/serial/packet replay and stable batch qualification remain pending.
+The separate original Linux-host run passes exact external bytes/reset/disposal
+and later health. Strace observes two-vector receives/sends and a native short
+send46720 followed by18816 remaining bytes, although the app reports one completed
+send and send_partial0. Native syscall results must establish partial-send
+behavior; app counters alone cannot. This run grants no CLROS guest evidence.
+
+```text
+dotnet run --project tools/OS.Tooling -- linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>
+dotnet run --project tools/OS.Tooling -- linux socket-vectors-program <package> <complete-original-llvm-disassembly>
+```
+
+The publisher checks current source admission separately from immutable recipe
+evidence. Retain both original roots and producer bytes; a newer tooling binary
+must not replace the publication's producer. No CLROS vector execution or
+backpressure acceptance follows from package/index admission.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across

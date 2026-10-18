@@ -31,10 +31,12 @@ public static class NativeAotThreadingOutput
     /// <summary>Borrow an unmodified raw tail of at most 8 MiB for exactly
     /// NativeAotSuspensionSmoke, NativeAotThreadPoolSmoke,
     /// NativeAotSuspensionStress, NativeAotThreadPoolStress, NativeAotRuntimeMatrix
-    /// the original NativeAotRuntimeSmoke, NativeAotSocketSmoke or its Async leaf.
+    /// the original NativeAotRuntimeSmoke, NativeAotSocketSmoke or its Async leaf,
+    /// the containment control or the dedicated BufferList fixture.
     /// Each line-bound fd1
     /// envelope supplies 1..4096 canonical decimal payload bytes followed by the
-    /// kernel's CRLF; total stdout is at most 4096 bytes. Arbitrary segmentation
+    /// kernel's CRLF; total stdout is at most4096 bytes, or32768 solely for the
+    /// BufferList fixture's bounded per-read progress. Arbitrary segmentation
     /// is retained in WriteLengths. NormalizedTail removes only CR/LF within
     /// those payload spans, retaining original headers/counts and all other bytes.
     /// Malformed framing/size/application/output throws ToolFailure; invalid UTF8
@@ -44,8 +46,8 @@ public static class NativeAotThreadingOutput
     {
         Need(application is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke" or
             "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke" or
-            "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync" or "NativeAotSocketContainment", "application");
-        Capture capture = ReadFramed(rawTail, web: false);
+            "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync" or "NativeAotSocketContainment" or "NativeAotSocketVectors", "application");
+        Capture capture = ReadFramed(rawTail, web: false, vectors: application == "NativeAotSocketVectors");
         string text = capture.Stdout;
         switch (application)
         {
@@ -58,6 +60,7 @@ public static class NativeAotThreadingOutput
             case "NativeAotSocketSmoke": NativeAotSocketPayload.ValidateOutput(text); break;
             case "NativeAotSocketSmokeAsync": NativeAotSocketPayload.ValidateAsyncOutput(text); break;
             case "NativeAotSocketContainment": _ = NativeAotSocketContainmentOutput.Read(text); break;
+            case "NativeAotSocketVectors": _ = NativeAotSocketVectorsOutput.Read(text); break;
         }
         return capture;
     }
@@ -71,10 +74,10 @@ public static class NativeAotThreadingOutput
     /// value-only decoder grants no app, scheduler, source or guest authority.</summary>
     public static Capture ReadWeb(ReadOnlySpan<byte> rawTail) => ReadFramed(rawTail, web: true);
 
-    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web)
+    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web, bool vectors = false)
     {
         Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
-        int limit = web ? 65536 : 4096, writeLimit = web ? 8192 : 4096;
+        int limit = web ? 65536 : vectors ? 32768 : 4096, writeLimit = web ? 8192 : 4096;
         byte[] stdout = new byte[limit], stderr = new byte[web ? limit : 0], normalized = new byte[rawTail.Length];
         List<int> lengths = []; List<uint> channels = [];
         int cursor = 0, total = 0, errors = 0, written = 0;

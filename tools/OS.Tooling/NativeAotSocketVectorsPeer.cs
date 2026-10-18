@@ -26,7 +26,8 @@ public static class NativeAotSocketVectorsPeer
     }
 
     /// <summary>Send exact requests, gate first3 bytes and consumed reset request,
-    /// hold the first response for250ms, and verify bytes with257-byte reads.
+    /// hold the first response for250ms after observing its first byte without
+    /// consuming it, and verify bytes with257-byte reads.
     /// The caller supplies actual app progress, owns output and must await this
     /// task. The two-minute deadline/cancellation propagates after socket disposal.
     /// Configured short I/O/hold is stimulus, not proof of blocked or partial sends.</summary>
@@ -62,7 +63,13 @@ public static class NativeAotSocketVectorsPeer
                 output.WriteLine("SOCKET_VECTOR_PEER index=2 sent=64 received=0 close="+close+" disposition=disposed");continue;
             }
             peer.Shutdown(SocketShutdown.Send);
-            if(index==0)await Task.Delay(250,token);
+            if(index==0)
+            {
+                int peeked=await peer.ReceiveAsync(buffer.AsMemory(0,1),SocketFlags.Peek,token);
+                if(peeked!=1 || buffer[0]!=0)throw new ToolFailure("socket_vectors_peer_first_byte");
+                output.WriteLine("SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 hold_ms=250");
+                await Task.Delay(250,token);
+            }
             int expected=index==0?65536:64,received=0;
             while(received<expected)
             {
@@ -128,6 +135,7 @@ public static class NativeAotSocketVectorsPeer
     public static void InspectOutput(string text)
     {
         const string before="TEST_START nativeaot.socket.vectors.peer\n"+
+            "SOCKET_VECTOR_PEER_HOLD index=0 peeked=1 hold_ms=250\n"+
             "SOCKET_VECTOR_PEER index=0 sent=64 received=65536 close=eof\n"+
             "SOCKET_VECTOR_PEER index=1 sent=64 received=0 close=reset\n";
         const string after=" disposition=disposed\nSOCKET_VECTOR_PEER index=3 sent=64 received=64 close=eof\nTEST_PASS nativeaot.socket.vectors.peer\n";

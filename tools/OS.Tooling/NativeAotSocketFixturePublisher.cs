@@ -45,7 +45,7 @@ internal sealed class NativeAotSocketFixturePublisher(string Application,string 
             using var lease = NativeAotPayload.OpenQualificationLease(root);
             using var originalLease = NativeAotPayload.OpenQualificationLease(recipe);
             Need(ToolingBuildInputs.Validate(root).Count == 0, "tooling_inputs_changed");
-            _ = NativeAotSocketPackage.Create(recipe, recipe, asynchronous: true);
+            _ = NativeAotSocketPackage.Create(root, recipe, asynchronous: true);
             foreach (string shared in new[] { "global.json", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props" })
                 Need(NativeAotWebPayload.HashFile(Path.Combine(root, shared)) == NativeAotWebPayload.HashFile(Path.Combine(recipe, shared)), "shared_source_changed");
             string recipeEvidence = Path.Combine(recipe, "artifacts/socket-qualification-r01");
@@ -108,7 +108,7 @@ internal sealed class NativeAotSocketFixturePublisher(string Application,string 
                 RequireCurrentSources(root);
                 Need(before.OrderBy(item => item.Key).SequenceEqual(Sources().OrderBy(item => item.Key)) && ToolingBuildInputs.Validate(root).Count == 0, "source_changed");
                 Need(native.All(item => NativeAotWebPayload.HashFile(item.Key) == item.Value), "native_input_changed");
-                _ = NativeAotSocketPackage.Create(recipe, recipe, asynchronous:true);
+                _ = NativeAotSocketPackage.Create(root, recipe, asynchronous:true);
                 succeeded = true;
             }
             catch (Exception error) { failure = error is ToolFailure ? error.Message : error.GetType().Name; throw; }
