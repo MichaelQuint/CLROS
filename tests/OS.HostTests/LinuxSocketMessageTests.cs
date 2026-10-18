@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Net;
 using Model = LinuxSocketServicesTests.Model;
@@ -9,6 +10,25 @@ internal static unsafe class LinuxSocketMessageTests
 {
     private const ulong User = 0x100000000, Header = User + 4096, Vectors = User + 8192;
     private const ulong First = User + 12288, Second = User + 16384;
+
+    private struct Trace
+    {
+        internal uint Calls, Fd, Count, Total;
+        internal ulong Number, Header, Flags, Table, FirstAddress, FirstBytes, SecondAddress, SecondBytes;
+        internal bool Reject;
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte Observe(void* context, ulong number, uint fd, ulong header, ulong flags,
+        ulong table, ulong* vectors, uint count, uint total)
+    {
+        Trace* trace = (Trace*)context;
+        trace->Calls++; trace->Number = number; trace->Fd = fd; trace->Header = header;
+        trace->Flags = flags; trace->Table = table; trace->Count = count; trace->Total = total;
+        if (count > 0) { trace->FirstAddress = vectors[0]; trace->FirstBytes = vectors[1]; }
+        if (count > 1) { trace->SecondAddress = vectors[2]; trace->SecondBytes = vectors[3]; }
+        return trace->Reject ? (byte)0 : (byte)1;
+    }
 
     private static void Message(Model model, params (ulong Address, ulong Bytes)[] vectors)
     {
@@ -136,5 +156,31 @@ internal static unsafe class LinuxSocketMessageTests
         HostCheck.True(new ReadOnlySpan<byte>(model.Files.Memory.At(Header + 16), 4).SequenceEqual("abcd"u8));
         HostCheck.True(new ReadOnlySpan<byte>(model.Files.Memory.At(Second), 2).SequenceEqual("ef"u8));
         HostCheck.Equal(0L, model.Call(3, fd)); SocketCases.AbortAndReap(model, connection); model.End();
+    }
+
+    [HostTest("m16-013 message observation borrows validated metadata before transport and detaches at finish")]
+    private static void BorrowedObservation()
+    {
+        using var model = new Model(); using var connection = SocketCases.Connection();
+        uint fd = model.Accept(model.Listen(), connection); Trace trace = new() { Reject = true };
+        HostCheck.Equal(false, LinuxSocketServices.AttachMessageObserver(model.State, null, &Observe));
+        HostCheck.Equal(false, LinuxSocketServices.AttachMessageObserver(model.State, &trace, null));
+        HostCheck.Equal(false, model.State->HasMessageObserver);
+        HostCheck.True(LinuxSocketServices.AttachMessageObserver(model.State, &trace, &Observe));
+        HostCheck.Equal(false, LinuxSocketServices.AttachMessageObserver(model.State, &trace, &Observe));
+        model.Files.Text(First, "ab"); model.Files.Text(Second, "c"); Message(model, (First, 2), (Second, 1));
+        HostCheck.Equal(-5L, model.Call(46, fd, Header, 0x4000)); HostCheck.Equal(0, connection.Owner->BufferedBytes);
+        HostCheck.Equal(1U, trace.Calls); HostCheck.Equal(46UL, trace.Number); HostCheck.Equal(fd, trace.Fd);
+        HostCheck.Equal(Header, trace.Header); HostCheck.Equal(0x4000UL, trace.Flags); HostCheck.Equal(Vectors, trace.Table);
+        HostCheck.Equal(2U, trace.Count); HostCheck.Equal(3U, trace.Total);
+        HostCheck.Equal(First, trace.FirstAddress); HostCheck.Equal(2UL, trace.FirstBytes);
+        HostCheck.Equal(Second, trace.SecondAddress); HostCheck.Equal(1UL, trace.SecondBytes);
+        trace.Reject = false; HostCheck.Equal(3L, model.Call(46, fd, Header));
+        HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(connection.Owner, Wire.Packet(100, "xyz"u8, ack: 700, flags: 0x18), out _));
+        trace.Reject = true; HostCheck.Equal(-5L, model.Call(47, fd, Header)); HostCheck.Equal(3, connection.Receiver->UnreadBytes);
+        trace.Reject = false; HostCheck.Equal(3L, model.Call(47, fd, Header)); HostCheck.Equal(0, connection.Receiver->UnreadBytes);
+        HostCheck.Equal(4U, trace.Calls); HostCheck.Equal(47UL, trace.Number);
+        HostCheck.Equal(0L, model.Call(3, fd)); SocketCases.AbortAndReap(model, connection); model.End();
+        HostCheck.Equal(false, model.State->HasMessageObserver);
     }
 }

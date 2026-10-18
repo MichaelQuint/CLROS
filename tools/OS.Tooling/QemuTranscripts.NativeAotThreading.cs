@@ -202,6 +202,12 @@ public static partial class QemuTranscripts
             exitTails=FindExitTails(elf,this.instruction,this.syscall);
             waits=ReadLinuxCallWaits(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
             returns=ReadLinuxCallReturns(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
+            if(socket)
+            {
+                var messages=NativeAotSocketMessages.Read(rows!,returns);
+                socketMessageInputs=messages.ToDictionary(x=>x.RecordIndex);
+                socketMessageCalls=messages.ToDictionary(x=>x.CallRecordIndex);
+            }
             this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
@@ -281,6 +287,7 @@ public static partial class QemuTranscripts
                     while(!prepareBlocked)
                     {
                         SocketObservations();
+                        SocketMessageInput(t);
                         if(t.TailRip!=0 && Starts("M16_009_IRQ "))
                         {
                             Need(!exitTailContinued,"threading_exit_tail_irq_repeat");

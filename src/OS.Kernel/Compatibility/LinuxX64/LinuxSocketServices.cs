@@ -47,6 +47,15 @@ public static unsafe class LinuxSocketServices
         internal LinuxSocketNetwork.State* Network;
         internal Ipv4Address InterfaceAddress;
         internal ushort AllowedPort;
+        // Optional trusted diagnostics, bound by the native owner. The callback
+        // may only read borrowed stack vectors during this call; it must not
+        // retain pointers, change descriptors/transport or reenter dispatch.
+        // Context outlives Finish. A failed observation queues/consumes no bytes.
+        internal void* MessageContext;
+        internal delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> ObserveMessage;
+        /// <summary>Whether the serialized owner attached message diagnostics.
+        /// This reports configuration only, not transport or execution evidence.</summary>
+        public readonly bool HasMessageObserver => MessageContext != null && ObserveMessage != null;
         public readonly uint RetainedConnections
         {
             get
@@ -78,6 +87,19 @@ public static unsafe class LinuxSocketServices
         descriptors->Sockets = state; return true;
     }
 
+    /// <summary>Attach one trusted synchronous message observer while the owner
+    /// is serialized and IRQ-off. Context remains valid until Finish. The callback
+    /// receives number/fd/header/flags/table, read-only borrowed iovec pairs,
+    /// count/total; it must not retain pointers, mutate ownership or reenter.
+    /// Return1 to continue, otherwise the syscall returns EIO before transport
+    /// mutation. False leaves configuration unchanged; null/replacement rejected.</summary>
+    public static bool AttachMessageObserver(State* state, void* context,
+        delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> observer)
+    {
+        if (context == null || observer == null || !Current(state) || state->ObserveMessage != null) return false;
+        state->MessageContext = context; state->ObserveMessage = observer; return true;
+    }
+
     /// <summary>Verify the shared description/endpoint accounting. Caller owns
     /// the entire serialized lifetime; this does not establish page provenance.</summary>
     public static bool Audit(State* state, LinuxDescriptorServices.State* descriptors)
@@ -85,6 +107,7 @@ public static unsafe class LinuxSocketServices
         if (!Extent(state, (ulong)sizeof(State)) || !Extent(descriptors, (ulong)sizeof(LinuxDescriptorServices.State)) ||
             state->Self != (ulong)state || state->Initialized != 1 ||
             state->Descriptors != descriptors || descriptors->Sockets != state ||
+            (state->MessageContext == null) != (state->ObserveMessage == null) ||
             state->Count is 0 or > MaximumSockets || !Extent(state->Slots, state->Count * (ulong)sizeof(Endpoint))) return false;
         for (uint i = 0; i < state->Count; i++)
         {
@@ -191,8 +214,8 @@ public static unsafe class LinuxSocketServices
             case 45:
                 if (f.Argument4 != 0 || f.Argument5 != 0) return -95;
                 return Receive(state, index, f.Argument1, f.Argument2, f.Argument3);
-            case 46: return SendMessage(state, index, f.Argument1, f.Argument2);
-            case 47: return ReceiveMessage(state, index, f.Argument1, f.Argument2);
+            case 46: return SendMessage(state, index, fd, f.Argument1, f.Argument2);
+            case 47: return ReceiveMessage(state, index, fd, f.Argument1, f.Argument2);
             case 48: return Shutdown(e, f.Argument1);
             case 51: case 52:
                 if (f.Number == 52 && e->Phase != Connected) return NotConnected;
@@ -288,6 +311,7 @@ public static unsafe class LinuxSocketServices
     {
         if (state->Network != null) return false;
         for (uint i = 0; i < state->Count; i++) if (state->Slots[i].Phase != 0) return false;
+        state->MessageContext = null; state->ObserveMessage = null;
         state->Descriptors->Sockets = null; state->Initialized = 2; return true;
     }
 
@@ -413,13 +437,15 @@ public static unsafe class LinuxSocketServices
         return 0;
     }
 
-    private static long SendMessage(State* state, uint index, ulong address, ulong flags)
+    private static long SendMessage(State* state, uint index, uint fd, ulong address, ulong flags)
     {
         if ((flags & ~0x4040UL) != 0) return -95;
         ulong* header = stackalloc ulong[7];
         ulong* vectors = stackalloc ulong[(int)LinuxDescriptorServices.MaximumVectors * 2];
         long result = SnapshotMessage(state, address, header, vectors, false, out uint total);
         if (result != 0) return result;
+        if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 46, fd, address, flags,
+            header[2], vectors, (uint)header[3], total) != 1) return -5;
         result = WritePolicy(state, index, flags); if (result != 0) return result;
         if (total == 0) return 0;
         var a = state->Descriptors->Owner;
@@ -433,13 +459,15 @@ public static unsafe class LinuxSocketServices
         return SendCopied(state, index, copied);
     }
 
-    private static long ReceiveMessage(State* state, uint index, ulong address, ulong flags)
+    private static long ReceiveMessage(State* state, uint index, uint fd, ulong address, ulong flags)
     {
         if ((flags & ~0x42UL) != 0) return -95;
         ulong* header = stackalloc ulong[7];
         ulong* vectors = stackalloc ulong[(int)LinuxDescriptorServices.MaximumVectors * 2];
         long result = SnapshotMessage(state, address, header, vectors, true, out uint total);
         if (result != 0) return result;
+        if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 47, fd, address, flags,
+            header[2], vectors, (uint)header[3], total) != 1) return -5;
         result = SnapshotReceive(state, index, total, flags); if (result < 0) return result;
         var a = state->Descriptors->Owner; uint received = (uint)result, copied = 0;
         for (uint i = 0; i < header[3] && copied < received; i++)

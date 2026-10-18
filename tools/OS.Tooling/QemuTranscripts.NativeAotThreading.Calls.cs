@@ -47,6 +47,12 @@ public static partial class QemuTranscripts
             t.WaitOrder=++waitOrder;t.AddressOrder=++addressOrder;t.Parking=true;
         }
         private int LowestFd()=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite,-1);
+        private readonly uint[] descriptorGenerations=new uint[16];
+        private void InstallDescriptorGeneration(int fd)
+        {
+            Need(fd is >=3 and <16 && descriptorGenerations[fd]!=uint.MaxValue,"threading_descriptor_generation");
+            descriptorGenerations[fd]++;
+        }
         private void Call(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,bool output)
         {
             ulong nr=r["nr"],a=r["a0"],b=r["a1"],c=r["a2"],d=r["a3"],e=r["a4"],f=r["a5"],v=r["valueBits"];
@@ -185,7 +191,7 @@ public static partial class QemuTranscripts
                     Need(memory.Covered(nr==2?a:b,1,1) && (nr!=257 || a==Bits(-100)) && ((nr==2?b:c)&~(web?0x98100UL:0x98000UL))==0,"threading_open");
                     if(v!=Bits(-2))
                     {
-                        Need(v==(ulong)LowestFd() && v is >=3 and <16,"threading_open_fd");files.Add((int)v);
+                        Need(v==(ulong)LowestFd() && v is >=3 and <16,"threading_open_fd");files.Add((int)v);InstallDescriptorGeneration((int)v);
                         if(web)webFileGenerations.Add((int)v,++webFileGeneration);
                     }break;
                 case 3:
@@ -240,7 +246,8 @@ public static partial class QemuTranscripts
                 case 72: Need(a<=int.MaxValue && files.Contains((int)a) && b==2 && c==1 && v==0,"threading_fcntl");break;
                 case 293:
                     Need(pipeRead==0 && pipeWrite==0 && memory.Covered(a,8,3) && b==0x80000 && v==0,"threading_pipe_create");
-                    pipeRead=LowestFd();pipeWrite=LowestFd();Need(pipeRead>=3 && pipeWrite>=3,"threading_pipe_capacity");signalPipeCreated=true;break;
+                    pipeRead=LowestFd();pipeWrite=LowestFd();Need(pipeRead>=3 && pipeWrite>=3,"threading_pipe_capacity");
+                    InstallDescriptorGeneration(pipeRead);InstallDescriptorGeneration(pipeWrite);signalPipeCreated=true;break;
                 case 60:
                     Need(a==0 && v==0,"threading_thread_exit");t.Exiting=t.NormalExit=true;normalExits++;action=4;status=2;break;
                 case 231:

@@ -6,8 +6,12 @@ Linux x64 sendmsg/recvmsg: at most16 vectors/65536 total bytes, owned descriptor
 scratch and existing nonblocking policies. Complete metadata and ranges are
 checked before copying; all receive payload/header outputs precede TCP consumption.
 Names/control data and unmeasured flags remain unsupported. Focused host checks
-pass; actual BufferList/Kestrel vectors, trace joins and stable native/guest/full
-qualification remain pending under #737/#219/#745. No new gate is accepted.
+pass. [Step1391](../done/step1391.md) adds synchronous borrowed metadata records
+and strict owner/ordinal/return/mapping joins, including exact descriptor slot
+generations reconstructed from supported installs. Forty-five focused checks
+pass; native recorder compilation, actual BufferList/Kestrel vectors, sealed
+trace/packet joins and stable native/guest/full qualification remain pending
+under #737/#219/#745. No new gate is accepted.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across

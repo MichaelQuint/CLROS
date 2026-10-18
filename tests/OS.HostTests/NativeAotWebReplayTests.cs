@@ -6,7 +6,7 @@ internal static class NativeAotWebReplayTests
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
-        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null)
+        long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null,int? zeroSendMessage=null,bool zeroAfterShutdown=false)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
@@ -29,7 +29,10 @@ internal static class NativeAotWebReplayTests
         {
             v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(72,0,[7,4,0x802]);
             v.Call(45,1,[7,0x500800,1,2,0,0]);v.Call(45,20,[7,0x500800,20,0,0,0]);
-            v.Call(44,18,[7,0x500800,18,0,0,0]);v.Call(48,0,[7,2]);
+            v.Call(44,18,[7,0x500800,18,0,0,0]);
+            if(zeroSendMessage is int zero && !zeroAfterShutdown)NativeAotSocketProtocolTests.MessageIo(v,46,zero,0,(uint)i+1);
+            v.Call(48,0,[7,2]);
+            if(zeroSendMessage is int after && zeroAfterShutdown)NativeAotSocketProtocolTests.MessageIo(v,46,after,0,(uint)i+1);
             if(readAfterShutdown is long read)v.Call(45,read,[7,0x500800,1,0,0,0]);
             if(sendAfterShutdown is long send)v.Call(44,send,[7,0x500800,1,0,0,0]);
             v.Call(3,0,[7]);
@@ -60,6 +63,16 @@ internal static class NativeAotWebReplayTests
             report.Protocol.Reaped==0 && report.Protocol.Irqs==1 && report.Protocol.Drains==1 && report.Protocol.Transfers==4);
         HostCheck.True(report.SocketAccepts==2 && report.Sent==36 && report.Received==40 && report.EntropyRemaining==3760 &&
             report.Observations.StdoutBytes==5 && report.Observations.Calls==report.Protocol.Calls);
+    }
+
+    [HostTest("m16-013 web replay preserves zero-length send policy errors and shutdown state")]
+    private static void ZeroLengthMessages()
+    {
+        foreach(int result in new[]{0,-11,-104,-32})HostCheck.Equal(36UL,Inspect(Vector(zeroSendMessage:result)).Sent);
+        foreach(int result in new[]{-104,-32})HostCheck.Equal(36UL,Inspect(Vector(zeroSendMessage:result,zeroAfterShutdown:true)).Sent);
+        Reject(()=>Inspect(Vector(zeroSendMessage:1)));
+        Reject(()=>Inspect(Vector(zeroSendMessage:0,zeroAfterShutdown:true)));
+        Reject(()=>Inspect(Vector(zeroSendMessage:-11,zeroAfterShutdown:true)));
     }
 
     [HostTest("nativeaot.web replay rejects memory file ownership and positioned-read inconsistencies")]
