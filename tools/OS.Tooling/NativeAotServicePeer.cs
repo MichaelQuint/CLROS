@@ -22,7 +22,11 @@ public static class NativeAotServicePeer
         long CompletedMilliseconds, string DateUtc, string BodyBase64);
 
     /// <summary>Value-only observations of supplied peer output, never execution authority.</summary>
-    public readonly record struct Inspection(int Port, int Exchanges, int StatusSamples, long DurationMilliseconds, long Calls, long RandomBytes);
+    public readonly record struct Inspection(int Port, int Exchanges, int StatusSamples, long DurationMilliseconds, long Calls, long RandomBytes)
+    {
+        /// <summary>Supplied v2 lifecycle values only; null for v1. This grants no execution authority.</summary>
+        public NativeAotServiceLifecyclePeer.Observation? Lifecycle { get; init; }
+    }
 
     /// <summary>Copied bounded transport response. Caller owns Body. This
     /// observation confers no application, process or guest cleanup authority.</summary>
@@ -231,18 +235,22 @@ public static class NativeAotServicePeer
     /// <summary>Validate a complete bounded supplied report: fixed request
     /// order/status/bodies, real recorded peer duration, advancing successful
     /// application samples and strict stop thresholds. Unknown/duplicate fields,
-    /// regressions and malformed JSON reject. Supplied text never creates an
-    /// owned Completion or proves native/packet/guest cleanup.</summary>
-    public static Inspection InspectOutput(string text)
+    /// regressions and malformed JSON reject. Explicit lifecycle mode requires
+    /// v2 and its validated observation; the default accepts only v1.
+    /// Supplied text never creates an owned Completion or proves
+    /// native/packet/guest cleanup.</summary>
+    public static Inspection InspectOutput(string text, bool lifecycle = false)
     {
         Need(text.Length <= 65536 && Encoding.UTF8.GetByteCount(text) <= 65536, "report_bounds");
         try
         {
             using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 5 }); var root = document.RootElement;
-            Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges");
-            Need(root.GetProperty("schema").GetString() == Schema, "schema");
+            if (lifecycle) Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges", "lifecycle");
+            else Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges");
+            Need(root.GetProperty("schema").GetString() == (lifecycle ? "clros.nativeaot.service.peer.v2" : Schema), "schema");
             long port = Number(root, "port"), duration = Number(root, "durationMilliseconds"), attempts = Number(root, "connectAttempts");
             Need(port is >= 1 and <= 65535 && duration is > 300_000 and < 800_000 && attempts is >= 1 and <= 400, "report_ranges");
+            var observation = lifecycle ? ReadLifecycle(root.GetProperty("lifecycle"), (int)port) : null;
             var array = root.GetProperty("exchanges"); Need(array.ValueKind == JsonValueKind.Array && array.GetArrayLength() is >= 10 and <= 73, "exchange_count");
             List<Exchange> exchanges = []; long previous = 0; DateTimeOffset priorDate = DateTimeOffset.MinValue;
             foreach (var row in array.EnumerateArray())
@@ -273,10 +281,28 @@ public static class NativeAotServicePeer
             Need(samples >= 2 && Ready(prior) && exchanges[^3].CompletedMilliseconds - exchanges[3].CompletedMilliseconds > 300_000, "stop_thresholds");
             Require(exchanges[^2], "GET", "/healthz", 200, "CLROS_SERVICE_HEALTH_OK"); Require(exchanges[^1], "POST", StopPath, 200, "CLROS_SERVICE_STOPPED");
             Need(DateTimeOffset.Parse(exchanges[^1].DateUtc, CultureInfo.InvariantCulture) - DateTimeOffset.Parse(exchanges[0].DateUtc, CultureInfo.InvariantCulture) >= TimeSpan.FromSeconds(300), "date_progress");
-            return new((int)port, exchanges.Count, samples, duration, prior.Calls, prior.RandomBytes);
+            return new((int)port, exchanges.Count, samples, duration, prior.Calls, prior.RandomBytes) { Lifecycle = observation };
         }
         catch (JsonException) { throw new ToolFailure("service_peer_json"); }
         catch (InvalidOperationException) { throw new ToolFailure("service_peer_json_shape"); }
+    }
+
+    private static NativeAotServiceLifecyclePeer.Observation ReadLifecycle(JsonElement value, int port)
+    {
+        Fields(value, "port", "sequentialConnections", "echoBytes", "echoHash", "streamBytes", "streamSha256",
+            "resetRequests", "timeoutRequests", "holdStartedTicks", "healthyCompletedTicks", "holdReleasedTicks", "terminalStatus");
+        int Integer(string name)
+        {
+            long number = Number(value, name);
+            Need(number is >= int.MinValue and <= int.MaxValue, "lifecycle_number"); return (int)number;
+        }
+        long hash = Number(value, "echoHash"); Need(hash is >= 0 and <= uint.MaxValue, "lifecycle_number");
+        var observation = new NativeAotServiceLifecyclePeer.Observation(Integer("port"), Integer("sequentialConnections"),
+            Integer("echoBytes"), (uint)hash, Integer("streamBytes"), Text(value, "streamSha256"), Integer("resetRequests"),
+            Integer("timeoutRequests"), Number(value, "holdStartedTicks"), Number(value, "healthyCompletedTicks"),
+            Number(value, "holdReleasedTicks"), Text(value, "terminalStatus"));
+        Need(observation.Port == port, "lifecycle_port");
+        NativeAotServiceLifecyclePeer.Validate(observation); return observation;
     }
 
     private static bool Ready(ServiceStatus value) => value.Phase == 1 && value.Failure == 0 && value.ManagedWorkerId > 0 &&

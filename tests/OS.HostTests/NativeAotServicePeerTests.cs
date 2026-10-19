@@ -13,9 +13,61 @@ internal static class NativeAotServicePeerTests
         string text = Report().ToJsonString(); var result = NativeAotServicePeer.InspectOutput(text);
         HostCheck.Equal(8080, result.Port); HostCheck.Equal(10, result.Exchanges); HostCheck.Equal(2, result.StatusSamples);
         HostCheck.Equal(300100L, result.DurationMilliseconds); HostCheck.Equal(4097L, result.Calls); HostCheck.Equal(8192L, result.RandomBytes);
+        HostCheck.True(result.Lifecycle is null);
         HostCheck.Equal(text, Report().ToJsonString());
         var retries = Report(); retries["connectAttempts"] = 400;
         Shift(retries, 399000); HostCheck.Equal(699100L, NativeAotServicePeer.InspectOutput(retries.ToJsonString()).DurationMilliseconds);
+    }
+
+    [HostTest("service peer v2 lifecycle report requires explicit mode and returns typed observations")]
+    private static void LifecycleReportMode()
+    {
+        var report = LifecycleReport(); string text = report.ToJsonString();
+        var result = NativeAotServicePeer.InspectOutput(text, lifecycle: true);
+        var expected = new NativeAotServiceLifecyclePeer.Observation(8080, 12, 32768, 1653448133, 524288,
+            "0A131BA05D7CBD5F28DD2FAB7DA2B8BECE4122EB1A76FDA0D0159C66B520F8A1", 1, 1, 100, 200, 300,
+            "CLROS_LIFECYCLE_STATUS active=0 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288");
+        HostCheck.True(result.Lifecycle == expected); HostCheck.Equal(8080, result.Port); HostCheck.Equal(10, result.Exchanges);
+        Reject(text); Reject(Report().ToJsonString(), lifecycle: true);
+        report["schema"] = "clros.nativeaot.service.peer.v1";
+        Reject(report.ToJsonString()); Reject(report.ToJsonString(), lifecycle: true);
+        report = Report(); report["schema"] = "clros.nativeaot.service.peer.v2";
+        Reject(report.ToJsonString()); Reject(report.ToJsonString(), lifecycle: true);
+    }
+
+    [HostTest("service peer v2 rejects missing extra duplicate and mistyped lifecycle fields")]
+    private static void LifecycleReportShape()
+    {
+        foreach (string name in LifecycleReport()["lifecycle"]!.AsObject().Select(field => field.Key))
+        {
+            var report = LifecycleReport(); report["lifecycle"]!.AsObject().Remove(name); Reject(report.ToJsonString(), lifecycle: true);
+        }
+        foreach (Action<JsonObject> alter in new Action<JsonObject>[] {
+            r => r.Remove("lifecycle"), r => r["extra"] = 1, r => r["lifecycle"]!.AsObject()["extra"] = 1,
+            r => r["lifecycle"] = null, r => r["lifecycle"]!.AsObject()["echoBytes"] = "32768",
+            r => r["lifecycle"]!.AsObject()["terminalStatus"] = null })
+        { var report = LifecycleReport(); alter(report); Reject(report.ToJsonString(), lifecycle: true); }
+        string text = LifecycleReport().ToJsonString();
+        Reject(text.Replace("\"echoBytes\":32768", "\"echoBytes\":32768,\"echoBytes\":32768", StringComparison.Ordinal), lifecycle: true);
+        Reject(text.Replace("\"echoBytes\":32768", "\"echoBytes\":32768,\"\\u0065choBytes\":32768", StringComparison.Ordinal), lifecycle: true);
+    }
+
+    [HostTest("service peer v2 rejects narrowing overflow mismatched port and invalid lifecycle observations")]
+    private static void LifecycleReportValues()
+    {
+        foreach (string name in new[] { "port", "sequentialConnections", "echoBytes", "streamBytes", "resetRequests", "timeoutRequests" })
+            foreach (long delta in new[] { -4294967296L, 4294967296L })
+            {
+                var report = LifecycleReport(); var value = report["lifecycle"]!.AsObject();
+                value[name] = value[name]!.GetValue<int>() + delta; Reject(report.ToJsonString(), lifecycle: true);
+            }
+        foreach (Action<JsonObject> alter in new Action<JsonObject>[] {
+            v => v["echoHash"] = 1653448133L + 4294967296L, v => v["echoHash"] = 1653448133L - 4294967296L,
+            v => v["holdStartedTicks"] = ulong.MaxValue, v => v["port"] = 8081, v => v["sequentialConnections"] = 11,
+            v => v["holdStartedTicks"] = 0, v => v["healthyCompletedTicks"] = 99, v => v["holdReleasedTicks"] = 199,
+            v => v["holdReleasedTicks"] = TimeSpan.FromSeconds(90).Ticks, v => v["streamSha256"] = "wrong",
+            v => v["terminalStatus"] = "CLROS_LIFECYCLE_STATUS active=1 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288" })
+        { var report = LifecycleReport(); alter(report["lifecycle"]!.AsObject()); Reject(report.ToJsonString(), lifecycle: true); }
     }
 
     [HostTest("service peer rejects malformed unknown duplicate typed ranged and oversized reports")]
@@ -261,9 +313,20 @@ internal static class NativeAotServicePeerTests
         Add("GET", "/healthz", 200, 300070, 300080, "CLROS_SERVICE_HEALTH_OK"); Add("POST", path + "stop", 200, 300080, 300090, "CLROS_SERVICE_STOPPED");
         return new JsonObject { ["schema"] = "clros.nativeaot.service.peer.v1", ["port"] = 8080, ["durationMilliseconds"] = 300100L, ["connectAttempts"] = 1, ["exchanges"] = exchanges };
     }
-    private static void Reject(string text)
+    private static JsonObject LifecycleReport()
     {
-        bool rejected = false; try { _ = NativeAotServicePeer.InspectOutput(text); }
+        var report = Report(); report["schema"] = "clros.nativeaot.service.peer.v2";
+        report["lifecycle"] = new JsonObject { ["port"] = 8080, ["sequentialConnections"] = 12, ["echoBytes"] = 32768,
+            ["echoHash"] = 1653448133L, ["streamBytes"] = 524288,
+            ["streamSha256"] = "0A131BA05D7CBD5F28DD2FAB7DA2B8BECE4122EB1A76FDA0D0159C66B520F8A1",
+            ["resetRequests"] = 1, ["timeoutRequests"] = 1, ["holdStartedTicks"] = 100L, ["healthyCompletedTicks"] = 200L,
+            ["holdReleasedTicks"] = 300L,
+            ["terminalStatus"] = "CLROS_LIFECYCLE_STATUS active=0 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288" };
+        return report;
+    }
+    private static void Reject(string text, bool lifecycle = false)
+    {
+        bool rejected = false; try { _ = NativeAotServicePeer.InspectOutput(text, lifecycle); }
         catch (Exception error) when (error is ToolFailure or InvalidDataException) { rejected = true; }
         HostCheck.True(rejected);
     }

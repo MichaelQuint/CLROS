@@ -187,6 +187,13 @@ static NativeAOT recipe: two live2MiB collections report16MiB limits and
 4,165,632/4,386,816 committed bytes; an8MiB control rejects. This is helper-only
 Linux-host evidence. Full service publication/pins, v2 runner/report/packet
 integration, actual guest measurements and native pressure/recovery remain pending.
+Step1452 prepares strict explicit v2 peer-report decoding and the default-off
+`ServiceLifecycle` selection:18 focused peer/profile checks pass. Reports retain
+strict field/range/port/counter checks and confer no execution authority. The
+kernel and startup transcript still match the v1 listening string; v2 producer,
+owned-child, prepared-program and packet integration remain pending. A non-dry
+v2 smoke fails before children with `service_lifecycle_runner_integration_pending`
+until those consumers are installed. This selection is preparation only.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

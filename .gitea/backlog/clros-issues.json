@@ -23238,7 +23238,21 @@
         "tests/OS.HostTests/KestrelConnectionLifecycleTests.cs",
         "docs/kestrel.md",
         "docs/app-model.md",
-        "docs/workload-profiles.md"
+        "docs/workload-profiles.md",
+        "tools/OS.Tooling/NativeAotServicePeer.cs",
+        "tools/OS.Tooling/NativeAotServiceSelection.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "tests/OS.HostTests/NativeAotServicePeerTests.cs",
+        "tests/OS.HostTests/ContinuingServiceProfileTests.cs",
+        "tools/OS.Tooling/NativeAotSocketPeerLifecycle.cs",
+        "tools/OS.Tooling/ToolCommand.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.cs",
+        "tools/OS.Tooling/NativeAotServiceProgram.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Parent.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Replay.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Controls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Runner.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Packets.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -23247,7 +23261,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Step1444/M11-026/#784 supersedes step1441's unawaited async helper receipt. Six lifecycle cases genuinely pass with the fixed runner, including real host loopback partial I/O, held-stream progress, reset/timeout drain and malformed/truncated/trailing HTTP negatives. Four synchronous package checks and byte-identical v1 serialization remain valid. Service v2 app/peer remains development-only; profile/report/packet integration, source/native publication, all exact224 stimuli and stable-batch full-host/native/QEMU are pending. The step1437 full-host claim is withheld for13 unawaited cases; independent guest/native receipts remain retained.224 stays open/claimed and now explicitly depends on the owned harness repair. No new guest/Kestrel/Gate14, isolation, cloud or production acceptance. October19 review adds M07-034/#778 unread last-close retention and M11-022/#779 independent transport peaks before acceptance; retain both dependencies. Step1451 composes the explicit v2 service envelope with canonical16MiB GC setting, actual runtime/live2MiB begin/end observations, actual application-start M10-011 readiness and drained lifecycle terminal witnesses.10 focused package/lifecycle checks pass complete/unchanged/zero-reuse; actual service helper source288045DF1F807D89BA96D3D6F953B9ED10ED06CF11A9D8C4523CB148B41D433E executes via pinned Linux-host static NativeAOT with two16MiB live observations (committed4165632/4386816) and an8MiB rejection. Proof01C281A06B4AEA019B194537A63F5D63768FF9DEC02D7019A4646D02F64074C8. Default v1 envelope retained. Full service publication/pins, v2 CLI/profile/report/packet integration and actual guest effective limit, resource peaks, pressure/quota recovery and all acceptance remain pending.",
+      "currentEvidence": "Step1444/M11-026/#784 supersedes step1441's unawaited async helper receipt. Six lifecycle cases genuinely pass with the fixed runner, including real host loopback partial I/O, held-stream progress, reset/timeout drain and malformed/truncated/trailing HTTP negatives. Four synchronous package checks and byte-identical v1 serialization remain valid. Service v2 app/peer remains development-only; profile/report/packet integration, source/native publication, all exact224 stimuli and stable-batch full-host/native/QEMU are pending. The step1437 full-host claim is withheld for13 unawaited cases; independent guest/native receipts remain retained.224 stays open/claimed and now explicitly depends on the owned harness repair. No new guest/Kestrel/Gate14, isolation, cloud or production acceptance. October19 review adds M07-034/#778 unread last-close retention and M11-022/#779 independent transport peaks before acceptance; retain both dependencies. Step1451 composes the explicit v2 service envelope with canonical16MiB GC setting, actual runtime/live2MiB begin/end observations, actual application-start M10-011 readiness and drained lifecycle terminal witnesses.10 focused package/lifecycle checks pass complete/unchanged/zero-reuse; actual service helper source288045DF1F807D89BA96D3D6F953B9ED10ED06CF11A9D8C4523CB148B41D433E executes via pinned Linux-host static NativeAOT with two16MiB live observations (committed4165632/4386816) and an8MiB rejection. Proof01C281A06B4AEA019B194537A63F5D63768FF9DEC02D7019A4646D02F64074C8. Default v1 envelope retained. Full service publication/pins, v2 CLI/profile/report/packet integration and actual guest effective limit, resource peaks, pressure/quota recovery and all acceptance remain pending. Step1452 adds strict explicit v2 report decoding with typed lifecycle values, range-before-narrowing and port binding, retaining strict default v1. Default-off ServiceLifecycle selection requires the continuing-service parent.18 focused checks (10peer/8profile) pass complete/unchanged/zero-reuse; proof690687C74754B15CE22CC88113269F56EDB2206E54782423A93B8ECE960B3C8A. Non-dry v2 launch fails before children with service_lifecycle_runner_integration_pending: kernel EfiEntry.LinuxWeb and transcript Startup still require the v1 listening string, while full v2 producer/owned-child/prepared-program/packet integration and original publication remain pending. No v2 guest execution/acceptance or completion authority from supplied reports.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",

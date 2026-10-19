@@ -3,6 +3,42 @@ using OS.Tooling;
 
 internal static class ContinuingServiceProfileTests
 {
+    [HostTest("service lifecycle option remains default off and parses explicit true false without enabling a guest")]
+    private static void LifecycleOption()
+    {
+        HostCheck.True(!new QemuSmokeOptions().ServiceLifecycle && !QemuSmokeOptions.Parse().ServiceLifecycle);
+        var enabled = QemuSmokeOptions.Parse("--service-lifecycle");
+        HostCheck.True(enabled.ServiceLifecycle && enabled.Explicit.Contains("ServiceLifecycle"));
+        HostCheck.True(!QemuSmokeOptions.Parse("-ServiceLifecycle:false").ServiceLifecycle);
+        bool rejected = false;
+        try { _ = QemuSmokeOptions.Parse("--service-lifecycle=invalid"); } catch (ArgumentException) { rejected = true; }
+        HostCheck.True(rejected);
+    }
+
+    [HostTest("service lifecycle selection requires the explicit continuing service parent and preserves inherited policy")]
+    private static void LifecycleSelection()
+    {
+        var options = new QemuSmokeOptions { ServiceLifecycle = true };
+        Reject(() => QemuProfiles.Create(options), "service_lifecycle_requires_service_profile");
+        options.BuildEfi = true; options.FirmwareRngSource = "virtio";
+        options.LinuxElfPackage = "service-v2.pkg"; options.LinuxThreadingDisassembly = "service-v2.dump";
+        options.Flags["EnableM16014Probe"] = true;
+        var plan = QemuProfiles.Create(options);
+        HostCheck.True(options.ServiceLifecycle && plan.IsEnabled("EnableM16014Probe") && plan.IsEnabled("EnableM10004Probe"));
+        HostCheck.Equal(900, options.TimeoutSeconds);
+    }
+
+    [HostTest("service lifecycle launch rejects before children until v2 native serial and packet consumers are installed")]
+    private static async Task LifecycleExecutionGuard()
+    {
+        var options = new QemuSmokeOptions { ServiceLifecycle = true, BuildEfi = true, FirmwareRngSource = "virtio",
+            LinuxElfPackage = "missing-service-v2.pkg", LinuxThreadingDisassembly = "missing-service-v2.dump" };
+        options.Flags["EnableM16014Probe"] = true; int children = 0; using var output = new StringWriter();
+        int result = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) => { children++; throw new InvalidOperationException("Unexpected lifecycle child."); });
+        HostCheck.Equal(1, result); HostCheck.Equal(0, children);
+        HostCheck.True(output.ToString().Contains("service_lifecycle_runner_integration_pending", StringComparison.Ordinal));
+    }
+
     [HostTest("continuing service remains default off and explicitly inherits the owned web stack")]
     private static void Selection()
     {

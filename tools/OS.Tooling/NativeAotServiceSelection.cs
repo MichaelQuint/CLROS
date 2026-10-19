@@ -21,7 +21,9 @@ public static class NativeAotServiceSelection
     // until the complete service peer/packet/lifecycle consumer is installed.
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
-        string app = Application(flags); if (app.Length == 0) return false;
+        string app = Application(flags);
+        if (options.ServiceLifecycle && app.Length == 0) throw new ToolFailure("service_lifecycle_requires_service_profile");
+        if (app.Length == 0) return false;
         if (options.LinuxThreadingApplication.Length == 0 && !options.Explicit.Contains("LinuxThreadingApplication"))
             options.LinuxThreadingApplication = app;
         _ = Application(flags, options.LinuxThreadingApplication);

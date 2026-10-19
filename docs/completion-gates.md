@@ -6,6 +6,10 @@ under pinned Linux-host static NativeAOT pass (two live2MiB/16MiB observations
 and an8MiB rejection). The complete service has not been republished or executed
 with this policy; v2 runner/report/packet integration and guest pressure/native
 headroom validation remain pending. No acceptance or gate advances.
+Step1452 adds strict explicit v2 data parsing and default-off selection with18
+focused checks. Non-dry launch stops before children pending complete native,
+startup/serial and packet consumers. Supplied v2 data creates no Completion or
+guest authority; no acceptance changes.
 
 [Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
 sealed retained reservation ledger and actual dynamic pool.43 focused checks
