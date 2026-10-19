@@ -150,6 +150,11 @@ M11-026/#784 later found that the four async helper cases were not awaited;
 their original pass markers do not prove completion. The corrected runner and
 six genuinely joined lifecycle cases supersede that async coverage in step1444.
 The four synchronous package checks and byte-identity comparison remain valid.
+Step1445 adds bounded standalone v2 lifecycle peer stimuli with six joined host
+helper/loopback checks. Actual partial I/O, held-stream progress, reset/timeout
+drain and malformed responses are exercised against the host fixture. Profile,
+prepared-program, report/packet integration and original app publication remain
+pending; no new guest or Kestrel acceptance is granted.
 
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
 native allocations, stacks, page tables and sockets to actual committed-page

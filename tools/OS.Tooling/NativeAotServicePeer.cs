@@ -181,12 +181,15 @@ public static class NativeAotServicePeer
         return new(status, date, chunked ? decoded!.AsSpan(0, bodyBytes).ToArray() : bytes.AsSpan(headerBytes, bodyBytes).ToArray());
     }
 
-    private static (int Status, DateTimeOffset Date, int Length) ResponseHead(ReadOnlySpan<byte> bytes)
+    internal static (int Status, DateTimeOffset Date, int Length) ResponseHead(ReadOnlySpan<byte> bytes,
+        int maximumBody = 8192, bool allowBadRequest = false)
     {
+        Need(maximumBody is >= 0 and <= 524288, "http_body_limit");
         foreach (byte value in bytes) Need(value is 10 or 13 or >= 32 and <= 126, "http_headers");
         string[] rows = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
         Need(rows.Length is >= 2 and <= 64 && rows.All(row => row.Length is > 0 and <= 8192 && row.All(c => c is >= ' ' and <= '~')), "http_headers");
-        int status = rows[0] switch { "HTTP/1.1 200 OK" => 200, "HTTP/1.1 409 Conflict" => 409, _ => 0 };
+        int status = rows[0] switch { "HTTP/1.1 200 OK" => 200, "HTTP/1.1 409 Conflict" => 409,
+            "HTTP/1.1 400 Bad Request" when allowBadRequest => 400, _ => 0 };
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
         foreach (string row in rows.Skip(1))
         {
@@ -199,7 +202,7 @@ public static class NativeAotServicePeer
         bool dateValid = DateTimeOffset.TryParseExact(dateText, "r", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date);
         bool chunked = headers.TryGetValue("Transfer-Encoding", out string? encoding);
         Need(status != 0 && headers.GetValueOrDefault("Connection") == "close" && !headers.ContainsKey("Trailer") &&
-            (chunked ? encoding == "chunked" && text is null : lengthValid && length is >= 0 and <= 8192 && text == length.ToString(CultureInfo.InvariantCulture)) &&
+            (chunked ? encoding == "chunked" && text is null : lengthValid && length >= 0 && length <= maximumBody && text == length.ToString(CultureInfo.InvariantCulture)) &&
             dateValid && date.Offset == TimeSpan.Zero && dateText == date.ToString("r", CultureInfo.InvariantCulture), "http_headers");
         return (status, date, chunked ? -1 : length);
     }
