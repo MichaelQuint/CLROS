@@ -330,6 +330,32 @@ internal static unsafe class LinuxEpollServicesTests
         }
     }
 
+    [HostTest("m16-020 stolen epoll readiness interrupts the replacement wait for a pending handler")]
+    private static void StolenReadinessSignal()
+    {
+        using Model m = new(signals: true); using var connection = Connection();
+        var child = m.Thread.Clone(); uint epoll = m.Create(), listener = m.Listen();
+        m.Enqueue(listener,connection); uint fd = m.Accept(listener);
+        *(Signals.Disposition*)m.Thread.At(Data) = new() { Handler = User + 0x180, Flags = 0x14000004, Restorer = User + 0x200 };
+        HostCheck.Equal(0L,m.Thread.Call(13,10,Data,0,8).Value);
+        HostCheck.Equal(0L,m.Control(epoll,1,fd,1,42));
+        HostCheck.Equal(LinuxSyscallAction.Blocked,m.Call(281,epoll,Output,1,ulong.MaxValue).Action); m.Park(m.Parent);
+        HostCheck.Equal(child.Value,m.Thread.Kernel.Dispatch().Value);
+        HostCheck.Equal(Tx.Status.Success,Tx.ReceiveFrame(connection.Owner,Wire.Packet(100,"x"u8,ack:700),out _));
+        HostCheck.True(m.Thread.Service->PollDescriptorReadiness(Key,2));
+        HostCheck.Equal(0L,m.Thread.Call(234,101,101,10).Value);
+        HostCheck.Equal(1L,m.Value(45,fd,Data,1));
+        m.Thread.Yield(child); HostCheck.Equal(m.Parent.Value,m.Thread.Kernel.Dispatch().Value);
+        HostCheck.Equal(LinuxSyscallAction.Blocked,m.Complete().Action);
+        HostCheck.Equal(KernelThreadTable.Completion.Interrupted,m.Thread.Kernel.Inspect(m.Parent).Completion);
+        HostCheck.True(m.Thread.Service->CommitEpollWait(Key,2,m.Thread.Kernel.Capture(m.Parent),out bool handoff) && !handoff);
+        HostCheck.Equal(-4L,m.Complete().Value);
+        HostCheck.Equal(Signals.Delivery.Delivered,m.Thread.Service->DeliverPendingSignals(Key,2));
+        ulong frame = m.Thread.CurrentImage()->Frame.Rsp; m.Thread.CurrentImage()->Frame.Rsp = frame + 8;
+        HostCheck.Equal(LinuxSyscallAction.RestoreUser,m.Thread.Call(15).Action);
+        m.CloseAndReap(fd,connection); m.Drain();
+    }
+
     [HostTest("m16-012 tgkill interrupts epoll without SA_RESTART and real deadline wins before signal", HostLane.Fast, 11)]
     private static void SignalInterruption()
     {

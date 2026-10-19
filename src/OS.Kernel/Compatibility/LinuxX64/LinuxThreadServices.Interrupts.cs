@@ -4,6 +4,29 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    // Check after publishing each new wait, including a retry after stolen
+    // readiness. Keep signals queued for the normal captured user-return path;
+    // only the existing completion-before-Park transition runs here. A local
+    // search mask skips ignored entries without changing the thread's mask.
+    private bool InterruptPendingWait(ulong flags, Slot* slot)
+    {
+        if (_signals == null) return true;
+        var search = slot->Mask;
+        for (uint attempt = 0; attempt < 31 + LinuxSignalServices.RealtimeQueueCapacity; attempt++)
+        {
+            long pending = LinuxSignalServices.Next(_signals, _self, slot->Kernel, search, out uint signal);
+            if (pending < 0) break;
+            if (pending == 0) return true;
+            if (!LinuxSignalServices.Ignored(_signals, signal))
+            {
+                if (InterruptWait(flags, slot)) return true;
+                break;
+            }
+            search = new(search.Blocked | (1UL << (int)(signal - 1)));
+        }
+        _failed = true; return false;
+    }
+
     private bool InterruptWait(ulong flags, Slot* slot)
     {
         // Expired real-clock deadlines precede an interrupt, even if the CPU

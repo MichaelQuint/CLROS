@@ -191,6 +191,53 @@ internal static unsafe class LinuxSignalInterruptTests
         }
     }
 
+    [HostTest("linux.signal-interrupt stolen pipe readiness rechecks the queued handler before parking again")]
+    private static void StolenPipeReadiness()
+    {
+        foreach (bool restart in new[] { false,true })
+        {
+            using Owner o = new(restart); var pipe = o.Core.Pipe();
+            HostCheck.Equal(LinuxSyscallAction.Blocked,o.Call(0,pipe.Read,Output,1).Action); o.Sender();
+            o.M.At(Data)[0] = 0x61;
+            HostCheck.Equal(1L,o.Value(1,pipe.Write,Data,1)); o.Send();
+            HostCheck.Equal(KernelThreadTable.Completion.Woken,o.M.Kernel.Inspect(o.Parent).Completion);
+            HostCheck.Equal(1L,o.Value(0,pipe.Read,Data,1)); o.ParentAgain();
+            HostCheck.Equal(LinuxSyscallAction.Blocked,o.Complete().Action);
+            HostCheck.Equal(KernelThreadTable.Completion.Interrupted,o.M.Kernel.Inspect(o.Parent).Completion);
+            HostCheck.True(o.M.Service->CommitPipeWait(Key,2,o.M.Kernel.Capture(o.Parent),out bool handoff) && !handoff);
+            HostCheck.Equal(-4L,o.Complete().Value);
+            HostCheck.Equal(0U,o.Core.Files.State->RetainedPipeOperations);
+            ulong frame = o.Caught();
+            HostCheck.Equal(restart ? 0UL : unchecked((ulong)-4),o.M.Read64(frame + 152));
+            HostCheck.Equal(restart ? After - 2 : After,o.M.Read64(frame + 176));
+            HostCheck.Equal(LinuxSyscallAction.RestoreUser,o.Return(frame).Action);
+        }
+    }
+
+    [HostTest("linux.signal-interrupt pending handlers complete initial pipe and futex waits before parking")]
+    private static void PendingBeforeWait()
+    {
+        foreach (bool pipeWait in new[] { false,true })
+        foreach (bool restart in new[] { false,true })
+        {
+            using Owner o = new(restart); var pipe = o.Core.Pipe();
+            o.M.Yield(o.Parent); HostCheck.Equal(o.Child.Value,o.M.Kernel.Dispatch().Value);
+            o.Send(); o.ParentAgain();
+            if (pipeWait) HostCheck.Equal(LinuxSyscallAction.Blocked,o.Call(0,pipe.Read,Output,1).Action);
+            else o.Futex();
+            HostCheck.Equal(KernelThreadTable.Completion.Interrupted,o.M.Kernel.Inspect(o.Parent).Completion);
+            bool committed = pipeWait
+                ? o.M.Service->CommitPipeWait(Key,2,o.M.Kernel.Capture(o.Parent),out bool handoff)
+                : o.M.Service->CommitFutexWait(Key,2,o.M.Kernel.Capture(o.Parent),out handoff);
+            HostCheck.True(committed && !handoff); HostCheck.Equal(-4L,o.Complete().Value);
+            ulong frame = o.Caught();
+            HostCheck.Equal(restart ? After - 2 : After,o.M.Read64(frame + 176));
+            HostCheck.Equal(LinuxSyscallAction.RestoreUser,o.Return(frame).Action);
+            HostCheck.Equal(0U,o.Core.Files.State->RetainedPipeOperations);
+            HostCheck.True(o.M.Service->MayChangeUserRange(Key,2,Word,4));
+        }
+    }
+
     [HostTest("linux.signal-interrupt partial pipe writes keep their transferred prefix and never rewind it")]
     private static void PartialWrite()
     {

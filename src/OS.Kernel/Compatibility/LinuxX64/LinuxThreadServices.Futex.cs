@@ -182,6 +182,7 @@ public unsafe partial struct LinuxThreadServices
         }
         cell->References++; slot->Wait = begin.Wait; slot->FutexCellIndex = cellIndex; slot->WaitSource = 1;
         slot->WaitCall = frame; slot->WaitDeadline = timed ? now + delay : 0;
+        if (!InterruptPendingWait(flags, slot)) return new(LinuxSyscallAction.Rejected);
         return new(LinuxSyscallAction.Blocked);
     }
 
