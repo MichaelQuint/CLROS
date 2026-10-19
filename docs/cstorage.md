@@ -1,5 +1,17 @@
 # Storage
 
+## October 19 host parser findings
+
+The [review](repo-audit.md#october-19-whole-project-review) confirms that older
+`Fat32Parser` accepts FAT1-active media yet returns stale FAT0 bytes with
+`Success` ([#781](http://192.168.4.35:3000/admin/CLROS/issues/781)). An empty
+one-million-cluster directory also allocates 4,001,096 bytes for two sector reads
+([#782](http://192.168.4.35:3000/admin/CLROS/issues/782)). Reject unsupported FAT
+modes/version and bound traversal scratch before #769 disk-fixture acceptance.
+Use distinct per-cluster test contents. The live numeric parser already rejects
+nonzero flags/version and takes bounded caller-owned history. These findings
+do not invalidate its narrow accepted profile or prove a guest storage failure.
+
 ## Planned disk-to-application connection
 
 [M16-023/#770](http://192.168.4.35:3000/admin/CLROS/issues/770) ->

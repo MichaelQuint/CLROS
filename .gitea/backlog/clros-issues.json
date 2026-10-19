@@ -15093,7 +15093,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 33 keyed child issues are closed with reviewed evidence.",
+        "All 34 keyed child issues are closed with reviewed evidence.",
         "Exchange live virtio-net traffic through bounded TCP and HTTP.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -23204,7 +23204,9 @@
         "M11-012",
         "M07-032",
         "M07-033",
-        "M16-022"
+        "M16-022",
+        "M07-034",
+        "M11-022"
       ],
       "labels": [
         "agent:blocked",
@@ -23244,7 +23246,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Finite socket qualifications and PR739 development HTTP do not prove continuing request lifetimes beyond the30s connection,300s runtime and4096 syscall guard boundaries. Architecture-review dependencies add connection-local failure handling, persist, compact TIME-WAIT, explicit service policy and replenished randomness before repeated-service acceptance.",
+      "currentEvidence": "Step1437 accepts the seven continuing-service foundations in PR777, including original service shutdown/reaps. Repeated service remains development-only under #737. October19 review adds host-confirmed M07-034 unread last-close retention and M11-022 transport high-water validation before acceptance; preserve #747/#748/#760 and then #225 in the existing owner batch.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23271,7 +23273,8 @@
         "Complete more than eight sequential server-active closes without waiting for all bulk buffers to spend240 seconds in TIME-WAIT; preserve compact retirement protection.",
         "Recover a lost zero-window reopening update while another connection advances. Continue requests beyond the old30s/300s/4096-call limits under the explicit service policy, and exercise replenished randomness without false success.",
         "Include aborted SYN-RECEIVED recovery before its old timeout and complete slot reuse across the ISN boundary, using M07-032/M07-033. Separate host boundary injection from actual guest lifetime counts; unrelated peers must progress after an abort.",
-        "Complete M16-022's empty-send capacity correction. A live full send window must still permit zero-byte sendmsg without waiting or changing transport counters; nonzero EAGAIN, endpoint errors, shutdown/reset and MSG_NOSIGNAL behavior remain explicit. Join focused host boundaries to the existing finite vector guest regression before repeated-service closure."
+        "Complete M16-022's empty-send capacity correction. A live full send window must still permit zero-byte sendmsg without waiting or changing transport counters; nonzero EAGAIN, endpoint errors, shutdown/reset and MSG_NOSIGNAL behavior remain explicit. Join focused host boundaries to the existing finite vector guest regression before repeated-service closure.",
+        "Include unread-data last-close capacity recovery and independently reconstructed bulk/compact high-water counts, with exact packet, descriptor, reset/retirement and healthy-peer controls."
       ],
       "requiredMarkers": [
         "TEST_START m10.011",
@@ -23615,7 +23618,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 21 keyed child issues are closed with reviewed evidence.",
+        "All 25 keyed child issues are closed with reviewed evidence.",
         "Make local artifacts, CI evidence, and release security reproducible and honest.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -33501,7 +33504,8 @@
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
         "Profile accepted workloads first. Cache validation only behind owner/generation/mutation boundaries with explicit invalidation. Retain per-use pointer/length/permission/lifetime checks and complete audits at publication/qualification boundaries. Do not remove checks merely because inputs usually are trusted.",
-        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance.",
+        "October19 source review adds compact TIME-WAIT owner validation to measurement: LinuxSocketNetwork.Current->Waits.Read, Waits.Expire and Waits.Find each fully validate64 entries per received TCP packet; queued ACK pumping can add more. Measure sparse/full table paths, byte scans and tail latency; no speedup is established. Cache only behind mutation-generation boundaries while preserving per-use identity and corruption controls."
       ],
       "referenceInfluences": [],
       "ownedPaths": [
@@ -33529,7 +33533,9 @@
         "docs/app-model.md",
         "docs/kestrel.md",
         "docs/workload-profiles.md",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "src/OS.Kernel/Net/TcpTimeWaitTable.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34496,7 +34502,9 @@
         "M10-015",
         "M06-011",
         "M06-013",
-        "M10-003"
+        "M10-003",
+        "M11-024",
+        "M11-025"
       ],
       "currentEvidence": "Steps1150/1152/1156 qualify bounded GPT/FAT/package reads. FatImageFixture and PackageImageFixture mutate controlled disk fixtures; they do not provide a Kestrel webroot or continuing filesystem.",
       "implementationNotes": [
@@ -35138,6 +35146,341 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Planned, unimplemented scope only. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+    },
+    {
+      "key": "M07-034",
+      "title": "[M07-034] Release fd-less TCP receive storage after last close",
+      "milestone": "M07",
+      "parentKey": "M07-EPIC",
+      "dependencyKeys": [
+        "M07-030",
+        "M07-033"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:host",
+        "component:network",
+        "phase:m07-network",
+        "lane:nativeaot-integration"
+      ],
+      "priority": "priority:p1",
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs",
+        "src/OS.Kernel/Net/TcpReceiveWindow.cs",
+        "tests/OS.HostTests/LinuxSocketNetworkTests.cs",
+        "docs/networking.md",
+        "docs/workload-profiles.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Prevent unread data on a socket with no remaining descriptor from pinning a full bulk connection throughout TIME-WAIT.",
+      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Local normal-harness regression: connect/accept with one bulk slot and compact TIME-WAIT; shutdown(SHUT_WR); receive FIN+one byte with the local FIN acknowledged; close last fd; pump; next independent SYN returns Capacity. Diagnostic: bulk=1 compact=0 next=Capacity shutdown=False. Existing27 fixture cases pass; new expected-success case fails. Source: LinuxSocketServices.cs:556-565 marks Closing without draining RX; LinuxSocketNetwork.cs:285 requires UnreadBytes==0 to compact. The real guest admits eight bulk slots, but no guest denial-of-service was executed. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "implementationNotes": [
+        "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Define last-close unread-data handling explicitly using RFC9293 section3.6.1. A bounded reset/abort policy should signal discarded bytes; retain tuple/generation protection and zero buffers only after safe ownership release. Do not merely shorten TIME-WAIT or clear RX on SHUT_WR.",
+        "Cover data already queued before last close and data arriving after it, TX pressure, FIN/ACK ordering and reset retry/retirement. A duplicated live fd and SHUT_WR retain their ability to read.",
+        "Implement and qualify before M10-011/#224 repeated-service acceptance. Coordinate the runtime slice with #737; it can join the existing batch without restarting unrelated accepted prerequisites."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "test-only",
+          "path": "https://www.rfc-editor.org/rfc/rfc9293.html#section-3.6.1",
+          "notes": "Authoritative close/unread-data policy and full TIME-WAIT requirements; no imported implementation."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Normal-harness regression admits a different peer promptly after fd-less unread close without common owner failure; repeat beyond eight lifetimes with bounded bulk/compact counts.",
+        "Duplicated-fd, half-close, nonempty receive, zero-length reads and simultaneous healthy peer controls retain their documented behavior.",
+        "At a stable batch boundary, original native checks and a real guest packet/HTTP control prove bounded retirement, reset/discard semantics, pool scrubbing and healthy-peer progress; host proof alone cannot close guest scope.",
+        "Reserve a unique done step; retain exact commands, hashes, failures and evidence limits. Post evidence before reviewed closure. Preserve accepted finite predecessors."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/networking.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M11-022",
+      "title": "[M11-022] Derive transport high-water marks from lifecycle mutations",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M07-030"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:qemu",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Transport.cs",
+        "tests/OS.HostTests/NativeAotServiceTransportTests.cs",
+        "docs/qemu.md",
+        "docs/workload-profiles.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Reject transport evidence that omits a high-water event and lowers its summary despite lifecycle records proving a larger peak.",
+      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Normal-harness fixture creates ten compact records before any retirement, emits high-water observations only through9, then retires all10 and reports9. InspectNativeAotServiceTransportForTests accepts connections=10 reportedPeak=9. Existing3 cases pass; the added reject control fails. Actual insertions at line138 never update a derived maximum; lines150-169 compare report rows only with previously reported maxima. This does not show that step1437's retained peak24 is incorrect. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "implementationNotes": [
+        "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Maintain independent observed occupancy maxima on bulk creation/removal and compact transfer/create/retirement; distinguish observed from reported maxima so legitimate high-water records can still be checked.",
+        "Define transfer observation ordering and pending-owner accounting explicitly. Verify missing and lowered intermediate/final observations against reconstructed lifetimes rather than trusting the same producer twice.",
+        "Qualify the validator and revalidate retained original transport evidence before #224 acceptance; regenerate a guest only if the corrected validator invalidates evidence or producer instrumentation changes."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "Reject ten simultaneous compact owners with peak9; also reject a hidden bulk peak, omitted final high-water event, stale reuse, lowered summary and transient transfer inconsistencies.",
+        "Accept valid same-clock transfers, safe expired reuse and delayed duplicate-FIN observations, preserving independent identity/deadline checks.",
+        "Read the original step1437 records with the corrected validator and report actual results; retain historical receipt without rewriting or silently promoting it.",
+        "Reserve a unique done step; retain exact commands, hashes, failures and evidence limits. Post evidence before reviewed closure. Preserve accepted finite predecessors."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotServiceTransportTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/qemu.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M11-023",
+      "title": "[M11-023] Prevent concurrent tracker edits from being overwritten by sync",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M00-001"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/BacklogSync.cs",
+        "tools/OS.Tooling/BacklogPolicy.cs",
+        "tests/OS.HostTests/BacklogSyncTests.cs",
+        "docs/issue-labels.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Make backlog synchronization preserve concurrent unmanaged issue text and labels and fail clearly on a write conflict.",
+      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Offline API fixture injects an operator note after the issue-list snapshot during evidence-comment reads. ReconcileAsync applies stale body and returns0; output: injected=True retained=False syncExit=0. Existing5 cases pass; expected-preservation case fails. BacklogSync.cs:99 snapshots remote state; lines149-169 merge and PATCH without fresh issue content_version. The live server exposes content_version (fresh #224 read returned10). No real user note was erased by this review. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "implementationNotes": [
+        "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Immediately refetch each issue before mutation, recompute body/label decisions, and submit fresh content_version using the LAN server's supported optimistic concurrency contract. Treat a conflict as explicit failure or bounded reread/remerge; do not blindly replay a stale payload.",
+        "Protect label replacement against concurrent additions, preserve sticky agent ownership and unmanaged addenda, and ensure readback detects loss rather than merely managed-section convergence.",
+        "Until repaired, scoped preview is safe; existing-body updates must use fresh GET plus content_version and readback. This is independent host tooling, not a new Kestrel runtime dependency."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "An edit injected after list-read survives, or the sync fails without modifying it; include a second edit between fresh GET and PATCH that provokes the server conflict path.",
+        "Concurrent human labels and agent ownership are preserved; a repeated uncontended sync converges without writes.",
+        "Preview remains read-only, wrong-repository rejection and evidence-closure gates remain intact, and failures do not expose credentials.",
+        "Reserve a unique done step; retain exact commands, hashes, failures and evidence limits. Post evidence before reviewed closure. Preserve accepted finite predecessors."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter BacklogSyncTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/issue-labels.md",
+        "docs/windows-handoff.md"
+      ],
+      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M11-024",
+      "title": "[M11-024] Reject unsupported FAT selection in host image readers",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M06-013"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:storage",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "src/OS.Kernel/Storage/Fat32Parser.cs",
+        "src/OS.Kernel/Storage/Fat32Bpb.cs",
+        "src/OS.Kernel/Storage/Fat32Status.cs",
+        "tests/OS.HostTests/StorageFat32ParserTests.cs",
+        "docs/cstorage.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Do not return successful file bytes from stale FAT0 when the BPB selects FAT1.",
+      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Normal-harness synthetic disk has65525 data clusters, two512-sector FATs, BPB_ExtFlags=0x81 (FAT1 active) and equally long divergent FAT chains. Distinct per-cluster bytes prove returned content follows stale FAT0 while result is Success. Existing37 tests pass; the new expected-correct-or-reject case fails. Fat32Parser.ParseBpb at827-956 ignores offsets40-43 and sets FirstFatLba to the first copy; ReadFatEntry at608 uses it. The separate live FATClusterChainsLoopBadClusterTruncationDetection.ParseBpb already rejects nonzero flags/version and is not the failing implementation. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "implementationNotes": [
+        "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer explicit UnsupportedGeometry for active-FAT mode unless real support is required; retain KISS and the live parser's narrow supported policy.",
+        "Document host versus live geometry limits and validate FAT version/selection before reading any file chain. Add distinct per-cluster fixture bytes; the old periodic pattern repeats every256 bytes and masks cluster reorder.",
+        "Correct host image/package/manifest verification before M10-016/#769 disk fixture acceptance. Do not reopen the nineteen-child accepted M06 epic or expand writable filesystem scope."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "test-only",
+          "path": "https://academy.cba.mit.edu/classes/networking_communications/SD/FAT.pdf",
+          "notes": "Microsoft FAT specification section3.3: BPB_ExtFlags at40 and FSVer at42; independently authored fixture."
+        }
+      ],
+      "acceptanceCriteria": [
+        "FAT1-active divergent-copy fixture either reads authoritative bytes or rejects before success; invalid active index/version and supported mirrored mode have explicit controls.",
+        "File and directory lookups, package and manifest loaders retain supported behavior; no successful result contains reordered stale content.",
+        "Host and live parser distinctions and remaining geometry limits are documented without claiming general FAT32 support.",
+        "Reserve a unique done step; retain exact commands, hashes, failures and evidence limits. Post evidence before reviewed closure. Preserve accepted finite predecessors."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter StorageFat32ParserTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/cstorage.md",
+        "docs/image-builder.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "desiredState": "open"
+    },
+    {
+      "key": "M11-025",
+      "title": "[M11-025] Bound host FAT directory traversal scratch independently of volume size",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-024"
+      ],
+      "labels": [
+        "agent:blocked",
+        "priority:p2",
+        "type:tooling",
+        "evidence:host",
+        "component:storage",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "src/OS.Kernel/Storage/Fat32Parser.cs",
+        "src/OS.Kernel/Storage/Fat32Status.cs",
+        "tests/OS.HostTests/StorageFat32ParserTests.cs",
+        "docs/cstorage.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Use an explicit traversal/memory budget for host directory reads instead of allocating an entry for every cluster on disk.",
+      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Measured local characterization: a sparse in-memory block device advertises valid geometry with1,000,000 clusters and an empty root. ReadRootDirectoryEntries completes after two sector reads and returns0 entries, but GC.GetAllocatedBytesForCurrentThread grows4,001,096 bytes. Lines184-186 and1014-1016 allocate uint[volume.ClusterCount], chosen at1148-1159. This is measured allocation scaling, not a demonstrated process OOM or guest regression; the live parser already takes caller-owned bounded history. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "implementationNotes": [
+        "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Introduce a caller-supplied bounded history or explicit scratch/traversal policy and failure status. Choose a simple bounded approach before adding caches or complex indexes.",
+        "Retain cycle detection and clear failure on exceeded budgets; do not replace the volume-sized allocation with unbounded CPU/I/O or silent truncation.",
+        "Cover root and first-level lookup/enumeration used by package/manifest host verification. Keep file-chain and directory limits explicit and separate; avoid hidden allocations on every repeated lookup.",
+        "Complete before M10-016 disk fixture acceptance; do not make this host improvement a new first-web runtime dependency."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "Fixed empty-directory workload has bounded allocated bytes as advertised volume geometry grows, verified by allocation counters and a sparse test device.",
+        "Exact-budget and over-budget chains, cycles, early end markers, caller output exhaustion and failed reads have deterministic statuses and bounded read counts.",
+        "Existing FAT/package/manifest tests pass and documented memory/work ceilings match implementation.",
+        "Reserve a unique done step; retain exact commands, hashes, failures and evidence limits. Post evidence before reviewed closure. Preserve accepted finite predecessors."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter StorageFat32ParserTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/cstorage.md",
+        "docs/image-builder.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "desiredState": "open"
     }
   ]
 }
