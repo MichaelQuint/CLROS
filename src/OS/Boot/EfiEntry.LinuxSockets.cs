@@ -67,6 +67,9 @@ public static unsafe partial class EfiEntry
             internal TcpConnectionKey Key;
             internal ulong MaximumDeadline, Duration;
             internal uint Active, WaitObserved, DrainObserved, TimeoutObserved;
+#if M16_014_PROBE
+            internal uint LastCloseObserved;
+#endif
         }
         // Image-resident ownership outlives every borrowed callback, including a
         // rejected native transfer. Never reuse or free this storage after fault.
@@ -348,6 +351,22 @@ public static unsafe partial class EfiEntry
                     o->Fresh++;
                 }
                 else if (!held->Key.HasSameEndpoint(entry.Key)) return false;
+#if M16_014_PROBE
+                // Observe actual last-description closure before the next
+                // receive/pump. SHUT_WR and live duplicate descriptors do not
+                // satisfy IsClosing. The copied tuple/generation grants no
+                // authority to mutate transport or descriptor ownership.
+                if (slot->Phase == 3 && held->LastCloseObserved == 0 &&
+                    LinuxSocketServices.IsClosing(&o->Sockets, &slot->Sender))
+                {
+                    if (!WriteLinuxSocketLifetime(o, "M07_034_CLOSE", i, held, now) ||
+                        !LinuxText(o->Boot, " localNext=") || !LinuxNumber(o->Boot, slot->Sender.Next) ||
+                        !LinuxText(o->Boot, " remoteNext=") || !LinuxNumber(o->Boot, slot->Receiver.RemoteNext) ||
+                        !LinuxText(o->Boot, " unread=") || !LinuxNumber(o->Boot, (uint)slot->Receiver.UnreadBytes) ||
+                        !LinuxText(o->Boot, "\r\n")) return false;
+                    held->LastCloseObserved = 1;
+                }
+#endif
                 if (slot->Phase >= 2 && slot->Sender.TimedOut && held->TimeoutObserved == 0)
                 {
                     if (entry.State != TcpConnectionLifecycleState.Closed || slot->Sender.CloseState != TcpConnectionCloseState.Reset ||

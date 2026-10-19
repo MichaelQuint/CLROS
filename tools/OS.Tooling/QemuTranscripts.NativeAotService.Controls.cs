@@ -54,7 +54,8 @@ public static partial class QemuTranscripts
     {
         var control = ServiceControlJson<ServiceSocketControls.Report>(controlsJson);
         var frames = ServiceControlJson<WebFrameControl.ServiceReport>(framesJson);
-        Need(control.Schema == "clros.nativeaot.service.controls.v1" && control.Persist is not null && control.Healthy is not null &&
+        Need(control.Schema == "clros.nativeaot.service.controls.v2" && control.Persist is not null && control.Healthy is not null &&
+            control.Unread is not null && control.Unread.Http is not null &&
             control.Observations is not null && control.Observations.Count is > 20 and <= 512 && frames.Session is not null &&
             frames.ControlledPorts is not null && frames.Injections is not null, "service_control_inputs");
         int[] ports = [control.PendingPort, control.Persist!.Port, control.Healthy!.Port];
@@ -110,7 +111,7 @@ public static partial class QemuTranscripts
         var incoming = packets.Where(packet => !packet.Outgoing).ToArray();
         Need(sent.Count == incoming.Length && sent.Zip(incoming).All(pair => pair.First.Raw.AsSpan().SequenceEqual(pair.Second.Raw)), "service_control_injection_capture");
         var pending = packets.Where(packet => packet.Port == control.PendingPort).ToArray();
-        Need(pending.Length == 6, "service_control_pending_complete");
+        Need(pending.Length >= 14, "service_control_pending_complete");
         for (int i = 0; i < 2; i++)
         {
             var syn = pending[i * 3]; var synack = pending[i * 3 + 1]; var reset = pending[i * 3 + 2];
@@ -155,7 +156,7 @@ public static partial class QemuTranscripts
                 .All(packet => packet.Ordinal == secondProbe.Ordinal), "service_control_isolation");
         Need(zeroPacket!.Ack == unchecked(firstProbe.Sequence + 1) && freshPacket!.Ack == unchecked(secondProbe!.Sequence + 1) &&
             firstProbe.Sequence==unchecked(persist[1].Sequence+1), "service_control_probe_ack");
-        var exchanges = new[] { control.Persist, control.Healthy }; List<JsonElement> expected = [];
+        ServiceSocketControls.HttpExchange[] exchanges = [control.Persist!, control.Healthy!, control.Unread!.Http!]; List<JsonElement> expected = [];
         foreach (var exchange in exchanges)
         {
             Need(exchange.StartedUtc >= started && exchange.CompletedUtc >= exchange.StartedUtc && exchange.CompletedUtc <= ended,
@@ -169,12 +170,18 @@ public static partial class QemuTranscripts
                 bodyBase64 = Convert.ToBase64String("CLROS_SERVICE_HEALTH_OK"u8) }));
         }
         Need(control.Persist.StartedUtc <= control.Healthy.StartedUtc && control.Healthy.CompletedUtc <= control.Persist.CompletedUtc, "service_control_http_order");
+        ServiceUnreadPackets(pending[6..],control.Unread!,frames,expected[2]);
+        Need(control.Unread!.Http!.CompletedUtc<=control.Persist.StartedUtc &&
+            pending[^1].Ordinal<persist[0].Ordinal && pending[^1].Ordinal<healthy[0].Ordinal,"service_unread_healthy_progress");
         // Exclude ordinary flows from this internal view, preserving the parent
         // Ethernet/ARP prefix. Their complete independent inspection follows.
         byte[] controlHttp = ServiceFilterCapture(http.ToArray(), ports, includeSelected: true);
-        var checkedHttp = ServiceHttpPackets(controlHttp, anchor, arp, [(uint)ports[1], (uint)ports[2]], expected.ToArray(), true,
+        var checkedHttp = ServiceHttpPackets(controlHttp, anchor, arp, [(uint)ports[1], (uint)ports[2]], expected.Take(2).ToArray(), true,
             (i, request, response) => Need(Convert.ToHexString(request) == exchanges[i].RequestHex && Convert.ToHexString(response) == exchanges[i].ResponseHex,
                 "service_control_http_literal"));
+        checkedHttp=checkedHttp with { Connections=checkedHttp.Connections+1,TcpRecords=checkedHttp.TcpRecords+pending.Length-6,
+            RequestBytes=checkedHttp.RequestBytes+ServiceHex(control.Unread!.Http.RequestHex).Length,
+            ResponseBytes=checkedHttp.ResponseBytes+ServiceHex(control.Unread!.Http.ResponseHex).Length };
         return new(ordinary.ToArray(), Array.AsReadOnly(ports), checkedHttp, packets.Count, 2);
     }
 
@@ -206,6 +213,7 @@ public static partial class QemuTranscripts
             }
         var observed = NativeAotThreadingOutput.ReadService(raw[raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8)..]);
         string[] rows = observed.NormalizedTail.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        InspectNativeAotServiceUnreadOwnerForTests(rows,process.ControlsJson);
         var fresh = rows.Where(row => row.StartsWith("M16_011_SLOT event=0 ", StringComparison.Ordinal)).Select(SocketTransport).ToArray();
         uint[] ports = fresh.Where(row => !controls.Ports.Contains(checked((int)row["remotePort"]))).Select(row => checked((uint)row["remotePort"])).ToArray();
         var http = options.ServiceLifecycle
@@ -213,7 +221,7 @@ public static partial class QemuTranscripts
             : InspectNativeAotServiceHttpPacketsForTests(controls.OrdinaryCapture, capture.Parent.FrameAnchor, capture.Parent.Arp, ports, report);
         int connections = http.Connections + controls.Http.Connections;
         int activeCloses = http.ServerActiveCloses + controls.Http.ServerActiveCloses;
-        Need(fresh.Length == connections + 2 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[0]) == 2 &&
+        Need(fresh.Length == connections + 2 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[0]) == 3 &&
             fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[1]) == 1 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[2]) == 1 &&
             capture.Leaf.SocketAccepts == connections && capture.Leaf.SocketSent == (ulong)(http.ResponseBytes + controls.Http.ResponseBytes) &&
             capture.Leaf.SocketReceived == (ulong)(http.RequestBytes + controls.Http.RequestBytes) &&

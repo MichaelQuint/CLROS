@@ -298,6 +298,13 @@ and eight changed own-body/unwind reviews are retained, with one explicitly
 changed host-consumer source at readback. Complete native/transitive stack,
 headroom, ancestors and corrected-runner full-host remain pending. No new gate.
 
+[Step1476](../done/step1476.md) adds a last-descriptor-close/late-input raw control
+and independent packet/owner joins, with 20 focused checks passing. The earlier
+configured-service capture has no guest reset and cannot qualify M07-034.
+Healthy progress after the new reset, original native/source joins and fresh
+guest/full-host/ancestor validation remain required. No additional issue or gate
+is accepted.
+
 [Step1474](../done/step1474.md) retains the corrected original configured-service
 pass at ef8665e0. Both managed/native pressure and fresh recovery phases, complete
 packet/resource replay, 20 reaps and terminal zero backing pass the original

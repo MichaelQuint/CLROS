@@ -1,5 +1,16 @@
 # Networking
 
+[Step1476](../done/step1476.md) adds the missing M07-034 guest control in
+development. The prior original service capture has zero guest RSTs; its two
+incoming RSTs abort pending handshakes. A new copied `M07_034_CLOSE` observation
+identifies actual last-description closure, excluding live duplicates and
+SHUT_WR. The raw peer waits for that exact tuple/generation, withholds client FIN,
+injects 17 known late bytes and requires exact guest RST|ACK. Independent readers
+join the original packets, close row, retirement and subsequent generation reuse;
+healthy HTTP must follow the reset. Twenty focused checks and the freestanding
+C# build pass. Fresh original guest/native, full-host and affected ancestor
+qualification remain pending; #778 stays open.
+
 Step1455 adds explicit service-v2 PCAP reconstruction for patterned32KiB
 requests,512KiB streamed responses, held-stream/healthy-peer ordering and two
 client cancellation resets with observed status drain/reuse. The shared wire

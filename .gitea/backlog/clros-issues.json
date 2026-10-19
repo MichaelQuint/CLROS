@@ -35276,7 +35276,17 @@
         "docs/workload-profiles.md",
         "src/OS.Kernel/Net/TcpSendWindow.Close.cs",
         "src/OS.Kernel/Net/TcpEstablishedStreamIpv4FramePlanner.cs",
-        "tools/OS.Tooling/EfiContracts.Sources.cs"
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "tools/OS.QemuRunner/ServiceSocketControls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Controls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Transport.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.UnreadClose.cs",
+        "tests/OS.HostTests/ServiceSocketControlTests.cs",
+        "tests/OS.HostTests/NativeAotServiceControlTests.cs",
+        "tests/OS.HostTests/NativeAotServiceTransportTests.cs",
+        "tests/OS.HostTests/NativeAotServiceUnreadCloseTests.cs",
+        "done/step1476.md"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -35285,7 +35295,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prevent unread data on a socket with no remaining descriptor from pinning a full bulk connection throughout TIME-WAIT.",
-      "currentEvidence": "Development in step1447 under737: last-fd unread data, including late arrivals, triggers exact-sequence RST|ACK. Copied-TX pressure retains RX/TX/table ownership for retry; existing30s close deadline bounds TIME-WAIT abort as well. Success or timeout skips normal FIN/data pumping and closed reap scrubs before generation release; timeout claims no copied RST. Live duplicate/SHUT_WR reads and zero-length-read behavior remain.54 focused checks pass (31network/18close/5frame), unchanged inputs/zero reuse;12 orphan lifetimes exceed one bulk slot. Scope extensions for close/control-frame files were read back before edits. Sealed proof AC5B7C6BDC8431AC8CA84DE3D3963CE7A10103276946C013213584C74F1FE286. Original native review, real guest packet/HTTP retirement and stable full-host validation remain pending. Open/claimed; no new acceptance. Step1456 reviews the eight changed batch sources before exact EFI pin refresh. Five focused source-admission checks and a fresh original continuing-service EFI publish pass.900 source joins and complete793892-byte/796-REL32 COFF/EFI joins are retained. Comparison/typed-layout preparation narrows functional/new native ABI review; it does not complete that gate. See churn-native-preparation-r01.json. Full native, corrected unfiltered full-host, actual CLROS guest/ancestor and GC/native pressure/recovery acceptance remain pending; issue stays open/claimed.",
+      "currentEvidence": "Development through step1476 under737/PR786: existing last-fd unread reset/retry/scrub implementation retains54 focused network/close/frame checks and original native review. Prior configured-service r03 has1978 PCAP records, zero guest RSTs and two pending-handshake incoming RSTs; it does not qualify the unread-close guest criterion. New M16_014 copied last-description-close observations and raw controls.v2 wait for the exact tuple/generation, withhold client FIN, inject17 known late bytes and require exact guest RST|ACK, followed by healthy HTTP. Independent readers bind original PCAP/injections/close row/retirement/no-TIME-WAIT/subsequent generation reuse.20 focused checks pass with complete unchanged-input zero-reuse receipts; freestanding C# compile passes with4 existing warnings. Owned full-host r04 was stopped during native checks after this missing criterion was found; its partial receipt remains unaccepted and queued ancestors never started. Fresh original guest/native, stable unfiltered full-host and affected finite ancestors remain pending. Open/claimed; no new issue/gate acceptance.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35314,14 +35324,19 @@
         "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
-        "git diff --check"
+        "git diff --check",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter ServiceSocketControlTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter NativeAotServiceControlTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter NativeAotServiceUnreadCloseTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter NativeAotServiceTransportTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter EfiSourceAdmissionTests"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/kestrel.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "evidenceBoundary": "Implemented development slice with focused host checks and freestanding C# compile. No new guest unread-close, full-host, general Kestrel, isolation, cloud or production acceptance.",
       "desiredState": "open"
     },
     {

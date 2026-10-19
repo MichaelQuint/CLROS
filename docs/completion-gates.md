@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+[Step1476](../done/step1476.md) records an unfinished guest criterion found during
+the final batch audit: step1474's original PCAP has zero guest RSTs. The owned
+full-host attempt was stopped during native checks and the queued ancestors
+never started; its partial results are not acceptance. Development now adds a
+last-description-close observation, directed late-input reset control and strict
+packet/retirement/reuse joins. Twenty focused checks and freestanding C# compile
+pass. Fresh original guest/native, stable full-host and affected finite ancestors
+remain required; all nine issues and PR786 remain open/draft.
+
 [Step1475](../done/step1475.md) preserves the failed stable full-host attempt:
 two stale contract fixtures fail with unchanged inputs/zero reuse, and the runner
 blocks the native phase. The repair adds M16-026's canonical ownership note and

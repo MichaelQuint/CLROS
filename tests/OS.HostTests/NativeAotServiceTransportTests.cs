@@ -51,6 +51,19 @@ internal static class NativeAotServiceTransportTests
         Reject(valid.Select(row=>row.Replace("compactHighWater=10","compactHighWater=9",StringComparison.Ordinal)).ToArray());
     }
 
+    [HostTest("service transport consumes one actual last-description observation per live generation and rejects substitutions")]
+    private static void LastCloseObservation()
+    {
+        var rows=Rows().ToList();int at=rows.FindIndex(row=>row.StartsWith("M07_030_TRANSFER ",StringComparison.Ordinal));
+        string identity=rows[at-2]["M16_011_SLOT event=0 ".Length..].Split(" deadline=",StringSplitOptions.None)[0];
+        string close="M07_034_CLOSE "+identity+" localNext=100 remoteNext=200 unread=0";
+        rows.Insert(at,close);QemuTranscripts.InspectNativeAotServiceTransportForTests(rows.ToArray());
+        var duplicate=rows.ToList();duplicate.Insert(at,close);Reject(duplicate.ToArray());
+        Reject(rows.Select(row=>row==close?row.Replace("owner=2097152","owner=2097160",StringComparison.Ordinal):row).ToArray());
+        Reject(rows.Select(row=>row==close?row.Replace("unread=0","unread=8193",StringComparison.Ordinal):row).ToArray());
+        Reject(rows.Select(row=>row==close?row.Replace("M07_034_CLOSE","M07_034_UNKNOWN",StringComparison.Ordinal):row).ToArray());
+    }
+
     [HostTest("service transport independently observes a bulk peak hidden between high-water snapshots")]
     private static void BulkPeaks()
     {

@@ -18,7 +18,7 @@ public static partial class QemuTranscripts
     {
         internal readonly Dictionary<string,ulong> Identity=identity;
         internal ulong Deadline, Duration;
-        internal bool Transferred, Retired;
+        internal bool Transferred, Retired, LastClosed;
     }
     private sealed record ServiceCompact(ServiceBulk Bulk,ulong Generation,ulong Original,ulong Deadline,ulong Duration,ulong Clock);
 
@@ -115,6 +115,16 @@ public static partial class QemuTranscripts
                     maximum=Math.Max(maximum,value.Deadline);
                 }
             }
+            else if(line.StartsWith("M07_034_CLOSE ",StringComparison.Ordinal))
+            {
+                Need(bound && !ended,"service_unread_close_owner");
+                var row=ReadRecord(line,"M07_034_CLOSE",[..SocketLifetimeFields[..10],"localNext:dec","remoteNext:dec","unread:dec"]);
+                Time(row["clock"]);var value=Current(row);
+                Need(!value.LastClosed && !value.Transferred && !value.Retired &&
+                    row["localNext"]<=uint.MaxValue && row["remoteNext"]<=uint.MaxValue && row["unread"]<=8192,
+                    "service_unread_close_state");
+                value.LastClosed=true;
+            }
             else if(line.StartsWith("M07_030_RECORD ",StringComparison.Ordinal))
             {
                 Need(bound && !ended,"service_compact_owner");
@@ -181,7 +191,7 @@ public static partial class QemuTranscripts
             }
             else
             {
-                Need(!line.StartsWith("M07_030_",StringComparison.Ordinal) &&
+                Need(!line.StartsWith("M07_030_",StringComparison.Ordinal) && !line.StartsWith("M07_034_",StringComparison.Ordinal) &&
                     (!line.StartsWith("M07_033_",StringComparison.Ordinal) || line=="M07_033_SEED source=firmware-rng acquisitions=1 secretBytes=32 domain=tcp-isn state=ready firmwareCallbacks=none"),
                     "service_transport_unknown_record");continue;
             }
