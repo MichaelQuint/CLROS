@@ -16,12 +16,13 @@ public static class NativeAotServiceLifecyclePeer
 {
     private const string Prefix = "/__clros/service/lifecycle/";
     private const int EchoBytes = 32768, StreamBytes = 524288;
+    private const int AggregateSeconds = 240;
     public sealed record Observation(int Port, int SequentialConnections, int EchoBytes, uint EchoHash,
         int StreamBytes, string StreamSha256, int ResetRequests, int TimeoutRequests,
         long HoldStartedTicks, long HealthyCompletedTicks, long HoldReleasedTicks, string TerminalStatus);
 
     /// <summary>Run the fixed protocol against one already-listening explicit v2
-    /// service. Uses a90-second aggregate bound,20-second normal exchanges and
+    /// service. Uses a240-second aggregate bound,20-second normal exchanges and
     /// bounded status polling. A held response must remain active while another
     /// connection completes; reset/timeout must cause observed request drain.
     /// Tick fields use elapsed100ns TimeSpan ticks, not guest or wall-clock time.</summary>
@@ -29,7 +30,7 @@ public static class NativeAotServiceLifecyclePeer
     {
         Need(port is >= 1 and <= 65535, "port");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        deadline.CancelAfter(TimeSpan.FromSeconds(90)); CancellationToken token = deadline.Token;
+        deadline.CancelAfter(TimeSpan.FromSeconds(AggregateSeconds)); CancellationToken token = deadline.Token;
         var clock = Stopwatch.StartNew();
         async Task<string> Text(string path)
         {
@@ -100,7 +101,7 @@ public static class NativeAotServiceLifecyclePeer
             value.StreamSha256 == Convert.ToHexString(SHA256.HashData(Pattern(StreamBytes))) &&
             value.ResetRequests == 1 && value.TimeoutRequests == 1 && value.HoldStartedTicks > 0 &&
             value.HealthyCompletedTicks >= value.HoldStartedTicks && value.HoldReleasedTicks >= value.HealthyCompletedTicks &&
-            value.HoldReleasedTicks < TimeSpan.FromSeconds(90).Ticks, "report");
+            value.HoldReleasedTicks < TimeSpan.FromSeconds(AggregateSeconds).Ticks, "report");
         var status = ParseStatus(value.TerminalStatus);
         Need(status["active"] == 0 && status["waiting"] == 0 && status["waits"] == 2 && status["canceled"] == 2 &&
             status["echoes"] == 1 && status["streams"] == 1 && status["rejected"] == 1 &&

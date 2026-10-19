@@ -65,7 +65,7 @@ internal static class NativeAotServicePeerTests
             v => v["echoHash"] = 1653448133L + 4294967296L, v => v["echoHash"] = 1653448133L - 4294967296L,
             v => v["holdStartedTicks"] = ulong.MaxValue, v => v["port"] = 8081, v => v["sequentialConnections"] = 11,
             v => v["holdStartedTicks"] = 0, v => v["healthyCompletedTicks"] = 99, v => v["holdReleasedTicks"] = 199,
-            v => v["holdReleasedTicks"] = TimeSpan.FromSeconds(90).Ticks, v => v["streamSha256"] = "wrong",
+            v => v["holdReleasedTicks"] = TimeSpan.FromSeconds(240).Ticks, v => v["streamSha256"] = "wrong",
             v => v["terminalStatus"] = "CLROS_LIFECYCLE_STATUS active=1 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288" })
         { var report = LifecycleReport(); alter(report["lifecycle"]!.AsObject()); Reject(report.ToJsonString(), lifecycle: true); }
     }

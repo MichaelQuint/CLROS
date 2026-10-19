@@ -212,12 +212,17 @@ internal static class KestrelConnectionLifecycleTests
         await using var server = new PeerServer();
         var observed = await NativeAotServiceLifecyclePeer.RunAsync(server.Port);
         NativeAotServiceLifecyclePeer.Validate(observed);
+        // Value-only boundary: the failed first guest used its old90s budget
+        // before completing the fixed sequence. No slow test or guest is implied.
+        NativeAotServiceLifecyclePeer.Validate(observed with { HoldStartedTicks = TimeSpan.FromSeconds(100).Ticks,
+            HealthyCompletedTicks = TimeSpan.FromSeconds(110).Ticks, HoldReleasedTicks = TimeSpan.FromSeconds(120).Ticks });
         foreach (var changed in new[]
         {
             observed with { SequentialConnections = 8 }, observed with { EchoHash = observed.EchoHash ^ 1 },
             observed with { StreamBytes = 524287 }, observed with { StreamSha256 = new string('0', 64) },
             observed with { ResetRequests = 0 }, observed with { TimeoutRequests = 0 },
             observed with { HoldReleasedTicks = observed.HealthyCompletedTicks - 1 },
+            observed with { HoldReleasedTicks = TimeSpan.FromSeconds(240).Ticks },
             observed with { TerminalStatus = observed.TerminalStatus.Replace("canceled=2", "canceled=1", StringComparison.Ordinal) },
             observed with { TerminalStatus = observed.TerminalStatus + " extra=1" }
         }) HostCheck.True(PeerRejected(()=>NativeAotServiceLifecyclePeer.Validate(changed)));

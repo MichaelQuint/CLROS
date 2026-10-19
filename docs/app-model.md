@@ -210,6 +210,14 @@ The temporary v2 launch block is removed; original package/source/native,
 owned-child, serial and packet admission still apply. No owned v2 guest
 Completion, original full native ABI review or new guest/full-host acceptance
 is established. Guest GC/native pressure and quota recovery remain pending.
+Step1457 retains the first failed v2 guest: the fixed helper sequence exhausts
+its90-second aggregate during held-stream/healthy-peer work. Diagnostic PCAP
+shows preceding health/echo/rejection responses; the peer report is empty and
+runner completion rejects. The helper aggregate becomes240s, retaining20s normal
+exchange limits,800s peer/900s runner bounds and every body/order/resource check.
+Six lifecycle and ten peer checks pass in selected staged receipts. A successful
+current guest, its required native integration review and batch acceptance
+remain pending; process termination does not establish guest resource cleanup.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

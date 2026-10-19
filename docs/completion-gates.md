@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+Step1457 records a failed first v2 guest, canceled after90,022ms of helper work.
+The peer produces no complete report, so the runner rejects. The host helper's
+aggregate becomes240s while20s exchanges and800s/900s outer bounds remain.
+Six lifecycle and ten peer focused checks pass. The stopped guest's original
+EFI/object match the frozen native preparation; further bounded native reviews
+cover new helpers/aliases but leave14 functional common bodies for integration
+review. No guest, resource-cleanup, full native/full-host or gate acceptance
+follows; see [the failed attempt and correction](../done/step1457.md).
+
 Step1456 refreshes eight reviewed batch source identities; five focused
 admission checks and a fresh original service EFI publish pass. Original
 COFF/EFI code and796 relocation targets join. Complete method/unwind and typed
