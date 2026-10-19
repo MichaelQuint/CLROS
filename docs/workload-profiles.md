@@ -29,8 +29,11 @@ The original r03 application has1,356,753 instructions/198 syscall continuations
 across all five executable sections. The qualified capture consumes18,708 random
 bytes, transfers/retires32 compact owners and restores retained resources.
 Earlier source-held replay and rejected captures remain in steps1426-1436.
-Next #224 must supply its repeated-service acceptance; #225 retains its separate
-memory/budget/pending-signal dependencies. This advances no numbered Gate14,
+Next #224 must supply its repeated-service acceptance after the October19
+[#778 last-close repair](http://192.168.4.35:3000/admin/CLROS/issues/778) and
+[#779 independent high-water validation](http://192.168.4.35:3000/admin/CLROS/issues/779).
+#225 retains its separate memory/budget/pending-signal dependencies. The review
+does not reopen finite step1437 prerequisites. This advances no numbered Gate14,
 arbitrary hosted-.NET, isolation, cloud or production claim.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
@@ -64,6 +67,22 @@ unaccepted because constructor creation precedes its failure-marker try. Continu
 #219 -> #745 vectors -> #220 under #737, including #759 realtime before #223.
 No general Kestrel, continuing-service, whole-stack, numbered, cloud or production
 gate advances. See the step for exact commands, hashes and retained failures.
+
+## October 19 review follow-up order
+
+The [review](repo-audit.md#october-19-whole-project-review) is frozen at merged
+`2dcd1311`, with separate development `8bb79eb8`; newer work is excluded. Keep
+#737's owner and #224/#747/#748/#760 -> #225 batch. Incorporate #778 and #779
+before #224 acceptance without interrupting sealed runs. Repair the validator
+and re-read original evidence; the socket fix also needs guest qualification.
+
+[#780 tracker conflict protection](http://192.168.4.35:3000/admin/CLROS/issues/780)
+is independent host tooling. Before [#769 disk fixtures](http://192.168.4.35:3000/admin/CLROS/issues/769),
+complete [#781 host FAT selection](http://192.168.4.35:3000/admin/CLROS/issues/781)
+then [#782 bounded directory scratch](http://192.168.4.35:3000/admin/CLROS/issues/782).
+These image-verification repairs do not become first-web runtime dependencies
+or reopen the nineteen-child M06 epic. #752 retains measured optimization;
+#753-#755 retain later build-time assurance. The manifest owns exact dependencies.
 
 ## Architecture review implementation order (2026-10-16)
 

@@ -22,6 +22,12 @@ shutdown/reaps,5,809 full-host checks and ten affected ancestors. Repeated servi
 #224 and the complete local Kestrel gate remain incomplete.
 CLROS is not cloud-ready or production-ready.
 
+The [October19 review](docs/repo-audit.md#october-19-whole-project-review) adds
+four reproduced defects and one measured memory-cost finding. Last-close TCP
+retirement and independent resource-peak validation precede #224 acceptance;
+host FAT reader repairs precede disk-fixture qualification. These follow-ups
+remain open; the review does not implement fixes.
+
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
 real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
 keeps current service qualification first and distinguishes staged files from

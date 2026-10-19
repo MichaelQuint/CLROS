@@ -18,6 +18,15 @@ dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001
 dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001 --apply
 ```
 
+**Known concurrency defect:** [#780](http://192.168.4.35:3000/admin/CLROS/issues/780)
+reproduces a lost concurrent unmanaged note in compiled apply. Until repaired,
+preview is safe; existing-body updates need fresh GET, preserved unmanaged text
+and labels, current `content_version`, conflict handling and exact readback.
+This review used compiled creation for five new issues, versioned API writes
+for five existing records, then a zero-change scoped preview. The current
+manifest has 394 issues (17 epics, 377 children); auxiliary keyed live issues are
+separate. Historical inventory counts below retain their original dates.
+
 Selection limits issue writes while retaining the complete dependency and
 ownership graph; relevant label/milestone definitions are reconciled too.
 Reviewed closure evidence still gates status. Declared closed historical

@@ -1,5 +1,14 @@
 # Networking
 
+The [October19 review](repo-audit.md#october-19-whole-project-review) reproduces
+last-close unread-data retention: [#778](http://192.168.4.35:3000/admin/CLROS/issues/778)
+must release inaccessible RX backing with explicit reset/discard semantics
+before #224 acceptance. Preserve readable duplicate fds, SHUT_WR, tuple lifetime
+and scrubbing. One unread byte pins the sole bulk slot in the host fixture;
+no live guest attack or fix is claimed. [#779](http://192.168.4.35:3000/admin/CLROS/issues/779)
+separately requires resource peaks reconstructed from ownership events.
+Step1437 remains accepted within its original scope.
+
 [Step1405](../done/step1405.md) qualifies #745 checked connected-stream vectors
 and #219 startup: 5,619 full-host checks/751 fixtures (94 Native), three finite
 BufferList guests, six real Kestrel web/quota prefixes and eight strict ancestors.
