@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+Step1456 refreshes eight reviewed batch source identities; five focused
+admission checks and a fresh original service EFI publish pass. Original
+COFF/EFI code and796 relocation targets join. Complete method/unwind and typed
+layout comparisons narrow further review, but functional/new bodies, aliases
+and referenced data remain pending. This grants no native or guest acceptance;
+see [the exact preparation boundary](../done/step1456.md).
+
 [Step1454](../done/step1454.md) connects explicit v2 peer/CLI/owned-child and
 prepared-program mode, startup/GC replay values and guest/peer terminal-text
 matching.63 focused checks and real two-mode preparation pass. The complete new
