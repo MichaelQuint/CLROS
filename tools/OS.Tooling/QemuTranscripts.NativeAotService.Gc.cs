@@ -11,9 +11,11 @@ public static partial class QemuTranscripts
 
     /// <summary>Value-only joins of the supplied entitlement, kernel budget and
     /// two application GC measurements. Write/call, package, native ownership
-    /// and guest execution must be independently verified by the parent replay.</summary>
+    /// and guest execution must be independently verified by the parent replay.
+    /// Peak backing includes all dynamic pool use; it does not classify GC
+    /// versus native allocations or establish native headroom.</summary>
     public readonly record struct ServiceGcInspection(ulong GcLimitBytes, ulong NativeReserveBytes,
-        ulong StaticBytes, ulong PoolBytes, ulong EntitlementBytes, ServiceGcMeasurement Begin, ServiceGcMeasurement End,
+        ulong StaticBytes, ulong PoolBytes, ulong EntitlementBytes, ulong PeakBackedBytes, ServiceGcMeasurement Begin, ServiceGcMeasurement End,
         string TerminalStatus);
 
     /// <summary>Synchronously borrow bounded original framed service bytes and
@@ -22,21 +24,22 @@ public static partial class QemuTranscripts
     /// execution or authority is created, and the caller retains its input.</summary>
     public static ServiceGcInspection? InspectNativeAotServiceGcForTests(ReadOnlySpan<byte> raw,
         ulong entitlementBytes, bool lifecycle = false) =>
-        ReadServiceGc(NativeAotThreadingOutput.ReadService(raw), entitlementBytes, lifecycle, out _);
+        ReadServiceGc(NativeAotThreadingOutput.ReadService(raw), entitlementBytes, lifecycle, out _, out _);
 
     internal static ServiceGcInspection? ReadServiceGc(NativeAotThreadingOutput.Capture framed,
-        ulong entitlementBytes, bool lifecycle, out int? budgetPosition)
+        ulong entitlementBytes, bool lifecycle, out int? budgetPosition, out int? memoryPosition)
     {
-        const string budgetMarker = "M16_016_BUDGET", gcMarker = "CLROS_SERVICE_GC_";
-        budgetPosition = null;
+        const string budgetMarker = "M16_016_BUDGET", gcMarker = "CLROS_SERVICE_GC_", memoryMarker = "M16_016_MEMORY";
+        budgetPosition = memoryPosition = null;
         bool Has(string marker) => framed.NormalizedTail.Contains(marker, StringComparison.Ordinal) ||
             framed.Stdout.Contains(marker, StringComparison.Ordinal) || framed.Stderr.Contains(marker, StringComparison.Ordinal);
         if (!lifecycle)
         {
-            Need(!Has(budgetMarker) && !Has(gcMarker), "service_gc_requires_explicit_v2"); return null;
+            Need(!Has(budgetMarker) && !Has(gcMarker) && !Has(memoryMarker), "service_gc_requires_explicit_v2"); return null;
         }
         Need(!framed.Stdout.Contains(gcMarker, StringComparison.Ordinal) && !framed.NormalizedTail.Contains(gcMarker, StringComparison.Ordinal) &&
-            !framed.Stdout.Contains(budgetMarker, StringComparison.Ordinal) && !framed.Stderr.Contains(budgetMarker, StringComparison.Ordinal),
+            !framed.Stdout.Contains(budgetMarker, StringComparison.Ordinal) && !framed.Stderr.Contains(budgetMarker, StringComparison.Ordinal) &&
+            !framed.Stdout.Contains(memoryMarker, StringComparison.Ordinal) && !framed.Stderr.Contains(memoryMarker, StringComparison.Ordinal),
             "service_gc_channel");
         string text = framed.NormalizedTail;
         Need(text.EndsWith("\r\n", StringComparison.Ordinal), "service_gc_records");
@@ -44,6 +47,7 @@ public static partial class QemuTranscripts
         Need(rows.Length is >0 and <=1_000_000 && rows.All(row => row.Length is >0 and <=4096 &&
             row.All(c => c is >= ' ' and <= '~')), "service_gc_records");
         int[] budgets = Enumerable.Range(0, rows.Length).Where(i => rows[i].Contains(budgetMarker, StringComparison.Ordinal)).ToArray();
+        int[] memories = Enumerable.Range(0, rows.Length).Where(i => rows[i].Contains(memoryMarker, StringComparison.Ordinal)).ToArray();
         int[] starts = Enumerable.Range(0, rows.Length).Where(i => rows[i] == "TEST_START m16.014.startup").ToArray();
         int firstError = Array.FindIndex(rows, row => row.StartsWith("M16_005_WRITE fd=2 ", StringComparison.Ordinal));
         Need(budgets.Length == 1 && starts.Length == 1 && budgets[0] < starts[0] &&
@@ -54,6 +58,14 @@ public static partial class QemuTranscripts
             budget["static"] > 0 && budget["static"] % 4096 == 0 && entitlementBytes % 4096 == 0 &&
             budget["entitlement"] == entitlementBytes && pool <= entitlementBytes && budget["static"] <= entitlementBytes - pool,
             "service_gc_budget");
+        int lastError = Array.FindLastIndex(rows, row => row.StartsWith("M16_005_WRITE fd=2 ", StringComparison.Ordinal));
+        int[] owners = Enumerable.Range(0, rows.Length).Where(i => rows[i].StartsWith("M16_008_OWNER_END ", StringComparison.Ordinal)).ToArray();
+        Need(memories.Length == 1 && owners.Length == 1 && memories[0] > lastError &&
+            (memories[0] + 1 == owners[0] || memories[0] + 2 == owners[0] &&
+                rows[memories[0] + 1].StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal)), "service_gc_memory_order");
+        var memory = ReadRecord(rows[memories[0]], memoryMarker, "poolPages:dec", "peakPages:dec", "endPages:dec");
+        Need(memory["poolPages"] == pool / 4096 && memory["peakPages"] > 0 &&
+            memory["peakPages"] <= memory["poolPages"] && memory["endPages"] == 0, "service_gc_memory");
 
         Need(framed.Stderr.EndsWith('\n'), "service_gc_output");
         string[] error = framed.Stderr[..^1].Split('\n', StringSplitOptions.None);
@@ -76,8 +88,12 @@ public static partial class QemuTranscripts
             terminal["read"] is >=32768 and <=65536 && terminal["written"] == 524288, "service_gc_lifecycle_drain");
         var first = ReadServiceGcMeasurement(error[begin], "CLROS_SERVICE_GC_BEGIN");
         var last = ReadServiceGcMeasurement(error[end], "CLROS_SERVICE_GC_END");
-        budgetPosition = budgets[0];
-        return new(budget["gc"], budget["nativeReserve"], budget["static"], budget["pool"], entitlementBytes, first, last,
+        ulong maximumGcCommitted = Math.Max(Math.Max(first.BaselineCommittedBytes, Math.Max(first.LiveCommittedBytes, first.PressureCommittedBytes)),
+            Math.Max(last.BaselineCommittedBytes, Math.Max(last.LiveCommittedBytes, last.PressureCommittedBytes)));
+        ulong peakBytes = memory["peakPages"] * 4096;
+        Need(maximumGcCommitted <= peakBytes, "service_gc_memory_coverage");
+        budgetPosition = budgets[0]; memoryPosition = memories[0];
+        return new(budget["gc"], budget["nativeReserve"], budget["static"], budget["pool"], entitlementBytes, peakBytes, first, last,
             error[drained]["CLROS_SERVICE_LIFECYCLE_END ".Length..]);
     }
 

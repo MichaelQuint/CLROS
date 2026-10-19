@@ -38,8 +38,9 @@ public static partial class QemuTranscripts
         Need(framed.NormalizedTail.EndsWith("\r\n",StringComparison.Ordinal),"service_complete_terminal");
         string[] original=framed.NormalizedTail[..^2].Split("\r\n",StringSplitOptions.None);
         var startup=ReadServiceStartup(framed,out var metadata,lifecycle);
-        var gc=ReadServiceGc(framed,entitlementBytes,lifecycle,out var gcBudgetPosition);
+        var gc=ReadServiceGc(framed,entitlementBytes,lifecycle,out var gcBudgetPosition,out var gcMemoryPosition);
         if(gcBudgetPosition.HasValue)metadata.Add(gcBudgetPosition.Value);
+        if(gcMemoryPosition.HasValue)metadata.Add(gcMemoryPosition.Value);
         var random=ReadServiceRandom(original);var transport=ReadServiceTransport(original,out var network);
         metadata.UnionWith(network);ServiceRuntimeMetadata(original,startup,metadata);
         for(int i=0;i<original.Length;i++)

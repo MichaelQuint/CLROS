@@ -68,6 +68,37 @@ internal static unsafe class LinuxMemoryServicesTests
     private static long Map(Owner owner, ulong address, ulong bytes, uint protection, ulong flags = 0x100022) =>
         LinuxMemoryServices.Map(owner.State, address, bytes, protection, flags, ulong.MaxValue, 0);
 
+    [HostTest("linux.memory backing high-water counts published commits and survives replacement release and cleanup")]
+    private static void BackingHighWater()
+    {
+        using var owner=new Owner();owner.Begin();HostCheck.Equal(0U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)Start,Map(owner,Start,2*4096,3));HostCheck.Equal(2U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)(Start+0x10000),Map(owner,Start+0x10000,3*4096,0));
+        HostCheck.Equal(2U,owner.State->BackedPages);HostCheck.Equal(2U,owner.State->PeakBackedPages);
+        HostCheck.Equal(0L,LinuxMemoryServices.Protect(owner.State,Start+0x10000,3*4096,3));
+        HostCheck.Equal(5U,owner.State->BackedPages);HostCheck.Equal(5U,owner.State->PeakBackedPages);
+        HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start,2*4096));
+        HostCheck.Equal(3U,owner.State->BackedPages);HostCheck.Equal(5U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)Start,Map(owner,Start,4*4096,3));HostCheck.Equal(7U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)Start,Map(owner,Start,4096,3,0x32));
+        HostCheck.Equal(7U,owner.State->BackedPages);HostCheck.Equal(7U,owner.State->PeakBackedPages);
+        HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start,0x20000));
+        HostCheck.Equal(0U,owner.State->BackedPages);HostCheck.Equal(7U,owner.State->PeakBackedPages);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("linux.memory rejected pool and table commits leave backing high-water and published ownership unchanged")]
+    private static void RejectedBackingHighWater()
+    {
+        using var owner=new Owner(backingPages:4);owner.Begin();
+        HostCheck.Equal((long)Start,Map(owner,Start,2*4096,3));var before=Snapshot(owner);
+        HostCheck.Equal(-12L,Map(owner,Start+0x10000,3*4096,3));Same(owner,before);
+        HostCheck.Equal(2U,owner.State->PeakBackedPages);
+        using var tight=new Owner(tables:6);tight.Begin();before=Snapshot(tight);
+        HostCheck.Equal(-12L,Map(tight,Start,4096,3));Same(tight,before);
+        HostCheck.Equal(0U,tight.State->PeakBackedPages);
+    }
+
     private struct GuardOwner { internal ulong Pin, LastStart, LastBytes; internal uint Calls; internal bool Deny; }
 
     private static LinuxMemoryServices.Admission ImageAdmission(Owner owner)

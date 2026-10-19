@@ -227,6 +227,18 @@ verify fresh2MiB allocations afterward. Pressure retains12MiB/8MiB respectively
 under the reported16MiB limit. This is Linux-host managed recovery; CLROS guest
 pressure, native headroom/quotas, full native review and stable batch gates remain.
 
+[Step1466](../done/step1466.md) retains the memory owner's peak successfully
+published dynamic backing across replacement, release and final cleanup.
+Failed commits leave it unchanged; virtual-only reservations and retained static
+image/stack mappings are excluded. Configured service v2 emits
+`M16_016_MEMORY poolPages=... peakPages=... endPages=...` after audited cleanup,
+before the optional runtime budget end and owner end. The consumer requires
+that position, final zero backing, the immutable pool size and a peak covering
+all reported GC commitment. This is total dynamic backing, without GC/native
+classification or a headroom claim.73 scoped focused checks and freestanding
+C# compilation pass. New native/guest evidence and native quota stimuli remain
+pending; older captures do not satisfy this new record contract.
+
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the

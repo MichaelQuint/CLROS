@@ -9,6 +9,8 @@ internal static class NativeAotServiceStartupReplayTests
     private const string Listening = "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n";
     private const string GcBegin = "CLROS_SERVICE_GC_BEGIN limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4165632 pressureBytes=12582912 pressureHeap=12615680 pressureCommitted=14680064 pressureCollections=3 oom=1\n";
     private const string GcBudget = "M16_016_BUDGET gc=16777216 nativeReserve=16777216 static=16777216 pool=33554432 entitlement=67108864\r\n";
+    private const string GcMemory = "M16_016_MEMORY poolPages=8192 peakPages=5120 endPages=0\r\n";
+    private const string GcOwner = "M16_008_OWNER_END reaped=18 transfers=64 irqs=1 exit=0 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n";
     private const string LifecycleEnd = "CLROS_SERVICE_LIFECYCLE_END CLROS_LIFECYCLE_STATUS active=0 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288\n";
     private const string ApplicationEnd = "CLROS_SERVICE_APP_END calls=4097 randomRequests=1 randomBytes=8192 iterations=1 elapsedMillis=300001 worker=joined\n";
     private static readonly string[] Markers = ["TEST_START m16.014.startup", "M16_014_ENTER ", "M16_014_CONFIG ",
@@ -25,6 +27,7 @@ internal static class NativeAotServiceStartupReplayTests
             HostCheck.Equal(16777216UL, value.GcLimitBytes); HostCheck.Equal(16777216UL, value.NativeReserveBytes);
             HostCheck.Equal(16777216UL, value.StaticBytes); HostCheck.Equal(33554432UL, value.PoolBytes);
             HostCheck.Equal(67108864UL, value.EntitlementBytes); HostCheck.Equal(30920UL, value.Begin.BaselineHeapBytes);
+            HostCheck.Equal(20971520UL, value.PeakBackedBytes);
             HostCheck.Equal(2097152UL, value.End.LiveBytes); HostCheck.Equal(4165632UL, value.End.LiveCommittedBytes);
             HostCheck.Equal(12582912UL, value.Begin.PressureBytes); HostCheck.Equal(12615680UL, value.Begin.PressureHeapBytes);
             HostCheck.Equal(14680064UL, value.End.PressureCommittedBytes); HostCheck.Equal(3UL, value.End.PressureCollections);
@@ -35,6 +38,26 @@ internal static class NativeAotServiceStartupReplayTests
         HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(Raw()), 0) is null);
         RejectGc(GcRaw(), lifecycle: false); RejectGc(Raw() + GcBudget, lifecycle: false);
         RejectGc(Raw() + Frame("CLROS_SERVICE_GC_REJECT runtime\n"), lifecycle: false);
+    }
+
+    [HostTest("service GC memory peak rejects missing duplicate misplaced understated nonzero-end and wrong-channel records")]
+    private static void GcMemoryControls()
+    {
+        foreach(string memory in new[]{"",GcMemory+GcMemory,
+            GcMemory.Replace("poolPages=8192","poolPages=4096",StringComparison.Ordinal),
+            GcMemory.Replace("peakPages=5120","peakPages=0",StringComparison.Ordinal),
+            GcMemory.Replace("peakPages=5120","peakPages=8193",StringComparison.Ordinal),
+            GcMemory.Replace("peakPages=5120","peakPages=3583",StringComparison.Ordinal),
+            GcMemory.Replace("peakPages=5120","peakPages=05120",StringComparison.Ordinal),
+            GcMemory.Replace("endPages=0","endPages=1",StringComparison.Ordinal),
+            GcMemory.Replace("\r\n"," extra=1\r\n",StringComparison.Ordinal)})RejectGc(GcRaw(memory:memory));
+        foreach(string peak in new[]{"3584","8192"})
+            HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory:GcMemory.Replace("5120",peak,StringComparison.Ordinal))),67108864,true).HasValue);
+        HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory:GcMemory+"M16_008_BUDGET_END nanos=300000000001\r\n")),67108864,true).HasValue);
+        RejectGc(GcMemory+GcRaw(memory:""));RejectGc(GcRaw(memory:Frame(GcMemory)));
+        RejectGc(GcRaw(memory:Frame(GcMemory,1)));RejectGc(Raw()+GcMemory,lifecycle:false);
+        RejectGc(GcRaw(memory:"")+GcMemory);RejectGc(GcRaw().Replace(GcOwner,"",StringComparison.Ordinal));
+        RejectGc(GcRaw(memory:GcMemory+"UNRELATED_RECORD\r\n"));
     }
 
     [HostTest("service v2 GC pressure requires bounded retained bytes actual collections and exhaustion before recovery")]
@@ -243,12 +266,12 @@ internal static class NativeAotServiceStartupReplayTests
     private static string Built() => "CLROS_APP_BUILT minimal.api.service\n";
     private static string Frame(string text, uint channel = 2) => $"M16_005_WRITE fd={channel} bytes={Encoding.UTF8.GetByteCount(text)} data={text}\r\n";
     private static string GcRaw(bool segmented = false, string budget = GcBudget, string begin = GcBegin,
-        string? tail = null, string prefix = Prefix)
+        string? tail = null, string prefix = Prefix, string memory = GcMemory)
     {
         tail ??= LifecycleEnd + GcBegin.Replace("GC_BEGIN", "GC_END", StringComparison.Ordinal) + ApplicationEnd;
         string ending = segmented ? string.Concat(tail.Chunk(7).Select(part => Frame(new string(part)))) : Frame(tail);
         return budget + Raw(segmented, prefix: prefix + begin, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
-            .Replace("envc=2", "envc=3", StringComparison.Ordinal) + ending;
+            .Replace("envc=2", "envc=3", StringComparison.Ordinal) + ending + memory + GcOwner;
     }
     private static void RejectGc(string raw, ulong entitlement = 67108864, bool lifecycle = true)
     {

@@ -74,6 +74,11 @@ public static unsafe class LinuxMemoryServices
         internal ImageProtection Image;
         public ulong ReservedBytes { get; internal set; }
         public uint BackedPages { get; internal set; }
+        /// <summary>Maximum successfully published dynamic pool backing during
+        /// this one-use state lifetime. Excludes retained static mappings and
+        /// virtual-only reservations; release preserves it, rejection never
+        /// advances it. Observe only under the owner's existing serialization.</summary>
+        public uint PeakBackedPages { get; internal set; }
         public X64UserAddressSpaceResult Root { get; internal set; }
         public readonly bool HasMutationGuard => Guard != null;
         /// <summary>True while one owned image interval differs from its original
@@ -114,7 +119,7 @@ public static unsafe class LinuxMemoryServices
     private static bool Initialize(State* state, Admission memory, X64UserAddressSpaceResult original, bool adopt)
     {
         if (!Storage(state, memory) || state->Initialized != 0 || state->Count != 0 || state->GuardContext != null || state->Guard != null || state->GuardSelf != 0 ||
-            state->ReservedBytes != 0 || state->BackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized ||
+            state->ReservedBytes != 0 || state->BackedPages != 0 || state->PeakBackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized ||
             state->Image.Start != 0 || state->Image.Bytes != 0 || state->Image.Protection != 0)
             return false;
         for (uint i = 0; i < MaximumRegions * 4; i++) if (state->Regions[i] != 0) return false;
@@ -474,7 +479,8 @@ public static unsafe class LinuxMemoryServices
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
             (state->Guard == null ? state->GuardContext != null || state->GuardSelf != 0 :
                 state->GuardContext == null || state->GuardSelf != (ulong)state) ||
-            !Storage(state, state->Memory) || state->Count > MaximumRegions) return false;
+            !Storage(state, state->Memory) || state->Count > MaximumRegions ||
+            state->PeakBackedPages < state->BackedPages || state->PeakBackedPages > state->Memory.PoolPages) return false;
         for (uint i = 0; i < state->Count; i++) if ((state->Regions[i * 4 + 3] & ~0x307UL) != 0) return false;
         Region* regions = stackalloc Region[(int)MaximumRegions];
         uint count = CopyRegions(state, regions);
@@ -522,6 +528,7 @@ public static unsafe class LinuxMemoryServices
             state->Regions[i * 4 + 3] = r.Protection | (r.NoDump ? 0x100UL : 0UL) | (r.Heap ? 0x200UL : 0UL);
         }
         state->Count = count; state->ReservedBytes = reserved; state->BackedPages = backed; state->Root = root;
+        if (backed > state->PeakBackedPages) state->PeakBackedPages = backed;
         return 0;
     }
 
