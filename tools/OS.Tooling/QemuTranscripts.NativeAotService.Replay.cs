@@ -42,6 +42,8 @@ public static partial class QemuTranscripts
         if(gcBudgetPosition.HasValue)metadata.Add(gcBudgetPosition.Value);
         if(gcMemoryPosition.HasValue)metadata.Add(gcMemoryPosition.Value);
         var memory=ReadServiceMemory(framed,lifecycle,gc,out var memoryPositions);metadata.UnionWith(memoryPositions);
+        if(lifecycle)Need(memory.HasValue && memory.Value.GcArena.HasValue && memory.Value.NativeReserveFits &&
+            memory.Value.ConservativeHeadroomFits,"service_memory_headroom");
         var random=ReadServiceRandom(original);var transport=ReadServiceTransport(original,out var network);
         metadata.UnionWith(network);ServiceRuntimeMetadata(original,startup,metadata);
         for(int i=0;i<original.Length;i++)

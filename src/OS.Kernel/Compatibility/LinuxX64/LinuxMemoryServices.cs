@@ -19,7 +19,17 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// </summary>
 public static unsafe class LinuxMemoryServices
 {
-    public const uint DefaultPoolPages = 4096, MaximumPoolPages = 8192;
+    /// <summary>Physical capacity selected by ordinary mechanical profiles.</summary>
+    public const uint DefaultPoolPages = 4096;
+    /// <summary>Physical capacity of legacy application profiles.</summary>
+    public const uint ApplicationPoolPages = 8192;
+    /// <summary>Compile-time capacity bound. Only the explicit service diagnostic
+    /// admits its configured larger pool; actual pages remain owner supplied.</summary>
+#if M16_014_PROBE
+    public const uint MaximumPoolPages = OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages;
+#else
+    public const uint MaximumPoolPages = ApplicationPoolPages;
+#endif
     /// <summary>Interval capacity of the explicit web/service diagnostic build.
     /// Shared with its offline consumer; normal builds still use64 regions.</summary>
     public const uint WebMaximumRegions = 256;

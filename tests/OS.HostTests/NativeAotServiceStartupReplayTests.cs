@@ -8,8 +8,8 @@ internal static class NativeAotServiceStartupReplayTests
         "CLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\n";
     private const string Listening = "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n";
     private const string GcBegin = "CLROS_SERVICE_GC_BEGIN limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4165632 pressureBytes=12582912 pressureHeap=12615680 pressureCommitted=14680064 pressureCollections=3 oom=1\n";
-    private const string GcBudget = "M16_016_BUDGET gc=16777216 nativeReserve=16777216 static=16777216 pool=33554432 entitlement=67108864\r\n";
-    private const string GcMemory = "M16_016_MEMORY poolPages=8192 peakPages=5120 endPages=0\r\n";
+    private const string GcBudget = "M16_016_BUDGET gc=16777216 nativeReserve=20971520 static=16777216 pool=37748736 entitlement=67108864\r\n";
+    private const string GcMemory = "M16_016_MEMORY poolPages=9216 peakPages=5120 endPages=0\r\n";
     private const string NativeBegin = "CLROS_SERVICE_NATIVE_BEGIN capacityBytes=33554432 retainedBytes=4194304 gcCommitted=4194304 quota=1 errno=12 releasedBytes=4194304 recoveredBytes=1048576\n";
     private const string GcOwner = "M16_008_OWNER_END reaped=18 transfers=64 irqs=1 exit=0 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n";
     private const string LifecycleEnd = "CLROS_SERVICE_LIFECYCLE_END CLROS_LIFECYCLE_STATUS active=0 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288\n";
@@ -25,8 +25,8 @@ internal static class NativeAotServiceStartupReplayTests
             byte[] raw = Encoding.UTF8.GetBytes(GcRaw(segmented)), before = raw.ToArray();
             var report = QemuTranscripts.InspectNativeAotServiceGcForTests(raw, 67108864, lifecycle: true);
             HostCheck.True(report.HasValue); var value = report!.Value;
-            HostCheck.Equal(16777216UL, value.GcLimitBytes); HostCheck.Equal(16777216UL, value.NativeReserveBytes);
-            HostCheck.Equal(16777216UL, value.StaticBytes); HostCheck.Equal(33554432UL, value.PoolBytes);
+            HostCheck.Equal(16777216UL, value.GcLimitBytes); HostCheck.Equal(20971520UL, value.NativeReserveBytes);
+            HostCheck.Equal(16777216UL, value.StaticBytes); HostCheck.Equal(37748736UL, value.PoolBytes);
             HostCheck.Equal(67108864UL, value.EntitlementBytes); HostCheck.Equal(30920UL, value.Begin.BaselineHeapBytes);
             HostCheck.Equal(20971520UL, value.PeakBackedBytes);
             HostCheck.Equal(4194304UL, value.NativeBegin.RetainedBytes);
@@ -77,14 +77,14 @@ internal static class NativeAotServiceStartupReplayTests
     private static void GcMemoryControls()
     {
         foreach(string memory in new[]{"",GcMemory+GcMemory,
-            GcMemory.Replace("poolPages=8192","poolPages=4096",StringComparison.Ordinal),
+            GcMemory.Replace("poolPages=9216","poolPages=4096",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=0",StringComparison.Ordinal),
-            GcMemory.Replace("peakPages=5120","peakPages=8193",StringComparison.Ordinal),
+            GcMemory.Replace("peakPages=5120","peakPages=9217",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=3583",StringComparison.Ordinal),
             GcMemory.Replace("peakPages=5120","peakPages=05120",StringComparison.Ordinal),
             GcMemory.Replace("endPages=0","endPages=1",StringComparison.Ordinal),
             GcMemory.Replace("\r\n"," extra=1\r\n",StringComparison.Ordinal)})RejectGc(GcRaw(memory:memory));
-        foreach(string peak in new[]{"3584","8192"})
+        foreach(string peak in new[]{"3584","9216"})
             HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory:GcMemory.Replace("5120",peak,StringComparison.Ordinal))),67108864,true).HasValue);
         HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(memory:GcMemory+"M16_008_BUDGET_END nanos=300000000001\r\n")),67108864,true).HasValue);
         RejectGc(GcMemory+GcRaw(memory:""));RejectGc(GcRaw(memory:Frame(GcMemory)));
@@ -120,8 +120,8 @@ internal static class NativeAotServiceStartupReplayTests
     {
         foreach (string budget in new[] { "", GcBudget + GcBudget,
             GcBudget.Replace("gc=16777216", "gc=16777215", StringComparison.Ordinal),
-            GcBudget.Replace("nativeReserve=16777216", "nativeReserve=0", StringComparison.Ordinal),
-            GcBudget.Replace("pool=33554432", "pool=67108864", StringComparison.Ordinal),
+            GcBudget.Replace("nativeReserve=20971520", "nativeReserve=0", StringComparison.Ordinal),
+            GcBudget.Replace("pool=37748736", "pool=67108864", StringComparison.Ordinal),
             GcBudget.Replace("static=16777216", "static=0", StringComparison.Ordinal),
             GcBudget.Replace("static=16777216", "static=16777217", StringComparison.Ordinal),
             GcBudget.Replace("static=16777216", "static=33558528", StringComparison.Ordinal),
@@ -326,7 +326,7 @@ internal static class NativeAotServiceStartupReplayTests
         catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
-    private const string EntryMemory = "M16_014_MEMORY nr=12 regions=0 regionLimit=256 backed=0 pool=8192 reserved=0\r\n";
+    private const string EntryMemory = "M16_014_MEMORY nr=12 regions=0 regionLimit=256 backed=0 pool=9216 reserved=0\r\n";
 
     private static string Raw(bool segmented = false, string? prefix = null, string listening = Listening, uint listenChannel = 2,
         bool lifecycle = false, string? entryMemory = null)

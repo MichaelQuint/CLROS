@@ -7,13 +7,15 @@ public static partial class QemuTranscripts
 {
     /// <summary>Copied post-dispatch backing observations. Ordinary peak excludes
     /// deliberate pressure and includes its starting backing. Conservative bounds
-    /// count that entire peak as non-GC, so can overestimate demand. Native failures
+    /// remove only still-owned backing in the pinned GC arena; all other backing
+    /// remains non-GC and can overestimate demand. Native failures
     /// describe the two probe-shaped mmap requests. A physical shortfall does
     /// not identify the sole failing guard; other causes can coexist.
     /// Values confer no allocation, native-review or guest execution authority.</summary>
     public readonly record struct ServiceMemoryInspection(int OperationSnapshots, ulong OrdinaryPeakBackedBytes,
         ulong MaximumRegionCount, int NativePhysicalShortfalls, int NativeUnclassifiedFailures,
-        ulong ConservativePoolBytes, ulong ConservativeEntitlementBytes, bool ConservativeHeadroomFits);
+        ulong ConservativePoolBytes, ulong ConservativeEntitlementBytes, bool ConservativeHeadroomFits,
+        ulong OrdinaryNonGcUpperBoundBytes = 0, bool NativeReserveFits = false, ServiceGcBackingInspection? GcArena = null);
 
     /// <summary>Synchronously inspect bounded borrowed framed service bytes and
     /// GC/native values. Invalid, missing or inconsistent observations throw.
@@ -40,6 +42,7 @@ public static partial class QemuTranscripts
         var returned = ReadLinuxServiceCallReturns(rows).Select(r => r.RecordIndex).ToHashSet();
         var found = new HashSet<int>();
         var samples = new List<(int Position, Dictionary<string, ulong> Memory, Dictionary<string, ulong> Call)>();
+        ulong poolPages = gc.HasValue ? gc.Value.PoolBytes / 4096 : LinuxMemoryServices.MaximumPoolPages;
         bool MemoryCall(ulong nr) => nr is 9 or 10 or 11 or 12 or 28 || lifecycle && nr == 25;
         for (int index = 0; index < rows.Length; index++)
         {
@@ -50,7 +53,7 @@ public static partial class QemuTranscripts
             Need(MemoryCall(memory["nr"]) && call["nr"] == memory["nr"] && call["action"] == 1 && call["status"] == 1 &&
                 (lifecycle || call["valueBits"] == unchecked((ulong)-12L)) &&
                 memory["regionLimit"] == LinuxMemoryServices.WebMaximumRegions && memory["regions"] <= memory["regionLimit"] &&
-                memory["pool"] == LinuxMemoryServices.MaximumPoolPages && memory["backed"] <= memory["pool"] &&
+                memory["pool"] == poolPages && memory["backed"] <= memory["pool"] &&
                 memory["reserved"] <= 0x400000000 && memory["reserved"] % 4096 == 0 && memory["backed"] * 4096 <= memory["reserved"] &&
                 (memory["regions"] != 0 || memory["reserved"] == 0), "service_memory_observation");
             found.Add(index); samples.Add((index, memory, call));
@@ -91,11 +94,21 @@ public static partial class QemuTranscripts
             ordinaryStart = Boundary("CLROS_SERVICE_NATIVE_BEGIN ", true), ordinaryEnd = Boundary("CLROS_SERVICE_LIFECYCLE_END ", false),
             lastGc = Boundary("CLROS_SERVICE_GC_END ", true), lastNative = Boundary("CLROS_SERVICE_NATIVE_END ", false);
         Need(firstGc < firstNative && ordinaryStart < ordinaryEnd && ordinaryEnd <= lastGc && lastGc < lastNative, "service_memory_window");
+        var gcBacking = ReadServiceGcBacking(rows, calls, returned);
+        ServiceGcBackingInspection? arena = gcBacking.Summary.ArenaIdentified ? gcBacking.Summary : null;
+        if (arena.HasValue)
+            Need(arena.Value.ReservationCallPosition < Boundary("CLROS_APP_ENTRY ", false), "service_gc_arena_startup");
+        ulong GcLowerBound(int position) => arena.HasValue ? gcBacking.At[position + 1] : 0;
+        Need(samples.All(s => GcLowerBound(s.Position) <= s.Memory["backed"] * 4096), "service_gc_backing_total");
         var seed = samples.LastOrDefault(s => s.Position < ordinaryStart);
         Need(seed.Memory is not null, "service_memory_window_seed");
         ulong ordinary = seed.Memory!["backed"];
+        ulong nonGc = ordinary * 4096 - GcLowerBound(seed.Position);
         foreach (var sample in samples.Where(s => s.Position > ordinaryStart && s.Position < ordinaryEnd))
+        {
             ordinary = Math.Max(ordinary, sample.Memory["backed"]);
+            nonGc = Math.Max(nonGc, sample.Memory["backed"] * 4096 - GcLowerBound(sample.Position));
+        }
         int physical = 0;
         foreach (var window in new[] { (Start: firstGc, End: firstNative, Native: budget.NativeBegin), (Start: lastGc, End: lastNative, Native: budget.NativeEnd) })
         {
@@ -109,10 +122,11 @@ public static partial class QemuTranscripts
                 window.Native.RetainedBytes <= failed["backed"] * 4096, "service_memory_native_preservation");
             if (failed["pool"] - failed["backed"] < 256) physical++;
         }
-        ulong ordinaryBytes = ordinary * 4096, poolBound = budget.GcLimitBytes + ordinaryBytes,
+        ulong ordinaryBytes = ordinary * 4096, poolBound = budget.GcLimitBytes + nonGc,
             entitlementBound = budget.StaticBytes + poolBound;
         positions = found;
         return new(samples.Count, ordinaryBytes, samples.Max(s => s.Memory["regions"]), physical, 2 - physical,
-            poolBound, entitlementBound, poolBound <= budget.PoolBytes && entitlementBound <= budget.EntitlementBytes);
+            poolBound, entitlementBound, poolBound <= budget.PoolBytes && entitlementBound <= budget.EntitlementBytes,
+            nonGc, nonGc <= budget.NativeReserveBytes, arena);
     }
 }

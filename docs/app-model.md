@@ -298,8 +298,20 @@ and eight changed own-body/unwind reviews are retained, with one explicitly
 changed host-consumer source at readback. Complete native/transitive stack,
 headroom, ancestors and corrected-runner full-host remain pending. No new gate.
 
-The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
-reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
+[Step1471](../done/step1471.md) binds a dedicated GC arena to the current pinned
+ELF and upstream runtime revision. The reader counts only still-owned GC backing;
+unmapped, foreign-replaced or remapped pages permanently leave that classification.
+Bookkeeping elsewhere remains non-GC conservatively. The unchanged historical
+guest shows at most15.71MiB in that arena; bounded source/native review and67
+focused checks pass. Preliminary ordinary non-GC accounting exceeds18MiB.
+The explicit configured service now selects a36MiB pool with16MiB GC and20MiB
+native allowance, still charged with actual retained static ranges against64MiB.
+Legacy pools remain unchanged. Current source pins and freestanding C# compilation
+pass; a fresh guest, complete native/stack review, ancestors and full-host remain
+pending. The earlier failed pipeline is retained; no new acceptance is claimed.
+
+The value-only GC reader binds canonical64MiB entitlement,16MiB GC,20MiB native
+reserve,36MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the
 explicit v2 packet consumer: exact partial echo/rejection,512KiB streamed bytes,
 healthy EOF before the held stream's last new bytes, both client resets,

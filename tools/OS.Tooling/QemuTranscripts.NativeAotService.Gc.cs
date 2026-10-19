@@ -60,8 +60,10 @@ public static partial class QemuTranscripts
         Need(budgets.Length == 1 && starts.Length == 1 && budgets[0] < starts[0] &&
             firstError > starts[0], "service_gc_budget_order");
         var budget = ReadRecord(rows[budgets[0]], budgetMarker, "gc:dec", "nativeReserve:dec", "static:dec", "pool:dec", "entitlement:dec");
-        const ulong limit = 16 * 1024 * 1024, pool = 32 * 1024 * 1024;
-        Need(entitlementBytes == NativeAotServicePackage.MemoryBytes && budget["gc"] == limit && budget["nativeReserve"] == limit && budget["pool"] == pool &&
+        const ulong limit = NativeAotServicePackage.LifecycleGcLimitBytes,
+            pool = OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages * 4096UL,
+            native = OS.Manifest.LinuxAppConfiguration.ConfiguredServiceNativeReserveBytes;
+        Need(entitlementBytes == NativeAotServicePackage.MemoryBytes && budget["gc"] == limit && budget["nativeReserve"] == native && budget["pool"] == pool &&
             budget["static"] > 0 && budget["static"] % 4096 == 0 && entitlementBytes % 4096 == 0 &&
             budget["entitlement"] == entitlementBytes && pool <= entitlementBytes && budget["static"] <= entitlementBytes - pool,
             "service_gc_budget");

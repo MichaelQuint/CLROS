@@ -101,6 +101,28 @@ internal static unsafe class LinuxGcBudgetTests
         HostCheck.True(!default(Config.GcBudget).Succeeded);
     }
 
+    [HostTest("linux configured service budget fits measured native headroom only with its exact larger sealed pool")]
+    private static void ConfiguredServiceBudget()
+    {
+        uint pages = Config.ConfiguredServicePoolPages; ulong native = Config.ConfiguredServiceNativeReserveBytes;
+        var result = Read(Limit, pages, 27217920, native); HostCheck.True(result.Succeeded);
+        HostCheck.Equal(37748736UL, result.PoolBytes); HostCheck.Equal(16777216UL, result.GcLimitBytes);
+        HostCheck.Equal(20971520UL, result.NativeReserveBytes);
+        HostCheck.Equal(Config.Status.InvalidEntitlement, Read(Limit, 8192, 27217920, native).Result);
+        HostCheck.Equal(Config.Status.InvalidEntitlement, Read("env.DOTNET_GCHeapHardLimit=1200000\n", pages, 27217920, native).Result);
+        HostCheck.Equal(Config.Status.InvalidEntitlement, Read(Limit, pages, 33554432, native).Result);
+        byte[] bytes = Encoding.ASCII.GetBytes(Text(Limit)); BootReservedRange* ranges = stackalloc BootReservedRange[4]; Ledger(ranges);
+        ranges[1] = Range(BootReservationKind.LinuxElfBacking, 0x2000000, pages);
+        fixed (byte* p = bytes)
+        {
+            var manifest = LinuxElfPackage.ParseManifest(p, (uint)bytes.Length);
+            HostCheck.True(Config.ReadGcBudgetFromReservations(p, (uint)bytes.Length, manifest, ranges, 4, 4, 0x2000000, pages, native, true).Succeeded);
+            ranges[1] = Range(BootReservationKind.LinuxElfBacking, 0x2000000, pages - 1);
+            HostCheck.Equal(Config.Status.InvalidEntitlement, Config.ReadGcBudgetFromReservations(p, (uint)bytes.Length,
+                manifest, ranges, 4, 4, 0x2000000, pages, native, true).Result);
+        }
+    }
+
     [HostTest("linux app GC budget rejects malformed unaligned small and overflowing hexadecimal limits")]
     private static void InvalidLimits()
     {

@@ -1,5 +1,13 @@
 # CLROS Completion Gates
 
+[Step1471](../done/step1471.md) implements conservative GC arena accounting and
+an explicit configured-service36MiB pool/20MiB native allowance, retaining16MiB
+GC and64MiB entitlement. Pinned upstream source, four complete application native
+bodies,67 focused checks and freestanding C# compilation support development.
+The historical32MiB guest remains historical. Fresh configured guest execution,
+complete native/transitive stack, ancestors and corrected-runner full-host remain
+pending. No issue or gate is accepted.
+
 [Step1470](../done/step1470.md) retains an actual833s current-image configured
 guest: managed/native exhaustion and recovery, lifecycle/drain,986 memory
 snapshots, zero end backing and genuine20-worker reap. The original service

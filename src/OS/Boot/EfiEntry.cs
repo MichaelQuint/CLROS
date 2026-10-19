@@ -1468,8 +1468,24 @@ public static unsafe partial class EfiEntry
 #endif
         }
 
-        private static uint LinuxMemoryPoolPages(Storage* state) => LinuxUsesApplicationLimits(state) ?
-            LinuxMemoryServices.MaximumPoolPages : LinuxMemoryServices.DefaultPoolPages;
+        private static uint LinuxMemoryPoolPages(Storage* state)
+        {
+#if M16_014_PROBE
+            // The immutable manifest is validated before pool allocation. Match
+            // the exact GC key here; its value and the complete retained ledger
+            // still have to pass ReadGcBudgetFromReservations before publication.
+            if (state->LinuxPackage != 0 && state->LinuxView.Manifest.Succeeded)
+                for (uint i = 0; i < state->LinuxView.Manifest.EnvironmentCount; i++)
+                {
+                    uint at = i * 4;
+                    if (OS.Manifest.LinuxAppConfiguration.IsGcHeapHardLimitKey(
+                        (byte*)state->LinuxPackage + state->LinuxView.ManifestOffset + state->LinuxView.Manifest.EnvironmentRanges[at],
+                        state->LinuxView.Manifest.EnvironmentRanges[at + 1]))
+                        return OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages;
+                }
+#endif
+            return LinuxUsesApplicationLimits(state) ? LinuxMemoryServices.ApplicationPoolPages : LinuxMemoryServices.DefaultPoolPages;
+        }
 
         private static bool PrepareLinuxMemory(void* context)
         {
@@ -1664,7 +1680,9 @@ public static unsafe partial class EfiEntry
             var gcBudget = OS.Manifest.LinuxAppConfiguration.ReadGcBudgetFromReservations(
                 (byte*)state->LinuxPackage + state->LinuxView.ManifestOffset, state->LinuxView.ManifestBytes,
                 state->LinuxView.Manifest, (BootReservedRange*)state->LinuxLedger, state->LinuxLedgerCount,
-                LinuxLedgerCapacity, state->LinuxMemoryPool, LinuxMemoryPoolPages(state), LinuxMemoryPoolPages(state) * Page / 2);
+                LinuxLedgerCapacity, state->LinuxMemoryPool, LinuxMemoryPoolPages(state),
+                LinuxMemoryPoolPages(state) == OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages ?
+                    OS.Manifest.LinuxAppConfiguration.ConfiguredServiceNativeReserveBytes : LinuxMemoryPoolPages(state) * Page / 2);
             if (!gcBudget.Succeeded && gcBudget.Result != OS.Manifest.LinuxAppConfiguration.Status.Unconfigured) return false;
             state->LinuxMemoryPhase = 3;
             state->LinuxMemoryCheckpoint = 2;

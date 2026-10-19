@@ -22,6 +22,14 @@ public static unsafe class LinuxAppConfiguration
     }
 
     public const ulong MinimumGcLimitBytes = 8 * 1024 * 1024;
+    /// <summary>Explicit configured-service capacity. The retained guest's
+    /// conservative ordinary non-GC peak exceeds 18 MiB; reserve 20 MiB alongside
+    /// its 16 MiB GC limit. The boot owner still charges the actual pool plus all
+    /// static reservations against the immutable manifest before publication.</summary>
+    public const uint ConfiguredServicePoolPages = 9216;
+    /// <summary>Conservative non-GC backing allowance within the explicit service
+    /// pool. This is an admission charge, not a separately allocated arena.</summary>
+    public const ulong ConfiguredServiceNativeReserveBytes = 20 * 1024 * 1024;
 
     /// <summary>Derive static charges from the owner's sealed retained ledger,
     /// including package/image, tables, kernel/descriptor and worker reservations.
