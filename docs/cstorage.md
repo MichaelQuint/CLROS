@@ -44,6 +44,40 @@ image-byte extraction must join actual post-readiness block completions to
 external HTTP results. Writable files and the later `OSHost_*` PAL export path
 remain separate.
 
+### Planned FAT-sector cache and resumable traversal
+
+[M16-024/#771](http://192.168.4.35:3000/admin/CLROS/issues/771) owns the
+bounded cache and internal directory cursors within the read-only webroot
+service. The [pinned SharpOS review](reference-map.md#sharpos-fat-cache-and-directory-cursor-review-2026-10-19)
+supplies algorithmic guidance, not a source import or accepted implementation.
+
+The cache uses fixed caller-owned capacity and keys entries by mount/device
+generation, partition geometry and FAT copy/sector identity. Only successfully
+read and validated sectors become visible, including required mirror checks;
+cache hits retain selection/version and partition-bound checks. Shared access
+is serialized by the storage owner. Reset/teardown invalidates the generation,
+and failed fills cannot publish a cache hit or successful EOF.
+
+Each operation owns its directory cursor, including directory identity,
+cluster/sector/entry position, partial VFAT name and cumulative traversal
+history/budget. Buffer exhaustion retains the next unpublished entry for retry;
+resumption neither rescans entry zero nor resets cycle/work limits. Interleaved
+cursors cannot share positions or partial names. Completion, insufficient
+output, exhausted traversal budget, corruption, stale ownership and I/O failure
+remain distinct. Public directory browsing and writable storage remain deferred.
+
+Acceptance requires cold/warm FAT read counts, bounded eviction, linear
+sequential enumeration reads, independent expected entries, fragmented and
+cross-boundary VFAT cases, interleaved cursors, cancellation/close/reopen,
+stale generations and injected failures. Memory ceilings must not grow with
+advertised volume size. Actual guest disk completions remain necessary for the
+live claim; host counters alone establish only the host contract.
+
+The earlier [M11-025/#782](http://192.168.4.35:3000/admin/CLROS/issues/782)
+host scratch fix keeps reusable caller-owned traversal state where applicable.
+Its acceptance does not require caching or guest integration. The order remains
+#781 -> #782 -> #769, then #771 after its existing storage prerequisites.
+
 ## Bounded MSI-X completion and polling recovery
 
 [Step1162](../done/step1162.md) qualifies #134 and shared integration #633:
