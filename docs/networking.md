@@ -73,29 +73,23 @@ Whole-stack safety, general Linux compatibility and the full Kestrel ladder
 remain unqualified. The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 keeps the remaining work at its required acceptance stage:
 
-[Owned development receipt](../done/step1422.md) records development-only persist and pending-RST
-integration, plus explicit compact TIME-WAIT mode. Focused host models recover
-queued bytes, reuse one bulk slot across twelve active closes, preserve duplicate
-FIN ACKs under TX pressure and keep table exhaustion local. [Step1421](../done/step1421.md)
-wires compact mode into the default-off M16-014 service leaf. Serialized native
-observations join bulk retirement to retained generations, original/restarted
-deadlines, expiry and fixed-storage high-water marks. Its C# path compiles;
-original native review and guest packet/cleanup qualification remain pending.
-#743/#744/#757 stay open in the six-ticket service-foundation batch.
+[Step1437](../done/step1437.md) qualifies the #743/#744/#757/#758 transport
+prerequisites within the seven-ticket service batch. The complete original
+capture joins a lost reopen and two persist probes, two pending resets, 32
+server-active closes and all32 compact retirements. Bulk high-water is4 and
+compact high-water24; the full240-second policy and tuple/generation protection
+remain. The same frozen checkpoint passes5,809 full-host checks and ten fresh
+affected ancestors, with scoped original native/ABI/unwind/table review.
 
-[Step1424](../done/step1424.md) adds development-only continuing ISNs for #758:
-`M + HMAC-SHA256(secret, domain || tuple)[0..4]` modulo2^32, where M is actual
-monotonic nanoseconds/4000. The32-byte firmware secret has a separate acquisition
-and supervisor owner from AT_RANDOM and getrandom. Exact network leases prevent
-replacement/erasure until every pending, stream and compact TIME-WAIT owner drains.
-New key lifetimes wait240 seconds from their first real-clock borrow; SYNs are
-ignored during quiet time. Tuple protection and duplicate-FIN restart keep the
-existing full240-second TIME-WAIT. Generation/lifetime-counter overflow fails
-closed, while sequence wrap permits continued admission. Finite profiles retain
-their original diagnostic counter. Six independent ISN checks and27 network
-checks pass, including96 host-injected complete lifetimes across sequence wrap;
-this is not a measured guest lifetime count. C# compilation is not original
-native review or guest packet/secret/cleanup qualification. #758 remains open.
+[Step1424](../done/step1424.md) defines continuing ISNs as
+`M + HMAC-SHA256(secret, domain || tuple)[0..4]` modulo2^32, with real monotonic
+nanoseconds/4000. A separately acquired32-byte firmware secret and exact network
+lease remain distinct from AT_RANDOM/getrandom. New key lifetimes observe240s
+quiet time; replacement waits for complete pending/stream/compact drain.
+Step1437 joins34 actual sequence generations and final lease release/erasure.
+Near-wrap and96 complete lifetimes are separate host controls. Finite profiles
+retain their diagnostic counter. Repeated service #224 and general congestion,
+arbitrary-stack, cloud and production claims remain open.
 
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.
@@ -109,12 +103,10 @@ native review or guest packet/secret/cleanup qualification. #758 remains open.
   The pre-repair host reproduction retained the pending slot and retransmitted
   SYN-ACK until its deadline, blocking another client when capacity is full.
 - [M07-033](http://192.168.4.35:3000/admin/CLROS/issues/758) replaces the finite diagnostic ISN allocator
-  for continuing profiles. Near its admitted upper boundary, one completed
-  connection exhausts future admission even with zero retained slots. Use
-  reviewed secret/tuple/time-based ISNs and modular arithmetic while retaining
-  generation and TIME-WAIT protections; simply wrapping the global counter is
-  insufficient. Both new issues precede #224; unpredictability is a construction
-  requirement, with no sequence-injection exploit claimed by the review.
+  for the qualified continuing profile. Step1437 preserves secret/tuple/time,
+  modular arithmetic, generation and TIME-WAIT protections. The earlier finite
+  exhaustion reproduction remains historical evidence; no sequence-injection
+  exploit is claimed. These prerequisites feed repeated-service #224.
 - After a matched workload baseline, [M07-031](http://192.168.4.35:3000/admin/CLROS/issues/751)
   replaces one-segment timed flight with bounded congestion-controlled flight.
   At 1460-byte MSS and 10ms RTT, one segment per RTT gives about 146KB/s before

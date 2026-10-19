@@ -1,42 +1,29 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-## Continuing-service development
+## Continuing-service foundations
 
-The [current service batch](workload-profiles.md#status) under #737 remains ahead
-of #224 and the disk roadmap. [Step1434](../done/step1434.md) wires the complete
-source-held runner/native/image/peer/control consumer; its first actual guest
-fails at the inherited600-second UTC expiry. [Step1435](../done/step1435.md)
-adds explicit continuing UTC, bounded64-MiB service capture and measured worker
-pacing. Fresh original app/index/package admission and28 focused checks pass.
-The next guest reports genuine process shutdown and reaches its terminal, but
-the independent consumer rejects `service_transport_complete`: ordinary HTTP
-clients close first, leaving only two server TIME-WAIT transfers. HTTP samples
-show the same worker beyond300s/4,096 direct calls and32 random requests; these
-observations do not qualify the rejected complete capture. The peer correction
-waits for real server EOF and retains one bounded startup connection through
-quiet time. Seven fresh focused peer checks pass. The next819,790ms guest reaches
-its final terminal with32 compact transfers/retirements and high-water24, but its
-original consumer rejects the bootstrap poll as `service_progress_watchdog`.
-Current offline component checks pass after exact bootstrap, service executable
-path, supervisor snapshot, restoration-row and quiet-SYN ledger corrections;
-six forged/reordered controls reject. That does not relabel the original failed
-pipeline. [Step1436](../done/step1436.md) retains a fresh822,285ms owned capture
-with a complete successful consumer:32 connections transfer and retire, compact
-high-water24,84 random requests/18,708 bytes, actual worker progress beyond
-4,096 calls/300s, genuine shutdown/reaps and restored resources. Eighteen named
-native own bodies/7,133 bytes have bounded ABI/unwind reviews; transitive stack
-and arbitrary methods are outside those reviews. The first full-host attempt
-blocks Native after15 fast-case failures in older profile inventories and a
-synthetic replay fixture. The corrected tests pass105 focused checks across12
-fixtures. All seven issues stay open/claimed pending fresh full-host and affected
-finite socket/vector/web/runtime ancestors. No new gate is accepted.
+[Step1437](../done/step1437.md) qualifies #743/#744/#746/#240/#757/#758/#766
+at frozen implementation `8bee44db`: 5,809 unfiltered full-host checks across
+781 fixtures (94 Native), one complete original 822,285ms service capture and
+ten fresh socket/runtime/vector/web ancestors with original source/native joins.
+The explicit default-off `MinimalApiService` policy preserves turn, progress,
+byte and resource guards while allowing the same worker beyond 4,096 calls and
+300s. Actual shutdown, off-stack reaps, restoration and secret erasure complete.
 
-[Step1425](../done/step1425.md) adds a development-only correction for #766:
-empty `sendmsg` and scalar `sendto` bypass full send-buffer pressure after the
-existing metadata/endpoint/error/flag checks.24 focused host checks pass;
-affected native and finite vector/socket guest regression is deferred to the
-stable seven-ticket service-foundation batch. #766 remains open and this adds
-no continuing-service or Kestrel qualification.
+The capture joins 32 HTTP connections, 32 compact TIME-WAIT transfers/retirements
+(bulk high-water 4, compact 24), persist recovery after a lost reopen, pending-RST
+retirement, 84 random requests/18,708 bytes and 34 independently keyed TCP
+sequence generations. Empty full-window sends have explicit host controls and
+current finite socket/vector regressions. Named complete native own bodies,
+504 selected comparisons, actual dispatch tables and unwind are reviewed within
+their stated bounds; missing bodies and transitive stack gain no authority.
+
+Earlier rejected captures and the corrected host inventories remain immutable
+in [steps1434](../done/step1434.md)-[1436](../done/step1436.md). A first Hello
+startup timeout remains recorded; its unchanged-limit retry passes. Shared owner
+#737 proceeds to #224's repeated-service acceptance, then #225's exact memory,
+budget and pending-signal prerequisites. General Kestrel/Gate14, arbitrary Linux
+applications, isolation, cloud and production remain incomplete.
 
 ## Planned static-file acceptance
 

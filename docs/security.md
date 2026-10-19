@@ -1,6 +1,7 @@
 # Security
 
-[Step1424](../done/step1424.md) records development-only TCP ISN ownership.
+[Step1437](../done/step1437.md) qualifies the bounded DRBG/TCP-key ownership
+contracts defined in [step1424](../done/step1424.md).
 The construction follows [RFC9293 section3.4.1](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.4.1)
 with HMAC-SHA256 as the tuple PRF and a4-microsecond monotonic component, plus
 an ASCII `CLROS.TCP.ISN.v1` domain. Network-order local IPv4/port and remote
@@ -8,8 +9,8 @@ IPv4/port identify the tuple. A distinct pre-exit firmware acquisition supplies
 the32-byte private TCP key; it is not guest AT_RANDOM, a DRBG key or getrandom
 output. Failure admits no continuing network; no clock/counter entropy fallback
 exists. Temporary capture payloads and firmware callbacks are cleared even on
-partial initialization failure. Native erasure and source-failure guests remain
-unqualified.
+partial initialization failure. Original native erasure and actual guest shutdown/secret release now join in
+step1437. Seed/reseed/source-failure controls remain explicit host evidence.
 
 Conservative startup and key-replacement quiet time is240 seconds, consistent
 with [RFC6528 section3](https://www.rfc-editor.org/rfc/rfc6528.html#section-3)'s
@@ -56,9 +57,10 @@ policy, supervisor progress and checked reap are required. CPL0 faults remain
 terminal. M14-013/#298 must additionally keep another protected application
 serving external HTTP during the fault.
 
-Existing M11-012/#240 now precedes repeated-service acceptance: use a reviewed
-CSPRNG, seed/reseed provenance, bounded `getrandom` semantics and safe failure
-handling. Neither a larger reservoir nor statistical output tests establish
+Step1437 qualifies M11-012/#240 before repeated-service acceptance: reviewed
+HMAC-DRBG known answers and independent seed/reseed/failure controls, actual
+guest requests larger than32 bytes and18,708 total bytes, bounded `getrandom`
+semantics and shutdown zeroization. Neither a larger reservoir nor statistical output tests establish
 cryptographic security. M16-016 and M14-006/#291 provide explicit single-app and
 per-process commit budgets. Host-side effects/context/ownership analysis
 (M11-019), independently checked ABI generation (M11-020) and explicit capability

@@ -130,9 +130,11 @@ stay open.
 - Step1419 also qualifies #759/#223 owned realtime and independently plausible
   HTTP Date. A correctly formatted Unix-epoch response is rejected; the declared
   UTC source, tolerance and finite lifetime remain restrictions.
-- #224 requires persist, compact TIME-WAIT, continuing execution policy,
-  replenished randomness, M07-032 pending-reset cleanup and M07-033 continuing
-  ISNs. #225 additionally requires fragmented backing, guest-verified GC/native
+- Step1437 qualifies #224's persist, compact TIME-WAIT, continuing execution,
+  replenished randomness, pending-reset, continuing-ISN and empty-send
+  prerequisites: one complete service lifetime plus ten affected ancestors and
+  5,809 full-host checks. #224 still requires repeated-service acceptance.
+  #225 additionally requires fragmented backing, guest-verified GC/native
   budgets and M16-020 pending-signal checks before renewed waits. The existing
   #226 -> #227 evidence and local Gate 14 closure chain remains authoritative.
 - M16-017 requires real CPL3 #UD/#DE capture/termination and supervisor progress;
