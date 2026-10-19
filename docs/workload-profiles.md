@@ -43,6 +43,17 @@ its own publication and complete instruction index, retained in step1429.
 These components do not complete scheduling, packet or resource-lifetime replay;
 the runner guard and all seven open issue states remain.
 
+[Step1430](../done/step1430.md) implements the combined source-sealed service
+inner-leaf reader, reusing complete syscall/memory/thread/signal/wait/descriptor
+replay through group exit and off-stack reaps. Dedicated startup and compact
+TIME-WAIT/ISN-owner readers join original copied output, exact generations,
+retained deadlines and bounded high-water snapshots. It also corrects the
+native listener observer to match the original app's full fd2 message.
+Forty-one focused host checks and three EFI C# profile builds pass. The combined
+reader has no successful complete capture yet; parent/packet/peer/runner joins,
+transport controls, native ABI review and real batch qualification remain.
+The guard stays in place and all seven issues remain open/claimed.
+
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
 profiles, three retained strict GC repetitions and 24 fresh ancestors. The exact

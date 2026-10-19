@@ -143,8 +143,9 @@ public static unsafe partial class EfiEntry
         }
 
         // Called only after the actual owned serial write completes. Match a
-        // complete selected lifetime message across fd1 fragments; fd2 is counted
-        // separately. This is a startup observation, never external HTTP proof.
+        // complete selected lifetime message across copied fragments: the
+        // service writes fd2, the original web fixture writes fd1. This is a
+        // startup observation, never external HTTP proof.
         private static bool LinuxWebObserveOutput(Storage* state, uint channel, byte* source, uint bytes)
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
@@ -168,11 +169,20 @@ public static unsafe partial class EfiEntry
                 if (!wasComplete && c->WebStartup.StartupComplete &&
                     (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_STARTUP writer=" : "M10_006_STARTUP writer=") || !LinuxNumber(state, c->WebStartup.WriterIdentity) ||
                     !LinuxText(state, " stages=4\r\n"))) return false;
+#if !M16_014_PROBE
                 return true;
+#endif
             }
-            if (channel != 1 || c->WebStdoutBytes > ulong.MaxValue - bytes) return false;
-            c->WebStdoutBytes += bytes;
-            string started = Probes.EnableM16014Probe ? "CLROS_SERVICE_LISTEN\n" : "\n      Application started. Press Ctrl+C to shut down.\n";
+            else
+            {
+                if (channel != 1 || c->WebStdoutBytes > ulong.MaxValue - bytes) return false;
+                c->WebStdoutBytes += bytes;
+#if M16_014_PROBE
+                return true;
+#endif
+            }
+            string started = Probes.EnableM16014Probe ? "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n" :
+                "\n      Application started. Press Ctrl+C to shut down.\n";
             for (uint i = 0; i < bytes && (c->WebFlags & 8) == 0; i++)
             {
                 byte value = source[i]; if (value == 13) continue;

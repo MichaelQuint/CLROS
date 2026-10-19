@@ -418,7 +418,9 @@ public static partial class QemuTranscripts
 
         private void SocketFinish()
         {
-            if(containment)
+            if(service)
+                Need(socketAccepts>=10 && socketSent>0 && socketReceived>0 && clones>=2,"service_socket_workload_lifetimes");
+            else if(containment)
                 Need(socketAccepts==3 && socketSent==containmentCapture!.Application.Queued+30 && socketReceived==33 && clones>=2 &&
                     containmentTimeoutObserved && containmentDropObserved,"socket_containment_workload_lifetimes");
             else if(vectors)Need(socketAccepts==4 && socketSent==524352 && socketReceived==256 && clones>=2 &&

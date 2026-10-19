@@ -9,7 +9,7 @@ namespace OS.Tooling;
 public sealed class NativeAotServiceProgram
 {
     private const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    private const int ElfBytes = 8_413_864;
+    internal const int ElfBytes = 8_413_864;
     private const string ElfSha256 = "1751F699479BEA7790C2D99DF8979BC6B42141BE0A51D7C2E345D56CB04E0968";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
@@ -38,10 +38,7 @@ public sealed class NativeAotServiceProgram
     /// through return; missing, stale, aliased or substituted inputs reject.</summary>
     public static NativeAotServiceProgram Create(string root, ReadOnlySpan<byte> package, string dump)
     {
-        var description = NativeAotServicePackage.Describe(package);
-        var view = LinuxElfPackage.Validate(package);
-        if (view.PayloadBytes != ElfBytes || description.ElfSha256 != ElfSha256)
-            throw new InvalidDataException("service_package_identity");
+        var view = RequirePackage(package);
         using AuthorityFiles sources = new(); HoldSources(root, sources);
         var parsed = Parse(package.Slice((int)view.PayloadOffset, (int)view.PayloadBytes), dump);
         // LLVM22.1.3 covers all4,340,623 bytes in five original executable
@@ -52,6 +49,15 @@ public sealed class NativeAotServiceProgram
             !parsed.SyscallContinuationsValid || !parsed.IsInstruction(0x408f77))
             throw new InvalidDataException("service_instruction_identity");
         HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed);
+    }
+
+    internal static LinuxElfPackageView RequirePackage(ReadOnlySpan<byte> package)
+    {
+        var description = NativeAotServicePackage.Describe(package);
+        var view = LinuxElfPackage.Validate(package);
+        if (view.PayloadBytes != ElfBytes || description.ElfSha256 != ElfSha256)
+            throw new InvalidDataException("service_package_identity");
+        return view;
     }
 
     /// <summary>Read distinct bounded plain single-link package/dump files under
@@ -84,7 +90,7 @@ public sealed class NativeAotServiceProgram
         ("apps/MinimalApiService/ServiceExercise.cs", "6350C94547E72DA6CF85B2FE17876A761D565CE3B5C3B0DCD125A304910D90CF"),
         ("apps/MinimalApiService/appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5")];
 
-    private static void HoldSources(string root, AuthorityFiles files)
+    internal static void HoldSources(string root, AuthorityFiles files)
     {
         NativeAotServicePublisher.RequireCurrentSources(root);
         foreach (var source in Sources)

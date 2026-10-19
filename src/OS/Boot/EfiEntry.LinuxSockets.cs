@@ -294,6 +294,7 @@ public static unsafe partial class EfiEntry
             var observations = (LinuxSocketLifetime*)o->Lifetimes;
 #if M16_014_PROBE
             uint bulk = 0;
+            uint priorBulk = o->BulkHighWater, priorCompact = o->CompactHighWater;
 #endif
             for (uint i = 0; i < LinuxSocketConnections; i++)
             {
@@ -366,7 +367,14 @@ public static unsafe partial class EfiEntry
             }
 #if M16_014_PROBE
             if (bulk > o->BulkHighWater) o->BulkHighWater = bulk;
-            return ObserveLinuxCompactTimeWait(o, now);
+            if (!ObserveLinuxCompactTimeWait(o, now)) return false;
+            // Mark the completed serialized snapshot, only when a peak changes.
+            // Equal clock reads cannot identify separate observation boundaries.
+            // At most8+64 peak advances exist for this fixed owner lifetime.
+            if (priorBulk == o->BulkHighWater && priorCompact == o->CompactHighWater) return true;
+            return LinuxText(o->Boot, "M07_030_HIGHWATER bulk=") && LinuxNumber(o->Boot, o->BulkHighWater) &&
+                LinuxText(o->Boot, " compact=") && LinuxNumber(o->Boot, o->CompactHighWater) &&
+                LinuxText(o->Boot, " clock=") && LinuxNumber(o->Boot, now) && LinuxText(o->Boot, "\r\n");
 #else
             return true;
 #endif

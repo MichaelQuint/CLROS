@@ -56,7 +56,9 @@ public static class NativeAotSocketGuest
     /// synchronously; invalid framing/owner/sequence/return records throw. This
     /// checks no app output, complete scheduler, packets, shutdown or authority.</summary>
     public static Capture ReadService(ReadOnlySpan<byte> rawTail) =>
-        ReadReadiness(NativeAotThreadingOutput.ReadService(rawTail), service: true);
+        ReadServiceReadiness(NativeAotThreadingOutput.ReadService(rawTail));
+
+    internal static Capture ReadServiceReadiness(NativeAotThreadingOutput.Capture output) => ReadReadiness(output, service: true);
 
     // Shared value-only readiness binding after the caller has framed output.
     // This deliberately permits pending waits at a continuing capture boundary;
