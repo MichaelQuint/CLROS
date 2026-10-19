@@ -1,5 +1,36 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+## Planned static-file acceptance
+
+The [ordered roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
+adds #768–#775 after current service qualification and #224. The existing `/config`
+already uses source-generated JSON; the candidate adds `/api/status` and
+`/api/items` DTOs. #772 qualifies a separate staged-file intermediate profile.
+[#774](http://192.168.4.35:3000/admin/CLROS/issues/774) requires a real external
+browser loading disk-backed HTML/CSS/JS and rendering both endpoint results.
+This is planned acceptance, not implemented static-file support.
+
+Disk proof must include cold block reads after Kestrel readiness, file/fd/device
+generations, LBA and byte-hash joins to independently extracted image contents.
+Two disk-content variants must use the same app ELF/package and yield different
+asset responses; caches are cleared or declared and bounded. Asset bytes must
+not be embedded or wholly boot-staged in the disk profile. Missing/corrupt files
+and controlled read failures cannot silently return a cached index page.
+
+Check GET/HEAD, media type and length, ranges/416, conditional requests/304,
+404, concurrent offsets and continued JSON progress. Verify confinement using
+raw HTTP and syscall controls as well as browser requests, since a browser can
+normalize traversal. Keep directory listing and writes disabled. Preserve exact
+source/native/EFI/app/disk/serial/packet/HTTP/browser evidence and negative controls.
+
+[#775](http://192.168.4.35:3000/admin/CLROS/issues/775) adds sustained operation,
+measured resource budgets and actual app exit, off-stack reap and storage/DMA
+cleanup. It must address the old finite 600-second UTC validity window before
+long runs. Runner termination is not graceful shutdown. The original local
+Gate14 graph and all accepted finite receipts remain unchanged.
+
+## Accepted finite baseline
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
 757 fixtures (94 Native), three normal web and three quota prefixes, three finite

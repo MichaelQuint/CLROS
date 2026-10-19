@@ -1,5 +1,14 @@
 # Image Builder
 
+The planned [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
+will generate deterministic HTML/CSS/JS and boundary assets in the existing
+read-only FAT32 image, preserving EFI/package bytes and both FATs. Its disk-only
+variants use the same application ELF/package with different asset contents;
+an independent readback records exact paths, cluster/LBA extents, lengths,
+timestamp policy and hashes. A separate staged variant supports #772 only.
+The proposed fixture command in the issue is not implemented yet. See the
+[dependency roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18).
+
 Linux ELF v1 package/staging is qualified in
 [step1199](../done/step1199.md) for immutable data retention only.
 Build from a qualified static ELF and the explicit [v1 manifest](manifest.md):

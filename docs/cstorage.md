@@ -1,5 +1,37 @@
 # Storage
 
+## Planned disk-to-application connection
+
+[M16-023/#770](http://192.168.4.35:3000/admin/CLROS/issues/770) ->
+[M16-024/#771](http://192.168.4.35:3000/admin/CLROS/issues/771) ->
+[M16-025/#773](http://192.168.4.35:3000/admin/CLROS/issues/773) will connect
+continuing read-only block I/O, confined FAT32 ranges and Linux application
+descriptors. The [roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
+owns ordering behind current service qualification. This is new planned work;
+the bounded M06 qualifications below remain accepted within their original scope.
+
+Today `LiveDeviceExistingIReadOnlyBlockDeviceContract` permits one attempted
+sector read per fresh lifetime. Accepted FAT/package probes reset and release
+each sector's transport. `LinuxDescriptorServices.CreatePackageViews` instead
+borrows immutable package bytes. Those paths do not yet compose into demand
+file reads while Kestrel runs.
+
+The service must retain device/queue/DMA ownership across bounded reads, handle
+timeouts and stale completions, and allow NIC, timer and runtime progress. The
+current IRQ-off descriptor dispatcher cannot simply call a long disk polling
+loop. Pending reads need owned continuations and validated user-memory/fd
+generations before copy-out; close, exit or cancellation must prevent late writes
+to reused mappings. Uncertain reset retains DMA and reports failure.
+
+The first filesystem scope is one immutable `/app/wwwroot`, bounded component
+lookup and read ranges, stable length/identity/timestamps, explicit case/alias
+rules and read-only errors. Reuse accepted FAT validation, enforce partition and
+file bounds, and reject loops, truncation and root escape. Whole-file boot staging
+and a synthetic block counter cannot qualify the disk variant. Independent
+image-byte extraction must join actual post-readiness block completions to
+external HTTP results. Writable files and the later `OSHost_*` PAL export path
+remain separate.
+
 ## Bounded MSI-X completion and polling recovery
 
 [Step1162](../done/step1162.md) qualifies #134 and shared integration #633:
@@ -1208,13 +1240,10 @@ The package loader locates `OS/APP.PKG` through a GPT ESP and a first-level FAT3
 
 ## Next Steps
 
-1. Validate guest FAT metadata and bounded cluster chains (#127), including
-   loops, bad clusters and truncation, through fresh owned read lifetimes.
-2. Add multi-cluster directory/VFAT parsing (#128) and a known file checksum
-   (#129). Existing host parsers are not guest filesystem acceptance.
-3. Load the manifest and package from the live read-only device, then complete
-   the scoped storage failure probes before promoting Gate 7.
-4. Add continuing queue/service lifetime only when its ownership and recovery
-   contract is implemented and validated. Writes remain outside current scope.
-5. Promote PAL package-file mocks into exported `OSHost_*` functions when the
-   hosted runtime integration reaches that dependency.
+1. Preserve accepted GPT/FAT/package/IRQ receipts through step1162; do not reopen
+   their bounded children for the new continuing service.
+2. After the current Kestrel service batch and #224, follow #768's measured file
+   contract and #769's read-only webroot fixture, then #770/#771/#773.
+3. Qualify #774's real guest-disk-to-HTTP/browser path; #775 adds sustained load,
+   failure recovery and shutdown. Neither automatically closes Gate7 or Gate14.
+4. Keep writable storage and later `OSHost_*` package-file exports separate.

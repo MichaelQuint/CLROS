@@ -94,6 +94,61 @@ analysis, documentation or a longer diagnostic timeout cannot close a guest
 issue. See [review evidence](repo-audit.md#october-16-architecture-review) and
 [completion gates](completion-gates.md#architecture-review-acceptance-boundaries).
 
+## Disk-backed static-file roadmap (2026-10-18)
+
+This is planned work, recorded in [step1431](../done/step1431.md). The initial
+demo serves source-generated DTOs at `/api/status` and `/api/items`, plus
+`wwwroot/index.html`, CSS and JavaScript through real upstream Kestrel file APIs.
+An external browser must load the assets and display both endpoint results.
+The disk variant must read asset data from the live guest device after Kestrel
+readiness; boot-staged package bytes qualify only the intermediate milestone.
+
+Finish the current shared service batch under #737 first:
+`#743 -> #744`, `#746 -> #240`, `#757 + #240 -> #758`, and #766, then #224.
+The live tracker still describes step1430 as development-only, without successful
+combined full capture or service-worker execution. Refresh this status before
+claiming work. These new priority-p1 issues are blocked; they do not displace
+the priority-p0 owner or permit concurrent edits to its integration lane.
+
+| Issue | Bounded deliverable | Direct predecessors |
+| --- | --- | --- |
+| [#768 / M10-015](http://192.168.4.35:3000/admin/CLROS/issues/768) | Pinned JSON/static-file candidate and measured .NET11/musl file ABI | #224 |
+| [#769 / M10-016](http://192.168.4.35:3000/admin/CLROS/issues/769) | Reproducible read-only FAT32 webroot images and independent byte/layout receipts | #768 plus accepted GPT/VFAT/package foundations |
+| [#770 / M16-023](http://192.168.4.35:3000/admin/CLROS/issues/770) | Continuing bounded Virtio reads with NIC/timer/runtime progress and DMA cleanup | #768, #769 plus accepted block/IRQ foundations |
+| [#771 / M16-024](http://192.168.4.35:3000/admin/CLROS/issues/771) | Confined FAT32 lookup, metadata and offset reads | #769, #770 plus accepted FAT foundations |
+| [#772 / M10-017](http://192.168.4.35:3000/admin/CLROS/issues/772) | Guest JSON and static middleware over explicitly staged immutable files | #768, #769 |
+| [#773 / M16-025](http://192.168.4.35:3000/admin/CLROS/issues/773) | Linux disk-file descriptors with safe pending I/O, offsets and ownership | #771, #772 |
+| [#774 / M10-018](http://192.168.4.35:3000/admin/CLROS/issues/774) | External browser, HTTP and live-disk proof for the first finite demo | #769, #772, #773 |
+| [#775 / M10-019](http://192.168.4.35:3000/admin/CLROS/issues/775) | Sustained service, cancellation/fault recovery and verified shutdown | #774 and existing #225 async/churn |
+
+The canonical manifest owns exact dependencies, paths, commands and acceptance.
+Branches in this table are logical prerequisites, not permission to edit shared
+files concurrently. The already accepted nineteen-child M06 epic stays closed.
+Deferred #200 PAL/CoreCLR file exports and #468 FAT writes are not prerequisites;
+#171 still owns default-boot package selection. Existing #224/#225 lifecycle
+and #244 general recovery work are reused. The original #226 -> #227 local
+Gate14 graph is unchanged; these new feature tickets do not retroactively
+enlarge that gate or grant it acceptance.
+
+Plan for the smallest measured upstream file surface. Start with a physical
+read-only web root and static-file middleware; determine actual metadata,
+positional-read and send-file fallbacks from the pinned Linux closure. No
+general VFS, writable filesystem, directory listing, watcher service or new
+kernel runtime is required without measured need. See [storage](cstorage.md#planned-disk-to-application-connection)
+for ownership and [Kestrel](kestrel.md#planned-static-file-acceptance) for HTTP proof.
+
+The user's planning ranges below overlap and are not additive or promised
+delivery dates. They assume this becomes the next focused milestone; unresolved
+service qualification and disk integration can move them. Re-estimate after
+the first complete continuing-service guest run and measured file-ABI inventory.
+
+| Scope | Planning range | Confidence |
+| --- | --- | --- |
+| Additional small source-generated JSON endpoints | 1–3 working days | Higher |
+| Static HTML/CSS/JS through file APIs over boot-staged contents | 3–7 working days | Medium |
+| JSON plus static files through a live guest-disk path | 2–4 weeks | Lower |
+| Repeatable longer-running demo with qualified shutdown/cleanup | 4–8 weeks | Lower |
+
 ## Context
 
 CLROS has two related but different workload targets:
