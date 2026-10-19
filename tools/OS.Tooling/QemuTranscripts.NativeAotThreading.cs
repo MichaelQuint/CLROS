@@ -440,8 +440,10 @@ public static partial class QemuTranscripts
         { if(t.Completion.HasValue) return; t.Completion=result; if(!t.Parking) Enqueue(t); }
         private void Clock(ulong now)
         {
-            Need(now>=clock && now<=long.MaxValue,"threading_clock"); clock=now;
-            if(service) ServiceClock(now);
+            if(now<clock || now>long.MaxValue)
+                throw new ToolFailure("threading_clock",$"position={position} previous={clock} now={now} calls={calls} row={rows[Math.Min(position,rows.Length-1)]}");
+            clock=now;
+            if(service) ServiceClock(now,ref budget);
             else if(now!=0)Need(budget.Observe(now),"runtime_budget_clock");
             foreach(var t in history.Where(t=>!t.Reaped && t.WaitSource is 1 or 3 && t.Completion is null && t.Deadline!=0 && t.Deadline<=now)
                 .OrderBy(t=>t.Deadline).ThenBy(t=>t.WaitOrder))

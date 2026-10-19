@@ -2,7 +2,7 @@ using OS.Std.Time;
 
 namespace OS.Kernel.Platform;
 
-/// <summary>Finite UTC anchored once to an independently admitted monotonic clock.
+/// <summary>UTC anchored once to an independently admitted monotonic clock.
 /// The serialized owner supplies ticks from that same clock/frequency; no firmware
 /// pointers, callbacks, allocation or exceptions are used. This does not establish
 /// the authenticity or accuracy of the supplied civil time or monotonic source.</summary>
@@ -23,6 +23,10 @@ public static class OwnedRealtimeClock
         public readonly bool IsAvailable => Phase == 1;
         /// <summary>Admitted tick frequency, or zero when unavailable.</summary>
         public readonly ulong FrequencyHz => IsAvailable ? Frequency : 0;
+        /// <summary>Explicit continuing admission, without a finite elapsed
+        /// ceiling. Monotonic rollback, counter wrap and calendar overflow
+        /// still invalidate this same owner permanently.</summary>
+        public readonly bool IsContinuing => IsAvailable && MaximumElapsedSeconds == 0;
     }
 
     /// <summary>Copied 16-byte UEFI EFI_TIME value, without firmware ownership.
@@ -65,14 +69,15 @@ public static class OwnedRealtimeClock
     }
 
     /// <summary>Admit a single UTC/monotonic anchor for an exclusive lifetime
-    /// of1..86400 seconds at1MHz..10GHz. No firmware access occurs. The UTC value
+    /// of1..86400 seconds at1MHz..10GHz. Explicit continuing admission requires
+    /// maximumElapsedSeconds=0 and retains rollback/overflow guards. No firmware access occurs. The UTC value
     /// must be in1970..9999; every admission failure preserves the entire state.</summary>
     public static bool Begin(ref State state, long seconds, uint nanoseconds,
-        ulong anchorTicks, ulong frequencyHz, ulong maximumElapsedSeconds)
+        ulong anchorTicks, ulong frequencyHz, ulong maximumElapsedSeconds, bool continuing = false)
     {
         if (state.Phase != 0 || seconds < 0 || seconds > MaximumUnixSeconds ||
             nanoseconds >= Billion || frequencyHz is < 1000000 or > 10000000000 ||
-            maximumElapsedSeconds is < 1 or > 86400) return false;
+            (continuing ? maximumElapsedSeconds != 0 : maximumElapsedSeconds is < 1 or > 86400)) return false;
         state = new State
         {
             Phase = 1, Seconds = seconds, Nanoseconds = nanoseconds,
@@ -83,7 +88,7 @@ public static class OwnedRealtimeClock
     }
 
     /// <summary>Read anchored UTC without accumulating rounding error. Ticks
-    /// before the anchor/last read, at or beyond expiry, or beyond year9999 fail
+    /// before the anchor/last read, at or beyond an admitted finite expiry, or beyond year9999 fail
     /// permanently with zero outputs. Equal ticks are allowed. The caller must
     /// retain the exact admitted monotonic source; counter wrap is unsupported.</summary>
     public static bool Read(ref State state, ulong ticks, out long seconds, out uint nanoseconds)
@@ -92,7 +97,7 @@ public static class OwnedRealtimeClock
         if (state.Phase != 1) return Invalidate(ref state);
         if (ticks < state.AnchorTicks || ticks < state.LastTicks) return Invalidate(ref state);
         ulong elapsed = ticks - state.AnchorTicks;
-        if (elapsed >= state.MaximumElapsedSeconds * state.Frequency) return Invalidate(ref state);
+        if (state.MaximumElapsedSeconds != 0 && elapsed >= state.MaximumElapsedSeconds * state.Frequency) return Invalidate(ref state);
         ulong whole = elapsed / state.Frequency;
         // Only the remainder is scaled: (<10GHz)*1e9 fits ulong, even when
         // elapsed ticks or a large absolute anchor could not be scaled safely.

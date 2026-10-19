@@ -67,10 +67,11 @@ public static partial class QemuTranscripts
                 row.StartsWith("OS_SMOKE_FAIL", StringComparison.Ordinal)), "service_envelope_profile");
         int transportAt = One("M07_030_END "), randomAt = One("M11_012_END "), sequenceAt = One("M07_033_END "),
             serviceAt = One("M16_014_END "), servicePass = One("TEST_PASS m16.014", false),
+            restored = One("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true", false),
             leafReady = One("CLROS_M16_009_READY", false), leafPass = One("TEST_PASS m16-009", false),
             wireAt = One("M16_011_WIRE "), endAt = One("M16_011_END ");
         Need(transportAt < randomAt && sequenceAt == randomAt + 1 && sequenceAt < serviceAt && servicePass == serviceAt + 1 &&
-            leafReady == servicePass + 1 && leafPass == leafReady + 1 && wireAt == leafPass + 1 && endAt == wireAt + 1,
+            restored == servicePass + 1 && leafReady == restored + 1 && leafPass == leafReady + 1 && wireAt == leafPass + 1 && endAt == wireAt + 1,
             "service_envelope_terminal_order");
         var wire = ReadRecord(rows![wireAt], "M16_011_WIRE", "received:dec", "arp:dec", "accepted:dec", "ignored:dec", "capacity:dec", "arpCopied:dec", "tcpCopied:dec");
         const string cleanup = " retained=0 buffers=scrubbed descriptors=closed workers=reaped";

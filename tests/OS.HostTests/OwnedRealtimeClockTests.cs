@@ -4,6 +4,29 @@ using Clock = OS.Kernel.Platform.OwnedRealtimeClock;
 
 internal static class OwnedRealtimeClockTests
 {
+    [HostTest("time.realtime continuing anchor survives finite ceilings and retains rollback overflow and single-owner guards")]
+    private static void ServiceLifetime()
+    {
+        Clock.State finite=default,service=default;
+        const ulong frequency=1_000_000,anchor=100;
+        HostCheck.True(Clock.Begin(ref finite,1_000_000,0,anchor,frequency,600) && Clock.Begin(ref service,1_000_000,0,anchor,frequency,0,continuing:true));
+        HostCheck.True(!finite.IsContinuing && service.IsContinuing);
+        HostCheck.True(!Clock.Read(ref finite,anchor+600*frequency,out long absent,out uint zero) && absent==0 && zero==0 && !finite.IsAvailable);
+        HostCheck.True(Clock.Read(ref service,anchor+600*frequency,out long seconds,out uint nanos) && seconds==1_000_600 && nanos==0);
+        HostCheck.True(Clock.Read(ref service,anchor+86_401*frequency,out seconds,out nanos) && seconds==1_086_401 && nanos==0);
+        var before=service;HostCheck.True(!Clock.Begin(ref service,0,0,anchor,frequency,0,continuing:true) && service.Equals(before));
+        HostCheck.True(!Clock.Read(ref service,anchor+86_400*frequency,out absent,out zero) && absent==0 && zero==0 && !service.IsAvailable && !service.IsContinuing);
+        HostCheck.True(!Clock.Read(ref service,anchor+86_402*frequency,out absent,out zero) && absent==0 && zero==0);
+        Clock.State unbound=default;
+        HostCheck.True(!Clock.Begin(ref unbound,0,0,anchor,frequency,600,continuing:true) && unbound.Equals(default(Clock.State)));
+        HostCheck.True(!Clock.Begin(ref unbound,0,0,anchor,frequency,0) && unbound.Equals(default(Clock.State)));
+        HostCheck.True(Clock.Begin(ref unbound,Clock.MaximumUnixSeconds,999_999_999,anchor,frequency,0,continuing:true));
+        HostCheck.True(!Clock.Read(ref unbound,anchor+1,out absent,out zero) && absent==0 && zero==0 && !unbound.IsAvailable);
+        Clock.State wrap=default;HostCheck.True(Clock.Begin(ref wrap,0,0,ulong.MaxValue-1,frequency,0,continuing:true));
+        HostCheck.True(Clock.Read(ref wrap,ulong.MaxValue,out seconds,out nanos));
+        HostCheck.True(!Clock.Read(ref wrap,0,out absent,out zero) && absent==0 && zero==0 && !wrap.IsAvailable);
+    }
+
     [HostTest("time.realtime firmware layout and explicit timezone conversion")]
     private static void FirmwareLayoutAndTimezone()
     {

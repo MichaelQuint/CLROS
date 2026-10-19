@@ -128,6 +128,7 @@ try
         options.RequiredMarkers,
         options.ForbiddenMarkers,
         successTerminalMarker: options.SuccessTerminalMarker,
+        byteCapacity: options.SerialByteCapacity,
         orderedMarkers: options.OrderedMarkers,
         uniqueMarkers: options.UniqueMarkers);
 
@@ -354,7 +355,7 @@ try
         !TryReadSerialLogBounded(
             options.SerialLogPath,
             out preProbeSerial,
-            out serialReadFailure))
+            out serialReadFailure, options.SerialByteCapacity))
     {
         TerminateProcessAndClassify(
             process,
@@ -543,7 +544,7 @@ try
         TryReadSerialLogBounded(
             options.SerialLogPath,
             out serial,
-            out serialReadFailure);
+            out serialReadFailure, options.SerialByteCapacity);
     }
 
     SerialMarkerSummary summary = SerialMarkerSummary.Parse(
@@ -1590,7 +1591,7 @@ static void WriteSummaryLogBestEffort(
         if (TryReadSerialLogBounded(
                 options.SerialLogPath,
                 out string serial,
-                out string? serialTailFailure))
+                out string? serialTailFailure, options.SerialByteCapacity))
         {
             AppendSerialTailSummary(builder, serial);
         }
@@ -2121,7 +2122,8 @@ static string FormatProbeEndpoint(string url)
 static bool TryReadSerialLogBounded(
     string path,
     out string serial,
-    out string? failureReason)
+    out string? failureReason,
+    long byteCapacity = SerialMarkerStateMachine.DefaultByteCapacity)
 {
     serial = string.Empty;
     failureReason = null;
@@ -2137,7 +2139,7 @@ static bool TryReadSerialLogBounded(
             FileMode.Open,
             FileAccess.Read,
             FileShare.ReadWrite | FileShare.Delete);
-        if (stream.Length > SerialMarkerStateMachine.DefaultByteCapacity)
+        if (stream.Length > byteCapacity)
         {
             failureReason = "serial_log_capacity_exceeded";
             return false;
@@ -2359,6 +2361,7 @@ sealed class RunnerOptions
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
     public bool ContinuingService { get; private set; }
+    public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
     public ServiceEvidence? ServiceEvidence { get; private set; }
     public string SuccessTerminalMarker => ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
     public HttpProbeOptions? WebConfigProbe { get; private set; }
@@ -2762,6 +2765,7 @@ sealed class RunnerOptions
             RequiredMarkers,
             ForbiddenMarkers,
             successTerminalMarker: SuccessTerminalMarker,
+            byteCapacity: SerialByteCapacity,
             orderedMarkers: OrderedMarkers,
             uniqueMarkers: UniqueMarkers);
 

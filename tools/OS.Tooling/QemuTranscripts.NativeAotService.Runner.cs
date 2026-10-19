@@ -31,8 +31,8 @@ public static partial class QemuTranscripts
         Need(runner.ExitCode == 0 && runner.StandardError.Length == 0 &&
             runner.Duration > TimeSpan.FromSeconds(300) && runner.Duration <= TimeSpan.FromSeconds(options.TimeoutSeconds + 60) &&
             runner.StandardOutput.Length <= 8 * 1024 * 1024 &&
-            raw.Length > 0 && raw.Length <= SerialMarkerStateMachine.DefaultByteCapacity &&
-            summaryBytes.Length is > 3 and <= 16 * 1024 * 1024, "service_runner_inputs");
+            raw.Length > 0 && raw.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity &&
+            summaryBytes.Length > 3 && summaryBytes.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity, "service_runner_inputs");
         Need(NativeAotServiceSelection.Application(plan.Flags, options.LinuxThreadingApplication) == NativeAotServicePackage.Application &&
             options.WorkloadProfile == "SingleMinimalApi" && options.FirmwareRngSource == "virtio" && options.TimeoutSeconds is >= 780 and <= 900 &&
             context.ForwardPort is >= 1 and <= 65535 && Path.IsPathFullyQualified(context.Qemu) && Path.IsPathFullyQualified(context.Ovmf) &&
@@ -40,7 +40,7 @@ public static partial class QemuTranscripts
             context.StartedUtc != default && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero &&
             context.CompletedUtc > context.StartedUtc && context.CompletedUtc - context.StartedUtc >= runner.Duration - TimeSpan.FromMilliseconds(100), "service_runner_selection");
         var stream = new SerialMarkerStateMachine(plan.Required, plan.Forbidden, successTerminalMarker: "TEST_PASS m16-012",
-            orderedMarkers: plan.Ordered, uniqueMarkers: plan.Unique);
+            byteCapacity: SerialMarkerStateMachine.ContinuingServiceByteCapacity, orderedMarkers: plan.Ordered, uniqueMarkers: plan.Unique);
         Need(stream.Feed(raw).Succeeded, "service_runner_serial_feed");
         var done = stream.Complete();
         Need(done.Passed && done.SuccessTerminalCount == 1 && done.FailureTerminalCount == 0, "service_runner_serial_completion");
@@ -111,8 +111,8 @@ public static partial class QemuTranscripts
                 string.Equals(Path.GetFullPath(options.SerialLog, root), peer.SerialPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) &&
                 string.Equals(Path.GetFullPath(options.SerialLog + ".peer.log", root), peer.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal),
                 "service_peer_owner");
-            var serial = files.Open(root, Path.GetFullPath(options.SerialLog, root), "service serial", "service_evidence_serial", 16 * 1024 * 1024, singleLink: true);
-            var summary = files.Open(root, Path.GetFullPath(options.SummaryLog, root), "service summary", "service_evidence_summary", 16 * 1024 * 1024, singleLink: true);
+            var serial = files.Open(root, Path.GetFullPath(options.SerialLog, root), "service serial", "service_evidence_serial", SerialMarkerStateMachine.ContinuingServiceByteCapacity, singleLink: true);
+            var summary = files.Open(root, Path.GetFullPath(options.SummaryLog, root), "service summary", "service_evidence_summary", SerialMarkerStateMachine.ContinuingServiceByteCapacity, singleLink: true);
             var packets = files.Open(root, Path.GetFullPath(options.SerialLog + ".pcap", root), "service PCAP", "service_evidence_packets", 16 * 1024 * 1024, singleLink: true);
             var report = files.Open(root, peer.Path, "service peer", "service_evidence_peer", 65536, singleLink: true);
             AuthorityFiles.RequireDistinct(serial, summary, packets, report); peer.Verify(files); files.VerifyUnchanged(); return files;

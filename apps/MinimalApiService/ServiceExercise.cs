@@ -72,15 +72,17 @@ internal sealed class ServiceExercise(Action failed) : IDisposable
             Console.Error.WriteLine("CLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14");
             while (!stop.IsSet)
             {
-                // At40 getpid calls/second, this same worker exceeds4096 calls
-                // during the required >300s service interval without huge logs.
-                for (int i = 0; i < 4; i++)
+                // Reach the direct-call threshold in bounded batches instead
+                // of assuming a scheduler or serial-trace rate. Continue one
+                // real call per iteration throughout the remaining >300s run.
+                int batch = Interlocked.Read(ref calls) <= 4096 ? 32 : 1;
+                for (int i = 0; i < batch; i++)
                 {
                     if (GetPid() <= 0) { Reject(39); return; }
                     Interlocked.Increment(ref calls);
                 }
                 long iteration = Interlocked.Read(ref iterations);
-                if (iteration < 2 || (iteration & 15) == 0)
+                if (iteration < 2 || Interlocked.Read(ref randomRequests) <= 32 || (iteration & 15) == 0)
                 {
                     nuint wanted = iteration < 2 ? (nuint)random.Length : 32;
                     nint received;

@@ -45,8 +45,9 @@ public static partial class QemuTranscripts
                     Need(b>=2 && v==2 && memory.Covered(a,2,3),"web_root_cwd");
                     break;
                 case 89:
+                    ulong executablePathBytes=service?(ulong)("/app/"+NativeAotServicePackage.ApplicationPath).Length:25;
                     Need(c is >0 and <=4096 && memory.Covered(a,1,1) &&
-                        (v==Bits(-22) || v is 1 or 25 && v<=c && memory.Covered(b,v,3)),"web_readlink");
+                        (v==Bits(-22) || (v==1 || v==executablePathBytes) && v<=c && memory.Covered(b,v,3)),"web_readlink");
                     break;
                 case 221:
                     Need(file && b==0 && c==0 && d==2 && v==Bits(-38),"web_fadvise_unsupported");

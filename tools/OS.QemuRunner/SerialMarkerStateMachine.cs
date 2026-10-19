@@ -6,6 +6,9 @@ public sealed class SerialMarkerStateMachine
 {
     public const int DefaultLineCapacity = 4096;
     public const long DefaultByteCapacity = 16L * 1024L * 1024L;
+    /// <summary>Finite serial bound for the explicitly selected continuing
+    /// service diagnostic; ordinary profiles retain DefaultByteCapacity.</summary>
+    public const long ContinuingServiceByteCapacity = 64L * 1024L * 1024L;
     public const int MaximumMarkerCount = 512;
     public const int MaximumMarkerLength = 512;
     public const int MaximumLineCapacity = 1024 * 1024;

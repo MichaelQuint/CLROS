@@ -25,7 +25,7 @@ internal static class NativeAotServiceParentTests
     {
         string[] rows = Rows();
         foreach (string prefix in new[] { "TEST_START m16-011", "TEST_START m16-012", "TEST_START m16-009", "M07_030_END ",
-            "M11_012_END ", "M07_033_END ", "M16_014_END ", "TEST_PASS m16.014", "CLROS_M16_009_READY", "TEST_PASS m16-009",
+            "M11_012_END ", "M07_033_END ", "M16_014_END ", "TEST_PASS m16.014", "M16_009_RESTORE ", "CLROS_M16_009_READY", "TEST_PASS m16-009",
             "M16_011_WIRE ", "M16_011_END ", "M07_026_ROW stage=4 ", "M07_026_ROW stage=5 ", "M07_026_ROW stage=6 ",
             "CLROS_M07_026_READY", "TEST_PASS m07-026", "CLROS_M16_011_READY", "TEST_PASS m16-011", "CLROS_M16_012_READY", "TEST_PASS m16-012" })
         {
@@ -36,6 +36,9 @@ internal static class NativeAotServiceParentTests
         var swapped = rows.ToArray(); (swapped[^1], swapped[^2]) = (swapped[^2], swapped[^1]); Reject(swapped);
         Reject([..rows, "TEST_PASS m16-013"]); Reject([..rows, "extra"]);
         Reject(rows.Select(row => row.Replace("workers=reaped", "workers=retained", StringComparison.Ordinal)).ToArray());
+        Reject(rows.Select(row => row.Replace("root=true descriptors=true", "root=false descriptors=true", StringComparison.Ordinal)).ToArray());
+        var restoration = rows.ToArray(); int restoreAt = Array.FindIndex(rows, row => row.StartsWith("M16_009_RESTORE ", StringComparison.Ordinal));
+        (restoration[restoreAt], restoration[restoreAt-1]) = (restoration[restoreAt-1], restoration[restoreAt]); Reject(restoration);
     }
 
     [HostTest("service parent envelope rejects borrowed report counter deadline peer clock and NIC mismatches", HostLane.Fast, 2)]
@@ -76,7 +79,7 @@ internal static class NativeAotServiceParentTests
         "M11_012_END requests=33 generatedBytes=17376 generator=zero seed=zero firmwareCallbacks=none",
         "M07_033_END issued=10 secret=zero seed=zero lease=released firmwareCallbacks=none",
         "M16_014_END identity=4294967297 calls=5000 started=30 nanos=400000000000 reaped=3 process=drained mappings=restored pool=scrubbed random=zero reservation=retained",
-        "TEST_PASS m16.014", "CLROS_M16_009_READY", "TEST_PASS m16-009",
+        "TEST_PASS m16.014", "M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true", "CLROS_M16_009_READY", "TEST_PASS m16-009",
         "M16_011_WIRE received=100 arp=1 accepted=98 ignored=1 capacity=0 arpCopied=2 tcpCopied=200",
         $"M16_011_END polls=1000 received=100 copied=200 fresh=10 retired=10 start=10 end={Finished} maxDeadline={Deadline} retained=0 buffers=scrubbed descriptors=closed workers=reaped",
         "M07_026_ROW stage=4 a=102 b=203 c=1 d=2", "M07_026_ROW stage=5 a=8 b=0 c=8 d=1", "M07_026_ROW stage=6 a=100 b=100 c=8 d=6",

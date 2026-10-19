@@ -95,6 +95,133 @@ internal static class NativeAotServicePeerTests
         HostCheck.True(fresh); HostCheck.Equal(1, starts);
     }
 
+    [HostTest("service raw HTTP peer retains client through ContentLength or final chunk until serverFIN then sends clientFIN")]
+    private static void TransportEof() => TransportEofAsync().GetAwaiter().GetResult();
+    private static async Task TransportEofAsync()
+    {
+        foreach (int kind in new[] { 0, 1, 2 })
+        {
+            bool post = kind == 1;
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
+            int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            var copied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            string method = post ? "POST" : "GET", path = post ? "/__clros/service/start" : kind == 2 ? "/__clros/service/status" : "/healthz";
+            Task<NativeAotServicePeer.HttpResponseObservation> pending = NativeAotServicePeer.ExchangeForTestsAsync(port, method, path,
+                deadline.Token, () => copied.TrySetResult());
+            try
+            {
+                using var client = await listener.AcceptTcpClientAsync(deadline.Token); await using var stream = client.GetStream();
+                HostCheck.Equal(method + " " + path + " HTTP/1.1\r\nHost: clros.service\r\nConnection: close\r\n" +
+                    (post ? "Content-Length: 0\r\n" : "") + "\r\n", await ReadRequestAsync(stream, deadline.Token));
+                byte[] body = post ? [] : Enumerable.Range(0, 8192).Select(i => (byte)(i % 251)).ToArray();
+                byte[] response = kind == 2 ? ChunkedResponse(body) : Response(body, post ? "409 Conflict" : "200 OK");
+                await stream.WriteAsync(response.AsMemory(0, 17), deadline.Token);
+                await stream.WriteAsync(response.AsMemory(17), deadline.Token);
+                await copied.Task.WaitAsync(deadline.Token);
+                Task<int> clientFin = stream.ReadAsync(new byte[1], deadline.Token).AsTask();
+                HostCheck.True(!pending.IsCompleted && !clientFin.IsCompleted);
+                client.Client.Shutdown(SocketShutdown.Send);
+                var result = await pending; HostCheck.True(result.Body.AsSpan().SequenceEqual(body));
+                HostCheck.Equal(post ? 409 : 200, result.Status); HostCheck.Equal(TimeSpan.Zero, result.DateUtc.Offset);
+                HostCheck.Equal(0, await clientFin);
+            }
+            finally { deadline.Cancel(); try { _ = await pending; } catch (Exception) when (pending.IsCompleted) { } }
+        }
+    }
+
+    [HostTest("service raw HTTP peer rejects malformed ambiguous truncated trailing and oversized responses")]
+    private static void TransportFailures() => TransportFailuresAsync().GetAwaiter().GetResult();
+    private static async Task TransportFailuresAsync()
+    {
+        string valid = Encoding.ASCII.GetString(Response("ok"u8.ToArray()));
+        string[] malformed = [valid.Replace("HTTP/1.1", "HTTP/1.0", StringComparison.Ordinal),
+            valid.Replace("Date: Sun, 18 Oct 2026 00:00:00 GMT\r\n", "", StringComparison.Ordinal),
+            valid.Replace("Sun, 18 Oct 2026 00:00:00 GMT", "yesterday", StringComparison.Ordinal),
+            valid.Replace("Date:", "Date: Sun, 18 Oct 2026 00:00:00 GMT\r\nDate:", StringComparison.Ordinal),
+            valid.Replace("Content-Length: 2", "Content-Length: 2\r\ncontent-length: 2", StringComparison.Ordinal),
+            valid.Replace("Content-Length: 2", "Transfer-Encoding: chunked\r\nContent-Length: 2", StringComparison.Ordinal),
+            valid.Replace("Connection: close", "Connection: keep-alive", StringComparison.Ordinal),
+            valid.Replace("Connection: close", "Connection: close\r\nX: a\nb", StringComparison.Ordinal),
+            valid.Replace("Content-Length: 2", "Content-Length: 02", StringComparison.Ordinal),
+            valid.Replace("Content-Length: 2", "Content-Length: -1", StringComparison.Ordinal),
+            valid.Replace("Content-Length: 2", "Content-Length: 8193", StringComparison.Ordinal),
+            valid.Replace("Content-Length: 2", "Content-Length: 9223372036854775808", StringComparison.Ordinal),
+            valid[..^1], valid + "x", "HTTP/1.1 200 OK\r\nX: " + new string('x', 8192), valid[..^6]];
+        foreach (string response in malformed)
+        {
+            bool refused = false;
+            try { _ = await ExchangeResponseAsync(Encoding.ASCII.GetBytes(response)); }
+            catch (ToolFailure) { refused = true; }
+            HostCheck.True(refused);
+        }
+        string chunked = Encoding.ASCII.GetString(ChunkedResponse("ok"u8.ToArray()));
+        foreach (string response in new[] { chunked.Replace("\r\n2\r\nok", "\r\nxyz\r\nok", StringComparison.Ordinal),
+            chunked.Replace("\r\n2\r\nok", "\r\n2;x=1\r\nok", StringComparison.Ordinal),
+            chunked.Replace("\r\n2\r\nok", "\r\n2001\r\nok", StringComparison.Ordinal), chunked[..^1], chunked + "x",
+            chunked.Replace("0\r\n\r\n", "0\r\nX: a\r\n\r\n", StringComparison.Ordinal),
+            chunked.Replace("ok\r\n", "ok\nx", StringComparison.Ordinal) })
+        {
+            bool refused = false; try { _ = await ExchangeResponseAsync(Encoding.ASCII.GetBytes(response)); }
+            catch (ToolFailure) { refused = true; } HostCheck.True(refused);
+        }
+    }
+
+    [HostTest("service raw HTTP peer cancellation joins a read waiting for genuine EOF")]
+    private static void TransportCancellation() => TransportCancellationAsync().GetAwaiter().GetResult();
+    private static async Task TransportCancellationAsync()
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10)); using var cancel = new CancellationTokenSource();
+        using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
+        var copied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pending = NativeAotServicePeer.ExchangeForTestsAsync(((IPEndPoint)listener.LocalEndpoint).Port, "GET", "/healthz", cancel.Token, () => copied.TrySetResult());
+        try
+        {
+            using var client = await listener.AcceptTcpClientAsync(deadline.Token); await using var stream = client.GetStream();
+            _ = await ReadRequestAsync(stream, deadline.Token); await stream.WriteAsync(ChunkedResponse([]), deadline.Token);
+            await copied.Task.WaitAsync(deadline.Token); HostCheck.True(!pending.IsCompleted); cancel.Cancel();
+            bool refused = false; try { _ = await pending; } catch (OperationCanceledException) { refused = true; }
+            HostCheck.True(refused && pending.IsCompleted);
+        }
+        finally { cancel.Cancel(); try { _ = await pending; } catch (Exception) when (pending.IsCompleted) { } }
+    }
+
+    private static byte[] Response(byte[] body, string status = "200 OK") => [..Encoding.ASCII.GetBytes("HTTP/1.1 " + status +
+        "\r\nDate: Sun, 18 Oct 2026 00:00:00 GMT\r\nContent-Length: " + body.Length.ToString(CultureInfo.InvariantCulture) + "\r\nConnection: close\r\n\r\n"), ..body];
+    private static byte[] ChunkedResponse(byte[] body)
+    {
+        byte[] header = Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nDate: Sun, 18 Oct 2026 00:00:00 GMT\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n");
+        return body.Length == 0 ? [..header, .."0\r\n\r\n"u8.ToArray()] :
+            [..header, ..Encoding.ASCII.GetBytes(body.Length.ToString("x", CultureInfo.InvariantCulture) + "\r\n"), ..body, .."\r\n0\r\n\r\n"u8.ToArray()];
+    }
+    private static async Task<string> ReadRequestAsync(NetworkStream stream, CancellationToken token)
+    {
+        byte[] bytes = new byte[512]; int length = 0;
+        while (bytes.AsSpan(0, length).IndexOf("\r\n\r\n"u8) < 0)
+        {
+            HostCheck.True(length < bytes.Length); int read = await stream.ReadAsync(bytes.AsMemory(length), token);
+            HostCheck.True(read > 0); length += read;
+        }
+        return Encoding.ASCII.GetString(bytes, 0, length);
+    }
+    private static async Task<NativeAotServicePeer.HttpResponseObservation> ExchangeResponseAsync(byte[] response)
+    {
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        using var listener = new TcpListener(IPAddress.Loopback, 0); listener.Start();
+        var pending = NativeAotServicePeer.ExchangeForTestsAsync(((IPEndPoint)listener.LocalEndpoint).Port, "GET", "/healthz", deadline.Token);
+        try
+        {
+            using var client = await listener.AcceptTcpClientAsync(deadline.Token); await using var stream = client.GetStream();
+            _ = await ReadRequestAsync(stream, deadline.Token);
+            try { await stream.WriteAsync(response, deadline.Token); }
+            catch (Exception error) when (error is IOException or SocketException) { }
+            try { client.Client.Shutdown(SocketShutdown.Send); }
+            catch (SocketException error) when (error.SocketErrorCode is SocketError.NotConnected or SocketError.ConnectionReset or SocketError.Shutdown) { }
+            return await pending;
+        }
+        finally { deadline.Cancel(); try { _ = await pending; } catch (Exception) when (pending.IsCompleted) { } }
+    }
+
     private static void Shift(JsonObject report, long milliseconds)
     {
         report["durationMilliseconds"] = report["durationMilliseconds"]!.GetValue<long>() + milliseconds;

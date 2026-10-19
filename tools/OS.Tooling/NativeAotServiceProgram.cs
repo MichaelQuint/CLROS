@@ -10,7 +10,7 @@ public sealed class NativeAotServiceProgram
 {
     private const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
     internal const int ElfBytes = 8_413_864;
-    private const string ElfSha256 = "1751F699479BEA7790C2D99DF8979BC6B42141BE0A51D7C2E345D56CB04E0968";
+    private const string ElfSha256 = "AE6E0260216B733AFC97600A49EADCA35D749B091DAD5C87B2FD0ABC28597DAF";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     private NativeAotServiceProgram(string root, NativeAotInstructionIndex value)
@@ -41,11 +41,11 @@ public sealed class NativeAotServiceProgram
         var view = RequirePackage(package);
         using AuthorityFiles sources = new(); HoldSources(root, sources);
         var parsed = Parse(package.Slice((int)view.PayloadOffset, (int)view.PayloadBytes), dump);
-        // LLVM22.1.3 covers all4,340,623 bytes in five original executable
+        // LLVM22.1.3 covers all4,340,559 bytes in five original executable
         // sections, entry0x408f77 and all198 syscall continuations. Executable
         // load padding grants no starts. This is not a control-flow proof.
-        if (Report(parsed) != new Inspection(1_356_781, 198,
-            "BD5BE7A3ED4C2E2ACBAC6F621BE5A634AC4AFCC39B0E4DA0597D2BFE3E1AEB1E") ||
+        if (Report(parsed) != new Inspection(1_356_753, 198,
+            "7F2A1FBC6CC07E9D71DB5A72FB7D3684C357AC49DCD0A5F7EB1C17E71BA81C32") ||
             !parsed.SyscallContinuationsValid || !parsed.IsInstruction(0x408f77))
             throw new InvalidDataException("service_instruction_identity");
         HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed);
@@ -84,10 +84,10 @@ public sealed class NativeAotServiceProgram
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "CEDB569E9AAF83AFE0377617A0440A08A8D7EDBE8145DFA1D7E8CF30B853A408"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
-        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "3F36498A48F1F9AAD13A0C969299FC27F29825C5E1E8DB2E9928EDEFC40A2743"),
+        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "7E6900C3910D436DCEB536312134A99319379EE7FE3A62136848B2C35B32C51D"),
         ("apps/MinimalApiService/MinimalApiService.csproj", "0B267A2A4EE1B931BF1CAD5DC025356345EE74AE8463D1A16B8C27A8D6C5B5D7"),
         ("apps/MinimalApiService/Program.cs", "DC48006F173CCD125EFDA43E361CEE73B8BBFB968ED0D1BCA20D04C4E78296A0"),
-        ("apps/MinimalApiService/ServiceExercise.cs", "6350C94547E72DA6CF85B2FE17876A761D565CE3B5C3B0DCD125A304910D90CF"),
+        ("apps/MinimalApiService/ServiceExercise.cs", "971B8D504D3EA66A28576A89E221C9EB25E1D161BE2DAE4E150C06F15929EC80"),
         ("apps/MinimalApiService/appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5")];
 
     internal static void HoldSources(string root, AuthorityFiles files)

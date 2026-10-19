@@ -117,18 +117,22 @@ public static partial class QemuTranscripts
             Need(row["callsPerTurn"]==LinuxSyscallGateway.MaximumThreadCalls &&
                 row["progressNanos"]==LinuxThreadExecutionBudget.ServiceProgressNanoseconds &&
                 budget.Begin((uint)capacity,row["started"],application:true,continuingWeb:true,continuingService:true),"service_budget_policy");
+            // The initial network snapshot predates its first clock read. It
+            // is an exact bootstrap sentinel, not a reading before this anchor.
+            Exact("M16_012_POLL identity=0 clock=0 ready=1 idle=0");
         }
 
-        private void ServiceClock(ulong now)
+        private void ServiceClock(ulong now,ref LinuxThreadExecutionBudget observed)
         {
             // Cancellation ends operational admission. Actual exit/drain/reap
             // records remain mandatory and must not revive this watchdog.
-            if(budget.CancellationRequested)return;
+            if(observed.CancellationRequested)return;
             bool Runnable(RuntimeThread thread)=>!thread.Exiting &&
                 (ready.Contains(thread) || thread==socketSelected && !thread.Parking);
-            Need(budget.ObserveProgress(now,(ulong)calls,history.Any(thread=>!thread.Reaped && Runnable(thread))),"service_progress_watchdog");
+            if(!observed.ObserveProgress(now,(ulong)calls,history.Any(thread=>!thread.Reaped && Runnable(thread))))
+                throw new ToolFailure("service_progress_watchdog",$"position={position} now={now} calls={calls} ready={ready.Count} selected={socketSelected?.Identity??0} row={rows[Math.Min(position,rows.Length-1)]}");
             foreach(var thread in history.Where(thread=>!thread.Reaped))
-                Need(budget.ObserveWorker(now,(uint)thread.Identity-1,thread.TotalCalls,Runnable(thread)),"service_worker_watchdog");
+                Need(observed.ObserveWorker(now,(uint)thread.Identity-1,thread.TotalCalls,Runnable(thread)),"service_worker_watchdog");
         }
 
         private void ServiceCall(RuntimeThread thread,LinuxCallWaitObservation witness)
@@ -153,7 +157,11 @@ public static partial class QemuTranscripts
                 row["started"]==budget.StartedNanoseconds && row["nanos"]>=clock &&
                 row["nanos"]>=row["started"] && row["nanos"]-row["started"]>LinuxThreadExecutionBudget.RuntimeNanoseconds &&
                 row["epochs"]==(ulong)epochs && epochs>0 && row["active"]==(ulong)active,"service_ready_accounting");
-            Clock(row["nanos"]); Exact("CLROS_M16_014_READY"); serviceReady=true;
+            // This supervisor snapshot is emitted before the pending network
+            // poll publishes its older clock sample. Validate it against a copy
+            // of the same watchdog; do not reorder the actual poll/call stream.
+            var observed=budget;ServiceClock(row["nanos"],ref observed);
+            Exact("CLROS_M16_014_READY"); serviceReady=true;
         }
 
         private void ServiceFinish()

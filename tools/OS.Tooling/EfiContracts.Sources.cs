@@ -8,8 +8,8 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"Boot\EfiEntry.Realtime.cs"] = "e615ad522ccd52cd045ddbe0ebaf4364cacd702b72d19661e7fb7eb67582a00a",
-                [@"..\OS.Kernel\Platform\OwnedRealtimeClock.cs"] = "611d530ef5aa8542b7f5c81bb7db12fff5b4c3d71b47568dddf5387e56aaa031",
+                [@"Boot\EfiEntry.Realtime.cs"] = "4c43d5db8a3287cd8e0f0103b102070762204a83939b48f6c9189cb4056fafe3",
+                [@"..\OS.Kernel\Platform\OwnedRealtimeClock.cs"] = "0dfae6f8423a2443ca63800fd48b7b93da455fed1ef90e5ffe728f74c122a709",
                 [@"..\..\std\no-runtime\shared\Time\GregorianUtc.cs"] = "123bff62aaad42b88f372acd07043d850c726fa4f8e3efda92a755bf448e171f",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs"] = "d075d65313f6927335b17e2edb318571a30e8c3f757ee6c07cd347ff3987ab65",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppStartupObservation.cs"] = "f440018763cd5203d429894756c28c74b1824f61163c0b63cd3b27fddf276f76",

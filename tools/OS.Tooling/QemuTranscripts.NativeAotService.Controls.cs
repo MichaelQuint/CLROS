@@ -222,8 +222,12 @@ public static partial class QemuTranscripts
     {
         int stage = 0; bool resolved = false; ulong peer = 0, received = 0, arp = 0, arpCopied = 0, tcpCopied = 0, ignored = 0;
         Dictionary<uint, ulong> closes = [];
+        Dictionary<(uint Port,uint Sequence),Stack<int>> syns=[];
+        HashSet<(uint Port,uint Ack,uint Sequence)> synAcks=[];
+        int ordinal=0,firstSynAck=0;
         for (int offset = 24; offset < bytes.Length;)
         {
+            ordinal++;
             ulong time = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset)) * 1_000_000 + BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4));
             int size = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 8))); offset += 16;
             var frame = bytes.AsSpan(offset, size); offset += size;
@@ -236,14 +240,34 @@ public static partial class QemuTranscripts
             if (!outgoing) received++;
             if (type == 0x0806) { if (outgoing) arpCopied++; else arp++; continue; }
             if (!ReadSocketTcpFrame(frame, outgoing, parent.Arp.PeerMac, out var packet)) { ignored++; continue; }
+            if(!outgoing && packet.Flags==2)
+            {
+                var key=(packet.Remote,packet.Sequence);
+                if(!syns.TryGetValue(key,out var pending))syns.Add(key,pending=new());
+                pending.Push(ordinal);
+            }
+            if(outgoing && packet.Flags==0x12)
+            {
+                var signature=(packet.Remote,packet.Ack,packet.Sequence);
+                if(syns.TryGetValue((packet.Remote,unchecked(packet.Ack-1)),out var pending) && pending.Count!=0)pending.Pop();
+                else Need(synAcks.Contains(signature),"service_packet_syn_ack_source");
+                synAcks.Add(signature);if(firstSynAck==0)firstSynAck=ordinal;
+            }
             if (outgoing)
             { tcpCopied++; if ((packet.Flags & 1) != 0) closes.TryAdd(packet.Remote, time); }
         }
+        // The complete flow/control models bind every answered handshake.
+        // Only unanswered SYNs before the first answer belong to startup quiet
+        // time; they are valid TCP packets whose receive result is Ignored.
+        int[] quietSyns=syns.Values.SelectMany(pending=>pending).ToArray();
+        Need(firstSynAck>0 && quietSyns.Length<=1600 && quietSyns.All(at=>at<firstSynAck),"service_packet_quiet_syn_lifetime");
+        ignored+=(uint)quietSyns.Length;
         string[] rows = ReadThreadingSerialLines(DecodeUtf8(raw));
         var peerRow = ReadRecord(rows.Single(row => row.StartsWith("M16_011_PEER ", StringComparison.Ordinal)), "M16_011_PEER",
             "mac:dec", "sent:dec", "received:dec", "start:dec", "end:dec");
-        Need(resolved && peer == peerRow["received"] && received == envelope.Received && arp == envelope.Arp && arpCopied == envelope.ArpCopied &&
-            tcpCopied == envelope.TcpCopied && ignored == envelope.Ignored && received - arp - ignored == envelope.Accepted, "service_packet_nic_join");
+        if(!(resolved && peer == peerRow["received"] && received == envelope.Received && arp == envelope.Arp && arpCopied == envelope.ArpCopied &&
+            tcpCopied == envelope.TcpCopied && ignored == envelope.Ignored && received - arp - ignored == envelope.Accepted))
+            throw new ToolFailure("service_packet_nic_join",$"peer={peer}/{peerRow["received"]} received={received}/{envelope.Received} arp={arp}/{envelope.Arp} arpCopied={arpCopied}/{envelope.ArpCopied} tcpCopied={tcpCopied}/{envelope.TcpCopied} ignored={ignored}/{envelope.Ignored}");
         ulong[] times = closes.Values.Order().ToArray();
         Need(times.Length > 8 && times[8] - times[0] < 240_000_000, "service_packet_compact_reuse_before_expiry");
     }

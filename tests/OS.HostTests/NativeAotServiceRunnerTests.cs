@@ -1,5 +1,6 @@
 using System.Text;
 using OS.Tooling;
+using OS.Tools.QemuRunner;
 
 internal static class NativeAotServiceRunnerTests
 {
@@ -83,10 +84,20 @@ internal static class NativeAotServiceRunnerTests
         Reject(() => Inspect(Rewrite(f, "TEST_PASS m16-012", "OS_SMOKE_PASS")));
     }
 
+    [HostTest("service runner independently accepts complete serial above the unchanged ordinary16MiB limit")]
+    private static void SerialCapacity()
+    {
+        var f = Fixture(paddingLines: 4096);
+        HostCheck.True(f.Raw.Length > SerialMarkerStateMachine.DefaultByteCapacity);
+        HostCheck.Equal(1234, Inspect(f).ProcessId);
+        var ordinary = new SerialMarkerStateMachine(["TEST_PASS m16-012"], ["OS_SMOKE_FAIL"], successTerminalMarker: "TEST_PASS m16-012");
+        HostCheck.Equal(SerialMarkerFeedStatus.TotalCapacityExceeded, ordinary.Feed(f.Raw).Status);
+    }
+
     private sealed record Capture(QemuSmokeOptions Options, QemuSmokePlan Plan, ProcessResult Runner, byte[] Raw, byte[] Summary,
         QemuTranscripts.ServiceRunnerContext Context);
 
-    private static Capture Fixture()
+    private static Capture Fixture(int paddingLines = 0)
     {
         var options = new QemuSmokeOptions { TimeoutSeconds = 900, FirmwareRngSource = "virtio", LinuxThreadingApplication = "MinimalApiService" };
         var flags = EfiProfile.Create(null, new Dictionary<string, bool> { ["EnableM16014Probe"] = true }).Flags;
@@ -94,17 +105,18 @@ internal static class NativeAotServiceRunnerTests
         var started = new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero);
         var context = new QemuTranscripts.ServiceRunnerContext(20808, Path.GetFullPath("mock-qemu.exe"), Path.GetFullPath("mock-ovmf.fd"), started, started.AddSeconds(800));
         string[] rawRows = ["TEST_START service", "OS_BOOT_OK", "TEST_PASS m16-012"];
-        byte[] raw = Encoding.ASCII.GetBytes(string.Join("\r\n", rawRows) + "\r\n");
+        string[] capturedRows = [..Enumerable.Repeat(new string('x', 4094), paddingLines), ..rawRows];
+        byte[] raw = Encoding.ASCII.GetBytes(string.Join("\r\n", capturedRows) + "\r\n");
         string[] selected = ["IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "WORKLOAD_PROFILE SingleMinimalApi",
             "FIRMWARE_RNG_SOURCE virtio", "SOCKET_FORWARD_PORT 20808", "CONTINUING_SERVICE true", "MARKER_PRESETS none", "REQUIRED_MARKERS TEST_PASS m16-012",
             "ORDERED_MARKERS TEST_PASS m16-012", "UNIQUE_MARKERS TEST_PASS m16-012", "FORBIDDEN_MARKERS OS_SMOKE_FAIL"];
         string[] stdout = ["QEMU_DISCOVERY result=" + context.Qemu + " checked=" + context.Qemu,
             "OVMF_DISCOVERY result=" + context.Ovmf + " checked=" + context.Ovmf, "TEST_START qemu.smoke", selected[0], selected[1], "OVMF_CODE " + context.Ovmf,
-            ..selected.Skip(2), $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines=3 invalidBytes=0 invalidLines=0 orderedSeen=1 outOfOrder=0 uniqueSeen=1 duplicateUnique=0",
+            ..selected.Skip(2), $"SERIAL_MARKER_STREAM status=Passed terminal=Success bytes={raw.Length} lines={capturedRows.Length} invalidBytes=0 invalidLines=0 orderedSeen=1 outOfOrder=0 uniqueSeen=1 duplicateUnique=0",
             "SERIAL_MARKER_DRAIN milliseconds=750", "QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1", ..Block(), "SUMMARY_LOG " + options.SummaryLog, "TEST_PASS qemu.smoke"];
         string[] summary = ["QEMU_SMOKE_STATUS pass", ..selected, ..rawRows.Select(row => "OBSERVED_MARKER " + row), "APP_EXIT_RESULT none",
             "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none",
-            "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", ..rawRows.Select(row => "SERIAL_TAIL_LINE " + row), ..Block()];
+            "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240", ..capturedRows.TakeLast(8).Select(row => "SERIAL_TAIL_LINE " + (row.Length > 240 ? row[..237] + "..." : row)), ..Block()];
         return new(options, plan, new(0, string.Join("\r\n", stdout) + "\r\n", "", false, false, false, TimeSpan.FromSeconds(800)), raw,
             [..Encoding.UTF8.GetPreamble(), ..Encoding.UTF8.GetBytes(string.Join("\r\n", summary) + "\r\n")], context);
     }

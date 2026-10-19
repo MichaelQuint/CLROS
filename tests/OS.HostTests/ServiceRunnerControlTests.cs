@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text;
+using OS.Tools.QemuRunner;
 
 internal static class ServiceRunnerControlTests
 {
@@ -53,6 +55,30 @@ internal static class ServiceRunnerControlTests
         HostCheck.True(result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal));
         HostCheck.True(!result.Output.Contains("CONTINUING_SERVICE", StringComparison.Ordinal));
         HostCheck.True(!result.Output.Contains("SERVICE_PROCESS_", StringComparison.Ordinal));
+    }
+
+    [HostTest("service marker stream accepts exactly64MiB rejects excess and preserves ordinary16MiB", HostLane.Fast, 4)]
+    private static void SerialCapacity()
+    {
+        HostCheck.Equal(16L * 1024 * 1024, SerialMarkerStateMachine.DefaultByteCapacity);
+        HostCheck.Equal(64L * 1024 * 1024, SerialMarkerStateMachine.ContinuingServiceByteCapacity);
+        var ordinary = new SerialMarkerStateMachine(["TEST_PASS m16-012"], ["OS_SMOKE_FAIL"], successTerminalMarker: "TEST_PASS m16-012");
+        var service = new SerialMarkerStateMachine(["TEST_PASS m16-012"], ["OS_SMOKE_FAIL"], successTerminalMarker: "TEST_PASS m16-012",
+            byteCapacity: SerialMarkerStateMachine.ContinuingServiceByteCapacity);
+        byte[] chunk = Encoding.ASCII.GetBytes(new string('x', 4094) + "\r\n");
+        for (long total = 0; total < SerialMarkerStateMachine.DefaultByteCapacity; total += chunk.Length)
+        { HostCheck.True(ordinary.Feed(chunk).Succeeded); HostCheck.True(service.Feed(chunk).Succeeded); }
+        HostCheck.Equal(SerialMarkerFeedStatus.TotalCapacityExceeded, ordinary.Feed([13]).Status);
+        HostCheck.Equal(SerialMarkerStateMachine.DefaultByteCapacity, ordinary.TotalBytes);
+        while (service.TotalBytes < SerialMarkerStateMachine.ContinuingServiceByteCapacity - chunk.Length)
+            HostCheck.True(service.Feed(chunk).Succeeded);
+        byte[] terminal = Encoding.ASCII.GetBytes("TEST_PASS m16-012\r\n");
+        chunk.AsSpan().Fill((byte)'x'); chunk[chunk.Length - terminal.Length - 2] = 13; chunk[chunk.Length - terminal.Length - 1] = 10;
+        terminal.CopyTo(chunk, chunk.Length - terminal.Length);
+        HostCheck.True(service.Feed(chunk).Succeeded); HostCheck.Equal(1, service.SuccessTerminalCount);
+        HostCheck.Equal(SerialMarkerStateMachine.ContinuingServiceByteCapacity, service.TotalBytes);
+        HostCheck.Equal(SerialMarkerFeedStatus.TotalCapacityExceeded, service.Feed([13]).Status);
+        HostCheck.Equal(SerialMarkerStateMachine.ContinuingServiceByteCapacity, service.TotalBytes);
     }
 
     private static string[] Fixture(string timeout = "780")

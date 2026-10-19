@@ -4,14 +4,24 @@
 
 The [current service batch](workload-profiles.md#status) under #737 remains ahead
 of #224 and the disk roadmap. [Step1434](../done/step1434.md) wires the complete
-source-held runner/native/image/peer/control consumer and records43 focused
-development checks. Original EFI publication and artifact bindings pass. The
-first actual guest runs604,311ms but fails when the inherited600-second UTC
-anchor expires. A thread passes4,096 syscall observations and HTTP status reports
-worker progress, but the full peer protocol, complete replay and cleanup do not
-succeed. All seven issues remain open/claimed. Next repair the explicit service
-UTC/capture budgets and the fixture's measured call pacing, then qualify the
-stable batch; no continuing-service acceptance is added.
+source-held runner/native/image/peer/control consumer; its first actual guest
+fails at the inherited600-second UTC expiry. [Step1435](../done/step1435.md)
+adds explicit continuing UTC, bounded64-MiB service capture and measured worker
+pacing. Fresh original app/index/package admission and28 focused checks pass.
+The next guest reports genuine process shutdown and reaches its terminal, but
+the independent consumer rejects `service_transport_complete`: ordinary HTTP
+clients close first, leaving only two server TIME-WAIT transfers. HTTP samples
+show the same worker beyond300s/4,096 direct calls and32 random requests; these
+observations do not qualify the rejected complete capture. The peer correction
+waits for real server EOF and retains one bounded startup connection through
+quiet time. Seven fresh focused peer checks pass. The next819,790ms guest reaches
+its final terminal with32 compact transfers/retirements and high-water24, but its
+original consumer rejects the bootstrap poll as `service_progress_watchdog`.
+Current offline component checks pass after exact bootstrap, service executable
+path, supervisor snapshot, restoration-row and quiet-SYN ledger corrections;
+six forged/reordered controls reject. That does not relabel the original failed
+pipeline. A fresh owned capture is required. All seven issues stay open/claimed;
+full-host, remaining native ABI and ancestor acceptance remain outstanding.
 
 [Step1425](../done/step1425.md) adds a development-only correction for #766:
 empty `sendmsg` and scalar `sendto` bypass full send-buffer pressure after the

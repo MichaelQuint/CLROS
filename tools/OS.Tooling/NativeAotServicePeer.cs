@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -22,6 +23,10 @@ public static class NativeAotServicePeer
 
     /// <summary>Value-only observations of supplied peer output, never execution authority.</summary>
     public readonly record struct Inspection(int Port, int Exchanges, int StatusSamples, long DurationMilliseconds, long Calls, long RandomBytes);
+
+    /// <summary>Copied bounded transport response. Caller owns Body. This
+    /// observation confers no application, process or guest cleanup authority.</summary>
+    public readonly record struct HttpResponseObservation(int Status, DateTimeOffset DateUtc, byte[] Body);
 
     /// <summary>Identity of this owned peer, serial path and exact runner result.
     /// Only the process-owning RunAsync factory constructs a completion.</summary>
@@ -82,40 +87,31 @@ public static class NativeAotServicePeer
     }
 
     /// <summary>Run the fixed loopback peer protocol. All requests are HTTP/1.1,
-    /// close their connection and decode at most8192 body bytes. Startup retries
-    /// cover the real240-second ISN quiet period. Own HTTP resources until return;
+    /// wait for genuine server EOF before client FIN and copy at most8192 body
+    /// bytes. One startup health connection may wait through the real240-second
+    /// ISN quiet period, bounded by the remaining400-second startup window;
+    /// later exchanges retain20-second deadlines. Own TCP resources until return;
     /// failure throws and no successful report is written. Never returns random
     /// bytes or secrets. Output is untrusted telemetry until the final guest join.</summary>
     public static async Task RunGuestAsync(int port, TextWriter output)
     {
         Need(port is >= 1 and <= 65535, "port");
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(800)); CancellationToken token = deadline.Token;
-        using var client = new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false, UseProxy = false, UseCookies = false,
-            ConnectTimeout = TimeSpan.FromSeconds(10), MaxConnectionsPerServer = 1, PooledConnectionLifetime = TimeSpan.Zero }) { Timeout = Timeout.InfiniteTimeSpan };
         var clock = Stopwatch.StartNew(); List<Exchange> exchanges = [];
-        async Task<Exchange> Send(string method, string path)
+        async Task<Exchange> Send(string method, string path, bool startup = false)
         {
-            using var request = new HttpRequestMessage(new HttpMethod(method), "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture) + path)
-                { Version = HttpVersion.Version11, VersionPolicy = HttpVersionPolicy.RequestVersionExact };
-            request.Headers.ConnectionClose = true; request.Headers.Host = "clros.service";
-            if (method == "POST") request.Content = new ByteArrayContent([]);
-            using var limit = CancellationTokenSource.CreateLinkedTokenSource(token); limit.CancelAfter(TimeSpan.FromSeconds(20));
             long started = clock.ElapsedMilliseconds;
-            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, limit.Token);
-            Need(response.Version == HttpVersion.Version11 && response.Headers.Date is not null && response.Content.Headers.ContentLength is not > 8192, "http_headers");
-            await using var stream = await response.Content.ReadAsStreamAsync(limit.Token);
-            byte[] body = new byte[8193]; int bytes = 0;
-            for (int count; (count = await stream.ReadAsync(body.AsMemory(bytes), limit.Token)) != 0;)
-            { bytes += count; Need(bytes <= 8192, "http_body_bounds"); }
-            return new(exchanges.Count, method, path, (int)response.StatusCode, started, clock.ElapsedMilliseconds,
-                response.Headers.Date!.Value.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture), Convert.ToBase64String(body, 0, bytes));
+            long budget = startup ? 400_000 - started : 20_000; Need(budget > 0, "startup_deadline");
+            var response = await ExchangeAsync(port, method, path, TimeSpan.FromMilliseconds(budget), token);
+            return new(exchanges.Count, method, path, response.Status, started, clock.ElapsedMilliseconds,
+                response.DateUtc.ToString("O", CultureInfo.InvariantCulture), Convert.ToBase64String(response.Body));
         }
         int attempts = 0;
         while (true)
         {
             Need(++attempts <= 400 && clock.ElapsedMilliseconds < 400_000, "startup_deadline");
-            try { exchanges.Add(await Send("GET", "/healthz")); break; }
-            catch (Exception error) when ((error is HttpRequestException or IOException or OperationCanceledException) && !token.IsCancellationRequested)
+            try { exchanges.Add(await Send("GET", "/healthz", startup: true)); break; }
+            catch (Exception error) when ((error is SocketException or IOException or OperationCanceledException) && !token.IsCancellationRequested)
             { await Task.Delay(1000, token); }
         }
         Require(exchanges[^1], "GET", "/healthz", 200, "CLROS_SERVICE_HEALTH_OK");
@@ -136,6 +132,97 @@ public static class NativeAotServicePeer
         exchanges.Add(await Send("POST", StopPath)); Require(exchanges[^1], "POST", StopPath, 200, "CLROS_SERVICE_STOPPED");
         string report = JsonSerializer.Serialize(new { schema = Schema, port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges }, JsonOptions);
         _ = InspectOutput(report); await output.WriteLineAsync(report);
+    }
+
+    /// <summary>Real loopback transport seam with the ordinary20-second bound.
+    /// The optional synchronous notification signals a complete bounded entity,
+    /// before waiting for transport EOF; it cannot manufacture completion. Borrow
+    /// cancellation and retain the task until it exits. No report/Completion is
+    /// created, and application protocol/guest authority remain separate.</summary>
+    public static Task<HttpResponseObservation> ExchangeForTestsAsync(int port, string method, string path,
+        CancellationToken cancellation = default, Action? contentReceived = null) =>
+        ExchangeAsync(port, method, path, TimeSpan.FromSeconds(20), cancellation, contentReceived);
+
+    private static async Task<HttpResponseObservation> ExchangeAsync(int port, string method, string path,
+        TimeSpan budget, CancellationToken cancellation, Action? contentReceived = null)
+    {
+        Need(port is >= 1 and <= 65535 && ((method == "GET" && (path == "/healthz" || path == StatusPath)) ||
+            (method == "POST" && (path == StartPath || path == StopPath))), "http_request");
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellation); limit.CancelAfter(budget);
+        using var client = new TcpClient(AddressFamily.InterNetwork) { NoDelay = true };
+        await client.ConnectAsync(IPAddress.Loopback, port, limit.Token); await using var stream = client.GetStream();
+        byte[] request = Encoding.ASCII.GetBytes(method + " " + path + " HTTP/1.1\r\nHost: clros.service\r\nConnection: close\r\n" +
+            (method == "POST" ? "Content-Length: 0\r\n" : "") + "\r\n");
+        await stream.WriteAsync(request, limit.Token);
+        byte[] bytes = new byte[16385]; int received = 0, headerBytes = 0, bodyBytes = 0, status = 0;
+        byte[]? decoded = null; DateTimeOffset date = default; bool notified = false, chunked = false, entityComplete = false;
+        for (;;)
+        {
+            int count = await stream.ReadAsync(bytes.AsMemory(received), limit.Token);
+            if (count == 0) { Need(headerBytes != 0 && entityComplete, "http_truncated"); break; }
+            received += count; Need(received <= 16384, "http_response_bounds");
+            if (headerBytes == 0)
+            {
+                int at = bytes.AsSpan(0, received).IndexOf("\r\n\r\n"u8);
+                Need(at >= 0 ? at + 4 <= 8192 : received <= 8192, "http_header_bounds");
+                if (at >= 0)
+                {
+                    headerBytes = at + 4; (status, date, bodyBytes) = ResponseHead(bytes.AsSpan(0, at));
+                    chunked = bodyBytes == -1;
+                }
+            }
+            if (headerBytes == 0) continue;
+            if (chunked)
+                entityComplete = DecodeChunks(bytes.AsSpan(headerBytes, received - headerBytes), decoded ??= new byte[8192], out bodyBytes);
+            else { Need(received - headerBytes <= bodyBytes, "http_trailing"); entityComplete = received - headerBytes == bodyBytes; }
+            if (!notified && entityComplete) { notified = true; contentReceived?.Invoke(); }
+        }
+        client.Client.Shutdown(SocketShutdown.Send);
+        return new(status, date, chunked ? decoded!.AsSpan(0, bodyBytes).ToArray() : bytes.AsSpan(headerBytes, bodyBytes).ToArray());
+    }
+
+    private static (int Status, DateTimeOffset Date, int Length) ResponseHead(ReadOnlySpan<byte> bytes)
+    {
+        foreach (byte value in bytes) Need(value is 10 or 13 or >= 32 and <= 126, "http_headers");
+        string[] rows = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
+        Need(rows.Length is >= 2 and <= 64 && rows.All(row => row.Length is > 0 and <= 8192 && row.All(c => c is >= ' ' and <= '~')), "http_headers");
+        int status = rows[0] switch { "HTTP/1.1 200 OK" => 200, "HTTP/1.1 409 Conflict" => 409, _ => 0 };
+        Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string row in rows.Skip(1))
+        {
+            int colon = row.IndexOf(':');
+            Need(colon > 0 && colon + 2 < row.Length && row[colon + 1] == ' ' && row[..colon].All(c => char.IsAsciiLetterOrDigit(c) || c == '-') &&
+                headers.TryAdd(row[..colon], row[(colon + 2)..]), "http_headers");
+        }
+        string? text = headers.GetValueOrDefault("Content-Length"), dateText = headers.GetValueOrDefault("Date");
+        bool lengthValid = int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out int length);
+        bool dateValid = DateTimeOffset.TryParseExact(dateText, "r", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date);
+        bool chunked = headers.TryGetValue("Transfer-Encoding", out string? encoding);
+        Need(status != 0 && headers.GetValueOrDefault("Connection") == "close" && !headers.ContainsKey("Trailer") &&
+            (chunked ? encoding == "chunked" && text is null : lengthValid && length is >= 0 and <= 8192 && text == length.ToString(CultureInfo.InvariantCulture)) &&
+            dateValid && date.Offset == TimeSpan.Zero && dateText == date.ToString("r", CultureInfo.InvariantCulture), "http_headers");
+        return (status, date, chunked ? -1 : length);
+    }
+
+    // Entity<=8192, header<=8192 and total wire<=16384. Chunk extensions,
+    // trailers, extra encodings and bytes after the final empty chunk reject.
+    private static bool DecodeChunks(ReadOnlySpan<byte> bytes, Span<byte> body, out int decoded)
+    {
+        decoded = 0; int offset = 0;
+        for (;;)
+        {
+            int end = bytes[offset..].IndexOf("\r\n"u8);
+            if (end < 0) { Need(bytes.Length - offset <= 8 || bytes.Length - offset == 9 && bytes[^1] == 13, "http_chunk_size"); return false; }
+            Need(end is > 0 and <= 8, "http_chunk_size");
+            string hex = Encoding.ASCII.GetString(bytes.Slice(offset, end));
+            bool valid = uint.TryParse(hex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint size);
+            Need(hex.All(char.IsAsciiHexDigit) && valid && size <= (uint)(body.Length - decoded), "http_chunk_size");
+            offset += end + 2;
+            if (bytes.Length - offset < size + 2) return false;
+            Need(bytes.Slice(offset + (int)size, 2).SequenceEqual("\r\n"u8), "http_chunk_delimiter");
+            if (size == 0) { Need(offset + 2 == bytes.Length, "http_trailing"); return true; }
+            bytes.Slice(offset, (int)size).CopyTo(body[decoded..]); decoded += (int)size; offset += (int)size + 2;
+        }
     }
 
     /// <summary>Validate a complete bounded supplied report: fixed request
