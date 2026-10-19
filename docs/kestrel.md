@@ -101,8 +101,14 @@ health/configuration/logging/repeat, 49,152 binary vector bytes and later health
 quota runs retain 500/409/later-health controls. The finite BufferList fixture
 observes real short sends/EAGAIN across eight bounded batches totaling 512 KiB,
 then reset, pending-receive disposal, later health and terminal transport cleanup.
-Kernel limits remain 16 vectors/65,536 total bytes. Names, ancillary data and
-unmeasured flags remain unsupported; the ignored-SIGPIPE profile stays explicit.
+That accepted finite scope uses16 vectors/65,536 total bytes. Development
+[step1459](../done/step1459.md), under M16-026/#787, admits connected messages
+up to1024 vectors/1MiB after the first stream sendmsg in a fresh v2 guest fails
+the old admission bounds. Complete metadata/range validation and short copied
+prefixes remain; this larger scope has50 focused checks but awaits original
+native/guest and batch qualification. Scalar/file/pipe bounds are unchanged.
+Names, ancillary data and unmeasured flags remain unsupported; the ignored-SIGPIPE
+profile stays explicit.
 
 Web captures are continuing prefixes with live workers and runner-owned
 termination, without guest app-exit/resource-cleanup qualification. The original

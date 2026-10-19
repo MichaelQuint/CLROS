@@ -1,4 +1,5 @@
 using System.Text;
+using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
 
@@ -369,7 +370,7 @@ public static partial class QemuTranscripts
                             preparedSocketMessages.Remove(witness.RecordIndex),"socket_message_call_snapshot");
                         c=observed!.Total;d=observed.Flags;
                     }
-                    Need(descriptor.Phase==3 && c<=65536 &&
+                    Need(descriptor.Phase==3 && c<=(messageCall?LinuxSocketServices.MaximumMessageBytes:65536UL) &&
                         (messageCall || c>0 && e==0 && f==0 && memory.Covered(b,send?Math.Min(c,8192):c,send?1U:3U)) &&
                         (d&~(send?0x4040UL:web || messageCall?0x42UL:0x40UL))==0,"socket_io_arguments");
                     if(containment){Need(!messageCall,"socket_containment_unmeasured_message");ContainmentIo(descriptor,nr,c,result);break;}

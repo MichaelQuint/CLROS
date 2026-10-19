@@ -230,6 +230,21 @@ the complete transport has54 fresh generations/50 compact transfers and peaks
 4 bulk/41 compact. This does not repair the failed original syscall witness.
 Fresh original producer, native integration, fixed-runner full-host and affected
 ancestor validation remain pending; no issue or gate is accepted.
+Step1459 retains a third failed original v2 guest at `2a7ed0ff`: the stream's
+first sendmsg returns EINVAL before any message witness and closes with zero
+response bytes. The source narrows EINVAL to the old count/aggregate bounds;
+the exact rejected header is unavailable. New prerequisite M16-026/#787 raises
+only connected socket-message admission to1024 vectors/1MiB. The complete table
+and nonempty ranges are still checked before transport mutation; actual copies
+remain bounded by scratch and send capacity. Large recvmsg passes only its
+scratch-bounded prefix into scalar receive admission. Scalar/file/pipe limits,
+empty/error/alias semantics, output-header ownership and strict witnesses remain.
+Fifty focused checks pass, including boundary/fault/short-prefix cases. The
+initial receive regression fails before that scratch clamp and remains retained.
+New source/native stack review, original v2/current-v1/affected ancestors,
+fixed-runner unfiltered full-host and pressure/quota recovery remain pending.
+All nine owned issues remain open; this is development evidence only.
+
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

@@ -15,6 +15,12 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// ancillary messages and arbitrary endpoint capabilities are unsupported.</summary>
 public static unsafe class LinuxSocketServices
 {
+    /// <summary>Bound the transient metadata snapshot for one connected socket
+    /// message. No vector storage survives the caller's IRQ-off dispatch.</summary>
+    public const uint MaximumMessageVectors = 1024;
+    /// <summary>Bound the validated message aggregate independently of the
+    /// existing scratch/send-capacity prefix actually copied or queued.</summary>
+    public const uint MaximumMessageBytes = 1024 * 1024;
     public const uint MaximumSockets = 16;
     private const long Fault = -14, Invalid = -22, Again = -11, Unsupported = -38;
     private const long NotSocket = -88, NotConnected = -107, Reset = -104, BrokenPipe = -32;
@@ -419,7 +425,7 @@ public static unsafe class LinuxSocketServices
         total = 0;
         if (!Input(state, address, (byte*)header, 56)) return Fault;
         if (header[0] != 0 || (uint)header[1] != 0 || header[4] != 0 || header[5] != 0) return -95;
-        if (header[3] > LinuxDescriptorServices.MaximumVectors) return Invalid;
+        if (header[3] > MaximumMessageVectors) return Invalid;
         if (receive && (!Writable(state, address + 8, 4) || !Writable(state, address + 40, 8) ||
             !Writable(state, address + 48, 4))) return Fault;
         uint count = (uint)header[3];
@@ -427,7 +433,7 @@ public static unsafe class LinuxSocketServices
         for (uint i = 0; i < count; i++)
         {
             ulong bytes = vectors[i * 2 + 1];
-            if (bytes > LinuxDescriptorServices.MaximumIo - total) return Invalid;
+            if (bytes > MaximumMessageBytes - total) return Invalid;
             total += (uint)bytes;
         }
         var user = state->Descriptors->Owner.User;
@@ -441,7 +447,7 @@ public static unsafe class LinuxSocketServices
     {
         if ((flags & ~0x4040UL) != 0) return -95;
         ulong* header = stackalloc ulong[7];
-        ulong* vectors = stackalloc ulong[(int)LinuxDescriptorServices.MaximumVectors * 2];
+        ulong* vectors = stackalloc ulong[(int)MaximumMessageVectors * 2];
         long result = SnapshotMessage(state, address, header, vectors, false, out uint total);
         if (result != 0) return result;
         if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 46, fd, address, flags,
@@ -463,13 +469,15 @@ public static unsafe class LinuxSocketServices
     {
         if ((flags & ~0x42UL) != 0) return -95;
         ulong* header = stackalloc ulong[7];
-        ulong* vectors = stackalloc ulong[(int)LinuxDescriptorServices.MaximumVectors * 2];
+        ulong* vectors = stackalloc ulong[(int)MaximumMessageVectors * 2];
         long result = SnapshotMessage(state, address, header, vectors, true, out uint total);
         if (result != 0) return result;
         if (state->ObserveMessage != null && state->ObserveMessage(state->MessageContext, 47, fd, address, flags,
             header[2], vectors, (uint)header[3], total) != 1) return -5;
-        result = SnapshotReceive(state, index, total, flags); if (result < 0) return result;
-        var a = state->Descriptors->Owner; uint received = (uint)result, copied = 0;
+        var a = state->Descriptors->Owner;
+        uint wanted = total < a.ScratchBytes ? total : a.ScratchBytes;
+        result = SnapshotReceive(state, index, wanted, flags); if (result < 0) return result;
+        uint received = (uint)result, copied = 0;
         for (uint i = 0; i < header[3] && copied < received; i++)
         {
             uint bytes = (uint)(vectors[i * 2 + 1] < received - copied ? vectors[i * 2 + 1] : received - copied);

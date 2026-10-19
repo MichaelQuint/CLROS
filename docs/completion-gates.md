@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+[Step1459](../done/step1459.md) retains the third failed v2 guest: the first
+stream sendmsg returns EINVAL before any message witness, then closes without
+response bytes. Source narrows that result to the old vector-count or aggregate
+limit; the rejected header is unavailable. M16-026/#787 now admits bounded
+connected messages of at most1024 vectors/1MiB, retaining full range validation
+and the existing scratch/capacity short prefix. Fifty focused checks pass;
+fresh original native/guest, affected ancestors and the joined full-host gate
+remain pending. All nine owned issues remain open, with no gate advancement.
+
 Step1458 retains the second original v2 attempt: the peer completes and the
 guest emits terminal cleanup, but strict replay rejects67 message snapshots
 whose per-turn ordinals differ from cumulative syscall ordinals. Use the shared

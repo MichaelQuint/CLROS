@@ -27,8 +27,8 @@ public static unsafe partial class EfiEntry
             if (c == null || c->Phase != 3 || c->Published != 1 || state->NetworkPhase != 2 ||
                 c->Selected == 0 || c->Selected > c->Capacity || !c->Threads.Current.IsValid ||
                 c->Threads.Current.Value != c->Plan.Bindings[c->Selected - 1].Context.Identity ||
-                number is not (46 or 47) || count > LinuxDescriptorServices.MaximumVectors ||
-                total > LinuxDescriptorServices.MaximumIo ||
+                number is not (46 or 47) || count > LinuxSocketServices.MaximumMessageVectors ||
+                total > LinuxSocketServices.MaximumMessageBytes ||
                 count != 0 && !LinuxThreadKernelRange(c, (byte*)vectors, count * 16, false) ||
                 !LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out var token)) return 0;
             LinuxSyscallFrame* frame = (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset);
