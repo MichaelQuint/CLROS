@@ -49,10 +49,14 @@ replay through group exit and off-stack reaps. Dedicated startup and compact
 TIME-WAIT/ISN-owner readers join original copied output, exact generations,
 retained deadlines and bounded high-water snapshots. It also corrects the
 native listener observer to match the original app's full fd2 message.
-Forty-one focused host checks and three EFI C# profile builds pass. The combined
-reader has no successful complete capture yet; parent/packet/peer/runner joins,
-transport controls, native ABI review and real batch qualification remain.
-The guard stays in place and all seven issues remain open/claimed.
+Forty-one focused host checks and three EFI C# profile builds pass.
+[Step1431](../done/step1431.md) adds complete parent/NIC-cleanup joins, ordinary
+runner/summary checks and exact HTTP packet replay. It fixes two native web
+guards that prevented service NIC teardown/outer completion. Thirty-three fresh
+focused checks and three EFI C# builds pass. The combined reader still has no
+successful complete capture; persist-loss/pending-reset controls, source-held
+image/native/peer orchestration and real batch qualification remain. The guard
+stays in place and all seven issues remain open/claimed.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32

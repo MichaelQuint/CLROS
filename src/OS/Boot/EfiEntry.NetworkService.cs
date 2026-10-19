@@ -73,7 +73,7 @@ public static unsafe partial class EfiEntry
                 !RunNetworkScheduledService(state))
 #endif
             { _ = LinuxText(state, "TEST_FAIL m07-026 service\r\n"); return false; }
-#if M10_004_PROBE
+#if M10_004_PROBE && !M16_014_PROBE
             return LinuxWebRetainFailure(state, null, 7);
 #else
             state->NetworkPhase = 3;
@@ -155,7 +155,7 @@ public static unsafe partial class EfiEntry
                 bool success = NetDevice.Start(device, admission) == NetDevice.Status.Success;
                 success = success && WriteNetworkRow(state, 0, page, ContinuingVirtioNet.BackingBytes, negotiated.Selected, 8) &&
                     RunNetworkExchanges(state, device);
-#if M10_004_PROBE
+#if M10_004_PROBE && !M16_014_PROBE
                 return LinuxWebRetainFailure(state, null, success ? 5U : 6U);
 #else
                 bool safe = !device->RequiresCleanup || NetDevice.Stop(device) == NetDevice.Status.Success;
