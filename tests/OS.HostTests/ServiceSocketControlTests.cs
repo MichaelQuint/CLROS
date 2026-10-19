@@ -65,6 +65,9 @@ internal static class ServiceSocketControlTests
     private static async Task<(ServiceSocketControls.Report, WebFrameControl.ServiceReport, byte[])> Run(string folder, string mode)
     {
         string serial = Path.Combine(folder, "serial.log"), capture = Path.Combine(folder, "wire.pcap");
+        ServiceSocketControls.Report report;
+        WebFrameControl.ServiceReport frameReport;
+        {
         File.WriteAllText(serial, "M16_011_PEER mac=90525193470466 sent=1 received=1 start=1 end=2\r\nM16_011_SLOT event=0 synthetic=gate-only\r\n");
         using var output = new FileStream(capture, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
         using var writer = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true);
@@ -83,10 +86,10 @@ internal static class ServiceSocketControlTests
         Task simulator = Simulate();
         try
         {
-            var report = await execution;
+            report = await execution;
             while (frames.DroppedFrames.Count <4) await Task.Delay(1, limit.Token);
             frames.ExpectGuestExit();
-            return (report, frames.FinishService(), File.ReadAllBytes(capture));
+            frameReport = frames.FinishService();
         }
         finally
         {
@@ -145,5 +148,9 @@ internal static class ServiceSocketControlTests
                 }
             }
         }
+        }
+        // Joining above stops the producer; the using scope closes its writer
+        // before opening the immutable completed capture for inspection.
+        return (report, frameReport, File.ReadAllBytes(capture));
     }
 }

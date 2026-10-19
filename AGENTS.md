@@ -2,8 +2,14 @@
 
 ## Start here
 
-`done/step1437.md` qualifies #743/#744/#746/#240/#757/#758/#766 at frozen
-implementation `8bee44db`: 5,809 full-host checks across781 fixtures (94 Native),
+M11-026/#784 repairs unawaited asynchronous host fixtures. The step1437 raw
+5,809-marker receipt includes13 unawaited cases; its full-host qualification
+is withheld pending a corrected unfiltered run. Preserve its independent
+original native/guest receipts and immutable history. Finish this validation
+repair under #737 before new full-host acceptance or #224 closure.
+
+`done/step1437.md` retains #743/#744/#746/#240/#757/#758/#766 at frozen
+implementation `8bee44db`: 5,809 observed host markers across781 fixtures (94 Native),
 one complete822,285ms original service lifetime and ten fresh finite ancestors.
 Explicit continuing execution, DRBG/independent TCP keys, persist recovery,
 pending-reset retirement, compact TIME-WAIT and empty-send compatibility pass

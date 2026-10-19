@@ -146,6 +146,10 @@ package checks pass; the default v1 serializer reproduces the accepted package
 bytes. Current app source/native pins, original publication, lifecycle peer,
 profile/report/packet admission and guest validation remain pending. These
 helper/envelope checks add no live Kestrel or repeated-service acceptance.
+M11-026/#784 later found that the four async helper cases were not awaited;
+their original pass markers do not prove completion. The corrected runner and
+six genuinely joined lifecycle cases supersede that async coverage in step1442.
+The four synchronous package checks and byte-identity comparison remain valid.
 
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
 native allocations, stacks, page tables and sockets to actual committed-page

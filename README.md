@@ -18,7 +18,10 @@ run inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime
 batch. [Step1419](done/step1419.md) qualifies bounded upstream Kestrel health,
 multi-segment responses and owned UTC. [Step1437](done/step1437.md) qualifies
 the continuing-service prerequisites with one complete service lifetime, real
-shutdown/reaps,5,809 full-host checks and ten affected ancestors. Repeated service
+shutdown/reaps and ten affected ancestors. Its5,809-marker host receipt includes
+13 unawaited async cases; full-host qualification is withheld under
+[M11-026/#784](http://192.168.4.35:3000/admin/CLROS/issues/784) pending a corrected
+unfiltered run. Independent original guest/native receipts remain retained. Repeated service
 #224 and the complete local Kestrel gate remain incomplete.
 CLROS is not cloud-ready or production-ready.
 

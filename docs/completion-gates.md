@@ -133,7 +133,10 @@ stay open.
 - Step1437 qualifies #224's persist, compact TIME-WAIT, continuing execution,
   replenished randomness, pending-reset, continuing-ISN and empty-send
   prerequisites: one complete service lifetime plus ten affected ancestors and
-  5,809 full-host checks. #224 still requires repeated-service acceptance.
+  5,809 observed host markers. M11-026/#784 found13 unawaited async cases:
+  full-host qualification is withheld pending a corrected unfiltered run.
+  Independent original guest/native receipts remain retained. #224 additionally
+  requires the harness repair and repeated-service acceptance.
   #225 additionally requires fragmented backing, guest-verified GC/native
   budgets and M16-020 pending-signal checks before renewed waits. The existing
   #226 -> #227 evidence and local Gate 14 closure chain remains authoritative.

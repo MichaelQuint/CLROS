@@ -4,6 +4,75 @@ using OS.Tooling;
 
 internal static class HostTestRunnerTests
 {
+    [HostTest("runner waits for asynchronous false failure and success before reporting their actual results")]
+    private static void AsyncWorkerResults()
+    {
+        var result = Control("async-failures");
+        HostCheck.Equal(1, result.ExitCode, result.StandardOutput + result.StandardError);
+        HostCheck.True(result.StandardOutput.Contains("TEST_FAIL control.async.false", StringComparison.Ordinal));
+        HostCheck.True(result.StandardOutput.Contains("TEST_FAIL control.async.throw", StringComparison.Ordinal) &&
+            result.StandardOutput.Contains("async_control_failure", StringComparison.Ordinal));
+        int joined = result.StandardOutput.IndexOf("ASYNC_CONTROL_AFTER joined=true", StringComparison.Ordinal);
+        int passed = result.StandardOutput.IndexOf("TEST_PASS control.async.after", StringComparison.Ordinal);
+        HostCheck.True(joined >= 0 && passed > joined);
+    }
+
+    [HostTest("runner joins Task and ValueTask results propagates asynchronous errors and rejects unowned async void")]
+    private static void AsyncReturnKinds()
+    {
+        bool Invoke(string name) => HostTestRunner.Invoke(typeof(AsyncSamples).GetMethod(name,
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!);
+        foreach (string name in new[] { "TaskPass", "ValuePass", "SourcePass" })
+        { AsyncSamples.Completed = false; HostCheck.True(Invoke(name) && AsyncSamples.Completed); }
+        HostCheck.True(!Invoke("TaskFalse") && !Invoke("ValueFalse") && !Invoke("SourceFalse") && !Invoke("SyncFalse"));
+        foreach (string name in new[] { "TaskFault", "ValueFault" })
+        {
+            bool fault = false;
+            try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message == "joined_async_failure") { fault = true; }
+            HostCheck.True(fault);
+        }
+        foreach (string name in new[] { "NullTask", "NullResult" })
+        {
+            bool rejected = false;
+            try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message.StartsWith("null_fixture_task", StringComparison.Ordinal)) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        foreach (string name in new[] { "AsyncVoid", "Unsupported" })
+        {
+            AsyncSamples.Completed = false; bool rejected = false;
+            try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message.StartsWith("unsupported_fixture_return", StringComparison.Ordinal)) { rejected = true; }
+            HostCheck.True(rejected && !AsyncSamples.Completed);
+        }
+    }
+
+    private static class AsyncSamples
+    {
+        internal static bool Completed;
+        private sealed class Source : System.Threading.Tasks.Sources.IValueTaskSource, System.Threading.Tasks.Sources.IValueTaskSource<bool>
+        {
+            private System.Threading.Tasks.Sources.ManualResetValueTaskSourceCore<bool> core = new() { RunContinuationsAsynchronously = true };
+            internal short Token => core.Version;
+            internal Source() => ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(10); Completed = true; core.SetResult(false); });
+            public System.Threading.Tasks.Sources.ValueTaskSourceStatus GetStatus(short token) => core.GetStatus(token);
+            public void OnCompleted(Action<object?> continuation, object? state, short token, System.Threading.Tasks.Sources.ValueTaskSourceOnCompletedFlags flags) => core.OnCompleted(continuation, state, token, flags);
+            public bool GetResult(short token) => core.GetResult(token);
+            void System.Threading.Tasks.Sources.IValueTaskSource.GetResult(short token) { _ = core.GetResult(token); }
+        }
+        private static ValueTask SourcePass() { var source = new Source(); return new(source, source.Token); }
+        private static ValueTask<bool> SourceFalse() { var source = new Source(); return new(source, source.Token); }
+        private static async Task TaskPass() { await Task.Yield(); Completed = true; }
+        private static async ValueTask ValuePass() { await Task.Yield(); Completed = true; }
+        private static async Task<bool> TaskFalse() { await Task.Yield(); return false; }
+        private static async ValueTask<bool> ValueFalse() { await Task.Yield(); return false; }
+        private static bool SyncFalse() => false;
+        private static async Task TaskFault() { await Task.Yield(); throw new InvalidOperationException("joined_async_failure"); }
+        private static async ValueTask ValueFault() { await Task.Yield(); throw new InvalidOperationException("joined_async_failure"); }
+        private static Task NullTask() => null!;
+        private static Task<bool> NullResult() => null!;
+        private static async void AsyncVoid() { await Task.Yield(); Completed = true; }
+        private static int Unsupported() { Completed = true; return 1; }
+    }
+
     [HostTest("runner filters standard library cases without running sibling cases")]
     private static void StandardLibraryCaseFiltering()
     {

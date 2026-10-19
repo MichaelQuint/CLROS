@@ -1,5 +1,24 @@
 # Repository Audit
 
+## October 19 asynchronous fixture correction
+
+M11-026/#784 reproduces a worker reporting Task-returning tests passed before
+completion. Both a delayed false result and delayed exception escape the old
+reflection invocation. The corrected worker joins Task/ValueTask results and
+rejects async void/unsupported returns before execution. Current discovery has
+19 async entries;13 occur in step1437's retained5,809-marker host receipt.
+Its full-host qualification is withheld pending a corrected unfiltered run.
+Independent original native and actual guest captures are not invalidated by
+this host harness fault. Preserve raw receipts and identify replacement runs.
+Step1442 retains33 runner checks,18 affected class checks covering all13 old
+async entries, and six genuinely joined lifecycle development cases. The seven
+step1437 prerequisite issues reopen pending #784's full-host gate.
+
+Awaiting the service-control checks also exposes a positive host fixture reading
+its PCAP while its own writer still holds it. Stop/join the simulator and close
+the writer before reading the complete capture; this is a fixture lifetime
+repair, not evidence of a production network or guest defect.
+
 ## October 18 incremental review
 
 Reviewed the complete change range from prior review merge

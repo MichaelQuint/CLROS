@@ -23204,7 +23204,8 @@
         "M11-012",
         "M07-032",
         "M07-033",
-        "M16-022"
+        "M16-022",
+        "M11-026"
       ],
       "labels": [
         "agent:claimed",
@@ -23244,7 +23245,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Step1441 development-only M10-011/#224 preparation under737. Explicit app v2 routes implement bounded partial echo, streaming backpressure target, observed request cancellation and drain-before-stop; v1 has no new routes. Canonical package builder seals matched v2 arguments/settings only on explicit lifecycle selection; default v1 reproduces the exact accepted r03 package bytes. Four linked request-worker checks and four package-policy checks pass with complete unchanged-input zero-reuse receipts; app/host builds have zero warnings/errors. These are host helper/envelope checks, not a live Kestrel or guest run. Linux publication builder restarted on its owned overlay after backing/process/port checks, serial/root/SDK11.0.100-rc.2.26504.105 confirmed; no new app transfer/publication yet. New app source inventory/pins, original ELF/native index, explicit M10011 profile/peer/report/packet wiring, full issue stimuli and stable-batch validation remain pending.224 stays open/claimed; no repeated-service, churn, Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1442/M11-026/#784 supersedes step1441's unawaited async helper receipt. Six lifecycle cases genuinely pass with the fixed runner, including real host loopback partial I/O, held-stream progress, reset/timeout drain and malformed/truncated/trailing HTTP negatives. Four synchronous package checks and byte-identical v1 serialization remain valid. Service v2 app/peer remains development-only; profile/report/packet integration, source/native publication, all exact224 stimuli and stable-batch full-host/native/QEMU are pending. The step1437 full-host claim is withheld for13 unawaited cases; independent guest/native receipts remain retained.224 stays open/claimed and now explicitly depends on the owned harness repair. No new guest/Kestrel/Gate14, isolation, cloud or production acceptance.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -24566,10 +24567,11 @@
       "parentKey": "M11-EPIC",
       "dependencyKeys": [
         "M16-014",
-        "M03-003"
+        "M03-003",
+        "M11-026"
       ],
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -24608,7 +24610,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Replace finite startup entropy exhaustion with a bounded, reviewed continuing randomness service.",
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Reviewed HMAC-DRBG known answers plus independent seed/reseed/failure/overflow controls; actual guest84 random requests/18708 bytes, supported larger-than32-byte partial/nonblocking/error cases, and shutdown zeroization. Entropy failures remain host controls; no predictable fallback. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "This existing issue is moved ahead of M10-011 continuing-service acceptance; it no longer waits for unrelated release acquisition policy M11-011. Preserve its original firmware seed boundary.",
         "Use an audited CSPRNG design with explicit seed provenance, initialization/readiness, bounded state, reseed and hardware/source-failure policy. Do not invent a PRNG, use clock/counter fallback or claim statistical tests prove cryptographic security.",
@@ -24650,7 +24652,7 @@
         "docs/kestrel.md"
       ],
       "evidenceBoundary": "Only measured continuing randomness with reviewed construction and explicit source-failure policy. No production cryptographic assurance or general workload claim from host vectors or larger finite reservoirs.",
-      "desiredState": "closed"
+      "desiredState": "open"
     },
     {
       "key": "M11-013",
@@ -32670,9 +32672,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32682,9 +32684,10 @@
       ],
       "dependencyKeys": [
         "M07-028",
-        "M07-017"
+        "M07-017",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Actual lost reopening update recovers through two persist probes and exact payload; independent host controls retain wrap/duplicate/reset/cancel/timer and other-flow boundaries. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32759,9 +32762,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -32771,9 +32774,10 @@
       ],
       "dependencyKeys": [
         "M07-029",
-        "M07-018"
+        "M07-018",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. 32 actual server-active-close lifetimes transfer and retire compact TIME-WAIT; bulk high-water4/compact24. Full240-second tuple/generation protection remains; capacity/restart/scrub/deadline controls pass. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32946,9 +32950,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32958,9 +32962,10 @@
       ],
       "dependencyKeys": [
         "M10-010",
-        "M16-013"
+        "M16-013",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Explicit default-off MinimalApiService preserves turn/byte/progress/resource guards and finite negative controls. Same real native worker exceeds4096 calls beyond300s; genuine group exit/off-stack reaps, restoration and scrub complete. Continuing UTC is explicit; finite web retains600 seconds. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33802,9 +33807,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33814,9 +33819,10 @@
       ],
       "dependencyKeys": [
         "M07-014",
-        "M07-028"
+        "M07-028",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Two actual exact-generation pending resets retire before old deadline; new SYN reuses the tuple, with no pending descriptor/retry leak. Host invalid/duplicate/race controls remain distinct. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33894,9 +33900,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33906,9 +33912,10 @@
       ],
       "dependencyKeys": [
         "M07-032",
-        "M11-012"
+        "M11-012",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Independent firmware TCP secret, tuple HMAC plus4us real clock,240-second quiet admission, exact lease ownership and final erasure join34 actual sequence generations. Near-wrap/96 lifetime/reseed/disposal controls are host evidence. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34305,9 +34312,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -34316,9 +34323,10 @@
         "lane:nativeaot-integration"
       ],
       "dependencyKeys": [
-        "M16-013"
+        "M16-013",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. LinuxSocketServicesTests and LinuxSocketMessageTests explicitly verify valid full-window empty sendto/sendmsg success without counter/generation/yield mutation, preserving errors and nonempty backpressure. Complete original native review and current finite socket/vector guests pass; no guest full-window-empty control is claimed. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Reopened for this validation repair only; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/kestrel.md and docs/repo-audit.md. Preserve accepted step1405/1419 scope and the active shared integration owner#737. Incorporate this small slice into that owner's batch or obtain explicit lane handoff; readiness does not authorize concurrent edits.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35138,6 +35146,74 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Planned, unimplemented scope only. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+    },
+    {
+      "key": "M11-026",
+      "title": "[M11-026] Await asynchronous host fixtures before reporting pass",
+      "summary": "Join async test operations and restore valid host qualification evidence",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "priority": "priority:p0",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:claimed",
+        "priority:p0",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [],
+      "currentEvidence": "Step1442/M11-026/#784 qualification correction: the step1437 raw5809-marker host receipt selected13 Task-returning entries that were not awaited. Full-host acceptance is withheld until a corrected stable unfiltered run. All13 affected async cases now complete successfully within18 focused class checks;33 runner checks and6 new lifecycle checks also pass, with unchanged-input zero-reuse receipts. Host PCAP writer lifetime is repaired. Independent original native/service/ancestor captures in step1437 remain retained. Repair implemented; stable unfiltered validation remains pending; no new implementation or guest acceptance. Proof 3A3862626BC205BDF8B5441C909438DA3669EF3EE7F52197972EB297E2E8042E.",
+      "implementationNotes": [
+        "Required validation repair for the currently owned repeated-service/churn batch under737; exact shared scope was read back before edits.",
+        "Reject late false/failure results and unowned async void before reporting success; keep explicit reflection discovery and existing process ownership. Do not introduce subset projects or freeze runner hashes elsewhere.",
+        "Audit selected async method identities in prior receipts; preserve raw history and separate independent native/guest captures from invalid async/full-host qualification claims.",
+        "Close only after a stable-source unfiltered full lane with the corrected runner, affected focused checks and scope-appropriate native/guest validation. No host model or marker count substitutes for joined execution."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tests/OS.HostTests/HostTestRunner.cs",
+        "tests/OS.HostTests/HostTestRunnerTests.cs",
+        "tests/OS.HostTests/ServiceSocketControlTests.cs",
+        "AGENTS.md",
+        "README.md",
+        "docs/repo-audit.md",
+        "docs/completion-gates.md",
+        "docs/kestrel.md",
+        "docs/app-model.md"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production kernel/runtime/network changes",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Task, Task<bool>, ValueTask and ValueTask<bool> complete before pass/fail or the next fixture; late false/fault results fail both worker paths. Async void/unsupported returns reject before execution.",
+        "Real internal child controls prove delayed false/exception failure and joined success ordering; preserve synchronous bool/void behavior and worker process cleanup.",
+        "Audit and correct prior async/full-host coverage claims, preserve immutable raw receipts, rerun all affected asynchronous fixtures, and repair the host PCAP capture writer lifetime exposed by actual execution.",
+        "Unfiltered --lane full passes at stable source with the fixed runner, unchanged inputs and zero reuse; reserve a unique done step, retain exact evidence, post before closure and read back comments/state. Run native/guest checks when affected implementation changes require them."
+      ],
+      "requiredMarkers": [
+        "TEST_START host.tests",
+        "TEST_PASS host.tests",
+        "TEST_FAIL host.tests <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter HostTestRunnerTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter KestrelConnectionLifecycleTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/repo-audit.md",
+        "docs/completion-gates.md",
+        "docs/kestrel.md"
+      ],
+      "evidenceBoundary": "Development host harness and evidence correction only. No full-host qualification until a fixed-runner unfiltered stable run; no new native/guest/Kestrel/Gate14, cloud or production acceptance. Preserve independent original native/guest captures."
     }
   ]
 }

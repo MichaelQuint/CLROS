@@ -3,9 +3,12 @@
 ## Continuing-service foundations
 
 [Step1437](../done/step1437.md) qualifies #743/#744/#746/#240/#757/#758/#766
-at frozen implementation `8bee44db`: 5,809 unfiltered full-host checks across
+at frozen implementation `8bee44db`: 5,809 observed host pass markers across
 781 fixtures (94 Native), one complete original 822,285ms service capture and
 ten fresh socket/runtime/vector/web ancestors with original source/native joins.
+M11-026/#784 identifies13 unawaited async cases in that host receipt. Its full-host
+qualification is withheld until a corrected unfiltered run; the independent
+original native and actual guest receipts are unchanged. Raw history is retained.
 The explicit default-off `MinimalApiService` policy preserves turn, progress,
 byte and resource guards while allowing the same worker beyond 4,096 calls and
 300s. Actual shutdown, off-stack reaps, restoration and secret erasure complete.
