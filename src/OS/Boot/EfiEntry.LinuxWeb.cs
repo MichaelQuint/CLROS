@@ -181,7 +181,9 @@ public static unsafe partial class EfiEntry
                 return true;
 #endif
             }
-            string started = Probes.EnableM16014Probe ? "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n" :
+            string started = Probes.EnableM16014Probe ?
+                (state->LinuxServices.GcBudget.Succeeded ? "\nCLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" :
+                "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n") :
                 "\n      Application started. Press Ctrl+C to shut down.\n";
             for (uint i = 0; i < bytes && (c->WebFlags & 8) == 0; i++)
             {

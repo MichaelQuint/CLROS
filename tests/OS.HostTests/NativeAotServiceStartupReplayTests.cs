@@ -7,8 +7,45 @@ internal static class NativeAotServiceStartupReplayTests
     private const string Prefix = "CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_CCTOR minimal.api.service\n" +
         "CLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\n";
     private const string Listening = "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n";
+    private const string GcBegin = "CLROS_SERVICE_GC_BEGIN limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4165632\n";
     private static readonly string[] Markers = ["TEST_START m16.014.startup", "M16_014_ENTER ", "M16_014_CONFIG ",
         "M16_014_STARTUP ", "M16_014_BIND ", "M16_014_LISTEN ", "M16_014_LIVE ", "CLROS_M16_014_LISTENING", "TEST_PASS m16.014.startup"];
+
+    [HostTest("service v2 startup requires explicit mode and exact copied fd2 listening with three environment entries")]
+    private static void LifecycleStartup()
+    {
+        foreach (bool segmented in new[] { false, true })
+        {
+            string raw = Raw(segmented, prefix: Prefix + GcBegin, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
+                .Replace("envc=2", "envc=3", StringComparison.Ordinal);
+            var report = Read(raw, lifecycle: true);
+            HostCheck.Equal(Writer, report.WriterIdentity); HostCheck.Equal(6, report.ListenerDescriptor);
+            HostCheck.Equal((uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.LifecycleSettingsJson), report.SettingsBytes);
+            Reject(raw); Reject(Raw(segmented), lifecycle: true);
+        }
+    }
+
+    [HostTest("service v2 startup rejects a GC witness interleaved into the four required constructor lines")]
+    private static void LifecyclePrefixOrder()
+    {
+        string prefix = Prefix.Replace("CLROS_APP_CCTOR", GcBegin + "CLROS_APP_CCTOR", StringComparison.Ordinal);
+        string raw = Raw(prefix: prefix, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
+            .Replace("envc=2", "envc=3", StringComparison.Ordinal);
+        Reject(raw, lifecycle: true);
+    }
+
+    [HostTest("service v2 startup rejects crossed or unknown listening versions and inconsistent environment metadata")]
+    private static void LifecycleStartupControls()
+    {
+        string raw = Raw(listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
+            .Replace("envc=2", "envc=3", StringComparison.Ordinal);
+        foreach (string bad in new[] {
+            raw.Replace("contract=v2", "contract=v1", StringComparison.Ordinal), raw.Replace("contract=v2", "contract=v3", StringComparison.Ordinal),
+            Change(raw, "M16_014_ENTER ", r => r.Replace("envc=3", "envc=2", StringComparison.Ordinal)),
+            Change(raw, "M16_014_LIVE ", r => r.Replace("envc=3", "envc=4", StringComparison.Ordinal)),
+            Change(raw, "M16_014_ENTER ", r => r.Replace("envc=3", "envc=4294967299", StringComparison.Ordinal)) })
+            Reject(bad, lifecycle: true);
+    }
 
     [HostTest("service startup replay binds scalar and segmented vector prefixes configuration and fd2 listening", HostLane.Fast, 0)]
     private static void Startup()
@@ -154,8 +191,8 @@ internal static class NativeAotServiceStartupReplayTests
         HostCheck.True(at >= 0); string before = rows[at]; rows[at] = change(before); HostCheck.True(rows[at] != before);
         return string.Join("\r\n", rows);
     }
-    private static QemuTranscripts.ServiceStartupInspection Read(string raw) =>
-        QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw));
-    private static void Reject(string raw)
-    { bool rejected = false; try { _ = Read(raw); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    private static QemuTranscripts.ServiceStartupInspection Read(string raw, bool lifecycle = false) =>
+        QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), lifecycle);
+    private static void Reject(string raw, bool lifecycle = false)
+    { bool rejected = false; try { _ = Read(raw, lifecycle); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
 }

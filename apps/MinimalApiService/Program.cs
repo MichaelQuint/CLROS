@@ -20,7 +20,6 @@ if (!OperatingSystem.IsLinux())
 Console.Error.WriteLine("CLROS_APP_ENTRY minimal.api.service");
 try
 {
-    if (lifecycle) Console.Error.WriteLine("CLROS_SERVICE_GC_BEGIN " + ServiceLifecycleExercise.MeasureGcBudget());
     var witness = new ServiceStartupWitness();
     Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
     var builder = WebApplication.CreateSlimBuilder(args);
@@ -34,6 +33,7 @@ try
     builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.TypeInfoResolverChain.Insert(0, ServiceJsonContext.Default));
     var app = builder.Build();
     Console.Error.WriteLine("CLROS_APP_BUILT minimal.api.service");
+    if (lifecycle) Console.Error.WriteLine("CLROS_SERVICE_GC_BEGIN " + ServiceLifecycleExercise.MeasureGcBudget());
     using var exercise = new ServiceExercise(app.Lifetime.StopApplication);
     var lifecycleExercise = lifecycle ? new ServiceLifecycleExercise() : null;
     using var stopping = app.Lifetime.ApplicationStopping.Register(exercise.RequestStop);

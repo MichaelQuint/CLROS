@@ -190,10 +190,14 @@ integration, actual guest measurements and native pressure/recovery remain pendi
 Step1452 prepares strict explicit v2 peer-report decoding and the default-off
 `ServiceLifecycle` selection:18 focused peer/profile checks pass. Reports retain
 strict field/range/port/counter checks and confer no execution authority. The
-kernel and startup transcript still match the v1 listening string; v2 producer,
-owned-child, prepared-program and packet integration remain pending. A non-dry
+v2 producer, owned-child, prepared-program and packet integration remain pending. A non-dry
 v2 smoke fails before children with `service_lifecycle_runner_integration_pending`
 until those consumers are installed. This selection is preparation only.
+Step1453 prepares budget-selected kernel v2 listening and explicit startup-value
+decoding (v2 listener/3 environment entries), with11 focused checks and
+freestanding C# compilation. Source review corrects GC_BEGIN to follow the four
+strict startup lines; an interposed GC line is rejected. Full replay mode and
+GC/native/packet joins remain pending, so the launch guard stays active.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

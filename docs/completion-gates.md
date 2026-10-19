@@ -10,6 +10,9 @@ Step1452 adds strict explicit v2 data parsing and default-off selection with18
 focused checks. Non-dry launch stops before children pending complete native,
 startup/serial and packet consumers. Supplied v2 data creates no Completion or
 guest authority; no acceptance changes.
+Step1453 corrects GC witness ordering and prepares kernel/explicit v2 startup
+matching with11 focused checks and freestanding C# compilation. Full replay,
+owned-peer and GC/native/packet joins remain pending; the launch guard remains.
 
 [Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
 sealed retained reservation ledger and actual dynamic pool.43 focused checks
