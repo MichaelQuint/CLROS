@@ -16,47 +16,35 @@ service, whole-stack, numbered, isolation, cloud and production remain incomplet
 Continue the six claimed service foundations and M16-022's empty-send correction
 below before #224; preserve shared owner #737.
 
-[Step1426](../done/step1426.md) adds the separate `MinimalApiService` fixture
-and canonical envelope for this continuing batch. The envelope requires the
-explicit v1 service argument/configuration,8080/content root,64MiB and16
-threads/descriptors. [Step1427](../done/step1427.md) records its initial static-musl
-publication and exact source/ELF/complete-index reader:1,356,654 instructions,
-198 syscall continuations and all five executable sections are checked. A strict
-status reader treats application reports as untrusted telemetry. These are
-development prerequisites; the service worker has not executed. The ordinary
-pinned web application stays unchanged. [Step1428](../done/step1428.md) adds the
-distinct native service startup/listening observations, cumulative worker call
-ordinals and a bounded external peer protocol. Its24 focused host checks include
-a real peer-child refusal against a synthetic local endpoint. The service worker
-and successful long-running peer protocol have not executed. The guest pipeline
-retains its runner guard until complete service replay, transport controls and
-lifecycle/packet checks exist. The seven owned issues remain open; no acceptance
-gate advances.
+The seven owned continuing-service issues743/744/746/240/757/758/766 remain
+development work under owner737. [Step1426](../done/step1426.md) defines the
+separate `MinimalApiService` envelope: explicit v1 argument/configuration,
+8080/content root,64MiB and16 threads/descriptors. The revised original
+static-musl publication/index in [step1429](../done/step1429.md) covers all five
+executable sections,1,356,781 instructions and198 syscall continuations. Its
+random fixture checks two16384-byte requests with8192-byte partial results and
+untouched suffixes, plus zero-length, invalid flags and NULL-buffer errors.
+The ordinary pinned web fixture remains unchanged.
 
-[Step1429](../done/step1429.md) adds explicit service random controls: two16384-byte
-requests permit the adapter's8192-byte partial result while checking the untouched
-suffix; zero-length, invalid-flag8 and NULL-buffer calls check exact errors.
-Separate service readers retain cumulative call/readiness ordinals, allow bounded
-128MiB serial framing and check random metadata/counters/erasure against original
-calls. Finite readers keep their8MiB/4096-call bounds. The revised fixture requires
-its own publication and complete instruction index, retained in step1429.
-These components do not complete scheduling, packet or resource-lifetime replay;
-the runner guard and all seven open issue states remain.
+[Steps1430](../done/step1430.md) and [1431](../done/step1431.md) implement
+source-sealed syscall/memory/thread/signal/wait/descriptor replay through group
+exit and off-stack reaps, cumulative ordinals, copied startup, compact TIME-WAIT
+generations/deadlines/high-water marks, random/ISN erasure and parent/NIC cleanup.
+They correct the full fd2 listener match and service-specific teardown guards,
+and add exact ordinary runner/summary and HTTP packet inspectors. Their focused
+host and EFI C# evidence remains scoped to those development components.
 
-[Step1430](../done/step1430.md) implements the combined source-sealed service
-inner-leaf reader, reusing complete syscall/memory/thread/signal/wait/descriptor
-replay through group exit and off-stack reaps. Dedicated startup and compact
-TIME-WAIT/ISN-owner readers join original copied output, exact generations,
-retained deadlines and bounded high-water snapshots. It also corrects the
-native listener observer to match the original app's full fd2 message.
-Forty-one focused host checks and three EFI C# profile builds pass.
-[Step1431](../done/step1431.md) adds complete parent/NIC-cleanup joins, ordinary
-runner/summary checks and exact HTTP packet replay. It fixes two native web
-guards that prevented service NIC teardown/outer completion. Thirty-three fresh
-focused checks and three EFI C# builds pass. The combined reader still has no
-successful complete capture; persist-loss/pending-reset controls, source-held
-image/native/peer orchestration and real batch qualification remain. The guard
-stays in place and all seven issues remain open/claimed.
+[Step1432](../done/step1432.md) adds a bounded raw control driver: two pending
+resets on one tuple, a deliberately lost reopen ACK, fresh probe recovery and
+healthy traffic while persist is blocked. One frame writer isolates three
+reserved raw tuples and records exact injections/losses; an incremental PCAP
+reader drives transitions. Twenty fresh focused checks pass, including owned
+loopback-stream/PCAP simulation and legacy transport regressions. This is host
+simulation, not a CLROS capture. Production control-packet validation and
+source-held image/native/peer/runner wiring remain; keep
+`continuing_service_runner_pending`. No successful combined original capture,
+service worker or successful full peer protocol has executed. Freeze and qualify
+the seven-ticket batch and affected ancestors before closure or gate advancement.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32

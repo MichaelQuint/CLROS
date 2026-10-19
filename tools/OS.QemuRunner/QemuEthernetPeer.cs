@@ -33,10 +33,11 @@ public sealed class QemuEthernetPeer : IDisposable
 
     /// <summary>Starts an ephemeral IPv4 loopback listener for1ms..5min, including
     /// accept time. The explicit tagged diagnostic additionally admits exactly
-    ///1518-byte802.1Q frames; ordinary sessions retain the1514-byte bound.</summary>
-    public QemuEthernetPeer(TimeSpan maximumLifetime, bool allowTaggedDiagnostic = false)
+    ///1518-byte802.1Q frames; ordinary sessions retain the1514-byte bound. Only
+    /// explicit continuing-service sessions extend the lifetime to15min.</summary>
+    public QemuEthernetPeer(TimeSpan maximumLifetime, bool allowTaggedDiagnostic = false, bool continuingService = false)
     {
-        if (maximumLifetime < TimeSpan.FromMilliseconds(1) || maximumLifetime > TimeSpan.FromMinutes(5))
+        if (maximumLifetime < TimeSpan.FromMilliseconds(1) || maximumLifetime > TimeSpan.FromMinutes(continuingService ? 15 : 5))
             throw new ArgumentOutOfRangeException(nameof(maximumLifetime));
         maximumFrameBytes = allowTaggedDiagnostic ? MaximumTaggedFrameBytes : MaximumFrameBytes;
         listener = new TcpListener(IPAddress.Loopback, 0);

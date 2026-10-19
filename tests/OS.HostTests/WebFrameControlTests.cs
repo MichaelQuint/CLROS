@@ -79,4 +79,49 @@ internal static class WebFrameControlTests
             var result=gate.Finish();HostCheck.True(result.Stopped);HostCheck.Equal(expected,result.Healthy);HostCheck.Equal(expected,result.GuestExitExpected);
         }
     }
+
+    [HostTest("service frame owner isolates reserved raw tuples and serializes exact injections with one deliberate loss")]
+    private static async Task ServiceInjections()
+    {
+        using var gate = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);
+        gate.SelectServiceClients(50000, 50001, 50002);
+        using TcpClient source = new(); using TcpClient target = new();
+        await source.ConnectAsync(IPAddress.Loopback, gate.QemuOutPort); await target.ConnectAsync(IPAddress.Loopback, gate.QemuInPort);
+        var input = source.GetStream(); var output = target.GetStream(); byte[] ordinary = Frame(50003, 0x10);
+        await Send(input, ordinary); HostCheck.True((await Read(output)).AsSpan().SequenceEqual(ordinary));
+        await Send(input, Frame(50000, 0x14));
+        using (var limit = new CancellationTokenSource(TimeSpan.FromSeconds(3)))
+            while (gate.DroppedFrames.Count !=1) await Task.Delay(1, limit.Token);
+        byte[] injected = Frame(50001, 0x18, "A"u8);
+        Task first = gate.InjectServiceFrameAsync(injected, "request"); injected[^1] = (byte)'B';
+        HostCheck.True((await Read(output)).AsSpan().SequenceEqual(Frame(50001, 0x18, "A"u8))); await first;
+        await gate.InjectServiceFrameAsync(Frame(50001, 0x10), "reopen.lost", forward: false);
+        byte[] fresh = Frame(50001, 0x18, "F"u8); Task last = gate.InjectServiceFrameAsync(fresh, "reopen.fresh");
+        HostCheck.True((await Read(output)).AsSpan().SequenceEqual(fresh)); await last;
+        await Send(input, ordinary); HostCheck.True((await Read(output)).AsSpan().SequenceEqual(ordinary));
+        var report = gate.FinishService();
+        HostCheck.True(report.Session.Stopped && report.Session.Healthy && report.Session.VlanFrames ==0 && report.Session.DroppedFrames.Count ==1);
+        HostCheck.True(report.ControlledPorts.SequenceEqual(new[] { 50000, 50001, 50002 }) && report.Injections.Count ==3 &&
+            report.Injections.All(row => row.AfterBackendOrdinal ==2) && !report.Injections[1].Forwarded && report.Injections[2].Forwarded);
+        HostCheck.Equal(Convert.ToHexString(Frame(50001, 0x18, "A"u8)), report.Injections[0].Hex);
+    }
+
+    [HostTest("service frame owner rejects mixed modes unselected and overlapping injections and joins cancellation")]
+    private static async Task ServiceGuards()
+    {
+        void Refuse(Action action) { bool refused = false; try { action(); } catch (Exception error) when (error is ArgumentException or InvalidOperationException) { refused = true; } HostCheck.True(refused); }
+        using (var legacy = new WebFrameControl(TimeSpan.FromSeconds(10)))
+            Refuse(() => legacy.InjectServiceFrameAsync(Frame(50000, 0x10), "x"));
+        Refuse(() => { using var invalid = new WebFrameControl(TimeSpan.FromSeconds(901), continuingService: true); });
+        using (var maximum = new WebFrameControl(TimeSpan.FromSeconds(900), continuingService: true)) HostCheck.True(maximum.Stop());
+        using var gate = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);
+        Refuse(() => gate.InjectServiceFrameAsync(Frame(50000, 0x10), "x"));
+        Refuse(() => gate.SelectServiceClients(50000, 50000, 50002)); gate.SelectServiceClients(50000, 50001, 50002);
+        Refuse(() => gate.SelectServiceClients(50003, 50004, 50005)); Refuse(() => gate.SelectDeadlineClient(50000)); Refuse(() => gate.InjectRejectedFrameAsync());
+        Refuse(() => gate.InjectServiceFrameAsync(Frame(50003, 0x10), "x")); Refuse(() => gate.InjectServiceFrameAsync(Frame(50000, 0x10), "bad tag"));
+        Task pending = gate.InjectServiceFrameAsync(Frame(50000, 0x10), "pending");
+        Refuse(() => gate.InjectServiceFrameAsync(Frame(50001, 0x10), "overlap")); HostCheck.True(gate.Stop());
+        bool cancelled = false; try { await pending; } catch (OperationCanceledException) { cancelled = true; }
+        HostCheck.True(cancelled && gate.Completion.IsCompletedSuccessfully); Refuse(() => gate.InjectServiceFrameAsync(Frame(50000, 0x10), "retired"));
+    }
 }

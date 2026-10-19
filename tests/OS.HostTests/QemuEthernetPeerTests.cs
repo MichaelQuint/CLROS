@@ -17,6 +17,12 @@ internal static class QemuEthernetPeerTests
             catch (ArgumentOutOfRangeException) { rejected = true; }
             HostCheck.True(rejected);
         }
+        using (var service = new QemuEthernetPeer(TimeSpan.FromMinutes(15), continuingService: true))
+            HostCheck.True(service.Port is >0 and <=65535);
+        bool tooLong = false;
+        try { using var invalid = new QemuEthernetPeer(TimeSpan.FromMinutes(15) + TimeSpan.FromMilliseconds(1), continuingService: true); }
+        catch (ArgumentOutOfRangeException) { tooLong = true; }
+        HostCheck.True(tooLong);
         using var peer = NewPeer();
         HostCheck.True(peer.Port is > 0 and <= 65535);
         HostCheck.Equal("socket,id=n0,connect=127.0.0.1:" + peer.Port, peer.NetdevArgument);
