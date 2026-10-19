@@ -22204,7 +22204,7 @@
       ],
       "collisionLane": null,
       "summary": "Local SingleMinimalApi NativeAOT Kestrel",
-      "currentEvidence": "Step1351 accepts the pinned web publisher and immutable V2 staging, plus bounded unchanged sync/async socket guests. PR739 at e40db8091e8b61b6d2b18f837feb96e9965109a2 reports development CLROS Kestrel /healthz and /config responses; it is unmerged and does not qualify continuing-service admission or the complete M10 ladder. #217-#220 remain owned under #737; Gate14 remains open.",
+      "currentEvidence": "Steps1380/1389/1405/1419 qualify bounded configuration, logging, startup/vectors and real Kestrel health/config/HTTP with finite UTC. Continuing service and worker shutdown remain unaccepted under #737. M10-011/#224 follows its seven claimed foundations; M10-015 through019 then plan source-generated JSON, staged-file middleware, a real guest-disk browser demo and sustained service. No static-file implementation or Gate14 closure is claimed.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -22214,7 +22214,7 @@
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
-        "All 14 keyed child issues are closed with reviewed evidence.",
+        "All 19 keyed child issues are closed with reviewed evidence. M10-015 through019 add the separately planned static-file feature and reliability ladder; they do not retroactively enlarge M10-014 local Gate14 acceptance.",
         "Serve the deterministic Minimal API health response through live CLROS sockets.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -31093,7 +31093,7 @@
       ],
       "collisionLane": null,
       "summary": "Run pinned upstream NativeAOT applications through a restricted Linux x64 syscall ABI implemented in C#.",
-      "currentEvidence": "Steps1200-1209 qualify bounded ELF/user/memory/descriptor foundations; step1307 qualifies unchanged pinned NativeAOT Hello and finite runtime workloads; step1351 qualifies unchanged sync/async socket/epoll guests. The M16-001 through012 leaves retain their accepted finite scope. New M16-013 through018 cover vectors, continuing service, fragmented backing, actual app budgets, user-fault containment and measured audit cost. Broad Linux compatibility, complete Kestrel, isolation and production remain incomplete. Second-pass M16-019/020/021 add owned realtime, pending-signal wait reconciliation and accepted SIGPIPE disposition consistency. Four new desired-behavior host assertions fail and a fifth characterization passes; retained PR739 r12 guest PCAP confirms epoch Date headers. No new runtime qualification.",
+      "currentEvidence": "Steps1200-1209 qualify bounded ELF/user/memory/descriptor foundations; step1307 qualifies unchanged NativeAOT Hello/runtime and step1351 finite sync/async sockets/epoll. Steps1405/1419 add bounded vectors and owned UTC/HTTP. Continuing-service foundations including M16-014 and M16-022 remain open under #737; finite prefixes do not prove shutdown. M16-023 through025 now plan continuing block I/O, confined FAT32 ranges and Linux disk-backed descriptors after M10-011. Existing memory/budget, fault, signal and audit work retains its own dependencies. Broad Linux compatibility, complete Kestrel, disk-backed static files, isolation and production remain unaccepted.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "M16 foundation and M07 continuing TCP feed M10 single-app Kestrel; M14 local isolation follows before AWS/Azure. Start M16-001 now. The static publishing gate must fail visibly if the exact dependency closure is unavailable; do not silently substitute a custom runtime.",
@@ -31101,7 +31101,7 @@
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
-        "All M16 child services qualified with preserved host/native/guest evidence. Host publication alone does not close this epic."
+        "All 25 M16 child services qualified with preserved host/native/guest evidence. M16-023 through025 add continuing block reads, confined FAT32 range reads and Linux disk-backed descriptors; host publication alone does not close this epic."
       ],
       "requiredMarkers": [
         "TEST_PASS nativeaot.foundation"
@@ -34374,6 +34374,770 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Two failing host boundary reproductions establish a new sendmsg compatibility defect. Existing finite nonempty-vector/HTTP receipts remain accepted. No new guest run, production exploit, runtime repair or gate acceptance is claimed by this review."
+    },
+    {
+      "key": "M10-015",
+      "title": "[M10-015] Pin the JSON/static-file fixture and measure its NativeAOT file contract",
+      "summary": "Publish a versioned candidate with /api/status and /api/items DTOs and an explicit read-only static-file pipeline; measure the exact .NET11/musl file-service requirements before kernel work.",
+      "milestone": "M10",
+      "parentKey": "M10-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:host",
+        "component:app-model",
+        "phase:m10-kestrel",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-011"
+      ],
+      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Reuse apps/MinimalApiSmoke with an explicitly selected new profile; preserve the accepted /healthz and /config baseline and its source/package hashes. Add small DTOs and JsonSerializerContext entries, with one principal type per new file. Never substitute hand-written JSON or kernel-authored HTTP responses.",
+        "Start with UseDefaultFiles/UseStaticFiles and an explicit physical web root /app/wwwroot, directory listing off, unknown extensions off and immutable configuration/watchers disabled. Preserve the old root response in the old profile. Avoid introducing MVC/Razor, reflection, hot reload, a custom IServer or a direct in-memory IFileProvider that would bypass file syscalls.",
+        "Use the current SDK/runtime/compiler/native pins from NativeAotPayload.cs, not the .NET10 documentation version. On the qualified Linux musl builder publish, hash and trace startup plus GET/HEAD, ranges, conditional requests, 404, concurrent reads and shutdown. Inspect pinned StaticFileContext, PhysicalFileProvider, FileStream/RandomAccess and System.Native implementations.",
+        "Record actual syscall numbers, wire layouts, flags, offsets, errno and fallback behavior. Determine whether pread64, stat-family calls, directory operations, sendfile, mmap, fadvise or watchers are exercised; do not implement an unmeasured list or silently claim unsupported operations succeeded.",
+        "Retain a source/trace contract and exact candidate ELF/package admission. Include empty DTO collections, Unicode, null policy and content-type checks. Add a documented runnable qualifier extension under nativeaot static-files; list all new options in the receipt.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "test-only",
+          "path": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/native-aot?view=aspnetcore-10.0",
+          "notes": "Capability reference, not qualification of the pinned .NET11 Linux closure."
+        },
+        {
+          "use": "test-only",
+          "path": "https://learn.microsoft.com/en-us/aspnet/core/fundamentals/static-files?view=aspnetcore-10.0",
+          "notes": "Physical web root, default documents and middleware behavior; verify against the actual shipping source."
+        },
+        {
+          "use": "test-only",
+          "path": "https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/aspnetcore/src/Middleware/StaticFiles/src/StaticFileContext.cs",
+          "notes": "Existing pinned source starting point; revalidate against the exact compiler/runtime package inventory."
+        }
+      ],
+      "ownedPaths": [
+        "apps/MinimalApiSmoke/Program.cs",
+        "apps/MinimalApiSmoke/MinimalApiSmoke.csproj",
+        "apps/MinimalApiSmoke/StaticFileStatusResponse.cs",
+        "apps/MinimalApiSmoke/StaticFileItemResponse.cs",
+        "apps/MinimalApiSmoke/StaticFileJsonContext.cs",
+        "tools/OS.Tooling/NativeAotWebPayload.cs",
+        "tools/OS.Tooling/NativeAotWebProgram.cs",
+        "tools/OS.Tooling/NativeAotStaticFileContract.cs",
+        "tests/OS.HostTests/NativeAotStaticFileContractTests.cs",
+        "docs/workload-profiles.md",
+        "docs/kestrel.md",
+        "docs/app-model.md",
+        "docs/host-requirements.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Linux-host NativeAOT publication and execution produce real source-generated objects for /api/status and /api/items, while the original health/config contract passes; no unreviewed AOT/trim warning is suppressed.",
+        "An exact source/compiler/native/ELF inventory and per-thread traces cover file startup, normal/negative HTTP, range and conditional paths. The syscall gap table distinguishes required operations, optional fallbacks and explicitly rejected operations.",
+        "A deterministic profile selects an ordinary physical read-only wwwroot and preserves the accepted payload baseline. Guest acceptance remains M10-017 and M10-018.",
+        "Document supported limits and proposed Linux errno/metadata contract, actual runnable Linux-builder command and an independent qualification validator. Fixture/contract tests run through the normal harness."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m10.015"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotStaticFileContractTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-Linux-builder-evidence-directory>"
+      ],
+      "documentationPaths": [
+        "docs/workload-profiles.md",
+        "docs/kestrel.md",
+        "docs/app-model.md",
+        "docs/host-requirements.md"
+      ],
+      "evidenceBoundary": "Planned host/tooling contract only. Publishing, Linux-host traces and image verification do not establish CLROS guest disk I/O or guest Kestrel. Preserve existing qualification; no gate advances."
+    },
+    {
+      "key": "M10-016",
+      "title": "[M10-016] Build reproducible read-only wwwroot disk fixtures",
+      "summary": "Place deterministic HTML, CSS and JavaScript in a confined FAT32 wwwroot on the actual read-only guest disk, with independently verifiable layout and contents.",
+      "milestone": "M10",
+      "parentKey": "M10-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:tooling",
+        "evidence:host",
+        "component:storage",
+        "phase:m10-kestrel",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-015",
+        "M06-011",
+        "M06-013",
+        "M10-003"
+      ],
+      "currentEvidence": "Steps1150/1152/1156 qualify bounded GPT/FAT/package reads. FatImageFixture and PackageImageFixture mutate controlled disk fixtures; they do not provide a Kestrel webroot or continuing filesystem.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Extend the current C# raw-image/FAT fixture tooling, preserving GPT/FAT copies, EFI and OS package files. Generate application assets with a C# fixture builder under artifacts; keep first-party source policy and do not commit generated images. Prefer the existing read-only FAT partition over a new filesystem or device type.",
+        "Generate index.html, site.css and site.js that fetch /api/status and /api/items and visibly render their returned values. Include a small nested asset, an empty file, a fragmented multi-cluster binary and a file larger than the admitted read/send chunk. Define finite count/path/size/depth limits.",
+        "Produce two equal-layout images with different webroot nonce/content hashes and the identical candidate ELF/application package. Disk-mode web assets must not be embedded in ELF, APP.PKG or pre-staged whole-file views. An explicitly separate staged variant may feed M10-017.",
+        "Emit read-back receipts for partition extent, paths, cluster/LBA spans, file lengths, UTC timestamp policy, fixture nonce, payload and whole-image hashes. The host verifier must parse the resulting image independently of writer success; CRC is not authentication.",
+        "Add outside-webroot sentinel/config files and controlled missing/truncated/looped/mirrored-FAT corruption variants. Preserve all accepted ancestor image profiles and runner disk read-only attachment; no write support or FAT boot-log adaptation #468 is required.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.ImageBuilder/Program.cs",
+        "tools/OS.Tooling/FatImageFixture.cs",
+        "tools/OS.Tooling/PackageImageFixture.cs",
+        "tools/OS.Tooling/WebRootImageFixture.cs",
+        "tests/OS.HostTests/WebRootImageFixtureTests.cs",
+        "tools/OS.Tooling/NativeAotWebPackage.cs",
+        "tools/OS.Tooling/NativeAotWebSelection.cs",
+        "docs/image-builder.md",
+        "docs/manifest.md",
+        "docs/workload-profiles.md",
+        "docs/kestrel.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Repeated generation with fixed inputs produces byte-identical images/receipts. Independent extraction matches every file length and hash; GPT, both FATs and preserved EFI/package hashes validate.",
+        "The two disk-only content variants share exactly the same candidate ELF/package hash but differ in the expected asset bytes. The final evidence manifest can bind the selected raw image to the attached QEMU device.",
+        "Malformed paths, aliases/case collisions, oversize assets, invalid fixture geometry and unsafe output paths reject without partial publication. All generated outputs remain under artifacts.",
+        "Document and test the new exact image-fixture command and staged-versus-disk switch; a successful image build is explicitly not guest disk-to-HTTP evidence."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m10.016"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter WebRootImageFixtureTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tools/OS.Tooling -- nativeaot static-files image --variant DiskA --package <qualified-candidate-package> --output <fresh-artifacts-image>"
+      ],
+      "documentationPaths": [
+        "docs/image-builder.md",
+        "docs/manifest.md",
+        "docs/workload-profiles.md",
+        "docs/kestrel.md"
+      ],
+      "evidenceBoundary": "Planned host/tooling contract only. Publishing, Linux-host traces and image verification do not establish CLROS guest disk I/O or guest Kestrel. Preserve existing qualification; no gate advances."
+    },
+    {
+      "key": "M16-023",
+      "title": "[M16-023] Provide continuing read-only Virtio block I/O during application execution",
+      "summary": "Turn accepted one-attempt storage foundations into a bounded continuing read service that can progress while Kestrel, NIC, timers and the upstream runtime remain active.",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:storage",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-015",
+        "M10-016",
+        "M06-007",
+        "M06-019"
+      ],
+      "currentEvidence": "LiveDeviceExistingIReadOnlyBlockDeviceContract.ReadBlocks permits only one attempted one-sector read per fresh lifetime. Steps1152/1156 renegotiate/reset per sector; step1162 adds bounded MSI-X/poll recovery but not continuing storage.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Reuse reviewed live binding, read-only negotiation, DMA ownership and completion validators. A bounded serial request owner and cooperative polling are acceptable first; do not require multi-queue, write support or a new asynchronous VFS. Persistent queue reuse versus repeated lifetimes must be chosen from measured latency with explicit ownership.",
+        "Retain device/queue generations, capacity/config generation, descriptor ownership, wrapping indices, DMA leases and bounce buffers across submissions. Never perform a long poll while global IRQs are disabled or hold a lock needed by NIC, timer, scheduler or GC progress.",
+        "Define read admission, busy/backpressure, deadline, cancellation, device-error and shutdown states. No stale/short/duplicate completion may copy into caller memory or release an active DMA buffer. Uncertain reset quarantines backing and reports failure; no automatic healthy-device claim.",
+        "Wire a new default-off storage-service profile through BootSequence and Probes under the shared lane. Keep existing bounded storage profiles unchanged. Use real read completion observations plus a concurrently advancing network/timer/runtime witness.",
+        "Record selected request/chunk/queue limits and measured latency/CPU cost. A retained owner is required; deleting _attempted or silently rebuilding device state inside every IRQ-off syscall is insufficient.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Storage/LiveDeviceExistingIReadOnlyBlockDeviceContract.cs",
+        "src/OS.Kernel/Storage/SubmitPollSectorRequest.cs",
+        "src/OS.Kernel/Storage/ContinuingReadOnlyBlockService.cs",
+        "tests/OS.HostTests/ContinuingReadOnlyBlockServiceTests.cs",
+        "src/OS/Boot/EfiEntry.StorageService.cs",
+        "tools/OS.Tooling/QemuTranscripts.StorageService.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "docs/cstorage.md",
+        "docs/drivers.md",
+        "docs/efi-build.md",
+        "docs/workload-profiles.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Repeated real guest reads cross queue/index reuse boundaries under finite declared bounds, return independent expected sector bytes and coexist with timer/NIC and managed-worker progress.",
+        "Host controls cover short/error/duplicate/stale completion, capacity churn, bounded timeout, reset failure, cancellation and shutdown with outstanding DMA; a real guest timeout/recovery or controlled failure demonstrates the implemented route.",
+        "Output is published only after validated completion into owned buffers. Teardown drains or quarantines DMA correctly, disables device activity before release and proves exact allocator/queue ownership accounting.",
+        "Retain original native review and regression guests for accepted GPT/FAT/package/IRQ profiles. Document an actual new runnable service profile and its markers; no disk-backed application file claim yet."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m16.023",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ContinuingReadOnlyBlockServiceTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16023Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m16.023\""
+      ],
+      "documentationPaths": [
+        "docs/cstorage.md",
+        "docs/drivers.md",
+        "docs/efi-build.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Planned, unimplemented scope only. Host models, staged package bytes and runner termination do not prove demand reads from a guest disk, graceful cleanup or general Kestrel. Preserve the specific accepted predecessors; no automatic Gate7/Gate14, isolation, cloud or production promotion."
+    },
+    {
+      "key": "M16-024",
+      "title": "[M16-024] Expose confined read-only FAT32 files with bounded offset reads and metadata",
+      "summary": "Resolve one admitted /app/wwwroot into the read-only disk and read bounded file ranges without staging whole files or exposing the rest of the volume.",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:storage",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-023",
+        "M10-016",
+        "M06-012",
+        "M06-013",
+        "M06-014"
+      ],
+      "currentEvidence": "Accepted FAT code checks bounded chains and VFAT metadata for a fixed file; general pathname traversal/case policy and persistent range-read handles remain unimplemented. Fat32Parser host helpers do not establish the live native service.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Compose existing BPB, partition bounds, chain and VFAT validation behind a small retained mount/file-handle contract. Prefer constrained generics or explicit callbacks over allocating/boxing interface calls in the no-stdlib path. Do not duplicate shared parsing/string primitives outside std/no-runtime/shared.",
+        "Define an explicitly admitted immutable namespace, path encoding, ASCII case policy or exact matching, maximum depth/length/file size and alias rules. Component-by-component traversal must stay under the admitted root; reject ambiguous short/long-name aliases, case collisions, dot-dot escape, unsupported Unicode forms and malformed separators before publication.",
+        "Provide length, regular-file/directory distinction, stable identity and a documented FAT-local-time to UTC policy suitable for HTTP metadata. Use a declared deterministic UTC image policy for this fixture; no invented current timestamps or secret/config exposure. Writes, create/truncate, rename/unlink and metadata updates reject read-only.",
+        "Read arbitrary bounded offsets/lengths across sectors and fragmented clusters, including EOF, zero-length files and overflow rejection. Retain bounded chain-history/cache budgets and detect truncation, cycles, bad clusters and FAT mirror mismatch. Cached metadata/blocks must be bounded and generation-owned; record cold versus warm reads.",
+        "Mount/device identity must remain stable while handles exist. A corrupt file or failed device must produce a clear status without leaking partial unvalidated data or hanging unrelated requests. Symlinks, directory browsing, writable storage and general POSIX mounts remain outside scope.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Storage/FATClusterChainsLoopBadClusterTruncationDetection.cs",
+        "src/OS.Kernel/Storage/MultiClusterDirectoryVFATLongNameSupportSeparate.cs",
+        "src/OS.Kernel/Storage/ReadOnlyWebRootFileSystem.cs",
+        "tests/OS.HostTests/ReadOnlyWebRootFileSystemTests.cs",
+        "src/OS/Boot/EfiEntry.StorageService.cs",
+        "tools/OS.Tooling/QemuTranscripts.StorageService.cs",
+        "docs/cstorage.md",
+        "docs/security.md",
+        "docs/app-model.md",
+        "docs/workload-profiles.md",
+        "tools/OS.Tooling/ToolCommand.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Normal-harness tests and a live guest file profile verify nested lookup, 0/1-byte and cross-sector/cluster reads, fragmentation, exact EOF, invalid offsets and deterministic metadata from independently extracted fixture bytes.",
+        "Traversal, prefix-collision, short-name/case aliases, malformed UTF/VFAT, excessive depth and outside-root sentinel requests cannot access protected content. Supported namespace rules and every unsupported form are explicit.",
+        "Looped/truncated/bad or unequal FAT data terminate within budgets; reads never escape the partition or file bounds and do not publish success after an I/O error.",
+        "Two simultaneous handles retain independent read positions and stable identities; close/reopen and failed lookup release bounded resources. Demand-read evidence reaches the guest disk after application phase entry. No Linux fd or Kestrel claim yet."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m16.024",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ReadOnlyWebRootFileSystemTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16024Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m16.024\""
+      ],
+      "documentationPaths": [
+        "docs/cstorage.md",
+        "docs/security.md",
+        "docs/app-model.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Planned, unimplemented scope only. Host models, staged package bytes and runner termination do not prove demand reads from a guest disk, graceful cleanup or general Kestrel. Preserve the specific accepted predecessors; no automatic Gate7/Gate14, isolation, cloud or production promotion."
+    },
+    {
+      "key": "M10-017",
+      "title": "[M10-017] Qualify JSON and static-file middleware over immutable staged file views",
+      "summary": "Run the measured candidate through real upstream Kestrel in CLROS using ordinary file APIs over explicitly boot-staged immutable assets; isolate file-ABI gaps before live-disk integration.",
+      "milestone": "M10",
+      "parentKey": "M10-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m10-kestrel",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-015",
+        "M10-016"
+      ],
+      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Use the M10-015 pinned candidate and the M10-016 staged variant. Add only the measured file-ABI operations missing from the existing package descriptors, with separate backing-kind/owner metadata. Preserve normal read-only package and /proc behavior; do not feed byte arrays directly to custom HTTP endpoints.",
+        "Exercise /api/status and /api/items source-generated DTOs in the guest. Use real StaticFileMiddleware and a physical file provider for index.html, CSS and JavaScript. Remove the old root-handler collision only within the new selected profile; /healthz and /config remain regression checks.",
+        "Qualify measured fstat/stat metadata, length/offset reads and the file-to-socket path, including supported HEAD/Range/conditional behavior. Resolve syscall fallbacks from observed upstream code, not assumed success. Watchers and directory listing remain off.",
+        "Implement a separate default-off runner/profile and independent packet/HTTP checks. Document exact build/run switches and honest staged-memory markers; do not call a package read at boot an on-demand disk read.",
+        "Before acceptance, verify fd/file-buffer reuse after repeated requests, a peer abort and missing files. Preserve the current owner's service policy and bounded limits; cleanup evidence must be explicit.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "apps/MinimalApiSmoke/Program.cs",
+        "tools/OS.Tooling/NativeAotWebPackage.cs",
+        "tools/OS.Tooling/NativeAotWebSelection.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Paths.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Package.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "tests/OS.HostTests/LinuxDescriptorServicesTests.cs",
+        "tests/OS.HostTests/NativeAotStagedStaticFilesTests.cs",
+        "src/OS/Boot/EfiEntry.StaticFiles.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.cs",
+        "tools/OS.QemuRunner/Program.cs",
+        "tools/OS.QemuRunner/EvidenceManifestWriter.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "docs/kestrel.md",
+        "docs/app-model.md",
+        "docs/efi-build.md",
+        "docs/workload-profiles.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Three fresh frozen-source CLROS guests serve valid /api/status and /api/items objects and the staged HTML/CSS/JS through actual Kestrel/file APIs. Independent clients validate values, media types, body lengths and hashes.",
+        "GET/HEAD, a valid byte range, unsatisfiable range, ETag/Last-Modified conditional behavior, 404 and disallowed method/extension behavior match the pinned Linux reference and declared metadata policy. Missing files never silently serve the index page.",
+        "Concurrent opens have correct independent offsets; duplicate descriptors, if required, share an open-file description according to measured Linux semantics. Failed requests and peer aborts leave bounded fd/buffer accounting.",
+        "Existing /healthz, /config, immutable descriptor/pipe and finite vector/socket regressions pass. The receipt explicitly says all asset bytes were staged in memory and does not close M10-018."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m10.017",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotStagedStaticFilesTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM10017Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture Staged -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m10.017\""
+      ],
+      "documentationPaths": [
+        "docs/kestrel.md",
+        "docs/app-model.md",
+        "docs/efi-build.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Planned, unimplemented scope only. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+    },
+    {
+      "key": "M16-025",
+      "title": "[M16-025] Connect Linux file descriptors to the live read-only guest webroot",
+      "summary": "Route the measured Linux open/stat/read/offset/close path to retained FAT32 disk handles while safely yielding for I/O and preserving process, memory and descriptor ownership.",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-024",
+        "M10-017"
+      ],
+      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Add an explicit disk-backed file kind beside immutable package/proc views. Keep Linux errno/fd semantics separate from OSHost_*; the deferred PAL/CoreCLR package export #200 is neither this implementation nor a dependency.",
+        "Implement only the M10-015 measured syscall closure, including positional reads/metadata where used. Audit real .NET send-file fallback. Every measured but unsupported operation returns its explicit errno; never fake mmap, sendfile or file-watcher success.",
+        "The current descriptor path is IRQ-off. Split admission/copy-in from bounded storage progress and later copy-out through an owned wait/continuation; do not call the disk polling loop while interrupts are disabled. Pin or revalidate the relevant user mapping and descriptor generation before completion. Exit/close/cancel must prevent late copies into freed or reused memory.",
+        "Keep per-open-file offset semantics, dup sharing if supported, pread independence, CLOEXEC policy, access flags, exact EOF/short-read/error rules and length-overflow checks. Different opens must not share an accidental global offset. Reject writable/mutating opens before disk ownership is published.",
+        "Bound descriptors, requests, file/metadata caches and outstanding byte buffers. Backpressure must preserve NIC/timer/GC/other-request progress. Close, process exit and storage reset release or quarantine the correct original handles; stale completions cannot target reused fds.",
+        "Use a mechanical user-mode file exercise before Kestrel, then retain the same code/profile for the integrated batch. Source references include LinuxDescriptorServices*.cs, LinuxSyscallGateway.cs, existing wait/worker ownership in the currently accepted service implementation and M16-024's exact file contract.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
+        "The contract table must state exact errno for absent paths (ENOENT), non-directory components (ENOTDIR), reading directories (EISDIR), write/mutation requests (EROFS or the measured access error), invalid seek/overflow, unsupported syscalls and device failures (EIO). Test both raw syscall and .NET exception/HTTP behavior."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Paths.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Package.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Disk.cs",
+        "tests/OS.HostTests/LinuxDiskDescriptorTests.cs",
+        "tools/OS.Tooling/LinuxDiskFileProofFixture.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxDiskFiles.cs",
+        "src/OS/Boot/EfiEntry.StaticFiles.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "docs/app-model.md",
+        "docs/cstorage.md",
+        "docs/efi-build.md",
+        "docs/security.md",
+        "docs/workload-profiles.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Real CPL3 Linux calls read the independent disk fixture with correct stat/length, sequential and positional offsets, zero/short/cross-page copies, EOF and close/reopen behavior; host fallback tests alone do not close this issue.",
+        "Invalid path/fd/flags/user ranges, read-only mutations, resource exhaustion, missing files and disk errors return measured errno without publishing partial invalid state. EFAULT and cross-page destination failures preserve documented read-offset semantics.",
+        "Cancel/close/process-exit races with pending disk I/O cannot leak handles, reuse an in-flight descriptor or copy into obsolete mappings. A second peer and runtime/timer witnesses progress during a delayed storage operation.",
+        "Retain independent offset/concurrency and bounded cleanup controls, original emitted-native review, affected descriptor/pipe/socket/runtime guest regressions and a documented new executable fixture command. Kestrel disk/browser acceptance remains M10-018."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m16.025",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxDiskDescriptorTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16025Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m16.025\""
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/cstorage.md",
+        "docs/efi-build.md",
+        "docs/security.md",
+        "docs/workload-profiles.md"
+      ],
+      "evidenceBoundary": "Planned, unimplemented scope only. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+    },
+    {
+      "key": "M10-018",
+      "title": "[M10-018] Qualify the external browser demo with JSON and live guest-disk static files",
+      "summary": "Demonstrate one real browser loading disk-backed HTML/CSS/JS from CLROS Kestrel and invoking /api/status and /api/items, with independent cold-read, HTTP and confinement evidence.",
+      "milestone": "M10",
+      "parentKey": "M10-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:implementation",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m10-kestrel",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-025",
+        "M10-016",
+        "M10-017"
+      ],
+      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "Use the same pinned candidate ELF and the M10-016 disk-only images. Admit one read-only /app/wwwroot and verify no complete asset payload is embedded or boot-staged. A bounded sector cache is allowed only with explicit limits and separately identified cold/warm evidence.",
+        "Join post-readiness request IDs to the real guest file/descriptor generation, block submissions/completions, LBA spans and returned byte hashes. Counters or a synthetic block receipt alone are insufficient. The external verifier must compare to independently extracted disk bytes.",
+        "Run both image variants with identical app binary/package and show the HTTP/browser content changes with disk content. Include a cold asset first requested after Kestrel readiness and a controlled missing/corrupt/read-failure asset; no hidden embedded/index fallback may pass.",
+        "Record a real external browser network trace/screenshot and rendered DTO values, plus machine-readable independent HTTP and packet results. Clear caches/service workers between image variants; no data from the browser host's filesystem may satisfy requests.",
+        "Exercise simultaneous asset and JSON requests, multi-cluster and large chunked reads, exact metadata/body behavior, 404, raw/encoded traversal, backslash/dot segments and alias cases. Test raw HTTP requests because browsers may normalize traversal before sending. Directory listing, executable/config disclosure and mutation remain forbidden.",
+        "Add a distinct default-off disk-static runner profile with a complete runnable command and stable proposed TEST_PASS m10.018 marker. Preserve source/native/EFI/app/image/serial/PCAP/HTTP/browser joins, expected failures, supported limits and cleanup evidence in the acceptance receipt.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.cs",
+        "tools/OS.Tooling/NativeAotWebSelection.cs",
+        "tools/OS.Tooling/WebRootImageFixture.cs",
+        "tools/OS.Tooling/StaticFileHttpEvidence.cs",
+        "tests/OS.HostTests/StaticFileHttpEvidenceTests.cs",
+        "tools/OS.QemuRunner/Program.cs",
+        "tools/OS.QemuRunner/EvidenceManifestWriter.cs",
+        "src/OS/Boot/EfiEntry.StaticFiles.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "docs/kestrel.md",
+        "docs/cstorage.md",
+        "docs/qemu.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "At least three fresh frozen-source guest boots, including both differing disk-content variants, pass /healthz, /config, both new JSON routes and index/CSS/JS/binary hashes. An external browser visibly renders API values after loading guest-served assets.",
+        "Actual cold block requests occur after Kestrel readiness and map to the requested asset bytes. Changing only the disk contents changes responses; missing/corrupt/disk-read failures cannot return successful stale asset bytes.",
+        "GET/HEAD, length/media type, single ranges/416, conditional requests/304 and absent files match the pinned upstream contract. Path confinement holds through middleware and raw syscall controls, including an outside-root sentinel.",
+        "Concurrent assets and JSON stay responsive under declared budgets. Each finite run follows the accepted service shutdown and demonstrates file/fd/storage cleanup or explicitly retains uncertain DMA with a failing outcome; runner kill is not graceful-cleanup proof.",
+        "Independent admission/HTTP/evidence negative controls reject swapped disk/package/serial, omitted read receipts, stale browser output and incorrect hashes. Document the exact bounded demo scope without claiming full service, Gate7/Gate14, cloud or production."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m10.018",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter StaticFileHttpEvidenceTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM10018Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m10.018\""
+      ],
+      "documentationPaths": [
+        "docs/kestrel.md",
+        "docs/cstorage.md",
+        "docs/qemu.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Planned, unimplemented scope only. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
+    },
+    {
+      "key": "M10-019",
+      "title": "[M10-019] Qualify sustained static-file service, failure recovery and clean shutdown",
+      "summary": "Extend the finite disk/browser demo into a measured longer-running service with bounded resource reuse, cancellation/fault recovery and verified application/storage shutdown.",
+      "milestone": "M10",
+      "parentKey": "M10-EPIC",
+      "priority": "priority:p1",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:blocked",
+        "priority:p1",
+        "type:test",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m10-kestrel",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M10-018",
+        "M10-012"
+      ],
+      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
+        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
+        "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
+        "This is the later reliability milestone, not a prerequisite for M10-018's finite demo. Reuse #224 lifecycle and #225 async/cancellation/churn evidence; extend #244's general recovery matrix with results instead of claiming all recovery is complete.",
+        "Declare a reproducible duration and request/concurrency/asset-size matrix before running. It must exceed all earlier finite guards, including the old 600-second realtime validity window; qualify the continuing clock policy first instead of raising a timeout and emitting stale/fabricated Date metadata.",
+        "Measure throughput, tail latency, CPU use, block reads/cache hits and fd/thread/page/DMA/buffer high-water and post-request baselines. Use a bounded working set and explicit limits, with cold/warm runs separated; no comparative performance claims without an equivalent baseline.",
+        "Exercise aborted large downloads, cancellation and slow clients while unrelated JSON/assets progress; recover or fail closed on corrupt/missing files, bounded disk timeout/reset and resource exhaustion. Preserve read-only image hashes and no-write capability.",
+        "Stop via the accepted explicit supervisor/application mechanism, drain waits and active file requests, reach actual app exit and off-stack worker reap, then prove descriptor/cache/queue/DMA ownership accounting. Retained uncertain DMA is an explicit failed shutdown, not a successful cleanup.",
+        "Use repeatable automated runs plus external liveness checks after controlled guest termination. Record all retry/failure evidence. Adjust the planning estimate only after an actual complete service/disk guest run; no calendar due date or production uptime guarantee.",
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tools/OS.Tooling/StaticFileHttpEvidence.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.cs",
+        "tests/OS.HostTests/StaticFileServiceLifecycleTests.cs",
+        "tools/OS.QemuRunner/Program.cs",
+        "tools/OS.QemuRunner/EvidenceManifestWriter.cs",
+        "src/OS/Boot/EfiEntry.StaticFiles.cs",
+        "src/OS/Boot/EfiEntry.Realtime.cs",
+        "src/OS.Kernel/Platform/OwnedRealtimeClock.cs",
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "tools/OS.Tooling/EfiContracts.cs",
+        "tools/OS.Tooling/EfiOptions.cs",
+        "tools/OS.Tooling/EfiProfile.cs",
+        "tools/OS.Tooling/QemuSmokeOptions.cs",
+        "tools/OS.Tooling/QemuProfiles.cs",
+        "docs/kestrel.md",
+        "docs/cstorage.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/ToolCommand.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Three fresh sustained runs satisfy the predeclared duration/load and resource budgets, with actual disk and HTTP evidence and accurate Date headers across the earlier finite clock boundary.",
+        "Repeated concurrent asset/JSON traffic, peer abort, cancellation, missing/corrupt files and controlled disk failure show bounded recovery or explicit safe failure; healthy work is not globally wedged.",
+        "Application exit, worker reap, fd/cache/queue/DMA cleanup and post-stop connection refusal are independently observed. No success is inferred from killing QEMU or seeing a final serial marker alone.",
+        "Publish measured limitations and resource/latency results, rerun affected full-host/native/guest controls, and update only the applicable completion criteria. The original local Gate14 dependency graph remains separate."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS m10.019",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter StaticFileServiceLifecycleTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM10019Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 1800 -RequireMarker \"TEST_PASS m10.019\""
+      ],
+      "documentationPaths": [
+        "docs/kestrel.md",
+        "docs/cstorage.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Planned, unimplemented scope only. Preserve original accepted profiles. Package-backed responses cannot qualify disk-backed files; successful requests cannot qualify shutdown. No automatic Gate7/Gate14, isolation, writable filesystem, cloud or production promotion."
     }
   ]
 }

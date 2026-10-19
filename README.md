@@ -20,6 +20,11 @@ multi-segment responses and owned UTC. Continuing service and shutdown/reap
 remain incomplete.
 CLROS is not cloud-ready or production-ready.
 
+The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
+real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
+keeps current service qualification first and distinguishes staged files from
+live disk reads. This feature is not implemented or qualified yet.
+
 [Step1225](done/step1225.md) qualifies the pinned .NET 11 OS/tooling migration and
 fresh Linux-host application payloads. C# remains 14. Historical .NET 10 results
 retain their original identities; only the explicitly rerun profiles have current
