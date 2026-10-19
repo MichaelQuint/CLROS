@@ -9,6 +9,7 @@ public static partial class QemuTranscripts
     private static void ValidateLinuxSignalWaitBody(string[] rows,string variant)
     {
         bool futex=variant.StartsWith("SignalFutex",StringComparison.Ordinal), partial=variant=="SignalPipePartial";
+        bool stolen=variant==LinuxSignalProofFixture.StolenWaitVariant;
         bool restart=variant.EndsWith("Restart",StringComparison.Ordinal);
         var instructions=LinuxSignalProofFixture.ExpectedWaitInvocations(variant);
         List<SignalWaitCall> pre=[new(39,1),new(186,1),new(158,0,0x1002,0x402000),new(13,0,10,0x401100,0,8),new(131,0,0x401120)];
@@ -17,13 +18,17 @@ public static partial class QemuTranscripts
         SignalWaitCall blocked=futex?new(202,0,0x4011d0,128,0,0,Action:3,Status:9):
             new(partial?1UL:0UL,0,partial?4UL:3UL,partial?0x407000UL:0x409000UL,partial?4100UL:1UL,Action:3,Status:9);
         pre.Add(blocked);
-        List<SignalWaitCall> child=[new(39,1),new(186,2),new(234,0,1,1,10)];
+        List<SignalWaitCall> child=[new(39,1),new(186,2)];
+        if(stolen)child.Add(new(1,1,4,0x407000,1));
+        child.Add(new(234,0,1,1,10));
         if(futex)child.Add(new(202,0,0x4011d0,129,1));
+        else if(stolen)child.Add(new(0,1,3,0x409000,1));
         else if(!partial)child.Add(new(1,1,4,0x407000,1));
         child.Add(new(60,0,7,Action:4,Status:2));
         SignalWaitCall[] handler=[new(186,1),new(14,0,2,0,0x401158,8),new(131,0,0,0x4011a0),new(1,15,1,0x4001a0,15),
             new(15,partial?4096:restart?futex?202:0:-4,1,0x4001a0,15,Action:5)];
         List<SignalWaitCall> post=[];
+        if(stolen)post.Add(new(1,1,4,0x407000,1));
         if(restart)post.Add(blocked with {Value=futex?-11:1,Action=1,Status=1});
         else if(!futex && !partial)post.Add(new(0,1,3,0x409000,1));
         if(partial){post.Add(new(0,4096,3,0x409000,4096));post.Add(new(1,4,4,0x408000,4));post.Add(new(0,4,3,0x409000,4));}

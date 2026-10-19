@@ -1,5 +1,15 @@
 # CLROS Completion Gates
 
+[Step1460](../done/step1460.md) retains the first original v2 lifecycle
+smoke/service pass at `e0037e92`:836520ms,17131 calls,17 clones/18 reaps,
+exact32KiB echo/512KiB stream, healthy progress, cancellation and owned cleanup.
+All67 message/call ordinals bind. Actual message maxima are16 vectors/65536B;
+larger admission boundaries retain separate host evidence. Original emitted
+body/unwind and partial socket stack reviews remain scoped. A canonical
+pipe write/signal/competing-read fixture adds20 staged focused checks; its
+actual guest and epoll counterpart remain pending. Fixed-runner full-host,
+affected ancestors, GC/native pressure/quota and batch acceptance remain open.
+
 [Step1459](../done/step1459.md) retains the third failed v2 guest: the first
 stream sendmsg returns EINVAL before any message witness, then closes without
 response bytes. Source narrows that result to the old vector-count or aggregate

@@ -14,7 +14,7 @@ public static partial class LinuxSignalProofFixture
 {
     public static IReadOnlyList<string> SyscallVariants { get; } = Array.AsReadOnly<string>(["AlternateStack", "UserStack", "BadReturn", "BadRestorer"]);
     public static IReadOnlyList<string> FaultVariants { get; } = Array.AsReadOnly<string>(["FaultRead", "FaultWrite", "FaultExecute", "FaultStack", "FaultGp", "FaultReturn", "FaultFatal"]);
-    public static IReadOnlyList<string> Variants => Array.AsReadOnly<string>([.. SyscallVariants, .. FaultVariants, IrqVariant, .. WaitVariants, .. NestedVariants]);
+    public static IReadOnlyList<string> Variants => Array.AsReadOnly<string>([.. SyscallVariants, .. FaultVariants, IrqVariant, .. WaitVariants, StolenWaitVariant, .. NestedVariants]);
     public const string AppPath = "apps/m16signals.elf", Witness = "M16_SIGNALS_OK!", HandlerWitness = "M16_HANDLER_OK!";
     public const ulong ImageBase = 0x400000, ParentTls = 0x402000, ParentStackTop = 0x405000, AlternateBase = 0x406000;
     public const int ElfBytes = 0x7000, EntryOffset = 0x200, HandlerOffset = 0xa00, RestorerOffset = 0xe00, FailureOffset = 0xf00;

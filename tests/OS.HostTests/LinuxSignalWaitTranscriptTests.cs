@@ -71,6 +71,7 @@ internal static class LinuxSignalWaitTranscriptTests
     internal static string[] Synthetic(string variant)
     {
         bool futex=variant.StartsWith("SignalFutex",StringComparison.Ordinal), partial=variant=="SignalPipePartial", restart=variant.EndsWith("Restart",StringComparison.Ordinal);
+        bool stolen=variant==F.StolenWaitVariant;
         List<string> rows=T.Synthetic("AlternateStack").Take(5).Select(r=>r.Replace("packageBytes=28672","packageBytes=40960",StringComparison.Ordinal)).ToList();
         var instructions=F.ExpectedWaitInvocations(variant); int call=0; ulong clock=0;
         bool child=false,handler=false;
@@ -94,12 +95,13 @@ internal static class LinuxSignalWaitTranscriptTests
         if(futex)Emit(202,0,0x4011d0,128,action:3,status:9);
         else Emit(partial?1UL:0UL,0,partial?4UL:3UL,partial?0x407000UL:0x409000UL,partial?4100UL:1UL,action:3,status:9);
         Supervisor(4294967297,3,2,1,2);child=true;
-        Emit(39,1);Emit(186,2);Emit(234,0,1,1,10);
-        if(futex)Emit(202,0,0x4011d0,129,1);else if(!partial)Emit(1,1,4,0x407000,1);
+        Emit(39,1);Emit(186,2);if(stolen)Emit(1,1,4,0x407000,1);Emit(234,0,1,1,10);
+        if(futex)Emit(202,0,0x4011d0,129,1);else if(stolen)Emit(0,1,3,0x409000,1);else if(!partial)Emit(1,1,4,0x407000,1);
         Emit(60,0,7,action:4,status:2);ExitReap(4294967298,4,4,1,2);child=false;
         rows.Add(FormattableString.Invariant($"M16_008_RESUME identity=4294967297 valueBits={unchecked((ulong)(partial?4096L:-4L))} status=1"));
         handler=true;Emit(186,1);Emit(14,0,2,0,0x401158,8);Emit(131,0,0,0x4011a0);Emit(1,15,1,0x4001a0,15);
         Emit(15,partial?4096:restart?futex?202:0:-4,1,0x4001a0,15,action:5);handler=false;
+        if(stolen)Emit(1,1,4,0x407000,1);
         if(restart){if(futex)Emit(202,-11,0x4011d0,128);else Emit(0,1,3,0x409000,1);}
         else if(!futex&&!partial)Emit(0,1,3,0x409000,1);
         if(partial){Emit(0,4096,3,0x409000,4096);Emit(1,4,4,0x408000,4);Emit(0,4,3,0x409000,4);}

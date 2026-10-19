@@ -119,6 +119,16 @@ whole-stack, isolation, cloud and production acceptance remain incomplete.
 
 ## NativeAOT-first milestone
 
+[Step1460](../done/step1460.md) retains one original v2 lifecycle smoke/service
+pass at `e0037e92`: exact32KiB echo,512KiB stream with healthy progress,
+two client FIN cancellations, terminal drain and18 worker reaps. Strict
+message/syscall/packet and owned-child checks pass; the836520ms capture retains
+original source/object/EFI/package/serial/PCAP joins. Its16-vector/65536B maxima
+do not extend the actual observed vector scope. Larger-bound host/native work,
+the new pipe-race fixture and its20 focused checks remain development evidence.
+Fixed-runner full-host, affected ancestors, signal/epoll races, GC/native
+pressure/quota recovery and repeated-service batch qualification remain open.
+
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742
 network containment at implementation `3ef7316d`: 5,537 full-host checks across
 731 fixtures (94 Native), three web and three containment captures, three repaired

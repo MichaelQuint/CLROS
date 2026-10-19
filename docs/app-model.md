@@ -245,6 +245,23 @@ New source/native stack review, original v2/current-v1/affected ancestors,
 fixed-runner unfiltered full-host and pressure/quota recovery remain pending.
 All nine owned issues remain open; this is development evidence only.
 
+Step1460 retains one successful original v2 lifecycle producer at `e0037e92`.
+Smoke, strict syscall/packet/service replay and the owned runner all pass:
+836520ms,17131 calls,17 clones/18 reaps,32KiB echo,512KiB stream and healthy
+progress, two actual client FIN cancellations, terminal active/waiting zero and
+owned process cleanup. All67 message snapshots match cumulative call ordinals;
+their actual maxima are16 vectors/65536B. The broader1024-vector/1MiB boundaries
+remain host-tested. GC observations report the real16MiB limit and2MiB live
+arrays at begin/end, without qualifying pressure or quota recovery. Complete
+four-body/current unwind review and a partial socket stack account support the
+new16KiB metadata snapshot; dispatcher/runtime/callback descendants stay open.
+The new canonical SignalPipeStolen fixture emits write, directed signal and
+competing read before parent resumption, then requires its handler and later
+I/O progress. Twenty staged focused checks pass, including schedule/result and
+missing-handler negatives. Actual pipe-race/epoll guests, affected ancestors,
+stable fixed-runner full-host and remaining batch gates are still required;
+all nine issues remain open and PR786 stays draft.
+
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment
