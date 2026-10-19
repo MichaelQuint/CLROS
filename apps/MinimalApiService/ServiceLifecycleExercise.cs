@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 /// <summary>Explicit v2 diagnostic routes share these bounded request workers.
 /// Kestrel owns request/response streams and cancellation; this object never
@@ -62,6 +63,59 @@ internal sealed class ServiceLifecycleExercise
     }
 
     private readonly record struct GcPressure(long Bytes, long Heap, long Committed, int Collections, bool Caught, bool DataIntact);
+
+    /// <summary>Explicit v2-only native pressure, outside request workers. Own
+    /// up to32 anonymous one-MiB mappings, touch and verify every byte, release
+    /// them all, then verify a fresh mapping and release it. Only ENOMEM is an
+    /// expected allocation failure. Linux may satisfy the entire bounded probe;
+    /// quota=0 records that outcome without claiming quota exhaustion. This
+    /// measures these mappings, not all runtime-native memory or its headroom.</summary>
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static unsafe string MeasureNativeBudget()
+    {
+        if (!OperatingSystem.IsLinux()) throw new InvalidOperationException("CLROS_SERVICE_NATIVE_REJECT platform");
+        const int chunk = 1024 * 1024, capacity = 32;
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        nint* held = stackalloc nint[capacity];
+        int count = 0, error = 0; bool intact = true, released = true;
+        long committed = 0;
+        try
+        {
+            while (count < capacity)
+            {
+                nint mapping = MapNative(0, chunk, 3, 0x22, -1, 0);
+                if (mapping == -1) { error = Marshal.GetLastPInvokeError(); break; }
+                held[count++] = mapping;
+                new Span<byte>((void*)mapping, chunk).Fill((byte)count);
+            }
+            for (int i = 0; i < count; i++)
+                if (new ReadOnlySpan<byte>((void*)held[i], chunk).IndexOfAnyExcept((byte)(i + 1)) >= 0) intact = false;
+            committed = GC.GetGCMemoryInfo().TotalCommittedBytes;
+        }
+        finally
+        {
+            for (int i = 0; i < count; i++)
+                if (UnmapNative(held[i], chunk) != 0) released = false;
+        }
+        if (!intact || !released || count == 0 || (count < capacity ? error != 12 : error != 0))
+            throw new InvalidOperationException("CLROS_SERVICE_NATIVE_REJECT pressure");
+        nint recovered = MapNative(0, chunk, 3, 0x22, -1, 0);
+        if (recovered == -1) throw new InvalidOperationException("CLROS_SERVICE_NATIVE_REJECT recovery_map");
+        try
+        {
+            var bytes = new Span<byte>((void*)recovered, chunk); bytes.Fill(0xa7);
+            intact = bytes.IndexOfAnyExcept((byte)0xa7) < 0;
+        }
+        finally { released = UnmapNative(recovered, chunk) == 0; }
+        if (!intact || !released) throw new InvalidOperationException("CLROS_SERVICE_NATIVE_REJECT recovery");
+        return string.Create(CultureInfo.InvariantCulture,
+            $"capacityBytes={capacity * chunk} retainedBytes={count * chunk} gcCommitted={committed} quota={(error == 12 ? 1 : 0)} errno={error} releasedBytes={count * chunk} recoveredBytes={chunk}");
+    }
+
+    [DllImport("libc", EntryPoint = "mmap", SetLastError = true)]
+    private static extern nint MapNative(nint address, nuint bytes, int protection, int flags, int descriptor, long offset);
+    [DllImport("libc", EntryPoint = "munmap", SetLastError = true)]
+    private static extern int UnmapNative(nint address, nuint bytes);
 
     // The separate frame bounds reference lifetime after exhaustion; finally
     // clears all roots before the caller attempts a fresh recovery allocation.

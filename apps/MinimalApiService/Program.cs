@@ -34,6 +34,7 @@ try
     var app = builder.Build();
     Console.Error.WriteLine("CLROS_APP_BUILT minimal.api.service");
     if (lifecycle) Console.Error.WriteLine("CLROS_SERVICE_GC_BEGIN " + ServiceLifecycleExercise.MeasureGcBudget());
+    if (lifecycle) Console.Error.WriteLine("CLROS_SERVICE_NATIVE_BEGIN " + ServiceLifecycleExercise.MeasureNativeBudget());
     using var exercise = new ServiceExercise(app.Lifetime.StopApplication);
     var lifecycleExercise = lifecycle ? new ServiceLifecycleExercise() : null;
     using var stopping = app.Lifetime.ApplicationStopping.Register(exercise.RequestStop);
@@ -87,6 +88,7 @@ try
         if (!lifecycleExercise.IsDrained) { Console.Error.WriteLine("CLROS_SERVICE_FAIL lifecycle_drain"); return 70; }
         Console.Error.WriteLine("CLROS_SERVICE_LIFECYCLE_END " + lifecycleExercise.Read());
         Console.Error.WriteLine("CLROS_SERVICE_GC_END " + ServiceLifecycleExercise.MeasureGcBudget());
+        Console.Error.WriteLine("CLROS_SERVICE_NATIVE_END " + ServiceLifecycleExercise.MeasureNativeBudget());
     }
     Console.Error.WriteLine($"CLROS_SERVICE_APP_END calls={final.Calls} randomRequests={final.RandomRequests} randomBytes={final.RandomBytes} iterations={final.Iterations} elapsedMillis={final.ElapsedMilliseconds} worker=joined");
     GC.KeepAlive(witness);

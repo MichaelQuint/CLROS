@@ -239,6 +239,18 @@ classification or a headroom claim.73 scoped focused checks and freestanding
 C# compilation pass. New native/guest evidence and native quota stimuli remain
 pending; older captures do not satisfy this new record contract.
 
+[Step1467](../done/step1467.md) implements explicit v2 native pressure before
+listening and after drain. Direct static libc imports map up to32 one-MiB
+anonymous writable ranges, fill/check every byte, release all mappings, then
+verify and release a fresh one-MiB mapping. ENOMEM is distinguished from Linux
+satisfying the entire bounded probe. Strict replay requires reported ENOMEM,
+matching release/recovery, exact channel/order and simultaneous explicit native
+plus GC commitment within the kernel backing peak. This does not classify all
+native memory or identify whether physical backing or metadata caused failure.
+21 scoped focused checks and app/host builds pass. Changed app sources reject
+the preceding publication until fresh original publication/index/source joins;
+actual native pressure and guest/headroom acceptance remain pending.
+
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the

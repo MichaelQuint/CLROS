@@ -7,6 +7,13 @@ native source pins remain pending stable-batch review. Total backing is not a
 GC/native partition or measured native headroom. Native pressure/quota stimuli,
 guest/ancestor evidence, complete native review and full-host remain pending.
 
+[Step1467](../done/step1467.md) adds bounded explicit-v2 native mmap pressure,
+full-byte integrity, release-all cleanup and fresh allocation recovery, with
+strict native/GC/peak value joins.21 scoped focused checks and app/host builds
+pass. No new executable or guest is produced; previous image admission rejects
+the changed app sources. Actual native pressure, exhausted-limit identification,
+headroom, current native/guest/ancestor and full-host acceptance remain pending.
+
 [Step1465](../done/step1465.md) publishes the new original service and verifies
 full executable/index coverage and two-mode preparation, with old-image/crossed
 mode rejection. A306s Linux-host run passes lifecycle progress, two managed OOM

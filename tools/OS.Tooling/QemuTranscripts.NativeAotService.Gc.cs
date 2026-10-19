@@ -9,6 +9,11 @@ public static partial class QemuTranscripts
         ulong BaselineCommittedBytes, ulong LiveBytes, ulong LiveHeapBytes, ulong LiveCommittedBytes,
         ulong PressureBytes, ulong PressureHeapBytes, ulong PressureCommittedBytes, ulong PressureCollections);
 
+    /// <summary>Copied values for explicitly retained mmap pressure and its
+    /// release/recovery. These do not classify other native allocations or
+    /// identify which physical/metadata limit produced ENOMEM.</summary>
+    public readonly record struct ServiceNativeMeasurement(ulong RetainedBytes, ulong GcCommittedBytes);
+
     /// <summary>Value-only joins of the supplied entitlement, kernel budget and
     /// two application GC measurements. Write/call, package, native ownership
     /// and guest execution must be independently verified by the parent replay.
@@ -16,7 +21,7 @@ public static partial class QemuTranscripts
     /// versus native allocations or establish native headroom.</summary>
     public readonly record struct ServiceGcInspection(ulong GcLimitBytes, ulong NativeReserveBytes,
         ulong StaticBytes, ulong PoolBytes, ulong EntitlementBytes, ulong PeakBackedBytes, ServiceGcMeasurement Begin, ServiceGcMeasurement End,
-        string TerminalStatus);
+        ServiceNativeMeasurement NativeBegin, ServiceNativeMeasurement NativeEnd, string TerminalStatus);
 
     /// <summary>Synchronously borrow bounded original framed service bytes and
     /// inspect only explicit v2 GC/budget values and ordering. V1 returns null
@@ -29,17 +34,19 @@ public static partial class QemuTranscripts
     internal static ServiceGcInspection? ReadServiceGc(NativeAotThreadingOutput.Capture framed,
         ulong entitlementBytes, bool lifecycle, out int? budgetPosition, out int? memoryPosition)
     {
-        const string budgetMarker = "M16_016_BUDGET", gcMarker = "CLROS_SERVICE_GC_", memoryMarker = "M16_016_MEMORY";
+        const string budgetMarker = "M16_016_BUDGET", gcMarker = "CLROS_SERVICE_GC_", memoryMarker = "M16_016_MEMORY",
+            nativeMarker = "CLROS_SERVICE_NATIVE_";
         budgetPosition = memoryPosition = null;
         bool Has(string marker) => framed.NormalizedTail.Contains(marker, StringComparison.Ordinal) ||
             framed.Stdout.Contains(marker, StringComparison.Ordinal) || framed.Stderr.Contains(marker, StringComparison.Ordinal);
         if (!lifecycle)
         {
-            Need(!Has(budgetMarker) && !Has(gcMarker) && !Has(memoryMarker), "service_gc_requires_explicit_v2"); return null;
+            Need(!Has(budgetMarker) && !Has(gcMarker) && !Has(memoryMarker) && !Has(nativeMarker), "service_gc_requires_explicit_v2"); return null;
         }
         Need(!framed.Stdout.Contains(gcMarker, StringComparison.Ordinal) && !framed.NormalizedTail.Contains(gcMarker, StringComparison.Ordinal) &&
             !framed.Stdout.Contains(budgetMarker, StringComparison.Ordinal) && !framed.Stderr.Contains(budgetMarker, StringComparison.Ordinal) &&
-            !framed.Stdout.Contains(memoryMarker, StringComparison.Ordinal) && !framed.Stderr.Contains(memoryMarker, StringComparison.Ordinal),
+            !framed.Stdout.Contains(memoryMarker, StringComparison.Ordinal) && !framed.Stderr.Contains(memoryMarker, StringComparison.Ordinal) &&
+            !framed.Stdout.Contains(nativeMarker, StringComparison.Ordinal) && !framed.NormalizedTail.Contains(nativeMarker, StringComparison.Ordinal),
             "service_gc_channel");
         string text = framed.NormalizedTail;
         Need(text.EndsWith("\r\n", StringComparison.Ordinal), "service_gc_records");
@@ -75,12 +82,16 @@ public static partial class QemuTranscripts
             Need(found.Length == 1, "service_gc_marker"); return found[0];
         }
         int built = One("CLROS_APP_BUILT minimal.api.service"), begin = One("CLROS_SERVICE_GC_BEGIN ", true),
+            nativeBegin = One("CLROS_SERVICE_NATIVE_BEGIN ", true),
             listen = One("CLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080"),
             drained = One("CLROS_SERVICE_LIFECYCLE_END ", true), end = One("CLROS_SERVICE_GC_END ", true),
-            appEnd = One("CLROS_SERVICE_APP_END ", true);
-        Need(built < begin && begin < listen && listen < drained && drained < end && end < appEnd, "service_gc_order");
+            nativeEnd = One("CLROS_SERVICE_NATIVE_END ", true), appEnd = One("CLROS_SERVICE_APP_END ", true);
+        Need(built < begin && begin < nativeBegin && nativeBegin < listen && listen < drained && drained < end &&
+            end < nativeEnd && nativeEnd < appEnd, "service_gc_order");
         for (int i = 0; i < error.Length; i++)
             Need(!error[i].Contains(gcMarker, StringComparison.Ordinal) || i == begin || i == end, "service_gc_unknown_record");
+        for (int i = 0; i < error.Length; i++)
+            Need(!error[i].Contains(nativeMarker, StringComparison.Ordinal) || i == nativeBegin || i == nativeEnd, "service_native_unknown_record");
         var terminal = ReadRecord(error[drained], "CLROS_SERVICE_LIFECYCLE_END CLROS_LIFECYCLE_STATUS",
             "active:dec", "waiting:dec", "waits:dec", "canceled:dec", "echoes:dec", "streams:dec", "rejected:dec", "read:dec", "written:dec");
         Need(terminal["active"] == 0 && terminal["waiting"] == 0 && terminal["waits"] == 2 && terminal["canceled"] == 2 &&
@@ -92,9 +103,24 @@ public static partial class QemuTranscripts
             Math.Max(last.BaselineCommittedBytes, Math.Max(last.LiveCommittedBytes, last.PressureCommittedBytes)));
         ulong peakBytes = memory["peakPages"] * 4096;
         Need(maximumGcCommitted <= peakBytes, "service_gc_memory_coverage");
+        var firstNative = ReadServiceNativeMeasurement(error[nativeBegin], "CLROS_SERVICE_NATIVE_BEGIN", peakBytes);
+        var lastNative = ReadServiceNativeMeasurement(error[nativeEnd], "CLROS_SERVICE_NATIVE_END", peakBytes);
         budgetPosition = budgets[0]; memoryPosition = memories[0];
-        return new(budget["gc"], budget["nativeReserve"], budget["static"], budget["pool"], entitlementBytes, peakBytes, first, last,
+        return new(budget["gc"], budget["nativeReserve"], budget["static"], budget["pool"], entitlementBytes, peakBytes, first, last, firstNative, lastNative,
             error[drained]["CLROS_SERVICE_LIFECYCLE_END ".Length..]);
+    }
+
+    private static ServiceNativeMeasurement ReadServiceNativeMeasurement(string line, string marker, ulong peakBytes)
+    {
+        var row = ReadRecord(line, marker, "capacityBytes:dec", "retainedBytes:dec", "gcCommitted:dec", "quota:dec",
+            "errno:dec", "releasedBytes:dec", "recoveredBytes:dec");
+        const ulong chunk = 1048576, capacity = 32 * chunk;
+        Need(row["capacityBytes"] == capacity && row["retainedBytes"] is >=chunk and <capacity && row["retainedBytes"] % chunk == 0 &&
+            row["gcCommitted"] is >0 and <=16*chunk && row["gcCommitted"] % 4096 == 0 &&
+            row["quota"] == 1 && row["errno"] == 12 && row["releasedBytes"] == row["retainedBytes"] &&
+            row["recoveredBytes"] == chunk, "service_native_pressure");
+        Need(row["retainedBytes"] + row["gcCommitted"] <= peakBytes, "service_native_memory_coverage");
+        return new(row["retainedBytes"], row["gcCommitted"]);
     }
 
     private static ServiceGcMeasurement ReadServiceGcMeasurement(string line, string marker)
