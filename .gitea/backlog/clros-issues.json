@@ -35176,7 +35176,7 @@
         "M07-033"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:host",
@@ -35200,7 +35200,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prevent unread data on a socket with no remaining descriptor from pinning a full bulk connection throughout TIME-WAIT.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Local normal-harness regression: connect/accept with one bulk slot and compact TIME-WAIT; shutdown(SHUT_WR); receive FIN+one byte with the local FIN acknowledged; close last fd; pump; next independent SYN returns Capacity. Diagnostic: bulk=1 compact=0 next=Capacity shutdown=False. Existing27 fixture cases pass; new expected-success case fails. Source: LinuxSocketServices.cs:556-565 marks Closing without draining RX; LinuxSocketNetwork.cs:285 requires UnreadBytes==0 to compact. The real guest admits eight bulk slots, but no guest denial-of-service was executed. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Claimed under737 after merged review PR783. Preserve exact unread last-close regression, duplicated-fd/half-close/read semantics and healthy-peer/reset/native/guest requirements. Implementation pending; no new acceptance. Claim/scope readback: artifacts/kestrel-churn-foundations-r01/review-service-claims-r01.json.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35248,7 +35248,7 @@
         "M07-030"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p2",
         "type:tooling",
         "evidence:host",
@@ -35270,7 +35270,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Reject transport evidence that omits a high-water event and lowers its summary despite lifecycle records proving a larger peak.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Normal-harness fixture creates ten compact records before any retirement, emits high-water observations only through9, then retires all10 and reports9. InspectNativeAotServiceTransportForTests accepts connections=10 reportedPeak=9. Existing3 cases pass; the added reject control fails. Actual insertions at line138 never update a derived maximum; lines150-169 compare report rows only with previously reported maxima. This does not show that step1437's retained peak24 is incorrect. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Development in step1446 under737: two genuine red controls expose understated compact and hidden bulk peaks. Track maxima at bulk/compact ownership mutations independently from reported snapshots, preserve prior snapshot admission and require both reported maxima at terminal completion. Six focused cases pass unchanged/zero-reuse, including existing lifetime controls. Corrected inspector accepts immutable original r08 serial SHA256 DDCC4FE55F32158CDAE38CA5A31562C09956409FB2E1193DCD8BC243F7E9661B:34 fresh connections/32 compact transfers/retires, bulk peak4, compact peak24,34 sequence generations. Reinspection proof3BE4691BF1E65405314BE898E08D89B9F9B6ACC4F8DD9B30FFBAFB9FE3A44048. This is existing-record reinterpretation, not a fresh guest run or restored full-host gate. Remains open/claimed pending784 and stable batch acceptance.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",

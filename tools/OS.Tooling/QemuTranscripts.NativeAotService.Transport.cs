@@ -31,7 +31,7 @@ public static partial class QemuTranscripts
         Dictionary<ulong,ulong> compactGenerations=[];
         HashSet<ulong> issuedGenerations=[];
         ulong clock=0,owner=0,epoch=0,quiet=0,maximum=0,issued=0;
-        int fresh=0,transfers=0,retired=0,bulkHigh=0,compactHigh=0;
+        int fresh=0,transfers=0,retired=0,bulkHigh=0,compactHigh=0,observedBulkHigh=0,observedCompactHigh=0;
         bool bound=false,ended=false,erased=false;
         string Tuple(ServiceBulk value)=>string.Join(":",new[]{"local","localPort","remote","remotePort"}.Select(key=>value.Identity[key]));
         void Time(ulong now)
@@ -81,7 +81,7 @@ public static partial class QemuTranscripts
                         generations.GetValueOrDefault(row["index"])<ulong.MaxValue &&
                         row["generation"]==generations.GetValueOrDefault(row["index"])+1 && row["deadline"]==0 && row["duration"]==0,
                         "service_transport_fresh");
-                    bulk.Add(row["slot"],value);fresh++;
+                    bulk.Add(row["slot"],value);fresh++;observedBulkHigh=Math.Max(observedBulkHigh,bulk.Count);
                 }
                 else
                 {
@@ -135,7 +135,7 @@ public static partial class QemuTranscripts
                     Need(found && !compact.ContainsKey(index) && value!.Bulk.Retired &&
                         clock==value.Clock && row["originalDeadline"]==value.Original && row["deadline"]==value.Deadline && row["duration"]==value.Duration,
                         "service_compact_create");
-                    compact.Add(index,value!);
+                    compact.Add(index,value!);observedCompactHigh=Math.Max(observedCompactHigh,compact.Count);
                 }
                 else
                 {
@@ -151,7 +151,10 @@ public static partial class QemuTranscripts
             {
                 Need(bound && !ended && pending.Count==0,"service_transport_snapshot");
                 var row=ReadRecord(line,"M07_030_HIGHWATER","bulk:dec","compact:dec","clock:dec");Time(row["clock"]);
-                Need(row["bulk"]==(ulong)Math.Max(bulkHigh,bulk.Count) && row["compact"]==(ulong)Math.Max(compactHigh,compact.Count) &&
+                // Preserve snapshot admission while independently accounting for
+                // peaks that disappeared before any reported high-water event.
+                Need(row["bulk"]==(ulong)observedBulkHigh && row["compact"]==(ulong)observedCompactHigh &&
+                    row["bulk"]==(ulong)Math.Max(bulkHigh,bulk.Count) && row["compact"]==(ulong)Math.Max(compactHigh,compact.Count) &&
                     (row["bulk"]>(ulong)bulkHigh || row["compact"]>(ulong)compactHigh) && row["bulk"]<=8 && row["compact"]<=64,
                     "service_transport_highwater");
                 bulkHigh=(int)row["bulk"];compactHigh=(int)row["compact"];
@@ -163,6 +166,7 @@ public static partial class QemuTranscripts
                 var row=ReadRecord(line[..^suffix.Length],"M07_030_END","transfers:dec","retired:dec","bulkHighWater:dec","compactHighWater:dec","bytesPerRecord:dec","clock:dec","deadline:dec");
                 Time(row["clock"]);
                 Need(fresh>8 && transfers>8 && transfers==retired && pending.Count==0 && bulk.Count==0 && compact.Count==0 &&
+                    bulkHigh==observedBulkHigh && compactHigh==observedCompactHigh &&
                     row["transfers"]==(ulong)transfers && row["retired"]==(ulong)retired && row["bulkHighWater"]==(ulong)bulkHigh && bulkHigh is >0 and <=8 &&
                     row["compactHighWater"]==(ulong)compactHigh && compactHigh is >8 and <=64 &&
                     row["bytesPerRecord"]==(ulong)System.Runtime.CompilerServices.Unsafe.SizeOf<OS.Net.TcpTimeWaitTable.Entry>() && row["bytesPerRecord"] is >0 and <=64 &&

@@ -16,7 +16,7 @@ service, whole-stack, numbered, isolation, cloud and production remain incomplet
 That finite receipt leaves continuing service separate.
 
 [Step1437](../done/step1437.md) qualifies the seven service foundations
-#743/#744/#746/#240/#757/#758/#766 under #737: 5,809 full-host checks across
+#743/#744/#746/#240/#757/#758/#766 under #737: 5,809 observed host markers across
 781 fixtures (94 Native), one complete original service lifetime and ten fresh
 affected ancestors, all joined to frozen implementation `8bee44db`. The sealed
 `MinimalApiService` envelope keeps explicit v1 configuration, port8080/content
@@ -24,6 +24,10 @@ root, 64MiB and16 threads/descriptors. A dedicated real worker exceeds4,096
 calls/300s; DRBG requests, persist recovery, pending resets, compact TIME-WAIT,
 independent TCP keys and genuine shutdown/reaps have exact native/packet/source
 evidence. Host controls cover seed/reseed/failure and empty full-window sends.
+M11-026/#784 later identifies13 unawaited async entries in that host receipt.
+Its full-host qualification is withheld until a corrected stable unfiltered run;
+independent original native/guest evidence remains retained. Step1444 records
+the correction and reopened prerequisite states.
 
 The original r03 application has1,356,753 instructions/198 syscall continuations
 across all five executable sections. The qualified capture consumes18,708 random
@@ -33,7 +37,9 @@ Next #224 must supply its repeated-service acceptance after the October19
 [#778 last-close repair](http://192.168.4.35:3000/admin/CLROS/issues/778) and
 [#779 independent high-water validation](http://192.168.4.35:3000/admin/CLROS/issues/779).
 #225 retains its separate memory/budget/pending-signal dependencies. The review
-does not reopen finite step1437 prerequisites. This advances no numbered Gate14,
+does not itself reopen finite step1437 prerequisites; the separate #784 host
+validation repair above does. Step1446 repairs #779's independent peaks and
+reinspects the original record without a new guest run. This advances no numbered Gate14,
 arbitrary hosted-.NET, isolation, cloud or production claim.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
