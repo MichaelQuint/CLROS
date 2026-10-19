@@ -231,6 +231,30 @@ upstream tests, changed no completion gate, and supplies no direct firmware
 revocation, constructor or dispatch implementation. Native pipes remain outside
 the immediate single-workload path.
 
+### SharpOS FAT cache and directory cursor review (2026-10-19)
+
+Pinned source: [`OS/src/Hal/Fat32.cs` at `931671e2a02fa9eef6daaa518a95cbb98accd956`](https://github.com/daniilvaino/SharpOS/blob/931671e2a02fa9eef6daaa518a95cbb98accd956/OS/src/Hal/Fat32.cs),
+October 13. Its dedicated FAT-sector buffer reduces repeated reads of cluster
+entries in the same sector. Its resumable directory cursor retains scan and
+long-name state to avoid entry-zero rescans during sequential enumeration.
+These mechanisms are useful algorithm references for
+[M16-024/#771](http://192.168.4.35:3000/admin/CLROS/issues/771).
+
+Do not copy the global DMA/scratch buffers or single shared cursor. CLROS needs
+fixed caller-owned capacity, mount/device generations, validated FAT-copy
+identity and independent operation state. SharpOS `FatNext` returns zero for
+both a failed FAT read and an end-of-chain value; CLROS must retain separate
+I/O-error, corruption and EOF statuses. Preserve existing selection/version,
+mirror, partition, cycle and VFAT validation on cold and cached paths.
+
+[Storage](cstorage.md#planned-fat-sector-cache-and-resumable-traversal) owns the
+required behavior and measurements. #782 remains the earlier host scratch
+repair; #771 caching/guest work is not a new condition for closing it. This
+update imports no source, runs no SharpOS binary and makes no performance or
+guest-acceptance claim. Selective source adaptation, if later chosen, must
+retain exact provenance and file-local notices under the existing
+[license policy](license-audit.md#sharpos-specific-boundary).
+
 ## Secondary NativeAOT/Cosmos Gen3 Crosswalk
 
 These local paths also exist:
