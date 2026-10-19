@@ -50,6 +50,11 @@ public static unsafe class LinuxStartupServices
         public delegate* unmanaged<void*, byte> MemoryBarrier;
         public OS.Kernel.Platform.OwnedRealtimeClock.State* Realtime;
         public ulong FrequencyHz, PhysicalBytes, AvailableBytes, HeapStart, HeapBytes, StackBytes;
+        /// <summary>Optional value-only budget from the immutable package and
+        /// sealed boot ledger. Success must match this actual pool and cover the
+        /// initial heap; failed preflight cannot grant startup. Legacy absence
+        /// retains prior policy. This does not partition GC/native pool pages.</summary>
+        public OS.Manifest.LinuxAppConfiguration.GcBudget GcBudget;
         public uint ProcessId;
         public byte* Entropy;
         public uint CapturedEntropyBytes;
@@ -71,6 +76,7 @@ public static unsafe class LinuxStartupServices
     public struct State
     {
         internal Admission Owner;
+        public readonly OS.Manifest.LinuxAppConfiguration.GcBudget GcBudget => Initialized == 1 ? Owner.GcBudget : default;
         internal ulong CurrentBreak, LastTicks;
         internal uint Initialized, UsedEntropy, BarrierRegistered;
         internal uint EntropyDiscarded;
@@ -104,6 +110,7 @@ public static unsafe class LinuxStartupServices
             admission.PhysicalBytes == 0 || admission.PhysicalBytes > 0x100000000 ||
             admission.AvailableBytes > admission.PhysicalBytes ||
             admission.AvailableBytes < admission.Memory->Memory.PoolPages * 4096UL ||
+            !AdmitGcBudget(admission) ||
             (admission.PhysicalBytes & 4095) != 0 || (admission.AvailableBytes & 4095) != 0 ||
             admission.StackBytes == 0 || admission.StackBytes > 16 * 1024 * 1024 ||
             admission.HeapStart < LinuxMemoryServices.DynamicStart || (admission.HeapStart & 4095) != 0 ||
@@ -124,6 +131,15 @@ public static unsafe class LinuxStartupServices
         if (LinuxMemoryServices.ReserveHeap(admission.Memory, admission.HeapStart, admission.HeapBytes) != (long)admission.HeapStart) return false;
         state->Owner = admission; state->CurrentBreak = admission.HeapStart; state->LastTicks = ticks; state->Initialized = 1;
         return true;
+    }
+
+    private static bool AdmitGcBudget(Admission admission)
+    {
+        var budget = admission.GcBudget;
+        if (budget.Result == OS.Manifest.LinuxAppConfiguration.Status.Uninitialized ||
+            budget.Result == OS.Manifest.LinuxAppConfiguration.Status.Unconfigured) return true;
+        return budget.Succeeded && budget.PoolBytes == admission.Memory->Memory.PoolPages * 4096UL &&
+            admission.HeapBytes <= budget.NativeReserveBytes;
     }
 
     /// <summary>Dispatch from the explicit M16-006 gateway extension. Unknown

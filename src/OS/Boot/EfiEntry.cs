@@ -1661,6 +1661,11 @@ public static unsafe partial class EfiEntry
                 !entropyReady || state->LinuxRandomCapture.Rng != null ||
                 state->LinuxRandomCapture.GetRng != null || state->LinuxRandomCapture.SystemTable != null ||
                 state->LinuxRandomCapture.BootServices != null || state->LinuxRandomCapture.Locate != null || !LinuxSingleCpu(state)) return false;
+            var gcBudget = OS.Manifest.LinuxAppConfiguration.ReadGcBudgetFromReservations(
+                (byte*)state->LinuxPackage + state->LinuxView.ManifestOffset, state->LinuxView.ManifestBytes,
+                state->LinuxView.Manifest, (BootReservedRange*)state->LinuxLedger, state->LinuxLedgerCount,
+                LinuxLedgerCapacity, state->LinuxMemoryPool, LinuxMemoryPoolPages(state), LinuxMemoryPoolPages(state) * Page / 2);
+            if (!gcBudget.Succeeded && gcBudget.Result != OS.Manifest.LinuxAppConfiguration.Status.Unconfigured) return false;
             state->LinuxMemoryPhase = 3;
             state->LinuxMemoryCheckpoint = 2;
             LinuxMemoryServices.Admission memory = new()
@@ -1686,7 +1691,7 @@ public static unsafe partial class EfiEntry
                 Memory = &state->LinuxMemory, User = access, ReadClock = &ReadLinuxClock, CopyToUser = &CopyToLinuxUser,
                 MemoryBarrier = &LinuxMemoryBarrier, FrequencyHz = state->Clock.FrequencyHz,
                 PhysicalBytes = physical, AvailableBytes = available, HeapStart = 0x400000000, HeapBytes = 2 * 1024 * 1024,
-                StackBytes = state->LinuxInitialStack.StackBytes, ProcessId = 1,
+                StackBytes = state->LinuxInitialStack.StackBytes, ProcessId = 1, GcBudget = gcBudget,
                 Entropy = entropyBytes == FirmwareEntropyReservoir.Bytes ? state->LinuxRuntimeRandom.Data : state->LinuxRandomRetained.Data,
                 CapturedEntropyBytes = entropyBytes, SingleCpuValidated = true, FirmwareExited = true
             };
@@ -1701,6 +1706,12 @@ public static unsafe partial class EfiEntry
             if (!LinuxStartupServices.Begin(&state->LinuxServices, startup)) return false;
             state->LinuxMemoryCheckpoint = 5;
             state->LinuxUserRoot = state->LinuxMemory.Root; state->LinuxMemoryPhase = 4;
+            if (gcBudget.Succeeded && (!LinuxText(state, "M16_016_BUDGET gc=") || !LinuxNumber(state, gcBudget.GcLimitBytes) ||
+                !LinuxText(state, " nativeReserve=") || !LinuxNumber(state, gcBudget.NativeReserveBytes) ||
+                !LinuxText(state, " static=") || !LinuxNumber(state, gcBudget.StaticBytes) ||
+                !LinuxText(state, " pool=") || !LinuxNumber(state, gcBudget.PoolBytes) ||
+                !LinuxText(state, " entitlement=") || !LinuxNumber(state, gcBudget.EntitlementBytes) ||
+                !LinuxText(state, "\r\n"))) return false;
 #if M16_014_PROBE
             if (!LinuxText(state, "M11_012_SEED source=firmware-rng acquisitions=2 entropyBytes=32 nonceBytes=16 domain=getrandom state=ready firmwareCallbacks=none\r\nM07_033_SEED source=firmware-rng acquisitions=1 secretBytes=32 domain=tcp-isn state=ready firmwareCallbacks=none\r\n")) return false;
 #endif

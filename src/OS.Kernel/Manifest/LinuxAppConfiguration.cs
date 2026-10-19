@@ -1,4 +1,5 @@
 using OS.Std.Text;
+using OS.Kernel.Memory;
 
 namespace OS.Manifest;
 
@@ -13,14 +14,42 @@ public static unsafe class LinuxAppConfiguration
 
     public readonly struct GcBudget
     {
-        internal GcBudget(Status status, ulong pool = 0, ulong statics = 0, ulong native = 0, ulong gc = 0)
-        { Result = status; PoolBytes = pool; StaticBytes = statics; NativeReserveBytes = native; GcLimitBytes = gc; }
+        internal GcBudget(Status status, ulong pool = 0, ulong statics = 0, ulong native = 0, ulong gc = 0, ulong entitlement = 0)
+        { Result = status; PoolBytes = pool; StaticBytes = statics; NativeReserveBytes = native; GcLimitBytes = gc; EntitlementBytes = entitlement; }
         public readonly Status Result;
-        public readonly ulong PoolBytes, StaticBytes, NativeReserveBytes, GcLimitBytes;
+        public readonly ulong PoolBytes, StaticBytes, NativeReserveBytes, GcLimitBytes, EntitlementBytes;
         public bool Succeeded => Result == Status.Success;
     }
 
     public const ulong MinimumGcLimitBytes = 8 * 1024 * 1024;
+
+    /// <summary>Derive static charges from the owner's sealed retained ledger,
+    /// including package/image, tables, kernel/descriptor and worker reservations.
+    /// Exclude exactly one LinuxElfBacking range matching the actual dynamic pool.
+    /// Borrow immutable readable inputs under serialized boot ownership; retain
+    /// no addresses and mutate nothing. Invalid/ambiguous provenance fails closed.
+    /// This accounts declared headroom; guest pressure must establish sufficiency.</summary>
+    public static GcBudget ReadGcBudgetFromReservations(byte* bytes, uint length, LinuxElfManifest manifest,
+        BootReservedRange* reservations, uint count, uint capacity, ulong poolStart, uint poolPages,
+        ulong nativeReserveBytes, bool required = false)
+    {
+        if (capacity > 32 || count == 0 || count > capacity || poolPages == 0 ||
+            !BootReservationTableValidator.Validate(reservations, count, capacity).Succeeded)
+            return new(Status.InvalidEntitlement);
+        ulong statics = 0; uint found = 0;
+        for (uint i = 0; i < count; i++)
+        {
+            var range = reservations[i];
+            if (range.PhysicalStart.TryGetRawValueForUefiBoundary(out ulong start) != OS.Boot.AddressValueStatus.Success)
+                return new(Status.InvalidEntitlement);
+            if (range.Kind == BootReservationKind.LinuxElfBacking && start == poolStart && range.PageCount == poolPages)
+            { found++; continue; }
+            if (range.ByteLength > ulong.MaxValue - statics) return new(Status.InvalidEntitlement);
+            statics += range.ByteLength;
+        }
+        if (found != 1) return new(Status.InvalidEntitlement);
+        return ReadGcBudget(bytes, length, manifest, poolPages, statics, nativeReserveBytes, required);
+    }
 
     /// <summary>Recognize only the pinned runtime's exact case-sensitive
     /// DOTNET_GCHeapHardLimit name. This permits its mixed case without widening
@@ -65,6 +94,6 @@ public static unsafe class LinuxAppConfiguration
             pool == 0 || pool > entitlement || staticBytes == 0 || (staticBytes & 4095) != 0 || staticBytes > entitlement - pool ||
             nativeReserveBytes == 0 || (nativeReserveBytes & 4095) != 0 || nativeReserveBytes >= pool || gc > pool - nativeReserveBytes)
             return new(Status.InvalidEntitlement);
-        return new(Status.Success, pool, staticBytes, nativeReserveBytes, gc);
+        return new(Status.Success, pool, staticBytes, nativeReserveBytes, gc, entitlement);
     }
 }

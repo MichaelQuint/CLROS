@@ -6,6 +6,44 @@ using OS.Std.Hash;
 
 internal static unsafe class LinuxStartupServicesTests
 {
+    [HostTest("linux startup binds configured GC budget to actual pool while retaining physical memory facts and hard commit cap")]
+    private static void GcBudgetAdmission()
+    {
+        using Owner owner = new(new LinuxMemoryServicesTests.Owner(backingPages: 4096));
+        var admission = owner.Admission(); admission.GcBudget = LinuxGcBudgetTests.Read("env.DOTNET_GCHeapHardLimit=800000\n", 4096, 4096, 8388608);
+        HostCheck.True(admission.GcBudget.Succeeded); HostCheck.True(LinuxStartupServices.Begin(owner.State, admission));
+        HostCheck.Equal(8388608UL, owner.State->GcBudget.GcLimitBytes);
+        HostCheck.Equal(16777216UL, owner.State->GcBudget.PoolBytes);
+        HostCheck.Equal(0L, owner.Call(99, Output));
+        HostCheck.Equal(admission.PhysicalBytes, *(ulong*)(owner.Memory.At(Output) + 32));
+        HostCheck.Equal(-12L, owner.Call(9, 0, 16777216, 3, 0x22, ulong.MaxValue));
+        long mapped = owner.Call(9, 0, 4096, 3, 0x22, ulong.MaxValue); HostCheck.True(mapped > 0);
+        HostCheck.Equal(0L, owner.Call(11, (ulong)mapped, 4096)); HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+    }
+
+    [HostTest("linux startup rejects failed and stale-pool GC budgets before heap or entropy ownership changes")]
+    private static void RejectedGcBudget()
+    {
+        using var owner = new Owner();
+        foreach (var budget in new[] { LinuxGcBudgetTests.Read(""), LinuxGcBudgetTests.Read("env.DOTNET_GCHeapHardLimit=bad!\n"),
+            LinuxGcBudgetTests.Read("env.DOTNET_GCHeapHardLimit=800000\n", 4096, 4096, 8388608) })
+        {
+            var admission = owner.Admission(); admission.GcBudget = budget; var before = new Snapshot(owner);
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+            HostCheck.Equal(0UL, owner.State->GcBudget.GcLimitBytes);
+        }
+        owner.Begin(); HostCheck.True(!owner.State->GcBudget.Succeeded);
+    }
+
+    [HostTest("linux startup rejects an initial heap larger than the declared native headroom")]
+    private static void GcNativeHeadroom()
+    {
+        using Owner owner = new(new LinuxMemoryServicesTests.Owner(backingPages: 4096));
+        var admission = owner.Admission(); admission.GcBudget = LinuxGcBudgetTests.Read("env.DOTNET_GCHeapHardLimit=800000\n", 4096, 4096, 8388608);
+        admission.HeapBytes = 8388608 + 4096; var before = new Snapshot(owner);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+    }
+
     [HostTest("linux.runtime r13 reservation and sparse commit trace fits retained mappings without false ENOMEM")]
     private static void RuntimeMemoryTrace()
     {

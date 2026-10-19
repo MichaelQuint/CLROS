@@ -1,5 +1,13 @@
 # CLROS Completion Gates
 
+[Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
+sealed retained reservation ledger and actual dynamic pool.43 focused checks
+(9GC/34startup) and continuing-service freestanding C# compilation pass. Declared
+half-pool native headroom remains provisional; no GC/native page partition,
+configured app publication, effective guest limit, pressure/recovery or new
+full-host/native/guest acceptance is established. Physical RAM reporting stays
+independent. No gate advances.
+
 [Step1449](../done/step1449.md) prepares M16-016 absolute GC-budget preflight
 with43 focused host checks. Startup wiring and guest budget authority remain
 pending. The shared pointer hexadecimal overload supports complete borrowed

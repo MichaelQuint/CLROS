@@ -169,7 +169,17 @@ Step1449 adds value-only preflight for the exact `DOTNET_GCHeapHardLimit` key,
 binding an aligned absolute limit to actual pool pages and explicit static/native
 reservations within the manifest entitlement.43 focused host checks pass;
 malformed limits, aliases, percentages and competing overrides fail closed.
-The preflight is not yet wired into startup and grants no applied budget authority.
+That preflight checkpoint grants no applied budget authority. Step1450 wires
+optional configuration before memory adoption and heap reservation. Static
+charges come from the sealed retained ledger (including kernel/package/image,
+tables, descriptor and worker reservations), excluding exactly the actual dynamic
+pool. Startup requires the same pool size and initial-heap coverage; sysinfo
+continues to report actual physical/available RAM. Native headroom is provisionally
+half the pool, not a GC/native page partition or measured sufficiency guarantee.
+43 focused checks (9GC/34startup) and continuing-service freestanding C# compilation
+pass. Configured admission emits `M16_016_BUDGET`; actual guest runtime sizing,
+resource peaks and pressure/recovery remain unvalidated. No configured app has
+yet been published or accepted under this policy.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment
