@@ -203,6 +203,17 @@ both real GC measurements report the16MiB limit with2MiB retained live arrays,
 and5,267,456/8,667,136 committed bytes. The ELF remains unchanged. This extends
 steps1451-1453's helper/schema/startup development; it is Linux-host evidence.
 
+[Step1464](../done/step1464.md) extends the explicit v2 GC measurement with
+bounded managed exhaustion and recovery. At most32 one-MiB arrays are attempted;
+the workload checks retained contents after OOM, clears all roots in a separate
+frame, collects, then verifies fresh2MiB allocations. The strict consumer requires
+the pressure bytes, heap/commit bounds, real collections and exactly one caught
+OOM in both measurements. Sixteen scoped focused checks and app/helper builds
+pass. New pressure execution is pending:the publication source pin is refreshed,
+but old-image preparation deliberately rejects until a new original Linux ELF
+and complete decoder index are reviewed. Historical v2 captures retain their
+earlier source/consumer scope. Native-pool exhaustion/headroom remains separate.
+
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the

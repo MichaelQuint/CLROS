@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 /// <summary>Explicit v2 diagnostic routes share these bounded request workers.
 /// Kestrel owns request/response streams and cancellation; this object never
@@ -26,10 +27,11 @@ internal sealed class ServiceLifecycleExercise
     internal static byte ByteAt(int offset) => unchecked((byte)(offset * 17 + 31));
 
     /// <summary>Explicit v2-only runtime observation under the canonical16MiB
-    /// workstation GC limit. Retain32 live64KiB arrays across a forced collection,
-    /// then release them before serving/shutdown continues. Failure rejects this
-    /// diagnostic run. Values describe GC only, never native headroom or quota
-    /// recovery; host observations grant no guest execution authority.</summary>
+    /// workstation GC limit. Fill bounded one-MiB arrays until managed allocation
+    /// fails, verify their data and release every reference. Then retain32 fresh
+    /// 64KiB arrays across collection to prove allocation recovery before service
+    /// progress continues. Failure rejects the diagnostic run. Values describe
+    /// managed GC only; native-pool quotas/headroom need independent evidence.</summary>
     internal static string MeasureGcBudget()
     {
         const long expected = 16 * 1024 * 1024, liveBytes = 2 * 1024 * 1024;
@@ -39,6 +41,11 @@ internal sealed class ServiceLifecycleExercise
         var before = GC.GetGCMemoryInfo();
         if (before.TotalAvailableMemoryBytes != expected)
             throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT limit");
+        var pressure = ExhaustGc();
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        if (!pressure.Caught || !pressure.DataIntact || pressure.Bytes < 1048576 || pressure.Bytes >= expected ||
+            pressure.Heap < pressure.Bytes || pressure.Committed < pressure.Heap || pressure.Committed > expected || pressure.Collections <= 0)
+            throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT pressure");
         byte[][] held = new byte[32][];
         for (int i = 0; i < held.Length; i++) { held[i] = new byte[65536]; held[i].AsSpan().Fill((byte)(i + 1)); }
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
@@ -46,9 +53,39 @@ internal sealed class ServiceLifecycleExercise
         if (live.TotalAvailableMemoryBytes != expected || live.HeapSizeBytes < liveBytes ||
             live.TotalCommittedBytes < live.HeapSizeBytes || live.TotalCommittedBytes > expected)
             throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT accounting");
+        for (int i = 0; i < held.Length; i++)
+            if (held[i].AsSpan().IndexOfAnyExcept((byte)(i + 1)) >= 0)
+                throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT recovery_data");
         string result = string.Create(CultureInfo.InvariantCulture,
-            $"limit={live.TotalAvailableMemoryBytes} baselineHeap={before.HeapSizeBytes} baselineCommitted={before.TotalCommittedBytes} liveBytes={liveBytes} liveHeap={live.HeapSizeBytes} liveCommitted={live.TotalCommittedBytes}");
+            $"limit={live.TotalAvailableMemoryBytes} baselineHeap={before.HeapSizeBytes} baselineCommitted={before.TotalCommittedBytes} liveBytes={liveBytes} liveHeap={live.HeapSizeBytes} liveCommitted={live.TotalCommittedBytes} pressureBytes={pressure.Bytes} pressureHeap={pressure.Heap} pressureCommitted={pressure.Committed} pressureCollections={pressure.Collections} oom=1");
         GC.KeepAlive(held); return result;
+    }
+
+    private readonly record struct GcPressure(long Bytes, long Heap, long Committed, int Collections, bool Caught, bool DataIntact);
+
+    // The separate frame bounds reference lifetime after exhaustion; finally
+    // clears all roots before the caller attempts a fresh recovery allocation.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static GcPressure ExhaustGc()
+    {
+        const int chunk = 1024 * 1024;
+        byte[][] held = new byte[32][]; int count = 0, before = GC.CollectionCount(GC.MaxGeneration);
+        bool caught = false, intact = true;
+        try
+        {
+            try
+            {
+                for (; count < held.Length; count++)
+                { held[count] = new byte[chunk]; held[count].AsSpan().Fill((byte)(count + 1)); }
+            }
+            catch (OutOfMemoryException) { caught = true; }
+            for (int i = 0; i < count; i++)
+                if (held[i].AsSpan().IndexOfAnyExcept((byte)(i + 1)) >= 0) intact = false;
+            var memory = GC.GetGCMemoryInfo();
+            return new((long)count * chunk, memory.HeapSizeBytes, memory.TotalCommittedBytes,
+                GC.CollectionCount(GC.MaxGeneration) - before, caught, intact);
+        }
+        finally { Array.Clear(held); }
     }
 
     internal async Task<EchoResult> ReadEchoAsync(Stream input, long? contentLength, CancellationToken cancellation)

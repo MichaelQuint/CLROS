@@ -1,5 +1,13 @@
 # CLROS Completion Gates
 
+[Step1464](../done/step1464.md) implements bounded managed GC exhaustion and
+fresh-allocation recovery in the explicit v2 service, with strict pressure
+fields and16 scoped focused checks. App/helper builds pass; the new workload
+has not executed. Old-image preparation rejects the changed source until a new
+original Linux publication/index is reviewed. Earlier actual lifecycle proof
+retains its own source scope and supplies no pressure result. Native pressure,
+headroom, guest ancestors, native/full-host review and batch acceptance remain.
+
 [Step1463](../done/step1463.md) adds the first strict `FragmentedBacking`
 guest at clean implementation `141b3673`:18 calls check a six-MiB mapping
 across two physical holes, surviving bytes, cross-extent copy, discard/recommit,

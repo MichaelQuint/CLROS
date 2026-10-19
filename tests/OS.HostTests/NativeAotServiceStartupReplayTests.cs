@@ -7,7 +7,7 @@ internal static class NativeAotServiceStartupReplayTests
     private const string Prefix = "CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_CCTOR minimal.api.service\n" +
         "CLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\n";
     private const string Listening = "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n";
-    private const string GcBegin = "CLROS_SERVICE_GC_BEGIN limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4165632\n";
+    private const string GcBegin = "CLROS_SERVICE_GC_BEGIN limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4165632 pressureBytes=12582912 pressureHeap=12615680 pressureCommitted=14680064 pressureCollections=3 oom=1\n";
     private const string GcBudget = "M16_016_BUDGET gc=16777216 nativeReserve=16777216 static=16777216 pool=33554432 entitlement=67108864\r\n";
     private const string LifecycleEnd = "CLROS_SERVICE_LIFECYCLE_END CLROS_LIFECYCLE_STATUS active=0 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288\n";
     private const string ApplicationEnd = "CLROS_SERVICE_APP_END calls=4097 randomRequests=1 randomBytes=8192 iterations=1 elapsedMillis=300001 worker=joined\n";
@@ -26,6 +26,8 @@ internal static class NativeAotServiceStartupReplayTests
             HostCheck.Equal(16777216UL, value.StaticBytes); HostCheck.Equal(33554432UL, value.PoolBytes);
             HostCheck.Equal(67108864UL, value.EntitlementBytes); HostCheck.Equal(30920UL, value.Begin.BaselineHeapBytes);
             HostCheck.Equal(2097152UL, value.End.LiveBytes); HostCheck.Equal(4165632UL, value.End.LiveCommittedBytes);
+            HostCheck.Equal(12582912UL, value.Begin.PressureBytes); HostCheck.Equal(12615680UL, value.Begin.PressureHeapBytes);
+            HostCheck.Equal(14680064UL, value.End.PressureCommittedBytes); HostCheck.Equal(3UL, value.End.PressureCollections);
             HostCheck.Equal(LifecycleEnd["CLROS_SERVICE_LIFECYCLE_END ".Length..^1], value.TerminalStatus);
             HostCheck.True(raw.AsSpan().SequenceEqual(before)); Array.Fill(raw, (byte)0);
             HostCheck.Equal(2129504UL, value.Begin.LiveHeapBytes);
@@ -33,6 +35,28 @@ internal static class NativeAotServiceStartupReplayTests
         HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(Raw()), 0) is null);
         RejectGc(GcRaw(), lifecycle: false); RejectGc(Raw() + GcBudget, lifecycle: false);
         RejectGc(Raw() + Frame("CLROS_SERVICE_GC_REJECT runtime\n"), lifecycle: false);
+    }
+
+    [HostTest("service v2 GC pressure requires bounded retained bytes actual collections and exhaustion before recovery")]
+    private static void GcPressureControls()
+    {
+        foreach(string begin in new[]{
+            GcBegin.Replace("pressureBytes=12582912", "pressureBytes=1048576", StringComparison.Ordinal),
+            GcBegin.Replace("pressureBytes=12582912 pressureHeap=12615680 pressureCommitted=14680064", "pressureBytes=15728640 pressureHeap=15761408 pressureCommitted=16777216", StringComparison.Ordinal)})
+            HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(GcRaw(begin:begin)),67108864,true).HasValue);
+        foreach(string begin in new[]{
+            GcBegin.Replace("pressureBytes=12582912", "pressureBytes=0", StringComparison.Ordinal),
+            GcBegin.Replace("pressureBytes=12582912", "pressureBytes=12582913", StringComparison.Ordinal),
+            GcBegin.Replace("pressureBytes=12582912", "pressureBytes=16777216", StringComparison.Ordinal),
+            GcBegin.Replace("pressureHeap=12615680", "pressureHeap=12582911", StringComparison.Ordinal),
+            GcBegin.Replace("pressureCommitted=14680064", "pressureCommitted=12615679", StringComparison.Ordinal),
+            GcBegin.Replace("pressureCommitted=14680064", "pressureCommitted=16777217", StringComparison.Ordinal),
+            GcBegin.Replace("pressureCollections=3", "pressureCollections=0", StringComparison.Ordinal),
+            GcBegin.Replace("pressureCollections=3", "pressureCollections=2147483648", StringComparison.Ordinal),
+            GcBegin.Replace("pressureCollections=3", "pressureCollections=03", StringComparison.Ordinal),
+            GcBegin.Replace(" oom=1", "", StringComparison.Ordinal),
+            GcBegin.Replace("oom=1", "oom=0", StringComparison.Ordinal),
+            GcBegin.Replace("oom=1", "oom=2", StringComparison.Ordinal)})RejectGc(GcRaw(begin:begin));
     }
 
     [HostTest("service v2 GC parser rejects substituted unaligned overflowing missing duplicate and misplaced budgets")]

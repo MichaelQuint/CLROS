@@ -3,9 +3,11 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     /// <summary>Copied GC values from one fd2 measurement. These describe
-    /// supplied output and confer no allocation, runtime or guest authority.</summary>
+    /// supplied output, including bounded exhaustion and later live recovery,
+    /// and confer no allocation, runtime or guest authority.</summary>
     public readonly record struct ServiceGcMeasurement(ulong LimitBytes, ulong BaselineHeapBytes,
-        ulong BaselineCommittedBytes, ulong LiveBytes, ulong LiveHeapBytes, ulong LiveCommittedBytes);
+        ulong BaselineCommittedBytes, ulong LiveBytes, ulong LiveHeapBytes, ulong LiveCommittedBytes,
+        ulong PressureBytes, ulong PressureHeapBytes, ulong PressureCommittedBytes, ulong PressureCollections);
 
     /// <summary>Value-only joins of the supplied entitlement, kernel budget and
     /// two application GC measurements. Write/call, package, native ownership
@@ -81,11 +83,16 @@ public static partial class QemuTranscripts
 
     private static ServiceGcMeasurement ReadServiceGcMeasurement(string line, string marker)
     {
-        var row = ReadRecord(line, marker, "limit:dec", "baselineHeap:dec", "baselineCommitted:dec", "liveBytes:dec", "liveHeap:dec", "liveCommitted:dec");
+        var row = ReadRecord(line, marker, "limit:dec", "baselineHeap:dec", "baselineCommitted:dec", "liveBytes:dec", "liveHeap:dec", "liveCommitted:dec",
+            "pressureBytes:dec", "pressureHeap:dec", "pressureCommitted:dec", "pressureCollections:dec", "oom:dec");
         const ulong limit = 16 * 1024 * 1024, live = 2 * 1024 * 1024;
         Need(row["limit"] == limit && row["liveBytes"] == live && row["baselineHeap"] <= row["baselineCommitted"] &&
             row["baselineCommitted"] <= limit && row["liveHeap"] >= live && row["liveHeap"] <= row["liveCommitted"] &&
             row["liveCommitted"] <= limit, "service_gc_measurement");
-        return new(row["limit"], row["baselineHeap"], row["baselineCommitted"], row["liveBytes"], row["liveHeap"], row["liveCommitted"]);
+        Need(row["pressureBytes"] is >=1048576 and <limit && row["pressureBytes"] % 1048576 == 0 &&
+            row["pressureHeap"] >= row["pressureBytes"] && row["pressureHeap"] <= row["pressureCommitted"] && row["pressureCommitted"] <= limit &&
+            row["pressureCollections"] is >0 and <=int.MaxValue && row["oom"] == 1, "service_gc_pressure");
+        return new(row["limit"], row["baselineHeap"], row["baselineCommitted"], row["liveBytes"], row["liveHeap"], row["liveCommitted"],
+            row["pressureBytes"], row["pressureHeap"], row["pressureCommitted"], row["pressureCollections"]);
     }
 }
