@@ -1,5 +1,13 @@
 # CLROS Completion Gates
 
+[Step1465](../done/step1465.md) publishes the new original service and verifies
+full executable/index coverage and two-mode preparation, with old-image/crossed
+mode rejection. A306s Linux-host run passes lifecycle progress, two managed OOM
+episodes with verified fresh allocation recovery, drain and joined exit0. The
+ELF is unchanged. This supersedes step1464's publication/pressure-execution gap
+only on Linux-host. CLROS guest pressure, native quotas/headroom, complete native
+review, affected ancestors and corrected-runner full-host remain pending.
+
 [Step1464](../done/step1464.md) implements bounded managed GC exhaustion and
 fresh-allocation recovery in the explicit v2 service, with strict pressure
 fields and16 scoped focused checks. App/helper builds pass; the new workload

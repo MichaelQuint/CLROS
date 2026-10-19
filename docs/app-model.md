@@ -210,9 +210,22 @@ frame, collects, then verifies fresh2MiB allocations. The strict consumer requir
 the pressure bytes, heap/commit bounds, real collections and exactly one caught
 OOM in both measurements. Sixteen scoped focused checks and app/helper builds
 pass. New pressure execution is pending:the publication source pin is refreshed,
-but old-image preparation deliberately rejects until a new original Linux ELF
+but at that checkpoint old-image preparation deliberately rejects until a new
+original Linux ELF
 and complete decoder index are reviewed. Historical v2 captures retain their
 earlier source/consumer scope. Native-pool exhaustion/headroom remains separate.
+
+[Step1465](../done/step1465.md) supplies that fresh original Linux publication
+at clean app-source implementation `4fc1d2fa`, joining865 source inputs and22
+outputs. Independent decoding covers4,381,199 executable bytes,1,368,900
+instruction starts and198 syscall continuations. Current v1/v2 preparation
+accepts the new image and rejects crossed modes and the former image.
+The unchanged executable then passes a306s Linux-host lifecycle run:39 ordinary
+exchanges plus12 sequential health connections, echo/stream, cancellation/drain
+and joined exit0. Both GC measurements catch OOM, preserve retained data and
+verify fresh2MiB allocations afterward. Pressure retains12MiB/8MiB respectively
+under the reported16MiB limit. This is Linux-host managed recovery; CLROS guest
+pressure, native headroom/quotas, full native review and stable batch gates remain.
 
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
