@@ -167,7 +167,7 @@ public static partial class QemuTranscripts
         private readonly int webSettingsFd;
         private readonly (ulong Identity,ulong Ordinal) webSettingsCall;
         private readonly IReadOnlyList<uint> writeChannels;
-        private readonly uint entropyLimit;
+        private readonly uint entropyLimit, memoryPoolPages;
         private readonly RuntimePhases? phases;
         private LinuxThreadExecutionBudget budget;
         private readonly RuntimeThread?[] slots;
@@ -187,12 +187,14 @@ public static partial class QemuTranscripts
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
-            bool webLogQuota=false,WebControlInspection? webControls=null)
+            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
             vectors=app==NativeAotSocketVectorsPublisher.Application;
             service=app==NativeAotServicePackage.Application;
+            Need(!configuredServiceMemory || service,"threading_configured_memory");
+            memoryPoolPages=configuredServiceMemory?OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages:LinuxMemoryServices.ApplicationPoolPages;
             web=service || app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
             Need(!webLogQuota || web && !service,"web_quota_application");this.webLogQuota=webLogQuota;
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
@@ -215,7 +217,7 @@ public static partial class QemuTranscripts
             this.rows=service?ValidateLinuxServiceCallOrdinals(rows!):ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             Need(webControls is null || web && !service,"web_controls_application");this.webControls=webControls;
             if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets);
-            memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=service?0U:web?4096U:broader||socket?256U:32U;
+            memory=new(elf,memoryPoolPages); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=service?0U:web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
             this.containmentCapture=containmentCapture;
             socketPolicy=vectors && NativeAotSocketVectorsOutput.Read(socketCapture!.Output.Stdout).Policy;
@@ -240,7 +242,7 @@ public static partial class QemuTranscripts
 
         internal ThreadingProtocolReport Validate()
         {
-            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages,continuingService:service);
+            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,memoryPoolPages,continuingService:service);
             int bytes=service?NativeAotServiceProgram.ElfBytes:web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");

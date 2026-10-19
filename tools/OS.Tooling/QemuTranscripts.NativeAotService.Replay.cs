@@ -56,7 +56,7 @@ public static partial class QemuTranscripts
             framed.WriteLengths.ToArray(),framed.WriteChannels.ToArray(),framed.Stderr));
         var replay=new ThreadingProtocol(NativeAotServicePackage.Application,rows,elf,instruction,syscallReturn,
             framed.WriteLengths,userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:startup.SettingsBytes,
-            webSettingsFd:startup.SettingsDescriptor,webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal));
+            webSettingsFd:startup.SettingsDescriptor,webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal),configuredServiceMemory:lifecycle);
         var protocol=replay.Validate();var counts=replay.ServiceSocketCounts();
         Need((ulong)protocol.Calls>=random.Requests && protocol.Reaped==protocol.Clones+1 && transport.Connections>=10,
             "service_complete_joins");
@@ -170,16 +170,17 @@ public static partial class QemuTranscripts
     /// <summary>Value-only complete scheduler/syscall replay seam. Caller ELF,
     /// predicates, settings and framed observations confer no source, program,
     /// application-output, transport, runner or guest authority. Unsupported or
-    /// incomplete lifetimes throw; inputs are borrowed without modification.</summary>
+    /// incomplete lifetimes throw; inputs are borrowed without modification.
+    /// Configured-memory selection tests values only, without GC admission.</summary>
     public static ThreadingProtocolReport InspectNativeAotServiceProtocolForTests(byte[] elf,string[] rows,
         IReadOnlyList<int> lengths,Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,
-        ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,ulong settingsIdentity,ulong settingsOrdinal)
+        ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,ulong settingsIdentity,ulong settingsOrdinal,bool configuredServiceMemory=false)
     {
         var framed=new NativeAotThreadingOutput.Capture("",string.Join("\r\n",rows)+"\r\n",lengths.ToArray(),
             Enumerable.Repeat(1U,lengths.Count).ToArray(),"");
         var capture=NativeAotSocketGuest.ReadServiceReadiness(framed);
         return new ThreadingProtocol(NativeAotServicePackage.Application,Rows(capture.Output),elf,instruction,syscallReturn,
             capture.Output.WriteLengths,userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
-            webSettingsCall:(settingsIdentity,settingsOrdinal)).Validate();
+            webSettingsCall:(settingsIdentity,settingsOrdinal),configuredServiceMemory:configuredServiceMemory).Validate();
     }
 }

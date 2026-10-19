@@ -298,6 +298,23 @@ and eight changed own-body/unwind reviews are retained, with one explicitly
 changed host-consumer source at readback. Complete native/transitive stack,
 headroom, ancestors and corrected-runner full-host remain pending. No new gate.
 
+[Step1472](../done/step1472.md) runs the configured 36 MiB pool in CLROS. Both
+managed phases catch OOM and verify fresh live recovery; native phases verify,
+release and recover after 25 MiB/18 MiB pressure. The measured ordinary non-GC
+upper bound is 17,473,536 B. Adding the 16 MiB GC cap gives 34,250,752 B;
+including actual static charge gives 61,472,768 B. These fit the 36 MiB pool
+and 64 MiB entitlement. Lifetime dynamic backing peaks at 37,462,016 B and ends
+at zero; 20 workers are genuinely reaped. This is a finite workload observation.
+
+The original full consumer rejects unrelated-worker interleaving during GC
+startup. The host reader now preserves consecutive calls per owner while
+rejecting interference with the pending arena, and carries the configured
+pool through exact policy/quota replay. Legacy replay retains 32 MiB. A complete
+independent replay of unchanged original serial/control/peer/PCAP data passes;
+the failed original pipeline is retained. Bounded original native review and
+44 focused checks pass. A fresh original producer pass, ancestors, complete
+native/transitive stack and corrected-runner full-host remain required.
+
 [Step1471](../done/step1471.md) binds a dedicated GC arena to the current pinned
 ELF and upstream runtime revision. The reader counts only still-owned GC backing;
 unmapped, foreign-replaced or remapped pages permanently leave that classification.

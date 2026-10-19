@@ -1,5 +1,15 @@
 # CLROS Completion Gates
 
+[Step1472](../done/step1472.md) retains an actual 831-second configured 36 MiB
+guest with both managed/native recovery phases, 20 reaps and zero end backing.
+Its process/serial checks pass; the original full consumer fails GC startup
+interleaving. Five host-reader repairs independently replay unchanged complete
+serial/control/peer/PCAP evidence. The measured conservative GC-plus-non-GC
+bound fits pool and entitlement. Seven native method deltas and actual unwind
+changes have bounded review; 44 focused checks pass. A fresh original producer
+pass, affected ancestors, full native/transitive stack and corrected-runner
+full-host remain pending. No issue or gate is accepted.
+
 [Step1471](../done/step1471.md) implements conservative GC arena accounting and
 an explicit configured-service36MiB pool/20MiB native allowance, retaining16MiB
 GC and64MiB entitlement. Pinned upstream source, four complete application native

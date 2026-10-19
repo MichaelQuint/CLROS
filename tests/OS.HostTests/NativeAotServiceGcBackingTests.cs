@@ -11,16 +11,18 @@ internal static class NativeAotServiceGcBackingTests
     private sealed class Trace
     {
         private readonly StringBuilder text = new(); private ulong ordinal;
+        private readonly Dictionary<ulong, ulong> ordinals = [];
         internal Trace Call(ulong nr, ulong address, ulong bytes, ulong protection, ulong value, ulong rip,
-            ulong flags = 0, ulong fd = 4294967295)
+            ulong flags = 0, ulong fd = 4294967295, ulong identity = 4294967297)
         {
-            ulong at = ++ordinal;
-            text.Append($"M16_008_CALL identity=4294967297 nr={nr} a0={address} a1={bytes} a2={protection} a3={flags} a4={fd} a5=0 rip={rip} rsp=1879047184 flags=514 fs=0 gs=0 clock={at} valueBits={value} action=1 status=1 ordinal={at}" +
+            ulong at = ++ordinal, callOrdinal = ordinals.GetValueOrDefault(identity) + 1; ordinals[identity] = callOrdinal;
+            text.Append($"M16_008_CALL identity={identity} nr={nr} a0={address} a1={bytes} a2={protection} a3={flags} a4={fd} a5=0 rip={rip} rsp=1879047184 flags=514 fs=0 gs=0 clock={at} valueBits={value} action=1 status=1 ordinal={callOrdinal}" +
                 $" waitSource=0 waitDeadline=0 waitSequence=0 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip={rip} returnRsp=1879047184 returnFlags=514 returnFs=0 returnGs=0 returnValueBits={value}\r\n");
             return this;
         }
-        internal Trace Arena() => Call(9, 0, ArenaBytes + 4096, 0, Reservation, Mmap, 0x22)
-            .Call(11, Reservation, 4096, 0, 0, Munmap).Call(28, Start, ArenaBytes, 16, 0, Madvise);
+        internal Trace Reserve() => Call(9, 0, ArenaBytes + 4096, 0, Reservation, Mmap, 0x22);
+        internal Trace FinishArena() => Call(11, Reservation, 4096, 0, 0, Munmap).Call(28, Start, ArenaBytes, 16, 0, Madvise);
+        internal Trace Arena() => Reserve().FinishArena();
         public override string ToString() => text.ToString();
     }
     private static QemuTranscripts.ServiceGcBackingInspection Read(string raw) =>
@@ -59,6 +61,24 @@ internal static class NativeAotServiceGcBackingTests
         HostCheck.True(!Read(raw.Replace($"rip={Mmap}", "rip=4198402", StringComparison.Ordinal)).ArenaIdentified);
         HostCheck.True(!Read(raw.Replace($"a1={ArenaBytes + 4096}", $"a1={ArenaBytes + 8192}", StringComparison.Ordinal)).ArenaIdentified);
         HostCheck.True(!Read(raw.Replace("a4=4294967295", "a4=3", StringComparison.Ordinal)).ArenaIdentified);
+    }
+
+    [HostTest("GC arena startup permits unrelated workers while rejecting interleaved mutations of its pending reservation")]
+    private static void InterleavedWorkers()
+    {
+        const ulong child = 4294967298, outside = 0x200000000;
+        var trace = new Trace().Reserve().Call(186, 0, 4096, 0, 2, 4198402, identity: child)
+            .Call(9, 0, 16384, 3, outside, Mmap, 0x22, identity: child).FinishArena()
+            .Call(10, Start, 4096, 3, 0, Mprotect);
+        var result = Read(trace); HostCheck.True(result.ArenaIdentified); HostCheck.Equal(4096UL, result.LastBackedBytes);
+        foreach (var (nr, address, bytes, protection, value, rip, flags) in new (ulong, ulong, ulong, ulong, ulong, ulong, ulong)[]
+        {
+            (9, Reservation, 4096, 3, Reservation, Mmap, 0x32), (10, Start, 4096, 3, 0, Mprotect, 0),
+            (11, Reservation, 4096, 0, 0, Munmap, 0), (28, Start, 4096, 4, 0, Madvise, 0),
+            (25, outside, 4096, 4096, Start, 4198402, 0), (25, Start, 4096, 4096, outside, 4198402, 0),
+            (12, outside, 4096, 0, outside, 4198402, 0)
+        }) Reject(new Trace().Reserve().Call(nr, address, bytes, protection, value, rip, flags, identity: child).FinishArena().ToString());
+        HostCheck.True(Read(new Trace().Reserve().Call(9, 0, 4096, 3, NoMemory, Mmap, 0x22, identity: child).FinishArena()).ArenaIdentified);
     }
 
     [HostTest("GC backing retains inaccessible pages until actual discard and preserves known fixed decommit ownership")]

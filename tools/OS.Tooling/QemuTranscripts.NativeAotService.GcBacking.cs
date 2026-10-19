@@ -60,7 +60,25 @@ public static partial class QemuTranscripts
             bool success = c["action"] == 1 && c["status"] == 1;
             if (stage is 1 or 2)
             {
-                Need(success && c["identity"] == identity && callOrdinal == ordinal + (ulong)stage && v == 0,
+                if (c["identity"] != identity)
+                {
+                    // Other workers may run between this worker's consecutive
+                    // calls. Never classify an arena they could have changed.
+                    bool Overlap(ulong address, ulong bytes) => bytes > ulong.MaxValue - (Page - 1) ||
+                        address > ulong.MaxValue - ((bytes + Page - 1) & ~(Page - 1)) ||
+                        bytes != 0 && address < reservation + Bytes + Page &&
+                        reservation < address + ((bytes + Page - 1) & ~(Page - 1));
+                    bool touches = success && (nr switch
+                    {
+                        9 => v is >=0x100000000 and <0x1000000000 && Overlap(v, n),
+                        10 or 11 or 28 => v == 0 && Overlap(a, n),
+                        25 => v is >=0x100000000 and <0x1000000000 && (Overlap(a, n) || Overlap(v, p)),
+                        12 => a != 0 && v is >=0x100000000 and <0x1000000000,
+                        _ => false
+                    });
+                    Need(!touches, "service_gc_arena_interference"); return;
+                }
+                Need(success && callOrdinal == ordinal + (ulong)stage && v == 0,
                     "service_gc_arena_sequence");
                 if (stage == 1)
                 {

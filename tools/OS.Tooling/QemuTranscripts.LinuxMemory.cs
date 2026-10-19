@@ -178,7 +178,8 @@ public static partial class QemuTranscripts
         uint expectedPoolPages = LinuxMemoryServices.DefaultPoolPages, bool continuingService = false)
     {
         Need(continuingService?entropy==0:entropy is 32 or 256 or 4096,"m16_006_entropy_policy");
-        Need(expectedPoolPages is LinuxMemoryServices.DefaultPoolPages or LinuxMemoryServices.MaximumPoolPages,"m16_006_backing_policy");
+        Need(expectedPoolPages is LinuxMemoryServices.DefaultPoolPages or LinuxMemoryServices.ApplicationPoolPages ||
+            continuingService && expectedPoolPages == OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages,"m16_006_backing_policy");
         string suffix = " poolPages="+expectedPoolPages.ToString(System.Globalization.CultureInfo.InvariantCulture)+
             " vaEnd=68719476736 reservationQuota=17179869184 entropyBytes="+
             entropy.ToString(System.Globalization.CultureInfo.InvariantCulture)+" cpus=1 root=inactive-kernel";

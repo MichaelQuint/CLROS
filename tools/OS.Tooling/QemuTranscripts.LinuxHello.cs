@@ -397,9 +397,13 @@ public static partial class QemuTranscripts
     {
         private List<HelloRange> ranges = [];
         private readonly HelloRange[] image;
+        private readonly uint poolPages;
         private HelloRange? imageProtection;
-        internal unsafe HelloMemory(byte[] elf)
+        internal unsafe HelloMemory(byte[] elf, uint poolPages = LinuxMemoryServices.ApplicationPoolPages)
         {
+            Need(poolPages is LinuxMemoryServices.ApplicationPoolPages or OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages,
+                "hello_memory_pool");
+            this.poolPages = poolPages;
             fixed (byte* source = elf)
             {
                 Need(LinuxElfLoader.Validate(source,(uint)elf.Length,64*1024*1024,1_572_864,out var plan) == LinuxElfLoadStatus.Ready, "hello_model_elf");
@@ -497,6 +501,6 @@ public static partial class QemuTranscripts
             ranges=next;
         }
         private void Audit() => Need(ranges.Where(r=>r.Dynamic).Sum(r=>(decimal)(r.End-r.Start))<=0x400000000 &&
-            ranges.Where(r=>r.Dynamic && r.Protection!=0).Sum(r=>(decimal)(r.End-r.Start))<=LinuxMemoryServices.MaximumPoolPages*4096UL,"hello_memory_quota");
+            ranges.Where(r=>r.Dynamic && r.Protection!=0).Sum(r=>(decimal)(r.End-r.Start))<=poolPages*4096UL,"hello_memory_quota");
     }
 }
