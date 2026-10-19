@@ -14,6 +14,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Include="..\..\apps\MinimalApiService\ServiceLifecycleExercise.cs" Link="AppFixtures\ServiceLifecycleExercise.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiConsoleAdapter.cs" Link="EfiAdapters\EfiConsoleAdapter.cs" />
 		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.cs" />

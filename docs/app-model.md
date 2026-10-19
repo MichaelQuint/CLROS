@@ -114,15 +114,13 @@ executed. It is not yet selected by the guest pipeline: service publication,
 reviewed decoder identity, native startup observations and a complete
 peer/packet/lifecycle inspector remain pending behind the existing runner guard.
 
-[Step1425](../done/step1425.md) repairs #766's empty `sendmsg` full-buffer
-boundary in development. Empty messages still validate metadata, flags and the
+[Step1437](../done/step1437.md) qualifies #766's empty `sendmsg` full-buffer
+repair from step1425. Empty messages still validate metadata, flags and the
 connected/reset/timeout/write-shutdown policy, then bypass only send-space
 pressure. Scalar `sendto` shares this correction. Existing `write`/`writev`
-zero-length ordering is unchanged.24 focused message/socket checks pass,
-including both original review reproductions, empty aggregates, unchanged
-transport/fd identity and nonempty EAGAIN/short-send/error controls. Service and
-finite-web C# profiles compile. Original native review and affected finite
-vector/socket guest regression remain pending; #766 stays open under #737.
+zero-length ordering is unchanged. The stable service batch adds full-host,
+original native and affected finite vector/socket guest evidence at its exact
+frozen source; #766 is closed. General request churn remains separate.
 
 [Step1439](../done/step1439.md) implements M16-015/#747's fragmented physical
 backing in development. Existing bounded region rows describe several physical
@@ -140,6 +138,14 @@ to span physical holes. The generated user code checks surviving data,
 cross-extent copy-in, discard/recommit, brk and fixed-replacement zeroing before
 cleanup. Ten fixture/parser checks and profile dry-run pass. The exported package
 has not yet run in a guest; this adds no guest or runtime-churn acceptance.
+
+[Step1441](../done/step1441.md) prepares #224's explicit service v2 request
+workers and matched package policy: partial patterned echo, bounded streaming,
+observed cancellation and drain-before-stop. Four linked helper checks and four
+package checks pass; the default v1 serializer reproduces the accepted package
+bytes. Current app source/native pins, original publication, lifecycle peer,
+profile/report/packet admission and guest validation remain pending. These
+helper/envelope checks add no live Kestrel or repeated-service acceptance.
 
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
 native allocations, stacks, page tables and sockets to actual committed-page
