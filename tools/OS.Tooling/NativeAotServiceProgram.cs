@@ -9,8 +9,8 @@ namespace OS.Tooling;
 public sealed class NativeAotServiceProgram
 {
     private const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    internal const int ElfBytes = 8_484_584;
-    private const string ElfSha256 = "5020C22C3261DA626DC8CBDF8AD2EB5DBB296CE1E3A226E36C85549D4016A10B";
+    internal const int ElfBytes = 8_488_712;
+    private const string ElfSha256 = "3F1EF78C8C553C0C626243D2B40D4466B1F730F867D71A2E6A5A7D81AAD9F36E";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     private NativeAotServiceProgram(string root, NativeAotInstructionIndex value, bool lifecycle)
@@ -46,11 +46,11 @@ public sealed class NativeAotServiceProgram
         var view = RequirePackage(package, lifecycle);
         using AuthorityFiles sources = new(); HoldSources(root, sources);
         var parsed = Parse(package.Slice((int)view.PayloadOffset, (int)view.PayloadBytes), dump);
-        // LLVM22.1.3 covers all4,381,199 bytes in five original executable
+        // LLVM22.1.3 covers all4,383,311 bytes in five original executable
         // sections, entry0x408f77 and all198 syscall continuations. Executable
         // load padding grants no starts. This is not a control-flow proof.
-        if (Report(parsed) != new Inspection(1_368_900, 198,
-            "33C0F2ED4A7DD510EB3DE4F8941E084C7AECD2F7E717D20F62E6A320375AF97D") ||
+        if (Report(parsed) != new Inspection(1_369_455, 198,
+            "78866A51103A4109A8C053A29EC31B40B09458A7A28730CE33F725ACBB308C9B") ||
             !parsed.SyscallContinuationsValid || !parsed.IsInstruction(0x408f77))
             throw new InvalidDataException("service_instruction_identity");
         HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed, lifecycle);
@@ -89,10 +89,10 @@ public sealed class NativeAotServiceProgram
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "CEDB569E9AAF83AFE0377617A0440A08A8D7EDBE8145DFA1D7E8CF30B853A408"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
-        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "1B9609B01600E43F37F642578D47033345B0EABE07C1FD4547BEEEB9A38C4639"),
-        ("apps/MinimalApiService/MinimalApiService.csproj", "0B267A2A4EE1B931BF1CAD5DC025356345EE74AE8463D1A16B8C27A8D6C5B5D7"),
-        ("apps/MinimalApiService/Program.cs", "EED32C37A92678411540591673389B30EF50F406BE7AD37AAC385D4801F00DBC"),
-        ("apps/MinimalApiService/ServiceLifecycleExercise.cs", "FBBC8B89FCABFBDAD2D781C7E519680806933FD2B139EAA0FEBB75A496C3BE7E"),
+        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "6D6E68A049B998A0249D0AD7E0CBB78D82BA269FC0E76DFF5B8BC053A2A31721"),
+        ("apps/MinimalApiService/MinimalApiService.csproj", "34B6A796F2F0B3F1A404A5CF13882FB57DF8BF248210096D5D65768FDCA740F3"),
+        ("apps/MinimalApiService/Program.cs", "AB5BC7AFAAEFC18F89368280658112A2FFEB90930EE7CDB43AD8391E2748175A"),
+        ("apps/MinimalApiService/ServiceLifecycleExercise.cs", "86712B104BEACD7FDD13DA7F7BA25D94D24FF642C6581E0A34C98D8CCAB5123B"),
         ("apps/MinimalApiService/ServiceExercise.cs", "971B8D504D3EA66A28576A89E221C9EB25E1D161BE2DAE4E150C06F15929EC80"),
         ("apps/MinimalApiService/appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5")];
 

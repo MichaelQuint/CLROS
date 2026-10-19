@@ -251,6 +251,21 @@ native memory or identify whether physical backing or metadata caused failure.
 the preceding publication until fresh original publication/index/source joins;
 actual native pressure and guest/headroom acceptance remain pending.
 
+[Step1468](../done/step1468.md) publishes those exact sources at clean tracked
+producer20ba927d. Current v1/v2 admission now requires original8,488,712-byte
+ELF `3F1EF78C8C553C0C626243D2B40D4466B1F730F867D71A2E6A5A7D81AAD9F36E`
+and complete4,383,311-byte/1,369,455-instruction/198-syscall coverage.865source/
+22output joins pass. Genuine two-mode preparation rejects crossed envelopes
+and two older originals; two focused program checks pass after pin refresh.
+The new unchanged image passes306s Linux-host lifecycle/peer work, managed OOM
+with fresh recovery twice, and two fully checked/released32MiB native mapping
+episodes followed by fresh one-MiB recovery. Both report quota0/errno0; this
+is the bounded no-quota host path. Service progress, drain and joined exit0
+pass; the original app PID is gone. Guest physical/metadata exhaustion and
+ordinary-churn resource/headroom joins, complete native review, current-image
+ancestors and stable full-host remain pending. No new native EFI/source pins
+or CLROS guest are qualified here; entitlement and pool remain unchanged.
+
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the

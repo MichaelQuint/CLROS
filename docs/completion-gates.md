@@ -14,6 +14,15 @@ pass. No new executable or guest is produced; previous image admission rejects
 the changed app sources. Actual native pressure, exhausted-limit identification,
 headroom, current native/guest/ancestor and full-host acceptance remain pending.
 
+[Step1468](../done/step1468.md) supplies the new original ELF3F1EF78C, complete
+instruction/source joins and refreshed two-mode admission, with older/crossed
+image rejection. The unchanged image passes306s Linux-host lifecycle, both
+managed OOM/recovery episodes and both32MiB native integrity/release/recovery
+episodes, with joined exit0 and verified PIDgone. Both native episodes report
+quota0; they establish the bounded host path. Actual guest native exhaustion,
+ordinary-churn headroom, complete native review, current-image ancestors and
+stable corrected-runner full-host remain pending. No guest/gate acceptance.
+
 [Step1465](../done/step1465.md) publishes the new original service and verifies
 full executable/index coverage and two-mode preparation, with old-image/crossed
 mode rejection. A306s Linux-host run passes lifecycle progress, two managed OOM
