@@ -136,8 +136,13 @@ ELF for the existing default-off M16-006 guest profile. Four four-MiB mappings
 fill its sixteen-MiB pool; freeing alternate blocks forces the six-MiB replacement
 to span physical holes. The generated user code checks surviving data,
 cross-extent copy-in, discard/recommit, brk and fixed-replacement zeroing before
-cleanup. Ten fixture/parser checks and profile dry-run pass. The exported package
-has not yet run in a guest; this adds no guest or runtime-churn acceptance.
+cleanup. Ten fixture/parser checks and profile dry-run pass at step1443.
+[Step1463](../done/step1463.md) subsequently runs the unchanged canonical package
+at clean implementation `141b3673`. Its original invocation passes strict
+validation:18 calls, exit42 and dynamic backing released. Original source,
+payload, native code and actual EFI joins are retained. This finite mechanical
+guest does not establish real NativeAOT allocation churn; full native review,
+affected foreign-page/runtime ancestors and stable batch qualification remain.
 
 [Step1441](../done/step1441.md) prepares #224's explicit service v2 request
 workers and matched package policy: partial patterned echo, bounded streaming,

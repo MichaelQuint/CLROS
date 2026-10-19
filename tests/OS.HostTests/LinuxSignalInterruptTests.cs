@@ -238,6 +238,63 @@ internal static unsafe class LinuxSignalInterruptTests
         }
     }
 
+    [HostTest("linux.signal-interrupt ready pipe data wins over pending handler without registering or restarting a wait")]
+    private static void ReadyPipePendingHandler()
+    {
+        foreach(bool restart in new[]{false,true})
+        {
+            using Owner o=new(restart);var pipe=o.Core.Pipe();o.M.At(Data)[0]=0x5a;
+            HostCheck.Equal(1L,o.Value(1,pipe.Write,Data,1));
+            o.M.Yield(o.Parent);HostCheck.Equal(o.Child.Value,o.M.Kernel.Dispatch().Value);o.Send();o.ParentAgain();
+            HostCheck.Equal(1L,o.Value(0,pipe.Read,Output,4));HostCheck.Equal((byte)0x5a,o.M.At(Output)[0]);
+            HostCheck.True(!o.M.View(o.Parent).Wait.IsValid);HostCheck.Equal(0U,o.Core.Files.State->RetainedPipeOperations);
+            ulong frame=o.Caught();HostCheck.Equal(1UL,o.M.Read64(frame+152));HostCheck.Equal(After,o.M.Read64(frame+176));
+            HostCheck.Equal(LinuxSyscallAction.RestoreUser,o.Return(frame).Action);HostCheck.Equal(1L,o.M.CurrentImage()->Value);
+            HostCheck.Equal(Signals.Delivery.None,o.Deliver());
+        }
+    }
+
+    [HostTest("linux.signal-interrupt masked and ignored signals preserve initial and stolen-readiness pipe waits until real data")]
+    private static void NonActionablePipeWaits()
+    {
+        foreach(bool masked in new[]{false,true})
+        foreach(bool stolen in new[]{false,true})
+        {
+            using Owner o=new();var pipe=o.Core.Pipe();
+            if(masked){o.M.Put64(Input,512);HostCheck.Equal(0L,o.Value(14,0,Input,0,8));}
+            else o.Action(false,1);
+            if(!stolen)
+            {
+                o.M.Yield(o.Parent);HostCheck.Equal(o.Child.Value,o.M.Kernel.Dispatch().Value);o.Send();o.ParentAgain();
+            }
+            HostCheck.Equal(LinuxSyscallAction.Blocked,o.Call(0,pipe.Read,Output,1).Action);
+            HostCheck.Equal(KernelThreadTable.Completion.None,o.M.Kernel.Inspect(o.Parent).Completion);
+            ulong first=o.M.View(o.Parent).Wait.Sequence;o.Sender();
+            if(stolen)
+            {
+                o.M.At(Data)[0]=0x61;HostCheck.Equal(1L,o.Value(1,pipe.Write,Data,1));o.Send();
+                HostCheck.Equal(KernelThreadTable.Completion.Woken,o.M.Kernel.Inspect(o.Parent).Completion);
+                HostCheck.Equal(1L,o.Value(0,pipe.Read,Data,1));o.ParentAgain();
+                HostCheck.Equal(LinuxSyscallAction.Blocked,o.Complete().Action);
+                HostCheck.True(o.M.View(o.Parent).Wait.Sequence>first);
+                HostCheck.Equal(KernelThreadTable.Completion.None,o.M.Kernel.Inspect(o.Parent).Completion);
+                HostCheck.Equal(1U,o.Core.Files.State->RetainedPipeOperations);o.Sender();
+            }
+            o.M.At(Data)[0]=0x62;HostCheck.Equal(1L,o.Value(1,pipe.Write,Data,1));o.ParentAgain();
+            var result=o.Complete();HostCheck.Equal(LinuxSyscallAction.Return,result.Action);HostCheck.Equal(1L,result.Value);
+            HostCheck.Equal((byte)0x62,o.M.At(Output)[0]);HostCheck.Equal(0U,o.Core.Files.State->RetainedPipeOperations);
+            HostCheck.True(!o.M.View(o.Parent).Wait.IsValid);HostCheck.Equal(Signals.Delivery.None,o.Deliver());
+            HostCheck.Equal(1L,o.M.CurrentImage()->Value);
+            if(masked)
+            {
+                o.M.Put64(Input,0);HostCheck.Equal(0L,o.Value(14,2,Input,0,8));ulong frame=o.Caught();
+                HostCheck.Equal(0UL,o.M.Read64(frame+152));HostCheck.Equal(After,o.M.Read64(frame+176));
+                HostCheck.Equal(LinuxSyscallAction.RestoreUser,o.Return(frame).Action);HostCheck.Equal(0L,o.M.CurrentImage()->Value);
+                HostCheck.Equal(Signals.Delivery.None,o.Deliver());
+            }
+        }
+    }
+
     [HostTest("linux.signal-interrupt partial pipe writes keep their transferred prefix and never rewind it")]
     private static void PartialWrite()
     {

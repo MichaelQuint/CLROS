@@ -246,6 +246,14 @@ EPOLLONESHOT and temporary signal masks remain unsupported. The read/write and
 terminal-bit reference is the pinned upstream
 [Linux v6.18 pipe poll](https://github.com/torvalds/linux/blob/v6.18/fs/pipe.c#L618-L662).
 
+[Step1463](../done/step1463.md) adds host controls for pending handlers before
+the first epoll wait, ready data with either SA_RESTART setting, and masked or
+ignored signals at initial and replacement waits. Genuine readiness completes
+the retained wait; masked delivery occurs only after unmasking. The pipe checks
+cover the same boundaries and preserve positive read results through sigreturn.
+Both focused fixtures pass20 checks each. Actual runtime/socket ancestors,
+native/stack review and stable full-host qualification remain pending.
+
 [Step1340](../done/step1340.md) implements development-only bounded epoll over
 the shared socket descriptions. Packed Linux x64 events preserve all64 opaque
 data bits; level delivery, edge drain/rearm, MOD, dup/last-close, fd reuse and

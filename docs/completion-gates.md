@@ -1,5 +1,17 @@
 # CLROS Completion Gates
 
+[Step1463](../done/step1463.md) adds the first strict `FragmentedBacking`
+guest at clean implementation `141b3673`:18 calls check a six-MiB mapping
+across two physical holes, surviving bytes, cross-extent copy, discard/recommit,
+brk and fixed replacement, then exit42 with dynamic backing released. Original
+903-source/12-input joins and388452 code bytes/398 REL32 joins are retained.
+Forty focused checks also pass, including fourteen schedules in four new
+signal controls for initial/replacement waits, masked/ignored signals and ready
+data. These host checks complement the earlier actual pipe/epoll race guests.
+Real NativeAOT allocation churn, affected GC/ThreadPool/socket and foreign-page
+ancestors, complete native/stack review and corrected-runner full-host remain
+pending. Issues747/760 stay open; no gate advances.
+
 [Step1462](../done/step1462.md) adds one original strict `SignalEpollStolen`
 guest under explicit `SignalEpollRace`:31 calls, real handler/restorer,
 readiness consumed by the competing thread, replacement wait interrupted while
