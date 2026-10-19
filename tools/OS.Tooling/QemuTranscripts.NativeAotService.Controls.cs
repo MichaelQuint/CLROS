@@ -222,7 +222,7 @@ public static partial class QemuTranscripts
         ServiceWireTotals(bytes, capture.Parent, capture.Envelope, raw);
         output.WriteLine($"SERVICE_CAPTURE calls={capture.Leaf.Protocol.Calls} clones={capture.Leaf.Protocol.Clones} reaped={capture.Leaf.Protocol.Reaped} connections={connections} pendingResets=2 transfers={capture.Leaf.Transport.Transfers} compactHighWater={capture.Leaf.Transport.CompactHighWater} randomRequests={capture.Leaf.Random.Requests} randomBytes={capture.Leaf.Random.GeneratedBytes} acceptance=pending");
         string counts = options.ServiceLifecycle
-            ? $"ordinary={http.Connections - http.LifecycleConnections} lifecycle={http.LifecycleConnections} clientResets={http.ClientResets}"
+            ? $"ordinary={http.Connections - http.LifecycleConnections} lifecycle={http.LifecycleConnections} clientResets={http.ClientResets} clientFinCancels={http.CompleteCloses - http.ServerActiveCloses}"
             : $"ordinary={http.Connections}";
         output.WriteLine($"SERVICE_PACKETS {counts} controlled={controls.ControlledRecords} lostReopen=1 probes=2 activeCloses={activeCloses} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
         return 0;

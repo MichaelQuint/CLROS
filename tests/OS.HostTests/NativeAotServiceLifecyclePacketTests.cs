@@ -12,12 +12,13 @@ internal static class NativeAotServiceLifecyclePacketTests
     [HostTest("service lifecycle packets reconstruct independent segmented echo stream resets closes retransmissions and sequence wrap")]
     private static void Complete()
     {
-        foreach (string mode in new[] { "plain", "segmented", "retransmit", "wrap" })
+        foreach (string mode in new[] { "plain", "segmented", "retransmit", "wrap", "fin-cancel", "mixed-cancel" })
         {
             var fixture = Vector(mode); byte[] raw = NativeAotSocketIntegrationTests.Capture(fixture.Frames), before = raw.ToArray();
             var result = QemuTranscripts.InspectNativeAotServiceLifecyclePacketsForTests(raw, fixture.Anchor, fixture.Arp, fixture.Ports, fixture.Report);
             HostCheck.Equal(39, result.Connections); HostCheck.Equal(29, result.LifecycleConnections);
-            HostCheck.Equal(2, result.ClientResets); HostCheck.Equal(37, result.ServerActiveCloses); HostCheck.Equal(37, result.CompleteCloses);
+            int resets = mode == "fin-cancel" ? 0 : mode == "mixed-cancel" ? 1 : 2;
+            HostCheck.Equal(resets, result.ClientResets); HostCheck.Equal(37, result.ServerActiveCloses); HostCheck.Equal(39 - resets, result.CompleteCloses);
             HostCheck.True(result.RequestBytes > 65536 && result.ResponseBytes > 524288 && raw.AsSpan().SequenceEqual(before));
             HostCheck.True(fixture.Frames.Skip(8).All(frame => frame.Length <= 1254));
             Array.Fill(raw, (byte)0); HostCheck.Equal(39, result.Connections);
@@ -31,10 +32,10 @@ internal static class NativeAotServiceLifecyclePacketTests
             Reject(Vector(mode));
     }
 
-    [HostTest("service lifecycle packets require both exact client resets and both acknowledgments of ordinary server active FINs")]
+    [HostTest("service lifecycle packets require exact reset or acknowledged client FIN cancellation after waiting and complete ordinary closes")]
     private static void LifetimeControls()
     {
-        foreach (string mode in new[] { "missing-reset", "reset-sequence", "reset-ack", "missing-fin-ack" }) Reject(Vector(mode));
+        foreach (string mode in new[] { "missing-reset", "reset-sequence", "reset-ack", "missing-fin-ack", "early-cancel-fin", "server-cancel-fin", "missing-cancel-ack" }) Reject(Vector(mode));
     }
 
     [HostTest("service lifecycle packets reject byte gaps changed retransmissions checksum corruption and substituted ports or v1 reports")]
@@ -107,8 +108,12 @@ internal static class NativeAotServiceLifecyclePacketTests
         {
             var cancel = Open("GET", Prefix + "cancel");
             cancel.Send(true, Encoding.ASCII.GetBytes("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\nServer: Kestrel\r\nDate: " + Epoch.ToString("r", CultureInfo.InvariantCulture) + "\r\n\r\n"));
+            if (attempt == 1 && mode == "early-cancel-fin") cancel.Close(clientFirst: true);
             Status(1, 1, attempt, attempt - 1, 1, 1, 1, 33792, 524288);
-            if (!(attempt == 1 && mode == "missing-reset")) cancel.Reset(attempt == 1 && mode == "reset-sequence", attempt == 1 && mode == "reset-ack");
+            if (mode == "fin-cancel" || attempt == 1 && mode is ("mixed-cancel" or "server-cancel-fin" or "missing-cancel-ack"))
+                cancel.Close(omitFinalAck: mode == "missing-cancel-ack", clientFirst: mode != "server-cancel-fin");
+            else if (!(attempt == 1 && mode is ("missing-reset" or "early-cancel-fin")))
+                cancel.Reset(attempt == 1 && mode == "reset-sequence", attempt == 1 && mode == "reset-ack");
             Status(0, 0, attempt, attempt, 1, 1, 1, 33792, 524288); Healthy();
         }
         Status(0, 0, 2, 2, 1, 1, 1, mode == "terminal" ? 33793 : 33792, 524288);
@@ -153,8 +158,15 @@ internal static class NativeAotServiceLifecyclePacketTests
             }
         }
 
-        internal void Close(bool omitFinalAck = false)
+        internal void Close(bool omitFinalAck = false, bool clientFirst = false)
         {
+            if (clientFirst)
+            {
+                Add(false, client, server, 0x11); client = unchecked(client + 1); Add(true, server, client, 0x10);
+                Add(true, server, client, 0x11); server = unchecked(server + 1);
+                if (!omitFinalAck) Add(false, client, server, 0x10);
+                return;
+            }
             Add(true, server, client, 0x11); server = unchecked(server + 1); Add(false, client, server, 0x10);
             Add(false, client, server, 0x11); client = unchecked(client + 1);
             if (!omitFinalAck) Add(true, server, client, 0x10);

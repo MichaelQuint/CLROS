@@ -218,6 +218,18 @@ exchange limits,800s peer/900s runner bounds and every body/order/resource check
 Six lifecycle and ten peer checks pass in selected staged receipts. A successful
 current guest, its required native integration review and batch acceptance
 remain pending; process termination does not establish guest resource cleanup.
+Step1458 retains the second original attempt: its completed v2 peer and raw
+terminal cleanup cannot overcome67 mismatched message/call ordinals. The socket
+observer now uses the same profile-aware cumulative ordinal as the call record.
+The two host aborts are actual client FIN closes in this capture; they are not
+established-RST evidence. Explicit v2 packet inspection requires both FINs and
+acknowledgments after waiting, or the existing exact RST path, and reports their
+actual counts. Independent value-only reinspection finds50 ordinary/lifecycle
+connections,29 lifecycle flows, zero client resets and48 server-active closes;
+the complete transport has54 fresh generations/50 compact transfers and peaks
+4 bulk/41 compact. This does not repair the failed original syscall witness.
+Fresh original producer, native integration, fixed-runner full-host and affected
+ancestor validation remain pending; no issue or gate is accepted.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

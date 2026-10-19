@@ -1,5 +1,15 @@
 # CLROS Completion Gates
 
+Step1458 retains the second original v2 attempt: the peer completes and the
+guest emits terminal cleanup, but strict replay rejects67 message snapshots
+whose per-turn ordinals differ from cumulative syscall ordinals. Use the shared
+profile-aware ordinal helper; do not rewrite those records. Independent packet
+inspection also finds both host aborts arrive as client FIN, not RST. Require
+acknowledged client-first closes after observed waiting, retain exact RST checks,
+and report both actual counts. The failed capture remains unaccepted. Focused
+checks and its value-only packet reinspection are recorded in
+[step1458](../done/step1458.md); a fresh original producer and batch gates remain.
+
 Step1457 records a failed first v2 guest, canceled after90,022ms of helper work.
 The peer produces no complete report, so the runner rejects. The host helper's
 aggregate becomes240s while20s exchanges and800s/900s outer bounds remain.

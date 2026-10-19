@@ -9,7 +9,7 @@ public static partial class QemuTranscripts
     /// <summary>Borrow bounded original PCAP, parent ARP, ordered admitted remote
     /// ports and explicitly v2 peer text synchronously. Reconstruct at most512
     /// connections,32KiB echo requests and512KiB stream responses; require exact
-    /// ordinary exchanges, lifecycle order, two client resets, drain/reuse and
+    /// ordinary exchanges, lifecycle order, two client cancellations, drain/reuse and
     /// healthy EOF before the held stream's last new bytes. Invalid/incomplete
     /// observations throw. This value-only inspection creates no source, native,
     /// runner, resource-retirement or CLROS guest acceptance authority.</summary>
@@ -45,10 +45,12 @@ public static partial class QemuTranscripts
                 request.Headers.GetValueOrDefault("Connection") == "close" && request.Headers.Count == (method == "POST" ? 3 : 2) &&
                 (method == "POST" ? request.Headers.GetValueOrDefault("Content-Length") == "32768" && flow.RequestExtent == request.End + 32768 :
                     flow.RequestExtent == request.End), "service_lifecycle_wire_request");
-            if (reset)
+            // Host aborts can arrive as client FIN. Preserve its full close
+            // checks and count only literal RST packets as resets.
+            if (reset && flow.ResetRecord != 0)
                 Need(flow.ResetRecord > 0 && !flow.ClientFin && !flow.ServerFin && flow.ClientSeen == flow.RequestExtent &&
                     flow.ServerSeen == flow.ResponseExtent, "service_lifecycle_wire_reset");
-            else ServiceWireClose(flow);
+            else ServiceWireClose(flow, serverFirst: !reset);
             var response = ServiceLifecycleResponse(flow.Response.AsSpan(0, flow.ResponseExtent), path == prefix + "stream" ? 524288 : 8192, reset);
             Need(response.Status == status && response.Date >= firstDate && response.Date <= lastDate, "service_lifecycle_wire_response");
             if (!held) lastAwaited = flow.ServerFinRecord;
@@ -97,17 +99,18 @@ public static partial class QemuTranscripts
         {
             var cancel = Take("GET", prefix + "cancel", held: true, reset: true);
             var waiting = Until(values => values["active"] == 1 && values["waiting"] == 1 && values["waits"] == attempt);
+            int cancellationRecord = cancel.Flow.ResetRecord != 0 ? cancel.Flow.ResetRecord : cancel.Flow.ClientFinRecord;
             Need(waiting.Values["streams"] == 1 && waiting.Values["written"] == 524288 && waiting.Values["canceled"] == attempt - 1 &&
-                waiting.Flow.ServerFinRecord < cancel.Flow.ResetRecord, "service_lifecycle_wire_cancel_pending");
-            lastAwaited = cancel.Flow.ResetRecord;
+                waiting.Flow.ServerFinRecord < cancellationRecord, "service_lifecycle_wire_cancel_pending");
+            lastAwaited = cancellationRecord;
             _ = Until(values => values["active"] == 0 && values["waiting"] == 0 && values["canceled"] == attempt);
             Health();
         }
         Need(Status().Text == peer.Lifecycle!.TerminalStatus && cursor == end, "service_lifecycle_wire_terminal");
         for (int i = 6; i < exchanges.Length; i++) Ordinary(end + i - 6, i);
         var result = ServiceWireInspection(wire, end - 6);
-        Need(result.ClientResets == 2 && result.ServerActiveCloses == result.Connections - 2 &&
-            result.CompleteCloses == result.ServerActiveCloses, "service_lifecycle_wire_lifetimes"); return result;
+        Need(result.ClientResets <= 2 && result.ServerActiveCloses == result.Connections - 2 &&
+            result.CompleteCloses == result.Connections - result.ClientResets, "service_lifecycle_wire_lifetimes"); return result;
     }
 
     private static void CheckServiceLifecycleEcho(ServiceWireFlow flow, bool bad)

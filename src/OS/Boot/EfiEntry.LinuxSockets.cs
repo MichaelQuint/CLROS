@@ -34,7 +34,7 @@ public static unsafe partial class EfiEntry
             LinuxSyscallFrame* frame = (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset);
             if (frame->Number != number || (uint)frame->Argument0 != fd || frame->Argument1 != header ||
                 frame->Argument2 != flags) return 0;
-            ulong identity = c->Threads.Current.Value, ordinal = c->Gates[c->Selected - 1].Calls;
+            ulong identity = c->Threads.Current.Value, ordinal = LinuxNativeCallOrdinal(c, c->Selected - 1);
             if (ordinal == 0 || !LinuxText(state, "M16_013_MESSAGE identity=") || !LinuxNumber(state, identity) ||
                 !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
                 !LinuxText(state, " nr=") || !LinuxNumber(state, number) ||

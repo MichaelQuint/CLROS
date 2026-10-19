@@ -20,7 +20,7 @@ public static partial class QemuTranscripts
         internal bool[] RequestSeen = new bool[4096], ResponseSeen = new bool[16384];
         internal uint Server;
         internal int RequestExtent, ResponseExtent, ClientSeen, ServerSeen;
-        internal int SynRecord, ResponseFirstRecord, ResponseLastRecord, ServerFinRecord, ResetRecord;
+        internal int SynRecord, ResponseFirstRecord, ResponseLastRecord, ClientFinRecord, ServerFinRecord, ResetRecord;
         internal bool SynAck, ClientReady, ClientFin, ServerFin, ClientFinAcked, ServerFinAcked, ServerFinFirst;
     }
 
@@ -59,9 +59,9 @@ public static partial class QemuTranscripts
 
     private sealed record ServiceWireCapture(List<ServiceWireFlow> Flows, int TcpRecords, int QuietSyns);
 
-    private static void ServiceWireClose(ServiceWireFlow flow) => Need(flow.ClientReady && flow.ResetRecord == 0 &&
+    private static void ServiceWireClose(ServiceWireFlow flow, bool serverFirst = true) => Need(flow.ClientReady && flow.ResetRecord == 0 &&
         flow.ClientSeen == flow.RequestExtent && flow.ServerSeen == flow.ResponseExtent && flow.ClientFin && flow.ServerFin &&
-        flow.ClientFinAcked && flow.ServerFinAcked && flow.ServerFinFirst, "service_wire_close");
+        flow.ClientFinAcked && flow.ServerFinAcked && flow.ServerFinFirst == serverFirst, "service_wire_close");
 
     private static ServiceHttpPacketInspection ServiceWireInspection(ServiceWireCapture capture, int lifecycleConnections = 0) =>
         new(capture.Flows.Count, capture.TcpRecords, capture.Flows.Sum(flow => flow.RequestExtent), capture.Flows.Sum(flow => flow.ResponseExtent),
@@ -174,7 +174,7 @@ public static partial class QemuTranscripts
             {
                 Need(extent > 0 && relative + payload.Length == extent && contiguous == extent, "service_wire_fin_sequence");
                 if (outgoing) { if (!flow.ServerFin) { flow.ServerFinFirst = !flow.ClientFin; flow.ServerFinRecord = record; } flow.ServerFin = true; }
-                else flow.ClientFin = true;
+                else { if (!flow.ClientFin) flow.ClientFinRecord = record; flow.ClientFin = true; }
             }
         }
         Need(stage == 3 && resolved && resolution == 1 && flows.Count == ports.Count, "service_wire_complete");
