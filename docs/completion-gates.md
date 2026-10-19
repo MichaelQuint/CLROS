@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+[Step1475](../done/step1475.md) preserves the failed stable full-host attempt:
+two stale contract fixtures fail with unchanged inputs/zero reuse, and the runner
+blocks the native phase. The repair adds M16-026's canonical ownership note and
+includes both stolen-readiness variants in the signal inventory assertion, with
+cardinality derived from the inventory. Both focused contract fixtures pass.
+Kernel/application sources and step1474's
+original guest/native evidence remain unchanged. A fresh full-host pass and the
+affected finite ancestors remain required; all nine issues stay open.
+
 [Step1474](../done/step1474.md) retains the corrected original configured-service
 producer pass at ef8665e0: 843 seconds, 20 reaps, complete packet/resource replay
 and zero end backing. Full 16 KiB metadata authentication executes in the guest;
