@@ -549,7 +549,7 @@ public static class TcpEstablishedStreamIpv4FramePlanner
         ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
         ushort window, byte flags, Span<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result)
     {
-        if (flags != 0x10 && flags != 0x11)
+        if (flags != 0x10 && flags != 0x11 && flags != 0x14)
         { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed, TcpEstablishedStreamStatus.InvalidFlags, PacketParseStatus.Success); return result.Status; }
         var identity = ValidateIdentity(stream, info);
         if (identity != TcpEstablishedStreamIpv4FramePlanStatus.Success)

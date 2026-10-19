@@ -41,6 +41,10 @@ does not itself reopen finite step1437 prerequisites; the separate #784 host
 validation repair above does. Step1446 repairs #779's independent peaks and
 reinspects the original record without a new guest run. This advances no numbered Gate14,
 arbitrary hosted-.NET, isolation, cloud or production claim.
+Step1447 implements the bounded unread last-close reset/retry/timeout policy
+under #778 with54 focused network/close/frame checks. Real guest packet/HTTP and
+original native qualification remain pending; it grants no repeated-service
+acceptance and preserves readable duplicate fds and SHUT_WR semantics.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32

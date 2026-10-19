@@ -237,6 +237,70 @@ internal static unsafe class LinuxSocketNetworkTests
         HostCheck.Equal(1, m.Table->Count); HostCheck.True(!m.State->RequiresShutdown); m.Finish();
     }
 
+    [HostTest("m07-034 last close with unread FIN data resets and scrubs beyond the bulk pool capacity")]
+    private static void UnreadLastCloseChurn()
+    {
+        using Model m=new(count:1,compactTimeWait:true);uint listener=m.Listen();
+        for(int i=0;i<12;i++)
+        {
+            uint remote=99+(uint)i*100,local=m.Connect((ushort)(40000+i),remote),fd=m.Accept(listener);
+            HostCheck.Equal(0L,m.Call(48,fd,1));m.Pump();
+            HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(remote+1,"x"u8,local+1,(ushort)(40000+i),flags:0x19)));
+            HostCheck.Equal(0L,m.Call(3,fd));m.Pump();
+            HostCheck.Equal(0U,m.State->RetainedConnections);HostCheck.Equal(0U,m.State->CompactTimeWaitConnections);HostCheck.Equal(0,m.Table->Count);
+            HostCheck.Equal((byte)0x14,m.Hardware->Frame[47]);
+            HostCheck.Equal(local+1,BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame+38,4)));
+            HostCheck.Equal(remote+3,BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame+42,4)));
+            HostCheck.True(new ReadOnlySpan<byte>(m.Buffers,8192+32768).IndexOfAnyExcept((byte)0)<0&&!m.State->RequiresShutdown);
+        }
+        m.Finish(false);
+    }
+
+    [HostTest("m07-034 late unread data after last close retains reset retry ownership while another peer progresses")]
+    private static void LateUnreadAndResetRetry()
+    {
+        using Model m=new(count:2,compactTimeWait:true);uint listener=m.Listen(),local=m.Connect(),fd=m.Accept(listener);
+        uint healthyLocal=m.Connect(41000,799),healthy=m.Accept(listener);
+        HostCheck.Equal(0L,m.Call(3,fd));m.Pump();
+        HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(100,"late"u8,local+1,flags:0x18)));
+        m.Hardware->Result=0;m.Pump();HostCheck.Equal(2U,m.State->RetainedConnections);
+        HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(800,"ok"u8,healthyLocal,41000)));
+        HostCheck.Equal(2L,m.Call(45,healthy,Output,32));HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output),2).SequenceEqual("ok"u8));
+        m.Hardware->Result=1;m.Pump();HostCheck.Equal(1U,m.State->RetainedConnections);HostCheck.Equal(1,m.Table->Count);
+        HostCheck.True(!m.State->RequiresShutdown);m.Finish();
+    }
+
+    [HostTest("m07-034 live duplicate and SHUT_WR retain unread bytes including after a zero-length read")]
+    private static void UnreadLiveDuplicate()
+    {
+        using Model m=new(count:1,compactTimeWait:true);uint listener=m.Listen(),local=m.Connect(),fd=m.Accept(listener);
+        uint duplicate=(uint)m.Call(72,fd,0);HostCheck.Equal(0L,m.Call(48,fd,1));m.Pump();HostCheck.Equal(0L,m.Call(3,fd));
+        HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(100,"read"u8,local+1,flags:0x18)));m.Pump();
+        HostCheck.Equal(1U,m.State->RetainedConnections);HostCheck.Equal(0L,m.Call(45,duplicate,Output,0));
+        HostCheck.Equal(4L,m.Call(45,duplicate,Output,32));HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output),4).SequenceEqual("read"u8));
+        HostCheck.True(!m.State->RequiresShutdown);m.Finish();
+    }
+
+    [HostTest("m07-034 TX-full reset expiry retires only the orphan even from unread TIME-WAIT")]
+    private static void UnreadResetExpiry()
+    {
+        foreach(bool timeWait in new[]{false,true})
+        {
+            using Model m=new(count:2,compactTimeWait:true);uint listener=m.Listen(),local=m.Connect(),fd=m.Accept(listener);
+            if(timeWait){HostCheck.Equal(0L,m.Call(48,fd,1));m.Pump();}
+            HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(100,"x"u8,local+(timeWait?1U:0U),flags:timeWait?(byte)0x19:(byte)0x18)));
+            HostCheck.Equal(0L,m.Call(3,fd));m.Hardware->Result=0;m.Pump();HostCheck.Equal(1U,m.State->RetainedConnections);
+            m.Hardware->Now=25_000_000_000UL;m.Hardware->Result=1;
+            uint healthyLocal=m.Connect(41000,799),healthy=m.Accept(listener);m.Hardware->Result=0;
+            m.Pump(30_000_001_000UL);m.Pump();
+            HostCheck.Equal(1U,m.State->RetainedConnections);HostCheck.Equal(1,m.Table->Count);HostCheck.True(!m.State->RequiresShutdown);
+            HostCheck.Equal((byte)0x12,m.Hardware->Frame[47]); // No reset was accepted by the copied-TX callback.
+            HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(800,"ok"u8,healthyLocal,41000)));
+            HostCheck.Equal(2L,m.Call(45,healthy,Output,32));
+            HostCheck.True(new ReadOnlySpan<byte>(m.Buffers,8192+32768).IndexOfAnyExcept((byte)0)<0);m.Finish();
+        }
+    }
+
     [HostTest("m07-030 twelve active closes reuse one bulk slot while compact tuples retain full TIME-WAIT", HostLane.Fast, 22)]
     private static void CompactTimeWaitChurn()
     {

@@ -2,12 +2,18 @@
 
 The [October19 review](repo-audit.md#october-19-whole-project-review) reproduces
 last-close unread-data retention: [#778](http://192.168.4.35:3000/admin/CLROS/issues/778)
-must release inaccessible RX backing with explicit reset/discard semantics
-before #224 acceptance. Preserve readable duplicate fds, SHUT_WR, tuple lifetime
-and scrubbing. One unread byte pins the sole bulk slot in the host fixture;
-no live guest attack or fix is claimed. [#779](http://192.168.4.35:3000/admin/CLROS/issues/779)
-separately requires resource peaks reconstructed from ownership events.
-Step1437 remains accepted within its original scope.
+requires bounded unread-data retirement before #224 acceptance. Step1447 now
+attempts exact-sequence RST|ACK after the last fd closes with queued or later
+unread bytes, following [RFC9293 section3.6.1](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.6.1).
+Copied-TX pressure retains both buffers/table ownership for retry within the
+existing30-second close budget, even from unread TIME-WAIT. Timeout retires only
+that connection and claims no copied reset. Closed reap scrubs before release;
+live duplicate fds, SHUT_WR and zero-length reads retain their behavior.
+All54 focused network/close/frame checks pass; original native and real guest
+packet/HTTP qualification remain pending. No live guest fix is claimed.
+[#779](http://192.168.4.35:3000/admin/CLROS/issues/779) separately reconstructs
+resource peaks from ownership events in step1446. Step1437's independent original
+native/guest evidence remains retained; its full-host gate is withheld under #784.
 
 [Step1405](../done/step1405.md) qualifies #745 checked connected-stream vectors
 and #219 startup: 5,619 full-host checks/751 fixtures (94 Native), three finite
