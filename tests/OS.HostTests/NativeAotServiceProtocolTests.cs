@@ -11,6 +11,8 @@ internal static class NativeAotServiceProtocolTests
         v.Rows[5]="M16_014_POLICY started=0 callsPerTurn=4096 progressNanos=30000000000 elapsedLimit=none counters=reject-overflow workers=individual cancellation=owned";
         v.Rows.Insert(5,"TEST_START m16.014");
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
+        v.Rows.Insert(v.Rows.FindIndex(row=>row.StartsWith("M16_014_POLICY ",StringComparison.Ordinal))+1,
+            "M16_012_POLL identity=0 clock=0 ready=1 idle=0");
         for(int turn=1;turn<=16;turn++)
         {
             for(int call=0;call<500;call++)v.Call(39,1,[]);
@@ -54,6 +56,8 @@ internal static class NativeAotServiceProtocolTests
     private static void OwnershipFailures()
     {
         var v=Vector();
+        const string bootstrap="M16_012_POLL identity=0 clock=0 ready=1 idle=0";
+        Reject(v,v.Rows.Where(row=>row!=bootstrap).ToArray());
         foreach(var change in new[] { ("active=1 owner=live", "active=2 owner=live"), ("callsPerTurn=4096", "callsPerTurn=4097"),
             ("random=zero reservation=retained", "random=retained reservation=retained"), ("reaped=3 process=drained", "reaped=2 process=drained"),
             ("context=zero stack=zero slot=zero", "context=zero stack=retained slot=zero") })

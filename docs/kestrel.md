@@ -20,8 +20,16 @@ original consumer rejects the bootstrap poll as `service_progress_watchdog`.
 Current offline component checks pass after exact bootstrap, service executable
 path, supervisor snapshot, restoration-row and quiet-SYN ledger corrections;
 six forged/reordered controls reject. That does not relabel the original failed
-pipeline. A fresh owned capture is required. All seven issues stay open/claimed;
-full-host, remaining native ABI and ancestor acceptance remain outstanding.
+pipeline. [Step1436](../done/step1436.md) retains a fresh822,285ms owned capture
+with a complete successful consumer:32 connections transfer and retire, compact
+high-water24,84 random requests/18,708 bytes, actual worker progress beyond
+4,096 calls/300s, genuine shutdown/reaps and restored resources. Eighteen named
+native own bodies/7,133 bytes have bounded ABI/unwind reviews; transitive stack
+and arbitrary methods are outside those reviews. The first full-host attempt
+blocks Native after15 fast-case failures in older profile inventories and a
+synthetic replay fixture. The corrected tests pass105 focused checks across12
+fixtures. All seven issues stay open/claimed pending fresh full-host and affected
+finite socket/vector/web/runtime ancestors. No new gate is accepted.
 
 [Step1425](../done/step1425.md) adds a development-only correction for #766:
 empty `sendmsg` and scalar `sendto` bypass full send-buffer pressure after the

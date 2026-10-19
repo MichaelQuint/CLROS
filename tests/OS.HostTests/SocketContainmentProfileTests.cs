@@ -92,7 +92,10 @@ internal static class SocketContainmentProfileTests
         var forbiddenNames = Regex.Matches(conflict, "'\\$\\((Enable\\w+Probe)\\)' == 'true'")
             .Select(x => x.Groups[1].Value).ToArray();
         HostCheck.True(forbiddenNames.Take(Leaves.Length).SequenceEqual(Leaves));
-        var forbidden = EfiContracts.DiagnosticProbes.Where(x => !expected.Contains(x)).ToHashSet(StringComparer.Ordinal);
+        HostCheck.Equal("'$(EnableM16014Probe)' == 'true' and '$(EnableM10004Probe)' != 'true'",
+            Error(project,"m16_014_requires_web_parent"));
+        var forbidden = EfiContracts.DiagnosticProbes.Where(x => !expected.Contains(x))
+            .Select(x=>x=="EnableM16014Probe"?"EnableM10004Probe":x).ToHashSet(StringComparer.Ordinal);
         HostCheck.True(forbidden.SetEquals(forbiddenNames.Skip(Leaves.Length)) &&
             forbiddenNames.Length == forbidden.Count + Leaves.Length && forbidden.Contains("EnableM16012Probe"));
     }

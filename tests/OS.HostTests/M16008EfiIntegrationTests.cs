@@ -68,7 +68,7 @@ internal static unsafe class M16008EfiIntegrationTests
                 "m16_013_explicit_false_prerequisite");
             foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM10004Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
@@ -306,9 +306,19 @@ internal static unsafe class M16008EfiIntegrationTests
         var logged=core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="logged");
         string[] observed=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxNumber")
             .Select(c=>c.ArgumentList.Arguments[1].ToString()).TakeLast(13).ToArray();
-        HostCheck.True(observed.SequenceEqual(new[]{"c->Gates[index].Calls","waitView.WaitSource","waitView.WaitDeadline",
+        HostCheck.True(observed.SequenceEqual(new[]{"LinuxNativeCallOrdinal(c, index)","waitView.WaitSource","waitView.WaitDeadline",
             "waitView.Wait.IsValid ? waitView.Wait.Sequence : 0","dispatchedView.SignalDepth","dispatchedView.SignalFrame","dispatchedView.BlockedSignals",
             "returned.Rip","returned.Rsp","returned.Rflags","returned.FsBase","returned.GsBase","unchecked((ulong)result.Value)"}));
+        foreach (bool service in new[] { false, true })
+        {
+            var ordinalTree=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.LinuxThreads.cs")),
+                new CSharpParseOptions(preprocessorSymbols:service?["M16_008_PROBE","M16_014_PROBE"]:["M16_008_PROBE"]));
+            var ordinal=ordinalTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>()
+                .Single(m=>m.Identifier.Text=="LinuxNativeCallOrdinal");
+            HostCheck.Equal(1,ordinal.Body!.Statements.Count);
+            HostCheck.Equal(service?"c->Gates[index].TotalCalls":"c->Gates[index].Calls",
+                ((ReturnStatementSyntax)ordinal.Body.Statements.Single()).Expression!.ToString());
+        }
         var names=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxText")
             .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(14).ToArray();
         HostCheck.True(names.SequenceEqual(new[]{" ordinal="," waitSource="," waitDeadline="," waitSequence="," signalDepth="," signalFrame="," blockedSignals=",
