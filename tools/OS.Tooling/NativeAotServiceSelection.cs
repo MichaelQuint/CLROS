@@ -17,8 +17,8 @@ public static class NativeAotServiceSelection
         return NativeAotServicePackage.Application;
     }
 
-    // Kept separate from the finite web selector. The runner guard is retained
-    // until the complete service peer/packet/lifecycle consumer is installed.
+    // Kept separate from the finite web selector; lifecycle mode still requires
+    // the explicit continuing-service profile and its original input admission.
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
         string app = Application(flags);

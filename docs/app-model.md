@@ -200,11 +200,16 @@ steps1451-1453's helper/schema/startup development; it is Linux-host evidence.
 
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
-drain order. Full replay independently binds writes/calls. Lifecycle packet
-reconstruction and reset/large-stream resource joins remain incomplete. Non-dry
-v2 smoke still fails before children with
-`service_lifecycle_runner_integration_pending`; no owned v2 guest Completion,
-original full native ABI review or new guest/full-host acceptance is established.
+drain order. Full replay independently binds writes/calls. Step1455 adds the
+explicit v2 packet consumer: exact partial echo/rejection,512KiB streamed bytes,
+healthy EOF before the held stream's last new bytes, both client resets,
+status drain/reuse and ordinary server-active closes. Reset connections join
+accept/byte totals but cannot count as compact TIME-WAIT transfers.21 focused
+packet/control/runner/profile checks pass, including independent wire mutations.
+The temporary v2 launch block is removed; original package/source/native,
+owned-child, serial and packet admission still apply. No owned v2 guest
+Completion, original full native ABI review or new guest/full-host acceptance
+is established. Guest GC/native pressure and quota recovery remain pending.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

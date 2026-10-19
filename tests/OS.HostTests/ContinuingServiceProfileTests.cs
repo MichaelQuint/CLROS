@@ -28,15 +28,18 @@ internal static class ContinuingServiceProfileTests
         HostCheck.Equal(900, options.TimeoutSeconds);
     }
 
-    [HostTest("service lifecycle launch rejects before children until v2 native serial and packet consumers are installed")]
-    private static async Task LifecycleExecutionGuard()
+    [HostTest("service lifecycle launch requires original package admission before starting children")]
+    private static async Task LifecycleInputAdmission()
     {
+        string prefix = Path.Combine(Path.GetTempPath(), "clros-service-lifecycle-" + Guid.NewGuid().ToString("N"));
         var options = new QemuSmokeOptions { ServiceLifecycle = true, BuildEfi = true, FirmwareRngSource = "virtio",
-            LinuxElfPackage = "missing-service-v2.pkg", LinuxThreadingDisassembly = "missing-service-v2.dump" };
+            LinuxElfPackage = prefix + ".pkg", LinuxThreadingDisassembly = prefix + ".dump",
+            SerialLog = prefix + ".serial", SummaryLog = prefix + ".summary" };
         options.Flags["EnableM16014Probe"] = true; int children = 0; using var output = new StringWriter();
         int result = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) => { children++; throw new InvalidOperationException("Unexpected lifecycle child."); });
         HostCheck.Equal(1, result); HostCheck.Equal(0, children);
-        HostCheck.True(output.ToString().Contains("service_lifecycle_runner_integration_pending", StringComparison.Ordinal));
+        HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke", StringComparison.Ordinal) &&
+            output.ToString().Contains(Path.GetFileName(options.LinuxElfPackage), StringComparison.Ordinal));
     }
 
     [HostTest("continuing service remains default off and explicitly inherits the owned web stack")]

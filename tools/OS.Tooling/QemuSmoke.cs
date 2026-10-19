@@ -52,10 +52,6 @@ public static class QemuSmoke
             bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
             bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
             bool service=NativeAotServiceSelection.Application(plan.Flags).Length!=0;
-            // Planning/report parsing may select v2, but launching it through
-            // v1 native/serial/packet consumers would silently skip its evidence.
-            if (options.ServiceLifecycle && !options.DryRun)
-                throw new ToolFailure("service_lifecycle_runner_integration_pending");
             if((service||sockets||containment||vectors||web)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");

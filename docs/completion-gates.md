@@ -14,10 +14,14 @@ measurements report16MiB with2MiB live arrays; committed bytes are5,267,456 and
 8,667,136. The original ELF is unchanged. This supersedes the publication-pending
 status of steps1451-1453 while retaining their narrower evidence.
 
-The non-dry v2 launch guard remains before children. Lifecycle packet
-reconstruction, reset/large-stream resource joins, full native/guest/ancestor
-qualification and guest GC/native pressure/recovery remain pending. No owned
-v2 guest Completion, fixed-runner full-host restoration or gate advance is claimed.
+[Step1455](../done/step1455.md) implements explicit v2 lifecycle packet
+reconstruction and reset/large-stream resource joins.21 focused checks pass;
+two cancellation resets count toward accepted connections and byte totals,
+while compact transfers count only server-active closes. The temporary launch
+block is removed, retaining original input/native/owned-child admission.
+Full native/guest/ancestor qualification and guest GC/native pressure/recovery
+remain pending. No owned v2 guest Completion, fixed-runner full-host restoration
+or gate advance is claimed.
 
 [Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
 sealed retained reservation ledger and actual dynamic pool.43 focused checks

@@ -1,5 +1,13 @@
 # Networking
 
+Step1455 adds explicit service-v2 PCAP reconstruction for patterned32KiB
+requests,512KiB streamed responses, held-stream/healthy-peer ordering and two
+client cancellation resets with observed status drain/reuse. The shared wire
+parser preserves v1's size/close policy and grows v2 buffers only as needed.
+Reset connections join accepts/bytes but not compact TIME-WAIT transfers.
+All21 focused lifecycle/v1 packet, control, runner and profile checks pass;
+actual CLROS packets, native review and batch acceptance remain pending.
+
 The [October19 review](repo-audit.md#october-19-whole-project-review) reproduces
 last-close unread-data retention: [#778](http://192.168.4.35:3000/admin/CLROS/issues/778)
 requires bounded unread-data retirement before #224 acceptance. Step1447 now

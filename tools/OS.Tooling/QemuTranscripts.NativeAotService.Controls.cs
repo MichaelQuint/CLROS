@@ -208,17 +208,23 @@ public static partial class QemuTranscripts
         string[] rows = observed.NormalizedTail.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         var fresh = rows.Where(row => row.StartsWith("M16_011_SLOT event=0 ", StringComparison.Ordinal)).Select(SocketTransport).ToArray();
         uint[] ports = fresh.Where(row => !controls.Ports.Contains(checked((int)row["remotePort"]))).Select(row => checked((uint)row["remotePort"])).ToArray();
-        var http = InspectNativeAotServiceHttpPacketsForTests(controls.OrdinaryCapture, capture.Parent.FrameAnchor, capture.Parent.Arp, ports, report);
+        var http = options.ServiceLifecycle
+            ? InspectNativeAotServiceLifecyclePacketsForTests(controls.OrdinaryCapture, capture.Parent.FrameAnchor, capture.Parent.Arp, ports, report)
+            : InspectNativeAotServiceHttpPacketsForTests(controls.OrdinaryCapture, capture.Parent.FrameAnchor, capture.Parent.Arp, ports, report);
         int connections = http.Connections + controls.Http.Connections;
+        int activeCloses = http.ServerActiveCloses + controls.Http.ServerActiveCloses;
         Need(fresh.Length == connections + 2 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[0]) == 2 &&
             fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[1]) == 1 && fresh.Count(row => row["remotePort"] == (ulong)controls.Ports[2]) == 1 &&
             capture.Leaf.SocketAccepts == connections && capture.Leaf.SocketSent == (ulong)(http.ResponseBytes + controls.Http.ResponseBytes) &&
             capture.Leaf.SocketReceived == (ulong)(http.RequestBytes + controls.Http.RequestBytes) &&
-            capture.Leaf.Transport.Transfers == connections && capture.Leaf.Transport.Retired == connections &&
+            capture.Leaf.Transport.Transfers == activeCloses && capture.Leaf.Transport.Retired == activeCloses &&
             capture.Leaf.Transport.CompactHighWater > 8 && capture.Envelope.Fresh == (ulong)fresh.Length, "service_packet_owner_join");
         ServiceWireTotals(bytes, capture.Parent, capture.Envelope, raw);
         output.WriteLine($"SERVICE_CAPTURE calls={capture.Leaf.Protocol.Calls} clones={capture.Leaf.Protocol.Clones} reaped={capture.Leaf.Protocol.Reaped} connections={connections} pendingResets=2 transfers={capture.Leaf.Transport.Transfers} compactHighWater={capture.Leaf.Transport.CompactHighWater} randomRequests={capture.Leaf.Random.Requests} randomBytes={capture.Leaf.Random.GeneratedBytes} acceptance=pending");
-        output.WriteLine($"SERVICE_PACKETS ordinary={http.Connections} controlled={controls.ControlledRecords} lostReopen=1 probes=2 activeCloses={connections} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
+        string counts = options.ServiceLifecycle
+            ? $"ordinary={http.Connections - http.LifecycleConnections} lifecycle={http.LifecycleConnections} clientResets={http.ClientResets}"
+            : $"ordinary={http.Connections}";
+        output.WriteLine($"SERVICE_PACKETS {counts} controlled={controls.ControlledRecords} lostReopen=1 probes=2 activeCloses={activeCloses} processId={process.ProcessId} lifetimeMilliseconds={process.LifetimeMilliseconds} acceptance=pending");
         return 0;
     }
 
