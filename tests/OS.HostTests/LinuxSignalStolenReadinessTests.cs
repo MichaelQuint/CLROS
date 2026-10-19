@@ -33,7 +33,11 @@ internal static class LinuxSignalStolenReadinessTests
     {
         string[] rows=LinuxSignalWaitTranscriptTests.Synthetic(F.StolenWaitVariant);byte[] package=F.CreatePackage(F.StolenWaitVariant);
         QemuTranscripts.ValidateLinuxSignalTail(rows,package,0x200000,0x100000);
-        HostCheck.Equal(46,rows.Length);
+        HostCheck.Equal(47,rows.Length);
+        int repark=Array.FindIndex(rows,r=>r=="M16_008_SUPERVISOR identity=4294967297 action=3 transfers=6 ready=1 active=1");
+        HostCheck.True(repark>=0);HostCheck.Equal(4,rows.Count(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal)));
+        T.Reject(rows.Where((_,i)=>i!=repark).ToArray(),package);
+        T.Reject(T.Change(rows,repark,"transfers",7),package);
         int Child(ulong nr)=>Array.FindIndex(rows,r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal)&&T.Field(r,"identity")==4294967298UL&&T.Field(r,"nr")==nr);
         int write=Child(1),signal=Child(234),read=Child(0);HostCheck.True(write<signal&&signal<read);
         var reordered=(string[])rows.Clone();(reordered[write],reordered[signal])=(reordered[signal],reordered[write]);T.Reject(reordered,package);

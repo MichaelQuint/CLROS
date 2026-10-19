@@ -126,7 +126,9 @@ message/syscall/packet and owned-child checks pass; the836520ms capture retains
 original source/object/EFI/package/serial/PCAP joins. Its16-vector/65536B maxima
 do not extend the actual observed vector scope. Larger-bound host/native work,
 the new pipe-race fixture and its20 focused checks remain development evidence.
-Fixed-runner full-host, affected ancestors, signal/epoll races, GC/native
+Step1461 adds one strict pipe stolen-readiness guest with27 calls, actual handler,
+later I/O and two reaps/eight transfers after an exact repark inventory correction.
+Fixed-runner full-host, affected ancestors, equivalent epoll race, GC/native
 pressure/quota recovery and repeated-service batch qualification remain open.
 
 [Step1380](../done/step1380.md) qualifies #217 configuration and #741/#742

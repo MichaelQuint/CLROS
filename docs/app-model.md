@@ -258,8 +258,13 @@ new16KiB metadata snapshot; dispatcher/runtime/callback descendants stay open.
 The new canonical SignalPipeStolen fixture emits write, directed signal and
 competing read before parent resumption, then requires its handler and later
 I/O progress. Twenty staged focused checks pass, including schedule/result and
-missing-handler negatives. Actual pipe-race/epoll guests, affected ancestors,
-stable fixed-runner full-host and remaining batch gates are still required;
+missing-handler negatives. Step1461 adds a fresh strict pipe-race guest with
+27 calls, real handler/restorer, later I/O and two reaps/eight transfers. The
+first run exposes one omitted repark supervisor lifetime; its failed original
+and red regression remain retained. The corrected exact consumer passes10
+focused checks and a new guest with byte-identical original COFF/EFI. Equivalent
+epoll, controls/affected ancestors, scoped native and stable fixed-runner
+full-host plus remaining batch gates are still required;
 all nine issues remain open and PR786 stays draft.
 
 No GC sizing failure was demonstrated by the source review. Verify the selected

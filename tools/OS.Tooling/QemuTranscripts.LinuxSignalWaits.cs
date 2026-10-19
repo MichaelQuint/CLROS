@@ -76,11 +76,12 @@ public static partial class QemuTranscripts
         }
         foreach(var e in pre)Check(e);Supervisor(0x100000001,3,2,1,2);
         foreach(var e in child)Check(e,true);Exit(0x100000002);Supervisor(0x100000002,4,4,1,2);Reap(0x100000002);
+        if(stolen)Supervisor(0x100000001,3,6,1,1);
         var resumed=Row("M16_008_RESUME","identity:dec","valueBits:dec","status:dec");
         Need(resumed["identity"]==0x100000001&&resumed["valueBits"]==unchecked((ulong)(partial?4096L:-4L))&&resumed["status"]==1,"m16_009_wait_resume_once");
         foreach(var e in handler)Check(e,false,true);foreach(var e in post)Check(e);
-        Exit(0x100000001);Supervisor(0x100000001,2,6,0,1);Reap(0x100000001);
-        Exact("M16_008_OWNER_END reaped=2 transfers=6 irqs=0 exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
+        Exit(0x100000001);Supervisor(0x100000001,2,stolen?8UL:6UL,0,1);Reap(0x100000001);
+        Exact("M16_008_OWNER_END reaped=2 transfers="+(stolen?8:6)+" irqs=0 exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
         Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");Exact("CLROS_M16_009_READY");Exact("TEST_PASS m16-009");
         Need(call==instructions.Count&&at==rows.Length,"m16_009_wait_extra_record");
     }

@@ -1,5 +1,13 @@
 # CLROS Completion Gates
 
+[Step1461](../done/step1461.md) adds one original strict SignalPipeStolen
+guest:27 calls, a real handler/restorer, later I/O, two reaps/eight transfers and
+owned cleanup. Its first run exposes an omitted repark supervisor expectation;
+the corrected consumer requires that exact fourth lifetime and passes10 focused
+checks plus a fresh guest. Original COFF/EFI bytes are identical across both
+runs. Epoll, controls/ancestors, native/full-host and remaining batch gates stay
+open; the failed first validation is retained.
+
 [Step1460](../done/step1460.md) retains the first original v2 lifecycle
 smoke/service pass at `e0037e92`:836520ms,17131 calls,17 clones/18 reaps,
 exact32KiB echo/512KiB stream, healthy progress, cancellation and owned cleanup.

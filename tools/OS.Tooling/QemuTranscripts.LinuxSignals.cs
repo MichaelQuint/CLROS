@@ -26,7 +26,8 @@ public static partial class QemuTranscripts
         bool badRestorer = variant == "BadRestorer", badReturn = variant == "BadReturn";
         uint exit = LinuxSignalProofFixture.ExpectedExitCode(variant);
         var nestedCalls = nested ? LinuxSignalProofFixture.ExpectedNestedInvocations(variant) : null;
-        int count = wait ? LinuxSignalProofFixture.ExpectedWaitInvocations(variant).Count + 19 :
+        int count = wait ? LinuxSignalProofFixture.ExpectedWaitInvocations(variant).Count + 19 +
+            (variant == LinuxSignalProofFixture.StolenWaitVariant ? 1 : 0) :
             nested ? nestedCalls!.Count + 12 + nestedCalls.Count(i=>i.Number==1) :
             hardwareFault ? variant == "FaultFatal" ? 19 : variant == "FaultReturn" ? 25 : 30 : badRestorer ? 21 : badReturn ? 27 : 32;
         Need(irq ? tail.Length is >= 39 and <= 289 : tail.Length == count, "m16_009_tail_inventory");

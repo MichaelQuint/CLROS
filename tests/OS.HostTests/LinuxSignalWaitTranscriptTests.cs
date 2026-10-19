@@ -98,6 +98,7 @@ internal static class LinuxSignalWaitTranscriptTests
         Emit(39,1);Emit(186,2);if(stolen)Emit(1,1,4,0x407000,1);Emit(234,0,1,1,10);
         if(futex)Emit(202,0,0x4011d0,129,1);else if(stolen)Emit(0,1,3,0x409000,1);else if(!partial)Emit(1,1,4,0x407000,1);
         Emit(60,0,7,action:4,status:2);ExitReap(4294967298,4,4,1,2);child=false;
+        if(stolen)Supervisor(4294967297,3,6,1,1);
         rows.Add(FormattableString.Invariant($"M16_008_RESUME identity=4294967297 valueBits={unchecked((ulong)(partial?4096L:-4L))} status=1"));
         handler=true;Emit(186,1);Emit(14,0,2,0,0x401158,8);Emit(131,0,0,0x4011a0);Emit(1,15,1,0x4001a0,15);
         Emit(15,partial?4096:restart?futex?202:0:-4,1,0x4001a0,15,action:5);handler=false;
@@ -106,8 +107,8 @@ internal static class LinuxSignalWaitTranscriptTests
         else if(!futex&&!partial)Emit(0,1,3,0x409000,1);
         if(partial){Emit(0,4096,3,0x409000,4096);Emit(1,4,4,0x408000,4);Emit(0,4,3,0x409000,4);}
         Emit(14,0,2,0,0x401150,8);Emit(131,0,0,0x401180);if(!futex){Emit(3,0,3);Emit(3,0,4);}
-        Emit(1,15,1,0x400180,15);Emit(231,0,42,action:2,status:2);ExitReap(4294967297,2,6,0,1);
-        rows.AddRange(["M16_008_OWNER_END reaped=2 transfers=6 irqs=0 exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained",
+        Emit(1,15,1,0x400180,15);Emit(231,0,42,action:2,status:2);ExitReap(4294967297,2,stolen?8U:6U,0,1);
+        rows.AddRange(["M16_008_OWNER_END reaped=2 transfers="+(stolen?8:6)+" irqs=0 exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained",
             "M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true","CLROS_M16_009_READY","TEST_PASS m16-009"]);
         HostCheck.Equal(instructions.Count,call);return LinuxCallOrdinalTests.Annotate(rows);
     }

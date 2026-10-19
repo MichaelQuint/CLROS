@@ -23278,7 +23278,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Development batch under737/PR786, step1460: one original v2 lifecycle producer passes smoke/strict service at e0037e928cf25f34af77b64aa16d034d43f5e766.836520ms/17131 calls/17clones/18reaps, exact32KiB echo/512KiB stream/healthy progress,2actual client FIN cancellations, terminal drain and owned cleanup. All67 message/call ordinals bind; actual maxima16vectors/65536B. Original auditA0B40B238CA738A2C34F02912FE7A4595B2798EB6098809101DAFC5B22873075 retains900 native source joins and original command/image/EFI/serial/PCAP/peer/summary. Three prior failed captures remain failed. Twenty staged focused checks add canonical SignalPipeStolen emission/replay controls; actual pipe/epoll races, current-v1/affected ancestors, stable corrected-runner unfiltered full-host, GC/native pressure/quota and remaining batch/native gates stay pending. All9 owned issues open; old5809 withheld under784; PR786 draft. No gate/cloud/production acceptance.",
+      "currentEvidence": "Step1461 adds one strict directed pipe stolen-readiness guest with real handler/progress,2reaps/8transfers after exact repark inventory correction; the equivalent epoll and controls remain pending. Development batch under737/PR786, step1460: one original v2 lifecycle producer passes smoke/strict service at e0037e928cf25f34af77b64aa16d034d43f5e766.836520ms/17131 calls/17clones/18reaps, exact32KiB echo/512KiB stream/healthy progress,2actual client FIN cancellations, terminal drain and owned cleanup. All67 message/call ordinals bind; actual maxima16vectors/65536B. Original auditA0B40B238CA738A2C34F02912FE7A4595B2798EB6098809101DAFC5B22873075 retains900 native source joins and original command/image/EFI/serial/PCAP/peer/summary. Three prior failed captures remain failed. Twenty staged focused checks add canonical SignalPipeStolen emission/replay controls; equivalent epoll race, current-v1/affected ancestors, stable corrected-runner unfiltered full-host, GC/native pressure/quota and remaining batch/native gates stay pending. All9 owned issues open; old5809 withheld under784; PR786 draft. No gate/cloud/production acceptance.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -34177,7 +34177,7 @@
         "M16-009",
         "M16-012"
       ],
-      "currentEvidence": "Owned development under737, steps1438-1460. Pending-signal recheck remains after publishing pipe/epoll/futex waits; host model repair is separate from guest scheduling proof. New canonical SignalPipeStolen emits child write -> directed signal -> competing read before parent retry, then requires EINTR, real handler/restorer, later parent I/O and two reaps. Twenty selected staged host checks pass with exact instruction/fd loads/canonical package and reordered/forged/missing-handler negatives; build0warnings/errors, repo/contracts/diff pass. Canonical package SHAAD6334F68B498ACDF244D8E31B9EE47AFE32E6772F64144A3FE8DC69D0100554. Original lifecycle r04 passes independently at e0037e92 but is not the race fixture. Actual pipe-race and equivalent epoll, initial pending/timeout/mask/restart controls, affected GC/socket ancestors, native and stable unfiltered full-host/batch gates remain pending. Issue open/claimed; no general GC deadlock or acceptance claim.",
+      "currentEvidence": "Step1461 retains one fresh original strict SignalPipeStolen guest:27calls, four supervisor lifetimes, real handler/restorer, later I/O,2reaps/8transfers and owned cleanup. First r01 reaches raw terminal markers but fails m16_009_tail_inventory; independent47-row host regression reproduces it. The exact additional repark supervisor after child read/reap and final8transfers are now mandatory.10 complete unchanged-input zero-reuse focused correction checks pass, build0warnings/errors, repo/contracts/diff pass. Original successful audit6269558F56B50E4961FC5E67026298950DD997514DBAFC81149D309E5CA4433B retains900source joins and HEAD4ea0e440 plus exact uncommitted consumer/test diff. Failed audit876A45E7BADC41D9D93E063344B01FA291FBDD4C15F94DC571358D2469548243 remains failed. Original COFF/EFI byte-identical across both runs;585060codeB/541REL32 join actual EFI. Scope-native/stack review remains separate. Prior20 staged fixture checks and original lifecycle r04 retain their own source scopes. Equivalent epoll/initial pending/mask/ignored/timeout/restart controls, affected ancestors, native/full-host/pressure and batch gates remain pending. Issue open/claimed; no general GC-deadlock or gate acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34223,7 +34223,8 @@
         "tools/OS.Tooling/LinuxSignalProofFixture.cs",
         "tests/OS.HostTests/LinuxSignalWaitTranscriptTests.cs",
         "tests/OS.HostTests/LinuxSignalStolenReadinessTests.cs",
-        "tools/OS.Tooling/ToolCommand.cs"
+        "tools/OS.Tooling/ToolCommand.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxSignals.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34231,7 +34232,7 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "acceptanceCriteria": [
-        "The write-signal-competing-read schedule completes the parent\u0027s syscall with the correct interruption/restart image, delivers its queued handler and releases exactly the retained wait ownership; it never parks with an actionable signal stranded.",
+        "The write-signal-competing-read schedule completes the parent's syscall with the correct interruption/restart image, delivers its queued handler and releases exactly the retained wait ownership; it never parks with an actionable signal stranded.",
         "An equivalent epoll stolen-readiness case and initial-wait pending-signal cases pass. Masked/ignored signals, real timeout, ready data, positive partial write, fd reuse and SA_RESTART preserve their distinct semantics.",
         "Actual guest scheduling demonstrates handler execution and subsequent worker/supervisor progress with bounded teardown, followed by affected GC/ThreadPool/socket ancestors. Host ordering alone does not prove a GC deadlock repair. Qualify before M10-012 async/cancellation churn.",
         "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
@@ -34239,7 +34240,7 @@
       "requiredMarkers": [
         "TEST_START m16.020",
         "TEST_PASS m16.020",
-        "TEST_FAIL m16.020 \u003Creason\u003E"
+        "TEST_FAIL m16.020 <reason>"
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
