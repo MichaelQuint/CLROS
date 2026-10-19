@@ -3,11 +3,15 @@
 ## Continuing-service development
 
 The [current service batch](workload-profiles.md#status) under #737 remains ahead
-of #224 and the disk roadmap. [Step1432](../done/step1432.md) adds bounded raw
-persist/reset controls with20 focused host checks, including loopback/PCAP
-simulation. Complete control-capture validation and source-held runner/image
-orchestration remain pending. The service worker and successful full external
-peer protocol have not executed; no continuing-service acceptance is added.
+of #224 and the disk roadmap. [Step1434](../done/step1434.md) wires the complete
+source-held runner/native/image/peer/control consumer and records43 focused
+development checks. Original EFI publication and artifact bindings pass. The
+first actual guest runs604,311ms but fails when the inherited600-second UTC
+anchor expires. A thread passes4,096 syscall observations and HTTP status reports
+worker progress, but the full peer protocol, complete replay and cleanup do not
+succeed. All seven issues remain open/claimed. Next repair the explicit service
+UTC/capture budgets and the fixture's measured call pacing, then qualify the
+stable batch; no continuing-service acceptance is added.
 
 [Step1425](../done/step1425.md) adds a development-only correction for #766:
 empty `sendmsg` and scalar `sendto` bypass full send-buffer pressure after the

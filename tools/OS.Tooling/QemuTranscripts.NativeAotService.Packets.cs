@@ -37,9 +37,15 @@ public static partial class QemuTranscripts
         var peer = NativeAotServicePeer.InspectOutput(peerReport);
         Need(ports.Count == peer.Exchanges && ports.Distinct().Count() == ports.Count && ports.All(port => port is > 0 and <= 65535),
             "service_wire_expectations");
-        _ = QemuEthernetCapture.Inspect(bytes, anchor);
         using var document = JsonDocument.Parse(peerReport);
         var exchanges = document.RootElement.GetProperty("exchanges").EnumerateArray().ToArray();
+        return ServiceHttpPackets(bytes, anchor, arp, ports, exchanges, false);
+    }
+
+    private static ServiceHttpPacketInspection ServiceHttpPackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
+        IReadOnlyList<uint> ports, JsonElement[] exchanges, bool concurrent, Action<int, byte[], byte[]>? checkedStream = null)
+    {
+        _ = QemuEthernetCapture.Inspect(bytes, anchor);
         int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0;
         ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = [];
         while (offset < bytes.Length)
@@ -87,7 +93,7 @@ public static partial class QemuTranscripts
                     if (!ports.Contains(remote))
                     { Need(flows.Count == 0 && ++quietSyns <= 1600, "service_wire_quiet_syn"); continue; }
                     Need(flows.Count < ports.Count && remote == ports[flows.Count] &&
-                        (flows.Count == 0 || flows[^1].ServerFin && flows[^1].ServerSeen == flows[^1].ResponseExtent), "service_wire_flow_order");
+                        (concurrent || flows.Count == 0 || flows[^1].ServerFin && flows[^1].ServerSeen == flows[^1].ResponseExtent), "service_wire_flow_order");
                     flow = new(remote, sequence); flows.Add(flow);
                 }
                 else Need(unchecked(sequence + 1) == flow.Client && !flow.ClientFin && !flow.ServerFin, "service_wire_syn_retry");
@@ -137,6 +143,7 @@ public static partial class QemuTranscripts
             Need(flow.ClientReady && flow.ClientSeen == flow.RequestExtent && flow.ServerSeen == flow.ResponseExtent &&
                 flow.ClientFin && flow.ServerFin && flow.ClientFinAcked && flow.ServerFinAcked && flow.ServerFinFirst, "service_wire_close");
             ServiceHttpExchange(flow.Request.AsSpan(0, flow.RequestExtent), flow.Response.AsSpan(0, flow.ResponseExtent), exchanges[i]);
+            checkedStream?.Invoke(i, flow.Request.AsSpan(0, flow.RequestExtent).ToArray(), flow.Response.AsSpan(0, flow.ResponseExtent).ToArray());
         }
         return new(flows.Count, tcpRecords, flows.Sum(flow => flow.RequestExtent), flows.Sum(flow => flow.ResponseExtent),
             flows.Count(flow => flow.ServerFinFirst), flows.Count(flow => flow.ClientFinAcked && flow.ServerFinAcked), quietSyns);

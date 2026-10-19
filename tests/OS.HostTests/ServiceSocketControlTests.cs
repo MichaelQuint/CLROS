@@ -10,7 +10,7 @@ internal static class ServiceSocketControlTests
     [HostTest("service controls drive two pending resets lost reopen healthy isolation and byte-exact resumed close over owned mock IO")]
     private static async Task Complete()
     {
-        var (control, transport) = await Exercise("none");
+        var (control, transport, _) = await Exercise("none");
         HostCheck.True(control.Schema =="clros.nativeaot.service.controls.v1" && control.FirstSynAckOrdinal <control.SecondSynAckOrdinal &&
             control.FirstProbeOrdinal <control.SecondProbeOrdinal && control.Persist.Port !=control.Healthy.Port && control.Observations.Count >20);
         HostCheck.True(transport.Session.Healthy && transport.Session.Stopped && transport.ControlledPorts.Count ==3 && transport.Session.DroppedFrames.Count ==4);
@@ -52,7 +52,7 @@ internal static class ServiceSocketControlTests
         internal int Probes;
     }
 
-    private static async Task<(ServiceSocketControls.Report, WebFrameControl.ServiceReport)> Exercise(string mode)
+    internal static async Task<(ServiceSocketControls.Report, WebFrameControl.ServiceReport, byte[])> Exercise(string mode)
     {
         string folder = Path.Combine(Path.GetTempPath(), "clros-service-controls-" +Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
         try { return await Run(folder, mode); }
@@ -62,13 +62,19 @@ internal static class ServiceSocketControlTests
         }
     }
 
-    private static async Task<(ServiceSocketControls.Report, WebFrameControl.ServiceReport)> Run(string folder, string mode)
+    private static async Task<(ServiceSocketControls.Report, WebFrameControl.ServiceReport, byte[])> Run(string folder, string mode)
     {
         string serial = Path.Combine(folder, "serial.log"), capture = Path.Combine(folder, "wire.pcap");
         File.WriteAllText(serial, "M16_011_PEER mac=90525193470466 sent=1 received=1 start=1 end=2\r\nM16_011_SLOT event=0 synthetic=gate-only\r\n");
         using var output = new FileStream(capture, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite);
         using var writer = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true);
         writer.Write(Convert.FromHexString("D4C3B2A10200040000000000000000000000010001000000")); writer.Flush();
+        uint time = 0;
+        foreach (byte[] raw in NativeAotSocketIntegrationTests.Packets().Frames.Take(8)) Record(raw);
+        void Record(byte[] raw)
+        {
+            writer.Write(1U); writer.Write(time++ * 1000); writer.Write((uint)raw.Length); writer.Write((uint)raw.Length); writer.Write(raw); writer.Flush();
+        }
         using var frames = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);
         using var controls = new ServiceSocketControls(); using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(7));
         using TcpClient backend = new(), guest = new();
@@ -79,7 +85,8 @@ internal static class ServiceSocketControlTests
         {
             var report = await execution;
             while (frames.DroppedFrames.Count <4) await Task.Delay(1, limit.Token);
-            return (report, frames.FinishService());
+            frames.ExpectGuestExit();
+            return (report, frames.FinishService(), File.ReadAllBytes(capture));
         }
         finally
         {
@@ -90,11 +97,7 @@ internal static class ServiceSocketControlTests
 
         async Task Simulate()
         {
-            uint time = 0, syns = 0; bool healthyClosed = false; Dictionary<int, Flow> flows = [];
-            void Record(byte[] raw)
-            {
-                writer.Write(1U); writer.Write(time++ *1000); writer.Write((uint)raw.Length); writer.Write((uint)raw.Length); writer.Write(raw); writer.Flush();
-            }
+            uint syns = 0; bool healthyClosed = false; Dictionary<int, Flow> flows = [];
             void Reply(int port, Flow flow, uint sequence, byte flags, string payload = "", uint? ack = null) =>
                 Record(ContinuingTcpScenario.Write(new(true, (ushort)port, sequence, ack ??flow.Next, flags, 8192, payload), 0x52550a000202));
             for (;;)

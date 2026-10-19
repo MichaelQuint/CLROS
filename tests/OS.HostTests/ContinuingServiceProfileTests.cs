@@ -48,12 +48,37 @@ internal static class ContinuingServiceProfileTests
 
     private static Dictionary<string, bool> Flags() => new() { ["EnableM16014Probe"] = true };
 
-    [HostTest("continuing service cannot borrow finite or web-prefix guest acceptance while its runner is pending")]
+    [HostTest("continuing service selects its owned full capture runner with bounded real time and isolated terminal markers")]
     private static void RunnerBoundary()
     {
-        var options = new QemuSmokeOptions { LinuxElfPackage = "service.pkg", LinuxThreadingDisassembly = "service.dump" };
+        var options = new QemuSmokeOptions { BuildEfi=true,FirmwareRngSource="virtio",LinuxElfPackage = "service.pkg", LinuxThreadingDisassembly = "service.dump" };
         options.Flags["EnableM16014Probe"] = true;
-        Reject(() => QemuProfiles.Create(options), "continuing_service_runner_pending");
+        var plan=QemuProfiles.Create(options);
+        HostCheck.Equal(900,options.TimeoutSeconds);
+        HostCheck.Equal("MinimalApiService",options.LinuxThreadingApplication);
+        HostCheck.True(plan.Required.Contains("TEST_PASS m16-012") && plan.Required.Contains("M16_014_POLICY") &&
+            !plan.Required.Contains("TEST_PASS m10.004") && !plan.IsEnabled("EnableM01OwnedPagingProbe"));
+        options.Explicit.Add("TimeoutSeconds");options.TimeoutSeconds=779;
+        Reject(() => QemuProfiles.Create(options), "service_timeout_must_cover_quiet_runtime_and_transport_drain");
+        options.TimeoutSeconds=780;_=QemuProfiles.Create(options);
+        options.FirmwareRngSource="none";
+        Reject(() => QemuProfiles.Create(options), "service_virtio_rng_required");
+    }
+
+    [HostTest("service smoke dry run wires only the full service runner and starts no peer or package admission")]
+    private static async Task DryRun()
+    {
+        var options=new QemuSmokeOptions { DryRun=true,BuildEfi=true,FirmwareRngSource="virtio",LinuxElfPackage="missing-service.pkg",
+            LinuxThreadingDisassembly="missing-service.dump" };
+        options.Flags["EnableM16014Probe"]=true;int calls=0;
+        int result=await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(),options,TextWriter.Null,(name,args)=>
+        {
+            calls++;HostCheck.True(name=="OS.QemuRunner" && args.Contains("--dry-run") && args.Contains("--continuing-service") &&
+                args.Contains("--socket-forward-port") && args.Contains("900") && args.Contains("TEST_PASS m16-012") &&
+                !args.Contains("--continuing-web") && !args.Contains("--continuing-network-peer") && !args.Contains("--http-probe-url"));
+            return Task.FromResult(new ProcessResult(0,"","",false,false,false,TimeSpan.Zero));
+        });
+        HostCheck.True(result==0 && calls==1);
     }
 
     private static void Reject(Action action, string reason)

@@ -9,7 +9,7 @@ public static partial class QemuTranscripts
     /// <summary>Complete inner-leaf accounting, without parent firmware, native
     /// ABI, NIC, packet, peer, runner or guest-qualification authority.</summary>
     public readonly record struct ServiceReplayReport(ThreadingProtocolReport Protocol,ServiceStartupInspection Startup,
-        ServiceRandomInspection Random,ServiceTransportInspection Transport);
+        ServiceRandomInspection Random,ServiceTransportInspection Transport,int SocketAccepts=0,ulong SocketSent=0,ulong SocketReceived=0);
 
     /// <summary>Borrow an original package, sealed prepared service program and
     /// bounded complete raw leaf (including preceding seed/bound observations).
@@ -47,12 +47,18 @@ public static partial class QemuTranscripts
         string[] rows=original.Where((_,index)=>index>=start[0] && !metadata.Contains(index)).ToArray();
         var capture=NativeAotSocketGuest.ReadServiceReadiness(new(framed.Stdout,string.Join("\r\n",rows)+"\r\n",
             framed.WriteLengths.ToArray(),framed.WriteChannels.ToArray(),framed.Stderr));
-        var protocol=new ThreadingProtocol(NativeAotServicePackage.Application,rows,elf,instruction,syscallReturn,
+        var replay=new ThreadingProtocol(NativeAotServicePackage.Application,rows,elf,instruction,syscallReturn,
             framed.WriteLengths,userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:startup.SettingsBytes,
-            webSettingsFd:startup.SettingsDescriptor,webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal)).Validate();
+            webSettingsFd:startup.SettingsDescriptor,webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal));
+        var protocol=replay.Validate();var counts=replay.ServiceSocketCounts();
         Need((ulong)protocol.Calls>=random.Requests && protocol.Reaped==protocol.Clones+1 && transport.Connections>=10,
             "service_complete_joins");
-        return new(protocol,startup,random,transport);
+        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received);
+    }
+
+    private sealed partial class ThreadingProtocol
+    {
+        internal (int Accepts,ulong Sent,ulong Received) ServiceSocketCounts() => (socketAccepts,socketSent,socketReceived);
     }
 
     private static void ServiceRuntimeMetadata(string[] rows,ServiceStartupInspection startup,HashSet<int> metadata)
