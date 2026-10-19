@@ -26,6 +26,7 @@ public static unsafe class Sha256
         for (uint i = 0; i < 8; i++) tail[padded - 1 - i] = (byte)(bits >> (int)(i * 8));
         Compress(tail, h); if (padded == 128) Compress(tail + 64, h);
         for (uint i = 0; i < 8; i++) for (uint j = 0; j < 4; j++) digest[i * 4 + j] = (byte)(h[i] >> (int)(24 - j * 8));
+        OS.Std.Memory.SensitiveMemory.Clear(h, 32); OS.Std.Memory.SensitiveMemory.Clear(tail, 128);
         return true;
     }
 
@@ -48,6 +49,7 @@ public static unsafe class Sha256
         }
         h[0] = unchecked(h[0] + a); h[1] = unchecked(h[1] + b); h[2] = unchecked(h[2] + c); h[3] = unchecked(h[3] + d);
         h[4] = unchecked(h[4] + e); h[5] = unchecked(h[5] + f); h[6] = unchecked(h[6] + g); h[7] = unchecked(h[7] + z);
+        OS.Std.Memory.SensitiveMemory.Clear(w, 256);
     }
 
     // Constants from FIPS 180-4 section 4.2.2; a switch needs no managed array.

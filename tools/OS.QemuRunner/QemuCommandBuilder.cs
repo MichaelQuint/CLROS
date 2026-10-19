@@ -43,7 +43,7 @@ internal static class QemuCommandBuilder
             "-drive",
             // The web verifier holds the exact image read-only. AHCI needs a
             // writable disk, so keep its writes in QEMU's temporary overlay.
-            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
+            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
             "-device",
             options.VirtioBlockQueueDevice && !separateBoot ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,
@@ -62,8 +62,8 @@ internal static class QemuCommandBuilder
         // Backend TX is SLIRP -> guest. Put the redirector before the dump so
         // reinjected TX (including the diagnostic VLAN) reaches the guest-side
         // capture. Guest RX traverses the list in reverse and bypasses TX.
-        if (webFrameArguments is not null && !options.ContinuingWeb) throw new InvalidOperationException("Web filter requires continuing web.");
-        if (options.ContinuingWeb)
+        if (webFrameArguments is not null && !options.ContinuingWeb && !options.ContinuingService) throw new InvalidOperationException("Frame filter requires continuing web or service.");
+        if (options.ContinuingWeb || options.ContinuingService)
             arguments.AddRange(webFrameArguments ?? new[] { "-chardev", "socket,id=clroswebout,host=127.0.0.1,port=<ephemeral-out>",
                 "-chardev", "socket,id=clroswebin,host=127.0.0.1,port=<ephemeral-in>",
                 "-object", "filter-redirector,id=clroswebfilter,netdev=n0,queue=tx,indev=clroswebin,outdev=clroswebout" });

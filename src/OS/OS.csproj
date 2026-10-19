@@ -103,6 +103,7 @@
 		<EnableM16011Probe Condition="'$(EnableM16011Probe)' == ''">false</EnableM16011Probe>
 		<EnableM16012Probe Condition="'$(EnableM16012Probe)' == ''">false</EnableM16012Probe>
 		<EnableM16013Probe Condition="'$(EnableM16013Probe)' == ''">false</EnableM16013Probe>
+		<EnableM16014Probe Condition="'$(EnableM16014Probe)' == ''">false</EnableM16014Probe>
 		<EnableM10004Probe Condition="'$(EnableM10004Probe)' == ''">false</EnableM10004Probe>
 		<EnableM16019UnavailableProbe Condition="'$(EnableM16019UnavailableProbe)' == ''">false</EnableM16019UnavailableProbe>
 		<EnableM16019InvalidProbe Condition="'$(EnableM16019InvalidProbe)' == ''">false</EnableM16019InvalidProbe>
@@ -413,6 +414,9 @@
 	<PropertyGroup Condition="'$(EnableM16013Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M16_013_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16014Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_014_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM10004Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M10_004_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -595,6 +599,7 @@
 			'$(EnableM16011Probe)' == 'true' or
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
+			'$(EnableM16014Probe)' == 'true' or
 			'$(EnableM10004Probe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
 			'$(EnableM16019InvalidProbe)' == 'true' or
@@ -798,6 +803,7 @@
 		<Compile Include="..\OS.Kernel\Net\TcpReceiveWindow.cs" Link="Net\TcpReceiveWindow.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.cs" Link="Net\TcpSendWindow.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Close.cs" Link="Net\TcpSendWindow.Close.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpTimeWaitTable.cs" Link="Net\TcpTimeWaitTable.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\Ipv4Header.cs" Link="Net\Ipv4Header.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\IcmpEchoPacket.cs" Link="Net\IcmpEchoPacket.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs" Link="Net\Ipv4IcmpEchoFrame.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
@@ -891,6 +897,9 @@
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs" Link="Runtime\BoundedExceptionFrameDispatch.cs" />
 		<Compile Include="..\OS.Kernel\Manifest\LinuxElfPackage.cs" Link="Manifest\LinuxElfPackage.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Hash\Sha256.cs" Link="Std\Hash\Sha256.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Hash\HmacSha256.cs" Link="Std\Hash\HmacSha256.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Hash\HmacSha256Drbg.cs" Link="Std\Hash\HmacSha256Drbg.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Memory\SensitiveMemory.cs" Link="Std\Memory\SensitiveMemory.cs" />
 		<Compile Include="..\OS.Kernel\Boot\WorkloadServiceLoop.cs" Link="Boot\WorkloadServiceLoop.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs" Link="Compatibility\LinuxX64\LinuxElfLoader.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs" Link="Compatibility\LinuxX64\LinuxElfMapping.cs" />
@@ -959,6 +968,7 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs" Link="Compatibility\LinuxX64\LinuxSocketServices.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs" Link="Compatibility\LinuxX64\LinuxEpollServices.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs" Link="Compatibility\LinuxX64\LinuxSocketNetwork.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpInitialSequence.cs" Link="Net\TcpInitialSequence.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
@@ -1040,6 +1050,7 @@
 			'$(EnableM16011Probe)' == 'true' or
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
+			'$(EnableM16014Probe)' == 'true' or
 			'$(EnableM10004Probe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
 			'$(EnableM16019InvalidProbe)' == 'true' or
@@ -2200,6 +2211,9 @@
 		<Error Condition="('$(EnableM07027Probe)' == 'true' or '$(EnableM07028Probe)' == 'true') and ('$(EnableExitBootServicesFreshMapProbe)' == 'true' or '$(EnableM01OwnedPagingProbe)' == 'true' or '$(EnableM02CheckedPortIoBindingProbe)' == 'true' or '$(EnableM02Com1OwnedPortIoProbe)' == 'true' or '$(EnableM02DoubleFaultIstProbe)' == 'true' or '$(EnableM02GuardedIstStackAllocationProbe)' == 'true' or '$(EnableM02IdtrContinuedExecutionProbe)' == 'true' or '$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' or '$(EnableM02OwnedCom1ReadyProbe)' == 'true' or '$(EnableM02OwnedGdtTssTerminalProbe)' == 'true' or '$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' or '$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' or '$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' or '$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' or '$(EnableM02SafeStubProbe)' == 'true' or '$(EnableM02Ud2VectorStateProbe)' == 'true' or '$(EnableM02UnexpectedVectorPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM03FirmwareEntropySeedProbe)' == 'true' or '$(EnableM03MemoryMapCaptureProbe)' == 'true' or '$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03TypedExitBootServicesCallProbe)' == 'true' or '$(EnableM04ArithmeticConformanceProbe)' == 'true' or '$(EnableM04CheckedReferenceBarrierProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04ConstructorFailureProbe)' == 'true' or '$(EnableM04EhCatalogProbe)' == 'true' or '$(EnableM04FilteredCatchProbe)' == 'true' or '$(EnableM04FrameDispatchProbe)' == 'true' or '$(EnableM04GcStaticRootMaterializationProbe)' == 'true' or '$(EnableM04IndependentEndianConformanceProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04LayoutContractProbe)' == 'true' or '$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or '$(EnableM04NestedFinallyCatchProbe)' == 'true' or '$(EnableM04NormalFinallyProbe)' == 'true' or '$(EnableM04RethrowProbe)' == 'true' or '$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or '$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or '$(EnableM04RhpNewFastProbe)' == 'true' or '$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true' or '$(EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe)' == 'true' or '$(EnableM04StringAllocationBeforeBindProbe)' == 'true' or '$(EnableM04StringAllocationExhaustionProbe)' == 'true' or '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' or '$(EnableM04StringAllocationProbe)' == 'true' or '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' or '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' or '$(EnableM04SzArrayAllocationProbe)' == 'true' or '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' or '$(EnableM04UnhandledExceptionProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM05BarDmaProbe)' == 'true' or '$(EnableM05MonotonicClockProbe)' == 'true' or '$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true' or '$(EnableM05VirtqueueInterruptProbe)' == 'true' or '$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' or '$(EnableM06BlockMsixProbe)' == 'true' or '$(EnableM06FatReadProbe)' == 'true' or '$(EnableM06GptPartitionProbe)' == 'true' or '$(EnableM06LiveBlockContractProbe)' == 'true' or '$(EnableM06PackageReadProbe)' == 'true' or '$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' or '$(EnableM06VirtioBlockReadProbe)' == 'true' or '$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM09011Probe)' == 'true' or '$(EnableM09012Probe)' == 'true' or '$(EnableM16010Probe)' == 'true' or '$(EnableM16012Probe)' == 'true' or '$(EnableM16013Probe)' == 'true' or '$(EnableM10004Probe)' == 'true' or '$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true' or '$(EnableUefiGoneSimulationProbe)' == 'true')" Text="socket_containment_profile_conflict" />
 		<Error Condition="'$(EnableM16011Probe)' != 'true' and '$(EnableM16011Probe)' != 'false'" Text="m16_011_switch_invalid" />
 		<Error Condition="'$(EnableM16013Probe)' != 'true' and '$(EnableM16013Probe)' != 'false'" Text="m16_013_switch_invalid" />
+		<Error Condition="'$(EnableM16014Probe)' != 'true' and '$(EnableM16014Probe)' != 'false'" Text="m16_014_switch_invalid" />
+		<Error Condition="'$(EnableM16014Probe)' == 'true' and '$(EnableM10004Probe)' != 'true'" Text="m16_014_requires_web_parent" />
+		<Error Condition="'$(EnableM16014Probe)' == 'true' and ('$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true')" Text="continuing_service_profile_conflict" />
 		<Error Condition="'$(EnableM16013Probe)' == 'true' and '$(EnableM16012Probe)' != 'true'" Text="m16_013_requires_epoll_parent" />
 		<Error Condition="'$(EnableM16013Probe)' == 'true' and ('$(EnableM07027Probe)' == 'true' or '$(EnableM07028Probe)' == 'true' or '$(EnableM10004Probe)' == 'true' or '$(EnableM09011Probe)' == 'true' or '$(EnableM09012Probe)' == 'true' or '$(EnableM16010Probe)' == 'true')" Text="socket_vectors_profile_conflict" />
 		<Error Condition="'$(EnableM16012Probe)' != 'true' and '$(EnableM16012Probe)' != 'false'" Text="m16_012_switch_invalid" />

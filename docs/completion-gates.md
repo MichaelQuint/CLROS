@@ -1,5 +1,28 @@
 # CLROS Completion Gates
 
+[Owned development receipt](../done/step1422.md) is a development checkpoint for #743/#744/#757
+transport repairs and #746 policy contracts. Its 127 focused checks span
+multiple development producers; they are not an unfiltered full-host run.
+[Step1421](../done/step1421.md) adds default-off native service/compact TIME-WAIT
+wiring and shared HMAC_DRBG development, with63 focused checks across multiple
+producers and no-stdlib C# compilation. [Step1423](../done/step1423.md) wires the
+service entropy adapter/source/cleanup with30 focused startup checks and C#
+compilation. [Step1424](../done/step1424.md) adds separately seeded/leased TCP
+ISN development with6 independent policy checks,27 network checks and C#
+compilation. Actual guest entropy/ISNs, the complete service runner,
+original native review and stable-batch full-host/QEMU/PCAP
+qualification remain pending. These six tickets and #766 stay open.
+[Step1425](../done/step1425.md) adds development-only empty-send capacity repair
+with24 focused host checks and service/finite-web C# compilation. Its original
+native review and finite vector/socket guest regression remain pending.
+No gate advances.
+
+[Step1426](../done/step1426.md) adds the distinct service fixture and canonical
+bounded envelope, with9 focused checks and two Windows rejection controls.
+Neither envelope validation nor compilation executes the service worker or
+admits its ELF to a guest. The service runner remains guarded pending its own
+publication/source/decoder and complete lifecycle/packet validation.
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 `88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),
 six strict web/quota prefixes, three policy/vector guests and eight affected
@@ -107,9 +130,11 @@ stay open.
 - Step1419 also qualifies #759/#223 owned realtime and independently plausible
   HTTP Date. A correctly formatted Unix-epoch response is rejected; the declared
   UTC source, tolerance and finite lifetime remain restrictions.
-- #224 requires persist, compact TIME-WAIT, continuing execution policy,
-  replenished randomness, M07-032 pending-reset cleanup and M07-033 continuing
-  ISNs. #225 additionally requires fragmented backing, guest-verified GC/native
+- Step1437 qualifies #224's persist, compact TIME-WAIT, continuing execution,
+  replenished randomness, pending-reset, continuing-ISN and empty-send
+  prerequisites: one complete service lifetime plus ten affected ancestors and
+  5,809 full-host checks. #224 still requires repeated-service acceptance.
+  #225 additionally requires fragmented backing, guest-verified GC/native
   budgets and M16-020 pending-signal checks before renewed waits. The existing
   #226 -> #227 evidence and local Gate 14 closure chain remains authoritative.
 - M16-017 requires real CPL3 #UD/#DE capture/termination and supervisor progress;

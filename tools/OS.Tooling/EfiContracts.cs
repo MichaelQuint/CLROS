@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "b87fa75295f8c4846d7267c07dbec69eb45c7a028b7c283cd18e4adb37bd89f4";
-    public const string CanonicalProjectSha256 = "a57ad2c0da0c8df824d7e0a6a0ab085598ad0f54af7077415a51c688dc7178a6";
-    public const string EfiEntrySourceSha256 = "e8f0fe512e38b49f0af4a6c7b38c9053fbae0b3e5e57eb574709f9c07fbecb35";
+    public const string ProjectSourceSha256 = "cf88ca96ece7c87d4fc982cdeb72708b608b073e4be8cc3545731559cba96a63";
+    public const string CanonicalProjectSha256 = "adaa0507686c9d00e68c88760bd0dd1ee01b7eaf4485013dadaf79723f3593ce";
+    public const string EfiEntrySourceSha256 = "4da71dacdf24846cb1168af8850dfe2f3ef7032271eb802495e48f0ed40a9643";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -218,6 +218,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Net\TcpReceiveWindow.cs|Net\TcpReceiveWindow.cs",
         @"..\OS.Kernel\Net\TcpSendWindow.cs|Net\TcpSendWindow.cs",
         @"..\OS.Kernel\Net\TcpSendWindow.Close.cs|Net\TcpSendWindow.Close.cs",
+        @"..\OS.Kernel\Net\TcpTimeWaitTable.cs|Net\TcpTimeWaitTable.cs",
         @"..\OS.Kernel\Net\Ipv4Header.cs|Net\Ipv4Header.cs",
         @"..\OS.Kernel\Net\IcmpEchoPacket.cs|Net\IcmpEchoPacket.cs",
         @"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs|Net\Ipv4IcmpEchoFrame.cs",
@@ -311,6 +312,9 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs|Runtime\BoundedExceptionFrameDispatch.cs",
         @"..\OS.Kernel\Manifest\LinuxElfPackage.cs|Manifest\LinuxElfPackage.cs",
         @"..\..\std\no-runtime\shared\Hash\Sha256.cs|Std\Hash\Sha256.cs",
+        @"..\..\std\no-runtime\shared\Hash\HmacSha256.cs|Std\Hash\HmacSha256.cs",
+        @"..\..\std\no-runtime\shared\Hash\HmacSha256Drbg.cs|Std\Hash\HmacSha256Drbg.cs",
+        @"..\..\std\no-runtime\shared\Memory\SensitiveMemory.cs|Std\Memory\SensitiveMemory.cs",
         @"..\OS.Kernel\Boot\WorkloadServiceLoop.cs|Boot\WorkloadServiceLoop.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs|Compatibility\LinuxX64\LinuxElfLoader.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs|Compatibility\LinuxX64\LinuxElfMapping.cs",
@@ -379,6 +383,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs|Compatibility\LinuxX64\LinuxSocketNetwork.cs",
+        @"..\OS.Kernel\Net\TcpInitialSequence.cs|Net\TcpInitialSequence.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs|Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs",
     ]);
 
@@ -478,7 +483,7 @@ public static partial class EfiContracts
         "EnableM16009Probe",
         "EnableM16010Probe",
         "EnableM16011Probe",
-        "EnableM16012Probe", "EnableM16013Probe",
+        "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe",
         "EnableM16019InvalidProbe", "EnableM16019UnavailableProbe",
         "EnableUefiGoneSimulationProbe",
     ]);

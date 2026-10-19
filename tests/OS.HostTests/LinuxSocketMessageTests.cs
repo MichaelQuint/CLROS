@@ -57,6 +57,93 @@ internal static unsafe class LinuxSocketMessageTests
         HostCheck.Equal(0L, model.Call(3, fd)); SocketCases.AbortAndReap(model, connection); model.End();
     }
 
+    [HostTest("review empty sendmsg succeeds with a full live send window")]
+    private static void ReviewEmptySendMessage()
+    {
+        ReviewEmptySend(false);
+    }
+
+    [HostTest("review zero-length iovec sendmsg succeeds with a full live send window")]
+    private static void ReviewZeroLengthSendMessage()
+    {
+        ReviewEmptySend(true);
+    }
+
+    private static void ReviewEmptySend(bool zeroVector)
+    {
+        using var model = new Model(); using var connection = SocketCases.Connection();
+        uint fd = model.Accept(model.Listen(), connection); model.Option(fd, 1, 7, 4);
+        model.Files.Text(First, "abcd"); Message(model, (First, 4));
+        HostCheck.Equal(4L, model.Call(46, fd, Header));
+        HostCheck.Equal(4, connection.Owner->BufferedBytes);
+        if (zeroVector) Message(model, (0, 0)); else Message(model);
+        long actual = model.Call(46, fd, Header);
+        HostCheck.Equal(4, connection.Owner->BufferedBytes);
+        HostCheck.Equal(0L, model.Call(3, fd)); SocketCases.AbortAndReap(model, connection); model.End();
+        HostCheck.Equal(0L, actual, "empty message must not wait for send capacity");
+    }
+
+    [HostTest("m16-022 empty aggregates and scalar send skip capacity without mutating transport or fd generation")]
+    private static void EmptyCapacityBoundary()
+    {
+        using var model = new Model(); using var connection = SocketCases.Connection();
+        uint fd = model.Accept(model.Listen(), connection); model.Option(fd, 1, 7, 4);
+        Message(model, (0, 0), (ulong.MaxValue, 0), (First, 0));
+        HostCheck.Equal(0L, model.Call(46, fd, Header)); // Available-space control.
+        model.Files.Text(First, "abcd"); Message(model, (First, 4)); HostCheck.Equal(4L, model.Call(46, fd, Header));
+        HostCheck.True(LinuxDescriptorServices.Capture(model.Files.State, fd, out var token));
+        byte[] held = new ReadOnlySpan<byte>(connection.Owner, sizeof(Tx.Owner)).ToArray();
+        uint transmissions = connection.Hardware->Calls;
+        Message(model, (0, 0), (ulong.MaxValue, 0), (First, 0));
+        foreach (ulong flags in new ulong[] { 0, 0x40, 0x4000, 0x4040 })
+        {
+            HostCheck.Equal(0L, model.Call(46, fd, Header, flags));
+            HostCheck.Equal(0L, model.Call(44, fd, ulong.MaxValue, 0, flags));
+        }
+        HostCheck.Equal(-95L, model.Call(46, fd, Header, 2));
+        HostCheck.True(LinuxDescriptorServices.IsCurrent(model.Files.State, token));
+        HostCheck.True(held.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(connection.Owner, sizeof(Tx.Owner))));
+        HostCheck.Equal(transmissions, connection.Hardware->Calls); HostCheck.Equal(4, connection.Owner->BufferedBytes);
+        Message(model, (First, 1)); HostCheck.Equal(-11L, model.Call(46, fd, Header));
+        HostCheck.Equal(-11L, model.Call(44, fd, First, 1));
+        HostCheck.Equal(0L, model.Call(3, fd)); SocketCases.AbortAndReap(model, connection); model.End();
+    }
+
+    [HostTest("m16-022 empty messages retain descriptor endpoint metadata and write-shutdown errors")]
+    private static void EmptyEndpointErrors()
+    {
+        using var model = new Model(); using var connection = SocketCases.Connection();
+        uint listener = model.Listen(), fd = model.Accept(listener, connection); Message(model);
+        HostCheck.Equal(-9L, model.Call(46, uint.MaxValue, Header)); HostCheck.Equal(-88L, model.Call(46, 1, Header));
+        HostCheck.Equal(-107L, model.Call(46, listener, Header)); HostCheck.Equal(-14L, model.Call(46, fd, 0));
+        HostCheck.Equal(0L, model.Call(48, fd, 1));
+        foreach (ulong flags in new ulong[] { 0, 0x4000 }) HostCheck.Equal(-32L, model.Call(46, fd, Header, flags));
+        HostCheck.Equal(-32L, model.Call(44, fd, 0, 0));
+        HostCheck.Equal(0L, model.Call(3, fd)); HostCheck.Equal(-9L, model.Call(46, fd, Header));
+        SocketCases.AbortAndReap(model, connection); model.End();
+    }
+
+    [HostTest("m16-022 empty messages consume reset or timeout once before preserved broken-pipe policy")]
+    private static void EmptyResetAndTimeout()
+    {
+        foreach (bool timeout in new[] { false, true })
+        {
+            using var model = new Model(); using var connection = SocketCases.Connection();
+            uint fd = model.Accept(model.Listen(), connection); Message(model);
+            if (timeout)
+            {
+                connection.Hardware->Now = 1_000_000_000_100;
+                HostCheck.Equal(Tx.Status.Timeout, Tx.Pump(connection.Owner, new byte[1514], out _));
+                HostCheck.Equal(Tx.Status.Success, Tx.RetireTimedOut(connection.Owner));
+            }
+            else HostCheck.Equal(Tx.Status.ConnectionReset, Tx.ReceiveFrame(connection.Owner,
+                Wire.Packet(100, ReadOnlySpan<byte>.Empty, ack: 700, flags: 0x14), out _));
+            HostCheck.Equal(timeout ? -110L : -104L, model.Call(46, fd, Header, 0x4000));
+            HostCheck.Equal(-32L, model.Call(46, fd, Header)); HostCheck.Equal(0L, model.Call(3, fd));
+            SocketCases.AbortAndReap(model, connection); model.End();
+        }
+    }
+
     [HostTest("m16-013 message metadata and complete vector extents reject without queued bytes")]
     private static void InvalidMetadata()
     {

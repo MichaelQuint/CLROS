@@ -16,8 +16,10 @@ Hardware-protected isolation for multiple applications follows.
 **The unchanged pinned .NET11 NativeAOT Hello and bounded runtime workloads now
 run inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime
 batch. [Step1419](done/step1419.md) qualifies bounded upstream Kestrel health,
-multi-segment responses and owned UTC. Continuing service and shutdown/reap
-remain incomplete.
+multi-segment responses and owned UTC. [Step1437](done/step1437.md) qualifies
+the continuing-service prerequisites with one complete service lifetime, real
+shutdown/reaps,5,809 full-host checks and ten affected ancestors. Repeated service
+#224 and the complete local Kestrel gate remain incomplete.
 CLROS is not cloud-ready or production-ready.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
@@ -67,7 +69,8 @@ handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
 cooperative worker advances throughout and exits/reaps before checked cleanup.
 Step1351 adds bounded Linux sockets and epoll. Step1380 qualifies the selected
 configuration slice incorporated from PR739. Later finite Kestrel acceptance is
-described above; continuing service and Gate14 requirements remain incomplete.
+described above; step1437 adds the bounded service prerequisites. Repeated
+service and Gate14 requirements remain incomplete.
 
 [Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
 across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles

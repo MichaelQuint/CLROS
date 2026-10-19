@@ -1,5 +1,30 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+## Continuing-service foundations
+
+[Step1437](../done/step1437.md) qualifies #743/#744/#746/#240/#757/#758/#766
+at frozen implementation `8bee44db`: 5,809 unfiltered full-host checks across
+781 fixtures (94 Native), one complete original 822,285ms service capture and
+ten fresh socket/runtime/vector/web ancestors with original source/native joins.
+The explicit default-off `MinimalApiService` policy preserves turn, progress,
+byte and resource guards while allowing the same worker beyond 4,096 calls and
+300s. Actual shutdown, off-stack reaps, restoration and secret erasure complete.
+
+The capture joins 32 HTTP connections, 32 compact TIME-WAIT transfers/retirements
+(bulk high-water 4, compact 24), persist recovery after a lost reopen, pending-RST
+retirement, 84 random requests/18,708 bytes and 34 independently keyed TCP
+sequence generations. Empty full-window sends have explicit host controls and
+current finite socket/vector regressions. Named complete native own bodies,
+504 selected comparisons, actual dispatch tables and unwind are reviewed within
+their stated bounds; missing bodies and transitive stack gain no authority.
+
+Earlier rejected captures and the corrected host inventories remain immutable
+in [steps1434](../done/step1434.md)-[1436](../done/step1436.md). A first Hello
+startup timeout remains recorded; its unchanged-limit retry passes. Shared owner
+#737 proceeds to #224's repeated-service acceptance, then #225's exact memory,
+budget and pending-signal prerequisites. General Kestrel/Gate14, arbitrary Linux
+applications, isolation, cloud and production remain incomplete.
+
 ## Planned static-file acceptance
 
 The [ordered roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)

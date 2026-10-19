@@ -18,10 +18,27 @@ M16-002 adds `OS.Std.Hash.Sha256.TryCompute`: allocation-free,
 one-shot SHA-256 over trusted caller pointers, at most 128 MiB, with 32-byte caller
 output. Invalid/null nonempty input, small output, overflow and overlap fail
 before writing. Padding/standard vectors and independent .NET comparisons pass.
-No incremental hashing, file/stream overloads, HMAC/signature API or certification
-is supplied. Kernel use is the 16 MiB data-only Linux ELF staging profile; it does
+That qualified profile supplies no incremental hashing, file/stream overloads,
+HMAC/signature API or certification. Kernel use is the 16 MiB data-only Linux ELF staging profile; it does
 not initialize upstream app GC/EH or a hosted runtime. See
 [step1199](../done/step1199.md) for qualified profile evidence.
+
+[Step1421](../done/step1421.md) adds development-only `HmacSha256.TryCompute`
+(keys0..64, messages0..256, disjoint32-byte output) and `HmacSha256Drbg`
+(`Instantiate`, `Generate`, `Reseed`, `Erase`). The serialized, address-bound
+owner requires32 entropy+16 nonce bytes, optional0..32-byte personalization,
+1..8192-byte requests and explicit fresh reseed after2^48 requests. It follows
+[SP800-90A rev1 section10.1.2](https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-90Ar1.pdf).
+Three original NIST known answers and independent .NET HMAC comparisons pass.
+Invalid admission preserves storage; addressed SHA/HMAC scratch and owner state
+are erased using `SensitiveMemory.Clear`, with inlining/optimization disabled.
+`IsInitialized` validates the exact owner address/counter without output; a
+reseed-required owner remains initialized but cannot generate. [Step1423](../done/step1423.md)
+adds explicit service source/adapter/cleanup wiring, with guarded independent
+firmware entropy/nonce capture and no firmware callbacks after exit. Native
+erase review and guest evidence remain pending. Registers/other copies, entropy
+quality, prediction resistance, longer
+HMAC keys/messages, streams and certification are outside this API's guarantees.
 
 #674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
 [step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called

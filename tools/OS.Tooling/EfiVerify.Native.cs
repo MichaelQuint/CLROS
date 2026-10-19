@@ -71,8 +71,7 @@ internal sealed partial class EfiVerification
         BindProfile(profile.IsEnabled("M16007"), "m16_descriptors", new[] { "PrepareLinuxDescriptors", "DispatchLinuxDescriptors",
             "WriteDescriptorOutput" }
             .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
-        BindProfile(profile.IsEnabled("M10004"), "m10_web", new[]{"LinuxWebObserveCall","LinuxWebObserveOutput","LinuxWebPublishLive","LinuxWebRetainFailure"}
-            .Select(n=>"OS_OS_Boot_EfiEntry_M03FirstExitAdapter__"+n).ToArray());
+        VerifyWebServiceBindings(profile,map,image);
         VerifyLinuxCopyBindings(profile, map, image);
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution") || profile.IsEnabled("M04ConstructorFailure"), "compiler_cctor", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase");
@@ -97,6 +96,16 @@ internal sealed partial class EfiVerification
         BindProfile(image, map, profile.IsEnabled("M16007") && !threads, "m16_descriptors",
             prefix + "CopyDescriptorInput", prefix + "CopyDescriptorOutput");
         BindProfile(image, map, threads, "m16_threads", prefix + "LinuxThreadCopyInput", prefix + "LinuxThreadCopyOutput");
+    }
+
+    internal static void VerifyWebServiceBindings(EfiProfile profile,string map,EfiPeImage image)
+    {
+        const string prefix="OS_OS_Boot_EfiEntry_M03FirstExitAdapter__";
+        bool service=profile.IsEnabled("M16014"),web=profile.IsEnabled("M10004");
+        BindProfile(image,map,web,"m10_web",new[]{"LinuxWebObserveCall","LinuxWebObserveOutput","LinuxWebPublishLive"}.Select(name=>prefix+name).ToArray());
+        BindProfile(image,map,web&&!service,"m10_web_retention",prefix+"LinuxWebRetainFailure");
+        BindProfile(image,map,service,"m16_service_lifetime",new[]{"CaptureLinuxServiceSeed","PrepareLinuxServiceRandom","ClearLinuxServiceRandom",
+            "LinuxServiceObserveCall","LinuxServiceObserveWorkers"}.Select(name=>prefix+name).ToArray());
     }
 
     private byte[] NativeObject(string propertyPrefix, string sidecar, string objectName, int size, string hash, string reasonPrefix)

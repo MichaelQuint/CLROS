@@ -62,6 +62,10 @@ public static unsafe partial class EfiEntry
             internal DeadlineQueue.Entry TimerDeadline;
             internal ulong Epoch, OriginalIst;
             internal LinuxThreadExecutionBudget Budget;
+#if M16_014_PROBE
+            internal ulong ServiceProgress, ServicePeakCalls, ServicePeakIdentity, ServiceFinished;
+            internal uint ServiceReady, ServiceShutdown;
+#endif
             internal uint Installed, GuardAttached, ProcessAttached, TableAttached, SignalsInitialized;
             internal fixed ulong Cpu[(int)NativeSwitch.ObservationWords];
             internal fixed ulong GatewayCpu[(int)X64LinuxUserTransition.ObservationWords];
@@ -107,6 +111,9 @@ public static unsafe partial class EfiEntry
             if (!LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxNativeControl), out byte* control)) return false;
             c = (LinuxNativeControl*)control;
             *c = default; c->State = state; c->Key = pool ^ 0x4d31363030384f57UL; c->Phase = 1; c->Capacity = state->LinuxView.Manifest.Threads;
+#if M16_014_PROBE
+            c->WebStartup = LinuxAppStartupObservation.ForService();
+#endif
             if (!LinuxNativeTake(ref cursor, end, NativeContext.Bytes, out byte* supervisor) ||
                 !LinuxNativeTake(ref cursor, end, NativeContext.Bytes * LinuxNativeWorkers, out byte* contexts) ||
                 !LinuxNativeTake(ref cursor, end, NativeContext.Bytes, out byte* witness) ||
@@ -334,11 +341,21 @@ public static unsafe partial class EfiEntry
                 LinuxSyscallAdmission admission = new() { UserRoot = c->State->LinuxUserRoot.Root,
                     MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls, MaximumWrite = LinuxSyscallGateway.MaximumWrite,
                     Scratch = (byte*)c->State->LinuxSyscallData + X64LinuxUserTransition.ScratchOffset, ScratchBytes = 4096,
-                    FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true };
+                    FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true,
+                    ContinuingService = OS.Kernel.Diagnostics.Probes.EnableM16014Probe };
                 LinuxSyscallAccess access = c->User;
                 access.Startup = &DispatchLinuxStartup; access.Descriptors = &DispatchLinuxDescriptors; access.Threads = &DispatchLinuxNativeThreadService;
                 if (LinuxSyscallGateway.Begin(ref c->Gates[index], admission, access) != LinuxSyscallGateStatus.Active) return LinuxNativeAbort(c, index);
             }
+#if M16_014_PROBE
+            if (c->Budget.IsContinuingService)
+            {
+                if (c->Epoch == ulong.MaxValue) return LinuxNativeAbort(c, index);
+                ulong turn = c->Epoch + 1;
+                if (c->Gates[index].CurrentTurn != turn && !LinuxSyscallGateway.RenewTurn(ref c->Gates[index], turn))
+                    return LinuxNativeAbort(c, index);
+            }
+#endif
             if (c->Gates[index].Status != LinuxSyscallGateStatus.Active || !c->State->LinuxSyscallPlan.ResumeUser)
                 return LinuxNativeAbort(c, index);
             // CompletePipe/FutexWait already stored the real result. Delivery
@@ -391,7 +408,7 @@ public static unsafe partial class EfiEntry
             // owner validation is outside these optional syscall intervals.
             ulong entered = 0, admitted = 0, dispatched = 0, prepared = 0;
             delegate* unmanaged<void*, ulong*, byte> timingRead = &ReadLinuxClock;
-            bool timing = c->Budget.HasElapsedLimit && timingRead(state, &entered) == 1;
+            bool timing = c->Budget.RequiresClock && timingRead(state, &entered) == 1;
 #endif
             if (!c->Process.CurrentImage(c->Key, 2, out var image) ||
                 !X64LinuxUserTransition.CaptureUserImage((byte*)state->LinuxSyscallData, X64LinuxUserTransition.DataBytes,
@@ -408,6 +425,9 @@ public static unsafe partial class EfiEntry
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
 #if M10_004_PROBE
             if (!LinuxWebObserveCall(c, call, result)) return LinuxNativeAbort(c, index);
+#endif
+#if M16_014_PROBE
+            if (!LinuxServiceObserveCall(c, index, call, result)) return LinuxNativeAbort(c, index);
 #endif
 #if M16_009_PROBE
             timing = timing && timingRead(state, &dispatched) == 1;
@@ -439,7 +459,15 @@ public static unsafe partial class EfiEntry
             {
                 if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var view) || !view.Exiting)
                 { if (LinuxNativeAbort(c, index) != 2) return 0; }
-                else { state->LinuxSyscallExitCode = result.ExitCode; c->Stopping = 1; }
+                else
+                {
+                    state->LinuxSyscallExitCode = result.ExitCode;
+#if M16_014_PROBE
+                    c->Stopping = c->ServiceShutdown == 1 ? 2U : 1U;
+#else
+                    c->Stopping = 1;
+#endif
+                }
             }
             // Observe the actual retained wait after dispatch/return preparation.
             // No deadline is inferred from a user timespec or timer ready count.
@@ -459,7 +487,7 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " valueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) &&
                 LinuxText(state, " action=") && LinuxNumber(state, (uint)result.Action) &&
                 LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) &&
-                LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                LinuxText(state, " ordinal=") && LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) &&
                 LinuxText(state, " waitSource=") && LinuxNumber(state, waitView.WaitSource) &&
                 LinuxText(state, " waitDeadline=") && LinuxNumber(state, waitView.WaitDeadline) &&
                 LinuxText(state, " waitSequence=") && LinuxNumber(state, waitView.Wait.IsValid ? waitView.Wait.Sequence : 0) &&
@@ -477,7 +505,7 @@ public static unsafe partial class EfiEntry
                 unchecked((int)call.Argument3) > 0)
                 logged = c->Process.InspectEpollExpiry(c->Key, 2, out ulong expired) &&
                     LinuxText(state, "M16_012_EXPIRE identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
-                    LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                    LinuxText(state, " ordinal=") && LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) &&
                     LinuxText(state, " deadline=") && LinuxNumber(state, expired) &&
                     LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
 #endif
@@ -495,13 +523,24 @@ public static unsafe partial class EfiEntry
             return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;
         }
 
+        // A service renews its bounded per-turn quota; observation ordinals
+        // must still increase throughout this exact worker generation.
+        private static ulong LinuxNativeCallOrdinal(LinuxNativeControl* c, uint index)
+        {
+#if M16_014_PROBE
+            return c->Gates[index].TotalCalls;
+#else
+            return c->Gates[index].Calls;
+#endif
+        }
+
 #if M16_009_PROBE
         // Optional raw HPET observations exclude serial logging. Failed reads
         // suppress the sample; they never bypass the original syscall checks.
         private static bool LinuxNativeSyscallTimingWrite(LinuxNativeControl* c, ulong number,
             ulong entered, ulong admitted, ulong dispatched, ulong prepared) =>
             LinuxText(c->State, "M16_008_SYSCALL_TIME identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
-            LinuxText(c->State, " ordinal=") && LinuxNumber(c->State, c->Gates[c->Selected - 1].Calls) &&
+            LinuxText(c->State, " ordinal=") && LinuxNumber(c->State, LinuxNativeCallOrdinal(c, c->Selected - 1)) &&
             LinuxText(c->State, " nr=") && LinuxNumber(c->State, number) &&
             LinuxText(c->State, " entered=") && LinuxNumber(c->State, entered) &&
             LinuxText(c->State, " admitted=") && LinuxNumber(c->State, admitted) &&
@@ -677,8 +716,61 @@ public static unsafe partial class EfiEntry
             delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
             bool application = LinuxUsesApplicationLimits(c->State);
             return (!application || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now, application,
-                continuingWeb: OS.Kernel.Diagnostics.Probes.EnableM10004Probe);
+                continuingWeb: OS.Kernel.Diagnostics.Probes.EnableM10004Probe,
+                continuingService: OS.Kernel.Diagnostics.Probes.EnableM16014Probe);
         }
+
+#if M16_014_PROBE
+        private static bool LinuxServiceObserveCall(LinuxNativeControl* c, uint index, LinuxSyscallFrame call, LinuxSyscallResult result)
+        {
+            if (!c->Budget.IsContinuingService || c->ServiceProgress == ulong.MaxValue ||
+                c->Gates[index].Status is not (LinuxSyscallGateStatus.Active or LinuxSyscallGateStatus.Blocked or LinuxSyscallGateStatus.Exited)) return false;
+            c->ServiceProgress++;
+            if (c->Gates[index].TotalCalls > c->ServicePeakCalls)
+            { c->ServicePeakCalls = c->Gates[index].TotalCalls; c->ServicePeakIdentity = c->Plan.Bindings[index].Context.Identity; }
+            if (call.Number == 231 && result.Action == LinuxSyscallAction.Terminate && result.ExitCode == 0)
+            {
+                ulong now = 0;
+                delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
+                if (c->ServiceShutdown != 0 || clock(c->State, &now) != 1 ||
+                    !c->Budget.ObserveProgress(now, c->ServiceProgress, false) || !c->Budget.RequestCancellation()) return false;
+                c->ServiceShutdown = 1; c->Stopping = 2; // Explicit app shutdown; continue genuine exit/reap work.
+            }
+            return true;
+        }
+
+        private static bool LinuxServiceObserveWorkers(LinuxNativeControl* c, ulong now)
+        {
+            if (!c->Budget.ObserveProgress(now, c->ServiceProgress, c->Threads.ReadyCount != 0)) return false;
+            for (uint i = 0; i < c->Capacity; i++)
+            {
+                if (c->KernelSlots[i].State == KernelThreadTable.State.Empty) continue;
+                var worker = c->Threads.Inspect(c->Key, 2, new(c->Plan.Bindings[i].Context.Identity));
+                if (!worker.Succeeded) return false;
+                if (!c->Budget.ObserveWorker(now, i, c->Gates[i].TotalCalls,
+                    worker.State is KernelThreadTable.State.Ready or KernelThreadTable.State.Running))
+                {
+                    _ = LinuxText(c->State, "M16_014_STALLED identity=") && LinuxNumber(c->State, worker.Identity.Value) &&
+                        LinuxText(c->State, " calls=") && LinuxNumber(c->State, c->Gates[i].TotalCalls) &&
+                        LinuxText(c->State, " nanos=") && LinuxNumber(c->State, now) && LinuxText(c->State, "\r\n");
+                    return false;
+                }
+            }
+            if (c->ServiceReady == 0 && c->ServicePeakCalls > LinuxSyscallGateway.MaximumThreadCalls &&
+                now - c->Budget.StartedNanoseconds > LinuxThreadExecutionBudget.RuntimeNanoseconds && (c->WebFlags & 16) != 0)
+            {
+                if (!LinuxText(c->State, "M16_014_PROGRESS identity=") || !LinuxNumber(c->State, c->ServicePeakIdentity) ||
+                    !LinuxText(c->State, " calls=") || !LinuxNumber(c->State, c->ServicePeakCalls) ||
+                    !LinuxText(c->State, " started=") || !LinuxNumber(c->State, c->Budget.StartedNanoseconds) ||
+                    !LinuxText(c->State, " nanos=") || !LinuxNumber(c->State, now) ||
+                    !LinuxText(c->State, " epochs=") || !LinuxNumber(c->State, c->Epoch) ||
+                    !LinuxText(c->State, " active=") || !LinuxNumber(c->State, c->Process.ActiveThreads) ||
+                    !LinuxText(c->State, " owner=live cleanup=pending\r\nCLROS_M16_014_READY\r\n")) return false;
+                c->ServiceReady = 1;
+            }
+            return true;
+        }
+#endif
 
         // Valid only after real workers/IRQ/native references have drained.
         // Failure retains the pool and outstanding ownership for fail-closed

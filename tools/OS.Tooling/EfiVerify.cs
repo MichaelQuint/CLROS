@@ -34,6 +34,11 @@ public static partial class EfiVerify
     /// this does not verify provenance, callback behavior or guest execution.</summary>
     public static void TestLinuxCopyBindings(EfiProfile profile, string map, byte[] image)
         => EfiVerification.VerifyLinuxCopyBindings(profile, map, new EfiPeImage(image));
+    /// <summary>Borrow bounded synthetic map/image inputs to check web/service
+    /// callback selection, original object ownership and executable backing.
+    /// Invalid bindings throw; this grants no native behavior or guest proof.</summary>
+    public static void TestWebServiceBindings(EfiProfile profile,string map,byte[] image)
+        => EfiVerification.VerifyWebServiceBindings(profile,map,new EfiPeImage(image));
     public static bool TestSingleFinallyEhTable(byte[]? table, ulong typeRva) => table is { Length: 11 } && typeRva is > 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7)) == typeRva;
     public static bool TestSingleFinallyUnwindBytes(byte[]? data, bool root, ulong tableRva)
     {

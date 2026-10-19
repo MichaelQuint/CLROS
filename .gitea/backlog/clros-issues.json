@@ -24569,7 +24569,7 @@
         "M03-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -24608,7 +24608,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Replace finite startup entropy exhaustion with a bounded, reviewed continuing randomness service.",
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxStartupServices limits one getrandom request to32 bytes and consumes a finite256-byte runtime reservoir; PR739 enlarges web storage to4096 but does not replenish it. Exhaustion fails closed; it is not a predictable random fallback.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Reviewed HMAC-DRBG known answers plus independent seed/reseed/failure/overflow controls; actual guest84 random requests/18708 bytes, supported larger-than32-byte partial/nonblocking/error cases, and shutdown zeroization. Entropy failures remain host controls; no predictable fallback. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "This existing issue is moved ahead of M10-011 continuing-service acceptance; it no longer waits for unrelated release acquisition policy M11-011. Preserve its original firmware seed boundary.",
         "Use an audited CSPRNG design with explicit seed provenance, initialization/readiness, bounded state, reseed and hardware/source-failure policy. Do not invent a PRNG, use clock/counter fallback or claim statistical tests prove cryptographic security.",
@@ -24650,7 +24650,7 @@
         "docs/kestrel.md"
       ],
       "evidenceBoundary": "Only measured continuing randomness with reviewed construction and explicit source-failure policy. No production cryptographic assurance or general workload claim from host vectors or larger finite reservoirs.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M11-013",
@@ -32670,9 +32670,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32684,7 +32684,7 @@
         "M07-028",
         "M07-017"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: TcpSendWindow.Pump returns WindowClosed when Window=0; PumpRetransmission returns NothingToSend with no in-flight bytes. Lost window-reopening updates can strand queued data. Persist probes are explicitly unsupported; no new guest loss test was run.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Actual lost reopening update recovers through two persist probes and exact payload; independent host controls retain wrap/duplicate/reset/cancel/timer and other-flow boundaries. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32759,9 +32759,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -32773,7 +32773,7 @@
         "M07-029",
         "M07-018"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: the web socket owner has eight connections with8192 RX/32768 TX bytes each. Active closes retain full slots until240-second TIME-WAIT expiry. Eight closes can exhaust admission although active data work has ended; this is a bounded-capacity limitation, not memory corruption.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. 32 actual server-active-close lifetimes transfer and retire compact TIME-WAIT; bulk high-water4/compact24. Full240-second tuple/generation protection remains; capacity/restart/scrub/deadline controls pass. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32946,9 +32946,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32960,7 +32960,7 @@
         "M10-010",
         "M16-013"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. LinuxSyscallGateway permits4096 calls per thread lifetime; EfiEntry begins the gate once and clears it at reap. LinuxThreadExecutionBudget has a300s runtime ceiling. PR739 increases other counters but preserves the elapsed cap. These deliberate finite guards cannot define a continuing service.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Explicit default-off MinimalApiService preserves turn/byte/progress/resource guards and finite negative controls. Same real native worker exceeds4096 calls beyond300s; genuine group exit/off-stack reaps, restoration and scrub complete. Continuing UTC is explicit; finite web retains600 seconds. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33802,9 +33802,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33816,7 +33816,7 @@
         "M07-014",
         "M07-028"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host reproduction: a valid exact-sequence RST|ACK after SYN/SYN-ACK returns Ignored, retains the only pending slot, sends another SYN-ACK at one second, and rejects an unrelated SYN with Capacity. Shared Failed remains false. LinuxSocketNetwork.cs:122-130 sends all non-SYN pending traffic through ReceiveAck, which rejects RST as an invalid final ACK. The current pending lifetime is ten seconds; established-reset handling is separate. This is not M07-027's common-owner timeout defect.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Two actual exact-generation pending resets retire before old deadline; new SYN reuses the tuple, with no pending descriptor/retry leak. Host invalid/duplicate/race controls remain distinct. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33894,9 +33894,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33908,7 +33908,7 @@
         "M07-032",
         "M11-012"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host boundary reproduction initializes the public network contract with valid ISN uint.MaxValue-65536, establishes and resets one connection, closes its fd and pumps until retained/table counts are zero. The next SYN still returns Capacity. LinuxSocketNetwork.cs:140-151 permanently rejects once NextSequence crosses uint.MaxValue-65536. Each admission consumes65536; the EFI diagnostic seed at EfiEntry.LinuxSockets.cs:111-113 exposes only a small masked monotonic domain and predictable increments. This proves exhausted admission at the boundary, not a remote sequence-injection exploit or a measured 65000-connection guest run.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Independent firmware TCP secret, tuple HMAC plus4us real clock,240-second quiet admission, exact lease ownership and final erasure join34 actual sequence generations. Near-wrap/96 lifetime/reseed/disposal controls are host evidence. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34305,9 +34305,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -34318,7 +34318,7 @@
       "dependencyKeys": [
         "M16-013"
       ],
-      "currentEvidence": "Review range352105e01cc86357c3e80f03e9d2f9cb1f02b30b..6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0, October18. New SendMessage path introduced by4b33e0ff5 calls WritePolicy at LinuxSocketServices.cs:449 before its total==0 return at450. WritePolicy:239 returns-EAGAIN when BufferedBytes reaches SendBytes. Two normal-harness regressions fill a4-byte window, then use either msg_iovlen=0 or one{NULL,0} vector: expected0, actual-11, buffer unchanged. All six original LinuxSocketMessageTests pass in that run. Temporary test edits are saved as a reproducible patch and removed; no runtime fix or guest failure is claimed.",
+      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. LinuxSocketServicesTests and LinuxSocketMessageTests explicitly verify valid full-window empty sendto/sendmsg success without counter/generation/yield mutation, preserving errors and nonempty backpressure. Complete original native review and current finite socket/vector guests pass; no guest full-window-empty control is claimed. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/kestrel.md and docs/repo-audit.md. Preserve accepted step1405/1419 scope and the active shared integration owner#737. Incorporate this small slice into that owner's batch or obtain explicit lane handoff; readiness does not authorize concurrent edits.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",

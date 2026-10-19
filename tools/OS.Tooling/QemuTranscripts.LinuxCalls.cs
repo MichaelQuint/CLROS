@@ -18,6 +18,14 @@ public static partial class QemuTranscripts
     public static string[] ValidateLinuxCallOrdinals(string[] tail, bool allowEpoll = false)
         => ParseLinuxCalls(tail, 0, out _, out _, allowEpoll);
 
+    /// <summary>Validate cumulative service ordinals without the finite4096-call
+    /// lifetime ceiling. Each complete generation still starts at one and must
+    /// advance contiguously without overflow. Epoll observations are admitted;
+    /// all other suffix checks remain strict. This value-only helper grants no
+    /// service profile, renewed quota, execution or prepared-program authority.</summary>
+    public static string[] ValidateLinuxServiceCallOrdinals(string[] tail)
+        => ParseLinuxCalls(tail, 0, out _, out _, allowEpoll: true, continuingService: true);
+
     /// <summary>Immutable observations keyed to the original record position and
     /// complete generation/ordinal. Source0 has no retained wait, source1 is futex
     /// source2 is pipe and explicitly admitted source3 is epoll; deadline is
@@ -34,6 +42,14 @@ public static partial class QemuTranscripts
     public static IReadOnlyList<LinuxCallWaitObservation> ReadLinuxCallWaits(string[] tail, bool allowEpoll = false)
     {
         _ = ParseLinuxCalls(tail, 1, out var waits, out _, allowEpoll);
+        return Array.AsReadOnly(waits);
+    }
+
+    /// <summary>Require current wait suffixes and cumulative service ordinals.
+    /// Return a fresh readonly snapshot; no execution or quota authority follows.</summary>
+    public static IReadOnlyList<LinuxCallWaitObservation> ReadLinuxServiceCallWaits(string[] tail)
+    {
+        _ = ParseLinuxCalls(tail, 1, out var waits, out _, allowEpoll: true, continuingService: true);
         return Array.AsReadOnly(waits);
     }
 
@@ -55,8 +71,16 @@ public static partial class QemuTranscripts
         return Array.AsReadOnly(returns);
     }
 
+    /// <summary>Require current wait/return suffixes and cumulative service
+    /// ordinals. Returned immutable values grant no guest or ABI authority.</summary>
+    public static IReadOnlyList<LinuxCallReturnObservation> ReadLinuxServiceCallReturns(string[] tail)
+    {
+        _ = ParseLinuxCalls(tail, 2, out _, out var returns, allowEpoll: true, continuingService: true);
+        return Array.AsReadOnly(returns);
+    }
+
     private static string[] ParseLinuxCalls(string[] tail, int required, out LinuxCallWaitObservation[] waits,
-        out LinuxCallReturnObservation[] returns, bool allowEpoll)
+        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false)
     {
         Need(tail is not null,"linux_call_ordinal_input");
         string[] result=tail!.ToArray(); Dictionary<ulong,ulong> counts=[];
@@ -80,7 +104,7 @@ public static partial class QemuTranscripts
                 !line[..suffix].Contains(" returnRip=",StringComparison.Ordinal),"linux_call_ordinal_shape");
             ulong identity=Number(match.Groups[1].Value), ordinal=Number(match.Groups[2].Value);
             counts.TryGetValue(identity,out ulong previous);
-            Need(ordinal==previous+1 && ordinal<=4096,"linux_call_ordinal_continuity"); counts[identity]=ordinal;
+            Need(previous!=ulong.MaxValue && ordinal==previous+1 && (continuingService || ordinal<=4096),"linux_call_ordinal_continuity"); counts[identity]=ordinal;
             bool present=match.Groups[3].Success;
             Need(required==0 || present,"linux_call_wait_missing");
             if(present)

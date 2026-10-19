@@ -74,9 +74,16 @@ public static class NativeAotThreadingOutput
     /// value-only decoder grants no app, scheduler, source or guest authority.</summary>
     public static Capture ReadWeb(ReadOnlySpan<byte> rawTail) => ReadFramed(rawTail, web: true);
 
-    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web, bool vectors = false)
+    /// <summary>Decode a bounded continuing-service capture of at most128 MiB.
+    /// The8192-byte write,65536 combined-output and4096-write limits match the
+    /// web framing contract. Only the enclosing serial extent increases; finite
+    /// readers retain8 MiB. Caller retains bytes through return. Framing alone
+    /// validates no application, scheduler, completion or guest authority.</summary>
+    public static Capture ReadService(ReadOnlySpan<byte> rawTail) => ReadFramed(rawTail, web: true, service: true);
+
+    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web, bool vectors = false, bool service = false)
     {
-        Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
+        Need(rawTail.Length >0 && rawTail.Length <=(service ?128 :8) *1024 *1024, "size");
         int limit = web ? 65536 : vectors ? 32768 : 4096, writeLimit = web ? 8192 : 4096;
         byte[] stdout = new byte[limit], stderr = new byte[web ? limit : 0], normalized = new byte[rawTail.Length];
         List<int> lengths = []; List<uint> channels = [];

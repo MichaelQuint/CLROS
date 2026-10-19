@@ -8,7 +8,8 @@ namespace OS.Net;
 /// advances SND.NXT only after copied TX admission; Acknowledge frees bytes only
 /// after original frame/sequence/ACK validation. Optional timed operation keeps
 /// one segment in flight and borrows a caller-supplied monotonic clock. No NIC,
-/// socket, congestion-window growth, fast retransmit or zero-window probe is supplied.
+/// socket, congestion-window growth or fast retransmit is supplied. Timed pumps
+/// include separately backed-off zero-window probes without a retry-count timeout.
 /// </summary>
 public static unsafe partial class TcpSendWindow
 {
@@ -41,6 +42,7 @@ public static unsafe partial class TcpSendWindow
         internal delegate*<void*, ulong> Clock;
         internal ulong LastNow, HardDeadline, RetryAt, Rto, MinimumRto, MaximumRto;
         internal ulong SampleAt, SmoothedRtt, RttVariation, DuplicateAcks;
+        internal ulong PersistAt, PersistDelay, PersistCount;
         internal uint SampleEnd;
         internal byte Timed, RetryCount, RetryLimit, Sampling, HasRtt, HandshakeRetried;
         internal byte CloseEnabled, WriteShutdown, FinPending;
@@ -64,6 +66,8 @@ public static unsafe partial class TcpSendWindow
         public readonly ulong RetransmissionTimeoutNanoseconds => Rto;
         public readonly byte Retransmissions => RetryCount;
         public readonly ulong DuplicateAcknowledgements => DuplicateAcks;
+        public readonly ulong PersistDeadlineNanoseconds => PersistAt;
+        public readonly ulong PersistProbes => PersistCount;
         public readonly TcpConnectionCloseState CloseState => CloseStateValue;
         public readonly bool WritesClosed => WriteShutdown != 0;
         public readonly bool FinOutstanding => FinPending != 0;
@@ -113,9 +117,10 @@ public static unsafe partial class TcpSendWindow
     /// lifetime bounds all calls including TX pressure/zero windows. Explicit
     /// continuing mode requires a zero lifetime and leaves the total application
     /// budget to its enclosing owner; retry and configured close limits remain.
-    /// It supplies no implicit idle timeout or zero-window persist. Invalid
+    /// Zero-window persist uses a separate bounded exponential timer; a closed
+    /// peer window alone never exhausts the retransmission count. Invalid
     /// configuration changes nothing. This is a serialized passive transport,
-    /// without general congestion control, fast recovery or persist probes.</summary>
+    /// without general congestion control or fast recovery.</summary>
     public static Status ConfigureRetransmission(Owner* owner, void* clockContext,
         delegate*<void*, ulong> nowNanoseconds, ulong lifetimeNanoseconds,
         ulong initialRtoNanoseconds = 1_000_000_000, ulong maximumRtoNanoseconds = 60_000_000_000,
@@ -215,7 +220,9 @@ public static unsafe partial class TcpSendWindow
     /// bytes or owned FIN, using the current cumulative receive ACK/window. Never advances
     /// SND.NXT or releases data. Short/full TX retains timer and retry count;
     /// accepted TX backs off RTO and cancels ambiguous RTT sampling (Karn).
-    /// Duplicate ACKs do not delay this timer. Exhaustion, hard expiry, clock
+    /// Duplicate ACKs do not delay this timer. A zero offered window instead
+    /// probes one octet with a separate capped backoff and no retry exhaustion.
+    /// Ordinary retry exhaustion, explicit hard expiry, clock
     /// regression or fatal TX requires explicit closed cleanup; storage remains
     /// attached. Call from the same serialized dispatcher, without polling loops.</summary>
     public static Status PumpRetransmission(Owner* owner, Span<byte> output,
@@ -225,6 +232,10 @@ public static unsafe partial class TcpSendWindow
         var status = Validate(owner, out var entry); if (status != Status.Success) return status;
         if (owner->Timed == 0) return Status.InvalidState;
         status = Time(owner, out ulong now); if (status != Status.Success) return status;
+        if (owner->PeerWindow == 0 && (owner->Count != 0 || owner->FinPending != 0 ||
+            owner->WriteShutdown != 0 && owner->CloseStateValue is TcpConnectionCloseState.Established or TcpConnectionCloseState.CloseWait))
+            return PumpPersist(owner, entry, output, now, out packet);
+        owner->PersistAt = 0; owner->PersistDelay = 0;
         if (owner->Sent == 0 && owner->FinPending == 0) return Status.NothingToSend;
         if (now < owner->RetryAt) return Status.NotDue;
         if (owner->RetryCount == owner->RetryLimit) { owner->Phase = 2; owner->TimeoutError = 1; return Status.Timeout; }
@@ -253,6 +264,52 @@ public static unsafe partial class TcpSendWindow
         owner->Rto = owner->Rto > owner->MaximumRto / 2 ? owner->MaximumRto : owner->Rto * 2;
         status = Time(owner, out now); if (status != Status.Success) return status;
         owner->RetryAt = Deadline(now, owner->Rto); return Status.Success;
+    }
+
+    // RFC9293 3.8.6.1: send one retained/new octet even through a zero offered
+    // window. A newly copied octet owns sequence space until ACKed; a rejected
+    // copy owns none. Persist never consumes the ordinary retry budget or an RTT
+    // sample. Explicit enclosing lifetime/close/cancellation policy still applies.
+    private static Status PumpPersist(Owner* owner, TcpConnectionTableEntry entry,
+        Span<byte> output, ulong now, out TcpEstablishedStreamIpv4FramePlanResult packet)
+    {
+        packet = default;
+        if (owner->PersistDelay == 0)
+        {
+            owner->PersistDelay = owner->Rto;
+            owner->PersistAt = owner->RetryAt != 0 ? owner->RetryAt : Deadline(now, owner->PersistDelay);
+        }
+        if (now < owner->PersistAt) return Status.NotDue;
+        int count = owner->Count == 0 ? 0 : 1;
+        if (output.Length < 54 + count) return Status.OutputTooSmall;
+        fixed (byte* bytes = output)
+            if (!Outside(owner, bytes, (ulong)output.Length)) return Status.InvalidStorage;
+        var receiver = owner->Receiver; var original = receiver->Info;
+        var info = new TcpEstablishedStreamIpv4FramePlannerInfo(original.LocalMac, original.RemoteMac,
+            original.LocalAddress, original.RemoteAddress, 1, receiver->AvailableWindow, original.TimeToLive, original.Identification);
+        uint sequence = count != 0 || owner->FinPending != 0 ? owner->Una : unchecked(owner->Next - 1);
+        var stream = TcpEstablishedStream.Create(entry.Key.LocalPort, entry.Key.RemotePort, sequence,
+            entry.Sequence.RemoteNextSequenceNumber, Span<byte>.Empty);
+        var serialized = count != 0
+            ? TcpEstablishedStreamIpv4FramePlanner.TryWritePayloadFrame(ref stream, info,
+                new ReadOnlySpan<byte>(owner->Buffer + owner->Offset, 1), output, out packet)
+            : TcpEstablishedStreamIpv4FramePlanner.TryWriteControlFrame(ref stream, info, receiver->AvailableWindow,
+                owner->FinPending != 0 ? (byte)0x11 : (byte)0x10, output, out packet);
+        if (serialized != TcpEstablishedStreamIpv4FramePlanStatus.Success) return Status.InvalidPacket;
+        byte sent;
+        fixed (byte* bytes = output) sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
+        if (sent == 0) return Status.WouldBlock;
+        if (sent != 1) { owner->Phase = 2; return Status.SendFailed; }
+        if (count != 0 && owner->Sent == 0)
+        {
+            owner->Sent = 1; owner->Next = unchecked(owner->Next + 1);
+            Commit(owner, entry); owner->RetryAt = Deadline(now, owner->Rto);
+        }
+        owner->Sampling = 0;
+        if (owner->PersistCount != ~0UL) owner->PersistCount++;
+        owner->PersistDelay = owner->PersistDelay > owner->MaximumRto / 2 ? owner->MaximumRto : owner->PersistDelay * 2;
+        var status = Time(owner, out now); if (status != Status.Success) return status;
+        owner->PersistAt = Deadline(now, owner->PersistDelay); return Status.Success;
     }
 
     /// <summary>Process original ACK metadata before receive-payload dispatch
@@ -329,6 +386,7 @@ public static unsafe partial class TcpSendWindow
         owner->Table->Entries[owner->Handle.Index].SendOwnerAddress = 0;
         owner->Buffer = null; owner->Receiver = null; owner->Context = null; owner->Send = null;
         owner->Clock = null; owner->ClockContext = null; owner->RetryAt = 0; owner->Timed = 0;
+        owner->PersistAt = 0; owner->PersistDelay = 0; owner->PersistCount = 0;
         owner->FinPending = 0; owner->CloseEnabled = 0; owner->TimeWaitDeadline = 0;
         owner->Handle = default; owner->Offset = 0; owner->Count = 0; owner->Sent = 0; owner->Phase = 3;
         return Status.Success;
@@ -398,6 +456,8 @@ public static unsafe partial class TcpSendWindow
             owner->Timed > 1 || owner->Timed != 0 && (owner->Clock == null || owner->MinimumRto < 1_000_000_000 ||
                 owner->Rto < owner->MinimumRto || owner->Rto > owner->MaximumRto || owner->RetryLimit is 0 or > 16 ||
                 owner->RetryCount > owner->RetryLimit || owner->Sent > owner->PeerMss || owner->Sent > owner->Mtu - 40) ||
+            (owner->PersistDelay == 0 ? owner->PersistAt != 0 : owner->Timed == 0 ||
+                owner->PersistDelay < owner->MinimumRto || owner->PersistDelay > owner->MaximumRto || owner->PersistAt == 0) ||
             owner->CloseEnabled > 1 || owner->WriteShutdown > 1 || owner->FinPending > 1 ||
             owner->FinPending != 0 && (owner->CloseEnabled == 0 || owner->WriteShutdown == 0 || owner->Sent != 0 || owner->Count != 0 ||
                 !closed && owner->CloseStateValue is not (TcpConnectionCloseState.FinWait1 or TcpConnectionCloseState.Closing or TcpConnectionCloseState.LastAck)) ||

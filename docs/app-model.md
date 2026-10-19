@@ -80,6 +80,50 @@ merely raising 4096 calls or 300 seconds is insufficient. Existing #240 supplies
 continuing randomness with a reviewed construction and explicit source-failure
 policy, rather than an ever-larger finite startup reservoir.
 
+[Owned development receipt](../done/step1422.md) adds host-tested continuing-policy contracts:
+explicit preemptible per-turn syscall quotas, cumulative counters with overflow
+rejection, a 30-second runnable-progress watchdog, genuine-idle handling and
+latched cancellation. One host gate completes 12,288 calls across three owner
+turns; the budget model observes progress beyond 300 seconds. [Step1421](../done/step1421.md)
+wires a default-off M16-014 leaf into the native driver: only actual hardware
+epochs renew turn quotas, each runnable worker has its own progress watchdog,
+and explicit application exit uses the genuine off-stack reap/cleanup path.
+Its C# compilation and focused policy checks pass. The QEMU runner rejects this
+leaf until a dedicated complete lifecycle/packet inspector exists. Shared
+HMAC_DRBG primitives pass published vectors. [Step1423](../done/step1423.md)
+wires continuing getrandom into this leaf: independent pre-exit entropy/nonce
+captures, domain personalization, at most8192 output bytes per call, preflight
+before generation and irrevocable consumption on failed copies. Requests beyond
+that bound return a bounded prefix; finite profiles retain their32-byte request
+and32/256/4096-byte reservoir contracts. Reseed exhaustion has no clock fallback
+or post-exit firmware callback: blocking calls report ENOSYS, nonblocking calls
+EAGAIN until the trusted owner supplies fresh entropy. Source failure rejects
+admission; cleanup retains live borrowers and erases drained generator/seeds.
+Host checks and C# compilation pass; guest randomness and secret ISNs remain
+unqualified. No continuing service or shutdown acceptance follows.
+
+[Step1426](../done/step1426.md) adds a dedicated `MinimalApiService` diagnostic
+fixture with explicit service arguments/configuration. One owned worker is
+designed to exercise direct getpid/getrandom, progress observations and a
+checked >300-second/>4096-call stop before Kestrel shutdown and joined exit.
+The fixed service envelope binds8080, `/app/apps`,64MiB,16 threads/descriptors
+and one immutable configuration file. Envelope validation grants no original
+ELF or instruction authority. Nine focused envelope/profile/web-program checks
+and two Windows entry rejections pass. The fixture builds; its worker has not
+executed. It is not yet selected by the guest pipeline: service publication,
+reviewed decoder identity, native startup observations and a complete
+peer/packet/lifecycle inspector remain pending behind the existing runner guard.
+
+[Step1425](../done/step1425.md) repairs #766's empty `sendmsg` full-buffer
+boundary in development. Empty messages still validate metadata, flags and the
+connected/reset/timeout/write-shutdown policy, then bypass only send-space
+pressure. Scalar `sendto` shares this correction. Existing `write`/`writev`
+zero-length ordering is unchanged.24 focused message/socket checks pass,
+including both original review reproductions, empty aggregates, unchanged
+transport/fd identity and nonempty EAGAIN/short-send/error controls. Service and
+finite-web C# profiles compile. Original native review and affected finite
+vector/socket guest regression remain pending; #766 stays open under #737.
+
 M16-015 addresses the current requirement for contiguous physical backing even
 when a virtual mapping could use discontiguous owned frames. The review's
 16-page-pool characterization returns `ENOMEM` for six requested pages while

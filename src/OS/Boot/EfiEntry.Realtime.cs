@@ -73,7 +73,9 @@ public static unsafe partial class EfiEntry
         {
             if (sourceStatus != 0 || !OwnedRealtimeClock.TryFirmwareUtc(snapshot, unspecifiedTimezoneIsUtc: true,
                 out long seconds, out uint nanoseconds) || !OwnedRealtimeClock.Begin(ref state->Realtime, seconds, nanoseconds,
-                    state->Clock.Ticks, state->Clock.FrequencyHz, maximumElapsedSeconds: 600)) return false;
+                    state->Clock.Ticks, state->Clock.FrequencyHz,
+                    maximumElapsedSeconds: Probes.EnableM16014Probe ? 0UL : 600UL,
+                    continuing: Probes.EnableM16014Probe)) return false;
             state->RealtimeSnapshot = snapshot;
             return true;
         }

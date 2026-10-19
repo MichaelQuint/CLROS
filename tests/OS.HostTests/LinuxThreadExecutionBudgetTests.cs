@@ -2,6 +2,88 @@ using OS.Kernel.Compatibility.LinuxX64;
 
 internal static class LinuxThreadExecutionBudgetTests
 {
+    [HostTest("m16-014 continuing policy requires explicit web admission and measured progress beyond300 seconds")]
+    private static void ContinuingService()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(!budget.Begin(1, 100, continuingService: true));
+        HostCheck.True(!budget.Begin(1, 100, application: true, continuingService: true));
+        HostCheck.True(budget.Begin(1, 100, application: true, continuingWeb: true, continuingService: true));
+        HostCheck.True(budget.IsContinuingService && budget.RequiresClock && !budget.HasElapsedLimit);
+        for (ulong progress = 1; progress <= 61; progress++)
+        {
+            ulong now = 100 + progress * 10_000_000_000;
+            HostCheck.True(budget.ObserveProgress(now, progress, runnable: true));
+            HostCheck.True(budget.Continue(now, 1_000_001 + progress, 4_000_001 + (uint)progress));
+        }
+        HostCheck.Equal(610_000_000_100UL, budget.ObservedNanoseconds);
+        HostCheck.True(!budget.Continue(budget.ObservedNanoseconds, uint.MaxValue, 1));
+        HostCheck.True(!budget.Continue(budget.ObservedNanoseconds, 1, uint.MaxValue));
+        HostCheck.True(!budget.ObserveProgress(budget.ObservedNanoseconds, 60, true));
+    }
+
+    [HostTest("m16-014 runnable watchdog rejects late progress while genuine idle resumes with a fresh deadline")]
+    private static void ServiceWatchdog()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(budget.Begin(1, 100, true, true, true));
+        HostCheck.True(budget.Continue(30_000_000_099, 1, 1));
+        HostCheck.True(!budget.Continue(30_000_000_100, 1, 1));
+        HostCheck.True(!budget.ObserveProgress(30_000_000_100, 1, true));
+        HostCheck.Equal(30_000_000_099UL, budget.ObservedNanoseconds);
+        budget = default; HostCheck.True(budget.Begin(1, 100, true, true, true));
+        HostCheck.True(budget.ObserveProgress(100, 0, false));
+        HostCheck.True(budget.Observe(3_600_000_000_100));
+        HostCheck.True(budget.ObserveProgress(3_600_000_000_100, 0, true));
+        HostCheck.True(budget.Continue(3_630_000_000_099, 1, 1));
+        HostCheck.True(!budget.Continue(3_630_000_000_100, 1, 1));
+    }
+
+    [HostTest("m16-014 cancellation latches operational stop and preserves finite qualification behavior")]
+    private static void ServiceCancellation()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(budget.Begin(1, 100, true, true)); HostCheck.True(!budget.RequestCancellation());
+        HostCheck.True(!budget.Continue(300_000_000_100, 1, 1));
+        budget = default; HostCheck.True(budget.Begin(1, 100, true, true, true));
+        HostCheck.True(budget.RequestCancellation() && budget.CancellationRequested);
+        HostCheck.True(!budget.RequestCancellation() && !budget.Observe(101) && !budget.Continue(101, 1, 1));
+        HostCheck.True(!budget.ObserveProgress(101, 1, false));
+        HostCheck.Equal(100UL, budget.ObservedNanoseconds);
+    }
+
+    [HostTest("m16-014 one busy worker cannot borrow another worker's progress watchdog")]
+    private static void WorkerProgressIsolation()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(budget.Begin(2, 100, true, true, true));
+        HostCheck.True(budget.ObserveWorker(100, 0, 0, true));
+        HostCheck.True(budget.ObserveWorker(100, 1, 0, true));
+        HostCheck.True(budget.ObserveProgress(25_000_000_100, 1, true));
+        HostCheck.True(budget.ObserveWorker(25_000_000_100, 1, 1, true));
+        HostCheck.True(!budget.ObserveWorker(30_000_000_100, 0, 1, true));
+        HostCheck.Equal(25_000_000_100UL, budget.ObservedNanoseconds);
+        HostCheck.True(budget.ObserveWorker(30_000_000_100, 1, 2, true));
+        HostCheck.True(!budget.ObserveWorker(30_000_000_100, 1, 1, true));
+        HostCheck.True(!budget.ObserveWorker(30_000_000_100, 2, 0, true));
+    }
+
+    [HostTest("m16-014 parked worker re-arms and only reaped generation reset permits counter reuse")]
+    private static void WorkerIdleAndReap()
+    {
+        LinuxThreadExecutionBudget budget = default;
+        HostCheck.True(budget.Begin(1, 100, true, true, true));
+        HostCheck.True(budget.ObserveWorker(100, 0, 9, true));
+        HostCheck.True(budget.ObserveWorker(200, 0, 9, false));
+        HostCheck.True(budget.ObserveWorker(3_600_000_000_100, 0, 9, true));
+        HostCheck.True(!budget.ObserveWorker(3_600_000_000_100, 0, 0, true));
+        HostCheck.True(budget.ForgetWorker(0));
+        HostCheck.True(budget.ObserveWorker(3_600_000_000_100, 0, 0, true));
+        HostCheck.True(budget.RequestCancellation() && budget.ForgetWorker(0));
+        HostCheck.True(!budget.ObserveWorker(3_600_000_000_100, 0, 1, false));
+        HostCheck.True(!budget.ForgetWorker(1));
+    }
+
     [HostTest("linux.thread-budget rejects uninitialized invalid and repeated admission without consuming a lifetime")]
     private static void Admission()
     {

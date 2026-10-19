@@ -73,6 +73,24 @@ Whole-stack safety, general Linux compatibility and the full Kestrel ladder
 remain unqualified. The [ordered roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 keeps the remaining work at its required acceptance stage:
 
+[Step1437](../done/step1437.md) qualifies the #743/#744/#757/#758 transport
+prerequisites within the seven-ticket service batch. The complete original
+capture joins a lost reopen and two persist probes, two pending resets, 32
+server-active closes and all32 compact retirements. Bulk high-water is4 and
+compact high-water24; the full240-second policy and tuple/generation protection
+remain. The same frozen checkpoint passes5,809 full-host checks and ten fresh
+affected ancestors, with scoped original native/ABI/unwind/table review.
+
+[Step1424](../done/step1424.md) defines continuing ISNs as
+`M + HMAC-SHA256(secret, domain || tuple)[0..4]` modulo2^32, with real monotonic
+nanoseconds/4000. A separately acquired32-byte firmware secret and exact network
+lease remain distinct from AT_RANDOM/getrandom. New key lifetimes observe240s
+quiet time; replacement waits for complete pending/stream/compact drain.
+Step1437 joins34 actual sequence generations and final lease release/erasure.
+Near-wrap and96 complete lifetimes are separate host controls. Finite profiles
+retain their diagnostic counter. Repeated service #224 and general congestion,
+arbitrary-stack, cloud and production claims remain open.
+
 - [M07-029](http://192.168.4.35:3000/admin/CLROS/issues/743) supplies
   zero-window persist recovery, including a lost window-reopening update.
   [M07-030](http://192.168.4.35:3000/admin/CLROS/issues/744) retires
@@ -82,15 +100,13 @@ keeps the remaining work at its required acceptance stage:
   checked `msghdr`/`iovec` semantics for the actual pinned socket/Kestrel vector
   path before #220. Small successful HTTP responses do not cover that path.
 - [M07-032](http://192.168.4.35:3000/admin/CLROS/issues/757) handles validated peer RST in SYN-RECEIVED.
-  The host reproduction currently retains the pending slot and retransmits
+  The pre-repair host reproduction retained the pending slot and retransmitted
   SYN-ACK until its deadline, blocking another client when capacity is full.
 - [M07-033](http://192.168.4.35:3000/admin/CLROS/issues/758) replaces the finite diagnostic ISN allocator
-  for continuing profiles. Near its admitted upper boundary, one completed
-  connection exhausts future admission even with zero retained slots. Use
-  reviewed secret/tuple/time-based ISNs and modular arithmetic while retaining
-  generation and TIME-WAIT protections; simply wrapping the global counter is
-  insufficient. Both new issues precede #224; unpredictability is a construction
-  requirement, with no sequence-injection exploit claimed by the review.
+  for the qualified continuing profile. Step1437 preserves secret/tuple/time,
+  modular arithmetic, generation and TIME-WAIT protections. The earlier finite
+  exhaustion reproduction remains historical evidence; no sequence-injection
+  exploit is claimed. These prerequisites feed repeated-service #224.
 - After a matched workload baseline, [M07-031](http://192.168.4.35:3000/admin/CLROS/issues/751)
   replaces one-segment timed flight with bounded congestion-controlled flight.
   At 1460-byte MSS and 10ms RTT, one segment per RTT gives about 146KB/s before

@@ -68,6 +68,9 @@ public unsafe struct LinuxSyscallAdmission
     public bool EnableStartup;
     public bool EnableDescriptors;
     public bool EnableThreads;
+    // Explicit preemptible service policy. MaximumCalls is then a per-hardware-
+    // turn quota; only the trusted supervisor may renew it after a new turn.
+    public bool ContinuingService;
 }
 
 public unsafe struct LinuxSyscallGateState
@@ -76,11 +79,15 @@ public unsafe struct LinuxSyscallGateState
     internal LinuxSyscallAdmission Admission;
     internal LinuxSyscallAccess Access;
     internal uint CallsValue, BytesValue;
+    internal ulong TotalCallsValue, TotalBytesValue, TurnValue;
     internal LinuxSyscallFrame Pending;
     internal LinuxSyscallGateway.ExitTailContext ExitTail;
     public readonly LinuxSyscallGateStatus Status => StatusValue;
     public readonly uint Calls => CallsValue;
     public readonly uint BytesWritten => BytesValue;
+    public readonly ulong TotalCalls => TotalCallsValue;
+    public readonly ulong TotalBytesWritten => TotalBytesValue;
+    public readonly ulong CurrentTurn => TurnValue;
     /// <summary>Non-owning observation of this generation's staged register-only
     /// self-unmap continuation. It grants no return or execution authority.</summary>
     public readonly bool HasExitTail => ExitTail.Rip != 0;
@@ -112,13 +119,16 @@ public static unsafe partial class LinuxSyscallGateway
         LinuxSyscallAdmission admission, LinuxSyscallAccess access)
     {
         if (state.StatusValue != LinuxSyscallGateStatus.Uninitialized) return LinuxSyscallGateStatus.AlreadyConsumed;
-        if (state.CallsValue != 0 || state.BytesValue != 0 || !Empty(state.Pending) || !EmptyExitTail(state.ExitTail) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
+        if (state.CallsValue != 0 || state.BytesValue != 0 || state.TotalCallsValue != 0 || state.TotalBytesValue != 0 || state.TurnValue != 0 ||
+            !Empty(state.Pending) || !EmptyExitTail(state.ExitTail) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
             admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
             admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
             admission.Scratch == null || admission.ScratchBytes < admission.MaximumWrite || admission.ScratchBytes > MaximumWrite ||
             (ulong)admission.Scratch > ~0UL - admission.ScratchBytes || access.Context == null ||
             access.PageAccess == null || access.CopyFromUser == null || access.Write == null)
+            return LinuxSyscallGateStatus.InvalidAdmission;
+        if (admission.ContinuingService && (!admission.EnableThreads || !access.UserInterrupts))
             return LinuxSyscallGateStatus.InvalidAdmission;
         if (admission.EnableStartup != (access.Startup != null) ||
             admission.EnableDescriptors != (access.Descriptors != null) ||
@@ -143,6 +153,19 @@ public static unsafe partial class LinuxSyscallGateway
         return Dispatch(ref state, ref frame);
     }
 
+    /// <summary>Renew only an active continuing gate after a genuine new hardware
+    /// turn, under the same serialized root/worker-generation authority as Begin.
+    /// The strictly increasing turn is supervisor evidence, never a guest value.
+    /// Pending waits must complete first. Renewal clears only per-turn counters;
+    /// lifetime observations never reset. Rejection changes nothing. Finite gates
+    /// cannot renew, and this method supplies no timer, scheduling or cancellation.</summary>
+    public static bool RenewTurn(ref LinuxSyscallGateState state, ulong turn)
+    {
+        if (state.StatusValue != LinuxSyscallGateStatus.Active || !state.Admission.ContinuingService ||
+            turn == 0 || turn <= state.TurnValue) return false;
+        state.TurnValue = turn; state.CallsValue = 0; state.BytesValue = 0; return true;
+    }
+
     /// <summary>Thread-enabled native callers pass the actual captured frame by
     /// reference so a checked ARCH_SET_FS change reaches IRET. The old value
     /// overload retains its original behavior for diagnostics without threads.</summary>
@@ -152,8 +175,10 @@ public static unsafe partial class LinuxSyscallGateway
         if (state.HasExitTail && (frame.Number != 60 || ExitTailPolicy(ref state, frame) != 1))
             return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
         if (!ValidateReturn(frame, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
-        if (state.CallsValue == state.Admission.MaximumCalls) return Stop(ref state, LinuxSyscallGateStatus.CallLimit);
-        state.CallsValue++;
+        if (state.CallsValue == state.Admission.MaximumCalls || state.TotalCallsValue == ulong.MaxValue ||
+            state.TotalBytesValue > ulong.MaxValue - LinuxDescriptorServices.MaximumIo ||
+            state.Admission.ContinuingService && state.TurnValue == 0) return Stop(ref state, LinuxSyscallGateStatus.CallLimit);
+        state.CallsValue++; state.TotalCallsValue++;
         if (state.Admission.EnableThreads && (ThreadCall(frame.Number) || DescriptorCall(frame.Number)))
         {
             LinuxSyscallFrame original = frame;
@@ -194,7 +219,7 @@ public static unsafe partial class LinuxSyscallGateway
             if ((frame.Number == 1 || frame.Number == 20) && value > 0)
             {
                 if (value > LinuxDescriptorServices.MaximumIo) return Stop(ref state, LinuxSyscallGateStatus.SinkFailed);
-                state.BytesValue += (uint)value; // At most MaximumThreadCalls * 65536, below uint.MaxValue.
+                AccountBytes(ref state, (uint)value);
             }
             return new(LinuxSyscallAction.Return, value);
         }
@@ -222,7 +247,7 @@ public static unsafe partial class LinuxSyscallGateway
         Clear(scratch, state.Admission.ScratchBytes);
         if (!copied) return Stop(ref state, LinuxSyscallGateStatus.CopyFailed);
         if (!written) return Stop(ref state, LinuxSyscallGateStatus.SinkFailed);
-        state.BytesValue += bytes; // At most 64 * 4096; no wrap is admitted.
+        AccountBytes(ref state, bytes);
         return new(LinuxSyscallAction.Return, bytes);
     }
 
@@ -254,8 +279,15 @@ public static unsafe partial class LinuxSyscallGateway
         if (frame.Number is 0 or 1 && ((ulong)value > frame.Argument2 || value > LinuxDescriptorServices.MaximumIo)) return false;
         if (frame.Number is not (1 or 20)) return true;
         if (value > LinuxDescriptorServices.MaximumIo) return false;
-        state.BytesValue += (uint)value; // MaximumThreadCalls * MaximumIo fits uint.
+        AccountBytes(ref state, (uint)value);
         return true;
+    }
+
+    private static void AccountBytes(ref LinuxSyscallGateState state, uint bytes)
+    {
+        // Each turn is at most4096 calls *64KiB; Dispatch reserves lifetime
+        // headroom before invoking any synchronous or deferred IO callback.
+        state.BytesValue += bytes; state.TotalBytesValue += bytes;
     }
 
     public static bool ValidateReturn(LinuxSyscallFrame frame, LinuxSyscallAccess access)

@@ -28,9 +28,10 @@ internal static unsafe class LinuxSocketNetworkTests
         private readonly ulong* Generations;
         internal readonly byte* Buffers;
         internal readonly Hardware* Hardware;
+        internal readonly TcpInitialSequence.Owner* Sequence;
         internal readonly byte[] Frame = new byte[1514];
         private readonly uint Count, ReceiveBytes, SendBytes;
-        internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768)
+        internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768, bool compactTimeWait = false, bool continuingSequence = false)
         {
             Count = count; ReceiveBytes = receiveBytes; SendBytes = sendBytes; Files.Begin();
             Sockets = (Sockets.State*)NativeMemory.AllocZeroed((nuint)sizeof(Sockets.State));
@@ -45,11 +46,17 @@ internal static unsafe class LinuxSocketNetworkTests
             Generations = (ulong*)NativeMemory.AllocZeroed(count, 8);
             Buffers = (byte*)NativeMemory.AllocZeroed(count, receiveBytes + sendBytes);
             Hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware)); Hardware->Now = 1000; Hardware->Result = 1;
+            if (continuingSequence)
+            {
+                Sequence = (TcpInitialSequence.Owner*)NativeMemory.AllocZeroed((nuint)sizeof(TcpInitialSequence.Owner));
+                byte* secret = stackalloc byte[32]; for (uint i = 0; i < 32; i++) secret[i] = (byte)i; // Fixed host-test key only.
+                HostCheck.True(TcpInitialSequence.Initialize(Sequence, secret, 77));
+            }
             HostCheck.True(LinuxSocketServices.Begin(Sockets, Files.State, Endpoints, 8, new(10, 0, 2, 15), 8080));
             HostCheck.True(LinuxEpollServices.Begin(Epoll, Files.State, Ports, 2, Registrations, 16));
             HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.InitializeOwned(Table, Entries, count, Generations, count, 0x1234));
             HostCheck.True(Network.Begin(State, Sockets, Table, Slots, count, Buffers, receiveBytes, sendBytes,
-                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), 700, Io));
+                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), continuingSequence ? 0U : 700U, Io, compactTimeWait, Sequence));
         }
         internal TcpPassiveConnection.Operations Io => new() { Context = Hardware, NowNanoseconds = &Now, Send = &Send,
             LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
@@ -79,11 +86,12 @@ internal static unsafe class LinuxSocketNetworkTests
             if (abort) HostCheck.True(Network.Abort(State));
             HostCheck.Equal(0U, State->RetainedConnections); HostCheck.Equal(0, Table->Count);
             HostCheck.True(Network.End(State)); HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.RetireOwned(Table));
+            if (Sequence != null) { HostCheck.True(!Sequence->IsBorrowed); HostCheck.True(TcpInitialSequence.Erase(Sequence)); }
             HostCheck.True(Fds.End(Files.State)); HostCheck.True(new ReadOnlySpan<byte>(Buffers, (int)(Count * (ReceiveBytes + SendBytes))).IndexOfAnyExcept((byte)0) < 0);
         }
         public void Dispose()
         {
-            NativeMemory.Free(Hardware); NativeMemory.Free(Buffers); NativeMemory.Free(Generations); NativeMemory.Free(Entries); NativeMemory.Free(Table);
+            NativeMemory.Free(Sequence); NativeMemory.Free(Hardware); NativeMemory.Free(Buffers); NativeMemory.Free(Generations); NativeMemory.Free(Entries); NativeMemory.Free(Table);
             NativeMemory.Free(Slots); NativeMemory.Free(State); NativeMemory.Free(Registrations); NativeMemory.Free(Ports); NativeMemory.Free(Epoll);
             NativeMemory.Free(Endpoints); NativeMemory.Free(Sockets); Files.Dispose();
         }
@@ -98,6 +106,200 @@ internal static unsafe class LinuxSocketNetworkTests
     }
     private static byte[] Syn(ushort port = 40000, uint sequence = 99) => Wire.Packet(sequence, ReadOnlySpan<byte>.Empty, 0, port,
         flags: 2, options: [2, 4, 5, 180]);
+
+    [HostTest("m07-033 repeated complete lifetimes cross ISN wrap with old pending traffic rejected", HostLane.Fast, 25)]
+    private static void ContinuingSequenceWrap()
+    {
+        using Model m = new(count: 1, continuingSequence: true); uint listener = m.Listen();
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Syn())); HostCheck.Equal(0U, m.Hardware->Calls);
+        HostCheck.Equal(0UL, m.Sequence->SequencesIssued);
+        // Independent BCL oracle fixes the first ISN at UINT_MAX. This is host
+        // clock injection, not a claim of waiting4.77 hours in a CLROS guest.
+        byte[] secret = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
+        byte[] input = System.Text.Encoding.ASCII.GetBytes("CLROS.TCP.ISN.v1").Concat(new byte[] { 10, 0, 2, 15, 0x1f, 0x90, 10, 0, 2, 2, 0x9c, 0x40 }).ToArray();
+        uint prf = BinaryPrimitives.ReadUInt32BigEndian(System.Security.Cryptography.HMACSHA256.HashData(secret, input));
+        ulong start = ((1UL << 32) + unchecked(uint.MaxValue - prf)) * 4000;
+        for (uint i = 0; i < 96; i++)
+        {
+            m.Hardware->Now = start + i * 4000;
+            uint remote = 99 + i * 100, local = m.Connect(sequence: remote), fd = m.Accept(listener);
+            HostCheck.Equal(i, local); // first UINT_MAX SYN is followed by sequence0.
+            HostCheck.Equal(i + 1UL, m.Sequence->SequencesIssued);
+            if (i != 0)
+            {
+                byte[] stale = Wire.Packet(100, ReadOnlySpan<byte>.Empty, 0, flags: 0x14);
+                HostCheck.Equal(Network.Status.Ignored, m.Receive(stale)); HostCheck.Equal(1, m.Table->Count);
+            }
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(remote + 1, ReadOnlySpan<byte>.Empty, local, flags: 0x14)));
+            HostCheck.Equal(0L, m.Call(3, fd)); m.Pump();
+            HostCheck.Equal(0U, m.State->RetainedConnections); HostCheck.Equal(0, m.Table->Count);
+            HostCheck.True(!m.State->RequiresShutdown && m.Sequence->IsBorrowed);
+        }
+        m.Finish();
+    }
+
+    [HostTest("m07-033 secret lease excludes frames and survives compact TIME-WAIT until exact drain", HostLane.Fast, 26)]
+    private static void ContinuingSequenceTimeWait()
+    {
+        using Model m = new(count: 1, compactTimeWait: true, continuingSequence: true); uint listener = m.Listen();
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, Syn(), new Span<byte>(m.Sequence, 1514)));
+        HostCheck.True(!TcpInitialSequence.Erase(m.Sequence));
+        m.Hardware->Now = m.Sequence->QuietDeadline;
+        uint local = m.Connect(), fd = m.Accept(listener); ulong started = m.Hardware->Now;
+        HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+        var fin = Wire.Packet(100, ReadOnlySpan<byte>.Empty, unchecked(local + 1), flags: 0x11);
+        HostCheck.Equal(Network.Status.Success, m.Receive(fin)); HostCheck.Equal(0L, m.Call(3, fd)); m.Pump();
+        HostCheck.Equal(1U, m.State->CompactTimeWaitConnections); HostCheck.True(!TcpInitialSequence.Erase(m.Sequence));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Syn(sequence: 999))); HostCheck.Equal(1UL, m.Sequence->SequencesIssued);
+        m.Hardware->Now = started + 1_000_000_000;
+        HostCheck.Equal(Network.Status.Success, m.Receive(fin));
+        m.Pump(started + TcpInitialSequence.QuietNanoseconds); HostCheck.Equal(1U, m.State->CompactTimeWaitConnections);
+        m.Pump(started + 1_000_000_000 + TcpInitialSequence.QuietNanoseconds); HostCheck.Equal(0U, m.State->RetainedConnections);
+        m.Finish(false);
+    }
+
+    [HostTest("m07-029 prolonged zero-window peer preserves independent socket progress and resumes exact bytes", HostLane.Fast, 19)]
+    private static void PersistAndIndependentProgress()
+    {
+        using Model m = new(); uint listener = m.Listen(), first = m.Connect(), a = m.Accept(listener);
+        uint second = m.Connect(40001, 199), b = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, first, flags: 0x10, window: 0)));
+        m.Files.Text(User, "recover"); HostCheck.Equal(7L, m.Call(44, a, User, 7)); m.Pump();
+        HostCheck.Equal(Table.OwnershipStatus.Success, Table.FindOwned(m.Table, new(new(10, 0, 2, 15), 8080, new(10, 0, 2, 2), 40000), out var handle));
+        HostCheck.Equal(Table.OwnershipStatus.Success, Table.ReadOwned(m.Table, handle, out var entry));
+        HostCheck.Equal(first, entry.Sequence.LocalNextSequenceNumber);
+        HostCheck.Equal(first, entry.Sequence.LocalAcknowledgedSequenceNumber);
+        ulong due = 1_000_001_000, interval = 1_000_000_000;
+        for (int i = 0; i < 12; i++)
+        {
+            m.Pump(due);
+            HostCheck.Equal(55U, m.Hardware->Length);
+            HostCheck.Equal(first, BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame + 38, 4)));
+            HostCheck.Equal((byte)'r', m.Hardware->Frame[54]);
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, first, flags: 0x10, window: 0)));
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200U + (uint)i, "x"u8, second, port: 40001)));
+            HostCheck.Equal(1L, m.Call(45, b, Output, 1)); HostCheck.Equal((byte)'x', *m.Files.Memory.At(Output));
+            m.Pump();
+            interval = Math.Min(60_000_000_000, interval * 2); due += interval;
+        }
+        HostCheck.True(m.Hardware->Now > 300_000_000_000 && !m.State->RequiresShutdown);
+        // The initial unsolicited reopening update was lost. The next probe
+        // elicits an ACK that opens the window; no new application write occurs.
+        m.Pump(due);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, first + 1, flags: 0x10, window: 8192)));
+        m.Pump();
+        HostCheck.True(new ReadOnlySpan<byte>(m.Hardware->Frame + 54, 6).SequenceEqual("ecover"u8));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, first + 7, flags: 0x10, window: 8192)));
+        HostCheck.Equal(Table.OwnershipStatus.Success, Table.ReadOwned(m.Table, handle, out entry));
+        HostCheck.Equal(first + 7, entry.Sequence.LocalAcknowledgedSequenceNumber); HostCheck.Equal(2, m.Table->Count);
+        m.Finish();
+    }
+
+    [HostTest("m07-032 validated pending reset returns capacity before timeout and cancels retries", HostLane.Fast, 20)]
+    private static void PendingReset()
+    {
+        using Model m = new(count: 1); uint listener = m.Listen();
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn()));
+        HostCheck.Equal(Table.OwnershipStatus.Success, Table.FindOwned(m.Table, new(new(10, 0, 2, 15), 8080, new(10, 0, 2, 2), 40000), out var old));
+        uint calls = m.Hardware->Calls;
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(101, ReadOnlySpan<byte>.Empty, 701, flags: 0x14)));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 702, flags: 0x14)));
+        byte[] corrupt = Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x14); corrupt[50] ^= 1;
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(corrupt));
+        HostCheck.Equal(1U, m.State->RetainedConnections); HostCheck.Equal(calls, m.Hardware->Calls);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x14)));
+        HostCheck.Equal(0U, m.State->RetainedConnections); HostCheck.Equal(0, m.Table->Count);
+        HostCheck.Equal(Table.OwnershipStatus.StaleHandle, Table.ReadOwned(m.Table, old, out _));
+        HostCheck.Equal(-11L, m.Call(288, listener, 0, 0, Fds.NonBlock));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x14)));
+        m.Pump(1_000_001_000); HostCheck.Equal(calls, m.Hardware->Calls);
+        uint local = m.Connect(40001, 199), fd = m.Accept(listener);
+        HostCheck.True(m.Hardware->Now < 10_000_001_000);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "next"u8, local, port: 40001)));
+        HostCheck.Equal(4L, m.Call(45, fd, Output, 4));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 4).SequenceEqual("next"u8));
+        HostCheck.True(!m.State->RequiresShutdown); m.Finish();
+    }
+
+    [HostTest("m07-032 pending reset preserves an established peer and listener-close cleanup", HostLane.Fast, 21)]
+    private static void PendingResetIsolation()
+    {
+        using Model m = new(count: 2); uint listener = m.Listen(), first = m.Connect(), fd = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn(40001, 199)));
+        uint pendingNext = BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame + 38, 4)) + 1;
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, ReadOnlySpan<byte>.Empty, pendingNext, port: 40001, flags: 0x14)));
+        HostCheck.Equal(1, m.Table->Count); HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, "live"u8, first)));
+        HostCheck.Equal(4L, m.Call(45, fd, Output, 4));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 4).SequenceEqual("live"u8));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn(40002, 299)));
+        HostCheck.Equal(0L, m.Call(3, listener)); m.Pump();
+        HostCheck.Equal(1, m.Table->Count); HostCheck.True(!m.State->RequiresShutdown); m.Finish();
+    }
+
+    [HostTest("m07-030 twelve active closes reuse one bulk slot while compact tuples retain full TIME-WAIT", HostLane.Fast, 22)]
+    private static void CompactTimeWaitChurn()
+    {
+        using Model m = new(count: 1, compactTimeWait: true); uint listener = m.Listen();
+        for (ushort i = 0; i < 12; i++)
+        {
+            ushort port = (ushort)(40000 + i); uint remote = 99U + i * 100U;
+            uint local = m.Connect(port, remote), fd = m.Accept(listener);
+            HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(remote + 1, ReadOnlySpan<byte>.Empty, local + 1, port, flags: 0x11)));
+            HostCheck.Equal(0L, m.Call(3, fd)); m.Pump();
+            HostCheck.Equal(0, m.Table->Count); HostCheck.Equal((uint)i + 1, m.State->CompactTimeWaitConnections);
+            HostCheck.Equal((uint)i + 1, m.State->RetainedConnections);
+            HostCheck.True(new ReadOnlySpan<byte>(m.Buffers, 40960).IndexOfAnyExcept((byte)0) < 0);
+            HostCheck.Equal(Network.Status.Ignored, m.Receive(Syn(port, remote + 2000)));
+        }
+        HostCheck.True(m.Hardware->Now < 240_000_001_000 && !m.State->RequiresShutdown);
+        m.Pump(240_000_000_999); HostCheck.Equal(12U, m.State->CompactTimeWaitConnections);
+        HostCheck.True(!Network.End(m.State));
+        m.Pump(240_000_001_000); HostCheck.Equal(0U, m.State->RetainedConnections); m.Finish(false);
+    }
+
+    [HostTest("m07-030 compact duplicate FIN keeps exact ACK through TX pressure and restarts only its deadline", HostLane.Fast, 23)]
+    private static void CompactTimeWaitDuplicateFin()
+    {
+        using Model m = new(count: 1, compactTimeWait: true); uint listener = m.Listen(), local = m.Connect(), fd = m.Accept(listener);
+        HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+        byte[] fin = Wire.Packet(100, ReadOnlySpan<byte>.Empty, local + 1, flags: 0x11);
+        HostCheck.Equal(Network.Status.Success, m.Receive(fin)); HostCheck.Equal(0L, m.Call(3, fd)); m.Pump();
+        HostCheck.Equal(1U, m.State->CompactTimeWaitConnections);
+        m.Hardware->Now = 1_000_001_000; m.Hardware->Result = 0;
+        HostCheck.Equal(Network.Status.Success, m.Receive(fin));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local + 1, flags: 0x14)));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(101, ReadOnlySpan<byte>.Empty, local + 1, flags: 0x11)));
+        m.Hardware->Result = 1; m.Pump(2_000_001_000);
+        HostCheck.Equal(54U, m.Hardware->Length); HostCheck.Equal((byte)0x10, m.Hardware->Frame[47]);
+        HostCheck.Equal(local + 1, BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame + 38, 4)));
+        HostCheck.Equal(101U, BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame + 42, 4)));
+        m.Pump(240_000_001_000); HostCheck.Equal(1U, m.State->CompactTimeWaitConnections);
+        m.Pump(241_000_000_999); HostCheck.Equal(1U, m.State->CompactTimeWaitConnections);
+        m.Pump(241_000_001_000); HostCheck.Equal(0U, m.State->RetainedConnections); m.Finish(false);
+    }
+
+    [HostTest("m07-030 full compact table retains one bulk close without faulting another established peer", HostLane.Fast, 24)]
+    private static void CompactTimeWaitCapacity()
+    {
+        using Model m = new(count: 2, compactTimeWait: true); uint listener = m.Listen();
+        for (ushort i = 0; i < 65; i++)
+        {
+            ushort port = (ushort)(40000 + i); uint local = m.Connect(port), fd = m.Accept(listener);
+            HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local + 1, port, flags: 0x11)));
+            HostCheck.Equal(0L, m.Call(3, fd)); m.Pump();
+        }
+        HostCheck.Equal(64U, m.State->CompactTimeWaitConnections); HostCheck.Equal(1, m.Table->Count);
+        uint healthy = m.Connect(40100, 199), b = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "alive"u8, healthy, port: 40100)));
+        HostCheck.Equal(5L, m.Call(45, b, Output, 5)); HostCheck.True(!m.State->RequiresShutdown);
+        HostCheck.Equal(Network.Status.Capacity, m.Receive(Syn(40101, 299)));
+        m.Pump(240_000_001_000); m.Pump(); // Close then reap the full-table bulk fallback on the next bounded turn.
+        HostCheck.Equal(0U, m.State->CompactTimeWaitConnections); HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.Equal(1, m.Table->Count); HostCheck.True(!m.State->RequiresShutdown); m.Finish();
+    }
 
     [HostTest("m16-011 network admission and frame aliases fail without changing ownership", HostLane.Fast, 0)]
     private static void Admission()

@@ -130,6 +130,8 @@ public static partial class QemuTranscripts
         internal ulong Fs=fs, Gs, ClearTid, Mask, SavedRsp=top, SavedRip=rip, LastSequence, WaitOrder, AddressOrder;
         internal ulong TailRip,TailRsp,TailFs,TailFlags;
         internal ulong LastUserIrq;
+        internal ulong TotalCalls, TurnEpoch;
+        internal uint TurnCalls;
         internal FutexReplay? WaitCall,TimedRestart;
         internal readonly Queue<CollectionSignal> SignalProofs=[];
         internal uint WaitSource, WaitMode, WaitBits;
@@ -159,7 +161,7 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket,web,containment,vectors,webLogQuota;
+        private readonly bool broader,socket,web,service,containment,vectors,webLogQuota;
         private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
         private readonly int webSettingsFd;
@@ -190,29 +192,30 @@ public static partial class QemuTranscripts
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
             vectors=app==NativeAotSocketVectorsPublisher.Application;
-            web=app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
-            Need(!webLogQuota || web,"web_quota_application");this.webLogQuota=webLogQuota;
+            service=app==NativeAotServicePackage.Application;
+            web=service || app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
+            Need(!webLogQuota || web && !service,"web_quota_application");this.webLogQuota=webLogQuota;
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
             this.webSettingsCall=webSettingsCall;
             Need(!web || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
                 webSettingsCall.Identity!=0 && webSettingsCall.Ordinal!=0,"web_replay_configuration");
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
-            Need(rows is not null && rows.Length is >=25 and <=100000 && instruction is not null && syscall is not null &&
+            Need(rows is not null && rows.Length >=25 && rows.Length <=(service?1_000_000:100000) && instruction is not null && syscall is not null &&
                 lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) && lengths.Sum()<=(web?65536:vectors?32768:4096),"threading_protocol_input");
             this.app=app; this.instruction=instruction!; this.syscall=syscall!; writeLengths=lengths!.ToArray();
             exitTails=FindExitTails(elf,this.instruction,this.syscall);
-            waits=ReadLinuxCallWaits(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
-            returns=ReadLinuxCallReturns(rows!,allowEpoll:socket).ToDictionary(x=>x.RecordIndex);
+            waits=(service?ReadLinuxServiceCallWaits(rows!):ReadLinuxCallWaits(rows!,allowEpoll:socket)).ToDictionary(x=>x.RecordIndex);
+            returns=(service?ReadLinuxServiceCallReturns(rows!):ReadLinuxCallReturns(rows!,allowEpoll:socket)).ToDictionary(x=>x.RecordIndex);
             if(socket)
             {
                 var messages=NativeAotSocketMessages.Read(rows!,returns);
                 socketMessageInputs=messages.ToDictionary(x=>x.RecordIndex);
                 socketMessageCalls=messages.ToDictionary(x=>x.CallRecordIndex);
             }
-            this.rows=ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
-            Need(webControls is null || web,"web_controls_application");this.webControls=webControls;
+            this.rows=service?ValidateLinuxServiceCallOrdinals(rows!):ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
+            Need(webControls is null || web && !service,"web_controls_application");this.webControls=webControls;
             if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets);
-            memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=web?4096U:broader||socket?256U:32U;
+            memory=new(elf); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=service?0U:web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
             this.containmentCapture=containmentCapture;
             socketPolicy=vectors && NativeAotSocketVectorsOutput.Read(socketCapture!.Output.Stdout).Policy;
@@ -230,15 +233,15 @@ public static partial class QemuTranscripts
         private bool webReturningToSupervisor;
         private sealed class WebBoundary(string expected):Exception { internal string Expected=>expected; }
         private string Take(string expected="record")
-        { if(web && position==rows.Length)throw new WebBoundary(expected);Need(position<rows.Length,"threading_truncated");return rows[position++]; }
+        { if(web && !service && position==rows.Length)throw new WebBoundary(expected);Need(position<rows.Length,"threading_truncated");return rows[position++]; }
         private bool Starts(string prefix)=>position<rows.Length && rows[position].StartsWith(prefix,StringComparison.Ordinal);
         private void Exact(string expected)=>Need(Take(expected)==expected,"threading_order_"+expected);
         private Dictionary<string,ulong> Row(string prefix,params string[] fields)=>ReadRecord(Take(prefix),prefix,fields);
 
         internal ThreadingProtocolReport Validate()
         {
-            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
-            int bytes=web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages,continuingService:service);
+            int bytes=service?NativeAotServiceProgram.ElfBytes:web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
@@ -251,6 +254,8 @@ public static partial class QemuTranscripts
                 bound["workers"]==(ulong)capacity && bound["code"]==LinuxThreadProgram.Bytes &&
                 bound["metadata"]==LinuxThreadProgram.MetadataPages*4096UL && bound["userImage"]==728,"threading_parent_geometry");
             DistinctExtents([(userRoot,4096),(kernelRoot,4096),(bound["pool"],poolPages*4096UL)],"threading_roots_pool");
+            if(service) ServiceBegin();
+            else
             {
                 var b=Row("M16_008_BUDGET","started:dec","epochs:dec","steps:dec","nanos:dec");
                 Need(budget.Begin((uint)capacity,b["started"],application:true,continuingWeb:web) && b["epochs"]==budget.MaximumEpochs &&
@@ -258,8 +263,9 @@ public static partial class QemuTranscripts
             }
             while(active!=0)
             {
+                if(service) ServiceProgress();
                 SocketObservations(supervisor:true);
-                if(web && position==rows.Length)throw new WebBoundary("dispatch_or_idle");
+                if(web && !service && position==rows.Length)throw new WebBoundary("dispatch_or_idle");
                 Need((uint)(transfers/2+ticks+socketIdlePolls)<budget.MaximumSteps,"threading_transfer_bound");
                 if(ready.Count==0)
                 {
@@ -380,11 +386,12 @@ public static partial class QemuTranscripts
                     Need(re["old"]==t.Identity && re["next"]==t.Identity+(1UL<<32),"threading_reap_generation");
                     int slot=(int)(uint)t.Identity-1; generations[slot]++; slots[slot]=null;
                     t.Reaped=true; t.WaitSource=0; t.Completion=null; active--; reaped++;
+                    if(service)Need(budget.ForgetWorker((uint)slot),"service_reaped_budget_slot");
                     if(t.NormalExit)phases?.Reaped();
                 }
                 socketSelected=null;
             }
-            Need(!web,"web_replay_unexpected_termination");
+            Need(!web || service,"web_replay_unexpected_termination");
             Need(stopping && reaped==clones+1 && writes==writeLengths.Count && irqs>0 && history.All(t=>t.Reaped),"threading_complete_lifetimes");
             if(broader)
             {
@@ -397,7 +404,8 @@ public static partial class QemuTranscripts
             else Need(app=="NativeAotSuspensionSmoke" ? clones>=3 && normalExits>=1 && signalReturns>=2 && history.Any(t=>t.NormalExit && t.Returned>=2) : clones>=5,"threading_workload_lifetimes");
             var finished=Row("M16_008_BUDGET_END","nanos:dec");
             Need(finished["nanos"]>=clock && (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
-                budget.Observe(finished["nanos"]),"runtime_budget_complete");
+                (service?budget.CancellationRequested && finished["nanos"]<=long.MaxValue:budget.Observe(finished["nanos"])),"runtime_budget_complete");
+            if(service)serviceBudgetFinished=finished["nanos"];
             // Group cancellation retires pending/active signal state during
             // actual off-stack reap. It does not fabricate a user sigreturn.
             Need(history.All(t=>t.GroupRetired || t.Delivered==t.Returned && t.Requests==0),"threading_unreturned_signal");
@@ -407,6 +415,7 @@ public static partial class QemuTranscripts
             string owner=Take(); Need(owner.EndsWith(cleanup,StringComparison.Ordinal),"threading_owner_cleanup");
             var end=ReadRecord(owner[..^cleanup.Length],"M16_008_OWNER_END","reaped:dec","transfers:dec","irqs:dec","exit:dec");
             Need(end["reaped"]==(ulong)reaped && end["transfers"]==(ulong)transfers && end["irqs"]==(ulong)epochs && end["exit"]==0,"threading_owner_accounting");
+            if(service) ServiceFinish();
             Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
             Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009"); Need(position==rows.Length,"threading_extra_record");
             return new(calls,clones,reaped,irqs,drains,ticks,transfers,signalReturns);
@@ -431,8 +440,11 @@ public static partial class QemuTranscripts
         { if(t.Completion.HasValue) return; t.Completion=result; if(!t.Parking) Enqueue(t); }
         private void Clock(ulong now)
         {
-            Need(now>=clock && now<=long.MaxValue,"threading_clock"); clock=now;
-            if(now!=0)Need(budget.Observe(now),"runtime_budget_clock");
+            if(now<clock || now>long.MaxValue)
+                throw new ToolFailure("threading_clock",$"position={position} previous={clock} now={now} calls={calls} row={rows[Math.Min(position,rows.Length-1)]}");
+            clock=now;
+            if(service) ServiceClock(now,ref budget);
+            else if(now!=0)Need(budget.Observe(now),"runtime_budget_clock");
             foreach(var t in history.Where(t=>!t.Reaped && t.WaitSource is 1 or 3 && t.Completion is null && t.Deadline!=0 && t.Deadline<=now)
                 .OrderBy(t=>t.Deadline).ThenBy(t=>t.WaitOrder))
             {

@@ -5,6 +5,7 @@ using Fds = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 using Pending = OS.Net.TcpPassiveConnection;
 using Rx = OS.Net.TcpReceiveWindow;
 using Tx = OS.Net.TcpSendWindow;
+using Waits = OS.Net.TcpTimeWaitTable;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
 
@@ -52,9 +53,16 @@ public static unsafe class LinuxSocketNetwork
         internal MacAddress LocalMac, PeerMac;
         internal Ipv4Address PeerAddress;
         internal Pending.Operations Io;
+        internal TcpInitialSequence.Owner* Sequence;
+        internal TcpInitialSequence.Lease SequenceLease;
+        internal Waits.Owner TimeWait;
+        internal uint CompactTimeWait;
+        internal fixed ulong TimeWaitEntries[(int)Waits.MaximumEntries * 8];
+        internal fixed ulong TimeWaitAcks[(int)Waits.MaximumEntries];
+        public readonly uint CompactTimeWaitConnections => CompactTimeWait == 1 ? (uint)TimeWait.Count : 0;
         public readonly uint RetainedConnections
         {
-            get { uint n = 0; if (Initialized == 1) for (uint i = 0; i < Count; i++) if (Slots[i].Phase != 0) n++; return n; }
+            get { uint n = 0; if (Initialized == 1) { n = CompactTimeWaitConnections; for (uint i = 0; i < Count; i++) if (Slots[i].Phase != 0) n++; } return n; }
         }
         public readonly bool RequiresShutdown => Initialized == 1 && Failed != 0;
     }
@@ -64,13 +72,21 @@ public static unsafe class LinuxSocketNetwork
     /// must be trusted mapped supervisor storage, inaccessible to the application.
     /// RX/TX capacities are 8..32768 bytes, aligned to8; initial sequence entropy
     /// belongs to the caller. Rejection changes nothing. The IO context/code
-    /// remains retained and synchronous/nonreentrant; TX copies the whole frame.</summary>
+    /// remains retained and synchronous/nonreentrant; TX copies the whole frame.
+    /// Explicit compact mode embeds64 bounded TIME-WAIT records and their ACK
+    /// generations in State; fd-less drained bulk windows may then be scrubbed
+    /// and reused while their original tuples remain protected. Optional sequence
+    /// owner replaces the finite diagnostic counter, requires initialSequence=0,
+    /// and is borrowed through End. It is disjoint from every retained extent,
+    /// worker, packet and output; its startup/rekey quiet time ignores new SYNs.</summary>
     public static bool Begin(State* state, LinuxSocketServices.State* sockets, TcpConnectionTable.Owner* table,
         Slot* slots, uint count, byte* buffers, uint receiveBytes, uint sendBytes,
-        MacAddress localMac, MacAddress peerMac, Ipv4Address peerAddress, uint initialSequence, Pending.Operations io)
+        MacAddress localMac, MacAddress peerMac, Ipv4Address peerAddress, uint initialSequence, Pending.Operations io,
+        bool compactTimeWait = false, TcpInitialSequence.Owner* sequence = null)
     {
-        if (count is 0 or > MaximumConnections || receiveBytes is < 8 or > 32768 || sendBytes is < 8 or > 32768 ||
-            ((receiveBytes | sendBytes) & 7) != 0 || initialSequence == 0 || initialSequence > uint.MaxValue - 65536 ||
+        if (sizeof(Waits.Entry) > 64 || count is 0 or > MaximumConnections || receiveBytes is < 8 or > 32768 || sendBytes is < 8 or > 32768 ||
+            ((receiveBytes | sendBytes) & 7) != 0 ||
+            (sequence == null ? initialSequence == 0 || initialSequence > uint.MaxValue - 65536 : initialSequence != 0) ||
             !Extent(state, (ulong)sizeof(State)) || !Extent(sockets, (ulong)sizeof(LinuxSocketServices.State)) ||
             sockets->Self != (ulong)sockets || sockets->Initialized != 1 || !Fds.Audit(sockets->Descriptors) ||
             sockets->Descriptors->Sockets != sockets || sockets->Descriptors->ThreadOwner != 0 || sockets->Descriptors->Epoll == null ||
@@ -88,9 +104,27 @@ public static unsafe class LinuxSocketNetwork
             for (uint j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
         }
         if (!Zero(state, sizes[0]) || !Zero(slots, sizes[1]) || !Zero(buffers, sizes[2])) return false;
+        if (sequence != null)
+        {
+            if (!TcpInitialSequence.IsInitialized(sequence) || !Fds.SocketOutside(sockets->Descriptors, sequence, (uint)sizeof(TcpInitialSequence.Owner))) return false;
+            for (uint i = 0; i < 6; i++)
+                if (Overlap(starts[i], sizes[i], (ulong)sequence, (ulong)sizeof(TcpInitialSequence.Owner))) return false;
+        }
         *state = new() { Self = (ulong)state, Sockets = sockets, Table = table, Slots = slots, Count = count,
             Buffers = buffers, ReceiveBytes = receiveBytes, SendBytes = sendBytes, LocalMac = localMac,
             PeerMac = peerMac, PeerAddress = peerAddress, NextSequence = initialSequence, Io = io, Initialized = 1 };
+        if (compactTimeWait)
+        {
+            if (Waits.Initialize(&state->TimeWait, (Waits.Entry*)state->TimeWaitEntries, Waits.MaximumEntries,
+                table->Epoch, io.NowNanoseconds(io.Context)) != Waits.Status.Success) { *state = default; return false; }
+            state->CompactTimeWait = 1;
+        }
+        if (sequence != null)
+        {
+            var lease = TcpInitialSequence.Acquire(sequence, state, io.NowNanoseconds(io.Context));
+            if (!lease.IsValid) { *state = default; return false; }
+            state->Sequence = sequence; state->SequenceLease = lease;
+        }
         sockets->Network = state; return true;
     }
 
@@ -112,6 +146,22 @@ public static unsafe class LinuxSocketNetwork
             Ipv4TransportChecksum.Validate(ip.Source, ip.Destination, 6, segment, out var checksum) != Ipv4TransportChecksumStatus.Success || !checksum.IsValid)
             return Status.Ignored;
         var key = new TcpConnectionKey(ip.Destination, tcp.DestinationPort, ip.Source, tcp.SourcePort);
+        if (state->CompactTimeWait != 0)
+        {
+            ulong now = state->Io.NowNanoseconds(state->Io.Context);
+            if (Waits.Expire(&state->TimeWait, now) != Waits.Status.Success) return Fail(state);
+            var waiting = Waits.Find(&state->TimeWait, key, out var retired, out var record);
+            if (waiting == Waits.Status.Success)
+            {
+                if ((tcp.Flags & 0x11) != 0x11 || (tcp.Flags & ~0x19) != 0 ||
+                    unchecked(tcp.SequenceNumber + (uint)payload.Length + 1) != record.RemoteNextSequenceNumber ||
+                    unchecked(record.LocalNextSequenceNumber - tcp.AcknowledgementNumber) > 1) return Status.Ignored;
+                if (Waits.Restart(&state->TimeWait, retired, now) != Waits.Status.Success) return Fail(state);
+                state->TimeWaitAcks[retired.Index] = retired.Generation;
+                return SendTimeWaitAck(state, retired, record, output);
+            }
+            if (waiting != Waits.Status.NotFound) return Fail(state);
+        }
         var found = TcpConnectionTable.FindOwned(state->Table, key, out var handle);
         if (found == TcpConnectionTable.OwnershipStatus.Success)
         {
@@ -123,6 +173,8 @@ public static unsafe class LinuxSocketNetwork
             if (held.State == TcpConnectionLifecycleState.Closed) return Status.Ignored;
             if (slot->Phase == 1)
             {
+                if ((tcp.Flags & 4) != 0)
+                    return PendingResult(state, slot, Pending.ReceiveReset(&slot->Handshake, frame));
                 if ((tcp.Flags & 2) != 0)
                     return PendingResult(state, slot, Pending.ReceiveSyn(&slot->Handshake, frame, output, out _));
                 var ack = Pending.ReceiveAck(&slot->Handshake, frame, new Span<TcpListenerBacklogEntry>(&slot->Backlog, 1), out _, out _);
@@ -137,18 +189,26 @@ public static unsafe class LinuxSocketNetwork
         if (found != TcpConnectionTable.OwnershipStatus.NotFound) return Fail(state);
         if (tcp.Flags != 2 || !LinuxSocketServices.Listener(state->Sockets, out uint listenerFd, out var listener)) return Status.Ignored;
         uint index = 0; for (; index < state->Count && state->Slots[index].Phase != 0; index++) { }
-        if (index == state->Count || state->NextSequence > uint.MaxValue - 65536) return Status.Capacity;
+        if (index == state->Count || state->Sequence == null && state->NextSequence > uint.MaxValue - 65536) return Status.Capacity;
+        uint initial = state->NextSequence;
+        if (state->Sequence != null)
+        {
+            var next = TcpInitialSequence.Next(state->Sequence, state->SequenceLease, key, state->Io.NowNanoseconds(state->Io.Context));
+            if (next.Status == TcpInitialSequence.Status.Quiet) return Status.Ignored;
+            if (next.Status != TcpInitialSequence.Status.Success) return Fail(state);
+            initial = next.Sequence;
+        }
         Slot* free = state->Slots + index;
         var info = new TcpPassiveIpv4FramePlannerInfo(state->LocalMac, state->PeerMac,
             state->Sockets->InterfaceAddress, state->PeerAddress, state->Sockets->AllowedPort, tcp.SourcePort,
-            state->NextSequence, (ushort)state->ReceiveBytes, maximumSegmentSize: 1460);
+            initial, (ushort)state->ReceiveBytes, maximumSegmentSize: 1460);
         var status = Pending.Begin(&free->Handshake, state->Table, info, frame, output, state->Io, out _);
         if (free->Handshake.Pending || free->Handshake.RequiresCleanup)
         {
             free->Phase = 1; free->Listener = listener; free->ListenerFd = listenerFd;
             free->ListenerDescription = state->Sockets->Descriptors->Owner.Slots[listenerFd].Description - 1;
             free->ListenerInode = Fds.Find(state->Sockets->Descriptors, listenerFd)->Inode;
-            state->NextSequence += 65536;
+            if (state->Sequence == null) state->NextSequence += 65536;
         }
         return PendingResult(state, free, status);
     }
@@ -164,6 +224,18 @@ public static unsafe class LinuxSocketNetwork
     {
         if (!Current(state)) return Status.InvalidState;
         if (!Frames(state, default, output)) return Status.InvalidStorage;
+        if (state->CompactTimeWait != 0)
+        {
+            if (Waits.Expire(&state->TimeWait, state->Io.NowNanoseconds(state->Io.Context)) != Waits.Status.Success) return Fail(state);
+            for (ushort i = 0; i < Waits.MaximumEntries; i++)
+            {
+                if (state->TimeWaitAcks[i] == 0) continue;
+                var handle = new Waits.Handle(&state->TimeWait, i, state->TimeWaitAcks[i]);
+                var read = Waits.Read(&state->TimeWait, handle, out var record);
+                if (read == Waits.Status.StaleHandle) { state->TimeWaitAcks[i] = 0; continue; }
+                if (read != Waits.Status.Success || SendTimeWaitAck(state, handle, record, output) == Status.TransportFailure) return Fail(state);
+            }
+        }
         for (uint i = 0; i < state->Count; i++)
         {
             Slot* slot = state->Slots + i;
@@ -210,6 +282,18 @@ public static unsafe class LinuxSocketNetwork
             var ack = Rx.PumpAck(&slot->Receiver, output, out _);
             if (ack is not (Rx.Status.Success or Rx.Status.NothingToAck or Rx.Status.WouldBlock)) return Fail(state);
             if (TransportResult(state, slot, Tx.PumpClose(&slot->Sender, output, out _)) == Status.TransportFailure) return Status.TransportFailure;
+            if (state->CompactTimeWait != 0 && slot->Sender.CloseState == TcpConnectionCloseState.TimeWait &&
+                slot->Receiver.UnreadBytes == 0 && !slot->Receiver.HasPendingAck &&
+                LinuxSocketServices.IsClosing(state->Sockets, &slot->Sender))
+            {
+                var transferred = Tx.TransferTimeWait(&slot->Sender, &state->TimeWait);
+                if (transferred == Waits.Status.Success)
+                {
+                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return Fail(state);
+                    *slot = default;
+                }
+                else if (transferred is not (Waits.Status.Full or Waits.Status.Expired or Waits.Status.GenerationExhausted)) return Fail(state);
+            }
         }
         return Status.Success;
     }
@@ -242,6 +326,11 @@ public static unsafe class LinuxSocketNetwork
                     !LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return false;
                 *slot = default;
             }
+        }
+        if (state->CompactTimeWait != 0)
+        {
+            if (Waits.Discard(&state->TimeWait) != Waits.Status.Success) return false;
+            for (uint i = 0; i < Waits.MaximumEntries; i++) state->TimeWaitAcks[i] = 0;
         }
         return state->Table->Count == 0;
     }
@@ -292,12 +381,28 @@ public static unsafe class LinuxSocketNetwork
 
     private static Status PendingResult(State* state, Slot* slot, Pending.Status result)
     {
-        if (result is Pending.Status.Timeout or Pending.Status.RetryLimit && slot->Handshake.Retired) { *slot = default; return Status.Success; }
+        if ((result is Pending.Status.Success or Pending.Status.Timeout or Pending.Status.RetryLimit) && slot->Handshake.Retired)
+        { *slot = default; return Status.Success; }
         if (result == Pending.Status.RetryLimit && slot->Handshake.Pending) return Status.Success;
         if (result is Pending.Status.Success or Pending.Status.WouldBlock or Pending.Status.NotDue) return Status.Success;
         if (result is Pending.Status.InvalidPacket or Pending.Status.NotSent or Pending.Status.BacklogRejected) return Status.Ignored;
         if (result == Pending.Status.TableRejected && slot->Phase == 0) return Status.Capacity;
         return Fail(state);
+    }
+
+    private static Status SendTimeWaitAck(State* state, Waits.Handle handle, Waits.Record record, Span<byte> output)
+    {
+        var info = new TcpEstablishedStreamIpv4FramePlannerInfo(state->LocalMac, state->PeerMac,
+            record.Key.LocalAddress, record.Key.RemoteAddress, 1460, (ushort)state->ReceiveBytes);
+        var stream = TcpEstablishedStream.Create(record.Key.LocalPort, record.Key.RemotePort,
+            record.LocalNextSequenceNumber, record.RemoteNextSequenceNumber, Span<byte>.Empty);
+        if (TcpEstablishedStreamIpv4FramePlanner.TryWriteAckFrame(ref stream, info, (ushort)state->ReceiveBytes, output, out var packet) !=
+            TcpEstablishedStreamIpv4FramePlanStatus.Success) return Fail(state);
+        byte sent;
+        fixed (byte* bytes = output) sent = state->Io.Send(state->Io.Context, bytes, (uint)packet.BytesWritten);
+        if (sent > 1) return Fail(state);
+        if (sent == 1) state->TimeWaitAcks[handle.Index] = 0;
+        return Status.Success;
     }
     private static bool ReapPrivate(State* state, Slot* slot)
     {
@@ -324,14 +429,26 @@ public static unsafe class LinuxSocketNetwork
     {
         if (!Current(state, true) || state->RetainedConnections != 0 || state->Table->Count != 0 ||
             !Zero(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes))) return false;
+        if (state->CompactTimeWait != 0)
+        {
+            if (Waits.Retire(&state->TimeWait) != Waits.Status.Success) return false;
+            for (uint i = 0; i < Waits.MaximumEntries; i++) state->TimeWaitAcks[i] = 0;
+        }
+        if (state->Sequence != null && !TcpInitialSequence.Release(state->Sequence, state->SequenceLease)) return false;
+        state->Sequence = null; state->SequenceLease = default;
         state->Sockets->Network = null; state->Initialized = 2; return true;
     }
 
-    // Six extents are also admitted by the thread owner, before attachment.
+    // Six base extents plus the optional secret are admitted before attachment.
     internal static void ExtentAt(State* state, uint index, out ulong start, out ulong bytes)
     {
         start = bytes = 0;
-        if (state == null || index >= 6) return;
+        if (state == null || index >= 7) return;
+        if (index == 6)
+        {
+            if (state->Sequence != null) { start = (ulong)state->Sequence; bytes = (ulong)sizeof(TcpInitialSequence.Owner); }
+            return;
+        }
         ulong* starts = stackalloc ulong[6]; ulong* sizes = stackalloc ulong[6];
         Extents(state, state->Table, state->Slots, state->Count, state->Buffers, state->ReceiveBytes, state->SendBytes, starts, sizes);
         start = starts[index]; bytes = sizes[index];
@@ -356,7 +473,7 @@ public static unsafe class LinuxSocketNetwork
                 Overlap((ulong)source, (uint)input.Length, (ulong)target, (uint)output.Length)) return false;
             if (input.Length != 0 && !Fds.SocketOutside(state->Sockets->Descriptors, source, (uint)input.Length) ||
                 !Fds.SocketOutside(state->Sockets->Descriptors, target, (uint)output.Length)) return false;
-            for (uint i = 0; i < 6; i++)
+            for (uint i = 0; i < 7; i++)
             {
                 ExtentAt(state, i, out ulong start, out ulong bytes);
                 if (Overlap(start, bytes, (ulong)source, (uint)input.Length) || Overlap(start, bytes, (ulong)target, (uint)output.Length)) return false;
@@ -366,7 +483,7 @@ public static unsafe class LinuxSocketNetwork
     }
     private static bool Current(State* state, bool allowFailed = false)
     {
-        if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 ||
+        if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 || state->CompactTimeWait > 1 ||
             state->Failed != 0 && !allowFailed || state->Count is 0 or > MaximumConnections ||
             state->ReceiveBytes is < 8 or > 32768 || state->SendBytes is < 8 or > 32768 || ((state->ReceiveBytes | state->SendBytes) & 7) != 0 ||
             !Extent(state->Sockets, (ulong)sizeof(LinuxSocketServices.State)) || state->Sockets->Network != state ||
@@ -374,6 +491,9 @@ public static unsafe class LinuxSocketNetwork
             !Extent(state->Slots, state->Count * (ulong)sizeof(Slot)) ||
             !Extent(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes)) ||
             !Fds.Audit(state->Sockets->Descriptors)) return false;
+        if (state->CompactTimeWait != 0 && Waits.Read(&state->TimeWait, default, out _) != Waits.Status.StaleHandle) return false;
+        if (state->Sequence != null && !TcpInitialSequence.Current(state->Sequence, state->SequenceLease) ||
+            state->Sequence == null && state->SequenceLease.IsValid) return false;
         uint held = 0;
         for (uint i = 0; i < state->Count; i++)
         {

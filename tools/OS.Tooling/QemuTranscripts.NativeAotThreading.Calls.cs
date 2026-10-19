@@ -56,7 +56,7 @@ public static partial class QemuTranscripts
         private void Call(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,bool output)
         {
             ulong nr=r["nr"],a=r["a0"],b=r["a1"],c=r["a2"],d=r["a3"],e=r["a4"],f=r["a5"],v=r["valueBits"];
-            Need(witness.Identity==t.Identity && witness.Ordinal<=4096,"threading_wait_generation");
+            Need(witness.Identity==t.Identity && (service || witness.Ordinal<=4096),"threading_wait_generation");
             if(t.Tid==1 && witness.Ordinal<=3)Need(nr==(witness.Ordinal==1?9UL:witness.Ordinal==2?158UL:218UL),"threading_main_startup_order");
             RuntimeThread? targetClock=nr is 200 or 234?slots.SingleOrDefault(x=>x?.Tid==unchecked((int)(nr==200?a:b))):null;
             bool readsClock=nr==202 && (((uint)b&~384U) is 0 or 9) || nr==219 && t.TimedRestart.HasValue ||
@@ -64,6 +64,7 @@ public static partial class QemuTranscripts
                 unchecked((int)(nr==200?b:c))==35 && (targetClock.Mask&(1UL<<34))==0;
             ulong beforeClock=clock;
             Need(r["clock"]==clock || readsClock || socket,"threading_unowned_clock_change"); Clock(r["clock"]);
+            if(service) ServiceCall(t,witness);
             ulong action=1,status=1;
             if(web && WebFileCall(r,witness)) { }
             else if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
@@ -251,7 +252,8 @@ public static partial class QemuTranscripts
                 case 60:
                     Need(a==0 && v==0,"threading_thread_exit");t.Exiting=t.NormalExit=true;normalExits++;action=4;status=2;break;
                 case 231:
-                    Need(!web,"web_replay_unexpected_group_exit");
+                    Need(!web || service,"web_replay_unexpected_group_exit");
+                    if(service)Need(serviceReady && budget.RequestCancellation(),"service_owned_shutdown");
                     Need(a==0 && v==0 && writes==writeLengths.Count,"threading_group_exit");stopping=true;action=2;status=2;
                     foreach(var other in slots.Where(x=>x is not null).Select(x=>x!))
                     {other.Exiting=other.GroupRetired=true;if(other.WaitSource!=0 && other.Completion is null)other.Completion=-125;if(other!=t && !ready.Contains(other))Enqueue(other);}
@@ -268,6 +270,14 @@ public static partial class QemuTranscripts
                     break;
                 case 302: Need(a is 0 or 1 && b is 3 or 9 && c==0 && memory.Covered(d,16,3) && v==0,"threading_limit");break;
                 case 318:
+                    if(service)
+                    {
+                        ulong generated=Math.Min(b,8192UL);
+                        long expected=(c&~3UL)!=0?-22:b==0?0:!memory.Covered(a,generated,3)?-14:(long)generated;
+                        Need(v==Bits(expected),"service_random_mapped_result");
+                        if(expected>0){Need(entropyBytes<=ulong.MaxValue-(ulong)expected,"service_random_byte_overflow");entropyBytes+=(ulong)expected;}
+                        break;
+                    }
                     Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3),"threading_entropy");
                     ulong remainingEntropy=entropyLimit-entropyBytes;
                     long entropyResult=remainingEntropy==0?((c&1)!=0?-11:-38):

@@ -41,6 +41,7 @@ public static unsafe class TcpPassiveConnection
         internal TcpConnectionTable.Owner* Table;
         internal TcpConnectionTable.Handle Handle;
         internal TcpPassiveIpv4FramePlanner Planner;
+        internal MacAddress LocalMac, RemoteMac;
         internal Operations Io;
         internal byte Phase, Attempts;
         internal ulong Duplicates;
@@ -89,6 +90,7 @@ public static unsafe class TcpPassiveConnection
         if (TcpConnectionTable.ReserveOwned(table, key, sequence, out var handle) != TcpConnectionTable.OwnershipStatus.Success)
             return Status.TableRejected;
         state->Self = (ulong)state; state->Table = table; state->Handle = handle; state->Planner = candidate;
+        state->LocalMac = info.LocalMac; state->RemoteMac = info.RemoteMac;
         state->Io = operations; state->Started = now; state->LastNow = now;
         state->Deadline = now + operations.LifetimeNanoseconds; state->NextRetry = now; state->Phase = 1;
         state->PeerMss = peerMss; state->PeerWindow = peerWindow;
@@ -168,6 +170,37 @@ public static unsafe class TcpPassiveConnection
         state->PeerWindow = packet.TcpHeader.WindowSize;
         state->WindowSequence = packet.TcpHeader.SequenceNumber; state->WindowAcknowledgement = packet.TcpHeader.AcknowledgementNumber;
         return Status.Success;
+    }
+
+    /// <summary>Validate a peer reset for this serialized pending owner only.
+    /// Accepts header-only RST or RST|ACK at the exact expected receive sequence;
+    /// ACK, when set, must acknowledge an accepted SYN-ACK. Bare RST ignores its
+    /// unused ACK field. Options, payload and other flags are unsupported; no
+    /// challenge ACK is sent. Borrowed frame storage must be disjoint from owner
+    /// and table metadata. Invalid frames leave all metadata unchanged, including
+    /// time. A valid frame observes the existing clock/deadline rules, then retires
+    /// this exact generation without TX/backlog changes or further retries.
+    /// Established/faulted ownership belongs to its existing cleanup consumer.</summary>
+    public static Status ReceiveReset(State* state, ReadOnlySpan<byte> frame)
+    {
+        var status = Validate(state); if (status != Status.Success) return status;
+        fixed (byte* bytes = frame)
+            if (!Outside(state, state->Table, bytes, (ulong)frame.Length)) return Status.InvalidStorage;
+        if (!SupportedFrame(frame) ||
+            EthernetHeader.TryParse(frame, out var ethernet, out var ipPacket) != PacketParseStatus.Success ||
+            ethernet.EtherType != EthernetHeader.EtherTypeIpv4 || ethernet.Destination != state->LocalMac || ethernet.Source != state->RemoteMac ||
+            Ipv4Header.TryParse(ipPacket, out var ip, out var segment) != PacketParseStatus.Success || ip.Protocol != 6 ||
+            TcpHeader.TryParse(segment, out var tcp, out var options, out var payload) != PacketParseStatus.Success ||
+            options.Length != 0 || payload.Length != 0 || (segment[12] & 15) != 0 || tcp.Flags is not (4 or 0x14) ||
+            tcp.SequenceNumber != state->Planner.RemoteNextSequenceNumber ||
+            (tcp.Flags == 0x14 && tcp.AcknowledgementNumber != state->Planner.LocalNextSequenceNumber)) return Status.InvalidPacket;
+        var key = state->Table->Entries[state->Handle.Index].Key;
+        if (ip.Source != key.RemoteAddress || ip.Destination != key.LocalAddress || tcp.SourcePort != key.RemotePort || tcp.DestinationPort != key.LocalPort ||
+            Ipv4TransportChecksum.Validate(ip.Source, ip.Destination, 6, segment, out var checksum) != Ipv4TransportChecksumStatus.Success || !checksum.IsValid)
+            return Status.InvalidPacket;
+        if (tcp.Flags == 0x14 && state->Attempts == 0) return Status.NotSent;
+        status = Time(state, out _); if (status != Status.Success) return status;
+        return Retire(state);
     }
 
     /// <summary>Withdraw a pending/faulted handshake locally and release its

@@ -4,6 +4,7 @@
     <Project Path="apps/FetchApp/FetchApp.csproj" />
     <Project Path="apps/HelloSharpFs/HelloSharpFs.csproj" />
     <Project Path="apps/MinimalApiSmoke/MinimalApiSmoke.csproj" />
+    <Project Path="apps/MinimalApiService/MinimalApiService.csproj" />
     <Project Path="apps/TinyHttpServer/TinyHttpServer.csproj" />
   </Folder>
   <Folder Name="/src/">

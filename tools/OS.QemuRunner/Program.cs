@@ -36,6 +36,7 @@ try
         Console.WriteLine("TEST_START qemu.runner.dryrun");
         Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
         if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
+        if (options.ContinuingService) Console.WriteLine("CONTINUING_SERVICE true");
         Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
         Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
         Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -116,6 +117,7 @@ try
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
     if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
     if (options.SocketForwardPort is int socketForward) Console.WriteLine("SOCKET_FORWARD_PORT " + socketForward.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    if (options.ContinuingService) Console.WriteLine("CONTINUING_SERVICE true");
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -126,6 +128,7 @@ try
         options.RequiredMarkers,
         options.ForbiddenMarkers,
         successTerminalMarker: options.SuccessTerminalMarker,
+        byteCapacity: options.SerialByteCapacity,
         orderedMarkers: options.OrderedMarkers,
         uniqueMarkers: options.UniqueMarkers);
 
@@ -133,8 +136,11 @@ try
         ? new(TimeSpan.FromMinutes(5), runTcp: true) : null;
     using SocketContainmentPeer? containmentPeer = options.SocketContainmentPeer
         ? new(TimeSpan.FromSeconds(options.TimeoutSeconds)) : null;
-    using WebFrameControl? webFrames = options.ContinuingWeb
-        ? new(TimeSpan.FromSeconds(options.TimeoutSeconds)) : null;
+    using CancellationTokenSource? serviceCancellation = options.ContinuingService ? new() : null;
+    using WebFrameControl? webFrames = options.ContinuingWeb || options.ContinuingService
+        ? new(TimeSpan.FromSeconds(options.TimeoutSeconds), continuingService: options.ContinuingService) : null;
+    using ServiceSocketControls? serviceControls = options.ContinuingService ? new() : null;
+    Task<ServiceSocketControls.Report>? serviceControlTask = null;
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
     process.StartInfo.UseShellExecute = false;
@@ -161,6 +167,16 @@ try
         return 20;
     }
     if (options.WebEvidence is not null) options.WebEvidence.PreLaunchAvailable = true;
+    if (options.ServiceEvidence is not null)
+    {
+        if (!CheckWebPortAvailable(options.SocketForwardPort!.Value))
+        {
+            options.ServiceEvidence.Failure = "endpoint_occupied_before_launch";
+            WriteSummaryLogBestEffort(options, "fail", [], options.RequiredMarkers, [], "service_endpoint_occupied_before_launch");
+            Console.Error.WriteLine("TEST_FAIL qemu.smoke service_endpoint_occupied_before_launch"); return 21;
+        }
+        options.ServiceEvidence.PreLaunchAvailable = true;
+    }
     try
     {
     process.Start();
@@ -169,6 +185,12 @@ try
     {
         options.WebEvidence.ProcessId = process.Id;
         options.WebEvidence.StartUtc = process.StartTime.ToUniversalTime().ToString("O");
+    }
+    if (options.ServiceEvidence is not null)
+    {
+        options.ServiceEvidence.ProcessId = process.Id;
+        options.ServiceEvidence.StartUtc = process.StartTime.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+        serviceControlTask = serviceControls!.RunAsync(webFrames!, options.SerialLogPath, options.EthernetCapturePath!, serviceCancellation!.Token);
     }
 
     long serialReadOffset = 0;
@@ -273,9 +295,11 @@ try
         }
 
         if (networkPeer?.Completion.IsFaulted == true || networkPeer?.Completion.IsCanceled == true ||
-            containmentPeer?.Completion.IsFaulted == true || containmentPeer?.Completion.IsCanceled == true || webFrames?.Completion.IsCompleted == true)
+            containmentPeer?.Completion.IsFaulted == true || containmentPeer?.Completion.IsCanceled == true || webFrames?.Completion.IsCompleted == true ||
+            serviceControlTask?.IsFaulted == true || serviceControlTask?.IsCanceled == true)
         {
             networkPeerInitiatedFailure = true;
+            if (options.ServiceEvidence is not null) options.ServiceEvidence.Failure = ServiceControlFailure(serviceControlTask) ?? "frame_owner_ended";
             TerminateProcessAndClassify(process, ref processTerminationRequested,
                 ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
             break;
@@ -292,6 +316,15 @@ try
             if (stopwatch.ElapsedMilliseconds - lastSerialActivityMilliseconds >=
                 terminalDrainMilliseconds)
             {
+                if (options.ServiceEvidence is not null)
+                {
+                    if (serviceControlTask?.IsCompletedSuccessfully != true)
+                        options.ServiceEvidence.Failure = ServiceControlFailure(serviceControlTask) ?? "socket_controls_incomplete";
+                    else if (streamingMarkers.SuccessTerminalCount != 1 || streamingMarkers.FailureTerminalCount != 0 ||
+                        streamingMarkers.OutOfOrderOccurrenceCount != 0 || process.HasExited)
+                        options.ServiceEvidence.Failure = "terminal_not_healthy";
+                    else webFrames!.ExpectGuestExit();
+                }
                 TerminateProcessAndClassify(
                     process,
                     ref processTerminationRequested,
@@ -322,7 +355,7 @@ try
         !TryReadSerialLogBounded(
             options.SerialLogPath,
             out preProbeSerial,
-            out serialReadFailure))
+            out serialReadFailure, options.SerialByteCapacity))
     {
         TerminateProcessAndClassify(
             process,
@@ -445,6 +478,23 @@ try
         else if (!web.DeathConfirmed || !web.TerminationRequested) web.Failure = "termination_unconfirmed";
         else if (web.StoppedEndpointRefused != true) web.Failure = "endpoint_live_after_stop";
     }
+    if (options.ServiceEvidence is not null)
+    {
+        ServiceEvidence service = options.ServiceEvidence;
+        if (serviceControlTask?.IsCompletedSuccessfully != true)
+            service.Failure ??= ServiceControlFailure(serviceControlTask) ?? "socket_controls_incomplete";
+        if (!JoinServiceControls(serviceControlTask, serviceCancellation!)) service.Failure ??= "socket_controls_join_failed";
+        if (serviceControlTask?.IsCompletedSuccessfully == true) service.Controls = serviceControlTask.GetAwaiter().GetResult();
+        if (process.HasExited)
+        {
+            service.EndUtc = process.ExitTime.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+            service.LifetimeMilliseconds = (long)(process.ExitTime - process.StartTime).TotalMilliseconds;
+            service.StoppedEndpointRefused = CheckWebEndpointRefused(options.SocketForwardPort!.Value);
+        }
+        if (qemuExitedSpontaneously) service.Failure ??= "premature_exit";
+        else if (!process.HasExited || !processTerminationRequested) service.Failure ??= "termination_unconfirmed";
+        else if (service.StoppedEndpointRefused != true) service.Failure ??= "endpoint_live_after_stop";
+    }
 
     if (serialReadFailure is null)
     {
@@ -494,7 +544,7 @@ try
         TryReadSerialLogBounded(
             options.SerialLogPath,
             out serial,
-            out serialReadFailure);
+            out serialReadFailure, options.SerialByteCapacity);
     }
 
     SerialMarkerSummary summary = SerialMarkerSummary.Parse(
@@ -513,10 +563,17 @@ try
     IReadOnlyList<string> duplicateUniqueMarkers =
         streamingResult.DuplicateUniqueMarkerHits ?? Array.Empty<string>();
     string? networkPeerFailure = null;
-    if(webFrames is not null)
+    if(options.ContinuingWeb && webFrames is not null)
     {
         var capture=webFrames.Finish();options.WebEvidence!.Frames=capture;
         if(!capture.Stopped || !capture.Healthy)options.WebEvidence.Failure="web_frame_owner_failed";
+    }
+    if (options.ServiceEvidence is not null)
+    {
+        var frames = webFrames!.FinishService(); options.ServiceEvidence.Frames = frames;
+        if (!frames.Session.Stopped || !frames.Session.Healthy || !frames.Session.GuestExitExpected)
+            options.ServiceEvidence.Failure ??= "frame_owner_failed";
+        StringBuilder serviceRows = new(); AppendServiceEvidence(serviceRows, options.ServiceEvidence); Console.Write(serviceRows.ToString());
     }
     if (containmentPeer is not null)
     {
@@ -660,6 +717,12 @@ try
             summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
         Console.Error.WriteLine("TEST_FAIL qemu.smoke web_" + webFailure);
         return 20;
+    }
+    if (options.ServiceEvidence?.Failure is string serviceFailure)
+    {
+        WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers, forbiddenMarkers,
+            "service_" + serviceFailure, httpProbeResult, summary.AppExitResults, summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke service_" + serviceFailure); return 21;
     }
 
     if (qemuExitedSpontaneously && qemuExitCode is not null and not 0)
@@ -895,14 +958,22 @@ try
     }
     finally
     {
-        if (processStarted && !process.HasExited)
+        try
         {
-            var terminationResult = TerminateProcessBounded(process);
-            if (!terminationResult.Succeeded)
+            if (processStarted && !process.HasExited)
             {
-                Console.Error.WriteLine(
-                    "QEMU_PROCESS_CLEANUP_FAILED timeout_ms=2000");
+                var terminationResult = TerminateProcessBounded(process);
+                if (!terminationResult.Succeeded)
+                {
+                    Console.Error.WriteLine(
+                        "QEMU_PROCESS_CLEANUP_FAILED timeout_ms=2000");
+                }
             }
+        }
+        finally
+        {
+            if (serviceCancellation is not null && !JoinServiceControls(serviceControlTask, serviceCancellation))
+                throw new TimeoutException("Service controls join incomplete; reserved ports remain owned.");
         }
     }
 }
@@ -1502,6 +1573,7 @@ static void WriteSummaryLogBestEffort(
         builder.Append("WORKLOAD_PROFILE ").AppendLine(options.WorkloadProfile);
         if (options.FirmwareRngSource is not null) builder.Append("FIRMWARE_RNG_SOURCE ").AppendLine(options.FirmwareRngSource);
         if (options.SocketForwardPort is int socketForward) builder.Append("SOCKET_FORWARD_PORT ").AppendLine(socketForward.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        if (options.ContinuingService) builder.AppendLine("CONTINUING_SERVICE true");
         builder.Append("MARKER_PRESETS ").AppendLine(FormatSummaryList(options.MarkerPresets));
         builder.Append("REQUIRED_MARKERS ").AppendLine(FormatMarkers(options.RequiredMarkers));
         builder.Append("ORDERED_MARKERS ").AppendLine(FormatSummaryList(options.OrderedMarkers));
@@ -1519,7 +1591,7 @@ static void WriteSummaryLogBestEffort(
         if (TryReadSerialLogBounded(
                 options.SerialLogPath,
                 out string serial,
-                out string? serialTailFailure))
+                out string? serialTailFailure, options.SerialByteCapacity))
         {
             AppendSerialTailSummary(builder, serial);
         }
@@ -1529,6 +1601,7 @@ static void WriteSummaryLogBestEffort(
                 .AppendLine(serialTailFailure ?? "unknown");
             AppendSerialTailSummary(builder, string.Empty);
         }
+        if (options.ServiceEvidence is not null) AppendServiceEvidence(builder, options.ServiceEvidence);
 
         File.WriteAllText(options.SummaryLogPath, builder.ToString(), Encoding.UTF8);
         Console.WriteLine("SUMMARY_LOG " + options.SummaryLogPath);
@@ -1682,6 +1755,31 @@ static void WriteHttpProbe(HttpProbeOptions probe)
         + " expected_status=" + probe.ExpectedStatusCode
         + " expected_body_bytes=" + probe.ExpectedBodyByteLength
         + " timeout_seconds=" + probe.TimeoutSeconds);
+}
+
+static bool JoinServiceControls(Task<ServiceSocketControls.Report>? task, CancellationTokenSource cancellation)
+{
+    cancellation.Cancel();
+    if (task is null || task.IsCompleted) return true;
+    try { return task.Wait(TimeSpan.FromSeconds(5)); }
+    catch (AggregateException) { return task.IsCompleted; }
+}
+
+static string? ServiceControlFailure(Task<ServiceSocketControls.Report>? task) => task?.IsFaulted == true
+    ? "socket_controls_" + task.Exception!.GetBaseException().GetType().Name
+    : task?.IsCanceled == true ? "socket_controls_cancelled" : null;
+
+static void AppendServiceEvidence(StringBuilder builder, ServiceEvidence service)
+{
+    builder.Append("SERVICE_SOCKET_CONTROLS ").AppendLine(service.Controls is null ? "none" : JsonSerializer.Serialize(service.Controls));
+    builder.Append("SERVICE_FRAME_CONTROL ").AppendLine(service.Frames is null ? "none" : JsonSerializer.Serialize(service.Frames));
+    builder.Append("SERVICE_PROCESS_ID ").AppendLine(service.ProcessId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none");
+    builder.Append("SERVICE_PROCESS_START_UTC ").AppendLine(service.StartUtc ?? "none");
+    builder.Append("SERVICE_PROCESS_END_UTC ").AppendLine(service.EndUtc ?? "none");
+    builder.Append("SERVICE_PROCESS_LIFETIME_MS ").AppendLine(service.LifetimeMilliseconds?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "none");
+    builder.Append("SERVICE_ENDPOINT_PRELAUNCH_AVAILABLE ").AppendLine(service.PreLaunchAvailable ? "true" : "false");
+    builder.Append("SERVICE_ENDPOINT_STOPPED_REFUSED ").AppendLine(service.StoppedEndpointRefused?.ToString().ToLowerInvariant() ?? "not_run");
+    builder.Append("SERVICE_PROCESS_FAILURE ").AppendLine(service.Failure ?? "none");
 }
 
 static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions options)
@@ -2024,7 +2122,8 @@ static string FormatProbeEndpoint(string url)
 static bool TryReadSerialLogBounded(
     string path,
     out string serial,
-    out string? failureReason)
+    out string? failureReason,
+    long byteCapacity = SerialMarkerStateMachine.DefaultByteCapacity)
 {
     serial = string.Empty;
     failureReason = null;
@@ -2040,7 +2139,7 @@ static bool TryReadSerialLogBounded(
             FileMode.Open,
             FileAccess.Read,
             FileShare.ReadWrite | FileShare.Delete);
-        if (stream.Length > SerialMarkerStateMachine.DefaultByteCapacity)
+        if (stream.Length > byteCapacity)
         {
             failureReason = "serial_log_capacity_exceeded";
             return false;
@@ -2261,7 +2360,10 @@ sealed class RunnerOptions
     public bool SocketContainmentPeer { get; private set; }
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
-    public string SuccessTerminalMarker => ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
+    public bool ContinuingService { get; private set; }
+    public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
+    public ServiceEvidence? ServiceEvidence { get; private set; }
+    public string SuccessTerminalMarker => ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
     public HttpProbeOptions? WebConfigProbe { get; private set; }
     public HttpProbeOptions? WebLogProbe { get; private set; }
     public HttpProbeOptions? WebLogRepeatProbe { get; private set; }
@@ -2405,6 +2507,10 @@ sealed class RunnerOptions
                     if (options.ContinuingWeb) throw new ArgumentException("--continuing-web may be specified only once.");
                     options.ContinuingWeb = true;
                     break;
+                case "--continuing-service":
+                    if (options.ContinuingService) throw new ArgumentException("--continuing-service may be specified only once.");
+                    options.ContinuingService = true;
+                    break;
                 case "--web-config-body":
                     if (options.webConfigBody is not null) throw new ArgumentException("--web-config-body may be specified only once.");
                     options.webConfigBody = ReadValue(args, ref i, arg);
@@ -2493,12 +2599,13 @@ sealed class RunnerOptions
             options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--continuing-network-peer requires the captured ARP fixture, a timeout at most 295 seconds and the ordinary diagnostic exit path.");
         if (options.SocketContainmentPeer && (!options.ArpReceiveFixture || options.TimeoutSeconds is < 120 or > 295 ||
-            options.ContinuingNetworkPeer || options.ContinuingWeb || options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
+            options.ContinuingNetworkPeer || options.ContinuingWeb || options.ContinuingService || options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--socket-containment-peer requires the captured ARP fixture, a120..295-second timeout and ordinary diagnostic exit without another peer.");
         if (options.SocketForwardPort is not null && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.EthernetCapturePath is null ||
             options.ContinuingNetworkPeer || options.SocketContainmentPeer || (options.HttpProbe is not null && !options.ContinuingWeb) || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--socket-forward-port requires the captured dedicated modern ARP network fixture and ordinary diagnostic exit path, without --continuing-network-peer or HTTP probing.");
         options.ValidateContinuingWeb();
+        options.ValidateContinuingService();
         return options;
     }
 
@@ -2508,6 +2615,7 @@ sealed class RunnerOptions
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
         Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409, the normal-case binary vector response and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");
+        Console.WriteLine("--continuing-service requires the captured modern ARP fixture, guest port 8080 forward, virtio RNG, SingleMinimalApi, summary log and a 780..900-second timeout; owned raw socket controls run alongside serial capture until TEST_PASS m16-012 and confirmed process/frame cleanup. Other web, scripted peer, HTTP or panic modes are forbidden.");
         Console.WriteLine("--web-log-case normal|records64 requires --continuing-web (default normal); normal expects logging POST 200 and GET /__clros/vectors with 49152 exact binary bytes, records64 expects logging 500 with an empty body and skips vectors. Repeat POST 409 and final health 200 are required in both cases.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
@@ -2632,6 +2740,7 @@ sealed class RunnerOptions
 
     private void FinishParsing()
     {
+        if (ContinuingService) AddRequiredMarker("TEST_PASS m16-012");
         if (ContinuingWeb)
         {
             AddRequiredMarker("CLROS_M10_004_READY");
@@ -2656,6 +2765,7 @@ sealed class RunnerOptions
             RequiredMarkers,
             ForbiddenMarkers,
             successTerminalMarker: SuccessTerminalMarker,
+            byteCapacity: SerialByteCapacity,
             orderedMarkers: OrderedMarkers,
             uniqueMarkers: UniqueMarkers);
 
@@ -2675,6 +2785,17 @@ sealed class RunnerOptions
             httpProbeExpectedBody,
             httpProbeExpectedBodyConfigured,
             httpProbeTimeoutSeconds);
+    }
+
+    private void ValidateContinuingService()
+    {
+        if (!ContinuingService) return;
+        if (!VirtioNegotiationDevice || !ArpReceiveFixture || EthernetCapturePath is null || SocketForwardPort is null ||
+            string.IsNullOrWhiteSpace(SummaryLogPath) || WorkloadProfile != OS.Kernel.Build.WorkloadProfile.SingleMinimalApiName ||
+            FirmwareRngSource != "virtio" || TimeoutSeconds is < 780 or > 900 || ContinuingWeb || ContinuingNetworkPeer || SocketContainmentPeer ||
+            httpProbeConfigured || ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic || ExpectedUnhandledException)
+            throw new ArgumentException("--continuing-service requires captured modern ARP networking, guest port 8080 forward, summary log, SingleMinimalApi, virtio RNG and a 780..900-second timeout without web, peer, HTTP or panic modes.");
+        ServiceEvidence = new();
     }
 
     private void ValidateContinuingWeb()
@@ -2822,6 +2943,17 @@ sealed class RunnerOptions
 
         return parsed;
     }
+}
+
+sealed class ServiceEvidence
+{
+    public ServiceSocketControls.Report? Controls;
+    public WebFrameControl.ServiceReport? Frames;
+    public bool PreLaunchAvailable;
+    public bool? StoppedEndpointRefused;
+    public int? ProcessId;
+    public string? StartUtc, EndUtc, Failure;
+    public long? LifetimeMilliseconds;
 }
 
 sealed class ContinuingWebEvidence
