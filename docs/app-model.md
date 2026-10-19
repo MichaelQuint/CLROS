@@ -159,6 +159,12 @@ pending; no new guest or Kestrel acceptance is granted.
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
 native allocations, stacks, page tables and sockets to actual committed-page
 entitlement. Firmware/system RAM totals are not an app allocation guarantee.
+Step1448 measures the pinned static NativeAOT runtime on the Linux builder:
+default GC total4,117,118,976 bytes, absolute8/16MiB limits honored, and25percent
+yielding1,029,279,744 bytes. The absolute8MiB limit wins alongside50percent;
+physical high-memory threshold remains3,705,407,078 bytes. This supports a bounded
+absolute setting rather than a RAM-derived entitlement. It is host sizing only;
+guest native/GC pressure, headroom accounting and quota cleanup remain pending.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment
