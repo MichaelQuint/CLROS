@@ -17,7 +17,7 @@ public static partial class LinuxSignalProofFixture
     public const int WaitPayload = 0x7000, WaitRead = 0x9000;
 
     /// <summary>Exact canonical blocked-wait selector; a name alone grants no package authority.</summary>
-    public static bool IsWaitVariant(string variant) => variant == StolenWaitVariant || WaitVariants.Contains(variant,StringComparer.Ordinal);
+    public static bool IsWaitVariant(string variant) => variant is StolenWaitVariant or EpollStolenWaitVariant || WaitVariants.Contains(variant,StringComparer.Ordinal);
     /// <summary>Actual flattened user call order: parked parent, sending child,
     /// resumed handler/restorer, optional real reissued syscall, then parent exit.
     /// Reissued calls repeat the original instruction RIP and receive a new ordinal.
@@ -29,6 +29,7 @@ public static partial class LinuxSignalProofFixture
     private static (byte[] Elf,Invocation[] Calls,WaitInvocation[] Steps) BuildWait(string variant)
     {
         if(!IsWaitVariant(variant)) throw new ToolFailure("m16_009_wait_variant");
+        if(variant==EpollStolenWaitVariant) return BuildEpollStolenWait();
         bool futex=variant.StartsWith("SignalFutex",StringComparison.Ordinal), partial=variant=="SignalPipePartial";
         bool stolen=variant==StolenWaitVariant;
         bool restart=variant.EndsWith("Restart",StringComparison.Ordinal), flag=restart||partial;

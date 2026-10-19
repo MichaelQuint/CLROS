@@ -504,6 +504,26 @@ required before #687 acceptance. Step1259 later records one mechanical
 `AlternateStack` diagnostic reaching readiness; full batch qualification remains
 pending.
 
+[Step1462](../done/step1462.md) adds canonical `SignalEpollStolen`. Select it
+explicitly with `-SignalEpollRace` under the existing M16-012 bootstrap; neither
+package names nor missing disassembly select this mode. The selector rejects
+mixed upstream application/runtime inputs and requires exact canonical package
+bytes, including its wildcard listener declaration. The ordinary NativeAOT
+socket profile keeps its prepared-program and owned-peer requirements. The
+mechanical mode retains serial/summary/PCAP read locks, validates the complete
+firmware/APIC/NIC/startup/cleanup envelope and rejects TCP traffic. Its leaf
+requires the two-thread stolen pipe-readiness schedule through actual epoll.
+Use fresh output paths for each invocation:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/epoll-stolen.pkg SignalEpollStolen
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16012Probe -SignalEpollRace -LinuxElfPackage artifacts/packages/epoll-stolen.pkg -TimeoutSeconds 90 -RequireMarker CLROS_M16_012_READY -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -Image artifacts/images/epoll-stolen.raw -EfiArtifact artifacts/efi/epoll-stolen.EFI -SerialLog artifacts/logs/epoll-stolen.log -SummaryLog artifacts/logs/epoll-stolen.summary.log
+```
+
+One original strict invocation passes; the retained earlier failures are not
+accepted retrospectively. Remaining controls/ancestors and native/full-host
+batch qualification are separate.
+
 [Step1266](../done/step1266.md) adds `SignalPipeEintr`, `SignalPipeRestart`,
 `SignalFutexEintr`, `SignalFutexRestart`, `SignalPipePartial`,
 `NestedAlternateStack` and `AlternateStackExhaustion` to the same compiled

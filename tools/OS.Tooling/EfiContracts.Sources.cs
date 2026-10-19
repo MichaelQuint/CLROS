@@ -64,7 +64,7 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "1246c16c469b767e7b69b22d5d360cb235781eb0e1d076b6a05f2dd39b02f373",
                 [@"Boot\EfiEntry.LinuxSockets.cs"] = "9ce917fc96a7481f7771f986fb36fca9c9b193a0df6fc01ebe8c560de46d8664",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs"] = "efa5843e3089791e122e11455b3d7aec07439bb3d231d7c3fc3b512af9c464d6",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs"] = "ffa1622d36156f0df65f418af082cd6d54358ba128641a9752302e574b427d1a",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs"] = "f4e638a6059689f1eeb65be54ee6dcf93838e5fc6b7a7b0f3bf97a791c7fd47b",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs"] = "a156847d08f42d9acd498cd716cfe7a9b94eaca6a9e3ddabea5fb3eaf696eaed",
                 [@"..\OS.Kernel\Net\TcpInitialSequence.cs"] = "cbcbf828ad415e6d8ee94b42013840ae6c617c2258f3591826bafacf7f0bf960",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs"] = "39a9c205182068725c5dc858f7211f563a4fc5bc5dc3d0e2b8b3d20c3e0ba89e",

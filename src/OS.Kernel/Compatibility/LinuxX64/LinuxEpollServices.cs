@@ -3,9 +3,10 @@ using Fds = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
 
-/// <summary>Bounded Linux x64 epoll over this process's real passive TCP sockets.
+/// <summary>Bounded Linux x64 epoll over this process's real passive TCP sockets
+/// and owned anonymous pipe ends.
 /// One serialized IRQ-off dispatcher owns all borrowed supervisor storage and
-/// refreshes readiness after every transport transition. Registrations retain
+/// refreshes readiness after serialized descriptor/transport transitions. Registrations retain
 /// the original open-description identity, not authority over a reused fd.
 /// No allocation, packet pumping, native switch, nested epoll, arbitrary pollable
 /// files, EPOLLONESHOT or temporary signal masks are supplied. Negative errno
@@ -107,7 +108,8 @@ public static unsafe class LinuxEpollServices
                 r.Description >= a.DescriptionCount || r.Inode == 0 || (r.Interest & ~(Events | Edge)) != 0 ||
                 (r.Ready & ~Events) != 0 || (r.Pending & ~r.Ready) != 0) return false;
             Fds.Description d = a.Descriptions[r.Description];
-            if (d.Type != (uint)Fds.Kind.Socket || d.Inode != r.Inode || d.References == 0) return false;
+            if ((Fds.Kind)d.Type is not (Fds.Kind.Socket or Fds.Kind.PipeRead or Fds.Kind.PipeWrite) || d.Inode != r.Inode ||
+                d.References == 0 && d.Borrowers == 0) return false;
             for (uint j = 0; j < i; j++)
             {
                 Registration previous = state->Registrations[j];
@@ -117,7 +119,7 @@ public static unsafe class LinuxEpollServices
         return true;
     }
 
-    /// <summary>Observe actual socket readiness after serialized descriptor or
+    /// <summary>Observe actual socket/pipe readiness after serialized descriptor or
     /// network mutations. Edge watches enqueue only newly ready bits; draining
     /// clears old readiness before a later arrival. No scheduler wake is performed
     /// here: the thread owner pairs this with its retained wait-token scan.</summary>
@@ -128,8 +130,21 @@ public static unsafe class LinuxEpollServices
         {
             Registration* r = state->Registrations + i;
             if (r->Port == 0) continue;
-            uint socket = state->Descriptors->Owner.Descriptions[r->Description].Pipe;
-            if (!LinuxSocketServices.Readiness(state->Descriptors->Sockets, socket, out uint ready)) return false;
+            Fds.Description description = state->Descriptors->Owner.Descriptions[r->Description];
+            uint ready;
+            if ((Fds.Kind)description.Type == Fds.Kind.Socket)
+            {
+                if (!LinuxSocketServices.Readiness(state->Descriptors->Sockets, description.Pipe, out ready)) return false;
+            }
+            else
+            {
+                // Audit binds this original description to its live pipe. The
+                // thread owner already refreshes after each pipe mutation.
+                var pipe = state->Descriptors->Owner.Pipes + description.Pipe;
+                ready = (Fds.Kind)description.Type == Fds.Kind.PipeRead
+                    ? (pipe->BufferedBytes != 0 ? 1U : 0) | (pipe->WriterCount == 0 ? 16U : 0)
+                    : (pipe->BufferedBytes < pipe->Capacity ? 4U : 0) | (pipe->ReaderCount == 0 ? 8U : 0);
+            }
             ready &= r->Interest | 8 | 16;
             r->Pending = (r->Pending & ready) | (ready & ~r->Ready); r->Ready = ready;
         }
@@ -165,7 +180,8 @@ public static unsafe class LinuxEpollServices
         if (command is < 1 or > 3) return Invalid;
         var d = Fds.Find(state->Descriptors, fd);
         if (d == null) return -9;
-        if (d->Type != (uint)Fds.Kind.Socket) return d->Type == (uint)Fds.Kind.Epoll && d->Pipe == port ? Invalid : -1;
+        if ((Fds.Kind)d->Type is not (Fds.Kind.Socket or Fds.Kind.PipeRead or Fds.Kind.PipeWrite))
+            return d->Type == (uint)Fds.Kind.Epoll && d->Pipe == port ? Invalid : -1;
         uint index = state->Descriptors->Owner.Slots[fd].Description - 1, found = state->RegistrationCount, free = found;
         for (uint i = 0; i < state->RegistrationCount; i++)
         {

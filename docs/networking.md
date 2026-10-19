@@ -231,6 +231,21 @@ combined NIC/profile source and C# compilation; enabled native publication and
 actual guest exchange remain pending. No current issue or gate is accepted by
 this development slice.
 
+[Step1462](../done/step1462.md) extends the existing bounded epoll descriptions
+to owned anonymous pipe ends. Readiness derives from buffered bytes, free
+capacity and live reader/writer counts; ERR/HUP remain unconditional terminal
+bits. Existing serialized refresh, edge drain/rearm, original-description
+identity and last-reference cleanup apply. A retained pipe operation may keep
+its watched description alive after fd close/reuse until its genuine completion.
+Four added host cases cover these lifetimes and the pending-signal repark race.
+One fresh strict mechanical guest proves write, directed signal, competing read,
+repark/EINTR, real handler/restorer, later ready epoll/read and bounded cleanup.
+This is finite development evidence; controls/ancestors, native/stack and stable
+full-host batch qualification remain pending. Arbitrary files, nested epoll,
+EPOLLONESHOT and temporary signal masks remain unsupported. The read/write and
+terminal-bit reference is the pinned upstream
+[Linux v6.18 pipe poll](https://github.com/torvalds/linux/blob/v6.18/fs/pipe.c#L618-L662).
+
 [Step1340](../done/step1340.md) implements development-only bounded epoll over
 the shared socket descriptions. Packed Linux x64 events preserve all64 opaque
 data bits; level delivery, edge drain/rearm, MOD, dup/last-close, fd reuse and

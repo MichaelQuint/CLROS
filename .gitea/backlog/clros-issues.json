@@ -34177,7 +34177,7 @@
         "M16-009",
         "M16-012"
       ],
-      "currentEvidence": "Step1461 retains one fresh original strict SignalPipeStolen guest:27calls, four supervisor lifetimes, real handler/restorer, later I/O,2reaps/8transfers and owned cleanup. First r01 reaches raw terminal markers but fails m16_009_tail_inventory; independent47-row host regression reproduces it. The exact additional repark supervisor after child read/reap and final8transfers are now mandatory.10 complete unchanged-input zero-reuse focused correction checks pass, build0warnings/errors, repo/contracts/diff pass. Original successful audit6269558F56B50E4961FC5E67026298950DD997514DBAFC81149D309E5CA4433B retains900source joins and HEAD4ea0e440 plus exact uncommitted consumer/test diff. Failed audit876A45E7BADC41D9D93E063344B01FA291FBDD4C15F94DC571358D2469548243 remains failed. Original COFF/EFI byte-identical across both runs;585060codeB/541REL32 join actual EFI. Scope-native/stack review remains separate. Prior20 staged fixture checks and original lifecycle r04 retain their own source scopes. Equivalent epoll/initial pending/mask/ignored/timeout/restart controls, affected ancestors, native/full-host/pressure and batch gates remain pending. Issue open/claimed; no general GC-deadlock or gate acceptance.",
+      "currentEvidence": "Step1462 adds one original strict SignalEpollStolen r04 invocation returning0 after full firmware/APIC/NIC/startup/zero-TCP-PCAP/leaf/summary validation:31calls, actual write-signal-competing-read, new wait sequence interrupted while Parking, real handler/restorer, later ready epoll/read,2reaps/8transfers/exit42 and owned cleanup. Explicit SignalEpollRace accepts only canonical package bytes, rejects upstream/runtime mixtures, retains evidence locks and preserves ordinary prepared NativeAOT socket/owned-peer requirements. Existing anonymous pipes now have bounded epoll readiness, original-description/borrow identity and last-reference cleanup.83 distinct staged focused checks across7fixtures pass; corrected3 transcript checks rerun, no double count. Latest build0warnings/errors; repo/contracts/diff checks pass. Original successful auditABABD319C8BDC7AE0705E89FF70FFA60867399F5EC03391CF9E5B0721258E0D6 retains903source joins/12original inputs and base62410169 plus exact staged diff; no clean-head capture claim.780196original codeB/678REL32 join actual EFI. Original failed r03 and successful r04 COFF/EFI byte-identical; source/guard/consumer failures remain retained and unaccepted. Step1461 pipe proof remains separate. Initial-pending/masked/ignored/timeout/ready/partial/fd-reuse/restart guest controls, affected runtime/socket ancestors, complete native/ABI/unwind/stack review, corrected-runner unfiltered full-host, fragmentation/pressure and remaining batch gates stay pending. All9issues open/claimed; PR786 draft; old5809 withheld under784. No new Kestrel, GC-deadlock, numbered, isolation, cloud or production gate.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34224,7 +34224,20 @@
         "tests/OS.HostTests/LinuxSignalWaitTranscriptTests.cs",
         "tests/OS.HostTests/LinuxSignalStolenReadinessTests.cs",
         "tools/OS.Tooling/ToolCommand.cs",
-        "tools/OS.Tooling/QemuTranscripts.LinuxSignals.cs"
+        "tools/OS.Tooling/QemuTranscripts.LinuxSignals.cs",
+        "tools/OS.Tooling/LinuxSignalEpollWaitProofFixture.cs",
+        "tests/OS.HostTests/LinuxSignalEpollWaitProofFixtureTests.cs",
+        "tools/OS.Tooling/LinuxSignalEpollSelection.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "tools/OS.Tooling/QemuTranscripts.M03.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxSignalEpoll.cs",
+        "tests/OS.HostTests/LinuxSignalEpollTranscriptTests.cs",
+        "tests/OS.HostTests/LinuxSignalEpollSelectionTests.cs",
+        "tools/OS.Tooling/LinuxThreadProofFixture.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxEpollServices.cs",
+        "docs/networking.md",
+        "docs/efi-build.md"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

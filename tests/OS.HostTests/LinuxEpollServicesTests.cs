@@ -61,6 +61,11 @@ internal static unsafe class LinuxEpollServicesTests
             HostCheck.Equal(0L, Value(49, fd, Data, 16)); HostCheck.Equal(0L, Value(50, fd, 4)); return fd;
         }
         internal uint Create() { long fd = Value(291, Fds.CloseOnExec); HostCheck.True(fd >= 0); return (uint)fd; }
+        internal (uint Read,uint Write) Pipe(uint flags=Fds.NonBlock)
+        {
+            HostCheck.Equal(0L,Value(293,Data,flags));
+            return (Thread.Read32(Data),Thread.Read32(Data+4));
+        }
         internal long Control(uint epoll, uint command, uint fd, uint events = 0, ulong data = 0)
         { Thread.Put32(Event, events); Thread.Put64(Event + 4, data); return Value(233, epoll, command, fd, Event); }
         internal long Wait(uint epoll, uint maximum = 1024) => Value(281, epoll, Output, maximum, 0);
@@ -143,6 +148,9 @@ internal static unsafe class LinuxEpollServicesTests
         HostCheck.Equal(1L, m.Value(72, epoll, 1)); HostCheck.Equal(2L, m.Value(72, epoll, 3));
         HostCheck.Equal(-28L, m.Value(291, 0)); HostCheck.Equal(-22L, m.Value(291, 1)); HostCheck.Equal(-22L, m.Value(213, 0));
         HostCheck.Equal(-22L, m.Value(0, epoll, Output, 1)); HostCheck.Equal(-1L, m.Control(epoll, 1, 1));
+        "/app/fixture.data\0"u8.CopyTo(new Span<byte>(m.Thread.At(Data),18));
+        long immutable=m.Value(257,unchecked((uint)-100),Data);HostCheck.True(immutable>=3);
+        HostCheck.Equal(-1L,m.Control(epoll,1,(uint)immutable,1));
         HostCheck.Equal(-22L, m.Control(epoll, 1, epoll)); HostCheck.Equal(-9L, m.Control(epoll, 1, 31));
         HostCheck.Equal(-22L, m.Control(epoll, 9, listener)); HostCheck.Equal(-22L, m.Control(epoll, 1, listener, 0x40000000));
         HostCheck.Equal(0L, m.Control(epoll, 1, listener, 1 | Edge, 0xfedcba9876543210));
@@ -328,6 +336,115 @@ internal static unsafe class LinuxEpollServicesTests
             HostCheck.Equal(-104L, m.Value(45, fd, Data, 1)); HostCheck.Equal(1L, m.Wait(epoll)); HostCheck.Equal(16U, m.Thread.Read32(Output));
             HostCheck.Equal(0L, m.Value(3, fd)); HostCheck.True(Sockets.ReapClosed(m.SocketState, connection.Owner)); m.Drain();
         }
+    }
+
+    [HostTest("m16-020 anonymous pipe level and edge watches rearm read and write readiness after full drain")]
+    private static void PipeReadiness()
+    {
+        foreach(bool edge in new[]{false,true})
+        {
+            using Model m=new();var pipe=m.Pipe();uint epoll=m.Create(),mode=edge?Edge:0;
+            HostCheck.Equal(0L,m.Control(epoll,1,pipe.Read,1|mode,11));
+            HostCheck.Equal(0L,m.Control(epoll,1,pipe.Write,4|mode,22));
+            HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(4U,m.Thread.Read32(Output));HostCheck.Equal(22UL,m.Thread.Read64(Output+4));
+            HostCheck.Equal(edge?0L:1L,m.Wait(epoll));
+            for(int cycle=0;cycle<2;cycle++)
+            {
+                new Span<byte>(m.Thread.At(Data),4096).Fill(0x6b);
+                HostCheck.Equal(4096L,m.Value(1,pipe.Write,Data,4096));HostCheck.Equal(-11L,m.Value(1,pipe.Write,Data,1));
+                HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(1U,m.Thread.Read32(Output));HostCheck.Equal(11UL,m.Thread.Read64(Output+4));
+                HostCheck.Equal(edge?0L:1L,m.Wait(epoll));
+                HostCheck.Equal(4096L,m.Value(0,pipe.Read,Data,4096));HostCheck.Equal(0x6b6b6b6bU,m.Thread.Read32(Data));
+                HostCheck.Equal(-11L,m.Value(0,pipe.Read,Data,1));
+                HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(4U,m.Thread.Read32(Output));HostCheck.Equal(22UL,m.Thread.Read64(Output+4));
+                HostCheck.Equal(edge?0L:1L,m.Wait(epoll));
+            }
+            HostCheck.True(Fds.Audit(m.Files.State)&&Epoll.Audit(m.State,m.Files.State));m.Drain();
+        }
+    }
+
+    [HostTest("m16-020 anonymous pipe opposite-end close exposes buffered IN HUP and unconditional ERR")]
+    private static void PipePeerClose()
+    {
+        using(Model m=new())
+        {
+            var pipe=m.Pipe();uint epoll=m.Create();HostCheck.Equal(0L,m.Control(epoll,1,pipe.Read,1,31));
+            m.Thread.Put32(Data,0x61);HostCheck.Equal(1L,m.Value(1,pipe.Write,Data,1));HostCheck.Equal(0L,m.Value(3,pipe.Write));
+            HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(1U|16,m.Thread.Read32(Output));HostCheck.Equal(31UL,m.Thread.Read64(Output+4));
+            HostCheck.Equal(1L,m.Value(0,pipe.Read,Data,1));HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(16U,m.Thread.Read32(Output));
+            HostCheck.Equal(0L,m.Value(0,pipe.Read,Data,1));
+            HostCheck.Equal(0L,m.Control(epoll,3,pipe.Read,0,32));HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(16U,m.Thread.Read32(Output));m.Drain();
+        }
+        using(Model m=new())
+        {
+            var pipe=m.Pipe();uint epoll=m.Create();HostCheck.Equal(0L,m.Control(epoll,1,pipe.Write,4,41));
+            HostCheck.Equal(0L,m.Value(3,pipe.Read));HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(4U|8,m.Thread.Read32(Output));
+            HostCheck.Equal(-32L,m.Value(1,pipe.Write,Data,1));
+            HostCheck.Equal(0L,m.Control(epoll,3,pipe.Write,0,42));HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(8U,m.Thread.Read32(Output));m.Drain();
+        }
+    }
+
+    [HostTest("m16-020 anonymous pipe duplicate watches survive fd reuse and last description close scrubs ownership")]
+    private static void PipeDupAndReuse()
+    {
+        using Model m=new();var pipe=m.Pipe();uint epoll=m.Create();
+        HostCheck.Equal(0L,m.Control(epoll,1,pipe.Read,1,101));uint duplicate=(uint)m.Value(72,pipe.Read,0);
+        HostCheck.Equal(0L,m.Control(epoll,1,duplicate,1,202));HostCheck.Equal(0L,m.Value(3,pipe.Read));
+        var replacement=m.Pipe();HostCheck.Equal(pipe.Read,replacement.Read);
+        HostCheck.Equal(-2L,m.Control(epoll,2,replacement.Read));HostCheck.Equal(0L,m.Control(epoll,1,replacement.Read,1,303));
+        m.Thread.Put32(Data,0x62);HostCheck.Equal(1L,m.Value(1,pipe.Write,Data,1));HostCheck.Equal(2L,m.Wait(epoll));
+        HostCheck.Equal(1U,m.Thread.Read32(Output));HostCheck.Equal(1U,m.Thread.Read32(Output+12));
+        HostCheck.True(new[]{m.Thread.Read64(Output+4),m.Thread.Read64(Output+16)}.Order().SequenceEqual(new ulong[]{101,202}));
+        HostCheck.Equal(0L,m.Value(3,duplicate));HostCheck.Equal(0L,m.Wait(epoll));
+        HostCheck.True(Fds.Audit(m.Files.State)&&Epoll.Audit(m.State,m.Files.State));
+        HostCheck.Equal(1L,m.Value(1,replacement.Write,Data,1));HostCheck.Equal(1L,m.Wait(epoll));HostCheck.Equal(303UL,m.Thread.Read64(Output+4));
+        m.Drain();HostCheck.True(new ReadOnlySpan<byte>(m.Files.Admission.PipeBuffers,8192).IndexOfAnyExcept((byte)0)<0);
+
+        using Model borrowed=new();var child=borrowed.Thread.Clone();var pending=borrowed.Pipe(0);uint port=borrowed.Create();
+        HostCheck.Equal(0L,borrowed.Control(port,1,pending.Read,1,404));
+        HostCheck.Equal(LinuxSyscallAction.Blocked,borrowed.Call(0,pending.Read,Output+64,1).Action);
+        HostCheck.Equal(2U,borrowed.Thread.View(borrowed.Parent).WaitSource);
+        HostCheck.True(borrowed.Thread.Service->CommitPipeWait(Key,2,borrowed.Thread.Kernel.Capture(borrowed.Parent),out bool handoff)&&handoff);
+        borrowed.Thread.Kernel.Confirm();HostCheck.Equal(child.Value,borrowed.Thread.Kernel.Dispatch().Value);
+        HostCheck.Equal(0L,borrowed.Value(3,pending.Read));HostCheck.Equal(pending.Read,borrowed.Socket());
+        HostCheck.True(Fds.Audit(borrowed.Files.State)&&Epoll.Audit(borrowed.State,borrowed.Files.State));
+        HostCheck.Equal(1U,borrowed.Files.State->RetainedPipeOperations);HostCheck.Equal(-2L,borrowed.Control(port,2,pending.Read));
+        borrowed.Thread.Put32(Data,0x64);HostCheck.Equal(1L,borrowed.Value(1,pending.Write,Data,1));
+        HostCheck.Equal(1L,borrowed.Wait(port));HostCheck.Equal(404UL,borrowed.Thread.Read64(Output+4));
+        borrowed.Thread.Yield(child);HostCheck.Equal(borrowed.Parent.Value,borrowed.Thread.Kernel.Dispatch().Value);
+        var completed=borrowed.Thread.Service->CompletePipeWait(Key,2);
+        HostCheck.Equal(LinuxSyscallAction.Return,completed.Action);HostCheck.Equal(1L,completed.Value);
+        HostCheck.Equal((byte)0x64,*borrowed.Thread.At(Output+64));
+        HostCheck.Equal(0U,borrowed.Files.State->RetainedPipeOperations);HostCheck.Equal(0L,borrowed.Wait(port));
+        HostCheck.True(Fds.Audit(borrowed.Files.State)&&Epoll.Audit(borrowed.State,borrowed.Files.State));borrowed.Drain();
+    }
+
+    [HostTest("m16-020 anonymous pipe stolen epoll readiness reparks before pending signal EINTR and fresh ready completion")]
+    private static void PipeStolenReadinessSignal()
+    {
+        using Model m=new(signals:true);var child=m.Thread.Clone();var pipe=m.Pipe();uint epoll=m.Create();
+        *(Signals.Disposition*)m.Thread.At(Data)=new(){Handler=User+0x180,Flags=0x14000004,Restorer=User+0x200};
+        HostCheck.Equal(0L,m.Thread.Call(13,10,Data,0,8).Value);HostCheck.Equal(0L,m.Control(epoll,1,pipe.Read,1,42));
+        HostCheck.Equal(LinuxSyscallAction.Blocked,m.Call(232,epoll,Output,1,ulong.MaxValue).Action);
+        var first=m.Thread.View(m.Parent).Wait;HostCheck.Equal(3U,m.Thread.View(m.Parent).WaitSource);m.Park(m.Parent);
+        HostCheck.Equal(child.Value,m.Thread.Kernel.Dispatch().Value);m.Thread.Put32(Data+64,0x63);
+        HostCheck.Equal(1L,m.Value(1,pipe.Write,Data+64,1));
+        HostCheck.Equal(KernelThreadTable.Completion.Woken,m.Thread.Kernel.Inspect(m.Parent).Completion);
+        HostCheck.Equal(0L,m.Thread.Call(234,101,101,10).Value);HostCheck.Equal(1L,m.Value(0,pipe.Read,Output+32,1));
+        HostCheck.Equal((byte)0x63,*m.Thread.At(Output+32));
+        m.Thread.Yield(child);HostCheck.Equal(m.Parent.Value,m.Thread.Kernel.Dispatch().Value);
+        HostCheck.Equal(LinuxSyscallAction.Blocked,m.Complete().Action);var replacement=m.Thread.View(m.Parent).Wait;
+        HostCheck.True(replacement.Sequence>first.Sequence);HostCheck.Equal(KernelThreadTable.Completion.Interrupted,m.Thread.Kernel.Inspect(m.Parent).Completion);
+        HostCheck.Equal(1U,m.Files.State->RetainedPipeOperations);
+        HostCheck.True(m.Thread.Service->CommitEpollWait(Key,2,m.Thread.Kernel.Capture(m.Parent),out bool handoff)&&!handoff);
+        var completed=m.Complete();HostCheck.Equal(LinuxSyscallAction.Return,completed.Action);HostCheck.Equal(-4L,completed.Value);
+        HostCheck.Equal(0U,m.Files.State->RetainedPipeOperations);HostCheck.True(!m.Thread.View(m.Parent).Wait.IsValid);
+        HostCheck.Equal(Signals.Delivery.Delivered,m.Thread.Service->DeliverPendingSignals(Key,2));
+        ulong frame=m.Thread.CurrentImage()->Frame.Rsp;m.Thread.CurrentImage()->Frame.Rsp=frame+8;
+        HostCheck.Equal(LinuxSyscallAction.RestoreUser,m.Thread.Call(15).Action);HostCheck.Equal(-4L,m.Thread.CurrentImage()->Value);
+        HostCheck.Equal(1L,m.Value(1,pipe.Write,Data+64,1));HostCheck.Equal(1L,m.Value(232,epoll,Output,1,ulong.MaxValue));
+        HostCheck.Equal(1U,m.Thread.Read32(Output));HostCheck.Equal(42UL,m.Thread.Read64(Output+4));
+        HostCheck.Equal(1L,m.Value(0,pipe.Read,Output+32,1));m.Drain();
     }
 
     [HostTest("m16-020 stolen epoll readiness interrupts the replacement wait for a pending handler")]

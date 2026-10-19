@@ -1,5 +1,17 @@
 # CLROS Completion Gates
 
+[Step1462](../done/step1462.md) adds one original strict `SignalEpollStolen`
+guest under explicit `SignalEpollRace`:31 calls, real handler/restorer,
+readiness consumed by the competing thread, replacement wait interrupted while
+Parking, later ready I/O,2 reaps/8 transfers and owned cleanup. Bounded anonymous
+pipe epoll watches reuse existing descriptor lifetimes;83 distinct staged focused
+checks pass, with the three corrected transcript checks rerun. Failed target
+admission, source-pin preflight and first strict-consumer captures remain failed.
+Successful r04 and failed r03 have byte-identical original COFF/EFI. This finite
+mechanical proof does not close #760:initial-pending/mask/ignored/timeout/restart
+controls, affected ancestors, native/stack review, corrected-runner full-host,
+pressure and remaining batch gates stay open. No new gate is accepted.
+
 [Step1461](../done/step1461.md) adds one original strict SignalPipeStolen
 guest:27 calls, a real handler/restorer, later I/O, two reaps/eight transfers and
 owned cleanup. Its first run exposes an omitted repark supervisor expectation;
