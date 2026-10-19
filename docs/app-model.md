@@ -178,26 +178,33 @@ continues to report actual physical/available RAM. Native headroom is provisiona
 half the pool, not a GC/native page partition or measured sufficiency guarantee.
 43 focused checks (9GC/34startup) and continuing-service freestanding C# compilation
 pass. Configured admission emits `M16_016_BUDGET`; actual guest runtime sizing,
-resource peaks and pressure/recovery remain unvalidated. No configured app has
-yet been published or accepted under this policy.
-Step1451 seals the16MiB setting in the explicit v2 service envelope and adds
-actual app GC begin/end, lifecycle-drain and application-start readiness witnesses.
-10 focused checks pass. The actual helper source runs through the pinned Linux
-static NativeAOT recipe: two live2MiB collections report16MiB limits and
-4,165,632/4,386,816 committed bytes; an8MiB control rejects. This is helper-only
-Linux-host evidence. Full service publication/pins, v2 runner/report/packet
-integration, actual guest measurements and native pressure/recovery remain pending.
-Step1452 prepares strict explicit v2 peer-report decoding and the default-off
-`ServiceLifecycle` selection:18 focused peer/profile checks pass. Reports retain
-strict field/range/port/counter checks and confer no execution authority. The
-v2 producer, owned-child, prepared-program and packet integration remain pending. A non-dry
-v2 smoke fails before children with `service_lifecycle_runner_integration_pending`
-until those consumers are installed. This selection is preparation only.
-Step1453 prepares budget-selected kernel v2 listening and explicit startup-value
-decoding (v2 listener/3 environment entries), with11 focused checks and
-freestanding C# compilation. Source review corrects GC_BEGIN to follow the four
-strict startup lines; an interposed GC line is rejected. Full replay mode and
-GC/native/packet joins remain pending, so the launch guard stays active.
+resource peaks and pressure/recovery remain unvalidated. Step1454 adds the
+configured Linux-host publication below; it does not establish guest sufficiency.
+
+[Step1454](../done/step1454.md) connects the explicit v2 peer producer, CLI,
+owned-child/completion verification and prepared-program mode to startup/GC
+replay values and the guest/peer terminal-text join. V1 remains the default
+envelope; both modes now require the new original8,484,584-byte service ELF and
+its complete1,368,586-instruction/198-syscall index. The five exact app inputs
+are sealed.63 focused checks and genuine two-mode preparation with crossed-mode
+rejection pass. Historical v1 captures retain their original image/source scope;
+the current image still needs fresh v1 ancestor qualification.
+
+The full static NativeAOT v2 app runs on the pinned Linux-host kernel for306s:
+39 ordinary peer exchanges plus12 sequential lifecycle health connections,
+32KiB partial echo/rejection,512KiB held-response/healthy-peer progress and
+reset/timeout drain pass. The app joins its worker after7,014 workload calls;
+both real GC measurements report the16MiB limit with2MiB retained live arrays,
+and5,267,456/8,667,136 committed bytes. The ELF remains unchanged. This extends
+steps1451-1453's helper/schema/startup development; it is Linux-host evidence.
+
+The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
+reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
+drain order. Full replay independently binds writes/calls. Lifecycle packet
+reconstruction and reset/large-stream resource joins remain incomplete. Non-dry
+v2 smoke still fails before children with
+`service_lifecycle_runner_integration_pending`; no owned v2 guest Completion,
+original full native ABI review or new guest/full-host acceptance is established.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

@@ -9,7 +9,8 @@ public static partial class QemuTranscripts
     /// <summary>Complete inner-leaf accounting, without parent firmware, native
     /// ABI, NIC, packet, peer, runner or guest-qualification authority.</summary>
     public readonly record struct ServiceReplayReport(ThreadingProtocolReport Protocol,ServiceStartupInspection Startup,
-        ServiceRandomInspection Random,ServiceTransportInspection Transport,int SocketAccepts=0,ulong SocketSent=0,ulong SocketReceived=0);
+        ServiceRandomInspection Random,ServiceTransportInspection Transport,int SocketAccepts=0,ulong SocketSent=0,ulong SocketReceived=0,
+        ServiceGcInspection? Gc=null);
 
     /// <summary>Borrow an original package, sealed prepared service program and
     /// bounded complete raw leaf (including preceding seed/bound observations).
@@ -24,19 +25,21 @@ public static partial class QemuTranscripts
         Need(program is not null && string.Equals(Path.GetFullPath(root),program.SourceRoot,
             OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),"service_program_owner");
         using AuthorityFiles sources=new();NativeAotServiceProgram.HoldSources(root,sources);
-        var view=NativeAotServiceProgram.RequirePackage(package);
+        var view=NativeAotServiceProgram.RequirePackage(package,program!.Lifecycle);
         var report=ReplayService(NativeAotThreadingOutput.ReadService(rawTail),package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
-            program!.IsInstruction,program!.IsSyscallReturn,userRoot,kernelRoot);
-        _=NativeAotServiceProgram.RequirePackage(package);
+            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,program.Lifecycle,view.Manifest.MemoryBytes);
+        _=NativeAotServiceProgram.RequirePackage(package,program.Lifecycle);
         NativeAotServiceProgram.HoldSources(root,sources);sources.VerifyUnchanged();return report;
     }
 
     private static ServiceReplayReport ReplayService(NativeAotThreadingOutput.Capture framed,byte[] elf,
-        Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,ulong userRoot,ulong kernelRoot)
+        Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,ulong userRoot,ulong kernelRoot,bool lifecycle,ulong entitlementBytes)
     {
         Need(framed.NormalizedTail.EndsWith("\r\n",StringComparison.Ordinal),"service_complete_terminal");
         string[] original=framed.NormalizedTail[..^2].Split("\r\n",StringSplitOptions.None);
-        var startup=ReadServiceStartup(framed,out var metadata);
+        var startup=ReadServiceStartup(framed,out var metadata,lifecycle);
+        var gc=ReadServiceGc(framed,entitlementBytes,lifecycle,out var gcBudgetPosition);
+        if(gcBudgetPosition.HasValue)metadata.Add(gcBudgetPosition.Value);
         var random=ReadServiceRandom(original);var transport=ReadServiceTransport(original,out var network);
         metadata.UnionWith(network);ServiceRuntimeMetadata(original,startup,metadata);
         for(int i=0;i<original.Length;i++)
@@ -53,7 +56,7 @@ public static partial class QemuTranscripts
         var protocol=replay.Validate();var counts=replay.ServiceSocketCounts();
         Need((ulong)protocol.Calls>=random.Requests && protocol.Reaped==protocol.Clones+1 && transport.Connections>=10,
             "service_complete_joins");
-        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received);
+        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received,gc);
     }
 
     private sealed partial class ThreadingProtocol

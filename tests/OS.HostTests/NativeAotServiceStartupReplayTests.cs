@@ -8,8 +8,75 @@ internal static class NativeAotServiceStartupReplayTests
         "CLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\n";
     private const string Listening = "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n";
     private const string GcBegin = "CLROS_SERVICE_GC_BEGIN limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4165632\n";
+    private const string GcBudget = "M16_016_BUDGET gc=16777216 nativeReserve=16777216 static=16777216 pool=33554432 entitlement=67108864\r\n";
+    private const string LifecycleEnd = "CLROS_SERVICE_LIFECYCLE_END CLROS_LIFECYCLE_STATUS active=0 waiting=0 waits=2 canceled=2 echoes=1 streams=1 rejected=1 read=65536 written=524288\n";
+    private const string ApplicationEnd = "CLROS_SERVICE_APP_END calls=4097 randomRequests=1 randomBytes=8192 iterations=1 elapsedMillis=300001 worker=joined\n";
     private static readonly string[] Markers = ["TEST_START m16.014.startup", "M16_014_ENTER ", "M16_014_CONFIG ",
         "M16_014_STARTUP ", "M16_014_BIND ", "M16_014_LISTEN ", "M16_014_LIVE ", "CLROS_M16_014_LISTENING", "TEST_PASS m16.014.startup"];
+
+    [HostTest("service v2 GC parser binds framed measurements and exact entitlement without execution authority")]
+    private static void GcMeasurements()
+    {
+        foreach (bool segmented in new[] { false, true })
+        {
+            byte[] raw = Encoding.UTF8.GetBytes(GcRaw(segmented)), before = raw.ToArray();
+            var report = QemuTranscripts.InspectNativeAotServiceGcForTests(raw, 67108864, lifecycle: true);
+            HostCheck.True(report.HasValue); var value = report!.Value;
+            HostCheck.Equal(16777216UL, value.GcLimitBytes); HostCheck.Equal(16777216UL, value.NativeReserveBytes);
+            HostCheck.Equal(16777216UL, value.StaticBytes); HostCheck.Equal(33554432UL, value.PoolBytes);
+            HostCheck.Equal(67108864UL, value.EntitlementBytes); HostCheck.Equal(30920UL, value.Begin.BaselineHeapBytes);
+            HostCheck.Equal(2097152UL, value.End.LiveBytes); HostCheck.Equal(4165632UL, value.End.LiveCommittedBytes);
+            HostCheck.Equal(LifecycleEnd["CLROS_SERVICE_LIFECYCLE_END ".Length..^1], value.TerminalStatus);
+            HostCheck.True(raw.AsSpan().SequenceEqual(before)); Array.Fill(raw, (byte)0);
+            HostCheck.Equal(2129504UL, value.Begin.LiveHeapBytes);
+        }
+        HostCheck.True(QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(Raw()), 0) is null);
+        RejectGc(GcRaw(), lifecycle: false); RejectGc(Raw() + GcBudget, lifecycle: false);
+        RejectGc(Raw() + Frame("CLROS_SERVICE_GC_REJECT runtime\n"), lifecycle: false);
+    }
+
+    [HostTest("service v2 GC parser rejects substituted unaligned overflowing missing duplicate and misplaced budgets")]
+    private static void GcBudgetControls()
+    {
+        foreach (string budget in new[] { "", GcBudget + GcBudget,
+            GcBudget.Replace("gc=16777216", "gc=16777215", StringComparison.Ordinal),
+            GcBudget.Replace("nativeReserve=16777216", "nativeReserve=0", StringComparison.Ordinal),
+            GcBudget.Replace("pool=33554432", "pool=67108864", StringComparison.Ordinal),
+            GcBudget.Replace("static=16777216", "static=0", StringComparison.Ordinal),
+            GcBudget.Replace("static=16777216", "static=16777217", StringComparison.Ordinal),
+            GcBudget.Replace("static=16777216", "static=33558528", StringComparison.Ordinal),
+            GcBudget.Replace("static=16777216", "static=18446744073709547520", StringComparison.Ordinal),
+            GcBudget.Replace("entitlement=67108864", "entitlement=67112960", StringComparison.Ordinal),
+            GcBudget.Replace("gc=16777216", "gc=016777216", StringComparison.Ordinal),
+            GcBudget.Replace("\r\n", " extra=1\r\n", StringComparison.Ordinal) }) RejectGc(GcRaw(budget: budget));
+        RejectGc(GcRaw(), entitlement: 67108865); RejectGc(GcRaw(), entitlement: 33554432);
+        RejectGc(GcRaw(budget: GcBudget.Replace("entitlement=67108864", "entitlement=100663296", StringComparison.Ordinal)), entitlement: 100663296);
+        RejectGc(GcRaw(budget: "") + GcBudget);
+        RejectGc(GcRaw(budget: Frame(GcBudget)));
+    }
+
+    [HostTest("service v2 GC parser rejects unknown duplicate forged invalid and reordered application observations")]
+    private static void GcMeasurementControls()
+    {
+        foreach (string begin in new[] { "", GcBegin + GcBegin, GcBegin + "CLROS_SERVICE_GC_UNKNOWN x=1\n",
+            GcBegin.Replace("baselineHeap=30920", "baselineHeap=030920", StringComparison.Ordinal),
+            GcBegin.Replace("baselineHeap=30920", "baselineHeap=151553", StringComparison.Ordinal),
+            GcBegin.Replace("baselineCommitted=151552", "baselineCommitted=16777217", StringComparison.Ordinal),
+            GcBegin.Replace("liveBytes=2097152", "liveBytes=2097151", StringComparison.Ordinal),
+            GcBegin.Replace("liveHeap=2129504", "liveHeap=2097151", StringComparison.Ordinal),
+            GcBegin.Replace("liveCommitted=4165632", "liveCommitted=2129503", StringComparison.Ordinal),
+            GcBegin.Replace("liveCommitted=4165632", "liveCommitted=16777217", StringComparison.Ordinal),
+            GcBegin.Replace("limit=16777216", "limit=18446744073709551616", StringComparison.Ordinal),
+            GcBegin.Replace("\n", " extra=1\n", StringComparison.Ordinal) }) RejectGc(GcRaw(begin: begin));
+        string end = GcBegin.Replace("GC_BEGIN", "GC_END", StringComparison.Ordinal);
+        foreach (string tail in new[] { LifecycleEnd + ApplicationEnd, LifecycleEnd + end + end + ApplicationEnd,
+            end + LifecycleEnd + ApplicationEnd, LifecycleEnd + ApplicationEnd + end,
+            LifecycleEnd.Replace("active=0", "active=1", StringComparison.Ordinal) + end + ApplicationEnd,
+            LifecycleEnd + end.Replace("liveBytes=2097152", "liveBytes=0", StringComparison.Ordinal) + ApplicationEnd })
+            RejectGc(GcRaw(tail: tail));
+        RejectGc(GcRaw(prefix: GcBegin + Prefix, begin: ""));
+        RejectGc(GcRaw() + Frame(GcBegin, 1)); RejectGc(GcRaw() + end);
+    }
 
     [HostTest("service v2 startup requires explicit mode and exact copied fd2 listening with three environment entries")]
     private static void LifecycleStartup()
@@ -151,6 +218,21 @@ internal static class NativeAotServiceStartupReplayTests
 
     private static string Built() => "CLROS_APP_BUILT minimal.api.service\n";
     private static string Frame(string text, uint channel = 2) => $"M16_005_WRITE fd={channel} bytes={Encoding.UTF8.GetByteCount(text)} data={text}\r\n";
+    private static string GcRaw(bool segmented = false, string budget = GcBudget, string begin = GcBegin,
+        string? tail = null, string prefix = Prefix)
+    {
+        tail ??= LifecycleEnd + GcBegin.Replace("GC_BEGIN", "GC_END", StringComparison.Ordinal) + ApplicationEnd;
+        string ending = segmented ? string.Concat(tail.Chunk(7).Select(part => Frame(new string(part)))) : Frame(tail);
+        return budget + Raw(segmented, prefix: prefix + begin, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
+            .Replace("envc=2", "envc=3", StringComparison.Ordinal) + ending;
+    }
+    private static void RejectGc(string raw, ulong entitlement = 67108864, bool lifecycle = true)
+    {
+        bool rejected = false;
+        try { _ = QemuTranscripts.InspectNativeAotServiceGcForTests(Encoding.UTF8.GetBytes(raw), entitlement, lifecycle); }
+        catch (ToolFailure) { rejected = true; }
+        HostCheck.True(rejected);
+    }
     private static string Raw(bool segmented = false, string? prefix = null, string listening = Listening, uint listenChannel = 2)
     {
         prefix ??= Prefix; int last = prefix.LastIndexOf("CLROS_APP_BUILT", StringComparison.Ordinal);

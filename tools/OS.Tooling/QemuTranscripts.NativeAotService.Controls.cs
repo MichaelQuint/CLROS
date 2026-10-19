@@ -181,7 +181,8 @@ public static partial class QemuTranscripts
     internal static int InspectServiceRun(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner,
         TextWriter output, NativeAotServiceProgram program, NativeAotServicePeer.Completion peer, ServiceRunnerContext context)
     {
-        Need(ReferenceEquals(peer.Runner, runner) && peer.Port == context.ForwardPort, "service_runner_peer_owner");
+        Need(ReferenceEquals(peer.Runner, runner) && peer.Port == context.ForwardPort &&
+            peer.Lifecycle == options.ServiceLifecycle && program.Lifecycle == options.ServiceLifecycle, "service_runner_peer_owner");
         byte[] raw = File.ReadAllBytes(Path.GetFullPath(options.SerialLog, root));
         byte[] package = File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage, root));
         var process = InspectNativeAotServiceRunnerForTests(options, plan, runner, raw,
@@ -191,7 +192,10 @@ public static partial class QemuTranscripts
         var controls = InspectNativeAotServiceControlsForTests(bytes, capture.Parent.FrameAnchor, capture.Parent.Arp,
             process.ControlsJson, process.FramesJson, process.StartUtc, process.EndUtc);
         string report = File.ReadAllText(peer.Path);
-        var stimulus=NativeAotServicePeer.InspectOutput(report);
+        var stimulus=NativeAotServicePeer.InspectOutput(report,options.ServiceLifecycle);
+        Need(capture.Leaf.Gc.HasValue == options.ServiceLifecycle &&
+            (!options.ServiceLifecycle || stimulus.Lifecycle is not null &&
+                capture.Leaf.Gc!.Value.TerminalStatus == stimulus.Lifecycle.TerminalStatus), "service_gc_peer_terminal");
         using(var peerJson=JsonDocument.Parse(report))
             foreach(var exchange in peerJson.RootElement.GetProperty("exchanges").EnumerateArray())
             {

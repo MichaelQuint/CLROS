@@ -36,20 +36,22 @@ public static class NativeAotServicePeer
     /// Only the process-owning RunAsync factory constructs a completion.</summary>
     public sealed class Completion
     {
-        internal Completion(string root, int port, string path, string hash, ProcessResult runner, string serial)
-        { Root = root; Port = port; Path = path; Sha256 = hash; Runner = runner; SerialPath = serial; }
+        internal Completion(string root, int port, string path, string hash, ProcessResult runner, string serial, bool lifecycle)
+        { Root = root; Port = port; Path = path; Sha256 = hash; Runner = runner; SerialPath = serial; Lifecycle = lifecycle; }
         internal string Root { get; }
         public int Port { get; }
         public string Path { get; }
         public string Sha256 { get; }
         public string SerialPath { get; }
         public ProcessResult Runner { get; }
+        /// <summary>Factory-selected report contract, never inferred from supplied text.</summary>
+        public bool Lifecycle { get; }
         internal void Verify(AuthorityFiles files)
         {
             var file = files.Open(System.IO.Path.GetDirectoryName(Path)!, Path, "original service peer", "service_peer_log", 65536, singleLink: true);
             byte[] raw = file.ReadBytes(65536, "service_peer_log");
             Need(Convert.ToHexString(SHA256.HashData(raw)) == Sha256, "log_identity");
-            Need(InspectOutput(new UTF8Encoding(false, true).GetString(raw)).Port == Port, "port_identity");
+            Need(InspectOutput(new UTF8Encoding(false, true).GetString(raw), Lifecycle).Port == Port, "port_identity");
         }
     }
 
@@ -58,12 +60,12 @@ public static class NativeAotServicePeer
     /// before stimulus. The callback must honor cancellation and confirm exit;
     /// missing/failed children retain fresh logs and cannot create Completion.</summary>
     public static async Task<Completion> RunAsync(string root, string peerLog, string serial,
-        Func<int, CancellationToken, Task<ProcessResult>> runRunner, CancellationToken cancellation = default)
+        Func<int, CancellationToken, Task<ProcessResult>> runRunner, CancellationToken cancellation = default, bool lifecycle = false)
     {
         root = System.IO.Path.GetFullPath(root); serial = System.IO.Path.GetFullPath(serial, root);
         var execution = await NativeAotSocketPeerLifecycle.RunAsync(root, peerLog, runRunner, cancellation,
-            token => WaitForListeningAsync(root, serial, token), serial, vectors: false, service: true);
-        return new(execution.Root, execution.Port, execution.Path, execution.Sha256, execution.Runner, execution.ReceiveGateSerial);
+            token => WaitForListeningAsync(root, serial, token), serial, vectors: false, service: true, serviceLifecycle: lifecycle);
+        return new(execution.Root, execution.Port, execution.Path, execution.Sha256, execution.Runner, execution.ReceiveGateSerial, lifecycle);
     }
 
     private static async Task WaitForListeningAsync(string root, string serial, CancellationToken cancellation)
@@ -90,14 +92,17 @@ public static class NativeAotServicePeer
         }
     }
 
-    /// <summary>Run the fixed loopback peer protocol. All requests are HTTP/1.1,
+    /// <summary>Run the fixed HTTP/1.1 loopback peer protocol. Ordinary exchanges
     /// wait for genuine server EOF before client FIN and copy at most8192 body
-    /// bytes. One startup health connection may wait through the real240-second
+    /// bytes; v2 additionally awaits the separately bounded lifecycle helper.
+    /// One startup health connection may wait through the real240-second
     /// ISN quiet period, bounded by the remaining400-second startup window;
     /// later exchanges retain20-second deadlines. Own TCP resources until return;
     /// failure throws and no successful report is written. Never returns random
-    /// bytes or secrets. Output is untrusted telemetry until the final guest join.</summary>
-    public static async Task RunGuestAsync(int port, TextWriter output)
+    /// bytes or secrets. Explicit lifecycle mode awaits the bounded v2 protocol
+    /// while the existing long-running worker advances, then emits a strict v2
+    /// report. Output is untrusted telemetry until the final guest join.</summary>
+    public static async Task RunGuestAsync(int port, TextWriter output, bool lifecycle = false)
     {
         Need(port is >= 1 and <= 65535, "port");
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(800)); CancellationToken token = deadline.Token;
@@ -125,6 +130,8 @@ public static class NativeAotServicePeer
         long begun = exchanges[^1].CompletedMilliseconds;
         exchanges.Add(await Send("POST", StartPath)); Require(exchanges[^1], "POST", StartPath, 409, "");
         exchanges.Add(await Send("POST", StopPath)); Require(exchanges[^1], "POST", StopPath, 409, "");
+        NativeAotServiceLifecyclePeer.Observation? lifecycleObservation = null;
+        if (lifecycle) lifecycleObservation = await NativeAotServiceLifecyclePeer.RunAsync(port, token);
         for (int samples = 0; ; samples++)
         {
             Need(samples < 65, "sample_bound"); exchanges.Add(await Send("GET", StatusPath));
@@ -134,8 +141,10 @@ public static class NativeAotServicePeer
         }
         exchanges.Add(await Send("GET", "/healthz")); Require(exchanges[^1], "GET", "/healthz", 200, "CLROS_SERVICE_HEALTH_OK");
         exchanges.Add(await Send("POST", StopPath)); Require(exchanges[^1], "POST", StopPath, 200, "CLROS_SERVICE_STOPPED");
-        string report = JsonSerializer.Serialize(new { schema = Schema, port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges }, JsonOptions);
-        _ = InspectOutput(report); await output.WriteLineAsync(report);
+        string report = lifecycle
+            ? JsonSerializer.Serialize(new { schema = "clros.nativeaot.service.peer.v2", port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges, lifecycle = lifecycleObservation }, JsonOptions)
+            : JsonSerializer.Serialize(new { schema = Schema, port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges }, JsonOptions);
+        _ = InspectOutput(report, lifecycle); await output.WriteLineAsync(report);
     }
 
     /// <summary>Real loopback transport seam with the ordinary20-second bound.

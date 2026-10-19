@@ -25,7 +25,8 @@ public static partial class QemuTranscripts
     {
         Need(raw.Length is >FirmwarePrefixBytes and <=128 * 1024 * 1024, "service_capture_extent");
         using AuthorityFiles sources = new(); NativeAotServiceProgram.HoldSources(root, sources);
-        _ = NativeAotServiceProgram.RequirePackage(package);
+        Need(program is not null, "service_program_owner");
+        _ = NativeAotServiceProgram.RequirePackage(package, program!.Lifecycle);
         ReadOnlySpan<byte> outer = "TEST_START m16-011\r\nTEST_START m16-012\r\n"u8;
         int at = raw.IndexOf("TEST_START m16-011\r\n"u8);
         Need(at >= FirmwarePrefixBytes && raw[at - 2] == 13 && raw[at - 1] == 10 && raw[at..].StartsWith(outer), "service_capture_outer_start");
@@ -41,7 +42,7 @@ public static partial class QemuTranscripts
             "mac:dec", "sent:dec", "received:dec", "start:dec", "end:dec");
         var envelope = InspectNativeAotServiceEnvelopeForTests(rows, parent, leaf,
             (allocator[0], allocator[1], allocator[2], binding[2], peer["sent"], peer["received"]));
-        _ = NativeAotServiceProgram.RequirePackage(package);
+        _ = NativeAotServiceProgram.RequirePackage(package, program.Lifecycle);
         NativeAotServiceProgram.HoldSources(root, sources); sources.VerifyUnchanged(); return new(parent, leaf, envelope);
     }
 

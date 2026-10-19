@@ -1,24 +1,29 @@
 # CLROS Completion Gates
 
-[Step1451](../done/step1451.md) prepares the configured v2 service envelope and
-actual GC/lifecycle terminal witnesses.10 focused checks and the actual GC helper
-under pinned Linux-host static NativeAOT pass (two live2MiB/16MiB observations
-and an8MiB rejection). The complete service has not been republished or executed
-with this policy; v2 runner/report/packet integration and guest pressure/native
-headroom validation remain pending. No acceptance or gate advances.
-Step1452 adds strict explicit v2 data parsing and default-off selection with18
-focused checks. Non-dry launch stops before children pending complete native,
-startup/serial and packet consumers. Supplied v2 data creates no Completion or
-guest authority; no acceptance changes.
-Step1453 corrects GC witness ordering and prepares kernel/explicit v2 startup
-matching with11 focused checks and freestanding C# compilation. Full replay,
-owned-peer and GC/native/packet joins remain pending; the launch guard remains.
+[Step1454](../done/step1454.md) connects explicit v2 peer/CLI/owned-child and
+prepared-program mode, startup/GC replay values and guest/peer terminal-text
+matching.63 focused checks and real two-mode preparation pass. The complete new
+static NativeAOT ELF is published from five exact app inputs; independent
+coverage checks all4,379,983 executable bytes,1,368,586 instruction starts and198
+syscall continuations. This is index/provenance evidence, not full native ABI review.
+
+The actual v2 app and peer pass a306s Linux-host run:39 ordinary exchanges,
+12 lifecycle health connections, partial32KiB echo/rejection,512KiB slow/healthy
+progress, reset/timeout drain,7,014 workload calls and joined shutdown. Both GC
+measurements report16MiB with2MiB live arrays; committed bytes are5,267,456 and
+8,667,136. The original ELF is unchanged. This supersedes the publication-pending
+status of steps1451-1453 while retaining their narrower evidence.
+
+The non-dry v2 launch guard remains before children. Lifecycle packet
+reconstruction, reset/large-stream resource joins, full native/guest/ancestor
+qualification and guest GC/native pressure/recovery remain pending. No owned
+v2 guest Completion, fixed-runner full-host restoration or gate advance is claimed.
 
 [Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
 sealed retained reservation ledger and actual dynamic pool.43 focused checks
 (9GC/34startup) and continuing-service freestanding C# compilation pass. Declared
 half-pool native headroom remains provisional; no GC/native page partition,
-configured app publication, effective guest limit, pressure/recovery or new
+effective guest limit, pressure/recovery or new
 full-host/native/guest acceptance is established. Physical RAM reporting stays
 independent. No gate advances.
 

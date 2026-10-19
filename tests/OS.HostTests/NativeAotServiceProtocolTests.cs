@@ -6,7 +6,7 @@ internal static class NativeAotServiceProtocolTests
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         v.Rows[1]=v.Rows[1].Replace("entropyBytes=32","entropyBytes=0",StringComparison.Ordinal);
-        v.Rows[2]=v.Rows[2].Replace("packageBytes=1320176","packageBytes=8413864",StringComparison.Ordinal);
+        v.Rows[2]=v.Rows[2].Replace("packageBytes=1320176","packageBytes=8484584",StringComparison.Ordinal);
         v.Rows[4]=v.Rows[4].Replace("workers=4","workers=16",StringComparison.Ordinal);
         v.Rows[5]="M16_014_POLICY started=0 callsPerTurn=4096 progressNanos=30000000000 elapsedLimit=none counters=reject-overflow workers=individual cancellation=owned";
         v.Rows.Insert(5,"TEST_START m16.014");

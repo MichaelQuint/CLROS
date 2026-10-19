@@ -174,11 +174,11 @@ public static class ToolCommand
             {NativeAotSocketVectorsPeer.RunGuestPeerAsync(Repository.FindRoot(),vectorPortNumber,vectorSerial,Console.Out).GetAwaiter().GetResult();return 0;}
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-vectors")
                 return NativeAotSocketVectorsPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
-            if (args.Length == 7 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "guest-peer" &&
+            if (args.Length is 7 or 8 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "guest-peer" &&
                 args[3] == "--port" && int.TryParse(args[4], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int servicePort) &&
-                args[5] == "--serial" && args[6].Length != 0)
+                args[5] == "--serial" && args[6].Length != 0 && (args.Length == 7 || args[7] == "--lifecycle"))
             {
-                NativeAotServicePeer.RunGuestAsync(servicePort, Console.Out).GetAwaiter().GetResult(); return 0;
+                NativeAotServicePeer.RunGuestAsync(servicePort, Console.Out, lifecycle: args.Length == 8).GetAwaiter().GetResult(); return 0;
             }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "service")
                 return NativeAotServicePublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();

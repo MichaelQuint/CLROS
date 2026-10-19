@@ -83,7 +83,7 @@ public static class QemuSmoke
                             var p=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                             var d=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
-                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"));
+                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),options.ServiceLifecycle);
                             NativeAotServiceProgram.HoldSources(root,serviceInputs);serviceInputs.VerifyUnchanged();
                         }
                         else if(web)
@@ -300,7 +300,7 @@ public static class QemuSmoke
             ProcessResult runner;
             if(service&&!options.DryRun)
             {
-                servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation);
+                servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
                 runner=servicePeer.Runner;
             }
             else if(vectors&&!options.DryRun)
