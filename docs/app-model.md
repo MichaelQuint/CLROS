@@ -133,6 +133,14 @@ fixed replacement, protection/advice, partial unmap, real futex borrows and
 scrub/reuse. Original native review, a fragmentation guest, real NativeAOT
 allocation churn and affected ancestors remain pending; #747 stays open.
 
+[Step1440](../done/step1440.md) prepares a canonical `FragmentedBacking` mechanical
+ELF for the existing default-off M16-006 guest profile. Four four-MiB mappings
+fill its sixteen-MiB pool; freeing alternate blocks forces the six-MiB replacement
+to span physical holes. The generated user code checks surviving data,
+cross-extent copy-in, discard/recommit, brk and fixed-replacement zeroing before
+cleanup. Ten fixture/parser checks and profile dry-run pass. The exported package
+has not yet run in a guest; this adds no guest or runtime-churn acceptance.
+
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
 native allocations, stacks, page tables and sockets to actual committed-page
 entitlement. Firmware/system RAM totals are not an app allocation guarantee.

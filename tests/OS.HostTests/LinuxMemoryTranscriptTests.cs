@@ -120,14 +120,37 @@ internal static class LinuxMemoryTranscriptTests
         }
     }
 
+    [HostTest("m16.015 fragmentation transcript requires the original case exact syscall sequence and complete restoration")]
+    private static void FragmentedBackingTail()
+    {
+        string[] rows = SyntheticRows("FragmentedBacking");
+        byte[] package = LinuxMemoryProofFixture.CreatePackage("FragmentedBacking");
+        HostCheck.Equal(107, QemuTranscripts.ValidateLinuxMemoryTail(rows, package).Length);
+        foreach ((string Old, string New) change in new (string, string)[]
+        {
+            ("a1=6291456", "a1=4194304"), ("a1=4194304", "a1=4096"),
+            ("nr=28", "nr=10"), ("nr=11", "nr=9"), ("calls=18", "calls=17"),
+            ("a1=4332716024", "a1=4328521728"), ("entropyRemaining=32", "entropyRemaining=0"),
+            ("backed=0", "backed=1"), ("ss=true", "ss=false")
+        })
+        {
+            string[] altered = rows.Select(s=>s.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray();
+            HostCheck.True(!altered.SequenceEqual(rows) && Rejected(()=>QemuTranscripts.ValidateLinuxMemoryTail(altered, package)));
+        }
+        HostCheck.True(Rejected(()=>QemuTranscripts.ValidateLinuxMemoryTail(rows, LinuxMemoryProofFixture.CreatePackage("Memory"))));
+        package[^1] ^= 1; HostCheck.True(Rejected(()=>QemuTranscripts.ValidateLinuxMemoryTail(rows, package)));
+    }
+
     private static string[] SyntheticRows(string variant = "Memory")
     {
         List<string> rows = Enumerable.Repeat("synthetic-parent", 107).ToList();
         rows[86] = "M16_004_TABLES root=1048576 used=12 leaves=500 ranges=10";
         rows.AddRange(["TEST_START m16-006", "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
             "M16_005_ARMED root=1048576 cs=59 ss=51 kernelStack=2097152 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null"]);
-        bool ownership = variant != "Memory", negative = variant == "HeapOwnershipFault";
-        long[] values = negative ? [4294967296,17179869184,17179873280,0,17179869184,17179869184] : ownership ?
+        bool fragmented = variant == "FragmentedBacking", ownership = variant is "HeapOwnership" or "HeapOwnershipFault", negative = variant == "HeapOwnershipFault";
+        long[] values = fragmented ?
+            [4294967296,4294967296,4303355904,4311744512,4320133120,0,0,4328521728,0,0,0,24,17181966336,17179869184,0,4328521728,0,0] :
+            negative ? [4294967296,17179869184,17179873280,0,17179869184,17179869184] : ownership ?
             [4294967296,17179869184,17179877376,0,17179873297,17179873280,17179877376,17179869184,
              17179873280,0,17179869184,-17,17179869184,0,17179869184,17179869184,17179869184,24,
              17179873280,17179869184,0,0] :
@@ -161,7 +184,7 @@ internal static class LinuxMemoryTranscriptTests
         rows.Add("M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
         if (negative) rows.Add("TEST_FAIL m16-006 user-boundary-terminated status=1");
         else rows.AddRange([$"M16_005_EXIT code=42 calls={call} bytes=24 writes=1",
-            $"M16_006_MEMORY reserved=2097152 backed=0 tables=12 entropyRemaining={(ownership ? 32 : 0)}",
+            $"M16_006_MEMORY reserved=2097152 backed=0 tables=12 entropyRemaining={(ownership || fragmented ? 32 : 0)}",
             "CLROS_M16_006_READY", "TEST_PASS m16-006"]);
         return rows.ToArray();
     }
