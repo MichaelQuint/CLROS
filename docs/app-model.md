@@ -279,6 +279,25 @@ checks and EFI C# compilation pass; only three reviewed source identities are
 refreshed. Actual guest headroom and complete native/ancestor/full-host evidence
 remain pending. No allocation limits or guest acceptance change.
 
+[Step1470](../done/step1470.md) runs the unchanged current ELF in an actual CLROS
+configured guest. Both native episodes reachENOMEM, verify/release21MiB/11MiB
+and verify fresh one-MiB recovery. Both managed episodes catch OOM and verify
+fresh two-MiB live recovery.986 exact memory snapshots show two physical
+shortfalls,120 maximum regions,31.73MiB lifetime backing peak and zero end backing.
+Ordinary backing peaks23.56MiB; adding the16MiB GC limit yields a conservative
+39.56MiB pool estimate and65.52MiB including static charge. These exceed32MiB/
+64MiB and double-count some managed backing; they do not establish a real budget
+escape or qualify non-GC headroom. M16-016 remains open.
+
+The original833s runner/serial path passes cleanup and stopped-endpoint refusal,
+then the service consumer rejects the new first-call memory snapshot. A host-only
+startup adjacency repair and17 focused checks pass. Independent replay of the
+unchanged full capture plus original control/peer/PCAP totals passes; the original
+pipeline failure is retained. Current original native code/relocation/source joins
+and eight changed own-body/unwind reviews are retained, with one explicitly
+changed host-consumer source at readback. Complete native/transitive stack,
+headroom, ancestors and corrected-runner full-host remain pending. No new gate.
+
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the

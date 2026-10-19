@@ -163,8 +163,7 @@ internal static class NativeAotServiceStartupReplayTests
     {
         foreach (bool segmented in new[] { false, true })
         {
-            string raw = Raw(segmented, prefix: Prefix + GcBegin, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
-                .Replace("envc=2", "envc=3", StringComparison.Ordinal);
+            string raw = Raw(segmented, prefix: Prefix + GcBegin, lifecycle: true, entryMemory: EntryMemory);
             var report = Read(raw, lifecycle: true);
             HostCheck.Equal(Writer, report.WriterIdentity); HostCheck.Equal(6, report.ListenerDescriptor);
             HostCheck.Equal((uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.LifecycleSettingsJson), report.SettingsBytes);
@@ -176,16 +175,14 @@ internal static class NativeAotServiceStartupReplayTests
     private static void LifecyclePrefixOrder()
     {
         string prefix = Prefix.Replace("CLROS_APP_CCTOR", GcBegin + "CLROS_APP_CCTOR", StringComparison.Ordinal);
-        string raw = Raw(prefix: prefix, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
-            .Replace("envc=2", "envc=3", StringComparison.Ordinal);
+        string raw = Raw(prefix: prefix, lifecycle: true, entryMemory: EntryMemory);
         Reject(raw, lifecycle: true);
     }
 
     [HostTest("service v2 startup rejects crossed or unknown listening versions and inconsistent environment metadata")]
     private static void LifecycleStartupControls()
     {
-        string raw = Raw(listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal))
-            .Replace("envc=2", "envc=3", StringComparison.Ordinal);
+        string raw = Raw(lifecycle: true, entryMemory: EntryMemory);
         foreach (string bad in new[] {
             raw.Replace("contract=v2", "contract=v1", StringComparison.Ordinal), raw.Replace("contract=v2", "contract=v3", StringComparison.Ordinal),
             Change(raw, "M16_014_ENTER ", r => r.Replace("envc=3", "envc=2", StringComparison.Ordinal)),
@@ -207,6 +204,20 @@ internal static class NativeAotServiceStartupReplayTests
             HostCheck.Equal(3UL, report.SettingsOrdinal); HostCheck.True(raw.AsSpan().SequenceEqual(before));
             Array.Fill(raw, (byte)0); HostCheck.Equal(Writer, report.WriterIdentity);
         }
+    }
+
+    [HostTest("configured startup binds the first memory snapshot to its adjacent first call and preserves legacy spacing", HostLane.Fast, 1)]
+    private static void ConfiguredEntryMemory()
+    {
+        const string memory = EntryMemory;
+        string raw = Raw(lifecycle: true, entryMemory: memory);
+        HostCheck.Equal(Writer, Read(raw, lifecycle: true).WriterIdentity);
+        Reject(Raw(lifecycle: true), lifecycle: true);
+        foreach (string changed in new[] { memory + memory, memory.Replace("nr=12", "nr=9", StringComparison.Ordinal),
+            memory.Replace("reserved=0", "reserved=0 extra=1", StringComparison.Ordinal), Frame(memory) })
+            Reject(Raw(lifecycle: true, entryMemory: changed), lifecycle: true);
+        Reject(Raw(entryMemory: memory));
+        _ = Read(Raw());
     }
 
     [HostTest("service startup replay rejects missing duplicate unknown reordered and payload-forged native observations", HostLane.Fast, 1)]
@@ -315,13 +326,18 @@ internal static class NativeAotServiceStartupReplayTests
         catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
     }
-    private static string Raw(bool segmented = false, string? prefix = null, string listening = Listening, uint listenChannel = 2)
+    private const string EntryMemory = "M16_014_MEMORY nr=12 regions=0 regionLimit=256 backed=0 pool=8192 reserved=0\r\n";
+
+    private static string Raw(bool segmented = false, string? prefix = null, string listening = Listening, uint listenChannel = 2,
+        bool lifecycle = false, string? entryMemory = null)
     {
         prefix ??= Prefix; int last = prefix.LastIndexOf("CLROS_APP_BUILT", StringComparison.Ordinal);
         string beforeBuilt = prefix[..last], built = prefix[last..];
-        uint settings = (uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.SettingsJson);
+        uint settings = (uint)Encoding.UTF8.GetByteCount(lifecycle ? NativeAotServicePackage.LifecycleSettingsJson : NativeAotServicePackage.SettingsJson);
+        int environmentCount = lifecycle ? 3 : 2;
+        if (lifecycle && listening == Listening) listening = Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal);
         List<string> rows = ["TEST_START m16.014\r\n", "TEST_START m16.014.startup\r\n",
-            $"M16_014_ENTER identity={Writer} rip=4198402 argc=5 envc=2 configBytes={settings}\r\n"];
+            $"M16_014_ENTER identity={Writer} rip=4198402 argc=5 envc={environmentCount} configBytes={settings}\r\n"];
         Dictionary<ulong, ulong> ordinals = []; ulong clock = 0;
         void Call(ulong identity, ulong nr, ulong fd, ulong count, ulong value)
         {
@@ -335,6 +351,7 @@ internal static class NativeAotServiceStartupReplayTests
             foreach (string part in parts) rows.Add(Frame(part, channel));
             rows.Add(metadata); Call(identity, segmented ? 20UL : 1UL, channel, segmented ? (ulong)parts.Length : (ulong)text.Length, (ulong)text.Length);
         }
+        if (entryMemory is not null) rows.Add(entryMemory);
         Call(Writer, 12, 0, 0, 0);
         Write(Writer, beforeBuilt);
         rows.Add($"M16_014_CONFIG fd=3 bytes={settings} source=immutable-package copied=user\r\n");
@@ -342,7 +359,7 @@ internal static class NativeAotServiceStartupReplayTests
         Write(Writer, built, $"M16_014_STARTUP writer={Writer} stages=4\r\n");
         rows.Add($"M16_014_BIND identity={Binder} fd=6\r\n"); Call(Binder, 49, 6, 16, 0);
         rows.Add("M16_014_LISTEN fd=6 address=0 port=8080 owner=live\r\n"); Call(Binder, 50, 6, 512, 0);
-        string live = $"M16_014_LIVE argc=5 envc=2 configBytes={settings} bindFd=6 stdoutBytes={(listenChannel == 1 ? listening.Length : 0)} stderrBytes={prefix.Length + (listenChannel == 2 ? listening.Length : 0)} active=2 clock={clock} owner=retained externalHttp=required\r\n" +
+        string live = $"M16_014_LIVE argc=5 envc={environmentCount} configBytes={settings} bindFd=6 stdoutBytes={(listenChannel == 1 ? listening.Length : 0)} stderrBytes={prefix.Length + (listenChannel == 2 ? listening.Length : 0)} active=2 clock={clock} owner=retained externalHttp=required\r\n" +
             "CLROS_M16_014_LISTENING\r\nTEST_PASS m16.014.startup\r\n";
         Write(Binder, listening, live, listenChannel);
         return string.Concat(rows);

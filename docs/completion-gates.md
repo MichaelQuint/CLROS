@@ -1,5 +1,16 @@
 # CLROS Completion Gates
 
+[Step1470](../done/step1470.md) retains an actual833s current-image configured
+guest: managed/native exhaustion and recovery, lifecycle/drain,986 memory
+snapshots, zero end backing and genuine20-worker reap. The original service
+consumer rejects new first-call memory metadata; a host-only adjacency repair
+passes17 focused checks and independently replays unchanged serial/PCAP/peer
+bytes. The original failed pipeline stays failed. Peak backing31.73MiB fits32MiB;
+the conservative GC-plus-ordinary estimate39.56MiB does not fit and may double
+count managed backing. Native headroom is unqualified. Eight changed native own
+bodies are reviewed; full stack/native, ancestors and full-host remain pending.
+No issue or additional gate is accepted.
+
 [Step1469](../done/step1469.md) adds post-dispatch memory snapshots for every
 configured-v2 memory operation and a strict reader for ordinary churn, native
 pressure failures and conservative headroom.50 scoped focused checks and EFI

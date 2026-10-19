@@ -80,7 +80,15 @@ public static partial class QemuTranscripts
         var parsed = returns.ToDictionary(item => item.Key, item => ReadRecord(calls[item.Key], "M16_008_CALL", WebCallFields));
         Need(parsed.Count > 0, "service_startup_calls");
         int first = parsed.Keys.Min();
-        Need(first == enter + 1 && returns[first].Ordinal == 1 && entry["identity"] == parsed[first]["identity"] &&
+        int entryCall = enter + 1;
+        if (lifecycle && parsed[first]["nr"] is 9 or 10 or 11 or 12 or 25 or 28)
+        {
+            var memory = ReadRecord(rows[entryCall++], "M16_014_MEMORY", "nr:dec", "regions:dec", "regionLimit:dec", "backed:dec", "pool:dec", "reserved:dec");
+            Need(memory["nr"] == parsed[first]["nr"], "service_startup_memory_call");
+            // Full memory bounds, operation coverage and pressure joins belong
+            // to the independent memory replay before complete acceptance.
+        }
+        Need(first == entryCall && returns[first].Ordinal == 1 && entry["identity"] == parsed[first]["identity"] &&
             entry["rip"] == parsed[first]["rip"], "service_startup_entry");
         Need(parsed.TryGetValue(config + 1, out var read) && read["nr"] is 0 or 17 or 19 && read["a0"] == settings["fd"] &&
             read["action"] == 1 && read["status"] == 1 && read["valueBits"] > 0 && read["valueBits"] <= settingsBytes &&
