@@ -298,21 +298,23 @@ and eight changed own-body/unwind reviews are retained, with one explicitly
 changed host-consumer source at readback. Complete native/transitive stack,
 headroom, ancestors and corrected-runner full-host remain pending. No new gate.
 
-[Step1473](../done/step1473.md) retains a fresh original configured-service pass
-at c4367516. Both managed/native pressure and recovery phases, packet/resource
-replay, 18 reaps and terminal zero backing pass the original producer. The
-ordinary non-GC upper bound is 19050496 B; adding the 16 MiB GC cap gives
-35827712 B, within the 37748736 B pool. Actual static charge yields 63049728 B,
-within the 67108864 B entitlement. Original EFI/object bytes match step1472.
+[Step1474](../done/step1474.md) retains the corrected original configured-service
+pass at ef8665e0. Both managed/native pressure and fresh recovery phases, complete
+packet/resource replay, 20 reaps and terminal zero backing pass the original
+producer. Actual native retained pressure is 25 MiB at begin and 15 MiB at end.
+The conservative non-GC upper bound is 18776064 B; adding the 16 MiB GC cap gives
+35553280 B within the 37748736 B pool. Static charge gives 62775296 B within the
+67108864 B entitlement. This remains one finite workload observation.
 
-The subsequent M16-026 correction removes two callback limits that blocked
-513-1024 vectors. The core preflights the complete user table and copies metadata
-in at most 8 KiB chunks. Its observer authenticates the entire fixed 16 KiB
-snapshot within one retained kernel extent, including normal smaller messages;
-unused entries are not read. Ordinary copy limits remain 8 KiB. Bounded callback,
-late-copy-failure and ownership regressions pass within 49 focused checks.
-Fresh corrected-image native/guest evidence, finite ancestors, bounded connected
-message stack review and repaired-runner full-host remain required.
+M16-026 preflights the complete user table and copies metadata in at most 8 KiB
+chunks. The guest observer authenticates one complete 16 KiB retained snapshot,
+including smaller messages, without reading unused entries. Ordinary copies
+remain 8 KiB. The 49 focused checks from step1473 remain current; 513/1024 populated
+vectors are host-tested. Five changed original native bodies have bounded review.
+The connected-message stack bound is 54448 B, including actual entry, callbacks,
+return slots and probe peaks, within the separate 65536 B syscall stack. This
+does not establish whole-kernel or upstream application/runtime stack bounds.
+Affected finite ancestors and repaired-runner full-host remain required.
 
 [Step1472](../done/step1472.md) runs the configured 36 MiB pool in CLROS. Both
 managed phases catch OOM and verify fresh live recovery; native phases verify,

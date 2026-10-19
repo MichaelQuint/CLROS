@@ -1,16 +1,16 @@
 # CLROS Completion Gates
 
-[Step1473](../done/step1473.md) retains a fresh original configured-service
-producer pass at c4367516: 839 seconds, 18 reaps, complete packet/resource replay
-and zero end backing. Its original EFI/object bytes match step1472. The measured
-GC-plus-non-GC bound is 35827712 B; static-inclusive charge is 63049728 B, within
-the configured pool and entitlement. Review then found two 8 KiB callback limits
-blocking 513-1024 socket vectors. The core now copies fully preflighted metadata
-in bounded chunks; the observer authenticates one complete 16 KiB owned extent.
-49 focused checks and freestanding C# compilation pass. This kernel correction
-still requires fresh original native/guest evidence, affected ancestors, bounded
-connected-message stack review and corrected-runner full-host. No issue or gate
-is accepted.
+[Step1474](../done/step1474.md) retains the corrected original configured-service
+producer pass at ef8665e0: 843 seconds, 20 reaps, complete packet/resource replay
+and zero end backing. Full 16 KiB metadata authentication executes in the guest;
+513/1024 populated-vector boundaries remain focused host evidence. Five original
+native bodies and one actual unwind change have bounded review. The connected
+message route, including entry, callbacks, return slots and probe peaks, has a
+54448 B conservative bound within its actual 65536 B syscall stack. Worker entry
+frames remain on a separate stack. GC-plus-non-GC bound 35553280 B and static-
+inclusive charge 62775296 B fit configured pool/entitlement. The 49 focused checks
+from step1473 remain current. Affected finite ancestors and corrected-runner
+full-host remain pending; no issue or gate is accepted.
 
 [Step1472](../done/step1472.md) retains an actual 831-second configured 36 MiB
 guest with both managed/native recovery phases, 20 reaps and zero end backing.
