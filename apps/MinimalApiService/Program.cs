@@ -20,6 +20,7 @@ if (!OperatingSystem.IsLinux())
 Console.Error.WriteLine("CLROS_APP_ENTRY minimal.api.service");
 try
 {
+    if (lifecycle) Console.Error.WriteLine("CLROS_SERVICE_GC_BEGIN " + ServiceLifecycleExercise.MeasureGcBudget());
     var witness = new ServiceStartupWitness();
     Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
     var builder = WebApplication.CreateSlimBuilder(args);
@@ -36,7 +37,11 @@ try
     using var exercise = new ServiceExercise(app.Lifetime.StopApplication);
     var lifecycleExercise = lifecycle ? new ServiceLifecycleExercise() : null;
     using var stopping = app.Lifetime.ApplicationStopping.Register(exercise.RequestStop);
-    using var started = app.Lifetime.ApplicationStarted.Register(() => Console.Error.WriteLine("CLROS_SERVICE_LISTEN contract=" + (lifecycle ? "v2" : "v1") + " endpoint=0.0.0.0:8080"));
+    using var started = app.Lifetime.ApplicationStarted.Register(() =>
+    {
+        Console.Error.WriteLine("CLROS_SERVICE_LISTEN contract=" + (lifecycle ? "v2" : "v1") + " endpoint=0.0.0.0:8080");
+        if (lifecycle) Console.Error.WriteLine("CLROS_M10_011_READY");
+    });
 
     app.MapGet("/healthz", () => TypedResults.Text("CLROS_SERVICE_HEALTH_OK", "text/plain"));
     if (lifecycleExercise is not null)
@@ -77,6 +82,12 @@ try
     exercise.Dispose(); // Join the dedicated worker before allowing process exit.
     var final = exercise.Read();
     if (!exercise.Completed) { Console.Error.WriteLine("CLROS_SERVICE_FAIL shutdown"); return 70; }
+    if (lifecycleExercise is not null)
+    {
+        if (!lifecycleExercise.IsDrained) { Console.Error.WriteLine("CLROS_SERVICE_FAIL lifecycle_drain"); return 70; }
+        Console.Error.WriteLine("CLROS_SERVICE_LIFECYCLE_END " + lifecycleExercise.Read());
+        Console.Error.WriteLine("CLROS_SERVICE_GC_END " + ServiceLifecycleExercise.MeasureGcBudget());
+    }
     Console.Error.WriteLine($"CLROS_SERVICE_APP_END calls={final.Calls} randomRequests={final.RandomRequests} randomBytes={final.RandomBytes} iterations={final.Iterations} elapsedMillis={final.ElapsedMilliseconds} worker=joined");
     GC.KeepAlive(witness);
     return 0;

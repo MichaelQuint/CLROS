@@ -180,6 +180,13 @@ half the pool, not a GC/native page partition or measured sufficiency guarantee.
 pass. Configured admission emits `M16_016_BUDGET`; actual guest runtime sizing,
 resource peaks and pressure/recovery remain unvalidated. No configured app has
 yet been published or accepted under this policy.
+Step1451 seals the16MiB setting in the explicit v2 service envelope and adds
+actual app GC begin/end, lifecycle-drain and application-start readiness witnesses.
+10 focused checks pass. The actual helper source runs through the pinned Linux
+static NativeAOT recipe: two live2MiB collections report16MiB limits and
+4,165,632/4,386,816 committed bytes; an8MiB control rejects. This is helper-only
+Linux-host evidence. Full service publication/pins, v2 runner/report/packet
+integration, actual guest measurements and native pressure/recovery remain pending.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+[Step1451](../done/step1451.md) prepares the configured v2 service envelope and
+actual GC/lifecycle terminal witnesses.10 focused checks and the actual GC helper
+under pinned Linux-host static NativeAOT pass (two live2MiB/16MiB observations
+and an8MiB rejection). The complete service has not been republished or executed
+with this policy; v2 runner/report/packet integration and guest pressure/native
+headroom validation remain pending. No acceptance or gate advances.
+
 [Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
 sealed retained reservation ledger and actual dynamic pool.43 focused checks
 (9GC/34startup) and continuing-service freestanding C# compilation pass. Declared

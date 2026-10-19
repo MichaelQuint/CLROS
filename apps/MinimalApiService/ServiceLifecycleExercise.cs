@@ -25,6 +25,32 @@ internal sealed class ServiceLifecycleExercise
 
     internal static byte ByteAt(int offset) => unchecked((byte)(offset * 17 + 31));
 
+    /// <summary>Explicit v2-only runtime observation under the canonical16MiB
+    /// workstation GC limit. Retain32 live64KiB arrays across a forced collection,
+    /// then release them before serving/shutdown continues. Failure rejects this
+    /// diagnostic run. Values describe GC only, never native headroom or quota
+    /// recovery; host observations grant no guest execution authority.</summary>
+    internal static string MeasureGcBudget()
+    {
+        const long expected = 16 * 1024 * 1024, liveBytes = 2 * 1024 * 1024;
+        if (!OperatingSystem.IsLinux() || System.Runtime.GCSettings.IsServerGC)
+            throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT runtime");
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        var before = GC.GetGCMemoryInfo();
+        if (before.TotalAvailableMemoryBytes != expected)
+            throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT limit");
+        byte[][] held = new byte[32][];
+        for (int i = 0; i < held.Length; i++) { held[i] = new byte[65536]; held[i].AsSpan().Fill((byte)(i + 1)); }
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        var live = GC.GetGCMemoryInfo();
+        if (live.TotalAvailableMemoryBytes != expected || live.HeapSizeBytes < liveBytes ||
+            live.TotalCommittedBytes < live.HeapSizeBytes || live.TotalCommittedBytes > expected)
+            throw new InvalidOperationException("CLROS_SERVICE_GC_REJECT accounting");
+        string result = string.Create(CultureInfo.InvariantCulture,
+            $"limit={live.TotalAvailableMemoryBytes} baselineHeap={before.HeapSizeBytes} baselineCommitted={before.TotalCommittedBytes} liveBytes={liveBytes} liveHeap={live.HeapSizeBytes} liveCommitted={live.TotalCommittedBytes}");
+        GC.KeepAlive(held); return result;
+    }
+
     internal async Task<EchoResult> ReadEchoAsync(Stream input, long? contentLength, CancellationToken cancellation)
     {
         if (contentLength != EchoBytes) { Interlocked.Increment(ref rejected); return default; }

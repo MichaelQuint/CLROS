@@ -16,6 +16,7 @@ public static class NativeAotServicePackage
     public const string LifecycleArguments = "--clros-service=v2 --urls=http://0.0.0.0:8080 --contentRoot /app/apps";
     public const string LifecycleSettingsJson = "{\"CLROS_SERVICE_CONTRACT\":\"v2\"}";
     public const uint MemoryBytes = 67_108_864, StackBytes = 1_572_864, Threads = 16, Descriptors = 16;
+    public const ulong LifecycleGcLimitBytes = 16_777_216;
 
     /// <summary>Numeric/identity observation only. A matching envelope does not
     /// establish that its payload is the reviewed original service executable.</summary>
@@ -48,14 +49,15 @@ public static class NativeAotServicePackage
             Need(LinuxElfPackage.GetDataFile(source, (uint)package.Length, 0, out var data) == LinuxElfStatus.Success, "service_package_settings");
             Need(package.Slice((int)data.PathOffset, (int)data.PathBytes).SequenceEqual("apps/appsettings.json"u8) &&
                 package.Slice((int)data.DataOffset, (int)data.DataBytes).SequenceEqual(Encoding.ASCII.GetBytes(lifecycle ? LifecycleSettingsJson : SettingsJson)), "service_package_settings_identity");
-            return new(image.Sha256, 5, 2, data.DataBytes);
+            return new(image.Sha256, 5, view.Manifest.EnvironmentCount, data.DataBytes);
         }
     }
 
     private static string Manifest(string digest, bool lifecycle) => "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" +
         "app.path=" + ApplicationPath + "\nargs=" + (lifecycle ? LifecycleArguments : Arguments) + "\ndigest=" + digest.ToLowerInvariant() +
         "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=0.0.0.0:8080\n" +
-        "env.CLROS_USER_IRQS=1\nenv.DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false\n";
+        "env.CLROS_USER_IRQS=1\nenv.DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false\n" +
+        (lifecycle ? "env.DOTNET_GCHeapHardLimit=1000000\n" : "");
 
     private static void Need(bool condition, string reason) { if (!condition) throw new InvalidDataException(reason); }
 }
