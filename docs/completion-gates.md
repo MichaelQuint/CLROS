@@ -1,5 +1,17 @@
 # CLROS Completion Gates
 
+[Step1473](../done/step1473.md) retains a fresh original configured-service
+producer pass at c4367516: 839 seconds, 18 reaps, complete packet/resource replay
+and zero end backing. Its original EFI/object bytes match step1472. The measured
+GC-plus-non-GC bound is 35827712 B; static-inclusive charge is 63049728 B, within
+the configured pool and entitlement. Review then found two 8 KiB callback limits
+blocking 513-1024 socket vectors. The core now copies fully preflighted metadata
+in bounded chunks; the observer authenticates one complete 16 KiB owned extent.
+49 focused checks and freestanding C# compilation pass. This kernel correction
+still requires fresh original native/guest evidence, affected ancestors, bounded
+connected-message stack review and corrected-runner full-host. No issue or gate
+is accepted.
+
 [Step1472](../done/step1472.md) retains an actual 831-second configured 36 MiB
 guest with both managed/native recovery phases, 20 reaps and zero end backing.
 Its process/serial checks pass; the original full consumer fails GC startup

@@ -22,6 +22,7 @@ public static unsafe partial class EfiEntry
         private static byte ObserveLinuxSocketMessage(void* context, ulong number, uint fd, ulong header,
             ulong flags, ulong table, ulong* vectors, uint count, uint total)
         {
+            const uint snapshotBytes = LinuxSocketServices.MaximumMessageVectors * 16;
             Storage* state = (Storage*)context;
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || state->NetworkPhase != 2 ||
@@ -29,7 +30,10 @@ public static unsafe partial class EfiEntry
                 c->Threads.Current.Value != c->Plan.Bindings[c->Selected - 1].Context.Identity ||
                 number is not (46 or 47) || count > LinuxSocketServices.MaximumMessageVectors ||
                 total > LinuxSocketServices.MaximumMessageBytes ||
-                count != 0 && !LinuxThreadKernelRange(c, (byte*)vectors, count * 16, false) ||
+                // Both message callers allocate the full fixed snapshot even
+                // for fewer vectors. Authenticate all of it without reading
+                // unused entries; normal calls exercise this exact capacity.
+                !LinuxThreadKernelRange(c, (byte*)vectors, snapshotBytes, false, snapshotBytes) ||
                 !LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out var token)) return 0;
             LinuxSyscallFrame* frame = (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset);
             if (frame->Number != number || (uint)frame->Argument0 != fd || frame->Argument1 != header ||

@@ -429,7 +429,21 @@ public static unsafe class LinuxSocketServices
         if (receive && (!Writable(state, address + 8, 4) || !Writable(state, address + 40, 8) ||
             !Writable(state, address + 48, 4))) return Fault;
         uint count = (uint)header[3];
-        if (count != 0 && !Input(state, header[2], (byte*)vectors, count * 16)) return Fault;
+        uint vectorBytes = count * 16;
+        if (count != 0)
+        {
+            // Preflight the complete table before copying any metadata. The
+            // retained input callback borrows at most 8 KiB per operation.
+            if (!LinuxSyscallGateway.ValidateRange(header[2], vectorBytes, LinuxUserPageAccess.Read,
+                state->Descriptors->Owner.User)) return Fault;
+            for (uint copied = 0; copied < vectorBytes;)
+            {
+                uint bytes = vectorBytes - copied;
+                if (bytes > 8192) bytes = 8192;
+                if (!Input(state, header[2] + copied, (byte*)vectors + copied, bytes)) return Fault;
+                copied += bytes;
+            }
+        }
         for (uint i = 0; i < count; i++)
         {
             ulong bytes = vectors[i * 2 + 1];

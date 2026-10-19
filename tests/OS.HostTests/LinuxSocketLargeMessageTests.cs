@@ -39,6 +39,7 @@ internal static unsafe class LinuxSocketLargeMessageTests
     private static void MessageBoundaries()
     {
         using var model = new Model(); using var connection = SocketCases.Connection();
+        model.Files.Context->MaximumInputBytes = 8192;
         uint fd = model.Accept(model.Listen(), connection); model.Option(fd, 1, 7, 4);
         Message(model, Enumerable.Repeat((0UL, 0UL), 1024).ToArray());
         byte[] empty = new ReadOnlySpan<byte>(connection.Owner, sizeof(Tx.Owner)).ToArray();
@@ -128,6 +129,63 @@ internal static unsafe class LinuxSocketLargeMessageTests
         HostCheck.True(table.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(model.Files.Memory.At(Vectors), 272)));
         HostCheck.True(new ReadOnlySpan<byte>(model.Files.Memory.At(Header + 56), 16).IndexOfAnyExcept((byte)0x7c) < 0);
         Finish(model, connection, fd);
+    }
+
+    [HostTest("m16-026 513 and 1024 vector messages use bounded input callbacks and retain the last vector")]
+    private static void BoundedMetadataCopies()
+    {
+        foreach (int count in new[] { 513, 1024 })
+        foreach (ulong number in new[] { 46UL, 47UL })
+        {
+            using var model = new Model(); using var connection = SocketCases.Connection();
+            uint fd = model.Accept(model.Listen(), connection);
+            model.Files.Context->MaximumInputBytes = 8192;
+            const ulong data = User + 28672;
+            var vectors = new (ulong Address, ulong Bytes)[count]; vectors[^1] = (data, 1);
+            Message(model, vectors); *model.Files.Memory.At(data) = (byte)'Q';
+            if (number == 47)
+            {
+                *model.Files.Memory.At(data) = 0xa5;
+                HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(connection.Owner,
+                    Wire.Packet(100, "Q"u8, ack: 700, flags: 0x18), out _));
+            }
+            HostCheck.Equal(1L, model.Call(number, fd, Header));
+            if (number == 46) HostCheck.Equal((byte)'Q', *connection.Buffer);
+            else { HostCheck.Equal((byte)'Q', *model.Files.Memory.At(data)); HostCheck.Equal(0, connection.Receiver->UnreadBytes); }
+            Finish(model, connection, fd);
+        }
+    }
+
+    [HostTest("m16-026 second metadata chunk failure preserves transport user memory and descriptor ownership")]
+    private static void LaterMetadataCopyFailure()
+    {
+        foreach (ulong number in new[] { 46UL, 47UL })
+        {
+            using var model = new Model(); using var connection = SocketCases.Connection();
+            uint fd = model.Accept(model.Listen(), connection);
+            model.Files.Context->MaximumInputBytes = 8192;
+            const ulong data = User + 28672;
+            var vectors = new (ulong Address, ulong Bytes)[1024]; vectors[^1] = (data, 1);
+            Message(model, vectors); *model.Files.Memory.At(data) = 0xa5;
+            HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(connection.Owner,
+                Wire.Packet(100, "Q"u8, ack: 700, flags: 0x18), out _));
+            HostCheck.True(LinuxDescriptorServices.Capture(model.Files.State, fd, out var token));
+            byte[] owner = new ReadOnlySpan<byte>(connection.Owner, sizeof(Tx.Owner)).ToArray();
+            byte[] receiver = new ReadOnlySpan<byte>(connection.Receiver, sizeof(OS.Net.TcpReceiveWindow.Owner)).ToArray();
+            byte[] user = new ReadOnlySpan<byte>(model.Files.Memory.At(Header), 28672 - 4096 + 1).ToArray();
+            uint outputs = model.Files.Context->OutputCopies;
+            model.Files.Context->InputCopies = 0; model.Files.Context->FailInputAt = 3;
+            HostCheck.Equal(-14L, model.Call(number, fd, Header));
+            HostCheck.Equal(3U, model.Files.Context->InputCopies);
+            HostCheck.Equal(outputs, model.Files.Context->OutputCopies);
+            HostCheck.True(owner.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(connection.Owner, sizeof(Tx.Owner))));
+            HostCheck.True(receiver.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(connection.Receiver, sizeof(OS.Net.TcpReceiveWindow.Owner))));
+            HostCheck.True(user.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(model.Files.Memory.At(Header), user.Length)));
+            HostCheck.True(LinuxDescriptorServices.IsCurrent(model.Files.State, token));
+            model.Files.Context->FailInputAt = 0;
+            HostCheck.Equal(1L, model.Call(number, fd, Header));
+            Finish(model, connection, fd);
+        }
     }
 
     private static void Message(Model model, params (ulong Address, ulong Bytes)[] vectors)

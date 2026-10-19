@@ -298,6 +298,22 @@ and eight changed own-body/unwind reviews are retained, with one explicitly
 changed host-consumer source at readback. Complete native/transitive stack,
 headroom, ancestors and corrected-runner full-host remain pending. No new gate.
 
+[Step1473](../done/step1473.md) retains a fresh original configured-service pass
+at c4367516. Both managed/native pressure and recovery phases, packet/resource
+replay, 18 reaps and terminal zero backing pass the original producer. The
+ordinary non-GC upper bound is 19050496 B; adding the 16 MiB GC cap gives
+35827712 B, within the 37748736 B pool. Actual static charge yields 63049728 B,
+within the 67108864 B entitlement. Original EFI/object bytes match step1472.
+
+The subsequent M16-026 correction removes two callback limits that blocked
+513-1024 vectors. The core preflights the complete user table and copies metadata
+in at most 8 KiB chunks. Its observer authenticates the entire fixed 16 KiB
+snapshot within one retained kernel extent, including normal smaller messages;
+unused entries are not read. Ordinary copy limits remain 8 KiB. Bounded callback,
+late-copy-failure and ownership regressions pass within 49 focused checks.
+Fresh corrected-image native/guest evidence, finite ancestors, bounded connected
+message stack review and repaired-runner full-host remain required.
+
 [Step1472](../done/step1472.md) runs the configured 36 MiB pool in CLROS. Both
 managed phases catch OOM and verify fresh live recovery; native phases verify,
 release and recover after 25 MiB/18 MiB pressure. The measured ordinary non-GC
