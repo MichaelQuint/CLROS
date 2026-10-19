@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+[Step1449](../done/step1449.md) prepares M16-016 absolute GC-budget preflight
+with43 focused host checks. Startup wiring and guest budget authority remain
+pending. The shared pointer hexadecimal overload supports complete borrowed
+ASCII unsigned64-bit input with optional `0x`/`0X`, no allocations/exceptions,
+boolean success and zero-on-failure. It rejects null/empty/wrapping/malformed/
+overflow input; readable input must be disjoint from output. Pointer32-bit,
+signed, culture and partial-token parsing remain unsupported. Host tests are
+not original native or guest proof; no gate advances.
+
 [Owned development receipt](../done/step1422.md) is a development checkpoint for #743/#744/#757
 transport repairs and #746 policy contracts. Its 127 focused checks span
 multiple development producers; they are not an unfiltered full-host run.

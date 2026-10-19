@@ -3,6 +3,8 @@ namespace OS.Tooling;
 public static partial class EfiContracts
 {
     public static IReadOnlyList<string> ReviewedSourceIncludes { get; } = Array.AsReadOnly<string>([
+        @"..\OS.Kernel\Manifest\LinuxAppConfiguration.cs",
+        @"..\..\std\no-runtime\shared\Text\AsciiHexParser.Pointer.cs",
         @"Boot\EfiEntry.Realtime.cs", @"..\OS.Kernel\Platform\OwnedRealtimeClock.cs",
         @"..\..\std\no-runtime\shared\Time\GregorianUtc.cs",
         @"Boot\EfiEntry.NetworkTcp.cs", @"Boot\EfiEntry.NetworkScheduler.cs",

@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "cf88ca96ece7c87d4fc982cdeb72708b608b073e4be8cc3545731559cba96a63";
-    public const string CanonicalProjectSha256 = "adaa0507686c9d00e68c88760bd0dd1ee01b7eaf4485013dadaf79723f3593ce";
+    public const string ProjectSourceSha256 = "7966c7890cf35269abac2695e363bbe15a60b692c6d2535e7929dd13f4a2ae49";
+    public const string CanonicalProjectSha256 = "da1092540f07cafbd13118f43513e283145503fcc4e09955b071aa88e7c9fd8b";
     public const string EfiEntrySourceSha256 = "4da71dacdf24846cb1168af8850dfe2f3ef7032271eb802495e48f0ed40a9643";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -311,6 +311,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs|Runtime\CompilerClassConstructorExecution.Invocation.cs",
         @"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs|Runtime\BoundedExceptionFrameDispatch.cs",
         @"..\OS.Kernel\Manifest\LinuxElfPackage.cs|Manifest\LinuxElfPackage.cs",
+        @"..\OS.Kernel\Manifest\LinuxAppConfiguration.cs|Manifest\LinuxAppConfiguration.cs",
+        @"..\..\std\no-runtime\shared\Text\AsciiHexParser.Pointer.cs|Std\Text\AsciiHexParser.Pointer.cs",
         @"..\..\std\no-runtime\shared\Hash\Sha256.cs|Std\Hash\Sha256.cs",
         @"..\..\std\no-runtime\shared\Hash\HmacSha256.cs|Std\Hash\HmacSha256.cs",
         @"..\..\std\no-runtime\shared\Hash\HmacSha256Drbg.cs|Std\Hash\HmacSha256Drbg.cs",

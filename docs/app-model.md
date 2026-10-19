@@ -165,6 +165,11 @@ yielding1,029,279,744 bytes. The absolute8MiB limit wins alongside50percent;
 physical high-memory threshold remains3,705,407,078 bytes. This supports a bounded
 absolute setting rather than a RAM-derived entitlement. It is host sizing only;
 guest native/GC pressure, headroom accounting and quota cleanup remain pending.
+Step1449 adds value-only preflight for the exact `DOTNET_GCHeapHardLimit` key,
+binding an aligned absolute limit to actual pool pages and explicit static/native
+reservations within the manifest entitlement.43 focused host checks pass;
+malformed limits, aliases, percentages and competing overrides fail closed.
+The preflight is not yet wired into startup and grants no applied budget authority.
 No GC sizing failure was demonstrated by the source review. Verify the selected
 configuration inside the guest before claiming a working budget. M14-006/#291
 extends this model to private process budgets; M16-017 user-fault containment

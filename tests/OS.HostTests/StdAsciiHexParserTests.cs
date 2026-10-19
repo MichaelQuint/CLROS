@@ -4,6 +4,23 @@ using OS.Std.Text;
 
 internal static class StdAsciiHexParserTests
 {
+    [HostTest("std.ascii.hex pointer parser matches complete managed parsing and rejects wrapping ranges")]
+    private static unsafe void PointerValues()
+    {
+        foreach (string text in new[] { "", "0", "0x0", "0Xabcdef", "000001", "FFFFFFFFFFFFFFFF", "10000000000000000", "0x", " 1", "-1", "1z", "1\0", "é" })
+        {
+            byte[] input = System.Text.Encoding.UTF8.GetBytes(text);
+            bool expected = AsciiHexParser.TryParseUInt64(input, out ulong managed);
+            fixed (byte* p = input)
+            {
+                bool actual = AsciiHexParser.TryParseUInt64(p, (uint)input.Length, out ulong value);
+                HostCheck.Equal(expected, actual, text); HostCheck.Equal(managed, value, text);
+            }
+        }
+        HostCheck.True(!AsciiHexParser.TryParseUInt64(null, 1, out ulong missing) && missing == 0);
+        HostCheck.True(!AsciiHexParser.TryParseUInt64((byte*)(nuint.MaxValue - 3), 8, out ulong wrapped) && wrapped == 0);
+        fixed (byte* p = "1000000tail"u8) HostCheck.True(AsciiHexParser.TryParseUInt64(p, 7, out ulong bounded) && bounded == 16 * 1024 * 1024);
+    }
 
     [HostTest("std.ascii.hex parses uint32 values", HostLane.Fast, 0)]
     private static void TestParseUInt32Values()
