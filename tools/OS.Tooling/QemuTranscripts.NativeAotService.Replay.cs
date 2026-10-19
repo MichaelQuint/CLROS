@@ -10,7 +10,7 @@ public static partial class QemuTranscripts
     /// ABI, NIC, packet, peer, runner or guest-qualification authority.</summary>
     public readonly record struct ServiceReplayReport(ThreadingProtocolReport Protocol,ServiceStartupInspection Startup,
         ServiceRandomInspection Random,ServiceTransportInspection Transport,int SocketAccepts=0,ulong SocketSent=0,ulong SocketReceived=0,
-        ServiceGcInspection? Gc=null);
+        ServiceGcInspection? Gc=null,ServiceMemoryInspection? Memory=null);
 
     /// <summary>Borrow an original package, sealed prepared service program and
     /// bounded complete raw leaf (including preceding seed/bound observations).
@@ -41,6 +41,7 @@ public static partial class QemuTranscripts
         var gc=ReadServiceGc(framed,entitlementBytes,lifecycle,out var gcBudgetPosition,out var gcMemoryPosition);
         if(gcBudgetPosition.HasValue)metadata.Add(gcBudgetPosition.Value);
         if(gcMemoryPosition.HasValue)metadata.Add(gcMemoryPosition.Value);
+        var memory=ReadServiceMemory(framed,lifecycle,gc,out var memoryPositions);metadata.UnionWith(memoryPositions);
         var random=ReadServiceRandom(original);var transport=ReadServiceTransport(original,out var network);
         metadata.UnionWith(network);ServiceRuntimeMetadata(original,startup,metadata);
         for(int i=0;i<original.Length;i++)
@@ -57,7 +58,7 @@ public static partial class QemuTranscripts
         var protocol=replay.Validate();var counts=replay.ServiceSocketCounts();
         Need((ulong)protocol.Calls>=random.Requests && protocol.Reaped==protocol.Clones+1 && transport.Connections>=10,
             "service_complete_joins");
-        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received,gc);
+        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received,gc,memory);
     }
 
     private sealed partial class ThreadingProtocol
@@ -88,23 +89,6 @@ public static partial class QemuTranscripts
         Need(group>closed && transportEnd>group && randomEnd>transportEnd && sequenceEnd==randomEnd+1 && budgetEnd>sequenceEnd &&
             Enumerable.Range(group+1,randomEnd-group-1).Any(index=>rows[index].StartsWith("M16_008_REAP ",StringComparison.Ordinal)) &&
             !returns.Keys.Any(index=>index>group),"service_runtime_cleanup_order");
-        for(int index=0;index<rows.Length;index++)
-        {
-            if(!rows[index].StartsWith("M16_014_MEMORY ",StringComparison.Ordinal))continue;
-            var memory=ReadRecord(rows[index],"M16_014_MEMORY","nr:dec","regions:dec","regionLimit:dec","backed:dec","pool:dec","reserved:dec");
-            Need(index+1<rows.Length && returns.ContainsKey(index+1),"service_memory_observation_call");
-            var failed=ReadRecord(calls[index+1],"M16_008_CALL",WebCallFields);
-            Need(memory["nr"] is 9 or 10 or 11 or 12 or 28 && failed["nr"]==memory["nr"] && failed["valueBits"]==unchecked((ulong)-12L) &&
-                failed["action"]==1 && failed["status"]==1 && memory["regionLimit"]==LinuxMemoryServices.MaximumRegions && memory["regions"]<=memory["regionLimit"] &&
-                memory["pool"]==LinuxMemoryServices.MaximumPoolPages && memory["backed"]<=memory["pool"] && memory["reserved"]<=0x400000000,
-                "service_memory_observation");metadata.Add(index);
-        }
-        foreach(int index in returns.Keys)
-        {
-            var observed=ReadRecord(calls[index],"M16_008_CALL",WebCallFields);
-            if(observed["nr"] is 9 or 10 or 11 or 12 or 28 && observed["valueBits"]==unchecked((ulong)-12L))
-                Need(index>0 && rows[index-1].StartsWith("M16_014_MEMORY ",StringComparison.Ordinal),"service_memory_observation_missing");
-        }
     }
 
     private sealed partial class ThreadingProtocol

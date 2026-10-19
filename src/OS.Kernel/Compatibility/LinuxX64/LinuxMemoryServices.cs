@@ -20,12 +20,15 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 public static unsafe class LinuxMemoryServices
 {
     public const uint DefaultPoolPages = 4096, MaximumPoolPages = 8192;
+    /// <summary>Interval capacity of the explicit web/service diagnostic build.
+    /// Shared with its offline consumer; normal builds still use64 regions.</summary>
+    public const uint WebMaximumRegions = 256;
 #if M10_004_PROBE
     // Original web startup exhausts 64 intervals before bind and 96 just after
     // bind while physical backing remains available. Its explicit profile admits
     // 256 intervals, with separate room for retained mappings. Physical, virtual,
     // alias and atomic mutation bounds remain unchanged.
-    public const uint MaximumRegions = 256;
+    public const uint MaximumRegions = WebMaximumRegions;
 #else
     public const uint MaximumRegions = 64;
 #endif

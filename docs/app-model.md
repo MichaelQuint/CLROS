@@ -266,6 +266,19 @@ ordinary-churn resource/headroom joins, complete native review, current-image
 ancestors and stable full-host remain pending. No new native EFI/source pins
 or CLROS guest are qualified here; entitlement and pool remain unchanged.
 
+[Step1469](../done/step1469.md) reuses the synchronous memory owner's six-field
+snapshot after each configured-v2 memory operation. The strict reader binds
+snapshots to adjacent returned calls, preserves failure-state joins, measures
+ordinary backing outside deliberate pressure windows, and reports whether GC
+limit plus that entire ordinary peak fits the pool and static entitlement.
+Counting the entire ordinary peak as non-GC can overestimate demand. Failure
+with fewer free physical pages than requested establishes a physical shortfall,
+without excluding concurrent guards; other failures remain unclassified.
+The explicit web region limit remains256, ordinary builds64.50 scoped focused
+checks and EFI C# compilation pass; only three reviewed source identities are
+refreshed. Actual guest headroom and complete native/ancestor/full-host evidence
+remain pending. No allocation limits or guest acceptance change.
+
 The value-only GC reader binds canonical64MiB entitlement,16MiB GC/native
 reserve,32MiB pool, bounded aligned static charge, copied fd2 measurements and
 drain order. Full replay independently binds writes/calls. Step1455 adds the

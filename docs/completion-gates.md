@@ -1,5 +1,13 @@
 # CLROS Completion Gates
 
+[Step1469](../done/step1469.md) adds post-dispatch memory snapshots for every
+configured-v2 memory operation and a strict reader for ordinary churn, native
+pressure failures and conservative headroom.50 scoped focused checks and EFI
+C# compilation pass. Three bounded source identities are refreshed after source
+review; native ABI/unwind/stack review, actual guest measurements, ancestors and
+the stable corrected-runner full-host gate remain pending. A physical shortfall
+does not identify the sole failing guard. No new guest or gate acceptance.
+
 [Step1466](../done/step1466.md) implements retained dynamic backing peaks and
 the configured v2 cleanup record/strict consumer.73 scoped focused checks and
 freestanding C# profile compilation pass. No new native EFI or guest is produced;
