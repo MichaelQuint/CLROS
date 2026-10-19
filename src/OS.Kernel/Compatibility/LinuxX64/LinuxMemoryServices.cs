@@ -14,6 +14,8 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// shared/file mappings, overcommit, SMP or process lifetime is implemented.
 /// Linux negative errno values describe rejection; failure leaves the target
 /// root, backing and ownership unchanged (candidate tables are scratch).
+/// One contiguous virtual reservation may use several physical extents, within
+/// the same bounded region inventory. Physical contiguity is not promised.
 /// </summary>
 public static unsafe class LinuxMemoryServices
 {
@@ -222,9 +224,9 @@ public static unsafe class LinuxMemoryServices
             }
         }
         if (count == WorkingRegions) return NoMemory;
-        Region added = new() { Start = address, Bytes = bytes, Protection = protection, Heap = heap };
-        if (protection != 0 && !Allocate(state->Memory, candidate, count, ref added)) return NoMemory;
-        candidate[count++] = added;
+        uint added = count++;
+        candidate[added] = new() { Start = address, Bytes = bytes, Protection = protection, Heap = heap };
+        if (protection != 0 && !Allocate(state->Memory, candidate, ref count, ref candidate[added])) return NoMemory;
         Sort(candidate, count);
         return Apply(state, candidate, count) == 0 ? (long)address : NoMemory;
     }
@@ -264,7 +266,8 @@ public static unsafe class LinuxMemoryServices
         if (grow)
             for (uint i = 0; i < count; i++)
                 if (candidate[i].Protection != 0 && candidate[i].Backing == 0 &&
-                    !Allocate(state->Memory, candidate, count, ref candidate[i])) return NoMemory;
+                    !Allocate(state->Memory, candidate, ref count, ref candidate[i])) return NoMemory;
+        Sort(candidate, count);
         return Apply(state, candidate, count);
     }
 
@@ -288,7 +291,8 @@ public static unsafe class LinuxMemoryServices
         if (!Covered(candidate, count, address, bytes)) return NoMemory;
         if (!Split(candidate, ref count, address, bytes, protection, false)) return NoMemory;
         for (uint i = 0; i < count; i++)
-            if (candidate[i].Protection != 0 && candidate[i].Backing == 0 && !Allocate(state->Memory, candidate, count, ref candidate[i])) return NoMemory;
+            if (candidate[i].Protection != 0 && candidate[i].Backing == 0 && !Allocate(state->Memory, candidate, ref count, ref candidate[i])) return NoMemory;
+        Sort(candidate, count);
         return Apply(state, candidate, count);
     }
 
@@ -686,7 +690,38 @@ public static unsafe class LinuxMemoryServices
     private static bool AppendMapping(X64UserMappingRange* mappings, ref uint count, X64UserMappingRange range)
     { if (count == X64UserAddressSpace.MaximumRanges) return false; mappings[count++] = range; return true; }
 
-    private static bool Allocate(Admission memory, Region* regions, uint count, ref Region r)
+    private static bool Allocate(Admission memory, Region* regions, ref uint count, ref Region r)
+    {
+        if (AllocateContiguous(memory, regions, count, ref r)) return true;
+        if (r.Bytes > memory.PoolPages * Page) return false;
+        // Every choice exists only in candidate metadata. A later capacity,
+        // table or mutation-guard rejection discards it without touching bytes.
+        Region reservation = r;
+        ulong remaining = r.Bytes, physical = memory.PoolPhysical, end = physical + memory.PoolPages * Page;
+        while (remaining != 0 && physical < end)
+        {
+            ulong next = end;
+            bool occupied = false;
+            for (uint i = 0; i < count; i++)
+            {
+                Region held = regions[i];
+                if (held.Backing == 0) continue;
+                if (physical >= held.Backing && physical - held.Backing < held.Bytes)
+                { physical = held.Backing + held.Bytes; occupied = true; break; }
+                if (held.Backing > physical && held.Backing < next) next = held.Backing;
+            }
+            if (occupied) continue;
+            ulong bytes = next - physical < remaining ? next - physical : remaining;
+            Region extent = Slice(reservation, reservation.Start + reservation.Bytes - remaining, bytes);
+            extent.Backing = physical; extent.Fresh = true; extent.FreshFrom = 0;
+            if (remaining == reservation.Bytes) r = extent;
+            else if (!Append(regions, ref count, extent)) return false;
+            remaining -= bytes; physical += bytes;
+        }
+        return remaining == 0;
+    }
+
+    private static bool AllocateContiguous(Admission memory, Region* regions, uint count, ref Region r)
     {
         if (r.Bytes > memory.PoolPages * Page) return false;
         for (ulong physical = memory.PoolPhysical; physical <= memory.PoolPhysical + memory.PoolPages * Page - r.Bytes; physical += Page)

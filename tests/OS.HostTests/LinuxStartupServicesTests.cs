@@ -910,6 +910,36 @@ internal static unsafe class LinuxStartupServicesTests
         BrkRejected(owner, Heap + 3); BrkRejected(owner, Heap);
     }
 
+    [HostTest("linux.startup fragmented physical heap growth preserves independent maps and zeroes released brk pages")]
+    private static void FragmentedHeap()
+    {
+        using var owner = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 17)); owner.Begin();
+        for (uint block = 0; block < 4; block++)
+        {
+            ulong address = Output + 0x10000 + block * 0x10000;
+            HostCheck.Equal((long)address, owner.Call(9, address, 4 * 4096, 3, 0x100022, ulong.MaxValue));
+            for (uint page = 0; page < 4; page++) *owner.Memory.At(address + page * 4096) = (byte)(block * 4 + page + 1);
+        }
+        HostCheck.Equal(0L, owner.Call(11, Output + 0x10000, 4 * 4096));
+        HostCheck.Equal(0L, owner.Call(11, Output + 0x30000, 4 * 4096));
+        HostCheck.Equal((long)Heap + 6 * 4096, owner.Call(12, Heap + 6 * 4096));
+        for (uint page = 0; page < 6; page++)
+        {
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap + page * 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+            *owner.Memory.At(Heap + page * 4096) = (byte)(100 + page);
+        }
+        BrkRejected(owner, Heap + 9 * 4096);
+        HostCheck.Equal((long)Heap + 2 * 4096, owner.Call(12, Heap + 2 * 4096));
+        HostCheck.Equal((long)Heap + 6 * 4096, owner.Call(12, Heap + 6 * 4096));
+        HostCheck.Equal((byte)100, *owner.Memory.At(Heap)); HostCheck.Equal((byte)101, *owner.Memory.At(Heap + 4096));
+        for (uint page = 2; page < 6; page++)
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap + page * 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+        for (uint block = 1; block < 4; block += 2)
+            for (uint page = 0; page < 4; page++)
+                HostCheck.Equal((byte)(block * 4 + page + 1), *owner.Memory.At(Output + 0x10000 + block * 0x10000 + page * 4096));
+        HostCheck.Equal((long)Heap, owner.Call(12, Heap)); HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+    }
+
     [HostTest("m16-006 heap ownership survives dump advice and never coalesces independent neighbor", HostLane.Fast, 9)]
     private static void HeapPolicyFlags()
     {

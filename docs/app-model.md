@@ -124,11 +124,14 @@ transport/fd identity and nonempty EAGAIN/short-send/error controls. Service and
 finite-web C# profiles compile. Original native review and affected finite
 vector/socket guest regression remain pending; #766 stays open under #737.
 
-M16-015 addresses the current requirement for contiguous physical backing even
-when a virtual mapping could use discontiguous owned frames. The review's
-16-page-pool characterization returns `ENOMEM` for six requested pages while
-eight pages are free in two holes; owner audits still pass. Preserve mapping
-atomicity, brk/fixed-map ownership, futex leases and scrub/reuse semantics.
+[Step1439](../done/step1439.md) implements M16-015/#747's fragmented physical
+backing in development. Existing bounded region rows describe several physical
+extents behind one contiguous virtual interval for mmap, first-access protection
+and brk growth. The sixteen-page/two-hole case now maps six pages with exact
+frame identity.22 memory and31 startup focused checks cover atomic rollback,
+fixed replacement, protection/advice, partial unmap, real futex borrows and
+scrub/reuse. Original native review, a fragmentation guest, real NativeAOT
+allocation churn and affected ancestors remain pending; #747 stays open.
 
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,
 native allocations, stacks, page tables and sockets to actual committed-page
