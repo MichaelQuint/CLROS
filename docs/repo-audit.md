@@ -10,7 +10,7 @@ rejects async void/unsupported returns before execution. Current discovery has
 Its full-host qualification is withheld pending a corrected unfiltered run.
 Independent original native and actual guest captures are not invalidated by
 this host harness fault. Preserve raw receipts and identify replacement runs.
-Step1442 retains33 runner checks,18 affected class checks covering all13 old
+Step1444 retains33 runner checks,18 affected class checks covering all13 old
 async entries, and six genuinely joined lifecycle development cases. The seven
 step1437 prerequisite issues reopen pending #784's full-host gate.
 
@@ -18,6 +18,118 @@ Awaiting the service-control checks also exposes a positive host fixture reading
 its PCAP while its own writer still holds it. Stop/join the simulator and close
 the writer before reading the complete capture; this is a fixture lifetime
 repair, not evidence of a production network or guest defect.
+
+## October 19 whole-project review
+
+Frozen merged source: `2dcd1311490074b33096d8561eed575b887a45b8` (PR777).
+The range since reviewed `6a698f72fe7eb93b8f2ea191c0bf88fd1b6d9bc0` contains
+25 commits, 146 changed files, 12,076 additions and 326 deletions. The wider
+review inventoried 646 OS/kernel/shared files and traced the paths below.
+This is a risk-based whole-project review, not proof that every line/input is
+correct. One parallel reviewer covered networking/service validation and
+ELF/native teardown; the primary covered memory, waits/signals, descriptors,
+storage, shared utilities and tracker/build tooling.
+
+Separate development snapshot: `8bb79eb806af184b2534a2611c8300ec03d1921c`.
+Its pending-signal-before-wait repair was reviewed statically, including futex,
+pipe and epoll re-parking. No additional confirmed defect was found in that
+delta; it was not built or qualified here. Later development, including
+`90aacc1d` fragmented backing, is outside this review. Step1437 remains accepted
+within its stated scope; no repair, repeated-service or numbered gate is qualified.
+
+### Findings
+
+| Priority | Finding | Evidence and implementation order |
+| --- | --- | --- |
+| P1 | Last close with unread RX retains a bulk TCP slot | [#778 / M07-034](http://192.168.4.35:3000/admin/CLROS/issues/778), host regression; before #224 |
+| P2 | Transport validator accepts understated occupancy peaks | [#779 / M11-022](http://192.168.4.35:3000/admin/CLROS/issues/779), host regression; before #224 acceptance |
+| P2 | Backlog sync overwrites concurrent operator notes | [#780 / M11-023](http://192.168.4.35:3000/admin/CLROS/issues/780), offline API regression; independent tooling repair |
+| P2 | Host FAT reader returns stale FAT0 bytes when FAT1 is selected | [#781 / M11-024](http://192.168.4.35:3000/admin/CLROS/issues/781), host regression; before disk-fixture #769 |
+| P2 opportunity | Empty directory allocates scratch proportional to volume size | [#782 / M11-025](http://192.168.4.35:3000/admin/CLROS/issues/782), measured allocation; after #781, before #769 |
+
+**Unread last close.** `LinuxSocketServices.cs:556-565` preserves unread RX when
+marking the endpoint closing; `LinuxSocketNetwork.cs:285-287` requires zero
+unread bytes before compact transfer. Connect/accept one peer, SHUT_WR, receive
+an acknowledging FIN plus one byte, close the last fd, then pump. A new distinct
+SYN returns `Capacity`: `bulk=1 compact=0 shutdown=False`. All 27 existing cases
+pass. No fd remains to drain the byte. The eight-slot guest has this same
+retention mechanism, but no live guest denial-of-service was attempted. Define
+a bounded reset/discard policy for queued and later-arriving data, preserving
+live duplicate-fd/SHUT_WR reads, zeroing and tuple protection. Do not shorten MSL.
+[RFC9293 section3.6.1](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.6.1)
+describes reset signaling when close makes unread data inaccessible.
+
+**Understated resource peaks.** The fixture creates ten compact owners before
+any retirement, reports high-water only through nine, retires all ten and
+reports peak9. The validator accepts it; all three prior cases pass. Actual
+insertion at `QemuTranscripts.NativeAotService.Transport.cs:138` does not maintain
+an observed maximum; lines150-169 trust reported maxima. Track actual bulk and
+compact maxima at ownership mutations separately from reported observations.
+This does not show the retained step1437 peak24 is wrong; rerun the corrected
+validator against its original evidence before new acceptance.
+
+**Concurrent tracker loss.** An offline API fixture adds an unmanaged note after
+the list read, during evidence-comment retrieval. `BacklogSync.cs:99,149-169`
+uses the stale body without `content_version`, then reports successful
+convergence: `injected=True retained=False syncExit=0`. All five prior cases
+pass. Fresh read/merge, optimistic concurrency, conflict handling and label
+preservation are required. No real operator note was erased here. This review
+used fresh versioned writes for existing issues, exact readback and scoped
+preview; compiled apply created only the five new issues.
+
+**Wrong FAT selection.** `Fat32Parser.ParseBpb:827-956` ignores offsets40-43 and
+selects FAT0; `ReadFatEntry:608` follows it. A 65,525-cluster disk with two
+512-sector FATs, `BPB_ExtFlags=0x81`, equally long divergent chains and distinct
+per-cluster contents returns `Success` with stale FAT0 bytes. All 37 prior cases
+pass. Reject unsupported selection/version or implement the selected FAT
+explicitly. The old pattern repeats every256 bytes and cannot detect cluster
+reorder; keep distinct contents in the regression. The
+[Microsoft FAT specification, section3.3](https://academy.cba.mit.edu/classes/networking_communications/SD/FAT.pdf)
+defines selection. The separate live numeric parser already rejects nonzero
+flags/version and is not the failing implementation. Host package/manifest/image
+read contracts are affected; live disk corruption was not demonstrated.
+
+**Measured directory scratch.** A sparse device with valid one-million-cluster
+geometry and an empty root takes two sector reads and returns zero entries,
+but allocates **4,001,096 bytes** on the calling managed thread.
+`Fat32Parser.cs:184-186,1014-1016,1148-1159` allocates `uint[ClusterCount]` before
+examining the directory. Use bounded history/work with deterministic budget
+failure; preserve cycle detection. No OOM was induced. The live parser already
+uses bounded caller-owned history; that contract is useful without treating the
+host and live implementations as interchangeable.
+
+### Coverage and engineering opportunities
+
+| Area traced | Focus and result |
+| --- | --- |
+| EFI/boot/runtime | Explicit no-stdlib inputs, probe defaults, IRQ/fault stack handoff, startup release, off-stack teardown and clear-TID lifetime. No additional actionable defect established; arbitrary EH remains outside accepted scope. |
+| Memory/ELF | Extents/page overlap, immutable plan readback, stack/root construction, W+X, candidate publication, retained borrows, brk/fixed-map/protection/advice/remap and rollback. Preserve #747/#748/#749; no new memory-corruption claim. |
+| Threads/signals/fds | Pending queues, masks/ignored signals, restart/wait sequences, epoll generations, dup/last-close, vector preflight, seek/stat and immutable package paths. #760/#761 remain separate; development repair is not accepted here. |
+| TCP/service/entropy | Persist/retransmission ownership, pending resets, keyed ISNs, compact retirement, per-worker budgets, DRBG/HMAC/SHA-256 seed/erase and service packet/replay/lifetime validators. Findings #778/#779; no additional cryptographic defect established. |
+| Storage/shared | Host/live FAT geometry/chains, package bounds/path representation, span/copy aliasing, numeric/parsing/calendar/checksum helpers and memory barriers. Findings #781/#782 concern the host parser. |
+| Tooling/CI | SDK/C# pins, generator closure, test registration/input seals, provenance, tracker and roadmap. Finding #780; no full CI/native run here. |
+
+[#752](http://192.168.4.35:3000/admin/CLROS/issues/752) now includes compact-table
+audit amplification: `Current -> Waits.Read`, `Waits.Expire` and `Waits.Find`
+each validate64 entries on receive; queued ACK pumping adds more. This is a
+static cost observation, not measured latency/speedup. Profile it alongside
+existing syscall/user-copy audits; preserve mutation generations, per-use
+identity and corruption controls before caching validation.
+
+Keep [#753-#755](architecture.md#build-time-assurance-and-measured-optimization)
+as the existing Roslyn effects, independently checked ABI and capability
+generation sequence. Useful small refactor boundaries are admission, mutation
+and observation; bounded parser scratch; and last-close ownership policy.
+Attributes express build-host contracts, not security by themselves. Generated
+implementation must not generate its own independent oracle. Generic
+specialization must earn its NativeAOT code-size cost. No new runtime compiler,
+bflat dependency, broad framework or Nanos performance claim is added.
+
+Four defect regressions fail and one allocation characterization passes;
+the 72 pre-existing cases in those four fixtures pass. Exact patches/logs are
+downloadable from #778-#782. Temporary tests were removed before final checks.
+[Step1440](../done/step1440.md) records commands, hashes, readback and boundaries.
+No production fix was made; the sole committed C# edit is the backlog count.
 
 ## October 18 incremental review
 

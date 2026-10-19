@@ -1,5 +1,11 @@
 # QEMU
 
+The October19 [validator finding #779](http://192.168.4.35:3000/admin/CLROS/issues/779)
+shows ten concurrent compact owners accepted with reported peak9. Derive
+occupancy maxima from lifecycle mutations before #224 acceptance and revalidate
+the original step1437 transport stream. This false negative does not establish
+that the original guest's reported peak24 was wrong or qualify a new guest run.
+
 [Step1307](../done/step1307.md) qualifies the finite thread/runtime batch with
 44 strict captures across 32 profiles, three retained strict GC repetitions,
 24 fresh ancestors and original native/source/package joins. A separate QMP/GDB

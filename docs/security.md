@@ -1,5 +1,13 @@
 # Security
 
+The [October19 review](repo-audit.md#october-19-whole-project-review) adds
+[#778](http://192.168.4.35:3000/admin/CLROS/issues/778) for peer-controlled unread
+data retaining fd-less bulk TCP capacity, and
+[#780](http://192.168.4.35:3000/admin/CLROS/issues/780) for concurrent tracker data
+loss. Both are reproduced in local host fixtures; no live attack was attempted.
+Resource-peak evidence must also be independently reconstructed under #779.
+These open repairs do not change the accepted profile or isolation boundary.
+
 [Step1437](../done/step1437.md) qualifies the bounded DRBG/TCP-key ownership
 contracts defined in [step1424](../done/step1424.md).
 The construction follows [RFC9293 section3.4.1](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.4.1)

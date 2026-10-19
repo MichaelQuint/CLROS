@@ -131,7 +131,7 @@ fixed replacement, protection/advice, partial unmap, real futex borrows and
 scrub/reuse. Original native review, a fragmentation guest, real NativeAOT
 allocation churn and affected ancestors remain pending; #747 stays open.
 
-[Step1440](../done/step1440.md) prepares a canonical `FragmentedBacking` mechanical
+[Step1443](../done/step1443.md) prepares a canonical `FragmentedBacking` mechanical
 ELF for the existing default-off M16-006 guest profile. Four four-MiB mappings
 fill its sixteen-MiB pool; freeing alternate blocks forces the six-MiB replacement
 to span physical holes. The generated user code checks surviving data,
@@ -148,7 +148,7 @@ profile/report/packet admission and guest validation remain pending. These
 helper/envelope checks add no live Kestrel or repeated-service acceptance.
 M11-026/#784 later found that the four async helper cases were not awaited;
 their original pass markers do not prove completion. The corrected runner and
-six genuinely joined lifecycle cases supersede that async coverage in step1442.
+six genuinely joined lifecycle cases supersede that async coverage in step1444.
 The four synchronous package checks and byte-identity comparison remain valid.
 
 M16-016 measures the pinned runtime's GC sizing and binds its effective limit,

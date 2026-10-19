@@ -8,6 +8,12 @@ is withheld pending a corrected unfiltered run. Preserve its independent
 original native/guest receipts and immutable history. Finish this validation
 repair under #737 before new full-host acceptance or #224 closure.
 
+The October19 review in `done/step1440.md` adds #778 (unread last-close
+retention) and #779 (independent transport peaks) before #224 acceptance.
+Keep #737's current owner and #747/#748/#760 -> #225 batch. #780 is tracker
+conflict protection; #781 -> #782 host FAT repairs precede disk-fixture #769.
+Review reproductions do not qualify fixes or reopen accepted predecessors.
+
 `done/step1437.md` retains #743/#744/#746/#240/#757/#758/#766 at frozen
 implementation `8bee44db`: 5,809 observed host markers across781 fixtures (94 Native),
 one complete822,285ms original service lifetime and ten fresh finite ancestors.

@@ -65,6 +65,15 @@ tests. Generated implementation and generated expectations are not independent
 ABI evidence. Preserve the x86-64-v2 x87/SSE context contract; AVX/XSAVE requires
 its own CPU and context-save qualification.
 
+The [October19 review](repo-audit.md#october-19-whole-project-review) supplies
+concrete refactor targets for this existing sequence: distinguish admitted
+immutable state, ownership mutations and read-only observations; make parser
+scratch/work budgets explicit; and express the difference between last-close
+ownership loss and readable half-close. A small checker for ignored status,
+borrow-across-yield and mutation invalidation is more useful than broad syntax
+rewrites. Preserve independently authored transition tests and measured image
+size. These proposals do not add a runtime compiler or new first-web dependency.
+
 The second review pass gives M11-021 concrete composition controls: a profile
 cannot declare realtime when the pinned PAL silently falls back to epoch time,
 or accept a signal disposition that its I/O owner assumes is always ignored.
