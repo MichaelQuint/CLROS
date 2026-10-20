@@ -165,6 +165,12 @@ Its bounded copied values do not bind samples, connections, PCAP or clocks;
 those joins remain required before the quota capture guard can open. Existing
 positive service readers and caps remain unchanged.
 
+[Step1488](../done/step1488.md) retains each validated quota fresh transport
+reservation's original normalized row index and full lifetime/tuple fields.
+Repeated ports across generations stay distinct; pending SYN reservations and
+unadmitted startup host writes do not establish HTTP or host-to-guest identity.
+Original byte/flow joins remain separate.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

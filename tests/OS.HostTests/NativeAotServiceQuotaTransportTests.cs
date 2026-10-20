@@ -54,9 +54,41 @@ internal static class NativeAotServiceQuotaTransportTests
         HostCheck.True(positiveRejected);
     }
 
-    private static void Reject(string[] rows)
+    [HostTest("quota transport copies all fresh lifetime generations and rejects stale missing duplicate source rows")]
+    private static void FreshProjection()
     {
-        bool rejected=false;try{_=QemuTranscripts.InspectNativeAotServiceQuotaTransportForTests(rows);}catch(ToolFailure){rejected=true;}
+        var rows=Rows(false).ToList();
+        string first=rows[1];
+        rows.InsertRange(rows.Count-2,new[]{
+            first.Replace("event=0","event=1",StringComparison.Ordinal)
+                .Replace($"clock={Quiet}",$"clock={Quiet+4}",StringComparison.Ordinal),
+            first.Replace("generation=1","generation=2",StringComparison.Ordinal)
+                .Replace($"clock={Quiet}",$"clock={Quiet+5}",StringComparison.Ordinal)});
+        rows[^1]=rows[^1].Replace("issued=4","issued=5",StringComparison.Ordinal);
+        string[] input=rows.ToArray();
+        var report=QemuTranscripts.InspectNativeAotServiceQuotaTransportForTests(input);
+        HostCheck.Equal(5,report.History.Connections);HostCheck.Equal(5,report.FreshLifetimes.Count);
+        HostCheck.True(report.FreshLifetimes.Select(l=>l.RowIndex).SequenceEqual(new[]{1,3,5,7,10}));
+        var old=report.FreshLifetimes[0];var next=report.FreshLifetimes[4];
+        HostCheck.True(old.Slot==0 && old.Owner==2097152 && old.Epoch==1 && old.Generation==1 && old.Index==0 &&
+            old.Local==167772687 && old.LocalPort==8080 && old.Remote==167772674 && old.RemotePort==35000 &&
+            old.Clock==Quiet && old.Deadline==0 && old.Duration==0);
+        HostCheck.True(next==(old with{RowIndex=10,Generation=2,Clock=Quiet+5}));
+        HostCheck.Equal(2,report.FreshLifetimes.Count(l=>l.RemotePort==35000));
+        var stale=rows.ToArray();stale[10]=stale[10].Replace("generation=2","generation=1",StringComparison.Ordinal);Reject(stale,"service_transport_fresh");
+        Reject(rows.Where((_,at)=>at!=3).ToArray(),"service_transport_highwater");
+        var duplicate=rows.ToList();duplicate.Insert(2,rows[1]);Reject(duplicate.ToArray(),"service_transport_fresh");
+        input[1]="mutated after copied inspection";
+        HostCheck.True(report.FreshLifetimes[0]==old);
+        bool immutable=false;
+        try{((IList<QemuTranscripts.ServiceQuotaTransportLifetime>)report.FreshLifetimes)[0]=next;}
+        catch(NotSupportedException){immutable=true;}
+        HostCheck.True(immutable);
+    }
+
+    private static void Reject(string[] rows,string? reason=null)
+    {
+        bool rejected=false;try{_=QemuTranscripts.InspectNativeAotServiceQuotaTransportForTests(rows);}catch(ToolFailure error){rejected=true;if(reason is not null)HostCheck.Equal(reason,error.Reason);}
         HostCheck.True(rejected);
     }
 }
