@@ -2,6 +2,12 @@
 
 ## Start here
 
+`done/step1478.md` records workspace cleanup. Develop from `C:/Projects/CLROS`
+on current LAN master. The fifteen old linked checkouts and their ignored
+evidence are archived under `C:/Projects/CLROS-archive/2026-10-19-workspace-cleanup`;
+use its `cleanup-state.json` for original-to-archive path mappings. Primary build
+caches are archived too; build current tooling before running new validation.
+
 `done/step1477.md` is the current development checkpoint for
 PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
 runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
@@ -28,8 +34,8 @@ request churn. General Kestrel/Gate14, isolation, cloud and production remain
 incomplete. See step1477 for exact receipts, retained failures and restart order.
 
 Preserve #737's current owner. #780 conflict protection and #781 -> #782 host
-FAT repairs remain open; they precede disk-fixture #769. Do not edit or build
-the paused primary checkout while resuming the retained worktree.
+FAT repairs remain open; they precede disk-fixture #769. The former paused-primary
+restriction was superseded by the user's workspace cleanup request in step1478.
 
 `done/step1419.md`, merged at `6a698f72`, retains the earlier finite Kestrel
 health/configuration/logging/socket/Date qualification. Step1420's source review
