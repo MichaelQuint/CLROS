@@ -69,7 +69,7 @@ public static partial class QemuTranscripts
             capture.QuietSyns, capture.Flows.Count(flow => flow.ResetRecord != 0), lifecycleConnections);
 
     private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
-        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false)
+        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null)
     {
         if (ports is null) throw new ToolFailure("service_wire_ports");
         Need(ports.Count is >0 and <=512 && ports.Distinct().Count() == ports.Count &&
@@ -80,8 +80,9 @@ public static partial class QemuTranscripts
         while (offset < bytes.Length)
         {
             record++;
-            ulong now = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset)) * 1_000_000 +
-                BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4));
+            uint seconds = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset)),
+                microseconds = BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4));
+            ulong now = (ulong)seconds * 1_000_000 + microseconds;
             Need(now >= timestamp, "service_wire_clock"); timestamp = now;
             int size = checked((int)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 8))); offset += 16;
             var frame = bytes.AsSpan(offset, size); offset += size;
@@ -159,13 +160,25 @@ public static partial class QemuTranscripts
             Need((payload.Length == 0 ? relative <= (uint)contiguous + (fin ? 1U : 0) :
                 relative < (uint)data.Length && (ulong)relative + (uint)payload.Length <= (uint)data.Length) &&
                 (!fin || (ulong)relative + (uint)payload.Length <= (uint)extent + (payload.Length == 0 ? 1U : 0)), "service_wire_sequence");
+            int rangeStart = -1;
             for (int i = 0; i < payload.Length; i++)
             {
                 int at = (int)relative + i; Need(!seen[at] || data[at] == payload[i], "service_wire_retransmission");
+                if (observe is not null)
+                {
+                    if (!seen[at] && rangeStart < 0) rangeStart = i;
+                    else if (seen[at] && rangeStart >= 0)
+                    {
+                        observe(new(flow.Port, outgoing, (int)relative + rangeStart, i - rangeStart, record, seconds, microseconds));
+                        rangeStart = -1;
+                    }
+                }
                 if (outgoing && !seen[at])
                 { if (flow.ResponseFirstRecord == 0) flow.ResponseFirstRecord = record; flow.ResponseLastRecord = record; }
                 data[at] = payload[i]; seen[at] = true;
             }
+            if (rangeStart >= 0)
+                observe!(new(flow.Port, outgoing, (int)relative + rangeStart, payload.Length - rangeStart, record, seconds, microseconds));
             if (payload.Length != 0) extent = Math.Max(extent, checked((int)relative + payload.Length));
             while (contiguous < seen.Length && seen[contiguous]) contiguous++;
             if (outgoing) { flow.ResponseExtent = extent; flow.ServerSeen = contiguous; }

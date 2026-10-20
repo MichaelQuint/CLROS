@@ -134,6 +134,14 @@ This is instruction-boundary admission and copied GC accounting, not a native
 control-flow, GC-root/stack or guest proof. Prior v1/v2 captures retain their
 original producers and image identities; the fresh image needs new qualification.
 
+[Step1485](../done/step1485.md) adds optional first-appearance byte-range
+observations to the existing TCP reader. Each copied range retains the original
+record, seconds/microseconds, direction, guest-observed remote port and stream
+offset. Retransmissions retain their first witness; overlapping and out-of-order
+bytes keep separate original ranges. Existing positive HTTP/close policies stay
+unchanged. These observations do not establish complete HTTP exchanges, a peer
+clock/port mapping, quota teardown or an owned capture.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
