@@ -35,9 +35,11 @@ public static class QemuSmoke
         NativeAotWebProgram? webProgram=null;
         NativeAotServiceProgram? serviceProgram=null;
         NativeAotServicePeer.Completion? servicePeer=null;
+        NativeAotServiceQuotaPeer.Completion? serviceQuotaPeer=null;
         int serviceForwardPort=0;
         DateTimeOffset serviceStarted=default,serviceCompleted=default;
         AuthorityFiles? serviceInputs=null;
+        AuthorityFile? servicePackageInput=null,serviceDisassemblyInput=null,serviceImageInput=null,serviceEfiInput=null;
         EfiVerification? serviceNative=null;
         int webForwardPort=0;
         DateTimeOffset webStarted=default,webCompleted=default;
@@ -78,8 +80,8 @@ public static class QemuSmoke
                         if(service)
                         {
                             serviceInputs=new();
-                            var p=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
-                            var d=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
+                            var p=servicePackageInput=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
+                            var d=serviceDisassemblyInput=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
                             serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),serviceContract);
                             NativeAotServiceProgram.HoldSources(root,serviceInputs);serviceInputs.VerifyUnchanged();
@@ -210,8 +212,8 @@ public static class QemuSmoke
                     serviceNative=new(EfiOptions.Parse(["--root",root,"--boot-policy",plan.BootPolicy,"--efi-artifact",options.EfiArtifact,
                         ..plan.Flags.Where(p=>p.Value).Select(p=>"-"+p.Key)],false),output.WriteLine);serviceNative.Verify();
                     string imagePath=Path.GetFullPath(options.Image,root),efiPath=Path.GetFullPath(options.EfiArtifact,root),packagePath=Path.GetFullPath(options.LinuxElfPackage,root);
-                    var imageInput=serviceInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"service image","service_image",64*1024*1024,singleLink:true);
-                    var efiInput=serviceInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"service EFI","service_efi",16*1024*1024,singleLink:true);
+                    var imageInput=serviceImageInput=serviceInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"service image","service_image",64*1024*1024,singleLink:true);
+                    var efiInput=serviceEfiInput=serviceInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"service EFI","service_efi",16*1024*1024,singleLink:true);
                     var packageInput=serviceInputs.Open(Path.GetDirectoryName(packagePath)!,packagePath,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                     AuthorityFiles.RequireDistinct(imageInput,efiInput,packageInput);
                     var locations=LinuxElfImageFixture.Inspect(imageInput.ReadBytes(64*1024*1024,"service_image"),efiInput.ReadBytes(16*1024*1024,"service_efi"),
@@ -300,11 +302,19 @@ public static class QemuSmoke
             ProcessResult runner;
             if(service&&!options.DryRun)
             {
-                // A reviewed publication alone will not authorize routing the
-                // negative fixture through the existing positive peer/consumer.
-                if(serviceContract==NativeAotServiceContract.QuotaFailure)throw new ToolFailure("service_quota_capture_owner_required");
-                servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
-                runner=servicePeer.Runner;
+                if(serviceContract==NativeAotServiceContract.QuotaFailure)
+                {
+                    if(serviceProgram is null || serviceInputs is null || serviceNative is null || servicePackageInput is null ||
+                        serviceDisassemblyInput is null || serviceImageInput is null || serviceEfiInput is null)
+                        throw new ToolFailure("service_quota_original_inputs_required");
+                    serviceQuotaPeer=await NativeAotServiceQuotaPeer.RunObservedOwnedAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation);
+                    runner=serviceQuotaPeer.Runner;
+                }
+                else
+                {
+                    servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
+                    runner=servicePeer.Runner;
+                }
             }
             else if(vectors&&!options.DryRun)
             {
@@ -332,6 +342,25 @@ public static class QemuSmoke
                 QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
             }
             if (options.DryRun) return runner.ExitCode;
+            if(serviceQuotaPeer is not null)
+            {
+                // Expected runner22 is only the private owner's capture
+                // disposition. Inspect every original before quota success;
+                // the owner has already joined its still-finishing peer.
+                var context=new QemuTranscripts.ServiceRunnerContext(serviceForwardPort,qemu,ovmf,serviceStarted,serviceCompleted);
+                using var quotaEvidence=QemuTranscripts.HoldServiceQuotaEvidence(root,options,serviceProgram!,serviceQuotaPeer,runner,
+                    context,serviceInputs!,servicePackageInput!,serviceDisassemblyInput!,serviceImageInput!,serviceEfiInput!);
+                if(capture is not null)
+                {
+                    capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");
+                }
+                _=QemuTranscripts.InspectOwnedServiceQuota(root,options,plan,serviceProgram!,context,quotaEvidence);
+                NativeAotServiceProgram.HoldSources(root,serviceInputs!);
+                serviceInputs!.VerifyUnchanged();serviceNative!.VerifyHeldInputs();quotaEvidence.Verify();
+                cancellation.ThrowIfCancellationRequested();
+                output.WriteLine("TEST_PASS qemu.smoke.quota");
+                return 0;
+            }
             if (runner.ExitCode != 0 && (capture is not null || web || service)) return runner.ExitCode;
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.

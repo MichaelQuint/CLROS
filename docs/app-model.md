@@ -217,6 +217,15 @@ outputs, verified before and after inspection. Their genuine successful capture
 path is unexercised; QemuSmoke caller integration remains required and its guard
 stays closed. No issue or guest gate is accepted by these copied-value checks.
 
+[Step1494](../done/step1494.md) supplies the explicit quota caller. It retains
+the actual four pre-run input records, runs the observed private owner, holds
+all eight original outputs and invokes the complete consumer before rechecking
+source/native/input/output locks and emitting `TEST_PASS qemu.smoke.quota`.
+Runner22 alone supplies no success. Twenty-nine focused selection/profile/owner/
+runner checks pass, including bad live-input refusal before any child. Positive
+and dry-run paths remain separate. No genuine successful quota capture or new
+full/native/guest qualification is supplied by this integration.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
@@ -235,10 +244,10 @@ authority. The 36MiB dynamic backing remains shared. Retained virtual mmap bytes
 and conservative component bounds are not measured physical component peaks or
 proof that effective budgets fit the committed entitlement.
 
-The runner path still refuses `service_quota_capture_owner_required`. Finish
-guarded capture orchestration and the complete consumer, active native ABI/frame
-review, stable full and original guest/packet/
-process qualification before acceptance. #225 additionally requires the actual
+The separate owned quota route now reaches the strict consumer; its successful
+original capture remains unexercised. Finish allocated-backing component/peak
+observations, active native ABI/frame review, stable full and original guest/
+packet/process qualification before acceptance. #225 additionally requires the actual
 MinimalApiSmoke workload and directed-signal/readiness evidence during its churn.
 The separate finite signal proof and this service fixture do not supply that.
 

@@ -17,8 +17,8 @@ public static partial class QemuTranscripts
     /// original socket slices and retained-map/progress overlap. Verify every
     /// held output and borrowed input before and after, including on failure.
     /// Nothing runs; evidence bytes come from held records/snapshots. QemuSmoke
-    /// must keep its original current-source/native locks through final readback;
-    /// its quota route remains closed until that caller integration is complete.</summary>
+    /// must keep its original current-source/native locks through final readback.
+    /// Only its explicit quota route supplies these original owners and locks.</summary>
     internal static ServiceQuotaOwnedInspection InspectOwnedServiceQuota(string root,
         QemuSmokeOptions options, QemuSmokePlan plan, NativeAotServiceProgram program,
         ServiceRunnerContext context, ServiceQuotaOwnedEvidence evidence) => evidence.Inspect<ServiceQuotaOwnedInspection>(held =>

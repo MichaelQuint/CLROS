@@ -101,6 +101,36 @@ internal static class NativeAotServiceSelectionTests
         HostCheck.True(result==0 && children==1);
     }
 
+    [HostTest("service quota live admission rejects missing or malformed original inputs before any child")]
+    private static async Task QuotaAdmission()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string folder = Path.Combine(root, "artifacts", "quota-admission-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        string package = Path.Combine(folder, "invalid.elfpkg"), dump = Path.Combine(folder, "invalid.dump");
+        File.WriteAllBytes(package, new byte[64]); File.WriteAllText(dump, "invalid original instruction dump\n");
+        try
+        {
+            foreach (var input in new[] { (Package: package + ".missing", Dump: dump),
+                (Package: package, Dump: dump + ".missing"), (Package: package, Dump: dump) })
+            {
+                var options = ServiceOptions(); options.ServiceQuotaFailure = true;
+                options.LinuxElfPackage = input.Package; options.LinuxThreadingDisassembly = input.Dump;
+                options.SerialLog = Path.Combine(folder, "serial.log"); options.SummaryLog = Path.Combine(folder, "summary.log");
+                options.Image = Path.Combine(folder, "image.raw"); options.EfiArtifact = Path.Combine(folder, "BOOTX64.EFI");
+                int children = 0; using var output = new StringWriter();
+                int result = await QemuSmoke.RunAsync(root, options, output, (name, args) =>
+                {
+                    children++;
+                    return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
+                });
+                HostCheck.True(result == 1 && children == 0 && output.ToString().Contains("TEST_FAIL qemu.smoke ", StringComparison.Ordinal) &&
+                    !output.ToString().Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal));
+            }
+        }
+        finally { File.Delete(package); File.Delete(dump); Directory.Delete(folder); }
+    }
+
     [HostTest("service quota selection rejects lifecycle normal other profiles and substitute applications")]
     private static void QuotaConflicts()
     {

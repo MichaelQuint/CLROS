@@ -128,9 +128,9 @@ public static partial class QemuTranscripts
         }
     }
 
-    // No public/value-only authority factory or QemuSmoke caller is added.
-    // The existing capture-owner guard and original source/native/image locks
-    // remain in place until a complete owned negative consumer is integrated.
+    // Only the explicit QemuSmoke quota route supplies the actual original
+    // pre-run input records and privately owned observed Completion. Its source,
+    // native and image locks remain held through complete inspection/readback.
     internal static ServiceQuotaOwnedEvidence HoldServiceQuotaEvidence(string root, QemuSmokeOptions options,
         NativeAotServiceProgram program, NativeAotServiceQuotaPeer.Completion completion, ProcessResult runner,
         ServiceRunnerContext context, AuthorityFiles inputLocks, AuthorityFile packageInput, AuthorityFile dumpInput,
