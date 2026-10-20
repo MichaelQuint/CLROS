@@ -35,12 +35,14 @@ public static partial class NativeAotWebPayload
         {
             if (args is ["qualify", "--output", var destination])
                 await QualifyAsync(Path.GetFullPath(root), Path.GetFullPath(destination), output);
+            else if(args is ["qualify","--signal-race","--output",var raceDestination])
+                await QualifyAsync(Path.GetFullPath(root),Path.GetFullPath(raceDestination),output,signalRace:true);
             else if (args is ["validate", var evidence])
                 ValidateQualification(Path.GetFullPath(root), Path.GetFullPath(evidence));
             else if (args is ["package", "--recipe-root", var recipeRoot, "--recipe-evidence", var recipeEvidence,
                 "--output", var package])
                 output.WriteLine("NATIVEAOT_WEB_PACKAGE sha256=" + NativeAotWebPackage.Write(root, recipeRoot, recipeEvidence, package));
-            else throw new ArgumentException("nativeaot web qualify --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package>");
+            else throw new ArgumentException("nativeaot web qualify [--signal-race] --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package>");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }
@@ -51,7 +53,7 @@ public static partial class NativeAotWebPayload
         }
     }
 
-    private static async Task QualifyAsync(string root, string destination, TextWriter output)
+    private static async Task QualifyAsync(string root, string destination, TextWriter output,bool signalRace=false)
     {
         Require(OperatingSystem.IsLinux(), "linux_builder_required");
         int result = await NativeAotPayload.RunAsync(root, ["qualify", "--output", destination], output);
@@ -68,12 +70,13 @@ public static partial class NativeAotWebPayload
             string executable = Path.Combine(destination, "MinimalApiSmoke", "MinimalApiSmoke");
             await RunHttpAsync(root, destination, executable, commands, configured: false);
             await RunHttpAsync(root, destination, executable, commands, configured: true);
+            if(signalRace)await RunHttpAsync(root,destination,executable,commands,configured:false,signalRace:true);
         }
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt("clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt(signalRace?"clros.nativeaot.web.v5":"clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -99,7 +102,7 @@ public static partial class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema == "clros.nativeaot.web.v4" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -138,6 +141,12 @@ public static partial class NativeAotWebPayload
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
         foreach (string suffix in new[] { "", "-default" })
         { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); ValidateRecordedChurn(destination,suffix); }
+        if(receipt.Schema=="clros.nativeaot.web.v5")
+        {
+            ValidateHttpEvidence(File.ReadAllText(Path.Combine(destination,"web-http-signalrace.json")),DefaultWebBody);
+            ValidateHttpTraces(destination,"WebMinimalApiSmoke-signalrace-trace");
+            ValidateRecordedLogging(destination,"-signalrace");ValidateRecordedVectors(destination,"-signalrace");ValidateRecordedSignalRace(destination);
+        }
     }
 
     /// <summary>
@@ -292,14 +301,15 @@ public static partial class NativeAotWebPayload
             .Any(line => Regex.IsMatch(line, "^inotify_(init|init1|add_watch)\\(")), "http_file_watcher");
     }
 
-    private static async Task RunHttpAsync(string root, string destination, string executable, List<object> commands, bool configured)
+    private static async Task RunHttpAsync(string root, string destination, string executable, List<object> commands, bool configured,bool signalRace=false)
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         string endpoint = "http://127.0.0.1:" + port;
-        string suffix = configured ? "" : "-default";
+        string suffix = signalRace?"-signalrace":configured ? "" : "-default";
+        QemuTranscripts.WebSignalRaceSelection? raceSelection=null;
         string trace = Path.Combine(destination, "WebMinimalApiSmoke" + suffix + "-trace");
         string log = Path.Combine(destination, "WebMinimalApiSmoke" + suffix + "-run");
         string expectedBody = DefaultWebBody + (configured ? "_" + Guid.NewGuid().ToString("N") : "");
@@ -360,7 +370,12 @@ public static partial class NativeAotWebPayload
                 await File.WriteAllBytesAsync(Path.Combine(destination,"web-vectors"+suffix+".bin"),bytes);
                 await File.WriteAllTextAsync(Path.Combine(destination,"web-vectors"+suffix+".json"),vectorEvidence);
             }
-            await RunChurnAsync(client, endpoint, expectedBody,
+            if(signalRace)
+            {
+                string raceJson=await CaptureSignalRaceAsync(client,endpoint,expectedBody,Path.Combine(destination,"web-signalrace.json"),deadline.Token);
+                raceSelection=ValidateSignalRaceEvidence(raceJson,endpoint,expectedBody);
+            }
+            else await RunChurnAsync(client, endpoint, expectedBody,
                 Path.Combine(destination, "web-churn" + suffix + ".json"), deadline.Token);
             using var healthAfter = await client.GetAsync(endpoint + "/healthz", deadline.Token);
             Require(healthAfter.StatusCode == HttpStatusCode.OK &&
@@ -370,6 +385,7 @@ public static partial class NativeAotWebPayload
             string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token))
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
+            if(signalRace)Require(raceSelection!.Pid==int.Parse(children[0],System.Globalization.CultureInfo.InvariantCulture),"signalrace_tracee_identity");
             Require(File.ResolveLinkTarget($"/proc/{children[0]}/exe", true)?.FullName == executable, "http_tracee_executable");
             await ExecuteAsync("kill", ["-TERM", children[0]], root,
                 Path.Combine(destination, "WebMinimalApiSmoke" + suffix + "-shutdown"), TimeSpan.FromSeconds(10));

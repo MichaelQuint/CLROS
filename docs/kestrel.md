@@ -151,9 +151,23 @@ readiness win survives tgkill; empty recheck/repark publishes a new sequence
 before pending12 can win EINTR. Delivery selection survives IRQs before the
 first observed handler call. These are host scalar/scheduler contracts, with
 copied event/action/frame contents still opaque. All 63 focused checks across
-six replay fixtures pass with unchanged inputs and zero reuse. Original-index
-race projection,
-owned HTTP churn orchestration and new native/guest admission remain unfinished.
+six replay fixtures pass with unchanged inputs and zero reuse. At that step,
+original-index race projection, owned HTTP churn orchestration and new
+native/guest admission remain unfinished.
+
+[Step1504](../done/step1504.md) implements a default-off native qualification mode:
+`nativeaot web qualify --signal-race --output <fresh-directory>`. Default v4
+qualification retains its two sessions; v5 additionally owns a fresh third
+session with directed race during pending churn, advancing timer/worker/collection
+counters, actual cancellation/drain, one recovery, later progress and refusals.
+Its copied selection may request an immutable original-order projection only
+after complete web scheduler replay. That projection retains original normalized
+indices, model identities/FS/descriptor generations, exact race/recovery order
+and explicit closes; absent native EXIT/REAP remains absent. Actual native and
+owned guest execution, pointed-to contents and quota-cleanup acceptance remain
+required. Current ELF/source/index guards are unchanged.
+The small build and80 focused checks across10 fixtures pass with unchanged
+inputs/zero reuse; this is host development evidence.
 
 ## Continuing-service foundations
 

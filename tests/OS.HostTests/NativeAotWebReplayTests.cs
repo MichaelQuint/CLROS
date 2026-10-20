@@ -75,13 +75,13 @@ internal static class NativeAotWebReplayTests
         return v.Rows;
     }
     private static QemuTranscripts.WebReplayReport Inspect(List<string> rows,string fragment="M16_008_CALL identity=4294967297 nr=202",
-        QemuTranscripts.WebControlInspection? controls=null,bool quota=false)=>
+        QemuTranscripts.WebControlInspection? controls=null,bool quota=false,QemuTranscripts.WebSignalRaceSelection? signalRace=null)=>
         QemuTranscripts.InspectNativeAotWebReplayForTests(NativeAotThreadingTranscriptTests.Elf(),
-            Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota);
+            Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota,signalRace);
     // Shared synthetic callback only; the caller receives no prepared-program,
     // captured-process, source/native or guest execution authority.
-    internal static QemuTranscripts.WebReplayReport InspectProbe(Action<NativeAotThreadingTranscriptTests.Vector> probe,string fragment="")=>
-        Inspect(Vector(probe:probe),fragment);
+    internal static QemuTranscripts.WebReplayReport InspectProbe(Action<NativeAotThreadingTranscriptTests.Vector> probe,string fragment="",QemuTranscripts.WebSignalRaceSelection? signalRace=null)=>
+        Inspect(Vector(probe:probe),fragment,signalRace:signalRace);
     private static void Reject(Action action)
     { bool failed=false;try{action();}catch(ToolFailure){failed=true;}HostCheck.True(failed); }
 

@@ -336,6 +336,7 @@ public static partial class QemuTranscripts
                             Need(r["nr"]==60,"threading_exit_tail_syscall");
                         }
                         Call(t,r,waits[index],output);
+                        ObserveWebSignalRaceCall(t,r,waits[index]);
                         if(serviceQuotaFailure)QuotaSocketObservation(r,returns[index]);
                         Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;

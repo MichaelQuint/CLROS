@@ -25,6 +25,7 @@ public static partial class QemuTranscripts
                 CollectionSignal? proof=t.DeliveryProof;
                 Need(proof is null || proof.Identity==t.Identity,"runtime_signal_generation");
                 t.Delivered++; t.Frames.Push((frame,interrupted,proof,selected));
+                ObserveWebSignalRaceFrame(t,selected,frame,value.RecordIndex,returned:false);
                 t.DeliveryRsp=null;t.DeliverySignal=0;t.DeliveryProof=null;
             }
             if(r["nr"]==15)
@@ -32,6 +33,7 @@ public static partial class QemuTranscripts
                 Need(t.Frames.Count>0 && r["action"]==5 && r["status"]==1,"threading_sigreturn_without_frame");
                 var frame=t.Frames.Pop(); Need(r["rsp"]==frame.Frame+8 && value.Rsp==frame.Rsp && instruction(value.Rip),"threading_sigreturn_context");
                 Envelope(t,value.Rip,value.Rsp,value.Flags,value.Fs,value.Gs,15); t.Returned++; signalReturns++;
+                ObserveWebSignalRaceFrame(t,frame.Signal,frame.Frame,value.RecordIndex,returned:true);
                 if(frame.Proof is not null)phases!.Collected(frame.Proof);
                 t.TimedRestart=null; // rt_sigreturn invalidates the restart callback.
             }

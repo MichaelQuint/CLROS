@@ -341,6 +341,16 @@ copied event/action/frame contents, HTTP churn overlap or workload cleanup.
 The small build and 63 focused checks across six affected replay fixtures pass;
 full-host/native/guest qualification remains deferred to the stable batch.
 
+[Step1504](../done/step1504.md) connects copied HTTP stimulus/progress/role
+validation to an optional original-order projection after full web replay.
+The default-off v5 native mode uses a fresh third owned session; v4 remains
+unchanged. Controller failures retain rejected partial evidence and join both
+pending requests. Projection fields carry actual replay generations and original
+indices, while callback code, pointed-to bytes/events/actions and native/guest
+ownership remain separate. The new mode and guest integration require execution.
+The small build and80 focused checks across10 affected fixtures pass with
+unchanged inputs/zero reuse; no new native or guest execution is claimed.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
