@@ -1,5 +1,20 @@
 # Windows development-machine handoff
 
+## October 20 resumed validation
+
+[Step1479](../done/step1479.md) completes the original v1 and five memory
+controls after workspace cleanup. The six-command controller is terminal/passed;
+source/native copies remain under `artifacts/service-validation-20261020-r01/`.
+The host-only unsupported Task<int> repair passes its red/green focused checks.
+All 16 issues remain open pending a fresh full-host gate and scoped closure review.
+
+Keep the primary on `codex/resume-service-validation-20261020` while the frozen
+full lane runs. Locate its exact process using `full-host-return-kinds-r01.state.json`
+in that evidence root; verify PID and start time or the live session before
+calling it stopped. A state file alone is not liveness evidence. Do not edit or
+switch source during the gate, and do not restart solely after an observation
+timeout. The separate quota-classification proposal remains ignored/unapplied.
+
 ## October 19 workspace cleanup
 
 [Step1478](../done/step1478.md) consolidates development in `C:/Projects/CLROS`
@@ -41,8 +56,8 @@ The later user-authorized cleanup in step1478 supersedes that workspace layout;
 the complete `nativeaot-logging` evidence snapshot is preserved in the archive
 above, and development resumes from the primary checkout.
 
-First qualify the repaired v1 producer and five memory controls against their
-exact source, then review the 14 conditional candidates. Keep #748/#225 open
+Step1479 completes the repaired v1 producer and five memory controls against their
+exact source. Qualify the new host runner, then review the 14 conditional candidates. Keep #748/#225 open
 until their full quota/failure/cleanup criteria pass. Do not repeat the completed
 full-host run solely to refresh a count; the newer host-only delta needs scoped
 validation, and any future kernel/runtime changes need the relevant stable gate.

@@ -17,20 +17,25 @@ Hardware-protected isolation for multiple applications follows.
 inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime batch;
 [step1419](done/step1419.md) qualifies bounded Kestrel health, responses and UTC.
 
-[Step1477](done/step1477.md) checkpoints the service/churn development batch.
-At source `810b3eef`, the corrected runner passes 5,917 full-host checks across
-792 fixtures (94 Native). One original 826,707ms configured service and 15
-individual ancestors pass. The v1 service consumer fails on duplicate ACKs;
-its host-only repair passes three focused checks and the current 4,856-check
-fast lane but needs a fresh original run.
-Five memory controls remain unrun. All 16 affected issues stay open, including
-the seven prerequisites reopened after step1437's unawaited-test finding.
+[Step1479](done/step1479.md) completes the fresh original v1 service and five
+memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
+passes the original 829,226ms service lifetime; all three expected memory faults
+pass their dedicated full-parent restoration checks. Failed originals remain failed.
 
-Next complete that validation and #748/#225's exact quota termination criteria.
-The declared native headroom shares the dynamic pool; pressure/recovery does not
-prove enforced independent partitions or offending-workload termination.
-Repeated service #224, async churn #225 and the complete local Kestrel gate
-remain unaccepted. CLROS is not cloud-ready or production-ready.
+Closure review finds another #784 gap: unsupported `Task<int>` fixtures can
+execute and pass. The new declared-type whitelist has a genuine red regression
+and 33 passing focused runner checks. A fresh stable unfiltered full-host gate
+is required; the retained 5,917-check result remains bound to `810b3eef`.
+See step1479 and `artifacts/service-validation-20261020-r01/` for exact receipts
+and the new gate's process/state. Preserve its frozen source until terminal.
+
+All 16 affected issues and seven reopened prerequisites remain open. Supported
+closures require the new full-host result and exact dependency/criteria review.
+#748/#225 still lack quota-triggered offending-workload termination and cleanup
+during churn. The 36MiB dynamic pool is shared; 16MiB GC plus declared 20MiB native
+headroom does not enforce independent partitions. Native saturation occurs before
+listen and after drain. Complete Kestrel/Gate14, isolation, cloud and production
+remain incomplete. Bounded native reviews retain their explicit original scopes.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
 real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
