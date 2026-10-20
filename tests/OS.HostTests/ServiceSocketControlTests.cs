@@ -175,6 +175,13 @@ internal static class ServiceSocketControlTests
                 else if (current.Zero && current.Probes ==2 && window !=0 && ack ==unchecked(current.Server +2))
                 {
                     HostCheck.True(healthyClosed); current.Probes = 3;
+                    if (mode =="duplicate-reopen-ack")
+                    {
+                        Reply(port, current, unchecked(current.Server +2), 0x10);
+                        // ReceiveFin ignores pure ACKs. Replaying the already
+                        // probed prefix also exercises the byte-identical ACK.
+                        Reply(port, current, current.Server, 0x18, Encoding.ASCII.GetString(current.Response, 0, 2));
+                    }
                     Reply(port, current, unchecked(current.Server +2), 0x18, Encoding.ASCII.GetString(current.Response, 2, current.Response.Length -2));
                     Reply(port, current, unchecked(current.Server +(uint)current.Response.Length), 0x11);
                 }

@@ -147,8 +147,12 @@ public static partial class QemuTranscripts
             lostPacket.Sequence == zeroPacket.Sequence && lostPacket.Ack == zeroPacket.Ack &&
             freshPacket.Port == zeroPacket.Port && freshPacket.Flags == 0x10 && freshPacket.Window == 8192 && freshPacket.Payload.Length == 0 &&
             freshPacket.Sequence == lostPacket.Sequence && freshPacket.Ack == unchecked(lostPacket.Ack + 1), "service_control_reopen");
-        long zeroAt = incoming.Single(packet => packet.Raw.AsSpan().SequenceEqual(zeroPacket!.Raw)).Ordinal;
-        long freshAt = incoming.Single(packet => packet.Raw.AsSpan().SequenceEqual(freshPacket!.Raw)).Ordinal;
+        // Identical cumulative ACKs can be sent again before response data.
+        // Bind the earliest wire occurrence so an early reopen still fails.
+        var zeroObserved = incoming.FirstOrDefault(packet => packet.Raw.AsSpan().SequenceEqual(zeroPacket!.Raw));
+        var freshObserved = incoming.FirstOrDefault(packet => packet.Raw.AsSpan().SequenceEqual(freshPacket!.Raw));
+        Need(zeroObserved is not null && freshObserved is not null, "service_control_reopen_wire");
+        long zeroAt = zeroObserved!.Ordinal, freshAt = freshObserved!.Ordinal;
         Need(firstProbe!.Ordinal < zeroAt && zeroAt < secondProbe!.Ordinal && secondProbe.Ordinal < freshAt &&
             healthy[^1].Ordinal < freshAt && persist.Where(packet => !packet.Outgoing && packet.Ordinal < freshAt).All(packet => packet.Window == 0) &&
             !persist.Any(packet => packet.Outgoing && packet.Ordinal < firstProbe.Ordinal && packet.Payload.Length != 0) &&

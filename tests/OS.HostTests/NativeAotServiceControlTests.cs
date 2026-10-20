@@ -13,6 +13,16 @@ internal static class NativeAotServiceControlTests
             result.Http.ServerActiveCloses == 2 && result.ControlledRecords == control.Observations.Count && result.Ports.Count == 3);
     }
 
+    [HostTest("independent service control joins the first reopen ACK when a later identical ACK is forwarded")]
+    private static async Task DuplicateReopenAck()
+    {
+        var (control, frames, bytes) = await ServiceSocketControlTests.Exercise("duplicate-reopen-ack");
+        var fresh = frames.Injections.Single(row => row.Tag == "persist.reopen.fresh");
+        HostCheck.Equal(2, frames.Injections.Count(row => row.Forwarded && row.Hex == fresh.Hex));
+        var result = Inspect(bytes, JsonSerializer.Serialize(control), JsonSerializer.Serialize(frames));
+        HostCheck.True(result.PendingResets == 2 && result.Http.CompleteCloses == 2);
+    }
+
     [HostTest("independent service capture refuses ledger substitutions trailing retries missing packets and false windows")]
     private static async Task Refusals()
     {
