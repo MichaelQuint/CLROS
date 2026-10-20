@@ -174,6 +174,15 @@ public static class ToolCommand
             {NativeAotSocketVectorsPeer.RunGuestPeerAsync(Repository.FindRoot(),vectorPortNumber,vectorSerial,Console.Out).GetAwaiter().GetResult();return 0;}
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket-vectors")
                 return NativeAotSocketVectorsPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "quota-peer")
+            {
+                if (args.Length != 5 || args[3] != "--port" ||
+                    !int.TryParse(args[4], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int quotaPort) ||
+                    quotaPort is < 1 or > 65535 || args[4] != quotaPort.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    throw new ArgumentException("quota_peer_cli expected=nativeaot service quota-peer --port <1..65535>");
+                var observation = NativeAotServiceQuotaPeer.RunAsync(quotaPort).GetAwaiter().GetResult();
+                Console.Out.Write(NativeAotServiceQuotaPeer.SerializeReport(observation) + "\r\n"); return 0;
+            }
             if (args.Length is 7 or 8 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "guest-peer" &&
                 args[3] == "--port" && int.TryParse(args[4], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int servicePort) &&
                 args[5] == "--serial" && args[6].Length != 0 && (args.Length == 7 || args[7] == "--lifecycle"))

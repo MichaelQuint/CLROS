@@ -108,6 +108,24 @@ focused checks. The active M16-014 C# Compile target also passes with
 the complete evaluated profile. This produces IL, not native/guest evidence;
 #748/#225 remain open.
 
+[Step1483](../done/step1483.md) adds the bounded quota peer child owner and
+strict child CLI, plus a separate negative runner value inspector. Five owner
+checks and ten positive peer regressions pass; six capture-value checks pass
+with a later producer. Expected runner22 awaits the finishing peer. Failure or
+cancellation joins both owned children and retains their logs. The inspector
+recomputes terminal/stream metrics, quiet drain and cleanup observations, and
+checks borrowed PCAP framing; its copied result remains `captured/pending`.
+These checks do not activate the guarded QemuSmoke quota path or establish the
+missing packet/peer/syscall temporal joins.
+
+The frozen `6fed0467` source/producer publishes a fresh original static ELF on
+the pinned external Linux builder. All24 exported originals,881 source hashes
+and22 output hashes match. Independent decode covers every executable-section
+byte and all198 syscall continuations; the retained debug file has the exact
+GNU debug-link CRC and executable addresses. This is publication/index evidence.
+It does not execute the app or supply fresh prepared-program/GC admission,
+complete native ABI/stack review, a full-host gate or CLROS guest acceptance.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
@@ -127,8 +145,8 @@ and conservative component bounds are not measured physical component peaks or
 proof that effective budgets fit the committed entitlement.
 
 Admission remains closed at `service_quota_publication_unreviewed`; the runner
-path also refuses `service_quota_capture_owner_required`. Finish the actual
-capture owner and complete consumer, fresh original Linux source/ELF/index/GC
+path also refuses `service_quota_capture_owner_required`. Finish guarded
+capture orchestration and the complete consumer, fresh original source/ELF/index/GC
 admission, active native ABI/frame review, stable full and original guest/packet/
 process qualification before acceptance. #225 additionally requires the actual
 MinimalApiSmoke workload and directed-signal/readiness evidence during its churn.
