@@ -36,6 +36,7 @@ during churn. The 36MiB dynamic pool is shared; 16MiB GC plus declared 20MiB nat
 headroom does not enforce independent partitions. Native saturation occurs before
 listen and after drain. Complete Kestrel/Gate14, isolation, cloud and production
 remain incomplete. Bounded native reviews retain their explicit original scopes.
+CLROS is not cloud-ready or production-ready.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
 real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
