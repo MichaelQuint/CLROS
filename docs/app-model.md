@@ -324,6 +324,14 @@ owned original-order producer/consumer remain unvalidated or unfinished. The
 earlier Linux ownership capture supplies none of those new claims. Preserve
 prepared image guards and all #225/#748 acceptance requirements.
 
+[Step1502](../done/step1502.md) extends only the literal Smoke host consumer:
+a read-only alternate-stack query and one separately owned nonblocking probe
+pipe now have scalar access/result and descriptor-generation/count replay.
+The runtime blocking signal pipe remains independent. Copied pipe-byte and
+alternate-stack contents, pipe epoll/signal12 race replay, owned churn/race HTTP
+orchestration and new native/guest qualification remain separate requirements.
+No prepared-image admission or issue acceptance follows from this reader work.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

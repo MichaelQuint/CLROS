@@ -132,6 +132,17 @@ strict original-order consumer, then finish fragmentation/effective-budget/
 offender-cleanup/RAM controls before the stable native/guest batch. No current
 web index admission or #225/#748 acceptance changes.
 
+[Step1502](../done/step1502.md) adds two host-reader prerequisites to the real
+web replay. Literal Smoke may query `sigaltstack` without changing it; the reader
+checks the complete 24-byte writable span and scalar result. One additional
+CLOEXEC/NONBLOCK pipe shares the existing descriptor namespace, retains both
+descriptor generations and replays bounded counts, occupancy, atomic writes,
+EAGAIN, EOF, EPIPE and explicit close/reuse independently of the runtime signal
+pipe. These scalar records establish neither byte values nor alternate-stack
+contents. Service and other profiles retain their prior admission. Pipe epoll
+watches, signal12 replay, original race ordering and the owned HTTP orchestration
+remain unfinished; current source/ELF/index guards remain closed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

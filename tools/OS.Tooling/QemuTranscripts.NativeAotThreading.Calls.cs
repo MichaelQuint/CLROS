@@ -46,7 +46,7 @@ public static partial class QemuTranscripts
             t.Deadline=witness.Deadline; t.LastSequence=witness.Sequence;
             t.WaitOrder=++waitOrder;t.AddressOrder=++addressOrder;t.Parking=true;
         }
-        private int LowestFd()=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite,-1);
+        private int LowestFd(int excluded=-1)=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite && fd!=excluded,-1);
         private readonly uint[] descriptorGenerations=new uint[16];
         private void InstallDescriptorGeneration(int fd)
         {
@@ -66,7 +66,9 @@ public static partial class QemuTranscripts
             Need(r["clock"]==clock || readsClock || socket,"threading_unowned_clock_change"); Clock(r["clock"]);
             if(service) ServiceCall(t,witness);
             ulong action=1,status=1;
-            if(web && WebFileCall(r,witness)) { }
+            if(WebAlternateStackCall(r)) { }
+            else if(WebProbePipeCall(r)) { }
+            else if(web && WebFileCall(r,witness)) { }
             else if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
             else switch(nr)
             {
