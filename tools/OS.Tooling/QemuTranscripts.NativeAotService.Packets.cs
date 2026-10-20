@@ -13,11 +13,13 @@ public static partial class QemuTranscripts
     public readonly record struct ServiceHttpPacketInspection(int Connections, int TcpRecords, int RequestBytes, int ResponseBytes,
         int ServerActiveCloses, int CompleteCloses, int QuietSyns, int ClientResets = 0, int LifecycleConnections = 0);
 
-    private sealed class ServiceWireFlow(uint port, uint client)
+    private sealed class ServiceWireFlow(uint port, uint client, bool quotaStreams = false)
     {
         internal readonly uint Port = port, Client = unchecked(client + 1);
-        internal byte[] Request = new byte[4096], Response = new byte[16384];
-        internal bool[] RequestSeen = new bool[4096], ResponseSeen = new bool[16384];
+        internal byte[] Request = quotaStreams ? Array.Empty<byte>() : new byte[4096],
+            Response = quotaStreams ? Array.Empty<byte>() : new byte[16384];
+        internal bool[] RequestSeen = quotaStreams ? Array.Empty<bool>() : new bool[4096],
+            ResponseSeen = quotaStreams ? Array.Empty<bool>() : new bool[16384];
         internal uint Server;
         internal int RequestExtent, ResponseExtent, ClientSeen, ServerSeen;
         internal int SynRecord, ResponseFirstRecord, ResponseLastRecord, ClientFinRecord, ServerFinRecord, ResetRecord;
@@ -69,14 +71,14 @@ public static partial class QemuTranscripts
             capture.QuietSyns, capture.Flows.Count(flow => flow.ResetRecord != 0), lifecycleConnections);
 
     private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
-        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null)
+        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null, bool quotaStreams = false)
     {
         if (ports is null) throw new ToolFailure("service_wire_ports");
         Need(ports.Count is >0 and <=512 && ports.Distinct().Count() == ports.Count &&
             ports.All(port => port is >0 and <=65535), "service_wire_ports");
         _ = QemuEthernetCapture.Inspect(bytes, anchor);
         int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0, record = 0;
-        ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = [];
+        ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = []; int quotaExtent = 0;
         while (offset < bytes.Length)
         {
             record++;
@@ -125,7 +127,7 @@ public static partial class QemuTranscripts
                     { Need(flows.Count == 0 && ++quietSyns <= 1600, "service_wire_quiet_syn"); continue; }
                     Need(flows.Count < ports.Count && remote == ports[flows.Count] &&
                         (concurrent || flows.Count == 0 || flows[^1].ServerFin && flows[^1].ServerSeen == flows[^1].ResponseExtent), "service_wire_flow_order");
-                    flow = new(remote, sequence) { SynRecord = record }; flows.Add(flow);
+                    flow = new(remote, sequence, quotaStreams) { SynRecord = record }; flows.Add(flow);
                 }
                 else Need(unchecked(sequence + 1) == flow.Client && !flow.ClientFin && !flow.ServerFin && flow.ResetRecord == 0, "service_wire_syn_retry");
                 continue;
@@ -153,7 +155,21 @@ public static partial class QemuTranscripts
             if (incoming) flow.ClientReady = true; else Need(flow.ClientReady, "service_wire_handshake_order");
             if (outgoing && flow.ClientFin && acknowledge == flow.RequestExtent + 1) flow.ClientFinAcked = true;
             if (incoming && flow.ServerFin && acknowledge == flow.ResponseExtent + 1) flow.ServerFinAcked = true;
-            if (payload.Length != 0) GrowServiceWireBuffer(flow, outgoing, relative, payload.Length, lifecycle);
+            if (payload.Length != 0)
+            {
+                if (quotaStreams)
+                {
+                    // Count logical extents including holes before ANY growth.
+                    // This is a parser extent budget, not allocated backing.
+                    ulong end = (ulong)relative + (uint)payload.Length;
+                    Need(end <= QuotaPacketMaximumExtent, "service_quota_wire_extent");
+                    int previous = outgoing ? flow.ResponseExtent : flow.RequestExtent;
+                    int added = Math.Max(previous, (int)end) - previous;
+                    Need(added <= QuotaPacketMaximumExtent - quotaExtent, "service_quota_wire_aggregate");
+                    quotaExtent += added;
+                }
+                GrowServiceWireBuffer(flow, outgoing, relative, payload.Length, lifecycle, quotaStreams);
+            }
             byte[] data = outgoing ? flow.Response : flow.Request; bool[] seen = outgoing ? flow.ResponseSeen : flow.RequestSeen;
             int contiguous = outgoing ? flow.ServerSeen : flow.ClientSeen, extent = outgoing ? flow.ResponseExtent : flow.RequestExtent;
             bool fin = outgoing ? flow.ServerFin : flow.ClientFin;
@@ -195,9 +211,9 @@ public static partial class QemuTranscripts
         return new(flows, tcpRecords, quietSyns);
     }
 
-    private static void GrowServiceWireBuffer(ServiceWireFlow flow, bool outgoing, uint relative, int bytes, bool lifecycle)
+    private static void GrowServiceWireBuffer(ServiceWireFlow flow, bool outgoing, uint relative, int bytes, bool lifecycle, bool quotaStreams = false)
     {
-        int maximum = lifecycle ? outgoing ? 524288 + 8192 : 32768 + 4096 : outgoing ? 16384 : 4096;
+        int maximum = quotaStreams ? QuotaPacketMaximumExtent : lifecycle ? outgoing ? 524288 + 8192 : 32768 + 4096 : outgoing ? 16384 : 4096;
         Need((ulong)relative + (uint)bytes <= (uint)maximum, "service_wire_payload_extent");
         int needed = (int)relative + bytes, current = outgoing ? flow.Response.Length : flow.Request.Length;
         if (needed <= current) return;

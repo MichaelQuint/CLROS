@@ -171,6 +171,15 @@ Repeated ports across generations stay distinct; pending SYN reservations and
 unadmitted startup host writes do not establish HTTP or host-to-guest identity.
 Original byte/flow joins remain separate.
 
+[Step1489](../done/step1489.md) separates known host directional bytes from
+failed-write attempts and binds completed logical controls/polls and selected
+samples to parsed original host HTTP intervals. A quota-only packet stream
+inventory retains contiguous prefixes, first-seen byte islands and transport
+facts, with4MiB directional/aggregate logical extents checked before allocation.
+Positive packet/close/reset defaults stay unchanged. These copied host and packet
+inventories still require an original-byte host-to-guest flow join and complete
+capture/syscall/native/process ownership before quota acceptance.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
