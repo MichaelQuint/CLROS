@@ -30,7 +30,18 @@ public static partial class QemuTranscripts
         ulong PoolBytes, ulong EntitlementBytes, ulong PeakBackedBytes, ServiceGcMeasurement StartupGc,
         ServiceGcBackingInspection GcArena, IReadOnlyList<ServiceQuotaMemorySnapshot> Snapshots, int PressureSnapshots,
         ulong PressurePeakBackedBytes, ulong RetainedMappings, ulong RetainedBytes, ServiceQuotaMemorySnapshot Denial,
-        ulong MaximumNonGcUpperBoundBytes, ulong GcLimitPlusNonGcUpperBoundBytes, ulong StaticPlusGcLimitAndNonGcUpperBoundBytes);
+        ulong MaximumNonGcUpperBoundBytes, ulong GcLimitPlusNonGcUpperBoundBytes, ulong StaticPlusGcLimitAndNonGcUpperBoundBytes)
+    {
+        /// <summary>Copied unique retained mmap positions in original normalized
+        /// rows. Existing full ownership/mutation checks precede projection;
+        /// virtual spans are not independent physical-allocation evidence.</summary>
+        public IReadOnlyList<ServiceQuotaRetainedMapping> RetainedCalls { get; init; } = Array.Empty<ServiceQuotaRetainedMapping>();
+    }
+
+    /// <summary>One still-retained original1MiB mapping and exact successful CALL
+    /// identity. CallRecordIndex addresses original normalized rows.</summary>
+    public readonly record struct ServiceQuotaRetainedMapping(int Index, ulong Address, ulong Bytes,
+        int CallRecordIndex, ulong Identity, ulong Ordinal);
 
     /// <summary>Synchronously borrow original framed v3-quota bytes and validate
     /// budget, app retention windows, every memory-return snapshot/topology and
@@ -201,6 +212,8 @@ public static partial class QemuTranscripts
         metadataPositions = positions;
         return new(budget["gc"], budget["nativeReserve"], budget["static"], pool, entitlementBytes, finalMemory["peakPages"] * page,
             output.StartupGc, gc.Summary, Array.AsReadOnly(snapshots.ToArray()), during.Length, during.Max(s => s.BackedPages) * page,
-            (ulong)retained.Count, output.RetainedBytes, last, nonGc, conservativePool, budget["static"] + conservativePool);
+            (ulong)retained.Count, output.RetainedBytes, last, nonGc, conservativePool, budget["static"] + conservativePool)
+        { RetainedCalls = Array.AsReadOnly(retained.Select((held, index) => new ServiceQuotaRetainedMapping(index,
+            held.Address, chunk, held.Call, callValues[held.Call]["identity"], returns[held.Call].Ordinal)).ToArray()) };
     }
 }

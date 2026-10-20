@@ -206,6 +206,17 @@ source-admission identities; its original image/object/map inputs are retained.
 Retained-memory/GC/worker/health overlap and held capture joins remain pending.
 This does not qualify the native ABI, fresh guests or quota termination.
 
+[Step1493](../done/step1493.md) projects each already validated retained mmap's
+original CALL and joins segmented stderr marker bytes and selected HTTP responses
+to original write/socket calls. The retained poll may start before the map and
+return before its log is published. Held prefixes precede pressure; forced-GC
+markers and worker/health/lifecycle/quota responses lie before denial. Six focused
+overlap/memory checks pass. An internal holder and composed consumer use the
+private observed peer Completion, actual pre-run input records and eight held
+outputs, verified before and after inspection. Their genuine successful capture
+path is unexercised; QemuSmoke caller integration remains required and its guard
+stays closed. No issue or guest gate is accepted by these copied-value checks.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

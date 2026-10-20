@@ -76,6 +76,20 @@ internal static class NativeAotServiceQuotaMemoryTests
             var value = QemuTranscripts.InspectNativeAotServiceQuotaMemoryForTests(bytes, 67108864);
             HostCheck.Equal(39, value.Snapshots.Count); HostCheck.Equal(33, value.PressureSnapshots);
             HostCheck.Equal(32UL, value.RetainedMappings); HostCheck.Equal(33554432UL, value.RetainedBytes);
+            HostCheck.Equal(32, value.RetainedCalls.Count);
+            for (int i = 0; i < value.RetainedCalls.Count; i++)
+            {
+                var held = value.RetainedCalls[i];
+                HostCheck.Equal(i, held.Index); HostCheck.Equal(Native + (ulong)i * 1048576, held.Address);
+                HostCheck.Equal(1048576UL, held.Bytes); HostCheck.Equal(4294967297UL, held.Identity);
+                HostCheck.Equal((ulong)(7 + i), held.Ordinal);
+                HostCheck.True(held.CallRecordIndex < value.Denial.RecordIndex &&
+                    (i == 0 || held.CallRecordIndex > value.RetainedCalls[i - 1].CallRecordIndex));
+            }
+            bool readonlyProjection = false;
+            try { ((IList<QemuTranscripts.ServiceQuotaRetainedMapping>)value.RetainedCalls).Clear(); }
+            catch (NotSupportedException) { readonlyProjection = true; }
+            HostCheck.True(readonlyProjection);
             HostCheck.Equal(37748736UL, value.PeakBackedBytes); HostCheck.Equal(value.PeakBackedBytes, value.PressurePeakBackedBytes);
             HostCheck.Equal(16777216UL, value.GcLimitBytes); HostCheck.Equal(20971520UL, value.NativeReserveBytes);
             HostCheck.Equal(33554432UL, value.MaximumNonGcUpperBoundBytes); HostCheck.Equal(50331648UL, value.GcLimitPlusNonGcUpperBoundBytes);
@@ -87,6 +101,7 @@ internal static class NativeAotServiceQuotaMemoryTests
             HostCheck.Equal(0UL, value.Denial.FreePages); HostCheck.Equal(39UL, value.Denial.Ordinal);
             HostCheck.True(bytes.AsSpan().SequenceEqual(before)); Array.Clear(bytes);
             HostCheck.Equal(9216UL, value.Denial.BackedPages); HostCheck.Equal(39, value.Snapshots.Count);
+            HostCheck.Equal(32, value.RetainedCalls.Count); HostCheck.Equal(Native, value.RetainedCalls[0].Address);
         }
     }
 
