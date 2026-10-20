@@ -158,6 +158,13 @@ Host I/O failure can follow QEMU/slirp shutdown: the kernel abort path deliberat
 abandons transport without FIN or synthetic RST, so neither fact proves guest
 quota cleanup by itself.
 
+[Step1487](../done/step1487.md) adds a separate quota-only persistent HTTP prefix
+reader. It returns consumed complete-message intervals and an explicit unfinished
+header/body/chunk suffix, preserving header-only cancellation and partial echo.
+Its bounded copied values do not bind samples, connections, PCAP or clocks;
+those joins remain required before the quota capture guard can open. Existing
+positive service readers and caps remain unchanged.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
