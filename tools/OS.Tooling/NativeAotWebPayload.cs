@@ -16,7 +16,7 @@ namespace OS.Tooling;
 /// three-app publisher. Owns its extra HTTP child sessions and a sealed receipt;
 /// publication remains exclusively NativeAotPayload's recipe. No CLROS guest
 /// authority follows from this builder or its read-only receipt validation.</summary>
-public static class NativeAotWebPayload
+public static partial class NativeAotWebPayload
 {
     private const string SdkVersion = NativeAotPayload.SdkVersion;
     private const string RuntimeVersion = NativeAotPayload.RuntimeVersion;
@@ -73,7 +73,7 @@ public static class NativeAotWebPayload
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt("clros.nativeaot.web.v3", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt("clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -99,7 +99,7 @@ public static class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema == "clros.nativeaot.web.v3" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema == "clros.nativeaot.web.v4" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -137,7 +137,7 @@ public static class NativeAotWebPayload
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-trace");
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
         foreach (string suffix in new[] { "", "-default" })
-        { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); }
+        { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); ValidateRecordedChurn(destination,suffix); }
     }
 
     /// <summary>
@@ -360,6 +360,8 @@ public static class NativeAotWebPayload
                 await File.WriteAllBytesAsync(Path.Combine(destination,"web-vectors"+suffix+".bin"),bytes);
                 await File.WriteAllTextAsync(Path.Combine(destination,"web-vectors"+suffix+".json"),vectorEvidence);
             }
+            await RunChurnAsync(client, endpoint, expectedBody,
+                Path.Combine(destination, "web-churn" + suffix + ".json"), deadline.Token);
             using var healthAfter = await client.GetAsync(endpoint + "/healthz", deadline.Token);
             Require(healthAfter.StatusCode == HttpStatusCode.OK &&
                 await healthAfter.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "logging_health_after");

@@ -25,7 +25,7 @@ internal static class NativeAotWebPayloadTests
                 string output = Path.Combine(evidence, "observed.log"); File.WriteAllText(output, "original");
                 var outputs = new Dictionary<string, string> { ["observed.log"] = Hash(output) };
                 string sdk = mutation == "pin" ? "10.0.100" : NativeAotPayload.SdkVersion;
-                var receipt = new NativeAotWebPayload.QualificationReceipt(mutation == "schema" ? "clros.nativeaot.web.v1" : mutation=="old_schema"?"clros.nativeaot.web.v2":"clros.nativeaot.web.v3", sdk,
+                var receipt = new NativeAotWebPayload.QualificationReceipt(mutation == "schema" ? "clros.nativeaot.web.v1" : mutation=="old_schema"?"clros.nativeaot.web.v3":"clros.nativeaot.web.v4", sdk,
                     NativeAotPayload.RuntimeVersion, sources, outputs);
                 File.WriteAllText(Path.Combine(evidence, "web-receipt.json"), JsonSerializer.Serialize(receipt));
                 if (mutation == "source") File.AppendAllText(Path.Combine(root, sources.Keys.First()), "changed");

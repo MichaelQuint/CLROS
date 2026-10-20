@@ -273,6 +273,19 @@ unpublished source cannot acquire the old lookup authority. Fresh publication,
 original guest/component-fit evidence and the directed-signal competing-readiness
 workload remain required before #225 acceptance; no issue closes.
 
+[Step1498](../done/step1498.md) integrates those requests into the existing web
+qualifier's default/configured owned child sessions. Receipt v4 requires both
+new churn reports and rejects historical v3 as current evidence. A bounded
+42-observation reader joins exact endpoint/configuration, seven malformed cases,
+three cancel/complete cycles, continued health and drained operation/root counters.
+Duplicate/unknown/missing/reordered/failure/stale values fail closed. A request
+fault cancels and joins outstanding HTTP tasks and retains a rejected partial
+report. Six focused checks pass across their two original producers; both actual
+managed-host production captures and a pending-request transport-fault control
+pass. This does not publish/admit a new Linux NativeAOT ELF or prove the remaining
+directed-signal competing-readiness/physical-budget/guest criteria. Preserve the
+initial null-test-overload failure and all original inputs; no issue closes.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

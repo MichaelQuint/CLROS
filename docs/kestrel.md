@@ -27,8 +27,25 @@ Focused checks use `dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll
 --lane full --filter KestrelRequestChurnTests` and emit `host.tests.focused`.
 
 The old prepared web ELF/source/index pins remain unchanged and must reject
-this unpublished source. Next extend the genuine publisher/qualifier and admit
-its exact new ELF/index; preserve old accepted evidence. #225 still requires
+this unpublished source. [Step1498](../done/step1498.md) implements the qualifier
+extension: existing Linux `nativeaot web qualify --output <fresh-directory>` runs
+the bounded churn in both owned app sessions and writes `web-churn.json` plus
+`web-churn-default.json`. Receipt `clros.nativeaot.web.v4` hashes both reports and
+revalidates their exact corresponding HTTP endpoint/body. Earlier receipts stay
+historical evidence and cannot supply current churn qualification.
+
+Each report selects42 ordered observations: initial zero state, seven malformed
+requests, three pending/cancel/drain and pending/complete/health/drain cycles, then
+final zero ownership. Strict bounded copied-value checks require exact schema,
+fields, bodies, canonical status counters and progress; they grant no process or
+file authority. All request tasks are canceled/joined on failure; partial reports
+remain rejected and retained. Six focused checks pass across two original
+producers. The production capture passes on managed Kestrel in both configurations;
+an injected health transport fault during a real pending request retains nine
+rejected observations and leaves the request drained and health responsive.
+
+Genuine Linux NativeAOT publication and its exact new ELF/index admission remain
+pending until the next app slice is stable; preserve old accepted evidence. #225 still requires
 directed signal delivery with readiness consumed by a competing thread during
 real churn, physical/metadata fragmentation, effective component budgets and
 offending-workload cleanup. The mechanical signal race alone cannot supply that
