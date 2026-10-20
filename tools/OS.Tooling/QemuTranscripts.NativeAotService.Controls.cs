@@ -242,6 +242,15 @@ public static partial class QemuTranscripts
 
     private static void ServiceWireTotals(byte[] bytes, WebParentReport parent, ServiceEnvelopeInspection envelope, byte[] raw)
     {
+        _ = ReadServiceWireTotals(bytes,parent,envelope,raw,out ulong[] times);
+        Need(times.Length > 8 && times[8] - times[0] < 240_000_000, "service_packet_compact_reuse_before_expiry");
+    }
+
+    // Inputs are already checked by the complete packet/parent/leaf consumers.
+    // Quota reuses the counters, while the positive wrapper retains FIN bounds.
+    private static ServiceNicAccountingInspection ReadServiceWireTotals(byte[] bytes, WebParentReport parent,
+        ServiceEnvelopeInspection envelope, byte[] raw,out ulong[] closeTimes)
+    {
         int stage = 0; bool resolved = false; ulong peer = 0, received = 0, arp = 0, arpCopied = 0, tcpCopied = 0, ignored = 0;
         Dictionary<uint, ulong> closes = [];
         Dictionary<(uint Port,uint Sequence),Stack<int>> syns=[];
@@ -290,8 +299,8 @@ public static partial class QemuTranscripts
         if(!(resolved && peer == peerRow["received"] && received == envelope.Received && arp == envelope.Arp && arpCopied == envelope.ArpCopied &&
             tcpCopied == envelope.TcpCopied && ignored == envelope.Ignored && received - arp - ignored == envelope.Accepted))
             throw new ToolFailure("service_packet_nic_join",$"peer={peer}/{peerRow["received"]} received={received}/{envelope.Received} arp={arp}/{envelope.Arp} arpCopied={arpCopied}/{envelope.ArpCopied} tcpCopied={tcpCopied}/{envelope.TcpCopied} ignored={ignored}/{envelope.Ignored}");
-        ulong[] times = closes.Values.Order().ToArray();
-        Need(times.Length > 8 && times[8] - times[0] < 240_000_000, "service_packet_compact_reuse_before_expiry");
+        closeTimes = closes.Values.Order().ToArray();
+        return new(peer,received,arp,received-arp-ignored,ignored,arpCopied,tcpCopied,quietSyns.Length,firstSynAck);
     }
 
     private static byte[] ServiceHex(string? hex)

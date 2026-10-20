@@ -187,6 +187,12 @@ status. Per-message PCAP record order preserves request/response causality
 without joining clock origins. This copied-value join still needs genuine held
 capture/syscall/native/process ownership; the quota guard remains closed.
 
+[Step1491](../done/step1491.md) factors the exact original NIC/ARP/TCP/quiet-SYN
+accounting for the negative quota path. Its copied counter inspection retains
+parent/wire associations without requiring graceful FIN or TIMEWAIT expiry.
+The positive service wrapper retains its existing FIN/compact-expiry check.
+This supplies no syscall/HTTP temporal or held-capture authority.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
