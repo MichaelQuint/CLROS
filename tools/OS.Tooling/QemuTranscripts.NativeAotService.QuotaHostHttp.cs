@@ -36,8 +36,11 @@ public static partial class QemuTranscripts
         ReadOnlySpan<byte> wireJson) => ReadServiceQuotaHostHttp(wireJson);
 
     private static ServiceQuotaHostHttpInspection ReadServiceQuotaHostHttp(ReadOnlySpan<byte> wireJson)
+        => ReadServiceQuotaHostHttp(NativeAotServiceQuotaPeer.InspectWireReport(wireJson));
+
+    // Only callers which just ran the strict inspector may use this overload.
+    private static ServiceQuotaHostHttpInspection ReadServiceQuotaHostHttp(NativeAotServiceQuotaPeer.WireTrace trace)
     {
-        var trace = NativeAotServiceQuotaPeer.InspectWireReport(wireJson);
         Need(trace.Purpose is "quota-run" or "quota-partial", "quota_host_http_purpose");
         var prefixes = ReadServiceQuotaHostPrefixes(trace);
         List<ServiceQuotaHostHttpMessage> messages = [];

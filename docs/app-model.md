@@ -180,6 +180,13 @@ Positive packet/close/reset defaults stay unchanged. These copied host and packe
 inventories still require an original-byte host-to-guest flow join and complete
 capture/syscall/native/process ownership before quota acceptance.
 
+[Step1490](../done/step1490.md) adds bounded global unique byte-based flow
+assignment and complete HTTP/header interval joins to original first-seen packet
+ranges. Failed startup attempts and empty guest flows retain explicit unassigned
+status. Per-message PCAP record order preserves request/response causality
+without joining clock origins. This copied-value join still needs genuine held
+capture/syscall/native/process ownership; the quota guard remains closed.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
