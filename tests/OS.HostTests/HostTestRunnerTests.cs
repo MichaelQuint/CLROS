@@ -22,7 +22,7 @@ internal static class HostTestRunnerTests
     {
         bool Invoke(string name) => HostTestRunner.Invoke(typeof(AsyncSamples).GetMethod(name,
             System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!);
-        foreach (string name in new[] { "TaskPass", "ValuePass", "SourcePass" })
+        foreach (string name in new[] { "TaskPass", "TaskResultPass", "ValuePass", "ValueResultPass", "SourcePass" })
         { AsyncSamples.Completed = false; HostCheck.True(Invoke(name) && AsyncSamples.Completed); }
         HostCheck.True(!Invoke("TaskFalse") && !Invoke("ValueFalse") && !Invoke("SourceFalse") && !Invoke("SyncFalse"));
         foreach (string name in new[] { "TaskFault", "ValueFault" })
@@ -37,7 +37,7 @@ internal static class HostTestRunnerTests
             try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message.StartsWith("null_fixture_task", StringComparison.Ordinal)) { rejected = true; }
             HostCheck.True(rejected);
         }
-        foreach (string name in new[] { "AsyncVoid", "Unsupported" })
+        foreach (string name in new[] { "AsyncVoid", "Unsupported", "UnsupportedTask", "UnsupportedValueTask" })
         {
             AsyncSamples.Completed = false; bool rejected = false;
             try { _ = Invoke(name); } catch (InvalidOperationException error) when (error.Message.StartsWith("unsupported_fixture_return", StringComparison.Ordinal)) { rejected = true; }
@@ -61,7 +61,9 @@ internal static class HostTestRunnerTests
         private static ValueTask SourcePass() { var source = new Source(); return new(source, source.Token); }
         private static ValueTask<bool> SourceFalse() { var source = new Source(); return new(source, source.Token); }
         private static async Task TaskPass() { await Task.Yield(); Completed = true; }
+        private static async Task<bool> TaskResultPass() { await Task.Yield(); Completed = true; return true; }
         private static async ValueTask ValuePass() { await Task.Yield(); Completed = true; }
+        private static async ValueTask<bool> ValueResultPass() { await Task.Yield(); Completed = true; return true; }
         private static async Task<bool> TaskFalse() { await Task.Yield(); return false; }
         private static async ValueTask<bool> ValueFalse() { await Task.Yield(); return false; }
         private static bool SyncFalse() => false;
@@ -71,6 +73,8 @@ internal static class HostTestRunnerTests
         private static Task<bool> NullResult() => null!;
         private static async void AsyncVoid() { await Task.Yield(); Completed = true; }
         private static int Unsupported() { Completed = true; return 1; }
+        private static Task<int> UnsupportedTask() { Completed = true; return Task.FromResult(1); }
+        private static ValueTask<int> UnsupportedValueTask() { Completed = true; return new(1); }
     }
 
     [HostTest("runner filters standard library cases without running sibling cases")]

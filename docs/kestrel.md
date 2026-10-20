@@ -2,30 +2,29 @@
 
 ## Continuing-service foundations
 
-[Step1477](../done/step1477.md) is the current development checkpoint for
-PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
-runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
-unchanged inputs and zero reuse. One original configured v2 service capture
-passes for 826,707ms, including the directed unread-close reset, pressure/recovery,
-HTTP, shutdown and reaps. Fifteen individual ancestor profiles pass with original
-source/object/EFI joins; this is an incomplete validation matrix.
+[Step1479](../done/step1479.md) completes the fresh original v1 service and five
+memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
+passes the original 829,226ms service lifetime; all three expected memory faults
+pass their dedicated full-parent restoration checks. Failed originals remain failed.
 
-The remaining original v1 service producer fails its consumer on two legitimate,
-byte-identical reopen ACKs. Its successful raw terminal does not override that
-failure. A host-only reader repair now binds the first matching wire occurrence;
-three focused checks pass, including the duplicate ACK regression. This newer
-reader/test source has no new full-host or original v1 guest acceptance. Five
-memory controls did not run. Preserve the failed controllers and original inputs.
+[Step1481](../done/step1481.md) records the corrected runner's stable unfiltered full:
+5,918 checks across 792 fixtures (698 Fast, 94 Native) at `96ba8dbd`, unchanged
+inputs, zero reuse and no failures. The exact declared-return whitelist rejects
+unsupported generic tasks before invocation. Both earlier failed full attempts
+remain failed; the original successful producer and dependencies were preserved
+before documentation rebuilds.
 
-All 16 affected issues remain open; the seven step1437 prerequisites remain
-reopened. No acceptance is restored by merging this checkpoint. Next finish the
-v1 producer and five memory controls, review the exact acceptance criteria, then
-reconcile only supported closures. #748 and #225 additionally lack quota-triggered
-offending-workload termination and cleanup. The 36MiB dynamic pool is shared:
-16MiB GC plus declared 20MiB native headroom does not enforce separate partitions.
-Native saturation occurs before listening and after drain, not concurrently with
-request churn. General Kestrel/Gate14, isolation, cloud and production remain
-incomplete. See step1477 for exact receipts, retained failures and restart order.
+Fourteen finite issue scopes have reviewed support for dependency-ordered
+reconciliation; step1481 names their criteria, original receipts and limitations.
+Tracker closure still requires evidence comments, versioned preview/apply and
+readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
+15 individual ancestors and native reviews keep their original `810b3eef` scopes.
+
+#748/#225 remain open: quota-triggered offending-workload termination and cleanup
+during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
+20MiB native headroom does not enforce independent partitions. Native saturation
+occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
+and production remain incomplete.
 
 ## Planned static-file acceptance
 

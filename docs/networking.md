@@ -1,19 +1,24 @@
 # Networking
 
-[Step1477](../done/step1477.md) retains a complete original configured v2 service
-capture at `810b3eef`. After actual last-description close, 17 late bytes provoke
-the exact guest RST|ACK; retirement, no TIME-WAIT retention, generation reuse and
-healthy HTTP are independently joined. Original code/REL32 and bounded stack
-reviews are retained. #778/#779/#224 remain open pending the incomplete matrix.
+[Step1479](../done/step1479.md) completes the fresh original v1 service and five
+memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
+passes the original 829,226ms service lifetime; all three expected memory faults
+pass their dedicated full-parent restoration checks. Failed originals remain failed.
 
-The original v1 producer fails its reader because the fresh reopen ACK occurs
-twice with identical bytes. A reader-only first-occurrence fix passes the new
-host regression and existing refusal checks. It needs a fresh original v1 run;
-the failed producer is retained, not promoted by replay. Five memory controls
-remain unrun. No general service or Gate14 acceptance follows.
+Closure review finds another #784 gap: unsupported `Task<int>` fixtures can
+execute and pass. The new declared-type whitelist has a genuine red regression
+and 33 passing focused runner checks. A fresh stable unfiltered full-host gate
+is required; the retained 5,917-check result remains bound to `810b3eef`.
+See step1479 and `artifacts/service-validation-20261020-r01/` for exact receipts
+and the new gate's process/state. Preserve its frozen source until terminal.
 
-The dated development notes below retain their original scope; step1477 owns
-the current validation status.
+All 16 affected issues and seven reopened prerequisites remain open. Supported
+closures require the new full-host result and exact dependency/criteria review.
+#748/#225 still lack quota-triggered offending-workload termination and cleanup
+during churn. The 36MiB dynamic pool is shared; 16MiB GC plus declared 20MiB native
+headroom does not enforce independent partitions. Native saturation occurs before
+listen and after drain. Complete Kestrel/Gate14, isolation, cloud and production
+remain incomplete. Bounded native reviews retain their explicit original scopes.
 
 Step1455 adds explicit service-v2 PCAP reconstruction for patterned32KiB
 requests,512KiB streamed responses, held-stream/healthy-peer ordering and two

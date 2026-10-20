@@ -112,7 +112,7 @@ internal static class HostTestRunner
     {
         Type type = method.ReturnType;
         if (type == typeof(void) && method.GetCustomAttribute<AsyncStateMachineAttribute>() is not null ||
-            type != typeof(void) && type != typeof(bool) && !typeof(Task).IsAssignableFrom(type) &&
+            type != typeof(void) && type != typeof(bool) && type != typeof(Task) && type != typeof(Task<bool>) &&
             type != typeof(ValueTask) && type != typeof(ValueTask<bool>))
             throw new InvalidOperationException("unsupported_fixture_return " + type.FullName);
         object? value;

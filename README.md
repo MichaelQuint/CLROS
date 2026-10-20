@@ -17,20 +17,30 @@ Hardware-protected isolation for multiple applications follows.
 inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime batch;
 [step1419](done/step1419.md) qualifies bounded Kestrel health, responses and UTC.
 
-[Step1477](done/step1477.md) checkpoints the service/churn development batch.
-At source `810b3eef`, the corrected runner passes 5,917 full-host checks across
-792 fixtures (94 Native). One original 826,707ms configured service and 15
-individual ancestors pass. The v1 service consumer fails on duplicate ACKs;
-its host-only repair passes three focused checks and the current 4,856-check
-fast lane but needs a fresh original run.
-Five memory controls remain unrun. All 16 affected issues stay open, including
-the seven prerequisites reopened after step1437's unawaited-test finding.
+[Step1479](done/step1479.md) completes the fresh original v1 service and five
+memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
+passes the original 829,226ms service lifetime; all three expected memory faults
+pass their dedicated full-parent restoration checks. Failed originals remain failed.
 
-Next complete that validation and #748/#225's exact quota termination criteria.
-The declared native headroom shares the dynamic pool; pressure/recovery does not
-prove enforced independent partitions or offending-workload termination.
-Repeated service #224, async churn #225 and the complete local Kestrel gate
-remain unaccepted. CLROS is not cloud-ready or production-ready.
+[Step1481](done/step1481.md) records the corrected runner's stable unfiltered full:
+5,918 checks across 792 fixtures (698 Fast, 94 Native) at `96ba8dbd`, unchanged
+inputs, zero reuse and no failures. The exact declared-return whitelist rejects
+unsupported generic tasks before invocation. Both earlier failed full attempts
+remain failed; the original successful producer and dependencies were preserved
+before documentation rebuilds.
+
+Fourteen finite issue scopes have reviewed support for dependency-ordered
+reconciliation; step1481 names their criteria, original receipts and limitations.
+Tracker closure still requires evidence comments, versioned preview/apply and
+readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
+15 individual ancestors and native reviews keep their original `810b3eef` scopes.
+
+#748/#225 remain open: quota-triggered offending-workload termination and cleanup
+during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
+20MiB native headroom does not enforce independent partitions. Native saturation
+occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
+and production remain incomplete.
+CLROS is not cloud-ready or production-ready.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
 real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
