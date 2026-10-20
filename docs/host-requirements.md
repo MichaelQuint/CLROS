@@ -220,6 +220,13 @@ The native fixtures still record the selected executable and SHA-256. A process
 override takes precedence; on Windows the saved user setting is also read when
 the current terminal has not inherited it yet.
 
+Verify the selected decoder from the actual detached/controller process context
+as well as the interactive terminal. Step1477 retains a failed native attempt
+where a user-local path was inaccessible there. A byte-identical readable copy
+of LLVM22.1.3, selected with a process-local `CLROS_LLVM_OBJDUMP`, passes identity
+and version checks in the actual controller and permits the replacement full
+run. This observation does not establish an ACL cause or change global settings.
+
 Check discovery before a full host run:
 
 ```powershell

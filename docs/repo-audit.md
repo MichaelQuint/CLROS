@@ -1,11 +1,42 @@
 # Repository Audit
 
+## Current run closeout
+
+[Step1477](../done/step1477.md) is the current development checkpoint for
+PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
+runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
+unchanged inputs and zero reuse. One original configured v2 service capture
+passes for 826,707ms, including the directed unread-close reset, pressure/recovery,
+HTTP, shutdown and reaps. Fifteen individual ancestor profiles pass with original
+source/object/EFI joins; this is an incomplete validation matrix.
+
+The remaining original v1 service producer fails its consumer on two legitimate,
+byte-identical reopen ACKs. Its successful raw terminal does not override that
+failure. A host-only reader repair now binds the first matching wire occurrence;
+three focused checks pass, including the duplicate ACK regression. This newer
+reader/test source has no new full-host or original v1 guest acceptance. Five
+memory controls did not run. Preserve the failed controllers and original inputs.
+
+All 16 affected issues remain open; the seven step1437 prerequisites remain
+reopened. No acceptance is restored by merging this checkpoint. Next finish the
+v1 producer and five memory controls, review the exact acceptance criteria, then
+reconcile only supported closures. #748 and #225 additionally lack quota-triggered
+offending-workload termination and cleanup. The 36MiB dynamic pool is shared:
+16MiB GC plus declared 20MiB native headroom does not enforce separate partitions.
+Native saturation occurs before listening and after drain, not concurrently with
+request churn. General Kestrel/Gate14, isolation, cloud and production remain
+incomplete. See step1477 for exact receipts, retained failures and restart order.
+
+The audit findings below remain historical reproductions. The corrected awaited
+runner now has an exact-source full-host pass; restoring individual issue
+acceptance still requires the scoped review recorded in step1477.
+
 ## October 19 asynchronous fixture correction
 
 M11-026/#784 reproduces a worker reporting Task-returning tests passed before
 completion. Both a delayed false result and delayed exception escape the old
 reflection invocation. The corrected worker joins Task/ValueTask results and
-rejects async void/unsupported returns before execution. Current discovery has
+rejects async void/unsupported returns before execution. Step1444 discovery had
 19 async entries;13 occur in step1437's retained5,809-marker host receipt.
 Its full-host qualification is withheld pending a corrected unfiltered run.
 Independent original native and actual guest captures are not invalidated by

@@ -1,5 +1,28 @@
 # Windows development-machine handoff
 
+## October 19 development checkpoint
+
+[Step1477](../done/step1477.md) records the completed host run, successful original
+guests, failed v1 consumer and unrun memory controls. PR786 merges development
+only; all 16 affected issues remain open. The merge/master identity and exact
+tracker readbacks are retained after merge in
+`artifacts/kestrel-churn-foundations-r01/run-closeout-merge-readback-r01.json`.
+
+Resume from current LAN master in a fresh development cycle after checking live
+ownership. Preserve the evidence worktree at
+`C:/Users/AI/.codex/worktrees/nativeaot-logging/CLROS` and its ignored artifacts;
+do not archive or delete it. The paused primary `C:/Projects/CLROS` is unchanged
+by this closeout. No evidence has been copied into that primary checkout.
+
+First qualify the repaired v1 producer and five memory controls against their
+exact source, then review the 14 conditional candidates. Keep #748/#225 open
+until their full quota/failure/cleanup criteria pass. Do not repeat the completed
+full-host run solely to refresh a count; the newer host-only delta needs scoped
+validation, and any future kernel/runtime changes need the relevant stable gate.
+Refresh all issue dependencies and retained hashes before reusing evidence.
+
+## Earlier handoffs
+
 The October 7 clean stop is recorded in [step1076](../done/step1076.md).
 Use `artifacts/clean-stop-20261007/handoff-manifest.json` for the final master
 identity, all-ref bundle, tracker snapshot and evidence inventory. That generated

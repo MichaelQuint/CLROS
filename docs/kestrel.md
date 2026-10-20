@@ -2,31 +2,30 @@
 
 ## Continuing-service foundations
 
-[Step1437](../done/step1437.md) qualifies #743/#744/#746/#240/#757/#758/#766
-at frozen implementation `8bee44db`: 5,809 observed host pass markers across
-781 fixtures (94 Native), one complete original 822,285ms service capture and
-ten fresh socket/runtime/vector/web ancestors with original source/native joins.
-M11-026/#784 identifies13 unawaited async cases in that host receipt. Its full-host
-qualification is withheld until a corrected unfiltered run; the independent
-original native and actual guest receipts are unchanged. Raw history is retained.
-The explicit default-off `MinimalApiService` policy preserves turn, progress,
-byte and resource guards while allowing the same worker beyond 4,096 calls and
-300s. Actual shutdown, off-stack reaps, restoration and secret erasure complete.
+[Step1477](../done/step1477.md) is the current development checkpoint for
+PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
+runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
+unchanged inputs and zero reuse. One original configured v2 service capture
+passes for 826,707ms, including the directed unread-close reset, pressure/recovery,
+HTTP, shutdown and reaps. Fifteen individual ancestor profiles pass with original
+source/object/EFI joins; this is an incomplete validation matrix.
 
-The capture joins 32 HTTP connections, 32 compact TIME-WAIT transfers/retirements
-(bulk high-water 4, compact 24), persist recovery after a lost reopen, pending-RST
-retirement, 84 random requests/18,708 bytes and 34 independently keyed TCP
-sequence generations. Empty full-window sends have explicit host controls and
-current finite socket/vector regressions. Named complete native own bodies,
-504 selected comparisons, actual dispatch tables and unwind are reviewed within
-their stated bounds; missing bodies and transitive stack gain no authority.
+The remaining original v1 service producer fails its consumer on two legitimate,
+byte-identical reopen ACKs. Its successful raw terminal does not override that
+failure. A host-only reader repair now binds the first matching wire occurrence;
+three focused checks pass, including the duplicate ACK regression. This newer
+reader/test source has no new full-host or original v1 guest acceptance. Five
+memory controls did not run. Preserve the failed controllers and original inputs.
 
-Earlier rejected captures and the corrected host inventories remain immutable
-in [steps1434](../done/step1434.md)-[1436](../done/step1436.md). A first Hello
-startup timeout remains recorded; its unchanged-limit retry passes. Shared owner
-#737 proceeds to #224's repeated-service acceptance, then #225's exact memory,
-budget and pending-signal prerequisites. General Kestrel/Gate14, arbitrary Linux
-applications, isolation, cloud and production remain incomplete.
+All 16 affected issues remain open; the seven step1437 prerequisites remain
+reopened. No acceptance is restored by merging this checkpoint. Next finish the
+v1 producer and five memory controls, review the exact acceptance criteria, then
+reconcile only supported closures. #748 and #225 additionally lack quota-triggered
+offending-workload termination and cleanup. The 36MiB dynamic pool is shared:
+16MiB GC plus declared 20MiB native headroom does not enforce separate partitions.
+Native saturation occurs before listening and after drain, not concurrently with
+request churn. General Kestrel/Gate14, isolation, cloud and production remain
+incomplete. See step1477 for exact receipts, retained failures and restart order.
 
 ## Planned static-file acceptance
 

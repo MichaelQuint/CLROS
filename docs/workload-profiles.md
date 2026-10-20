@@ -15,36 +15,30 @@ source/native joins. Web workers remain active until runner termination; general
 service, whole-stack, numbered, isolation, cloud and production remain incomplete.
 That finite receipt leaves continuing service separate.
 
-[Step1437](../done/step1437.md) qualifies the seven service foundations
-#743/#744/#746/#240/#757/#758/#766 under #737: 5,809 observed host markers across
-781 fixtures (94 Native), one complete original service lifetime and ten fresh
-affected ancestors, all joined to frozen implementation `8bee44db`. The sealed
-`MinimalApiService` envelope keeps explicit v1 configuration, port8080/content
-root, 64MiB and16 threads/descriptors. A dedicated real worker exceeds4,096
-calls/300s; DRBG requests, persist recovery, pending resets, compact TIME-WAIT,
-independent TCP keys and genuine shutdown/reaps have exact native/packet/source
-evidence. Host controls cover seed/reseed/failure and empty full-window sends.
-M11-026/#784 later identifies13 unawaited async entries in that host receipt.
-Its full-host qualification is withheld until a corrected stable unfiltered run;
-independent original native/guest evidence remains retained. Step1444 records
-the correction and reopened prerequisite states.
+[Step1477](../done/step1477.md) is the current development checkpoint for
+PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
+runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
+unchanged inputs and zero reuse. One original configured v2 service capture
+passes for 826,707ms, including the directed unread-close reset, pressure/recovery,
+HTTP, shutdown and reaps. Fifteen individual ancestor profiles pass with original
+source/object/EFI joins; this is an incomplete validation matrix.
 
-The original r03 application has1,356,753 instructions/198 syscall continuations
-across all five executable sections. The qualified capture consumes18,708 random
-bytes, transfers/retires32 compact owners and restores retained resources.
-Earlier source-held replay and rejected captures remain in steps1426-1436.
-Next #224 must supply its repeated-service acceptance after the October19
-[#778 last-close repair](http://192.168.4.35:3000/admin/CLROS/issues/778) and
-[#779 independent high-water validation](http://192.168.4.35:3000/admin/CLROS/issues/779).
-#225 retains its separate memory/budget/pending-signal dependencies. The review
-does not itself reopen finite step1437 prerequisites; the separate #784 host
-validation repair above does. Step1446 repairs #779's independent peaks and
-reinspects the original record without a new guest run. This advances no numbered Gate14,
-arbitrary hosted-.NET, isolation, cloud or production claim.
-Step1447 implements the bounded unread last-close reset/retry/timeout policy
-under #778 with54 focused network/close/frame checks. Real guest packet/HTTP and
-original native qualification remain pending; it grants no repeated-service
-acceptance and preserves readable duplicate fds and SHUT_WR semantics.
+The remaining original v1 service producer fails its consumer on two legitimate,
+byte-identical reopen ACKs. Its successful raw terminal does not override that
+failure. A host-only reader repair now binds the first matching wire occurrence;
+three focused checks pass, including the duplicate ACK regression. This newer
+reader/test source has no new full-host or original v1 guest acceptance. Five
+memory controls did not run. Preserve the failed controllers and original inputs.
+
+All 16 affected issues remain open; the seven step1437 prerequisites remain
+reopened. No acceptance is restored by merging this checkpoint. Next finish the
+v1 producer and five memory controls, review the exact acceptance criteria, then
+reconcile only supported closures. #748 and #225 additionally lack quota-triggered
+offending-workload termination and cleanup. The 36MiB dynamic pool is shared:
+16MiB GC plus declared 20MiB native headroom does not enforce separate partitions.
+Native saturation occurs before listening and after drain, not concurrently with
+request churn. General Kestrel/Gate14, isolation, cloud and production remain
+incomplete. See step1477 for exact receipts, retained failures and restart order.
 
 [Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
@@ -112,10 +106,10 @@ paths, commands and acceptance are in `.gitea/backlog/clros-issues.json`.
 
 | Acceptance stage | Implementation order and required issue work |
 | --- | --- |
-| Qualified application startup | Steps1380/1389/1405 retain #217/#218/#219/#745 and containment prerequisites; step1419 adds bounded #220/#221/#222/#759/#223. Step1437 qualifies the seven service foundations under #737; next qualify repeated service #224. |
+| Qualified application startup | Steps1380/1389/1405 retain #217/#218/#219/#745 and containment prerequisites; step1419 adds bounded #220/#221/#222/#759/#223. Step1477 retains the implemented service foundations under #737; acceptance remains open pending the recorded validation matrix. |
 | Qualified socket ladder #220-#222 | Step1419 adds actual multi-segment Kestrel responses and same-connection progress across timeout/rejected-frame controls, manifest endpoint policy negatives, exact health and stopped-guest refusal. Preserve the accepted vector/epoll and bounded-prefix restrictions. |
 | Qualified external HTTP #223 | Step1419 qualifies [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759), observed Date intervals/tolerance, exact status/body/hash/deadline and stale/epoch rejection. The UTC-RTC/HPET source and finite lifetime remain explicit; repeated service follows separately. |
-| Repeated service #224 | Step1437 qualifies the prerequisite [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |
+| Repeated service #224 | Step1437 records the implemented prerequisite [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |
 | Async/memory churn #225 and local Gate 14 | [M16-020 pending signals before renewed waits](http://192.168.4.35:3000/admin/CLROS/issues/760) closes the consumed-readiness race before churn. [M16-015 fragmented physical backing](http://192.168.4.35:3000/admin/CLROS/issues/747) -> [M16-016 GC/native budgets](http://192.168.4.35:3000/admin/CLROS/issues/748) also feed #225. Then preserve #226 evidence and close #227's local gate only against its complete criteria. |
 | Two protected local applications | After local Kestrel, [M16-017 CPL3 #UD/#DE containment](http://192.168.4.35:3000/admin/CLROS/issues/749) and [M16-021 SIGPIPE disposition consistency](http://192.168.4.35:3000/admin/CLROS/issues/761) precede #292's general terminate/reap acceptance. Retain the explicit ignored-SIGPIPE restriction until qualified. #291 extends M16-016's resource model; #298 still needs a second protected app surviving failure. Keep the existing M14 process/address-space/descriptor/fairness ladder. |
 | Measured performance | After the local gate, [M15-016 matched workload baselines](http://192.168.4.35:3000/admin/CLROS/issues/750) feeds [M07-031 congestion-controlled flight](http://192.168.4.35:3000/admin/CLROS/issues/751), [M16-018 mutation-scoped audits](http://192.168.4.35:3000/admin/CLROS/issues/752), and existing [#242 bounded release logging](http://192.168.4.35:3000/admin/CLROS/issues/242). Existing #308 retains sustained production load qualification. |

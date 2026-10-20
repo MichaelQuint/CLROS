@@ -1,15 +1,19 @@
 # Networking
 
-[Step1476](../done/step1476.md) adds the missing M07-034 guest control in
-development. The prior original service capture has zero guest RSTs; its two
-incoming RSTs abort pending handshakes. A new copied `M07_034_CLOSE` observation
-identifies actual last-description closure, excluding live duplicates and
-SHUT_WR. The raw peer waits for that exact tuple/generation, withholds client FIN,
-injects 17 known late bytes and requires exact guest RST|ACK. Independent readers
-join the original packets, close row, retirement and subsequent generation reuse;
-healthy HTTP must follow the reset. Twenty focused checks and the freestanding
-C# build pass. Fresh original guest/native, full-host and affected ancestor
-qualification remain pending; #778 stays open.
+[Step1477](../done/step1477.md) retains a complete original configured v2 service
+capture at `810b3eef`. After actual last-description close, 17 late bytes provoke
+the exact guest RST|ACK; retirement, no TIME-WAIT retention, generation reuse and
+healthy HTTP are independently joined. Original code/REL32 and bounded stack
+reviews are retained. #778/#779/#224 remain open pending the incomplete matrix.
+
+The original v1 producer fails its reader because the fresh reopen ACK occurs
+twice with identical bytes. A reader-only first-occurrence fix passes the new
+host regression and existing refusal checks. It needs a fresh original v1 run;
+the failed producer is retained, not promoted by replay. Five memory controls
+remain unrun. No general service or Gate14 acceptance follows.
+
+The dated development notes below retain their original scope; step1477 owns
+the current validation status.
 
 Step1455 adds explicit service-v2 PCAP reconstruction for patterned32KiB
 requests,512KiB streamed responses, held-stream/healthy-peer ordering and two

@@ -1,250 +1,33 @@
 # CLROS Completion Gates
 
-[Step1476](../done/step1476.md) records an unfinished guest criterion found during
-the final batch audit: step1474's original PCAP has zero guest RSTs. The owned
-full-host attempt was stopped during native checks and the queued ancestors
-never started; its partial results are not acceptance. Development now adds a
-last-description-close observation, directed late-input reset control and strict
-packet/retirement/reuse joins. Twenty focused checks and freestanding C# compile
-pass. Fresh original guest/native, stable full-host and affected finite ancestors
-remain required; all nine issues and PR786 remain open/draft.
+[Step1477](../done/step1477.md) is the current development checkpoint for
+PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
+runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
+unchanged inputs and zero reuse. One original configured v2 service capture
+passes for 826,707ms, including the directed unread-close reset, pressure/recovery,
+HTTP, shutdown and reaps. Fifteen individual ancestor profiles pass with original
+source/object/EFI joins; this is an incomplete validation matrix.
 
-[Step1475](../done/step1475.md) preserves the failed stable full-host attempt:
-two stale contract fixtures fail with unchanged inputs/zero reuse, and the runner
-blocks the native phase. The repair adds M16-026's canonical ownership note and
-includes both stolen-readiness variants in the signal inventory assertion, with
-cardinality derived from the inventory. Both focused contract fixtures pass.
-Kernel/application sources and step1474's
-original guest/native evidence remain unchanged. A fresh full-host pass and the
-affected finite ancestors remain required; all nine issues stay open.
+The remaining original v1 service producer fails its consumer on two legitimate,
+byte-identical reopen ACKs. Its successful raw terminal does not override that
+failure. A host-only reader repair now binds the first matching wire occurrence;
+three focused checks pass, including the duplicate ACK regression. This newer
+reader/test source has no new full-host or original v1 guest acceptance. Five
+memory controls did not run. Preserve the failed controllers and original inputs.
 
-[Step1474](../done/step1474.md) retains the corrected original configured-service
-producer pass at ef8665e0: 843 seconds, 20 reaps, complete packet/resource replay
-and zero end backing. Full 16 KiB metadata authentication executes in the guest;
-513/1024 populated-vector boundaries remain focused host evidence. Five original
-native bodies and one actual unwind change have bounded review. The connected
-message route, including entry, callbacks, return slots and probe peaks, has a
-54448 B conservative bound within its actual 65536 B syscall stack. Worker entry
-frames remain on a separate stack. GC-plus-non-GC bound 35553280 B and static-
-inclusive charge 62775296 B fit configured pool/entitlement. The 49 focused checks
-from step1473 remain current. Affected finite ancestors and corrected-runner
-full-host remain pending; no issue or gate is accepted.
+All 16 affected issues remain open; the seven step1437 prerequisites remain
+reopened. No acceptance is restored by merging this checkpoint. Next finish the
+v1 producer and five memory controls, review the exact acceptance criteria, then
+reconcile only supported closures. #748 and #225 additionally lack quota-triggered
+offending-workload termination and cleanup. The 36MiB dynamic pool is shared:
+16MiB GC plus declared 20MiB native headroom does not enforce separate partitions.
+Native saturation occurs before listening and after drain, not concurrently with
+request churn. General Kestrel/Gate14, isolation, cloud and production remain
+incomplete. See step1477 for exact receipts, retained failures and restart order.
 
-[Step1472](../done/step1472.md) retains an actual 831-second configured 36 MiB
-guest with both managed/native recovery phases, 20 reaps and zero end backing.
-Its process/serial checks pass; the original full consumer fails GC startup
-interleaving. Five host-reader repairs independently replay unchanged complete
-serial/control/peer/PCAP evidence. The measured conservative GC-plus-non-GC
-bound fits pool and entitlement. Seven native method deltas and actual unwind
-changes have bounded review; 44 focused checks pass. A fresh original producer
-pass, affected ancestors, full native/transitive stack and corrected-runner
-full-host remain pending. No issue or gate is accepted.
-
-[Step1471](../done/step1471.md) implements conservative GC arena accounting and
-an explicit configured-service36MiB pool/20MiB native allowance, retaining16MiB
-GC and64MiB entitlement. Pinned upstream source, four complete application native
-bodies,67 focused checks and freestanding C# compilation support development.
-The historical32MiB guest remains historical. Fresh configured guest execution,
-complete native/transitive stack, ancestors and corrected-runner full-host remain
-pending. No issue or gate is accepted.
-
-[Step1470](../done/step1470.md) retains an actual833s current-image configured
-guest: managed/native exhaustion and recovery, lifecycle/drain,986 memory
-snapshots, zero end backing and genuine20-worker reap. The original service
-consumer rejects new first-call memory metadata; a host-only adjacency repair
-passes17 focused checks and independently replays unchanged serial/PCAP/peer
-bytes. The original failed pipeline stays failed. Peak backing31.73MiB fits32MiB;
-the conservative GC-plus-ordinary estimate39.56MiB does not fit and may double
-count managed backing. Native headroom is unqualified. Eight changed native own
-bodies are reviewed; full stack/native, ancestors and full-host remain pending.
-No issue or additional gate is accepted.
-
-[Step1469](../done/step1469.md) adds post-dispatch memory snapshots for every
-configured-v2 memory operation and a strict reader for ordinary churn, native
-pressure failures and conservative headroom.50 scoped focused checks and EFI
-C# compilation pass. Three bounded source identities are refreshed after source
-review; native ABI/unwind/stack review, actual guest measurements, ancestors and
-the stable corrected-runner full-host gate remain pending. A physical shortfall
-does not identify the sole failing guard. No new guest or gate acceptance.
-
-[Step1466](../done/step1466.md) implements retained dynamic backing peaks and
-the configured v2 cleanup record/strict consumer.73 scoped focused checks and
-freestanding C# profile compilation pass. No new native EFI or guest is produced;
-native source pins remain pending stable-batch review. Total backing is not a
-GC/native partition or measured native headroom. Native pressure/quota stimuli,
-guest/ancestor evidence, complete native review and full-host remain pending.
-
-[Step1467](../done/step1467.md) adds bounded explicit-v2 native mmap pressure,
-full-byte integrity, release-all cleanup and fresh allocation recovery, with
-strict native/GC/peak value joins.21 scoped focused checks and app/host builds
-pass. No new executable or guest is produced; previous image admission rejects
-the changed app sources. Actual native pressure, exhausted-limit identification,
-headroom, current native/guest/ancestor and full-host acceptance remain pending.
-
-[Step1468](../done/step1468.md) supplies the new original ELF3F1EF78C, complete
-instruction/source joins and refreshed two-mode admission, with older/crossed
-image rejection. The unchanged image passes306s Linux-host lifecycle, both
-managed OOM/recovery episodes and both32MiB native integrity/release/recovery
-episodes, with joined exit0 and verified PIDgone. Both native episodes report
-quota0; they establish the bounded host path. Actual guest native exhaustion,
-ordinary-churn headroom, complete native review, current-image ancestors and
-stable corrected-runner full-host remain pending. No guest/gate acceptance.
-
-[Step1465](../done/step1465.md) publishes the new original service and verifies
-full executable/index coverage and two-mode preparation, with old-image/crossed
-mode rejection. A306s Linux-host run passes lifecycle progress, two managed OOM
-episodes with verified fresh allocation recovery, drain and joined exit0. The
-ELF is unchanged. This supersedes step1464's publication/pressure-execution gap
-only on Linux-host. CLROS guest pressure, native quotas/headroom, complete native
-review, affected ancestors and corrected-runner full-host remain pending.
-
-[Step1464](../done/step1464.md) implements bounded managed GC exhaustion and
-fresh-allocation recovery in the explicit v2 service, with strict pressure
-fields and16 scoped focused checks. App/helper builds pass; the new workload
-has not executed. Old-image preparation rejects the changed source until a new
-original Linux publication/index is reviewed. Earlier actual lifecycle proof
-retains its own source scope and supplies no pressure result. Native pressure,
-headroom, guest ancestors, native/full-host review and batch acceptance remain.
-
-[Step1463](../done/step1463.md) adds the first strict `FragmentedBacking`
-guest at clean implementation `141b3673`:18 calls check a six-MiB mapping
-across two physical holes, surviving bytes, cross-extent copy, discard/recommit,
-brk and fixed replacement, then exit42 with dynamic backing released. Original
-903-source/12-input joins and388452 code bytes/398 REL32 joins are retained.
-Forty focused checks also pass, including fourteen schedules in four new
-signal controls for initial/replacement waits, masked/ignored signals and ready
-data. These host checks complement the earlier actual pipe/epoll race guests.
-Real NativeAOT allocation churn, affected GC/ThreadPool/socket and foreign-page
-ancestors, complete native/stack review and corrected-runner full-host remain
-pending. Issues747/760 stay open; no gate advances.
-
-[Step1462](../done/step1462.md) adds one original strict `SignalEpollStolen`
-guest under explicit `SignalEpollRace`:31 calls, real handler/restorer,
-readiness consumed by the competing thread, replacement wait interrupted while
-Parking, later ready I/O,2 reaps/8 transfers and owned cleanup. Bounded anonymous
-pipe epoll watches reuse existing descriptor lifetimes;83 distinct staged focused
-checks pass, with the three corrected transcript checks rerun. Failed target
-admission, source-pin preflight and first strict-consumer captures remain failed.
-Successful r04 and failed r03 have byte-identical original COFF/EFI. This finite
-mechanical proof does not close #760:initial-pending/mask/ignored/timeout/restart
-controls, affected ancestors, native/stack review, corrected-runner full-host,
-pressure and remaining batch gates stay open. No new gate is accepted.
-
-[Step1461](../done/step1461.md) adds one original strict SignalPipeStolen
-guest:27 calls, a real handler/restorer, later I/O, two reaps/eight transfers and
-owned cleanup. Its first run exposes an omitted repark supervisor expectation;
-the corrected consumer requires that exact fourth lifetime and passes10 focused
-checks plus a fresh guest. Original COFF/EFI bytes are identical across both
-runs. Epoll, controls/ancestors, native/full-host and remaining batch gates stay
-open; the failed first validation is retained.
-
-[Step1460](../done/step1460.md) retains the first original v2 lifecycle
-smoke/service pass at `e0037e92`:836520ms,17131 calls,17 clones/18 reaps,
-exact32KiB echo/512KiB stream, healthy progress, cancellation and owned cleanup.
-All67 message/call ordinals bind. Actual message maxima are16 vectors/65536B;
-larger admission boundaries retain separate host evidence. Original emitted
-body/unwind and partial socket stack reviews remain scoped. A canonical
-pipe write/signal/competing-read fixture adds20 staged focused checks; its
-actual guest and epoll counterpart remain pending. Fixed-runner full-host,
-affected ancestors, GC/native pressure/quota and batch acceptance remain open.
-
-[Step1459](../done/step1459.md) retains the third failed v2 guest: the first
-stream sendmsg returns EINVAL before any message witness, then closes without
-response bytes. Source narrows that result to the old vector-count or aggregate
-limit; the rejected header is unavailable. M16-026/#787 now admits bounded
-connected messages of at most1024 vectors/1MiB, retaining full range validation
-and the existing scratch/capacity short prefix. Fifty focused checks pass;
-fresh original native/guest, affected ancestors and the joined full-host gate
-remain pending. All nine owned issues remain open, with no gate advancement.
-
-Step1458 retains the second original v2 attempt: the peer completes and the
-guest emits terminal cleanup, but strict replay rejects67 message snapshots
-whose per-turn ordinals differ from cumulative syscall ordinals. Use the shared
-profile-aware ordinal helper; do not rewrite those records. Independent packet
-inspection also finds both host aborts arrive as client FIN, not RST. Require
-acknowledged client-first closes after observed waiting, retain exact RST checks,
-and report both actual counts. The failed capture remains unaccepted. Focused
-checks and its value-only packet reinspection are recorded in
-[step1458](../done/step1458.md); a fresh original producer and batch gates remain.
-
-Step1457 records a failed first v2 guest, canceled after90,022ms of helper work.
-The peer produces no complete report, so the runner rejects. The host helper's
-aggregate becomes240s while20s exchanges and800s/900s outer bounds remain.
-Six lifecycle and ten peer focused checks pass. The stopped guest's original
-EFI/object match the frozen native preparation; further bounded native reviews
-cover new helpers/aliases but leave14 functional common bodies for integration
-review. No guest, resource-cleanup, full native/full-host or gate acceptance
-follows; see [the failed attempt and correction](../done/step1457.md).
-
-Step1456 refreshes eight reviewed batch source identities; five focused
-admission checks and a fresh original service EFI publish pass. Original
-COFF/EFI code and796 relocation targets join. Complete method/unwind and typed
-layout comparisons narrow further review, but functional/new bodies, aliases
-and referenced data remain pending. This grants no native or guest acceptance;
-see [the exact preparation boundary](../done/step1456.md).
-
-[Step1454](../done/step1454.md) connects explicit v2 peer/CLI/owned-child and
-prepared-program mode, startup/GC replay values and guest/peer terminal-text
-matching.63 focused checks and real two-mode preparation pass. The complete new
-static NativeAOT ELF is published from five exact app inputs; independent
-coverage checks all4,379,983 executable bytes,1,368,586 instruction starts and198
-syscall continuations. This is index/provenance evidence, not full native ABI review.
-
-The actual v2 app and peer pass a306s Linux-host run:39 ordinary exchanges,
-12 lifecycle health connections, partial32KiB echo/rejection,512KiB slow/healthy
-progress, reset/timeout drain,7,014 workload calls and joined shutdown. Both GC
-measurements report16MiB with2MiB live arrays; committed bytes are5,267,456 and
-8,667,136. The original ELF is unchanged. This supersedes the publication-pending
-status of steps1451-1453 while retaining their narrower evidence.
-
-[Step1455](../done/step1455.md) implements explicit v2 lifecycle packet
-reconstruction and reset/large-stream resource joins.21 focused checks pass;
-two cancellation resets count toward accepted connections and byte totals,
-while compact transfers count only server-active closes. The temporary launch
-block is removed, retaining original input/native/owned-child admission.
-Full native/guest/ancestor qualification and guest GC/native pressure/recovery
-remain pending. No owned v2 guest Completion, fixed-runner full-host restoration
-or gate advance is claimed.
-
-[Step1450](../done/step1450.md) wires optional GC-budget startup admission to the
-sealed retained reservation ledger and actual dynamic pool.43 focused checks
-(9GC/34startup) and continuing-service freestanding C# compilation pass. Declared
-half-pool native headroom remains provisional; no GC/native page partition,
-effective guest limit, pressure/recovery or new
-full-host/native/guest acceptance is established. Physical RAM reporting stays
-independent. No gate advances.
-
-[Step1449](../done/step1449.md) prepares M16-016 absolute GC-budget preflight
-with43 focused host checks. Startup wiring and guest budget authority remain
-pending. The shared pointer hexadecimal overload supports complete borrowed
-ASCII unsigned64-bit input with optional `0x`/`0X`, no allocations/exceptions,
-boolean success and zero-on-failure. It rejects null/empty/wrapping/malformed/
-overflow input; readable input must be disjoint from output. Pointer32-bit,
-signed, culture and partial-token parsing remain unsupported. Host tests are
-not original native or guest proof; no gate advances.
-
-[Owned development receipt](../done/step1422.md) is a development checkpoint for #743/#744/#757
-transport repairs and #746 policy contracts. Its 127 focused checks span
-multiple development producers; they are not an unfiltered full-host run.
-[Step1421](../done/step1421.md) adds default-off native service/compact TIME-WAIT
-wiring and shared HMAC_DRBG development, with63 focused checks across multiple
-producers and no-stdlib C# compilation. [Step1423](../done/step1423.md) wires the
-service entropy adapter/source/cleanup with30 focused startup checks and C#
-compilation. [Step1424](../done/step1424.md) adds separately seeded/leased TCP
-ISN development with6 independent policy checks,27 network checks and C#
-compilation. Actual guest entropy/ISNs, the complete service runner,
-original native review and stable-batch full-host/QEMU/PCAP
-qualification remain pending. These six tickets and #766 stay open.
-[Step1425](../done/step1425.md) adds development-only empty-send capacity repair
-with24 focused host checks and service/finite-web C# compilation. Its original
-native review and finite vector/socket guest regression remain pending.
-No gate advances.
-
-[Step1426](../done/step1426.md) adds the distinct service fixture and canonical
-bounded envelope, with9 focused checks and two Windows rejection controls.
-Neither envelope validation nor compilation executes the service worker or
-admits its ELF to a guest. The service runner remains guarded pending its own
-publication/source/decoder and complete lifecycle/packet validation.
+Development history is retained unchanged in [steps1426–1437](../done/step1437.md)
+and [steps1438–1476](../done/step1476.md). Those dated receipts preserve their
+original source, failures and scope; step1477 supersedes their pending-run status.
 
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 `88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),

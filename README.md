@@ -13,23 +13,24 @@ CLROS is an experimental operating system for VM images containing configured
 is one real NativeAOT ASP.NET Minimal API serving `GET /healthz` through Kestrel.
 Hardware-protected isolation for multiple applications follows.
 
-**The unchanged pinned .NET11 NativeAOT Hello and bounded runtime workloads now
-run inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime
-batch. [Step1419](done/step1419.md) qualifies bounded upstream Kestrel health,
-multi-segment responses and owned UTC. [Step1437](done/step1437.md) qualifies
-the continuing-service prerequisites with one complete service lifetime, real
-shutdown/reaps and ten affected ancestors. Its5,809-marker host receipt includes
-13 unawaited async cases; full-host qualification is withheld under
-[M11-026/#784](http://192.168.4.35:3000/admin/CLROS/issues/784) pending a corrected
-unfiltered run. Independent original guest/native receipts remain retained. Repeated service
-#224 and the complete local Kestrel gate remain incomplete.
-CLROS is not cloud-ready or production-ready.
+**The unchanged pinned .NET11 NativeAOT Hello and bounded runtime workloads run
+inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime batch;
+[step1419](done/step1419.md) qualifies bounded Kestrel health, responses and UTC.
 
-The [October19 review](docs/repo-audit.md#october-19-whole-project-review) adds
-four reproduced defects and one measured memory-cost finding. Last-close TCP
-retirement and independent resource-peak validation precede #224 acceptance;
-host FAT reader repairs precede disk-fixture qualification. These follow-ups
-remain open; the review does not implement fixes.
+[Step1477](done/step1477.md) checkpoints the service/churn development batch.
+At source `810b3eef`, the corrected runner passes 5,917 full-host checks across
+792 fixtures (94 Native). One original 826,707ms configured service and 15
+individual ancestors pass. The v1 service consumer fails on duplicate ACKs;
+its host-only repair passes three focused checks and the current 4,856-check
+fast lane but needs a fresh original run.
+Five memory controls remain unrun. All 16 affected issues stay open, including
+the seven prerequisites reopened after step1437's unawaited-test finding.
+
+Next complete that validation and #748/#225's exact quota termination criteria.
+The declared native headroom shares the dynamic pool; pressure/recovery does not
+prove enforced independent partitions or offending-workload termination.
+Repeated service #224, async churn #225 and the complete local Kestrel gate
+remain unaccepted. CLROS is not cloud-ready or production-ready.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
 real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
@@ -78,7 +79,8 @@ handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
 cooperative worker advances throughout and exits/reaps before checked cleanup.
 Step1351 adds bounded Linux sockets and epoll. Step1380 qualifies the selected
 configuration slice incorporated from PR739. Later finite Kestrel acceptance is
-described above; step1437 adds the bounded service prerequisites. Repeated
+described above; step1437 retains the service-prerequisite history, with current
+acceptance status in step1477. Repeated
 service and Gate14 requirements remain incomplete.
 
 [Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
@@ -153,13 +155,14 @@ places fixes at the acceptance stage that needs them:
    Continue under [#737](http://192.168.4.35:3000/admin/CLROS/issues/737).
    Web prefixes retain live workers until runner termination; they do not
    qualify continuing service or application shutdown/reap.
-2. Before repeated service #224, complete TCP persist #743, compact TIME-WAIT
-   #744, continuing execution policy #746, replenished randomness #240,
-   handshake-reset cleanup #757, continuing ISNs #758 and
-   [empty-send compatibility #766](http://192.168.4.35:3000/admin/CLROS/issues/766).
-   Pending-signal waits #760 and fragmented backing/GC budgets #747/#748
-   additionally precede async churn #225. Then complete #226/#227's exact
-   local Gate14 evidence and shutdown requirements.
+2. Resume [step1477's exact checkpoint](done/step1477.md): run the repaired
+   original v1 producer and five memory controls, preserving the 15 successful
+   originals and the full-host receipt at its exact source. Review current
+   #224/#778/#779, large-message #787, fragmented backing #747 and pending-signal
+   #760 evidence before closure. Complete #748's quota-triggered failure/cleanup
+   criteria before #225's remaining churn acceptance. Then qualify #226/#227's
+   complete local Gate14 requirements. Keep #737's owner and dependency order.
+
 3. Add user-fault containment, reconcile accepted SIGPIPE dispositions with
    I/O behavior, and qualify two hardware-isolated local apps before deployment
    to a specific provider.
