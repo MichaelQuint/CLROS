@@ -169,6 +169,17 @@ required. Current ELF/source/index guards are unchanged.
 The small build and80 focused checks across10 fixtures pass with unchanged
 inputs/zero reuse; this is host development evidence.
 
+[Step1505](../done/step1505.md) retains the first native attempt at `0f0e0a90`.
+All three payloads publish/inspect and the base Linux qualification passes; the
+combined race qualifier fails with `web_signalrace_status_callback`. The waiter
+actually returns ready before SIGUSR2, so no EINTR race witness exists. A cleanup6
+snapshot with callback0 exposes a separate reader diagnostic defect. All206
+original files and exact source/compiler/ELF joins survive a verified builder
+recovery. No success receipt or new prepared-image admission follows. Guest
+integration additionally needs owned all-attempt exchange association and an
+explicit packet contract; selected HTTP samples alone cannot identify repeated
+wire exchanges or turn host cancellation into an HTTP response.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

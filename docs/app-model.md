@@ -351,6 +351,14 @@ ownership remain separate. The new mode and guest integration require execution.
 The small build and80 focused checks across10 affected fixtures pass with
 unchanged inputs/zero reuse; no new native or guest execution is claimed.
 
+[Step1505](../done/step1505.md) records the subsequent failed native race attempt:
+the initial wait returns ready before signal delivery, and cleanup6/callback0 is
+misclassified by the reader. Original206-file evidence,915-source/38-producer
+joins and1,042 unchanged native inputs are retained through controlled recovery.
+The failure stays failed; no new ELF/index admission or guest acceptance is made.
+The guest path still needs owned exchange IDs for all attempts and a separate
+packet contract before selected roles can join the original-order projection.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
