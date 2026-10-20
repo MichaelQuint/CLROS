@@ -9,15 +9,16 @@ namespace OS.Tooling;
 public sealed class NativeAotServiceProgram
 {
     private const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    internal const int ElfBytes = 8_488_712;
-    private const string ElfSha256 = "3F1EF78C8C553C0C626243D2B40D4466B1F730F867D71A2E6A5A7D81AAD9F36E";
+    internal const int ElfBytes = 8_501_192;
+    private const string ElfSha256 = "165683B2D82DEAFD9BF20F2E08DCB6229CCF70B6C391484DD0B466446C77AF89";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     private NativeAotServiceProgram(string root, NativeAotInstructionIndex value, NativeAotServiceContract contract)
     { SourceRoot = Path.GetFullPath(root); index = value; Contract = contract; }
 
     /// <summary>Immutable package/replay contract bound by the preparing factory.
-    /// QuotaFailure remains unavailable until its fresh publication is reviewed.</summary>
+    /// V1, V2 and QuotaFailure share the reviewed original executable; their
+    /// immutable package policies remain distinct.</summary>
     public NativeAotServiceContract Contract { get; }
     /// <summary>Compatibility selector for the original positive v2 envelope.
     /// New contract dispatch must use Contract rather than infer policy here.</summary>
@@ -50,18 +51,18 @@ public sealed class NativeAotServiceProgram
 
     /// <summary>Prepare only an explicitly selected reviewed publication. Borrowed
     /// inputs remain caller owned through return. Unknown contracts reject;
-    /// QuotaFailure rejects until fresh sources, ELF and complete index are
-    /// reviewed and pinned. A matching quota envelope grants no such authority.</summary>
+    /// all three contracts require current sources, this exact original ELF and
+    /// its complete index. A matching envelope alone grants no authority.</summary>
     public static NativeAotServiceProgram Create(string root, ReadOnlySpan<byte> package, string dump, NativeAotServiceContract contract)
     {
         var view = RequirePackage(package, contract);
         using AuthorityFiles sources = new(); HoldSources(root, sources);
         var parsed = Parse(package.Slice((int)view.PayloadOffset, (int)view.PayloadBytes), dump);
-        // LLVM22.1.3 covers all4,383,311 bytes in five original executable
+        // LLVM22.1.3 covers all4,390,791 bytes in five original executable
         // sections, entry0x408f77 and all198 syscall continuations. Executable
         // load padding grants no starts. This is not a control-flow proof.
-        if (Report(parsed) != new Inspection(1_369_455, 198,
-            "78866A51103A4109A8C053A29EC31B40B09458A7A28730CE33F725ACBB308C9B") ||
+        if (Report(parsed) != new Inspection(1_371_556, 198,
+            "3444F9F137AEB700D8EEA0E7ACFB4E9C062298EDA429B421BCB6BCEA78A2F6EB") ||
             !parsed.SyscallContinuationsValid || !parsed.IsInstruction(0x408f77))
             throw new InvalidDataException("service_instruction_identity");
         HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed, contract);
@@ -88,7 +89,7 @@ public sealed class NativeAotServiceProgram
         => Read(root, packagePath, disassemblyPath, lifecycle ? NativeAotServiceContract.V2 : NativeAotServiceContract.V1);
 
     /// <summary>Read locked owned snapshots for the explicit reviewed contract.
-    /// Unknown or unpublished quota contracts reject before opening files;
+    /// Unknown contracts reject before opening files;
     /// all original alias, source and instruction checks remain required.</summary>
     public static NativeAotServiceProgram Read(string root, string packagePath, string disassemblyPath, NativeAotServiceContract contract)
     {
@@ -105,11 +106,7 @@ public sealed class NativeAotServiceProgram
 
     private static void RequireReviewedContract(NativeAotServiceContract contract)
     {
-        // The original ELF/index and source pins below cover only v1/v2.
-        // Never reuse them to admit an envelope around the unpublished quota app.
-        if (contract == NativeAotServiceContract.QuotaFailure)
-            throw new InvalidDataException("service_quota_publication_unreviewed");
-        if (contract is not (NativeAotServiceContract.V1 or NativeAotServiceContract.V2))
+        if (contract is not (NativeAotServiceContract.V1 or NativeAotServiceContract.V2 or NativeAotServiceContract.QuotaFailure))
             throw new ArgumentOutOfRangeException(nameof(contract));
     }
 
@@ -121,9 +118,10 @@ public sealed class NativeAotServiceProgram
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "CEDB569E9AAF83AFE0377617A0440A08A8D7EDBE8145DFA1D7E8CF30B853A408"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
-        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "6D6E68A049B998A0249D0AD7E0CBB78D82BA269FC0E76DFF5B8BC053A2A31721"),
+        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "D3DFC72743598FE90255B236CC253E2332FAE68CEE7F61F5DAC4D69D3F4AF4FD"),
         ("apps/MinimalApiService/MinimalApiService.csproj", "34B6A796F2F0B3F1A404A5CF13882FB57DF8BF248210096D5D65768FDCA740F3"),
-        ("apps/MinimalApiService/Program.cs", "AB5BC7AFAAEFC18F89368280658112A2FFEB90930EE7CDB43AD8391E2748175A"),
+        ("apps/MinimalApiService/Program.cs", "09D039670EEF4D7026EAD72655FFD7F936FB7E05FB473926B4CD519E5ED70ACD"),
+        ("apps/MinimalApiService/ServiceQuotaExercise.cs", "31C19556890F5C100D83A63F462ACCF3F87374642F9B43FCE9075B73D66B2867"),
         ("apps/MinimalApiService/ServiceLifecycleExercise.cs", "86712B104BEACD7FDD13DA7F7BA25D94D24FF642C6581E0A34C98D8CCAB5123B"),
         ("apps/MinimalApiService/ServiceExercise.cs", "971B8D504D3EA66A28576A89E221C9EB25E1D161BE2DAE4E150C06F15929EC80"),
         ("apps/MinimalApiService/appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5")];

@@ -12,8 +12,8 @@ public static partial class QemuTranscripts
     /// hold the current source files while checking exact firmware/APIC/NIC
     /// parent bytes, quota scheduler/syscall/memory/GC/transport replay and outer
     /// cleanup. Only an explicitly prepared QuotaFailure program may enter;
-    /// that factory remains unavailable until genuine fresh publication/index/
-    /// GC-arena pins are reviewed. Invalid or incomplete inputs throw. No input
+    /// its factory separately binds current sources and the reviewed original
+    /// publication/index. Invalid or incomplete inputs throw. No input
     /// is modified or executed; other evidence and acceptance remain mandatory.</summary>
     public static ServiceQuotaCaptureReport ValidateNativeAotServiceQuotaCapture(string root, byte[] package,
         NativeAotServiceProgram program, ReadOnlySpan<byte> raw)

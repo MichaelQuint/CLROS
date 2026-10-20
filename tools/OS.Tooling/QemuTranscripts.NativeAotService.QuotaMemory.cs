@@ -37,8 +37,8 @@ public static partial class QemuTranscripts
     /// the existing strict GC-arena replay. Invalid or incomplete values throw;
     /// input remains unchanged. This seam supplies no source/index/ELF admission,
     /// complete scheduler/mapping, peer/packet, native physical or guest proof.
-    /// Quota Program admission stays unavailable until genuine fresh publication
-    /// and GC-arena/native pins are reviewed; this reader changes no such pins.</summary>
+    /// Prepared-program admission separately binds the reviewed publication and
+    /// sources; these copied values grant no such authority.</summary>
     public static ServiceQuotaMemoryInspection InspectNativeAotServiceQuotaMemoryForTests(ReadOnlySpan<byte> raw, ulong entitlementBytes) =>
         ReadServiceQuotaMemory(NativeAotThreadingOutput.ReadService(raw), entitlementBytes, out _);
 

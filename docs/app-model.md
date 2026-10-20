@@ -126,6 +126,14 @@ GNU debug-link CRC and executable addresses. This is publication/index evidence.
 It does not execute the app or supply fresh prepared-program/GC admission,
 complete native ABI/stack review, a full-host gate or CLROS guest acceptance.
 
+[Step1484](../done/step1484.md) binds the fresh original ELF, complete instruction
+index and fourteen current source identities for v1, v2 and quota preparation.
+The GC arena reader uses the fresh four libc continuations after exact original
+body/relocation review; allocation and ownership predicates remain unchanged.
+This is instruction-boundary admission and copied GC accounting, not a native
+control-flow, GC-root/stack or guest proof. Prior v1/v2 captures retain their
+original producers and image identities; the fresh image needs new qualification.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
@@ -144,10 +152,9 @@ authority. The 36MiB dynamic backing remains shared. Retained virtual mmap bytes
 and conservative component bounds are not measured physical component peaks or
 proof that effective budgets fit the committed entitlement.
 
-Admission remains closed at `service_quota_publication_unreviewed`; the runner
-path also refuses `service_quota_capture_owner_required`. Finish guarded
-capture orchestration and the complete consumer, fresh original source/ELF/index/GC
-admission, active native ABI/frame review, stable full and original guest/packet/
+The runner path still refuses `service_quota_capture_owner_required`. Finish
+guarded capture orchestration and the complete consumer, active native ABI/frame
+review, stable full and original guest/packet/
 process qualification before acceptance. #225 additionally requires the actual
 MinimalApiSmoke workload and directed-signal/readiness evidence during its churn.
 The separate finite signal proof and this service fixture do not supply that.

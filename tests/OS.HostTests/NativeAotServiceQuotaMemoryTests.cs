@@ -4,7 +4,7 @@ using OS.Tooling;
 internal static class NativeAotServiceQuotaMemoryTests
 {
     private const ulong Reservation = 0x100185000, Arena = Reservation + 4096, ArenaBytes = 5 * 16777216UL, Native = 0x200000000;
-    private const ulong Mmap = 0x47059a, Munmap = 0x470691, Madvise = 0x470541, Mprotect = 0x47064a, NoMemory = unchecked((ulong)-12L);
+    private const ulong Mmap = 0x4705da, Munmap = 0x4706d1, Madvise = 0x470581, Mprotect = 0x47068a, NoMemory = unchecked((ulong)-12L);
     private const string Gc = "limit=16777216 baselineHeap=30920 baselineCommitted=151552 liveBytes=2097152 liveHeap=2129504 liveCommitted=4194304 pressureBytes=12582912 pressureHeap=12615680 pressureCommitted=14680064 pressureCollections=3 oom=1\n";
 
     // Independent framed values only: no original ELF, call/write scheduler,

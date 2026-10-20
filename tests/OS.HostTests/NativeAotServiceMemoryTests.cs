@@ -41,9 +41,9 @@ internal static class NativeAotServiceMemoryTests
         Observe(12, current, 0, bytes: 0);
         if (gcArena)
         {
-            Observe(9, current, 0x100185000, bytes: 83890176, protection: 0, rip: 0x47059a);
-            Observe(11, current, 0, 0x100185000, 4096, rip: 0x470691);
-            Observe(28, current, 0, 0x100186000, 83886080, protection: 16, rip: 0x470541);
+            Observe(9, current, 0x100185000, bytes: 83890176, protection: 0, rip: 0x4705da);
+            Observe(11, current, 0, 0x100185000, 4096, rip: 0x4706d1);
+            Observe(28, current, 0, 0x100186000, 83886080, protection: 16, rip: 0x470581);
         }
         Output("CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_BUILT minimal.api.service\nCLROS_NOTE é\nCLROS_SERVICE_GC_BEGIN " + Gc);
         Pressure(); Output("CLROS_SERVICE_NATIVE_BEGIN " + Native);
@@ -53,8 +53,8 @@ internal static class NativeAotServiceMemoryTests
         {
             if (gcArena)
             {
-                Observe(10, ordinary, 0, 0x100186000, (ordinary - baseline) * 4096, rip: 0x47064a);
-                Observe(9, baseline, 0x100186000, 0x100186000, (ordinary - baseline) * 4096, protection: 0, flags: 0x32, rip: 0x47059a);
+                Observe(10, ordinary, 0, 0x100186000, (ordinary - baseline) * 4096, rip: 0x47068a);
+                Observe(9, baseline, 0x100186000, 0x100186000, (ordinary - baseline) * 4096, protection: 0, flags: 0x32, rip: 0x4705da);
             }
             else
             {

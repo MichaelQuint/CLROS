@@ -79,7 +79,7 @@ internal static class NativeAotServiceSelectionTests
         HostCheck.True(negative.Forbidden.Contains("TEST_FAIL") && negative.Forbidden.Contains("OS_SMOKE_FAIL"));
     }
 
-    [HostTest("service quota dry plan selects only negative runner arguments without opening publication")]
+    [HostTest("service quota dry plan selects only negative runner arguments without executing publication")]
     private static async Task QuotaDryRun()
     {
         var quota=ServiceOptions();quota.ServiceQuotaFailure=true;quota.DryRun=true;int children=0;
@@ -99,10 +99,6 @@ internal static class NativeAotServiceSelectionTests
             return Task.FromResult(new ProcessResult(0,"","",false,false,false,TimeSpan.Zero));
         });
         HostCheck.True(result==0 && children==1);
-        string? refusal=null;
-        try{_=NativeAotServiceProgram.Create("",[],"",NativeAotServiceContract.QuotaFailure);}
-        catch(InvalidDataException error){refusal=error.Message;}
-        HostCheck.Equal("service_quota_publication_unreviewed",refusal??"accepted");
     }
 
     [HostTest("service quota selection rejects lifecycle normal other profiles and substitute applications")]
