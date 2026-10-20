@@ -1,5 +1,39 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+## Request churn development
+
+[Step1497](../done/step1497.md) adds explicit diagnostics to the real
+MinimalApiSmoke app: POST `/__clros/churn` and GET `/__clros/churn/status`.
+An empty POST must have Content-Length0, exactly `X-CLROS-Churn: v1`, no query
+and no Transfer-Encoding. Invalid input returns400; a third concurrent request
+returns429. Each admitted call retains one64KiB patterned buffer across eight
+finite cancellable timer awaits and actual awaited ThreadPool/full-GC/data checks.
+Success is `CLROS_CHURN_OK iterations=8 bytes=65536 timers=8 workers=8 collections=8`.
+Request cancellation propagates after the current awaited operation drains.
+Status counters describe completed operations and retained roots; collection
+observations can overlap and do not count unique global collections or backing.
+
+Four focused host checks pass. An actual managed-host Kestrel run observes three
+disconnect cancellations, three completions, seven malformed400 responses and ten
+exact healthy responses. Final active/waiting/held state is zero. The owned host
+process is stopped through its bounded owner with termination confirmed; this is
+not graceful app-exit or CLROS guest evidence. The unchanged `/healthz` body is
+`OS_MINIMAL_API_OK` under default configuration.
+
+For local development after building, run `dotnet run --project
+apps/MinimalApiSmoke --no-build -- --urls http://127.0.0.1:5081`, then send
+`curl.exe --header "X-CLROS-Churn: v1" --data "" http://127.0.0.1:5081/__clros/churn`.
+Focused checks use `dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll
+--lane full --filter KestrelRequestChurnTests` and emit `host.tests.focused`.
+
+The old prepared web ELF/source/index pins remain unchanged and must reject
+this unpublished source. Next extend the genuine publisher/qualifier and admit
+its exact new ELF/index; preserve old accepted evidence. #225 still requires
+directed signal delivery with readiness consumed by a competing thread during
+real churn, physical/metadata fragmentation, effective component budgets and
+offending-workload cleanup. The mechanical signal race alone cannot supply that
+contract. #748/#225 and broader Kestrel/Gate14 remain open.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

@@ -1,0 +1,108 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+
+internal static class KestrelRequestChurnTests
+{
+    // These controls execute the actual managed helper only; they construct no
+    // original HTTP, scheduler, native, packet or CLROS guest authority.
+    [HostTest("m10-012 literal churn repeats real timer ThreadPool full-GC work with bounded retained roots")]
+    private static async Task CompleteAndRepeat()
+    {
+        var exercise = new KestrelChurnExercise();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        for (int i = 0; i < 2; i++) HostCheck.Equal(KestrelChurnExercise.SuccessBody, await exercise.RunAsync(cancellation.Token));
+        var observed = exercise.Inspect();
+        HostCheck.True(observed.Started == 2 && observed.Completed == 2 && observed.Canceled == 0 && observed.Failed == 0 &&
+            observed.Timers == 16 && observed.Workers == 16 && observed.Collections == 16 && observed.PeakActive == 1 &&
+            observed.PeakHeldBytes == 65536);
+        Drained(exercise);
+        string status = exercise.Read();
+        foreach (string field in new[] { "active=0", "waiting=0", "completed=2", "canceled=0", "failed=0", "timers=16", "workers=16", "collections=16" })
+            HostCheck.True(status.Split(' ').Contains(field));
+        HostCheck.True(status.StartsWith("CLROS_CHURN_STATUS ", StringComparison.Ordinal));
+    }
+
+    [HostTest("m10-012 literal churn propagates pending cancellation then drains and accepts a fresh request")]
+    private static async Task CancelAndRecover()
+    {
+        var exercise = new KestrelChurnExercise(); using var cancellation = new CancellationTokenSource();
+        var held = new HeldContext(); SynchronizationContext? previous = SynchronizationContext.Current;
+        Task<string?>? request = null; KestrelChurnExercise.Snapshot pending = default;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(held);
+            request = exercise.RunAsync(cancellation.Token);
+            pending = exercise.Inspect();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); cancellation.Cancel(); }
+        await held.JoinAsync(request!); HostCheck.True(request!.IsCanceled && pending is { Active: 1, Waiting: 1, Completed: 0 });
+        HostCheck.True(exercise.Inspect() is { Canceled: 1, Failed: 0, Completed: 0 }); Drained(exercise);
+        using var recovery = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        HostCheck.Equal(KestrelChurnExercise.SuccessBody, await exercise.RunAsync(recovery.Token));
+        HostCheck.True(exercise.Inspect() is { Started: 2, Completed: 1, Canceled: 1, Failed: 0 }); Drained(exercise);
+    }
+
+    [HostTest("m10-012 literal churn capacity refuses a third request while two actual timer continuations are held")]
+    private static async Task Capacity()
+    {
+        var exercise = new KestrelChurnExercise(); using var cancellation = new CancellationTokenSource();
+        var held = new HeldContext(); SynchronizationContext? previous = SynchronizationContext.Current;
+        List<Task<string?>> requests = []; KestrelChurnExercise.Snapshot pending = default; bool busyRefused = false;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(held);
+            requests.Add(exercise.RunAsync(cancellation.Token)); requests.Add(exercise.RunAsync(cancellation.Token));
+            var busy = exercise.RunAsync(cancellation.Token);
+            requests.Add(busy); busyRefused = busy.IsCompletedSuccessfully && busy.Result is null;
+            pending = exercise.Inspect();
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); cancellation.Cancel(); }
+        await held.JoinAsync(requests.ToArray()); HostCheck.True(requests.Take(2).All(r => r.IsCanceled) && busyRefused);
+        HostCheck.True(pending is { Active: 2, Waiting: 2, PeakActive: 2, Started: 2, Rejected: 1,
+            HeldBytes: 131072, PeakHeldBytes: 131072, Completed: 0 });
+        HostCheck.True(exercise.Inspect() is { Canceled: 2, Failed: 0, Completed: 0, PeakActive: 2 }); Drained(exercise);
+    }
+
+    [HostTest("m10-012 literal churn validates cancellation before admission and every retained payload byte")]
+    private static async Task PreflightAndPayload()
+    {
+        var exercise = new KestrelChurnExercise(); bool rejected = false;
+        try { await exercise.RunAsync(CancellationToken.None); } catch (ArgumentException) { rejected = true; }
+        HostCheck.True(rejected); using var canceled = new CancellationTokenSource(); canceled.Cancel(); rejected = false;
+        try { await exercise.RunAsync(canceled.Token); } catch (OperationCanceledException) { rejected = true; }
+        HostCheck.True(rejected && exercise.Inspect() is { Started: 0, Canceled: 0, Failed: 0, Rejected: 0 }); Drained(exercise);
+        byte[] independent = new byte[65536];
+        for (int i = 0; i < independent.Length; i++) independent[i] = unchecked((byte)(23 + i * 17));
+        HostCheck.True(KestrelChurnExercise.PayloadIntact(independent, 23));
+        foreach (int at in new[] { 0, 32768, 65535 })
+        {
+            independent[at] ^= 1; HostCheck.True(!KestrelChurnExercise.PayloadIntact(independent, 23)); independent[at] ^= 1;
+        }
+        HostCheck.True(!KestrelChurnExercise.PayloadIntact(independent.AsSpan(1), 23) &&
+            !KestrelChurnExercise.PayloadIntact(independent, 24) && !KestrelChurnExercise.PayloadIntact([], 23));
+    }
+
+    private static void Drained(KestrelChurnExercise exercise) =>
+        HostCheck.True(exercise.Inspect() is { Active: 0, Waiting: 0, HeldBytes: 0 });
+
+    // The timers and token registrations are real. Holding only their resumed
+    // continuations makes admission/cancellation assertions independent of wall
+    // scheduling; every queued callback/task is joined before this owner ends.
+    private sealed class HeldContext : SynchronizationContext
+    {
+        private readonly ConcurrentQueue<(SendOrPostCallback Callback, object? State)> queue = new();
+        public override void Post(SendOrPostCallback callback, object? state) => queue.Enqueue((callback, state));
+        internal async Task JoinAsync(params Task[] requests)
+        {
+            Task all = Task.WhenAll(requests); long began = Stopwatch.GetTimestamp();
+            while (!all.IsCompleted)
+            {
+                while (queue.TryDequeue(out var item)) item.Callback(item.State);
+                if (Stopwatch.GetElapsedTime(began) > TimeSpan.FromSeconds(10)) throw new TimeoutException("churn continuation drain");
+                await Task.Yield();
+            }
+            while (queue.TryDequeue(out var item)) item.Callback(item.State);
+            try { await all; } catch (OperationCanceledException) when (requests.All(t => t.IsCanceled || t.IsCompletedSuccessfully)) { }
+        }
+    }
+}

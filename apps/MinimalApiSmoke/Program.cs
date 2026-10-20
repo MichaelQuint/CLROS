@@ -45,6 +45,21 @@ try
     app.MapPost("/__clros/logexercise", LinuxLoggingExercise.Run);
     app.MapGet("/__clros/vectors", KestrelVectorExercise.WriteAsync);
 
+    // Churn starts only on this explicit versioned empty request. Kestrel owns
+    // cancellation; the helper awaits its work and releases its active slot.
+    var churn = new KestrelChurnExercise();
+    app.MapPost("/__clros/churn", async (HttpContext context) =>
+    {
+        if (context.Request.ContentLength != 0 || context.Request.QueryString.HasValue ||
+            context.Request.Headers["X-CLROS-Churn"].Count != 1 ||
+            context.Request.Headers["X-CLROS-Churn"][0] != "v1" ||
+            context.Request.Headers.ContainsKey("Transfer-Encoding"))
+            return TypedResults.Text("CLROS_CHURN_BAD_REQUEST", "text/plain", statusCode: 400);
+        string? result = await churn.RunAsync(context.RequestAborted);
+        return TypedResults.Text(result ?? "CLROS_CHURN_BUSY", "text/plain", statusCode: result is null ? 429 : 200);
+    });
+    app.MapGet("/__clros/churn/status", () => TypedResults.Text(churn.Read(), "text/plain"));
+
     app.Run();
     GC.KeepAlive(startupWitness);
 }

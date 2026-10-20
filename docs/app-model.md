@@ -259,6 +259,20 @@ Twenty focused checks pass. The active EFI profile publishes and verifies with
 The literal MinimalApiSmoke async/cancellation route and directed-signal
 competing-readiness churn still precede the stable whole-batch gates.
 
+[Step1497](../done/step1497.md) implements the explicit request churn in literal
+MinimalApiSmoke. POST `/__clros/churn` requires exactly `X-CLROS-Churn: v1`, an
+empty Content-Length0 request and no query/transfer encoding; malformed requests
+return400 and capacity exhaustion429. At most two calls retain64KiB each across
+eight finite cancellable timer awaits, awaited real ThreadPool work and checked
+full collections. Cancellation propagates after awaited work drains; status at
+`/__clros/churn/status` reports operation counters and retained roots, not physical
+backing. Health/configuration behavior stays unchanged. Four focused helper
+checks and actual managed-host Kestrel cancellation/completion/health controls
+pass. Prepared web ELF/source pins are deliberately unchanged, so changed
+unpublished source cannot acquire the old lookup authority. Fresh publication,
+original guest/component-fit evidence and the directed-signal competing-readiness
+workload remain required before #225 acceptance; no issue closes.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
