@@ -81,6 +81,75 @@ internal static class ServiceRunnerControlTests
         HostCheck.Equal(SerialMarkerStateMachine.ContinuingServiceByteCapacity, service.TotalBytes);
     }
 
+    [HostTest("quota runner CLI selects only explicit custom capture with default forbidden rules intact")]
+    private static void QuotaSelection()
+    {
+        var result = Run([..Fixture(), "--service-quota-failure"]);
+        HostCheck.Equal(0, result.ExitCode); HostCheck.Equal("", result.Error);
+        HostCheck.True(result.Output.Contains("SERVICE_QUOTA_FAILURE true", StringComparison.Ordinal));
+        HostCheck.True(result.Output.Contains("REQUIRED_MARKERS " + ServiceQuotaCapture.Terminal, StringComparison.Ordinal));
+        HostCheck.True(result.Output.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL", StringComparison.Ordinal));
+        HostCheck.True(!result.Output.Contains("REQUIRED_MARKERS TEST_PASS m16-012", StringComparison.Ordinal));
+        HostCheck.True(!result.Output.Contains("SERVICE_SOCKET_CONTROLS ", StringComparison.Ordinal));
+        var boot = Run([..Fixture(), "--service-quota-failure", "--require-marker", ServiceQuotaCapture.EarlyBootSmokePass,
+            "--require-ordered-marker", ServiceQuotaCapture.EarlyBootSmokePass, "--require-ordered-marker", "TEST_START m16-011",
+            "--require-unique-marker", ServiceQuotaCapture.EarlyBootSmokePass]);
+        HostCheck.Equal(0, boot.ExitCode); HostCheck.Equal("", boot.Error);
+    }
+
+    [HostTest("quota runner CLI refuses missing real service inputs mode unions and ordinary success requirements")]
+    private static void QuotaInputs()
+    {
+        foreach (string flag in new[] { "--continuing-service", "--replace-default-required-markers", "--virtio-negotiation-device",
+            "--arp-receive-fixture", "--ethernet-capture", "--socket-forward-port", "--summary-log", "--firmware-rng-source" })
+            Reject([..Remove(Fixture(), flag, flag is "--ethernet-capture" or "--socket-forward-port" or "--summary-log" or "--firmware-rng-source"), "--service-quota-failure"]);
+        foreach (string[] extra in new string[][] { ["--service-quota-failure"], ["--continuing-web"], ["--expect-owned-subsystem-panic"],
+            ["--require-marker", "TEST_PASS m16-012"], ["--require-unique-marker", "TEST_PASS m16.014"] })
+            Reject([..Fixture(), "--service-quota-failure", ..extra]);
+        foreach (string flag in new[] { "--require-marker", "--require-ordered-marker", "--require-unique-marker" })
+            Reject([..Fixture(), "--service-quota-failure", flag, ServiceQuotaCapture.EarlyBootSmokePass + " forged"]);
+        Reject([..Fixture(), "--service-quota-failure=true"]);
+        Reject([..Fixture(), "--service-quota-failure", "false"]);
+    }
+
+    [HostTest("quota capture value shape requires actual failure row exact terminal and no trailing ordinary success")]
+    private static void QuotaTrailer()
+    {
+        string before = "TEST_START m16.014\r\n" + ServiceQuotaCapture.ProcessFailure + "\r\n";
+        string terminal = ServiceQuotaCapture.Terminal + "\r\n";
+        HostCheck.True(ServiceQuotaCapture.Failure(before + terminal) is null);
+        foreach (string bad in new[] { before, terminal, before + terminal + "\r\n", before + terminal + "x",
+            before + terminal + terminal, before + ServiceQuotaCapture.Terminal + " suffix\r\n", before + ServiceQuotaCapture.Terminal + "\n",
+            before + ServiceQuotaCapture.ProcessFailure + "\r\n" + terminal, terminal + before,
+            before.Replace("exit=99", "exit=0", StringComparison.Ordinal) + terminal,
+            before.Replace("cause=physical-backing", "cause=app", StringComparison.Ordinal) + terminal })
+            HostCheck.True(ServiceQuotaCapture.Failure(bad) is not null);
+        foreach (string marker in ServiceQuotaCapture.ForbiddenSuccessMarkers)
+            HostCheck.True(ServiceQuotaCapture.Failure(before + marker + "\r\n" + terminal) is not null);
+        HostCheck.True(ServiceQuotaCapture.Failure(null) is not null);
+    }
+
+    [HostTest("quota capture permits only one exact inherited boot pass before the unique service gate")]
+    private static void QuotaBootPrefix()
+    {
+        string pass = ServiceQuotaCapture.EarlyBootSmokePass + "\r\n", gate = "TEST_START m16-011\r\n";
+        string trailer = ServiceQuotaCapture.ProcessFailure + "\r\n" + ServiceQuotaCapture.Terminal + "\r\n";
+        HostCheck.True(ServiceQuotaCapture.Failure("OS_BOOT_OK\r\nTEST_PASS boot.sequence\r\n" + pass + gate + "TEST_PASS m16.014.startup\r\n" + trailer) is null);
+        HostCheck.True(ServiceQuotaCapture.Failure(gate + trailer) is null);
+        foreach (var (prefix, reason) in new[] {
+            (pass, "quota_boot_success_without_service_start"),
+            (pass + pass + gate, "quota_boot_success_shape"),
+            (gate + pass, "quota_boot_success_shape"),
+            (pass + gate + pass, "quota_boot_success_shape"),
+            (ServiceQuotaCapture.EarlyBootSmokePass + " suffix\r\n" + gate, "quota_boot_success_shape"),
+            (ServiceQuotaCapture.EarlyBootSmokePass + ".suffix\r\n" + gate, "quota_boot_success_shape"),
+            (ServiceQuotaCapture.EarlyBootSmokePass + "\n" + gate, "quota_boot_success_shape"),
+            (pass + gate + gate, "quota_service_start_shape"),
+            (pass + "TEST_START m16-011 suffix\r\n", "quota_service_start_shape"),
+            (pass + "TEST_START m16-011\n", "quota_service_start_shape") })
+            HostCheck.Equal(reason, ServiceQuotaCapture.Failure(prefix + trailer) ?? "accepted");
+    }
+
     private static string[] Fixture(string timeout = "780")
     {
         string path = Path.Combine(Path.GetTempPath(), "clros-service-runner-" + Guid.NewGuid().ToString("N"));

@@ -29,6 +29,17 @@ IPv6, leading-zero numbers and port 0 reject. Endpoint admission is not networki
 `memory` is page-aligned 4096..1 GiB, `stack` page-aligned 4096..8 MiB and no larger
 than memory, `threads` 1..64 and `descriptors` 1..1024. These are declared process
 limits; runtime enforcement belongs to the later loader/process/syscall slices.
+
+The development `NativeAotServiceContract.QuotaFailure` envelope in
+[step1482](../done/step1482.md) adds the explicit diagnostic environment policy
+`CLROS_MEMORY_EXHAUSTION=terminate`, alongside the configured GC hard limit.
+Missing/invalid/conflicting budget policy rejects; absence retains ordinary
+memory errno behavior. This changes neither Linux envelope version nor the
+meaning of declared `memory`. The 36MiB dynamic pool is shared: a 16MiB GC limit
+plus declared20MiB native headroom is not separate partition enforcement.
+Physical-denial termination/cleanup, measured component fit and guest quota
+acceptance remain unqualified; see the [app-model boundary](app-model.md#quota-termination-development).
+
 Static ELF identity/program-table bounds, no interpreter/dynamic segment, no
 executable stack, W^X load flags, bounded memory and file-backed entry are checked
 before staging. Full load geometry, TLS materialization and entry remain M16-004.

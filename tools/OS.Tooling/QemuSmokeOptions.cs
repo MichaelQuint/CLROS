@@ -32,6 +32,9 @@ public sealed class QemuSmokeOptions
     /// <summary>Explicit v2 continuing-service stimulus/report selection.
     /// Default false preserves v1. This flag grants no native or guest authority.</summary>
     public bool ServiceLifecycle { get; set; }
+    /// <summary>Explicit quota-negative continuing-service selection. Default
+    /// false preserves positive v1/v2. Package and runner admission stay separate.</summary>
+    public bool ServiceQuotaFailure { get; set; }
     /// <summary>Explicit canonical mechanical epoll/signal race under M16-012.
     /// Default false preserves the original prepared NativeAOT socket profile.</summary>
     public bool SignalEpollRace { get; set; }
@@ -61,7 +64,7 @@ public sealed class QemuSmokeOptions
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
-            ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["signalepollrace"] = "SignalEpollRace", ["requiremarker"] = "RequireMarker",
+            ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
             ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant",
             ["linuxhellodisassembly"] = "LinuxHelloDisassembly",
@@ -75,7 +78,7 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
-            bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "SignalEpollRace";
+            bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
             bool bit = false;
             if (flag && !bool.TryParse(value.TrimStart('$'), out bit)) throw new ArgumentException("qemu_invalid_boolean " + name);
@@ -107,6 +110,7 @@ public sealed class QemuSmokeOptions
                 case "SkipImageBuild": result.SkipImageBuild = bit; break;
                 case "RequireNativeAppMarkers": result.RequireNativeAppMarkers = bit; break;
                 case "ServiceLifecycle": result.ServiceLifecycle = bit; break;
+                case "ServiceQuotaFailure": result.ServiceQuotaFailure = bit; break;
                 case "SignalEpollRace": result.SignalEpollRace = bit; break;
                 case "RequireMarker": if (first) result.RequireMarker.Clear(); result.RequireMarker.Add(value); break;
                 case "RequireOrderedMarker": result.RequireOrderedMarker.Add(value); break;

@@ -7,7 +7,8 @@ public static class NativeAotServicePublisher
 {
     public const string Application = NativeAotServicePackage.Application;
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "service", [
-        ("Program.cs", "AB5BC7AFAAEFC18F89368280658112A2FFEB90930EE7CDB43AD8391E2748175A"),
+        ("Program.cs", "09D039670EEF4D7026EAD72655FFD7F936FB7E05FB473926B4CD519E5ED70ACD"),
+        ("ServiceQuotaExercise.cs", "31C19556890F5C100D83A63F462ACCF3F87374642F9B43FCE9075B73D66B2867"),
         ("ServiceLifecycleExercise.cs", "86712B104BEACD7FDD13DA7F7BA25D94D24FF642C6581E0A34C98D8CCAB5123B"),
         ("ServiceExercise.cs", "971B8D504D3EA66A28576A89E221C9EB25E1D161BE2DAE4E150C06F15929EC80"),
         ("appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5"),
@@ -18,7 +19,7 @@ public static class NativeAotServicePublisher
     /// not publication or execution authority. Changed/duplicate recipes throw.</summary>
     public static string[] PublishArguments(string originalCommands, string destination) => Publisher.PublishArguments(originalCommands, destination);
 
-    /// <summary>Read-only check of five exact app files and absent policy/source
+    /// <summary>Read-only check of six exact app files and absent policy/source
     /// overrides. Caller retains plain stable files; bin/obj are excluded.
     /// Source identity alone grants neither publication nor executable authority.</summary>
     public static void RequireCurrentSources(string root) => Publisher.RequireCurrentSources(root);

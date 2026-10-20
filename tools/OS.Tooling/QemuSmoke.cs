@@ -53,6 +53,7 @@ public static class QemuSmoke
             bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
             bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
             bool service=NativeAotServiceSelection.Application(plan.Flags).Length!=0;
+            var serviceContract=service?NativeAotServiceSelection.Contract(options,plan.Flags):NativeAotServiceContract.V1;
             if((signalEpoll||service||sockets||containment||vectors||web)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
@@ -80,7 +81,7 @@ public static class QemuSmoke
                             var p=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                             var d=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
-                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),options.ServiceLifecycle);
+                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),serviceContract);
                             NativeAotServiceProgram.HoldSources(root,serviceInputs);serviceInputs.VerifyUnchanged();
                         }
                         else if(web)
@@ -246,6 +247,7 @@ public static class QemuSmoke
             if(containment)arguments.Add("--socket-containment-peer");
             else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web) arguments.Add("--continuing-network-peer");
             if(service)arguments.Add("--continuing-service");
+            if(service&&serviceContract==NativeAotServiceContract.QuotaFailure)arguments.Add("--service-quota-failure");
             if((service||sockets||vectors)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if(web)
             {
@@ -298,6 +300,9 @@ public static class QemuSmoke
             ProcessResult runner;
             if(service&&!options.DryRun)
             {
+                // A reviewed publication alone will not authorize routing the
+                // negative fixture through the existing positive peer/consumer.
+                if(serviceContract==NativeAotServiceContract.QuotaFailure)throw new ToolFailure("service_quota_capture_owner_required");
                 servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
                 runner=servicePeer.Runner;
             }

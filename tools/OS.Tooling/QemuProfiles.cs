@@ -30,6 +30,7 @@ public static class QemuProfiles
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
         bool signalEpoll=LinuxSignalEpollSelection.Bind(options,profile.Flags);
         bool service=NativeAotServiceSelection.Bind(options,profile.Flags);
+        bool quota=service&&NativeAotServiceSelection.Contract(options,profile.Flags)==NativeAotServiceContract.QuotaFailure;
         // The socket union binds its original package/index and independent
         // peer, packet, transport and firmware evidence in the full runner.
         bool vectors=NativeAotSocketVectorsSelection.Bind(options,profile.Flags);
@@ -111,7 +112,7 @@ public static class QemuProfiles
         {
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = signalEpoll||service?"CLROS_M16_012_READY":vectors?"CLROS_M16_013_READY":web?"CLROS_M10_004_READY":containment?"CLROS_M07_027_READY":sockets?NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready:Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            string terminal = quota?OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal:signalEpoll||service?"CLROS_M16_012_READY":vectors?"CLROS_M16_013_READY":web?"CLROS_M10_004_READY":containment?"CLROS_M07_027_READY":sockets?NativeAotSocketSelection.Terminal(Enabled("M16012")).Ready:Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal || web && (x is "CLROS_M10_005_READY" or "CLROS_M10_006_READY")), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
@@ -175,6 +176,25 @@ public static class QemuProfiles
             ordered = Merge(records); unique = Merge(once ?? records); forbidden = Merge(forbidden, failures);
         }
         if (normal) { Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
+        else if(quota)
+        {
+            // Only the already shared startup prefix precedes this negative
+            // leaf. The full quota replay owns interleaving and authority;
+            // capture requirements do not substitute graceful positive tails.
+            string[] records=[..QemuTranscripts.SocketMarkers(true).TakeWhile(x=>x!="TEST_START m16-011"),
+                "TEST_START m16-011","TEST_START m16-012",..QemuTranscripts.M16LinuxSignalMarkers.Take(3),"M16_011_BOUND ",
+                "M16_016_QUOTA_ABORT ","M16_016_QUOTA_SOCKETS ","M11_012_END ","M07_033_END ",
+                "M16_016_MEMORY ","M16_008_BUDGET_END ","M16_008_OWNER_END ","M16_014_END ",
+                OS.Tools.QemuRunner.ServiceQuotaCapture.ProcessFailure,"M16_016_QUOTA_NATIVE ","M16_016_QUOTA_RESTORE ",
+                "M16_011_WIRE ","M16_011_END ","M07_026_ROW stage=4 ","M07_026_ROW stage=5 ","M07_026_ROW stage=6 ",
+                "M16_016_QUOTA_CLEANUP ",OS.Tools.QemuRunner.ServiceQuotaCapture.Terminal];
+            Select(records,Merge(["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL","M03_OWNED 7","M03_OWNED 8","M16_002_STAGE_REJECTED",
+                "TEST_START m16-008","CLROS_M16_008_READY","TEST_PASS m16-008"],OS.Tools.QemuRunner.ServiceQuotaCapture.ForbiddenSuccessMarkers
+                    .Where(marker=>marker!=OS.Tools.QemuRunner.ServiceQuotaCapture.EarlyBootSmokePass)),true);
+            string[] startup=["TEST_START m16.014","M16_014_POLICY ","M16_016_BUDGET ","TEST_START m16.014.startup",
+                "M16_014_ENTER ","M16_014_LIVE ","CLROS_M16_014_LISTENING","TEST_PASS m16.014.startup"];
+            required=Merge(required,startup);unique=Merge(unique,startup);
+        }
         else if(service)
         {
             string[] repeated=["M16_008_CALL","M16_008_SUPERVISOR","M16_008_EXIT","M16_008_REAP"];

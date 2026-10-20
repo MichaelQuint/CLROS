@@ -33,7 +33,7 @@ internal static class NativeAotServicePublisherTests
         try
         {
             string app = Path.Combine(temporary, "apps", "MinimalApiService"); Directory.CreateDirectory(app);
-            string[] files = ["Program.cs", "ServiceExercise.cs", "ServiceLifecycleExercise.cs", "MinimalApiService.csproj", "appsettings.json"];
+            string[] files = ["Program.cs", "ServiceExercise.cs", "ServiceLifecycleExercise.cs", "ServiceQuotaExercise.cs", "MinimalApiService.csproj", "appsettings.json"];
             foreach (string file in files) File.Copy(Path.Combine(root, "apps", "MinimalApiService", file), Path.Combine(app, file));
             NativeAotServicePublisher.RequireCurrentSources(temporary);
             foreach (string file in files)
@@ -41,6 +41,11 @@ internal static class NativeAotServicePublisherTests
                 string path = Path.Combine(app, file); byte[] original = File.ReadAllBytes(path);
                 File.AppendAllText(path, "\n"); Reject(() => NativeAotServicePublisher.RequireCurrentSources(temporary)); File.WriteAllBytes(path, original);
             }
+            string quotaSource = Path.Combine(app, "ServiceQuotaExercise.cs"), heldSource = Path.Combine(temporary, "held-ServiceQuotaExercise.cs");
+            File.Move(quotaSource, heldSource);
+            try { Reject(() => NativeAotServicePublisher.RequireCurrentSources(temporary), "socket_service_publish_app_inventory"); }
+            finally { File.Move(heldSource, quotaSource); }
+            NativeAotServicePublisher.RequireCurrentSources(temporary);
             string extra = Path.Combine(app, "Extra.cs"); File.WriteAllText(extra, "class Extra {}");
             Reject(() => NativeAotServicePublisher.RequireCurrentSources(temporary)); File.Delete(extra);
             string policy = Path.Combine(temporary, "apps", "Directory.Packages.props"); File.WriteAllText(policy, "<Project />");
@@ -65,6 +70,6 @@ internal static class NativeAotServicePublisherTests
         }
     }
 
-    private static void Reject(Action action)
-    { bool failed = false; try { action(); } catch (ToolFailure) { failed = true; } HostCheck.True(failed); }
+    private static void Reject(Action action, string? reason = null)
+    { bool failed = false; try { action(); } catch (ToolFailure error) { failed = true; if (reason is not null) HostCheck.Equal(reason, error.Reason); } HostCheck.True(failed); }
 }

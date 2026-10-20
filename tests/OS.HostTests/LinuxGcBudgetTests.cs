@@ -21,6 +21,45 @@ internal static unsafe class LinuxGcBudgetTests
         }
     }
     private const string Limit = "env.DOTNET_GCHeapHardLimit=1000000\n";
+    private const string Terminate = "env.CLROS_MEMORY_EXHAUSTION=terminate\n";
+
+    [HostTest("linux configured memory failure policy requires exact immutable terminate value and preserves legacy absence")]
+    private static void MemoryFailurePolicy()
+    {
+        HostCheck.True(!default(Config.GcBudget).TerminateOnPhysicalBackingExhaustion);
+        HostCheck.True(!Read(Limit).TerminateOnPhysicalBackingExhaustion);
+        var configured = Read(Limit + Terminate, Config.ConfiguredServicePoolPages, 16777216,
+            Config.ConfiguredServiceNativeReserveBytes);
+        HostCheck.True(configured.Succeeded && configured.TerminateOnPhysicalBackingExhaustion);
+        HostCheck.Equal(37748736UL, configured.PoolBytes); HostCheck.Equal(16777216UL, configured.GcLimitBytes);
+        HostCheck.Equal(20971520UL, configured.NativeReserveBytes);
+        HostCheck.Equal(Config.Status.MissingLimit, Read(Terminate, required: false).Result);
+        HostCheck.True(!Read(Terminate, required: false).TerminateOnPhysicalBackingExhaustion);
+    }
+
+    [HostTest("linux configured memory failure policy rejects malformed values duplicate metadata and failed budgets without arming")]
+    private static void MemoryFailurePolicyRefusals()
+    {
+        foreach (string value in new[] { "", "Terminate", "return", "1", "terminate-extra" })
+        {
+            var rejected = Read(Limit + "env.CLROS_MEMORY_EXHAUSTION=" + value + "\n");
+            HostCheck.True(!rejected.Succeeded && !rejected.TerminateOnPhysicalBackingExhaustion);
+        }
+        var insufficient = Read(Limit + Terminate, 8192, 16777216, Config.ConfiguredServiceNativeReserveBytes);
+        HostCheck.Equal(Config.Status.InvalidEntitlement, insufficient.Result);
+        HostCheck.True(!insufficient.TerminateOnPhysicalBackingExhaustion);
+        byte[] bytes = Encoding.ASCII.GetBytes(Text(Limit + Terminate));
+        fixed (byte* p = bytes)
+        {
+            uint length = (uint)bytes.Length; var manifest = LinuxElfPackage.ParseManifest(p, length);
+            HostCheck.True(manifest.Succeeded); manifest.EnvironmentCount = 3;
+            for (int i = 0; i < 4; i++) manifest.EnvironmentRanges[8 + i] = manifest.EnvironmentRanges[4 + i];
+            var duplicate = Config.ReadGcBudget(p, length, manifest, 8192, 16777216, 16777216);
+            HostCheck.Equal(Config.Status.UnsupportedOverride, duplicate.Result);
+            HostCheck.True(!duplicate.TerminateOnPhysicalBackingExhaustion);
+        }
+    }
+
 
     private static BootReservedRange Range(BootReservationKind kind, ulong start, uint pages)
     {

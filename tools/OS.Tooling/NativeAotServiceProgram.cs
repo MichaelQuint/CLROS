@@ -13,11 +13,15 @@ public sealed class NativeAotServiceProgram
     private const string ElfSha256 = "3F1EF78C8C553C0C626243D2B40D4466B1F730F867D71A2E6A5A7D81AAD9F36E";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
-    private NativeAotServiceProgram(string root, NativeAotInstructionIndex value, bool lifecycle)
-    { SourceRoot = Path.GetFullPath(root); index = value; Lifecycle = lifecycle; }
+    private NativeAotServiceProgram(string root, NativeAotInstructionIndex value, NativeAotServiceContract contract)
+    { SourceRoot = Path.GetFullPath(root); index = value; Contract = contract; }
 
-    /// <summary>Explicit package/replay contract bound by the preparing factory.</summary>
-    public bool Lifecycle { get; }
+    /// <summary>Immutable package/replay contract bound by the preparing factory.
+    /// QuotaFailure remains unavailable until its fresh publication is reviewed.</summary>
+    public NativeAotServiceContract Contract { get; }
+    /// <summary>Compatibility selector for the original positive v2 envelope.
+    /// New contract dispatch must use Contract rather than infer policy here.</summary>
+    public bool Lifecycle => Contract == NativeAotServiceContract.V2;
 
     /// <summary>Value-only index report; this alone conveys no lookup authority.</summary>
     public readonly record struct Inspection(int InstructionCount, int SyscallCount, string Sha256);
@@ -42,8 +46,15 @@ public sealed class NativeAotServiceProgram
     /// Explicit lifecycle mode selects the v2 envelope; the default retains
     /// v1. Both require this publication's exact original image and index.</summary>
     public static NativeAotServiceProgram Create(string root, ReadOnlySpan<byte> package, string dump, bool lifecycle = false)
+        => Create(root, package, dump, lifecycle ? NativeAotServiceContract.V2 : NativeAotServiceContract.V1);
+
+    /// <summary>Prepare only an explicitly selected reviewed publication. Borrowed
+    /// inputs remain caller owned through return. Unknown contracts reject;
+    /// QuotaFailure rejects until fresh sources, ELF and complete index are
+    /// reviewed and pinned. A matching quota envelope grants no such authority.</summary>
+    public static NativeAotServiceProgram Create(string root, ReadOnlySpan<byte> package, string dump, NativeAotServiceContract contract)
     {
-        var view = RequirePackage(package, lifecycle);
+        var view = RequirePackage(package, contract);
         using AuthorityFiles sources = new(); HoldSources(root, sources);
         var parsed = Parse(package.Slice((int)view.PayloadOffset, (int)view.PayloadBytes), dump);
         // LLVM22.1.3 covers all4,383,311 bytes in five original executable
@@ -53,12 +64,16 @@ public sealed class NativeAotServiceProgram
             "78866A51103A4109A8C053A29EC31B40B09458A7A28730CE33F725ACBB308C9B") ||
             !parsed.SyscallContinuationsValid || !parsed.IsInstruction(0x408f77))
             throw new InvalidDataException("service_instruction_identity");
-        HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed, lifecycle);
+        HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed, contract);
     }
 
     internal static LinuxElfPackageView RequirePackage(ReadOnlySpan<byte> package, bool lifecycle = false)
+        => RequirePackage(package, lifecycle ? NativeAotServiceContract.V2 : NativeAotServiceContract.V1);
+
+    internal static LinuxElfPackageView RequirePackage(ReadOnlySpan<byte> package, NativeAotServiceContract contract)
     {
-        var description = NativeAotServicePackage.Describe(package, lifecycle);
+        RequireReviewedContract(contract);
+        var description = NativeAotServicePackage.Describe(package, contract);
         var view = LinuxElfPackage.Validate(package);
         if (view.PayloadBytes != ElfBytes || description.ElfSha256 != ElfSha256)
             throw new InvalidDataException("service_package_identity");
@@ -70,15 +85,32 @@ public sealed class NativeAotServiceProgram
     /// unchanged identities. Invalid text, aliases or changing inputs reject;
     /// files remain caller owned and no app/process is started.</summary>
     public static NativeAotServiceProgram Read(string root, string packagePath, string disassemblyPath, bool lifecycle = false)
+        => Read(root, packagePath, disassemblyPath, lifecycle ? NativeAotServiceContract.V2 : NativeAotServiceContract.V1);
+
+    /// <summary>Read locked owned snapshots for the explicit reviewed contract.
+    /// Unknown or unpublished quota contracts reject before opening files;
+    /// all original alias, source and instruction checks remain required.</summary>
+    public static NativeAotServiceProgram Read(string root, string packagePath, string disassemblyPath, NativeAotServiceContract contract)
     {
+        RequireReviewedContract(contract);
         packagePath = Path.GetFullPath(packagePath); disassemblyPath = Path.GetFullPath(disassemblyPath);
         using AuthorityFiles files = new();
         var package = files.Open(Path.GetDirectoryName(packagePath)!, packagePath, "service package", "service_instruction_package", LinuxElfPackage.MaximumBytes, singleLink: true);
         var dump = files.Open(Path.GetDirectoryName(disassemblyPath)!, disassemblyPath, "service disassembly", "service_instruction_dump", MaximumDisassemblyBytes, singleLink: true);
         AuthorityFiles.RequireDistinct(package, dump);
         var program = Create(root, package.ReadBytes(LinuxElfPackage.MaximumBytes, "service_instruction_package"),
-            dump.ReadUtf8(MaximumDisassemblyBytes, "service_instruction_dump"), lifecycle);
+            dump.ReadUtf8(MaximumDisassemblyBytes, "service_instruction_dump"), contract);
         files.VerifyUnchanged(); return program;
+    }
+
+    private static void RequireReviewedContract(NativeAotServiceContract contract)
+    {
+        // The original ELF/index and source pins below cover only v1/v2.
+        // Never reuse them to admit an envelope around the unpublished quota app.
+        if (contract == NativeAotServiceContract.QuotaFailure)
+            throw new InvalidDataException("service_quota_publication_unreviewed");
+        if (contract is not (NativeAotServiceContract.V1 or NativeAotServiceContract.V2))
+            throw new ArgumentOutOfRangeException(nameof(contract));
     }
 
     private static readonly (string Path, string Hash)[] Sources = [

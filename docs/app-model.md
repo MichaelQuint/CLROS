@@ -99,6 +99,41 @@ and production remain incomplete.
 The following dated development notes retain contract details and historical
 observations. Use step1481 for current validation and scoped reconciliation.
 
+## Quota termination development
+
+[Step1482](../done/step1482.md) integrates the previously reviewed quota draft
+under #737. The managed app, kernel and host graph compile; fourteen focused
+fixtures pass145 checks; the updated six-file publisher passes three separate
+focused checks. The active M16-014 C# Compile target also passes with
+the complete evaluated profile. This produces IL, not native/guest evidence;
+#748/#225 remain open.
+
+The explicit, default-off `QuotaFailure` service contract requests termination
+on operation-local physical backing exhaustion. Memory calls report that cause
+separately from errno. The flag proves necessary total backing insufficiency;
+metadata or placement refusal alone cannot set it, though another refusal may
+coexist. A read-only observation audits the admitted
+tables before copying pool/free-run/region/table values. The native source routes
+the configured denial through process shutdown99, real worker reap, descriptor/
+mapping restoration and a separate negative cleanup trailer. Its actual native
+execution and cleanup remain unproved.
+
+The fixture retains bounded native mappings and forces managed collections while
+the peer model requires healthy-worker progress and held partial requests. Strict
+readers join denial, retained mappings, output, process/fd/transport teardown,
+outer cleanup and copied peer samples; synthetic rows/reports grant no guest
+authority. The 36MiB dynamic backing remains shared. Retained virtual mmap bytes
+and conservative component bounds are not measured physical component peaks or
+proof that effective budgets fit the committed entitlement.
+
+Admission remains closed at `service_quota_publication_unreviewed`; the runner
+path also refuses `service_quota_capture_owner_required`. Finish the actual
+capture owner and complete consumer, fresh original Linux source/ELF/index/GC
+admission, active native ABI/frame review, stable full and original guest/packet/
+process qualification before acceptance. #225 additionally requires the actual
+MinimalApiSmoke workload and directed-signal/readiness evidence during its churn.
+The separate finite signal proof and this service fixture do not supply that.
+
 ## Continuing service and resource follow-ups
 
 The [architecture review order](workload-profiles.md#architecture-review-implementation-order-2026-10-16)

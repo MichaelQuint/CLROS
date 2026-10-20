@@ -252,6 +252,7 @@ public static partial class QemuTranscripts
                 case 60:
                     Need(a==0 && v==0,"threading_thread_exit");t.Exiting=t.NormalExit=true;normalExits++;action=4;status=2;break;
                 case 231:
+                    Need(!serviceQuotaFailure,"service_quota_user_group_exit");
                     Need(!web || service,"web_replay_unexpected_group_exit");
                     if(service)Need(serviceReady && budget.RequestCancellation(),"service_owned_shutdown");
                     Need(a==0 && v==0 && writes==writeLengths.Count,"threading_group_exit");stopping=true;action=2;status=2;

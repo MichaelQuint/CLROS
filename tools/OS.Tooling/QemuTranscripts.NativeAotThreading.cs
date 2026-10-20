@@ -187,12 +187,14 @@ public static partial class QemuTranscripts
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
-            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false)
+            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false,bool serviceQuotaFailure=false)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
             vectors=app==NativeAotSocketVectorsPublisher.Application;
             service=app==NativeAotServicePackage.Application;
+            Need(!serviceQuotaFailure || service && configuredServiceMemory,"threading_service_quota_mode");
+            this.serviceQuotaFailure=serviceQuotaFailure; quotaImageBytes=elf.Length;
             Need(!configuredServiceMemory || service,"threading_configured_memory");
             memoryPoolPages=configuredServiceMemory?OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages:LinuxMemoryServices.ApplicationPoolPages;
             web=service || app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
@@ -243,7 +245,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,memoryPoolPages,continuingService:service);
-            int bytes=service?NativeAotServiceProgram.ElfBytes:web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=service?(serviceQuotaFailure?quotaImageBytes:NativeAotServiceProgram.ElfBytes):web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
@@ -265,7 +267,7 @@ public static partial class QemuTranscripts
             }
             while(active!=0)
             {
-                if(service) ServiceProgress();
+                if(service && (!serviceQuotaFailure || !quotaAborted)) ServiceProgress();
                 SocketObservations(supervisor:true);
                 if(web && !service && position==rows.Length)throw new WebBoundary("dispatch_or_idle");
                 Need((uint)(transfers/2+ticks+socketIdlePolls)<budget.MaximumSteps,"threading_transfer_bound");
@@ -340,6 +342,8 @@ public static partial class QemuTranscripts
                         ExpectDelivery(t);
                         SocketObservations();
                         calls++; ending=r["action"] is 2 or 3 or 4 or 6; exiting=r["action"] is 2 or 4; action=r["action"];
+                        if(serviceQuotaFailure && Starts("M16_016_QUOTA_ABORT "))
+                        { QuotaAbort(t,r,waits[index]); ending=exiting=true; action=4; }
                         if(ending) break;
                     }
                     if(prepareBlocked){t.Parking=false;if(t.Completion.HasValue)Enqueue(t);}
@@ -402,8 +406,9 @@ public static partial class QemuTranscripts
                     app=="NativeAotRuntimeMatrix"?peak>=9 && normalExits>=6:peak>=5 && clones>=4,"runtime_workload_lifetimes");
                 phases!.Finish();
             }
-            else if(socket)SocketFinish();
+            else if(socket) { if(serviceQuotaFailure)QuotaCloseDescriptors();else SocketFinish(); }
             else Need(app=="NativeAotSuspensionSmoke" ? clones>=3 && normalExits>=1 && signalReturns>=2 && history.Any(t=>t.NormalExit && t.Returned>=2) : clones>=5,"threading_workload_lifetimes");
+            if(serviceQuotaFailure)QuotaMemoryEnd();
             var finished=Row("M16_008_BUDGET_END","nanos:dec");
             Need(finished["nanos"]>=clock && (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
                 (service?budget.CancellationRequested && finished["nanos"]<=long.MaxValue:budget.Observe(finished["nanos"])),"runtime_budget_complete");
@@ -416,10 +421,15 @@ public static partial class QemuTranscripts
             const string cleanup=" userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
             string owner=Take(); Need(owner.EndsWith(cleanup,StringComparison.Ordinal),"threading_owner_cleanup");
             var end=ReadRecord(owner[..^cleanup.Length],"M16_008_OWNER_END","reaped:dec","transfers:dec","irqs:dec","exit:dec");
-            Need(end["reaped"]==(ulong)reaped && end["transfers"]==(ulong)transfers && end["irqs"]==(ulong)epochs && end["exit"]==0,"threading_owner_accounting");
-            if(service) ServiceFinish();
-            Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
-            Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009"); Need(position==rows.Length,"threading_extra_record");
+            Need(end["reaped"]==(ulong)reaped && end["transfers"]==(ulong)transfers && end["irqs"]==(ulong)epochs && end["exit"]==(serviceQuotaFailure?99UL:0UL),"threading_owner_accounting");
+            if(serviceQuotaFailure)QuotaFinish();
+            else
+            {
+                if(service) ServiceFinish();
+                Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+                Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009");
+            }
+            Need(position==rows.Length,"threading_extra_record");
             return new(calls,clones,reaped,irqs,drains,ticks,transfers,signalReturns);
         }
 

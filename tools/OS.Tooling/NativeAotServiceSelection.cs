@@ -17,11 +17,30 @@ public static class NativeAotServiceSelection
         return NativeAotServicePackage.Application;
     }
 
-    // Kept separate from the finite web selector; lifecycle mode still requires
-    // the explicit continuing-service profile and its original input admission.
-    internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
+    /// <summary>Bind resolved diagnostic service flags and the existing bounded
+    /// input selection, then return its explicit contract. May fill the ordinary
+    /// application default. No package, publication, runner or guest is admitted.</summary>
+    public static NativeAotServiceContract Contract(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
+        if (!BindCore(options, flags)) throw new ToolFailure("service_contract_requires_service_profile");
+        return options.ServiceQuotaFailure ? NativeAotServiceContract.QuotaFailure :
+            options.ServiceLifecycle ? NativeAotServiceContract.V2 : NativeAotServiceContract.V1;
+    }
+
+    // Profile/runner planning dispatches the separately validated typed contract.
+    // Selection alone cannot open prepared-program publication admission.
+    internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
+        => BindCore(options, flags);
+
+    private static bool BindCore(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
+    {
+        if (options.ServiceQuotaFailure && options.ServiceLifecycle) throw new ToolFailure("service_quota_lifecycle_conflict");
+        if (options.ServiceQuotaFailure && options.SignalEpollRace) throw new ToolFailure("service_quota_profile_conflict");
         string app = Application(flags);
+        if (options.ServiceQuotaFailure && app.Length == 0) throw new ToolFailure("service_quota_requires_service_profile");
+        if (options.ServiceQuotaFailure && options.BootPolicy.Length != 0 &&
+            !options.BootPolicy.Equals("Diagnostic", StringComparison.OrdinalIgnoreCase))
+            throw new ToolFailure("service_quota_requires_diagnostic");
         if (options.ServiceLifecycle && app.Length == 0) throw new ToolFailure("service_lifecycle_requires_service_profile");
         if (app.Length == 0) return false;
         if (options.LinuxThreadingApplication.Length == 0 && !options.Explicit.Contains("LinuxThreadingApplication"))

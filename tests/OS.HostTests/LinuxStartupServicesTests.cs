@@ -395,6 +395,153 @@ internal static unsafe class LinuxStartupServicesTests
     private static byte Fence(void* context)
     { System.Threading.Thread.MemoryBarrier(); ((Model*)context)->Fences++; return 1; }
 
+    private static long CallWithBackingObservation(Owner owner, out bool exhausted, ulong number,
+        ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0) =>
+        LinuxStartupServices.Dispatch(owner.State, new() { Number = number, Argument0 = a0, Argument1 = a1,
+            Argument2 = a2, Argument3 = a3, Argument4 = a4, Argument5 = a5 }, out exhausted);
+
+    [HostTest("linux.startup physical backing observation distinguishes mmap capacity from tables metadata virtual and invalid refusals")]
+    private static void MapBackingObservation()
+    {
+        using var owner = new Owner(); owner.Begin();
+        const ulong address = Output + 0x100000;
+        var before = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out bool exhausted, 9, address,
+            owner.Memory.Memory.PoolPages * 4096UL, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal(-22L, CallWithBackingObservation(owner, out exhausted, 9, address, 0, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(!exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 9, Heap + 0x1000000,
+            owner.Memory.Memory.ReservationBytes, 0, 0x100022, ulong.MaxValue));
+        HostCheck.True(!exhausted); before.AssertUnchanged(owner);
+        using var baseline = new Owner();
+        using var tables = new Owner(new LinuxMemoryServicesTests.Owner(baseline.Memory.State->Root.UsedTables)); tables.Begin();
+        var limited = new Snapshot(tables);
+        HostCheck.Equal(-12L, CallWithBackingObservation(tables, out exhausted, 9, Heap + 0x1000000,
+            4096, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(!exhausted); limited.AssertUnchanged(tables);
+        using var both = new Owner(new LinuxMemoryServicesTests.Owner(
+            tables: baseline.Memory.State->Root.UsedTables, backingPages: 2)); both.Begin();
+        var physicalAndTables = new Snapshot(both);
+        HostCheck.Equal(-12L, CallWithBackingObservation(both, out exhausted, 9, Heap + 0x1000000,
+            8192, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(exhausted); physicalAndTables.AssertUnchanged(both);
+        for (uint i = 0; i < LinuxMemoryServices.MaximumRegions - 2; i++)
+            HostCheck.Equal((long)(address + i * 8192), owner.Call(9, address + i * 8192, 4096, 0, 0x100022, ulong.MaxValue));
+        var full = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 9, address + 0x1000000,
+            4096, 0, 0x100022, ulong.MaxValue));
+        HostCheck.True(!exhausted); full.AssertUnchanged(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 9, address + 0x1000000,
+            owner.Memory.Memory.PoolPages * 4096UL, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(exhausted); full.AssertUnchanged(owner);
+    }
+
+    [HostTest("linux.startup physical backing observation counts all mixed protection growth and excludes holes")]
+    private static void ProtectBackingObservation()
+    {
+        using var owner = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 4)); owner.Begin();
+        const ulong address = Output + 0x100000;
+        HostCheck.Equal((long)address, owner.Call(9, address, 2 * 4096, 3, 0x100022, ulong.MaxValue));
+        *owner.Memory.At(address) = 0x49;
+        HostCheck.Equal(0L, owner.Call(10, address, 4096, 0));
+        HostCheck.Equal((long)address + 8192, owner.Call(9, address + 8192, 2 * 4096, 0, 0x100022, ulong.MaxValue));
+        var before = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out bool exhausted, 10, address, 4 * 4096, 3));
+        HostCheck.True(exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 10, address, 5 * 4096, 3));
+        HostCheck.True(!exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal(0L, CallWithBackingObservation(owner, out exhausted, 10, address, 3 * 4096, 3));
+        HostCheck.True(!exhausted); HostCheck.Equal(4U, owner.Memory.State->BackedPages);
+        HostCheck.Equal((byte)0x49, *owner.Memory.At(address));
+    }
+
+    [HostTest("linux.startup physical backing observation credits exact fixed replacement and rejects larger replacement atomically")]
+    private static void FixedBackingObservation()
+    {
+        using var owner = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 4)); owner.Begin();
+        const ulong address = Output + 0x100000;
+        HostCheck.Equal((long)address, owner.Call(9, address, 3 * 4096, 3, 0x100022, ulong.MaxValue));
+        HostCheck.Equal((long)address, CallWithBackingObservation(owner, out bool exhausted, 9, address, 3 * 4096, 3, 0x32, ulong.MaxValue));
+        HostCheck.True(!exhausted); HostCheck.Equal(4U, owner.Memory.State->BackedPages);
+        var before = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 9, address, 4 * 4096, 3, 0x32, ulong.MaxValue));
+        HostCheck.True(exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal(-17L, CallWithBackingObservation(owner, out exhausted, 9, address, 4 * 4096, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(!exhausted); before.AssertUnchanged(owner);
+    }
+
+    [HostTest("linux.startup physical backing observation preserves brk old break and distinguishes configured limit and ownership failures")]
+    private static void HeapBackingObservation()
+    {
+        using var owner = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 4)); owner.Begin();
+        HostCheck.Equal((long)Heap + 8192, owner.Call(12, Heap + 8192));
+        var before = new Snapshot(owner);
+        HostCheck.Equal((long)Heap + 8192, CallWithBackingObservation(owner, out bool exhausted, 12, Heap + 4 * 4096));
+        HostCheck.True(exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal((long)Heap + 8192, CallWithBackingObservation(owner, out exhausted, 12, Heap + 3 * 1024 * 1024));
+        HostCheck.True(!exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal((long)Heap + 3 * 4096, CallWithBackingObservation(owner, out exhausted, 12, Heap + 3 * 4096));
+        HostCheck.True(!exhausted); HostCheck.Equal(4U, owner.Memory.State->BackedPages);
+        HostCheck.Equal((long)Heap + 4096, owner.Call(9, Heap + 4096, 4096, 0, 0x32, ulong.MaxValue));
+        var replaced = new Snapshot(owner);
+        HostCheck.Equal((long)Heap + 3 * 4096, CallWithBackingObservation(owner, out exhausted, 12, Heap + 4 * 4096));
+        HostCheck.True(!exhausted); replaced.AssertUnchanged(owner);
+    }
+
+    [HostTest("linux.startup physical backing observation charges only remap growth and excludes placement and static stack failures")]
+    private static void RemapBackingObservation()
+    {
+        using var owner = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 4)); owner.Begin();
+        const ulong address = Output + 0x100000;
+        HostCheck.Equal((long)address, owner.Call(9, address, 4096, 3, 0x100022, ulong.MaxValue));
+        HostCheck.Equal((long)address, CallWithBackingObservation(owner, out bool exhausted, 25, address, 4096, 2 * 4096));
+        HostCheck.True(!exhausted); HostCheck.Equal(3U, owner.Memory.State->BackedPages);
+        var before = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 25, address, 2 * 4096, 4 * 4096));
+        HostCheck.True(exhausted); before.AssertUnchanged(owner);
+        HostCheck.Equal((long)address + 3 * 4096, owner.Call(9, address + 3 * 4096, 4096, 0, 0x100022, ulong.MaxValue));
+        var collision = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 25, address, 2 * 4096, 4 * 4096));
+        HostCheck.True(!exhausted); collision.AssertUnchanged(owner);
+        using var placement = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 8)); placement.Begin();
+        HostCheck.Equal((long)address, placement.Call(9, address, 4096, 3, 0x100022, ulong.MaxValue));
+        HostCheck.Equal((long)address + 0x10000, placement.Call(9, address + 0x10000, 4096, 3, 0x100022, ulong.MaxValue));
+        var blocked = new Snapshot(placement);
+        HostCheck.Equal(-12L, CallWithBackingObservation(placement, out exhausted, 25, address, 4096, 2 * 4096));
+        HostCheck.True(!exhausted); blocked.AssertUnchanged(placement);
+        using var image = new Owner(new LinuxMemoryServicesTests.Owner(staticRows: 4, runtimeImage: true)); image.Begin();
+        var retained = new Snapshot(image);
+        HostCheck.Equal(-12L, CallWithBackingObservation(image, out exhausted, 25, 0x6fe80000, 384 * 4096, 385 * 4096));
+        HostCheck.True(!exhausted); retained.AssertUnchanged(image);
+    }
+
+    [HostTest("linux.startup physical backing observation resets for unrelated success malformed input invalid state and guard denials")]
+    private static void BackingObservationNeverLatches()
+    {
+        using var owner = new Owner(new LinuxMemoryServicesTests.Owner(backingPages: 2)); owner.Begin();
+        const ulong address = Output + 0x100000;
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out bool exhausted, 9, address, 8192, 3, 0x100022, ulong.MaxValue));
+        HostCheck.True(exhausted);
+        HostCheck.Equal(1L, CallWithBackingObservation(owner, out exhausted, 39)); HostCheck.True(!exhausted);
+        HostCheck.Equal(-22L, CallWithBackingObservation(owner, out exhausted, 10, address, 4096, 0x100000003)); HostCheck.True(!exhausted);
+        HostCheck.Equal(-38L, CallWithBackingObservation(owner, out exhausted, 999)); HostCheck.True(!exhausted);
+        HostCheck.Equal(0L, CallWithBackingObservation(owner, out exhausted, 11, address, 4096)); HostCheck.True(!exhausted);
+        HostCheck.Equal(-22L, CallWithBackingObservation(owner, out exhausted, 28, Output, 4096, 999)); HostCheck.True(!exhausted);
+        HostCheck.Equal(-14L, LinuxStartupServices.Dispatch(null, new() { Number = 9 }, out exhausted)); HostCheck.True(!exhausted);
+        HostCheck.Equal((long)address, owner.Call(9, address, 8192, 0, 0x100022, ulong.MaxValue));
+        ulong pin = address;
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.Memory.State, &pin, &DenyMemoryChange));
+        var guarded = new Snapshot(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 10, address, 4096, 3));
+        HostCheck.True(!exhausted); guarded.AssertUnchanged(owner);
+        HostCheck.Equal(-12L, CallWithBackingObservation(owner, out exhausted, 10, address, 8192, 3));
+        HostCheck.True(exhausted); guarded.AssertUnchanged(owner);
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte DenyMemoryChange(void* context, ulong address, ulong bytes) => 0;
+
     [HostTest("m16-006 real brk growth shrink and quota failure retain actual break", HostLane.Fast, 0)]
     private static void HeapLifecycle()
     {

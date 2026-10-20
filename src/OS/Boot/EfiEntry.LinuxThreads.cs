@@ -18,6 +18,16 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
+#if M16_014_PROBE
+        // One serialized, supervisor-only negative lifetime. Each stage requires
+        // its exact predecessor and independently checked owned restoration;
+        // neither a log string nor an arbitrary false return can advance it.
+        private enum LinuxQuotaDisposition : uint { None, Pending, Terminating, NativeCleaned, CpuRestored, NetworkCleaned }
+
+        private static bool LinuxQuotaPolicy(Storage* state) => state != null &&
+            state->LinuxServices.GcBudget.Succeeded && state->LinuxServices.GcBudget.TerminateOnPhysicalBackingExhaustion;
+#endif
+
         private const uint LinuxNativeWorkers = NativeProgram.MaximumWorkers, LinuxNativeFutexes = 16;
         // Metadata lives only in the program's retained RW/NX arena. No user leaf
         // exposes this storage. One IRQ-off BSP owns the complete lifetime.
@@ -446,7 +456,12 @@ public static unsafe partial class EfiEntry
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* data = (byte*)state->LinuxSyscallData;
             var returning = result;
+#if M16_014_PROBE
+            bool quotaPending = state->LinuxQuota == LinuxQuotaDisposition.Pending;
+            if (!quotaPending && result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser)
+#else
             if (result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser)
+#endif
                 returning = LinuxNativeUserReturn(c, index, out image);
             if (returning.Action == LinuxSyscallAction.RestoreUser &&
                 !X64LinuxUserTransition.RestoreActiveUserImage(data, X64LinuxUserTransition.DataBytes, image,
@@ -517,6 +532,22 @@ public static unsafe partial class EfiEntry
             // obscure their winner. CALL above introduces a newly staged wait.
 #if CLROS_LINUX_SOCKETS
             logged = logged && ObserveLinuxSocketWaits(c);
+#endif
+#if M16_014_PROBE
+            if (quotaPending && logged && result.Action == LinuxSyscallAction.Return &&
+                c->Gates[index].Status == LinuxSyscallGateStatus.Active && call.Number is 9 or 10 or 12 or 25)
+            {
+                if (!LinuxQuotaPolicy(state) || c->Stopping != 0 || c->Failed != 0 || c->Process.Failed ||
+                    c->ServiceShutdown != 0 || !c->Budget.RequestCancellation() ||
+                    !LinuxText(state, "M16_016_QUOTA_ABORT identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                    !LinuxText(state, " ordinal=") || !LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) ||
+                    !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) ||
+                    !LinuxText(state, " backed=") || !LinuxNumber(state, state->LinuxMemory.BackedPages) ||
+                    !LinuxText(state, " pool=") || !LinuxNumber(state, LinuxMemoryPoolPages(state)) ||
+                    !LinuxText(state, " exit=99 policy=terminate cause=physical-backing\r\n")) return LinuxNativeAbort(c, index);
+                state->LinuxQuota = LinuxQuotaDisposition.Terminating;
+                return LinuxNativeAbort(c, index);
+            }
 #endif
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }

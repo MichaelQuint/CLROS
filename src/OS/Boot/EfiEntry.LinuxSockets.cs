@@ -137,7 +137,13 @@ public static unsafe partial class EfiEntry
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
                     state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
                     state->ApicPhase == 2, device->Running, state, &RunOwnedLinuxSyscalls));
-                return ran && o->Phase == 3 && o->Failed == 0 &&
+                bool completed = ran;
+#if M16_014_PROBE
+                if (!ran && LinuxQuotaPolicy(state) && state->LinuxQuota == LinuxQuotaDisposition.CpuRestored &&
+                    state->LinuxSyscallExitCode == 99 && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0)
+                    completed = true; // Continue only the verified negative owner's remaining NIC teardown.
+#endif
+                return completed && o->Phase == 3 && o->Failed == 0 &&
                     LinuxText(state, "M16_011_WIRE received=") && LinuxNumber(state, o->Received) &&
                     LinuxText(state, " arp=") && LinuxNumber(state, o->ArpReceived) &&
                     LinuxText(state, " accepted=") && LinuxNumber(state, o->Accepted) &&
@@ -543,6 +549,18 @@ public static unsafe partial class EfiEntry
                             !LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)closed)) ||
                             !LinuxText(state, "\r\n") || closed != 0) return false;
                     }
+#if M16_014_PROBE
+                bool quotaAbort = abort && LinuxQuotaPolicy(state) && state->LinuxQuota == LinuxQuotaDisposition.Terminating;
+                uint quotaRetained = 0, quotaCompact = 0;
+                if (quotaAbort)
+                {
+                    // Descriptor closure can change retained owners. Publish
+                    // their exact generations before the deliberate abort.
+                    if (!ObserveLinuxSocketLifetimes(o)) return false;
+                    quotaRetained = o->Network.RetainedConnections; quotaCompact = o->Network.CompactTimeWaitConnections;
+                    if (quotaRetained < quotaCompact) return false;
+                }
+#endif
                 if (abort)
                 { if (!SocketNetwork.Abort(&o->Network)) return false; }
                 else
@@ -554,6 +572,13 @@ public static unsafe partial class EfiEntry
                     if (!ObserveLinuxSocketLifetimes(o) || o->Fresh != o->Retired) return false;
                 }
                 if (!SocketNetwork.End(&o->Network) || TcpConnectionTable.RetireOwned(&o->Table) != TcpConnectionTable.OwnershipStatus.Success) return false;
+#if M16_014_PROBE
+                if (quotaAbort && (!ReadNetworkTime(state, out o->Ended) || o->Ended < o->Started ||
+                    !LinuxText(state, "M16_016_QUOTA_SOCKETS bulkAborted=") || !LinuxNumber(state, quotaRetained - quotaCompact) ||
+                    !LinuxText(state, " compactDiscarded=") || !LinuxNumber(state, quotaCompact) ||
+                    !LinuxText(state, " clock=") || !LinuxNumber(state, o->Ended) ||
+                    !LinuxText(state, " retained=0 transport=aborted timewait=discarded buffers=scrubbed descriptors=closed table=retired\r\n"))) return false;
+#endif
                 if (!abort && (!ReadNetworkTime(state, out o->Ended) || o->Ended < o->MaximumDeadline)) return false;
 #if M16_014_PROBE
                 if (!abort && (o->CompactFresh != o->CompactRetired ||

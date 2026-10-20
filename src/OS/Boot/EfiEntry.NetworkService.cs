@@ -76,6 +76,18 @@ public static unsafe partial class EfiEntry
 #if M10_004_PROBE && !M16_014_PROBE
             return LinuxWebRetainFailure(state, null, 7);
 #else
+#if M16_014_PROBE
+            if (state->LinuxQuota != LinuxQuotaDisposition.None)
+            {
+                if (!LinuxQuotaPolicy(state) || state->LinuxQuota != LinuxQuotaDisposition.NetworkCleaned ||
+                    state->LinuxSyscallExitCode != 99 || state->LinuxSyscallFailed != 0 || state->LinuxSyscallFaults != 0 ||
+                    state->CooperativePhase != 6 || state->LinuxMemoryPhase != 6 || state->LinuxDescriptorPhase != 6)
+                    return false;
+                state->NetworkPhase = 3;
+                if (!LinuxText(state, "M16_016_QUOTA_CLEANUP exit=99 process=failed workers=reaped memory=zero cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M16_016_QUOTA_CLEANUP\r\n")) return false;
+                return false; // Stop before all ordinary leaf, boot and smoke success markers.
+            }
+#endif
             state->NetworkPhase = 3;
             return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n")
 #if CLROS_LINUX_SOCKETS
@@ -163,6 +175,23 @@ public static unsafe partial class EfiEntry
                 if (safe) for (uint i = 0; i < ContinuingVirtioNet.BackingBytes; i++) if (((byte*)page)[i] != 0) safe = false;
                 if (!safe) return false; // All owner metadata and the arena remain image-resident/retained.
                 var after = original->AllocatorStateValue; var afterNode = original->FreeNodeValue; uint command = 0;
+#if M16_014_PROBE
+                if (state->LinuxQuota != LinuxQuotaDisposition.None)
+                {
+                    // These actual audits and their original evidence rows all
+                    // execute after NIC reset/scrub, including a failed child.
+                    bool allocator = NetworkAllocatorEqual(before, after, beforeNode, afterNode);
+                    bool pci = read(null, state->PciWindow.Start + 0x30004, &command) == 1;
+                    pci &= (command & 0xffff) == state->QueueCommand;
+                    bool canaries = FirstExitOwnedArena.ValidateCanaries(state->Arena);
+                    bool row4 = WriteNetworkRow(state, 4, device->ReceivedFrames, device->ReclaimedTransmits, device->Receipt.ResetReads, device->Receipt.Fences);
+                    bool row5 = WriteNetworkRow(state, 5, pool->Count, pool->AllocatedMask, 8, 1);
+                    bool row6 = WriteNetworkRow(state, 6, before.FreePageCount, after.FreePageCount, after.AllocatedPageCount, command & 0xffff);
+                    if (!(success & allocator & pci & canaries & row4 & row5 & row6) || !LinuxQuotaPolicy(state) ||
+                        state->LinuxQuota != LinuxQuotaDisposition.CpuRestored) return false;
+                    state->LinuxQuota = LinuxQuotaDisposition.NetworkCleaned; return true;
+                }
+#endif
                 return success && NetworkAllocatorEqual(before, after, beforeNode, afterNode) &&
                     read(null, state->PciWindow.Start + 0x30004, &command) == 1 && (command & 0xffff) == state->QueueCommand &&
                     FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
