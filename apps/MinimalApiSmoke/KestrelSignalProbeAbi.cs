@@ -11,6 +11,7 @@ internal static unsafe class KestrelSignalProbeAbi
 {
     internal const int Signal = 12;
     internal const byte WakeByte = 0x5a;
+    internal const byte RecoveryByte = 0x6b;
     internal static bool Supported => OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -79,10 +80,15 @@ internal static unsafe class KestrelSignalProbeAbi
         Result result = Invoke(232, epoll, (nint)(&value), 1, timeoutMilliseconds);
         return new(result.Value, result.Errno, value.Events, value.Data);
     }
-    internal static void WriteWake(int descriptor)
+    // Borrow only a live NONBLOCK pipe descriptor; short/EOF/EAGAIN results
+    // fail rather than retrying or inventing which byte was consumed.
+    internal static byte ReadByte(int descriptor)
     {
-        byte value = WakeByte; Exact(Invoke(1, descriptor, (nint)(&value), 1), 1, "write_wake");
+        byte value = 0; Exact(Invoke(0, descriptor, (nint)(&value), 1), 1, "read_byte"); return value;
     }
+    internal static void WriteByte(int descriptor, byte value) =>
+        Exact(Invoke(1, descriptor, (nint)(&value), 1), 1, "write_byte");
+    internal static void WriteWake(int descriptor) => WriteByte(descriptor, WakeByte);
     internal static void Close(int descriptor) => Exact(Invoke(3, descriptor), 0, "close");
     internal static void SendSignal(int processId, int targetTid)
     {

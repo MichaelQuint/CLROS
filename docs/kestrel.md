@@ -105,6 +105,33 @@ prepared-image admission, CLROS guest race or issue acceptance. The old web imag
 guards remain unchanged. Next add the dedicated competing reader and recovery
 phase during genuinely pending churn, preserving all #225/#748 criteria.
 
+[Step1501](../done/step1501.md) implements that explicit actor/recovery path in
+the same one-shot owner. POST `/__clros/signalrace` shares admission with the
+ownership probe. One dedicated actor writes byte0x5a, directs SIGUSR2 to the
+actual waiter and consumes exactly that byte through a nonblocking read. After
+managed actor Join and the original-result/callback checks, the waiter borrows
+the read end for a fresh epoll wait. GET `/__clros/signalrace/status` exposes
+copied phase/identity data. One empty versioned POST to
+`/__clros/signalrace/recover` requests a fresh byte0x6b; the request owner writes
+it, and the waiter must return the exact ready tag and read that byte. Recovery
+admission is atomic and refuses premature, duplicate or terminal requests.
+
+Cancellation joins the actor before inspecting its sent flag, then acknowledges
+any successful signal before unregister. It releases/wakes/joins the waiter
+before closing the three descriptors. Unsafe cleanup uncertainty still exits
+the owned diagnostic process70. These are managed delegate joins; native tail
+exit remains separate. Early ready returns, absent recovery or timeouts fail
+without retrying. Phase4 only coordinates recovery; original traces must prove
+the actual empty wait and all write/signal/competing-read/repark/return ordering.
+
+Nine ABI/copied-state/platform checks and Windows HTTP refusal/status/health
+controls pass. No native actor, recovery or churn-overlap capture ran in this
+step. Step1500's original Linux ownership capture remains at `9dd1e01a`; it is
+not new race evidence. Next integrate the owned HTTP churn/race producer and
+strict original-order consumer, then finish fragmentation/effective-budget/
+offender-cleanup/RAM controls before the stable native/guest batch. No current
+web index admission or #225/#748 acceptance changes.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

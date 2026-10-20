@@ -312,6 +312,18 @@ contains no competing readiness or churn overlap and supplies no CLROS guest
 acceptance, new web image admission or issue closure. The same tandem agent's
 bounded competing-reader/recovery plan remains the next implementation slice.
 
+[Step1501](../done/step1501.md) implements the explicit competing-reader and
+recovery slice in literal Smoke. A dedicated actor writes/sends/consumes the
+original byte, then relinquishes read ownership through managed Join. A copied
+status phase and one atomic recovery request coordinate a fresh wait/write/read
+with a distinct byte. Cancellation joins the actor before trusting its sent
+flag and preserves signal acknowledgment/restoration before waiter/fd cleanup.
+Nine focused ABI/state/platform checks and actual Windows400/501/idle-status/
+health controls pass. Native race/repark/recovery, real churn overlap and the
+owned original-order producer/consumer remain unvalidated or unfinished. The
+earlier Linux ownership capture supplies none of those new claims. Preserve
+prepared image guards and all #225/#748 acceptance requirements.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

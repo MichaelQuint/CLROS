@@ -63,15 +63,32 @@ try
     var signalProbe = new KestrelSignalProbe();
     app.MapPost("/__clros/signalprobe", async (HttpContext context) =>
     {
-        if (context.Request.ContentLength != 0 || context.Request.QueryString.HasValue ||
-            context.Request.Headers["X-CLROS-Signal"].Count != 1 ||
-            context.Request.Headers["X-CLROS-Signal"][0] != "v1" ||
-            context.Request.Headers.ContainsKey("Transfer-Encoding"))
+        if (!IsSignalRequest(context))
             return TypedResults.Text("CLROS_SIGNAL_PROBE_BAD_REQUEST", "text/plain", statusCode: 400);
         if (!KestrelSignalProbeAbi.Supported)
             return TypedResults.Text("CLROS_SIGNAL_PROBE_UNSUPPORTED", "text/plain", statusCode: 501);
         string? result = await signalProbe.RunAsync(context.RequestAborted);
         return TypedResults.Text(result ?? "CLROS_SIGNAL_PROBE_BUSY", "text/plain", statusCode: result is null ? 409 : 200);
+    });
+    app.MapPost("/__clros/signalrace", async (HttpContext context) =>
+    {
+        if (!IsSignalRequest(context))
+            return TypedResults.Text("CLROS_SIGNAL_RACE_BAD_REQUEST", "text/plain", statusCode: 400);
+        if (!KestrelSignalProbeAbi.Supported)
+            return TypedResults.Text("CLROS_SIGNAL_RACE_UNSUPPORTED", "text/plain", statusCode: 501);
+        string? result = await signalProbe.RunRaceAsync(context.RequestAborted);
+        return TypedResults.Text(result ?? "CLROS_SIGNAL_RACE_BUSY", "text/plain", statusCode: result is null ? 409 : 200);
+    });
+    app.MapGet("/__clros/signalrace/status", () => TypedResults.Text(signalProbe.ReadRace(), "text/plain"));
+    app.MapPost("/__clros/signalrace/recover", (HttpContext context) =>
+    {
+        if (!IsSignalRequest(context))
+            return TypedResults.Text("CLROS_SIGNAL_RACE_BAD_REQUEST", "text/plain", statusCode: 400);
+        if (!KestrelSignalProbeAbi.Supported)
+            return TypedResults.Text("CLROS_SIGNAL_RACE_UNSUPPORTED", "text/plain", statusCode: 501);
+        bool accepted = signalProbe.RequestRecovery();
+        return TypedResults.Text(accepted ? "CLROS_SIGNAL_RACE_RECOVERY_REQUESTED" : "CLROS_SIGNAL_RACE_RECOVERY_REFUSED",
+            "text/plain", statusCode: accepted ? 200 : 409);
     });
 
     app.Run();
@@ -82,6 +99,10 @@ catch
     Console.Error.WriteLine("CLROS_APP_FAIL minimal.api.smoke");
     throw;
 }
+
+static bool IsSignalRequest(HttpContext context) => context.Request.ContentLength == 0 &&
+    !context.Request.QueryString.HasValue && context.Request.Headers["X-CLROS-Signal"].Count == 1 &&
+    context.Request.Headers["X-CLROS-Signal"][0] == "v1" && !context.Request.Headers.ContainsKey("Transfer-Encoding");
 
 static string GetExpectedBody(IConfiguration configuration)
 {

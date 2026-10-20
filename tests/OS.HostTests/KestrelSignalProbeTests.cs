@@ -18,6 +18,14 @@ internal static unsafe class KestrelSignalProbeTests
         Offset<KestrelSignalProbeAbi.EpollEvent>("Events", 0); Offset<KestrelSignalProbeAbi.EpollEvent>("Data", 4);
     }
 
+    [HostTest("m10-012 signal probe uses distinct original and recovery pipe byte witnesses")]
+    private static void DistinctPipeBytes()
+    {
+        HostCheck.Equal((byte)0x5a, KestrelSignalProbeAbi.WakeByte);
+        HostCheck.Equal((byte)0x6b, KestrelSignalProbeAbi.RecoveryByte);
+        HostCheck.True(KestrelSignalProbeAbi.WakeByte != KestrelSignalProbeAbi.RecoveryByte);
+    }
+
     [HostTest("m10-012 signal probe packed event and field comparisons retain every copied bit")]
     private static void BytesAndEquality()
     {
@@ -72,6 +80,7 @@ internal static unsafe class KestrelSignalProbeTests
         Refused(() => { _ = KestrelSignalProbeAbi.GetTid(); }); Refused(() => KestrelSignalProbeAbi.CreatePipe(out _, out _));
         Refused(() => { _ = KestrelSignalProbeAbi.CreateEpoll(); }); Refused(() => KestrelSignalProbeAbi.AddRead(3, 4, 5));
         Refused(() => { _ = KestrelSignalProbeAbi.Wait(3, 0); }); Refused(() => KestrelSignalProbeAbi.WriteWake(4));
+        Refused(() => KestrelSignalProbeAbi.WriteByte(4, 0x6b)); Refused(() => { _ = KestrelSignalProbeAbi.ReadByte(3); });
         Refused(() => KestrelSignalProbeAbi.Close(4)); Refused(() => KestrelSignalProbeAbi.SendSignal(1, 2));
     }
 
