@@ -143,6 +143,18 @@ contents. Service and other profiles retain their prior admission. Pipe epoll
 watches, signal12 replay, original race ordering and the owned HTTP orchestration
 remain unfinished; current source/ELF/index guards remain closed.
 
+[Step1503](../done/step1503.md) adds the probe read-end epoll and directed
+signal12 replay prerequisites. Watches retain object/generation identity;
+modeled counts bound readiness and closure removes watches before fd reuse.
+Standard12 coalesces independently of activation35's four-entry queue. A prior
+readiness win survives tgkill; empty recheck/repark publishes a new sequence
+before pending12 can win EINTR. Delivery selection survives IRQs before the
+first observed handler call. These are host scalar/scheduler contracts, with
+copied event/action/frame contents still opaque. All 63 focused checks across
+six replay fixtures pass with unchanged inputs and zero reuse. Original-index
+race projection,
+owned HTTP churn orchestration and new native/guest admission remain unfinished.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

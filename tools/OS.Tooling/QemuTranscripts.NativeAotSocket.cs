@@ -48,6 +48,7 @@ public static partial class QemuTranscripts
         internal ulong Sent,Received,PeekBytes;
         internal bool WriteClosed,ReadClosed,StatusUnknown,SendBlocked;
         internal readonly Dictionary<int,SocketDescriptor> Watches=[];
+        internal readonly Dictionary<int,WebProbePipe> ProbeReadWatches=[];
     }
 
     private sealed partial class ThreadingProtocol
@@ -198,14 +199,16 @@ public static partial class QemuTranscripts
             {
                 Need(t.EpollWinner==1 && value.PreviousSequence==t.LastSequence && value.Sequence>t.LastSequence &&
                     value.Deadline==t.Deadline && (t.Deadline==0 || clock<t.Deadline),"socket_repark_owner");
+                Need(t.Epoll!.Watches.Count!=0 || SocketReadyUpperBound(t.Epoll)==0,"web_probe_repark_ready");
                 t.LastSequence=value.Sequence;t.WaitOrder=++waitOrder;t.AddressOrder=++addressOrder;
-                t.Completion=null;t.Parking=true;t.EpollWinner=0;t.EpollObserved=false;t.EpollEligible=t.Epoll!.Watches.Count!=0;
+                t.Completion=null;t.Parking=true;t.EpollWinner=0;t.EpollObserved=false;t.EpollEligible=SocketReadyUpperBound(t.Epoll)!=0;
+                InterruptPendingWait(t);
                 SocketObservations();return true;
             }
             long result=unchecked((long)value.ValueBits);
             Need(value.Kind==NativeAotSocketGuest.ObservationKind.Complete && value.Sequence==t.LastSequence &&
                 value.Completion==t.EpollWinner && (t.EpollWinner==5?result==-4:
-                    result>=0 && result<=t.EpollMaximum && result<=t.Epoll!.Watches.Count &&
+                    result>=0 && result<=t.EpollMaximum && result<=SocketReadyUpperBound(t.Epoll!) &&
                     (result!=0 || t.Deadline!=0 && clock>=t.Deadline)),"socket_complete_result");
             t.Completion=result;socketResumes++;SocketObservations();return false;
         }
@@ -233,13 +236,14 @@ public static partial class QemuTranscripts
             foreach(var port in socketDescriptions.Where(d=>d.Port))
                 foreach(int target in port.Watches.Where(pair=>pair.Value==value).Select(pair=>pair.Key).ToArray())port.Watches.Remove(target);
             SocketEligibility();
-            if(value.Port && !history.Any(t=>!t.Reaped && t.Epoll==value))value.Watches.Clear();
+            if(value.Port && !history.Any(t=>!t.Reaped && t.Epoll==value))
+            {value.Watches.Clear();value.ProbeReadWatches.Clear();}
         }
 
         private void SocketEligibility()
         {
             foreach(var t in history.Where(t=>!t.Reaped && t.Epoll is not null && t.Completion is null))
-                t.EpollEligible=t.Epoll!.Watches.Count!=0;
+                t.EpollEligible=SocketReadyUpperBound(t.Epoll!)!=0;
         }
 
         private bool SocketCall(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,ulong beforeClock,out ulong action,out ulong status)
@@ -304,15 +308,19 @@ public static partial class QemuTranscripts
                 Need(descriptor!.Port,"socket_epoll_descriptor");
                 if(nr==233)
                 {
-                    Need(b is 1 or 2 or 3 && c<=int.MaxValue && socketDescriptors.TryGetValue((int)c,out var target) &&
-                        !target.Port && (b==2 || memory.Covered(d,12,1)),"socket_epoll_target");
-                    bool found=descriptor.Watches.ContainsKey((int)c);
+                    var pipe=ProbeReadTarget(c);
+                    bool stream=c<=int.MaxValue && socketDescriptors.TryGetValue((int)c,out var target) && !target.Port;
+                    Need(b is 1 or 2 or 3 && c<=int.MaxValue && (stream || pipe is not null) &&
+                        (b==2 || memory.Covered(d,12,1)),"socket_epoll_target");
+                    bool found=descriptor.Watches.ContainsKey((int)c) || descriptor.ProbeReadWatches.ContainsKey((int)c);
                     if(b==1 && found)Need(result==-17,"socket_epoll_duplicate");
                     else if(b!=1 && !found)Need(result==-2,"socket_epoll_missing");
                     else
                     {
                         Need(v==0,"socket_epoll_control_result");
-                        if(b==2)descriptor.Watches.Remove((int)c);else descriptor.Watches[(int)c]=socketDescriptors[(int)c];
+                        if(b==2){descriptor.Watches.Remove((int)c);descriptor.ProbeReadWatches.Remove((int)c);}
+                        else if(pipe is not null)descriptor.ProbeReadWatches[(int)c]=pipe;
+                        else descriptor.Watches[(int)c]=socketDescriptors[(int)c];
                         SocketEligibility();
                     }
                 }
@@ -324,13 +332,14 @@ public static partial class QemuTranscripts
                     {
                         Need(v==0 && timeout!=0 && (timeout<0?witness.Deadline==0:witness.Deadline>clock &&
                             witness.Deadline-clock<=(ulong)timeout*1_000_000),"socket_epoll_deadline");
-                        Stage(t,witness,3,0,0,0);t.Epoll=descriptor;t.EpollMaximum=(uint)c;
-                        t.EpollWinner=0;t.EpollObserved=false;t.EpollEligible=descriptor.Watches.Count!=0;
+                        t.Epoll=descriptor;t.EpollMaximum=(uint)c;
+                        t.EpollWinner=0;t.EpollObserved=false;t.EpollEligible=SocketReadyUpperBound(descriptor)!=0;
+                        Stage(t,witness,3,0,0,0);
                         action=3;status=9;socketBlocks++;
                     }
                     else
                     {
-                        Need(result>=0 && result<=(long)c && result<=descriptor.Watches.Count &&
+                        Need(result>=0 && result<=(long)c && result<=SocketReadyUpperBound(descriptor) &&
                             (result!=0 || timeout>=0),"socket_epoll_immediate");
                         if(result==0 && timeout>0)
                         {

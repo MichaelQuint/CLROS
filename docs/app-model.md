@@ -332,6 +332,15 @@ alternate-stack contents, pipe epoll/signal12 race replay, owned churn/race HTTP
 orchestration and new native/guest qualification remain separate requirements.
 No prepared-image admission or issue acceptance follows from this reader work.
 
+[Step1503](../done/step1503.md) extends that host replay through pipe read-end
+epoll identity/readiness and separate coalesced signal12 delivery. Pending
+signals cannot replace a won readiness event; a genuine empty recheck/repark
+must publish the replacement sequence before EINTR. A fresh recovery wait
+remains distinct. Synthetic coverage does not provide original guest race,
+copied event/action/frame contents, HTTP churn overlap or workload cleanup.
+The small build and 63 focused checks across six affected replay fixtures pass;
+full-host/native/guest qualification remains deferred to the stable batch.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

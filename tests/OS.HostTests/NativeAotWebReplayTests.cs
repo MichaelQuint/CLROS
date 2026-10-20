@@ -78,6 +78,10 @@ internal static class NativeAotWebReplayTests
         QemuTranscripts.WebControlInspection? controls=null,bool quota=false)=>
         QemuTranscripts.InspectNativeAotWebReplayForTests(NativeAotThreadingTranscriptTests.Elf(),
             Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota);
+    // Shared synthetic callback only; the caller receives no prepared-program,
+    // captured-process, source/native or guest execution authority.
+    internal static QemuTranscripts.WebReplayReport InspectProbe(Action<NativeAotThreadingTranscriptTests.Vector> probe,string fragment="")=>
+        Inspect(Vector(probe:probe),fragment);
     private static void Reject(Action action)
     { bool failed=false;try{action();}catch(ToolFailure){failed=true;}HostCheck.True(failed); }
 

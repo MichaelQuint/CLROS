@@ -141,9 +141,12 @@ public static partial class QemuTranscripts
         internal uint EpollMaximum, EpollWinner;
         internal bool EpollObserved, EpollEligible;
         internal ulong? DeliveryRsp;
+        internal uint DeliverySignal;
+        internal CollectionSignal? DeliveryProof;
+        internal bool PendingUsr2;
         internal bool Parking, Exiting, Reaped, GroupRetired, NormalExit;
         internal int Requests, Delivered, Returned;
-        internal readonly Stack<(ulong Frame,ulong Rsp,CollectionSignal? Proof)> Frames=[];
+        internal readonly Stack<(ulong Frame,ulong Rsp,CollectionSignal? Proof,uint Signal)> Frames=[];
     }
 
     private readonly record struct FutexReplay(ulong Address,uint Op,uint Expected,ulong Timeout,uint Bits,ulong Rip,ulong Deadline);
@@ -417,7 +420,7 @@ public static partial class QemuTranscripts
             if(service)serviceBudgetFinished=finished["nanos"];
             // Group cancellation retires pending/active signal state during
             // actual off-stack reap. It does not fabricate a user sigreturn.
-            Need(history.All(t=>t.GroupRetired || t.Delivered==t.Returned && t.Requests==0),"threading_unreturned_signal");
+            Need(history.All(t=>t.GroupRetired || t.Delivered==t.Returned && t.Requests==0 && !t.PendingUsr2 && t.DeliverySignal==0),"threading_unreturned_signal");
             Need(entropyBytes>0 && barrierRegistered && signalPipeCreated && stackProbe && files.Count==0 &&
                 new ulong[]{2,3,8,11,13,18,35}.All(actions.Contains),"threading_runtime_startup");
             const string cleanup=" userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
@@ -443,12 +446,32 @@ public static partial class QemuTranscripts
             if(fs!=0) Need(memory.Covered(fs,8,1),"threading_live_tls");
         }
         private void Enqueue(RuntimeThread t){Need(!ready.Contains(t) && !t.Reaped,"threading_duplicate_ready");ready.Enqueue(t);}
-        private static void ExpectDelivery(RuntimeThread t)
+        private static uint PendingSignal(RuntimeThread t)=>t.PendingUsr2 && (t.Mask&(1UL<<11))==0?12U:
+            t.Requests>0 && (t.Mask&(1UL<<34))==0?35U:0;
+        private void ExpectDelivery(RuntimeThread t)
         {
             // Native PrepareUserReturn runs at dispatch and after every returning
-            // call. Retain its interrupted RSP even if an IRQ captures the new
-            // handler before the first handler syscall can observe its frame.
-            if(t.Requests>0 && (t.Mask&(1UL<<34))==0 && t.DeliveryRsp is null)t.DeliveryRsp=t.SavedRsp;
+            // call. Selection consumes one pending entry now; keep its number,
+            // proof and interrupted RSP across IRQs before the first handler CALL.
+            // Standard12 coalesces; the independent realtime35 queue has four slots.
+            if(t.Exiting || t.WaitSource!=0 || t.DeliverySignal!=0)return;
+            uint signal=PendingSignal(t);if(signal==0)return;
+            t.DeliverySignal=signal;t.DeliveryRsp=t.SavedRsp;
+            if(signal==12)t.PendingUsr2=false;
+            else
+            {
+                t.Requests--;
+                Need(phases is null || t.SignalProofs.Count!=0,"runtime_signal_request_evidence");
+                t.DeliveryProof=phases is null?null:t.SignalProofs.Dequeue();
+            }
+        }
+        // Publishing a new wait rechecks the real pending queue. An already-won
+        // readiness completion stays intact until Prepare actually reparks it.
+        private void InterruptPendingWait(RuntimeThread t)
+        {
+            if(t.Exiting || t.WaitSource==0 || t.Completion.HasValue || PendingSignal(t)==0)return;
+            if(t.WaitSource==3)t.EpollWinner=5;
+            Complete(t,-4);
         }
         private void Complete(RuntimeThread t,long result)
         { if(t.Completion.HasValue) return; t.Completion=result; if(!t.Parking) Enqueue(t); }

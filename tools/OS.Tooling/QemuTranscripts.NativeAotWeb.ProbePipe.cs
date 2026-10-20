@@ -47,8 +47,9 @@ public static partial class QemuTranscripts
             if(nr==3)
             {
                 Need(v==0 && files.Remove(fd),"web_probe_pipe_close");
-                if(readEnd)pipe.Read=0;else pipe.Write=0;
+                if(readEnd){ProbeReadClosed(fd,pipe);pipe.Read=0;}else pipe.Write=0;
                 if(pipe.Read==0 && pipe.Write==0)webProbePipe=null;
+                SocketEligibility();
                 return true;
             }
             Need(c is >0 and <=4096,"web_probe_pipe_count");
@@ -61,6 +62,7 @@ public static partial class QemuTranscripts
                 pipe.Read==0?-32:c>(ulong)(4096-pipe.Buffered)?-11:(long)c;
             Need(v==Bits(expected),"web_probe_pipe_result");
             if(expected>0)pipe.Buffered+=nr==0?-(int)expected:(int)expected;
+            SocketEligibility();
             return true;
         }
     }
