@@ -138,6 +138,78 @@ internal static class NativeAotServiceQuotaOwnerTests
         }
     }
 
+
+    [HostTest("quota observed owner retains separate child partial wire failure and rejects invalid companion paths")]
+    private static async Task PartialWireFailure()
+    {
+        var paths = Paths(); using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+        string wire = paths.Peer + ".wire.json"; bool runnerEnded = false, accepted = false; string? refusal = null;
+        TcpListener? listener = null; TcpClient? client = null; Task<NativeAotServiceQuotaPeer.Completion>? owner = null;
+        try
+        {
+            owner = NativeAotServiceQuotaPeer.RunObservedOwnedAsync(paths.Root, paths.Peer, paths.Serial, async (port, token) =>
+            {
+                listener = new TcpListener(IPAddress.Loopback, port); listener.Start(); Listening(paths.Serial);
+                client = await listener.AcceptTcpClientAsync(token);
+                _ = await Headers(client.GetStream(), token);
+                await Response(client.GetStream(), "CLROS_SERVICE_HEALTH_OK", token);
+                _ = await Headers(client.GetStream(), token);
+                await Response(client.GetStream(), "CLROS_LIFECYCLE_STATUS active=1 waiting=0 waits=0 canceled=0 echoes=0 streams=0 rejected=0 read=0 written=0", token);
+                runnerEnded = true; return Runner(22);
+            }, limit.Token);
+            try { _ = await owner; accepted = true; } catch (ToolFailure error) { refusal = error.Reason; }
+            HostCheck.True(!accepted && runnerEnded && owner.IsCompleted);
+            HostCheck.Equal("quota_peer_owner_peer_failed", refusal ?? "accepted");
+            HostCheck.Equal("", File.ReadAllText(paths.Peer));
+            HostCheck.True(File.ReadAllText(paths.Peer + ".stderr.log").Contains("quota_peer_initial_lifecycle", StringComparison.Ordinal));
+            RequireClosedLogs(paths.Peer);
+            using (FileStream closed = new(wire, FileMode.Open, FileAccess.Read, FileShare.None))
+                HostCheck.True(closed.Length is >0 and <=NativeAotServiceQuotaPeer.WireMaximumReportBytes);
+            var trace = NativeAotServiceQuotaPeer.InspectWireReport(File.ReadAllBytes(wire));
+            HostCheck.True(trace.Purpose == "quota-partial" && trace.Samples.Count == 1 && trace.Samples[0].Name == "health.startup" &&
+                trace.Exchanges.Count == 2 && trace.Operations.Count > 0 && trace.Connections.All(c => c.DisposedTicks > 0));
+            byte[] preserved = File.ReadAllBytes(wire);
+            string receipt = "QUOTA_WIRE_REPORT kind=quota-partial sha256=" +
+                Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(preserved)) + " bytes=" +
+                preserved.Length.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\r\n";
+            HostCheck.True(File.ReadAllText(paths.Peer + ".stderr.log").StartsWith(receipt, StringComparison.Ordinal));
+            foreach (string[] tail in new string[][] {
+                ["--wire-report"], ["--wire-report", "relative.json"], ["--wire-report", wire],
+                ["--wire-report", wire + ".fresh", "--wire-report", wire + ".other"], ["--wire-report", paths.Root] })
+            {
+                var result = HostToolProcess.RunTool(["nativeaot", "service", "quota-peer", "--port", "1", .. tail]);
+                HostCheck.Equal(1, result.ExitCode); HostCheck.Equal("", result.Output);
+                HostCheck.True(result.Error.Contains("quota_peer_", StringComparison.Ordinal));
+            }
+            HostCheck.True(File.ReadAllBytes(wire).AsSpan().SequenceEqual(preserved));
+        }
+        finally
+        {
+            limit.Cancel(); client?.Dispose(); listener?.Stop();
+            if (owner is not null) try { _ = await owner; } catch { }
+        }
+    }
+
+    [HostTest("quota observed owner successful process receipt rejects partial extra noncanonical and overflow records")]
+    private static void WireProcessReceipt()
+    {
+        string good = "QUOTA_WIRE_REPORT kind=quota-run sha256=" + new string('A', 64) + " bytes=123\r\n";
+        var copied = NativeAotServiceQuotaPeer.InspectWireReceiptForTests(good);
+        HostCheck.Equal(new string('A', 64), copied.Sha256); HostCheck.Equal(123, copied.Bytes);
+        foreach (string bad in new[] { "", good + good, good + "extra", good.Replace("\r\n", "\n", StringComparison.Ordinal),
+            good.Replace("quota-run", "quota-partial", StringComparison.Ordinal), good.Replace("sha256=", "hash=", StringComparison.Ordinal),
+            good.Replace(new string('A', 64), new string('a', 64), StringComparison.Ordinal),
+            good.Replace(new string('A', 64), new string('A', 63), StringComparison.Ordinal),
+            good.Replace("bytes=123", "bytes=0123", StringComparison.Ordinal), good.Replace("bytes=123", "bytes=+123", StringComparison.Ordinal),
+            good.Replace("bytes=123", "bytes=0", StringComparison.Ordinal), good.Replace("bytes=123", "bytes=33554433", StringComparison.Ordinal) })
+        {
+            bool rejected = false;
+            try { _ = NativeAotServiceQuotaPeer.InspectWireReceiptForTests(bad); }
+            catch (ToolFailure error) { rejected = error.Reason == "quota_peer_owner_wire_process_receipt"; }
+            HostCheck.True(rejected);
+        }
+    }
+
     private static (string Root, string Peer, string Serial) Paths()
     {
         string root = HostToolProcess.FindRepositoryRoot();

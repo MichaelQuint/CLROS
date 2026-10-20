@@ -176,11 +176,12 @@ public static class ToolCommand
                 return NativeAotSocketVectorsPublisher.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "quota-peer")
             {
-                if (args.Length != 5 || args[3] != "--port" ||
+                if (args.Length is not (5 or 7) || args[3] != "--port" || args.Length == 7 && (args[5] != "--wire-report" || args[6].Length == 0) ||
                     !int.TryParse(args[4], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int quotaPort) ||
                     quotaPort is < 1 or > 65535 || args[4] != quotaPort.ToString(System.Globalization.CultureInfo.InvariantCulture))
-                    throw new ArgumentException("quota_peer_cli expected=nativeaot service quota-peer --port <1..65535>");
-                var observation = NativeAotServiceQuotaPeer.RunAsync(quotaPort).GetAwaiter().GetResult();
+                    throw new ArgumentException("quota_peer_cli expected=nativeaot service quota-peer --port <1..65535> [--wire-report <fresh-absolute-artifact-file>]");
+                var observation = (args.Length == 5 ? NativeAotServiceQuotaPeer.RunAsync(quotaPort) :
+                    NativeAotServiceQuotaPeer.RunWithWireReportAsync(Repository.FindRoot(), quotaPort, args[6])).GetAwaiter().GetResult();
                 Console.Out.Write(NativeAotServiceQuotaPeer.SerializeReport(observation) + "\r\n"); return 0;
             }
             if (args.Length is 7 or 8 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "guest-peer" &&

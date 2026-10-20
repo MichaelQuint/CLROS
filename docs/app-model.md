@@ -142,6 +142,22 @@ bytes keep separate original ranges. Existing positive HTTP/close policies stay
 unchanged. These observations do not establish complete HTTP exchanges, a peer
 clock/port mapping, quota teardown or an owned capture.
 
+[Step1486](../done/step1486.md) adds an explicit observed quota-peer mode and a
+strict wire companion. It copies actual connected endpoints and raw stream I/O,
+with logical exchange/sample IDs, direction offsets and elapsed100ns ticks.
+Reads reserve capture capacity before consuming data; shutdown gates new work
+and joins pending connects/I/O before a final or partial snapshot. Failed writes
+retain attempted bytes with unknown transferred count. The explicit observed
+owner/CLI route retains a fresh companion beside the four original logs, checks
+creation identity and binds its digest/length to captured child stderr. Successful
+completion requires the full quota-run companion to match every v1 sample;
+partial child failures retain evidence and refuse completion. Ordinary v1 stdout
+and the default owner route remain unchanged. This is still not a complete
+original packet/peer/syscall consumer or actual quota guest proof.
+Host I/O failure can follow QEMU/slirp shutdown: the kernel abort path deliberately
+abandons transport without FIN or synthetic RST, so neither fact proves guest
+quota cleanup by itself.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

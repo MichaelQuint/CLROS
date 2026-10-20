@@ -19,7 +19,11 @@ public static partial class NativeAotServiceQuotaPeer
 
     /// <summary>Copied original response text at a monotonic elapsed100ns tick.
     /// Status samples are independent observations, not atomic snapshots.</summary>
-    public readonly record struct Sample(string Name, long ElapsedTicks, string Body);
+    public readonly record struct Sample(string Name, long ElapsedTicks, string Body)
+    {
+        internal int WireExchangeId { get; init; }
+        internal int WireConnectionId { get; init; }
+    }
 
     /// <summary>Supplied loopback values only. The four-connection limit follows
     /// owned client configuration, not a guest transport census. Original
@@ -40,22 +44,27 @@ public static partial class NativeAotServiceQuotaPeer
     /// or cancellation rejects. Only pressure I/O abort after measured overlap
     /// returns values. The helper's16s deliberate waits are not a wall-time bound.
     /// Finally disposes every socket/client and joins the owned pressure task.</summary>
-    public static async Task<Observation> RunAsync(int port, CancellationToken cancellation = default)
+    public static Task<Observation> RunAsync(int port, CancellationToken cancellation = default) =>
+        RunCoreAsync(port, null, cancellation);
+
+    private static async Task<Observation> RunCoreAsync(int port, WireCapture? wire, CancellationToken cancellation)
     {
         Need(port is >= 1 and <= 65535, "port");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         var token = deadline.Token;
-        using var control = Client(port, TimeSpan.FromSeconds(StartupSeconds)); using var pressureClient = Client(port);
-        var clock = Stopwatch.StartNew(); var samples = new List<Sample>();
-        TcpClient? cancel = null, echo = null; Task<PressureAbort>? pressure = null;
-        void Keep(string name, Sample sample) => samples.Add(sample with { Name = name });
+        using var control = Client(port, TimeSpan.FromSeconds(StartupSeconds), wire, "control");
+        using var pressureClient = Client(port, null, wire, "pressure");
+        var clock = Stopwatch.StartNew(); wire?.BindClock(clock); var samples = new List<Sample>();
+        HeldClient? cancel = null, echo = null; Task<PressureAbort>? pressure = null;
+        void Keep(string name, Sample sample)
+        { wire?.BindSample(name, sample); samples.Add(sample with { Name = name }); }
         void Pending() => Need(pressure is { IsCompleted: false }, "pressure_ended_before_overlap");
         void Held()
         {
             Need(cancel is not null && echo is not null &&
-                !cancel.Client.Poll(0, SelectMode.SelectRead) && !echo.Client.Poll(0, SelectMode.SelectRead), "held_connection_ended");
+                !cancel.Socket.Poll(0, SelectMode.SelectRead) && !echo.Socket.Poll(0, SelectMode.SelectRead), "held_connection_ended");
         }
-        async Task<Sample> Get(string path) => await Text(control, "GET", path, clock, token);
+        async Task<Sample> Get(string path) => await Text(control, "GET", path, clock, token, wire: wire);
         async Task<(Sample Sample, ServiceStatus Worker)> Worker(ServiceStatus? prior, bool advance)
         {
             for (;;)
@@ -95,7 +104,7 @@ public static partial class NativeAotServiceQuotaPeer
                     try
                     {
                         long remaining = StartupSeconds * 1000L - clock.ElapsedMilliseconds; Need(remaining > 0, "startup_deadline");
-                        var health = await Text(control, "GET", "/healthz", clock, startup.Token, TimeSpan.FromMilliseconds(remaining));
+                        var health = await Text(control, "GET", "/healthz", clock, startup.Token, TimeSpan.FromMilliseconds(remaining), wire);
                         Need(health.Body == "CLROS_SERVICE_HEALTH_OK", "startup_health"); Keep("health.startup", health); break;
                     }
                     catch (Exception error) when (IoAbort(error) && !startup.IsCancellationRequested)
@@ -112,13 +121,13 @@ public static partial class NativeAotServiceQuotaPeer
                 idleWorker.Iterations == 0 && idleWorker.RandomRequests == 0 && idleWorker.RandomBytes == 0 && idleWorker.ElapsedMilliseconds == 0, "initial_worker");
             Keep("worker.initial", idle);
 
-            cancel = await OpenHeld(port, "GET", Lifecycle + "cancel", [], token);
-            var head = await CancelHead(cancel.GetStream(), clock, token); Keep("cancel.headers", head);
+            cancel = await OpenHeld(port, "GET", Lifecycle + "cancel", [], token, wire);
+            var head = await CancelHead(cancel.Stream, clock, token); Keep("cancel.headers", head);
             Keep("lifecycle.cancel", await WaitHeld(false));
             byte[] prefix = new byte[64]; for (int i = 0; i < prefix.Length; i++) prefix[i] = unchecked((byte)(31 + i * 17));
-            echo = await OpenHeld(port, "POST", Lifecycle + "echo", prefix, token);
+            echo = await OpenHeld(port, "POST", Lifecycle + "echo", prefix, token, wire);
             var held = await WaitHeld(true); Keep("lifecycle.held", held); Held(); long heldTicks = held.ElapsedTicks;
-            var started = await Text(control, "POST", "/__clros/service/start", clock, token);
+            var started = await Text(control, "POST", "/__clros/service/start", clock, token, wire: wire);
             Need(started.Body == "CLROS_SERVICE_STARTED", "worker_start"); Keep("worker.start", started);
             var running = await Worker(idleWorker, false); Keep("worker.running", running.Sample);
             var advancing = await Worker(running.Worker, true); Keep("worker.prepressure", advancing.Sample); Held();
@@ -127,7 +136,7 @@ public static partial class NativeAotServiceQuotaPeer
             Need(ReadQuota(readyQuota.Body) == default, "quota_already_started"); Keep("quota.prepressure", readyQuota);
 
             long pressureStarted = clock.Elapsed.Ticks;
-            pressure = Pressure(pressureClient, clock, token);
+            pressure = Pressure(pressureClient, clock, token, wire);
             Sample retained;
             for (;;)
             {
@@ -180,67 +189,101 @@ public static partial class NativeAotServiceQuotaPeer
         }
     }
 
-    private static HttpClient Client(int port, TimeSpan? connectTimeout = null)
+    private static HttpClient Client(int port, TimeSpan? connectTimeout = null, WireCapture? wire = null, string role = "control")
     {
         var handler = new SocketsHttpHandler { UseProxy = false, AllowAutoRedirect = false, UseCookies = false,
             MaxConnectionsPerServer = 1, ConnectTimeout = connectTimeout ?? TimeSpan.FromSeconds(10), MaxResponseHeadersLength = 8 };
+        if (wire is not null) handler.ConnectCallback = async (context, cancellation) =>
+        {
+            WireNeed(context.DnsEndPoint.Port == port && context.DnsEndPoint.Host == "127.0.0.1", "connect_target");
+            return await wire.ConnectAsync(role, cancellation);
+        };
         return new(handler, disposeHandler: true) { BaseAddress = new Uri("http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture)),
             Timeout = Timeout.InfiniteTimeSpan, DefaultRequestVersion = HttpVersion.Version11,
             DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact };
     }
 
-    private static async Task<Sample> Text(HttpClient client, string method, string path, Stopwatch clock, CancellationToken token, TimeSpan? timeout = null)
+    private static async Task<Sample> Text(HttpClient client, string method, string path, Stopwatch clock, CancellationToken token,
+        TimeSpan? timeout = null, WireCapture? wire = null)
     {
-        using var limit = CancellationTokenSource.CreateLinkedTokenSource(token); limit.CancelAfter(timeout ?? TimeSpan.FromSeconds(20));
-        using var request = new HttpRequestMessage(new HttpMethod(method), path)
-        { Version = HttpVersion.Version11, VersionPolicy = HttpVersionPolicy.RequestVersionExact };
-        if (method == "POST") request.Content = new ByteArrayContent([]);
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, limit.Token);
-        Need(response.StatusCode == HttpStatusCode.OK && response.Version == HttpVersion.Version11 &&
-            response.Headers.ConnectionClose != true && response.Content.Headers.ContentLength is not > 8192, "control_response");
-        await using var input = await response.Content.ReadAsStreamAsync(limit.Token);
-        byte[] bytes = new byte[8193]; int count = 0;
-        for (int read; (read = await input.ReadAsync(bytes.AsMemory(count), limit.Token)) != 0;)
-        { count += read; Need(count <= 8192, "control_body_bounds"); }
-        Need(count > 0, "control_body");
-        for (int i = 0; i < count; i++) Need(bytes[i] is >= 32 and <= 126, "control_body");
-        return new(path, clock.Elapsed.Ticks, Encoding.ASCII.GetString(bytes, 0, count));
+        int exchange = wire?.BeginExchange("control", method, path) ?? 0;
+        try
+        {
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(token); limit.CancelAfter(timeout ?? TimeSpan.FromSeconds(20));
+            using var request = new HttpRequestMessage(new HttpMethod(method), path)
+            { Version = HttpVersion.Version11, VersionPolicy = HttpVersionPolicy.RequestVersionExact };
+            if (method == "POST") request.Content = new ByteArrayContent([]);
+            using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, limit.Token);
+            Need(response.StatusCode == HttpStatusCode.OK && response.Version == HttpVersion.Version11 &&
+                response.Headers.ConnectionClose != true && response.Content.Headers.ContentLength is not > 8192, "control_response");
+            await using var input = await response.Content.ReadAsStreamAsync(limit.Token);
+            byte[] bytes = new byte[8193]; int count = 0;
+            for (int read; (read = await input.ReadAsync(bytes.AsMemory(count), limit.Token)) != 0;)
+            { count += read; Need(count <= 8192, "control_body_bounds"); }
+            Need(count > 0, "control_body");
+            for (int i = 0; i < count; i++) Need(bytes[i] is >= 32 and <= 126, "control_body");
+            string body = Encoding.ASCII.GetString(bytes, 0, count); long ended = clock.Elapsed.Ticks;
+            wire?.EndExchange(exchange, "complete", 200, body, ended);
+            return new(path, ended, body) { WireExchangeId = exchange };
+        }
+        catch (Exception error)
+        { wire?.EndExchange(exchange, error is OperationCanceledException ? "canceled" : "failed", 0, "", clock.Elapsed.Ticks); throw; }
     }
 
-    private static async Task<PressureAbort> Pressure(HttpClient client, Stopwatch clock, CancellationToken token)
+    private static async Task<PressureAbort> Pressure(HttpClient client, Stopwatch clock, CancellationToken token, WireCapture? wire)
     {
+        int exchange = wire?.BeginExchange("pressure", "POST", Quota) ?? 0; bool ended = false;
         using var request = new HttpRequestMessage(HttpMethod.Post, Quota)
         { Version = HttpVersion.Version11, VersionPolicy = HttpVersionPolicy.RequestVersionExact, Content = new ByteArrayContent([]) };
         try
         {
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+            wire?.EndExchange(exchange, "response", (int)response.StatusCode, "", clock.Elapsed.Ticks); ended = true;
             throw new ToolFailure("quota_peer_pressure_http_response", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture));
         }
         catch (Exception error) when (IoAbort(error) && !token.IsCancellationRequested)
         {
             string kind = error is HttpRequestException requestError ? requestError.HttpRequestError.ToString() :
                 error is HttpIOException streamError ? streamError.HttpRequestError.ToString() : "ConnectionError";
-            return new(clock.Elapsed.Ticks, kind);
+            long at = clock.Elapsed.Ticks; wire?.EndExchange(exchange, "io-error", 0, "", at); ended = true;
+            return new(at, kind);
         }
+        finally
+        { if (!ended) wire?.EndExchange(exchange, token.IsCancellationRequested ? "canceled" : "failed", 0, "", clock.Elapsed.Ticks); }
     }
 
-    private static async Task<TcpClient> OpenHeld(int port, string method, string path, byte[] body, CancellationToken token)
+    private sealed class HeldClient(TcpClient client, Stream stream) : IDisposable
+    {
+        internal Socket Socket => client.Client;
+        internal Stream Stream => stream;
+        public void Dispose() { try { stream.Dispose(); } finally { client.Dispose(); } }
+    }
+
+    private static async Task<HeldClient> OpenHeld(int port, string method, string path, byte[] body,
+        CancellationToken token, WireCapture? wire)
     {
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(token); limit.CancelAfter(TimeSpan.FromSeconds(20));
         var client = new TcpClient(AddressFamily.InterNetwork) { NoDelay = true, ReceiveBufferSize = 4096 };
+        Stream? observed = null; string role = method == "GET" ? "cancel" : "echo";
+        int exchange = wire?.BeginExchange(role, method, path) ?? 0;
         try
         {
             await client.ConnectAsync(IPAddress.Loopback, port, limit.Token);
+            observed = wire?.Wrap(client.Client, client.GetStream(), role) ?? client.GetStream();
             byte[] head = Encoding.ASCII.GetBytes(method + " " + path + " HTTP/1.1\r\nHost: clros.service\r\nConnection: close\r\n" +
                 (method == "POST" ? "Content-Length: 32768\r\n" : "") + "\r\n");
-            await client.GetStream().WriteAsync(head, limit.Token);
-            if (body.Length != 0) await client.GetStream().WriteAsync(body, limit.Token);
-            return client; // The echo body deliberately remains incomplete; never send FIN here.
+            await observed.WriteAsync(head, limit.Token);
+            if (body.Length != 0) await observed.WriteAsync(body, limit.Token);
+            return new(client, observed); // The echo body deliberately remains incomplete; never send FIN here.
         }
-        catch { client.Dispose(); throw; }
+        catch
+        {
+            observed?.Dispose(); client.Dispose();
+            wire?.EndExchange(exchange, "failed", 0, "", wire.Now); throw;
+        }
     }
 
-    private static async Task<Sample> CancelHead(NetworkStream stream, Stopwatch clock, CancellationToken token)
+    private static async Task<Sample> CancelHead(Stream stream, Stopwatch clock, CancellationToken token)
     {
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(token); limit.CancelAfter(TimeSpan.FromSeconds(20));
         byte[] bytes = new byte[8192]; int count = 0;
@@ -250,7 +293,8 @@ public static partial class NativeAotServiceQuotaPeer
         } while (count < 4 || !bytes.AsSpan(count - 4, 4).SequenceEqual("\r\n\r\n"u8));
         var head = NativeAotServicePeer.ResponseHead(bytes.AsSpan(0, count - 4));
         Need(head.Status == 200 && head.Length is 0 or -1, "cancel_response");
-        return new("cancel.headers", clock.Elapsed.Ticks, Encoding.ASCII.GetString(bytes, 0, count));
+        return new("cancel.headers", clock.Elapsed.Ticks, Encoding.ASCII.GetString(bytes, 0, count))
+        { WireConnectionId = (stream as WireStream)?.Id ?? 0 };
     }
 
     private static Dictionary<string, ulong> ReadLifecycle(string text)
