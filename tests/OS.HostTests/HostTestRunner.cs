@@ -105,6 +105,31 @@ internal static class HostTestRunner
 {
     internal sealed record Fixture(string Id, HostLane Lane, MethodInfo Method, string? Name = null, int Order = 0);
     internal sealed record FixtureGroup(string Id, HostLane Lane, Fixture[] Fixtures);
+    // Worker processes have no synchronization context. Join the returned
+    // operation before deciding pass/fail or starting the next fixture. Reject
+    // async void and unknown awaitables before they can escape worker ownership.
+    internal static bool Invoke(MethodInfo method)
+    {
+        Type type = method.ReturnType;
+        if (type == typeof(void) && method.GetCustomAttribute<AsyncStateMachineAttribute>() is not null ||
+            type != typeof(void) && type != typeof(bool) && !typeof(Task).IsAssignableFrom(type) &&
+            type != typeof(ValueTask) && type != typeof(ValueTask<bool>))
+            throw new InvalidOperationException("unsupported_fixture_return " + type.FullName);
+        object? value;
+        try { value = method.Invoke(null, null); }
+        catch (TargetInvocationException error) { throw error.InnerException ?? error; }
+        if (value is null && typeof(Task).IsAssignableFrom(type))
+            throw new InvalidOperationException("null_fixture_task " + type.FullName);
+        if (value is Task<bool> result) return result.GetAwaiter().GetResult();
+        if (value is Task task) { task.GetAwaiter().GetResult(); return true; }
+        if (value is ValueTask<bool> resultValue) return resultValue.AsTask().GetAwaiter().GetResult();
+        if (value is ValueTask taskValue) { taskValue.AsTask().GetAwaiter().GetResult(); return true; }
+        return value is not false;
+    }
+
+    private static async Task<bool> AsyncFalseControl() { await Task.Delay(10); return false; }
+    private static async Task AsyncThrowControl() { await Task.Delay(10); throw new InvalidOperationException("async_control_failure"); }
+    private static async Task AsyncPassControl() { await Task.Delay(10); Console.WriteLine("ASYNC_CONTROL_AFTER joined=true"); }
 
     internal static FixtureGroup[] GroupByLane(Fixture[] fixtures) => fixtures
         .GroupBy(fixture => fixture.Method.DeclaringType!.Name)
@@ -155,6 +180,11 @@ internal static class HostTestRunner
                     HostCheck.Run("control.second", () => throw new InvalidOperationException("second_failure"), ref failures);
                     HostCheck.Run("control.after", () => true, ref failures);
                     return failures == 2 ? 1 : 2;
+                case "async-failures":
+                    int asyncFailures = 0;
+                    foreach ((string name, string method) in new[] { ("false", nameof(AsyncFalseControl)), ("throw", nameof(AsyncThrowControl)), ("after", nameof(AsyncPassControl)) })
+                        HostCheck.Run("control.async." + name, () => Invoke(typeof(HostTestRunner).GetMethod(method, BindingFlags.Static | BindingFlags.NonPublic)!), ref asyncFailures);
+                    return asyncFailures == 2 ? 1 : 2;
                 case "timeout": await Task.Delay(Timeout.Infinite); return 2;
                 case "wait-after-output": Console.WriteLine("control-ready"); await Task.Delay(Timeout.Infinite); return 2;
                 case "crash": return 23;
@@ -262,18 +292,18 @@ internal static class HostTestRunner
                 {
                     if (fixture.Name is not null)
                     {
-                        HostCheck.Run(fixture.Name, () =>
-                        {
-                            try { return fixture.Method.Invoke(null, null) is not false; }
-                            catch (TargetInvocationException error) { throw error.InnerException ?? error; }
-                        }, ref fixtureFailures);
+                        HostCheck.Run(fixture.Name, () => Invoke(fixture.Method), ref fixtureFailures);
                     }
                     else
                     {
-                        try { fixture.Method.Invoke(null, null); }
-                        catch (TargetInvocationException error)
+                        try
                         {
-                            Console.WriteLine("TEST_FAIL " + fixture.Id + " " + (error.InnerException ?? error).ToString().ReplaceLineEndings(" "));
+                            if (!Invoke(fixture.Method))
+                            { Console.WriteLine("TEST_FAIL " + fixture.Id + " returned_false"); fixtureFailures++; }
+                        }
+                        catch (Exception error)
+                        {
+                            Console.WriteLine("TEST_FAIL " + fixture.Id + " " + error.ToString().ReplaceLineEndings(" "));
                             fixtureFailures++;
                         }
                     }

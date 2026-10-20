@@ -1,13 +1,42 @@
 # Networking
 
+[Step1477](../done/step1477.md) retains a complete original configured v2 service
+capture at `810b3eef`. After actual last-description close, 17 late bytes provoke
+the exact guest RST|ACK; retirement, no TIME-WAIT retention, generation reuse and
+healthy HTTP are independently joined. Original code/REL32 and bounded stack
+reviews are retained. #778/#779/#224 remain open pending the incomplete matrix.
+
+The original v1 producer fails its reader because the fresh reopen ACK occurs
+twice with identical bytes. A reader-only first-occurrence fix passes the new
+host regression and existing refusal checks. It needs a fresh original v1 run;
+the failed producer is retained, not promoted by replay. Five memory controls
+remain unrun. No general service or Gate14 acceptance follows.
+
+The dated development notes below retain their original scope; step1477 owns
+the current validation status.
+
+Step1455 adds explicit service-v2 PCAP reconstruction for patterned32KiB
+requests,512KiB streamed responses, held-stream/healthy-peer ordering and two
+client cancellation resets with observed status drain/reuse. The shared wire
+parser preserves v1's size/close policy and grows v2 buffers only as needed.
+Reset connections join accepts/bytes but not compact TIME-WAIT transfers.
+All21 focused lifecycle/v1 packet, control, runner and profile checks pass;
+actual CLROS packets, native review and batch acceptance remain pending.
+
 The [October19 review](repo-audit.md#october-19-whole-project-review) reproduces
 last-close unread-data retention: [#778](http://192.168.4.35:3000/admin/CLROS/issues/778)
-must release inaccessible RX backing with explicit reset/discard semantics
-before #224 acceptance. Preserve readable duplicate fds, SHUT_WR, tuple lifetime
-and scrubbing. One unread byte pins the sole bulk slot in the host fixture;
-no live guest attack or fix is claimed. [#779](http://192.168.4.35:3000/admin/CLROS/issues/779)
-separately requires resource peaks reconstructed from ownership events.
-Step1437 remains accepted within its original scope.
+requires bounded unread-data retirement before #224 acceptance. Step1447 now
+attempts exact-sequence RST|ACK after the last fd closes with queued or later
+unread bytes, following [RFC9293 section3.6.1](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.6.1).
+Copied-TX pressure retains both buffers/table ownership for retry within the
+existing30-second close budget, even from unread TIME-WAIT. Timeout retires only
+that connection and claims no copied reset. Closed reap scrubs before release;
+live duplicate fds, SHUT_WR and zero-length reads retain their behavior.
+All54 focused network/close/frame checks pass; original native and real guest
+packet/HTTP qualification remain pending. No live guest fix is claimed.
+[#779](http://192.168.4.35:3000/admin/CLROS/issues/779) separately reconstructs
+resource peaks from ownership events in step1446. Step1437's independent original
+native/guest evidence remains retained; its full-host gate is withheld under #784.
 
 [Step1405](../done/step1405.md) qualifies #745 checked connected-stream vectors
 and #219 startup: 5,619 full-host checks/751 fixtures (94 Native), three finite
@@ -216,6 +245,29 @@ source3 wait completion/commit branches are feature guarded. Step1342 adds the
 combined NIC/profile source and C# compilation; enabled native publication and
 actual guest exchange remain pending. No current issue or gate is accepted by
 this development slice.
+
+[Step1462](../done/step1462.md) extends the existing bounded epoll descriptions
+to owned anonymous pipe ends. Readiness derives from buffered bytes, free
+capacity and live reader/writer counts; ERR/HUP remain unconditional terminal
+bits. Existing serialized refresh, edge drain/rearm, original-description
+identity and last-reference cleanup apply. A retained pipe operation may keep
+its watched description alive after fd close/reuse until its genuine completion.
+Four added host cases cover these lifetimes and the pending-signal repark race.
+One fresh strict mechanical guest proves write, directed signal, competing read,
+repark/EINTR, real handler/restorer, later ready epoll/read and bounded cleanup.
+This is finite development evidence; controls/ancestors, native/stack and stable
+full-host batch qualification remain pending. Arbitrary files, nested epoll,
+EPOLLONESHOT and temporary signal masks remain unsupported. The read/write and
+terminal-bit reference is the pinned upstream
+[Linux v6.18 pipe poll](https://github.com/torvalds/linux/blob/v6.18/fs/pipe.c#L618-L662).
+
+[Step1463](../done/step1463.md) adds host controls for pending handlers before
+the first epoll wait, ready data with either SA_RESTART setting, and masked or
+ignored signals at initial and replacement waits. Genuine readiness completes
+the retained wait; masked delivery occurs only after unmasking. The pipe checks
+cover the same boundaries and preserve positive read results through sigreturn.
+Both focused fixtures pass20 checks each. Actual runtime/socket ancestors,
+native/stack review and stable full-host qualification remain pending.
 
 [Step1340](../done/step1340.md) implements development-only bounded epoll over
 the shared socket descriptions. Packed Linux x64 events preserve all64 opaque

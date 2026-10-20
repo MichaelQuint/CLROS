@@ -86,6 +86,9 @@ PAL silently converts failed realtime reads into epoch time, observed in retaine
 development HTTP. Certificate/token validity would depend on trustworthy time;
 no such exploit was tested. [M16-020](http://192.168.4.35:3000/admin/CLROS/issues/760) prevents actionable signals
 being stranded behind renewed waits; a guest GC deadlock remains unproved.
+[Step1438](../done/step1438.md) adds a development-only pending-signal recheck
+after new pipe/epoll/futex waits. The stolen-readiness and initial-wait host
+controls pass; original native and actual guest scheduling remain pending.
 [M16-021](http://192.168.4.35:3000/admin/CLROS/issues/761) must either enforce restricted SIGPIPE admission or honor
 the accepted live disposition. Successful declarations must agree with behavior
 across the signal, I/O, time and workload owners.

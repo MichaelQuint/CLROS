@@ -9,7 +9,8 @@ public static partial class QemuTranscripts
     /// <summary>Complete inner-leaf accounting, without parent firmware, native
     /// ABI, NIC, packet, peer, runner or guest-qualification authority.</summary>
     public readonly record struct ServiceReplayReport(ThreadingProtocolReport Protocol,ServiceStartupInspection Startup,
-        ServiceRandomInspection Random,ServiceTransportInspection Transport,int SocketAccepts=0,ulong SocketSent=0,ulong SocketReceived=0);
+        ServiceRandomInspection Random,ServiceTransportInspection Transport,int SocketAccepts=0,ulong SocketSent=0,ulong SocketReceived=0,
+        ServiceGcInspection? Gc=null,ServiceMemoryInspection? Memory=null);
 
     /// <summary>Borrow an original package, sealed prepared service program and
     /// bounded complete raw leaf (including preceding seed/bound observations).
@@ -24,19 +25,25 @@ public static partial class QemuTranscripts
         Need(program is not null && string.Equals(Path.GetFullPath(root),program.SourceRoot,
             OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),"service_program_owner");
         using AuthorityFiles sources=new();NativeAotServiceProgram.HoldSources(root,sources);
-        var view=NativeAotServiceProgram.RequirePackage(package);
+        var view=NativeAotServiceProgram.RequirePackage(package,program!.Lifecycle);
         var report=ReplayService(NativeAotThreadingOutput.ReadService(rawTail),package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
-            program!.IsInstruction,program!.IsSyscallReturn,userRoot,kernelRoot);
-        _=NativeAotServiceProgram.RequirePackage(package);
+            program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,program.Lifecycle,view.Manifest.MemoryBytes);
+        _=NativeAotServiceProgram.RequirePackage(package,program.Lifecycle);
         NativeAotServiceProgram.HoldSources(root,sources);sources.VerifyUnchanged();return report;
     }
 
     private static ServiceReplayReport ReplayService(NativeAotThreadingOutput.Capture framed,byte[] elf,
-        Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,ulong userRoot,ulong kernelRoot)
+        Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,ulong userRoot,ulong kernelRoot,bool lifecycle,ulong entitlementBytes)
     {
         Need(framed.NormalizedTail.EndsWith("\r\n",StringComparison.Ordinal),"service_complete_terminal");
         string[] original=framed.NormalizedTail[..^2].Split("\r\n",StringSplitOptions.None);
-        var startup=ReadServiceStartup(framed,out var metadata);
+        var startup=ReadServiceStartup(framed,out var metadata,lifecycle);
+        var gc=ReadServiceGc(framed,entitlementBytes,lifecycle,out var gcBudgetPosition,out var gcMemoryPosition);
+        if(gcBudgetPosition.HasValue)metadata.Add(gcBudgetPosition.Value);
+        if(gcMemoryPosition.HasValue)metadata.Add(gcMemoryPosition.Value);
+        var memory=ReadServiceMemory(framed,lifecycle,gc,out var memoryPositions);metadata.UnionWith(memoryPositions);
+        if(lifecycle)Need(memory.HasValue && memory.Value.GcArena.HasValue && memory.Value.NativeReserveFits &&
+            memory.Value.ConservativeHeadroomFits,"service_memory_headroom");
         var random=ReadServiceRandom(original);var transport=ReadServiceTransport(original,out var network);
         metadata.UnionWith(network);ServiceRuntimeMetadata(original,startup,metadata);
         for(int i=0;i<original.Length;i++)
@@ -49,11 +56,11 @@ public static partial class QemuTranscripts
             framed.WriteLengths.ToArray(),framed.WriteChannels.ToArray(),framed.Stderr));
         var replay=new ThreadingProtocol(NativeAotServicePackage.Application,rows,elf,instruction,syscallReturn,
             framed.WriteLengths,userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:startup.SettingsBytes,
-            webSettingsFd:startup.SettingsDescriptor,webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal));
+            webSettingsFd:startup.SettingsDescriptor,webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal),configuredServiceMemory:lifecycle);
         var protocol=replay.Validate();var counts=replay.ServiceSocketCounts();
         Need((ulong)protocol.Calls>=random.Requests && protocol.Reaped==protocol.Clones+1 && transport.Connections>=10,
             "service_complete_joins");
-        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received);
+        return new(protocol,startup,random,transport,counts.Accepts,counts.Sent,counts.Received,gc,memory);
     }
 
     private sealed partial class ThreadingProtocol
@@ -84,23 +91,6 @@ public static partial class QemuTranscripts
         Need(group>closed && transportEnd>group && randomEnd>transportEnd && sequenceEnd==randomEnd+1 && budgetEnd>sequenceEnd &&
             Enumerable.Range(group+1,randomEnd-group-1).Any(index=>rows[index].StartsWith("M16_008_REAP ",StringComparison.Ordinal)) &&
             !returns.Keys.Any(index=>index>group),"service_runtime_cleanup_order");
-        for(int index=0;index<rows.Length;index++)
-        {
-            if(!rows[index].StartsWith("M16_014_MEMORY ",StringComparison.Ordinal))continue;
-            var memory=ReadRecord(rows[index],"M16_014_MEMORY","nr:dec","regions:dec","regionLimit:dec","backed:dec","pool:dec","reserved:dec");
-            Need(index+1<rows.Length && returns.ContainsKey(index+1),"service_memory_observation_call");
-            var failed=ReadRecord(calls[index+1],"M16_008_CALL",WebCallFields);
-            Need(memory["nr"] is 9 or 10 or 11 or 12 or 28 && failed["nr"]==memory["nr"] && failed["valueBits"]==unchecked((ulong)-12L) &&
-                failed["action"]==1 && failed["status"]==1 && memory["regionLimit"]==LinuxMemoryServices.MaximumRegions && memory["regions"]<=memory["regionLimit"] &&
-                memory["pool"]==LinuxMemoryServices.MaximumPoolPages && memory["backed"]<=memory["pool"] && memory["reserved"]<=0x400000000,
-                "service_memory_observation");metadata.Add(index);
-        }
-        foreach(int index in returns.Keys)
-        {
-            var observed=ReadRecord(calls[index],"M16_008_CALL",WebCallFields);
-            if(observed["nr"] is 9 or 10 or 11 or 12 or 28 && observed["valueBits"]==unchecked((ulong)-12L))
-                Need(index>0 && rows[index-1].StartsWith("M16_014_MEMORY ",StringComparison.Ordinal),"service_memory_observation_missing");
-        }
     }
 
     private sealed partial class ThreadingProtocol
@@ -180,16 +170,17 @@ public static partial class QemuTranscripts
     /// <summary>Value-only complete scheduler/syscall replay seam. Caller ELF,
     /// predicates, settings and framed observations confer no source, program,
     /// application-output, transport, runner or guest authority. Unsupported or
-    /// incomplete lifetimes throw; inputs are borrowed without modification.</summary>
+    /// incomplete lifetimes throw; inputs are borrowed without modification.
+    /// Configured-memory selection tests values only, without GC admission.</summary>
     public static ThreadingProtocolReport InspectNativeAotServiceProtocolForTests(byte[] elf,string[] rows,
         IReadOnlyList<int> lengths,Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,
-        ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,ulong settingsIdentity,ulong settingsOrdinal)
+        ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,ulong settingsIdentity,ulong settingsOrdinal,bool configuredServiceMemory=false)
     {
         var framed=new NativeAotThreadingOutput.Capture("",string.Join("\r\n",rows)+"\r\n",lengths.ToArray(),
             Enumerable.Repeat(1U,lengths.Count).ToArray(),"");
         var capture=NativeAotSocketGuest.ReadServiceReadiness(framed);
         return new ThreadingProtocol(NativeAotServicePackage.Application,Rows(capture.Output),elf,instruction,syscallReturn,
             capture.Output.WriteLengths,userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
-            webSettingsCall:(settingsIdentity,settingsOrdinal)).Validate();
+            webSettingsCall:(settingsIdentity,settingsOrdinal),configuredServiceMemory:configuredServiceMemory).Validate();
     }
 }

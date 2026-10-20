@@ -1,4 +1,5 @@
 using System.Globalization;
+using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Tooling;
 
@@ -40,7 +41,7 @@ public static class NativeAotSocketMessages
                 "header", "flags", "table", "vectors", "total");
             ulong identity = header[0], ordinal = header[1], number = header[2], flags = header[6];
             Need(identity != 0 && ordinal != 0 && number is 46 or 47 && header[3] <= uint.MaxValue &&
-                header[4] is > 0 and <= uint.MaxValue && header[8] <= 16 && header[9] <= 65536 &&
+                header[4] is > 0 and <= uint.MaxValue && header[8] <= LinuxSocketServices.MaximumMessageVectors && header[9] <= LinuxSocketServices.MaximumMessageBytes &&
                 header[5] != 0 && header[5] <= ulong.MaxValue - 56 &&
                 (header[8] == 0 || header[7] != 0 && header[7] <= ulong.MaxValue - header[8] * 16) &&
                 (flags & ~(number == 46 ? 0x4040UL : 0x42UL)) == 0, "header");
@@ -50,7 +51,7 @@ public static class NativeAotSocketMessages
             {
                 Need(++i < rows.Length, "missing_vector");
                 ulong[] vector = Record(rows[i], "M16_013_VECTOR", "identity", "ordinal", "index", "address", "bytes");
-                Need(vector[0] == identity && vector[1] == ordinal && vector[2] == slot && vector[4] <= 65536 - total &&
+                Need(vector[0] == identity && vector[1] == ordinal && vector[2] == slot && vector[4] <= LinuxSocketServices.MaximumMessageBytes - total &&
                     (vector[4] == 0 || vector[3] != 0 && vector[3] <= ulong.MaxValue - vector[4]), "vector");
                 total += (uint)vector[4]; vectors[slot] = new(vector[3], vector[4]);
             }

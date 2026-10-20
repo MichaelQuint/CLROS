@@ -38,6 +38,16 @@ internal static unsafe class LinuxElfPackageTests
     private static LinuxElfPackageView Validate(byte[] bytes) { fixed (byte* p = bytes) return LinuxElfPackage.Validate(p, (uint)bytes.Length); }
     private static LinuxElfManifest Parse(string text) => NativeManifestParser.ParseLinuxElf(Encoding.ASCII.GetBytes(text));
 
+    [HostTest("linux.elf admits only the exact supported mixed-case GC limit key without widening generic environment names")]
+    private static void GcEnvironmentKey()
+    {
+        string original = Manifest(Elf());
+        var parsed = Parse(original + "env.DOTNET_GCHeapHardLimit=1000000\n");
+        HostCheck.Equal(LinuxElfStatus.Success, parsed.Status); HostCheck.Equal(2U, parsed.EnvironmentCount);
+        foreach (string key in new[] { "DOTNET_GCHeapHardLimitPercent", "COMPlus_GCHeapHardLimit", "TEST_lower", "Dotnet_GCHeapHardLimit" })
+            HostCheck.Equal(LinuxElfStatus.InvalidEnvironment, Parse(original + "env." + key + "=1000000\n").Status);
+    }
+
     [HostTest("linux.elf SHA256 independent standard and padding vectors")]
     private static void HashVectors()
     {

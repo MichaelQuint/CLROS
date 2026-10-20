@@ -68,11 +68,17 @@ public static unsafe partial class EfiEntry
                 c->WebFlags |= 64;
             }
 #endif
-            if (result.Action == LinuxSyscallAction.Return && result.Value == -12 && call.Number is 9 or 10 or 11 or 12 or 28)
+            bool memoryObservation = result.Value == -12 && call.Number is 9 or 10 or 11 or 12 or 28;
+#if M16_014_PROBE
+            // Configured v2 retains the same post-dispatch snapshot for every
+            // memory return. Offline replay can then separate ordinary churn
+            // from deliberate pressure without resetting the lifetime peak.
+            memoryObservation |= state->LinuxServices.GcBudget.Succeeded && call.Number is 9 or 10 or 11 or 12 or 25 or 28;
+#endif
+            if (result.Action == LinuxSyscallAction.Return && memoryObservation)
             {
-                // Snapshot only committed owner counters after an atomic errno
-                // return. Distinguish physical and interval ceilings before any
-                // policy change; this observation neither retries nor authorizes it.
+                // Read only the serialized, committed owner after dispatch.
+                // This observation neither retries nor authorizes a mutation.
                 if (!LinuxText(state, Probes.EnableM16014Probe ? "M16_014_MEMORY nr=" : "M10_004_MEMORY nr=") || !LinuxNumber(state, call.Number) ||
                     !LinuxText(state, " regions=") || !LinuxNumber(state, state->LinuxMemory.Count) ||
                     !LinuxText(state, " regionLimit=") || !LinuxNumber(state, LinuxMemoryServices.MaximumRegions) ||
@@ -181,7 +187,9 @@ public static unsafe partial class EfiEntry
                 return true;
 #endif
             }
-            string started = Probes.EnableM16014Probe ? "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n" :
+            string started = Probes.EnableM16014Probe ?
+                (state->LinuxServices.GcBudget.Succeeded ? "\nCLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" :
+                "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n") :
                 "\n      Application started. Press Ctrl+C to shut down.\n";
             for (uint i = 0; i < bytes && (c->WebFlags & 8) == 0; i++)
             {

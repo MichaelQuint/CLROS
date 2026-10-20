@@ -107,6 +107,23 @@ internal static unsafe class LinuxMemoryProofFixtureTests
         HostCheck.True(!positive.AsSpan().SequenceEqual(negative));
     }
 
+    [HostTest("m16.015 fragmentation ELF fills the real mechanical pool and crosses discontiguous backing before cleanup")]
+    private static void FragmentedBacking()
+    {
+        byte[] elf = LinuxMemoryProofFixture.CreateElf("FragmentedBacking");
+        HostCheck.True(Calls(elf.AsSpan(0x200, 0xd00)).SequenceEqual(new ulong[]
+            { 9,9,9,9,9,11,11,9,10,28,10,1,12,12,10,9,11,231 }));
+        HostCheck.Equal(18U, LinuxMemoryProofFixture.FragmentedBackingCalls);
+        // The witness contains real full-region fill/compare instructions and
+        // the cross-extent pointer, independent of synthetic transcript claims.
+        HostCheck.True(elf.AsSpan(0x200, 0xd00).IndexOf(new byte[] { 0xf3,0x48,0xab }) >= 0);
+        HostCheck.True(elf.AsSpan(0x200, 0xd00).IndexOf(new byte[] { 0xf3,0x48,0xaf }) >= 0);
+        byte[] boundary = new byte[8]; BinaryPrimitives.WriteUInt64LittleEndian(boundary, 0x1023ffff8);
+        HostCheck.True(elf.AsSpan(0x200, 0xd00).IndexOf(boundary) >= 0);
+        HostCheck.True(Calls(elf.AsSpan(0xf00, 80)).SequenceEqual(new ulong[] { 231 }));
+        HostCheck.True(!elf.AsSpan().SequenceEqual(LinuxMemoryProofFixture.CreateElf("Memory")));
+    }
+
     // Independent small inventory reader: only MOV RAX,imm64 identifies syscall
     // numbers; literal data and the separate exit-99 block are outside the span.
     private static ulong[] Calls(ReadOnlySpan<byte> code)

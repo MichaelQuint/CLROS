@@ -24,6 +24,21 @@ internal static class NativeAotSocketMessageTests
         HostCheck.Equal(0, NativeAotSocketMessages.Read([Call()]).Count); // Complete consumer requires message use.
     }
 
+    [HostTest("socket message witnesses retain bounded larger count and aggregate with complete original rows")]
+    private static void LargerMessages()
+    {
+        foreach (var (count, bytes) in new[] { (17, 8192), (1024, 1024) })
+        {
+            string[] rows = new string[count + 2];
+            rows[0] = $"M16_013_MESSAGE identity={Identity} ordinal=1 nr=46 fd=6 generation=2 header=8192 flags=16384 table=12288 vectors={count} total={count * bytes}";
+            for (int i = 0; i < count; i++) rows[i + 1] = $"M16_013_VECTOR identity={Identity} ordinal=1 index={i} address=32768 bytes={bytes}";
+            rows[^1] = Call(); var original = rows.ToArray(); var message = NativeAotSocketMessages.Read(rows).Single();
+            HostCheck.Equal((uint)(count * bytes), message.Total); HostCheck.Equal(count, message.Vectors.Count);
+            HostCheck.True(rows.SequenceEqual(original)); rows[1] = "changed";
+            HostCheck.Equal(new NativeAotSocketMessages.Vector(32768, (ulong)bytes), message.Vectors[0]);
+        }
+    }
+
     [HostTest("m16-013 value-only message reader rejects malformed missing reordered duplicate and mismatched joins")]
     private static void Negatives()
     {
@@ -33,6 +48,8 @@ internal static class NativeAotSocketMessageTests
             [Message, First, Second], [Message, First, Second, Message, First, Second, Call()],
             [Message.Replace("total=5", "total=6"), First, Second, Call()],
             [Message.Replace("vectors=2", "vectors=17"), First, Second, Call()],
+            [Message.Replace("vectors=2", "vectors=1025"), First, Second, Call()],
+            [Message.Replace("total=5", "total=1048577"), First, Second, Call()],
             [Message.Replace("generation=2", "generation=0"), First, Second, Call()],
             [Message.Replace("flags=16384", "flags=1"), First, Second, Call(flags: 1)],
             [Message.Replace("ordinal=1", "ordinal=01"), First, Second, Call()],

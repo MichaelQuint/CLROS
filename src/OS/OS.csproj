@@ -896,6 +896,8 @@
 		<Compile Include="..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs" Link="Runtime\CompilerClassConstructorExecution.Invocation.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs" Link="Runtime\BoundedExceptionFrameDispatch.cs" />
 		<Compile Include="..\OS.Kernel\Manifest\LinuxElfPackage.cs" Link="Manifest\LinuxElfPackage.cs" />
+		<Compile Include="..\OS.Kernel\Manifest\LinuxAppConfiguration.cs" Link="Manifest\LinuxAppConfiguration.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Text\AsciiHexParser.Pointer.cs" Link="Std\Text\AsciiHexParser.Pointer.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Hash\Sha256.cs" Link="Std\Hash\Sha256.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Hash\HmacSha256.cs" Link="Std\Hash\HmacSha256.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Hash\HmacSha256Drbg.cs" Link="Std\Hash\HmacSha256Drbg.cs" />

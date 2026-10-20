@@ -273,6 +273,17 @@ public static unsafe class LinuxSocketNetwork
                 }
                 continue;
             }
+            if (slot->Receiver.UnreadBytes != 0 && LinuxSocketServices.IsClosing(state->Sockets, &slot->Sender))
+            {
+                var reset = TransportResult(state, slot, Tx.ResetUnread(&slot->Sender, output, out _));
+                if (reset == Status.TransportFailure) return reset;
+                if (slot->Sender.CloseState == TcpConnectionCloseState.Reset)
+                {
+                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return Fail(state);
+                    *slot = default;
+                }
+                continue;
+            }
             var sent = TransportResult(state, slot, Tx.Pump(&slot->Sender, output, out _));
             if (sent == Status.TransportFailure) return sent;
             if (sent == Status.Ignored) continue;

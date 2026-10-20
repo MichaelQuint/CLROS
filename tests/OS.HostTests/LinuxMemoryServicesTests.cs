@@ -68,6 +68,37 @@ internal static unsafe class LinuxMemoryServicesTests
     private static long Map(Owner owner, ulong address, ulong bytes, uint protection, ulong flags = 0x100022) =>
         LinuxMemoryServices.Map(owner.State, address, bytes, protection, flags, ulong.MaxValue, 0);
 
+    [HostTest("linux.memory backing high-water counts published commits and survives replacement release and cleanup")]
+    private static void BackingHighWater()
+    {
+        using var owner=new Owner();owner.Begin();HostCheck.Equal(0U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)Start,Map(owner,Start,2*4096,3));HostCheck.Equal(2U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)(Start+0x10000),Map(owner,Start+0x10000,3*4096,0));
+        HostCheck.Equal(2U,owner.State->BackedPages);HostCheck.Equal(2U,owner.State->PeakBackedPages);
+        HostCheck.Equal(0L,LinuxMemoryServices.Protect(owner.State,Start+0x10000,3*4096,3));
+        HostCheck.Equal(5U,owner.State->BackedPages);HostCheck.Equal(5U,owner.State->PeakBackedPages);
+        HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start,2*4096));
+        HostCheck.Equal(3U,owner.State->BackedPages);HostCheck.Equal(5U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)Start,Map(owner,Start,4*4096,3));HostCheck.Equal(7U,owner.State->PeakBackedPages);
+        HostCheck.Equal((long)Start,Map(owner,Start,4096,3,0x32));
+        HostCheck.Equal(7U,owner.State->BackedPages);HostCheck.Equal(7U,owner.State->PeakBackedPages);
+        HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start,0x20000));
+        HostCheck.Equal(0U,owner.State->BackedPages);HostCheck.Equal(7U,owner.State->PeakBackedPages);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("linux.memory rejected pool and table commits leave backing high-water and published ownership unchanged")]
+    private static void RejectedBackingHighWater()
+    {
+        using var owner=new Owner(backingPages:4);owner.Begin();
+        HostCheck.Equal((long)Start,Map(owner,Start,2*4096,3));var before=Snapshot(owner);
+        HostCheck.Equal(-12L,Map(owner,Start+0x10000,3*4096,3));Same(owner,before);
+        HostCheck.Equal(2U,owner.State->PeakBackedPages);
+        using var tight=new Owner(tables:6);tight.Begin();before=Snapshot(tight);
+        HostCheck.Equal(-12L,Map(tight,Start,4096,3));Same(tight,before);
+        HostCheck.Equal(0U,tight.State->PeakBackedPages);
+    }
+
     private struct GuardOwner { internal ulong Pin, LastStart, LastBytes; internal uint Calls; internal bool Deny; }
 
     private static LinuxMemoryServices.Admission ImageAdmission(Owner owner)
@@ -519,6 +550,93 @@ internal static unsafe class LinuxMemoryServicesTests
         // and even its provisional backing allocation must not be published.
         HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, Start + 4096, 4096, 3));
         HostCheck.True(owner.State->BackedPages == 0 && sparse.AsSpan().SequenceEqual(owner.Tables()) && LinuxMemoryServices.Audit(owner.State));
+    }
+
+    private static Owner FragmentedPool(uint tables = TablePages)
+    {
+        var owner = new Owner(tables: tables); owner.Begin();
+        for (uint block = 0; block < 4; block++)
+        {
+            ulong address = Start + block * 0x10000;
+            HostCheck.Equal((long)address, Map(owner, address, 4 * 4096, 3));
+            for (uint page = 0; page < 4; page++) *owner.At(address + page * 4096) = (byte)(block * 4 + page + 1);
+        }
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start, 4 * 4096));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start + 0x20000, 4 * 4096));
+        return owner;
+    }
+
+    [HostTest("linux.memory fragmented pool backs contiguous mmap and sparse protection without aliasing or stale bytes")]
+    private static void FragmentedBacking()
+    {
+        for (uint mode = 0; mode < 3; mode++)
+        {
+            using var owner = FragmentedPool(); const ulong address = Start + 0x100000;
+            HostCheck.Equal((long)address, Map(owner, address, 6 * 4096, mode == 0 ? 3U : 0U));
+            if (mode == 1) HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, address, 6 * 4096, 3));
+            if (mode == 2) HostCheck.Equal((long)address, Map(owner, address, 6 * 4096, 3, 0x32));
+            for (uint page = 0; page < 6; page++)
+            {
+                ulong physical = owner.Leaf(address + page * 4096) & 0x000ffffffffff000;
+                HostCheck.Equal(Pool + (page < 4 ? page : page + 4) * 4096UL, physical);
+                HostCheck.True(new ReadOnlySpan<byte>(owner.At(address + page * 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+                *owner.At(address + page * 4096) = (byte)(100 + page);
+            }
+            HostCheck.True(owner.State->BackedPages == 14 && LinuxMemoryServices.Audit(owner.State));
+            for (uint block = 1; block < 4; block += 2)
+                for (uint page = 0; page < 4; page++)
+                    HostCheck.Equal((byte)(block * 4 + page + 1), *owner.At(Start + block * 0x10000 + page * 4096));
+            HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, address, 6 * 4096, 0));
+            HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, address, 6 * 4096, 3));
+            for (uint page = 0; page < 6; page++) HostCheck.Equal((byte)(100 + page), *owner.At(address + page * 4096));
+            HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, address + 3 * 4096, 2 * 4096, 4));
+            HostCheck.True(new ReadOnlySpan<byte>(owner.At(address + 3 * 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+            HostCheck.True(new ReadOnlySpan<byte>(owner.At(address + 4 * 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+            HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, address + 3 * 4096, 2 * 4096));
+            HostCheck.Equal((byte)102, *owner.At(address + 2 * 4096));
+            HostCheck.Equal((byte)105, *owner.At(address + 5 * 4096));
+            HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+        }
+    }
+
+    [HostTest("linux.memory fragmented allocation capacity and metadata failures preserve live tables owners and bytes")]
+    private static void FragmentedRollback()
+    {
+        using var tight = FragmentedPool(tables: 8);
+        var tightBefore = Snapshot(tight);
+        HostCheck.Equal(-12L, Map(tight, Start + 0x40000000, 6 * 4096, 3)); Same(tight, tightBefore);
+        using var owner = FragmentedPool();
+        var before = Snapshot(owner);
+        HostCheck.Equal(-12L, Map(owner, Start + 0x100000, 9 * 4096, 3)); Same(owner, before);
+        for (uint i = 0; i < LinuxMemoryServices.MaximumRegions - 3; i++)
+            HostCheck.Equal((long)(Start + 0x200000 + i * 8192), Map(owner, Start + 0x200000 + i * 8192, 4096, 0));
+        before = Snapshot(owner);
+        HostCheck.Equal(-12L, Map(owner, Start + 0x100000, 6 * 4096, 3)); Same(owner, before);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("linux.memory fragmented backing retains actual futex leases through wake until completion consumption")]
+    private static void FragmentedFutexLease()
+    {
+        using var owner = FragmentedPool(); const ulong address = Start + 0x100000, word = address + 4 * 4096 + 128;
+        HostCheck.Equal((long)address, Map(owner, address, 6 * 4096, 3)); *(uint*)owner.At(word) = 42;
+        using LinuxThreadServicesTests.Model worker = new(futex: true); worker.UseMemory(owner.Memory);
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.State, worker.Service, &LinuxFutexTests.MemoryGuard));
+        var parent = worker.Start(); worker.Kernel.Dispatch(); var child = worker.Clone();
+        HostCheck.Equal(LinuxSyscallAction.Blocked, worker.Call(202, word, 128, 42).Action);
+        LinuxFutexTests.Park(worker, parent); worker.Kernel.Dispatch();
+        var before = Snapshot(owner);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(owner.State, address + 3 * 4096, 2 * 4096)); Same(owner, before);
+        HostCheck.Equal(-12L, Map(owner, address + 3 * 4096, 2 * 4096, 3, 0x32)); Same(owner, before);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Advise(owner.State, address + 3 * 4096, 2 * 4096, 4)); Same(owner, before);
+        HostCheck.Equal(1L, worker.Call(202, word, 129, 1).Value);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, address + 3 * 4096, 2 * 4096, 1)); Same(owner, before);
+        worker.Yield(child); HostCheck.Equal(parent.Value, worker.Kernel.Dispatch().Value);
+        HostCheck.Equal(0L, worker.Service->CompleteFutexWait(LinuxThreadServicesTests.Key, 2).Value);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, address + 3 * 4096, 2 * 4096));
+        HostCheck.Equal((byte)0, owner.Memory.Pool[3 * 4096]);
+        HostCheck.Equal((byte)0, owner.Memory.Pool[8 * 4096]);
+        LinuxFutexTests.Drain(worker, owner.State); HostCheck.True(LinuxMemoryServices.Audit(owner.State));
     }
 
     [HostTest("m16-006 repeated identical protection and contiguous commits avoid metadata fragmentation", HostLane.Fast, 6)]

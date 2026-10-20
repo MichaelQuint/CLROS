@@ -13,13 +13,14 @@ namespace OS.Tooling;
 public static class LinuxMemoryProofFixture
 {
     public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>(
-        ["Memory", "GuardFault", "ProtNoneFault", "HeapOwnership", "HeapOwnershipFault"]);
+        ["Memory", "GuardFault", "ProtNoneFault", "HeapOwnership", "HeapOwnershipFault", "FragmentedBacking"]);
     public const string Witness = "M16_MEMORY_HIGH_COPY_OK!";
     public const ulong HugeReservation = 8234266624, DynamicBase = 0x100000000, HeapBase = 0x400000000;
     public const ulong ImageBase = 0x400000, DataBase = 0x401000, StackStart = 0x6fff0000;
     public const ulong GuardFaultAddress = DynamicBase, ProtNoneFaultAddress = DynamicBase + 4096;
     public const uint MemoryCalls = 34;
     public const uint HeapOwnershipCalls = 22, HeapOwnershipFaultCalls = 6;
+    public const uint FragmentedBackingCalls = 18;
     private const int FailureOffset = 0xf00, WitnessOffset = 0x1200;
     private const int AffinityOffset = 0x1100, FirstTimeOffset = 0x1120, SecondTimeOffset = 0x1130;
     private const int FirstRandomOffset = 0x1140, SecondRandomOffset = 0x1150, SystemInfoOffset = 0x1180;
@@ -66,7 +67,47 @@ public static class LinuxMemoryProofFixture
         Encoding.ASCII.GetBytes(Witness).CopyTo(elf, WitnessOffset);
         Writer w = new(elf, 0x200);
         w.Map(0, HugeReservation, 0, 0x22); w.CompareRegister(0, DynamicBase);
-        if (variant == "HeapOwnership")
+        if (variant == "FragmentedBacking")
+        {
+            const ulong blockBytes = 4 * 1024 * 1024, fragmented = DynamicBase + 32 * 1024 * 1024;
+            const ulong mappedBytes = 6 * 1024 * 1024;
+            // Fill the mechanical profile's entire sixteen-MiB pool, then
+            // release alternate four-MiB runs. No six-MiB run remains free.
+            for (uint block = 0; block < 4; block++)
+            {
+                ulong address = DynamicBase + block * 8 * 1024 * 1024;
+                w.Map(address, blockBytes, 3, 0x32); w.CompareRegister(0, address);
+                w.ZeroRegion(address, blockBytes);
+                w.FillRegion(address, blockBytes, block + 1);
+            }
+            w.Syscall(11, DynamicBase, blockBytes, 0); w.CompareRax(0);
+            w.Syscall(11, DynamicBase + 16 * 1024 * 1024, blockBytes, 0); w.CompareRax(0);
+            w.Map(fragmented, mappedBytes, 3, 0x32); w.CompareRegister(0, fragmented);
+            w.ZeroRegion(fragmented, mappedBytes);
+            w.CompareRegion(DynamicBase + 8 * 1024 * 1024, blockBytes, 2);
+            w.CompareRegion(DynamicBase + 24 * 1024 * 1024, blockBytes, 4);
+            w.FillRegion(fragmented, mappedBytes, 0x5a);
+            w.Syscall(10, fragmented, mappedBytes, 0); w.CompareRax(0);
+            w.Syscall(28, fragmented, mappedBytes, 4); w.CompareRax(0);
+            w.Syscall(10, fragmented, mappedBytes, 3); w.CompareRax(0); w.ZeroRegion(fragmented, mappedBytes);
+            // The copy crosses the four-MiB physical-extent boundary in both
+            // CPL3 and the kernel's ordinary write copy-in path.
+            const ulong buffer = fragmented + blockBytes - 8;
+            w.Immediate(7, buffer); w.Immediate(6, ImageBase + WitnessOffset); w.Immediate(1, (ulong)Witness.Length);
+            w.Op(0xfc, 1); w.Op(0xa4f3, 2);
+            w.Syscall(1, 1, buffer, (ulong)Witness.Length); w.CompareRax(Witness.Length);
+            w.Syscall(12, HeapBase + 2 * 1024 * 1024, 0, 0); w.CompareRegister(0, HeapBase + 2 * 1024 * 1024);
+            w.ZeroRegion(HeapBase, 2 * 1024 * 1024);
+            w.Syscall(12, HeapBase, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Syscall(10, fragmented, mappedBytes, 0); w.CompareRax(0);
+            w.Map(fragmented, mappedBytes, 3, 0x32); w.CompareRegister(0, fragmented); w.ZeroRegion(fragmented, mappedBytes);
+            w.CompareRegion(DynamicBase + 8 * 1024 * 1024, blockBytes, 2);
+            w.CompareRegion(DynamicBase + 24 * 1024 * 1024, blockBytes, 4);
+            w.Syscall(11, DynamicBase, HugeReservation, 0); w.CompareRax(0);
+            w.Syscall(231, 42, 0, 0); w.JumpFailure();
+            if (w.Calls != FragmentedBackingCalls) throw new ToolFailure("m16_015_fixture_call_inventory");
+        }
+        else if (variant == "HeapOwnership")
         {
             w.Syscall(12, 0, 0, 0); w.CompareRegister(0, HeapBase);
             w.Syscall(12, HeapBase + 8192, 0, 0); w.CompareRegister(0, HeapBase + 8192);
@@ -218,7 +259,11 @@ public static class LinuxMemoryProofFixture
         public void NonzeroPair(int at) { Rip(0x058b48, 3, at); Rip(0x050b48, 3, at + 8); NonzeroRax(); }
         public void ReadCompare(ulong address, ulong expected) { Immediate(0, address); Op(0x008b48, 3); CompareRegister(0, expected); }
         public void ZeroRegion(ulong address, ulong bytes)
-        { Immediate(0, 0); Immediate(7, address); Immediate(1, bytes / 8); Op(0xfc, 1); Op(0xaf48f3, 3); BranchFailure(0x85); }
+            => CompareRegion(address, bytes, 0);
+        public void CompareRegion(ulong address, ulong bytes, ulong value)
+        { Immediate(0, value); Immediate(7, address); Immediate(1, bytes / 8); Op(0xfc, 1); Op(0xaf48f3, 3); BranchFailure(0x85); }
+        public void FillRegion(ulong address, ulong bytes, ulong value)
+        { Immediate(0, value); Immediate(7, address); Immediate(1, bytes / 8); Op(0xfc, 1); Op(0xab48f3, 3); }
         public void Map(ulong address, ulong size, ulong protection, ulong flags) => Syscall(9, address, size, protection, flags, ulong.MaxValue, 0);
         public void Syscall(ulong number, ulong a0, ulong a1, ulong a2, ulong? a3 = null, ulong? a4 = null, ulong? a5 = null)
         {

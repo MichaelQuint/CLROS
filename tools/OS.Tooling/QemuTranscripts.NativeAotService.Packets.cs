@@ -7,19 +7,20 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
-    /// <summary>Reconstructed ordinary HTTP exchanges and close directions.
+    /// <summary>Reconstructed HTTP exchanges and observed close/reset directions.
     /// This report does not check injected persist/reset controls, guest owner
     /// retirement, native/source identity or process lifetime.</summary>
     public readonly record struct ServiceHttpPacketInspection(int Connections, int TcpRecords, int RequestBytes, int ResponseBytes,
-        int ServerActiveCloses, int CompleteCloses, int QuietSyns);
+        int ServerActiveCloses, int CompleteCloses, int QuietSyns, int ClientResets = 0, int LifecycleConnections = 0);
 
     private sealed class ServiceWireFlow(uint port, uint client)
     {
         internal readonly uint Port = port, Client = unchecked(client + 1);
-        internal readonly byte[] Request = new byte[4096], Response = new byte[16384];
-        internal readonly bool[] RequestSeen = new bool[4096], ResponseSeen = new bool[16384];
+        internal byte[] Request = new byte[4096], Response = new byte[16384];
+        internal bool[] RequestSeen = new bool[4096], ResponseSeen = new bool[16384];
         internal uint Server;
         internal int RequestExtent, ResponseExtent, ClientSeen, ServerSeen;
+        internal int SynRecord, ResponseFirstRecord, ResponseLastRecord, ClientFinRecord, ServerFinRecord, ResetRecord;
         internal bool SynAck, ClientReady, ClientFin, ServerFin, ClientFinAcked, ServerFinAcked, ServerFinFirst;
     }
 
@@ -45,11 +46,40 @@ public static partial class QemuTranscripts
     private static ServiceHttpPacketInspection ServiceHttpPackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
         IReadOnlyList<uint> ports, JsonElement[] exchanges, bool concurrent, Action<int, byte[], byte[]>? checkedStream = null)
     {
+        var capture = ServiceWirePackets(bytes, anchor, arp, ports, concurrent);
+        Need(capture.Flows.Count == exchanges.Length, "service_wire_exchange_count");
+        for (int i = 0; i < capture.Flows.Count; i++)
+        {
+            var flow = capture.Flows[i]; ServiceWireClose(flow);
+            ServiceHttpExchange(flow.Request.AsSpan(0, flow.RequestExtent), flow.Response.AsSpan(0, flow.ResponseExtent), exchanges[i]);
+            checkedStream?.Invoke(i, flow.Request.AsSpan(0, flow.RequestExtent).ToArray(), flow.Response.AsSpan(0, flow.ResponseExtent).ToArray());
+        }
+        return ServiceWireInspection(capture);
+    }
+
+    private sealed record ServiceWireCapture(List<ServiceWireFlow> Flows, int TcpRecords, int QuietSyns);
+
+    private static void ServiceWireClose(ServiceWireFlow flow, bool serverFirst = true) => Need(flow.ClientReady && flow.ResetRecord == 0 &&
+        flow.ClientSeen == flow.RequestExtent && flow.ServerSeen == flow.ResponseExtent && flow.ClientFin && flow.ServerFin &&
+        flow.ClientFinAcked && flow.ServerFinAcked && flow.ServerFinFirst == serverFirst, "service_wire_close");
+
+    private static ServiceHttpPacketInspection ServiceWireInspection(ServiceWireCapture capture, int lifecycleConnections = 0) =>
+        new(capture.Flows.Count, capture.TcpRecords, capture.Flows.Sum(flow => flow.RequestExtent), capture.Flows.Sum(flow => flow.ResponseExtent),
+            capture.Flows.Count(flow => flow.ServerFinFirst), capture.Flows.Count(flow => flow.ClientFinAcked && flow.ServerFinAcked),
+            capture.QuietSyns, capture.Flows.Count(flow => flow.ResetRecord != 0), lifecycleConnections);
+
+    private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
+        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false)
+    {
+        if (ports is null) throw new ToolFailure("service_wire_ports");
+        Need(ports.Count is >0 and <=512 && ports.Distinct().Count() == ports.Count &&
+            ports.All(port => port is >0 and <=65535), "service_wire_ports");
         _ = QemuEthernetCapture.Inspect(bytes, anchor);
-        int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0;
+        int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0, record = 0;
         ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = [];
         while (offset < bytes.Length)
         {
+            record++;
             ulong now = (ulong)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset)) * 1_000_000 +
                 BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset + 4));
             Need(now >= timestamp, "service_wire_clock"); timestamp = now;
@@ -94,18 +124,27 @@ public static partial class QemuTranscripts
                     { Need(flows.Count == 0 && ++quietSyns <= 1600, "service_wire_quiet_syn"); continue; }
                     Need(flows.Count < ports.Count && remote == ports[flows.Count] &&
                         (concurrent || flows.Count == 0 || flows[^1].ServerFin && flows[^1].ServerSeen == flows[^1].ResponseExtent), "service_wire_flow_order");
-                    flow = new(remote, sequence); flows.Add(flow);
+                    flow = new(remote, sequence) { SynRecord = record }; flows.Add(flow);
                 }
-                else Need(unchecked(sequence + 1) == flow.Client && !flow.ClientFin && !flow.ServerFin, "service_wire_syn_retry");
+                else Need(unchecked(sequence + 1) == flow.Client && !flow.ClientFin && !flow.ServerFin && flow.ResetRecord == 0, "service_wire_syn_retry");
                 continue;
             }
             Need(flow is not null, "service_wire_unowned_tuple");
             if (outgoing && flags == 0x12)
             {
-                Need(payload.Length == 0 && ack == flow!.Client && (!flow.SynAck || flow.Server == unchecked(sequence + 1)), "service_wire_syn_ack");
+                Need(payload.Length == 0 && ack == flow!.Client && flow.ResetRecord == 0 &&
+                    (!flow.SynAck || flow.Server == unchecked(sequence + 1)), "service_wire_syn_ack");
                 flow!.Server = unchecked(sequence + 1); flow.SynAck = true; continue;
             }
-            Need(flow!.SynAck && flags is 0x10 or 0x18 or 0x11 or 0x19, "service_wire_established");
+            if (lifecycle && incoming && flags == 0x14)
+            {
+                Need(flow!.SynAck && flow.ClientReady && flow.ResetRecord == 0 && !flow.ClientFin && !flow.ServerFin &&
+                    payload.Length == 0 && flow.ClientSeen == flow.RequestExtent && flow.ServerSeen == flow.ResponseExtent &&
+                    sequence == unchecked(flow.Client + (uint)flow.RequestExtent) && ack == unchecked(flow.Server + (uint)flow.ResponseExtent),
+                    "service_wire_client_reset");
+                flow.ResetRecord = record; continue;
+            }
+            Need(flow!.SynAck && flow.ResetRecord == 0 && flags is 0x10 or 0x18 or 0x11 or 0x19, "service_wire_established");
             uint relative = unchecked(sequence - (outgoing ? flow.Server : flow.Client));
             uint acknowledge = unchecked(ack - (outgoing ? flow.Client : flow.Server));
             Need(acknowledge <= (uint)(outgoing ? flow.ClientSeen : flow.ServerSeen) +
@@ -113,6 +152,7 @@ public static partial class QemuTranscripts
             if (incoming) flow.ClientReady = true; else Need(flow.ClientReady, "service_wire_handshake_order");
             if (outgoing && flow.ClientFin && acknowledge == flow.RequestExtent + 1) flow.ClientFinAcked = true;
             if (incoming && flow.ServerFin && acknowledge == flow.ResponseExtent + 1) flow.ServerFinAcked = true;
+            if (payload.Length != 0) GrowServiceWireBuffer(flow, outgoing, relative, payload.Length, lifecycle);
             byte[] data = outgoing ? flow.Response : flow.Request; bool[] seen = outgoing ? flow.ResponseSeen : flow.RequestSeen;
             int contiguous = outgoing ? flow.ServerSeen : flow.ClientSeen, extent = outgoing ? flow.ResponseExtent : flow.RequestExtent;
             bool fin = outgoing ? flow.ServerFin : flow.ClientFin;
@@ -122,6 +162,8 @@ public static partial class QemuTranscripts
             for (int i = 0; i < payload.Length; i++)
             {
                 int at = (int)relative + i; Need(!seen[at] || data[at] == payload[i], "service_wire_retransmission");
+                if (outgoing && !seen[at])
+                { if (flow.ResponseFirstRecord == 0) flow.ResponseFirstRecord = record; flow.ResponseLastRecord = record; }
                 data[at] = payload[i]; seen[at] = true;
             }
             if (payload.Length != 0) extent = Math.Max(extent, checked((int)relative + payload.Length));
@@ -131,46 +173,49 @@ public static partial class QemuTranscripts
             if ((flags & 1) != 0)
             {
                 Need(extent > 0 && relative + payload.Length == extent && contiguous == extent, "service_wire_fin_sequence");
-                if (outgoing) { if (!flow.ServerFin) flow.ServerFinFirst = !flow.ClientFin; flow.ServerFin = true; }
-                else flow.ClientFin = true;
+                if (outgoing) { if (!flow.ServerFin) { flow.ServerFinFirst = !flow.ClientFin; flow.ServerFinRecord = record; } flow.ServerFin = true; }
+                else { if (!flow.ClientFin) flow.ClientFinRecord = record; flow.ClientFin = true; }
             }
         }
         Need(stage == 3 && resolved && resolution == 1 && flows.Count == ports.Count, "service_wire_complete");
         _ = QemuEthernetCapture.InspectArp(bytes.AsSpan(0, prefixEnd), arp);
-        for (int i = 0; i < flows.Count; i++)
+        return new(flows, tcpRecords, quietSyns);
+    }
+
+    private static void GrowServiceWireBuffer(ServiceWireFlow flow, bool outgoing, uint relative, int bytes, bool lifecycle)
+    {
+        int maximum = lifecycle ? outgoing ? 524288 + 8192 : 32768 + 4096 : outgoing ? 16384 : 4096;
+        Need((ulong)relative + (uint)bytes <= (uint)maximum, "service_wire_payload_extent");
+        int needed = (int)relative + bytes, current = outgoing ? flow.Response.Length : flow.Request.Length;
+        if (needed <= current) return;
+        int length = Math.Min(maximum, Math.Max(needed, current * 2));
+        if (outgoing) { Array.Resize(ref flow.Response, length); Array.Resize(ref flow.ResponseSeen, length); }
+        else { Array.Resize(ref flow.Request, length); Array.Resize(ref flow.RequestSeen, length); }
+    }
+
+    private static (string First, Dictionary<string, string> Headers, int End) ServiceHttpHead(ReadOnlySpan<byte> data)
+    {
+        int at = data.IndexOf("\r\n\r\n"u8); Need(at is > 0 and <= 4096, "service_http_header_extent");
+        var bytes = data[..at]; foreach (byte value in bytes) Need(value is 10 or 13 or >= 32 and <= 126, "service_http_header_byte");
+        string[] lines = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
+        Need(lines.Length is >= 2 and <= 32 && lines.All(line => line.Length is > 0 and <= 1024 &&
+            line.All(c => c is >= ' ' and <= '~')), "service_http_headers");
+        Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string line in lines.Skip(1))
         {
-            var flow = flows[i];
-            Need(flow.ClientReady && flow.ClientSeen == flow.RequestExtent && flow.ServerSeen == flow.ResponseExtent &&
-                flow.ClientFin && flow.ServerFin && flow.ClientFinAcked && flow.ServerFinAcked && flow.ServerFinFirst, "service_wire_close");
-            ServiceHttpExchange(flow.Request.AsSpan(0, flow.RequestExtent), flow.Response.AsSpan(0, flow.ResponseExtent), exchanges[i]);
-            checkedStream?.Invoke(i, flow.Request.AsSpan(0, flow.RequestExtent).ToArray(), flow.Response.AsSpan(0, flow.ResponseExtent).ToArray());
+            int colon = line.IndexOf(':'); Need(colon > 0 && colon + 2 < line.Length && line[colon + 1] == ' ' &&
+                line[..colon].All(c => char.IsAsciiLetterOrDigit(c) || c == '-') && headers.TryAdd(line[..colon], line[(colon + 2)..]), "service_http_header");
         }
-        return new(flows.Count, tcpRecords, flows.Sum(flow => flow.RequestExtent), flows.Sum(flow => flow.ResponseExtent),
-            flows.Count(flow => flow.ServerFinFirst), flows.Count(flow => flow.ClientFinAcked && flow.ServerFinAcked), quietSyns);
+        return (lines[0], headers, at + 4);
     }
 
     private static void ServiceHttpExchange(ReadOnlySpan<byte> request, ReadOnlySpan<byte> response, JsonElement exchange)
     {
-        static (string First, Dictionary<string, string> Headers, int End) Head(ReadOnlySpan<byte> data)
-        {
-            int at = data.IndexOf("\r\n\r\n"u8); Need(at is > 0 and <= 4096, "service_http_header_extent");
-            var bytes = data[..at]; foreach (byte value in bytes) Need(value is 10 or 13 or >= 32 and <= 126, "service_http_header_byte");
-            string[] lines = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
-            Need(lines.Length is >= 2 and <= 32 && lines.All(line => line.Length is > 0 and <= 1024 &&
-                line.All(c => c is >= ' ' and <= '~')), "service_http_headers");
-            Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
-            foreach (string line in lines.Skip(1))
-            {
-                int colon = line.IndexOf(':'); Need(colon > 0 && colon + 2 < line.Length && line[colon + 1] == ' ' &&
-                    line[..colon].All(c => char.IsAsciiLetterOrDigit(c) || c == '-') && headers.TryAdd(line[..colon], line[(colon + 2)..]), "service_http_header");
-            }
-            return (lines[0], headers, at + 4);
-        }
-        var sent = Head(request); string method = exchange.GetProperty("method").GetString()!, path = exchange.GetProperty("path").GetString()!;
+        var sent = ServiceHttpHead(request); string method = exchange.GetProperty("method").GetString()!, path = exchange.GetProperty("path").GetString()!;
         Need(sent.First == method + " " + path + " HTTP/1.1" && sent.End == request.Length && sent.Headers.GetValueOrDefault("Host") == "clros.service" &&
             sent.Headers.GetValueOrDefault("Connection") == "close" && sent.Headers.Count == (method == "POST" ? 3 : 2) &&
             (method != "POST" || sent.Headers.GetValueOrDefault("Content-Length") == "0"), "service_http_request");
-        var received = Head(response); int status = exchange.GetProperty("status").GetInt32();
+        var received = ServiceHttpHead(response); int status = exchange.GetProperty("status").GetInt32();
         Need(received.First == (status == 200 ? "HTTP/1.1 200 OK" : "HTTP/1.1 409 Conflict") &&
             received.Headers.GetValueOrDefault("Connection") == "close" && received.Headers.GetValueOrDefault("Server") == "Kestrel", "service_http_response");
         Need(received.Headers.TryGetValue("Date", out string? date) && DateTimeOffset.TryParseExact(date, "r", CultureInfo.InvariantCulture,

@@ -22,19 +22,23 @@ public static unsafe partial class EfiEntry
         private static byte ObserveLinuxSocketMessage(void* context, ulong number, uint fd, ulong header,
             ulong flags, ulong table, ulong* vectors, uint count, uint total)
         {
+            const uint snapshotBytes = LinuxSocketServices.MaximumMessageVectors * 16;
             Storage* state = (Storage*)context;
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || c->Phase != 3 || c->Published != 1 || state->NetworkPhase != 2 ||
                 c->Selected == 0 || c->Selected > c->Capacity || !c->Threads.Current.IsValid ||
                 c->Threads.Current.Value != c->Plan.Bindings[c->Selected - 1].Context.Identity ||
-                number is not (46 or 47) || count > LinuxDescriptorServices.MaximumVectors ||
-                total > LinuxDescriptorServices.MaximumIo ||
-                count != 0 && !LinuxThreadKernelRange(c, (byte*)vectors, count * 16, false) ||
+                number is not (46 or 47) || count > LinuxSocketServices.MaximumMessageVectors ||
+                total > LinuxSocketServices.MaximumMessageBytes ||
+                // Both message callers allocate the full fixed snapshot even
+                // for fewer vectors. Authenticate all of it without reading
+                // unused entries; normal calls exercise this exact capacity.
+                !LinuxThreadKernelRange(c, (byte*)vectors, snapshotBytes, false, snapshotBytes) ||
                 !LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out var token)) return 0;
             LinuxSyscallFrame* frame = (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset);
             if (frame->Number != number || (uint)frame->Argument0 != fd || frame->Argument1 != header ||
                 frame->Argument2 != flags) return 0;
-            ulong identity = c->Threads.Current.Value, ordinal = c->Gates[c->Selected - 1].Calls;
+            ulong identity = c->Threads.Current.Value, ordinal = LinuxNativeCallOrdinal(c, c->Selected - 1);
             if (ordinal == 0 || !LinuxText(state, "M16_013_MESSAGE identity=") || !LinuxNumber(state, identity) ||
                 !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
                 !LinuxText(state, " nr=") || !LinuxNumber(state, number) ||
@@ -63,6 +67,9 @@ public static unsafe partial class EfiEntry
             internal TcpConnectionKey Key;
             internal ulong MaximumDeadline, Duration;
             internal uint Active, WaitObserved, DrainObserved, TimeoutObserved;
+#if M16_014_PROBE
+            internal uint LastCloseObserved;
+#endif
         }
         // Image-resident ownership outlives every borrowed callback, including a
         // rejected native transfer. Never reuse or free this storage after fault.
@@ -344,6 +351,22 @@ public static unsafe partial class EfiEntry
                     o->Fresh++;
                 }
                 else if (!held->Key.HasSameEndpoint(entry.Key)) return false;
+#if M16_014_PROBE
+                // Observe actual last-description closure before the next
+                // receive/pump. SHUT_WR and live duplicate descriptors do not
+                // satisfy IsClosing. The copied tuple/generation grants no
+                // authority to mutate transport or descriptor ownership.
+                if (slot->Phase == 3 && held->LastCloseObserved == 0 &&
+                    LinuxSocketServices.IsClosing(&o->Sockets, &slot->Sender))
+                {
+                    if (!WriteLinuxSocketLifetime(o, "M07_034_CLOSE", i, held, now) ||
+                        !LinuxText(o->Boot, " localNext=") || !LinuxNumber(o->Boot, slot->Sender.Next) ||
+                        !LinuxText(o->Boot, " remoteNext=") || !LinuxNumber(o->Boot, slot->Receiver.RemoteNext) ||
+                        !LinuxText(o->Boot, " unread=") || !LinuxNumber(o->Boot, (uint)slot->Receiver.UnreadBytes) ||
+                        !LinuxText(o->Boot, "\r\n")) return false;
+                    held->LastCloseObserved = 1;
+                }
+#endif
                 if (slot->Phase >= 2 && slot->Sender.TimedOut && held->TimeoutObserved == 0)
                 {
                     if (entry.State != TcpConnectionLifecycleState.Closed || slot->Sender.CloseState != TcpConnectionCloseState.Reset ||

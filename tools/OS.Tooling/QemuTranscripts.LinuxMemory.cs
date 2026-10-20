@@ -14,8 +14,10 @@ public static partial class QemuTranscripts
     public static string[] ValidateLinuxMemoryTail(string[] lines, byte[] package)
     {
         bool ownership = package.AsSpan().SequenceEqual(LinuxMemoryProofFixture.CreatePackage("HeapOwnership"));
-        Need(ownership || package.AsSpan().SequenceEqual(LinuxMemoryProofFixture.CreatePackage("Memory")), "m16_006_fixture_identity");
-        uint callCount = ownership ? LinuxMemoryProofFixture.HeapOwnershipCalls : LinuxMemoryProofFixture.MemoryCalls;
+        bool fragmented = package.AsSpan().SequenceEqual(LinuxMemoryProofFixture.CreatePackage("FragmentedBacking"));
+        Need(ownership || fragmented || package.AsSpan().SequenceEqual(LinuxMemoryProofFixture.CreatePackage("Memory")), "m16_006_fixture_identity");
+        uint callCount = fragmented ? LinuxMemoryProofFixture.FragmentedBackingCalls :
+            ownership ? LinuxMemoryProofFixture.HeapOwnershipCalls : LinuxMemoryProofFixture.MemoryCalls;
         int start = Array.IndexOf(lines, "TEST_START m16-006");
         Need(start == QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 7 + 17, "m16_006_parent_record_count");
         string[] tail = lines[start..];
@@ -27,10 +29,25 @@ public static partial class QemuTranscripts
         var memory = ReadRecord(tail[^3], "M16_006_MEMORY", "reserved:dec", "backed:dec", "tables:dec", "entropyRemaining:dec");
         var initial = ReadRecord(lines[QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 3], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
         Need(initial["root"] == arm["root"] && memory["reserved"] == 2097152 && memory["backed"] == 0 &&
-            memory["tables"] == initial["used"] && memory["entropyRemaining"] == (ownership ? 32UL : 0UL), "m16_006_final_ownership");
+            memory["tables"] == initial["used"] && memory["entropyRemaining"] == (ownership || fragmented ? 32UL : 0UL), "m16_006_final_ownership");
         const ulong va = 0x100000000, heap = 0x400000000, huge = 8234266624;
         (ulong Nr, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, long Value)[] expected =
-        ownership ?
+        fragmented ?
+        [
+            (9,0,huge,0,0x22,~0UL,(long)va),
+            (9,va,4194304,3,0x32,~0UL,(long)va),
+            (9,va+8388608,4194304,3,0x32,~0UL,(long)va+8388608),
+            (9,va+16777216,4194304,3,0x32,~0UL,(long)va+16777216),
+            (9,va+25165824,4194304,3,0x32,~0UL,(long)va+25165824),
+            (11,va,4194304,0,0,0,0), (11,va+16777216,4194304,0,0,0,0),
+            (9,va+33554432,6291456,3,0x32,~0UL,(long)va+33554432),
+            (10,va+33554432,6291456,0,0,0,0), (28,va+33554432,6291456,4,0,0,0),
+            (10,va+33554432,6291456,3,0,0,0), (1,1,va+37748728,24,0,0,24),
+            (12,heap+2097152,0,0,0,0,(long)heap+2097152), (12,heap,0,0,0,0,(long)heap),
+            (10,va+33554432,6291456,0,0,0,0),
+            (9,va+33554432,6291456,3,0x32,~0UL,(long)va+33554432),
+            (11,va,huge,0,0,0,0), (231,42,0,0,0,0,0)
+        ] : ownership ?
         [
             (9,0,huge,0,0x22,~0UL,(long)va), (12,0,0,0,0,0,(long)heap),
             (12,heap+8192,0,0,0,0,(long)heap+8192), (10,heap,4096,1,0,0,0),
@@ -61,7 +78,7 @@ public static partial class QemuTranscripts
             (11,va,4096,0,0,0,0), (11,va,huge,0,0,0,0), (231,42,0,0,0,0,0)
         ];
         uint ordinal = 0, barriers = 0, calls = 0, writes = 0; bool pendingWrite = false;
-        byte[] elf = LinuxMemoryProofFixture.CreateElf(ownership ? "HeapOwnership" : "Memory");
+        byte[] elf = LinuxMemoryProofFixture.CreateElf(fragmented ? "FragmentedBacking" : ownership ? "HeapOwnership" : "Memory");
         ulong[] instructionRips = LinuxMemoryCallRips(elf);
         Need(instructionRips.Length == callCount, "m16_006_instruction_inventory");
         for (int i = 3; i < tail.Length - 5; i++)
@@ -84,7 +101,7 @@ public static partial class QemuTranscripts
             if (row["nr"] == 324)
             {
                 ulong command = barriers == 0 ? 0UL : barriers == 1 ? 16UL : 8UL;
-                Need(!ownership && ordinal == 17 && barriers < 3 && row["a0"] == command && row["a1"] == 0 && row["a2"] == 0 &&
+                Need(!ownership && !fragmented && ordinal == 17 && barriers < 3 && row["a0"] == command && row["a1"] == 0 && row["a2"] == 0 &&
                     row["a3"] == 0 && row["a4"] == 0 && row["valueBits"] == (barriers == 0 ? 24UL : 0UL) &&
                     row["action"] == 1 && row["status"] == 1 && !pendingWrite, "m16_006_process_barrier");
                 barriers++; continue;
@@ -99,7 +116,7 @@ public static partial class QemuTranscripts
             if (e.Nr == 1) { Need(pendingWrite, "m16_006_missing_high_copy"); pendingWrite = false; }
             else Need(!pendingWrite, "m16_006_write_call_order");
         }
-        Need(ordinal == expected.Length && barriers == (ownership ? 0U : 3U) && calls == callCount && writes == 1 && !pendingWrite &&
+        Need(ordinal == expected.Length && barriers == (ownership || fragmented ? 0U : 3U) && calls == callCount && writes == 1 && !pendingWrite &&
             exit["code"] == 42 && exit["calls"] == calls && exit["writes"] == 1 && exit["bytes"] == 24, "m16_006_accounting");
         return lines[..start];
     }
@@ -161,7 +178,8 @@ public static partial class QemuTranscripts
         uint expectedPoolPages = LinuxMemoryServices.DefaultPoolPages, bool continuingService = false)
     {
         Need(continuingService?entropy==0:entropy is 32 or 256 or 4096,"m16_006_entropy_policy");
-        Need(expectedPoolPages is LinuxMemoryServices.DefaultPoolPages or LinuxMemoryServices.MaximumPoolPages,"m16_006_backing_policy");
+        Need(expectedPoolPages is LinuxMemoryServices.DefaultPoolPages or LinuxMemoryServices.ApplicationPoolPages ||
+            continuingService && expectedPoolPages == OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages,"m16_006_backing_policy");
         string suffix = " poolPages="+expectedPoolPages.ToString(System.Globalization.CultureInfo.InvariantCulture)+
             " vaEnd=68719476736 reservationQuota=17179869184 entropyBytes="+
             entropy.ToString(System.Globalization.CultureInfo.InvariantCulture)+" cpus=1 root=inactive-kernel";

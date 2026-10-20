@@ -23205,11 +23205,13 @@
         "M07-032",
         "M07-033",
         "M16-022",
+        "M11-026",
         "M07-034",
-        "M11-022"
+        "M11-022",
+        "M16-026"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:test",
         "evidence:qemu",
         "component:app-model",
@@ -23237,7 +23239,37 @@
         "tests/OS.HostTests/KestrelConnectionLifecycleTests.cs",
         "docs/kestrel.md",
         "docs/app-model.md",
-        "docs/workload-profiles.md"
+        "docs/workload-profiles.md",
+        "tools/OS.Tooling/NativeAotServicePeer.cs",
+        "tools/OS.Tooling/NativeAotServiceSelection.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "tests/OS.HostTests/NativeAotServicePeerTests.cs",
+        "tests/OS.HostTests/ContinuingServiceProfileTests.cs",
+        "tools/OS.Tooling/NativeAotSocketPeerLifecycle.cs",
+        "tools/OS.Tooling/ToolCommand.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.cs",
+        "tools/OS.Tooling/NativeAotServiceProgram.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Parent.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Replay.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Controls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Runner.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Packets.cs",
+        "src/OS/Boot/EfiEntry.LinuxWeb.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Startup.cs",
+        "tests/OS.HostTests/NativeAotServiceStartupReplayTests.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Gc.cs",
+        "tools/OS.Tooling/NativeAotServicePublisher.cs",
+        "tests/OS.HostTests/NativeAotServicePublisherTests.cs",
+        "tests/OS.HostTests/NativeAotServiceProgramTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tests/OS.HostTests/NativeAotServiceProtocolTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.LifecyclePackets.cs",
+        "tests/OS.HostTests/NativeAotServiceLifecyclePacketTests.cs",
+        "tests/OS.HostTests/NativeAotServicePacketTests.cs",
+        "tools/OS.Tooling/NativeAotServiceLifecyclePeer.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "tests/OS.HostTests/M16008EfiIntegrationTests.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -23246,7 +23278,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Step1437 accepts the seven continuing-service foundations in PR777, including original service shutdown/reaps. Repeated service remains development-only under #737. October19 review adds host-confirmed M07-034 unread last-close retention and M11-022 transport high-water validation before acceptance; preserve #747/#748/#760 and then #225 in the existing owner batch.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23273,8 +23305,7 @@
         "Complete more than eight sequential server-active closes without waiting for all bulk buffers to spend240 seconds in TIME-WAIT; preserve compact retirement protection.",
         "Recover a lost zero-window reopening update while another connection advances. Continue requests beyond the old30s/300s/4096-call limits under the explicit service policy, and exercise replenished randomness without false success.",
         "Include aborted SYN-RECEIVED recovery before its old timeout and complete slot reuse across the ISN boundary, using M07-032/M07-033. Separate host boundary injection from actual guest lifetime counts; unrelated peers must progress after an abort.",
-        "Complete M16-022's empty-send capacity correction. A live full send window must still permit zero-byte sendmsg without waiting or changing transport counters; nonzero EAGAIN, endpoint errors, shutdown/reset and MSG_NOSIGNAL behavior remain explicit. Join focused host boundaries to the existing finite vector guest regression before repeated-service closure.",
-        "Include unread-data last-close capacity recovery and independently reconstructed bulk/compact high-water counts, with exact packet, descriptor, reset/retirement and healthy-peer controls."
+        "Complete M16-022's empty-send capacity correction. A live full send window must still permit zero-byte sendmsg without waiting or changing transport counters; nonzero EAGAIN, endpoint errors, shutdown/reset and MSG_NOSIGNAL behavior remain explicit. Join focused host boundaries to the existing finite vector guest regression before repeated-service closure."
       ],
       "requiredMarkers": [
         "TEST_START m10.011",
@@ -23309,7 +23340,7 @@
         "M16-020"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -23346,7 +23377,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Add an async/cancellation route and repeated-request churn.",
-      "currentEvidence": "Step1351's finite async socket fixture is accepted; PR739 development HTTP does not qualify arbitrary async request/memory churn. M16-015 characterizes avoidable fragmented-pool ENOMEM and M16-016 requires measurement of effective GC/native budget; both repairs remain open prerequisites for this issue.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Add an async/cancellation fixture route to the real MinimalApiSmoke app and run request churn with timer/ThreadPool activity and forced collections. Assert cancellation propagation, no deadlock, bounded resources and continued /healthz service.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -24569,10 +24600,11 @@
       "parentKey": "M11-EPIC",
       "dependencyKeys": [
         "M16-014",
-        "M03-003"
+        "M03-003",
+        "M11-026"
       ],
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -24611,7 +24643,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Replace finite startup entropy exhaustion with a bounded, reviewed continuing randomness service.",
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Reviewed HMAC-DRBG known answers plus independent seed/reseed/failure/overflow controls; actual guest84 random requests/18708 bytes, supported larger-than32-byte partial/nonblocking/error cases, and shutdown zeroization. Entropy failures remain host controls; no predictable fallback. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "This existing issue is moved ahead of M10-011 continuing-service acceptance; it no longer waits for unrelated release acquisition policy M11-011. Preserve its original firmware seed boundary.",
         "Use an audited CSPRNG design with explicit seed provenance, initialization/readiness, bounded state, reseed and hardware/source-failure policy. Do not invent a PRNG, use clock/counter fallback or claim statistical tests prove cryptographic security.",
@@ -24653,7 +24685,7 @@
         "docs/kestrel.md"
       ],
       "evidenceBoundary": "Only measured continuing randomness with reviewed construction and explicit source-failure policy. No production cryptographic assurance or general workload claim from host vectors or larger finite reservoirs.",
-      "desiredState": "closed"
+      "desiredState": "open"
     },
     {
       "key": "M11-013",
@@ -32673,9 +32705,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32685,9 +32717,10 @@
       ],
       "dependencyKeys": [
         "M07-028",
-        "M07-017"
+        "M07-017",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Actual lost reopening update recovers through two persist probes and exact payload; independent host controls retain wrap/duplicate/reset/cancel/timer and other-flow boundaries. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32762,9 +32795,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -32774,9 +32807,10 @@
       ],
       "dependencyKeys": [
         "M07-029",
-        "M07-018"
+        "M07-018",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. 32 actual server-active-close lifetimes transfer and retire compact TIME-WAIT; bulk high-water4/compact24. Full240-second tuple/generation protection remains; capacity/restart/scrub/deadline controls pass. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32949,9 +32983,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32961,9 +32995,10 @@
       ],
       "dependencyKeys": [
         "M10-010",
-        "M16-013"
+        "M16-013",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Explicit default-off MinimalApiService preserves turn/byte/progress/resource guards and finite negative controls. Same real native worker exceeds4096 calls beyond300s; genuine group exit/off-stack reaps, restoration and scrub complete. Continuing UTC is explicit; finite web retains600 seconds. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33044,7 +33079,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33055,7 +33090,7 @@
       "dependencyKeys": [
         "M16-014"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Fresh characterization at the review snapshot: four4-page mappings fill a16-page pool; freeing the first and third leaves8 free pages in two holes. Mapping6 pages returns-ENOMEM(-12), while freeing the remaining maps makes it succeed. Audit passes; the one-PhysicalStart-per-region representation requires contiguous physical backing.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33134,7 +33169,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33146,7 +33181,7 @@
         "M16-015",
         "M10-004"
       ],
-      "currentEvidence": "Architecture review of accepted source e5bd99e6c8202988810cc479b92f1c51ef695e2d (2026-10-16). Step1351 acceptance remains bounded; PR739 head e40db8091e8b61b6d2b18f837feb96e9965109a2 is separate unmerged development evidence. Source review: sysinfo/proc facts include firmware conventional memory while mmap backing is a fixed16/32MiB pool. No configured GCHeapHardLimit was found. System totals may be truthful but are not an app allocation guarantee; a resulting GC failure has not been demonstrated.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33184,7 +33219,39 @@
         "docs/app-model.md",
         "docs/kestrel.md",
         "docs/workload-profiles.md",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "std/no-runtime/shared/Text/AsciiHexParser.cs",
+        "std/no-runtime/shared/Text/AsciiHexParser.Pointer.cs",
+        "src/OS.Kernel/Manifest/LinuxElfPackage.cs",
+        "tests/OS.HostTests/LinuxElfPackageTests.cs",
+        "tests/OS.HostTests/StdAsciiHexParserTests.cs",
+        "docs/nativeaot-nostdlib-limits.md",
+        "tests/OS.HostTests/LinuxGcBudgetTests.cs",
+        "apps/MinimalApiService/Program.cs",
+        "apps/MinimalApiService/ServiceLifecycleExercise.cs",
+        "tools/OS.Tooling/NativeAotServicePackage.cs",
+        "tests/OS.HostTests/NativeAotServicePackageTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Gc.cs",
+        "tests/OS.HostTests/NativeAotServiceStartupReplayTests.cs",
+        "tools/OS.Tooling/NativeAotServicePublisher.cs",
+        "tests/OS.HostTests/NativeAotServicePublisherTests.cs",
+        "tests/OS.HostTests/NativeAotServiceProgramTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tests/OS.HostTests/NativeAotServiceProtocolTests.cs",
+        "tools/OS.Tooling/NativeAotServiceProgram.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxMemoryServices.cs",
+        "tests/OS.HostTests/LinuxMemoryServicesTests.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadRun.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Replay.cs",
+        "apps/MinimalApiService/MinimalApiService.csproj",
+        "src/OS/Boot/EfiEntry.LinuxWeb.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Memory.cs",
+        "tests/OS.HostTests/NativeAotServiceMemoryTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Startup.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.GcBacking.cs",
+        "tests/OS.HostTests/NativeAotServiceGcBackingTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxHello.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxMemory.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -33808,9 +33875,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33820,9 +33887,10 @@
       ],
       "dependencyKeys": [
         "M07-014",
-        "M07-028"
+        "M07-028",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Two actual exact-generation pending resets retire before old deadline; new SYN reuses the tuple, with no pending descriptor/retry leak. Host invalid/duplicate/race controls remain distinct. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33900,9 +33968,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33912,9 +33980,10 @@
       ],
       "dependencyKeys": [
         "M07-032",
-        "M11-012"
+        "M11-012",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. Independent firmware TCP secret, tuple HMAC plus4us real clock,240-second quiet admission, exact lease ownership and final erasure join34 actual sequence generations. Near-wrap/96 lifetime/reseed/disposal controls are host evidence. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34110,7 +34179,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -34122,7 +34191,7 @@
         "M16-009",
         "M16-012"
       ],
-      "currentEvidence": "Second architecture pass of master 7c297c3f4628c5a7b9e6847b99d6d8401c43c9a4 (runtime unchanged from e5bd99e6c8202988810cc479b92f1c51ef695e2d), 2026-10-16. PR739 was read at e759827ce349bcb19895cbe269f08feac3fc72c9, open/unmerged. Existing finite qualifications remain unchanged. Fresh host reproduction: parent blocks on an empty pipe; child writes one byte, queues unmasked SIGUSR1 to the already-woken parent, then consumes the byte. Parent completion returns Blocked and PrepareUserReturn returns Rejected instead of completing EINTR/delivering the signal. Interrupts.cs:15 preserves the prior Woken completion; Pipes.cs:109-129 clears it and stages a new wait without inspecting pending signals. Epoll.cs:93-116 has the same retry pattern. EfiEntry.LinuxThreads.cs:314-318 returns to the supervisor on Blocked before PrepareUserReturn:338. The signal can remain pending until unrelated readiness or shutdown; finite no-progress termination remains possible. A guest GC suspension deadlock is a risk hypothesis, not a reproduced result.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34164,7 +34233,26 @@
         "docs/kestrel.md",
         "docs/security.md",
         "docs/workload-profiles.md",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/LinuxSignalProofFixture.cs",
+        "tests/OS.HostTests/LinuxSignalWaitTranscriptTests.cs",
+        "tests/OS.HostTests/LinuxSignalStolenReadinessTests.cs",
+        "tools/OS.Tooling/ToolCommand.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxSignals.cs",
+        "tools/OS.Tooling/LinuxSignalEpollWaitProofFixture.cs",
+        "tests/OS.HostTests/LinuxSignalEpollWaitProofFixtureTests.cs",
+        "tools/OS.Tooling/LinuxSignalEpollSelection.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "tools/OS.Tooling/QemuTranscripts.M03.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxSignalEpoll.cs",
+        "tests/OS.HostTests/LinuxSignalEpollTranscriptTests.cs",
+        "tests/OS.HostTests/LinuxSignalEpollSelectionTests.cs",
+        "tools/OS.Tooling/LinuxThreadProofFixture.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxEpollServices.cs",
+        "docs/networking.md",
+        "docs/efi-build.md",
+        "tests/OS.HostTests/LinuxSignalFaultProofFixtureTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34311,9 +34399,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "closed",
+      "desiredState": "open",
       "labels": [
-        "agent:done",
+        "agent:claimed",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -34322,9 +34410,10 @@
         "lane:nativeaot-integration"
       ],
       "dependencyKeys": [
-        "M16-013"
+        "M16-013",
+        "M11-026"
       ],
-      "currentEvidence": "Bounded qualification in done/step1437.md / PR777 at frozen implementation8bee44db83c74cc965587b556a488ab4e8486876:5809 unfiltered full-host checks/781 fixtures (94 Native), one complete original822285ms service pipeline and ten fresh affected ancestors (8950 source joins/90 original inputs), plus504 selected original native body comparisons and actual switch-table/ABI/unwind review. LinuxSocketServicesTests and LinuxSocketMessageTests explicitly verify valid full-window empty sendto/sendmsg success without counter/generation/yield mutation, preserving errors and nonempty backpressure. Complete original native review and current finite socket/vector guests pass; no guest full-window-empty control is claimed. Consolidated receipt9104E91501484037373DBD0A27AEFA3582B56FCD2D1562BD190B192854A05D53. Post exact evidence before guarded dependency-order closure/read-back. Repeated-service224, complete Kestrel/Gate14, arbitrary hosted .NET, isolation, cloud and production remain unqualified.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/kestrel.md and docs/repo-audit.md. Preserve accepted step1405/1419 scope and the active shared integration owner#737. Incorporate this small slice into that owner's batch or obtain explicit lane handoff; readiness does not authorize concurrent edits.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35169,7 +35258,7 @@
         "M07-033"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:host",
@@ -35184,7 +35273,20 @@
         "src/OS.Kernel/Net/TcpReceiveWindow.cs",
         "tests/OS.HostTests/LinuxSocketNetworkTests.cs",
         "docs/networking.md",
-        "docs/workload-profiles.md"
+        "docs/workload-profiles.md",
+        "src/OS.Kernel/Net/TcpSendWindow.Close.cs",
+        "src/OS.Kernel/Net/TcpEstablishedStreamIpv4FramePlanner.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "tools/OS.QemuRunner/ServiceSocketControls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Controls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Transport.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.UnreadClose.cs",
+        "tests/OS.HostTests/ServiceSocketControlTests.cs",
+        "tests/OS.HostTests/NativeAotServiceControlTests.cs",
+        "tests/OS.HostTests/NativeAotServiceTransportTests.cs",
+        "tests/OS.HostTests/NativeAotServiceUnreadCloseTests.cs",
+        "done/step1476.md"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -35193,7 +35295,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prevent unread data on a socket with no remaining descriptor from pinning a full bulk connection throughout TIME-WAIT.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Local normal-harness regression: connect/accept with one bulk slot and compact TIME-WAIT; shutdown(SHUT_WR); receive FIN+one byte with the local FIN acknowledged; close last fd; pump; next independent SYN returns Capacity. Diagnostic: bulk=1 compact=0 next=Capacity shutdown=False. Existing27 fixture cases pass; new expected-success case fails. Source: LinuxSocketServices.cs:556-565 marks Closing without draining RX; LinuxSocketNetwork.cs:285 requires UnreadBytes==0 to compact. The real guest admits eight bulk slots, but no guest denial-of-service was executed. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35222,14 +35324,19 @@
         "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketNetworkTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
-        "git diff --check"
+        "git diff --check",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter ServiceSocketControlTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter NativeAotServiceControlTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter NativeAotServiceUnreadCloseTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter NativeAotServiceTransportTests",
+        "dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll --filter EfiSourceAdmissionTests"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/kestrel.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "evidenceBoundary": "Implemented development slice with focused host checks and freestanding C# compile. No new guest unread-close, full-host, general Kestrel, isolation, cloud or production acceptance.",
       "desiredState": "open"
     },
     {
@@ -35241,7 +35348,7 @@
         "M07-030"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p2",
         "type:tooling",
         "evidence:host",
@@ -35263,7 +35370,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Reject transport evidence that omits a high-water event and lowers its summary despite lifecycle records proving a larger peak.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Normal-harness fixture creates ten compact records before any retirement, emits high-water observations only through9, then retires all10 and reports9. InspectNativeAotServiceTransportForTests accepts connections=10 reportedPeak=9. Existing3 cases pass; the added reject control fails. Actual insertions at line138 never update a derived maximum; lines150-169 compare report rows only with previously reported maxima. This does not show that step1437's retained peak24 is incorrect. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35494,6 +35601,159 @@
       ],
       "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
       "desiredState": "open"
+    },
+    {
+      "key": "M11-026",
+      "title": "[M11-026] Await asynchronous host fixtures before reporting pass",
+      "summary": "Join async test operations and restore valid host qualification evidence",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "priority": "priority:p0",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:claimed",
+        "priority:p0",
+        "type:tooling",
+        "evidence:host",
+        "component:repo",
+        "phase:m11-release",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [],
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
+      "implementationNotes": [
+        "Required validation repair for the currently owned repeated-service/churn batch under737; exact shared scope was read back before edits.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Reject late false/failure results and unowned async void before reporting success; keep explicit reflection discovery and existing process ownership. Do not introduce subset projects or freeze runner hashes elsewhere.",
+        "Audit selected async method identities in prior receipts; preserve raw history and separate independent native/guest captures from invalid async/full-host qualification claims.",
+        "Close only after a stable-source unfiltered full lane with the corrected runner, affected focused checks and scope-appropriate native/guest validation. No host model or marker count substitutes for joined execution."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "tests/OS.HostTests/HostTestRunner.cs",
+        "tests/OS.HostTests/HostTestRunnerTests.cs",
+        "tests/OS.HostTests/ServiceSocketControlTests.cs",
+        "tools/OS.Tooling/BacklogContracts.cs",
+        "AGENTS.md",
+        "README.md",
+        "docs/repo-audit.md",
+        "docs/completion-gates.md",
+        "docs/kestrel.md",
+        "docs/app-model.md",
+        "tests/OS.HostTests/LinuxSignalFaultProofFixtureTests.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production kernel/runtime/network changes",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Task, Task<bool>, ValueTask and ValueTask<bool> complete before pass/fail or the next fixture; late false/fault results fail both worker paths. Async void/unsupported returns reject before execution.",
+        "Real internal child controls prove delayed false/exception failure and joined success ordering; preserve synchronous bool/void behavior and worker process cleanup.",
+        "Audit and correct prior async/full-host coverage claims, preserve immutable raw receipts, rerun all affected asynchronous fixtures, and repair the host PCAP capture writer lifetime exposed by actual execution.",
+        "Unfiltered --lane full passes at stable source with the fixed runner, unchanged inputs and zero reuse; reserve a unique done step, retain exact evidence, post before closure and read back comments/state. Run native/guest checks when affected implementation changes require them."
+      ],
+      "requiredMarkers": [
+        "TEST_START host.tests",
+        "TEST_PASS host.tests",
+        "TEST_FAIL host.tests <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter HostTestRunnerTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter KestrelConnectionLifecycleTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/repo-audit.md",
+        "docs/completion-gates.md",
+        "docs/kestrel.md"
+      ],
+      "evidenceBoundary": "Development host harness and evidence correction only. No full-host qualification until a fixed-runner unfiltered stable run; no new native/guest/Kestrel/Gate14, cloud or production acceptance. Preserve independent original native/guest captures."
+    },
+    {
+      "key": "M16-026",
+      "title": "[M16-026] Admit bounded larger socket messages while preserving short I/O and owned snapshots",
+      "summary": "Remove the16-vector/65536-byte admission cliff exposed by the original512KiB Kestrel stream, while retaining bounded complete metadata validation, short copied prefixes, empty/error semantics and independent syscall witnesses.",
+      "milestone": "M16",
+      "parentKey": "M16-EPIC",
+      "priority": "priority:p2",
+      "collisionLane": "lane:nativeaot-integration",
+      "desiredState": "open",
+      "labels": [
+        "agent:claimed",
+        "priority:p2",
+        "type:implementation",
+        "evidence:qemu",
+        "component:app-model",
+        "phase:m16-nativeaot",
+        "lane:nativeaot-integration"
+      ],
+      "dependencyKeys": [
+        "M16-013",
+        "M16-022"
+      ],
+      "currentEvidence": "Step1477 development closeout under737/PR786, acceptance=false. At exact implementation810b3eef the corrected awaited runner passes5917 unfiltered full-host checks across792 fixtures (94 Native), unchanged inputs, zero reuse. One original configured v2 service passes826707ms with directed unread-close reset, pressure/recovery, HTTP, shutdown/reaps;15 individual original ancestor profiles pass with source/native joins. The remaining original v1 producer fails its consumer on byte-identical duplicate reopen ACKs. A host-only first-occurrence reader repair passes3 focused checks; fresh original v1 and5 memory controls remain pending. All16 affected issues stay open/claimed, including the7 reopened step1437 prerequisites. Full-host receipt remains bound to810b3eef, not the newer reader/test source. #748/#225 also lack quota-triggered offending-workload termination/cleanup;36MiB backing is shared, declared20MiB native headroom is not an enforced partition, and native saturation is outside request churn. No restored issue acceptance, complete Kestrel/Gate14, isolation, cloud or production evidence. Preserve step1437 and steps1438-1476 raw history; resume exact criteria and dependency review before closure.",
+      "implementationNotes": [
+        "Use C#14/.NET11, KISS and the existing connected-stream SendMessage/ReceiveMessage snapshot/copy paths. Keep scalar/file/pipe vector limits unchanged; no new networking or general libc subsystem.",
+        "Admit at most1024 socket message vectors and a separately bounded1MiB aggregate; copied I/O still uses the existing at-most8192-byte scratch/send-capacity prefix. Validate complete snapshotted metadata and all nonempty ranges before transport mutation. No hidden allocations or metadata surviving dispatch.",
+        "Preserve empty-message behavior, endpoint errors, flags, aliases, copy-fault atomicity, descriptor generations and recvmsg output-header ownership. Extend observation/call replay bounds together and retain exact counts/totals, mappings and cumulative ordinals.",
+        "Primary vector-count reference: https://raw.githubusercontent.com/torvalds/linux/v6.18/include/uapi/linux/uio.h . Its UIO_MAXIOV is1024;1MiB remains this restricted adapter's explicit aggregate bound, not full Linux compatibility.",
+        "Add independent official host cases for17 vectors, aggregates above65536,1024/1025 count boundaries,1MiB/over-bound aggregates, late unmapped vectors and positive short-send/receive or full-window controls. No subset projects or unawaited tests.",
+        "At the stable batch boundary review original changed emitted bodies and stack against actual guarded worker extents, then run original owned v2 and affected finite vector/socket ancestors with exact source/object/EFI/package/serial/PCAP joins. Keep784 full-host correction and all failed original captures visible.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue."
+      ],
+      "referenceInfluences": [],
+      "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "tools/OS.Tooling/NativeAotSocketMessages.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotSocket.cs",
+        "tests/OS.HostTests/LinuxSocketLargeMessageTests.cs",
+        "tests/OS.HostTests/NativeAotSocketMessageTests.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/BacklogContracts.cs",
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/completion-gates.md",
+        "tests/OS.HostTests/LinuxSocketMessageTests.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadMemory.cs",
+        "tests/OS.HostTests/LinuxDescriptorServicesTests.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "acceptanceCriteria": [
+        "Valid17-vector and >65536-byte connected messages return the exact available short prefix;1024 vectors and1MiB aggregate are accepted within fully validated ranges, while1025/over-bound and late-invalid ranges fail without queuing bytes or consuming receive data.",
+        "Snapshot/header/vector/call records bind exact identity, generation, count, total, mappings and cumulative ordinal. No blanket acceptance of missing or oversized witnesses. Scalar/file/pipe limits and prior empty/error/alias/recvmsg semantics remain intact.",
+        "Original pinned Kestrel512KiB stream, healthy concurrent progress and cancellation/cleanup pass the real owned v2 producer and packet join; affected finite vector/socket ancestors pass. Host models or failed-run packet reinspection are not guest acceptance.",
+        "Record source/native stack, focused/full-host/guest evidence in a reserved done step and post/read back evidence before closure. No general Linux, whole-kernel stack, gate, isolation, cloud or production claim."
+      ],
+      "requiredMarkers": [
+        "TEST_PASS host.tests.focused",
+        "TEST_PASS qemu.smoke"
+      ],
+      "requiredCommands": [
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketLargeMessageTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxSocketMessageTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotSocketMessageTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+      ],
+      "documentationPaths": [
+        "docs/app-model.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Failed r03 sendmsg and host/source diagnosis only. Prior bounded16-vector acceptance is preserved. No new successful guest, resource cleanup, full-host, native or broader compatibility acceptance."
     }
   ]
 }

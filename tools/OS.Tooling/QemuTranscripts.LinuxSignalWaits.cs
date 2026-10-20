@@ -9,6 +9,7 @@ public static partial class QemuTranscripts
     private static void ValidateLinuxSignalWaitBody(string[] rows,string variant)
     {
         bool futex=variant.StartsWith("SignalFutex",StringComparison.Ordinal), partial=variant=="SignalPipePartial";
+        bool stolen=variant==LinuxSignalProofFixture.StolenWaitVariant;
         bool restart=variant.EndsWith("Restart",StringComparison.Ordinal);
         var instructions=LinuxSignalProofFixture.ExpectedWaitInvocations(variant);
         List<SignalWaitCall> pre=[new(39,1),new(186,1),new(158,0,0x1002,0x402000),new(13,0,10,0x401100,0,8),new(131,0,0x401120)];
@@ -17,13 +18,17 @@ public static partial class QemuTranscripts
         SignalWaitCall blocked=futex?new(202,0,0x4011d0,128,0,0,Action:3,Status:9):
             new(partial?1UL:0UL,0,partial?4UL:3UL,partial?0x407000UL:0x409000UL,partial?4100UL:1UL,Action:3,Status:9);
         pre.Add(blocked);
-        List<SignalWaitCall> child=[new(39,1),new(186,2),new(234,0,1,1,10)];
+        List<SignalWaitCall> child=[new(39,1),new(186,2)];
+        if(stolen)child.Add(new(1,1,4,0x407000,1));
+        child.Add(new(234,0,1,1,10));
         if(futex)child.Add(new(202,0,0x4011d0,129,1));
+        else if(stolen)child.Add(new(0,1,3,0x409000,1));
         else if(!partial)child.Add(new(1,1,4,0x407000,1));
         child.Add(new(60,0,7,Action:4,Status:2));
         SignalWaitCall[] handler=[new(186,1),new(14,0,2,0,0x401158,8),new(131,0,0,0x4011a0),new(1,15,1,0x4001a0,15),
             new(15,partial?4096:restart?futex?202:0:-4,1,0x4001a0,15,Action:5)];
         List<SignalWaitCall> post=[];
+        if(stolen)post.Add(new(1,1,4,0x407000,1));
         if(restart)post.Add(blocked with {Value=futex?-11:1,Action=1,Status=1});
         else if(!futex && !partial)post.Add(new(0,1,3,0x409000,1));
         if(partial){post.Add(new(0,4096,3,0x409000,4096));post.Add(new(1,4,4,0x408000,4));post.Add(new(0,4,3,0x409000,4));}
@@ -71,11 +76,12 @@ public static partial class QemuTranscripts
         }
         foreach(var e in pre)Check(e);Supervisor(0x100000001,3,2,1,2);
         foreach(var e in child)Check(e,true);Exit(0x100000002);Supervisor(0x100000002,4,4,1,2);Reap(0x100000002);
+        if(stolen)Supervisor(0x100000001,3,6,1,1);
         var resumed=Row("M16_008_RESUME","identity:dec","valueBits:dec","status:dec");
         Need(resumed["identity"]==0x100000001&&resumed["valueBits"]==unchecked((ulong)(partial?4096L:-4L))&&resumed["status"]==1,"m16_009_wait_resume_once");
         foreach(var e in handler)Check(e,false,true);foreach(var e in post)Check(e);
-        Exit(0x100000001);Supervisor(0x100000001,2,6,0,1);Reap(0x100000001);
-        Exact("M16_008_OWNER_END reaped=2 transfers=6 irqs=0 exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
+        Exit(0x100000001);Supervisor(0x100000001,2,stolen?8UL:6UL,0,1);Reap(0x100000001);
+        Exact("M16_008_OWNER_END reaped=2 transfers="+(stolen?8:6)+" irqs=0 exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
         Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");Exact("CLROS_M16_009_READY");Exact("TEST_PASS m16-009");
         Need(call==instructions.Count&&at==rows.Length,"m16_009_wait_extra_record");
     }

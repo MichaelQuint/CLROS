@@ -21,6 +21,9 @@ public static unsafe partial class EfiEntry
         private static bool RunLinuxNativeOwner(Storage* state)
         {
             fixed (Storage* retained = &s_storage) if (state != retained) return false;
+#if M16_014_PROBE
+            bool serviceGcConfigured = state->LinuxServices.GcBudget.Succeeded;
+#endif
             if (!CooperativeAuthority(state) || state->CooperativePhase != 0 || state->LinuxSyscallPhase != 4 ||
                 state->LinuxMemoryPhase != 4 || state->LinuxDescriptorPhase != 4 || state->ApicPhase != 2 ||
                 !state->LinuxSyscallPlan.ResumeUser || state->LinuxView.Manifest.Threads == 0 ||
@@ -112,6 +115,13 @@ public static unsafe partial class EfiEntry
             if (!ClearLinuxRandom(state)) return LinuxNativeCleanupRejected(state, 9);
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return LinuxNativeCleanupRejected(state, 10);
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
+#if M16_014_PROBE
+            if (serviceGcConfigured && (!LinuxText(state, "M16_016_MEMORY poolPages=") ||
+                !LinuxNumber(state, LinuxMemoryPoolPages(state)) ||
+                !LinuxText(state, " peakPages=") || !LinuxNumber(state, state->LinuxMemory.PeakBackedPages) ||
+                !LinuxText(state, " endPages=") || !LinuxNumber(state, state->LinuxMemory.BackedPages) ||
+                !LinuxText(state, "\r\n"))) return false;
+#endif
             bool logged = (!runtimeBudget || LinuxText(state, "M16_008_BUDGET_END nanos=") && LinuxNumber(state, observedNanos) && LinuxText(state, "\r\n")) &&
                 LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&
                 LinuxText(state, " transfers=") && LinuxNumber(state, transfers) && LinuxText(state, " irqs=") && LinuxNumber(state, epochs) &&

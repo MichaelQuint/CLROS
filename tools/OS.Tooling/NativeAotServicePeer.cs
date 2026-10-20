@@ -22,7 +22,11 @@ public static class NativeAotServicePeer
         long CompletedMilliseconds, string DateUtc, string BodyBase64);
 
     /// <summary>Value-only observations of supplied peer output, never execution authority.</summary>
-    public readonly record struct Inspection(int Port, int Exchanges, int StatusSamples, long DurationMilliseconds, long Calls, long RandomBytes);
+    public readonly record struct Inspection(int Port, int Exchanges, int StatusSamples, long DurationMilliseconds, long Calls, long RandomBytes)
+    {
+        /// <summary>Supplied v2 lifecycle values only; null for v1. This grants no execution authority.</summary>
+        public NativeAotServiceLifecyclePeer.Observation? Lifecycle { get; init; }
+    }
 
     /// <summary>Copied bounded transport response. Caller owns Body. This
     /// observation confers no application, process or guest cleanup authority.</summary>
@@ -32,20 +36,22 @@ public static class NativeAotServicePeer
     /// Only the process-owning RunAsync factory constructs a completion.</summary>
     public sealed class Completion
     {
-        internal Completion(string root, int port, string path, string hash, ProcessResult runner, string serial)
-        { Root = root; Port = port; Path = path; Sha256 = hash; Runner = runner; SerialPath = serial; }
+        internal Completion(string root, int port, string path, string hash, ProcessResult runner, string serial, bool lifecycle)
+        { Root = root; Port = port; Path = path; Sha256 = hash; Runner = runner; SerialPath = serial; Lifecycle = lifecycle; }
         internal string Root { get; }
         public int Port { get; }
         public string Path { get; }
         public string Sha256 { get; }
         public string SerialPath { get; }
         public ProcessResult Runner { get; }
+        /// <summary>Factory-selected report contract, never inferred from supplied text.</summary>
+        public bool Lifecycle { get; }
         internal void Verify(AuthorityFiles files)
         {
             var file = files.Open(System.IO.Path.GetDirectoryName(Path)!, Path, "original service peer", "service_peer_log", 65536, singleLink: true);
             byte[] raw = file.ReadBytes(65536, "service_peer_log");
             Need(Convert.ToHexString(SHA256.HashData(raw)) == Sha256, "log_identity");
-            Need(InspectOutput(new UTF8Encoding(false, true).GetString(raw)).Port == Port, "port_identity");
+            Need(InspectOutput(new UTF8Encoding(false, true).GetString(raw), Lifecycle).Port == Port, "port_identity");
         }
     }
 
@@ -54,12 +60,12 @@ public static class NativeAotServicePeer
     /// before stimulus. The callback must honor cancellation and confirm exit;
     /// missing/failed children retain fresh logs and cannot create Completion.</summary>
     public static async Task<Completion> RunAsync(string root, string peerLog, string serial,
-        Func<int, CancellationToken, Task<ProcessResult>> runRunner, CancellationToken cancellation = default)
+        Func<int, CancellationToken, Task<ProcessResult>> runRunner, CancellationToken cancellation = default, bool lifecycle = false)
     {
         root = System.IO.Path.GetFullPath(root); serial = System.IO.Path.GetFullPath(serial, root);
         var execution = await NativeAotSocketPeerLifecycle.RunAsync(root, peerLog, runRunner, cancellation,
-            token => WaitForListeningAsync(root, serial, token), serial, vectors: false, service: true);
-        return new(execution.Root, execution.Port, execution.Path, execution.Sha256, execution.Runner, execution.ReceiveGateSerial);
+            token => WaitForListeningAsync(root, serial, token), serial, vectors: false, service: true, serviceLifecycle: lifecycle);
+        return new(execution.Root, execution.Port, execution.Path, execution.Sha256, execution.Runner, execution.ReceiveGateSerial, lifecycle);
     }
 
     private static async Task WaitForListeningAsync(string root, string serial, CancellationToken cancellation)
@@ -86,14 +92,17 @@ public static class NativeAotServicePeer
         }
     }
 
-    /// <summary>Run the fixed loopback peer protocol. All requests are HTTP/1.1,
+    /// <summary>Run the fixed HTTP/1.1 loopback peer protocol. Ordinary exchanges
     /// wait for genuine server EOF before client FIN and copy at most8192 body
-    /// bytes. One startup health connection may wait through the real240-second
+    /// bytes; v2 additionally awaits the separately bounded lifecycle helper.
+    /// One startup health connection may wait through the real240-second
     /// ISN quiet period, bounded by the remaining400-second startup window;
     /// later exchanges retain20-second deadlines. Own TCP resources until return;
     /// failure throws and no successful report is written. Never returns random
-    /// bytes or secrets. Output is untrusted telemetry until the final guest join.</summary>
-    public static async Task RunGuestAsync(int port, TextWriter output)
+    /// bytes or secrets. Explicit lifecycle mode awaits the bounded v2 protocol
+    /// while the existing long-running worker advances, then emits a strict v2
+    /// report. Output is untrusted telemetry until the final guest join.</summary>
+    public static async Task RunGuestAsync(int port, TextWriter output, bool lifecycle = false)
     {
         Need(port is >= 1 and <= 65535, "port");
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(800)); CancellationToken token = deadline.Token;
@@ -121,6 +130,8 @@ public static class NativeAotServicePeer
         long begun = exchanges[^1].CompletedMilliseconds;
         exchanges.Add(await Send("POST", StartPath)); Require(exchanges[^1], "POST", StartPath, 409, "");
         exchanges.Add(await Send("POST", StopPath)); Require(exchanges[^1], "POST", StopPath, 409, "");
+        NativeAotServiceLifecyclePeer.Observation? lifecycleObservation = null;
+        if (lifecycle) lifecycleObservation = await NativeAotServiceLifecyclePeer.RunAsync(port, token);
         for (int samples = 0; ; samples++)
         {
             Need(samples < 65, "sample_bound"); exchanges.Add(await Send("GET", StatusPath));
@@ -130,8 +141,10 @@ public static class NativeAotServicePeer
         }
         exchanges.Add(await Send("GET", "/healthz")); Require(exchanges[^1], "GET", "/healthz", 200, "CLROS_SERVICE_HEALTH_OK");
         exchanges.Add(await Send("POST", StopPath)); Require(exchanges[^1], "POST", StopPath, 200, "CLROS_SERVICE_STOPPED");
-        string report = JsonSerializer.Serialize(new { schema = Schema, port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges }, JsonOptions);
-        _ = InspectOutput(report); await output.WriteLineAsync(report);
+        string report = lifecycle
+            ? JsonSerializer.Serialize(new { schema = "clros.nativeaot.service.peer.v2", port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges, lifecycle = lifecycleObservation }, JsonOptions)
+            : JsonSerializer.Serialize(new { schema = Schema, port, durationMilliseconds = clock.ElapsedMilliseconds, connectAttempts = attempts, exchanges }, JsonOptions);
+        _ = InspectOutput(report, lifecycle); await output.WriteLineAsync(report);
     }
 
     /// <summary>Real loopback transport seam with the ordinary20-second bound.
@@ -181,12 +194,15 @@ public static class NativeAotServicePeer
         return new(status, date, chunked ? decoded!.AsSpan(0, bodyBytes).ToArray() : bytes.AsSpan(headerBytes, bodyBytes).ToArray());
     }
 
-    private static (int Status, DateTimeOffset Date, int Length) ResponseHead(ReadOnlySpan<byte> bytes)
+    internal static (int Status, DateTimeOffset Date, int Length) ResponseHead(ReadOnlySpan<byte> bytes,
+        int maximumBody = 8192, bool allowBadRequest = false)
     {
+        Need(maximumBody is >= 0 and <= 524288, "http_body_limit");
         foreach (byte value in bytes) Need(value is 10 or 13 or >= 32 and <= 126, "http_headers");
         string[] rows = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
         Need(rows.Length is >= 2 and <= 64 && rows.All(row => row.Length is > 0 and <= 8192 && row.All(c => c is >= ' ' and <= '~')), "http_headers");
-        int status = rows[0] switch { "HTTP/1.1 200 OK" => 200, "HTTP/1.1 409 Conflict" => 409, _ => 0 };
+        int status = rows[0] switch { "HTTP/1.1 200 OK" => 200, "HTTP/1.1 409 Conflict" => 409,
+            "HTTP/1.1 400 Bad Request" when allowBadRequest => 400, _ => 0 };
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
         foreach (string row in rows.Skip(1))
         {
@@ -199,7 +215,7 @@ public static class NativeAotServicePeer
         bool dateValid = DateTimeOffset.TryParseExact(dateText, "r", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date);
         bool chunked = headers.TryGetValue("Transfer-Encoding", out string? encoding);
         Need(status != 0 && headers.GetValueOrDefault("Connection") == "close" && !headers.ContainsKey("Trailer") &&
-            (chunked ? encoding == "chunked" && text is null : lengthValid && length is >= 0 and <= 8192 && text == length.ToString(CultureInfo.InvariantCulture)) &&
+            (chunked ? encoding == "chunked" && text is null : lengthValid && length >= 0 && length <= maximumBody && text == length.ToString(CultureInfo.InvariantCulture)) &&
             dateValid && date.Offset == TimeSpan.Zero && dateText == date.ToString("r", CultureInfo.InvariantCulture), "http_headers");
         return (status, date, chunked ? -1 : length);
     }
@@ -228,18 +244,22 @@ public static class NativeAotServicePeer
     /// <summary>Validate a complete bounded supplied report: fixed request
     /// order/status/bodies, real recorded peer duration, advancing successful
     /// application samples and strict stop thresholds. Unknown/duplicate fields,
-    /// regressions and malformed JSON reject. Supplied text never creates an
-    /// owned Completion or proves native/packet/guest cleanup.</summary>
-    public static Inspection InspectOutput(string text)
+    /// regressions and malformed JSON reject. Explicit lifecycle mode requires
+    /// v2 and its validated observation; the default accepts only v1.
+    /// Supplied text never creates an owned Completion or proves
+    /// native/packet/guest cleanup.</summary>
+    public static Inspection InspectOutput(string text, bool lifecycle = false)
     {
         Need(text.Length <= 65536 && Encoding.UTF8.GetByteCount(text) <= 65536, "report_bounds");
         try
         {
             using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 5 }); var root = document.RootElement;
-            Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges");
-            Need(root.GetProperty("schema").GetString() == Schema, "schema");
+            if (lifecycle) Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges", "lifecycle");
+            else Fields(root, "schema", "port", "durationMilliseconds", "connectAttempts", "exchanges");
+            Need(root.GetProperty("schema").GetString() == (lifecycle ? "clros.nativeaot.service.peer.v2" : Schema), "schema");
             long port = Number(root, "port"), duration = Number(root, "durationMilliseconds"), attempts = Number(root, "connectAttempts");
             Need(port is >= 1 and <= 65535 && duration is > 300_000 and < 800_000 && attempts is >= 1 and <= 400, "report_ranges");
+            var observation = lifecycle ? ReadLifecycle(root.GetProperty("lifecycle"), (int)port) : null;
             var array = root.GetProperty("exchanges"); Need(array.ValueKind == JsonValueKind.Array && array.GetArrayLength() is >= 10 and <= 73, "exchange_count");
             List<Exchange> exchanges = []; long previous = 0; DateTimeOffset priorDate = DateTimeOffset.MinValue;
             foreach (var row in array.EnumerateArray())
@@ -270,10 +290,28 @@ public static class NativeAotServicePeer
             Need(samples >= 2 && Ready(prior) && exchanges[^3].CompletedMilliseconds - exchanges[3].CompletedMilliseconds > 300_000, "stop_thresholds");
             Require(exchanges[^2], "GET", "/healthz", 200, "CLROS_SERVICE_HEALTH_OK"); Require(exchanges[^1], "POST", StopPath, 200, "CLROS_SERVICE_STOPPED");
             Need(DateTimeOffset.Parse(exchanges[^1].DateUtc, CultureInfo.InvariantCulture) - DateTimeOffset.Parse(exchanges[0].DateUtc, CultureInfo.InvariantCulture) >= TimeSpan.FromSeconds(300), "date_progress");
-            return new((int)port, exchanges.Count, samples, duration, prior.Calls, prior.RandomBytes);
+            return new((int)port, exchanges.Count, samples, duration, prior.Calls, prior.RandomBytes) { Lifecycle = observation };
         }
         catch (JsonException) { throw new ToolFailure("service_peer_json"); }
         catch (InvalidOperationException) { throw new ToolFailure("service_peer_json_shape"); }
+    }
+
+    private static NativeAotServiceLifecyclePeer.Observation ReadLifecycle(JsonElement value, int port)
+    {
+        Fields(value, "port", "sequentialConnections", "echoBytes", "echoHash", "streamBytes", "streamSha256",
+            "resetRequests", "timeoutRequests", "holdStartedTicks", "healthyCompletedTicks", "holdReleasedTicks", "terminalStatus");
+        int Integer(string name)
+        {
+            long number = Number(value, name);
+            Need(number is >= int.MinValue and <= int.MaxValue, "lifecycle_number"); return (int)number;
+        }
+        long hash = Number(value, "echoHash"); Need(hash is >= 0 and <= uint.MaxValue, "lifecycle_number");
+        var observation = new NativeAotServiceLifecyclePeer.Observation(Integer("port"), Integer("sequentialConnections"),
+            Integer("echoBytes"), (uint)hash, Integer("streamBytes"), Text(value, "streamSha256"), Integer("resetRequests"),
+            Integer("timeoutRequests"), Number(value, "holdStartedTicks"), Number(value, "healthyCompletedTicks"),
+            Number(value, "holdReleasedTicks"), Text(value, "terminalStatus"));
+        Need(observation.Port == port, "lifecycle_port");
+        NativeAotServiceLifecyclePeer.Validate(observation); return observation;
     }
 
     private static bool Ready(ServiceStatus value) => value.Phase == 1 && value.Failure == 0 && value.ManagedWorkerId > 0 &&

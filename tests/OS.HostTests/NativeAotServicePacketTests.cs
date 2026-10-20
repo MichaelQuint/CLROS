@@ -78,7 +78,7 @@ internal static class NativeAotServicePacketTests
         return new(frames, original.Anchor, original.Arp, ports, report.ToJsonString());
     }
 
-    private static JsonObject Peer()
+    internal static JsonObject Peer()
     {
         string Status(int phase, int worker, long calls, long elapsed) => new JsonObject { ["contract"] = "clros.service.v1", ["phase"] = phase,
             ["failure"] = 0, ["managedWorkerId"] = worker, ["calls"] = calls, ["randomRequests"] = phase == 0 ? 0 : 1,

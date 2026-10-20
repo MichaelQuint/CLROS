@@ -173,6 +173,40 @@ public static unsafe partial class TcpSendWindow
         owner->RetryAt = Deadline(now, owner->Rto); return Status.Success;
     }
 
+    /// <summary>After the serialized socket owner removes the last fd, signal
+    /// unread-data loss with RST|ACK at this exact connection's current sequences.
+    /// Require write shutdown and retained unread bytes. Copied-TX pressure keeps
+    /// all ownership for retry within the existing close deadline, including
+    /// TIME-WAIT; Timeout requires RetireTimedOut and claims no transmitted reset.
+    /// ConnectionReset means copied output and exact table closure, not delivery.
+    /// Other failures retain backing; sender/receiver closed reap is still owned
+    /// by the caller. Never use this for a live duplicate fd or SHUT_WR alone.</summary>
+    public static Status ResetUnread(Owner* owner, Span<byte> output,
+        out TcpEstablishedStreamIpv4FramePlanResult packet)
+    {
+        packet = default;
+        var status = Validate(owner, out var entry); if (status != Status.Success) return status;
+        if (owner->CloseEnabled == 0 || owner->WriteShutdown == 0 || owner->CloseDeadline == 0 ||
+            owner->Receiver->UnreadBytes == 0) return Status.InvalidState;
+        status = Time(owner, out ulong now); if (status != Status.Success) return status;
+        // Ordinary TIME-WAIT bypasses the close budget; explicit unread abort
+        // must still terminate a connection whose reset cannot enter copied TX.
+        if (now >= owner->CloseDeadline)
+        { owner->Phase = 2; owner->TimeoutError = 1; return Status.Timeout; }
+        if (output.Length < 54) return Status.OutputTooSmall;
+        fixed (byte* bytes = output)
+            if (!Outside(owner, bytes, (ulong)output.Length)) return Status.InvalidStorage;
+        var receiver = owner->Receiver;
+        var stream = TcpEstablishedStream.Create(entry.Key.LocalPort, entry.Key.RemotePort, owner->Next, receiver->RemoteNext, Span<byte>.Empty);
+        if (TcpEstablishedStreamIpv4FramePlanner.TryWriteControlFrame(ref stream, receiver->Info, 0, 0x14, output, out packet) !=
+            TcpEstablishedStreamIpv4FramePlanStatus.Success) return Status.InvalidPacket;
+        byte sent;
+        fixed (byte* bytes = output) sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
+        if (sent == 0) return Status.WouldBlock;
+        if (sent != 1) { owner->Phase = 2; return Status.SendFailed; }
+        status = AbortCore(owner, true); return status == Status.Success ? Status.ConnectionReset : status;
+    }
+
     /// <summary>Explicitly abandon the exact held connection after a caller
     /// abort or failed send/clock/timeout. Accept active or faulted retained
     /// metadata, stop retries and close its table entry without releasing or

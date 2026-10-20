@@ -509,7 +509,13 @@ extending the metadata reader's contract to general EH. #90 remains open.
   parsing for `ReadOnlySpan<byte>` ASCII input. It parses `uint` and `ulong`
   values, accepts an optional `0x` or `0X` prefix, rejects empty, prefix-only,
   non-hex, and overflow input with status-coded results, and leaves
-  default/zero results out of success evidence.
+  default/zero results out of success evidence. Step1449 adds a separate
+  `TryParseUInt64(byte*, uint, out ulong)` partial for freestanding callers:
+  complete borrowed ASCII input, optional `0x`/`0X`, no allocations or exceptions,
+  boolean success and zero output on failure. Null, empty, wrapping, malformed
+  and overflowing ranges fail; the caller supplies readable storage disjoint
+  from the output. No pointer `uint`, signed, culture or partial-token overload
+  is provided. Host checks pass; original native and guest validation is pending.
 - `OS.Std.Text.AsciiDecimalFormatter` provides allocation-free signed and
   unsigned decimal formatting for `int`, `long`, `uint`, and `ulong` into caller-owned `Span<byte>`
   buffers. It exposes digit-count helpers for the same signed and unsigned
@@ -1713,6 +1719,9 @@ because it is an OS-specific byte-span parser for ASCII hexadecimal text. It
 accepts only unsigned values and an optional `0x` or `0X` prefix. It does not
 accept signs, whitespace, thousands separators, decimal-only culture-specific
 digits, Unicode digits, floating-point values, or partial token parsing.
+The pointer partial supports only the unsigned64-bit boolean/out overload;
+its borrowed-memory lifetime and zero-on-failure contract differ from the
+span overloads' status results. It does not verify arbitrary address readability.
 
 The current `OS.Std.Text.AsciiDecimalFormatter` type intentionally lives under
 `OS.Std.Text`, not `System.UInt32`, `System.UInt64`, `System.Number`, or

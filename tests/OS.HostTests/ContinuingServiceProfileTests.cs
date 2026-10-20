@@ -3,6 +3,45 @@ using OS.Tooling;
 
 internal static class ContinuingServiceProfileTests
 {
+    [HostTest("service lifecycle option remains default off and parses explicit true false without enabling a guest")]
+    private static void LifecycleOption()
+    {
+        HostCheck.True(!new QemuSmokeOptions().ServiceLifecycle && !QemuSmokeOptions.Parse().ServiceLifecycle);
+        var enabled = QemuSmokeOptions.Parse("--service-lifecycle");
+        HostCheck.True(enabled.ServiceLifecycle && enabled.Explicit.Contains("ServiceLifecycle"));
+        HostCheck.True(!QemuSmokeOptions.Parse("-ServiceLifecycle:false").ServiceLifecycle);
+        bool rejected = false;
+        try { _ = QemuSmokeOptions.Parse("--service-lifecycle=invalid"); } catch (ArgumentException) { rejected = true; }
+        HostCheck.True(rejected);
+    }
+
+    [HostTest("service lifecycle selection requires the explicit continuing service parent and preserves inherited policy")]
+    private static void LifecycleSelection()
+    {
+        var options = new QemuSmokeOptions { ServiceLifecycle = true };
+        Reject(() => QemuProfiles.Create(options), "service_lifecycle_requires_service_profile");
+        options.BuildEfi = true; options.FirmwareRngSource = "virtio";
+        options.LinuxElfPackage = "service-v2.pkg"; options.LinuxThreadingDisassembly = "service-v2.dump";
+        options.Flags["EnableM16014Probe"] = true;
+        var plan = QemuProfiles.Create(options);
+        HostCheck.True(options.ServiceLifecycle && plan.IsEnabled("EnableM16014Probe") && plan.IsEnabled("EnableM10004Probe"));
+        HostCheck.Equal(900, options.TimeoutSeconds);
+    }
+
+    [HostTest("service lifecycle launch requires original package admission before starting children")]
+    private static async Task LifecycleInputAdmission()
+    {
+        string prefix = Path.Combine(Path.GetTempPath(), "clros-service-lifecycle-" + Guid.NewGuid().ToString("N"));
+        var options = new QemuSmokeOptions { ServiceLifecycle = true, BuildEfi = true, FirmwareRngSource = "virtio",
+            LinuxElfPackage = prefix + ".pkg", LinuxThreadingDisassembly = prefix + ".dump",
+            SerialLog = prefix + ".serial", SummaryLog = prefix + ".summary" };
+        options.Flags["EnableM16014Probe"] = true; int children = 0; using var output = new StringWriter();
+        int result = await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (_, _) => { children++; throw new InvalidOperationException("Unexpected lifecycle child."); });
+        HostCheck.Equal(1, result); HostCheck.Equal(0, children);
+        HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke", StringComparison.Ordinal) &&
+            output.ToString().Contains(Path.GetFileName(options.LinuxElfPackage), StringComparison.Ordinal));
+    }
+
     [HostTest("continuing service remains default off and explicitly inherits the owned web stack")]
     private static void Selection()
     {

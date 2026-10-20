@@ -161,10 +161,10 @@ internal static unsafe class LinuxSocketMessageTests
                 case "header-cross-hole": address = User + 32768 - 32; break;
                 case "null-vector": header[2] = 0; break;
                 case "vector-cross-hole": header[2] = User + 32768 - 16; break;
-                case "count": header[3] = 17; expected = -22; break;
+                case "count": header[3] = 1025; expected = -22; break;
                 case "count-high": header[3] = 1UL << 32; expected = -22; break;
                 case "length": table[1] = ulong.MaxValue; expected = -22; break;
-                case "sum": table[1] = 65535; table[3] = 2; expected = -22; break;
+                case "sum": table[1] = 1048575; table[3] = 2; expected = -22; break;
                 case "null-body": table[0] = 0; break;
                 case "body-hole": table[0] = User + 32768; break;
                 case "body-wrap": table[0] = ulong.MaxValue; table[1] = 2; break;

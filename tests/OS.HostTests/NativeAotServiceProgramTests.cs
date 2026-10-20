@@ -19,10 +19,13 @@ internal static class NativeAotServiceProgramTests
         HostCheck.Equal(2, report.InstructionCount); HostCheck.Equal(1, report.SyscallCount);
         HostCheck.Equal(64, report.Sha256.Length);
         string root = Path.Combine(Path.GetTempPath(), "clros-nonexistent-service-" + Guid.NewGuid().ToString("N"));
-        bool rejected = false;
-        try { NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf), dump); }
-        catch (InvalidDataException error) { rejected = error.Message == "service_package_identity"; }
-        HostCheck.True(rejected);
+        foreach (bool lifecycle in new[] { false, true })
+        {
+            bool rejected = false;
+            try { NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf, lifecycle), dump, lifecycle); }
+            catch (InvalidDataException error) { rejected = error.Message == "service_package_identity"; }
+            HostCheck.True(rejected);
+        }
     }
 
     [HostTest("nativeaot.service offline report rejects changed bytes duplicate order padding and data rows")]

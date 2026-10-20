@@ -105,6 +105,8 @@ public static partial class EfiContracts
         [@"..\..\std\no-runtime\shared\Hash\HmacSha256.cs"] = "reviewed_m11_012_hmac_source_identity",
         [@"..\..\std\no-runtime\shared\Hash\HmacSha256Drbg.cs"] = "reviewed_m11_012_drbg_source_identity",
         [@"..\..\std\no-runtime\shared\Memory\SensitiveMemory.cs"] = "reviewed_sensitive_memory_source_identity",
+        [@"..\OS.Kernel\Manifest\LinuxAppConfiguration.cs"] = "reviewed_m16_016_gc_budget_preflight",
+        [@"..\..\std\no-runtime\shared\Text\AsciiHexParser.Pointer.cs"] = "reviewed_m16_016_gc_hex_parser",
         [@"..\OS.Kernel\Manifest\LinuxElfPackage.cs"] = "reviewed_m16_002_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs"] = "reviewed_filtered_catch_source_identity",
         [@"Runtime\FilteredCatchProbe.cs"] = "reviewed_filtered_catch_source_identity",

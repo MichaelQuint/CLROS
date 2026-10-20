@@ -1,27 +1,33 @@
 # CLROS Completion Gates
 
-[Owned development receipt](../done/step1422.md) is a development checkpoint for #743/#744/#757
-transport repairs and #746 policy contracts. Its 127 focused checks span
-multiple development producers; they are not an unfiltered full-host run.
-[Step1421](../done/step1421.md) adds default-off native service/compact TIME-WAIT
-wiring and shared HMAC_DRBG development, with63 focused checks across multiple
-producers and no-stdlib C# compilation. [Step1423](../done/step1423.md) wires the
-service entropy adapter/source/cleanup with30 focused startup checks and C#
-compilation. [Step1424](../done/step1424.md) adds separately seeded/leased TCP
-ISN development with6 independent policy checks,27 network checks and C#
-compilation. Actual guest entropy/ISNs, the complete service runner,
-original native review and stable-batch full-host/QEMU/PCAP
-qualification remain pending. These six tickets and #766 stay open.
-[Step1425](../done/step1425.md) adds development-only empty-send capacity repair
-with24 focused host checks and service/finite-web C# compilation. Its original
-native review and finite vector/socket guest regression remain pending.
-No gate advances.
+[Step1477](../done/step1477.md) is the current development checkpoint for
+PR786 under #737. At exact implementation `810b3eef`, the corrected awaited
+runner completes 5,917 full-host checks across 792 fixtures (94 Native), with
+unchanged inputs and zero reuse. One original configured v2 service capture
+passes for 826,707ms, including the directed unread-close reset, pressure/recovery,
+HTTP, shutdown and reaps. Fifteen individual ancestor profiles pass with original
+source/object/EFI joins; this is an incomplete validation matrix.
 
-[Step1426](../done/step1426.md) adds the distinct service fixture and canonical
-bounded envelope, with9 focused checks and two Windows rejection controls.
-Neither envelope validation nor compilation executes the service worker or
-admits its ELF to a guest. The service runner remains guarded pending its own
-publication/source/decoder and complete lifecycle/packet validation.
+The remaining original v1 service producer fails its consumer on two legitimate,
+byte-identical reopen ACKs. Its successful raw terminal does not override that
+failure. A host-only reader repair now binds the first matching wire occurrence;
+three focused checks pass, including the duplicate ACK regression. This newer
+reader/test source has no new full-host or original v1 guest acceptance. Five
+memory controls did not run. Preserve the failed controllers and original inputs.
+
+All 16 affected issues remain open; the seven step1437 prerequisites remain
+reopened. No acceptance is restored by merging this checkpoint. Next finish the
+v1 producer and five memory controls, review the exact acceptance criteria, then
+reconcile only supported closures. #748 and #225 additionally lack quota-triggered
+offending-workload termination and cleanup. The 36MiB dynamic pool is shared:
+16MiB GC plus declared 20MiB native headroom does not enforce separate partitions.
+Native saturation occurs before listening and after drain, not concurrently with
+request churn. General Kestrel/Gate14, isolation, cloud and production remain
+incomplete. See step1477 for exact receipts, retained failures and restart order.
+
+Development history is retained unchanged in [steps1426–1437](../done/step1437.md)
+and [steps1438–1476](../done/step1476.md). Those dated receipts preserve their
+original source, failures and scope; step1477 supersedes their pending-run status.
 
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 `88b02b4d`: 5,676 unchanged unfiltered full-host checks/757 fixtures (94 Native),
@@ -133,7 +139,10 @@ stay open.
 - Step1437 qualifies #224's persist, compact TIME-WAIT, continuing execution,
   replenished randomness, pending-reset, continuing-ISN and empty-send
   prerequisites: one complete service lifetime plus ten affected ancestors and
-  5,809 full-host checks. #224 still requires repeated-service acceptance.
+  5,809 observed host markers. M11-026/#784 found13 unawaited async cases:
+  full-host qualification is withheld pending a corrected unfiltered run.
+  Independent original guest/native receipts remain retained. #224 additionally
+  requires the harness repair and repeated-service acceptance.
   #225 additionally requires fragmented backing, guest-verified GC/native
   budgets and M16-020 pending-signal checks before renewed waits. The existing
   #226 -> #227 evidence and local Gate 14 closure chain remains authoritative.

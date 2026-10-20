@@ -93,11 +93,11 @@ public static class LinuxThreadProofFixture
 
     // The two mechanical consumers share only fixed ELF/package geometry;
     // their instruction streams, protocol and acceptance remain independent.
-    internal static byte[] CreateMechanicalPackage(byte[] elf, string variant, string appPath, bool userInterrupts = false)
+    internal static byte[] CreateMechanicalPackage(byte[] elf, string variant, string appPath, bool userInterrupts = false, bool socketListener = false)
     {
         byte[] manifest = Encoding.ASCII.GetBytes("format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" +
             "app.path=" + appPath + "\nargs=" + variant + "\ndigest=" + Convert.ToHexString(SHA256.HashData(elf)).ToLowerInvariant() +
-            "\nmemory=67108864\nstack=65536\nthreads=2\ndescriptors=16\nlisten=127.0.0.1:8080\n" + (userInterrupts ? "env.CLROS_USER_IRQS=1\n" : ""));
+            "\nmemory=67108864\nstack=65536\nthreads=2\ndescriptors=16\nlisten=" + (socketListener ? "0.0.0.0" : "127.0.0.1") + ":8080\n" + (userInterrupts ? "env.CLROS_USER_IRQS=1\n" : ""));
         byte[] package = new byte[64 + manifest.Length + elf.Length];
         BinaryPrimitives.WriteUInt64LittleEndian(package, LinuxElfPackage.Magic);
         BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(8), 1);

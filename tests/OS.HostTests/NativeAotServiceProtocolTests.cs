@@ -2,17 +2,23 @@ using OS.Tooling;
 
 internal static class NativeAotServiceProtocolTests
 {
-    private static NativeAotThreadingTranscriptTests.Vector Vector()
+    private static NativeAotThreadingTranscriptTests.Vector Vector(bool configuredMemory = false, bool largeMapping = false)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         v.Rows[1]=v.Rows[1].Replace("entropyBytes=32","entropyBytes=0",StringComparison.Ordinal);
-        v.Rows[2]=v.Rows[2].Replace("packageBytes=1320176","packageBytes=8413864",StringComparison.Ordinal);
+        if(configuredMemory)v.Rows[1]=v.Rows[1].Replace("poolPages=8192","poolPages=9216",StringComparison.Ordinal);
+        v.Rows[2]=v.Rows[2].Replace("packageBytes=1320176","packageBytes=8488712",StringComparison.Ordinal);
         v.Rows[4]=v.Rows[4].Replace("workers=4","workers=16",StringComparison.Ordinal);
         v.Rows[5]="M16_014_POLICY started=0 callsPerTurn=4096 progressNanos=30000000000 elapsedLimit=none counters=reject-overflow workers=individual cancellation=owned";
         v.Rows.Insert(5,"TEST_START m16.014");
         v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         v.Rows.Insert(v.Rows.FindIndex(row=>row.StartsWith("M16_014_POLICY ",StringComparison.Ordinal))+1,
             "M16_012_POLL identity=0 clock=0 ready=1 idle=0");
+        if(largeMapping)
+        {
+            v.Call(9,0x140000000,[0,33*1048576,3,0x22,uint.MaxValue,0]);
+            v.Call(11,0,[0x140000000,33*1048576]);
+        }
         for(int turn=1;turn<=16;turn++)
         {
             for(int call=0;call<500;call++)v.Call(39,1,[]);
@@ -36,9 +42,9 @@ internal static class NativeAotServiceProtocolTests
             "TEST_PASS m16.014"]);
         return v;
     }
-    private static QemuTranscripts.ThreadingProtocolReport Inspect(NativeAotThreadingTranscriptTests.Vector v,string[]? rows=null) =>
+    private static QemuTranscripts.ThreadingProtocolReport Inspect(NativeAotThreadingTranscriptTests.Vector v,string[]? rows=null,bool configuredMemory=false) =>
         QemuTranscripts.InspectNativeAotServiceProtocolForTests(NativeAotThreadingTranscriptTests.Elf(),rows??v.Rows.ToArray(),
-            v.Lengths,address=>address==0x400202,address=>address==0x400202,8192,12288,31,15,v.Main.Id,1);
+            v.Lengths,address=>address==0x400202,address=>address==0x400202,8192,12288,31,15,v.Main.Id,1,configuredMemory);
     private static void Reject(NativeAotThreadingTranscriptTests.Vector v,string[] rows)
     {
         bool rejected=false;try{Inspect(v,rows);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);
@@ -50,6 +56,16 @@ internal static class NativeAotServiceProtocolTests
         var v=Vector();string[] before=v.Rows.ToArray();var result=Inspect(v);
         HostCheck.True(result.Calls>8000 && result.Irqs==17 && result.Clones==2 && result.Reaped==3 && result.Drains==3);
         HostCheck.True(v.Rows.SequenceEqual(before));
+    }
+
+    [HostTest("configured service replay requires its exact larger policy while legacy memory keeps its original quota")]
+    private static void ConfiguredMemory()
+    {
+        var configured=Vector(configuredMemory:true,largeMapping:true);
+        var result=Inspect(configured,configuredMemory:true);HostCheck.True(result.Calls>8000&&result.Reaped==3);
+        Reject(configured,configured.Rows.ToArray());
+        var legacy=Vector(largeMapping:true);Reject(legacy,legacy.Rows.ToArray());
+        bool rejected=false;try{Inspect(Vector(),configuredMemory:true);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);
     }
 
     [HostTest("service full replay rejects fabricated progress cancellation cleanup and missing off-stack reap")]

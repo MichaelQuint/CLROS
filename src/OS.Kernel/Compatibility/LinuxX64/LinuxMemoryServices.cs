@@ -14,16 +14,31 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// shared/file mappings, overcommit, SMP or process lifetime is implemented.
 /// Linux negative errno values describe rejection; failure leaves the target
 /// root, backing and ownership unchanged (candidate tables are scratch).
+/// One contiguous virtual reservation may use several physical extents, within
+/// the same bounded region inventory. Physical contiguity is not promised.
 /// </summary>
 public static unsafe class LinuxMemoryServices
 {
-    public const uint DefaultPoolPages = 4096, MaximumPoolPages = 8192;
+    /// <summary>Physical capacity selected by ordinary mechanical profiles.</summary>
+    public const uint DefaultPoolPages = 4096;
+    /// <summary>Physical capacity of legacy application profiles.</summary>
+    public const uint ApplicationPoolPages = 8192;
+    /// <summary>Compile-time capacity bound. Only the explicit service diagnostic
+    /// admits its configured larger pool; actual pages remain owner supplied.</summary>
+#if M16_014_PROBE
+    public const uint MaximumPoolPages = OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages;
+#else
+    public const uint MaximumPoolPages = ApplicationPoolPages;
+#endif
+    /// <summary>Interval capacity of the explicit web/service diagnostic build.
+    /// Shared with its offline consumer; normal builds still use64 regions.</summary>
+    public const uint WebMaximumRegions = 256;
 #if M10_004_PROBE
     // Original web startup exhausts 64 intervals before bind and 96 just after
     // bind while physical backing remains available. Its explicit profile admits
     // 256 intervals, with separate room for retained mappings. Physical, virtual,
     // alias and atomic mutation bounds remain unchanged.
-    public const uint MaximumRegions = 256;
+    public const uint MaximumRegions = WebMaximumRegions;
 #else
     public const uint MaximumRegions = 64;
 #endif
@@ -72,6 +87,11 @@ public static unsafe class LinuxMemoryServices
         internal ImageProtection Image;
         public ulong ReservedBytes { get; internal set; }
         public uint BackedPages { get; internal set; }
+        /// <summary>Maximum successfully published dynamic pool backing during
+        /// this one-use state lifetime. Excludes retained static mappings and
+        /// virtual-only reservations; release preserves it, rejection never
+        /// advances it. Observe only under the owner's existing serialization.</summary>
+        public uint PeakBackedPages { get; internal set; }
         public X64UserAddressSpaceResult Root { get; internal set; }
         public readonly bool HasMutationGuard => Guard != null;
         /// <summary>True while one owned image interval differs from its original
@@ -112,7 +132,7 @@ public static unsafe class LinuxMemoryServices
     private static bool Initialize(State* state, Admission memory, X64UserAddressSpaceResult original, bool adopt)
     {
         if (!Storage(state, memory) || state->Initialized != 0 || state->Count != 0 || state->GuardContext != null || state->Guard != null || state->GuardSelf != 0 ||
-            state->ReservedBytes != 0 || state->BackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized ||
+            state->ReservedBytes != 0 || state->BackedPages != 0 || state->PeakBackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized ||
             state->Image.Start != 0 || state->Image.Bytes != 0 || state->Image.Protection != 0)
             return false;
         for (uint i = 0; i < MaximumRegions * 4; i++) if (state->Regions[i] != 0) return false;
@@ -222,9 +242,9 @@ public static unsafe class LinuxMemoryServices
             }
         }
         if (count == WorkingRegions) return NoMemory;
-        Region added = new() { Start = address, Bytes = bytes, Protection = protection, Heap = heap };
-        if (protection != 0 && !Allocate(state->Memory, candidate, count, ref added)) return NoMemory;
-        candidate[count++] = added;
+        uint added = count++;
+        candidate[added] = new() { Start = address, Bytes = bytes, Protection = protection, Heap = heap };
+        if (protection != 0 && !Allocate(state->Memory, candidate, ref count, ref candidate[added])) return NoMemory;
         Sort(candidate, count);
         return Apply(state, candidate, count) == 0 ? (long)address : NoMemory;
     }
@@ -264,7 +284,8 @@ public static unsafe class LinuxMemoryServices
         if (grow)
             for (uint i = 0; i < count; i++)
                 if (candidate[i].Protection != 0 && candidate[i].Backing == 0 &&
-                    !Allocate(state->Memory, candidate, count, ref candidate[i])) return NoMemory;
+                    !Allocate(state->Memory, candidate, ref count, ref candidate[i])) return NoMemory;
+        Sort(candidate, count);
         return Apply(state, candidate, count);
     }
 
@@ -288,7 +309,8 @@ public static unsafe class LinuxMemoryServices
         if (!Covered(candidate, count, address, bytes)) return NoMemory;
         if (!Split(candidate, ref count, address, bytes, protection, false)) return NoMemory;
         for (uint i = 0; i < count; i++)
-            if (candidate[i].Protection != 0 && candidate[i].Backing == 0 && !Allocate(state->Memory, candidate, count, ref candidate[i])) return NoMemory;
+            if (candidate[i].Protection != 0 && candidate[i].Backing == 0 && !Allocate(state->Memory, candidate, ref count, ref candidate[i])) return NoMemory;
+        Sort(candidate, count);
         return Apply(state, candidate, count);
     }
 
@@ -470,7 +492,8 @@ public static unsafe class LinuxMemoryServices
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
             (state->Guard == null ? state->GuardContext != null || state->GuardSelf != 0 :
                 state->GuardContext == null || state->GuardSelf != (ulong)state) ||
-            !Storage(state, state->Memory) || state->Count > MaximumRegions) return false;
+            !Storage(state, state->Memory) || state->Count > MaximumRegions ||
+            state->PeakBackedPages < state->BackedPages || state->PeakBackedPages > state->Memory.PoolPages) return false;
         for (uint i = 0; i < state->Count; i++) if ((state->Regions[i * 4 + 3] & ~0x307UL) != 0) return false;
         Region* regions = stackalloc Region[(int)MaximumRegions];
         uint count = CopyRegions(state, regions);
@@ -518,6 +541,7 @@ public static unsafe class LinuxMemoryServices
             state->Regions[i * 4 + 3] = r.Protection | (r.NoDump ? 0x100UL : 0UL) | (r.Heap ? 0x200UL : 0UL);
         }
         state->Count = count; state->ReservedBytes = reserved; state->BackedPages = backed; state->Root = root;
+        if (backed > state->PeakBackedPages) state->PeakBackedPages = backed;
         return 0;
     }
 
@@ -686,7 +710,38 @@ public static unsafe class LinuxMemoryServices
     private static bool AppendMapping(X64UserMappingRange* mappings, ref uint count, X64UserMappingRange range)
     { if (count == X64UserAddressSpace.MaximumRanges) return false; mappings[count++] = range; return true; }
 
-    private static bool Allocate(Admission memory, Region* regions, uint count, ref Region r)
+    private static bool Allocate(Admission memory, Region* regions, ref uint count, ref Region r)
+    {
+        if (AllocateContiguous(memory, regions, count, ref r)) return true;
+        if (r.Bytes > memory.PoolPages * Page) return false;
+        // Every choice exists only in candidate metadata. A later capacity,
+        // table or mutation-guard rejection discards it without touching bytes.
+        Region reservation = r;
+        ulong remaining = r.Bytes, physical = memory.PoolPhysical, end = physical + memory.PoolPages * Page;
+        while (remaining != 0 && physical < end)
+        {
+            ulong next = end;
+            bool occupied = false;
+            for (uint i = 0; i < count; i++)
+            {
+                Region held = regions[i];
+                if (held.Backing == 0) continue;
+                if (physical >= held.Backing && physical - held.Backing < held.Bytes)
+                { physical = held.Backing + held.Bytes; occupied = true; break; }
+                if (held.Backing > physical && held.Backing < next) next = held.Backing;
+            }
+            if (occupied) continue;
+            ulong bytes = next - physical < remaining ? next - physical : remaining;
+            Region extent = Slice(reservation, reservation.Start + reservation.Bytes - remaining, bytes);
+            extent.Backing = physical; extent.Fresh = true; extent.FreshFrom = 0;
+            if (remaining == reservation.Bytes) r = extent;
+            else if (!Append(regions, ref count, extent)) return false;
+            remaining -= bytes; physical += bytes;
+        }
+        return remaining == 0;
+    }
+
+    private static bool AllocateContiguous(Admission memory, Region* regions, uint count, ref Region r)
     {
         if (r.Bytes > memory.PoolPages * Page) return false;
         for (ulong physical = memory.PoolPhysical; physical <= memory.PoolPhysical + memory.PoolPages * Page - r.Bytes; physical += Page)

@@ -318,6 +318,12 @@ internal static unsafe class M16008EfiIntegrationTests
             HostCheck.Equal(1,ordinal.Body!.Statements.Count);
             HostCheck.Equal(service?"c->Gates[index].TotalCalls":"c->Gates[index].Calls",
                 ((ReturnStatementSyntax)ordinal.Body.Statements.Single()).Expression!.ToString());
+            var socketTree=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.LinuxSockets.cs")),
+                new CSharpParseOptions(preprocessorSymbols:service?["CLROS_LINUX_SOCKETS","M16_014_PROBE"]:["CLROS_LINUX_SOCKETS"]));
+            var message=socketTree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>()
+                .Single(m=>m.Identifier.Text=="ObserveLinuxSocketMessage");
+            var messageOrdinal=message.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="ordinal");
+            HostCheck.Equal("LinuxNativeCallOrdinal(c, c->Selected - 1)",messageOrdinal.Initializer!.Value.ToString());
         }
         var names=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxText")
             .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(14).ToArray();

@@ -123,7 +123,7 @@ public readonly struct AsciiHexUInt64ParseResult
     }
 }
 
-public static class AsciiHexParser
+public static partial class AsciiHexParser
 {
     private const byte Zero = (byte)'0';
     private const byte UpperA = (byte)'A';

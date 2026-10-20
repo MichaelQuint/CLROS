@@ -29,10 +29,15 @@ public static unsafe partial class EfiEntry
                 ? CopyLinuxAlias(c->State, address, source, bytes, true) : (byte)0;
         }
 
-        private static bool LinuxThreadKernelRange(LinuxNativeControl* c, byte* pointer, uint bytes, bool output)
+        // Ordinary copy callbacks retain the 8 KiB ceiling. The synchronous
+        // message observer may explicitly borrow a complete 16 KiB read-only
+        // metadata snapshot; the entire range must fit one owned extent.
+        private static bool LinuxThreadKernelRange(LinuxNativeControl* c, byte* pointer, uint bytes, bool output,
+            uint maximumBytes = 8192)
         {
             ulong address = (ulong)pointer;
-            if (pointer == null || bytes == 0 || bytes > 8192 || address > ulong.MaxValue - bytes) return false;
+            if (maximumBytes != 8192 && (maximumBytes != 16384 || output) ||
+                pointer == null || bytes == 0 || bytes > maximumBytes || address > ulong.MaxValue - bytes) return false;
             Storage* state = c->State;
             if (DescriptorKernelRange(state, pointer, bytes, output) ||
                 FirstExitOwnedArena.InMainStack(state->Arena, address, bytes)) return true;

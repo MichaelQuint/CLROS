@@ -10,7 +10,7 @@ internal static unsafe class LinuxDescriptorServicesTests
     internal struct Model
     {
         public LinuxMemoryServices.Admission Memory;
-        public uint InputCopies, OutputCopies, SinkCalls, SinkBytes, Channel, FailInputAt, FailOutputAt;
+        public uint InputCopies, OutputCopies, SinkCalls, SinkBytes, Channel, FailInputAt, FailOutputAt, MaximumInputBytes;
         public bool FailOutput, FailSink;
         public byte* RequiredOutputSource;
         public fixed byte Sink[8192];
@@ -99,7 +99,8 @@ internal static unsafe class LinuxDescriptorServicesTests
     private static byte CopyIn(void* context, ulong address, byte* destination, uint bytes)
     {
         Model* model = (Model*)context;
-        if (++model->InputCopies == model->FailInputAt) return 0;
+        if (++model->InputCopies == model->FailInputAt ||
+            model->MaximumInputBytes != 0 && bytes > model->MaximumInputBytes) return 0;
         for (uint i = 0; i < bytes; i++)
         { byte* source = UserByte(model, address + i, false); if (source == null) return 0; destination[i] = *source; }
         return 1;

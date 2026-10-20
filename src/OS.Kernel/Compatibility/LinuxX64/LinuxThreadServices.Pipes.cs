@@ -126,7 +126,7 @@ public unsafe partial struct LinuxThreadServices
             {
                 slot->Wait = begin.Wait; slot->WaitSource = 2;
                 slot->WaitCall = slot->Image.Frame; slot->WaitDeadline = 0;
-                if (!WakePipeChanges(flags, before)) return new(LinuxSyscallAction.Rejected);
+                if (!WakePipeChanges(flags, before) || !InterruptPendingWait(flags, slot)) return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Blocked);
             }
             value = slot->PipeOperation.TransferredBytes != 0 ? slot->PipeOperation.TransferredBytes : Again;

@@ -112,7 +112,7 @@ public unsafe partial struct LinuxThreadServices
             if (begin.Succeeded)
             {
                 slot->Wait = begin.Wait; slot->WaitSource = 3;
-                if (!WakeEpollChanges(flags)) return new(LinuxSyscallAction.Rejected);
+                if (!WakeEpollChanges(flags) || !InterruptPendingWait(flags, slot)) return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Blocked);
             }
             value = Again;

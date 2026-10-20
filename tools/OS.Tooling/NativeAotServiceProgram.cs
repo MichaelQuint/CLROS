@@ -9,12 +9,15 @@ namespace OS.Tooling;
 public sealed class NativeAotServiceProgram
 {
     private const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    internal const int ElfBytes = 8_413_864;
-    private const string ElfSha256 = "AE6E0260216B733AFC97600A49EADCA35D749B091DAD5C87B2FD0ABC28597DAF";
+    internal const int ElfBytes = 8_488_712;
+    private const string ElfSha256 = "3F1EF78C8C553C0C626243D2B40D4466B1F730F867D71A2E6A5A7D81AAD9F36E";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
-    private NativeAotServiceProgram(string root, NativeAotInstructionIndex value)
-    { SourceRoot = Path.GetFullPath(root); index = value; }
+    private NativeAotServiceProgram(string root, NativeAotInstructionIndex value, bool lifecycle)
+    { SourceRoot = Path.GetFullPath(root); index = value; Lifecycle = lifecycle; }
+
+    /// <summary>Explicit package/replay contract bound by the preparing factory.</summary>
+    public bool Lifecycle { get; }
 
     /// <summary>Value-only index report; this alone conveys no lookup authority.</summary>
     public readonly record struct Inspection(int InstructionCount, int SyscallCount, string Sha256);
@@ -35,25 +38,27 @@ public sealed class NativeAotServiceProgram
 
     /// <summary>Bind the exact original ELF, canonical service policy, current
     /// sources and reviewed complete index. Input bytes/text stay caller owned
-    /// through return; missing, stale, aliased or substituted inputs reject.</summary>
-    public static NativeAotServiceProgram Create(string root, ReadOnlySpan<byte> package, string dump)
+    /// through return; missing, stale, aliased or substituted inputs reject.
+    /// Explicit lifecycle mode selects the v2 envelope; the default retains
+    /// v1. Both require this publication's exact original image and index.</summary>
+    public static NativeAotServiceProgram Create(string root, ReadOnlySpan<byte> package, string dump, bool lifecycle = false)
     {
-        var view = RequirePackage(package);
+        var view = RequirePackage(package, lifecycle);
         using AuthorityFiles sources = new(); HoldSources(root, sources);
         var parsed = Parse(package.Slice((int)view.PayloadOffset, (int)view.PayloadBytes), dump);
-        // LLVM22.1.3 covers all4,340,559 bytes in five original executable
+        // LLVM22.1.3 covers all4,383,311 bytes in five original executable
         // sections, entry0x408f77 and all198 syscall continuations. Executable
         // load padding grants no starts. This is not a control-flow proof.
-        if (Report(parsed) != new Inspection(1_356_753, 198,
-            "7F2A1FBC6CC07E9D71DB5A72FB7D3684C357AC49DCD0A5F7EB1C17E71BA81C32") ||
+        if (Report(parsed) != new Inspection(1_369_455, 198,
+            "78866A51103A4109A8C053A29EC31B40B09458A7A28730CE33F725ACBB308C9B") ||
             !parsed.SyscallContinuationsValid || !parsed.IsInstruction(0x408f77))
             throw new InvalidDataException("service_instruction_identity");
-        HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed);
+        HoldSources(root, sources); sources.VerifyUnchanged(); return new(root, parsed, lifecycle);
     }
 
-    internal static LinuxElfPackageView RequirePackage(ReadOnlySpan<byte> package)
+    internal static LinuxElfPackageView RequirePackage(ReadOnlySpan<byte> package, bool lifecycle = false)
     {
-        var description = NativeAotServicePackage.Describe(package);
+        var description = NativeAotServicePackage.Describe(package, lifecycle);
         var view = LinuxElfPackage.Validate(package);
         if (view.PayloadBytes != ElfBytes || description.ElfSha256 != ElfSha256)
             throw new InvalidDataException("service_package_identity");
@@ -64,7 +69,7 @@ public sealed class NativeAotServiceProgram
     /// read-only locks. Consume owned snapshots through Create and verify their
     /// unchanged identities. Invalid text, aliases or changing inputs reject;
     /// files remain caller owned and no app/process is started.</summary>
-    public static NativeAotServiceProgram Read(string root, string packagePath, string disassemblyPath)
+    public static NativeAotServiceProgram Read(string root, string packagePath, string disassemblyPath, bool lifecycle = false)
     {
         packagePath = Path.GetFullPath(packagePath); disassemblyPath = Path.GetFullPath(disassemblyPath);
         using AuthorityFiles files = new();
@@ -72,7 +77,7 @@ public sealed class NativeAotServiceProgram
         var dump = files.Open(Path.GetDirectoryName(disassemblyPath)!, disassemblyPath, "service disassembly", "service_instruction_dump", MaximumDisassemblyBytes, singleLink: true);
         AuthorityFiles.RequireDistinct(package, dump);
         var program = Create(root, package.ReadBytes(LinuxElfPackage.MaximumBytes, "service_instruction_package"),
-            dump.ReadUtf8(MaximumDisassemblyBytes, "service_instruction_dump"));
+            dump.ReadUtf8(MaximumDisassemblyBytes, "service_instruction_dump"), lifecycle);
         files.VerifyUnchanged(); return program;
     }
 
@@ -84,9 +89,10 @@ public sealed class NativeAotServiceProgram
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
         ("tools/OS.Tooling/NativeAotWebPayload.cs", "CEDB569E9AAF83AFE0377617A0440A08A8D7EDBE8145DFA1D7E8CF30B853A408"),
         ("tools/OS.Tooling/NativeAotSocketFixturePublisher.cs", "A9029B6AFD17828D7182B7BFC2E971857BDF9469BA38D570AC6E6EBBCD197494"),
-        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "7E6900C3910D436DCEB536312134A99319379EE7FE3A62136848B2C35B32C51D"),
-        ("apps/MinimalApiService/MinimalApiService.csproj", "0B267A2A4EE1B931BF1CAD5DC025356345EE74AE8463D1A16B8C27A8D6C5B5D7"),
-        ("apps/MinimalApiService/Program.cs", "DC48006F173CCD125EFDA43E361CEE73B8BBFB968ED0D1BCA20D04C4E78296A0"),
+        ("tools/OS.Tooling/NativeAotServicePublisher.cs", "6D6E68A049B998A0249D0AD7E0CBB78D82BA269FC0E76DFF5B8BC053A2A31721"),
+        ("apps/MinimalApiService/MinimalApiService.csproj", "34B6A796F2F0B3F1A404A5CF13882FB57DF8BF248210096D5D65768FDCA740F3"),
+        ("apps/MinimalApiService/Program.cs", "AB5BC7AFAAEFC18F89368280658112A2FFEB90930EE7CDB43AD8391E2748175A"),
+        ("apps/MinimalApiService/ServiceLifecycleExercise.cs", "86712B104BEACD7FDD13DA7F7BA25D94D24FF642C6581E0A34C98D8CCAB5123B"),
         ("apps/MinimalApiService/ServiceExercise.cs", "971B8D504D3EA66A28576A89E221C9EB25E1D161BE2DAE4E150C06F15929EC80"),
         ("apps/MinimalApiService/appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5")];
 

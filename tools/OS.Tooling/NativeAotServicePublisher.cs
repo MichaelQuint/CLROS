@@ -7,17 +7,18 @@ public static class NativeAotServicePublisher
 {
     public const string Application = NativeAotServicePackage.Application;
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "service", [
-        ("Program.cs", "DC48006F173CCD125EFDA43E361CEE73B8BBFB968ED0D1BCA20D04C4E78296A0"),
+        ("Program.cs", "AB5BC7AFAAEFC18F89368280658112A2FFEB90930EE7CDB43AD8391E2748175A"),
+        ("ServiceLifecycleExercise.cs", "86712B104BEACD7FDD13DA7F7BA25D94D24FF642C6581E0A34C98D8CCAB5123B"),
         ("ServiceExercise.cs", "971B8D504D3EA66A28576A89E221C9EB25E1D161BE2DAE4E150C06F15929EC80"),
         ("appsettings.json", "B2F356A9CD23F432F5E19AD6AD72844E5C5331587DAB81C67722016CE6447AB5"),
-        (Application + ".csproj", "0B267A2A4EE1B931BF1CAD5DC025356345EE74AE8463D1A16B8C27A8D6C5B5D7")]);
+        (Application + ".csproj", "34B6A796F2F0B3F1A404A5CF13882FB57DF8BF248210096D5D65768FDCA740F3")]);
 
     /// <summary>Require the exact original compiler command; substitute only
     /// application/output. Returned fresh arguments grant planning authority,
     /// not publication or execution authority. Changed/duplicate recipes throw.</summary>
     public static string[] PublishArguments(string originalCommands, string destination) => Publisher.PublishArguments(originalCommands, destination);
 
-    /// <summary>Read-only check of four exact app files and absent policy/source
+    /// <summary>Read-only check of five exact app files and absent policy/source
     /// overrides. Caller retains plain stable files; bin/obj are excluded.
     /// Source identity alone grants neither publication nor executable authority.</summary>
     public static void RequireCurrentSources(string root) => Publisher.RequireCurrentSources(root);

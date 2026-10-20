@@ -108,6 +108,7 @@ public static partial class QemuTranscripts
         try
         {
             Need(string.Equals(Path.GetFullPath(root), peer.Root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) &&
+                options.ServiceLifecycle == peer.Lifecycle &&
                 string.Equals(Path.GetFullPath(options.SerialLog, root), peer.SerialPath, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal) &&
                 string.Equals(Path.GetFullPath(options.SerialLog + ".peer.log", root), peer.Path, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal),
                 "service_peer_owner");

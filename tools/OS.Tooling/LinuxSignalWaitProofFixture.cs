@@ -9,12 +9,15 @@ public static partial class LinuxSignalProofFixture
     public static IReadOnlyList<string> WaitVariants { get; } = Array.AsReadOnly<string>(
         ["SignalPipeEintr","SignalPipeRestart","SignalFutexEintr","SignalFutexRestart","SignalPipePartial"]);
     public const int WaitElfBytes = 0xa000, WaitChildOffset = 0x800;
+    /// <summary>Canonical mechanical pipe race: wake, queue directed signal,
+    /// consume readiness before the parent retries. Construction grants no execution.</summary>
+    public const string StolenWaitVariant = "SignalPipeStolen";
     // HandlerStackOut occupies [0x11a0,0x11b8), including its ss_size word.
     public const int WaitPair = 0x11c0, WaitTid = 0x11b8, WaitClearTid = 0x11bc, WaitWord = 0x11d0;
     public const int WaitPayload = 0x7000, WaitRead = 0x9000;
 
     /// <summary>Exact canonical blocked-wait selector; a name alone grants no package authority.</summary>
-    public static bool IsWaitVariant(string variant) => WaitVariants.Contains(variant,StringComparer.Ordinal);
+    public static bool IsWaitVariant(string variant) => variant is StolenWaitVariant or EpollStolenWaitVariant || WaitVariants.Contains(variant,StringComparer.Ordinal);
     /// <summary>Actual flattened user call order: parked parent, sending child,
     /// resumed handler/restorer, optional real reissued syscall, then parent exit.
     /// Reissued calls repeat the original instruction RIP and receive a new ordinal.
@@ -26,7 +29,9 @@ public static partial class LinuxSignalProofFixture
     private static (byte[] Elf,Invocation[] Calls,WaitInvocation[] Steps) BuildWait(string variant)
     {
         if(!IsWaitVariant(variant)) throw new ToolFailure("m16_009_wait_variant");
+        if(variant==EpollStolenWaitVariant) return BuildEpollStolenWait();
         bool futex=variant.StartsWith("SignalFutex",StringComparison.Ordinal), partial=variant=="SignalPipePartial";
+        bool stolen=variant==StolenWaitVariant;
         bool restart=variant.EndsWith("Restart",StringComparison.Ordinal), flag=restart||partial;
         byte[] elf=new byte[WaitElfBytes]; LinuxThreadProofFixture.CreateMechanicalImage(Witness).CopyTo(elf,0);
         // Three extra RW pages keep the 4100-byte write and 4096-byte read
@@ -68,6 +73,7 @@ public static partial class LinuxSignalProofFixture
         }
         else
         {
+            if(stolen){Fd(p,parent,1,false,Address(WaitPayload),1);p.Compare(1);}
             if(!restart){Fd(p,parent,0,true,Address(WaitRead),1);p.Compare(1);}
             p.Memory(WaitRead,0x5a);
         }
@@ -78,8 +84,10 @@ public static partial class LinuxSignalProofFixture
         if(p.Position>WaitChildOffset)throw new ToolFailure("m16_009_wait_parent_overlap");
 
         c.Fs();c.Compare(0x2468ace0);Call(c,child,39);c.Compare(1);Call(c,child,186);c.Compare(2);
+        if(stolen){Fd(c,child,1,false,Address(WaitPayload),1);c.Compare(1);}
         Call(c,child,234,1,1,10);c.Compare(0);
         if(futex){c.Store32(WaitWord,1);Call(c,child,202,Address(WaitWord),129,1);c.Compare(0);}
+        else if(stolen){Fd(c,child,0,true,Address(WaitRead),1);c.Compare(1);c.Memory(WaitRead,0x5a);}
         else if(!partial){Fd(c,child,1,false,Address(WaitPayload),1);c.Compare(1);}
         Call(c,child,60,7);c.JumpFailure();
         if(c.Position>HandlerOffset)throw new ToolFailure("m16_009_wait_child_overlap");

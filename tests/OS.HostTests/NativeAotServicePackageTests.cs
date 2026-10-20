@@ -31,6 +31,40 @@ internal static class NativeAotServicePackageTests
         HostCheck.True(held.AsSpan().SequenceEqual(package));
     }
 
+    [HostTest("service lifecycle package seals explicit v2 arguments and settings while rejecting crossed modes")]
+    private static unsafe void LifecyclePolicy()
+    {
+        byte[] elf = Image(), original = NativeAotServicePackage.Create(elf), lifecycle = NativeAotServicePackage.Create(elf, lifecycle: true);
+        HostCheck.Equal(NativeAotServicePackage.Describe(original).ElfSha256, NativeAotServicePackage.Describe(lifecycle, lifecycle: true).ElfSha256);
+        Reject(lifecycle);
+        bool rejected = false;
+        try { _ = NativeAotServicePackage.Describe(original, lifecycle: true); } catch (InvalidDataException) { rejected = true; }
+        HostCheck.True(rejected && !original.AsSpan().SequenceEqual(lifecycle));
+        var view = LinuxElfPackage.Validate(lifecycle);
+        byte[] manifest = lifecycle.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
+        string text = Encoding.ASCII.GetString(manifest);
+        HostCheck.True(text.Contains("args=--clros-service=v2 --urls=http://0.0.0.0:8080 --contentRoot /app/apps\n", StringComparison.Ordinal));
+        HostCheck.Equal(3U, NativeAotServicePackage.Describe(lifecycle, lifecycle: true).Environment);
+        HostCheck.True(text.Contains("env.DOTNET_GCHeapHardLimit=1000000\n", StringComparison.Ordinal));
+        fixed (byte* p = manifest)
+        {
+            var budget = LinuxAppConfiguration.ReadGcBudget(p, (uint)manifest.Length, view.Manifest, 8192, 16 * 1024 * 1024, 16 * 1024 * 1024, true);
+            HostCheck.True(budget.Succeeded); HostCheck.Equal(NativeAotServicePackage.LifecycleGcLimitBytes, budget.GcLimitBytes);
+        }
+        foreach (byte[] changed in new[]
+        {
+            NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(NativeAotServicePackage.SettingsJson), manifest),
+            NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(NativeAotServicePackage.LifecycleSettingsJson), Encoding.ASCII.GetBytes(text.Replace("--clros-service=v2", "--clros-service=v1", StringComparison.Ordinal))),
+            NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(NativeAotServicePackage.LifecycleSettingsJson), Encoding.ASCII.GetBytes(text.Replace("1000000\n", "800000\n", StringComparison.Ordinal))),
+            NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(NativeAotServicePackage.LifecycleSettingsJson), Encoding.ASCII.GetBytes(text.Replace("env.DOTNET_GCHeapHardLimit=1000000\n", "", StringComparison.Ordinal)))
+        })
+        {
+            rejected = false;
+            try { _ = NativeAotServicePackage.Describe(changed, lifecycle: true); } catch (InvalidDataException) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+    }
+
     [HostTest("service package rejects valid generic envelopes with broadened or mismatched service policy")]
     private static void Policy()
     {

@@ -9,7 +9,8 @@ namespace OS.Tools.QemuRunner;
 
 /// <summary>Bounded raw controls alongside the ordinary service HTTP peer.
 /// Reserve three loopback ports for this owner's entire lifetime. One control
-/// resets two pending handshakes on the same tuple; a second acknowledges two
+/// resets two pending handshakes, then closes an established unread flow on the
+/// same tuple; a second acknowledges two
 /// zero-window probes with the first reopen deliberately lost; a third finishes
 /// health while persist remains blocked. Original PCAP drives every transition.
 /// Caller owns the frame filter, process, cancellation and final source/serial/
@@ -18,9 +19,10 @@ public sealed class ServiceSocketControls : IDisposable
 {
     public readonly record struct PacketObservation(long Ordinal, ulong Microseconds, string Hex);
     public sealed record HttpExchange(int Port, DateTimeOffset StartedUtc, DateTimeOffset CompletedUtc, string RequestHex, string ResponseHex);
+    public sealed record UnreadClose(HttpExchange Http, string CloseRow, long LateOrdinal, long ResetOrdinal);
     public sealed record Report(string Schema, int PendingPort, uint FirstClientSequence, uint SecondClientSequence,
         long FirstSynAckOrdinal, long SecondSynAckOrdinal, long FirstProbeOrdinal, long SecondProbeOrdinal,
-        HttpExchange Persist, HttpExchange Healthy, IReadOnlyList<PacketObservation> Observations);
+        HttpExchange Persist, HttpExchange Healthy, UnreadClose Unread, IReadOnlyList<PacketObservation> Observations);
     private sealed record Seen(long Ordinal, uint Sequence, uint Ack, byte Flags, byte[] Payload);
     private sealed class Flow(int port, uint sequence, string name)
     {
@@ -113,10 +115,11 @@ public sealed class ServiceSocketControls : IDisposable
                     await Task.Delay(25, token).ConfigureAwait(false);
                 }
             }
-            async Task Send(Flow flow, uint sequence, uint ack, byte flags, ushort window, string payload = "", string? tag = null, bool forward = true)
+            async Task<byte[]> Send(Flow flow, uint sequence, uint ack, byte flags, ushort window, string payload = "", string? tag = null, bool forward = true)
             {
                 byte[] frame = ContinuingTcpScenario.Write(new(false, (ushort)flow.Port, sequence, ack, flags, window, payload), peer);
                 await frames.InjectServiceFrameAsync(frame, tag ??flow.Name +"." +(++flow.Writes).ToString(CultureInfo.InvariantCulture), forward).WaitAsync(token).ConfigureAwait(false);
+                return frame;
             }
             async Task<Seen> Syn(Flow flow, ushort window)
             {
@@ -152,7 +155,7 @@ public sealed class ServiceSocketControls : IDisposable
                     Copy(flow, packet); return packet;
                 }
             }
-            async Task<HttpExchange> FinishHttp(Flow flow)
+            async Task<uint> ReceiveFin(Flow flow)
             {
                 for (;;)
                 {
@@ -164,19 +167,47 @@ public sealed class ServiceSocketControls : IDisposable
                     await Send(flow, flow.Next, unchecked(flow.Server +(uint)flow.Received +(fin ? 1U : 0)), 0x10, 8192).ConfigureAwait(false);
                     if (fin) break;
                 }
-                uint serverEnd = unchecked(flow.Server +(uint)flow.Received +1);
-                await Send(flow, flow.Next, serverEnd, 0x11, 8192).ConfigureAwait(false); flow.Next = unchecked(flow.Next +1);
-                Seen closed = await Next(flow.Port).ConfigureAwait(false);
-                Need(closed.Flags ==0x10 && closed.Sequence ==serverEnd && closed.Ack ==flow.Next && closed.Payload.Length ==0, "control final ACK");
+                return unchecked(flow.Server +(uint)flow.Received +1);
+            }
+            HttpExchange Exchange(Flow flow)
+            {
                 var exchange = new HttpExchange(flow.Port, flow.Started, DateTimeOffset.UtcNow, Convert.ToHexString(Encoding.ASCII.GetBytes(Request)),
                     Convert.ToHexString(flow.Response.AsSpan(0, flow.Received)));
                 RequireHealth(exchange); return exchange;
+            }
+            async Task<HttpExchange> FinishHttp(Flow flow)
+            {
+                uint serverEnd = await ReceiveFin(flow).ConfigureAwait(false);
+                await Send(flow, flow.Next, serverEnd, 0x11, 8192).ConfigureAwait(false); flow.Next = unchecked(flow.Next +1);
+                Seen closed = await Next(flow.Port).ConfigureAwait(false);
+                Need(closed.Flags ==0x10 && closed.Sequence ==serverEnd && closed.Ack ==flow.Next && closed.Payload.Length ==0, "control final ACK");
+                return Exchange(flow);
+            }
+            async Task<UnreadClose> FinishUnread(Flow flow)
+            {
+                uint serverEnd = await ReceiveFin(flow).ConfigureAwait(false);
+                string row = await WaitForUnreadCloseAsync(serialPath, flow.Port, serverEnd, flow.Next, token).ConfigureAwait(false);
+                const string late = "CLROS_UNREAD_LATE";
+                byte[] sent = await Send(flow, flow.Next, serverEnd, 0x18, 8192, late, "unread.late").ConfigureAwait(false);
+                flow.Next = unchecked(flow.Next +(uint)Encoding.ASCII.GetByteCount(late));
+                for (;;)
+                {
+                    Seen packet = await Next(flow.Port).ConfigureAwait(false);
+                    Need(packet.Sequence ==serverEnd && packet.Ack ==flow.Next && packet.Payload.Length ==0 &&
+                        packet.Flags is 0x10 or 0x14, "control unread reset");
+                    if (packet.Flags !=0x14) continue;
+                    var latePackets = observed.Where(item => Convert.FromHexString(item.Hex).AsSpan().SequenceEqual(sent)).ToArray();
+                    Need(latePackets.Length ==1 && latePackets[0].Ordinal <packet.Ordinal, "control unread late packet");
+                    return new(Exchange(flow), row, latePackets[0].Ordinal, packet.Ordinal);
+                }
             }
             var first = new Flow(pendingPort, 0xfffffff0, "pending.first"); Seen firstSyn = await Syn(first, 8192).ConfigureAwait(false);
             await Send(first, first.Next, 0, 4, 8192, tag: "pending.first.reset").ConfigureAwait(false);
             var second = new Flow(pendingPort, 0xfffff800, "pending.second"); Seen secondSyn = await Syn(second, 8192).ConfigureAwait(false);
             Need(firstSyn.Sequence !=secondSyn.Sequence, "control continuing ISN");
             await Send(second, second.Next, 0, 4, 8192, tag: "pending.second.reset").ConfigureAwait(false);
+            var unreadFlow = new Flow(pendingPort, 0xfffffd00, "unread"); await BeginHttp(unreadFlow, 8192).ConfigureAwait(false);
+            UnreadClose unread = await FinishUnread(unreadFlow).ConfigureAwait(false);
             var persist = new Flow(persistPort, 0xffffff00, "persist"); await BeginHttp(persist, 0).ConfigureAwait(false);
             Seen firstProbe = await Probe(persist).ConfigureAwait(false);
             await Send(persist, persist.Next, unchecked(persist.Server +1), 0x10, 0, tag: "persist.zero.ack").ConfigureAwait(false);
@@ -186,11 +217,58 @@ public sealed class ServiceSocketControls : IDisposable
             Seen secondProbe = await Probe(persist).ConfigureAwait(false);
             await Send(persist, persist.Next, unchecked(persist.Server +2), 0x10, 8192, tag: "persist.reopen.fresh").ConfigureAwait(false);
             HttpExchange resumed = await FinishHttp(persist).ConfigureAwait(false); Poll();
+            Need(await WaitForUnreadCloseAsync(serialPath, unreadFlow.Port, unchecked(unreadFlow.Server +(uint)unreadFlow.Received +1),
+                unchecked(unreadFlow.Initial +1 +(uint)Request.Length), token).ConfigureAwait(false) ==unread.CloseRow, "control unread close changed");
             Need(queued.Values.All(queue => queue.Count ==0), "control unexpected trailing packet");
-            return new("clros.nativeaot.service.controls.v1", pendingPort, first.Initial, second.Initial,
-                firstSyn.Ordinal, secondSyn.Ordinal, firstProbe.Ordinal, secondProbe.Ordinal, resumed, health, Array.AsReadOnly(observed.ToArray()));
+            return new("clros.nativeaot.service.controls.v2", pendingPort, first.Initial, second.Initial,
+                firstSyn.Ordinal, secondSyn.Ordinal, firstProbe.Ordinal, secondProbe.Ordinal, resumed, health, unread, Array.AsReadOnly(observed.ToArray()));
         }
         catch { frames.Stop(); throw; }
+    }
+
+    private static async Task<string> WaitForUnreadCloseAsync(string serialPath, int port, uint serverEnd, uint clientNext, CancellationToken token)
+    {
+        long offset = 0, maximum = 0; string tail = ""; string? found = null; byte[] bytes = new byte[8192];
+        string[] names = ["slot", "owner", "epoch", "generation", "index", "local", "localPort", "remote", "remotePort", "clock", "localNext", "remoteNext", "unread"];
+        for (;;)
+        {
+            token.ThrowIfCancellationRequested();
+            if (File.Exists(serialPath))
+            {
+                using var input = new FileStream(serialPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                Need(input.Length >=maximum && input.Length <=16 *1024 *1024, "control serial bounds"); maximum = input.Length; input.Position = offset;
+                for (int count; (count = await input.ReadAsync(bytes, token).ConfigureAwait(false)) !=0;)
+                {
+                    offset +=count; tail +=Encoding.ASCII.GetString(bytes, 0, count); int end;
+                    while ((end = tail.IndexOf("\r\n", StringComparison.Ordinal)) >=0)
+                    {
+                        string row = tail[..end]; tail = tail[(end +2)..];
+                        Need(!row.StartsWith("TEST_FAIL ", StringComparison.Ordinal), "control guest failure");
+                        if (!row.StartsWith("M07_034_CLOSE ", StringComparison.Ordinal)) continue;
+                        string[] fields = row.Split(' '); ulong[] values = new ulong[names.Length];
+                        Need(fields.Length ==names.Length +1, "control unread close shape");
+                        for (int i = 0; i <names.Length; i++)
+                        {
+                            string prefix = names[i] +"=";
+                            Need(fields[i +1].StartsWith(prefix, StringComparison.Ordinal) &&
+                                ulong.TryParse(fields[i +1].AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out values[i]) &&
+                                fields[i +1] ==prefix +values[i].ToString(CultureInfo.InvariantCulture), "control unread close field");
+                        }
+                        Need(values[0] <8 && values[1] >=4096 && values[1] %8 ==0 && values[2] !=0 && values[3] !=0 && values[4] <8 &&
+                            values[5] ==0x0a00020f && values[6] ==8080 && values[7] ==0x0a000202 && values[8] is >0 and <=65535 &&
+                            values[9] is >0 and <=long.MaxValue && values[10] <=uint.MaxValue && values[11] <=uint.MaxValue && values[12] <=8192,
+                            "control unread close values");
+                        if (values[8] !=(uint)port) continue;
+                        Need(found is null && (values[10] ==serverEnd || values[10] ==unchecked(serverEnd -1)) &&
+                            values[11] ==clientNext && values[12] ==0, "control unread close owner");
+                        found = row;
+                    }
+                    Need(tail.Length <=16384, "control serial line");
+                }
+                if (found is not null) return found;
+            }
+            await Task.Delay(25, token).ConfigureAwait(false);
+        }
     }
 
     private static async Task<ulong> WaitForNetworkAsync(string serialPath, string capturePath, CancellationToken token)

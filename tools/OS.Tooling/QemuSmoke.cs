@@ -47,12 +47,13 @@ public static class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
-            bool sockets=NativeAotSocketSelection.Application(plan.Flags).Length!=0;
+            bool signalEpoll=LinuxSignalEpollSelection.Bind(options,plan.Flags);
+            bool sockets=!signalEpoll&&NativeAotSocketSelection.Application(plan.Flags).Length!=0;
             bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
             bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
             bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
             bool service=NativeAotServiceSelection.Application(plan.Flags).Length!=0;
-            if((service||sockets||containment||vectors||web)&&!options.DryRun)
+            if((signalEpoll||service||sockets||containment||vectors||web)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
@@ -79,7 +80,7 @@ public static class QemuSmoke
                             var p=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                             var d=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
-                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"));
+                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),options.ServiceLifecycle);
                             NativeAotServiceProgram.HoldSources(root,serviceInputs);serviceInputs.VerifyUnchanged();
                         }
                         else if(web)
@@ -113,6 +114,7 @@ public static class QemuSmoke
                         helloProgram = NativeAotHelloProgram.Read(root, Path.GetFullPath(options.LinuxElfPackage, root),
                             disassembly);
                     }
+                    else if(signalEpoll)LinuxSignalEpollSelection.RequirePackage(linuxInput);
                     else LinuxSignalProofFixture.RequirePackage(linuxInput);
                 }
                 else if (plan.IsEnabled("EnableM16008Probe")) LinuxThreadProofFixture.RequirePackage(linuxInput);
@@ -242,7 +244,7 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
             if(containment)arguments.Add("--socket-containment-peer");
-            else if (plan.IsEnabled("EnableM07026Probe")&&!service&&!sockets&&!vectors&&!web) arguments.Add("--continuing-network-peer");
+            else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web) arguments.Add("--continuing-network-peer");
             if(service)arguments.Add("--continuing-service");
             if((service||sockets||vectors)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if(web)
@@ -265,7 +267,7 @@ public static class QemuSmoke
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            if(service||sockets||containment||vectors||web)
+            if(signalEpoll||service||sockets||containment||vectors||web)
             {
                 // Preserve required insertion order while sending each ordered
                 // marker only once. The combined profile otherwise exceeds the
@@ -296,7 +298,7 @@ public static class QemuSmoke
             ProcessResult runner;
             if(service&&!options.DryRun)
             {
-                servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation);
+                servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
                 runner=servicePeer.Runner;
             }
             else if(vectors&&!options.DryRun)
