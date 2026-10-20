@@ -60,6 +60,20 @@ try
     });
     app.MapGet("/__clros/churn/status", () => TypedResults.Text(churn.Read(), "text/plain"));
 
+    var signalProbe = new KestrelSignalProbe();
+    app.MapPost("/__clros/signalprobe", async (HttpContext context) =>
+    {
+        if (context.Request.ContentLength != 0 || context.Request.QueryString.HasValue ||
+            context.Request.Headers["X-CLROS-Signal"].Count != 1 ||
+            context.Request.Headers["X-CLROS-Signal"][0] != "v1" ||
+            context.Request.Headers.ContainsKey("Transfer-Encoding"))
+            return TypedResults.Text("CLROS_SIGNAL_PROBE_BAD_REQUEST", "text/plain", statusCode: 400);
+        if (!KestrelSignalProbeAbi.Supported)
+            return TypedResults.Text("CLROS_SIGNAL_PROBE_UNSUPPORTED", "text/plain", statusCode: 501);
+        string? result = await signalProbe.RunAsync(context.RequestAborted);
+        return TypedResults.Text(result ?? "CLROS_SIGNAL_PROBE_BUSY", "text/plain", statusCode: result is null ? 409 : 200);
+    });
+
     app.Run();
     GC.KeepAlive(startupWitness);
 }

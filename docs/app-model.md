@@ -286,6 +286,21 @@ pass. This does not publish/admit a new Linux NativeAOT ELF or prove the remaini
 directed-signal competing-readiness/physical-budget/guest criteria. Preserve the
 initial null-test-overload failure and all original inputs; no issue closes.
 
+[Step1499](../done/step1499.md) implements the explicit Linux-x64 signal ownership
+prerequisite at POST `/__clros/signalprobe` (`X-CLROS-Signal: v1`, empty body,
+no query/transfer encoding). It reserves only default-disposition SIGUSR2 through
+the pinned .NET registration facility. One dedicated waiter reports its actual
+Tid, masks/alternate stack and raw epoll result; a separate ThreadPool callback
+sets Cancel first and acknowledges delivery. Callback scheduling is not native
+target/interruption proof. After both observations, unregister and verify exact
+disposition restoration, restore the waiter's mask/unchanged alternate stack,
+join it and close its descriptors. Unsafe cleanup uncertainty exits the owned
+diagnostic process70. The shared .NET signal pipe/thread remain runtime-owned.
+Four ABI/platform checks and Windows route400/501/health controls pass, without
+executing a signal. Actual Linux NativeAOT handler/restorer/interruption/cleanup
+must be measured before adding the competing-readiness actor. The existing
+mechanical selector and prepared image guards stay unchanged; no issue closes.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

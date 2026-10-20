@@ -51,6 +51,41 @@ real churn, physical/metadata fragmentation, effective component budgets and
 offending-workload cleanup. The mechanical signal race alone cannot supply that
 contract. #748/#225 and broader Kestrel/Gate14 remain open.
 
+## Signal ownership prerequisite
+
+[Step1499](../done/step1499.md) adds a one-shot explicit POST
+`/__clros/signalprobe`, requiring Content-Length0, exactly `X-CLROS-Signal: v1`
+and no query/transfer encoding. Malformed requests return400; unsupported hosts
+return501 before libc entry. Linux x64 reserves SIGUSR2 only if its actual
+disposition is default. Repeated/concurrent attempts return409. It creates one
+dedicated waiter and three descriptors; it never targets Kestrel or GC workers.
+
+The source pin is dotnet/dotnet `820230c386db5b0106c5430b3e5aee92a7826bf5`,
+which maps runtime to `474ed963699fc29809015392738a15231aaae2de` in its
+[source manifest](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/source-manifest.json).
+The [native registration](https://github.com/dotnet/runtime/blob/474ed963699fc29809015392738a15231aaae2de/src/native/libs/System.Native/pal_signal.c)
+retains SA_SIGINFO/SA_RESTART; no shared flags are cleared. Its native handler
+writes a signal byte to the global pipe, and the
+[managed implementation](https://github.com/dotnet/runtime/blob/474ed963699fc29809015392738a15231aaae2de/src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/PosixSignalRegistration.Unix.cs)
+queues the USR callback separately. The callback sets Cancel first; it cannot
+prove target Tid or native wait interruption. The probe copies those observations
+separately and still requires original syscall/signal/handler/restorer evidence.
+
+Unregister only after native return and callback acknowledgment; reject action
+drift and verify the exact saved disposition, including libc restorer
+normalization. Restore the waiter's mask, verify its alternate stack unchanged,
+join it before descriptor release. The callback owns managed counters only;
+unregistration does not claim to join queued framework callbacks or stop the
+runtime-owned signal thread/pipe. Unsafe uncertainty exits the owned diagnostic
+process70; no success is inferred. A positive body begins `CLROS_SIGNAL_PROBE_OK`
+and contains copied values, not guest authority.
+
+Four focused ABI/layout/admission/platform controls and actual Windows HTTP
+400/501/health checks pass. No signal executed in those controls. Actual Linux
+NativeAOT ownership/interruption/restoration remains the next experiment; only
+then add the competing pipe reader during real churn. Preserve #225's full race,
+fragmentation, budget and cleanup requirements and the separate mechanical scope.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
