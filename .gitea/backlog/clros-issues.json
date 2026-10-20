@@ -23211,7 +23211,7 @@
         "M16-026"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "type:test",
         "evidence:qemu",
         "component:app-model",
@@ -23278,7 +23278,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove repeated sequential connections, partial I/O, timeout, peer close, reset, and graceful shutdown.",
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Exercise repeated sequential/concurrent connections, partial I/O, slow peers, cancellation/timeouts, reset and graceful shutdown. Retain packet evidence and bounded fd/thread/memory counts; prove resource reuse after failure.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -23326,7 +23326,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M10-012",
@@ -23377,7 +23377,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Add an async/cancellation route and repeated-request churn.",
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Add an async/cancellation fixture route to the real MinimalApiSmoke app and run request churn with timer/ThreadPool activity and forced collections. Assert cancellation propagation, no deadlock, bounded resources and continued /healthz service.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
@@ -24604,7 +24604,7 @@
         "M11-026"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -24643,7 +24643,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Replace finite startup entropy exhaustion with a bounded, reviewed continuing randomness service.",
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "This existing issue is moved ahead of M10-011 continuing-service acceptance; it no longer waits for unrelated release acquisition policy M11-011. Preserve its original firmware seed boundary.",
         "Use an audited CSPRNG design with explicit seed provenance, initialization/readiness, bounded state, reseed and hardware/source-failure policy. Do not invent a PRNG, use clock/counter fallback or claim statistical tests prove cryptographic security.",
@@ -24685,7 +24685,7 @@
         "docs/kestrel.md"
       ],
       "evidenceBoundary": "Only measured continuing randomness with reviewed construction and explicit source-failure policy. No production cryptographic assurance or general workload claim from host vectors or larger finite reservoirs.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M11-013",
@@ -32705,9 +32705,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32720,7 +32720,7 @@
         "M07-017",
         "M11-026"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32795,9 +32795,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -32810,7 +32810,7 @@
         "M07-018",
         "M11-026"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -32983,9 +32983,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -32998,7 +32998,7 @@
         "M16-013",
         "M11-026"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33077,9 +33077,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33090,7 +33090,7 @@
       "dependencyKeys": [
         "M16-014"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33181,7 +33181,7 @@
         "M16-015",
         "M10-004"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33875,9 +33875,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33890,7 +33890,7 @@
         "M07-028",
         "M11-026"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -33968,9 +33968,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33983,7 +33983,7 @@
         "M11-012",
         "M11-026"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34177,9 +34177,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -34191,7 +34191,7 @@
         "M16-009",
         "M16-012"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
         "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
@@ -34399,9 +34399,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -34413,7 +34413,7 @@
         "M16-013",
         "M11-026"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/kestrel.md and docs/repo-audit.md. Preserve accepted step1405/1419 scope and the active shared integration owner#737. Incorporate this small slice into that owner's batch or obtain explicit lane handoff; readiness does not authorize concurrent edits.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35258,7 +35258,7 @@
         "M07-033"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:host",
@@ -35295,7 +35295,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prevent unread data on a socket with no remaining descriptor from pinning a full bulk connection throughout TIME-WAIT.",
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35337,7 +35337,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Implemented development slice with focused host checks and freestanding C# compile. No new guest unread-close, full-host, general Kestrel, isolation, cloud or production acceptance.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M11-022",
@@ -35348,7 +35348,7 @@
         "M07-030"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p2",
         "type:tooling",
         "evidence:host",
@@ -35370,7 +35370,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Reject transport evidence that omits a high-water event and lowers its summary despite lifecycle records proving a larger peak.",
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35400,7 +35400,7 @@
         "docs/workload-profiles.md"
       ],
       "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M11-023",
@@ -35610,9 +35610,9 @@
       "parentKey": "M11-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p0",
         "type:tooling",
         "evidence:host",
@@ -35621,7 +35621,7 @@
         "lane:nativeaot-integration"
       ],
       "dependencyKeys": [],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Required validation repair for the currently owned repeated-service/churn batch under737; exact shared scope was read back before edits.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35681,9 +35681,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p2",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p2",
         "type:implementation",
         "evidence:qemu",
@@ -35695,7 +35695,7 @@
         "M16-013",
         "M16-022"
       ],
-      "currentEvidence": "Step1479 resumes owned #737 after workspace cleanup. Fresh original v1 at fee0c9af passes its complete 829,226ms lifetime and reader; all five original memory controls pass their exact positive/expected-fault inspectors. Each retains 906 source joins and nine original native files. The retained 810b3eef full-host result (5,917 checks/792 fixtures), configured v2 and 15 individual ancestors keep their original scope. Closure review finds unsupported Task<int> is executed and passed by the host runner. The new exact declared-type whitelist has a genuine unchanged-input red control and 33 passing focused checks; a fresh stable unfiltered full-host gate is required and pending. All 16 issues and seven reopened prerequisites stay open/claimed; no restored acceptance or closure. Shared 36MiB backing with 16MiB GC and declared 20MiB native headroom does not enforce independent partitions; native saturation remains outside request churn. #748/#225 still lack quota-triggered offending-workload termination and checked cleanup. No complete Kestrel/Gate14, isolation, cloud or production acceptance.",
+      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Use C#14/.NET11, KISS and the existing connected-stream SendMessage/ReceiveMessage snapshot/copy paths. Keep scalar/file/pipe vector limits unchanged; no new networking or general libc subsystem.",
         "Admit at most1024 socket message vectors and a separately bounded1MiB aggregate; copied I/O still uses the existing at-most8192-byte scratch/send-capacity prefix. Validate complete snapshotted metadata and all nonempty ranges before transport mutation. No hidden allocations or metadata surviving dispatch.",

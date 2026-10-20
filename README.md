@@ -22,20 +22,24 @@ memory controls at `fee0c9af`, with exact source/native joins. The repaired read
 passes the original 829,226ms service lifetime; all three expected memory faults
 pass their dedicated full-parent restoration checks. Failed originals remain failed.
 
-Closure review finds another #784 gap: unsupported `Task<int>` fixtures can
-execute and pass. The new declared-type whitelist has a genuine red regression
-and 33 passing focused runner checks. A fresh stable unfiltered full-host gate
-is required; the retained 5,917-check result remains bound to `810b3eef`.
-See step1479 and `artifacts/service-validation-20261020-r01/` for exact receipts
-and the new gate's process/state. Preserve its frozen source until terminal.
+[Step1481](done/step1481.md) records the corrected runner's stable unfiltered full:
+5,918 checks across 792 fixtures (698 Fast, 94 Native) at `96ba8dbd`, unchanged
+inputs, zero reuse and no failures. The exact declared-return whitelist rejects
+unsupported generic tasks before invocation. Both earlier failed full attempts
+remain failed; the original successful producer and dependencies were preserved
+before documentation rebuilds.
 
-All 16 affected issues and seven reopened prerequisites remain open. Supported
-closures require the new full-host result and exact dependency/criteria review.
-#748/#225 still lack quota-triggered offending-workload termination and cleanup
-during churn. The 36MiB dynamic pool is shared; 16MiB GC plus declared 20MiB native
-headroom does not enforce independent partitions. Native saturation occurs before
-listen and after drain. Complete Kestrel/Gate14, isolation, cloud and production
-remain incomplete. Bounded native reviews retain their explicit original scopes.
+Fourteen finite issue scopes have reviewed support for dependency-ordered
+reconciliation; step1481 names their criteria, original receipts and limitations.
+Tracker closure still requires evidence comments, versioned preview/apply and
+readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
+15 individual ancestors and native reviews keep their original `810b3eef` scopes.
+
+#748/#225 remain open: quota-triggered offending-workload termination and cleanup
+during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
+20MiB native headroom does not enforce independent partitions. Native saturation
+occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
+and production remain incomplete.
 CLROS is not cloud-ready or production-ready.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
