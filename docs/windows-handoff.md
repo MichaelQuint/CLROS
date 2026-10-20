@@ -1,5 +1,32 @@
 # Windows development-machine handoff
 
+## October 19 workspace cleanup
+
+[Step1478](../done/step1478.md) consolidates development in `C:/Projects/CLROS`
+on current LAN master. All sixteen audited checkouts were committed and clean:
+fifteen heads were ancestors of master; the remaining runtime commit was already
+present as an identical cherry-picked patch. The fifteen linked checkouts are
+now unregistered, and four leftover marker-only wrappers are archived.
+
+Preserved archive: `C:/Projects/CLROS-archive/2026-10-19-workspace-cleanup`.
+Its `cleanup-state.json` maps each original checkout to
+`worktrees/<name>/CLROS`, retains the head/branch and six verified evidence
+hashes, and inventories 46 archived primary `bin`/`obj` directories. Complete
+source snapshots, ignored captures, native inputs and copied Git registration
+metadata remain there; `repository.bundle` preserves all local Git refs.
+The primary's existing `artifacts` and `references` directories remain in place.
+
+For historical paths beginning `C:/Users/AI/.codex/worktrees/<name>/CLROS`, use
+the matching archive prefix. Original receipts are unchanged; their embedded
+absolute paths are historical and may require explicit relocation when audited.
+Archived `.git` pointer files are renamed `.git.archived-pointer`, so the
+archives are evidence snapshots rather than active worktrees. Build fresh
+tooling in the primary before new validation. Workspace cleanup adds no runtime,
+guest, issue or gate acceptance; the pending work in step1477 remains pending.
+
+The cleanup PR/master readback and final single-worktree state are recorded in
+the archive's `cleanup-merge-readback.json` after the documentation merge.
+
 ## October 19 development checkpoint
 
 [Step1477](../done/step1477.md) records the completed host run, successful original
@@ -9,10 +36,10 @@ tracker readbacks are retained after merge in
 `artifacts/kestrel-churn-foundations-r01/run-closeout-merge-readback-r01.json`.
 
 Resume from current LAN master in a fresh development cycle after checking live
-ownership. Preserve the evidence worktree at
-`C:/Users/AI/.codex/worktrees/nativeaot-logging/CLROS` and its ignored artifacts;
-do not archive or delete it. The paused primary `C:/Projects/CLROS` is unchanged
-by this closeout. No evidence has been copied into that primary checkout.
+ownership. Step1477 originally retained the evidence worktree and paused primary.
+The later user-authorized cleanup in step1478 supersedes that workspace layout;
+the complete `nativeaot-logging` evidence snapshot is preserved in the archive
+above, and development resumes from the primary checkout.
 
 First qualify the repaired v1 producer and five memory controls against their
 exact source, then review the 14 conditional candidates. Keep #748/#225 open
