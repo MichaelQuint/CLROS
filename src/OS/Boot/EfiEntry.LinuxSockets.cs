@@ -58,6 +58,106 @@ public static unsafe partial class EfiEntry
             return 1;
         }
 
+#if M16_014_PROBE
+        // Observe only committed quota-profile socket calls on this serialized
+        // kernel turn. Counters belong to the actual TCP lifetime, not an fd,
+        // sequence number or ring-buffer position. No I/O is retried here.
+        private static bool ObserveLinuxQuotaSocketCall(LinuxNativeControl* c, uint index,
+            LinuxSyscallFrame call, LinuxSyscallResult result)
+        {
+            bool accept = call.Number is 43 or 288, read = call.Number is 0 or 45 or 47,
+                send = call.Number is 1 or 20 or 44 or 46;
+            if ((!accept && !read && !send) || result.Action != LinuxSyscallAction.Return ||
+                result.Value < 0 || (!accept && result.Value == 0)) return true;
+            if (c == null || c->State == null || !LinuxQuotaPolicy(c->State) || c->Phase != 3 || c->Published != 1 ||
+                c->State->NetworkPhase != 2 || c->Selected == 0 || c->Selected > c->Capacity ||
+                index != c->Selected - 1 || !c->Threads.Current.IsValid ||
+                c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity ||
+                c->Gates[index].Status != LinuxSyscallGateStatus.Active ||
+                (accept ? result.Value > uint.MaxValue : result.Value > LinuxDescriptorServices.MaximumIo)) return false;
+            Storage* state = c->State;
+            uint fd = accept ? (uint)result.Value : (uint)call.Argument0;
+            fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
+            {
+                if (o->Boot != state || o->Sockets.Descriptors != &state->LinuxDescriptors ||
+                    !LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out var token) ||
+                    !LinuxDescriptorServices.IsCurrent(&state->LinuxDescriptors, token)) return false;
+                if (!LinuxDescriptorServices.SocketDescription(&state->LinuxDescriptors, fd, out uint endpoint, out _))
+                    return !accept && call.Number is 0 or 1 or 20; // Ordinary output/file/pipe calls are not sockets.
+                uint description = state->LinuxDescriptors.Owner.Slots[fd].Description;
+                if (description == 0 || description > state->LinuxDescriptors.Owner.DescriptionCount ||
+                    endpoint >= o->Sockets.Count || o->Sockets.Slots != (LinuxSocketServices.Endpoint*)o->Endpoints ||
+                    o->Sockets.Initialized != 1 || o->Network.Initialized != 1 || o->Network.Failed != 0 ||
+                    o->Network.Count != LinuxSocketConnections || o->Network.Slots != (SocketNetwork.Slot*)o->Slots ||
+                    o->Network.Table != &o->Table || o->Network.Sockets != &o->Sockets) return false;
+                description--; // Descriptor storage names descriptions as index+1; the row records the actual zero-based index.
+                var d = state->LinuxDescriptors.Owner.Descriptions + description;
+                var e = o->Sockets.Slots + endpoint;
+                if (d->Type != (uint)LinuxDescriptorServices.Kind.Socket || d->Pipe != endpoint ||
+                    d->Inode == 0 || e->Phase != 5) return false; // Connected, including retained peer-reset reads.
+                uint slotIndex = LinuxSocketConnections;
+                for (uint i = 0; i < LinuxSocketConnections; i++)
+                {
+                    var candidate = o->Network.Slots + i;
+                    if (&candidate->Sender != e->Sender || &candidate->Receiver != e->Receiver) continue;
+                    if (slotIndex != LinuxSocketConnections) return false;
+                    slotIndex = i;
+                }
+                if (slotIndex == LinuxSocketConnections) return false;
+                var slot = o->Network.Slots + slotIndex;
+                var sender = &slot->Sender; var receiver = &slot->Receiver;
+                var handle = sender->Handle;
+                var held = (LinuxSocketLifetime*)o->Lifetimes + slotIndex;
+                if (slot->Phase != 3 || sender->Table != &o->Table || receiver->Table != &o->Table ||
+                    sender->Receiver != receiver || !LinuxQuotaSocketHandleEquals(handle, receiver->Handle) ||
+                    !LinuxQuotaSocketHandleEquals(handle, slot->Handshake.Connection) ||
+                    held->Active != 1 || !LinuxQuotaSocketHandleEquals(handle, held->Handle) ||
+                    TcpConnectionTable.ReadOwned(&o->Table, handle, out var entry) != TcpConnectionTable.OwnershipStatus.Success ||
+                    !held->Key.HasSameEndpoint(entry.Key) ||
+                    entry.ReceiveOwnerAddress != (ulong)receiver || entry.SendOwnerAddress != (ulong)sender ||
+                    TcpSendWindow.Validate(sender, out _, entry.State == TcpConnectionLifecycleState.Closed, true) != TcpSendWindow.Status.Success ||
+                    TcpReceiveWindow.Validate(receiver, out _, receiver->PeerClosed != 0 ||
+                        sender->CloseState == TcpConnectionCloseState.Reset) != TcpReceiveWindow.Status.Success) return false;
+                ulong bytes = accept ? 0 : (ulong)result.Value;
+                ulong flags = call.Number is 44 or 45 ? call.Argument3 : call.Number is 46 or 47 ? call.Argument2 : 0;
+                bool peek = read && (flags & 2) != 0;
+                ulong offset = read ? held->AppReceived : send ? held->AppSent : 0;
+                ulong sent = held->AppSent, received = held->AppReceived;
+                if (accept && (sent != 0 || received != 0) || bytes > ~0UL - offset) return false;
+                if (send) sent += bytes;
+                else if (read && !peek) received += bytes;
+                if (!LinuxText(state, "M16_016_SOCKET identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                    !LinuxText(state, " ordinal=") || !LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) ||
+                    !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) ||
+                    !LinuxText(state, " fd=") || !LinuxNumber(state, fd) ||
+                    !LinuxText(state, " fdGeneration=") || !LinuxNumber(state, token.Generation) ||
+                    !LinuxText(state, " description=") || !LinuxNumber(state, description) ||
+                    !LinuxText(state, " inode=") || !LinuxNumber(state, d->Inode) ||
+                    !LinuxText(state, " slot=") || !LinuxNumber(state, slotIndex) ||
+                    !LinuxText(state, " owner=") || !LinuxNumber(state, handle.OwnerAddress) ||
+                    !LinuxText(state, " epoch=") || !LinuxNumber(state, handle.Epoch) ||
+                    !LinuxText(state, " generation=") || !LinuxNumber(state, handle.Generation) ||
+                    !LinuxText(state, " index=") || !LinuxNumber(state, handle.Index) ||
+                    !LinuxText(state, " local=") || !LinuxNumber(state, PackLinuxSocketAddress(entry.Key.LocalAddress)) ||
+                    !LinuxText(state, " localPort=") || !LinuxNumber(state, entry.Key.LocalPort) ||
+                    !LinuxText(state, " remote=") || !LinuxNumber(state, PackLinuxSocketAddress(entry.Key.RemoteAddress)) ||
+                    !LinuxText(state, " remotePort=") || !LinuxNumber(state, entry.Key.RemotePort) ||
+                    !LinuxText(state, " offset=") || !LinuxNumber(state, offset) ||
+                    !LinuxText(state, " bytes=") || !LinuxNumber(state, bytes) ||
+                    !LinuxText(state, " peek=") || !LinuxNumber(state, peek ? 1UL : 0UL) ||
+                    !LinuxText(state, " sent=") || !LinuxNumber(state, sent) ||
+                    !LinuxText(state, " received=") || !LinuxNumber(state, received) ||
+                    !LinuxText(state, "\r\n")) return false;
+                held->AppSent = sent; held->AppReceived = received;
+                return true;
+            }
+        }
+
+        private static bool LinuxQuotaSocketHandleEquals(TcpConnectionTable.Handle first, TcpConnectionTable.Handle second) =>
+            first.OwnerAddress == second.OwnerAddress && first.Epoch == second.Epoch &&
+            first.Generation == second.Generation && first.Index == second.Index;
+#endif
+
         private const uint LinuxSocketConnections = 8, LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
         // Borrowed observations only. A release is reported after the original
         // handle becomes stale and its network slot disappears or is reused.
@@ -69,6 +169,7 @@ public static unsafe partial class EfiEntry
             internal uint Active, WaitObserved, DrainObserved, TimeoutObserved;
 #if M16_014_PROBE
             internal uint LastCloseObserved;
+            internal ulong AppSent, AppReceived;
 #endif
         }
         // Image-resident ownership outlives every borrowed callback, including a
@@ -351,6 +452,9 @@ public static unsafe partial class EfiEntry
                     TcpConnectionTable.ReadOwned(&o->Table, handle, out var entry) != TcpConnectionTable.OwnershipStatus.Success) return false;
                 if (held->Active == 0)
                 {
+#if M16_014_PROBE
+                    if (held->AppSent != 0 || held->AppReceived != 0) return false;
+#endif
                     held->Handle = handle; held->Key = entry.Key; held->Active = 1;
                     if (!WriteLinuxSocketLifetime(o, "M16_011_SLOT event=0", i, held, now) ||
                         !LinuxText(o->Boot, " deadline=0 duration=0\r\n")) return false;

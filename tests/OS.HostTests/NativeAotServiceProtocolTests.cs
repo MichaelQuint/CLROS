@@ -7,7 +7,7 @@ internal static class NativeAotServiceProtocolTests
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         v.Rows[1]=v.Rows[1].Replace("entropyBytes=32","entropyBytes=0",StringComparison.Ordinal);
         if(configuredMemory)v.Rows[1]=v.Rows[1].Replace("poolPages=8192","poolPages=9216",StringComparison.Ordinal);
-        v.Rows[2]=v.Rows[2].Replace("packageBytes=1320176","packageBytes=8488712",StringComparison.Ordinal);
+        v.Rows[2]=v.Rows[2].Replace("packageBytes=1320176","packageBytes=8501192",StringComparison.Ordinal);
         v.Rows[4]=v.Rows[4].Replace("workers=4","workers=16",StringComparison.Ordinal);
         v.Rows[5]="M16_014_POLICY started=0 callsPerTurn=4096 progressNanos=30000000000 elapsedLimit=none counters=reject-overflow workers=individual cancellation=owned";
         v.Rows.Insert(5,"TEST_START m16.014");
@@ -59,7 +59,11 @@ internal static class NativeAotServiceProtocolTests
         v.Select(first);v.Wait(0x500100);v.Drain(20);v.Supervisor(3,2,3);
         v.Select(second);v.Wait(0x500104);v.Drain(30);v.Supervisor(3,1,3);
         v.Select(v.Main);v.Call(41,5,[2,1,6]);v.Call(49,0,[5,0x500800,16]);v.Call(50,0,[5,512]);
-        v.Call(43,6,[5,0,0]);v.Call(45,1,[6,0x500800,1,0,0,0]);v.Call(44,1,[6,0x500800,1,0,0,0]);v.Output();
+        void SocketRow(int nr, ulong offset, uint bytes, ulong sent, ulong received) => v.Rows.Add(
+            $"M16_016_SOCKET identity={v.Main.Id} ordinal={v.Main.Ordinal} nr={nr} fd=6 fdGeneration=1 description=7 inode=65537 slot=0 owner=4096 epoch=1 generation=1 index=0 local=167772687 localPort=8080 remote=167772674 remotePort=43000 offset={offset} bytes={bytes} peek=0 sent={sent} received={received}");
+        v.Call(43,6,[5,0,0]);SocketRow(43,0,0,0,0);
+        v.Call(45,1,[6,0x500800,1,0,0,0]);SocketRow(45,0,1,0,1);
+        v.Call(44,1,[6,0x500800,1,0,0,0]);SocketRow(44,0,1,1,1);v.Output();
         v.Call(9,-12,[0,1048576,3,0x22,uint.MaxValue,0]);
         v.Rows.Add($"M16_016_QUOTA_ABORT identity={v.Main.Id} ordinal={v.Main.Ordinal} nr=9 backed=9216 pool=9216 exit=99 policy=terminate cause=physical-backing");
         v.Drain(v.Clock);v.Exit(4,2,3);v.Select(first);v.Exit(4,1,2);v.Select(second);v.Exit(4,0,1);
@@ -92,6 +96,14 @@ internal static class NativeAotServiceProtocolTests
     {
         var v=QuotaVector();
         void Refuse(string[] rows){bool rejected=false;try{InspectQuota(v,rows);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
+        foreach(int at in Enumerable.Range(0,v.Rows.Count).Where(i=>v.Rows[i].StartsWith("M16_016_SOCKET ",StringComparison.Ordinal)))
+        {
+            var missing=v.Rows.ToList();missing.RemoveAt(at);Refuse(missing.ToArray());
+            var extra=v.Rows.ToList();extra.Insert(at,extra[at]);Refuse(extra.ToArray());
+            foreach(var change in new[]{("fdGeneration=1","fdGeneration=2"),("description=7","description=8"),
+                ("offset=0","offset=1"),("received=1","received=2"),("sent=1","sent=2")})
+            {var changed=v.Rows.ToArray();changed[at]=changed[at].Replace(change.Item1,change.Item2,StringComparison.Ordinal);if(changed[at]!=v.Rows[at])Refuse(changed);}
+        }
         foreach(string prefix in new[]{"M16_016_QUOTA_ABORT ","M16_008_EXIT ","M16_008_REAP ","M16_011_CLOSE fd=5 ",
             "M16_016_MEMORY ","M16_008_BUDGET_END ","M16_008_OWNER_END ","M16_016_QUOTA_PROCESS_FAILURE ","M16_016_QUOTA_NATIVE ","M16_016_QUOTA_RESTORE "})
             Refuse(v.Rows.Where(row=>!row.StartsWith(prefix,StringComparison.Ordinal)).ToArray());

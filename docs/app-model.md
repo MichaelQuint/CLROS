@@ -193,6 +193,19 @@ parent/wire associations without requiring graceful FIN or TIMEWAIT expiry.
 The positive service wrapper retains its existing FIN/compact-expiry check.
 This supplies no syscall/HTTP temporal or held-capture authority.
 
+[Step1492](../done/step1492.md) adds quota-only original post-CALL socket
+descriptor/generation/connection observations and cumulative accepted/consumed
+byte offsets. Complete syscall replay consumes the rows directly; a copied
+reader preserves original serial positions and transport census identities.
+Peeks consume no bytes. Required HTTP intervals now retain clipped consuming
+receive/accepted-send slices and per-message syscall ordering. Previously
+unmeasured descriptor operations remain unsupported by complete replay. Sixteen
+focused checks across four fixtures pass with three preserved producers. The
+active EFI publishes and passes artifact verification after review of eight
+source-admission identities; its original image/object/map inputs are retained.
+Retained-memory/GC/worker/health overlap and held capture joins remain pending.
+This does not qualify the native ABI, fresh guests or quota termination.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

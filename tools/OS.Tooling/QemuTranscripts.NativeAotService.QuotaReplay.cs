@@ -8,7 +8,12 @@ public static partial class QemuTranscripts
     /// acceptance remain separate requirements.</summary>
     public readonly record struct ServiceQuotaReplayReport(ThreadingProtocolReport Protocol, ServiceStartupInspection Startup,
         ServiceRandomInspection Random, ServiceQuotaTransportInspection Transport, ServiceQuotaMemoryInspection Memory,
-        ServiceQuotaInspection Denial, int SocketAccepts, ulong SocketSent, ulong SocketReceived);
+        ServiceQuotaInspection Denial, int SocketAccepts, ulong SocketSent, ulong SocketReceived)
+    {
+        /// <summary>Copied original post-CALL socket byte positions, checked
+        /// against transport census and complete descriptor/syscall replay.</summary>
+        public IReadOnlyList<ServiceQuotaSocketIo> SocketIo { get; init; } = Array.Empty<ServiceQuotaSocketIo>();
+    }
 
     private static ServiceQuotaReplayReport ReplayServiceQuota(NativeAotThreadingOutput.Capture framed, byte[] elf,
         Func<ulong,bool> instruction, Func<ulong,bool> syscallReturn, ulong userRoot, ulong kernelRoot, ulong entitlementBytes)
@@ -20,6 +25,7 @@ public static partial class QemuTranscripts
         var memory = ReadServiceQuotaMemory(framed, entitlementBytes, out var memoryPositions); metadata.UnionWith(memoryPositions);
         var random = ReadServiceRandom(original);
         var transport = ReadServiceQuotaTransport(original, out var transportPositions); metadata.UnionWith(transportPositions);
+        var socketIo = ReadServiceQuotaSocketIo(original, transport.FreshLifetimes);
         for (int i = 0; i < original.Length; i++)
             if (original[i].StartsWith("M11_012_", StringComparison.Ordinal) ||
                 original[i] == "M07_033_SEED source=firmware-rng acquisitions=1 secretBytes=32 domain=tcp-isn state=ready firmwareCallbacks=none") metadata.Add(i);
@@ -38,10 +44,14 @@ public static partial class QemuTranscripts
             webSettingsFd:startup.SettingsDescriptor, webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal),
             configuredServiceMemory:true, serviceQuotaFailure:true);
         var protocol = replay.Validate(); var counts = replay.ServiceSocketCounts();
+        Need(socketIo.Count(c => c.Accept) == counts.Accepts &&
+            socketIo.Where(c => !c.Accept && c.Response).Aggregate(0UL, (n, c) => n + c.Bytes) == counts.Sent &&
+            socketIo.Where(c => !c.Accept && !c.Response && !c.Peek).Aggregate(0UL, (n, c) => n + c.Bytes) == counts.Received,
+            "service_quota_socket_totals");
         Need(protocol.Calls >0 && (ulong)protocol.Calls >= random.Requests && protocol.Reaped == protocol.Clones+1 &&
             denial.Reaped == (ulong)protocol.Reaped && denial.Identity == memory.Denial.Identity && denial.Ordinal == memory.Denial.Ordinal &&
             denial.BackedPages == memory.Denial.BackedPages && denial.PoolPages *4096 == memory.PoolBytes &&
             counts.Accepts >=4 && transport.History.Connections >=4, "service_quota_replay_joins");
-        return new(protocol, startup, random, transport, memory, denial, counts.Accepts, counts.Sent, counts.Received);
+        return new(protocol, startup, random, transport, memory, denial, counts.Accepts, counts.Sent, counts.Received) { SocketIo = socketIo };
     }
 }

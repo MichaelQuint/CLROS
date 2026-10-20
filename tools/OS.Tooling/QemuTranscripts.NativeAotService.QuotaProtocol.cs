@@ -33,6 +33,38 @@ public static partial class QemuTranscripts
         private bool quotaAborted;
         private ulong quotaBacked;
 
+        private readonly Dictionary<SocketDescriptor, (ServiceQuotaSocketIdentity Connection, uint Description, ulong Inode)> quotaSockets = [];
+        private readonly HashSet<ServiceQuotaSocketIdentity> quotaSocketConnections = [];
+
+        // Called only after the complete ordinary CALL/descriptor model applied
+        // its real result, before timing/wake records. Do not remove these rows
+        // as unchecked metadata. Unsupported descriptor operations still fail
+        // in the existing model before this observation can grant coverage.
+        private void QuotaSocketObservation(Dictionary<string, ulong> call, LinuxCallReturnObservation returned)
+        {
+            ulong nr = call["nr"], v = call["valueBits"];
+            bool accept = nr is 43 or 288 && unchecked((long)v) >= 0;
+            ulong fd = accept ? v : call["a0"];
+            socketDescriptors.TryGetValue(fd < 16 ? (int)fd : -1, out var descriptor);
+            bool io = descriptor is { Port: false, Phase: 3 } && unchecked((long)v) > 0 && nr is 0 or 1 or 20 or 44 or 45 or 46 or 47;
+            bool required = call["action"] == 1 && call["status"] == 1 && (accept || io);
+            Need(required == Starts("M16_016_SOCKET "), "service_quota_socket_replay_presence");
+            if (!required) return;
+            var value = QuotaSocketRow(Take(), position - 1); QuotaSocketCallBinding(value, call, returned);
+            Need(descriptor is { Port: false, Phase: 3 } && value.DescriptorGeneration == descriptorGenerations[value.Descriptor] &&
+                value.Sent == descriptor.Sent && value.Received == descriptor.Received, "service_quota_socket_replay_descriptor");
+            if (accept)
+            {
+                Need(value.Offset == 0 && value.Sent == 0 && value.Received == 0 &&
+                    quotaSocketConnections.Add(value.Connection) && quotaSockets.TryAdd(descriptor!, (value.Connection, value.Description, value.Inode)),
+                    "service_quota_socket_replay_accept");
+            }
+            Need(quotaSockets.TryGetValue(descriptor!, out var owner) && owner.Connection == value.Connection &&
+                owner.Description == value.Description && owner.Inode == value.Inode &&
+                value.Offset == (accept ? 0 : value.Response ? value.Sent - value.Bytes :
+                    value.Peek ? value.Received : value.Received - value.Bytes), "service_quota_socket_replay_owner");
+        }
+
         private void QuotaAbort(RuntimeThread current,Dictionary<string,ulong> call,LinuxCallWaitObservation witness)
         {
             const string suffix=" exit=99 policy=terminate cause=physical-backing";

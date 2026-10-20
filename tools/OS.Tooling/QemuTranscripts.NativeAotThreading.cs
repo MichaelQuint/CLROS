@@ -332,7 +332,9 @@ public static partial class QemuTranscripts
                             Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                             Need(r["nr"]==60,"threading_exit_tail_syscall");
                         }
-                        Call(t,r,waits[index],output); Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
+                        Call(t,r,waits[index],output);
+                        if(serviceQuotaFailure)QuotaSocketObservation(r,returns[index]);
+                        Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;
                         if(Starts("M16_008_SYSCALL_TIME "))
                         {
