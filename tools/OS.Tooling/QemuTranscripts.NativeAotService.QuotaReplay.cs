@@ -17,6 +17,10 @@ public static partial class QemuTranscripts
         /// scheduler generation/Tid/peak joins. Retained backing and borrower
         /// peaks remain separate; guest pthread bounds are not supplied.</summary>
         public ServiceQuotaComponentInspection? Components { get; init; }
+        /// <summary>Default pthread logical extents and committed allocation
+        /// history, joined to original topology and full clone/reap replay.
+        /// TLS/tail sizing and failed-before-clone allocations stay separate.</summary>
+        public ServiceQuotaPthreadInspection? Pthreads { get; init; }
     }
 
     private static ServiceQuotaReplayReport ReplayServiceQuota(NativeAotThreadingOutput.Capture framed, byte[] elf,
@@ -29,6 +33,9 @@ public static partial class QemuTranscripts
         var memory = ReadServiceQuotaMemory(framed, entitlementBytes, out var memoryPositions); metadata.UnionWith(memoryPositions);
         var random = ReadServiceRandom(original);
         var transport = ReadServiceQuotaTransport(original, out var transportPositions); metadata.UnionWith(transportPositions);
+        Need(!framed.Stdout.Contains("M16_016_PTHREAD", StringComparison.Ordinal) &&
+            !framed.Stderr.Contains("M16_016_PTHREAD", StringComparison.Ordinal), "pthread_channel");
+        var pthreads = ReadServiceQuotaPthreads(original, out var pthreadPositions); metadata.UnionWith(pthreadPositions);
         var components = ReadServiceQuotaComponents(original, transport, out var componentPositions); metadata.UnionWith(componentPositions);
         var socketIo = ReadServiceQuotaSocketIo(original, transport.FreshLifetimes);
         for (int i = 0; i < original.Length; i++)
@@ -48,7 +55,8 @@ public static partial class QemuTranscripts
             framed.WriteLengths, userRoot, kernelRoot, socketCapture:capture, webSettingsBytes:startup.SettingsBytes,
             webSettingsFd:startup.SettingsDescriptor, webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal),
             configuredServiceMemory:true, serviceQuotaFailure:true);
-        var protocol = replay.Validate(); replay.RequireQuotaComponents(components); var counts = replay.ServiceSocketCounts();
+        var protocol = replay.Validate(); replay.RequireQuotaComponents(components); replay.RequireQuotaPthreads(pthreads, memory);
+        var counts = replay.ServiceSocketCounts();
         Need(socketIo.Count(c => c.Accept) == counts.Accepts &&
             socketIo.Where(c => !c.Accept && c.Response).Aggregate(0UL, (n, c) => n + c.Bytes) == counts.Sent &&
             socketIo.Where(c => !c.Accept && !c.Response && !c.Peek).Aggregate(0UL, (n, c) => n + c.Bytes) == counts.Received,
@@ -57,6 +65,7 @@ public static partial class QemuTranscripts
             denial.Reaped == (ulong)protocol.Reaped && denial.Identity == memory.Denial.Identity && denial.Ordinal == memory.Denial.Ordinal &&
             denial.BackedPages == memory.Denial.BackedPages && denial.PoolPages *4096 == memory.PoolBytes &&
             counts.Accepts >=4 && transport.History.Connections >=4, "service_quota_replay_joins");
-        return new(protocol, startup, random, transport, memory, denial, counts.Accepts, counts.Sent, counts.Received) { SocketIo = socketIo, Components = components };
+        return new(protocol, startup, random, transport, memory, denial, counts.Accepts, counts.Sent, counts.Received)
+            { SocketIo = socketIo, Components = components, Pthreads = pthreads };
     }
 }

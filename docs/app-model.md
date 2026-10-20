@@ -242,6 +242,23 @@ history before removing metadata. Fifty-four focused host checks across five
 fixtures pass with unchanged inputs and zero reuse. These remain development
 evidence until current native and original guest qualification.
 
+[Step1496](../done/step1496.md) adds the quota-only successful-clone observation:
+112 bytes are copied through the existing complete user-page preflight into
+owned kernel stack storage. The reader joins the original parent/child identity,
+Tid, TLS, SP and syscall continuation to the pinned musl self/map/top/size/guard
+fields and original default mmap/protection sequence. It replays committed
+backing separately from virtual access and binds every memory count to the
+native topology observations in the complete consumer. Fixed replacement revokes
+the old allocation's attribution; PROT_NONE and kernel reap retain backing until
+real discard/unmap or final checked owner cleanup. Cached generations count an
+allocation once. In-place growth beyond the original logical stack is pthread
+tail/remainder, without inventing a TLS or stack size. Failed-before-clone and
+custom/unproved allocations remain unclassified or fail qualification.
+Twenty focused checks pass. The active EFI profile publishes and verifies with
+937 raw source joins; these are not guest or complete ABI/stack acceptance.
+The literal MinimalApiSmoke async/cancellation route and directed-signal
+competing-readiness churn still precede the stable whole-batch gates.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

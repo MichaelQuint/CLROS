@@ -58,7 +58,7 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.LinuxSignals.cs"] = "82950a5dc67e16df8e1eb6bd2a8fb64150bb2c4262b1ddda36e5881bb94e891e",
                 [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "ad83b94413a1abba3c3ab6ad7f82790e5d6251c9df128c55b711821a669a51b0",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs"] = "219e55b5e409430e472d4a8cf3d7d9edf1f6250fe3ec3b80c9bf4aad39beb5a3",
-                [@"Boot\EfiEntry.LinuxThreads.cs"] = "e7dc473de73db7efb07ca5e1f319d1bafe7c15de0cd28293626635e7c144b48e",
+                [@"Boot\EfiEntry.LinuxThreads.cs"] = "19c36e487ba2ff6e32b8d8c8c2d23d2e4a96580123095495fdc9d1bab37ef51e",
                 [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "954a6bdc264bb993c2df335ff81bcc7485d5709cc8ed86616119cc5a1abefda6",
                 [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "a9e4b414ac0223da577a586fecdc1a64731607b4ce4f72187c253b4be1d57e93",
                 [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "1246c16c469b767e7b69b22d5d360cb235781eb0e1d076b6a05f2dd39b02f373",

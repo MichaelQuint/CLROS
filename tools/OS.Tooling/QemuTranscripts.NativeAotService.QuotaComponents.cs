@@ -159,6 +159,7 @@ public static partial class QemuTranscripts
                 Need(contextBase == baseValue && contextBase >= metadataStart && contextBase <= metadataEnd - 16UL * X64ThreadContext.Bytes,
                     "quota_components_context_alias");
                 Need(at > 0 && (calls.ContainsKey(at - 1) || rows[at - 1].StartsWith("M16_016_SOCKET ", StringComparison.Ordinal) ||
+                    rows[at - 1].StartsWith("M16_016_PTHREAD ", StringComparison.Ordinal) ||
                     rows[at - 1].StartsWith("M16_016_STACK_BACKING ", StringComparison.Ordinal)), "quota_components_stack_order");
                 Need(at + 1 < rows.Length && rows[at + 1].StartsWith("M16_016_STACK_LEASES ", StringComparison.Ordinal),
                     "quota_components_stack_snapshot_missing");

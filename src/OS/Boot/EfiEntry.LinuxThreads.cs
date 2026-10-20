@@ -524,6 +524,7 @@ public static unsafe partial class EfiEntry
             if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaSocketCall(c, index, call, result);
 #endif
 #if M16_014_PROBE
+            if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaPthreadCall(c, index, call, result);
             if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaStackLeases(c, false);
 #endif
 #if CLROS_LINUX_SOCKETS
@@ -815,6 +816,63 @@ public static unsafe partial class EfiEntry
 #endif
 
 #if M16_014_PROBE
+        // Copy one newly published child's raw TCB prefix on the serialized
+        // parent turn. The process/memory owners retain all backing; no guest
+        // pointer or alias survives this call, and no libc layout is inferred.
+        private static bool ObserveLinuxQuotaPthreadCall(LinuxNativeControl* c, uint index,
+            LinuxSyscallFrame call, LinuxSyscallResult result)
+        {
+            if (call.Number != 56 || result.Action != LinuxSyscallAction.Return || result.Value <= 0) return true;
+            if (c == null || c->State == null || LinuxNativeOwner(c->State) != c || !LinuxQuotaPolicy(c->State) ||
+                c->Phase != 3 || c->Published != 1 || c->Stopping != 0 || c->Capacity == 0 || c->Capacity > LinuxNativeWorkers ||
+                c->Slots == null || c->KernelSlots == null || c->Plan.Count != c->Capacity ||
+                c->Selected == 0 || c->Selected > c->Capacity || index != c->Selected - 1 ||
+                !c->Threads.Current.IsValid || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity ||
+                c->Gates[index].Status != LinuxSyscallGateStatus.Active || LinuxNativeCallOrdinal(c, index) == 0 ||
+                result.Value > int.MaxValue || call.Argument0 != LinuxThreadServices.PthreadCloneFlags ||
+                !c->Process.Inspect(c->Key, 2, c->Threads.Current, out var parent) || parent.Exiting ||
+                parent.Kernel.Value != c->Slots[index].Kernel.Value || parent.Tid != c->Slots[index].Tid) return false;
+            uint childIndex = c->Capacity, childTid = (uint)result.Value;
+            for (uint i = 0; i < c->Capacity; i++)
+            {
+                if (c->Slots[i].Tid != childTid) continue;
+                if (childIndex != c->Capacity) return false;
+                childIndex = i;
+            }
+            if (childIndex == c->Capacity || childIndex == index) return false;
+            var slot = c->Slots + childIndex; var kernel = c->KernelSlots + childIndex;
+            ulong identity = ((ulong)kernel->Generation << 32) | (childIndex + 1UL);
+            var binding = c->Plan.Bindings[childIndex];
+            var created = c->Threads.Inspect(c->Key, 2, slot->Kernel);
+            if (kernel->Generation == 0 || slot->Kernel.Value != identity || !created.Succeeded ||
+                created.State != KernelThreadTable.State.Ready || created.Identity.Value != identity ||
+                created.Context.Identity != identity || created.Context.Context != binding.Context.Context ||
+                created.Entry != binding.Entry.Entry || created.Argument != (ulong)slot ||
+                binding.Context.Identity != identity || binding.Argument != (ulong)slot ||
+                !c->Process.Inspect(c->Key, 2, slot->Kernel, out var child) || child.Exiting || child.Tid != childTid ||
+                child.ClearTid != call.Argument3 || child.Frame.FsBase != call.Argument4 || child.Frame.Rsp != call.Argument1 ||
+                child.Frame.Rip != call.Rip) return false;
+            byte* data = stackalloc byte[112];
+            if (!LinuxThreadKernelRange(c, data, 112, false) || CopyLinuxAlias(c->State, call.Argument4, data, 112, false) != 1) return false;
+            Storage* state = c->State;
+            if (!LinuxText(state, "M16_016_PTHREAD identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                !LinuxText(state, " ordinal=") || !LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) ||
+                !LinuxText(state, " child=") || !LinuxNumber(state, identity) ||
+                !LinuxText(state, " childTid=") || !LinuxNumber(state, childTid) ||
+                !LinuxText(state, " tls=") || !LinuxNumber(state, call.Argument4) ||
+                !LinuxText(state, " sp=") || !LinuxNumber(state, call.Argument1) ||
+                !LinuxText(state, " parentTid=") || !LinuxNumber(state, call.Argument2) ||
+                !LinuxText(state, " clearTid=") || !LinuxNumber(state, call.Argument3) ||
+                !LinuxText(state, " rip=") || !LinuxNumber(state, call.Rip) || !LinuxText(state, " bytes=112 data=")) return false;
+            for (uint i = 0; i < 112; i++)
+            {
+                uint high = (uint)data[i] >> 4, low = (uint)data[i] & 15;
+                if (!LinuxByte(state, (byte)(high < 10 ? '0' + high : 'a' + high - 10)) ||
+                    !LinuxByte(state, (byte)(low < 10 ? '0' + low : 'a' + low - 10))) return false;
+            }
+            return LinuxText(state, "\r\n");
+        }
+
         // These are kernel callback stack/context leases. The guest pthread
         // stack remains owned by user memory; clone RSP supplies no full bound.
         private static bool ObserveLinuxQuotaStackLeases(LinuxNativeControl* c, bool end)

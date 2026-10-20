@@ -79,6 +79,10 @@ public static partial class QemuTranscripts
                     if(d==0x32 && HelloMemory.Overlap(a,HelloMemory.Round(b),0x400000000,0x200000)) heapIntact=false;
                     break;
                 case 10: case 11: case 28:
+                    // The actual startup adapter admits only DONTNEED and
+                    // DONTDUMP/DODUMP. Unsupported advice returns EINVAL before
+                    // extent admission and preserves all ownership/backing.
+                    if(nr==28&&c is not (4 or 16 or 17)){Need(v==Bits(-22),"threading_advice_unsupported");break;}
                     Need(a>=4096 && a%4096==0 && b>0 && b<=0x1000000000,"threading_mapping_extent");
                     if(a<0x100000000)
                     {
@@ -99,7 +103,7 @@ public static partial class QemuTranscripts
                             ArmExit(t,r);
                         memory.Unmap(a,b);if(HelloMemory.Overlap(a,HelloMemory.Round(b),0x400000000,0x200000))heapIntact=false;
                     }
-                    else Need(c is 4 or 8 or 16 or 17 && memory.Covered(a,HelloMemory.Round(b),0),"threading_advice");
+                    else Need(c is 4 or 16 or 17 && memory.Covered(a,HelloMemory.Round(b),0),"threading_advice");
                     break;
                 case 12:
                     if(a==0)Need(v==currentBreak,"threading_brk_query");
