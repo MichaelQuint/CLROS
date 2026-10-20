@@ -301,6 +301,17 @@ executing a signal. Actual Linux NativeAOT handler/restorer/interruption/cleanup
 must be measured before adding the competing-readiness actor. The existing
 mechanical selector and prepared image guards stay unchanged; no issue closes.
 
+[Step1500](../done/step1500.md) follows with one successful original Linux
+NativeAOT signal ownership experiment at source `9dd1e01a`. The trace joins actual
+directed delivery, epoll EINTR, native pipe/managed callback, sigreturn and exact
+disposition/mask restoration; the disabled alternate stack stays unchanged.
+Managed Join precedes three descriptor closes, while native pthread tail exit
+follows them. The owned app exits 0 with confirmed process-group death. Original
+ELF/debug/source/compiler bytes and all 131 captured files are retained. This
+contains no competing readiness or churn overlap and supplies no CLROS guest
+acceptance, new web image admission or issue closure. The same tandem agent's
+bounded competing-reader/recovery plan remains the next implementation slice.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

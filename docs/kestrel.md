@@ -86,6 +86,25 @@ NativeAOT ownership/interruption/restoration remains the next experiment; only
 then add the competing pipe reader during real churn. Preserve #225's full race,
 fragmentation, budget and cleanup requirements and the separate mechanical scope.
 
+[Step1500](../done/step1500.md) records one original Linux NativeAOT ownership
+capture at source `9dd1e01a`. The canonical payload qualifier passes; the separate
+single probe POST returns 200 with exact health before/after. Original traces
+bind sender/callback Tid 2907, waiter 2911, directed SIGUSR2, entered epoll,
+EINTR, native handler pipe delivery, sigreturn and exact action/mask restoration.
+The alternate stack is disabled before/after. The sender and callback legitimately
+share a ThreadPool Tid; neither is the waiter. All three borrowed descriptors
+close after managed Join. Native pthread tail cleanup and exit occur afterward;
+managed Join is not evidence of prior native exit/reap. The owned app then exits
+0 and the controller confirms process-group death and joined logs.
+
+Retain 131 originals, 908 source joins, 1,042 unchanged native/compiler inputs,
+the exact ELF/debug CRC association and reviewed RX handler/restorer byte windows.
+The handler window is not a claimed whole symbol/call-chain/stack extent. This
+capture contains no churn or competing readiness. It adds no web-v4 churn report,
+prepared-image admission, CLROS guest race or issue acceptance. The old web image
+guards remain unchanged. Next add the dedicated competing reader and recovery
+phase during genuinely pending churn, preserving all #225/#748 criteria.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
