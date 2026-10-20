@@ -127,7 +127,11 @@ public static partial class QemuTranscripts
             }
         }
         for (int i = 0; i < rows!.Length; i++)
-            Need(!rows[i].StartsWith("M16_016_SOCKET", StringComparison.Ordinal) || consumed.Contains(i), "service_quota_socket_orphan");
+            // Component lease rows have their own strict reader. Keep malformed
+            // CALL marker aliases rejected rather than relaxing the whole prefix.
+            Need(!rows[i].StartsWith("M16_016_SOCKET", StringComparison.Ordinal) ||
+                rows[i].StartsWith("M16_016_SOCKET_LEASES ", StringComparison.Ordinal) ||
+                rows[i].StartsWith("M16_016_SOCKET_LEASE ", StringComparison.Ordinal) || consumed.Contains(i), "service_quota_socket_orphan");
         return Array.AsReadOnly(result.ToArray());
     }
 }

@@ -13,6 +13,10 @@ public static partial class QemuTranscripts
         /// <summary>Copied original post-CALL socket byte positions, checked
         /// against transport census and complete descriptor/syscall replay.</summary>
         public IReadOnlyList<ServiceQuotaSocketIo> SocketIo { get; init; } = Array.Empty<ServiceQuotaSocketIo>();
+        /// <summary>Present only after strict component records and complete
+        /// scheduler generation/Tid/peak joins. Retained backing and borrower
+        /// peaks remain separate; guest pthread bounds are not supplied.</summary>
+        public ServiceQuotaComponentInspection? Components { get; init; }
     }
 
     private static ServiceQuotaReplayReport ReplayServiceQuota(NativeAotThreadingOutput.Capture framed, byte[] elf,
@@ -25,6 +29,7 @@ public static partial class QemuTranscripts
         var memory = ReadServiceQuotaMemory(framed, entitlementBytes, out var memoryPositions); metadata.UnionWith(memoryPositions);
         var random = ReadServiceRandom(original);
         var transport = ReadServiceQuotaTransport(original, out var transportPositions); metadata.UnionWith(transportPositions);
+        var components = ReadServiceQuotaComponents(original, transport, out var componentPositions); metadata.UnionWith(componentPositions);
         var socketIo = ReadServiceQuotaSocketIo(original, transport.FreshLifetimes);
         for (int i = 0; i < original.Length; i++)
             if (original[i].StartsWith("M11_012_", StringComparison.Ordinal) ||
@@ -43,7 +48,7 @@ public static partial class QemuTranscripts
             framed.WriteLengths, userRoot, kernelRoot, socketCapture:capture, webSettingsBytes:startup.SettingsBytes,
             webSettingsFd:startup.SettingsDescriptor, webSettingsCall:(startup.SettingsIdentity,startup.SettingsOrdinal),
             configuredServiceMemory:true, serviceQuotaFailure:true);
-        var protocol = replay.Validate(); var counts = replay.ServiceSocketCounts();
+        var protocol = replay.Validate(); replay.RequireQuotaComponents(components); var counts = replay.ServiceSocketCounts();
         Need(socketIo.Count(c => c.Accept) == counts.Accepts &&
             socketIo.Where(c => !c.Accept && c.Response).Aggregate(0UL, (n, c) => n + c.Bytes) == counts.Sent &&
             socketIo.Where(c => !c.Accept && !c.Response && !c.Peek).Aggregate(0UL, (n, c) => n + c.Bytes) == counts.Received,
@@ -52,6 +57,6 @@ public static partial class QemuTranscripts
             denial.Reaped == (ulong)protocol.Reaped && denial.Identity == memory.Denial.Identity && denial.Ordinal == memory.Denial.Ordinal &&
             denial.BackedPages == memory.Denial.BackedPages && denial.PoolPages *4096 == memory.PoolBytes &&
             counts.Accepts >=4 && transport.History.Connections >=4, "service_quota_replay_joins");
-        return new(protocol, startup, random, transport, memory, denial, counts.Accepts, counts.Sent, counts.Received) { SocketIo = socketIo };
+        return new(protocol, startup, random, transport, memory, denial, counts.Accepts, counts.Sent, counts.Received) { SocketIo = socketIo, Components = components };
     }
 }

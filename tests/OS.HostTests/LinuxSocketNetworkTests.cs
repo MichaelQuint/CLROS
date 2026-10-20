@@ -30,8 +30,10 @@ internal static unsafe class LinuxSocketNetworkTests
         internal readonly Hardware* Hardware;
         internal readonly TcpInitialSequence.Owner* Sequence;
         internal readonly byte[] Frame = new byte[1514];
-        private readonly uint Count, ReceiveBytes, SendBytes;
-        internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768, bool compactTimeWait = false, bool continuingSequence = false)
+        internal readonly uint Count;
+        private readonly uint ReceiveBytes, SendBytes;
+        internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768, bool compactTimeWait = false, bool continuingSequence = false,
+            bool measureLeases = false)
         {
             Count = count; ReceiveBytes = receiveBytes; SendBytes = sendBytes; Files.Begin();
             Sockets = (Sockets.State*)NativeMemory.AllocZeroed((nuint)sizeof(Sockets.State));
@@ -56,7 +58,8 @@ internal static unsafe class LinuxSocketNetworkTests
             HostCheck.True(LinuxEpollServices.Begin(Epoll, Files.State, Ports, 2, Registrations, 16));
             HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.InitializeOwned(Table, Entries, count, Generations, count, 0x1234));
             HostCheck.True(Network.Begin(State, Sockets, Table, Slots, count, Buffers, receiveBytes, sendBytes,
-                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), continuingSequence ? 0U : 700U, Io, compactTimeWait, Sequence));
+                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), continuingSequence ? 0U : 700U, Io,
+                compactTimeWait, Sequence, measureLeases));
         }
         internal TcpPassiveConnection.Operations Io => new() { Context = Hardware, NowNanoseconds = &Now, Send = &Send,
             LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
@@ -106,6 +109,135 @@ internal static unsafe class LinuxSocketNetworkTests
     }
     private static byte[] Syn(ushort port = 40000, uint sequence = 99) => Wire.Packet(sequence, ReadOnlySpan<byte>.Empty, 0, port,
         flags: 2, options: [2, 4, 5, 180]);
+
+    // Test-only native layout access for independent corruption controls.
+    // Production fields stay private and no unchecked public setter is added.
+    private static ref TValue Field<TOwner, TValue>(TOwner* owner, string name) where TOwner : unmanaged where TValue : unmanaged =>
+        ref *(TValue*)((byte*)owner + Marshal.OffsetOf<TOwner>(name).ToInt32());
+
+    private static Network.LeaseObservation Leases(Model m, ulong acquired, ulong returned, uint live, uint peak, bool ended = false)
+    {
+        HostCheck.True(Network.TryObserveLeases(m.State, out var view));
+        HostCheck.Equal(acquired, view.Acquired); HostCheck.Equal(returned, view.Returned);
+        HostCheck.Equal(live, view.Leases); HostCheck.Equal(peak, view.PeakLeases); HostCheck.Equal(ended, view.Ended);
+        HostCheck.Equal((ulong)live * 8192, view.ReceiveBytes); HostCheck.Equal((ulong)live * 32768, view.SendBytes);
+        HostCheck.Equal((ulong)peak * 8192, view.PeakReceiveBytes); HostCheck.Equal((ulong)peak * 32768, view.PeakSendBytes);
+        HostCheck.Equal((ulong)m.Count * 40960, view.BackingBytes); return view;
+    }
+
+    [HostTest("m16-016 socket measurement defaults off and copies no owner authority")]
+    private static void LeaseDefaultAndCopy()
+    {
+        HostCheck.True(sizeof(Network.Slot) * 8 <= 8192); // Existing EFI slot storage must still admit the real layout.
+        using Model m = new(count: 1); uint listener = m.Listen(); _ = m.Connect(); _ = m.Accept(listener);
+        HostCheck.True(!Network.TryObserveLeases(m.State, out _));
+        var copied = *m.State; HostCheck.True(!Network.TryObserveLeases(&copied, out _));
+        HostCheck.Equal(0UL, Field<Network.State, ulong>(m.State, "LeaseAcquired"));
+        HostCheck.Equal(0UL, Field<Network.State, ulong>(m.State, "LeaseReturned"));
+        m.Finish(); HostCheck.True(!Network.TryObserveLeases(m.State, out _));
+    }
+
+    [HostTest("m16-016 actual reset and generation reuse retain peaks between observations and return scrubbed loans")]
+    private static void LeaseResetAndReuse()
+    {
+        using Model m = new(count: 1, measureLeases: true); uint listener = m.Listen();
+        var empty = Leases(m, 0, 0, 0, 0);
+        for (uint i = 0; i < 3; i++)
+        {
+            uint remote = 99 + i * 100, local = m.Connect(sequence: remote), fd = m.Accept(listener);
+            ulong generation = Field<Network.Slot, ulong>(m.Slots, "LeaseGeneration"); HostCheck.True(generation > i);
+            // Establish, fill both windows and release before the next copied
+            // observation. Peak must survive this otherwise invisible loan.
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(remote + 1, "rx"u8, local)));
+            m.Files.Text(User, "tx"); HostCheck.Equal(2L, m.Call(44, fd, User, 2));
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(remote + 3, ReadOnlySpan<byte>.Empty, local, flags: 0x14)));
+            HostCheck.Equal(0L, m.Call(3, fd)); m.Pump(); m.Pump();
+            Leases(m, i + 1UL, i + 1UL, 0, 1);
+            HostCheck.True(new ReadOnlySpan<byte>(m.Buffers, 40960).IndexOfAnyExcept((byte)0) < 0);
+            HostCheck.Equal(0UL, Field<Network.Slot, ulong>(m.Slots, "LeaseGeneration"));
+        }
+        HostCheck.Equal(0U, empty.PeakLeases); // copied values do not change with the owner.
+        m.Finish(false); Leases(m, 3, 3, 0, 1, ended: true);
+        m.Buffers[40959] = 1; HostCheck.True(!Network.TryObserveLeases(m.State, out _)); m.Buffers[40959] = 0;
+        Field<Network.Slot, ulong>(m.Slots, "LeaseGeneration") = 1; HostCheck.True(!Network.TryObserveLeases(m.State, out _));
+        Field<Network.Slot, ulong>(m.Slots, "LeaseGeneration") = 0;
+        Leases(m, 3, 3, 0, 1, ended: true);
+    }
+
+    [HostTest("m16-016 pending handshakes borrow no windows and private plus accepted abort returns exact loans")]
+    private static void LeasePendingPrivateAndAbort()
+    {
+        using Model m = new(count: 3, measureLeases: true); uint listener = m.Listen(1);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn())); Leases(m, 0, 0, 0, 0);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x14)));
+        Leases(m, 0, 0, 0, 0);
+        _ = m.Connect(sequence: 199); uint local = m.Connect(40001, 299);
+        Leases(m, 2, 0, 2, 2);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(300, ReadOnlySpan<byte>.Empty, local, port: 40001, flags: 0x14)));
+        HostCheck.Equal(0L, m.Call(3, listener)); m.Pump(); Leases(m, 2, 1, 1, 2);
+        m.Finish(); Leases(m, 2, 2, 0, 2, ended: true);
+    }
+
+    [HostTest("m16-016 compact TIME-WAIT retains tuple while returning actual window capacities")]
+    private static void LeaseCompactAndNormalClose()
+    {
+        foreach (bool compact in new[] { false, true })
+        {
+            using Model m = new(count: 1, compactTimeWait: compact, measureLeases: true);
+            uint listener = m.Listen(), local = m.Connect(), fd = m.Accept(listener); Leases(m, 1, 0, 1, 1);
+            HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+            HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local + 1, flags: 0x11)));
+            HostCheck.Equal(0L, m.Call(3, fd)); m.Pump();
+            Leases(m, 1, compact ? 1UL : 0UL, compact ? 0U : 1U, 1);
+            HostCheck.Equal(compact ? 1U : 0U, m.State->CompactTimeWaitConnections);
+            m.Pump(240_000_001_000); m.Pump(); Leases(m, 1, 1, 0, 1);
+            m.Finish(false); Leases(m, 1, 1, 0, 1, ended: true);
+        }
+    }
+
+    [HostTest("m16-016 lease observation rejects owner capacity generation alias and counter corruption")]
+    private static void LeaseCorruption()
+    {
+        using Model m = new(count: 2, measureLeases: true); uint listener = m.Listen(); _ = m.Connect(); _ = m.Accept(listener);
+        Leases(m, 1, 0, 1, 1);
+        var originalState = *m.State; var originalSlot = *m.Slots;
+        byte* rx = (byte*)m.Slots + Marshal.OffsetOf<Network.Slot>("Receiver").ToInt32();
+        byte* tx = (byte*)m.Slots + Marshal.OffsetOf<Network.Slot>("Sender").ToInt32();
+        for (int control = 0; control < 12; control++)
+        {
+            switch (control)
+            {
+                case 0: Field<TcpReceiveWindow.Owner, ulong>((TcpReceiveWindow.Owner*)rx, "Buffer") += 8; break;
+                case 1: Field<TcpSendWindow.Owner, int>((TcpSendWindow.Owner*)tx, "CapacityValue") -= 8; break;
+                case 2: Field<TcpSendWindow.Owner, Table.Handle>((TcpSendWindow.Owner*)tx, "Handle") = default; break;
+                case 3: Field<Network.Slot, ulong>(m.Slots, "LeaseGeneration")++; break;
+                case 4: Field<Network.State, ulong>(m.State, "LeaseReturned") = 2; break;
+                case 5: Field<Network.State, ulong>(m.State, "LeaseAcquired") = ulong.MaxValue; break;
+                case 6: Field<Network.State, uint>(m.State, "Leased") = 0; break;
+                case 7: Field<Network.State, uint>(m.State, "PeakLeased") = 3; break;
+                case 8: Field<TcpSendWindow.Owner, ulong>((TcpSendWindow.Owner*)tx, "Buffer") = Field<TcpReceiveWindow.Owner, ulong>((TcpReceiveWindow.Owner*)rx, "Buffer"); break;
+                case 9: Field<TcpReceiveWindow.Owner, ulong>((TcpReceiveWindow.Owner*)rx, "Self") = 0; break;
+                case 10: Field<Network.Slot, ulong>(m.Slots, "LeaseGeneration") = 0; break;
+                case 11: Field<Network.State, uint>(m.State, "Initialized") = 2; break;
+            }
+            HostCheck.True(!Network.TryObserveLeases(m.State, out _));
+            *m.State = originalState; *m.Slots = originalSlot;
+        }
+        Leases(m, 1, 0, 1, 1); m.Finish(); Leases(m, 1, 1, 0, 1, ended: true);
+    }
+
+    [HostTest("m16-016 actual failed transport preserves cleanup counters without granting observations")]
+    private static void LeaseFailedTransport()
+    {
+        using Model m = new(count: 1, measureLeases: true); uint listener = m.Listen(); _ = m.Connect(); uint fd = m.Accept(listener);
+        m.Files.Text(User, "failure"); HostCheck.Equal(7L, m.Call(44, fd, User, 7));
+        m.Hardware->Result = 2; HostCheck.Equal(Network.Status.TransportFailure, Network.Pump(m.State, m.Frame));
+        HostCheck.True(!Network.TryObserveLeases(m.State, out _));
+        m.Finish(); HostCheck.True(!Network.TryObserveLeases(m.State, out _));
+        HostCheck.Equal(1UL, Field<Network.State, ulong>(m.State, "LeaseAcquired"));
+        HostCheck.Equal(1UL, Field<Network.State, ulong>(m.State, "LeaseReturned"));
+        HostCheck.Equal(0U, Field<Network.State, uint>(m.State, "Leased"));
+    }
 
     [HostTest("m07-033 repeated complete lifetimes cross ISN wrap with old pending traffic rejected", HostLane.Fast, 25)]
     private static void ContinuingSequenceWrap()

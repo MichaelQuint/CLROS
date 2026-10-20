@@ -35,6 +35,7 @@ public static unsafe class LinuxSocketNetwork
         internal Fds.Token Listener;
         internal ulong ListenerInode;
         internal uint ListenerFd, ListenerDescription, Phase;
+        internal ulong LeaseGeneration;
     }
 
     /// <summary>One-use owner borrowing an empty initialized connection table,
@@ -50,6 +51,8 @@ public static unsafe class LinuxSocketNetwork
         internal Slot* Slots;
         internal byte* Buffers;
         internal uint Count, ReceiveBytes, SendBytes, NextSequence, Initialized, Failed;
+        internal uint MeasureLeases, Leased, PeakLeased;
+        internal ulong LeaseAcquired, LeaseReturned;
         internal MacAddress LocalMac, PeerMac;
         internal Ipv4Address PeerAddress;
         internal Pending.Operations Io;
@@ -78,11 +81,13 @@ public static unsafe class LinuxSocketNetwork
     /// and reused while their original tuples remain protected. Optional sequence
     /// owner replaces the finite diagnostic counter, requires initialSequence=0,
     /// and is borrowed through End. It is disjoint from every retained extent,
-    /// worker, packet and output; its startup/rekey quiet time ignores new SYNs.</summary>
+    /// worker, packet and output; its startup/rekey quiet time ignores new SYNs.
+    /// Optional lease measurement counts successful RX/TX owner bindings, not
+    /// physical allocation or payload usage; it defaults off.</summary>
     public static bool Begin(State* state, LinuxSocketServices.State* sockets, TcpConnectionTable.Owner* table,
         Slot* slots, uint count, byte* buffers, uint receiveBytes, uint sendBytes,
         MacAddress localMac, MacAddress peerMac, Ipv4Address peerAddress, uint initialSequence, Pending.Operations io,
-        bool compactTimeWait = false, TcpInitialSequence.Owner* sequence = null)
+        bool compactTimeWait = false, TcpInitialSequence.Owner* sequence = null, bool measureLeases = false)
     {
         if (sizeof(Waits.Entry) > 64 || count is 0 or > MaximumConnections || receiveBytes is < 8 or > 32768 || sendBytes is < 8 or > 32768 ||
             ((receiveBytes | sendBytes) & 7) != 0 ||
@@ -112,7 +117,8 @@ public static unsafe class LinuxSocketNetwork
         }
         *state = new() { Self = (ulong)state, Sockets = sockets, Table = table, Slots = slots, Count = count,
             Buffers = buffers, ReceiveBytes = receiveBytes, SendBytes = sendBytes, LocalMac = localMac,
-            PeerMac = peerMac, PeerAddress = peerAddress, NextSequence = initialSequence, Io = io, Initialized = 1 };
+            PeerMac = peerMac, PeerAddress = peerAddress, NextSequence = initialSequence, Io = io, Initialized = 1,
+            MeasureLeases = measureLeases ? 1U : 0U };
         if (compactTimeWait)
         {
             if (Waits.Initialize(&state->TimeWait, (Waits.Entry*)state->TimeWaitEntries, Waits.MaximumEntries,
@@ -268,7 +274,7 @@ public static unsafe class LinuxSocketNetwork
                 if (slot->Phase == 2) { if (!ReapPrivate(state, slot)) return Fail(state); }
                 else if (LinuxSocketServices.IsClosing(state->Sockets, &slot->Sender))
                 {
-                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return Fail(state);
+                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender) || !ReturnLease(state, slot)) return Fail(state);
                     *slot = default;
                 }
                 continue;
@@ -279,7 +285,7 @@ public static unsafe class LinuxSocketNetwork
                 if (reset == Status.TransportFailure) return reset;
                 if (slot->Sender.CloseState == TcpConnectionCloseState.Reset)
                 {
-                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return Fail(state);
+                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender) || !ReturnLease(state, slot)) return Fail(state);
                     *slot = default;
                 }
                 continue;
@@ -300,7 +306,7 @@ public static unsafe class LinuxSocketNetwork
                 var transferred = Tx.TransferTimeWait(&slot->Sender, &state->TimeWait);
                 if (transferred == Waits.Status.Success)
                 {
-                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return Fail(state);
+                    if (!LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender) || !ReturnLease(state, slot)) return Fail(state);
                     *slot = default;
                 }
                 else if (transferred is not (Waits.Status.Full or Waits.Status.Expired or Waits.Status.GenerationExhausted)) return Fail(state);
@@ -334,7 +340,7 @@ public static unsafe class LinuxSocketNetwork
             else
             {
                 if (!LinuxSocketServices.IsClosing(state->Sockets, &slot->Sender) ||
-                    !LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender)) return false;
+                    !LinuxSocketServices.ReapClosed(state->Sockets, &slot->Sender) || !ReturnLease(state, slot)) return false;
                 *slot = default;
             }
         }
@@ -363,6 +369,14 @@ public static unsafe class LinuxSocketNetwork
             Tx.Initialize(&slot->Sender, &slot->Receiver, &slot->Handshake, buffer + state->ReceiveBytes, state->SendBytes, 1500) != Tx.Status.Success ||
             Tx.ConfigureRetransmission(&slot->Sender, state->Io.Context, state->Io.NowNanoseconds, 0, continuing: true) != Tx.Status.Success ||
             Tx.ConfigureClose(&slot->Sender, 30_000_000_000) != Tx.Status.Success) return Fail(state);
+        if (state->MeasureLeases != 0)
+        {
+            if (slot->LeaseGeneration != 0 || !LeaseOwners(state, slot) || state->Leased >= state->Count || state->LeaseAcquired == ~0UL)
+                return Fail(state);
+            slot->LeaseGeneration = slot->Handshake.Connection.Generation;
+            state->Leased++; state->LeaseAcquired++;
+            if (state->Leased > state->PeakLeased) state->PeakLeased = state->Leased;
+        }
         Status result = Status.Success;
         if (initialPayloadFrame.Length != 0)
         {
@@ -419,8 +433,84 @@ public static unsafe class LinuxSocketNetwork
     {
         var handle = slot->Handshake.Connection;
         if (Tx.ReleaseClosed(&slot->Sender) != Tx.Status.Success || Rx.ReleaseClosed(&slot->Receiver) != Rx.Status.Success ||
-            TcpConnectionTable.ReleaseOwned(state->Table, handle) != TcpConnectionTable.OwnershipStatus.Success) return false;
+            TcpConnectionTable.ReleaseOwned(state->Table, handle) != TcpConnectionTable.OwnershipStatus.Success || !ReturnLease(state, slot)) return false;
         *slot = default; return true;
+    }
+
+    // Called only after the actual two window owners have released/scrubbed.
+    private static bool ReturnLease(State* state, Slot* slot)
+    {
+        if (state->MeasureLeases == 0) return true;
+        uint index = (uint)(slot - state->Slots);
+        if (index >= state->Count || slot->LeaseGeneration == 0 || slot->LeaseGeneration != slot->Handshake.Connection.Generation ||
+            state->Leased == 0 || state->LeaseReturned >= state->LeaseAcquired || slot->Receiver.Buffer != null || slot->Sender.Buffer != null ||
+            !Zero(state->Buffers + index * (state->ReceiveBytes + state->SendBytes), state->ReceiveBytes + state->SendBytes)) return false;
+        slot->LeaseGeneration = 0; state->Leased--; state->LeaseReturned++; return true;
+    }
+
+    private static bool LeaseOwners(State* state, Slot* slot)
+    {
+        uint index = (uint)(slot - state->Slots);
+        if (index >= state->Count) return false;
+        byte* buffer = state->Buffers + index * (state->ReceiveBytes + state->SendBytes);
+        return slot->Receiver.Self == (ulong)(&slot->Receiver) && slot->Sender.Self == (ulong)(&slot->Sender) &&
+            slot->Receiver.Table == state->Table && slot->Sender.Table == state->Table && slot->Sender.Receiver == &slot->Receiver &&
+            Same(slot->Receiver.Handle, slot->Handshake.Connection) && Same(slot->Sender.Handle, slot->Handshake.Connection) &&
+            slot->Receiver.Buffer == buffer && slot->Sender.Buffer == buffer + state->ReceiveBytes &&
+            slot->Receiver.CapacityValue == state->ReceiveBytes && slot->Sender.CapacityValue == state->SendBytes;
+    }
+
+    /// <summary>Copied, serialized RX/TX borrower counts/bytes from this one-use
+    /// owner. BackingBytes remains retained caller storage; current/peak bytes
+    /// are successful window leases, not new physical pages or buffered data.
+    /// Failed/disabled/inconsistent owners return false. Post-End succeeds only
+    /// after actual release, empty slots/table and whole-buffer scrubbing.</summary>
+    public readonly struct LeaseObservation
+    {
+        internal LeaseObservation(State* state)
+        {
+            Leases = state->Leased; PeakLeases = state->PeakLeased;
+            Acquired = state->LeaseAcquired; Returned = state->LeaseReturned;
+            ReceiveBytes = (ulong)Leases * state->ReceiveBytes; SendBytes = (ulong)Leases * state->SendBytes;
+            PeakReceiveBytes = (ulong)PeakLeases * state->ReceiveBytes; PeakSendBytes = (ulong)PeakLeases * state->SendBytes;
+            BackingBytes = (ulong)state->Count * (state->ReceiveBytes + state->SendBytes); Ended = state->Initialized == 2;
+        }
+        public readonly uint Leases, PeakLeases;
+        public readonly ulong Acquired, Returned, ReceiveBytes, SendBytes, PeakReceiveBytes, PeakSendBytes, BackingBytes;
+        public readonly bool Ended;
+    }
+
+    /// <summary>Read only under the original owner's serialization and retain
+    /// all admitted storage through the call. Grants no lifetime authority.</summary>
+    public static bool TryObserveLeases(State* state, out LeaseObservation observation)
+    {
+        observation = default;
+        if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->MeasureLeases != 1 || state->Failed != 0 ||
+            state->Initialized is not (1 or 2) || state->Count is 0 or > MaximumConnections ||
+            state->ReceiveBytes is < 8 or > 32768 || state->SendBytes is < 8 or > 32768 ||
+            ((state->ReceiveBytes | state->SendBytes) & 7) != 0 ||
+            !Extent(state->Sockets, (ulong)sizeof(LinuxSocketServices.State)) || state->Sockets->Self != (ulong)state->Sockets ||
+            !Extent(state->Slots, state->Count * (ulong)sizeof(Slot)) || !Extent(state->Table, (ulong)sizeof(TcpConnectionTable.Owner)) ||
+            !Extent(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes)) || !LeaseCounts(state)) return false;
+        if (state->Initialized == 1 ? !Current(state) : state->Sockets->Network != null || state->Table->Count != 0 ||
+            state->Leased != 0 || !Zero(state->Slots, state->Count * (ulong)sizeof(Slot)) ||
+            !Zero(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes))) return false;
+        observation = new(state); return true;
+    }
+
+    private static bool LeaseCounts(State* state)
+    {
+        if (state->LeaseReturned > state->LeaseAcquired || state->LeaseAcquired - state->LeaseReturned != state->Leased ||
+            state->Leased > state->PeakLeased || state->PeakLeased > state->Count) return false;
+        uint actual = 0;
+        for (uint i = 0; i < state->Count; i++)
+        {
+            Slot* slot = state->Slots + i;
+            if (slot->LeaseGeneration == 0) { if (slot->Phase > 1) return false; continue; }
+            if (slot->Phase is not (2 or 3) || slot->LeaseGeneration != slot->Handshake.Connection.Generation || !LeaseOwners(state, slot)) return false;
+            actual++;
+        }
+        return actual == state->Leased;
     }
     private static Status TransportResult(State* state, Slot* slot, Tx.Status result)
     {
@@ -439,7 +529,8 @@ public static unsafe class LinuxSocketNetwork
     public static bool End(State* state)
     {
         if (!Current(state, true) || state->RetainedConnections != 0 || state->Table->Count != 0 ||
-            !Zero(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes))) return false;
+            !Zero(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes)) ||
+            state->MeasureLeases != 0 && (!LeaseCounts(state) || state->Leased != 0)) return false;
         if (state->CompactTimeWait != 0)
         {
             if (Waits.Retire(&state->TimeWait) != Waits.Status.Success) return false;
@@ -495,6 +586,7 @@ public static unsafe class LinuxSocketNetwork
     private static bool Current(State* state, bool allowFailed = false)
     {
         if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 || state->CompactTimeWait > 1 ||
+            state->MeasureLeases > 1 || state->MeasureLeases == 0 && (state->Leased != 0 || state->PeakLeased != 0 || state->LeaseAcquired != 0 || state->LeaseReturned != 0) ||
             state->Failed != 0 && !allowFailed || state->Count is 0 or > MaximumConnections ||
             state->ReceiveBytes is < 8 or > 32768 || state->SendBytes is < 8 or > 32768 || ((state->ReceiveBytes | state->SendBytes) & 7) != 0 ||
             !Extent(state->Sockets, (ulong)sizeof(LinuxSocketServices.State)) || state->Sockets->Network != state ||
@@ -509,13 +601,14 @@ public static unsafe class LinuxSocketNetwork
         for (uint i = 0; i < state->Count; i++)
         {
             Slot* slot = state->Slots + i;
+            if (state->MeasureLeases == 0 && slot->LeaseGeneration != 0) return false;
             if (slot->Phase == 0) continue;
             if (slot->Phase > 3 || TcpConnectionTable.ReadOwned(state->Table, slot->Handshake.Connection, out var entry) != TcpConnectionTable.OwnershipStatus.Success ||
                 (slot->Phase == 1 ? entry.State != TcpConnectionLifecycleState.SynReceived :
                     entry.State is not (TcpConnectionLifecycleState.Established or TcpConnectionLifecycleState.Closed))) return false;
             held++;
         }
-        return held == state->Table->Count;
+        return held == state->Table->Count && (state->MeasureLeases == 0 || LeaseCounts(state));
     }
     private static Status Fail(State* state) { state->Failed = 1; return Status.TransportFailure; }
     private static bool Same(TcpConnectionTable.Handle a, TcpConnectionTable.Handle b) =>

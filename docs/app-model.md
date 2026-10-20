@@ -214,8 +214,9 @@ markers and worker/health/lifecycle/quota responses lie before denial. Six focus
 overlap/memory checks pass. An internal holder and composed consumer use the
 private observed peer Completion, actual pre-run input records and eight held
 outputs, verified before and after inspection. Their genuine successful capture
-path is unexercised; QemuSmoke caller integration remains required and its guard
-stays closed. No issue or guest gate is accepted by these copied-value checks.
+path is unexercised. At step1493, QemuSmoke caller integration was still pending;
+step1494 below supplies that route. No issue or guest gate is accepted by these
+copied-value checks.
 
 [Step1494](../done/step1494.md) supplies the explicit quota caller. It retains
 the actual four pre-run input records, runs the observed private owner, holds
@@ -225,6 +226,21 @@ Runner22 alone supplies no success. Twenty-nine focused selection/profile/owner/
 runner checks pass, including bad live-input refusal before any child. Positive
 and dry-run paths remain separate. No genuine successful quota capture or new
 full/native/guest qualification is supplied by this integration.
+
+[Step1495](../done/step1495.md) adds quota component instrumentation for the retained cooperative
+kernel-stack backing, its generation-bound callback stack/context leases and
+the fixed 320KiB socket buffer backing. Socket loans begin only when actual RX/TX
+owners bind, including private established connections; pending SYN reservations
+borrow no windows. Per-generation observations and cumulative current/peak/return
+counters survive loans released between observations. Returns follow actual
+scrubbing and original release, with a distinct post-End abort boundary. These
+capacities are borrowed from retained backing; they are not new physical
+allocations or measured stack depth. Guest pthread allocation attribution remains
+separate: clone RSP/TLS alone supplies no complete stack extent. The strict
+component consumer joins the original generation census and complete scheduler
+history before removing metadata. Fifty-four focused host checks across five
+fixtures pass with unchanged inputs and zero reuse. These remain development
+evidence until current native and original guest qualification.
 
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause

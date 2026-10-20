@@ -36,6 +36,11 @@ public static unsafe partial class EfiEntry
             internal Storage* State;
             internal ulong Key, AliasSerial;
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
+#if M16_014_PROBE
+            internal ulong QuotaStackAcquired, QuotaStackLastReturned, QuotaStackPeakBytes, QuotaContextPeakBytes;
+            internal uint QuotaStackPeakLive, QuotaStackStarted, QuotaStackEnded;
+            internal fixed ulong QuotaStackGenerations[(int)LinuxNativeWorkers];
+#endif
 #if M10_004_PROBE
             internal uint WebFlags, WebBoundFd, WebStartMatch;
             internal ulong WebConfigBytes, WebStdoutBytes, WebStderrBytes;
@@ -518,6 +523,9 @@ public static unsafe partial class EfiEntry
 #if M16_014_PROBE && CLROS_LINUX_SOCKETS
             if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaSocketCall(c, index, call, result);
 #endif
+#if M16_014_PROBE
+            if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaStackLeases(c, false);
+#endif
 #if CLROS_LINUX_SOCKETS
             if (logged && call.Number is 232 or 281 && result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
                 unchecked((int)call.Argument3) > 0)
@@ -806,6 +814,80 @@ public static unsafe partial class EfiEntry
         }
 #endif
 
+#if M16_014_PROBE
+        // These are kernel callback stack/context leases. The guest pthread
+        // stack remains owned by user memory; clone RSP supplies no full bound.
+        private static bool ObserveLinuxQuotaStackLeases(LinuxNativeControl* c, bool end)
+        {
+            if (c == null || !LinuxQuotaPolicy(c->State) || c->Phase != 3 || c->Published != 1 ||
+                c->Capacity == 0 || c->Capacity > LinuxNativeWorkers || c->Plan.Count != c->Capacity ||
+                c->QuotaStackEnded != 0 || !LinuxNativeVerify(c)) return false;
+            Storage* state = c->State;
+            if (c->QuotaStackStarted == 0 || end)
+            {
+                if (!CooperativeAuditPool(state, true) || !FirstExitOwnedArena.ValidateCanaries(state->Arena) ||
+                    c->Plan.Supervisor.StackGuardStart != (ulong)state->Arena.Storage + 21 * Page ||
+                    c->Plan.Supervisor.StackBytes != 66 * Page) return false;
+                if (c->QuotaStackStarted == 0)
+                {
+                    ulong worker = 0;
+                    for (uint page = NativeProgram.WorkerPage; page < NativeProgram.IrqGuardPage; page++)
+                        if (!NativeProgram.IsGuardPage(page)) worker += Page;
+                    if (!LinuxText(state, "M16_016_STACK_BACKING cooperativePages=") || !LinuxNumber(state, CooperativePoolPages) ||
+                        !LinuxText(state, " workerMappedBytes=") || !LinuxNumber(state, worker) ||
+                        !LinuxText(state, " switchMappedBytes=") || !LinuxNumber(state, (NativeProgram.SwitchPages - 2UL) * Page) ||
+                        !LinuxText(state, " irqMappedBytes=") || !LinuxNumber(state, (NativeProgram.IrqPages - 2UL) * Page) ||
+                        !LinuxText(state, " mainSupervisorUsableBound=") || !LinuxNumber(state, c->Plan.Supervisor.StackBytes - 2 * Page) ||
+                        !LinuxText(state, " reservation=retained\r\n")) return false;
+                }
+            }
+            ulong stacks = 0, contexts = 0; uint live = 0; bool changed = c->QuotaStackStarted == 0;
+            for (uint i = 0; i < c->Capacity; i++)
+            {
+                var slot = c->KernelSlots + i;
+                if (slot->State is KernelThreadTable.State.Empty or KernelThreadTable.State.Retired) continue;
+                var d = slot->Context; ulong identity = ((ulong)slot->Generation << 32) | (i + 1UL);
+                var held = c->Plan.Bindings[i].Context;
+                if (slot->Generation == 0 || d.Identity != identity || held.Identity != identity || d.Context != held.Context ||
+                    d.ContextBytes != NativeContext.Bytes || d.StackGuardStart != state->CooperativePool +
+                        (NativeProgram.WorkerPage + i * NativeProgram.WorkerPages) * Page || d.StackBytes != NativeProgram.WorkerPages * Page ||
+                    held.StackGuardStart != d.StackGuardStart || held.StackBytes != d.StackBytes ||
+                    !c->Threads.Inspect(c->Key, 2, new(identity)).Succeeded) return false;
+                ulong prior = c->QuotaStackGenerations[i];
+                if (prior != slot->Generation)
+                {
+                    if (prior != 0 && slot->Generation != prior + 1 || c->QuotaStackAcquired == ~0UL ||
+                        !LinuxText(state, "M16_016_STACK_LEASE identity=") || !LinuxNumber(state, identity) ||
+                        !LinuxText(state, " index=") || !LinuxNumber(state, i) ||
+                        !LinuxText(state, " stack=") || !LinuxNumber(state, d.StackGuardStart + Page) ||
+                        !LinuxText(state, " stackBytes=") || !LinuxNumber(state, d.StackBytes - 2 * Page) ||
+                        !LinuxText(state, " context=") || !LinuxNumber(state, (ulong)d.Context) ||
+                        !LinuxText(state, " contextBytes=") || !LinuxNumber(state, d.ContextBytes) || !LinuxText(state, "\r\n")) return false;
+                    c->QuotaStackGenerations[i] = slot->Generation; c->QuotaStackAcquired++; changed = true;
+                }
+                live++; stacks += d.StackBytes - 2 * Page; contexts += d.ContextBytes;
+            }
+            if (c->QuotaStackAcquired < c->Reaped || c->QuotaStackAcquired - c->Reaped != live ||
+                live != c->Process.ActiveThreads || end && (live != 0 || c->Selected != 0 || c->Threads.HandoffPending)) return false;
+            if (live > c->QuotaStackPeakLive) c->QuotaStackPeakLive = live;
+            if (stacks > c->QuotaStackPeakBytes) c->QuotaStackPeakBytes = stacks;
+            if (contexts > c->QuotaContextPeakBytes) c->QuotaContextPeakBytes = contexts;
+            changed |= c->QuotaStackLastReturned != c->Reaped || end;
+            if (changed && (!LinuxText(state, "M16_016_STACK_LEASES acquired=") || !LinuxNumber(state, c->QuotaStackAcquired) ||
+                !LinuxText(state, " returned=") || !LinuxNumber(state, c->Reaped) ||
+                !LinuxText(state, " live=") || !LinuxNumber(state, live) ||
+                !LinuxText(state, " stackBytes=") || !LinuxNumber(state, stacks) ||
+                !LinuxText(state, " contextBytes=") || !LinuxNumber(state, contexts) ||
+                !LinuxText(state, " peakLive=") || !LinuxNumber(state, c->QuotaStackPeakLive) ||
+                !LinuxText(state, " peakStackBytes=") || !LinuxNumber(state, c->QuotaStackPeakBytes) ||
+                !LinuxText(state, " peakContextBytes=") || !LinuxNumber(state, c->QuotaContextPeakBytes) ||
+                !LinuxText(state, " end=") || !LinuxNumber(state, end ? 1U : 0U) || !LinuxText(state, "\r\n"))) return false;
+            c->QuotaStackStarted = 1; c->QuotaStackLastReturned = c->Reaped;
+            if (end) c->QuotaStackEnded = 1;
+            return true;
+        }
+#endif
+
         // Valid only after real workers/IRQ/native references have drained.
         // Failure retains the pool and outstanding ownership for fail-closed
         // termination; it never authorizes restoring/unmapping a live resource.
@@ -813,6 +895,9 @@ public static unsafe partial class EfiEntry
         {
             if (c == null || c->Installed != 0 || c->Timer.IsPrepared || c->Process.ActiveThreads != 0 ||
                 c->Threads.Current.IsValid || c->Threads.HandoffPending || !FirstExitOwnedArena.InMainStack(c->State->Arena, supervisorRsp, 8)) return false;
+#if M16_014_PROBE
+            if (LinuxQuotaPolicy(c->State) && !ObserveLinuxQuotaStackLeases(c, true)) return false;
+#endif
             if (c->GuardAttached != 0)
             {
                 if (!LinuxMemoryServices.DetachMutationGuard(&c->State->LinuxMemory, c->State, &LinuxThreadMemoryGuard)) return false;
