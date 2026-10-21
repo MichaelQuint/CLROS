@@ -380,6 +380,15 @@ Quota schema/roles/routes remain strict. The adapter is still separate from nati
 qualification and the guest runner. HTTP FIFO framing, held owner/runner joins,
 actual packet-flow association and fresh source/ELF/index admission remain required.
 
+[Step1508](../done/step1508.md) adds the HTTP FIFO join over actual retained host
+stream bytes: exact request-write exchange identity, unique complete response,
+status/body/media/read-time checks and selected message bindings. Failed retries,
+incomplete suffixes and unknown attempted writes remain explicit; the host cancel
+event is never converted to an HTTP response. All23 focused checks across six
+fixtures pass unchanged/zero reuse, including real loopback integration and
+unchanged quota parser regressions. Owned guest-runner completion/evidence,
+actual packet association and fresh native/source/image admission remain pending.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

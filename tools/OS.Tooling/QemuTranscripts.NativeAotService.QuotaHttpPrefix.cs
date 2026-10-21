@@ -6,7 +6,7 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
-    /// <summary>One copied quota-only HTTP/1.1 prefix. Offsets are zero-based in
+    /// <summary>One copied bounded HTTP/1.1 prefix. Offsets are zero-based in
     /// the supplied byte sequence; End is exclusive. HeaderEnd=-1 means the
     /// header is unfinished. State=complete alone denotes a framed message.
     /// BodyBase64 contains only decoded entity bytes actually supplied, including
@@ -33,7 +33,7 @@ public static partial class QemuTranscripts
     public static ServiceQuotaHttpPrefixes InspectNativeAotServiceQuotaHttpPrefixesForTests(
         ReadOnlySpan<byte> bytes, bool responses) => ReadServiceQuotaHttpPrefixes(bytes, responses);
 
-    private static ServiceQuotaHttpPrefixes ReadServiceQuotaHttpPrefixes(ReadOnlySpan<byte> bytes, bool responses)
+    private static ServiceQuotaHttpPrefixes ReadServiceQuotaHttpPrefixes(ReadOnlySpan<byte> bytes, bool responses,bool webDiagnostics=false)
     {
         const int maximum = 4 * 1024 * 1024;
         Need(bytes.Length <= maximum, "quota_http_input_bound");
@@ -44,7 +44,7 @@ public static partial class QemuTranscripts
             var remaining = bytes[cursor..]; int at = remaining.IndexOf("\r\n\r\n"u8);
             bool completeHead = at >= 0;
             Need(completeHead ? at + 4 <= 8192 : remaining.Length < 8192, "quota_http_header_bound");
-            var head = QuotaHttpPrefixHead(completeHead ? remaining[..at] : remaining, completeHead, responses);
+            var head = QuotaHttpPrefixHead(completeHead ? remaining[..at] : remaining, completeHead, responses,webDiagnostics);
             var headers = head.Headers;
             bool chunked = headers.TryGetValue("Transfer-Encoding", out string? transfer),
                 hasLength = headers.TryGetValue("Content-Length", out string? lengthText);
@@ -87,7 +87,7 @@ public static partial class QemuTranscripts
     }
 
     private static (string First, Dictionary<string, string> Headers) QuotaHttpPrefixHead(
-        ReadOnlySpan<byte> bytes, bool complete, bool responses)
+        ReadOnlySpan<byte> bytes, bool complete, bool responses,bool webDiagnostics)
     {
         for (int i = 0; i < bytes.Length; i++)
         {
@@ -98,8 +98,8 @@ public static partial class QemuTranscripts
         string[] rows = Encoding.ASCII.GetString(bytes).Split("\r\n", StringSplitOptions.None);
         Need(rows.Length <= 64 && rows.All(row => row.Length <= 8192), "quota_http_header_lines");
         int known = complete ? rows.Length : rows.Length - 1;
-        if (known > 0) QuotaHttpPrefixFirst(rows[0], responses);
-        else QuotaHttpPrefixFirstFragment(rows[0], responses);
+        if (known > 0) QuotaHttpPrefixFirst(rows[0], responses,webDiagnostics);
+        else QuotaHttpPrefixFirstFragment(rows[0], responses,webDiagnostics);
         Dictionary<string, string> headers = new(StringComparer.OrdinalIgnoreCase);
         for (int i = 1; i < known; i++) QuotaHttpPrefixHeader(rows[i], headers);
         if (!complete && known > 0 && rows[^1].Length > 0)
@@ -128,13 +128,13 @@ public static partial class QemuTranscripts
             headers.TryAdd(row[..colon], row[(colon + 2)..]), "quota_http_header");
     }
 
-    private static void QuotaHttpPrefixFirst(string first, bool responses)
+    private static void QuotaHttpPrefixFirst(string first, bool responses,bool webDiagnostics)
     {
         if (responses)
         {
             Need(first.Length >= 14 && first.StartsWith("HTTP/1.1 ", StringComparison.Ordinal) && first[12] == ' ' &&
                 int.TryParse(first.AsSpan(9, 3), NumberStyles.None, CultureInfo.InvariantCulture, out int status) &&
-                status is >=200 and <=599 && status is not (204 or 304), "quota_http_response");
+                status>=200&&status<=(webDiagnostics?999:599)&&status is not (204 or 304), "quota_http_response");
         }
         else
         {
@@ -144,11 +144,11 @@ public static partial class QemuTranscripts
         }
     }
 
-    private static void QuotaHttpPrefixFirstFragment(string fragment, bool responses)
+    private static void QuotaHttpPrefixFirstFragment(string fragment, bool responses,bool webDiagnostics)
     {
         // A final CR may be the first half of the unfinished line terminator.
         if (fragment.EndsWith('\r'))
-        { QuotaHttpPrefixFirst(fragment[..^1], responses); return; }
+        { QuotaHttpPrefixFirst(fragment[..^1], responses,webDiagnostics); return; }
         if (responses)
         {
             const string prefix = "HTTP/1.1 ";
@@ -158,7 +158,7 @@ public static partial class QemuTranscripts
             {
                 int digits = Math.Min(3, fragment.Length - 9);
                 Need(fragment.Substring(9, digits).All(char.IsAsciiDigit) &&
-                    fragment[9] is >= '2' and <= '5' && (fragment.Length < 13 || fragment[12] == ' '),
+                    fragment[9]>='2'&&fragment[9]<=(webDiagnostics?'9':'5') && (fragment.Length < 13 || fragment[12] == ' '),
                     "quota_http_response_fragment");
             }
         }

@@ -184,6 +184,9 @@ internal static class NativeAotWebSignalRaceTransportTests
         HostCheck.True(summary.SemanticComplete && summary.Cancelled == 1 && summary.Faulted == 0);
         NativeAotWebPayload.ValidateSignalRaceTransport(File.ReadAllText(path + ".attempts.json"), selected, File.ReadAllBytes(path + ".wire.json"), peer.Endpoint, Health);
         var trace = Wire(path); HostCheck.Equal("signalrace-run", trace.Purpose); HostCheck.Equal(peer.Port, trace.Port);
+        var framed = QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"), File.ReadAllText(path + ".attempts.json"), selected, peer.Endpoint, Health);
+        HostCheck.Equal(19, framed.Samples.Count); HostCheck.True(framed.Samples[7] is { Sample: 7, MessageIndex: -1, HostCancellation: true });
+        HostCheck.True(framed.Samples.Where(s => !s.HostCancellation).All(s => framed.Messages[s.MessageIndex].ExchangeId == s.ExchangeId && framed.Messages[s.MessageIndex].Response?.State == "complete"));
         HostCheck.Equal(summary.Attempts, trace.Exchanges.Count); HostCheck.Equal(0, trace.Samples.Count);
         HostCheck.True(trace.Connections.Count is >= 3 and <= 4 && trace.Connections.All(c => c.DisposedTicks > 0));
         HostCheck.True(trace.Connections.Select(c => c.Role).Distinct().Order().SequenceEqual(new[] { "churn", "control", "race" }));
@@ -221,6 +224,8 @@ internal static class NativeAotWebSignalRaceTransportTests
         HostCheck.True(Bytes(trace, 1, "write").SequenceEqual(peer.Connections.Single().Requests.Single()));
         HostCheck.True(Bytes(trace, 1, "read").SequenceEqual(peer.Connections.Single().Responses.Single()));
         HostCheck.True(!NativeAotWebPayload.InspectSignalRaceAttempts(File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health).SemanticComplete);
+        var framed = QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"), File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health);
+        HostCheck.True(framed.Messages.Single().Response is { State: "body", BodyBase64: "QQ==" } && framed.Samples.Count == 0);
         NativeAotWebPayload.ValidateSignalRaceTransport(File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), File.ReadAllBytes(path + ".wire.json"), peer.Endpoint, Health);
     }
 
@@ -235,6 +240,8 @@ internal static class NativeAotWebSignalRaceTransportTests
         HostCheck.Equal(0, trace.Connections.Count); HostCheck.Equal(0, trace.Operations.Count); HostCheck.Equal(0L, trace.RawBytes);
         HostCheck.Equal(0, peer.Connections.Count); HostCheck.Equal(1, trace.Exchanges.Count);
         HostCheck.Equal("cancelled", trace.Exchanges[0].Outcome);
+        var framed = QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"), File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health);
+        HostCheck.True(framed.Messages.Count == 0 && framed.Samples.Count == 0);
         NativeAotWebPayload.ValidateSignalRaceTransport(File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), File.ReadAllBytes(path + ".wire.json"), peer.Endpoint, Health);
     }
 
@@ -255,6 +262,8 @@ internal static class NativeAotWebSignalRaceTransportTests
         HostCheck.True(Bytes(trace, 1, "read").SequenceEqual(peer.Connections.Single().Responses.Single()));
         var summary = NativeAotWebPayload.InspectSignalRaceAttempts(File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health);
         HostCheck.Equal(new NativeAotWebPayload.SignalRaceAttemptSummary(1, 1, 0, 0, false), summary);
+        var framed = QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"), File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health);
+        HostCheck.True(framed.Messages.Single().Response is { State: "complete" } && framed.Samples.Count == 0);
         NativeAotWebPayload.ValidateSignalRaceTransport(File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), File.ReadAllBytes(path + ".wire.json"), peer.Endpoint, Health);
     }
 

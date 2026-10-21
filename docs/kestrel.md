@@ -207,6 +207,18 @@ The API is not yet wired into native qualification or the guest runner. Full HTT
 FIFO framing, held runner/child evidence and actual PCAP association remain next;
 no NAT tuple, native race or guest acceptance is inferred from local stream IDs.
 
+[Step1508](../done/step1508.md) frames the retained known stream bytes, binds
+request writes to exchange IDs, and pairs responses FIFO on each connection.
+Every response outcome needs a unique complete request/response, exact decoded
+body/status/media type and read-time bounds. Failed retries, unknown attempted
+writes and incomplete response suffixes remain explicit; consumed failure bodies
+are checked only as prefixes. Selected samples bind complete message indices;
+churn cancellation stays a host event with index-1. All23 focused checks across
+six fixtures pass, including the actual loopback controls, identical-body FIFO,
+ambiguous retries and existing quota readers. Quota parsing remains unchanged.
+These consistency checks still require an owned guest runner/evidence bundle,
+explicit race completion/packet contract and actual PCAP/native/source joins.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
