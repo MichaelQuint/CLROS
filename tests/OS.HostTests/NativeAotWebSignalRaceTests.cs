@@ -5,10 +5,32 @@ internal static class NativeAotWebSignalRaceTests
     // Copied synthetic scalar observations only, not an owned guest capture.
     private static readonly QemuTranscripts.WebSignalRaceSelection Selection=new(1,1,3,2,2);
     private static QemuTranscripts.WebSignalRaceReport Run(QemuTranscripts.WebSignalRaceSelection? selection=null,
-        bool omitRepark=false,bool wrongRecovery=false,bool leaveOpen=false,bool repeatPipe=false,Action<int>? originalWait=null)
+        bool omitRepark=false,bool wrongRecovery=false,bool leaveOpen=false,bool repeatPipe=false,Action<int>? originalWait=null,
+        bool controls=false,bool extraSocket=false,bool missingAfter=false,bool lateRetirement=false,bool unaccepted=false)
     {
         var replay=NativeAotWebReplayTests.InspectProbe(v=>
         {
+            if(extraSocket)
+            {
+                string? retired=null;
+                if(lateRetirement)
+                {
+                    retired=NativeAotWebTransportTests.Retire(0,2,41006,NativeAotWebTransportTests.Timeout+1);
+                    HostCheck.True(v.Rows.Remove(retired));
+                }
+                if(missingAfter)
+                {
+                    int at=v.Rows.FindLastIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal)&&r.Contains(" nr=45 ",StringComparison.Ordinal)&&r.Contains(" a0=7 ",StringComparison.Ordinal));
+                    HostCheck.True(at>=0);string old=v.Rows[at];
+                    v.Rows[at]=old.Replace("valueBits="+(NativeAotWebTransportTests.Report().Sockets.After.RequestHex.Length/2)+" ",
+                        "valueBits="+unchecked((ulong)-11L).ToString(System.Globalization.CultureInfo.InvariantCulture)+" ",StringComparison.Ordinal);
+                    HostCheck.True(v.Rows[at]!=old);
+                }
+                v.Rows.Add(NativeAotWebTransportTests.Fresh(7,1,42000,NativeAotWebTransportTests.Timeout+(lateRetirement?0UL:2UL)));
+                if(!unaccepted)
+                {v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(45,1,[7,0x500800,1,0,0,0]);v.Call(44,1,[7,0x500800,1,0,0,0]);v.Call(3,0,[7]);}
+                if(retired is not null)v.Rows.Add(retired);
+            }
             const ulong b=0x500800,frame=0x6ffffb78,stack=0x6ffffff0;
             v.Call(293,0,[0x500500,0x80800]);v.Call(291,9,[0x80000]);v.Call(233,0,[9,1,7,0x500300]);
             v.Call(13,0,[12,0x500400,0,8]);var actor=v.Clone(3,3);v.Call(186,1);
@@ -36,7 +58,7 @@ internal static class NativeAotWebSignalRaceTests
             v.Resume(1);v.Call(0,1,[7,b,1]);
             if(!leaveOpen){v.Call(3,0,[9]);v.Call(3,0,[8]);v.Call(3,0,[7]);}
             if(repeatPipe){v.Call(293,0,[0x500500,0x80800]);v.Call(3,0,[8]);v.Call(3,0,[7]);}
-        },signalRace:selection??Selection);
+        },signalRace:selection??Selection,controls:controls);
         HostCheck.True(replay.SignalRace is not null);return replay.SignalRace!;
     }
 
@@ -72,4 +94,14 @@ internal static class NativeAotWebSignalRaceTests
 
     [HostTest("web race rejects multiple probe generations instead of silently choosing matching descriptor numbers")]
     private static void Generations()=>Reject(()=>Run(repeatPipe:true));
+
+    [HostTest("web race replay admits later socket only after exact ordinary controls then completes actual copied race projection")]
+    private static void LaterSocket()
+    {
+        var report=Run(controls:true,extraSocket:true);
+        HostCheck.True(report.Steps.Count>=17&&report.Selection==Selection&&report.Actor.ReapRecordIndex is not null);
+        Reject(()=>Run(controls:true,extraSocket:true,missingAfter:true));
+        Reject(()=>Run(controls:true,extraSocket:true,lateRetirement:true));
+        Reject(()=>Run(controls:true,extraSocket:true,unaccepted:true));
+    }
 }

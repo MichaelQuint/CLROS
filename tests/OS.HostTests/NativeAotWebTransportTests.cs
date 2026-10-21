@@ -32,8 +32,8 @@ internal static class NativeAotWebTransportTests
         rows.AddRange([Fresh(0,2,41000+ordinary,100),Fresh(ordinary,1,41001+ordinary,101),Report(quota).Sockets.Observations.DropRow,
             Report(quota).Sockets.Observations.TimeoutRow,Retire(0,2,41000+ordinary,Timeout+1)]);return rows;
     }
-    private static QemuTranscripts.WebSocketControlInspection Inspect(List<string> rows,QemuTranscripts.WebControlInspection? controls=null,bool quota=false)=>
-        QemuTranscripts.InspectNativeAotWebTransportForTests(rows.ToArray(),controls??Report(quota),quota);
+    private static QemuTranscripts.WebSocketControlInspection Inspect(List<string> rows,QemuTranscripts.WebControlInspection? controls=null,bool quota=false,bool signalRace=false)=>
+        QemuTranscripts.InspectNativeAotWebTransportForTests(rows.ToArray(),controls??Report(quota),quota,signalRace);
     private static void Reject(Action action){bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
 
     [HostTest("web controls bind reused generation timeout private retirement and live healthy overlap")]
@@ -92,5 +92,35 @@ internal static class NativeAotWebTransportTests
         var rows=Rows();rows.Insert(rows.Count-3,Wait(1,1,30001));HostCheck.Equal(Timeout,Inspect(rows).TimedOut);
         var early=rows.ToList();early.Add(Retire(1,1,30001,Timeout+2).Replace("deadline=0 duration=0","deadline=240000000500 duration=240000000000",StringComparison.Ordinal));Reject(()=>Inspect(early));
         var bad=Rows();bad.Insert(bad.Count-3,Wait(0,2,41006));Reject(()=>Inspect(bad));
+    }
+
+    [HostTest("explicit web race transport retains exact ordinary control boundary before later generations")]
+    private static void RaceLifetimes()
+    {
+        var rows=Rows();rows.AddRange([Fresh(7,1,42000,Timeout+2),Retire(7,1,42000,Timeout+3),Fresh(7,2,42001,Timeout+4)]);
+        var report=Inspect(rows,signalRace:true);
+        HostCheck.True(report.Connections==10&&report.Generation==2&&report.Retired==Timeout+1&&report.TimedOut==Timeout);
+        Reject(()=>Inspect(rows));Reject(()=>Inspect(Rows(true),quota:true,signalRace:true));
+        foreach(int at in new[]{7,Rows().Count-2})
+        {
+            var early=Rows();early.Insert(at,Fresh(7,1,42000,at==7?100UL:1001UL));
+            Reject(()=>Inspect(early,signalRace:true));
+        }
+    }
+
+    [HostTest("explicit web race transport bounds all lifetimes and retains duplicate stale and TIMEWAIT refusals")]
+    private static void RaceLifetimeBounds()
+    {
+        var rows=Rows();
+        for(int i=0;i<504;i++)rows.AddRange([Fresh(7,i+1,42000+i,Timeout+2+(ulong)i*2),Retire(7,i+1,42000+i,Timeout+3+(ulong)i*2)]);
+        HostCheck.Equal(512,Inspect(rows,signalRace:true).Connections);
+        rows.Add(Fresh(7,505,42504,Timeout+1010));Reject(()=>Inspect(rows,signalRace:true));
+        foreach(string extra in new[]{Fresh(7,2,42000,Timeout+2),Fresh(7,1,30001,Timeout+2),Fresh(6,1,42000,Timeout+2)})
+        {var bad=Rows();bad.Add(extra);Reject(()=>Inspect(bad,signalRace:true));}
+        var wait=Rows();wait.Add(Fresh(7,1,42000,Timeout+2));
+        wait.Add(Fresh(7,1,42000,Timeout+3).Replace("M16_011_SLOT event=0","M16_011_TIMEWAIT",StringComparison.Ordinal)
+            .Replace("deadline=0 duration=0","deadline=270000001003 duration=240000000000 drain=0",StringComparison.Ordinal));
+        wait.Add(Retire(7,1,42000,Timeout+4).Replace("deadline=0 duration=0","deadline=270000001003 duration=240000000000",StringComparison.Ordinal));
+        Reject(()=>Inspect(wait,signalRace:true));
     }
 }

@@ -68,7 +68,7 @@ public static partial class QemuTranscripts
         private readonly WebControlInspection? webControls;
         private readonly List<SocketLifetime>? webLifetimes;
         private int webControlEvents;
-        private bool webPrivateRetired;
+        private bool webPrivateRetired,webRaceExtraAccepted;
 
         private void SocketMessageInput(RuntimeThread thread)
         {
@@ -169,18 +169,19 @@ public static partial class QemuTranscripts
             Need(descriptor is not null,"web_replay_control_descriptor");return descriptor!;
         }
 
-        private void WebBadIo(bool requirePrivate)
+        private void WebBadIo(bool requirePrivate,bool allowLaterAccepts=false)
         {
             var controls=webControls!.Sockets;int ordinary=webLogQuota?5:6;
             var bad=WebControlDescription(ordinary);
-            Need(socketAccepts==ordinary+2 && bad.Sent==(ulong)controls.Deadline.ResponseHex.Length/2 &&
+            bool later=allowLaterAccepts && webRaceTransport && webRaceExtraAccepted && socketAccepts is >8 and <=512 && socketAccepts==webLifetimes!.Count;
+            Need((socketAccepts==ordinary+2 || later) && bad.Sent==(ulong)controls.Deadline.ResponseHex.Length/2 &&
                 bad.Received==(ulong)controls.Deadline.RequestHex.Length/2 && bad.Reset==0 &&
                 (!requirePrivate || !socketDescriptors.ContainsValue(bad)),"web_replay_control_bad_io");
         }
 
-        private void WebControlIo(bool before,bool requirePrivate)
+        private void WebControlIo(bool before,bool requirePrivate,bool allowLaterAccepts=false)
         {
-            WebBadIo(requirePrivate);var controls=webControls!.Sockets;var healthy=WebControlDescription((webLogQuota?5:6)+1);
+            WebBadIo(requirePrivate,allowLaterAccepts);var controls=webControls!.Sockets;var healthy=WebControlDescription((webLogQuota?5:6)+1);
             ulong received=(ulong)controls.Before.RequestHex.Length/2,sent=(ulong)controls.Before.ResponseHex.Length/2;
             if(!before){received+=(ulong)controls.After.RequestHex.Length/2;sent+=(ulong)controls.After.ResponseHex.Length/2;}
             Need(healthy.Received==received && healthy.Sent==sent && healthy.Reset==0 &&
@@ -370,6 +371,15 @@ public static partial class QemuTranscripts
                         (nr==43 || (d&~0x80800UL)==0),"socket_accept_arguments");
                     if(result==-11)break;
                     Need(!containment || socketAccepts<3,"socket_containment_accept_bound");
+                    if(webRaceTransport)
+                    {
+                        Need(socketAccepts<512,"web_replay_race_accept_bound");
+                        if(socketAccepts>=8 && !webRaceExtraAccepted)
+                        {
+                            Need(socketAccepts==8 && webControlEvents==2 && webPrivateRetired,"web_replay_race_extra_before_controls");
+                            WebControlIo(before:false,requirePrivate:true);webRaceExtraAccepted=true;
+                        }
+                    }
                     SocketInstall(v,false,nr==288?(uint)d:0,3);socketDescriptors[(int)v].Connection=socketAccepts++;break;
                 case 44:case 45:case 46:case 47:
                     bool messageCall=nr is 46 or 47,send=nr is 44 or 46;

@@ -163,7 +163,8 @@ public static partial class QemuTranscripts
         observed=observed with { PendingEpollWaits=capture.PendingWaits };
         var protocol=new ThreadingProtocol("MinimalApiSmoke",Rows(capture.Output),elf,instruction,syscall,capture.Output.WriteLengths,
             userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
-            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal),webLogQuota:logQuota,webControls:controls);
+            webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal),webLogQuota:logQuota,webControls:controls,
+            webRaceTransport:signalRace is not null && controls is not null);
         if(signalRace is not null)protocol.EnableWebSignalRace(signalRace,originalRows,original.Length);
         var report=protocol.ValidateWeb(observed);
         return signalRace is null?report:report with { SignalRace=protocol.ReadWebSignalRace() };
@@ -186,7 +187,8 @@ public static partial class QemuTranscripts
                 if(webControls is not null)
                 {
                     Need(webControlEvents==2 && webPrivateRetired,"web_replay_controls_incomplete");
-                    WebControlIo(before:false,requirePrivate:true);
+                    WebControlIo(before:false,requirePrivate:true,allowLaterAccepts:webRaceTransport);
+                    Need(!webRaceTransport || socketAccepts==webLifetimes!.Count,"web_replay_race_census");
                 }
                 WebReplayFragment(observations.TrailingFragment,boundary.Expected);
                 int completedTransfers=rows.Count(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal))*2;

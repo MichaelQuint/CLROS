@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using OS.Tooling;
+using OS.Tools.QemuRunner;
 
 internal static class NativeAotWebRunnerTests
 {
@@ -118,6 +119,70 @@ internal static class NativeAotWebRunnerTests
 
     private static QemuTranscripts.WebRunnerReport InspectControls(Fixture f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebRunnerForTests(
         f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,quota);
+    private static WebRaceRendezvous.Report RaceGate()=>new(20080,123,new(new('A',64),new('B',64),new('C',64)));
+    private static QemuTranscripts.WebUtcObservation RaceWindow()
+    {
+        var start=new DateTimeOffset(2000,1,1,0,0,35,TimeSpan.Zero);return new(start,start.AddSeconds(1));
+    }
+    private static Fixture RaceFrame(WebRaceRendezvous.Report? gate=null)
+    {
+        var f=Vector(controls:true);f.Options.TimeoutSeconds=90;
+        return Summary(f,"WEB_PROCESS_ALIVE_AFTER_CONTROLS true\r\n","WEB_PROCESS_ALIVE_AFTER_CONTROLS true\r\n"+
+            "WEB_RACE_GATE "+JsonSerializer.Serialize(gate??RaceGate())+"\r\nWEB_PROCESS_ALIVE_AFTER_RACE_GATE true\r\n");
+    }
+    private static QemuTranscripts.WebRaceRunnerInspection InspectRace(Fixture f,WebRaceRendezvous.Report? gate=null,QemuTranscripts.WebUtcObservation? window=null)=>
+        QemuTranscripts.InspectNativeAotWebRaceRunnerForTests(f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,gate??RaceGate(),window??RaceWindow());
+
+    [HostTest("web race runner accepts only explicit exact gate bytes while ordinary windows and stdout stay exact")]
+    private static void RaceExactFrame()
+    {
+        var f=RaceFrame();var gate=RaceGate();var r=InspectRace(f,gate);
+        HostCheck.Equal(123,r.Runner.ProcessId);HostCheck.Equal(gate,r.Gate);HostCheck.Equal(RaceWindow(),r.ProducerWindow);
+        HostCheck.True(r.Runner.Controls is not null&&r.Runner.UtcObservations.Count==9&&!ReferenceEquals(gate,r.Gate)&&!ReferenceEquals(gate.Digests,r.Gate.Digests));
+        HostCheck.Equal(Vector(controls:true).Runner.StandardOutput,f.Runner.StandardOutput);
+        Reject(()=>InspectControls(f));Reject(()=>InspectRace(Vector(controls:true)));Reject(()=>InspectRace(Vector()));
+        _=InspectControls(Vector(controls:true));
+    }
+
+    [HostTest("web race runner requires canonical digest shapes and matching original forward and child pid")]
+    private static void RaceGateIdentity()
+    {
+        var gate=RaceGate();
+        foreach(var bad in new[]{gate with{Port=20081},gate with{QemuProcessId=0},gate with{QemuProcessId=124},
+            gate with{Digests=gate.Digests with{SelectedSha256=new('a',64)}},gate with{Digests=gate.Digests with{AttemptsSha256=new('B',63)}},
+            gate with{Digests=gate.Digests with{WireSha256=new('G',64)}},gate with{Digests=null!}})
+            Reject(()=>InspectRace(RaceFrame(bad),bad));
+        Reject(()=>InspectRace(RaceFrame(gate with{Digests=gate.Digests with{WireSha256=new('D',64)}}),gate));
+    }
+
+    [HostTest("web race runner rejects missing duplicate misplaced unknown and reformatted explicit rows")]
+    private static void RaceSummaryExactness()
+    {
+        var f=RaceFrame();string row="WEB_RACE_GATE "+JsonSerializer.Serialize(RaceGate());
+        foreach(var (before,after) in new[]{(row+"\r\n",""),(row,row+"\r\n"+row),(row,"WEB_RACE_GATE none"),
+            ("WEB_PROCESS_ALIVE_AFTER_RACE_GATE true","WEB_PROCESS_ALIVE_AFTER_RACE_GATE false"),
+            (row,row.Replace("\"Port\":20080","\"Port\":20080,\"Other\":1",StringComparison.Ordinal)),
+            (row,row.Replace("\"Port\":20080","\"Port\":20080,\"Port\":20080",StringComparison.Ordinal)),
+            (row,row.Replace("\"Port\":20080","\"Port\": 20080",StringComparison.Ordinal)),
+            (row+"\r\nWEB_PROCESS_ALIVE_AFTER_RACE_GATE true","WEB_PROCESS_ALIVE_AFTER_RACE_GATE true\r\n"+row),
+            ("WEB_HTTP_UTC_WINDOWS 9","WEB_HTTP_UTC_WINDOWS 10")})Reject(()=>InspectRace(Summary(f,before,after)));
+        Reject(()=>InspectRace(f with{Runner=f.Runner with{StandardOutput=f.Runner.StandardOutput+row+"\r\n"}}));
+    }
+
+    [HostTest("web race producer UTC window follows all controls stays inside child and is bounded separately")]
+    private static void RaceProducerWindow()
+    {
+        var f=RaceFrame();var window=RaceWindow();
+        foreach(var bad in new[]{window with{StartedUtc=window.StartedUtc.AddSeconds(-1)},window with{CompletedUtc=window.CompletedUtc.AddSeconds(2)},
+            window with{CompletedUtc=window.StartedUtc},window with{CompletedUtc=window.StartedUtc.AddTicks(-1)},
+            window with{StartedUtc=window.StartedUtc.ToOffset(TimeSpan.FromHours(1))},window with{CompletedUtc=window.CompletedUtc.ToOffset(TimeSpan.FromHours(1))}})
+            Reject(()=>InspectRace(f,window:bad));
+        var longer=Summary(f,"WEB_PROCESS_END_UTC 2000-01-01T00:00:37.0000000Z","WEB_PROCESS_END_UTC 2000-01-01T00:01:40.0000000Z");
+        longer=Summary(longer,"WEB_PROCESS_LIFETIME_MS 37000","WEB_PROCESS_LIFETIME_MS 100000");longer.Options.TimeoutSeconds=150;
+        longer=longer with{Runner=longer.Runner with{Duration=TimeSpan.FromSeconds(101)},Context=longer.Context with{CompletedUtc=new(2000,1,1,0,1,41,TimeSpan.Zero)}};
+        _=InspectRace(longer,window:window with{CompletedUtc=window.StartedUtc.AddSeconds(45)});
+        Reject(()=>InspectRace(longer,window:window with{CompletedUtc=window.StartedUtc.AddSeconds(45).AddTicks(1)}));
+    }
     private static Fixture ControlJson(Fixture f,bool frame,Func<string,string> change)
     {
         string prefix=frame?"WEB_FRAME_CONTROL ":"WEB_SOCKET_CONTROLS ";

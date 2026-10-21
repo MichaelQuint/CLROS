@@ -234,6 +234,21 @@ fabricated. QemuSmoke wiring, a separate exact race summary/UTC/packet contract,
 actual PCAP association and fresh native/source/ELF/index admission remain next.
 No native or QEMU trial ran; the original native failure remains failed.
 
+[Step1510](../done/step1510.md) adds the exact explicit race runner reader while
+preserving the ordinary reader's bytes and nine UTC windows. It checks the two
+gate rows at their original positions, PID/forward/hash identity and a positive
+producer UTC window of at most45s after ordinary controls and inside the child.
+The window is copied owner data, not independent monotonic or Date authority.
+Explicit replay now permits bounded later lifetimes only after the original
+eight-lifetime control events. The first extra accept requires completed ordinary
+I/O and bad-peer private retirement; final accepts must equal the complete census.
+Tuple/generation/TIME-WAIT guards and normal/records64 defaults remain exact.
+All65 focused checks/six fixtures pass unchanged/zero reuse, including complete
+copied race projection after a ninth accept. Whole-PCAP integration still needs
+the ordinary VLAN/withheld-ACK controls plus concurrent race-flow byte association;
+the service packet parser cannot consume that capture unchanged. QemuSmoke wiring,
+race HTTP Date/packet joins and fresh native/source/ELF/index admission remain open.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

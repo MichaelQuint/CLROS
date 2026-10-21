@@ -401,6 +401,17 @@ This component is not yet wired into QemuSmoke/native admission or an exact
 race summary/UTC/packet consumer. Actual PCAP, native/source/ELF/index joins and
 guest execution remain unproved; no acceptance issue closes.
 
+[Step1510](../done/step1510.md) checks the explicit race summary separately from
+ordinary exact runner bytes and UTC windows. PID/forward/digests and a bounded
+owner-supplied producer interval join the copied runner frame. Explicit replay
+preserves the original eight-control boundary before later accepts, checks full
+ordinary I/O/private retirement at the first extra accept, and joins final accept
+count to the bounded lifetime census. Complete copied race projection still runs;
+selection alone does not bypass it. All65 focused checks/six fixtures pass without
+reuse. These host checks establish no packet association or guest acceptance.
+Whole-PCAP handling of ordinary VLAN/withheld ACK controls, concurrent race flows,
+HTTP Date checks, QemuSmoke wiring and fresh native/source/image admission remain.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

@@ -164,7 +164,7 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket,web,service,containment,vectors,webLogQuota;
+        private readonly bool broader,socket,web,service,containment,vectors,webLogQuota,webRaceTransport;
         private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
         private readonly int webSettingsFd;
@@ -190,7 +190,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
-            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false,bool serviceQuotaFailure=false)
+            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false,bool serviceQuotaFailure=false,bool webRaceTransport=false)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
@@ -202,6 +202,8 @@ public static partial class QemuTranscripts
             memoryPoolPages=configuredServiceMemory?OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages:LinuxMemoryServices.ApplicationPoolPages;
             web=service || app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
             Need(!webLogQuota || web && !service,"web_quota_application");this.webLogQuota=webLogQuota;
+            Need(!webRaceTransport || web && !service && !webLogQuota && webControls is not null,"web_race_transport_application");
+            this.webRaceTransport=webRaceTransport;
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
             this.webSettingsCall=webSettingsCall;
             Need(!web || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
@@ -221,7 +223,7 @@ public static partial class QemuTranscripts
             }
             this.rows=service?ValidateLinuxServiceCallOrdinals(rows!):ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             Need(webControls is null || web && !service,"web_controls_application");this.webControls=webControls;
-            if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets);
+            if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets,webRaceTransport);
             memory=new(elf,memoryPoolPages); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=service?0U:web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
             this.containmentCapture=containmentCapture;
