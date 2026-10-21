@@ -35,9 +35,9 @@ public static partial class QemuTranscripts
 
     private static WebRunnerReport ReadWebRunner(QemuSmokeOptions options,QemuSmokePlan plan,
         ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration,bool logQuota,
-        bool requireControls,WebRaceRendezvous.Report? raceGate=null,WebUtcObservation? producerWindow=null)
+        bool requireControls,WebRaceRendezvous.Report? raceGate=null,WebUtcObservation? producerWindow=null,bool eventOwned=false)
     {
-        Need(raceGate is null?producerWindow is null:producerWindow is not null&&requireControls&&!logQuota,"web_race_runner_mode");
+        Need(raceGate is null?producerWindow is null&&!eventOwned:producerWindow is not null&&requireControls&&!logQuota,"web_race_runner_mode");
         RequireCompleteProcess(runner,"web_runner_incomplete");
         Need(runner.ExitCode==0 && runner.StandardError.Length==0 && raw.Length is >0 and <=8*1024*1024 &&
             summaryBytes.Length is >3 and <=16*1024*1024 && summaryBytes.AsSpan(0,3).SequenceEqual(Encoding.UTF8.GetPreamble()),"web_runner_inputs");
@@ -104,7 +104,7 @@ public static partial class QemuTranscripts
                 Need(utc[^1].StartedUtc==exchanges[i-ordinary].StartedUtc && utc[^1].CompletedUtc==exchanges[i-ordinary].CompletedUtc,
                     "web_runner_control_utc_join");
         }
-        if(raceGate is not null)ValidateWebRaceRunnerWindow(raceGate,producerWindow!.Value,context,pid,started,ended,utc);
+        if(raceGate is not null)ValidateWebRaceRunnerWindow(raceGate,producerWindow!.Value,context,pid,started,ended,utc,eventOwned);
         string serial=DecodeUtf8(raw);var stream=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
             successTerminalMarker:"TEST_PASS m10.004",orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
         stream.Feed(raw);var completed=stream.Complete();

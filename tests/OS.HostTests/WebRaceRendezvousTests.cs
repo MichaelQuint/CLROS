@@ -1,5 +1,6 @@
 using System.IO.Pipes;
 using System.Text;
+using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 internal static class WebRaceRendezvousTests
@@ -123,6 +124,94 @@ internal static class WebRaceRendezvousTests
         finally { limit.Cancel(); server.Dispose(); await Join(runner); }
     }
 
+    [HostTest("web event-owned rendezvous binds v3 mode and raw tokens without changing legacy serialized reports")]
+    private static async Task EventProtocol()
+    {
+        using var limit=new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using(var producer=WebRaceRendezvous.CreateEventOwnedProducer())
+        {
+            HostCheck.True(producer.EventOwned);WebRaceRendezvous.ValidateEventOwnedPipeName(producer.PipeName);
+            int budgetCalls=0;var ready=producer.WaitForReadyAsync(Port,limit.Token);
+            var runner=WebRaceRendezvous.WaitEventOwnedInRunnerAsync(producer.PipeName,Port,Pid,TimeSpan.FromSeconds(165),
+                ()=>{Interlocked.Increment(ref budgetCalls);return TimeSpan.FromSeconds(170);},cancellation:limit.Token);
+            try
+            {
+                HostCheck.Equal(new WebRaceRendezvous.Ready(Port,Pid,true),await ready);HostCheck.True(!runner.IsCompleted);
+                await producer.CompleteAsync(Hashes,limit.Token);var report=await runner;
+                HostCheck.Equal(new WebRaceRendezvous.Report(Port,Pid,Hashes,true),report);HostCheck.True(budgetCalls>=2);
+                HostCheck.True(JsonSerializer.Serialize(report).Contains("\"EventOwned\":true",StringComparison.Ordinal));
+            }
+            finally{limit.Cancel();await Join(runner);await Join(ready);}
+        }
+        string legacy=JsonSerializer.Serialize(new WebRaceRendezvous.Report(Port,Pid,Hashes));
+        HostCheck.Equal($"{{\"Port\":{Port},\"QemuProcessId\":{Pid},\"Digests\":{{\"SelectedSha256\":\"{Hashes.SelectedSha256}\",\"AttemptsSha256\":\"{Hashes.AttemptsSha256}\",\"WireSha256\":\"{Hashes.WireSha256}\"}}}}",legacy);
+        using var rawLimit=new CancellationTokenSource(TimeSpan.FromSeconds(10));string name=EventName();using var server=Server(name);
+        var raw=WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,Port,Pid,TimeSpan.FromSeconds(165),()=>TimeSpan.FromSeconds(165),cancellation:rawLimit.Token);
+        try
+        {
+            await server.WaitForConnectionAsync(rawLimit.Token);HostCheck.Equal($"READY_V3 {Port} {Pid}\r\n",await Line(server,rawLimit.Token));
+            await server.WriteAsync(Encoding.ASCII.GetBytes($"DONE_V3 {Hashes.SelectedSha256} {Hashes.AttemptsSha256} {Hashes.WireSha256}\r\n"),rawLimit.Token);
+            HostCheck.True((await raw).EventOwned);
+        }
+        finally{rawLimit.Cancel();server.Dispose();await Join(raw);}
+    }
+
+    [HostTest("web event-owned pipe rejects cross profiles duration overflow and insufficient absolute budget before READY")]
+    private static async Task EventBudget()
+    {
+        string name=EventName();WebRaceRendezvous.ValidateEventOwnedPipeName(name);
+        foreach(string invalid in new[]{Name(),"clros-web-race-v3-"+new string('A',32),name+"0",null!})
+            await Reject(()=>{WebRaceRendezvous.ValidateEventOwnedPipeName(invalid);return Task.CompletedTask;});
+        await Reject(()=>{WebRaceRendezvous.ValidatePipeName(name);return Task.CompletedTask;});
+        await Reject(()=>WebRaceRendezvous.WaitInRunnerAsync(name,Port,Pid,TimeSpan.FromSeconds(1)));
+        await Reject(()=>WebRaceRendezvous.WaitEventOwnedInRunnerAsync(Name(),Port,Pid,TimeSpan.FromSeconds(1),()=>TimeSpan.FromSeconds(165)));
+        foreach(var duration in new[]{TimeSpan.Zero,TimeSpan.FromSeconds(165).Add(TimeSpan.FromTicks(1))})
+            await Reject(()=>WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,Port,Pid,duration,()=>TimeSpan.FromSeconds(165)));
+        await Reject(()=>WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,Port,Pid,TimeSpan.FromSeconds(1),null!));
+        Exception? entry=null;try{await WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,Port,Pid,TimeSpan.FromSeconds(1),()=>TimeSpan.FromSeconds(165)-TimeSpan.FromTicks(1));}
+        catch(InvalidDataException error){entry=error;}HostCheck.Equal("web_race_insufficient_absolute_budget",entry?.Message);
+        using var limit=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var server=Server(name);int calls=0;
+        var runner=WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,Port,Pid,TimeSpan.FromSeconds(165),
+            ()=>Interlocked.Increment(ref calls)==1?TimeSpan.FromSeconds(165):TimeSpan.FromSeconds(165)-TimeSpan.FromTicks(1),cancellation:limit.Token);
+        try
+        {
+            await server.WaitForConnectionAsync(limit.Token);Exception? afterConnect=null;
+            try{await runner;}catch(InvalidDataException error){afterConnect=error;}
+            HostCheck.Equal("web_race_insufficient_absolute_budget",afterConnect?.Message);HostCheck.True(calls>=2&&runner.IsCompleted);
+            try{HostCheck.Equal(0,await server.ReadAsync(new byte[1],limit.Token));}catch(IOException){}
+        }
+        finally{limit.Cancel();server.Dispose();await Join(runner);}
+    }
+
+    [HostTest("web event-owned rendezvous refuses legacy frames and joins canceled or unhealthy actual pipe operations")]
+    private static async Task EventFailures()
+    {
+        foreach(bool cancel in new[]{false,true})
+        {
+            using var limit=new CancellationTokenSource(TimeSpan.FromSeconds(10));using var stop=CancellationTokenSource.CreateLinkedTokenSource(limit.Token);
+            await using var producer=WebRaceRendezvous.CreateEventOwnedProducer();bool healthy=true;
+            var ready=producer.WaitForReadyAsync(Port,limit.Token);
+            var runner=WebRaceRendezvous.WaitEventOwnedInRunnerAsync(producer.PipeName,Port,Pid,TimeSpan.FromSeconds(165),()=>TimeSpan.FromSeconds(165),()=>Volatile.Read(ref healthy),stop.Token);
+            try{_=await ready;if(cancel)stop.Cancel();else Volatile.Write(ref healthy,false);await Reject(()=>runner);HostCheck.True(runner.IsCompleted);}
+            finally{stop.Cancel();await producer.DisposeAsync();await Join(runner);await Join(ready);}
+        }
+        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(10));string name=EventName();using var server=Server(name);
+        var reading=WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,Port,Pid,TimeSpan.FromSeconds(165),()=>TimeSpan.FromSeconds(165),cancellation:deadline.Token);
+        try
+        {
+            await server.WaitForConnectionAsync(deadline.Token);_=await Line(server,deadline.Token);
+            await server.WriteAsync(Encoding.ASCII.GetBytes($"DONE_V1 {Hashes.SelectedSha256} {Hashes.AttemptsSha256} {Hashes.WireSha256}\r\n"),deadline.Token);
+            await Reject(()=>reading);HostCheck.True(reading.IsCompleted);
+        }
+        finally{deadline.Cancel();server.Dispose();await Join(reading);}
+        using var last=new CancellationTokenSource(TimeSpan.FromSeconds(10));await using var eventProducer=WebRaceRendezvous.CreateEventOwnedProducer();
+        var waiting=eventProducer.WaitForReadyAsync(Port,last.Token);
+        using var client=new NamedPipeClientStream(".",eventProducer.PipeName,PipeDirection.InOut,PipeOptions.Asynchronous|PipeOptions.CurrentUserOnly);
+        try{await client.ConnectAsync(last.Token);await client.WriteAsync(Encoding.ASCII.GetBytes($"READY_V1 {Port} {Pid}\r\n"),last.Token);await Reject(()=>waiting);HostCheck.True(waiting.IsCompleted);}
+        finally{last.Cancel();client.Dispose();await Join(waiting);}
+    }
+
+    private static string EventName()=>"clros-web-race-v3-"+Guid.NewGuid().ToString("N");
     private static string Name() => "clros-web-race-" + Guid.NewGuid().ToString("N");
     private static NamedPipeServerStream Server(string name) => new(name, PipeDirection.InOut, 1, PipeTransmissionMode.Byte,
         PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly | PipeOptions.FirstPipeInstance, 512, 512);

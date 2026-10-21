@@ -452,6 +452,15 @@ one failed negative fixture and correcting only its ordering. No new native or
 guest execution follows. Explicit guest owner/pipe/runner/remaining-time/Date
 composition and fresh native qualification/admission still precede an owned guest.
 
+[Step1528](../done/step1528.md) checks the shared explicit v3 pipe protocol and
+copied runner/Date windows. The new whole-IPC cap is165s; the original absolute
+clock must retain at least165s immediately before READY after connection.
+Legacy pipe/JSON/profile and45s bounds remain. All43 focused checks pass,
+including real local pipes, insufficient-budget EOF before READY, profile
+crossings and exact copied165s boundaries. This is unmeasured shared policy;
+production QEMU options and owner dispatch remain legacy pending the next slice.
+No fresh Linux-native qualification, guest admission or Kestrel acceptance follows.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

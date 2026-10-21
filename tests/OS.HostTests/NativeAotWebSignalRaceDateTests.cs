@@ -57,6 +57,8 @@ internal static class NativeAotWebSignalRaceDateTests
     private static Q.WebSignalRaceDateInspection Read(Q.WebSignalRaceStreamJoinInspection joined,
         Q.WebUtcObservation? window = null, DateTimeOffset? baseline = null) =>
         Q.InspectNativeAotWebSignalRaceDatesForTests(joined, window ?? Window, baseline ?? Epoch);
+    private static Q.WebSignalRaceDateInspection ReadEvent(Q.WebSignalRaceStreamJoinInspection joined,Q.WebUtcObservation window,
+        DateTimeOffset? baseline=null)=>Q.InspectNativeAotWebEventOwnedSignalRaceDatesForTests(joined,window,baseline??Epoch);
     private static void Reject(Action action)
     { bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
 
@@ -97,5 +99,45 @@ internal static class NativeAotWebSignalRaceDateTests
         Reject(() => Read(boundary, baseline: Epoch.AddTicks(1)));
         Reject(() => Read(boundary, baseline: Epoch.AddSeconds(16)));
         Reject(() => Read(Build([Response(date: Date(20)).Replace("Date: ", "Date: " + Date(20) + "\r\nDate: ", StringComparison.Ordinal)])));
+    }
+
+    [HostTest("web event-owned Dates admit explicit165 second copied windows while legacy45 stays exact")]
+    private static void EventBoundsAndPrefixes()
+    {
+        Q.WebUtcObservation window=new(Epoch.AddSeconds(10),Epoch.AddSeconds(175));
+        var joined=Build([Response(date:Date(5)),Response(date:Date(180))]);var report=ReadEvent(joined,window);
+        HostCheck.True(report.ProducerWindow==window&&report.Responses.Count==2&&report.PendingHeaders==0);
+        HostCheck.True(report.Responses[0].DateUtc==Epoch.AddSeconds(5)&&report.Responses[1].DateUtc==Epoch.AddSeconds(180));
+        HostCheck.True(report.Responses.All(r=>r.Ranges.Sum(part=>part.ByteCount)==r.HeaderEnd-r.Start));
+        Reject(()=>Read(joined,window));
+        var ordinary=Build([Response(date:Date(20))]);Q.WebUtcObservation exact45=new(Epoch.AddSeconds(10),Epoch.AddSeconds(55));
+        HostCheck.Equal(1,Read(ordinary,exact45).Responses.Count);
+        Reject(()=>Read(ordinary,exact45 with{CompletedUtc=exact45.CompletedUtc.AddTicks(1)}));
+        var concurrent=ReadEvent(Build([Response(date:Date(170)),Response(date:Date(10))],separate:true),window);
+        HostCheck.True(concurrent.Responses[0].DateUtc>concurrent.Responses[1].DateUtc);
+        string partial=Response("FOUR",Date(170))[..^1];
+        HostCheck.Equal("body",ReadEvent(Build([partial],["FOU"],outcome:"faulted"),window).Responses.Single().State);
+        var pending=ReadEvent(Build(["HTTP/1.1 200 OK\r\nDate: Sat, 01 Jan 2000 "],[""],outcome:"faulted",status:0),window);
+        HostCheck.True(pending.PendingHeaders==1&&pending.Responses.Count==0);
+        bool immutable=false;try{((IList<Q.ServiceQuotaHttpPacketRange>)report.Responses[0].Ranges).Clear();}catch(NotSupportedException){immutable=true;}
+        HostCheck.True(immutable);
+    }
+
+    [HostTest("web event-owned Dates refuse165 plus one tick tolerance escapes and persistent regression")]
+    private static void EventRefusals()
+    {
+        Q.WebUtcObservation window=new(Epoch.AddSeconds(10),Epoch.AddSeconds(175));
+        var middle=Build([Response(date:Date(20))]);
+        Reject(()=>ReadEvent(middle,window with{CompletedUtc=window.CompletedUtc.AddTicks(1)}));
+        Reject(()=>ReadEvent(middle,window with{CompletedUtc=window.StartedUtc}));
+        Reject(()=>ReadEvent(middle,window with{StartedUtc=window.StartedUtc.ToOffset(TimeSpan.FromHours(1))}));
+        // Preserve165s span while shifting its exact tolerance boundary inward.
+        Reject(()=>ReadEvent(Build([Response(date:Date(5))]),new(window.StartedUtc.AddTicks(1),window.CompletedUtc.AddTicks(1))));
+        Reject(()=>ReadEvent(Build([Response(date:Date(180))]),new(window.StartedUtc.AddTicks(-1),window.CompletedUtc.AddTicks(-1))));
+        foreach(int second in new[]{4,181})Reject(()=>ReadEvent(Build([Response(date:Date(second))]),window));
+        Reject(()=>ReadEvent(Build([Response(date:Date(150)),Response(date:Date(149))]),window));
+        Reject(()=>ReadEvent(middle,window,Epoch.AddSeconds(16)));
+        Reject(()=>ReadEvent(middle,window,Epoch.AddTicks(1)));
+        Reject(()=>ReadEvent(Build([Response(date:Date(20)).Replace("Date: ","Date: "+Date(20)+"\r\nDate: ",StringComparison.Ordinal)]),window));
     }
 }

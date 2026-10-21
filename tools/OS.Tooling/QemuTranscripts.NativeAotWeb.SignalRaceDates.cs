@@ -29,12 +29,25 @@ public static partial class QemuTranscripts
     /// UTC. This performs no independent clock/file/process/native/guest admission.</summary>
     public static WebSignalRaceDateInspection InspectNativeAotWebSignalRaceDatesForTests(
         WebSignalRaceStreamJoinInspection joined,WebUtcObservation producerWindow,DateTimeOffset ordinaryLastDateUtc)
+        => ReadWebSignalRaceDates(joined,producerWindow,ordinaryLastDateUtc,45);
+
+    /// <summary>Explicit event-owned copied Date-window inspection. Apply the
+    /// historical reader's framing, tolerance, ordering and immutable range
+    /// checks with a positive whole producer window at most165s. The caller must
+    /// separately bind the event profile and original owner/runner evidence;
+    /// this seam grants no native, process, source, clock or guest authority.</summary>
+    public static WebSignalRaceDateInspection InspectNativeAotWebEventOwnedSignalRaceDatesForTests(
+        WebSignalRaceStreamJoinInspection joined,WebUtcObservation producerWindow,DateTimeOffset ordinaryLastDateUtc)
+        => ReadWebSignalRaceDates(joined,producerWindow,ordinaryLastDateUtc,165);
+
+    private static WebSignalRaceDateInspection ReadWebSignalRaceDates(WebSignalRaceStreamJoinInspection joined,
+        WebUtcObservation producerWindow,DateTimeOffset ordinaryLastDateUtc,int maximumSeconds)
     {
         const long tolerance=WebUtcToleranceSeconds*TimeSpan.TicksPerSecond;
         long start=producerWindow.StartedUtc.UtcTicks,end=producerWindow.CompletedUtc.UtcTicks;
         Need(producerWindow.StartedUtc.Offset==TimeSpan.Zero && producerWindow.CompletedUtc.Offset==TimeSpan.Zero &&
             start>DateTimeOffset.UnixEpoch.UtcTicks+tolerance && end<=DateTimeOffset.MaxValue.UtcTicks-tolerance &&
-            end>start && end-start<=45*TimeSpan.TicksPerSecond,"web_race_date_window");
+            end>start && end-start<=maximumSeconds*TimeSpan.TicksPerSecond,"web_race_date_window");
         Need(ordinaryLastDateUtc.Offset==TimeSpan.Zero && ordinaryLastDateUtc> DateTimeOffset.UnixEpoch &&
             ordinaryLastDateUtc.UtcTicks%TimeSpan.TicksPerSecond==0 && ordinaryLastDateUtc.UtcTicks<=start+tolerance,
             "web_race_date_ordinary");

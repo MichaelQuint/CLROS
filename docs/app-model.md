@@ -593,6 +593,17 @@ producers are preserved before a test-only ordering correction and fresh rerun.
 These are copied model/role checks. Guest owner/rendezvous/runner/remaining-time/
 Date integration and fresh original native qualification/admission remain pending.
 
+[Step1528](../done/step1528.md) adds the shared v3 rendezvous and copied runner/
+Date-window foundation. A separate pipe prefix and READY/DONE tokens bind the
+explicit profile; legacy names, tokens and serialized false-profile reports stay
+unchanged. The new runner entry bounds whole IPC to165s and requires at least
+165s left on a borrowed original absolute clock at entry and after connect,
+immediately before READY. Insufficient budget refuses before READY; failure
+closes, cancels and joins pending IPC. Copied runner and Date readers permit
+165s only through explicit event entries, preserving legacy45s and Date guards.
+All43 focused checks pass. Production QEMU option/owner/Completion dispatch is
+still legacy; wiring it and proving fresh native/guest originals remain pending.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

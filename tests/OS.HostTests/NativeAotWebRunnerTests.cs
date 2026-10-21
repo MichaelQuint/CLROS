@@ -114,8 +114,8 @@ internal static class NativeAotWebRunnerTests
         string text=Encoding.UTF8.GetString(f.Summary);HostCheck.True(text.Contains(before,StringComparison.Ordinal));
         return f with{Summary=Encoding.UTF8.GetBytes(text.Replace(before,after,StringComparison.Ordinal))};
     }
-    private static void Reject(Action action)
-    {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
+    private static void Reject(Action action,string? expected=null)
+    {string? reason=null;try{action();}catch(ToolFailure error){reason=error.Reason;}HostCheck.True(reason is not null);if(expected is not null)HostCheck.Equal(expected,reason);}
 
     private static QemuTranscripts.WebRunnerReport InspectControls(Fixture f,bool quota=false)=>QemuTranscripts.InspectNativeAotWebRunnerForTests(
         f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,quota);
@@ -130,8 +130,41 @@ internal static class NativeAotWebRunnerTests
         return Summary(f,"WEB_PROCESS_ALIVE_AFTER_CONTROLS true\r\n","WEB_PROCESS_ALIVE_AFTER_CONTROLS true\r\n"+
             "WEB_RACE_GATE "+JsonSerializer.Serialize(gate??RaceGate())+"\r\nWEB_PROCESS_ALIVE_AFTER_RACE_GATE true\r\n");
     }
-    private static QemuTranscripts.WebRaceRunnerInspection InspectRace(Fixture f,WebRaceRendezvous.Report? gate=null,QemuTranscripts.WebUtcObservation? window=null)=>
-        QemuTranscripts.InspectNativeAotWebRaceRunnerForTests(f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,gate??RaceGate(),window??RaceWindow());
+    private static QemuTranscripts.WebRaceRunnerInspection InspectRace(Fixture f,WebRaceRendezvous.Report? gate=null,QemuTranscripts.WebUtcObservation? window=null,bool eventOwned=false)=>
+        QemuTranscripts.InspectNativeAotWebRaceRunnerForTests(f.Options,f.Plan,f.Runner,f.Raw,f.Summary,f.Context,Body,Config,gate??RaceGate(),window??RaceWindow(),eventOwned);
+
+    private static Fixture EventRaceFrame(WebRaceRendezvous.Report gate)
+    {
+        var f=RaceFrame(gate);f.Options.TimeoutSeconds=285;
+        f=Summary(f,"WEB_PROCESS_END_UTC 2000-01-01T00:00:37.0000000Z","WEB_PROCESS_END_UTC 2000-01-01T00:04:00.0000000Z");
+        f=Summary(f,"WEB_PROCESS_LIFETIME_MS 37000","WEB_PROCESS_LIFETIME_MS 240000");
+        return f with{Runner=f.Runner with{Duration=TimeSpan.FromSeconds(241)},Context=f.Context with{CompletedUtc=new(2000,1,1,0,4,1,TimeSpan.Zero)}};
+    }
+
+    [HostTest("web event-owned runner requires explicit matching gate mode and admits exactly165 second copied window")]
+    private static void EventRaceWindow()
+    {
+        var gate=RaceGate() with{EventOwned=true};var f=EventRaceFrame(gate);
+        var window=RaceWindow() with{CompletedUtc=RaceWindow().StartedUtc.AddSeconds(165)};
+        var report=InspectRace(f,gate,window,eventOwned:true);
+        HostCheck.True(report.Gate.EventOwned&&report.Gate==gate&&report.ProducerWindow==window&&report.Runner.UtcObservations.Count==9);
+        HostCheck.True(report.Runner.Controls is not null&&f.Options.TimeoutSeconds==285);
+        Reject(()=>InspectRace(f,gate,window with{CompletedUtc=window.CompletedUtc.AddTicks(1)},eventOwned:true),"web_race_runner_producer_window");
+        Reject(()=>InspectRace(f,gate,RaceWindow()),"web_race_runner_gate");
+        var legacy=RaceGate();Reject(()=>InspectRace(EventRaceFrame(legacy),legacy,RaceWindow(),eventOwned:true),"web_race_runner_gate");
+    }
+
+    [HostTest("web event-owned runner requires canonical true profile in exact summary while false legacy shape stays unchanged")]
+    private static void EventRaceSummary()
+    {
+        var gate=RaceGate() with{EventOwned=true};var f=EventRaceFrame(gate);string row="WEB_RACE_GATE "+JsonSerializer.Serialize(gate);
+        HostCheck.True(row.Contains("\"EventOwned\":true",StringComparison.Ordinal)&&!JsonSerializer.Serialize(RaceGate()).Contains("EventOwned",StringComparison.Ordinal));
+        foreach(string changed in new[]{row.Replace(",\"EventOwned\":true","",StringComparison.Ordinal),
+            row.Replace("\"EventOwned\":true","\"EventOwned\":false",StringComparison.Ordinal),
+            row.Replace("\"EventOwned\":true","\"EventOwned\":true,\"EventOwned\":true",StringComparison.Ordinal)})
+        {HostCheck.True(changed!=row);Reject(()=>InspectRace(Summary(f,row,changed),gate,eventOwned:true));}
+        _=InspectRace(RaceFrame());
+    }
 
     [HostTest("web race runner accepts only explicit exact gate bytes while ordinary windows and stdout stay exact")]
     private static void RaceExactFrame()
