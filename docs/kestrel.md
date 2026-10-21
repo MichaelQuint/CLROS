@@ -354,6 +354,21 @@ affinity, task ownership, readbacks and cleanup. All16 focused checks/3 fixtures
 pass unchanged/zero reuse. This repairs host interop; controlled scheduling,
 actual EINTR/churn/recovery, native v7 and guest/admission remain unqualified.
 
+[Step1518](../done/step1518.md) records the fresh single controlled native v7
+qualification at `e5dadc2e`: native and production receipt validation both exit0.
+All214 original files,193 receipt outputs,932 receipt sources and970 transferred
+source/producer inputs match their exact hashes. Selected-v2 has21 samples;
+attempts-v2 has24 entries with one intentionally canceled pending churn. The
+13-row original journal and role traces retain actual initial blocking,
+write/signal/consume, EINTR/callback, fresh recovery, tracer restoration and
+confirmed original task/session death. Independent review finds no contradiction.
+This is a bounded Linux-host experiment using the documented cooperative
+numeric-TID lifetime assumption; separate thread traces are not a global kernel
+chronology. Both earlier failed attempts stay failed. The fresh8,858,120-byte ELF
+SHA652E2E00D49C2529BB8C2439820F8A58F7086766E01D2C08D0748CA659C9BFAE
+remains unadmitted pending exact independent decoder/index/source review.
+No CLROS guest, quota termination or complete Kestrel/Gate14 acceptance follows.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

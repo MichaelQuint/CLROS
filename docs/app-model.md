@@ -496,6 +496,17 @@ three private Linux x64 syscall imports. All16 focused checks/3 fixtures pass
 unchanged/zero reuse. Native scheduling/EINTR/churn/recovery, new admission,
 guest execution and quota termination remain unproved.
 
+[Step1518](../done/step1518.md) adds the fresh bounded Linux-native v7 pass at
+`e5dadc2e`, plus successful production receipt validation. All214 original files,
+193 receipt outputs and970 transferred source/producer inputs match; selected-v2
+has21 samples, attempts-v2 has24 entries and the original schedule journal13 rows.
+Actual role traces retain EINTR, write/signal/consume and fresh recovery; the
+tracer restores and all four original tasks/session terminate. Independent review
+preserves cooperative numeric-TID and separate-trace ordering limits. The builder
+is gracefully stopped; previous failures remain failed. Fresh ELF/index/source
+admission and the original owned CLROS guest still follow. No quota termination,
+complete Kestrel/Gate14, isolation, cloud or production acceptance is added.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
