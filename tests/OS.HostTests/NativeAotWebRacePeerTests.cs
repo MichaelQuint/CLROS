@@ -135,6 +135,30 @@ internal static class NativeAotWebRacePeerTests
         HostCheck.True(!File.Exists(paths.Summary) && !File.Exists(paths.Report));
     }
 
+    [HostTest("web event-owned runner dry parse pairs either argument order and refuses mixed missing or duplicate profiles")]
+    private static async Task EventRunnerArguments()
+    {
+        var paths=Paths();string pipe="clros-web-race-v3-"+Guid.NewGuid().ToString("N"),legacy="clros-web-race-"+Guid.NewGuid().ToString("N");
+        string[] ordinary=["--continuing-web","--socket-forward-port","20080","--virtio-negotiation-device","--arp-receive-fixture",
+            "--ethernet-capture",paths.Report+".pcap","--summary-log",paths.Summary,"--replace-default-required-markers",
+            "--http-probe-url","http://127.0.0.1:20080/healthz","--http-probe-expected-body","health","--web-config-body","{\"selected\":true}","--timeout","285","--dry-run"];
+        async Task<ProcessResult> Run(string[] args)=>await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(paths.Root,"OS.QemuRunner"),..args],paths.Root){Timeout=TimeSpan.FromSeconds(10)});
+        var before=await Run(ordinary);
+        foreach(string[] args in new string[][]{[..ordinary,"--web-event-owned-signal-race","--web-race-pipe",pipe],[..ordinary,"--web-race-pipe",pipe,"--web-event-owned-signal-race"]})
+        {var result=await Run(args);HostCheck.True(before.Succeeded&&result.Succeeded);HostCheck.Equal(before.StandardOutput,result.StandardOutput);}
+        foreach(string[] args in new string[][]
+        {
+            [..ordinary,"--web-event-owned-signal-race"],[..ordinary,"--web-race-pipe",pipe],
+            [..ordinary,"--web-event-owned-signal-race","--web-race-pipe",legacy],
+            [..ordinary,"--web-event-owned-signal-race","--web-event-owned-signal-race","--web-race-pipe",pipe],
+            [..ordinary,"--web-event-owned-signal-race","--web-race-pipe",pipe,"--web-log-case","records64"],
+            [..ordinary,"--web-event-owned-signal-race","--web-race-pipe",pipe,"--timeout","286"],
+            ["--web-event-owned-signal-race","--web-race-pipe",pipe,"--dry-run"]
+        })
+        {var result=await Run(args);HostCheck.Equal(1,result.ExitCode);HostCheck.True(result.StandardError.Contains("qemu.runner.invalid_args",StringComparison.Ordinal));}
+        HostCheck.True(!File.Exists(paths.Summary)&&!File.Exists(paths.Report));
+    }
+
     private static (string Root, string Report, string Summary) Paths()
     {
         string root = HostToolProcess.FindRepositoryRoot(), directory = Path.Combine(root, "artifacts", "host-tests", "web-race-owner-" + Guid.NewGuid().ToString("N"));

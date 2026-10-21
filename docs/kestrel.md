@@ -461,6 +461,16 @@ crossings and exact copied165s boundaries. This is unmeasured shared policy;
 production QEMU options and owner dispatch remain legacy pending the next slice.
 No fresh Linux-native qualification, guest admission or Kestrel acceptance follows.
 
+[Step1529](../done/step1529.md) connects the explicit event selector to production
+owner/runner/held replay/Date dispatch. The selected profile must agree across
+pipe, original reports, private Completion, summary and complete replay; old timed
+selection remains separate. The original285s runner clock supplies the pre-READY
+budget callback and retains a specific insufficient-budget failure. All47 focused
+checks pass, including actual local v3 ownership failures and reports held before
+DONE, with no successful synthetic Completion. Fresh native-v8 publication and
+original source/debug/ELF/index qualification, deliberate prepared admission and
+an original owned guest remain required. This adds no Kestrel acceptance.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

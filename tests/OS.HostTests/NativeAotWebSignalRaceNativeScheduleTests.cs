@@ -38,8 +38,7 @@ internal static class NativeAotWebSignalRaceNativeScheduleTests
     [HostTest("web initial serial gate requires one complete waiter call and no later resume or replacement")]
     private static void InitialGate()
     {
-        var method=typeof(NativeAotWebRacePeer).GetMethod("HasInitialWait",BindingFlags.NonPublic|BindingFlags.Static)!;
-        bool Pending(string text,int tid=7)=>(bool)method.Invoke(null,[text,tid])!;
+        bool Pending(string text,int tid=7)=>NativeAotWebRacePeer.InspectInitialWaitForTests(text,tid);
         const string get="M16_008_CALL identity=4294967301 nr=186 a0=0 valueBits=7 action=1 status=1 ordinal=1 waitSource=0 waitDeadline=0 waitSequence=0\r\n";
         const string wait="M16_008_CALL identity=4294967301 nr=232 a0=9 valueBits=0 action=3 status=9 ordinal=2 waitSource=3 waitDeadline=2500000000 waitSequence=1\r\n";
         string before="TEST_START m10.004\r\n"+get,complete=before+wait;

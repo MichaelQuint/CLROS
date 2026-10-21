@@ -21,10 +21,11 @@ internal static class NativeAotWebSignalRaceTransportTests
 
     internal sealed class Peer : IAsyncDisposable
     {
-        private readonly bool partial, unsupported, startGate, eventOwned;
+        private readonly bool partial, unsupported, startGate, eventOwned,stall;
         private readonly TcpListener listener = new(IPAddress.Loopback, 0);
         private readonly CancellationTokenSource stop = new(TimeSpan.FromSeconds(15));
         private readonly TaskCompletionSource recovery = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource requestObserved=new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly object gate = new();
         private readonly List<TcpClient> clients = [];
         private readonly List<Task> handlers = [];
@@ -35,10 +36,11 @@ internal static class NativeAotWebSignalRaceTransportTests
         internal int Port { get; }
         internal string Endpoint => "http://127.0.0.1:" + Port;
         internal int StartRequests { get { lock(gate)return startRequests; } }
+        internal Task RequestObserved=>requestObserved.Task;
         // Listener/handlers exist only when an explicitly selected test runs.
-        internal Peer(bool partial = false, bool unsupported = false, bool startGate = false, bool eventOwned = false)
+        internal Peer(bool partial = false, bool unsupported = false, bool startGate = false, bool eventOwned = false,bool stall=false)
         {
-            this.partial = partial; this.unsupported = unsupported; this.startGate=startGate||eventOwned; this.eventOwned=eventOwned; listener.Start();
+            this.partial = partial; this.unsupported = unsupported; this.startGate=startGate||eventOwned; this.eventOwned=eventOwned;this.stall=stall; listener.Start();
             Port = ((IPEndPoint)listener.LocalEndpoint).Port; accepting = Accept();
         }
 
@@ -86,6 +88,8 @@ internal static class NativeAotWebSignalRaceTransportTests
                                 if(headers.Length==1)HostCheck.Equal(expected.Value,headers[0][(expected.Name.Length+1)..].Trim());
                             }
                         }
+                        requestObserved.TrySetResult();
+                        if(stall)await Task.Delay(Timeout.Infinite,stop.Token);
                         if (partial)
                         {
                             byte[] response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nA"u8.ToArray();
@@ -210,17 +214,21 @@ internal static class NativeAotWebSignalRaceTransportTests
             .SelectMany(op => Convert.FromBase64String(op.DataBase64)).ToArray();
 
     [HostTest("web race owner reaches actual loopback DONE with creator held reports then refuses failed runner")]
-    private static async Task OwnedReportsBeforeDone()
+    private static Task OwnedReportsBeforeDone()=>OwnedReportsBeforeDoneCore(false);
+
+    internal static async Task OwnedReportsBeforeDoneCore(bool eventOwned)
     {
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        await using var peer = new Peer(startGate:true); string path = Output(), summary = path + ".summary",serial=path+".serial";
+        await using var peer = new Peer(startGate:true,eventOwned:eventOwned); string path = Output(), summary = path + ".summary",serial=path+".serial";
         string root = HostToolProcess.FindRepositoryRoot();
         // Literal copied provisional gate only. These rows drive the live
         // stimulus predicate; they are not a complete replay or guest evidence.
         const string initial="TEST_START m10.004\r\n"+
             "M16_008_CALL identity=4294967303 nr=186 a0=0 a1=0 a2=0 a3=0 a4=0 a5=0 rip=4194818 rsp=4296794048 flags=514 fs=4296796160 gs=0 clock=20 valueBits=7 action=1 status=1 ordinal=1 waitSource=0 waitDeadline=0 waitSequence=0 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=4296794048 returnFlags=514 returnFs=4296796160 returnGs=0 returnValueBits=7\r\n"+
             "M16_008_CALL identity=4294967303 nr=232 a0=10 a1=5244928 a2=1 a3=1 a4=0 a5=0 rip=4194818 rsp=4296794048 flags=514 fs=4296796160 gs=0 clock=20 valueBits=0 action=3 status=9 ordinal=2 waitSource=3 waitDeadline=2500000000 waitSequence=1 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=4296794048 returnFlags=514 returnFs=4296796160 returnGs=0 returnValueBits=0\r\n";
-        byte[] serialBytes=Encoding.UTF8.GetBytes(initial);File.WriteAllBytes(serial,serialBytes);
+        string selectedInitial=eventOwned?initial.Replace("a3=1 a4=0","a3=18446744073709551615 a4=0",StringComparison.Ordinal)
+            .Replace("waitDeadline=2500000000","waitDeadline=0",StringComparison.Ordinal):initial;
+        byte[] serialBytes=Encoding.UTF8.GetBytes(selectedInitial);File.WriteAllBytes(serial,serialBytes);
         Task<ProcessResult>? callback = null; Task<NativeAotWebRacePeer.Completion>? owner = null;
         bool done = false, joined = false; NativeAotWebRacePeer.Completion? completion = null;
         Task<ProcessResult> Run(string name, CancellationToken token) => callback = RunCore(name, token);
@@ -228,7 +236,10 @@ internal static class NativeAotWebSignalRaceTransportTests
         {
             try
             {
-                var report = await WebRaceRendezvous.WaitInRunnerAsync(name, peer.Port, Environment.ProcessId, TimeSpan.FromSeconds(10), cancellation: token);
+                var report = eventOwned?await WebRaceRendezvous.WaitEventOwnedInRunnerAsync(name,peer.Port,Environment.ProcessId,
+                    TimeSpan.FromSeconds(10),()=>TimeSpan.FromSeconds(165),cancellation:token):
+                    await WebRaceRendezvous.WaitInRunnerAsync(name, peer.Port, Environment.ProcessId, TimeSpan.FromSeconds(10), cancellation: token);
+                HostCheck.Equal(eventOwned,report.EventOwned);
                 HostCheck.Equal(peer.Port, report.Port); HostCheck.Equal(Environment.ProcessId, report.QemuProcessId);
                 string Hash(string file) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file)));
                 HostCheck.Equal(Hash(path), report.Digests.SelectedSha256);
@@ -243,7 +254,8 @@ internal static class NativeAotWebSignalRaceTransportTests
         }
         try
         {
-            owner = NativeAotWebRacePeer.RunOwnedAsync(root, peer.Port, Health, path, summary, Run, limit.Token,initialWaitSerial:serial);
+            owner = eventOwned?NativeAotWebRacePeer.RunEventOwnedAsync(root,peer.Port,Health,path,summary,Run,limit.Token,initialWaitSerial:serial):
+                NativeAotWebRacePeer.RunOwnedAsync(root, peer.Port, Health, path, summary, Run, limit.Token,initialWaitSerial:serial);
             string? reason = null;
             try { completion = await owner; } catch (ToolFailure error) { reason = error.Reason; }
             HostCheck.Equal("web_race_owner_runner_failed", reason);
@@ -255,8 +267,8 @@ internal static class NativeAotWebSignalRaceTransportTests
             { using var closed = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None); }
             HostCheck.Equal("signalrace-run", Wire(path).Purpose);
             using var selected=JsonDocument.Parse(File.ReadAllText(path));using var attempts=JsonDocument.Parse(File.ReadAllText(path+".attempts.json"));
-            HostCheck.Equal("clros.web.signalrace.v2",selected.RootElement.GetProperty("schema").GetString());
-            HostCheck.Equal("clros.web.signalrace.attempts.v2",attempts.RootElement.GetProperty("schema").GetString());
+            HostCheck.Equal(eventOwned?"clros.web.signalrace.v3":"clros.web.signalrace.v2",selected.RootElement.GetProperty("schema").GetString());
+            HostCheck.Equal(eventOwned?"clros.web.signalrace.attempts.v3":"clros.web.signalrace.attempts.v2",attempts.RootElement.GetProperty("schema").GetString());
             HostCheck.Equal(new QemuTranscripts.WebSignalRaceSelection(1,7,8,9,9),
                 NativeAotWebPayload.ValidateSignalRaceEvidence(File.ReadAllText(path),peer.Endpoint,Health));
             HostCheck.Equal(21, QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"),

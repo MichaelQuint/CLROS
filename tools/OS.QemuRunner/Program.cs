@@ -467,18 +467,22 @@ try
                                     try
                                     {
                                         long remaining=options.TimeoutSeconds*1000L-stopwatch.ElapsedMilliseconds;
-                                        if(remaining<35_000)throw new TimeoutException("Web race handoff budget.");
+                                        if(!options.WebEventOwnedSignalRace&&remaining<35_000)throw new TimeoutException("Web race handoff budget.");
                                         bool Healthy()=>!process.HasExited&&!webFrames!.Completion.IsCompleted&&
                                             TryFeedSerialLogDelta(options.SerialLogPath,streamingMarkers,ref serialReadOffset,
                                                 out SerialMarkerFeedResult delta,out serialReadFailure)&&delta.Succeeded&&
                                             streamingMarkers.ForbiddenOccurrenceCount==0&&streamingMarkers.OutOfOrderOccurrenceCount==0&&
                                             streamingMarkers.DuplicateUniqueOccurrenceCount==0;
-                                        web.RaceGate=WebRaceRendezvous.WaitInRunnerAsync(options.WebRacePipe,options.SocketForwardPort!.Value,process.Id,
-                                            TimeSpan.FromMilliseconds(Math.Min(45_000,remaining)),Healthy).GetAwaiter().GetResult();
+                                        web.RaceGate=options.WebEventOwnedSignalRace?
+                                            WebRaceRendezvous.WaitEventOwnedInRunnerAsync(options.WebRacePipe,options.SocketForwardPort!.Value,process.Id,
+                                                TimeSpan.FromSeconds(165),()=>TimeSpan.FromMilliseconds(options.TimeoutSeconds*1000L-stopwatch.ElapsedMilliseconds),Healthy).GetAwaiter().GetResult():
+                                            WebRaceRendezvous.WaitInRunnerAsync(options.WebRacePipe,options.SocketForwardPort!.Value,process.Id,
+                                                TimeSpan.FromMilliseconds(Math.Min(45_000,remaining)),Healthy).GetAwaiter().GetResult();
                                         web.AliveAfterRaceGate=Healthy();if(!web.AliveAfterRaceGate)web.Failure="race_gate_guest_unhealthy";
                                     }
                                     catch(Exception failure)when(failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException or UnauthorizedAccessException)
-                                    {web.Failure="race_gate_"+failure.GetType().Name;}
+                                    {web.Failure=options.WebEventOwnedSignalRace&&failure is InvalidDataException{Message:"web_race_insufficient_absolute_budget"}?
+                                        "race_gate_insufficient_absolute_budget":"race_gate_"+failure.GetType().Name;}
                                 }
                             }
                         }
@@ -2451,6 +2455,7 @@ sealed class RunnerOptions
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
     public string? WebRacePipe { get; private set; }
+    public bool WebEventOwnedSignalRace { get; private set; }
     public bool ContinuingService { get; private set; }
     public bool ServiceQuotaFailure { get; private set; }
     public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
@@ -2601,7 +2606,11 @@ sealed class RunnerOptions
                     break;
                 case "--web-race-pipe":
                     if(options.WebRacePipe is not null)throw new ArgumentException("--web-race-pipe may be specified only once.");
-                    options.WebRacePipe=ReadValue(args,ref i,arg);WebRaceRendezvous.ValidatePipeName(options.WebRacePipe);
+                    options.WebRacePipe=ReadValue(args,ref i,arg);
+                    break;
+                case "--web-event-owned-signal-race":
+                    if(options.WebEventOwnedSignalRace)throw new ArgumentException("--web-event-owned-signal-race may be specified only once.");
+                    options.WebEventOwnedSignalRace=true;
                     break;
                 case "--service-quota-failure":
                     if (options.ServiceQuotaFailure) throw new ArgumentException("--service-quota-failure may be specified only once.");
@@ -2918,10 +2927,17 @@ sealed class RunnerOptions
     {
         if (!ContinuingWeb)
         {
+            if(WebEventOwnedSignalRace)throw new ArgumentException("--web-event-owned-signal-race requires --continuing-web.");
             if(WebRacePipe is not null)throw new ArgumentException("--web-race-pipe requires --continuing-web.");
             if (webLogCaseConfigured) throw new ArgumentException("--web-log-case requires --continuing-web.");
             if (webConfigBody is not null) throw new ArgumentException("--web-config-body requires --continuing-web.");
             return;
+        }
+        if(WebEventOwnedSignalRace&&WebRacePipe is null)throw new ArgumentException("--web-event-owned-signal-race requires --web-race-pipe.");
+        if(WebRacePipe is not null)
+        {
+            if(WebEventOwnedSignalRace)WebRaceRendezvous.ValidateEventOwnedPipeName(WebRacePipe);
+            else WebRaceRendezvous.ValidatePipeName(WebRacePipe);
         }
         if(WebRacePipe is not null&&WebLogCase!="normal")throw new ArgumentException("--web-race-pipe requires normal web logging.");
         if (SocketForwardPort is null || HttpProbe is null || string.IsNullOrWhiteSpace(SummaryLogPath) ||

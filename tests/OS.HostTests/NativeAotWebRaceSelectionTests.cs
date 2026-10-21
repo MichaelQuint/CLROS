@@ -5,10 +5,10 @@ using OS.Tooling;
 internal static class NativeAotWebRaceSelectionTests
 {
     private const string Placeholder="clros-web-race-00000000000000000000000000000000";
-    private static QemuSmokeOptions Options(bool race=false)
+    private static QemuSmokeOptions Options(bool race=false,bool eventOwned=false)
     {
         var options=new QemuSmokeOptions{BootPolicy="Diagnostic",BuildEfi=true,WebSignalRace=race,
-            FirmwareRngSource="virtio",LinuxElfPackage="absent-web.pkg",LinuxThreadingDisassembly="absent-web.dump"};
+            WebEventOwnedSignalRace=eventOwned,FirmwareRngSource="virtio",LinuxElfPackage="absent-web.pkg",LinuxThreadingDisassembly="absent-web.dump"};
         options.Flags["EnableM10004Probe"]=true;return options;
     }
     private static void Reject(Action action,string expected)
@@ -129,5 +129,55 @@ internal static class NativeAotWebRaceSelectionTests
                 await Check(staleSuffix:suffix);
         }
         finally{Directory.Delete(folder);}
+    }
+
+    [HostTest("web event-owned option has independent strict grammar and cannot conflict with legacy race profile")]
+    private static void EventOptionAndProfile()
+    {
+        HostCheck.True(!new QemuSmokeOptions().WebEventOwnedSignalRace&&!QemuSmokeOptions.Parse().WebEventOwnedSignalRace);
+        foreach(string argument in new[]{"--web-event-owned-signal-race","-WebEventOwnedSignalRace:true","--WebEventOwnedSignalRace=$true"})
+        {var o=QemuSmokeOptions.Parse(argument);HostCheck.True(o.WebEventOwnedSignalRace&&!o.WebSignalRace&&o.Explicit.Contains("WebEventOwnedSignalRace"));}
+        foreach(string value in new[]{"","1","invalid"})
+        {
+            string? reason=null;try{_=QemuSmokeOptions.Parse("--web-event-owned-signal-race="+value);}catch(ArgumentException error){reason=error.Message;}
+            HostCheck.Equal("qemu_invalid_boolean WebEventOwnedSignalRace",reason);
+        }
+        string? duplicate=null;try{_=QemuSmokeOptions.Parse("--web-event-owned-signal-race","--web-event-owned-signal-race=false");}
+        catch(ArgumentException error){duplicate=error.Message;}HostCheck.Equal("qemu_duplicate_option WebEventOwnedSignalRace",duplicate);
+        Reject(()=>QemuProfiles.Create(Options(race:true,eventOwned:true)),"web_race_profile_conflict");
+        var wrong=Options(eventOwned:true);wrong.Flags.Clear();Reject(()=>QemuProfiles.Create(wrong),"web_race_requires_web");
+        var enabled=Options(eventOwned:true);HostCheck.True(QemuProfiles.Create(enabled).IsEnabled("EnableM10004Probe")&&!enabled.WebSignalRace);
+        var disabled=QemuSmokeOptions.Parse("--web-event-owned-signal-race=false");HostCheck.True(!disabled.WebEventOwnedSignalRace&&!disabled.WebSignalRace);
+        var ordinary=Options();var off=Options();off.Explicit.Add("WebEventOwnedSignalRace");
+        HostCheck.True(QemuProfiles.Create(ordinary).Required.SequenceEqual(QemuProfiles.Create(off).Required));
+    }
+
+    [HostTest("web event-owned dry run selects one v3 pipe while live preflight retains stale bytes before child admission")]
+    private static async Task EventDryAndPreflight()
+    {
+        string root=HostToolProcess.FindRepositoryRoot(),folder=Path.Combine(root,"artifacts","host-tests","web-event-selection-"+Guid.NewGuid().ToString("N"));
+        var options=Options(eventOwned:true);options.DryRun=true;
+        options.SerialLog=Path.Combine(folder,"serial.log");options.SummaryLog=Path.Combine(folder,"summary.log");
+        options.LinuxElfPackage=Path.Combine(folder,"missing.pkg");options.LinuxThreadingDisassembly=Path.Combine(folder,"missing.dump");
+        options.Image=Path.Combine(folder,"image.raw");options.EfiArtifact=Path.Combine(folder,"BOOTX64.EFI");
+        int starts=0;IReadOnlyList<string>? command=null;
+        int code=await QemuSmoke.RunAsync(root,options,TextWriter.Null,(_,args)=>
+        {starts++;command=args.ToArray();return Task.FromResult(new ProcessResult(0,"","",false,false,false,TimeSpan.Zero));});
+        HostCheck.True(code==0&&starts==1&&command is not null&&!Directory.Exists(folder));var arguments=command!;
+        HostCheck.True(arguments.Count(a=>a=="--web-event-owned-signal-race")==1&&arguments.Count(a=>a=="--web-race-pipe")==1&&arguments.Count(a=>a=="--socket-forward-port")==1);
+        HostCheck.Equal("clros-web-race-v3-00000000000000000000000000000000",arguments[arguments.ToList().IndexOf("--web-race-pipe")+1]);
+        options.DryRun=false;starts=0;using(var output=new StringWriter())
+        {
+            code=await QemuSmoke.RunAsync(root,options,output,(_,_)=>{starts++;throw new InvalidOperationException("must not start");});
+            HostCheck.True(code==1&&starts==0&&!Directory.Exists(folder)&&!output.ToString().Contains("TEST_PASS qemu.smoke.web",StringComparison.Ordinal));
+        }
+        Directory.CreateDirectory(folder);string wire=options.SerialLog+".race.json.wire.json";byte[] retained=[0,90,255,13,10,107];File.WriteAllBytes(wire,retained);
+        try
+        {
+            using var output=new StringWriter();code=await QemuSmoke.RunAsync(root,options,output,(_,_)=>{starts++;throw new InvalidOperationException("must not start");});
+            HostCheck.True(code==1&&starts==0&&File.ReadAllBytes(wire).SequenceEqual(retained)&&Directory.GetFiles(folder).Length==1);
+            HostCheck.True(output.ToString().Contains("TEST_FAIL qemu.smoke web_race_output_not_fresh_or_aliased",StringComparison.Ordinal));
+        }
+        finally{File.Delete(wire);Directory.Delete(folder);}
     }
 }

@@ -102,13 +102,13 @@ public static partial class NativeAotWebPayload
         public void Dispose(){Selected.Dispose();Attempts.Dispose();Wire.Dispose();}
     }
 
-    internal static async Task<OwnedRaceCapture> CaptureOwnedObservedSignalRaceAsync(int port,string health,string path,CancellationToken cancellation,RaceStartHooks startHooks)
+    internal static async Task<OwnedRaceCapture> CaptureOwnedObservedSignalRaceAsync(int port,string health,string path,CancellationToken cancellation,RaceStartHooks startHooks,bool eventOwned=false)
     {
         OwnedRaceCapture? result=null;
         try
         {
             _=await CaptureObservedSignalRaceCoreAsync(port,health,path,cancellation,
-                (text,selected,attempts,wire)=>result=new(text,selected,attempts,wire),startGate:true,startHooks:startHooks);
+                (text,selected,attempts,wire)=>result=new(text,selected,attempts,wire),startGate:true,startHooks:startHooks,eventOwned:eventOwned);
             return result??throw new InvalidDataException("web_signalrace_created_reports_missing");
         }
         catch{result?.Dispose();throw;}

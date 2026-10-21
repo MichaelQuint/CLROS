@@ -16,7 +16,9 @@ public static partial class QemuTranscripts
         root=Path.GetFullPath(root);
         var comparison=OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal;
         string serial=Path.GetFullPath(options.SerialLog,root),race=serial+".race.json",summary=Path.GetFullPath(options.SummaryLog,root);
-        Need(options.WebSignalRace&&!options.DryRun&&plan.IsEnabled("EnableM10004Probe")&&
+        Need(options.HasWebSignalRace&&!(options.WebSignalRace&&options.WebEventOwnedSignalRace)&&
+            completion.EventOwned==options.WebEventOwnedSignalRace&&completion.Gate.EventOwned==completion.EventOwned&&
+            !options.DryRun&&plan.IsEnabled("EnableM10004Probe")&&
             string.Equals(root,program.SourceRoot,comparison)&&string.Equals(root,completion.Root,comparison)&&
             string.Equals(race,completion.Path,comparison)&&string.Equals(summary,completion.SummaryPath,comparison)&&
             completion.Port==context.ForwardPort&&ReferenceEquals(runner,completion.Runner),"web_race_owned_owner");
@@ -59,12 +61,12 @@ public static partial class QemuTranscripts
             Need(!configuration.LogQuota&&configuration.Body==completion.Health,"web_race_owned_configuration");
             var window=new WebUtcObservation(completion.ProducerStartedUtc,completion.ProducerCompletedUtc);
             var ownedRunner=InspectNativeAotWebRaceRunnerForTests(options,plan,runner,raw,summaryBytes,context,
-                configuration.Body,configuration.Json,completion.Gate,window);
+                configuration.Body,configuration.Json,completion.Gate,window,completion.EventOwned);
             var controls=ownedRunner.Runner.Controls;
             Need(controls is not null,"web_race_owned_controls");
-            var capture=ValidateNativeAotWebCapturePrefix(root,package,program,raw,controls,completion.Selection);
+            var capture=ValidateNativeAotWebCapturePrefix(root,package,program,raw,controls,completion.Selection,completion.EventOwned);
             var replay=capture.Leaf;
-            Need(replay.SignalRace is not null&&replay.TransportControlsChecked,"web_race_owned_replay");
+            Need(replay.SignalRace is not null&&replay.SignalRace.EventOwned==completion.EventOwned&&replay.TransportControlsChecked,"web_race_owned_replay");
             int at=raw.AsSpan().IndexOf("TEST_START m10.004\r\n"u8);
             var framed=NativeAotThreadingOutput.ReadWeb(raw.AsSpan(at));
             string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-replay.Observations.TrailingFragment.Length)];
@@ -77,7 +79,9 @@ public static partial class QemuTranscripts
             Need(whole.Ordinary.TimeWaitPorts.All(port=>lifetimes.Any(l=>l.RemotePort==port&&l.Waits>0)),"web_race_owned_time_wait");
             string endpoint="http://127.0.0.1:"+context.ForwardPort.ToString(System.Globalization.CultureInfo.InvariantCulture);
             var roles=InspectNativeAotWebSignalRaceRolesForTests(wire,attempts,selected,endpoint,configuration.Body,whole.Race,replay.SignalRace!);
-            var dates=InspectNativeAotWebSignalRaceDatesForTests(roles.Streams,window,whole.Ordinary.Responses[^1].DateUtc);
+            var dates=completion.EventOwned?
+                InspectNativeAotWebEventOwnedSignalRaceDatesForTests(roles.Streams,window,whole.Ordinary.Responses[^1].DateUtc):
+                InspectNativeAotWebSignalRaceDatesForTests(roles.Streams,window,whole.Ordinary.Responses[^1].DateUtc);
             output.WriteLine($"WEB_RACE_PREFIX parentRecords={capture.Parent.Records} calls={replay.Observations.Calls} accepts={replay.SocketAccepts} ordinary={whole.Ordinary.Connections} added={whole.Race.Streams.Count} roles={roles.Samples.Count} orderEdges={roles.Order.Count} dates={dates.Responses.Count} pendingHeaders={dates.PendingHeaders} acceptance=pending");
             // This continuing capture proves neither guest termination nor
             // actual GC/ThreadPool/offender cleanup. QemuSmoke's final native,

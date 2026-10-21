@@ -604,6 +604,18 @@ closes, cancels and joins pending IPC. Copied runner and Date readers permit
 All43 focused checks pass. Production QEMU option/owner/Completion dispatch is
 still legacy; wiring it and proving fresh native/guest originals remain pending.
 
+[Step1529](../done/step1529.md) wires explicit
+`--web-event-owned-signal-race` through production options, owned v3 capture,
+immutable Completion, runner protocol/summary and held replay/role/Date checks.
+The old `--web-signal-race` stays timed; simultaneous true profiles refuse.
+The runner passes its original stopwatch to the165s pre-READY budget checks and
+retains `race_gate_insufficient_absolute_budget` on refusal. Original285/owner330,
+legacy35/45 and the provisional500ms serial check stay unchanged. All47 focused
+checks pass, including real local failed/cancelled capture and held reports before
+DONE; tests deliberately return a failed runner and create no successful
+Completion. No prepared source/ELF/index pins change. Fresh original native-v8
+qualification and deliberate admission still precede another guest.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

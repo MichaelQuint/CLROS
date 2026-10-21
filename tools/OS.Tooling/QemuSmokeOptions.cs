@@ -42,6 +42,11 @@ public sealed class QemuSmokeOptions
     /// Default false preserves ordinary web. Source/native/image admission and
     /// a successful original race remain mandatory for this execution path.</summary>
     public bool WebSignalRace { get; set; }
+    /// <summary>Explicit event-owned v3 web race. Default false retains the
+    /// historical selection; simultaneous true race profiles refuse. Complete
+    /// original native/source/image and owned capture admission remain required.</summary>
+    public bool WebEventOwnedSignalRace { get; set; }
+    internal bool HasWebSignalRace => WebSignalRace || WebEventOwnedSignalRace;
     public List<string> RequireMarker { get; } = [.. DefaultRequiredMarkers];
     public List<string> RequireOrderedMarker { get; } = [];
     public List<string> RequireUniqueMarker { get; } = [];
@@ -68,7 +73,7 @@ public sealed class QemuSmokeOptions
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
-            ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["requiremarker"] = "RequireMarker",
+            ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["webeventownedsignalrace"] = "WebEventOwnedSignalRace", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
             ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant",
             ["linuxhellodisassembly"] = "LinuxHelloDisassembly",
@@ -82,7 +87,8 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
-            bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace";
+            if (!first && name == "WebEventOwnedSignalRace") throw new ArgumentException("qemu_duplicate_option " + name);
+            bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
             bool bit = false;
             if (flag && !bool.TryParse(value.TrimStart('$'), out bit)) throw new ArgumentException("qemu_invalid_boolean " + name);
@@ -117,6 +123,7 @@ public sealed class QemuSmokeOptions
                 case "ServiceQuotaFailure": result.ServiceQuotaFailure = bit; break;
                 case "SignalEpollRace": result.SignalEpollRace = bit; break;
                 case "WebSignalRace": result.WebSignalRace = bit; break;
+                case "WebEventOwnedSignalRace": result.WebEventOwnedSignalRace = bit; break;
                 case "RequireMarker": if (first) result.RequireMarker.Clear(); result.RequireMarker.Add(value); break;
                 case "RequireOrderedMarker": result.RequireOrderedMarker.Add(value); break;
                 case "RequireUniqueMarker": result.RequireUniqueMarker.Add(value); break;
