@@ -6,6 +6,20 @@ public static partial class QemuTranscripts
     /// select identities from actual replay; they authenticate no callback code.</summary>
     public sealed record WebSignalRaceSelection(int Pid,int WaiterTid,int ActorTid,int CallbackTid,int RecoveryWriterTid);
 
+    /// <summary>One validated native accept or positive socket CALL in an added
+    /// lifetime after the ordinary eight controls. CallRecordIndex is the actual
+    /// original normalized CALL row, not an invented post-CALL diagnostic row.
+    /// DescriptorGeneration/OpenDescription are replay IDs; tuple/generation
+    /// comes from the checked native transport lifetime. Counters are replayed
+    /// accepted/consumed bytes, not transmission, pointed bytes or allocation.</summary>
+    public readonly record struct WebSignalRaceSocketCall(int CallRecordIndex,ulong Identity,ulong Ordinal,ulong Number,
+        int Descriptor,uint DescriptorGeneration,int OpenDescription,ServiceQuotaSocketIdentity Connection,
+        ulong Offset,uint Bytes,bool Peek,ulong Sent,ulong Received)
+    {
+        public bool Accept=>Number is 43 or 288;
+        public bool Response=>Number is 44 or 46;
+    }
+
     /// <summary>Immutable original-order projection after complete web replay.
     /// Indices address complete normalized original rows before metadata removal.
     /// Pointer contents, callback code roles, native joins, packets and owned
@@ -29,11 +43,17 @@ public static partial class QemuTranscripts
         public DescriptorObservation WriteDescriptor { get; }
         public DescriptorObservation EpollDescriptor { get; }
         public IReadOnlyList<Step> Steps { get; }
+        /// <summary>Copied added-lifetime socket projections, emitted only after
+        /// the entire existing replay succeeds. Ordinary sockets and probe-pipe
+        /// calls are excluded; no quota-only M16_016_SOCKET row is fabricated.</summary>
+        public IReadOnlyList<WebSignalRaceSocketCall> SocketCalls { get; }
         internal WebSignalRaceReport(WebSignalRaceSelection selection,Thread waiter,Thread actor,Thread callback,Thread writer,
-            DescriptorObservation read,DescriptorObservation write,DescriptorObservation epoll,IEnumerable<Step> steps)
+            DescriptorObservation read,DescriptorObservation write,DescriptorObservation epoll,IEnumerable<Step> steps,
+            IEnumerable<WebSignalRaceSocketCall> socketCalls)
         {
             Selection=selection with{};Waiter=waiter;Actor=actor;Callback=callback;RecoveryWriter=writer;
             ReadDescriptor=read;WriteDescriptor=write;EpollDescriptor=epoll;Steps=Array.AsReadOnly(steps.ToArray());
+            SocketCalls=Array.AsReadOnly(socketCalls.ToArray());
         }
     }
 
@@ -49,6 +69,7 @@ public static partial class QemuTranscripts
         internal readonly List<WebRacePort> Ports=[];
         internal readonly List<WebRaceWatch> Watches=[];
         internal readonly List<WebRaceFrame> Frames=[];
+        internal readonly List<WebSignalRaceSocketCall> SocketCalls=[];
     }
 
     private sealed partial class ThreadingProtocol
@@ -84,6 +105,33 @@ public static partial class QemuTranscripts
                 socketDescriptors.TryGetValue((int)r["a0"],out var owner) &&
                 owner.ProbeReadWatches.TryGetValue((int)r["a2"],out var watched))
                 trace.Watches.Add(new(watched,owner,call.RecordIndex));
+            ObserveWebSignalRaceSocketCall(trace,r,call);
+        }
+
+        private void ObserveWebSignalRaceSocketCall(WebRaceTrace trace,Dictionary<string,ulong> r,LinuxCallWaitObservation call)
+        {
+            ulong nr=r["nr"],value=r["valueBits"];bool accept=nr is 43 or 288;
+            if((!accept && nr is not (44 or 45 or 46 or 47)) || r["action"]!=1 || r["status"]!=1 ||
+                unchecked((long)value)<0 || (!accept && value==0))return;
+            ulong fd=accept?value:r["a0"];
+            Need(fd<16 && socketDescriptors.TryGetValue((int)fd,out _),"web_race_socket_descriptor");
+            var descriptor=socketDescriptors[(int)fd];
+            if(descriptor.Connection<8)return;
+            Need(!descriptor.Port && descriptor.Phase==3 && webLifetimes is not null &&
+                descriptor.Connection<webLifetimes.Count && trace.SocketCalls.Count<100000,"web_race_socket_lifetime");
+            var first=webLifetimes![descriptor.Connection].First;
+            int description=socketDescriptions.IndexOf(descriptor);
+            Need(description>=0 && descriptorGenerations[(int)fd]>0 && (accept || value<=8192),"web_race_socket_projection");
+            bool response=nr is 44 or 46,peek=!accept && !response && ((nr==45?r["a3"]:r["a2"])&2)!=0;
+            uint bytes=accept?0:(uint)value;
+            ulong front=response?descriptor.Sent:descriptor.Received;
+            Need(accept?descriptor.Sent==0 && descriptor.Received==0:peek || front>=bytes,"web_race_socket_projection");
+            var connection=new ServiceQuotaSocketIdentity(first["owner"],first["epoch"],first["generation"],
+                checked((uint)first["index"]),checked((uint)first["slot"]),first["local"],checked((uint)first["localPort"]),
+                first["remote"],checked((uint)first["remotePort"]));
+            trace.SocketCalls.Add(new(trace.OriginalRows[call.RecordIndex],call.Identity,call.Ordinal,nr,(int)fd,
+                descriptorGenerations[(int)fd],description,connection,accept?0:peek?front:front-bytes,bytes,peek,
+                descriptor.Sent,descriptor.Received));
         }
 
         private void ObserveWebSignalRaceFrame(RuntimeThread t,uint signal,ulong frame,int replayRow,bool returned)
@@ -185,7 +233,7 @@ public static partial class QemuTranscripts
             return new(s,waiterValue,actorValue,callbackValue,writerValue,
                 new(pipe.Read,pipe.ReadGeneration,Original(pipe.Index),Original(readClose)),
                 new(pipe.Write,pipe.WriteGeneration,Original(pipe.Index),Original(writeClose)),
-                new(port.Descriptor,port.Generation,Original(port.Index),Original(portClose)),steps);
+                new(port.Descriptor,port.Generation,Original(port.Index),Original(portClose)),steps,trace.SocketCalls);
         }
     }
 }

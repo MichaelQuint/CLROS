@@ -436,6 +436,19 @@ Race Date/owned UTC and syscall/role joins, owned QemuSmoke and fresh exact nati
 source/image admission still precede guest acceptance. No native or QEMU run
 occurred and no quota-triggered offender cleanup is accepted.
 
+[Step1513](../done/step1513.md) checks every complete contiguous race response
+Date against the supplied whole producer UTC window and ordinary Date baseline,
+preserving cached seconds and concurrent completion order. Partial bodies retain
+Date checks; pending headers confer no Date witness. Original packet ranges join
+complete HTTP intervals to consuming receives/accepted sends from a separate typed
+web CALL projection. The projection is collected after existing checked CALLs and
+returned only after complete replay; it retains original indices, transport tuple/
+generation and replay descriptor IDs/counters. It adds no native diagnostic row.
+All30 focused checks/six fixtures pass unchanged/zero reuse. Copied controls and
+complete-model replay remain distinct from original native/guest evidence. Actor
+role/HTTP ordering, owned QemuSmoke and fresh exact native/source/image admission
+remain next; no acceptance issue closes.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

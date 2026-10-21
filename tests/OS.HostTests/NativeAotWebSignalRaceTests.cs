@@ -6,7 +6,8 @@ internal static class NativeAotWebSignalRaceTests
     private static readonly QemuTranscripts.WebSignalRaceSelection Selection=new(1,1,3,2,2);
     private static QemuTranscripts.WebSignalRaceReport Run(QemuTranscripts.WebSignalRaceSelection? selection=null,
         bool omitRepark=false,bool wrongRecovery=false,bool leaveOpen=false,bool repeatPipe=false,Action<int>? originalWait=null,
-        bool controls=false,bool extraSocket=false,bool missingAfter=false,bool lateRetirement=false,bool unaccepted=false)
+        bool controls=false,bool extraSocket=false,bool missingAfter=false,bool lateRetirement=false,bool unaccepted=false,
+        Action<int>? originalSocket=null)
     {
         var replay=NativeAotWebReplayTests.InspectProbe(v=>
         {
@@ -28,7 +29,7 @@ internal static class NativeAotWebSignalRaceTests
                 }
                 v.Rows.Add(NativeAotWebTransportTests.Fresh(7,1,42000,NativeAotWebTransportTests.Timeout+(lateRetirement?0UL:2UL)));
                 if(!unaccepted)
-                {v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(45,1,[7,0x500800,1,0,0,0]);v.Call(44,1,[7,0x500800,1,0,0,0]);v.Call(3,0,[7]);}
+                {originalSocket?.Invoke(v.Rows.Count);v.Call(288,7,[6,0x500700,0x500780,0x80000]);v.Call(45,1,[7,0x500800,1,0,0,0]);v.Call(44,1,[7,0x500800,1,0,0,0]);v.Call(3,0,[7]);}
                 if(retired is not null)v.Rows.Add(retired);
             }
             const ulong b=0x500800,frame=0x6ffffb78,stack=0x6ffffff0;
@@ -76,6 +77,7 @@ internal static class NativeAotWebSignalRaceTests
         HostCheck.Equal(3U,r.ReadDescriptor.Generation);HostCheck.Equal(1U,r.WriteDescriptor.Generation);
         HostCheck.True(r.Steps.Count>=17 && r.Steps.Zip(r.Steps.Skip(1)).All(p=>p.First.RecordIndex<p.Second.RecordIndex));
         HostCheck.Equal(original,r.Steps[0].RecordIndex);
+        HostCheck.True(r.SocketCalls.Count==0);
         var array=r.Steps.ToArray();array[0]=default;HostCheck.True(r.Steps[0].Kind=="initial-wait");
     }
 
@@ -98,8 +100,18 @@ internal static class NativeAotWebSignalRaceTests
     [HostTest("web race replay admits later socket only after exact ordinary controls then completes actual copied race projection")]
     private static void LaterSocket()
     {
-        var report=Run(controls:true,extraSocket:true);
+        int original=-1;var report=Run(controls:true,extraSocket:true,originalSocket:i=>original=i);
         HostCheck.True(report.Steps.Count>=17&&report.Selection==Selection&&report.Actor.ReapRecordIndex is not null);
+        HostCheck.Equal(3,report.SocketCalls.Count);var accepted=report.SocketCalls[0];var received=report.SocketCalls[1];var sent=report.SocketCalls[2];
+        HostCheck.True(accepted.CallRecordIndex==original&&accepted.Accept&&accepted.Number==288&&accepted.Bytes==0&&accepted.Offset==0&&
+            accepted.Identity==0x100000001&&accepted.Ordinal>0&&accepted.Descriptor==7&&accepted.DescriptorGeneration>0&&accepted.OpenDescription>=0);
+        HostCheck.True(accepted.Connection.RemotePort==42000&&accepted.Connection.LocalPort==8080&&accepted.Connection.Generation==1&&
+            report.SocketCalls.All(c=>c.Connection==accepted.Connection&&c.DescriptorGeneration==accepted.DescriptorGeneration&&c.OpenDescription==accepted.OpenDescription));
+        HostCheck.True(received.CallRecordIndex>accepted.CallRecordIndex&&sent.CallRecordIndex>received.CallRecordIndex&&
+            received.Ordinal==accepted.Ordinal+1&&sent.Ordinal==received.Ordinal+1&&received.Number==45&&sent.Number==44&&
+            !received.Peek&&!received.Response&&sent.Response&&received.Offset==0&&sent.Offset==0&&received.Bytes==1&&sent.Bytes==1&&
+            accepted.Sent==0&&accepted.Received==0&&received.Sent==0&&received.Received==1&&sent.Sent==1&&sent.Received==1);
+        bool immutable=false;try{((IList<QemuTranscripts.WebSignalRaceSocketCall>)report.SocketCalls).Clear();}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
         Reject(()=>Run(controls:true,extraSocket:true,missingAfter:true));
         Reject(()=>Run(controls:true,extraSocket:true,lateRetirement:true));
         Reject(()=>Run(controls:true,extraSocket:true,unaccepted:true));

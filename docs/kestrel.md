@@ -277,6 +277,22 @@ producer or guest authority. Race Date/owned UTC, syscall/role joins, QemuSmoke
 wiring and fresh exact native/source/image admission remain required. No native
 or QEMU trial ran; the original failed native attempt remains failed.
 
+[Step1513](../done/step1513.md) adds race Date and native-CALL coverage consumers.
+Every complete contiguous guest response header needs canonical RFC1123 Date
+within the supplied whole producer UTC window plus/minus5s, without regression
+against the ordinary last Date or on a persistent stream. Concurrent streams
+have no global Date order; pending headers remain explicit. Wire ticks acquire
+no UTC origin. The complete web replay now projects added-lifetime accepts and
+positive socket CALLs with original row indices, checked transport identity and
+replay descriptor IDs/counters. Ordinary/probe-pipe calls are excluded. This uses
+existing replay facts and fabricates no quota-only post-CALL diagnostic row.
+The typed temporal consumer requires exact original HTTP packet ranges, consuming
+receive/accepted-send coverage and persistent FIFO, excluding peeks. All30 focused
+checks/six fixtures pass unchanged/zero reuse, including complete-model projection
+and independent Date/temporal controls. No EFI/kernel or quota grammar changed.
+HTTP/replay actor roles, owned QemuSmoke and fresh exact native/source/image joins
+still precede guest acceptance; the original native failure remains failed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
