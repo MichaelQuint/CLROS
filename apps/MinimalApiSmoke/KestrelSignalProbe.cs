@@ -19,6 +19,7 @@ internal sealed class KestrelSignalProbe
 
     // Copied phase data gates external stimuli; it never proves a native wait.
     internal string ReadRace() => race.Read();
+    internal bool RequestStart() => race.TryRequestStart();
     internal bool RequestRecovery() => race.TryRequestRecovery();
 
     // This callback state owns no native pointer, descriptor, event or waiter.
@@ -171,9 +172,18 @@ internal sealed class KestrelSignalProbe
                 Need(actor.Error is null && actor.Tid > 0 && actor.Tid != waiter.Tid && actor.Ready == 1, "actor_start");
                 Need(race.Advance(KestrelSignalRaceState.InitialArmed, waiter: waiter.Tid, actor: actor.Tid), "race_initial");
             }
-            // A successful original trace must prove the actual wait was entered;
-            // this bounded scheduling window is not that proof and is not retried.
-            await Task.Delay(25, cancellation);
+            if (competing)
+            {
+                // The external owner prepares its schedule before releasing the
+                // actor. Phase1 still does not prove an actual blocked syscall.
+                // A timed-out/failed waiter is never recycled into another try.
+                await Until(() => race.StartRequested || Volatile.Read(ref waiter.Phase) != 1, cancellation);
+                Need(race.StartRequested && waiter.Error is null && Volatile.Read(ref waiter.Phase) == 1,
+                    "initial_wait_not_pending");
+            }
+            // The original signal-only experiment keeps its bounded window.
+            // Actual native entry remains an original-trace requirement.
+            else await Task.Delay(25, cancellation);
             Need(Abi.SameAction(installed, Abi.ReadAction()), "action_drift");
             if (competing)
             {

@@ -16,8 +16,9 @@ public static partial class NativeAotWebPayload
         RaceNeed(json is {Length:>0 and <=65536}&&Encoding.UTF8.GetByteCount(json)<=65536,"input");
         using var document=JsonDocument.Parse(json,new JsonDocumentOptions{MaxDepth=8});var root=document.RootElement;
         ChurnKeys(root,"schema","endpoint","samples");
-        RaceNeed(ChurnString(root.GetProperty("schema"),64)=="clros.web.signalrace.v1"&&ChurnString(root.GetProperty("endpoint"),64)==expectedEndpoint,"schema_endpoint");
-        var samples=root.GetProperty("samples");RaceNeed(samples.ValueKind==JsonValueKind.Array&&samples.GetArrayLength()==19,"samples");
+        string schema=ChurnString(root.GetProperty("schema"),64);bool startGate=schema=="clros.web.signalrace.v2";
+        RaceNeed((startGate||schema=="clros.web.signalrace.v1")&&ChurnString(root.GetProperty("endpoint"),64)==expectedEndpoint,"schema_endpoint");
+        var samples=root.GetProperty("samples");RaceNeed(samples.ValueKind==JsonValueKind.Array&&samples.GetArrayLength()==(startGate?21:19),"samples");
         int position=0;ulong[]? previous=null;
         string Row(string kind,int status)
         {
@@ -36,7 +37,14 @@ public static partial class NativeAotWebPayload
         }
         RaceNeed(Churn("baseline-churn",0,0,0,0).All(n=>n==0),"baseline");
         RaceNeed(ReadRaceStatus(Row("baseline-race",200)).All(n=>n==0),"idle");Body("health-before",200,expectedHealthBody);
+        ulong[]? initial=null;
+        if(startGate)
+        {
+            initial=ReadRaceStatus(Row("initial-armed",200));
+            RaceNeed(initial[0]==2&&initial[4]==0&&initial[5]==0,"initial_gate");
+        }
         var pending=Churn("churn-pending",1,0,0,1);RaceNeed(pending[8]>=1&&pending[9]>=1&&pending[10]>=1,"churn_progress");
+        if(startGate)Body("start-request",200,"CLROS_SIGNAL_RACE_START_REQUESTED");
         var armed=ReadRaceStatus(Row("recovery-armed",200));RaceNeed(armed[0]==4&&armed[5]==0,"recovery_gate");
         var overlap=Churn("churn-overlap",1,0,0,1);foreach(int field in new[]{8,9,10})RaceNeed(overlap[field]>pending[field],"overlap_progress");
         Body("overlap-health",200,expectedHealthBody);Body("churn-cancel",0,"");
@@ -44,6 +52,7 @@ public static partial class NativeAotWebPayload
         Body("recovery-request",200,"CLROS_SIGNAL_RACE_RECOVERY_REQUESTED");Body("recovery-repeat",409,"CLROS_SIGNAL_RACE_RECOVERY_REFUSED");
         var selection=ReadRaceResult(Row("race-complete",200));
         RaceNeed(armed[1]==(ulong)selection.Pid&&armed[2]==(ulong)selection.WaiterTid&&armed[3]==(ulong)selection.ActorTid&&armed[4]==(ulong)selection.CallbackTid,"role_binding");
+        if(initial is not null)RaceNeed(initial.AsSpan(1,3).SequenceEqual(armed.AsSpan(1,3)),"initial_role_binding");
         var final=ReadRaceStatus(Row("race-final",200));
         RaceNeed(final[0]==7&&final[5]==1&&final.AsSpan(1,4).SequenceEqual(armed.AsSpan(1,4)),"final_roles");
         Body("health-after",200,expectedHealthBody);Body("churn-complete",200,"CLROS_CHURN_OK iterations=8 bytes=65536 timers=8 workers=8 collections=8");

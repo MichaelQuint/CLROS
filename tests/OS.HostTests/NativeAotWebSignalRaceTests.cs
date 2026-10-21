@@ -38,7 +38,7 @@ internal static class NativeAotWebSignalRaceTests
             v.Call(293,0,[0x500500,0x80800]);v.Call(291,(long)epoll,[0x80000]);v.Call(233,0,[epoll,1,read,0x500300]);
             v.Call(13,0,[12,0x500400,0,8]);var actor=v.Clone(3,3);v.Call(186,1);
             originalWait?.Invoke(v.Rows.Count);v.Call(232,0,[epoll,b,1,1],3,3,1_000_020);v.Drain(30);v.Supervisor(3,1,3);v.Select(actor);
-            v.Call(186,3);v.Call(1,1,[write,b,1]);
+            v.Call(186,3);phase?.Invoke(v,"before-actor-write");v.Call(1,1,[write,b,1]);
             v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=1 completion=1 state=1 clock=30");
             v.Call(234,0,[1,1,12]);v.Call(0,1,[read,b,1]);v.Irq(40,2,3);v.Select(v.Main);
             if(omitRepark)return;

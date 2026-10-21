@@ -474,6 +474,19 @@ execution. Existing old source/ELF/index admission stays closed. The expert's
 separate one-shot phase2 start/native scheduling proposal is unapplied; explicit
 versioned controller/role integration and actual execution still follow.
 
+[Step1516](../done/step1516.md) implements the one-shot phase2 start and v2
+race-first controller. It prepares the initial wait before short churn, then
+issues exactly one start while progress is pending. Selected/attempts-v2 bind21
+roles; original replay requires initial wait before consumed start before actor
+write. The private guest owner uses a provisional blocked serial row, while final
+immutable replay retains authority. Separate controlled Linux-native v7 requires
+the v2 pair and complete hashed schedule journal, actual owned generations,
+policies/CPU/pipe checks, tracer restoration and confirmed session stop.
+Historical v1/v5/v6 and ordinary v4 remain explicit. All70 focused checks/14
+fixtures pass unchanged/zero reuse. These are host contracts and copied/loopback
+controls: no Linux native or guest execution, new admission, quota termination
+or complete Kestrel acceptance follows. #737/#225/#748 remain open.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

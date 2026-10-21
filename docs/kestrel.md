@@ -324,6 +324,25 @@ race-first controller; it remains unapplied here. Original206-file failure stays
 failed. That execution repair, fresh admission and actual guest evidence remain
 required before any race acceptance.
 
+[Step1516](../done/step1516.md) applies the one-shot phase2 start gate and explicit
+v2 controller: pending race, original wait preparation, short churn/progress,
+then exactly one start POST. Selected/attempts-v2 add initial-armed/start roles
+for21 samples. The private guest owner rechecks a provisional serial blocked
+wait (action3/status9); final immutable replay requires original initial wait
+before start consumption before actor write. Phase snapshots and copied rows
+cannot establish that order. Historical v1/19-sample diagnostics remain explicit.
+
+The separate private Linux experiment binds the actual owned tracer/session,
+thread generations/pidfds, one CPU, policies and sleeping232/epoll/pipe before
+tracer/actor FIFO scheduling, with rechecks, tracer restoration and confirmed
+session death. Native v7 requires the paired v2 reports and complete hashed
+scheduling journal; v5/v6 remain historical v1 and ordinary v4 is unchanged.
+All70 focused host checks/14 fixtures pass unchanged/zero reuse; tested producers
+are preserved. No Linux scheduling/native qualification or guest run occurred.
+The native scheduling assumptions, actual EINTR/churn/recovery and fresh exact
+source/ELF/index/image admission still require original execution evidence.
+#737/#225/#748 remain open; old admission pins remain closed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

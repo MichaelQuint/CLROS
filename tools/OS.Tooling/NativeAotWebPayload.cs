@@ -76,7 +76,7 @@ public static partial class NativeAotWebPayload
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt(signalRace?"clros.nativeaot.web.v6":"clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt(signalRace?"clros.nativeaot.web.v7":"clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -102,7 +102,7 @@ public static partial class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -117,6 +117,8 @@ public static partial class NativeAotWebPayload
         Dictionary<string, string> outputs = OutputHashes(destination);
         Require(outputs.OrderBy(row => row.Key).SequenceEqual(receipt.Outputs.OrderBy(row => row.Key)),
             "native_evidence_changed");
+        if(receipt.Schema=="clros.nativeaot.web.v7")
+            Require(receipt.Outputs.ContainsKey("web-signalrace-schedule.jsonl"),"signalrace_schedule_required");
         var nativeInputs = JsonSerializer.Deserialize<Dictionary<string, string>>(
             File.ReadAllText(Path.Combine(destination, "native-inputs.json")));
         Require(nativeInputs is not null && nativeInputs.Count > 0 &&
@@ -141,11 +143,11 @@ public static partial class NativeAotWebPayload
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
         foreach (string suffix in new[] { "", "-default" })
         { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); ValidateRecordedChurn(destination,suffix); }
-        if(receipt.Schema is "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6")
+        if(receipt.Schema is "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7")
         {
             ValidateHttpEvidence(File.ReadAllText(Path.Combine(destination,"web-http-signalrace.json")),DefaultWebBody);
             ValidateHttpTraces(destination,"WebMinimalApiSmoke-signalrace-trace");
-            ValidateRecordedLogging(destination,"-signalrace");ValidateRecordedVectors(destination,"-signalrace");ValidateRecordedSignalRace(destination,receipt.Schema=="clros.nativeaot.web.v6");
+            ValidateRecordedLogging(destination,"-signalrace");ValidateRecordedVectors(destination,"-signalrace");ValidateRecordedSignalRace(destination,receipt.Schema);
         }
     }
 
@@ -324,6 +326,7 @@ public static partial class NativeAotWebPayload
         Task stderr = CaptureAsync(process.StandardError, log + ".stderr.log", process);
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
         using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(30) };
+        SignalRaceNativeSchedule? nativeSchedule=null;Exception? runFailure=null;
         try
         {
             while (true)
@@ -372,7 +375,13 @@ public static partial class NativeAotWebPayload
             }
             if(signalRace)
             {
-                string raceJson=await CaptureSignalRaceAsync(client,endpoint,expectedBody,Path.Combine(destination,"web-signalrace.json"),deadline.Token);
+                nativeSchedule=new(process,executable,destination);
+                var hooks=new RaceStartHooks(nativeSchedule.PrepareAsync,token=>
+                {
+                    nativeSchedule.RecheckBeforeStart(token);nativeSchedule.MarkStartIssued();return Task.CompletedTask;
+                },token=>{token.ThrowIfCancellationRequested();nativeSchedule.RestoreTracer();return Task.CompletedTask;});
+                string raceJson=await CaptureSignalRaceCoreAsync(client,endpoint,expectedBody,Path.Combine(destination,"web-signalrace.json"),
+                    deadline.Token,null,startGate:true,startHooks:hooks);
                 raceSelection=ValidateSignalRaceEvidence(raceJson,endpoint,expectedBody);
             }
             else await RunChurnAsync(client, endpoint, expectedBody,
@@ -395,10 +404,20 @@ public static partial class NativeAotWebPayload
             ValidateHttpTraces(destination, Path.GetFileName(trace));
             ValidateRecordedLogging(destination, suffix);
         }
+        catch(Exception error){runFailure=error;throw;}
         finally
         {
-            await StopSessionAsync(process);
-            await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(10));
+            // Attempt every owned cleanup operation, even when restoration or
+            // journaling fails. Retain the original failure with cleanup errors.
+            Exception? cleanup=null;
+            void Retain(Exception error)=>cleanup=cleanup is null?error:new AggregateException(cleanup,error);
+            try{nativeSchedule?.RestoreTracer();}catch(Exception error){Retain(error);}
+            bool stopConfirmed=false;
+            try{await StopSessionAsync(process);stopConfirmed=true;}catch(Exception error){Retain(error);}
+            if(stopConfirmed)try{nativeSchedule?.ConfirmStopped();}catch(Exception error){Retain(error);}
+            try{nativeSchedule?.Dispose();}catch(Exception error){Retain(error);}
+            try{await Task.WhenAll(stdout,stderr).WaitAsync(TimeSpan.FromSeconds(10));}catch(Exception error){Retain(error);}
+            if(cleanup is not null)throw runFailure is null?cleanup:new AggregateException(runFailure,cleanup);
         }
     }
 

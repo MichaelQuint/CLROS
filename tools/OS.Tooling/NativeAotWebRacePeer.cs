@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
@@ -59,7 +60,7 @@ public static class NativeAotWebRacePeer
         }
 
         internal static async Task<Completion> CreateAsync(string root, int port, string health, string path, string summary,
-            Func<string, CancellationToken, Task<ProcessResult>> runRunner, CancellationToken cancellation)
+            Func<string, CancellationToken, Task<ProcessResult>> runRunner, CancellationToken cancellation,string? initialWaitSerial)
         {
             ArgumentNullException.ThrowIfNull(runRunner); cancellation.ThrowIfCancellationRequested();
             Need(port is >= 1 and <= 65535 && health is { Length: >= 1 and <= 1024 } && !health.Any(char.IsControl), "inputs");
@@ -88,7 +89,12 @@ public static class NativeAotWebRacePeer
                 Need(!runner.IsCompleted, "runner_before_ready"); peer = await ready;
                 Need(!runner.IsCompleted, "runner_before_http");
                 started = DateTimeOffset.UtcNow;
-                capture = NativeAotWebPayload.CaptureOwnedObservedSignalRaceAsync(port, health, path, owned.Token);
+                ulong[]? initial=null;
+                var startHooks=new NativeAotWebPayload.RaceStartHooks(async (status,token)=>
+                {
+                    initial=status.ToArray();await WaitForInitialWaitAsync(root,initialWaitSerial,initial,token);
+                },token=>WaitForInitialWaitAsync(root,initialWaitSerial,initial!,token),_=>Task.CompletedTask);
+                capture = NativeAotWebPayload.CaptureOwnedObservedSignalRaceAsync(port, health, path, owned.Token,startHooks);
                 _ = await Task.WhenAny(capture, runner);
                 owned.Token.ThrowIfCancellationRequested();
                 Need(!runner.IsCompleted, "runner_during_http");
@@ -140,11 +146,56 @@ public static class NativeAotWebRacePeer
     /// failure closes the pipe, cancels and joins all started tasks and retains
     /// exact available runner logs plus partial HTTP reports before throwing.
     /// The 330s owner bound does not extend the runner's existing 285s deadline.
+    /// Explicit v2 holds phase2 before short churn and rechecks a provisional
+    /// initial-wait row from initialWaitSerial before the one start request.
+    /// Missing serial cannot complete this production path; final immutable
+    /// replay still proves the exact original wait/request/actor order.
     /// Complete receipts still require separate native/source/serial/PCAP admission.</summary>
     public static Task<Completion> RunOwnedAsync(string root, int port, string expectedHealthBody,
         string observationPath, string summaryPath, Func<string, CancellationToken, Task<ProcessResult>> runRunner,
-        CancellationToken cancellation = default) => Completion.CreateAsync(root, port, expectedHealthBody,
-            observationPath, summaryPath, runRunner, cancellation);
+        CancellationToken cancellation = default,string? initialWaitSerial=null) => Completion.CreateAsync(root, port, expectedHealthBody,
+            observationPath, summaryPath, runRunner, cancellation,initialWaitSerial);
+
+    // A provisional live read delays the one start POST; it confers no native
+    // authority. Full immutable replay/role validation later requires the exact
+    // original initial-wait < start-consumption < actor-write relationship.
+    private static async Task WaitForInitialWaitAsync(string root,string? serial,ulong[] status,CancellationToken cancellation)
+    {
+        Need(!string.IsNullOrEmpty(serial)&&status is {Length:6}&&status[0]==2&&status[1]==1&&
+            status[2] is >0 and <=int.MaxValue,"initial_wait_inputs");
+        string path=System.IO.Path.GetFullPath(serial!,root);AuthorityFiles.RequirePlainPath(root,path,"web_race_owner_initial_path");
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation);deadline.CancelAfter(TimeSpan.FromMilliseconds(500));
+        try{await NativeAotSocketPeer.WaitForSerialAsync(path,text=>HasInitialWait(text,(int)status[2]),deadline.Token);}
+        catch(OperationCanceledException)when(!cancellation.IsCancellationRequested){throw new ToolFailure("web_race_owner_initial_wait_timeout");}
+    }
+
+    private static bool HasInitialWait(string text,int waiterTid)
+    {
+        int start=text.IndexOf("TEST_START m10.004\r\n",StringComparison.Ordinal),end=text.LastIndexOf("\r\n",StringComparison.Ordinal);
+        if(start<0||end<start||waiterTid<=0)return false;
+        string? identity=null;bool pending=false;int waits=0;
+        foreach(string row in text[start..end].Split("\r\n",StringSplitOptions.None))
+        {
+            var call=Regex.Match(row,@"^M16_008_CALL identity=([1-9][0-9]*) nr=([0-9]+) .* valueBits=([0-9]+) action=([0-9]+) status=([0-9]+) ",RegexOptions.CultureInvariant);
+            if(call.Success)
+            {
+                string current=call.Groups[1].Value;
+                if(call.Groups[2].Value=="186"&&call.Groups[3].Value==waiterTid.ToString(CultureInfo.InvariantCulture)&&
+                    call.Groups[4].Value=="1"&&call.Groups[5].Value=="1")
+                {if(identity is not null&&identity!=current)return false;identity=current;}
+                if(current!=identity)continue;
+                pending=false;
+                if(call.Groups[2].Value=="232")
+                {
+                    waits++;pending=call.Groups[3].Value=="0"&&call.Groups[4].Value=="3"&&call.Groups[5].Value=="9"&&
+                        Regex.IsMatch(row,@" ordinal=[1-9][0-9]* waitSource=3 waitDeadline=[1-9][0-9]* waitSequence=[1-9][0-9]*(?: |$)",RegexOptions.CultureInvariant);
+                }
+            }
+            else if(identity is not null&&(row.StartsWith("M16_008_RESUME identity="+identity+" ",StringComparison.Ordinal)||
+                row.StartsWith("M16_008_EXIT identity="+identity+" ",StringComparison.Ordinal)||row.StartsWith("M16_008_REAP old="+identity+" ",StringComparison.Ordinal)))pending=false;
+        }
+        return identity is not null&&pending&&waits==1;
+    }
 
     private sealed record Reports(AuthorityFile Selected, AuthorityFile Attempts, AuthorityFile Wire,
         WebRaceRendezvous.Digests Digests, QemuTranscripts.WebSignalRaceSelection Selection,
@@ -158,6 +209,8 @@ public static class NativeAotWebRacePeer
         AuthorityFiles.RequireDistinct(selected, attempts, wire);
         string endpoint = "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture);
         string selectedJson = selected.ReadUtf8(SelectedLimit, "web_race_owner_selected"), attemptsJson = attempts.ReadUtf8(AttemptsLimit, "web_race_owner_attempts");
+        using(var version=JsonDocument.Parse(selectedJson))
+            Need(version.RootElement.GetProperty("schema").GetString()=="clros.web.signalrace.v2","start_contract");
         var selection = NativeAotWebPayload.ValidateSignalRaceEvidence(selectedJson, endpoint, health);
         var http = QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(wire.ReadBytes(WireLimit, "web_race_owner_wire"), attemptsJson, selectedJson, endpoint, health);
         return new(selected, attempts, wire, new(selected.Sha256.ToUpperInvariant(), attempts.Sha256.ToUpperInvariant(), wire.Sha256.ToUpperInvariant()), selection, http);

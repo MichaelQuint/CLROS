@@ -52,6 +52,7 @@ public static partial class QemuTranscripts
         foreach(var interval in temporal.Intervals)
             Need(mapped.TryAdd((interval.Packet.ExchangeId,interval.Packet.Response),interval),"web_race_roles_interval");
         using var document=JsonDocument.Parse(selectedJson,new JsonDocumentOptions{MaxDepth=8});
+        bool startGate=document.RootElement.GetProperty("schema").GetString()=="clros.web.signalrace.v2";
         var selected=document.RootElement.GetProperty("samples");
         Need(joined.Host.Samples.Count==selected.GetArrayLength(),"web_race_roles_samples");
         List<WebSignalRaceRoleSample> samples=[];
@@ -91,9 +92,22 @@ public static partial class QemuTranscripts
         int ResponseLast(string kind)=>Role(kind).Response!.Slices[^1].Original.CallRecordIndex;
         void Serial(string first,string last)=>Before(first+"_before_"+last,ResponseLast(first),RequestFirst(last));
         Serial("baseline-churn","baseline-race");Serial("baseline-race","health-before");
-        Before("health_before_churn_request",ResponseLast("health-before"),RequestFirst("churn-cancel"));
+        if(startGate)
+        {
+            Before("health_before_race_request",ResponseLast("health-before"),RequestFirst("race-complete"));
+            Before("race_request_before_initial_reply",RequestLast("race-complete"),ResponseFirst("initial-armed"));
+            Before("initial_reply_before_churn_request",ResponseLast("initial-armed"),RequestFirst("churn-cancel"));
+            Serial("churn-pending","start-request");
+            Before("initial_wait_before_start_request",Step("initial-wait"),RequestFirst("start-request"));
+            Before("start_request_before_actor_write",RequestLast("start-request"),Step("actor-write"));
+            Serial("start-request","recovery-armed");
+        }
+        else
+        {
+            Before("health_before_churn_request",ResponseLast("health-before"),RequestFirst("churn-cancel"));
+            Before("pending_before_race_request",ResponseLast("churn-pending"),RequestFirst("race-complete"));
+        }
         Before("churn_request_before_pending",RequestLast("churn-cancel"),ResponseFirst("churn-pending"));
-        Before("pending_before_race_request",ResponseLast("churn-pending"),RequestFirst("race-complete"));
         Before("race_request_before_initial_wait",RequestLast("race-complete"),Step("initial-wait"));
         Before("actor_read_before_armed",Step("actor-read"),ResponseFirst("recovery-armed"));
         Before("eintr_resume_before_armed",Step("interrupt-resume"),ResponseFirst("recovery-armed"));

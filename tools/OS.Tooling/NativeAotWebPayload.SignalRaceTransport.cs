@@ -23,7 +23,8 @@ public static partial class NativeAotWebPayload
         string observationPath,CancellationToken cancellation=default)=>CaptureObservedSignalRaceCoreAsync(port,expectedHealthBody,observationPath,cancellation,null);
 
     private static async Task<string> CaptureObservedSignalRaceCoreAsync(int port,string expectedHealthBody,
-        string observationPath,CancellationToken cancellation,Action<string,CreatedRaceReport,CreatedRaceReport,CreatedRaceReport>? retainCreated)
+        string observationPath,CancellationToken cancellation,Action<string,CreatedRaceReport,CreatedRaceReport,CreatedRaceReport>? retainCreated,
+        bool startGate=false,RaceStartHooks? startHooks=null)
     {
         string endpoint="http://127.0.0.1:"+port.ToString(CultureInfo.InvariantCulture);RaceInputs(endpoint,expectedHealthBody);
         string path=Path.GetFullPath(observationPath);AuthorityFiles.RequirePlainPath(Path.GetDirectoryName(path)!,Path.GetDirectoryName(path)!,"web_signalrace_output_path");
@@ -35,7 +36,7 @@ public static partial class NativeAotWebPayload
             using var client=new HttpClient(new RaceRoutingHandler(wire,port),disposeHandler:true)
             {Timeout=Timeout.InfiniteTimeSpan,DefaultRequestVersion=HttpVersion.Version11,DefaultVersionPolicy=HttpVersionPolicy.RequestVersionExact};
             selected=await CaptureSignalRaceCoreAsync(client,endpoint,expectedHealthBody,path,cancellation,wire,
-                retainCreated is null?null:(first,second)=>{selectedFile=first;attemptFile=second;});
+                retainCreated is null?null:(first,second)=>{selectedFile=first;attemptFile=second;},startGate,startHooks);
         }
         catch(Exception error){failure=error;}
         try
@@ -91,13 +92,13 @@ public static partial class NativeAotWebPayload
         public void Dispose(){Selected.Dispose();Attempts.Dispose();Wire.Dispose();}
     }
 
-    internal static async Task<OwnedRaceCapture> CaptureOwnedObservedSignalRaceAsync(int port,string health,string path,CancellationToken cancellation)
+    internal static async Task<OwnedRaceCapture> CaptureOwnedObservedSignalRaceAsync(int port,string health,string path,CancellationToken cancellation,RaceStartHooks startHooks)
     {
         OwnedRaceCapture? result=null;
         try
         {
             _=await CaptureObservedSignalRaceCoreAsync(port,health,path,cancellation,
-                (text,selected,attempts,wire)=>result=new(text,selected,attempts,wire));
+                (text,selected,attempts,wire)=>result=new(text,selected,attempts,wire),startGate:true,startHooks:startHooks);
             return result??throw new InvalidDataException("web_signalrace_created_reports_missing");
         }
         catch{result?.Dispose();throw;}

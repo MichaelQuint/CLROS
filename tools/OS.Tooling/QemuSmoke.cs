@@ -360,7 +360,7 @@ public static class QemuSmoke
                     finally{webCompleted=DateTimeOffset.UtcNow;}
                 }
                 webRacePeer=await NativeAotWebRacePeer.RunOwnedAsync(root,webForwardPort,webConfiguration.Body,
-                    options.SerialLog+".race.json",options.SummaryLog,RunWebRaceRunner,cancellation);
+                    options.SerialLog+".race.json",options.SummaryLog,RunWebRaceRunner,cancellation,initialWaitSerial:options.SerialLog);
                 runner=webRacePeer.Runner;
             }
             else if (capture is null)

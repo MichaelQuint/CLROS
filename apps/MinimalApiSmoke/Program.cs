@@ -80,6 +80,16 @@ try
         return TypedResults.Text(result ?? "CLROS_SIGNAL_RACE_BUSY", "text/plain", statusCode: result is null ? 409 : 200);
     });
     app.MapGet("/__clros/signalrace/status", () => TypedResults.Text(signalProbe.ReadRace(), "text/plain"));
+    app.MapPost("/__clros/signalrace/start", (HttpContext context) =>
+    {
+        if (!IsSignalRequest(context))
+            return TypedResults.Text("CLROS_SIGNAL_RACE_BAD_REQUEST", "text/plain", statusCode: 400);
+        if (!KestrelSignalProbeAbi.Supported)
+            return TypedResults.Text("CLROS_SIGNAL_RACE_UNSUPPORTED", "text/plain", statusCode: 501);
+        bool accepted = signalProbe.RequestStart();
+        return TypedResults.Text(accepted ? "CLROS_SIGNAL_RACE_START_REQUESTED" : "CLROS_SIGNAL_RACE_START_REFUSED",
+            "text/plain", statusCode: accepted ? 200 : 409);
+    });
     app.MapPost("/__clros/signalrace/recover", (HttpContext context) =>
     {
         if (!IsSignalRequest(context))

@@ -21,7 +21,7 @@ internal static class NativeAotWebSignalRaceTransportTests
 
     private sealed class Peer : IAsyncDisposable
     {
-        private readonly bool partial, unsupported;
+        private readonly bool partial, unsupported, startGate;
         private readonly TcpListener listener = new(IPAddress.Loopback, 0);
         private readonly CancellationTokenSource stop = new(TimeSpan.FromSeconds(15));
         private readonly TaskCompletionSource recovery = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -30,14 +30,15 @@ internal static class NativeAotWebSignalRaceTransportTests
         private readonly List<Task> handlers = [];
         internal readonly List<Connection> Connections = [];
         private readonly Task accepting;
-        private int churnStarted;
-        private bool raceStarted, recovered, canceled, complete;
+        private int churnStarted,startRequests;
+        private bool raceStarted, recovered, canceled, complete, released,initialObserved;
         internal int Port { get; }
         internal string Endpoint => "http://127.0.0.1:" + Port;
+        internal int StartRequests { get { lock(gate)return startRequests; } }
         // Listener/handlers exist only when an explicitly selected test runs.
-        internal Peer(bool partial = false, bool unsupported = false)
+        internal Peer(bool partial = false, bool unsupported = false, bool startGate = false)
         {
-            this.partial = partial; this.unsupported = unsupported; listener.Start();
+            this.partial = partial; this.unsupported = unsupported; this.startGate=startGate; listener.Start();
             Port = ((IPEndPoint)listener.LocalEndpoint).Port; accepting = Accept();
         }
 
@@ -91,7 +92,11 @@ internal static class NativeAotWebSignalRaceTransportTests
                             HostCheck.True(text.Contains(words[1] == "/__clros/churn" ? "X-CLROS-Churn: v1\r\n" : "X-CLROS-Signal: v1\r\n", StringComparison.OrdinalIgnoreCase));
                             if (words[1] == "/__clros/churn")
                             {
-                                int number; lock (gate) number = ++churnStarted;
+                                int number; lock (gate)
+                                {
+                                    number = ++churnStarted;
+                                    if(startGate&&number==1)HostCheck.True(raceStarted&&initialObserved&&!released);
+                                }
                                 if (number == 1)
                                 {
                                     try { HostCheck.Equal(0, await stream.ReadAsync(new byte[1], stop.Token)); }
@@ -104,7 +109,16 @@ internal static class NativeAotWebSignalRaceTransportTests
                             {
                                 bool repeat; lock (gate) { repeat = raceStarted; raceStarted = true; }
                                 if (repeat) { status = 409; body = "CLROS_SIGNAL_RACE_BUSY"; }
-                                else { await recovery.Task.WaitAsync(stop.Token); body = Success; }
+                                else { await recovery.Task.WaitAsync(stop.Token); body = startGate?Success.Replace("pid=43","pid=1",StringComparison.Ordinal):Success; }
+                            }
+                            else if(words[1]=="/__clros/signalrace/start")
+                            {
+                                lock(gate)
+                                {
+                                    HostCheck.True(startGate&&raceStarted&&initialObserved&&churnStarted==1&&!canceled&&!released);
+                                    startRequests++;released=true;
+                                }
+                                body="CLROS_SIGNAL_RACE_START_REQUESTED";
                             }
                             else if (words[1] == "/__clros/signalrace/recover")
                             {
@@ -119,12 +133,14 @@ internal static class NativeAotWebSignalRaceTransportTests
                             HostCheck.Equal("GET", words[0]);
                             lock (gate)
                             {
-                                int active = churnStarted == 1 && !canceled ? 1 : 0, work = churnStarted == 0 ? 0 : complete ? 10 : raceStarted ? 2 : 1;
+                                int active = churnStarted == 1 && !canceled ? 1 : 0, work = churnStarted == 0 ? 0 : complete ? 10 : (startGate?released:raceStarted) ? 2 : 1;
+                                int phase=recovered?7:startGate&&!released?2:4;
+                                if(startGate&&raceStarted&&!released&&words[1]=="/__clros/signalrace/status")initialObserved=true;
                                 body = words[1] switch
                                 {
                                     "/healthz" => Health,
                                     "/__clros/churn/status" => $"CLROS_CHURN_STATUS active={active} waiting={active} peakActive={(churnStarted == 0 ? 0 : 1)} started={churnStarted} completed={(complete ? 1 : 0)} canceled={(canceled ? 1 : 0)} failed=0 rejected=0 timers={work} workers={work} collections={work} heldBytes={active * 65536} peakHeldBytes={(churnStarted == 0 ? 0 : 65536)}",
-                                    "/__clros/signalrace/status" => raceStarted ? $"CLROS_SIGNAL_RACE_STATUS phase={(recovered ? 7 : 4)} pid=43 waiter=7 actor=8 callback=9 recoveryRequested={(recovered ? 1 : 0)}" : "CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0",
+                                    "/__clros/signalrace/status" => raceStarted ? $"CLROS_SIGNAL_RACE_STATUS phase={phase} pid={(startGate?1:43)} waiter=7 actor=8 callback={(phase==2?0:9)} recoveryRequested={(recovered ? 1 : 0)}" : "CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0",
                                     _ => throw new InvalidDataException("Unexpected request: " + first)
                                 };
                             }
@@ -179,8 +195,14 @@ internal static class NativeAotWebSignalRaceTransportTests
     private static async Task OwnedReportsBeforeDone()
     {
         using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-        await using var peer = new Peer(); string path = Output(), summary = path + ".summary";
+        await using var peer = new Peer(startGate:true); string path = Output(), summary = path + ".summary",serial=path+".serial";
         string root = HostToolProcess.FindRepositoryRoot();
+        // Literal copied provisional gate only. These rows drive the live
+        // stimulus predicate; they are not a complete replay or guest evidence.
+        const string initial="TEST_START m10.004\r\n"+
+            "M16_008_CALL identity=4294967303 nr=186 a0=0 a1=0 a2=0 a3=0 a4=0 a5=0 rip=4194818 rsp=4296794048 flags=514 fs=4296796160 gs=0 clock=20 valueBits=7 action=1 status=1 ordinal=1 waitSource=0 waitDeadline=0 waitSequence=0 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=4296794048 returnFlags=514 returnFs=4296796160 returnGs=0 returnValueBits=7\r\n"+
+            "M16_008_CALL identity=4294967303 nr=232 a0=10 a1=5244928 a2=1 a3=1 a4=0 a5=0 rip=4194818 rsp=4296794048 flags=514 fs=4296796160 gs=0 clock=20 valueBits=0 action=3 status=9 ordinal=2 waitSource=3 waitDeadline=2500000000 waitSequence=1 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=4296794048 returnFlags=514 returnFs=4296796160 returnGs=0 returnValueBits=0\r\n";
+        byte[] serialBytes=Encoding.UTF8.GetBytes(initial);File.WriteAllBytes(serial,serialBytes);
         Task<ProcessResult>? callback = null; Task<NativeAotWebRacePeer.Completion>? owner = null;
         bool done = false, joined = false; NativeAotWebRacePeer.Completion? completion = null;
         Task<ProcessResult> Run(string name, CancellationToken token) => callback = RunCore(name, token);
@@ -203,17 +225,23 @@ internal static class NativeAotWebSignalRaceTransportTests
         }
         try
         {
-            owner = NativeAotWebRacePeer.RunOwnedAsync(root, peer.Port, Health, path, summary, Run, limit.Token);
+            owner = NativeAotWebRacePeer.RunOwnedAsync(root, peer.Port, Health, path, summary, Run, limit.Token,initialWaitSerial:serial);
             string? reason = null;
             try { completion = await owner; } catch (ToolFailure error) { reason = error.Reason; }
             HostCheck.Equal("web_race_owner_runner_failed", reason);
-            HostCheck.True(completion is null && done && joined && callback is { IsCompleted: true } && owner.IsCompleted);
+            HostCheck.True(completion is null && done && joined && callback is { IsCompleted: true } && owner.IsCompleted&&peer.StartRequests==1);
+            HostCheck.True(File.ReadAllBytes(serial).SequenceEqual(serialBytes));
             HostCheck.Equal("failed-after-done", File.ReadAllText(path + ".runner.log"));
             HostCheck.Equal("", File.ReadAllText(path + ".runner.stderr.log")); HostCheck.True(!File.Exists(summary));
             foreach (string file in new[] { path, path + ".attempts.json", path + ".wire.json", path + ".runner.log", path + ".runner.stderr.log" })
             { using var closed = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None); }
             HostCheck.Equal("signalrace-run", Wire(path).Purpose);
-            HostCheck.Equal(19, QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"),
+            using var selected=JsonDocument.Parse(File.ReadAllText(path));using var attempts=JsonDocument.Parse(File.ReadAllText(path+".attempts.json"));
+            HostCheck.Equal("clros.web.signalrace.v2",selected.RootElement.GetProperty("schema").GetString());
+            HostCheck.Equal("clros.web.signalrace.attempts.v2",attempts.RootElement.GetProperty("schema").GetString());
+            HostCheck.Equal(new QemuTranscripts.WebSignalRaceSelection(1,7,8,9,9),
+                NativeAotWebPayload.ValidateSignalRaceEvidence(File.ReadAllText(path),peer.Endpoint,Health));
+            HostCheck.Equal(21, QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"),
                 File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health).Samples.Count);
         }
         finally

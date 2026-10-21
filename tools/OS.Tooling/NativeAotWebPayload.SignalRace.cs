@@ -19,9 +19,10 @@ public static partial class NativeAotWebPayload
 
     private static async Task<string> CaptureSignalRaceCoreAsync(HttpClient client,string endpoint,string expectedHealthBody,
         string observationPath,CancellationToken cancellation,NativeAotServiceQuotaPeer.WireCapture? wire,
-        Action<CreatedRaceReport,CreatedRaceReport>? retainCreated=null)
+        Action<CreatedRaceReport,CreatedRaceReport>? retainCreated=null,bool startGate=false,RaceStartHooks? startHooks=null)
     {
         ArgumentNullException.ThrowIfNull(client);RaceInputs(endpoint,expectedHealthBody);
+        RaceNeed(startGate||startHooks is null,"start_mode");
         string path=Path.GetFullPath(observationPath),parent=Path.GetDirectoryName(path)!;
         AuthorityFiles.RequirePlainPath(parent,parent,"web_signalrace_output_path");
         using var output=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
@@ -30,7 +31,7 @@ public static partial class NativeAotWebPayload
         using var cancelChurn=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var cancelRace=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var churnRequest=Post("/__clros/churn");using var raceRequest=Post("/__clros/signalrace");
-        Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint,wire);
+        Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint,wire,startGate);
         bool semanticComplete=false,primaryFailure=false;string failure="capture_incomplete";RaceHttpAttempt? churnCall=null,raceCall=null;
         HttpRequestMessage Post(string target)
         {
@@ -70,18 +71,42 @@ public static partial class NativeAotWebPayload
             using var message=Post(target);Select(kind,await attempts.SendAsync(client,message,target,deadline.Token));
             RaceNeed(samples[^1].status==status&&samples[^1].body==expected,"request_result");
         }
-        string Json()=>JsonSerializer.Serialize(new{schema="clros.web.signalrace.v1",endpoint,samples});
+        string Json()=>JsonSerializer.Serialize(new{schema=startGate?"clros.web.signalrace.v2":"clros.web.signalrace.v1",endpoint,samples});
         try
         {
             await Churn("baseline-churn",false);await Observe("baseline-race","/__clros/signalrace/status");await Observe("health-before","/healthz");
             // Reject an already-used app before starting either active request.
             RaceNeed(ChurnStatus(samples[0].body).All(n=>n==0)&&ReadRaceStatus(samples[1].body).All(n=>n==0)&&samples[1].status==200&&samples[2].status==200&&samples[2].body==expectedHealthBody,"fresh_session");
+            if(startGate)
+            {
+                race=attempts.SendAsync(client,raceRequest,"/__clros/signalrace",cancelRace.Token);raceCall=attempts.LastStarted;
+                ulong[]? initial=null;
+                for(int attempt=0;attempt<200;attempt++)
+                {
+                    RaceNeed(!race.IsCompleted&&!raceCall.headers,"lost_initial_wait");
+                    var response=await Get("/__clros/signalrace/status");RaceNeed(response.Status==200,"race_status");
+                    var status=ReadRaceStatus(response.Body);RaceNeed(status[0]<=2,"missed_initial_gate");
+                    RaceNeed(!race.IsCompleted&&!raceCall.headers,"lost_initial_wait");
+                    if(status[0]==2){Select("initial-armed",response);initial=status;break;}
+                    await Task.Delay(5,deadline.Token);
+                }
+                RaceNeed(initial is not null,"initial_gate_timeout");
+                if(startHooks is not null)await startHooks.BeforeChurn(initial!,deadline.Token);
+            }
             churn=attempts.SendAsync(client,churnRequest,"/__clros/churn",cancelChurn.Token);
             churnCall=attempts.LastStarted;
             await Churn("churn-pending",true);
             var beforeRace=ChurnStatus(samples[^1].body);
-            race=attempts.SendAsync(client,raceRequest,"/__clros/signalrace",cancelRace.Token);
-            raceCall=attempts.LastStarted;
+            if(startGate)
+            {
+                if(startHooks is not null)await startHooks.BeforeStart(deadline.Token);
+                Pending(true);await Request("start-request","/__clros/signalrace/start",200,"CLROS_SIGNAL_RACE_START_REQUESTED");
+            }
+            else
+            {
+                race=attempts.SendAsync(client,raceRequest,"/__clros/signalrace",cancelRace.Token);
+                raceCall=attempts.LastStarted;
+            }
             bool armed=false;
             for(int attempt=0;attempt<200;attempt++)
             {
@@ -91,11 +116,13 @@ public static partial class NativeAotWebPayload
                 if(status[0]==4){Select("recovery-armed",response);armed=true;break;}
                 await Task.Delay(5,deadline.Token);
             }
-            RaceNeed(armed,"recovery_gate_timeout");await Churn("churn-overlap",true,beforeRace);await Observe("overlap-health","/healthz");Pending(true);
+            RaceNeed(armed,"recovery_gate_timeout");
+            if(startHooks is not null)await startHooks.AfterAcknowledged(deadline.Token);
+            await Churn("churn-overlap",true,beforeRace);await Observe("overlap-health","/healthz");Pending(true);
             cancelChurn.Cancel();bool canceled=false;
             try{_=await churn;}catch(OperationCanceledException)when(cancelChurn.IsCancellationRequested){canceled=true;}
             RaceNeed(canceled,"churn_cancellation");attempts.SelectCancellation(samples.Count,churnCall.id);samples.Add(new("churn-cancel",0,""));await Churn("churn-drained",false);
-            RaceNeed(!race.IsCompleted,"race_ended_before_recovery");
+            RaceNeed(!race!.IsCompleted,"race_ended_before_recovery");
             await Request("recovery-request","/__clros/signalrace/recover",200,"CLROS_SIGNAL_RACE_RECOVERY_REQUESTED");
             await Request("recovery-repeat","/__clros/signalrace/recover",409,"CLROS_SIGNAL_RACE_RECOVERY_REFUSED");
             Select("race-complete",await race);
@@ -133,15 +160,23 @@ public static partial class NativeAotWebPayload
         }
     }
 
-    private static void ValidateRecordedSignalRace(string destination,bool requireAttempts=false)
+    private static void ValidateRecordedSignalRace(string destination,string nativeSchema)
     {
         string path=Path.Combine(destination,"web-signalrace.json");Require(new FileInfo(path).Length is >0 and <=65536,"signalrace_recorded_size");
         using var http=JsonDocument.Parse(File.ReadAllText(Path.Combine(destination,"web-http-signalrace.json")));
-        _=ValidateSignalRaceEvidence(File.ReadAllText(path),http.RootElement.GetProperty("endpoint").GetString()!,DefaultWebBody);
-        if(requireAttempts)
+        string? attempts=null,journal=null;
+        if(nativeSchema is "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7")
         {
             string companion=path+".attempts.json";Require(new FileInfo(companion).Length is >0 and <=8*1024*1024,"signalrace_attempt_size");
-            Require(InspectSignalRaceAttempts(File.ReadAllText(companion),File.ReadAllText(path),http.RootElement.GetProperty("endpoint").GetString()!,DefaultWebBody).SemanticComplete,"signalrace_attempts_incomplete");
+            attempts=File.ReadAllText(companion);
         }
+        if(nativeSchema=="clros.nativeaot.web.v7")
+        {
+            string schedule=Path.Combine(destination,"web-signalrace-schedule.jsonl");
+            Require(new FileInfo(schedule).Length is >0 and <=1048576,"signalrace_schedule_size");
+            journal=File.ReadAllText(schedule,new UTF8Encoding(false,true));
+        }
+        _=ValidateSignalRaceQualificationEvidence(nativeSchema,File.ReadAllText(path),attempts,journal,
+            http.RootElement.GetProperty("endpoint").GetString()!,DefaultWebBody);
     }
 }

@@ -419,7 +419,7 @@ public static partial class NativeAotServiceQuotaPeer
     private static bool WireRole(string role,bool signalRace=false) => signalRace?role is "control" or "churn" or "race":role is "control" or "pressure" or "cancel" or "echo";
     private static bool WireRequest(string role, string method, string path,bool signalRace=false) => signalRace?
         role==SignalRaceWireRole(method,path)&&(method=="GET"&&path is "/healthz" or "/__clros/churn/status" or "/__clros/signalrace/status"||
-            method=="POST"&&path is "/__clros/churn" or "/__clros/signalrace" or "/__clros/signalrace/recover" or "/__clros/signalprobe") : role switch
+            method=="POST"&&path is "/__clros/churn" or "/__clros/signalrace" or "/__clros/signalrace/start" or "/__clros/signalrace/recover" or "/__clros/signalprobe") : role switch
     {
         "control" => method == "GET" && (path is "/healthz" or "/__clros/service/status" or "/__clros/service/lifecycle/status" or
             "/__clros/service/quota/status") || method == "POST" && path == "/__clros/service/start",

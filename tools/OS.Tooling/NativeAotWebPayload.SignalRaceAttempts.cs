@@ -28,7 +28,7 @@ public static partial class NativeAotWebPayload
 
     // IDs and completion ordinals describe this owned API invocation only.
     // HttpClient exposes no actual connection, wire exchange or sent-byte ID.
-    private sealed class RaceAttemptLog(string endpoint,NativeAotServiceQuotaPeer.WireCapture? wire)
+    private sealed class RaceAttemptLog(string endpoint,NativeAotServiceQuotaPeer.WireCapture? wire,bool startGate=false)
     {
         private int completed;
         private readonly List<RaceHttpAttempt> attempts=[];
@@ -73,7 +73,7 @@ public static partial class NativeAotWebPayload
         internal void Select(int sample,RaceHttpReply reply)=>selections.Add(new(sample,reply.Attempt.id,0));
         internal void SelectCancellation(int sample,int request)=>selections.Add(new(sample,0,request));
         internal string Json(bool semanticComplete,string failure)=>JsonSerializer.Serialize(new
-        {schema="clros.web.signalrace.attempts.v1",endpoint,semanticComplete,failure,attempts,selections});
+        {schema=startGate?"clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1",endpoint,semanticComplete,failure,attempts,selections});
     }
     private static string RaceCaptureFailure(Exception error)=>error is InvalidDataException&&error.Message.StartsWith("web_signalrace_",StringComparison.Ordinal)
         ?error.Message:error.GetType().Name;

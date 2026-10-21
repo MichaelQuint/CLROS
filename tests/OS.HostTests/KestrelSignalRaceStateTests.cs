@@ -1,6 +1,44 @@
 internal static class KestrelSignalRaceStateTests
 {
     // Pure copied-state controls: phases/identities grant no signal, wait or guest authority.
+    [HostTest("m10-012 signal race start requires both armed identities and accepts only once")]
+    private static void StartGates()
+    {
+        foreach (int phase in new[] { 0, 1, 3, 4, 5, 6, 7, 8 })
+        {
+            var refused = new KestrelSignalRaceState();
+            if (phase > 0) HostCheck.True(refused.Begin(10));
+            if (phase > 1) HostCheck.True(refused.Advance(Math.Min(phase, 6), waiter: 11, actor: 12));
+            if (phase > 6) HostCheck.True(refused.Finish(phase == 7));
+            var before = refused.Inspect();
+            HostCheck.True(!refused.TryRequestStart() && !refused.StartRequested);
+            HostCheck.Equal(before, refused.Inspect());
+        }
+        foreach (var pair in new[] { (Waiter: 0, Actor: 0), (Waiter: 11, Actor: 0), (Waiter: 0, Actor: 12) })
+        {
+            var missing = new KestrelSignalRaceState();
+            HostCheck.True(missing.Begin(10) && missing.Advance(2, waiter: pair.Waiter, actor: pair.Actor));
+            HostCheck.True(!missing.TryRequestStart() && !missing.StartRequested);
+        }
+        var state = new KestrelSignalRaceState();
+        HostCheck.True(state.Begin(10) && state.Advance(2, waiter: 11, actor: 12));
+        HostCheck.True(state.TryRequestStart() && state.StartRequested && !state.TryRequestRecovery());
+        var armed = state.Inspect();
+        HostCheck.True(!state.TryRequestStart()); HostCheck.Equal(armed, state.Inspect());
+        HostCheck.True(state.Advance(6) && !state.TryRequestStart() && state.StartRequested);
+    }
+
+    [HostTest("m10-012 signal race concurrent starts have exactly one acceptance")]
+    private static async Task ConcurrentStart()
+    {
+        var state = new KestrelSignalRaceState();
+        HostCheck.True(state.Begin(20) && state.Advance(2, waiter: 21, actor: 22));
+        Task<bool>[] requests = Enumerable.Range(0, 32).Select(_ => Task.Run(state.TryRequestStart)).ToArray();
+        bool[] results = await Task.WhenAll(requests).WaitAsync(TimeSpan.FromSeconds(10));
+        HostCheck.Equal(1, results.Count(value => value));
+        HostCheck.True(state.StartRequested && state.Inspect() is { Phase: 2, Waiter: 21, Actor: 22 });
+    }
+
     [HostTest("m10-012 signal race recovery requires its exact phase and accepts only once")]
     private static void RecoveryGates()
     {

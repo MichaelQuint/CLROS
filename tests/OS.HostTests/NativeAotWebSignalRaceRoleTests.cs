@@ -18,7 +18,7 @@ internal static class NativeAotWebSignalRaceRoleTests
     private static string Churn(int started,int completed,int canceled,int active,int work)=>
         $"CLROS_CHURN_STATUS active={active} waiting={active} peakActive={(started==0?0:1)} started={started} completed={completed} canceled={canceled} failed=0 rejected=0 timers={work} workers={work} collections={work} heldBytes={active*65536} peakHeldBytes={(started==0?0:65536)}";
     private static string Status(int phase)=>phase==0?"CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0":
-        $"CLROS_SIGNAL_RACE_STATUS phase={phase} pid=1 waiter=1 actor=3 callback=2 recoveryRequested={(phase==7?1:0)}";
+        $"CLROS_SIGNAL_RACE_STATUS phase={phase} pid=1 waiter=1 actor=3 callback={(phase==2?0:2)} recoveryRequested={(phase==7?1:0)}";
 
     private sealed class Flow(int connection,int descriptor,uint port,int slot,int generation)
     {
@@ -38,10 +38,14 @@ internal static class NativeAotWebSignalRaceRoleTests
         internal readonly Values Host=new(22080);
         internal readonly List<Flow> Flows=[];
         internal readonly Q.WebSignalRaceReport Replay;
+        private readonly bool startGate;
         private int packet=10,completed,churnId,raceId;
+        private bool startReplyPending;
         private Flow control=null!,churn=null!,race=null!;
-        internal Fixture(bool unknownCancel=false,bool earlyOverlap=false,bool beforeCleanup=false,bool peekCancel=false)
+        internal Fixture(bool unknownCancel=false,bool earlyOverlap=false,bool beforeCleanup=false,bool peekCancel=false,
+            bool startGate=false,bool earlyStart=false,bool lateStartConsumption=false)
         {
+            this.startGate=startGate;
             void Phase(NativeAotThreadingTranscriptTests.Vector v,string phase)
             {
                 if(phase=="before-probe")
@@ -53,14 +57,28 @@ internal static class NativeAotWebSignalRaceRoleTests
                     Http(v,control,"baseline-churn","/__clros/churn/status",Churn(0,0,0,0,0));
                     Http(v,control,"baseline-race","/__clros/signalrace/status",Status(0));
                     Http(v,control,"health-before","/healthz",Health);
+                    if(startGate)
+                    {
+                        raceId=Pending(v,race,"/__clros/signalrace",false);
+                        // A phase2 response may precede the actual native wait.
+                        Http(v,control,"initial-armed","/__clros/signalrace/status",Status(2));
+                    }
                     churnId=Pending(v,churn,"/__clros/churn",unknownCancel,peekCancel);
                     Http(v,control,"churn-pending","/__clros/churn/status",Churn(1,0,0,1,1));
-                    raceId=Pending(v,race,"/__clros/signalrace",false);
+                    if(!startGate)raceId=Pending(v,race,"/__clros/signalrace",false);
+                    if(startGate&&earlyStart)StartRequest(v);
                     if(earlyOverlap)Http(v,control,"recovery-armed","/__clros/signalrace/status",Status(4));
                     if(beforeCleanup)Native(v,race,true,Response(Success));
                 }
+                else if(phase=="before-actor-write")
+                {
+                    if(startGate&&!earlyStart&&!lateStartConsumption)StartRequest(v);
+                }
                 else if(phase=="before-recovery-write")
                 {
+                    if(startGate&&lateStartConsumption)StartRequest(v);
+                    // The start reply may be sent after the actor already ran.
+                    if(startReplyPending){Native(v,control,true,Response("CLROS_SIGNAL_RACE_START_REQUESTED"));startReplyPending=false;}
                     if(!earlyOverlap)Http(v,control,"recovery-armed","/__clros/signalrace/status",Status(4));
                     Http(v,control,"churn-overlap","/__clros/churn/status",Churn(1,0,0,1,2));
                     Http(v,control,"overlap-health","/healthz",Health);
@@ -86,6 +104,12 @@ internal static class NativeAotWebSignalRaceRoleTests
                 }
             }
             Replay=NativeAotWebSignalRaceTests.Run(controls:true,phase:Phase,pipeBase:10);
+        }
+        private void StartRequest(NativeAotThreadingTranscriptTests.Vector v)
+        {
+            const string path="/__clros/signalrace/start",body="CLROS_SIGNAL_RACE_START_REQUESTED";
+            string request=Request(path,"POST");int id=Host.Add(control.Connection,path,body,Response(body),"POST",rawRequest:request);
+            Host.Completions[id]=++completed;Native(v,control,false,request);Host.Select("start-request",id);startReplyPending=true;
         }
         private Flow Open(NativeAotThreadingTranscriptTests.Vector v,int fd,string role,uint port,int slot,int generation,ulong clock)
         {
@@ -122,10 +146,12 @@ internal static class NativeAotWebSignalRaceRoleTests
         internal byte[] Wire()=>Encoding.UTF8.GetBytes(NativeAotWebPayload.SerializeSignalRaceWire(new(22080,"signalrace-run",10001,
             Host.Operations.Sum(op=>(long)Convert.FromBase64String(op.DataBase64).Length),Host.Connections,Host.Exchanges,Host.Operations,[])));
         internal string Attempts()
-        {var value=JsonNode.Parse(Host.Attempts())!.AsObject();value["semanticComplete"]=true;value["failure"]="";return value.ToJsonString();}
+        {var value=JsonNode.Parse(Host.Attempts())!.AsObject();value["schema"]=startGate?"clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1";value["semanticComplete"]=true;value["failure"]="";return value.ToJsonString();}
+        internal string Selected()
+        {var value=JsonNode.Parse(Host.Selected())!.AsObject();value["schema"]=startGate?"clros.web.signalrace.v2":"clros.web.signalrace.v1";return value.ToJsonString();}
         internal Q.ServiceQuotaPacketStreams Guest()
         {var streams=Flows.Select(f=>f.Copy()).ToArray();return new(packet+20,0,streams.Sum(s=>s.Requests.Extent+s.Responses.Extent),streams);}
-        internal Q.WebSignalRaceRoleInspection Read()=>Q.InspectNativeAotWebSignalRaceRolesForTests(Wire(),Attempts(),Host.Selected(),Endpoint,Health,Guest(),Replay);
+        internal Q.WebSignalRaceRoleInspection Read()=>Q.InspectNativeAotWebSignalRaceRolesForTests(Wire(),Attempts(),Selected(),Endpoint,Health,Guest(),Replay);
     }
     private static void Reject(Action action,string? expected=null)
     {
@@ -175,5 +201,21 @@ internal static class NativeAotWebSignalRaceRoleTests
         Reject(()=>Q.InspectNativeAotWebSignalRaceRolesForTests(fixture.Wire(),fixture.Attempts(),fixture.Host.Selected(),Endpoint,Health,guest with{Streams=flows},fixture.Replay),
             "quota_stream_join_unmatched");
         Reject(()=>new Fixture(unknownCancel:true,peekCancel:true).Read(),"web_race_roles_cancel_request");
+    }
+
+    [HostTest("web race v2 start request consumes after actual initial wait and before actor write without ordering its reply")]
+    private static void InitialStartBoundary()
+    {
+        var fixture=new Fixture(startGate:true);var report=fixture.Read();
+        HostCheck.True(report.Samples.Count==21&&report.Temporal.Intervals.Count==40&&report.Selection==fixture.Replay.Selection);
+        int wait=fixture.Replay.Steps.Single(s=>s.Kind=="initial-wait").RecordIndex;
+        int write=fixture.Replay.Steps.Single(s=>s.Kind=="actor-write").RecordIndex;
+        var initial=report.Samples.Single(s=>s.Kind=="initial-armed");var start=report.Samples.Single(s=>s.Kind=="start-request");
+        HostCheck.True(initial.Response!.Slices[^1].Original.CallRecordIndex<wait&&
+            wait<start.Request.Slices[0].Original.CallRecordIndex&&start.Request.Slices[^1].Original.CallRecordIndex<write&&
+            start.Response!.Slices[0].Original.CallRecordIndex>write);
+        HostCheck.True(report.Order.Any(o=>o.Relation=="initial_wait_before_start_request")&&report.Order.Any(o=>o.Relation=="start_request_before_actor_write"));
+        Reject(()=>new Fixture(startGate:true,earlyStart:true).Read(),"web_race_roles_order_initial_wait_before_start_request");
+        Reject(()=>new Fixture(startGate:true,lateStartConsumption:true).Read(),"web_race_roles_order_start_request_before_actor_write");
     }
 }

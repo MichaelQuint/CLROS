@@ -12,6 +12,21 @@ internal sealed class KestrelSignalRaceState
     internal readonly record struct Snapshot(int Phase, int Process, int Waiter, int Actor, int Callback, bool RecoveryRequested);
     private readonly object gate = new();
     private Snapshot state;
+    private bool startRequested;
+
+    // An accepted request releases scheduling intent once; it is not evidence
+    // that the waiter entered epoll or that the actor has run.
+    internal bool TryRequestStart()
+    {
+        lock (gate)
+        {
+            if (state.Phase != InitialArmed || state.Waiter <= 0 || state.Actor <= 0 || startRequested)
+                return false;
+            startRequested = true; return true;
+        }
+    }
+
+    internal bool StartRequested { get { lock (gate) return startRequested; } }
 
     internal bool Begin(int positivePid)
     {
