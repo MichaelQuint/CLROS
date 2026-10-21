@@ -123,4 +123,18 @@ internal static class NativeAotWebTransportTests
         wait.Add(Retire(7,1,42000,Timeout+4).Replace("deadline=0 duration=0","deadline=270000001003 duration=240000000000",StringComparison.Ordinal));
         Reject(()=>Inspect(wait,signalRace:true));
     }
+
+    [HostTest("web transport admits the sixteenth physical slot while retaining live-key generation and index bounds")]
+    private static void SixteenSlotBoundary()
+    {
+        var rows=Rows();rows.Add(Fresh(15,1,43000,Timeout+2));
+        HostCheck.Equal(9,Inspect(rows,signalRace:true).Connections);
+        foreach(string changed in new[]{Fresh(16,1,43000,Timeout+2),
+            Fresh(15,1,43000,Timeout+2).Replace("index=15","index=16",StringComparison.Ordinal)})
+        {var bad=Rows();bad.Add(changed);Reject(()=>Inspect(bad,signalRace:true));}
+        foreach(string extra in new[]{Fresh(15,1,43001,Timeout+3),Fresh(14,1,43000,Timeout+3)})
+        {var bad=rows.ToList();bad.Add(extra);Reject(()=>Inspect(bad,signalRace:true));}
+        rows.Add(Retire(15,1,43000,Timeout+3));rows.Add(Fresh(15,2,43001,Timeout+4));
+        HostCheck.Equal(10,Inspect(rows,signalRace:true).Connections);
+    }
 }

@@ -523,6 +523,14 @@ status until timeout. Original EFI/native/source/serial/packet/report evidence i
 preserved; no complete owned race receipt exists. Expert diagnosis precedes a
 minimal fix and fresh execution. No quota or Kestrel acceptance is added.
 
+[Step1521](../done/step1521.md) implements the expert's bounded finite-web
+capacity correction:16 bulk TCP slots and derived storage only for M10-004,
+preserving continuing-service/mechanical8 and full240-second TIME-WAIT. The
+original race POST never reached the guest at the exhausted8-slot bound.
+All93 focused checks/8 fixtures pass unchanged/zero reuse, including real model
+capacity/replacement/expiry and strict reader boundaries. Fresh native/image and
+complete owned guest evidence remain next; no quota or Kestrel gate is accepted.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

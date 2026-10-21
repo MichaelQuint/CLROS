@@ -44,7 +44,7 @@ public static partial class QemuTranscripts
             Need(call.CallRecordIndex>previous && call.CallRecordIndex<100000 && call.Identity>0 && call.Ordinal>0 &&
                 call.Ordinal>ordinals.GetValueOrDefault(call.Identity) && call.Descriptor is >=3 and <16 && call.DescriptorGeneration>0 &&
                 call.OpenDescription is >=0 and <100000 && identity.Owner>0 && identity.Epoch>0 && identity.Generation>0 &&
-                identity.Index<8 && identity.Slot<8 && identity.Local==0x0a00020f && identity.LocalPort==8080 &&
+                identity.Index<16 && identity.Slot<16 && identity.Local==0x0a00020f && identity.LocalPort==8080 &&
                 identity.Remote==0x0a000202 && packets.ContainsKey(identity.RemotePort) && call.Bytes<=8192 &&
                 call.Offset<=ulong.MaxValue-call.Bytes,"web_race_temporal_call_shape");
             previous=call.CallRecordIndex;ordinals[call.Identity]=call.Ordinal;

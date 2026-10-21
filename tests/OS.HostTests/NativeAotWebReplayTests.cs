@@ -4,7 +4,7 @@ using OS.Tooling;
 
 internal static class NativeAotWebReplayTests
 {
-    private const int WebElfBytes=8_766_792;
+    private const int WebElfBytes=8_858_120;
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
@@ -17,7 +17,7 @@ internal static class NativeAotWebReplayTests
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
             .Replace("packageBytes=1320176","packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
             .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
-        v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
+        v.Rows.Insert(3,"M16_011_BOUND connections=16 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         if(clockId is ulong id)v.Call(228,clockResult,[id,clockAddress]);
         v.Call(2,5,[0x500200,0x88100,0]);v.Call(5,0,[5,0x500800]);
         if(earlySettings)v.Call(17,51,[5,0x500800,1024,0]);
@@ -87,6 +87,18 @@ internal static class NativeAotWebReplayTests
 
     private static void RejectClock(Action action)
     { string? reason=null;try{action();}catch(ToolFailure error){reason=error.Reason;}HostCheck.Equal("threading_monotonic_clock",reason); }
+
+    [HostTest("web replay requires its sixteen-slot bound and rejects stale eight or oversized markers")]
+    private static void WebSlotBound()
+    {
+        HostCheck.Equal(2,Inspect(Vector()).SocketAccepts);
+        foreach(int count in new[]{8,17})
+        {
+            var rows=Vector();int at=rows.FindIndex(row=>row.StartsWith("M16_011_BOUND ",StringComparison.Ordinal));
+            HostCheck.True(at>=0);rows[at]=rows[at].Replace("connections=16","connections="+count.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal);
+            Reject(()=>Inspect(rows));
+        }
+    }
 
     [HostTest("web alternate stack query checks complete writable span and permits null without claiming contents")]
     private static void AlternateStackAccess()

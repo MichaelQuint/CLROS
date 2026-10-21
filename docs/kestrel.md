@@ -388,6 +388,15 @@ all962 source joins are saved; all owned processes are stopped. No complete
 summary/owned race receipt or acceptance follows. The expert is tasked with the
 phase0 stall; earlier failed attempts remain failed.
 
+[Step1521](../done/step1521.md) resolves r03's cause from original packet/source
+evidence: the race SYNs receive no SYN-ACK because seven full TIME-WAITs and the
+status connection occupy all eight bulk slots. Finite web now provisions16
+bulk slots with derived backing storage and strict16-slot readers; service and
+mechanical profiles keep8. Full240-second TIME-WAIT and the exact ordinary
+eight-lifetime controls remain. All93 focused checks/8 fixtures pass unchanged/
+zero reuse. This is host implementation/model evidence; fresh native mapping,
+owned guest race and stable acceptance remain pending.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

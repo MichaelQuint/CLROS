@@ -158,7 +158,14 @@ public static unsafe partial class EfiEntry
             first.Generation == second.Generation && first.Index == second.Index;
 #endif
 
-        private const uint LinuxSocketConnections = 8, LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
+#if M10_004_PROBE && !M16_014_PROBE
+        // Finite web controls retain seven TIME-WAIT tuples while concurrent
+        // control/race/churn roles and a replacement connection remain live.
+        private const uint LinuxSocketConnections = 16;
+#else
+        private const uint LinuxSocketConnections = 8;
+#endif
+        private const uint LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
         // Borrowed observations only. A release is reported after the original
         // handle becomes stale and its network slot disappears or is reused.
         private struct LinuxSocketLifetime
@@ -196,11 +203,13 @@ public static unsafe partial class EfiEntry
             internal ulong QuotaBindingAcquired, QuotaBindingReturned;
             internal fixed ulong CompactGenerations[64], CompactDeadlines[64];
 #endif
-            internal fixed byte Endpoints[2048], Ports[32], Registrations[2560], Slots[8192], Entries[1024];
-            internal fixed ulong Generations[8];
-            internal fixed ulong Lifetimes[128];
+            internal fixed byte Endpoints[2048], Ports[32], Registrations[2560];
+            internal fixed byte Slots[1024 * (int)LinuxSocketConnections], Entries[128 * (int)LinuxSocketConnections];
+            internal fixed ulong Generations[(int)LinuxSocketConnections];
+            internal fixed ulong Lifetimes[16 * (int)LinuxSocketConnections];
             internal fixed ulong WakeIdentities[(int)LinuxNativeWorkers], WakeSequences[(int)LinuxNativeWorkers];
-            internal fixed byte Buffers[327680], Input[1536], Output[1536];
+            internal fixed byte Buffers[((int)LinuxSocketReceive + (int)LinuxSocketSend) * (int)LinuxSocketConnections];
+            internal fixed byte Input[1536], Output[1536];
         }
         private static LinuxSocketStorage s_linuxSocketStorage;
 
@@ -275,9 +284,9 @@ public static unsafe partial class EfiEntry
                 if (o->Boot != state || o->Phase != 1 || o->Device == null || !o->Device->Running ||
                     state->LinuxView.Manifest.Ipv4 != 0 || state->LinuxView.Manifest.Port != 8080 ||
                     sizeof(LinuxSocketServices.Endpoint) * 16 > 2048 || sizeof(LinuxEpollServices.Port) * 4 > 32 ||
-                    sizeof(LinuxEpollServices.Registration) * 64 > 2560 || sizeof(SocketNetwork.Slot) * 8 > 8192 ||
-                    sizeof(TcpConnectionTableEntry) * 8 > 1024 || (sizeof(LinuxSocketLifetime) & 7) != 0 ||
-                    sizeof(LinuxSocketLifetime) * 8 > 1024 ||
+                    sizeof(LinuxEpollServices.Registration) * 64 > 2560 || sizeof(SocketNetwork.Slot) > 1024 ||
+                    sizeof(TcpConnectionTableEntry) > 128 || (sizeof(LinuxSocketLifetime) & 7) != 0 ||
+                    sizeof(LinuxSocketLifetime) > 16 * sizeof(ulong) ||
                     !ReadNetworkTime(state, out ulong now)) return false;
                 if (!LinuxSocketServices.Begin(&o->Sockets, &state->LinuxDescriptors, (LinuxSocketServices.Endpoint*)o->Endpoints,
                         16, new(10, 0, 2, 15), 8080) ||
@@ -310,7 +319,11 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " tickNanos=4000 quietNanos=240000000000 secret=independent lease=network\r\n")) return false;
 #endif
                 o->Phase = 2;
+#if M10_004_PROBE && !M16_014_PROBE
+                return LinuxText(state, "M16_011_BOUND connections=16 rx=8192 tx=32768 epoll=4 watches=64 nic=live\r\n");
+#else
                 return LinuxText(state, "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live\r\n");
+#endif
             }
         }
 

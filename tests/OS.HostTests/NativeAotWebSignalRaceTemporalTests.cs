@@ -77,4 +77,14 @@ internal static class NativeAotWebSignalRaceTemporalTests
         Reject(vector with { Joined = vector.Joined with { Intervals = [vector.Joined.Intervals[0] with { Ranges = ranges }, .. vector.Joined.Intervals.Skip(1)] } },
             "web_race_temporal_packet_ranges");
     }
+
+    [HostTest("web temporal copied identities permit slot fifteen and reject either sixteen boundary")]
+    private static void SixteenSlotBoundary()
+    {
+        var vector=Fixture();
+        Vector At(uint slot,uint index)=>vector with{Calls=vector.Calls.Select(c=>c with{Connection=c.Connection with{Slot=slot,Index=index}}).ToArray()};
+        var accepted=Read(At(15,15));HostCheck.True(accepted.Intervals.All(i=>i.Connection.Slot==15&&i.Connection.Index==15));
+        Reject(At(16,15),"web_race_temporal_call_shape");
+        Reject(At(15,16),"web_race_temporal_call_shape");
+    }
 }

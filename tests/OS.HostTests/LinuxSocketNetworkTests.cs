@@ -33,11 +33,11 @@ internal static unsafe class LinuxSocketNetworkTests
         internal readonly uint Count;
         private readonly uint ReceiveBytes, SendBytes;
         internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768, bool compactTimeWait = false, bool continuingSequence = false,
-            bool measureLeases = false)
+            bool measureLeases = false, uint endpointCount = 8)
         {
             Count = count; ReceiveBytes = receiveBytes; SendBytes = sendBytes; Files.Begin();
             Sockets = (Sockets.State*)NativeMemory.AllocZeroed((nuint)sizeof(Sockets.State));
-            Endpoints = (Sockets.Endpoint*)NativeMemory.AllocZeroed(8, (nuint)sizeof(Sockets.Endpoint));
+            Endpoints = (Sockets.Endpoint*)NativeMemory.AllocZeroed(endpointCount, (nuint)sizeof(Sockets.Endpoint));
             Epoll = (Epoll.State*)NativeMemory.AllocZeroed((nuint)sizeof(Epoll.State));
             Ports = (Epoll.Port*)NativeMemory.AllocZeroed(2, (nuint)sizeof(Epoll.Port));
             Registrations = (Epoll.Registration*)NativeMemory.AllocZeroed(16, (nuint)sizeof(Epoll.Registration));
@@ -54,7 +54,7 @@ internal static unsafe class LinuxSocketNetworkTests
                 byte* secret = stackalloc byte[32]; for (uint i = 0; i < 32; i++) secret[i] = (byte)i; // Fixed host-test key only.
                 HostCheck.True(TcpInitialSequence.Initialize(Sequence, secret, 77));
             }
-            HostCheck.True(LinuxSocketServices.Begin(Sockets, Files.State, Endpoints, 8, new(10, 0, 2, 15), 8080));
+            HostCheck.True(LinuxSocketServices.Begin(Sockets, Files.State, Endpoints, endpointCount, new(10, 0, 2, 15), 8080));
             HostCheck.True(LinuxEpollServices.Begin(Epoll, Files.State, Ports, 2, Registrations, 16));
             HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.InitializeOwned(Table, Entries, count, Generations, count, 0x1234));
             HostCheck.True(Network.Begin(State, Sockets, Table, Slots, count, Buffers, receiveBytes, sendBytes,
@@ -607,6 +607,55 @@ internal static unsafe class LinuxSocketNetworkTests
         HostCheck.Equal(0L, m.Call(3, fd)); m.Pump(240_000_000_999); HostCheck.Equal(1U, m.State->RetainedConnections);
         HostCheck.True(!Network.End(m.State)); m.Pump(240_000_001_000); m.Pump();
         HostCheck.Equal(0U, m.State->RetainedConnections); m.Finish(false);
+    }
+
+    [HostTest("finite web sixteen bulk slots retain seven full TIME-WAIT lifetimes through race churn and replacement")]
+    private static void FiniteWebTimeWaitCapacity()
+    {
+        foreach(uint count in new[]{8U,16U})
+        {
+            using Model m=new(count:count,endpointCount:16);uint listener=m.Listen();
+            void CloseToWait(ushort port,uint sequence,uint local,uint fd)
+            {
+                HostCheck.Equal(0L,m.Call(48,fd,1));m.Pump();
+                HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(sequence+1,ReadOnlySpan<byte>.Empty,local+1,port,flags:0x11)));
+                HostCheck.Equal(0L,m.Call(3,fd));m.Pump();
+            }
+            for(ushort i=0;i<7;i++)
+            {
+                ushort port=(ushort)(44000+i);uint sequence=99U+i*100U,local=m.Connect(port,sequence),fd=m.Accept(listener);
+                CloseToWait(port,sequence,local,fd);
+                HostCheck.Equal((uint)i+1,m.State->RetainedConnections);
+                HostCheck.Equal((int)i+1,m.Table->Count);HostCheck.Equal(0U,m.State->CompactTimeWaitConnections);
+            }
+            uint control=m.Connect(45000,10000),controlFd=m.Accept(listener);
+            if(count==8)
+            {
+                uint sends=m.Hardware->Calls;HostCheck.Equal(Network.Status.Capacity,m.Receive(Syn(45001,10100)));
+                HostCheck.Equal(sends,m.Hardware->Calls);HostCheck.Equal(8U,m.State->RetainedConnections);
+                HostCheck.Equal(-11L,m.Call(288,listener,0,0,Fds.NonBlock));m.Finish();continue;
+            }
+            uint race=m.Connect(45001,10100),raceFd=m.Accept(listener),churn=m.Connect(45002,10200),churnFd=m.Accept(listener);
+            HostCheck.Equal(10U,m.State->RetainedConnections);
+            HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(10001,"C"u8,control,45000)));
+            HostCheck.Equal(1L,m.Call(45,controlFd,Output,1));HostCheck.Equal((byte)'C',*m.Files.Memory.At(Output));
+            HostCheck.Equal(Network.Status.Success,m.Receive(Wire.Packet(10101,"R"u8,race,45001)));
+            HostCheck.Equal(1L,m.Call(45,raceFd,Output,1));HostCheck.Equal((byte)'R',*m.Files.Memory.At(Output));
+            HostCheck.True(Fds.Capture(m.Files.State,churnFd,out var old));CloseToWait(45002,10200,churn,churnFd);
+            HostCheck.True(!Fds.IsCurrent(m.Files.State,old));
+            _=m.Connect(45003,10300);uint replacement=m.Accept(listener);HostCheck.Equal(churnFd,replacement);
+            HostCheck.True(Fds.Capture(m.Files.State,replacement,out var fresh)&&Fds.IsCurrent(m.Files.State,fresh)&&!Fds.IsCurrent(m.Files.State,old));
+            HostCheck.Equal(11U,m.State->RetainedConnections);HostCheck.Equal(11,m.Table->Count);
+            for(ushort i=0;i<5;i++)HostCheck.Equal(Network.Status.Success,m.Receive(Syn((ushort)(46000+i),20000U+i*100U)));
+            HostCheck.Equal(16U,m.State->RetainedConnections);HostCheck.Equal(16,m.Table->Count);
+            HostCheck.Equal(Network.Status.Capacity,m.Receive(Syn(47000,30000)));
+            m.Pump(240_000_000_999);HostCheck.Equal(11U,m.State->RetainedConnections);
+            HostCheck.Equal(Network.Status.Ignored,m.Receive(Syn(44000,40000)));HostCheck.Equal(11,m.Table->Count);
+            HostCheck.True(!Network.End(m.State));m.Pump(240_000_001_000);m.Pump();
+            HostCheck.Equal(3U,m.State->RetainedConnections);HostCheck.Equal(3,m.Table->Count);
+            _=m.Connect(44000,40000);_=m.Accept(listener);HostCheck.Equal(4U,m.State->RetainedConnections);
+            HostCheck.True(!m.State->RequiresShutdown);m.Finish();
+        }
     }
 
     [HostTest("m16-011 pending listener dup survives original fd close without redirecting to a reused fd", HostLane.Fast, 9)]
