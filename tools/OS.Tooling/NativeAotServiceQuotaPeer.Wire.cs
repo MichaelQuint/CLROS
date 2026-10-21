@@ -104,7 +104,7 @@ public static partial class NativeAotServiceQuotaPeer
     private static void WireNeed([DoesNotReturnIf(false)] bool value, string reason)
     { if (!value) throw new ToolFailure("quota_wire_" + reason); }
 
-    private sealed class WireCapture(int port)
+    internal sealed class WireCapture(int port,bool signalRace=false)
     {
         private sealed class Connected(WireConnection value)
         {
@@ -156,7 +156,7 @@ public static partial class NativeAotServiceQuotaPeer
         {
             lock (sync)
             {
-                WireNeed(!stopping && WireRole(role) && connections.Count + connecting < WireMaximumConnections &&
+                WireNeed(!stopping && WireRole(role,signalRace) && connections.Count + connecting < WireMaximumConnections &&
                     connections.Count(c => c.Value.DisposedTicks == 0) + connecting < 4, "connect_state");
                 connecting++;
                 if (++pending == 1) idle = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -188,7 +188,7 @@ public static partial class NativeAotServiceQuotaPeer
                     WireNeed(!stopping && socket.Connected && socket.LocalEndPoint is IPEndPoint && socket.RemoteEndPoint is IPEndPoint, "endpoints");
                     var local = (IPEndPoint)socket.LocalEndPoint!; var remote = (IPEndPoint)socket.RemoteEndPoint!;
                     WireNeed(local.Address.Equals(IPAddress.Loopback) && remote.Address.Equals(IPAddress.Loopback) &&
-                        remote.Port == port && local.Port > 0 && WireRole(role) && connections.Count < WireMaximumConnections &&
+                        remote.Port == port && local.Port > 0 && WireRole(role,signalRace) && connections.Count < WireMaximumConnections &&
                         connections.Count(c => c.Value.DisposedTicks == 0) < 4, "connection_bound");
                     WireNeed(!connections.Any(c => c.Value.DisposedTicks == 0 && c.Value.LocalPort == local.Port &&
                         c.Value.RemotePort == remote.Port), "connection_alias");
@@ -205,7 +205,7 @@ public static partial class NativeAotServiceQuotaPeer
         {
             lock (sync)
             {
-                WireNeed(!stopping && exchanges.Count < WireMaximumExchanges && WireRequest(role, method, path) &&
+                WireNeed(!stopping && exchanges.Count < WireMaximumExchanges && WireRequest(role, method, path,signalRace) &&
                     !active.ContainsKey(role), "exchange_bound");
                 var value = new Exchange(exchanges.Count + 1, role, method, path, Now);
                 exchanges.Add(value); active.Add(role, value); return value.Id;
@@ -214,6 +214,18 @@ public static partial class NativeAotServiceQuotaPeer
 
         internal void EndExchange(int id, string outcome, int status, string body, long ended)
         {
+            WireNeed(!signalRace&&body.Length<=8192,"exchange_profile");
+            EndExchangeCore(id,outcome,status,Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(body)),ended);
+        }
+
+        internal void EndSignalRaceExchange(int id,string outcome,int status,byte[] body)
+        {
+            WireNeed(signalRace&&body.Length<=4096,"exchange_profile");
+            EndExchangeCore(id,outcome,status,Convert.ToBase64String(body),Now);
+        }
+
+        private void EndExchangeCore(int id,string outcome,int status,string body,long ended)
+        {
             lock (sync)
             {
                 WireNeed(id > 0 && id <= exchanges.Count, "exchange_identity");
@@ -221,9 +233,9 @@ public static partial class NativeAotServiceQuotaPeer
                 // Stream disposal can finish held requests before its setup
                 // failure unwinds. Do not replace that real incomplete witness.
                 if (value.Outcome == "incomplete") return;
-                WireNeed(value.Outcome == "pending" && ended >= value.Started && body.Length <= 8192, "exchange_end");
+                WireNeed(value.Outcome == "pending" && ended >= value.Started, "exchange_end");
                 value.Ended = ended; value.Outcome = outcome; value.Status = status;
-                value.Body = Convert.ToBase64String(System.Text.Encoding.ASCII.GetBytes(body)); active.Remove(value.Role);
+                value.Body = body; active.Remove(value.Role);
             }
         }
 
@@ -402,8 +414,12 @@ public static partial class NativeAotServiceQuotaPeer
         public override ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
     }
 
-    private static bool WireRole(string role) => role is "control" or "pressure" or "cancel" or "echo";
-    private static bool WireRequest(string role, string method, string path) => role switch
+    internal static string SignalRaceWireRole(string method,string path)=>method=="POST"&&path=="/__clros/churn"?"churn":
+        method=="POST"&&path=="/__clros/signalrace"?"race":"control";
+    private static bool WireRole(string role,bool signalRace=false) => signalRace?role is "control" or "churn" or "race":role is "control" or "pressure" or "cancel" or "echo";
+    private static bool WireRequest(string role, string method, string path,bool signalRace=false) => signalRace?
+        role==SignalRaceWireRole(method,path)&&(method=="GET"&&path is "/healthz" or "/__clros/churn/status" or "/__clros/signalrace/status"||
+            method=="POST"&&path is "/__clros/churn" or "/__clros/signalrace" or "/__clros/signalrace/recover" or "/__clros/signalprobe") : role switch
     {
         "control" => method == "GET" && (path is "/healthz" or "/__clros/service/status" or "/__clros/service/lifecycle/status" or
             "/__clros/service/quota/status") || method == "POST" && path == "/__clros/service/start",

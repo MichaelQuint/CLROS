@@ -28,7 +28,7 @@ public static partial class NativeAotWebPayload
 
     // IDs and completion ordinals describe this owned API invocation only.
     // HttpClient exposes no actual connection, wire exchange or sent-byte ID.
-    private sealed class RaceAttemptLog(string endpoint)
+    private sealed class RaceAttemptLog(string endpoint,NativeAotServiceQuotaPeer.WireCapture? wire)
     {
         private int completed;
         private readonly List<RaceHttpAttempt> attempts=[];
@@ -38,9 +38,14 @@ public static partial class NativeAotWebPayload
         {
             RaceNeed(attempts.Count<MaximumRaceAttempts,"attempt_limit");
             var attempt=new RaceHttpAttempt(attempts.Count+1,request.Method.Method,path);attempts.Add(attempt);
-            using MemoryStream bytes=new();
+            using MemoryStream bytes=new();bool wireStarted=false;
             try
             {
+                if(wire is not null)
+                {
+                    int exchange=wire.BeginExchange(NativeAotServiceQuotaPeer.SignalRaceWireRole(request.Method.Method,path),request.Method.Method,path);
+                    wireStarted=true;RaceNeed(exchange==attempt.id,"wire_attempt_identity");
+                }
                 using var response=await client.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,token);
                 attempt.status=(int)response.StatusCode;attempt.headers=true;
                 string media=response.Content.Headers.ContentType?.MediaType??"";
@@ -59,7 +64,11 @@ public static partial class NativeAotWebPayload
             }
             catch(OperationCanceledException){attempt.outcome="cancelled";attempt.error="cancelled";throw;}
             catch(Exception error){attempt.outcome="faulted";attempt.error=RaceCaptureFailure(error);throw;}
-            finally{attempt.bodyBase64=Convert.ToBase64String(bytes.ToArray());attempt.completion=Interlocked.Increment(ref completed);}
+            finally
+            {
+                byte[] body=bytes.ToArray();attempt.bodyBase64=Convert.ToBase64String(body);attempt.completion=Interlocked.Increment(ref completed);
+                if(wireStarted)wire!.EndSignalRaceExchange(attempt.id,attempt.outcome,attempt.status,body);
+            }
         }
         internal void Select(int sample,RaceHttpReply reply)=>selections.Add(new(sample,reply.Attempt.id,0));
         internal void SelectCancellation(int sample,int request)=>selections.Add(new(sample,0,request));

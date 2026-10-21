@@ -14,8 +14,11 @@ public static partial class NativeAotWebPayload
     /// attempt, partial response and failure after request joins. Logical IDs
     /// grant no wire connection/exchange or sent-byte authority. A report grants no
     /// native/guest execution, callback-role or pointed-to-content authority.</summary>
-    public static async Task<string> CaptureSignalRaceAsync(HttpClient client,string endpoint,string expectedHealthBody,
-        string observationPath,CancellationToken cancellation=default)
+    public static Task<string> CaptureSignalRaceAsync(HttpClient client,string endpoint,string expectedHealthBody,
+        string observationPath,CancellationToken cancellation=default)=>CaptureSignalRaceCoreAsync(client,endpoint,expectedHealthBody,observationPath,cancellation,null);
+
+    private static async Task<string> CaptureSignalRaceCoreAsync(HttpClient client,string endpoint,string expectedHealthBody,
+        string observationPath,CancellationToken cancellation,NativeAotServiceQuotaPeer.WireCapture? wire)
     {
         ArgumentNullException.ThrowIfNull(client);RaceInputs(endpoint,expectedHealthBody);
         string path=Path.GetFullPath(observationPath),parent=Path.GetDirectoryName(path)!;
@@ -26,7 +29,7 @@ public static partial class NativeAotWebPayload
         using var cancelChurn=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var cancelRace=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var churnRequest=Post("/__clros/churn");using var raceRequest=Post("/__clros/signalrace");
-        Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint);
+        Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint,wire);
         bool semanticComplete=false,primaryFailure=false;string failure="capture_incomplete";RaceHttpAttempt? churnCall=null,raceCall=null;
         HttpRequestMessage Post(string target)
         {

@@ -370,6 +370,16 @@ checks across five fixtures pass with unchanged inputs and zero reuse. This
 does not identify actual wire connections/exchanges or prove native/guest
 execution. The original native failure remains failed and is not rerun here.
 
+[Step1507](../done/step1507.md) supplies the observed transport prerequisite:
+three owned persistent role handlers reuse the bounded actual stream recorder
+under a separate web-race schema. Each logical attempt binds its request-write
+exchange IDs and actual connected streams; raw read offsets do not invent HTTP
+response associations. All37 focused checks across eight fixtures pass, including
+five real-loopback controls and the existing quota recorder/profile/prefix cases.
+Quota schema/roles/routes remain strict. The adapter is still separate from native
+qualification and the guest runner. HTTP FIFO framing, held owner/runner joins,
+actual packet-flow association and fresh source/ELF/index admission remain required.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

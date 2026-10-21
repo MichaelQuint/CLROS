@@ -194,6 +194,19 @@ focused checks across five fixtures pass with unchanged inputs/zero reuse.
 These are host fake-handler/copied-value controls. No native rerun, successful
 race witness, real connection/exchange association or guest admission follows.
 
+[Step1507](../done/step1507.md) adds an owned observed transport adapter for that
+controller. Three role-specific persistent HTTP/1.1 handlers permit control,
+pending churn and pending race together. The existing bounded stream recorder
+supplies actual connected endpoints/stream IDs, attempted writes, successful
+read bytes, unknown failed transfers and joined disposal. A separate strict
+`clros.web.signalrace.wire.v1` profile binds logical attempt IDs to real request
+writes; quota schemas/routes remain strict. Raw read offsets remain independent
+of HTTP response framing. Five real-loopback controls and32 related checks pass
+with unchanged inputs/zero reuse, including partial failure and HTTP700 retention.
+The API is not yet wired into native qualification or the guest runner. Full HTTP
+FIFO framing, held runner/child evidence and actual PCAP association remain next;
+no NAT tuple, native race or guest acceptance is inferred from local stream IDs.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

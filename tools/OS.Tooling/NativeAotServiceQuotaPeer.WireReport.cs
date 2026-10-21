@@ -11,12 +11,14 @@ public static partial class NativeAotServiceQuotaPeer
     /// is actual successful reads or attempted writes; failed write byte counts
     /// remain unknown. This companion is separate from the existing peer report
     /// and owned CLI. No HTTP framing/PCAP/cross-clock/guest verdict is produced.</summary>
-    public static string SerializeWireReport(WireTrace trace)
+    public static string SerializeWireReport(WireTrace trace)=>SerializeWireReportCore(trace,false);
+    internal static string SerializeSignalRaceWireReport(WireTrace trace)=>SerializeWireReportCore(trace,true);
+    private static string SerializeWireReportCore(WireTrace trace,bool signalRace)
     {
-        var copy = CopyWire(trace); RequireWire(copy);
+        var copy = CopyWire(trace); RequireWire(copy,signalRace);
         string json = JsonSerializer.Serialize(new
         {
-            schema = WireSchema, tickUnit = "elapsed-100ns", port = copy.Port, purpose = copy.Purpose,
+            schema = signalRace?"clros.web.signalrace.wire.v1":WireSchema, tickUnit = "elapsed-100ns", port = copy.Port, purpose = copy.Purpose,
             snapshotTicks = copy.SnapshotTicks, rawBytes = copy.RawBytes,
             connections = copy.Connections.Select(c => new { id = c.Id, role = c.Role, localAddress = c.LocalAddress,
                 localPort = c.LocalPort, remoteAddress = c.RemoteAddress, remotePort = c.RemotePort,
@@ -38,7 +40,9 @@ public static partial class NativeAotServiceQuotaPeer
     /// impossible offsets/counts/times and inconsistent selected sample bindings.
     /// Returned lists are copied/read-only. This checks supplied values only;
     /// HTTP framing, original owned I/O, PCAP and kernel timing remain separate.</summary>
-    public static WireTrace InspectWireReport(ReadOnlySpan<byte> utf8)
+    public static WireTrace InspectWireReport(ReadOnlySpan<byte> utf8)=>InspectWireReportCore(utf8,false);
+    internal static WireTrace InspectSignalRaceWireReport(ReadOnlySpan<byte> utf8)=>InspectWireReportCore(utf8,true);
+    private static WireTrace InspectWireReportCore(ReadOnlySpan<byte> utf8,bool signalRace)
     {
         WireNeed(!utf8.IsEmpty && utf8.Length <= WireMaximumReportBytes, "report_bound");
         try
@@ -47,7 +51,7 @@ public static partial class NativeAotServiceQuotaPeer
             var root = document.RootElement;
             ReportFields(root, "schema", "tickUnit", "port", "purpose", "snapshotTicks", "rawBytes",
                 "connections", "exchanges", "operations", "samples");
-            WireNeed(ReportString(root, "schema") == WireSchema && ReportString(root, "tickUnit") == "elapsed-100ns", "schema");
+            WireNeed(ReportString(root, "schema") == (signalRace?"clros.web.signalrace.wire.v1":WireSchema) && ReportString(root, "tickUnit") == "elapsed-100ns", "schema");
             JsonElement[] Items(string key, int maximum)
             {
                 var value = root.GetProperty(key);
@@ -76,7 +80,7 @@ public static partial class NativeAotServiceQuotaPeer
                 }).ToArray();
                 return new WireExchange(WireInt(e, "id", 1, WireMaximumExchanges), ReportString(e, "role"),
                     ReportString(e, "method"), ReportString(e, "path"), ReportLong(e, "startedTicks"), ReportLong(e, "endedTicks"),
-                    ReportString(e, "outcome"), WireInt(e, "status", 0, 599), ReportString(e, "bodyBase64"), Array.AsReadOnly(connected));
+                    ReportString(e, "outcome"), WireInt(e, "status", 0, signalRace?999:599), ReportString(e, "bodyBase64"), Array.AsReadOnly(connected));
             }).ToArray();
             var operations = Items("operations", WireMaximumOperations).Select(o =>
             {
@@ -95,7 +99,7 @@ public static partial class NativeAotServiceQuotaPeer
             var result = new WireTrace(WireInt(root, "port", 1, 65535), ReportString(root, "purpose"),
                 ReportLong(root, "snapshotTicks"), ReportLong(root, "rawBytes"), Array.AsReadOnly(connections),
                 Array.AsReadOnly(exchanges), Array.AsReadOnly(operations), Array.AsReadOnly(samples));
-            RequireWire(result); return result;
+            RequireWire(result,signalRace); return result;
         }
         catch (JsonException error) { throw new InvalidDataException("quota_wire_json", error); }
     }
@@ -135,18 +139,18 @@ public static partial class NativeAotServiceQuotaPeer
         WireNeed(result.Length <= maximum && Convert.ToBase64String(result) == text, "data_canonical"); return result;
     }
 
-    private static void RequireWire(WireTrace trace)
+    private static void RequireWire(WireTrace trace,bool signalRace=false)
     {
         const long maximumTicks = 600L * TimeSpan.TicksPerSecond;
-        WireNeed(trace.Port is >=1 and <=65535 && trace.Purpose is "quota-run" or "quota-partial" or "stream-control" &&
+        WireNeed(trace.Port is >=1 and <=65535 && (signalRace?trace.Purpose is "signalrace-run" or "signalrace-partial":trace.Purpose is "quota-run" or "quota-partial" or "stream-control") &&
             trace.SnapshotTicks is >0 and <=maximumTicks && trace.RawBytes is >=0 and <=WireMaximumRawBytes, "trace");
-        WireNeed(trace.Connections.Count >= (trace.Purpose == "quota-partial" ? 0 : 1) && trace.Connections.Count <= WireMaximumConnections && trace.Exchanges.Count <= WireMaximumExchanges &&
+        WireNeed(trace.Connections.Count >= (trace.Purpose is "quota-partial" or "signalrace-partial" ? 0 : 1) && trace.Connections.Count <= WireMaximumConnections && trace.Exchanges.Count <= (signalRace?1024:WireMaximumExchanges) &&
             trace.Operations.Count <= WireMaximumOperations && trace.Samples.Count <= ReportSampleNames.Length, "array_bound");
         long prior = 0; var live = new List<WireConnection>();
         for (int i = 0; i < trace.Connections.Count; i++)
         {
             var c = trace.Connections[i];
-            WireNeed(c is not null && c.Id == i + 1 && WireRole(c.Role) && c.LocalAddress == "127.0.0.1" && c.RemoteAddress == "127.0.0.1" &&
+            WireNeed(c is not null && c.Id == i + 1 && WireRole(c.Role,signalRace) && c.LocalAddress == "127.0.0.1" && c.RemoteAddress == "127.0.0.1" &&
                 c.LocalPort is >=1 and <=65535 && c.RemotePort == trace.Port && c.ConnectedTicks >= prior &&
                 c.ConnectedTicks >= 0 && c.DisposedTicks >= c.ConnectedTicks && c.DisposedTicks > 0 &&
                 c.DisposedTicks <= trace.SnapshotTicks, "connection");
@@ -185,12 +189,13 @@ public static partial class NativeAotServiceQuotaPeer
         for (int i = 0; i < trace.Exchanges.Count; i++)
         {
             var e = trace.Exchanges[i];
-            WireNeed(e is not null && e.Id == i + 1 && WireRequest(e.Role, e.Method, e.Path) &&
+            WireNeed(e is not null && e.Id == i + 1 && WireRequest(e.Role, e.Method, e.Path,signalRace) &&
                 e.StartedTicks >= prior && e.EndedTicks >= e.StartedTicks && e.EndedTicks <= trace.SnapshotTicks &&
                 e.ConnectionIds is not null && e.ConnectionIds.Count <= trace.Connections.Count &&
                 e.ConnectionIds.Distinct().Count() == e.ConnectionIds.Count, "exchange");
             byte[] body = WireData(e.BodyBase64, 8192);
-            WireNeed(e.Outcome == "complete" ? e.Role == "control" && e.Status == 200 && body.Length > 0 &&
+            WireNeed(signalRace ? (e.Outcome=="response"?e.Status is >=100 and <=999:(e.Outcome is "faulted" or "cancelled")&&e.Status is 0 or >=100 and <=999)&&body.Length<=4096 :
+                e.Outcome == "complete" ? e.Role == "control" && e.Status == 200 && body.Length > 0 &&
                 body.All(b => b is >=32 and <=126) :
                 e.Outcome == "response" ? e.Role == "pressure" && e.Status is >=100 and <=599 && body.Length == 0 :
                 (e.Outcome is "failed" or "canceled" or "io-error" or "incomplete") && e.Status == 0 && body.Length == 0, "exchange_result");
@@ -205,7 +210,13 @@ public static partial class NativeAotServiceQuotaPeer
             WireNeed(roleEnds.GetValueOrDefault(e.Role) <= e.StartedTicks, "exchange_overlap");
             roleEnds[e.Role] = e.EndedTicks; prior = e.StartedTicks;
         }
-        if (trace.Purpose == "stream-control") WireNeed(trace.Exchanges.Count == 0 && trace.Samples.Count == 0 &&
+        if(signalRace)
+        {
+            WireNeed(trace.Samples.Count==0&&trace.Operations.Where(o=>o.Direction=="write").All(o=>o.ExchangeId>0),"signalrace_shape");
+            if(trace.Purpose=="signalrace-run")WireNeed(trace.Exchanges.Count>0&&trace.Exchanges.Count(e=>e.Outcome=="cancelled"&&e.Role=="churn")==1&&
+                trace.Exchanges.All(e=>e.Outcome=="response"||e.Outcome=="cancelled"&&e.Role=="churn"),"signalrace_run");
+        }
+        else if (trace.Purpose == "stream-control") WireNeed(trace.Exchanges.Count == 0 && trace.Samples.Count == 0 &&
             trace.Operations.All(o => o.ExchangeId == 0), "control_shape");
         else
         {
