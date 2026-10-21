@@ -397,6 +397,14 @@ eight-lifetime controls remain. All93 focused checks/8 fixtures pass unchanged/
 zero reuse. This is host implementation/model evidence; fresh native mapping,
 owned guest race and stable acceptance remain pending.
 
+[Step1522](../done/step1522.md) reviews the exact fresh native geometry and
+preserves owned r05's later `web_signalrace_missed_initial_gate` failure. The
+sixteen-slot bound is genuine and original PCAP202 contains the race POST after
+handshake. Status0,1,1,6 never yields the required initial-armed sample; no
+churn/start/recovery is requested. Exact native/source/packet/report originals
+are saved and QEMU stops. Expert diagnosis is required before the next scoped
+correction; no complete owned race or quota/Kestrel acceptance follows.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

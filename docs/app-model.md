@@ -531,6 +531,14 @@ All93 focused checks/8 fixtures pass unchanged/zero reuse, including real model
 capacity/replacement/expiry and strict reader boundaries. Fresh native/image and
 complete owned guest evidence remain next; no quota or Kestrel gate is accepted.
 
+[Step1522](../done/step1522.md) reviews the enlarged native storage:689136 bytes
+fit wholly within exact RW image data; initialization and observation use16.
+Fresh owned r05 publishes byte-identical reviewed EFI and now delivers the race
+POST (original PCAP202). It fails the initial gate with status0,1,1,6, before
+churn/start/recovery. Preserve1036 source/native/producer/guest files and the
+failed result. Expert source/serial diagnosis precedes another correction;
+complete owned race, quota termination and Kestrel acceptance remain incomplete.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
