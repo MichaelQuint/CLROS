@@ -545,8 +545,19 @@ under one120-second operation deadline and separate15-second joined cleanup;
 legacy timed behavior remains. Cross-profile status/start/recovery refuses and
 v3 copied prefixes differ. All19 focused checks and11 actual Windows HTTP
 routing/refusal checks pass. Old prepared admission correctly refuses changed
-app sources. V3 controller/schema/owner/native integration and fresh Linux-native,
+app sources. V3 owner/native integration and fresh Linux-native,
 index/admission and actual owned guest evidence remain pending; no gate closes.
+
+[Step1524](../done/step1524.md) adds the explicit borrowed-client v3 controller
+and paired selected/attempt evidence. It owns one150-second capture deadline,
+requires an infinite or at least150-second client timeout, and refuses default
+signal/churn selector headers before creating reports. Race/status/start/recover
+use v3; the ordinary repeat signal probe retains v1. Exact per-attempt selector
+fields and v3 response prefixes are checked; legacy v1/v2 shapes remain.
+All36 focused checks pass. These are copied HTTP/controller checks; the native
+role reader explicitly refuses v3 until its event-wait contract is integrated.
+Observed wire/header joins, native journal/owner/runner/Date budgets and fresh
+qualification/admission/guest evidence remain required.
 
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause

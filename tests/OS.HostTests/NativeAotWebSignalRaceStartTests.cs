@@ -8,18 +8,19 @@ using OS.Tooling;
 // pointed-to bytes, process ownership or guest execution is supplied.
 internal static class NativeAotWebSignalRaceStartTests
 {
-    private const string Endpoint="http://127.0.0.1:23456",Health="OS_MINIMAL_API_OK";
+    internal const string Endpoint="http://127.0.0.1:23456",Health="OS_MINIMAL_API_OK";
     private const string Complete="CLROS_CHURN_OK iterations=8 bytes=65536 timers=8 workers=8 collections=8";
     private const string Success="CLROS_SIGNAL_RACE_OK signal=12 pid=43 actor=8 waiter=7 callback=9 callbacks=1 actorJoined=1 waiterJoined=1 consumed=90 recovery=107 recoveryWriter=9 initialValue=-1 initialErrno=4 recoveryValue=1 recoveryEvents=1 recoveryTag=344978309701 handler=4096 flags=335544324 restorer=8192 actionMask=0 originalHandler=0 originalFlags=0 originalRestorer=0 originalActionMask=0 maskBefore=2048 maskDuring=0 maskAfter=2048 altAddress=0 altFlags=2 altBytes=0 descriptorsClosed=3 actionRestored=1 altUnchanged=1";
-    private sealed class Peer : HttpMessageHandler
+    internal sealed class Peer(bool eventOwned=false) : HttpMessageHandler
     {
         internal readonly List<string> Calls=[];
-        internal bool RefuseStart,EarlyPhase,InitialSeen,ChurnCanceled,RaceCanceled;
+        internal bool RefuseStart,EarlyPhase,InitialSeen,ChurnCanceled,RaceCanceled,LegacyStatusPrefix,LegacyResultPrefix;
         internal int Starts;
         internal Action? CancelInitial;
         private bool raceStarted,released,recovered,complete;
         private int churnStarted;
         private readonly TaskCompletionSource<HttpResponseMessage> churn=new(TaskCreationOptions.RunContinuationsAsynchronously),race=new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private string StatusPrefix=>eventOwned&&!LegacyStatusPrefix?"CLROS_SIGNAL_RACE_V3_STATUS":"CLROS_SIGNAL_RACE_STATUS";
         private static HttpResponseMessage Reply(string body,int status=200)=>new((HttpStatusCode)status){Content=new StringContent(body,Encoding.UTF8,"text/plain")};
         private string Churn()
         {
@@ -31,16 +32,21 @@ internal static class NativeAotWebSignalRaceStartTests
             token.ThrowIfCancellationRequested();string path=request.RequestUri!.AbsolutePath;Calls.Add(request.Method.Method+" "+path);
             if(request.Method==HttpMethod.Get)
             {
+                string version=eventOwned&&path=="/__clros/signalrace/status"?"v3":"";
+                HostCheck.True(version==""?!request.Headers.Contains("X-CLROS-Signal"):
+                    request.Headers.GetValues("X-CLROS-Signal").SequenceEqual(new[]{version}));
                 if(path=="/healthz")return Task.FromResult(Reply(Health));
                 if(path=="/__clros/churn/status")return Task.FromResult(Reply(Churn()));
                 HostCheck.Equal("/__clros/signalrace/status",path);
-                if(!raceStarted)return Task.FromResult(Reply("CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0"));
+                if(!raceStarted)return Task.FromResult(Reply(StatusPrefix+" phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0"));
                 if(!released){InitialSeen=true;CancelInitial?.Invoke();token.ThrowIfCancellationRequested();}
                 int phase=recovered?7:released||EarlyPhase?4:2;
-                return Task.FromResult(Reply($"CLROS_SIGNAL_RACE_STATUS phase={phase} pid=43 waiter=7 actor=8 callback={(phase==2?0:9)} recoveryRequested={(recovered?1:0)}"));
+                return Task.FromResult(Reply($"{StatusPrefix} phase={phase} pid=43 waiter=7 actor=8 callback={(phase==2?0:9)} recoveryRequested={(recovered?1:0)}"));
             }
             HostCheck.Equal(HttpMethod.Post,request.Method);HostCheck.Equal(0L,request.Content!.Headers.ContentLength!.Value);
-            HostCheck.True(request.Headers.GetValues(path=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal").SequenceEqual(new[]{"v1"}));
+            string expected=eventOwned&&path.StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":"v1";
+            HostCheck.True(request.Headers.GetValues(path=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal").SequenceEqual(new[]{expected}));
+            if(path=="/__clros/churn")HostCheck.True(!request.Headers.Contains("X-CLROS-Signal"));
             switch(path)
             {
                 case "/__clros/signalrace":
@@ -58,13 +64,15 @@ internal static class NativeAotWebSignalRaceStartTests
                     released=true;return Task.FromResult(Reply("CLROS_SIGNAL_RACE_START_REQUESTED"));
                 case "/__clros/signalrace/recover":
                     if(recovered)return Task.FromResult(Reply("CLROS_SIGNAL_RACE_RECOVERY_REFUSED",409));
-                    recovered=true;race.TrySetResult(Reply(Success));return Task.FromResult(Reply("CLROS_SIGNAL_RACE_RECOVERY_REQUESTED"));
+                    recovered=true;race.TrySetResult(Reply(eventOwned&&!LegacyResultPrefix?
+                        Success.Replace("CLROS_SIGNAL_RACE_OK","CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal):Success));
+                    return Task.FromResult(Reply("CLROS_SIGNAL_RACE_RECOVERY_REQUESTED"));
                 case "/__clros/signalprobe":return Task.FromResult(Reply("CLROS_SIGNAL_PROBE_BUSY",409));
                 default:throw new InvalidOperationException(path);
             }
         }
     }
-    private static string Output()
+    internal static string Output()
     {
         string folder=Path.Combine(HostToolProcess.FindRepositoryRoot(),"artifacts","host-tests","signal-race-start-"+Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);return Path.Combine(folder,"selected.json");

@@ -37,13 +37,21 @@ public static partial class QemuTranscripts
     /// response or cancellation syscall. Existing bounded inspectors apply;
     /// extra request-only slices are<=2000000. Return immutable copied joins or
     /// throw. Source/native/owned file/process/UTC/PCAP and GC/ThreadPool/cleanup
-    /// acceptance remain separate; phase4 alone supplies no blocked-wait proof.</summary>
+    /// acceptance remain separate; phase4 alone supplies no blocked-wait proof.
+    /// Only selected v1/v2 are supported here; event-owned v3 is refused until
+    /// its separate native role contract is integrated.</summary>
     public static WebSignalRaceRoleInspection InspectNativeAotWebSignalRaceRolesForTests(ReadOnlySpan<byte> wireJson,
         string attemptsJson,string selectedJson,string endpoint,string expectedHealthBody,ServiceQuotaPacketStreams guest,
         WebSignalRaceReport replay)
     {
         if(replay is null)throw new ToolFailure("web_race_roles_input");
         var selection=NativeAotWebPayload.ValidateSignalRaceEvidence(selectedJson,endpoint,expectedHealthBody);
+        using var document=JsonDocument.Parse(selectedJson,new JsonDocumentOptions{MaxDepth=8});
+        string schema=document.RootElement.GetProperty("schema").GetString()!;
+        // A v3 copied capture does not select the still-timed native/guest role
+        // contract. Explicit event-wait role admission is a separate integration.
+        Need(schema is "clros.web.signalrace.v1" or "clros.web.signalrace.v2","web_race_roles_event_contract_pending");
+        bool startGate=schema=="clros.web.signalrace.v2";
         var trace=NativeAotWebPayload.InspectSignalRaceTransport(attemptsJson,selectedJson,wireJson,endpoint,expectedHealthBody);
         Need(trace.Purpose=="signalrace-run" && selection==replay.Selection,"web_race_roles_selection");
         var joined=InspectNativeAotWebSignalRaceStreamJoinForTests(wireJson,attemptsJson,selectedJson,endpoint,expectedHealthBody,guest);
@@ -51,8 +59,6 @@ public static partial class QemuTranscripts
         var mapped=new Dictionary<(int Exchange,bool Response),WebSignalRaceHttpSyscallInterval>();
         foreach(var interval in temporal.Intervals)
             Need(mapped.TryAdd((interval.Packet.ExchangeId,interval.Packet.Response),interval),"web_race_roles_interval");
-        using var document=JsonDocument.Parse(selectedJson,new JsonDocumentOptions{MaxDepth=8});
-        bool startGate=document.RootElement.GetProperty("schema").GetString()=="clros.web.signalrace.v2";
         var selected=document.RootElement.GetProperty("samples");
         Need(joined.Host.Samples.Count==selected.GetArrayLength(),"web_race_roles_samples");
         List<WebSignalRaceRoleSample> samples=[];

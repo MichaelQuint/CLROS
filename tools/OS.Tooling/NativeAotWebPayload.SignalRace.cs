@@ -19,28 +19,34 @@ public static partial class NativeAotWebPayload
 
     private static async Task<string> CaptureSignalRaceCoreAsync(HttpClient client,string endpoint,string expectedHealthBody,
         string observationPath,CancellationToken cancellation,NativeAotServiceQuotaPeer.WireCapture? wire,
-        Action<CreatedRaceReport,CreatedRaceReport>? retainCreated=null,bool startGate=false,RaceStartHooks? startHooks=null)
+        Action<CreatedRaceReport,CreatedRaceReport>? retainCreated=null,bool startGate=false,RaceStartHooks? startHooks=null,bool eventOwned=false)
     {
         ArgumentNullException.ThrowIfNull(client);RaceInputs(endpoint,expectedHealthBody);
         RaceNeed(startGate||startHooks is null,"start_mode");
+        RaceNeed(!eventOwned||startGate,"event_mode");
+        RaceNeed(!eventOwned||client.Timeout==Timeout.InfiniteTimeSpan||client.Timeout>=TimeSpan.FromSeconds(150),"event_client_timeout");
+        RaceNeed(!eventOwned||!client.DefaultRequestHeaders.Contains("X-CLROS-Signal")&&
+            !client.DefaultRequestHeaders.Contains("X-CLROS-Churn"),"event_client_headers");
         string path=Path.GetFullPath(observationPath),parent=Path.GetDirectoryName(path)!;
         AuthorityFiles.RequirePlainPath(parent,parent,"web_signalrace_output_path");
         using var output=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
         using var attemptOutput=new FileStream(path+".attempts.json",FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation);deadline.CancelAfter(TimeSpan.FromSeconds(30));
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation);deadline.CancelAfter(TimeSpan.FromSeconds(eventOwned?150:30));
         using var cancelChurn=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var cancelRace=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var churnRequest=Post("/__clros/churn");using var raceRequest=Post("/__clros/signalrace");
-        Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint,wire,startGate);
+        Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint,wire,startGate,eventOwned);
         bool semanticComplete=false,primaryFailure=false;string failure="capture_incomplete";RaceHttpAttempt? churnCall=null,raceCall=null;
         HttpRequestMessage Post(string target)
         {
             var message=new HttpRequestMessage(HttpMethod.Post,endpoint+target){Content=new ByteArrayContent([])};
-            message.Headers.Add(target=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal","v1");return message;
+            message.Headers.Add(target=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal",
+                eventOwned&&target.StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":"v1");return message;
         }
         async Task<RaceHttpReply> Get(string target)
         {
             using var request=new HttpRequestMessage(HttpMethod.Get,endpoint+target);
+            if(eventOwned&&target=="/__clros/signalrace/status")request.Headers.Add("X-CLROS-Signal","v3");
             return await attempts.SendAsync(client,request,target,deadline.Token);
         }
         void Select(string kind,RaceHttpReply reply){attempts.Select(samples.Count,reply);samples.Add(new(kind,reply.Status,reply.Body));}
@@ -71,12 +77,12 @@ public static partial class NativeAotWebPayload
             using var message=Post(target);Select(kind,await attempts.SendAsync(client,message,target,deadline.Token));
             RaceNeed(samples[^1].status==status&&samples[^1].body==expected,"request_result");
         }
-        string Json()=>JsonSerializer.Serialize(new{schema=startGate?"clros.web.signalrace.v2":"clros.web.signalrace.v1",endpoint,samples});
+        string Json()=>JsonSerializer.Serialize(new{schema=eventOwned?"clros.web.signalrace.v3":startGate?"clros.web.signalrace.v2":"clros.web.signalrace.v1",endpoint,samples});
         try
         {
             await Churn("baseline-churn",false);await Observe("baseline-race","/__clros/signalrace/status");await Observe("health-before","/healthz");
             // Reject an already-used app before starting either active request.
-            RaceNeed(ChurnStatus(samples[0].body).All(n=>n==0)&&ReadRaceStatus(samples[1].body).All(n=>n==0)&&samples[1].status==200&&samples[2].status==200&&samples[2].body==expectedHealthBody,"fresh_session");
+            RaceNeed(ChurnStatus(samples[0].body).All(n=>n==0)&&ReadRaceStatus(samples[1].body,eventOwned).All(n=>n==0)&&samples[1].status==200&&samples[2].status==200&&samples[2].body==expectedHealthBody,"fresh_session");
             if(startGate)
             {
                 race=attempts.SendAsync(client,raceRequest,"/__clros/signalrace",cancelRace.Token);raceCall=attempts.LastStarted;
@@ -85,7 +91,7 @@ public static partial class NativeAotWebPayload
                 {
                     RaceNeed(!race.IsCompleted&&!raceCall.headers,"lost_initial_wait");
                     var response=await Get("/__clros/signalrace/status");RaceNeed(response.Status==200,"race_status");
-                    var status=ReadRaceStatus(response.Body);RaceNeed(status[0]<=2,"missed_initial_gate");
+                    var status=ReadRaceStatus(response.Body,eventOwned);RaceNeed(status[0]<=2,"missed_initial_gate");
                     RaceNeed(!race.IsCompleted&&!raceCall.headers,"lost_initial_wait");
                     if(status[0]==2){Select("initial-armed",response);initial=status;break;}
                     await Task.Delay(5,deadline.Token);
@@ -111,7 +117,7 @@ public static partial class NativeAotWebPayload
             for(int attempt=0;attempt<200;attempt++)
             {
                 Pending(true);var response=await Get("/__clros/signalrace/status");
-                RaceNeed(response.Status==200,"race_status");var status=ReadRaceStatus(response.Body);Pending(true);
+                RaceNeed(response.Status==200,"race_status");var status=ReadRaceStatus(response.Body,eventOwned);Pending(true);
                 RaceNeed(status[0]<=4,"missed_recovery_gate");
                 if(status[0]==4){Select("recovery-armed",response);armed=true;break;}
                 await Task.Delay(5,deadline.Token);

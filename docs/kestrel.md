@@ -411,8 +411,18 @@ one120-second operation cancellation and separate15-second cleanup grace, with
 joined worker retirement before fd disposal. Nineteen focused checks and11
 Windows HTTP dispatch/refusal checks pass; native signal behavior is unrun.
 Old prepared source admission still refuses changed app bytes. Versioned v3
-controller/native/runner budgets and fresh qualification precede another guest;
+native/runner budgets and fresh qualification precede another guest;
 no legacy failure is reinterpreted or accepted.
+
+[Step1524](../done/step1524.md) implements the explicit v3 copied controller and
+strict paired selected/attempt schemas under one150-second capture deadline.
+Borrowed client timeout and default selector headers are checked before files
+or requests; exact v3 race headers/prefixes and the ordinary v1 repeat probe are
+retained in the attempt contract. All36 focused checks across seven fixtures
+pass with unchanged inputs and zero reuse. Legacy v1/v2 checks pass; native role
+admission explicitly refuses copied v3. Actual transport/header joins, native
+event-wait/journal integration, owner/runner/Date windows and fresh original
+qualification/admission remain prerequisites to another owned guest.
 
 ## Continuing-service foundations
 

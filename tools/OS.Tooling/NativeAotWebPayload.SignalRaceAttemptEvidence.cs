@@ -38,10 +38,10 @@ public static partial class NativeAotWebPayload
         using var document=JsonDocument.Parse(attemptsJson,new JsonDocumentOptions{MaxDepth=12});var root=document.RootElement;
         using var selectedDocument=JsonDocument.Parse(selectedJson,new JsonDocumentOptions{MaxDepth=8});var selected=selectedDocument.RootElement;
         ChurnKeys(root,"schema","endpoint","semanticComplete","failure","attempts","selections");ChurnKeys(selected,"schema","endpoint","samples");
-        string schema=ChurnString(selected.GetProperty("schema"),64);bool startGate=schema=="clros.web.signalrace.v2";
+        string schema=ChurnString(selected.GetProperty("schema"),64);bool eventOwned=schema=="clros.web.signalrace.v3",startGate=eventOwned||schema=="clros.web.signalrace.v2";
         var routes=startGate?RaceStartSampleRoutes:RaceSampleRoutes;
         RaceNeed((startGate||schema=="clros.web.signalrace.v1")&&
-            ChurnString(root.GetProperty("schema"),64)==(startGate?"clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1")&&
+            ChurnString(root.GetProperty("schema"),64)==(eventOwned?"clros.web.signalrace.attempts.v3":startGate?"clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1")&&
             ChurnString(root.GetProperty("endpoint"),64)==expectedEndpoint&&ChurnString(selected.GetProperty("endpoint"),64)==expectedEndpoint,"attempt_schema_endpoint");
         bool complete=RaceBoolean(root.GetProperty("semanticComplete"));string failure=ChurnString(root.GetProperty("failure"),128);
         RaceNeed(!failure.Any(char.IsControl)&&complete==(failure.Length==0),"attempt_failure");
@@ -51,11 +51,13 @@ public static partial class NativeAotWebPayload
         int responses=0,cancelled=0,faulted=0,serialCompletion=0,firstChurn=0,firstRace=0;HashSet<int> completions=[];List<byte[]> bodies=[];
         foreach(var row in attempts.EnumerateArray())
         {
-            ChurnKeys(row,"id","method","path","completion","headers","status","mediaType","mediaTypeComplete","bodyBase64","bodyComplete","outcome","error");
+            string[] keys=["id","method","path","completion","headers","status","mediaType","mediaTypeComplete","bodyBase64","bodyComplete","outcome","error"];
+            ChurnKeys(row,eventOwned?[..keys,"signalVersion"]:keys);
             int id=ChurnInt(row.GetProperty("id")),completion=ChurnInt(row.GetProperty("completion")),status=ChurnInt(row.GetProperty("status"));
             RaceNeed(id==bodies.Count+1&&completion>=1&&completion<=attempts.GetArrayLength()&&completions.Add(completion),"attempt_identity");
             string method=ChurnString(row.GetProperty("method"),4),path=ChurnString(row.GetProperty("path"),64);
             RaceNeed(routes.Any(route=>route.Method==method&&route.Path==path),"attempt_route");
+            if(eventOwned)RaceNeed(ChurnString(row.GetProperty("signalVersion"),3)==EventSignalVersion(method,path),"attempt_signal_version");
             // Only the first two long-lived POSTs overlap later API calls.
             bool pending=false;
             if(method=="POST"&&path=="/__clros/churn"&&firstChurn==0){firstChurn=id;pending=true;}
@@ -131,7 +133,7 @@ public static partial class NativeAotWebPayload
                 }
                 else
                 {
-                    ulong phase=ReadRaceStatus(RaceDecode(bodies[id-1]))[0];
+                    ulong phase=ReadRaceStatus(RaceDecode(bodies[id-1]),eventOwned)[0];
                     RaceNeed(startGate?
                         id>firstRace&&id<Kind("initial-armed")&&phase<2||id>Kind("start-request")&&id<Kind("recovery-armed")&&phase<4:
                         id>firstRace&&id<Kind("recovery-armed")&&phase<4,"attempt_unselected_status");

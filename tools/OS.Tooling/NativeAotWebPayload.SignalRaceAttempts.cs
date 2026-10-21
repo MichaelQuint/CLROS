@@ -21,6 +21,7 @@ public static partial class NativeAotWebPayload
         public bool bodyComplete { get; set; }
         public string outcome { get; set; }="pending";
         public string error { get; set; }="";
+        internal string SignalVersion { get; set; }="";
     }
     private sealed record RaceHttpReply(RaceHttpAttempt Attempt,string Body)
     { internal int Status=>Attempt.status; }
@@ -28,7 +29,7 @@ public static partial class NativeAotWebPayload
 
     // IDs and completion ordinals describe this owned API invocation only.
     // HttpClient exposes no actual connection, wire exchange or sent-byte ID.
-    private sealed class RaceAttemptLog(string endpoint,NativeAotServiceQuotaPeer.WireCapture? wire,bool startGate=false)
+    private sealed class RaceAttemptLog(string endpoint,NativeAotServiceQuotaPeer.WireCapture? wire,bool startGate=false,bool eventOwned=false)
     {
         private int completed;
         private readonly List<RaceHttpAttempt> attempts=[];
@@ -41,6 +42,11 @@ public static partial class NativeAotWebPayload
             using MemoryStream bytes=new();bool wireStarted=false;
             try
             {
+                if(eventOwned)
+                {
+                    attempt.SignalVersion=request.Headers.TryGetValues("X-CLROS-Signal",out var versions)?string.Join(',',versions):"";
+                    RaceNeed(attempt.SignalVersion==EventSignalVersion(request.Method.Method,path),"attempt_signal_version");
+                }
                 if(wire is not null)
                 {
                     int exchange=wire.BeginExchange(NativeAotServiceQuotaPeer.SignalRaceWireRole(request.Method.Method,path),request.Method.Method,path);
@@ -72,8 +78,13 @@ public static partial class NativeAotWebPayload
         }
         internal void Select(int sample,RaceHttpReply reply)=>selections.Add(new(sample,reply.Attempt.id,0));
         internal void SelectCancellation(int sample,int request)=>selections.Add(new(sample,0,request));
-        internal string Json(bool semanticComplete,string failure)=>JsonSerializer.Serialize(new
-        {schema=startGate?"clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1",endpoint,semanticComplete,failure,attempts,selections});
+        internal string Json(bool semanticComplete,string failure)
+        {
+            object rows=eventOwned?attempts.Select(a=>new{a.id,a.method,a.path,a.completion,a.headers,a.status,a.mediaType,
+                a.mediaTypeComplete,a.bodyBase64,a.bodyComplete,a.outcome,a.error,signalVersion=a.SignalVersion}).ToArray():attempts;
+            return JsonSerializer.Serialize(new{schema=eventOwned?"clros.web.signalrace.attempts.v3":startGate?
+                "clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1",endpoint,semanticComplete,failure,attempts=rows,selections});
+        }
     }
     private static string RaceCaptureFailure(Exception error)=>error is InvalidDataException&&error.Message.StartsWith("web_signalrace_",StringComparison.Ordinal)
         ?error.Message:error.GetType().Name;
