@@ -71,14 +71,17 @@ public static partial class QemuTranscripts
             capture.QuietSyns, capture.Flows.Count(flow => flow.ResetRecord != 0), lifecycleConnections);
 
     private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
-        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null, bool quotaStreams = false)
+        IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null, bool quotaStreams = false,
+        IReadOnlySet<int>? delegatedWebRecords = null)
     {
         if (ports is null) throw new ToolFailure("service_wire_ports");
         Need(ports.Count is >0 and <=512 && ports.Distinct().Count() == ports.Count &&
             ports.All(port => port is >0 and <=65535), "service_wire_ports");
+        Need(delegatedWebRecords is null || quotaStreams && concurrent && lifecycle && delegatedWebRecords.Count>0,
+            "web_race_wire_delegation");
         _ = QemuEthernetCapture.Inspect(bytes, anchor);
         int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0, record = 0;
-        ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = []; int quotaExtent = 0;
+        ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = []; int quotaExtent = 0,delegated=0;
         while (offset < bytes.Length)
         {
             record++;
@@ -99,6 +102,10 @@ public static partial class QemuTranscripts
                     frame.Length == (stage == 1 ? 60 : arp.ReceiveBytes), "service_wire_parent_arp");
                 stage++; prefixEnd = offset; continue;
             }
+            // Only the private whole-web caller supplies original record IDs
+            // already validated by the strict web parser over these SAME bytes.
+            // Keep every counter/timestamp/index; do not filter or reindex PCAP.
+            if(delegatedWebRecords?.Contains(record)==true){delegated++;continue;}
             Need(frame.Length is >= 14 and <= 1514, "service_wire_frame_extent");
             if (SocketIgnoredRouterAdvertisement(frame)) continue;
             bool outgoing = MatchNetworkMac(frame[6..], 0x020000000001), incoming = MatchNetworkMac(frame[6..], arp.PeerMac);
@@ -201,12 +208,13 @@ public static partial class QemuTranscripts
             else { flow.RequestExtent = extent; flow.ClientSeen = contiguous; }
             if ((flags & 1) != 0)
             {
-                Need(extent > 0 && relative + payload.Length == extent && contiguous == extent, "service_wire_fin_sequence");
+                Need((extent > 0 || delegatedWebRecords is not null) && relative + payload.Length == extent && contiguous == extent, "service_wire_fin_sequence");
                 if (outgoing) { if (!flow.ServerFin) { flow.ServerFinFirst = !flow.ClientFin; flow.ServerFinRecord = record; } flow.ServerFin = true; }
                 else { if (!flow.ClientFin) flow.ClientFinRecord = record; flow.ClientFin = true; }
             }
         }
         Need(stage == 3 && resolved && resolution == 1 && flows.Count == ports.Count, "service_wire_complete");
+        Need(delegatedWebRecords is null || delegated==delegatedWebRecords.Count && quietSyns==0,"web_race_wire_delegation");
         _ = QemuEthernetCapture.InspectArp(bytes.AsSpan(0, prefixEnd), arp);
         return new(flows, tcpRecords, quietSyns);
     }

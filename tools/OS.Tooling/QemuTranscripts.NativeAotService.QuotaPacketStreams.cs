@@ -42,12 +42,16 @@ public static partial class QemuTranscripts
     /// requirements or new packet exemptions. Positive/default caps are unchanged.</summary>
     public static ServiceQuotaPacketStreams InspectNativeAotServiceQuotaPacketStreamsForTests(byte[] bytes,
         uint anchor, QemuArpReceiveReceipt arp, IReadOnlyList<uint> ports, bool lifecycle = false)
+        =>ReadQuotaPacketStreams(bytes,anchor,arp,ports,lifecycle);
+
+    private static ServiceQuotaPacketStreams ReadQuotaPacketStreams(byte[] bytes,
+        uint anchor,QemuArpReceiveReceipt arp,IReadOnlyList<uint> ports,bool lifecycle,IReadOnlySet<int>? delegatedWebRecords=null)
     {
         List<ServiceWireByteRange> ranges=[];
         var capture=ServiceWirePackets(bytes,anchor,arp,ports,concurrent:true,lifecycle:lifecycle,observe:range=>
         {
             Need(ranges.Count<MaximumServiceWireRanges,"service_wire_range_extent");ranges.Add(range);
-        },quotaStreams:true);
+        },quotaStreams:true,delegatedWebRecords:delegatedWebRecords);
         var grouped=ranges.GroupBy(range=>(range.RemotePort,range.ServerToClient))
             .ToDictionary(group=>group.Key,group=>group.ToArray());
         List<ServiceQuotaPacketStream> streams=[];

@@ -412,6 +412,17 @@ reuse. These host checks establish no packet association or guest acceptance.
 Whole-PCAP handling of ordinary VLAN/withheld ACK controls, concurrent race flows,
 HTTP Date checks, QemuSmoke wiring and fresh native/source/image admission remain.
 
+[Step1511](../done/step1511.md) retains exact ordinary web controls while
+inventorying added concurrent streams from the same whole original PCAP. Two
+explicit passes delegate original record IDs rather than filter or renumber
+capture bytes. The first added SYN follows complete ordinary After bytes and EOF;
+delegation/TCP counts agree, with no unknown quiet SYNs. Original first-byte ranges,
+holes, retransmissions, partial streams and supported reset/empty-FIN facts remain
+copied diagnostics, not cleanup or host/NAT identity. All31 focused checks/six
+fixtures pass unchanged/zero reuse. Unique host-flow assignment, race HTTP Date
+and syscall/role joins, owned QemuSmoke and fresh native/source/image admission
+still precede actual guest acceptance.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

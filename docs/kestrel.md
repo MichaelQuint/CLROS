@@ -249,6 +249,19 @@ the ordinary VLAN/withheld-ACK controls plus concurrent race-flow byte associati
 the service packet parser cannot consume that capture unchanged. QemuSmoke wiring,
 race HTTP Date/packet joins and fresh native/source/ELF/index admission remain open.
 
+[Step1511](../done/step1511.md) consumes the original whole web PCAP with two
+explicit record-owning passes. The strict web reader retains its eight flows,
+literal VLAN, withheld-ACK, HTTP and nine UTC checks. Added declared TCP starts
+only after the complete ordinary healthy After response and EOF. Bounded concurrent
+stream reconstruction reads the same PCAP and delegates only already-validated
+ordinary TCP/VLAN record IDs; counts must agree, with no unknown quiet SYNs.
+Original record numbers, timestamps and first-byte islands remain intact; no
+filtered or renumbered capture is constructed. Service/ordinary defaults remain
+unchanged. All31 focused checks/six fixtures pass unchanged/zero reuse. This is
+a copied packet inventory: unique host-byte/guest-flow association, race HTTP
+Date/syscall/role joins, QemuSmoke wiring and fresh native/source/image admission
+remain required. No native or QEMU run occurred.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
