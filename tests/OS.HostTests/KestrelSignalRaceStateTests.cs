@@ -1,6 +1,67 @@
 internal static class KestrelSignalRaceStateTests
 {
     // Pure copied-state controls: phases/identities grant no signal, wait or guest authority.
+    [HostTest("m10-012 event race status selects exact v3 prefix and isolates the active profile")]
+    private static void ProfileStatus()
+    {
+        foreach (bool eventOwned in new[] { false, true })
+        {
+            var state = new KestrelSignalRaceState();
+            HostCheck.True(state.TryRead(false, out string legacy));
+            HostCheck.True(state.TryRead(true, out string current));
+            HostCheck.Equal("CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0", legacy);
+            HostCheck.Equal("CLROS_SIGNAL_RACE_V3_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0", current);
+            HostCheck.True(state.Begin(50, eventOwned)); var before = state.Inspect();
+            HostCheck.True(!state.TryRead(!eventOwned, out string wrong) && wrong == "");
+            HostCheck.True(!state.Begin(99, !eventOwned)); HostCheck.Equal(before, state.Inspect());
+            HostCheck.True(state.TryRead(eventOwned, out string value));
+            HostCheck.Equal((eventOwned ? "CLROS_SIGNAL_RACE_V3_STATUS" : "CLROS_SIGNAL_RACE_STATUS") +
+                " phase=1 pid=50 waiter=0 actor=0 callback=0 recoveryRequested=0", value);
+            if (!eventOwned) HostCheck.Equal(value, state.Read());
+        }
+    }
+
+    [HostTest("m10-012 event race start and recovery refuse cross-profile releases and remain one-shot")]
+    private static void ProfileGates()
+    {
+        foreach (bool eventOwned in new[] { false, true })
+        {
+            var state = new KestrelSignalRaceState();
+            HostCheck.True(state.Begin(60, eventOwned) && state.Advance(2, waiter: 61, actor: 62));
+            var armed = state.Inspect();
+            HostCheck.True(!state.TryRequestStart(!eventOwned) && !state.StartRequested);
+            if (eventOwned) HostCheck.True(!state.TryRequestStart());
+            HostCheck.Equal(armed, state.Inspect());
+            HostCheck.True(state.TryRequestStart(eventOwned) && state.StartRequested && !state.TryRequestStart(eventOwned));
+            HostCheck.True(state.Advance(4, callback: 62)); var recovery = state.Inspect();
+            HostCheck.True(!state.TryRequestRecovery(!eventOwned));
+            if (eventOwned) HostCheck.True(!state.TryRequestRecovery());
+            HostCheck.Equal(recovery, state.Inspect());
+            HostCheck.True(state.TryRequestRecovery(eventOwned) && !state.TryRequestRecovery(eventOwned));
+            HostCheck.True(state.Advance(6) && state.Finish(true)); var terminal = state.Inspect();
+            HostCheck.True(!state.TryRequestStart(eventOwned) && !state.TryRequestRecovery(eventOwned));
+            HostCheck.True(!state.TryRead(!eventOwned, out string wrong) && wrong == "");
+            HostCheck.Equal(terminal, state.Inspect());
+        }
+    }
+
+    [HostTest("m10-012 concurrent event race requests accept one matching profile and no legacy release")]
+    private static async Task ConcurrentProfileGates()
+    {
+        var state = new KestrelSignalRaceState();
+        HostCheck.True(state.Begin(70, true) && state.Advance(2, waiter: 71, actor: 72));
+        var profiles = Enumerable.Range(0, 32).Select(i => i % 2 == 0).ToArray();
+        bool[] start = await Task.WhenAll(profiles.Select(profile => Task.Run(() => state.TryRequestStart(profile))))
+            .WaitAsync(TimeSpan.FromSeconds(10));
+        HostCheck.Equal(1, start.Count(value => value));
+        HostCheck.True(profiles.Where((profile, i) => start[i]).All(profile => profile));
+        HostCheck.True(state.Advance(4, callback: 72));
+        bool[] recovery = await Task.WhenAll(profiles.Select(profile => Task.Run(() => state.TryRequestRecovery(profile))))
+            .WaitAsync(TimeSpan.FromSeconds(10));
+        HostCheck.Equal(1, recovery.Count(value => value));
+        HostCheck.True(profiles.Where((profile, i) => recovery[i]).All(profile => profile));
+    }
+
     [HostTest("m10-012 signal race start requires both armed identities and accepts only once")]
     private static void StartGates()
     {

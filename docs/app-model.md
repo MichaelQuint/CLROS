@@ -539,6 +539,15 @@ churn/start/recovery. Preserve1036 source/native/producer/guest files and the
 failed result. Expert source/serial diagnosis precedes another correction;
 complete owned race, quota termination and Kestrel acceptance remain incomplete.
 
+[Step1523](../done/step1523.md) adds a separately selected event-owned v3 app
+foundation. Exact `X-CLROS-Signal: v3` selects untimed initial/recovery epoll
+under one120-second operation deadline and separate15-second joined cleanup;
+legacy timed behavior remains. Cross-profile status/start/recovery refuses and
+v3 copied prefixes differ. All19 focused checks and11 actual Windows HTTP
+routing/refusal checks pass. Old prepared admission correctly refuses changed
+app sources. V3 controller/schema/owner/native integration and fresh Linux-native,
+index/admission and actual owned guest evidence remain pending; no gate closes.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

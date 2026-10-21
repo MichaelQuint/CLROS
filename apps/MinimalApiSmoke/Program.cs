@@ -72,31 +72,39 @@ try
     });
     app.MapPost("/__clros/signalrace", async (HttpContext context) =>
     {
-        if (!IsSignalRequest(context))
+        bool eventOwned = IsSignalRequest(context, "v3");
+        if (!eventOwned && !IsSignalRequest(context))
             return TypedResults.Text("CLROS_SIGNAL_RACE_BAD_REQUEST", "text/plain", statusCode: 400);
         if (!KestrelSignalProbeAbi.Supported)
             return TypedResults.Text("CLROS_SIGNAL_RACE_UNSUPPORTED", "text/plain", statusCode: 501);
-        string? result = await signalProbe.RunRaceAsync(context.RequestAborted);
+        string? result = eventOwned ? await signalProbe.RunEventOwnedRaceAsync(context.RequestAborted) :
+            await signalProbe.RunRaceAsync(context.RequestAborted);
         return TypedResults.Text(result ?? "CLROS_SIGNAL_RACE_BUSY", "text/plain", statusCode: result is null ? 409 : 200);
     });
-    app.MapGet("/__clros/signalrace/status", () => TypedResults.Text(signalProbe.ReadRace(), "text/plain"));
+    app.MapGet("/__clros/signalrace/status", (HttpContext context) =>
+    {
+        bool selected = signalProbe.TryReadRace(IsSignalVersion(context, "v3"), out string value);
+        return TypedResults.Text(selected ? value : "CLROS_SIGNAL_RACE_PROTOCOL_REFUSED", "text/plain", statusCode: selected ? 200 : 409);
+    });
     app.MapPost("/__clros/signalrace/start", (HttpContext context) =>
     {
-        if (!IsSignalRequest(context))
+        bool eventOwned = IsSignalRequest(context, "v3");
+        if (!eventOwned && !IsSignalRequest(context))
             return TypedResults.Text("CLROS_SIGNAL_RACE_BAD_REQUEST", "text/plain", statusCode: 400);
         if (!KestrelSignalProbeAbi.Supported)
             return TypedResults.Text("CLROS_SIGNAL_RACE_UNSUPPORTED", "text/plain", statusCode: 501);
-        bool accepted = signalProbe.RequestStart();
+        bool accepted = signalProbe.RequestStart(eventOwned);
         return TypedResults.Text(accepted ? "CLROS_SIGNAL_RACE_START_REQUESTED" : "CLROS_SIGNAL_RACE_START_REFUSED",
             "text/plain", statusCode: accepted ? 200 : 409);
     });
     app.MapPost("/__clros/signalrace/recover", (HttpContext context) =>
     {
-        if (!IsSignalRequest(context))
+        bool eventOwned = IsSignalRequest(context, "v3");
+        if (!eventOwned && !IsSignalRequest(context))
             return TypedResults.Text("CLROS_SIGNAL_RACE_BAD_REQUEST", "text/plain", statusCode: 400);
         if (!KestrelSignalProbeAbi.Supported)
             return TypedResults.Text("CLROS_SIGNAL_RACE_UNSUPPORTED", "text/plain", statusCode: 501);
-        bool accepted = signalProbe.RequestRecovery();
+        bool accepted = signalProbe.RequestRecovery(eventOwned);
         return TypedResults.Text(accepted ? "CLROS_SIGNAL_RACE_RECOVERY_REQUESTED" : "CLROS_SIGNAL_RACE_RECOVERY_REFUSED",
             "text/plain", statusCode: accepted ? 200 : 409);
     });
@@ -110,9 +118,10 @@ catch
     throw;
 }
 
-static bool IsSignalRequest(HttpContext context) => context.Request.ContentLength == 0 &&
-    !context.Request.QueryString.HasValue && context.Request.Headers["X-CLROS-Signal"].Count == 1 &&
-    context.Request.Headers["X-CLROS-Signal"][0] == "v1" && !context.Request.Headers.ContainsKey("Transfer-Encoding");
+static bool IsSignalVersion(HttpContext context, string version) => context.Request.Headers["X-CLROS-Signal"].Count == 1 &&
+    context.Request.Headers["X-CLROS-Signal"][0] == version;
+static bool IsSignalRequest(HttpContext context, string version = "v1") => context.Request.ContentLength == 0 &&
+    !context.Request.QueryString.HasValue && IsSignalVersion(context, version) && !context.Request.Headers.ContainsKey("Transfer-Encoding");
 
 static string GetExpectedBody(IConfiguration configuration)
 {

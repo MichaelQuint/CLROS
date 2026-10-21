@@ -13,14 +13,16 @@ internal sealed class KestrelSignalRaceState
     private readonly object gate = new();
     private Snapshot state;
     private bool startRequested;
+    private bool eventOwned;
 
     // An accepted request releases scheduling intent once; it is not evidence
     // that the waiter entered epoll or that the actor has run.
-    internal bool TryRequestStart()
+    internal bool TryRequestStart() => TryRequestStart(false);
+    internal bool TryRequestStart(bool owned)
     {
         lock (gate)
         {
-            if (state.Phase != InitialArmed || state.Waiter <= 0 || state.Actor <= 0 || startRequested)
+            if (owned != eventOwned || state.Phase != InitialArmed || state.Waiter <= 0 || state.Actor <= 0 || startRequested)
                 return false;
             startRequested = true; return true;
         }
@@ -28,11 +30,13 @@ internal sealed class KestrelSignalRaceState
 
     internal bool StartRequested { get { lock (gate) return startRequested; } }
 
-    internal bool Begin(int positivePid)
+    internal bool Begin(int positivePid) => Begin(positivePid, false);
+    internal bool Begin(int positivePid, bool owned)
     {
         lock (gate)
         {
             if (positivePid <= 0 || state.Phase != Idle) return false;
+            eventOwned = owned;
             state = new(Starting, positivePid, 0, 0, 0, false); return true;
         }
     }
@@ -54,11 +58,12 @@ internal sealed class KestrelSignalRaceState
         }
     }
 
-    internal bool TryRequestRecovery()
+    internal bool TryRequestRecovery() => TryRequestRecovery(false);
+    internal bool TryRequestRecovery(bool owned)
     {
         lock (gate)
         {
-            if (state.Phase != RecoveryArmed || state.RecoveryRequested) return false;
+            if (owned != eventOwned || state.Phase != RecoveryArmed || state.RecoveryRequested) return false;
             state = state with { RecoveryRequested = true }; return true;
         }
     }
@@ -75,9 +80,24 @@ internal sealed class KestrelSignalRaceState
     internal Snapshot Inspect() { lock (gate) return state; }
     internal string Read()
     {
-        Snapshot value = Inspect();
+        return Format(Inspect(), false);
+    }
+    // Idle has no selected contract. Once admitted, a different header cannot
+    // relabel the live operation's copied status or release either native wait.
+    internal bool TryRead(bool owned, out string value)
+    {
+        lock (gate)
+        {
+            value = string.Empty;
+            if (state.Phase != Idle && owned != eventOwned) return false;
+            value = Format(state, owned); return true;
+        }
+    }
+    private static string Format(Snapshot value, bool owned)
+    {
+        string prefix = owned ? "CLROS_SIGNAL_RACE_V3_STATUS" : "CLROS_SIGNAL_RACE_STATUS";
         return string.Create(CultureInfo.InvariantCulture,
-            $"CLROS_SIGNAL_RACE_STATUS phase={value.Phase} pid={value.Process} waiter={value.Waiter} actor={value.Actor} callback={value.Callback} recoveryRequested={(value.RecoveryRequested ? 1 : 0)}");
+            $"{prefix} phase={value.Phase} pid={value.Process} waiter={value.Waiter} actor={value.Actor} callback={value.Callback} recoveryRequested={(value.RecoveryRequested ? 1 : 0)}");
     }
     private static bool Identity(int current, int supplied) => supplied >= 0 && (supplied == 0 || current == 0 || supplied == current);
 }

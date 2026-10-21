@@ -405,6 +405,15 @@ churn/start/recovery is requested. Exact native/source/packet/report originals
 are saved and QEMU stops. Expert diagnosis is required before the next scoped
 correction; no complete owned race or quota/Kestrel acceptance follows.
 
+[Step1523](../done/step1523.md) implements explicit-header event-owned v3 in the
+app, preserving the old timed diagnostic. Its exact-1 epoll waits are owned by
+one120-second operation cancellation and separate15-second cleanup grace, with
+joined worker retirement before fd disposal. Nineteen focused checks and11
+Windows HTTP dispatch/refusal checks pass; native signal behavior is unrun.
+Old prepared source admission still refuses changed app bytes. Versioned v3
+controller/native/runner budgets and fresh qualification precede another guest;
+no legacy failure is reinterpreted or accepted.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
