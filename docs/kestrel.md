@@ -180,6 +180,20 @@ integration additionally needs owned all-attempt exchange association and an
 explicit packet contract; selected HTTP samples alone cannot identify repeated
 wire exchanges or turn host cancellation into an HTTP response.
 
+[Step1506](../done/step1506.md) corrects the cleanup6/failed8 diagnostic while
+retaining strict acknowledged/success roles and explicit missed-gate rejection.
+Every logical HTTP call now survives in a fresh `.attempts.json` companion,
+including unselected/rejected polls, bounded raw partial bodies, terminal faults
+and cancellations. Selected v1 rows link to their logical request IDs; the churn
+cancellation remains a host event. Header receipt ends pending overlap even if
+the body stalls, and joining another failed request preserves the primary error.
+The strict copied inspector checks terminal outcomes, bytes, logical order and
+poll windows. New explicit race qualification writes v6 and requires the
+companion; historical v4/v5 validation remains supported. The small build and23
+focused checks across five fixtures pass with unchanged inputs/zero reuse.
+These are host fake-handler/copied-value controls. No native rerun, successful
+race witness, real connection/exchange association or guest admission follows.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

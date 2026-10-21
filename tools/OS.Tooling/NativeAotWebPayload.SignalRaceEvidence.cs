@@ -72,13 +72,17 @@ public static partial class NativeAotWebPayload
     private static ulong[] ReadRaceStatus(string text)
     {
         var value=RaceFields(text,"CLROS_SIGNAL_RACE_STATUS ",RaceStatusKeys);
-        RaceNeed(value[0]<=7&&value[5]<=1&&value.Skip(1).Take(4).All(n=>n<=int.MaxValue),"status_range");
+        RaceNeed(value[0]<=8&&value[5]<=1&&value.Skip(1).Take(4).All(n=>n<=int.MaxValue),"status_range");
         if(value[0]==0)RaceNeed(value.All(n=>n==0),"idle");
         else
         {
             RaceNeed(value[1]>0,"pid");
-            if(value[0]>=2)RaceNeed(value[2]>0&&value[3]>0&&value[2]!=value[3],"status_threads");
-            if(value[0]>=3)RaceNeed(value[4]>0&&value[4]!=value[2],"status_callback");
+            // Cleanup/failure may skip milestones and preserve unknown IDs.
+            // Known IDs still cannot alias the waiter; only acknowledged or
+            // successful phases require all identities to have been latched.
+            bool live=value[0] is >=2 and <=5 or 7,acknowledged=value[0] is >=3 and <=5 or 7;
+            RaceNeed((!live||value[2]>0&&value[3]>0)&&(value[2]==0||value[2]!=value[3]),"status_threads");
+            RaceNeed((!acknowledged||value[4]>0)&&(value[2]==0||value[2]!=value[4]),"status_callback");
             RaceNeed(value[5]==0||value[0]>=4,"status_request");
         }
         return value;

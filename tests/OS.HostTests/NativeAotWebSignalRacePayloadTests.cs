@@ -13,10 +13,10 @@ internal static class NativeAotWebSignalRacePayloadTests
     private const string Success="CLROS_SIGNAL_RACE_OK signal=12 pid=43 actor=8 waiter=7 callback=9 callbacks=1 actorJoined=1 waiterJoined=1 consumed=90 recovery=107 recoveryWriter=9 initialValue=-1 initialErrno=4 recoveryValue=1 recoveryEvents=1 recoveryTag=344978309701 handler=4096 flags=335544324 restorer=8192 actionMask=0 originalHandler=0 originalFlags=0 originalRestorer=0 originalActionMask=0 maskBefore=2048 maskDuring=0 maskAfter=2048 altAddress=0 altFlags=2 altBytes=0 descriptorsClosed=3 actionRestored=1 altUnchanged=1";
     private sealed class Peer : HttpMessageHandler
     {
-        internal bool RefuseRace,CompleteEarly,ChurnCanceled,RaceCanceled,StaleProgress;
+        internal bool RefuseRace,CompleteEarly,ChurnCanceled,RaceCanceled,StaleProgress,UnselectedPolls;
         internal Action? CancelOnArm,CancelAfterStale;
         private bool raceStarted,recovered,complete;
-        private int churnStarted,overlapPolls;
+        private int churnStarted,overlapPolls,pendingPolls,racePolls;
         private readonly TaskCompletionSource<HttpResponseMessage> churn=new(TaskCreationOptions.RunContinuationsAsynchronously),race=new(TaskCreationOptions.RunContinuationsAsynchronously);
         private static HttpResponseMessage Reply(string body,int status=200)=>new((HttpStatusCode)status){Content=new StringContent(body,Encoding.UTF8,"text/plain")};
         private string Status()
@@ -33,6 +33,8 @@ internal static class NativeAotWebSignalRacePayloadTests
                 if(path=="/__clros/churn/status")
                 {
                     if(raceStarted&&StaleProgress&&++overlapPolls==3){CancelAfterStale?.Invoke();token.ThrowIfCancellationRequested();}
+                    if(UnselectedPolls&&churnStarted==1&&!raceStarted&&pendingPolls++==0)
+                        return Task.FromResult(Reply(Status().Replace("timers=1 workers=1 collections=1","timers=0 workers=0 collections=0",StringComparison.Ordinal)));
                     return Task.FromResult(Reply(Status()));
                 }
                 if(path=="/__clros/signalrace/status")
@@ -44,6 +46,7 @@ internal static class NativeAotWebSignalRacePayloadTests
                     }
                     string body=raceStarted?$"CLROS_SIGNAL_RACE_STATUS phase={(recovered?7:4)} pid=43 waiter=7 actor=8 callback=9 recoveryRequested={(recovered?1:0)}":
                         "CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0";
+                    if(UnselectedPolls&&raceStarted&&racePolls++==0)body="CLROS_SIGNAL_RACE_STATUS phase=2 pid=43 waiter=7 actor=8 callback=0 recoveryRequested=0";
                     return Task.FromResult(Reply(body));
                 }
             }
@@ -83,11 +86,63 @@ internal static class NativeAotWebSignalRacePayloadTests
     [HostTest("web race HTTP controller joins cancellation recovery and repeat refusals with exact copied roles")]
     private static async Task CompleteCapture()
     {
-        var peer=new Peer();string path=Output(),json=await Capture(peer,path);
+        var peer=new Peer{UnselectedPolls=true};string path=Output(),json=await Capture(peer,path);
         HostCheck.Equal(json,File.ReadAllText(path));HostCheck.True(peer.ChurnCanceled);
         var selection=NativeAotWebPayload.ValidateSignalRaceEvidence(json,Endpoint,Health);
         HostCheck.Equal(new QemuTranscripts.WebSignalRaceSelection(43,7,8,9,9),selection);
         using var report=JsonDocument.Parse(json);HostCheck.Equal(19,report.RootElement.GetProperty("samples").GetArrayLength());
+        var ledger=NativeAotWebPayload.InspectSignalRaceAttempts(File.ReadAllText(path+".attempts.json"),json,Endpoint,Health);
+        HostCheck.Equal(new NativeAotWebPayload.SignalRaceAttemptSummary(21,20,1,0,true),ledger);
+        using var log=JsonDocument.Parse(File.ReadAllText(path+".attempts.json"));var rows=log.RootElement.GetProperty("attempts");
+        HostCheck.True(rows.EnumerateArray().Any(row=>row.GetProperty("path").GetString()=="/__clros/signalrace/status"&&
+            Encoding.UTF8.GetString(Convert.FromBase64String(row.GetProperty("bodyBase64").GetString()!)).Contains("phase=2",StringComparison.Ordinal)));
+        var cancel=log.RootElement.GetProperty("selections")[7];HostCheck.Equal(0,cancel.GetProperty("attempt").GetInt32());
+        HostCheck.Equal("cancelled",rows[cancel.GetProperty("related").GetInt32()-1].GetProperty("outcome").GetString());
+    }
+
+    [HostTest("web race attempt copies reject broken terminal identities bytes and selected response links")]
+    private static async Task AttemptRefusals()
+    {
+        string path=Output(),selected=await Capture(new Peer(),path),json=File.ReadAllText(path+".attempts.json");
+        foreach(Action<JsonObject> corrupt in new Action<JsonObject>[]
+        {
+            o=>o["schema"]="clros.web.signalrace.attempts.v2",o=>o["endpoint"]="http://localhost:23456",o=>o["extra"]=true,
+            o=>o["semanticComplete"]=false,o=>o["failure"]="false success",o=>o["attempts"]![0]!["id"]=2,
+            o=>o["attempts"]![0]!["completion"]=o["attempts"]![1]!["completion"]!.DeepClone(),
+            o=>o["attempts"]![0]!["outcome"]="pending",o=>o["attempts"]![0]!["headers"]=false,
+            o=>o["attempts"]![0]!["mediaType"]="application/json",o=>o["attempts"]![0]!["mediaTypeComplete"]=false,
+            o=>o["attempts"]![0]!["bodyComplete"]=false,o=>o["attempts"]![0]!["bodyBase64"]="wK8=",
+            o=>o["attempts"]![0]!["bodyBase64"]="QQ==\n",o=>o["attempts"]![0]!["bodyBase64"]="!!!!",
+            o=>o["attempts"]![0]!["status"]=201,o=>o["attempts"]![0]!["error"]="unexpected",
+            o=>o["attempts"]![0]!["path"]="/unowned",o=>o["attempts"]![0]!["method"]="PUT",
+            o=>o["selections"]!.AsArray().RemoveAt(0),o=>o["selections"]![0]!["attempt"]=2,
+            o=>o["selections"]![0]!["related"]=1,o=>o["selections"]![7]!["attempt"]=4,
+            o=>o["selections"]![7]!["related"]=1,o=>o["selections"]![0]!["sample"]=1
+        })
+        {var value=JsonNode.Parse(json)!.AsObject();corrupt(value);Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(value.ToJsonString(),selected,Endpoint,Health));}
+        Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(json.Replace("\"schema\":","\"schema\":\"duplicate\",\"schema\":",StringComparison.Ordinal),selected,Endpoint,Health));
+        var reordered=JsonNode.Parse(json)!.AsObject();var first=reordered["attempts"]![0]!["completion"]!.DeepClone();
+        reordered["attempts"]![0]!["completion"]=reordered["attempts"]![2]!["completion"]!.DeepClone();reordered["attempts"]![2]!["completion"]=first;
+        Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(reordered.ToJsonString(),selected,Endpoint,Health));
+        var incomplete=JsonNode.Parse(json)!.AsObject();incomplete["semanticComplete"]=false;incomplete["failure"]="copied_failure";
+        HostCheck.True(!NativeAotWebPayload.InspectSignalRaceAttempts(incomplete.ToJsonString(),selected,Endpoint,Health).SemanticComplete);
+        foreach(string outcome in new[]{"faulted","cancelled","response"})
+        {
+            var extra=JsonNode.Parse(json)!.AsObject();var rows=extra["attempts"]!.AsArray();var row=rows[0]!.DeepClone();
+            row["id"]=rows.Count+1;row["completion"]=rows.Count+1;row["method"]="POST";row["path"]="/__clros/signalrace";row["outcome"]=outcome;
+            row["error"]=outcome=="cancelled"?"cancelled":outcome=="faulted"?"IOException":"";rows.Add(row);
+            Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(extra.ToJsonString(),selected,Endpoint,Health));
+            extra["semanticComplete"]=false;extra["failure"]="copied_failure";
+            HostCheck.True(!NativeAotWebPayload.InspectSignalRaceAttempts(extra.ToJsonString(),selected,Endpoint,Health).SemanticComplete);
+        }
+        foreach(string route in new[]{"/__clros/churn/status","/__clros/signalrace/status"})
+        {
+            var trailing=JsonNode.Parse(json)!.AsObject();var rows=trailing["attempts"]!.AsArray();
+            var row=rows.First(r=>r!["path"]!.GetValue<string>()==route)!.DeepClone();row["id"]=rows.Count+1;row["completion"]=rows.Count+1;rows.Add(row);
+            Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(trailing.ToJsonString(),selected,Endpoint,Health));
+            trailing["semanticComplete"]=false;trailing["failure"]="copied_failure";
+            HostCheck.True(!NativeAotWebPayload.InspectSignalRaceAttempts(trailing.ToJsonString(),selected,Endpoint,Health).SemanticComplete);
+        }
     }
 
     [HostTest("web race copied evidence rejects reordered omitted malformed and mismatched role observations")]

@@ -359,6 +359,17 @@ The failure stays failed; no new ELF/index admission or guest acceptance is made
 The guest path still needs owned exchange IDs for all attempts and a separate
 packet contract before selected roles can join the original-order projection.
 
+[Step1506](../done/step1506.md) fixes cleanup/failed status diagnostics and keeps
+every logical HTTP attempt in a bounded raw-byte companion, including rejected
+polls, partial reads, cancellation and faults. Selected v1 responses retain
+exact logical links; the host cancellation event links the original pending
+churn call. Strict inspection checks joined terminal tasks, logical ordering,
+allowed poll windows and the complete selected contract. New explicit race
+receipts use v6; v4/v5 retain their original validation paths. All23 focused
+checks across five fixtures pass with unchanged inputs and zero reuse. This
+does not identify actual wire connections/exchanges or prove native/guest
+execution. The original native failure remains failed and is not rerun here.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

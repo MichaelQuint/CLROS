@@ -76,7 +76,7 @@ public static partial class NativeAotWebPayload
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt(signalRace?"clros.nativeaot.web.v5":"clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt(signalRace?"clros.nativeaot.web.v6":"clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -102,7 +102,7 @@ public static partial class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -141,11 +141,11 @@ public static partial class NativeAotWebPayload
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
         foreach (string suffix in new[] { "", "-default" })
         { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); ValidateRecordedChurn(destination,suffix); }
-        if(receipt.Schema=="clros.nativeaot.web.v5")
+        if(receipt.Schema is "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6")
         {
             ValidateHttpEvidence(File.ReadAllText(Path.Combine(destination,"web-http-signalrace.json")),DefaultWebBody);
             ValidateHttpTraces(destination,"WebMinimalApiSmoke-signalrace-trace");
-            ValidateRecordedLogging(destination,"-signalrace");ValidateRecordedVectors(destination,"-signalrace");ValidateRecordedSignalRace(destination);
+            ValidateRecordedLogging(destination,"-signalrace");ValidateRecordedVectors(destination,"-signalrace");ValidateRecordedSignalRace(destination,receipt.Schema=="clros.nativeaot.web.v6");
         }
     }
 
