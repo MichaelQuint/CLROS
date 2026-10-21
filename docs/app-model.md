@@ -463,6 +463,17 @@ native/guest execution, callback code identity or actual GC/ThreadPool/offender
 cleanup. Owned QemuSmoke composition and fresh exact native/source/image joins
 remain next; #737/#225/#748 stay open.
 
+[Step1515](../done/step1515.md) adds default-off `--web-signal-race` to QemuSmoke.
+Only the actual web profile can select it. A dedicated runner calls the private
+owned producer; eight original outputs remain held, distinct from the exact four
+pre-run package/index/image/EFI inputs, through complete replay, whole-PCAP,
+HTTP-role, Date and final source/native checks. Stale or aliased reports refuse
+before input access. All11 focused checks/two fixtures pass unchanged/zero reuse;
+copied dry-run commands and owner failure checks grant no successful native/guest
+execution. Existing old source/ELF/index admission stays closed. The expert's
+separate one-shot phase2 start/native scheduling proposal is unapplied; explicit
+versioned controller/role integration and actual execution still follow.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

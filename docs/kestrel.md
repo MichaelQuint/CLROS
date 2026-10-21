@@ -309,6 +309,21 @@ complete-model replay prove no original native/guest or GC/ThreadPool cleanup.
 Owned QemuSmoke integration and fresh exact native/source/image admission remain
 next. No native or QEMU run occurred; the original native failure remains failed.
 
+[Step1515](../done/step1515.md) composes those consumers behind explicit,
+default-off `--web-signal-race` in QemuSmoke. Ordinary web remains unchanged.
+The dedicated launch uses the private creator-owned race completion, one forward
+port and a fresh rendezvous. Eight distinct original outputs stay held against
+the exact four pre-run package/index/image/EFI records through complete replay,
+whole-PCAP ordinary/added reconstruction, HTTP roles, Date and final source/native
+checks. Existing deadlines and old source/ELF/index admission remain unchanged.
+All11 focused checks/two fixtures pass unchanged/zero reuse; these cover command
+construction, prelaunch refusal and existing owner failure ownership. No positive
+owned guest run or native race was executed. The expert's separate proposal adds
+a one-shot phase2 start gate and controlled Linux-host scheduling, with a versioned
+race-first controller; it remains unapplied here. Original206-file failure stays
+failed. That execution repair, fresh admission and actual guest evidence remain
+required before any race acceptance.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
