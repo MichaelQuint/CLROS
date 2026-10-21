@@ -449,6 +449,20 @@ complete-model replay remain distinct from original native/guest evidence. Actor
 role/HTTP ordering, owned QemuSmoke and fresh exact native/source/image admission
 remain next; no acceptance issue closes.
 
+[Step1514](../done/step1514.md) binds all19 selected HTTP/body roles to original
+socket CALL intervals from the complete replay, recomputing strict raw-byte
+assignment and temporal coverage. A host-cancelled churn exchange requires a
+unique complete consumed request, even with an unknown host-write tail, and no
+response is fabricated. Original-row edges connect actor read/resume/callback,
+recovery park/request/writer/read and three cleanup closes to their HTTP roles.
+An armed reply does not require prior sigreturn. Recovery replies may precede
+the writer, as the positive complete-model test demonstrates; race reply before
+repeat is allowed but untested. All27 focused checks/six fixtures pass unchanged
+with zero reuse. Copied inputs and complete-model observations do not establish
+native/guest execution, callback code identity or actual GC/ThreadPool/offender
+cleanup. Owned QemuSmoke composition and fresh exact native/source/image joins
+remain next; #737/#225/#748 stay open.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

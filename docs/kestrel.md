@@ -293,6 +293,22 @@ and independent Date/temporal controls. No EFI/kernel or quota grammar changed.
 HTTP/replay actor roles, owned QemuSmoke and fresh exact native/source/image joins
 still precede guest acceptance; the original native failure remains failed.
 
+[Step1514](../done/step1514.md) joins all19 selected HTTP/body roles to the
+complete replay's original socket CALLs and actor/recovery order. It recomputes
+strict byte assignment and temporal coverage from raw inputs and the replay's
+immutable projection. Host cancellation remains metadata: a separate unique,
+fully consumed churn request is required, including an unknown host-write tail,
+without inventing a response. Original-row edges require actor read/resume/
+callback before armed response, actual recovery wait before overlap consumption,
+the recovery request before its native writer, and recovery read/three closes
+before the race response. Recovery replies may precede the writer; independent
+race/repeat replies have no imposed order. All27 focused checks/six fixtures pass
+unchanged/zero reuse. The complete-model positive exercises replies before the
+writer; race reply before repeat remains allowed but untested. Copied bytes and
+complete-model replay prove no original native/guest or GC/ThreadPool cleanup.
+Owned QemuSmoke integration and fresh exact native/source/image admission remain
+next. No native or QEMU run occurred; the original native failure remains failed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
