@@ -45,7 +45,8 @@ internal static class NativeAotWebSignalRaceRoleTests
         private bool startReplyPending;
         private Flow control=null!,churn=null!,race=null!;
         internal Fixture(bool unknownCancel=false,bool earlyOverlap=false,bool beforeCleanup=false,bool peekCancel=false,
-            bool startGate=false,bool earlyStart=false,bool lateStartConsumption=false,bool eventOwned=false,bool badSignal=false)
+            bool startGate=false,bool earlyStart=false,bool lateStartConsumption=false,bool eventOwned=false,bool badSignal=false,
+            bool lateActor=false,bool lateWaiter=false,bool extraCancelSignal=false)
         {
             startGate|=eventOwned;this.startGate=startGate;this.eventOwned=eventOwned;this.badSignal=badSignal;
             void Phase(NativeAotThreadingTranscriptTests.Vector v,string phase)
@@ -65,7 +66,7 @@ internal static class NativeAotWebSignalRaceRoleTests
                         // A phase2 response may precede the actual native wait.
                         Http(v,control,"initial-armed","/__clros/signalrace/status",Status(2));
                     }
-                    churnId=Pending(v,churn,"/__clros/churn",unknownCancel,peekCancel);
+                    churnId=Pending(v,churn,"/__clros/churn",unknownCancel,peekCancel,extraCancelSignal);
                     Http(v,control,"churn-pending","/__clros/churn/status",Churn(1,0,0,1,1));
                     if(!startGate)raceId=Pending(v,race,"/__clros/signalrace",false);
                     if(startGate&&earlyStart)StartRequest(v);
@@ -112,10 +113,13 @@ internal static class NativeAotWebSignalRaceRoleTests
                     Http(v,control,"repeat-probe","/__clros/signalprobe","CLROS_SIGNAL_PROBE_BUSY","POST",409);
                 }
             }
-            Replay=NativeAotWebSignalRaceTests.Run(controls:true,phase:Phase,pipeBase:10,eventOwned:eventOwned);
+            Replay=NativeAotWebSignalRaceTests.Run(controls:true,phase:Phase,pipeBase:10,eventOwned:eventOwned,lateActor:lateActor,lateWaiter:lateWaiter);
         }
         private string Body(string value)=>eventOwned?value.Replace("CLROS_SIGNAL_RACE_STATUS","CLROS_SIGNAL_RACE_V3_STATUS",StringComparison.Ordinal)
-            .Replace("CLROS_SIGNAL_RACE_OK","CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal):value;
+            .Replace("CLROS_SIGNAL_RACE_OK","CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal)
+            .Replace("actor=3 waiter=1","actor=4 waiter=3",StringComparison.Ordinal)
+            .Replace("waiter=1 actor=3","waiter=3 actor=4",StringComparison.Ordinal)
+            .Replace("recoveryWriter=2","recoveryWriter=1",StringComparison.Ordinal):value;
         private string RequestBytes(string path,string method)
         {
             string value=Request(path,method,eventOwned);
@@ -146,9 +150,12 @@ internal static class NativeAotWebSignalRaceRoleTests
             int id=Host.Add(flow.Connection,path,body,response,method,status:status,rawRequest:request);Host.Completions[id]=++completed;
             Native(v,flow,false,request);Native(v,flow,true,response);Host.Select(kind,id);
         }
-        private int Pending(NativeAotThreadingTranscriptTests.Vector v,Flow flow,string path,bool unknown,bool peek=false)
+        private int Pending(NativeAotThreadingTranscriptTests.Vector v,Flow flow,string path,bool unknown,bool peek=false,bool extraSignal=false)
         {
-            int id=Host.Exchanges.Count+1;string request=RequestBytes(path,"POST");Host.Op(flow.Connection,"write",id,request,unknown?"failed":"complete");
+            int id=Host.Exchanges.Count+1;string request=RequestBytes(path,"POST");
+            if(eventOwned&&flow==churn)request=request.Replace("X-CLROS-Churn: v1","X-CLROS-Churn: v2",StringComparison.Ordinal);
+            if(extraSignal)request=request.Replace("\r\n\r\n","\r\nX-CLROS-Signal: v3\r\n\r\n",StringComparison.Ordinal);
+            Host.Op(flow.Connection,"write",id,request,unknown?"failed":"complete");
             Host.Exchanges.Add(new(id,flow==churn?"churn":"race","POST",path,Host.Operations[^1].StartedTicks-1,9999,"cancelled",0,"",new[]{flow.Connection}));
             Native(v,flow,false,request,peek);return id;
         }
@@ -166,10 +173,12 @@ internal static class NativeAotWebSignalRaceRoleTests
             var value=JsonNode.Parse(Host.Attempts())!.AsObject();
             value["schema"]=eventOwned?"clros.web.signalrace.attempts.v3":startGate?"clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1";
             value["semanticComplete"]=true;value["failure"]="";
+            int churnPosts=0;
             if(eventOwned)foreach(var row in value["attempts"]!.AsArray())
             {
                 var attempt=row!.AsObject();string path=attempt["path"]!.GetValue<string>(),method=attempt["method"]!.GetValue<string>();
                 attempt["signalVersion"]=path.StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":method=="POST"&&path=="/__clros/signalprobe"?"v1":"";
+                attempt["churnVersion"]=method=="POST"&&path=="/__clros/churn"?(++churnPosts==1?"v2":"v1"):"";
             }
             return value.ToJsonString();
         }
@@ -252,14 +261,26 @@ internal static class NativeAotWebSignalRaceRoleTests
         {
             var fixture=new Fixture(eventOwned:true,unknownCancel:unknown);var report=fixture.Read();
             HostCheck.True(fixture.Replay.EventOwned&&report.Samples.Count==21&&report.Temporal.Intervals.Count==40);
+            HostCheck.True(fixture.Replay.Waiter.Tid==3&&fixture.Replay.Actor.Tid==4&&fixture.Replay.RecoveryWriter.Tid==1&&
+                fixture.Replay.Callback.ReapRecordIndex is null&&fixture.Replay.RecoveryWriter.ReapRecordIndex is null);
+            HostCheck.True(fixture.Replay.SocketCalls.All(c=>c.Identity!=fixture.Replay.Actor.Identity&&c.Identity!=fixture.Replay.Waiter.Identity));
             HostCheck.True(report.Selection==fixture.Replay.Selection&&report.Order.All(o=>o.BeforeRecordIndex<o.AfterRecordIndex));
+            HostCheck.True(report.Order.Any(o=>o.Relation=="actor_reap_before_final_health")&&report.Order.Any(o=>o.Relation=="waiter_reap_before_final_health"));
             var cancel=report.Samples.Single(s=>s.HostCancellation);
             HostCheck.True(cancel.Kind=="churn-cancel"&&cancel.Response is null&&cancel.Request.Packet.Kind=="cancel-request");
             var http=report.Streams.Host;
             HostCheck.True(http.Samples.Count==21&&http.Messages.Any(m=>m.Request.First=="GET /__clros/signalrace/status HTTP/1.1"));
             string selected=fixture.Selected(),attempts=fixture.Attempts();
-            HostCheck.True(selected.Contains("CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal)&&attempts.Contains("\"signalVersion\":\"v3\"",StringComparison.Ordinal));
+            HostCheck.True(selected.Contains("CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal)&&attempts.Contains("\"signalVersion\":\"v3\"",StringComparison.Ordinal)&&
+                attempts.Contains("\"churnVersion\":\"v2\"",StringComparison.Ordinal));
         }
+    }
+
+    [HostTest("web event-owned final healthy response requires dedicated native tails reaped without retiring framework or request owners")]
+    private static void DedicatedTailOrder()
+    {
+        Reject(()=>new Fixture(eventOwned:true,lateActor:true).Read(),"web_race_roles_order_actor_reap_before_final_health");
+        Reject(()=>new Fixture(eventOwned:true,lateWaiter:true).Read(),"web_race_roles_order_waiter_reap_before_final_health");
     }
 
     [HostTest("web event-owned roles refuse profile substitution selector drift and premature native phase claims")]
@@ -272,6 +293,7 @@ internal static class NativeAotWebSignalRaceRoleTests
             Reject(()=>Q.InspectNativeAotWebSignalRaceRolesForTests(legacy.Wire(),legacy.Attempts(),legacy.Selected(),Endpoint,Health,legacy.Guest(),current.Replay),
                 "web_race_roles_profile");
         Reject(()=>new Fixture(eventOwned:true,badSignal:true).Read(),"web_race_http_request_signal");
+        Reject(()=>new Fixture(eventOwned:true,unknownCancel:true,extraCancelSignal:true).Read(),"web_race_roles_cancel_request");
         Reject(()=>new Fixture(eventOwned:true,earlyStart:true).Read(),"web_race_roles_order_initial_wait_before_start_request");
         Reject(()=>new Fixture(eventOwned:true,lateStartConsumption:true).Read(),"web_race_roles_order_start_request_before_actor_write");
         Reject(()=>new Fixture(eventOwned:true,earlyOverlap:true).Read(),"web_race_roles_order_actor_read_before_armed");

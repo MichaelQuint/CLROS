@@ -40,7 +40,10 @@ public static partial class QemuTranscripts
     /// acceptance remain separate; phase4 alone supplies no blocked-wait proof.
     /// Selected v3 requires the explicit event-owned replay profile; historical
     /// v1/v2 require the legacy profile. Copied selectors cannot switch an
-    /// already checked replay report's mode or supply original authority.</summary>
+    /// already checked replay report's mode or supply original authority. For
+    /// v3, both dedicated probe threads must be natively reaped before the
+    /// first accepted-send CALL of the final healthy response; framework-owned
+    /// callback and request threads may remain live.</summary>
     public static WebSignalRaceRoleInspection InspectNativeAotWebSignalRaceRolesForTests(ReadOnlySpan<byte> wireJson,
         string attemptsJson,string selectedJson,string endpoint,string expectedHealthBody,ServiceQuotaPacketStreams guest,
         WebSignalRaceReport replay)
@@ -71,7 +74,7 @@ public static partial class QemuTranscripts
             {
                 Need(kind=="churn-cancel" && sample.MessageIndex==-1,"web_race_roles_cancellation");
                 samples.Add(new(sample.Sample,kind,sample.ExchangeId,true,
-                    WebRaceCancelledRequest(joined,trace,replay.SocketCalls,sample.ExchangeId),null));
+                    WebRaceCancelledRequest(joined,trace,replay.SocketCalls,sample.ExchangeId,eventOwned),null));
                 continue;
             }
             Need(sample.MessageIndex>=0 && sample.MessageIndex<joined.Host.Messages.Count,"web_race_roles_samples");
@@ -134,12 +137,19 @@ public static partial class QemuTranscripts
         Serial("recovery-repeat","race-final");Serial("race-complete","race-final");
         Serial("race-final","health-after");Serial("health-after","churn-complete");
         Serial("churn-complete","final-churn");Serial("final-churn","health-final");
+        if(eventOwned)
+        {
+            Need(replay.Actor.ReapRecordIndex is not null && replay.Waiter.ReapRecordIndex is not null,
+                "web_race_thread_lifetime");
+            Before("actor_reap_before_final_health",replay.Actor.ReapRecordIndex!.Value,ResponseFirst("health-final"));
+            Before("waiter_reap_before_final_health",replay.Waiter.ReapRecordIndex!.Value,ResponseFirst("health-final"));
+        }
         Serial("health-final","repeat-race");Serial("repeat-race","repeat-probe");
         return new(joined,temporal,selection with{},Array.AsReadOnly(samples.ToArray()),Array.AsReadOnly(order.ToArray()));
     }
 
     private static WebSignalRaceHttpSyscallInterval WebRaceCancelledRequest(WebSignalRaceStreamJoinInspection joined,
-        NativeAotServiceQuotaPeer.WireTrace trace,IReadOnlyList<WebSignalRaceSocketCall> calls,int exchangeId)
+        NativeAotServiceQuotaPeer.WireTrace trace,IReadOnlyList<WebSignalRaceSocketCall> calls,int exchangeId,bool eventOwned)
     {
         Need(exchangeId>0 && exchangeId<=trace.Exchanges.Count,"web_race_roles_cancellation");
         var exchange=trace.Exchanges[exchangeId-1];
@@ -164,7 +174,8 @@ public static partial class QemuTranscripts
             {
                 if(message.State!="complete" || message.First!="POST /__clros/churn HTTP/1.1" || message.Framing!="length" ||
                     message.DeclaredLength!=0 || message.Headers.GetValueOrDefault("Host")!="127.0.0.1:"+trace.Port.ToString(CultureInfo.InvariantCulture) ||
-                    message.Headers.GetValueOrDefault("X-CLROS-Churn")!="v1" || message.Headers.ContainsKey("Connection"))continue;
+                    message.Headers.GetValueOrDefault("X-CLROS-Churn")!=(eventOwned?"v2":"v1") || message.Headers.ContainsKey("Connection") ||
+                    eventOwned&&message.Headers.ContainsKey("X-CLROS-Signal"))continue;
                 bool owns=known.TryGetValue(message.Start,out var prefix)?
                     message.End<=host.Writes.KnownBytes?prefix.Request.End==message.End:ownUnknown:
                     ownUnknown && message.Start==unknown!.Offset;

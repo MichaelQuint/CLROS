@@ -65,7 +65,8 @@ public static partial class QemuTranscripts
                         string? signal=request.Headers.GetValueOrDefault("X-CLROS-Signal");
                         Need(expected.Length==0?signal is null:signal==expected,"web_race_http_request_signal");
                         string? churn=request.Headers.GetValueOrDefault("X-CLROS-Churn");
-                        Need(exchange.Method=="POST"&&exchange.Path=="/__clros/churn"?churn=="v1":churn is null,"web_race_http_request_churn");
+                        string expectedChurn=attempts[exchangeId-1].GetProperty("churnVersion").GetString()!;
+                        Need(expectedChurn.Length==0?churn is null:churn==expectedChurn,"web_race_http_request_churn");
                     }
                     else if(exchange.Method=="POST")Need(request.Headers.GetValueOrDefault(exchange.Path=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal")=="v1","web_race_http_request_header");
                 }

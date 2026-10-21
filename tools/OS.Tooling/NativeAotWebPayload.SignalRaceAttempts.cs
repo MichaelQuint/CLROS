@@ -22,6 +22,7 @@ public static partial class NativeAotWebPayload
         public string outcome { get; set; }="pending";
         public string error { get; set; }="";
         internal string SignalVersion { get; set; }="";
+        internal string ChurnVersion { get; set; }="";
     }
     private sealed record RaceHttpReply(RaceHttpAttempt Attempt,string Body)
     { internal int Status=>Attempt.status; }
@@ -32,6 +33,7 @@ public static partial class NativeAotWebPayload
     private sealed class RaceAttemptLog(string endpoint,NativeAotServiceQuotaPeer.WireCapture? wire,bool startGate=false,bool eventOwned=false)
     {
         private int completed;
+        private int churnRequests;
         private readonly List<RaceHttpAttempt> attempts=[];
         private readonly List<RaceSampleLink> selections=[];
         internal RaceHttpAttempt LastStarted=>attempts[^1];
@@ -46,6 +48,9 @@ public static partial class NativeAotWebPayload
                 {
                     attempt.SignalVersion=request.Headers.TryGetValues("X-CLROS-Signal",out var versions)?string.Join(',',versions):"";
                     RaceNeed(attempt.SignalVersion==EventSignalVersion(request.Method.Method,path),"attempt_signal_version");
+                    attempt.ChurnVersion=request.Headers.TryGetValues("X-CLROS-Churn",out var churnVersions)?string.Join(',',churnVersions):"";
+                    bool initial=request.Method==HttpMethod.Post&&path=="/__clros/churn"&&++churnRequests==1;
+                    RaceNeed(attempt.ChurnVersion==EventChurnVersion(request.Method.Method,path,initial),"attempt_churn_version");
                 }
                 if(wire is not null)
                 {
@@ -81,7 +86,7 @@ public static partial class NativeAotWebPayload
         internal string Json(bool semanticComplete,string failure)
         {
             object rows=eventOwned?attempts.Select(a=>new{a.id,a.method,a.path,a.completion,a.headers,a.status,a.mediaType,
-                a.mediaTypeComplete,a.bodyBase64,a.bodyComplete,a.outcome,a.error,signalVersion=a.SignalVersion}).ToArray():attempts;
+                a.mediaTypeComplete,a.bodyBase64,a.bodyComplete,a.outcome,a.error,signalVersion=a.SignalVersion,churnVersion=a.ChurnVersion}).ToArray():attempts;
             return JsonSerializer.Serialize(new{schema=eventOwned?"clros.web.signalrace.attempts.v3":startGate?
                 "clros.web.signalrace.attempts.v2":"clros.web.signalrace.attempts.v1",endpoint,semanticComplete,failure,attempts=rows,selections});
         }

@@ -34,13 +34,14 @@ public static partial class NativeAotWebPayload
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation);deadline.CancelAfter(TimeSpan.FromSeconds(eventOwned?150:30));
         using var cancelChurn=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         using var cancelRace=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-        using var churnRequest=Post("/__clros/churn");using var raceRequest=Post("/__clros/signalrace");
+        using var churnRequest=Post("/__clros/churn",eventOwned);using var raceRequest=Post("/__clros/signalrace");
         Task<RaceHttpReply>? churn=null,race=null;List<RaceHttpSample> samples=[];RaceAttemptLog attempts=new(endpoint,wire,startGate,eventOwned);
         bool semanticComplete=false,primaryFailure=false;string failure="capture_incomplete";RaceHttpAttempt? churnCall=null,raceCall=null;
-        HttpRequestMessage Post(string target)
+        HttpRequestMessage Post(string target,bool continuous=false)
         {
             var message=new HttpRequestMessage(HttpMethod.Post,endpoint+target){Content=new ByteArrayContent([])};
             message.Headers.Add(target=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal",
+                target=="/__clros/churn"?(continuous?"v2":"v1"):
                 eventOwned&&target.StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":"v1");return message;
         }
         async Task<RaceHttpReply> Get(string target)
@@ -63,7 +64,7 @@ public static partial class NativeAotWebPayload
             for(int attempt=0;attempt<200;attempt++)
             {
                 if(pending)Pending(race is not null);
-                var response=await Get("/__clros/churn/status");RaceNeed(response.Status==200,"churn_status");var value=ChurnStatus(response.Body);
+                var response=await Get("/__clros/churn/status");RaceNeed(response.Status==200,"churn_status");var value=ChurnStatus(response.Body,eventOwned);
                 if(pending)Pending(race is not null);
                 if(value[0]==(pending?1UL:0)&&value[1]==value[0]&&(!pending||value[8]>=1&&value[9]>=1&&value[10]>=1)&&
                     (after is null||value[8]>after[8]&&value[9]>after[9]&&value[10]>after[10]))
@@ -82,7 +83,7 @@ public static partial class NativeAotWebPayload
         {
             await Churn("baseline-churn",false);await Observe("baseline-race","/__clros/signalrace/status");await Observe("health-before","/healthz");
             // Reject an already-used app before starting either active request.
-            RaceNeed(ChurnStatus(samples[0].body).All(n=>n==0)&&ReadRaceStatus(samples[1].body,eventOwned).All(n=>n==0)&&samples[1].status==200&&samples[2].status==200&&samples[2].body==expectedHealthBody,"fresh_session");
+            RaceNeed(ChurnStatus(samples[0].body,eventOwned).All(n=>n==0)&&ReadRaceStatus(samples[1].body,eventOwned).All(n=>n==0)&&samples[1].status==200&&samples[2].status==200&&samples[2].body==expectedHealthBody,"fresh_session");
             if(startGate)
             {
                 race=attempts.SendAsync(client,raceRequest,"/__clros/signalrace",cancelRace.Token);raceCall=attempts.LastStarted;
@@ -102,7 +103,7 @@ public static partial class NativeAotWebPayload
             churn=attempts.SendAsync(client,churnRequest,"/__clros/churn",cancelChurn.Token);
             churnCall=attempts.LastStarted;
             await Churn("churn-pending",true);
-            var beforeRace=ChurnStatus(samples[^1].body);
+            var beforeRace=ChurnStatus(samples[^1].body,eventOwned);
             if(startGate)
             {
                 if(startHooks is not null)await startHooks.BeforeStart(deadline.Token);

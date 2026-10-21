@@ -29,7 +29,7 @@ public static partial class NativeAotWebPayload
         void Body(string kind,int status,string text)=>RaceNeed(Row(kind,status)==text,"body");
         ulong[] Churn(string kind,ulong started,ulong completed,ulong canceled,ulong active)
         {
-            var value=ChurnStatus(Row(kind,200));
+            var value=ChurnStatus(Row(kind,200),eventOwned);
             RaceNeed(value[0]==active&&value[1]==active&&value[3]==started&&value[4]==completed&&value[5]==canceled&&
                 value[2]==(started==0?0UL:1UL)&&value[11]==active*65536&&value[12]==(started==0?0UL:65536UL),"churn_lifetime");
             if(previous is not null)foreach(int field in new[]{2,3,4,5,6,7,8,9,10,12})RaceNeed(value[field]>=previous[field],"churn_monotonic");

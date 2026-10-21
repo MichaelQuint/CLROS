@@ -52,10 +52,11 @@ try
     {
         if (context.Request.ContentLength != 0 || context.Request.QueryString.HasValue ||
             context.Request.Headers["X-CLROS-Churn"].Count != 1 ||
-            context.Request.Headers["X-CLROS-Churn"][0] != "v1" ||
+            context.Request.Headers["X-CLROS-Churn"][0] is not ("v1" or "v2") ||
             context.Request.Headers.ContainsKey("Transfer-Encoding"))
             return TypedResults.Text("CLROS_CHURN_BAD_REQUEST", "text/plain", statusCode: 400);
-        string? result = await churn.RunAsync(context.RequestAborted);
+        string? result = context.Request.Headers["X-CLROS-Churn"][0] == "v2" ?
+            await churn.RunUntilCanceledAsync(context.RequestAborted) : await churn.RunAsync(context.RequestAborted);
         return TypedResults.Text(result ?? "CLROS_CHURN_BUSY", "text/plain", statusCode: result is null ? 429 : 200);
     });
     app.MapGet("/__clros/churn/status", () => TypedResults.Text(churn.Read(), "text/plain"));

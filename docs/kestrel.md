@@ -471,6 +471,18 @@ DONE, with no successful synthetic Completion. Fresh native-v8 publication and
 original source/debug/ELF/index qualification, deliberate prepared admission and
 an original owned guest remain required. This adds no Kestrel acceptance.
 
+[Step1530](../done/step1530.md) retains the original native-v8
+`web_signalrace_lost_overlap` failure and repairs its demonstrated finite-churn
+race. Explicit initial churn v2 repeats actual awaited timer/ThreadPool/full-GC
+work until request cancellation, with a fixed watchdog that fails on expiry.
+Final churn remains finite v1/exactly8; strict attempt/header/guest joins reject
+exchanged selectors. Both dedicated probe threads must also have original native
+EXIT/REAP before final healthy send; callback/request threads remain live.
+All80 focused checks pass, including the actual finite-helper failure and
+continuing-helper correction. This is development evidence; repaired native,
+guest, component-budget/termination cleanup and stable full/ancestor gates remain
+required before #737/#748/#225 closure or complete Kestrel acceptance.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

@@ -60,7 +60,7 @@ public static partial class NativeAotWebPayload
         {
             using var request = Post(reason == "query" ? "/__clros/churn?extra=1" : "/__clros/churn");
             if (reason is "missing_header" or "wrong_header") request.Headers.Remove("X-CLROS-Churn");
-            if (reason == "wrong_header") request.Headers.Add("X-CLROS-Churn", "v2");
+            if (reason == "wrong_header") request.Headers.Add("X-CLROS-Churn", "v0");
             if (reason == "duplicate_header") request.Headers.TryAddWithoutValidation("X-CLROS-Churn", "v1");
             if (reason == "body") { request.Content!.Dispose(); request.Content = new StringContent("x"); }
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);

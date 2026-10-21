@@ -75,7 +75,7 @@ public static partial class NativeAotWebPayload
 
     private static readonly string[] ChurnStatusKeys = ["active", "waiting", "peakActive", "started", "completed", "canceled",
         "failed", "rejected", "timers", "workers", "collections", "heldBytes", "peakHeldBytes"];
-    private static ulong[] ChurnStatus(string body)
+    private static ulong[] ChurnStatus(string body,bool continuous=false)
     {
         const string prefix = "CLROS_CHURN_STATUS "; ChurnNeed(body.StartsWith(prefix, StringComparison.Ordinal), "status_prefix");
         string[] fields = body[prefix.Length..].Split(' '); ChurnNeed(fields.Length == ChurnStatusKeys.Length, "status_fields");
@@ -89,7 +89,7 @@ public static partial class NativeAotWebPayload
         }
         ChurnNeed(value[0] <= 2 && value[1] <= value[0] && value[2] >= value[0] && value[2] <= 2 &&
             value[3] <= 6 && value[4] <= 3 && value[5] <= 3 && value[6] == 0 && value[7] == 0 &&
-            value[3] == value[0] + value[4] + value[5] && value[8] <= value[3] * 8 && value[9] <= value[8] &&
+            value[3] == value[0] + value[4] + value[5] && value[8] <= (continuous ? (ulong)long.MaxValue : value[3] * 8) && value[9] <= value[8] &&
             value[10] == value[9] && value[9] >= value[4] * 8 && value[8] - value[9] <= value[0] + value[5] &&
             value[11] % 65536 == 0 && value[11] <= value[0] * 65536 && value[12] % 65536 == 0 &&
             value[12] >= value[11] && value[12] <= 2 * 65536 && value[12] <= value[2] * 65536, "status_invariant");

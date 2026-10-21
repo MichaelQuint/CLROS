@@ -37,11 +37,14 @@ internal static class NativeAotWebEventOwnedNativeScheduleTests
             .Replace("CLROS_SIGNAL_RACE_OK","CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal);
         selected["schema"]="clros.web.signalrace.v3";attempts["schema"]="clros.web.signalrace.attempts.v3";
         foreach(var row in selected["samples"]!.AsArray())row!["body"]=Body(row!["body"]!.GetValue<string>());
+        bool firstChurn=true;
         foreach(var row in attempts["attempts"]!.AsArray())
         {
             var value=row!.AsObject();
             string method=value["method"]!.GetValue<string>(),path=value["path"]!.GetValue<string>();
             value["signalVersion"]=path.StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":method=="POST"&&path=="/__clros/signalprobe"?"v1":"";
+            value["churnVersion"]=method=="POST"&&path=="/__clros/churn"?(firstChurn?"v2":"v1"):"";
+            if(method=="POST"&&path=="/__clros/churn")firstChurn=false;
             value["bodyBase64"]=Convert.ToBase64String(Encoding.UTF8.GetBytes(Body(Encoding.UTF8.GetString(Convert.FromBase64String(value["bodyBase64"]!.GetValue<string>())))));
         }
         return(selected.ToJsonString(),attempts.ToJsonString());

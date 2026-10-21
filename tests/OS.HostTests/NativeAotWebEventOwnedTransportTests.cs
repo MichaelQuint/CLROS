@@ -80,7 +80,11 @@ internal static class NativeAotWebEventOwnedTransportTests
         values.Add(connection,path,method:method,rawRequest:Request(method,path,selectors));
         var selected=JsonNode.Parse(values.Selected())!;selected["schema"]="clros.web.signalrace.v3";
         var attempts=JsonNode.Parse(values.Attempts())!;attempts["schema"]="clros.web.signalrace.attempts.v3";
-        foreach(var row in attempts["attempts"]!.AsArray())row!["signalVersion"]=Signal(row!["method"]!.GetValue<string>(),row!["path"]!.GetValue<string>());
+        foreach(var row in attempts["attempts"]!.AsArray())
+        {
+            row!["signalVersion"]=Signal(row["method"]!.GetValue<string>(),row["path"]!.GetValue<string>());
+            row["churnVersion"]=method=="POST"&&path=="/__clros/churn"?"v2":"";
+        }
         return QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(values.Wire(),attempts.ToJsonString(),selected.ToJsonString(),Endpoint,Health);
     }
     private static void Reject(Action action,string? reason=null)
@@ -98,7 +102,7 @@ internal static class NativeAotWebEventOwnedTransportTests
             ("POST","/__clros/churn"),("GET","/__clros/churn/status"),("GET","/healthz")})
         {
             string method=value.Item1,path=value.Item2,signal=Signal(method,path);
-            string selectors=(signal==""?"":"X-CLROS-Signal: "+signal+"\r\n")+(path=="/__clros/churn"?"X-CLROS-Churn: v1\r\n":"");
+            string selectors=(signal==""?"":"X-CLROS-Signal: "+signal+"\r\n")+(path=="/__clros/churn"?"X-CLROS-Churn: v2\r\n":"");
             HostCheck.Equal(1,Copied(method,path,selectors).Messages.Count);
             if(signal!="")
             {
@@ -111,6 +115,7 @@ internal static class NativeAotWebEventOwnedTransportTests
             {
                 Reject(()=>Copied(method,path,""),"web_race_http_request_churn");
                 Reject(()=>Copied(method,path,"X-CLROS-Churn: v3\r\n"),"web_race_http_request_churn");
+                Reject(()=>Copied(method,path,"X-CLROS-Churn: v1\r\n"),"web_race_http_request_churn");
                 Reject(()=>Copied(method,path,selectors+"x-clros-churn: v1\r\n"));
             }
             else Reject(()=>Copied(method,path,selectors+"X-CLROS-Churn: v1\r\n"),"web_race_http_request_churn");

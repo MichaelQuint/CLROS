@@ -23,11 +23,14 @@ public static partial class QemuTranscripts
     /// <summary>Immutable original-order projection after complete web replay.
     /// Indices address complete normalized original rows before metadata removal.
     /// Pointer contents, callback code roles, native joins, packets and owned
-    /// process/guest acceptance remain separate. Missing native exits stay null.</summary>
+    /// process/guest acceptance remain separate. Legacy profiles permit missing
+    /// native exits; the event-owned profile requires both dedicated probe
+    /// threads' generation-bound native exits and reaps after their last CALL.</summary>
     public sealed class WebSignalRaceReport
     {
         /// <summary>Actual replay identity and FS at the selected gettid CALL;
-        /// optional native lifecycle rows are reported only when captured.</summary>
+        /// native lifecycle rows are optional only for legacy profiles and
+        /// framework-owned callback/recovery-writer threads.</summary>
         public readonly record struct Thread(ulong Identity,int Tid,ulong Fs,int GetTidRecordIndex,
             int? CloneRecordIndex,int? ExitRecordIndex,int? ReapRecordIndex);
         /// <summary>Generation-bound original creation and explicit close rows.</summary>
@@ -229,6 +232,19 @@ public static partial class QemuTranscripts
             var actorValue=Thread(actor,GetTid(actor,writes[0].Wait.RecordIndex,pipe.Index));
             var callbackValue=Thread(callback,GetTid(callback,writes[1].Wait.RecordIndex,entry));
             var writerValue=Thread(writer,GetTid(writer,writes[1].Wait.RecordIndex,recovery.Wait.RecordIndex,last:true));
+            if(trace.EventOwned)
+            {
+                RequireRetired(waiterValue);RequireRetired(actorValue);
+            }
+            void RequireRetired(WebSignalRaceReport.Thread t)
+            {
+                int last=calls.Where(c=>c.Wait.Identity==t.Identity).Max(c=>Original(c.Wait.RecordIndex));
+                Need(t.CloneRecordIndex is int clone && clone<t.GetTidRecordIndex && t.GetTidRecordIndex<=last &&
+                    t.ExitRecordIndex is int exit && last<exit && t.ReapRecordIndex is int reap && exit<reap &&
+                    rows.Count(r=>r.StartsWith("M16_008_EXIT identity="+t.Identity+" ",StringComparison.Ordinal))==1 &&
+                    rows.Count(r=>r.StartsWith("M16_008_REAP old="+t.Identity+" ",StringComparison.Ordinal))==1,
+                    "web_race_thread_lifetime");
+            }
             string[] kinds=["initial-wait","actor-write","ready","signal","actor-read","repark","interrupted","interrupt-complete",
                 "interrupt-resume","handler","sigreturn","recovery-wait","recovery-write","recovery-ready","recovery-complete","recovery-resume","recovery-read"];
             var steps=order.Select((i,n)=>

@@ -38,8 +38,15 @@ internal static class NativeAotWebEventOwnedControllerTests
         HostCheck.True(selected["samples"]!.AsArray().Select(row=>row!["kind"]!.GetValue<string>()).SequenceEqual(kinds));
         string attempts=File.ReadAllText(path+".attempts.json");var root=JsonNode.Parse(attempts)!;
         HostCheck.Equal("clros.web.signalrace.attempts.v3",root["schema"]!.GetValue<string>());
+        bool firstChurn=true;
         foreach(var row in root["attempts"]!.AsArray())
+        {
             HostCheck.Equal(Version(row!["method"]!.GetValue<string>(),row["path"]!.GetValue<string>()),row["signalVersion"]!.GetValue<string>());
+            string expected="";
+            if(row["method"]!.GetValue<string>()=="POST"&&row["path"]!.GetValue<string>()=="/__clros/churn")
+            {expected=firstChurn?"v2":"v1";firstChurn=false;}
+            HostCheck.Equal(expected,row["churnVersion"]!.GetValue<string>());
+        }
         HostCheck.Equal(new NativeAotWebPayload.SignalRaceAttemptSummary(21,20,1,0,true),
             NativeAotWebPayload.InspectSignalRaceAttempts(attempts,json,Endpoint,Health));
         // A complete synthetic legacy replay does not admit this v3 HTTP
@@ -49,6 +56,30 @@ internal static class NativeAotWebEventOwnedControllerTests
         try{_=QemuTranscripts.InspectNativeAotWebSignalRaceRolesForTests([],attempts,json,Endpoint,Health,new(0,0,0,[]),replay);}
         catch(ToolFailure error){reason=error.Reason;}
         HostCheck.Equal("web_race_roles_event_contract_pending",reason);
+    }
+
+    [HostTest("web event-owned controller keeps actual churn beyond eight operations until explicit cancellation and exact finite recovery")]
+    private static async Task ActualContinuingChurn()
+    {
+        var exercise=new KestrelChurnExercise();var peer=new Peer(true){ActualChurn=exercise};
+        using var stop=new CancellationTokenSource(TimeSpan.FromSeconds(10));string path=Output();
+        string json=await Capture(peer,path,stop.Token);
+        var final=exercise.Inspect();
+        HostCheck.True(peer.ChurnCanceled&&final is {Active:0,Waiting:0,HeldBytes:0,Completed:1,Canceled:1,Failed:0,Workers:>=17});
+        _=NativeAotWebPayload.ValidateSignalRaceEvidence(json,Endpoint,Health);
+        HostCheck.True(NativeAotWebPayload.InspectSignalRaceAttempts(File.ReadAllText(path+".attempts.json"),json,Endpoint,Health).SemanticComplete);
+    }
+
+    [HostTest("web event-owned controller retains lost-overlap failure when real finite churn completes before a delayed phase response")]
+    private static async Task ActualFiniteChurnRefused()
+    {
+        var exercise=new KestrelChurnExercise();var peer=new Peer(true){ActualChurn=exercise,FiniteInitialChurn=true};
+        using var stop=new CancellationTokenSource(TimeSpan.FromSeconds(10));string path=Output();
+        await RejectAsync(()=>Capture(peer,path,stop.Token),"web_signalrace_lost_overlap");
+        HostCheck.True(peer.Starts==1&&peer.RaceCanceled&&!peer.ChurnCanceled&&
+            exercise.Inspect() is {Completed:1,Canceled:0,Failed:0,Active:0,Waiting:0,HeldBytes:0,Workers:8});
+        var attempts=JsonNode.Parse(File.ReadAllText(path+".attempts.json"))!;
+        HostCheck.True(!attempts["semanticComplete"]!.GetValue<bool>()&&attempts["failure"]!.GetValue<string>()=="web_signalrace_lost_overlap");
     }
 
     [HostTest("web event-owned v3 rejects short borrowed-client timeouts before files or requests")]
@@ -110,11 +141,16 @@ internal static class NativeAotWebEventOwnedControllerTests
             o=>o["attempts"]![1]!["signalVersion"]="v1",
             o=>o["attempts"]![0]!["signalVersion"]="v3",
             o=>o["attempts"]!.AsArray().Single(r=>r!["path"]!.GetValue<string>()=="/__clros/churn"&&r!["outcome"]!.GetValue<string>()=="cancelled")!["signalVersion"]="v1",
-            o=>o["attempts"]!.AsArray().Single(r=>r!["path"]!.GetValue<string>()=="/__clros/signalprobe")!["signalVersion"]="v3"
+            o=>o["attempts"]!.AsArray().Single(r=>r!["path"]!.GetValue<string>()=="/__clros/signalprobe")!["signalVersion"]="v3",
+            o=>o["attempts"]![0]!.AsObject().Remove("churnVersion"),
+            o=>o["attempts"]![0]!["churnVersion"]="v2",
+            o=>o["attempts"]!.AsArray().Single(r=>r!["path"]!.GetValue<string>()=="/__clros/churn"&&r!["outcome"]!.GetValue<string>()=="cancelled")!["churnVersion"]="v1",
+            o=>o["attempts"]!.AsArray().Single(r=>r!["path"]!.GetValue<string>()=="/__clros/churn"&&r!["outcome"]!.GetValue<string>()=="response")!["churnVersion"]="v2"
         })
         {var value=JsonNode.Parse(json)!.AsObject();change(value);Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(value.ToJsonString(),selected,Endpoint,Health));}
         var duplicate=JsonNode.Parse(json)!.AsObject();string encoded=duplicate.ToJsonString();
         Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(encoded.Replace("\"signalVersion\":","\"signalVersion\":\"duplicate\",\"signalVersion\":",StringComparison.Ordinal),selected,Endpoint,Health));
+        Reject(()=>NativeAotWebPayload.InspectSignalRaceAttempts(encoded.Replace("\"churnVersion\":","\"churnVersion\":\"duplicate\",\"churnVersion\":",StringComparison.Ordinal),selected,Endpoint,Health));
         string oldPath=Output(),oldSelected;
         using(var client=new HttpClient(new Peer()))oldSelected=await NativeAotWebPayload.CaptureStartedSignalRaceAsync(client,Endpoint,Health,oldPath);
         string old=File.ReadAllText(oldPath+".attempts.json");

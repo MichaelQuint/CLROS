@@ -82,6 +82,54 @@ internal static class KestrelRequestChurnTests
             !KestrelChurnExercise.PayloadIntact(independent, 24) && !KestrelChurnExercise.PayloadIntact([], 23));
     }
 
+    [HostTest("event-owned churn remains active past eight real iterations until request cancellation then finite churn adds exactly eight")]
+    private static async Task UntilRequestedCancellation()
+    {
+        var exercise = new KestrelChurnExercise(); using var request = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        Task<string?> running = exercise.RunUntilCanceledAsync(request.Token);
+        try
+        {
+            while (exercise.Inspect() is not { Workers: >= 9, Waiting: 1 })
+            { request.Token.ThrowIfCancellationRequested(); HostCheck.True(!running.IsCompleted); await Task.Delay(1, request.Token); }
+            HostCheck.True(!running.IsCompleted && exercise.Inspect() is { Active: 1, HeldBytes: 65536, Completed: 0 });
+            request.Cancel(); bool canceled = false;
+            try { await running; } catch (OperationCanceledException) when (request.IsCancellationRequested) { canceled = true; }
+            HostCheck.True(canceled && exercise.Inspect() is { Canceled: 1, Failed: 0, Completed: 0 }); Drained(exercise);
+            var before = exercise.Inspect(); using var finite = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            HostCheck.True(await exercise.RunAsync(finite.Token) == KestrelChurnExercise.SuccessBody);
+            var after = exercise.Inspect();
+            HostCheck.True(after.Completed == 1 && after.Timers == before.Timers + 8 && after.Workers == before.Workers + 8 &&
+                after.Collections == before.Collections + 8 && after.Canceled == 1 && after.Failed == 0); Drained(exercise);
+        }
+        finally
+        {
+            request.Cancel(); try { await running; } catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+        }
+    }
+
+    [HostTest("event-owned churn watchdog expiration fails and drains without counting requested cancellation")]
+    private static async Task WatchdogFailure()
+    {
+        var exercise = new KestrelChurnExercise(); using var request = new CancellationTokenSource();
+        var held = new HeldContext(); SynchronizationContext? previous = SynchronizationContext.Current; Task<string?> running;
+        try
+        {
+            SynchronizationContext.SetSynchronizationContext(held);
+            running = exercise.RunUntilCanceledAsync(request.Token, TimeSpan.FromMilliseconds(1));
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+        await Task.Delay(40); bool failed = false;
+        try { await held.JoinAsync(running); } catch (TimeoutException error) { failed = error.Message == "CLROS_CHURN_FAIL deadline"; }
+        HostCheck.True(failed && !request.IsCancellationRequested && running.IsFaulted &&
+            exercise.Inspect() is { Failed: 1, Canceled: 0, Completed: 0 }); Drained(exercise);
+        foreach (TimeSpan budget in new[] { TimeSpan.Zero, TimeSpan.FromSeconds(121) })
+        {
+            bool rejected = false; try { await exercise.RunUntilCanceledAsync(request.Token, budget); } catch (ArgumentOutOfRangeException) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        HostCheck.Equal(1L, exercise.Inspect().Started); Drained(exercise);
+    }
+
     private static void Drained(KestrelChurnExercise exercise) =>
         HostCheck.True(exercise.Inspect() is { Active: 0, Waiting: 0, HeldBytes: 0 });
 

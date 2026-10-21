@@ -80,7 +80,7 @@ internal static class NativeAotWebSignalRaceTransportTests
                         {
                             string signal=words[1].StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":
                                 words[0]=="POST"&&words[1]=="/__clros/signalprobe"?"v1":"";
-                            string churn=words[0]=="POST"&&words[1]=="/__clros/churn"?"v1":"";
+                            string churn=words[0]=="POST"&&words[1]=="/__clros/churn"?(churnStarted==0?"v2":"v1"):"";
                             foreach(var expected in new[]{(Name:"X-CLROS-Signal",Value:signal),(Name:"X-CLROS-Churn",Value:churn)})
                             {
                                 string[] headers=text.Split("\r\n",StringSplitOptions.None).Where(line=>line.StartsWith(expected.Name+":",StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -105,7 +105,7 @@ internal static class NativeAotWebSignalRaceTransportTests
                         else if (words[0] == "POST")
                         {
                             HostCheck.True(text.Contains("Content-Length: 0\r\n", StringComparison.OrdinalIgnoreCase));
-                            HostCheck.True(text.Contains(words[1] == "/__clros/churn" ? "X-CLROS-Churn: v1\r\n" :
+                            HostCheck.True(text.Contains(words[1] == "/__clros/churn" ? "X-CLROS-Churn: "+(eventOwned&&churnStarted==0?"v2":"v1")+"\r\n" :
                                 "X-CLROS-Signal: "+(eventOwned&&words[1].StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":"v1")+"\r\n", StringComparison.OrdinalIgnoreCase));
                             if (words[1] == "/__clros/churn")
                             {

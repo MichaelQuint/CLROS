@@ -23,11 +23,13 @@ public static partial class NativeAotWebPayload
         string observationPath,CancellationToken cancellation=default)=>CaptureSignalRaceCoreAsync(client,endpoint,
             expectedHealthBody,observationPath,cancellation,null,startGate:true,eventOwned:true);
 
-    // Exact signal selector emitted on the explicit v3 request. Churn has only
-    // its own X-CLROS-Churn header; the ordinary repeat probe still selects v1.
+    // Exact selectors for the unfinished v3 contract. Only its initial churn
+    // uses continuing v2; final fresh churn and the ordinary probe retain v1.
     private static string EventSignalVersion(string method,string path)=>
         path.StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":
         method=="POST"&&path=="/__clros/signalprobe"?"v1":"";
+    private static string EventChurnVersion(string method,string path,bool initial)=>
+        method=="POST"&&path=="/__clros/churn"?(initial?"v2":"v1"):"";
 
     // Copied, validated six-field phase2 status is only scheduling input. Each
     // production hook must bind it to its actual owned native/serial evidence.

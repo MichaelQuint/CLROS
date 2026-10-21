@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Diagnostics;
 
 /// <summary>Explicit request-owned managed churn. At most two calls retain one
 /// 64KiB array each; all timer and ThreadPool operations are awaited. The HTTP
@@ -37,47 +38,78 @@ internal sealed class KestrelChurnExercise
     /// cancellation/failure after draining the awaited operation. Null means
     /// capacity was busy before admission. Invalid/already canceled tokens do
     /// not acquire a slot. Fixed counters use checked arithmetic, never wrap.</summary>
-    internal async Task<string?> RunAsync(CancellationToken cancellation)
+    internal Task<string?> RunAsync(CancellationToken cancellation) => RunCoreAsync(cancellation, null);
+
+    /// <summary>Repeat real awaited iterations until the request cancels. One
+    /// watchdog begins at admission, is never refreshed, and expires as failure.
+    /// The request still joins an in-flight worker before releasing its payload
+    /// and slot. This mode never returns successful finite-work evidence.</summary>
+    internal Task<string?> RunUntilCanceledAsync(CancellationToken cancellation, TimeSpan? budget = null)
+    {
+        TimeSpan limit = budget ?? TimeSpan.FromSeconds(120);
+        if (limit <= TimeSpan.Zero || limit > TimeSpan.FromSeconds(120))
+            throw new ArgumentOutOfRangeException(nameof(budget));
+        return RunCoreAsync(cancellation, limit);
+    }
+
+    private async Task<string?> RunCoreAsync(CancellationToken cancellation, TimeSpan? budget)
     {
         if (!cancellation.CanBeCanceled) throw new ArgumentException("A request cancellation lifetime is required.", nameof(cancellation));
         cancellation.ThrowIfCancellationRequested();
-        byte pattern;
+        byte pattern; long admitted;
         lock (gate)
         {
             if (active == MaximumActive) { rejected = checked(rejected + 1); return null; }
             long sequence = checked(started + 1);
             pattern = (byte)(sequence % 251); started = sequence; active++;
             peakActive = Math.Max(peakActive, active);
+            admitted = Stopwatch.GetTimestamp();
+        }
+        CancellationTokenSource? watchdog = null;
+        CancellationToken work = cancellation;
+        bool Expired() => budget is { } limit && Stopwatch.GetElapsedTime(admitted) >= limit;
+        void Check()
+        {
+            if (Expired()) throw new TimeoutException("CLROS_CHURN_FAIL deadline");
+            work.ThrowIfCancellationRequested();
         }
         byte[]? payload = null; bool retained = false;
         try
         {
+            if (budget is { } limit)
+            {
+                watchdog = CancellationTokenSource.CreateLinkedTokenSource(cancellation);
+                watchdog.CancelAfter(limit); work = watchdog.Token;
+            }
             payload = new byte[PayloadBytes];
             for (int i = 0; i < payload.Length; i++) payload[i] = unchecked((byte)(pattern + i * 17));
             lock (gate)
             {
                 heldBytes += PayloadBytes; retained = true; peakHeldBytes = Math.Max(peakHeldBytes, heldBytes);
             }
-            for (int iteration = 0; iteration < Iterations; iteration++)
+            for (int iteration = 0; budget is not null || iteration < Iterations; iteration = checked(iteration + 1))
             {
-                cancellation.ThrowIfCancellationRequested();
+                Check();
                 lock (gate) waiting++;
-                try { await Task.Delay(DelayMilliseconds, cancellation); }
+                try { await Task.Delay(DelayMilliseconds, work); }
                 finally { lock (gate) waiting--; }
                 lock (gate) timers = checked(timers + 1);
                 // Await even if cancellation arrives while this worker runs;
                 // its local root cannot outlive the request's finally block.
-                await Task.Run(() => VerifyCollection(payload!, pattern, cancellation), cancellation);
+                await Task.Run(() => VerifyCollection(payload!, pattern, work), work);
                 lock (gate)
                 {
                     long nextWorkers = checked(workers + 1), nextCollections = checked(collections + 1);
                     workers = nextWorkers; collections = nextCollections;
                 }
+                Check();
             }
             cancellation.ThrowIfCancellationRequested();
             lock (gate) completed = checked(completed + 1);
             return SuccessBody;
         }
+        catch (OperationCanceledException error) when (Expired())
+        { lock (gate) failed = checked(failed + 1); throw new TimeoutException("CLROS_CHURN_FAIL deadline", error); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         { lock (gate) canceled = checked(canceled + 1); throw; }
         catch
@@ -86,6 +118,7 @@ internal sealed class KestrelChurnExercise
         {
             GC.KeepAlive(payload); payload = null;
             lock (gate) { if (retained) heldBytes -= PayloadBytes; active--; }
+            watchdog?.Dispose();
         }
     }
 

@@ -52,12 +52,13 @@ public static partial class NativeAotWebPayload
         foreach(var row in attempts.EnumerateArray())
         {
             string[] keys=["id","method","path","completion","headers","status","mediaType","mediaTypeComplete","bodyBase64","bodyComplete","outcome","error"];
-            ChurnKeys(row,eventOwned?[..keys,"signalVersion"]:keys);
+            ChurnKeys(row,eventOwned?[..keys,"signalVersion","churnVersion"]:keys);
             int id=ChurnInt(row.GetProperty("id")),completion=ChurnInt(row.GetProperty("completion")),status=ChurnInt(row.GetProperty("status"));
             RaceNeed(id==bodies.Count+1&&completion>=1&&completion<=attempts.GetArrayLength()&&completions.Add(completion),"attempt_identity");
             string method=ChurnString(row.GetProperty("method"),4),path=ChurnString(row.GetProperty("path"),64);
             RaceNeed(routes.Any(route=>route.Method==method&&route.Path==path),"attempt_route");
             if(eventOwned)RaceNeed(ChurnString(row.GetProperty("signalVersion"),3)==EventSignalVersion(method,path),"attempt_signal_version");
+            if(eventOwned)RaceNeed(ChurnString(row.GetProperty("churnVersion"),3)==EventChurnVersion(method,path,firstChurn==0),"attempt_churn_version");
             // Only the first two long-lived POSTs overlap later API calls.
             bool pending=false;
             if(method=="POST"&&path=="/__clros/churn"&&firstChurn==0){firstChurn=id;pending=true;}

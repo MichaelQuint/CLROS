@@ -616,6 +616,21 @@ DONE; tests deliberately return a failed runner and create no successful
 Completion. No prepared source/ELF/index pins change. Fresh original native-v8
 qualification and deliberate admission still precede another guest.
 
+[Step1530](../done/step1530.md) preserves the first native-v8 failure at
+`ea66bf90`: all three payload publications pass, but finite eight-iteration
+churn completes before the required overlap observation. Original EINTR and
+recovery-armed progress do not make its cleanup wake successful recovery.
+The expert-reviewed repair gives only the initial event-owned churn request
+`X-CLROS-Churn: v2`: real awaited work continues until request cancellation under
+one fixed120s watchdog. Expiry fails and drains; final fresh churn stays finite
+v1/exactly8. Mandatory v3 `churnVersion` values bind those distinct selectors to
+attempts, raw headers and guest consumption. Legacy contracts stay finite.
+Event-owned replay also requires generation-bound native EXIT/REAP for both
+dedicated probe threads after their last CALL and before final healthy send.
+Framework callback/request threads may remain live. All80 focused checks pass;
+fresh repaired native publication, prepared admission and guest acceptance remain
+pending. The failed original and its earlier reader revision remain immutable.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
