@@ -343,6 +343,17 @@ The native scheduling assumptions, actual EINTR/churn/recovery and fresh exact
 source/ELF/index/image admission still require original execution evidence.
 #737/#225/#748 remain open; old admission pins remain closed.
 
+[Step1517](../done/step1517.md) preserves the first controlled v7 attempt at
+`de39e4db` as failed: `sched_getscheduler errno=38`, partial v2 reports, no web
+receipt, and only the confirmed four-task stop journal row. All205 original
+files and970 source/producer inputs match their preserved hashes. The actual
+builder's musl1.2.6-r2 scheduler exports are ENOSYS stubs; a no-mutation self-query
+under the pinned runtime confirms raw Linux x64 getters work on the same thread.
+The private owner now invokes syscalls143/144/145 through libc, retaining errno,
+affinity, task ownership, readbacks and cleanup. All16 focused checks/3 fixtures
+pass unchanged/zero reuse. This repairs host interop; controlled scheduling,
+actual EINTR/churn/recovery, native v7 and guest/admission remain unqualified.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

@@ -487,6 +487,15 @@ fixtures pass unchanged/zero reuse. These are host contracts and copied/loopback
 controls: no Linux native or guest execution, new admission, quota termination
 or complete Kestrel acceptance follows. #737/#225/#748 remain open.
 
+[Step1517](../done/step1517.md) records the first controlled native v7 attempt
+at `de39e4db` as failed during the first scheduler query: musl's named getter returns
+ENOSYS. All205 original files/970 inputs are preserved and checked; partial v2
+reports and confirmed four-task stop do not qualify the race. Actual loaded
+musl1.2.6-r2 binary inspection and a same-thread read-only probe support the
+three private Linux x64 syscall imports. All16 focused checks/3 fixtures pass
+unchanged/zero reuse. Native scheduling/EINTR/churn/recovery, new admission,
+guest execution and quota termination remain unproved.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

@@ -289,7 +289,7 @@ public static partial class NativeAotWebPayload
         private PolicyView Set(NativeTask task, int policy, int priority)
         {
             task.EnsureLive();
-            NativeCheck(NativeSetScheduler(task.Tid, policy, ref priority) == 0, "sched_setscheduler");
+            NativeCheck(NativeSetScheduler(144, task.Tid, policy, ref priority) == 0, "sched_setscheduler");
             // Publish mutation ownership before any fallible readback/journaling.
             if (task == tracer) tracerChanged = policy != 0;
             if (task == actor) actorChanged = policy != 0;
@@ -307,8 +307,8 @@ public static partial class NativeAotWebPayload
             Require(mask[task.Cpu / 8] == (byte)(1 << (task.Cpu % 8)) &&
                 mask.Where((_, i) => i != task.Cpu / 8).All(b => b == 0), "signalrace_schedule_affinity_drift");
         }
-        private static int Policy(int tid) { int result = NativeGetScheduler(tid); NativeCheck(result >= 0, "sched_getscheduler"); return result; }
-        private static int Priority(int tid) { NativeCheck(NativeGetParam(tid, out int result) == 0, "sched_getparam"); return result; }
+        private static int Policy(int tid) { nint result = NativeGetScheduler(145, tid); NativeCheck(result >= 0, "sched_getscheduler"); return checked((int)result); }
+        private static int Priority(int tid) { NativeCheck(NativeGetParam(143, tid, out int result) == 0, "sched_getparam"); return result; }
         private static byte[] Affinity(int tid)
         { byte[] mask = new byte[4096]; NativeCheck(NativeGetAffinity(tid, (nuint)mask.Length, mask) == 0, "sched_getaffinity"); return mask; }
         private static ulong Hex(string value) => Convert.ToUInt64(value.StartsWith("0x", StringComparison.Ordinal) ? value[2..] : value, 16);
@@ -355,12 +355,15 @@ public static partial class NativeAotWebPayload
         private static extern nint NativePidfd(nint number, nint tid, nint flags);
         [DllImport("libc", EntryPoint = "poll", SetLastError = true)]
         private static extern int NativePoll(ref PollFd descriptor, nuint count, int timeout);
-        [DllImport("libc", EntryPoint = "sched_setscheduler", SetLastError = true)]
-        private static extern int NativeSetScheduler(int tid, int policy, ref int priority);
-        [DllImport("libc", EntryPoint = "sched_getscheduler", SetLastError = true)]
-        private static extern int NativeGetScheduler(int tid);
-        [DllImport("libc", EntryPoint = "sched_getparam", SetLastError = true)]
-        private static extern int NativeGetParam(int tid, out int priority);
+        // musl's three POSIX scheduler exports are ENOSYS stubs. This owner is
+        // Linux x64 only; its kernel sched_param is exactly one int priority.
+        // libc syscall retains -1/errno semantics for the existing NativeCheck.
+        [DllImport("libc", EntryPoint = "syscall", SetLastError = true)]
+        private static extern nint NativeSetScheduler(nint number, nint tid, nint policy, ref int priority);
+        [DllImport("libc", EntryPoint = "syscall", SetLastError = true)]
+        private static extern nint NativeGetScheduler(nint number, nint tid);
+        [DllImport("libc", EntryPoint = "syscall", SetLastError = true)]
+        private static extern nint NativeGetParam(nint number, nint tid, out int priority);
         [DllImport("libc", EntryPoint = "sched_getaffinity", SetLastError = true)]
         private static extern int NativeGetAffinity(int tid, nuint bytes, [Out] byte[] mask);
     }
