@@ -9,15 +9,15 @@ internal static class NativeAotWebSignalRaceHostHttpTests
 {
     private const string Endpoint = "http://127.0.0.1:23460", Health = "OS_MINIMAL_API_OK";
     private static string B64(string text) => Convert.ToBase64String(Encoding.ASCII.GetBytes(text));
-    private static string Request(string path = "/__clros/churn/status", string method = "GET") =>
-        method + " " + path + " HTTP/1.1\r\nHost: 127.0.0.1:23460\r\n" +
+    private static string Request(string path = "/__clros/churn/status", string method = "GET", int port = 23460) =>
+        method + " " + path + " HTTP/1.1\r\nHost: 127.0.0.1:" + port + "\r\n" +
         (method == "POST" ? "Content-Length: 0\r\n" + (path == "/__clros/churn" ? "X-CLROS-Churn" : "X-CLROS-Signal") + ": v1\r\n" : "") + "\r\n";
     private static string Response(string body = "ONE", int status = 200, bool chunks = false) =>
         $"HTTP/1.1 {status} Result\r\nContent-Type: text/plain\r\n" + (chunks ?
         "Transfer-Encoding: chunked\r\n\r\n" + body.Length.ToString("X") + "\r\n" + body + "\r\n0\r\n\r\n" :
         "Content-Length: " + body.Length + "\r\n\r\n" + body);
 
-    private sealed class Values
+    internal sealed class Values(int port = 23460)
     {
         internal readonly List<Peer.WireConnection> Connections = [];
         internal readonly List<Peer.WireOperation> Operations = [];
@@ -28,7 +28,7 @@ internal static class NativeAotWebSignalRaceHostHttpTests
         internal int Connect(string role = "control")
         {
             int id = Connections.Count + 1;
-            Connections.Add(new(id, role, "127.0.0.1", 41000 + id, "127.0.0.1", 23460, 0, 10000)); return id;
+            Connections.Add(new(id, role, "127.0.0.1", 41000 + id, "127.0.0.1", port, 0, 10000)); return id;
         }
         internal void Op(int connection, string direction, int exchange, string data, string outcome = "complete")
         {
@@ -40,7 +40,7 @@ internal static class NativeAotWebSignalRaceHostHttpTests
             string method = "GET", string outcome = "response", int status = 200, string? rawRequest = null)
         {
             int id = Exchanges.Count + 1; long start = ++tick;
-            Op(connection, "write", id, rawRequest ?? Request(path, method));
+            Op(connection, "write", id, rawRequest ?? Request(path, method, port));
             string response = rawResponse ?? Response(body, status);
             if (response.Length > 0)
             { Op(connection, "read", id, response[..^1]); Op(connection, "read", id, response[^1..]); }
@@ -57,9 +57,9 @@ internal static class NativeAotWebSignalRaceHostHttpTests
             Samples.Add(new() { ["kind"] = "churn-cancel", ["status"] = 0, ["body"] = "" });
             Links.Add(new() { ["sample"] = Links.Count, ["attempt"] = 0, ["related"] = exchange });
         }
-        internal byte[] Wire() => Encoding.UTF8.GetBytes(NativeAotWebPayload.SerializeSignalRaceWire(new(23460, "signalrace-partial", 10001,
+        internal byte[] Wire() => Encoding.UTF8.GetBytes(NativeAotWebPayload.SerializeSignalRaceWire(new(port, "signalrace-partial", 10001,
             Operations.Sum(op => (long)Convert.FromBase64String(op.DataBase64).Length), Connections, Exchanges, Operations, [])));
-        internal string Selected() => new JsonObject { ["schema"] = "clros.web.signalrace.v1", ["endpoint"] = Endpoint,
+        internal string Selected() => new JsonObject { ["schema"] = "clros.web.signalrace.v1", ["endpoint"] = "http://127.0.0.1:" + port,
             ["samples"] = new JsonArray(Samples.Select(value => (JsonNode?)value.DeepClone()).ToArray()) }.ToJsonString();
         internal string Attempts()
         {
@@ -70,7 +70,7 @@ internal static class NativeAotWebSignalRaceHostHttpTests
                 ["bodyBase64"] = e.BodyBase64, ["bodyComplete"] = e.Outcome == "response", ["outcome"] = e.Outcome,
                 ["error"] = e.Outcome == "response" ? "" : e.Outcome == "cancelled" ? "cancelled" : "IOException"
             }).ToArray();
-            return new JsonObject { ["schema"] = "clros.web.signalrace.attempts.v1", ["endpoint"] = Endpoint,
+            return new JsonObject { ["schema"] = "clros.web.signalrace.attempts.v1", ["endpoint"] = "http://127.0.0.1:" + port,
                 ["semanticComplete"] = false, ["failure"] = "copied_failure", ["attempts"] = new JsonArray(rows),
                 ["selections"] = new JsonArray(Links.Select(value => (JsonNode?)value.DeepClone()).ToArray()) }.ToJsonString();
         }

@@ -423,6 +423,19 @@ fixtures pass unchanged/zero reuse. Unique host-flow assignment, race HTTP Date
 and syscall/role joins, owned QemuSmoke and fresh native/source/image admission
 still precede actual guest acceptance.
 
+[Step1512](../done/step1512.md) adds strict copied host-HTTP/added-stream byte
+assignment. Unique injective matching covers all payload guests and every
+successful host; original packet ranges cover complete logical responses in
+persistent request/response order. Unknown failed writes explain only observed
+islands, while undelivered writes, unread responses, retries, empty streams and
+unassigned attempts remain explicit. Caller-owned arrays are copied and bounded;
+ports and clocks supply no identity. All23 focused checks/six fixtures pass with
+unchanged inputs and zero reuse. The same reused subagent authors independent
+whole-PCAP/ambiguity/partial-write/order controls and reviews production/receipts.
+Race Date/owned UTC and syscall/role joins, owned QemuSmoke and fresh exact native/
+source/image admission still precede guest acceptance. No native or QEMU run
+occurred and no quota-triggered offender cleanup is accepted.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

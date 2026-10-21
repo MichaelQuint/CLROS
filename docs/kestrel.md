@@ -262,6 +262,21 @@ a copied packet inventory: unique host-byte/guest-flow association, race HTTP
 Date/syscall/role joins, QemuSmoke wiring and fresh native/source/image admission
 remain required. No native or QEMU run occurred.
 
+[Step1512](../done/step1512.md) binds strict race wire/attempt/selected HTTP to
+the copied added packet inventory by directional bytes and unique injective
+assignment. Every payload guest must match; every successful HTTP host must be
+covered. Ambiguous or missing matches reject without equating host and guest
+ports or clocks. Completed logical responses retain exact clipped original
+request/response ranges and persistent packet order. Failed/cancelled attempts,
+unknown write tails, holes, unread responses, empty flows and unassigned hosts
+remain explicit. Rechecked copied bounds are504 streams,4MiB aggregate extents,
+65536 ranges/edges and64MiB comparison work. All23 focused checks/six fixtures
+pass unchanged/zero reuse, including whole-PCAP ordinary/VLAN controls followed
+by persistent added HTTP. This supplied-value consistency check adds no private
+producer or guest authority. Race Date/owned UTC, syscall/role joins, QemuSmoke
+wiring and fresh exact native/source/image admission remain required. No native
+or QEMU trial ran; the original failed native attempt remains failed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
