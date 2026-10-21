@@ -569,6 +569,18 @@ legacy readers. Nine original report files and the tested producers are saved.
 The native/guest owner and role reader remain closed to v3; native journal,
 receipt, wait-contract and deadline integration precede fresh qualification.
 
+[Step1526](../done/step1526.md) implements the explicit native-v8 path:
+`--event-owned-signal-race` pairs selected/attempt-v3 with schedule-v2. Historical
+receipt/journal pairings remain. The new native session owns a 210-second
+operation deadline before process start and requires at least 165 seconds left
+before creating race reports or mutating scheduling. V8 uses an infinite client
+timeout and direct TERM to the independently verified child, followed by owned
+exit/log waits. Report retention remains uncancelled; monotonic checks reject
+late success. This is cancellation policy, not a hard I/O/cleanup wall bound.
+All 23 focused checks pass. The all-ones raw timeout is a pinned-wrapper
+hypothesis requiring fresh native observations/disassembly. No new native run
+or guest admission is supplied; guest roles/runner/Date composition remains next.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

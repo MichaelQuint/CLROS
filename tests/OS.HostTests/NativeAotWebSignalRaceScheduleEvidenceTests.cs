@@ -7,8 +7,8 @@ using OS.Tooling;
 // network or guest operations and do not confer native execution authority.
 internal static class NativeAotWebSignalRaceScheduleEvidenceTests
 {
-    private const string Endpoint = "http://127.0.0.1:23456", Health = "OS_MINIMAL_API_OK";
-    private static readonly QemuTranscripts.WebSignalRaceSelection Selection = new(43, 44, 45, 46, 46);
+    internal const string Endpoint = "http://127.0.0.1:23456", Health = "OS_MINIMAL_API_OK";
+    internal static readonly QemuTranscripts.WebSignalRaceSelection Selection = new(43, 44, 45, 46, 46);
     private static string Mask => "01" + new string('0', 8190);
     private const string Syscall = "232 0xc 0x700000 0x1 0x9c4 0x0 0x0 0x700100 0x400000";
     private const string Success = "CLROS_SIGNAL_RACE_OK signal=12 pid=43 actor=45 waiter=44 callback=46 callbacks=1 actorJoined=1 waiterJoined=1 consumed=90 recovery=107 recoveryWriter=46 initialValue=-1 initialErrno=4 recoveryValue=1 recoveryEvents=1 recoveryTag=344978309701 handler=4096 flags=335544324 restorer=8192 actionMask=0 originalHandler=0 originalFlags=0 originalRestorer=0 originalActionMask=0 maskBefore=2048 maskDuring=0 maskAfter=2048 altAddress=0 altFlags=2 altBytes=0 descriptorsClosed=3 actionRestored=1 altUnchanged=1";
@@ -27,7 +27,7 @@ internal static class NativeAotWebSignalRaceScheduleEvidenceTests
         WriteInfo = "pos:\t0\nflags:\t02004001\nino:\t555\n",
         Syscall, WaitChannel = "ep_poll", WaiterState = Stat(44, "S")
     };
-    private static List<JsonObject> Journal(bool retired = false)
+    internal static List<JsonObject> Journal(bool retired = false)
     {
         List<JsonObject> rows = [];
         void Add(string operation, object observation) => rows.Add(JsonSerializer.SerializeToNode(new
@@ -59,7 +59,7 @@ internal static class NativeAotWebSignalRaceScheduleEvidenceTests
         });
         return rows;
     }
-    private static string Text(IEnumerable<JsonObject> rows) => string.Join('\n', rows.Select(row => row.ToJsonString())) + "\n";
+    internal static string Text(IEnumerable<JsonObject> rows) => string.Join('\n', rows.Select(row => row.ToJsonString())) + "\n";
     private static NativeAotWebPayload.SignalRaceScheduleSummary Read(List<JsonObject> rows) =>
         NativeAotWebPayload.InspectSignalRaceScheduleEvidence(Text(rows), Selection);
     private static void Reject(Action action, string? expected = null)
@@ -128,7 +128,7 @@ internal static class NativeAotWebSignalRaceScheduleEvidenceTests
         Reject(() => NativeAotWebPayload.InspectSignalRaceScheduleEvidence(Text(Journal()), Selection with { ActorTid = 47 }));
     }
 
-    private static (string Selected, string Attempts) Http(bool controlled)
+    internal static (string Selected, string Attempts) Http(bool controlled)
     {
         List<JsonObject> samples = [], attempts = [], links = [];
         string Churn(int started, int completed, int canceled, int active, int work) =>

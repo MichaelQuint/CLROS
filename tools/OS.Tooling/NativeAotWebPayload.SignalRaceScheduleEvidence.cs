@@ -14,30 +14,31 @@ public static partial class NativeAotWebPayload
 
     /// <summary>Validate borrowed native receipt payloads without I/O. Historical
     /// v5/v6 require the original v1 protocol; controlled v7 requires v2 selected
-    /// and attempt evidence plus the complete schedule journal. Throws for mixed,
+    /// and attempt evidence plus schedule-v1. Event-owned v8 requires selected/
+    /// attempts-v3 and schedule-v2 with exact untimed waits. Throws for mixed,
     /// missing or inconsistent evidence. File/source hashes and original process,
     /// native instruction and guest execution authority remain the owner's job.</summary>
     public static QemuTranscripts.WebSignalRaceSelection ValidateSignalRaceQualificationEvidence(string nativeSchema,
         string selectedJson, string? attemptsJson, string? scheduleJournal, string endpoint, string expectedHealthBody)
     {
-        ScheduleNeed(nativeSchema is "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7", "native_schema");
-        bool controlled = nativeSchema == "clros.nativeaot.web.v7";
+        ScheduleNeed(nativeSchema is "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8", "native_schema");
+        bool eventOwned = nativeSchema == "clros.nativeaot.web.v8", controlled = eventOwned || nativeSchema == "clros.nativeaot.web.v7";
         var selection = ValidateSignalRaceEvidence(selectedJson, endpoint, expectedHealthBody);
         using var selected = JsonDocument.Parse(selectedJson);
         ScheduleNeed(selected.RootElement.GetProperty("schema").GetString() ==
-            (controlled ? "clros.web.signalrace.v2" : "clros.web.signalrace.v1"), "protocol_pairing");
+            (eventOwned ? "clros.web.signalrace.v3" : controlled ? "clros.web.signalrace.v2" : "clros.web.signalrace.v1"), "protocol_pairing");
         if (controlled)
         {
             ScheduleNeed(scheduleJournal is not null, "required");
-            _ = InspectSignalRaceScheduleEvidence(scheduleJournal!, selection);
+            _ = InspectSignalRaceScheduleCore(scheduleJournal!, selection, eventOwned);
         }
         else ScheduleNeed(scheduleJournal is null, "historical_journal");
         if (nativeSchema == "clros.nativeaot.web.v5") ScheduleNeed(attemptsJson is null, "historical_attempts");
         else
         {
             ScheduleNeed(attemptsJson is not null, "attempts_required");
-            // The existing inspector requires attempts-v1 with selected-v1 and
-            // attempts-v2 with selected-v2, retaining all original attempt joins.
+            // Every selected version requires its exact attempt companion,
+            // retaining all original response and completion-order joins.
             ScheduleNeed(InspectSignalRaceAttempts(attemptsJson!, selectedJson, endpoint, expectedHealthBody).SemanticComplete,
                 "attempts_incomplete");
         }
@@ -49,9 +50,22 @@ public static partial class NativeAotWebPayload
     /// CPU, unchanged epoll/pipe and actual later sleeping-state observations,
     /// one start intent, tracer restoration and confirmed terminal task exits.
     /// Performs no I/O or scheduling. A successful parse establishes copied
-    /// consistency, not a merged kernel chronology, atomic TID ownership or guest proof.</summary>
+    /// consistency, not a merged kernel chronology, atomic TID ownership or guest
+    /// proof. This historical entrypoint requires schedule-v1/timed2500 only.</summary>
     public static SignalRaceScheduleSummary InspectSignalRaceScheduleEvidence(string journal,
-        QemuTranscripts.WebSignalRaceSelection selection)
+        QemuTranscripts.WebSignalRaceSelection selection)=>InspectSignalRaceScheduleCore(journal,selection,eventOwned:false);
+
+    /// <summary>Inspect only the explicit event-owned schedule-v2 copied
+    /// contract. Require the pinned wrapper's raw all-ones timeout argument in
+    /// initial/release wait snapshots, preserving the original text, and the
+    /// same bounded role, ownership, ordering, restoration and terminal guards
+    /// as schedule-v1. Starts no process or native operation; copied consistency
+    /// grants no original native wait, process cleanup or guest authority.</summary>
+    public static SignalRaceScheduleSummary InspectEventOwnedSignalRaceScheduleEvidence(string journal,
+        QemuTranscripts.WebSignalRaceSelection selection)=>InspectSignalRaceScheduleCore(journal,selection,eventOwned:true);
+
+    private static SignalRaceScheduleSummary InspectSignalRaceScheduleCore(string journal,
+        QemuTranscripts.WebSignalRaceSelection selection,bool eventOwned)
     {
         ScheduleNeed(selection is not null && selection.Pid > 0 && selection.WaiterTid > 0 && selection.ActorTid > 0,
             "selection");
@@ -66,7 +80,8 @@ public static partial class NativeAotWebPayload
             using var document = JsonDocument.Parse(line, new JsonDocumentOptions { MaxDepth = 12 });
             var row = document.RootElement;
             ChurnKeys(row, "schema", "operation", "observation", "utc", "monotonic", "frequency");
-            ScheduleNeed(ChurnString(row.GetProperty("schema"), 64) == "clros.web.signalrace.schedule.v1", "schema");
+            ScheduleNeed(ChurnString(row.GetProperty("schema"), 64) ==
+                (eventOwned ? "clros.web.signalrace.schedule.v2" : "clros.web.signalrace.schedule.v1"), "schema");
             ScheduleNeed(DateTimeOffset.TryParse(ChurnString(row.GetProperty("utc"), 64), CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out _), "utc");
             ScheduleNeed(row.GetProperty("monotonic").TryGetInt64(out long tick) && tick >= 0 && tick >= previous &&
@@ -105,13 +120,13 @@ public static partial class NativeAotWebPayload
         }
         var initial = Next("initial-wait"); ChurnKeys(initial, "waiter", "pipe");
         ScheduleNeed(ChurnInt(initial.GetProperty("waiter")) == tasks[2].Tid, "waiter");
-        SchedulePipe pipe = ReadSchedulePipe(initial.GetProperty("pipe"), tasks[2]);
+        SchedulePipe pipe = ReadSchedulePipe(initial.GetProperty("pipe"), tasks[2], eventOwned);
         CheckSchedulePolicy(Next("tracer-raised"), tasks[0], 1, 2);
         CheckSchedulePolicy(Next("actor-raised"), tasks[3], 1, 1);
         for (int recheck = 0; recheck < 2; recheck++)
         {
             var row = Next("release-preflight"); ChurnKeys(row, "pipe", "policies");
-            ScheduleNeed(ReadSchedulePipe(row.GetProperty("pipe"), tasks[2]) == pipe, "pipe_drift");
+            ScheduleNeed(ReadSchedulePipe(row.GetProperty("pipe"), tasks[2], eventOwned) == pipe, "pipe_drift");
             var policies = row.GetProperty("policies");
             ScheduleNeed(policies.ValueKind == JsonValueKind.Array && policies.GetArrayLength() == 4, "policies");
             for (int role = 0; role < 4; role++)
@@ -170,7 +185,7 @@ public static partial class NativeAotWebPayload
         byte[] bytes = Convert.FromHexString(text);
         ScheduleNeed(bytes[cpu / 8] == (byte)(1 << (cpu % 8)) && bytes.Where((_, i) => i != cpu / 8).All(b => b == 0), "affinity_mask");
     }
-    private static SchedulePipe ReadSchedulePipe(JsonElement row, ScheduleTask waiter)
+    private static SchedulePipe ReadSchedulePipe(JsonElement row, ScheduleTask waiter,bool eventOwned)
     {
         ChurnKeys(row, "Epoll", "Read", "Write", "Inode", "EpollInfo", "ReadInfo", "WriteInfo", "Syscall", "WaitChannel", "WaiterState");
         int epoll = ChurnInt(row.GetProperty("Epoll")), read = ChurnInt(row.GetProperty("Read")), write = ChurnInt(row.GetProperty("Write"));
@@ -180,7 +195,7 @@ public static partial class NativeAotWebPayload
         string syscall = ChurnString(row.GetProperty("Syscall"), 1024), channel = ChurnString(row.GetProperty("WaitChannel"), 64);
         string[] args = syscall.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         ScheduleNeed(args.Length == 9 && args[0] == "232" && ScheduleHex(args[1]) == (ulong)epoll &&
-            ScheduleHex(args[2]) > 0 && ScheduleHex(args[3]) == 1 && ScheduleHex(args[4]) == 2500 &&
+            ScheduleHex(args[2]) > 0 && ScheduleHex(args[3]) == 1 && ScheduleHex(args[4]) == (eventOwned ? ulong.MaxValue : 2500UL) &&
             ScheduleHex(args[7]) > 0 && ScheduleHex(args[8]) > 0 && channel is "ep_poll" or "do_epoll_wait", "epoll_wait");
         _ = ScheduleHex(args[5]); _ = ScheduleHex(args[6]);
         string inode = ChurnString(row.GetProperty("Inode"), 64);

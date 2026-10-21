@@ -8,7 +8,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
 
-// Controlled Linux-native experiment only; the v2 controller owns each hook.
+// Controlled Linux-native experiment only; the selected v2/v3 controller owns each hook.
 // No guest code uses this scheduling helper.
 public static partial class NativeAotWebPayload
 {
@@ -25,16 +25,20 @@ public static partial class NativeAotWebPayload
         private readonly Process process;
         private readonly string executable;
         private readonly FileStream journal;
+        private readonly bool eventOwned;
         private NativeTask? tracer, app, waiter, actor;
         private PipeView? pipe;
         private bool prepared, releaseIssued, tracerChanged, actorChanged, stopped;
         private int records;
 
         internal SignalRaceNativeSchedule(Process ownedTracer, string expectedExecutable, string outputDirectory)
+            : this(ownedTracer, expectedExecutable, outputDirectory, eventOwned: false) { }
+
+        internal SignalRaceNativeSchedule(Process ownedTracer, string expectedExecutable, string outputDirectory, bool eventOwned)
         {
             Require(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture == Architecture.X64,
                 "signalrace_schedule_platform");
-            process = ownedTracer; executable = Path.GetFullPath(expectedExecutable);
+            process = ownedTracer; executable = Path.GetFullPath(expectedExecutable); this.eventOwned = eventOwned;
             string directory = Path.GetFullPath(outputDirectory);
             string output = Path.Combine(directory, "web-signalrace-schedule.jsonl");
             AuthorityFiles.RequirePlainPath(directory, directory, "signalrace_schedule_path");
@@ -250,8 +254,11 @@ public static partial class NativeAotWebPayload
             string channel = ReadBounded($"{prefix}/task/{waiter.Tid}/wchan").Trim();
             string[] args = syscall.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
             Stat waiterState = waiter.Read();
+            // Preserve the pinned wrapper's raw register witness. All-ones is
+            // a new profile expectation pending original native qualification,
+            // not a universal Linux int(-1) encoding; never mask another value.
             Require(args.Length == 9 && args[0] == "232" && Hex(args[1]) <= int.MaxValue &&
-                Hex(args[3]) == 1 && Hex(args[4]) == 2500 && waiterState.State == "S" &&
+                Hex(args[3]) == 1 && Hex(args[4]) == (eventOwned ? ulong.MaxValue : 2500UL) && waiterState.State == "S" &&
                 channel is "ep_poll" or "do_epoll_wait", "signalrace_schedule_epoll_wait");
             int epoll = (int)Hex(args[1]);
             Require(new FileInfo($"{prefix}/fd/{epoll}").LinkTarget == "anon_inode:[eventpoll]",
@@ -342,7 +349,7 @@ public static partial class NativeAotWebPayload
         private void Log(string operation, object observation)
         {
             Require(++records <= 64, "signalrace_schedule_journal_bound");
-            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new { schema = "clros.web.signalrace.schedule.v1", operation, observation, utc = DateTimeOffset.UtcNow,
+            byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(new { schema = eventOwned ? "clros.web.signalrace.schedule.v2" : "clros.web.signalrace.schedule.v1", operation, observation, utc = DateTimeOffset.UtcNow,
                 monotonic = Stopwatch.GetTimestamp(), frequency = Stopwatch.Frequency });
             Require(bytes.Length <= 65536 && journal.Length + bytes.Length < 1048576, "signalrace_schedule_journal_size");
             journal.Write(bytes); journal.WriteByte((byte)'\n'); journal.Flush();

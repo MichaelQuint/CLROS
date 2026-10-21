@@ -149,6 +149,10 @@ public static partial class NativeAotWebPayload
                 catch(Exception error){joinFailure??=error;}
             }
             if(joinFailure is not null){semanticComplete=false;if(!primaryFailure)failure="web_signalrace_request_join_failed";}
+            // Always retain final/partial reports after request joins, including
+            // cancellation. Snapshot IO intentionally has no cancellation token;
+            // the native-v8 owner rechecks its monotonic deadline before success.
+            // Retention latency is not a hard operation or cleanup wall bound.
             byte[] selectedBytes=Encoding.UTF8.GetBytes(Json()),attemptBytes=Encoding.UTF8.GetBytes(attempts.Json(semanticComplete,failure));
             try{await output.WriteAsync(selectedBytes);await output.FlushAsync();}
             finally{await attemptOutput.WriteAsync(attemptBytes);await attemptOutput.FlushAsync();}
@@ -171,12 +175,12 @@ public static partial class NativeAotWebPayload
         string path=Path.Combine(destination,"web-signalrace.json");Require(new FileInfo(path).Length is >0 and <=65536,"signalrace_recorded_size");
         using var http=JsonDocument.Parse(File.ReadAllText(Path.Combine(destination,"web-http-signalrace.json")));
         string? attempts=null,journal=null;
-        if(nativeSchema is "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7")
+        if(nativeSchema is "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8")
         {
             string companion=path+".attempts.json";Require(new FileInfo(companion).Length is >0 and <=8*1024*1024,"signalrace_attempt_size");
             attempts=File.ReadAllText(companion);
         }
-        if(nativeSchema=="clros.nativeaot.web.v7")
+        if(nativeSchema is "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8")
         {
             string schedule=Path.Combine(destination,"web-signalrace-schedule.jsonl");
             Require(new FileInfo(schedule).Length is >0 and <=1048576,"signalrace_schedule_size");

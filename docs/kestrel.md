@@ -433,6 +433,17 @@ are preserved. This supplies local TCP/framing evidence only. Native/guest
 ownership remains closed until the versioned journal, exact event-wait contract,
 nested budgets and fresh qualification/admission are integrated.
 
+[Step1526](../done/step1526.md) adds explicit native-v8 qualification dispatch
+and schedule-v2 pairing for selected/attempt-v3, preserving the old modes.
+Expert review resolves the native deadline conflict: one 210-second operation
+lease starts before strace, with 165 seconds required before race admission;
+v8 avoids an independently timed TERM helper. Joined report retention remains
+uncancelled, and late success is rejected. All 23 focused host checks pass;
+no new Linux native wait, signal, cleanup or guest is qualified. The exact raw
+timeout expectation still needs original native observations/disassembly.
+Guest role/remaining-budget/Date integration and fresh native publication,
+reviewed prepared admission and original owned guest evidence remain pending.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
