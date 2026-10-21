@@ -22,9 +22,19 @@ public static partial class NativeAotWebPayload
     public static Task<string> CaptureObservedSignalRaceAsync(int port,string expectedHealthBody,
         string observationPath,CancellationToken cancellation=default)=>CaptureObservedSignalRaceCoreAsync(port,expectedHealthBody,observationPath,cancellation,null);
 
+    /// <summary>Capture the explicit event-owned v3 controller over owned
+    /// loopback HTTP/1.1 streams. One 150-second capture deadline owns the
+    /// request tasks. Retain partial selected/attempt reports after request
+    /// joins, then close/join role handlers before the raw wire snapshot. Framed
+    /// selector headers require separate HTTP inspection. The caller owns the
+    /// endpoint; this establishes no native process, wait, cleanup or guest proof.</summary>
+    public static Task<string> CaptureObservedEventOwnedSignalRaceAsync(int port,string expectedHealthBody,
+        string observationPath,CancellationToken cancellation=default)=>CaptureObservedSignalRaceCoreAsync(port,
+            expectedHealthBody,observationPath,cancellation,null,startGate:true,eventOwned:true);
+
     private static async Task<string> CaptureObservedSignalRaceCoreAsync(int port,string expectedHealthBody,
         string observationPath,CancellationToken cancellation,Action<string,CreatedRaceReport,CreatedRaceReport,CreatedRaceReport>? retainCreated,
-        bool startGate=false,RaceStartHooks? startHooks=null)
+        bool startGate=false,RaceStartHooks? startHooks=null,bool eventOwned=false)
     {
         string endpoint="http://127.0.0.1:"+port.ToString(CultureInfo.InvariantCulture);RaceInputs(endpoint,expectedHealthBody);
         string path=Path.GetFullPath(observationPath);AuthorityFiles.RequirePlainPath(Path.GetDirectoryName(path)!,Path.GetDirectoryName(path)!,"web_signalrace_output_path");
@@ -36,7 +46,7 @@ public static partial class NativeAotWebPayload
             using var client=new HttpClient(new RaceRoutingHandler(wire,port),disposeHandler:true)
             {Timeout=Timeout.InfiniteTimeSpan,DefaultRequestVersion=HttpVersion.Version11,DefaultVersionPolicy=HttpVersionPolicy.RequestVersionExact};
             selected=await CaptureSignalRaceCoreAsync(client,endpoint,expectedHealthBody,path,cancellation,wire,
-                retainCreated is null?null:(first,second)=>{selectedFile=first;attemptFile=second;},startGate,startHooks);
+                retainCreated is null?null:(first,second)=>{selectedFile=first;attemptFile=second;},startGate,startHooks,eventOwned);
         }
         catch(Exception error){failure=error;}
         try

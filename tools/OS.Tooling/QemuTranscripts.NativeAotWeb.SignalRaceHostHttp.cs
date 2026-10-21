@@ -23,6 +23,9 @@ public static partial class QemuTranscripts
     /// require a unique complete request/response with exact status/decoded bytes;
     /// faults/cancellations establish only consumed entity prefixes. Selected
     /// responses bind exact logical IDs; host cancellation remains a separate event.
+    /// Paired v3 attempts also bind exact signal/churn selector presence and
+    /// values on every fully observed request header; incomplete headers grant
+    /// no selector authority. Historical v1/v2 retain their original checks.
     /// Uses existing32MiB JSON/4MiB raw/8KiB header bounds. Web-only diagnostics
     /// retain status700..999; quota grammar remains unchanged. Malformed framing,
     /// ambiguous/reordered responses or unknown-byte completion claims throw.
@@ -32,6 +35,9 @@ public static partial class QemuTranscripts
         string attemptsJson,string selectedJson,string endpoint,string expectedHealthBody)
     {
         var trace=NativeAotWebPayload.InspectSignalRaceTransport(attemptsJson,selectedJson,wireJson,endpoint,expectedHealthBody);
+        using var document=JsonDocument.Parse(attemptsJson);
+        bool eventOwned=document.RootElement.GetProperty("schema").GetString()=="clros.web.signalrace.attempts.v3";
+        var attempts=document.RootElement.GetProperty("attempts");
         var prefixes=ReadServiceQuotaHostPrefixes(trace);List<ServiceQuotaHostHttpMessage> messages=[];HashSet<(int,int)> seen=[];
         foreach(var connection in prefixes.Connections)
         {
@@ -53,7 +59,15 @@ public static partial class QemuTranscripts
                     Need(request.First==exchange.Method+" "+exchange.Path+" HTTP/1.1"&&request.Headers.GetValueOrDefault("Host")=="127.0.0.1:"+trace.Port.ToString(CultureInfo.InvariantCulture)&&
                         request.Headers.GetValueOrDefault("Connection") is null,"web_race_http_request");
                     Need(exchange.Method=="POST"?request.Framing=="length"&&request.DeclaredLength==0:request.Framing=="none","web_race_http_request_body");
-                    if(exchange.Method=="POST")Need(request.Headers.GetValueOrDefault(exchange.Path=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal")=="v1","web_race_http_request_header");
+                    if(eventOwned)
+                    {
+                        string expected=attempts[exchangeId-1].GetProperty("signalVersion").GetString()!;
+                        string? signal=request.Headers.GetValueOrDefault("X-CLROS-Signal");
+                        Need(expected.Length==0?signal is null:signal==expected,"web_race_http_request_signal");
+                        string? churn=request.Headers.GetValueOrDefault("X-CLROS-Churn");
+                        Need(exchange.Method=="POST"&&exchange.Path=="/__clros/churn"?churn=="v1":churn is null,"web_race_http_request_churn");
+                    }
+                    else if(exchange.Method=="POST")Need(request.Headers.GetValueOrDefault(exchange.Path=="/__clros/churn"?"X-CLROS-Churn":"X-CLROS-Signal")=="v1","web_race_http_request_header");
                 }
                 var message=new ServiceQuotaHostHttpMessage(connection.ConnectionId,exchangeId,request,response,Array.AsReadOnly(writes),Array.AsReadOnly(reads));
                 messages.Add(message);previous=message;
@@ -80,7 +94,7 @@ public static partial class QemuTranscripts
         }
         // A cancelled/faulted attempt may never have connected or written bytes.
         // Complete response outcomes above can never use attempted unknown writes.
-        using var document=JsonDocument.Parse(attemptsJson);List<WebSignalRaceHostHttpSample> samples=[];
+        List<WebSignalRaceHostHttpSample> samples=[];
         foreach(var link in document.RootElement.GetProperty("selections").EnumerateArray())
         {
             int sample=link.GetProperty("sample").GetInt32(),exchange=link.GetProperty("attempt").GetInt32();

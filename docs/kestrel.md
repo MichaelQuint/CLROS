@@ -420,9 +420,18 @@ Borrowed client timeout and default selector headers are checked before files
 or requests; exact v3 race headers/prefixes and the ordinary v1 repeat probe are
 retained in the attempt contract. All36 focused checks across seven fixtures
 pass with unchanged inputs and zero reuse. Legacy v1/v2 checks pass; native role
-admission explicitly refuses copied v3. Actual transport/header joins, native
-event-wait/journal integration, owner/runner/Date windows and fresh original
+admission explicitly refuses copied v3. Native event-wait/journal integration,
+owner/runner/Date windows and fresh original
 qualification/admission remain prerequisites to another owned guest.
+
+[Step1525](../done/step1525.md) binds observed v3 request selectors to complete
+local HTTP stream headers without changing legacy checks or the raw recorder
+schema. Real loopback capture passes with 21 selected samples and 23 attempts;
+truncated-response and pre-cancelled reports retain their incomplete status.
+All 22 focused checks pass, and nine original reports plus the tested producers
+are preserved. This supplies local TCP/framing evidence only. Native/guest
+ownership remains closed until the versioned journal, exact event-wait contract,
+nested budgets and fresh qualification/admission are integrated.
 
 ## Continuing-service foundations
 

@@ -13,15 +13,15 @@ internal static class NativeAotWebSignalRaceTransportTests
     private const string Health = "OS_MINIMAL_API_OK";
     private const string Complete = "CLROS_CHURN_OK iterations=8 bytes=65536 timers=8 workers=8 collections=8";
     private const string Success = "CLROS_SIGNAL_RACE_OK signal=12 pid=43 actor=8 waiter=7 callback=9 callbacks=1 actorJoined=1 waiterJoined=1 consumed=90 recovery=107 recoveryWriter=9 initialValue=-1 initialErrno=4 recoveryValue=1 recoveryEvents=1 recoveryTag=344978309701 handler=4096 flags=335544324 restorer=8192 actionMask=0 originalHandler=0 originalFlags=0 originalRestorer=0 originalActionMask=0 maskBefore=2048 maskDuring=0 maskAfter=2048 altAddress=0 altFlags=2 altBytes=0 descriptorsClosed=3 actionRestored=1 altUnchanged=1";
-    private sealed class Connection(int port)
+    internal sealed class Connection(int port)
     {
         internal readonly int Port = port;
         internal readonly List<byte[]> Requests = [], Responses = [];
     }
 
-    private sealed class Peer : IAsyncDisposable
+    internal sealed class Peer : IAsyncDisposable
     {
-        private readonly bool partial, unsupported, startGate;
+        private readonly bool partial, unsupported, startGate, eventOwned;
         private readonly TcpListener listener = new(IPAddress.Loopback, 0);
         private readonly CancellationTokenSource stop = new(TimeSpan.FromSeconds(15));
         private readonly TaskCompletionSource recovery = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -36,9 +36,9 @@ internal static class NativeAotWebSignalRaceTransportTests
         internal string Endpoint => "http://127.0.0.1:" + Port;
         internal int StartRequests { get { lock(gate)return startRequests; } }
         // Listener/handlers exist only when an explicitly selected test runs.
-        internal Peer(bool partial = false, bool unsupported = false, bool startGate = false)
+        internal Peer(bool partial = false, bool unsupported = false, bool startGate = false, bool eventOwned = false)
         {
-            this.partial = partial; this.unsupported = unsupported; this.startGate=startGate; listener.Start();
+            this.partial = partial; this.unsupported = unsupported; this.startGate=startGate||eventOwned; this.eventOwned=eventOwned; listener.Start();
             Port = ((IPEndPoint)listener.LocalEndpoint).Port; accepting = Accept();
         }
 
@@ -74,6 +74,18 @@ internal static class NativeAotWebSignalRaceTransportTests
                         lock (gate) connection.Requests.Add(request);
                         string text = Encoding.ASCII.GetString(request), first = text[..text.IndexOf("\r\n", StringComparison.Ordinal)];
                         string[] words = first.Split(' '); HostCheck.Equal(3, words.Length); HostCheck.Equal("HTTP/1.1", words[2]);
+                        if(eventOwned)
+                        {
+                            string signal=words[1].StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":
+                                words[0]=="POST"&&words[1]=="/__clros/signalprobe"?"v1":"";
+                            string churn=words[0]=="POST"&&words[1]=="/__clros/churn"?"v1":"";
+                            foreach(var expected in new[]{(Name:"X-CLROS-Signal",Value:signal),(Name:"X-CLROS-Churn",Value:churn)})
+                            {
+                                string[] headers=text.Split("\r\n",StringSplitOptions.None).Where(line=>line.StartsWith(expected.Name+":",StringComparison.OrdinalIgnoreCase)).ToArray();
+                                HostCheck.Equal(expected.Value==""?0:1,headers.Length);
+                                if(headers.Length==1)HostCheck.Equal(expected.Value,headers[0][(expected.Name.Length+1)..].Trim());
+                            }
+                        }
                         if (partial)
                         {
                             byte[] response = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 9\r\n\r\nA"u8.ToArray();
@@ -89,7 +101,8 @@ internal static class NativeAotWebSignalRaceTransportTests
                         else if (words[0] == "POST")
                         {
                             HostCheck.True(text.Contains("Content-Length: 0\r\n", StringComparison.OrdinalIgnoreCase));
-                            HostCheck.True(text.Contains(words[1] == "/__clros/churn" ? "X-CLROS-Churn: v1\r\n" : "X-CLROS-Signal: v1\r\n", StringComparison.OrdinalIgnoreCase));
+                            HostCheck.True(text.Contains(words[1] == "/__clros/churn" ? "X-CLROS-Churn: v1\r\n" :
+                                "X-CLROS-Signal: "+(eventOwned&&words[1].StartsWith("/__clros/signalrace",StringComparison.Ordinal)?"v3":"v1")+"\r\n", StringComparison.OrdinalIgnoreCase));
                             if (words[1] == "/__clros/churn")
                             {
                                 int number; lock (gate)
@@ -109,7 +122,11 @@ internal static class NativeAotWebSignalRaceTransportTests
                             {
                                 bool repeat; lock (gate) { repeat = raceStarted; raceStarted = true; }
                                 if (repeat) { status = 409; body = "CLROS_SIGNAL_RACE_BUSY"; }
-                                else { await recovery.Task.WaitAsync(stop.Token); body = startGate?Success.Replace("pid=43","pid=1",StringComparison.Ordinal):Success; }
+                                else
+                                {
+                                    await recovery.Task.WaitAsync(stop.Token); body = startGate?Success.Replace("pid=43","pid=1",StringComparison.Ordinal):Success;
+                                    if(eventOwned)body=body.Replace("CLROS_SIGNAL_RACE_OK","CLROS_SIGNAL_RACE_V3_OK",StringComparison.Ordinal);
+                                }
                             }
                             else if(words[1]=="/__clros/signalrace/start")
                             {
@@ -140,7 +157,8 @@ internal static class NativeAotWebSignalRaceTransportTests
                                 {
                                     "/healthz" => Health,
                                     "/__clros/churn/status" => $"CLROS_CHURN_STATUS active={active} waiting={active} peakActive={(churnStarted == 0 ? 0 : 1)} started={churnStarted} completed={(complete ? 1 : 0)} canceled={(canceled ? 1 : 0)} failed=0 rejected=0 timers={work} workers={work} collections={work} heldBytes={active * 65536} peakHeldBytes={(churnStarted == 0 ? 0 : 65536)}",
-                                    "/__clros/signalrace/status" => raceStarted ? $"CLROS_SIGNAL_RACE_STATUS phase={phase} pid={(startGate?1:43)} waiter=7 actor=8 callback={(phase==2?0:9)} recoveryRequested={(recovered ? 1 : 0)}" : "CLROS_SIGNAL_RACE_STATUS phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0",
+                                    "/__clros/signalrace/status" => (eventOwned?"CLROS_SIGNAL_RACE_V3_STATUS":"CLROS_SIGNAL_RACE_STATUS")+
+                                        (raceStarted ? $" phase={phase} pid={(startGate?1:43)} waiter=7 actor=8 callback={(phase==2?0:9)} recoveryRequested={(recovered ? 1 : 0)}" : " phase=0 pid=0 waiter=0 actor=0 callback=0 recoveryRequested=0"),
                                     _ => throw new InvalidDataException("Unexpected request: " + first)
                                 };
                             }
@@ -179,7 +197,7 @@ internal static class NativeAotWebSignalRaceTransportTests
         }
     }
 
-    private static string Output()
+    internal static string Output()
     {
         string directory = Path.GetFullPath(Path.Combine("artifacts", "host-tests", "signal-race-transport-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(directory); return Path.Combine(directory, "observations.json");

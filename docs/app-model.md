@@ -556,8 +556,18 @@ use v3; the ordinary repeat signal probe retains v1. Exact per-attempt selector
 fields and v3 response prefixes are checked; legacy v1/v2 shapes remain.
 All36 focused checks pass. These are copied HTTP/controller checks; the native
 role reader explicitly refuses v3 until its event-wait contract is integrated.
-Observed wire/header joins, native journal/owner/runner/Date budgets and fresh
+Native journal/owner/runner/Date budgets and fresh
 qualification/admission/guest evidence remain required.
+
+[Step1525](../done/step1525.md) adds explicit observed v3 capture using the
+existing owned loopback stream recorder. Fully observed HTTP headers must match
+the paired v3 attempt selectors, including the status GET; unexpected signal or
+churn selectors are refused. Partial headers retain their limited authority.
+All 22 focused checks pass, including real local TCP capture with 21 selected
+samples and 23 attempts, retained truncated-response/pre-cancel controls and
+legacy readers. Nine original report files and the tested producers are saved.
+The native/guest owner and role reader remain closed to v3; native journal,
+receipt, wait-contract and deadline integration precede fresh qualification.
 
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
