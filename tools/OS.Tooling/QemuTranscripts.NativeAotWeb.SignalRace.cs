@@ -35,6 +35,10 @@ public static partial class QemuTranscripts
         /// <summary>Original row order; zero ordinal/sequence means inapplicable.</summary>
         public readonly record struct Step(string Kind,int RecordIndex,ulong Identity,ulong Ordinal,ulong Sequence);
         public WebSignalRaceSelection Selection { get; }
+        /// <summary>True only when complete replay checked the explicit
+        /// event-owned named waits and repark. This is copied profile identity,
+        /// not original native, source, process or guest authority.</summary>
+        public bool EventOwned { get; }
         public Thread Waiter { get; }
         public Thread Actor { get; }
         public Thread Callback { get; }
@@ -49,9 +53,9 @@ public static partial class QemuTranscripts
         public IReadOnlyList<WebSignalRaceSocketCall> SocketCalls { get; }
         internal WebSignalRaceReport(WebSignalRaceSelection selection,Thread waiter,Thread actor,Thread callback,Thread writer,
             DescriptorObservation read,DescriptorObservation write,DescriptorObservation epoll,IEnumerable<Step> steps,
-            IEnumerable<WebSignalRaceSocketCall> socketCalls)
+            IEnumerable<WebSignalRaceSocketCall> socketCalls,bool eventOwned=false)
         {
-            Selection=selection with{};Waiter=waiter;Actor=actor;Callback=callback;RecoveryWriter=writer;
+            Selection=selection with{};EventOwned=eventOwned;Waiter=waiter;Actor=actor;Callback=callback;RecoveryWriter=writer;
             ReadDescriptor=read;WriteDescriptor=write;EpollDescriptor=epoll;Steps=Array.AsReadOnly(steps.ToArray());
             SocketCalls=Array.AsReadOnly(socketCalls.ToArray());
         }
@@ -61,10 +65,11 @@ public static partial class QemuTranscripts
     private sealed record WebRacePort(SocketDescriptor Port,int Descriptor,uint Generation,int Index);
     private sealed record WebRaceWatch(WebProbePipe Pipe,SocketDescriptor Port,int Index);
     private readonly record struct WebRaceFrame(ulong Identity,uint Signal,ulong Frame,int Index,bool Returned);
-    private sealed class WebRaceTrace(WebSignalRaceSelection selection,int[] originalRows)
+    private sealed class WebRaceTrace(WebSignalRaceSelection selection,int[] originalRows,bool eventOwned)
     {
         internal readonly WebSignalRaceSelection Selection=selection;
         internal readonly int[] OriginalRows=originalRows;
+        internal readonly bool EventOwned=eventOwned;
         internal readonly List<WebRacePipe> Pipes=[];
         internal readonly List<WebRacePort> Ports=[];
         internal readonly List<WebRaceWatch> Watches=[];
@@ -77,7 +82,7 @@ public static partial class QemuTranscripts
         private WebRaceTrace? webRaceTrace;
 
         // Called only by the explicit race mode; ordinary replay collects nothing.
-        internal void EnableWebSignalRace(WebSignalRaceSelection selection,IReadOnlyList<int> originalRows,int originalCount)
+        internal void EnableWebSignalRace(WebSignalRaceSelection selection,IReadOnlyList<int> originalRows,int originalCount,bool eventOwned=false)
         {
             Need(web && !service && webRaceTrace is null && selection is not null && selection.Pid==1 &&
                 selection.WaiterTid>0 && selection.ActorTid>0 && selection.CallbackTid>0 && selection.RecoveryWriterTid>0 &&
@@ -86,7 +91,7 @@ public static partial class QemuTranscripts
                 "web_race_original_rows");
             int[] map=originalRows!.ToArray();
             Need(map.All(i=>i>=0 && i<originalCount) && map.Zip(map.Skip(1)).All(p=>p.First<p.Second),"web_race_original_rows");
-            webRaceTrace=new(selection! with{},map);
+            webRaceTrace=new(selection! with{},map,eventOwned);
         }
 
         private void ObserveWebSignalRaceCall(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation call)
@@ -171,6 +176,8 @@ public static partial class QemuTranscripts
                 c.R["a0"]==(ulong)port.Descriptor && c.Wait.RecordIndex>watch.Index && c.Wait.RecordIndex<portClose).ToArray();
             Need(epollWaits.Length==2 && epollWaits.All(c=>c.Wait.Source==3 && c.R["action"]==3 && c.R["valueBits"]==0),"web_race_epoll_waits");
             var initial=epollWaits[0];var recovery=epollWaits[1];
+            if(trace.EventOwned)Need(epollWaits.All(c=>c.R["a2"]==1 && c.R["a3"]==ulong.MaxValue &&
+                c.R["status"]==9 && c.Wait.Deadline==0 && c.Wait.Sequence>0),"web_race_event_waits");
             var signal=One(calls.Where(c=>c.Wait.RecordIndex>pipe.Index && c.Wait.RecordIndex<readClose &&
                 c.R["nr"] is 200 or 234 && (c.R["nr"]==200?c.R["a1"]:c.R["a2"])==12 &&
                 (c.R["nr"]==200?c.R["a0"]:c.R["a1"])==(ulong)waiter.Tid),"web_race_directed_signal");
@@ -182,6 +189,7 @@ public static partial class QemuTranscripts
             var ready=Event(NativeAotSocketGuest.ObservationKind.Wake,initial.Wait.Sequence);
             var repark=One(observations.Where(o=>o.Kind==NativeAotSocketGuest.ObservationKind.Repark &&
                 o.PreviousSequence==initial.Wait.Sequence),"web_race_repark");
+            if(trace.EventOwned)Need(repark.Deadline==0 && repark.Sequence>initial.Wait.Sequence,"web_race_event_repark");
             var interrupted=Event(NativeAotSocketGuest.ObservationKind.Wake,repark.Sequence);
             var completed=Event(NativeAotSocketGuest.ObservationKind.Complete,repark.Sequence);
             var recovered=Event(NativeAotSocketGuest.ObservationKind.Wake,recovery.Wait.Sequence);
@@ -233,7 +241,7 @@ public static partial class QemuTranscripts
             return new(s,waiterValue,actorValue,callbackValue,writerValue,
                 new(pipe.Read,pipe.ReadGeneration,Original(pipe.Index),Original(readClose)),
                 new(pipe.Write,pipe.WriteGeneration,Original(pipe.Index),Original(writeClose)),
-                new(port.Descriptor,port.Generation,Original(port.Index),Original(portClose)),steps,trace.SocketCalls);
+                new(port.Descriptor,port.Generation,Original(port.Index),Original(portClose)),steps,trace.SocketCalls,trace.EventOwned);
         }
     }
 }

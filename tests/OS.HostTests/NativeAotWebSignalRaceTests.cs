@@ -7,8 +7,10 @@ internal static class NativeAotWebSignalRaceTests
     internal static QemuTranscripts.WebSignalRaceReport Run(QemuTranscripts.WebSignalRaceSelection? selection=null,
         bool omitRepark=false,bool wrongRecovery=false,bool leaveOpen=false,bool repeatPipe=false,Action<int>? originalWait=null,
         bool controls=false,bool extraSocket=false,bool missingAfter=false,bool lateRetirement=false,bool unaccepted=false,
-        Action<int>? originalSocket=null,Action<NativeAotThreadingTranscriptTests.Vector,string>? phase=null,int pipeBase=7)
+        Action<int>? originalSocket=null,Action<NativeAotThreadingTranscriptTests.Vector,string>? phase=null,int pipeBase=7,
+        bool eventOwned=false,Action<List<string>>? mutate=null,bool? eventWaits=null)
     {
+        bool untimed=eventWaits??eventOwned;
         var replay=NativeAotWebReplayTests.InspectProbe(v=>
         {
             if(extraSocket)
@@ -37,18 +39,18 @@ internal static class NativeAotWebSignalRaceTests
             ulong read=(ulong)pipeBase,write=read+1,epoll=read+2;
             v.Call(293,0,[0x500500,0x80800]);v.Call(291,(long)epoll,[0x80000]);v.Call(233,0,[epoll,1,read,0x500300]);
             v.Call(13,0,[12,0x500400,0,8]);var actor=v.Clone(3,3);v.Call(186,1);
-            originalWait?.Invoke(v.Rows.Count);v.Call(232,0,[epoll,b,1,1],3,3,1_000_020);v.Drain(30);v.Supervisor(3,1,3);v.Select(actor);
+            originalWait?.Invoke(v.Rows.Count);v.Call(232,0,[epoll,b,1,untimed?ulong.MaxValue:1],3,3,untimed?0UL:1_000_020);v.Drain(30);v.Supervisor(3,1,3);v.Select(actor);
             v.Call(186,3);phase?.Invoke(v,"before-actor-write");v.Call(1,1,[write,b,1]);
             v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=1 completion=1 state=1 clock=30");
             v.Call(234,0,[1,1,12]);v.Call(0,1,[read,b,1]);v.Irq(40,2,3);v.Select(v.Main);
             if(omitRepark)return;
-            v.Rows.Add($"M16_012_REPARK identity={v.Main.Id} previous=1 sequence=2 deadline=1000020 clock=40");
+            v.Rows.Add($"M16_012_REPARK identity={v.Main.Id} previous=1 sequence=2 deadline={(untimed?0:1000020)} clock=40");
             v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=2 completion=5 state=5 clock=40");
             v.Main.Sequence=2;v.Supervisor(3,2,3);v.Select(actor);v.Irq(50,2,3);v.Select(v.Main);
             v.Rows.Add($"M16_012_COMPLETE identity={v.Main.Id} sequence=2 completion=5 valueBits={unchecked((ulong)-4L)} clock=50");
             v.Resume(-4);v.Main.Frame=frame;v.Main.Depth=1;v.Main.Mask=1UL<<11;v.Main.Rsp=frame-64;v.Call(186,1);
             v.Main.Rsp=frame+8;v.Main.Frame=v.Main.Depth=v.Main.Mask=0;v.Call(15,-4,action:5,returnedRsp:stack);v.Main.Rsp=stack;
-            v.Wake(0x500200);v.Call(232,0,[epoll,b,1,1],3,3,1_000_050);v.Drain(60);v.Supervisor(3,2,3);
+            v.Wake(0x500200);v.Call(232,0,[epoll,b,1,untimed?ulong.MaxValue:1],3,3,untimed?0UL:1_000_050);v.Drain(60);v.Supervisor(3,2,3);
             v.Select(actor);v.Call(60,0,[0],4);v.Drain(60);v.Exit(4,1,3);
             // The original synthetic worker2 was parked on the woken futex.
             var callback=new NativeAotThreadingTranscriptTests.Thread(2,2)
@@ -63,7 +65,8 @@ internal static class NativeAotWebSignalRaceTests
             if(!leaveOpen){v.Call(3,0,[epoll]);v.Call(3,0,[write]);v.Call(3,0,[read]);}
             if(repeatPipe){v.Call(293,0,[0x500500,0x80800]);v.Call(3,0,[write]);v.Call(3,0,[read]);}
             phase?.Invoke(v,"after-cleanup");
-        },signalRace:selection??Selection,controls:controls);
+            mutate?.Invoke(v.Rows);
+        },signalRace:selection??Selection,controls:controls,eventOwned:eventOwned);
         HostCheck.True(replay.SignalRace is not null);return replay.SignalRace!;
     }
 

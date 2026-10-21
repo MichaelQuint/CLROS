@@ -105,9 +105,12 @@ public static partial class QemuTranscripts
     /// throw. A live owner at host capture end supplies no guest cleanup or
     /// complete QEMU/native/packet/runner/source acceptance. Optional controls
     /// join the original live network/descriptor lifetimes; omitting them
-    /// retains historical scope with TransportControlsChecked=false.</summary>
+    /// retains historical scope with TransportControlsChecked=false. Explicit
+    /// eventOwned requires a race selection and exact named infinite waits;
+    /// the default retains the historical profile. Mode selects replay checks,
+    /// not original native receipt or owned execution authority.</summary>
     public static WebReplayReport ValidateNativeAotWebContinuingPrefix(string root,byte[] package,NativeAotWebProgram program,
-        ReadOnlySpan<byte> rawTail,ulong userRoot,ulong kernelRoot,WebControlInspection? controls=null,WebSignalRaceSelection? signalRace=null)
+        ReadOnlySpan<byte> rawTail,ulong userRoot,ulong kernelRoot,WebControlInspection? controls=null,WebSignalRaceSelection? signalRace=null,bool eventOwned=false)
     {
         var observed=ValidateNativeAotWebPrefix(root,package,program,rawTail);
         var configuration=NativeAotWebProgram.DescribeConfiguration(package);
@@ -119,7 +122,7 @@ public static partial class QemuTranscripts
         var view=OS.Manifest.LinuxElfPackage.Validate(package);
         return ReplayWeb(framed,observed,package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).ToArray(),
             program.IsInstruction,program.IsSyscallReturn,userRoot,kernelRoot,configuration.SettingsBytes,checked((int)config["fd"]),
-            loggingValidated:true,logQuota:configuration.LogQuota,controls:controls,signalRace:signalRace);
+            loggingValidated:true,logQuota:configuration.LogQuota,controls:controls,signalRace:signalRace,eventOwned:eventOwned);
     }
 
     /// <summary>Value-only synthetic control seam for the same continuing
@@ -127,10 +130,12 @@ public static partial class QemuTranscripts
     /// predicates grant no prepared-program, app, source or guest authority.
     /// Borrowed raw rows are framed and replayed; invalid observations throw.
     /// Optional controls/logQuota select explicit synthetic expectations only;
-    /// production derives these from the owned runner and original package.</summary>
+    /// production derives these from the owned runner and original package.
+    /// eventOwned requires a race selection and checks its exact named waits;
+    /// it grants no additional original execution authority.</summary>
     public static WebReplayReport InspectNativeAotWebReplayForTests(byte[] elf,ReadOnlySpan<byte> raw,
         Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,
-        WebControlInspection? controls=null,bool logQuota=false,WebSignalRaceSelection? signalRace=null)
+        WebControlInspection? controls=null,bool logQuota=false,WebSignalRaceSelection? signalRace=null,bool eventOwned=false)
     {
         var framed=NativeAotThreadingOutput.ReadWeb(raw);
         int last=framed.NormalizedTail.LastIndexOf("\r\n",StringComparison.Ordinal);Need(last>=0,"web_replay_records");
@@ -139,13 +144,14 @@ public static partial class QemuTranscripts
         var observations=new WebObservationReport(ReadLinuxCallWaits(rows,allowEpoll:true).Count,framed.WriteLengths.Count,
             Encoding.UTF8.GetByteCount(framed.Stdout),Encoding.UTF8.GetByteCount(framed.Stderr),0,fragment,
             Convert.ToHexString(SHA256.HashData(raw)),Convert.ToHexString(SHA256.HashData(raw[..(raw.Length-fragment.Length)])));
-        return ReplayWeb(framed,observations,elf,instruction,syscall,userRoot,kernelRoot,settingsBytes,settingsFd,logQuota:logQuota,controls:controls,signalRace:signalRace);
+        return ReplayWeb(framed,observations,elf,instruction,syscall,userRoot,kernelRoot,settingsBytes,settingsFd,logQuota:logQuota,controls:controls,signalRace:signalRace,eventOwned:eventOwned);
     }
 
     private static WebReplayReport ReplayWeb(NativeAotThreadingOutput.Capture framed,WebObservationReport observed,byte[] elf,
         Func<ulong,bool> instruction,Func<ulong,bool> syscall,ulong userRoot,ulong kernelRoot,uint settingsBytes,int settingsFd,bool loggingValidated=false,bool logQuota=false,
-        WebControlInspection? controls=null,WebSignalRaceSelection? signalRace=null)
+        WebControlInspection? controls=null,WebSignalRaceSelection? signalRace=null,bool eventOwned=false)
     {
+        Need(!eventOwned||signalRace is not null,"web_race_event_selection");
         string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-observed.TrailingFragment.Length)];
         string[] original=complete[..^2].Split("\r\n",StringSplitOptions.None);
         int[] configRows=Enumerable.Range(0,original.Length).Where(i=>original[i].StartsWith("M10_004_CONFIG ",StringComparison.Ordinal)).ToArray();
@@ -165,7 +171,7 @@ public static partial class QemuTranscripts
             userRoot,kernelRoot,socketCapture:capture,webSettingsBytes:settingsBytes,webSettingsFd:settingsFd,
             webSettingsCall:(settingsCall.Identity,settingsCall.Ordinal),webLogQuota:logQuota,webControls:controls,
             webRaceTransport:signalRace is not null && controls is not null);
-        if(signalRace is not null)protocol.EnableWebSignalRace(signalRace,originalRows,original.Length);
+        if(signalRace is not null)protocol.EnableWebSignalRace(signalRace,originalRows,original.Length,eventOwned);
         var report=protocol.ValidateWeb(observed);
         return signalRace is null?report:report with { SignalRace=protocol.ReadWebSignalRace() };
     }

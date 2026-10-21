@@ -581,6 +581,18 @@ All 23 focused checks pass. The all-ones raw timeout is a pinned-wrapper
 hypothesis requiring fresh native observations/disassembly. No new native run
 or guest admission is supplied; guest roles/runner/Date composition remains next.
 
+[Step1527](../done/step1527.md) adds explicit copied event-owned replay and role
+consistency. Both named initial/recovery epoll waits require maxevents1, exact
+raw all-ones timeout, blocked status/source, zero deadline and positive sequence;
+the selected repark keeps zero deadline and advances sequence. Complete replay,
+descriptor generations, original positions and causal guards remain. An immutable
+report profile binds selected-v3 roles to those checks; legacy v1/v2 retain their
+defaults and refuse the event profile. All 41 focused checks pass. One initial
+negative fixture hit an earlier sequence guard; its failed source/results and
+producers are preserved before a test-only ordering correction and fresh rerun.
+These are copied model/role checks. Guest owner/rendezvous/runner/remaining-time/
+Date integration and fresh original native qualification/admission remain pending.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

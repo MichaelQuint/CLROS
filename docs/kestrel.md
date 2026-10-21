@@ -444,6 +444,14 @@ timeout expectation still needs original native observations/disassembly.
 Guest role/remaining-budget/Date integration and fresh native publication,
 reviewed prepared admission and original owned guest evidence remain pending.
 
+[Step1527](../done/step1527.md) checks the exact named event-owned initial,
+recovery and repark waits in complete copied replay, retaining descriptor and
+causal guards. Selected-v3 role joins require the immutable checked event profile;
+legacy profiles remain separate. All 41 focused checks pass after preserving
+one failed negative fixture and correcting only its ordering. No new native or
+guest execution follows. Explicit guest owner/pipe/runner/remaining-time/Date
+composition and fresh native qualification/admission still precede an owned guest.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

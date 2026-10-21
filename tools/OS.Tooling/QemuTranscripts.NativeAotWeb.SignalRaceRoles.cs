@@ -38,8 +38,9 @@ public static partial class QemuTranscripts
     /// extra request-only slices are<=2000000. Return immutable copied joins or
     /// throw. Source/native/owned file/process/UTC/PCAP and GC/ThreadPool/cleanup
     /// acceptance remain separate; phase4 alone supplies no blocked-wait proof.
-    /// Only selected v1/v2 are supported here; event-owned v3 is refused until
-    /// its separate native role contract is integrated.</summary>
+    /// Selected v3 requires the explicit event-owned replay profile; historical
+    /// v1/v2 require the legacy profile. Copied selectors cannot switch an
+    /// already checked replay report's mode or supply original authority.</summary>
     public static WebSignalRaceRoleInspection InspectNativeAotWebSignalRaceRolesForTests(ReadOnlySpan<byte> wireJson,
         string attemptsJson,string selectedJson,string endpoint,string expectedHealthBody,ServiceQuotaPacketStreams guest,
         WebSignalRaceReport replay)
@@ -48,10 +49,10 @@ public static partial class QemuTranscripts
         var selection=NativeAotWebPayload.ValidateSignalRaceEvidence(selectedJson,endpoint,expectedHealthBody);
         using var document=JsonDocument.Parse(selectedJson,new JsonDocumentOptions{MaxDepth=8});
         string schema=document.RootElement.GetProperty("schema").GetString()!;
-        // A v3 copied capture does not select the still-timed native/guest role
-        // contract. Explicit event-wait role admission is a separate integration.
-        Need(schema is "clros.web.signalrace.v1" or "clros.web.signalrace.v2","web_race_roles_event_contract_pending");
-        bool startGate=schema=="clros.web.signalrace.v2";
+        bool eventOwned=schema=="clros.web.signalrace.v3";
+        Need(!eventOwned||replay.EventOwned,"web_race_roles_event_contract_pending");
+        Need(eventOwned||!replay.EventOwned,"web_race_roles_profile");
+        bool startGate=eventOwned||schema=="clros.web.signalrace.v2";
         var trace=NativeAotWebPayload.InspectSignalRaceTransport(attemptsJson,selectedJson,wireJson,endpoint,expectedHealthBody);
         Need(trace.Purpose=="signalrace-run" && selection==replay.Selection,"web_race_roles_selection");
         var joined=InspectNativeAotWebSignalRaceStreamJoinForTests(wireJson,attemptsJson,selectedJson,endpoint,expectedHealthBody,guest);
