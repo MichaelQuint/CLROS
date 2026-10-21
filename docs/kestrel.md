@@ -219,6 +219,21 @@ ambiguous retries and existing quota readers. Quota parsing remains unchanged.
 These consistency checks still require an owned guest runner/evidence bundle,
 explicit race completion/packet contract and actual PCAP/native/source joins.
 
+[Step1509](../done/step1509.md) implements the separate ownership component and
+default-off runner rendezvous. After ordinary controls, the runner sends READY
+over a fresh same-user named pipe and waits for DONE within its original deadline,
+monitoring child/frame/serial health. The Tooling owner joins observed HTTP work,
+checks creator-handle identities and exact flushed-byte hashes against held
+selected/attempt/wire originals, frames HTTP, then sends their hashes and joins
+the runner. Failure paths close the pipe, cancel/join started tasks and retain
+available original logs and partial reports. Only explicit mode emits race fields;
+ordinary dry-run output remains byte-identical. All35 focused checks/six fixtures
+pass unchanged/zero reuse, including real pipes and a full loopback handoff that
+deliberately rejects its failed runner result. No successful guest receipt is
+fabricated. QemuSmoke wiring, a separate exact race summary/UTC/packet contract,
+actual PCAP association and fresh native/source/ELF/index admission remain next.
+No native or QEMU trial ran; the original native failure remains failed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

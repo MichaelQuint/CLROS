@@ -389,6 +389,18 @@ fixtures pass unchanged/zero reuse, including real loopback integration and
 unchanged quota parser regressions. Owned guest-runner completion/evidence,
 actual packet association and fresh native/source/image admission remain pending.
 
+[Step1509](../done/step1509.md) adds a private owned web-race completion component
+and explicit runner READY/DONE pipe. Creation-handle identities, lengths and
+exact flushed-byte digests bridge report-writer closure to held originals before
+DONE. The owner joins HTTP work and runner cleanup, retaining partial reports and
+available stdout/stderr on refusal. The gate follows ordinary controls, monitors
+child/frame/serial health and stays within the original runner deadline; normal
+mode output is unchanged. All35 focused checks/six fixtures pass, including a
+full loopback DONE followed by deliberate runner failure without Completion.
+This component is not yet wired into QemuSmoke/native admission or an exact
+race summary/UTC/packet consumer. Actual PCAP, native/source/ELF/index joins and
+guest execution remain unproved; no acceptance issue closes.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

@@ -462,6 +462,24 @@ try
                                 }
                                 catch(Exception failure)when(failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException)
                                 {web.Failure="socket_controls_"+failure.GetType().Name;}
+                                if(web.Failure is null&&options.WebRacePipe is not null)
+                                {
+                                    try
+                                    {
+                                        long remaining=options.TimeoutSeconds*1000L-stopwatch.ElapsedMilliseconds;
+                                        if(remaining<35_000)throw new TimeoutException("Web race handoff budget.");
+                                        bool Healthy()=>!process.HasExited&&!webFrames!.Completion.IsCompleted&&
+                                            TryFeedSerialLogDelta(options.SerialLogPath,streamingMarkers,ref serialReadOffset,
+                                                out SerialMarkerFeedResult delta,out serialReadFailure)&&delta.Succeeded&&
+                                            streamingMarkers.ForbiddenOccurrenceCount==0&&streamingMarkers.OutOfOrderOccurrenceCount==0&&
+                                            streamingMarkers.DuplicateUniqueOccurrenceCount==0;
+                                        web.RaceGate=WebRaceRendezvous.WaitInRunnerAsync(options.WebRacePipe,options.SocketForwardPort!.Value,process.Id,
+                                            TimeSpan.FromMilliseconds(Math.Min(45_000,remaining)),Healthy).GetAwaiter().GetResult();
+                                        web.AliveAfterRaceGate=Healthy();if(!web.AliveAfterRaceGate)web.Failure="race_gate_guest_unhealthy";
+                                    }
+                                    catch(Exception failure)when(failure is IOException or InvalidDataException or OperationCanceledException or TimeoutException or SocketException or InvalidOperationException or UnauthorizedAccessException)
+                                    {web.Failure="race_gate_"+failure.GetType().Name;}
+                                }
                             }
                         }
                     }
@@ -1873,6 +1891,11 @@ static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions opti
     builder.Append("WEB_SOCKET_CONTROLS ").AppendLine(web.Controls is null?"none":JsonSerializer.Serialize(web.Controls));
     builder.Append("WEB_FRAME_CONTROL ").AppendLine(web.Frames is null?"none":JsonSerializer.Serialize(web.Frames));
     builder.Append("WEB_PROCESS_ALIVE_AFTER_CONTROLS ").AppendLine(FormatBool(web.AliveAfterControls));
+    if(options.WebRacePipe is not null)
+    {
+        builder.Append("WEB_RACE_GATE ").AppendLine(web.RaceGate is null?"none":JsonSerializer.Serialize(web.RaceGate));
+        builder.Append("WEB_PROCESS_ALIVE_AFTER_RACE_GATE ").AppendLine(FormatBool(web.AliveAfterRaceGate));
+    }
     builder.Append("WEB_ENDPOINT_PRELAUNCH_AVAILABLE ").AppendLine(web.PreLaunchAvailable ? "true" : "false");
     builder.Append("WEB_ENDPOINT_STOPPED_REFUSED ").AppendLine(web.StoppedEndpointRefused?.ToString().ToLowerInvariant() ?? "not_run");
     builder.Append("WEB_PROCESS_ID ").AppendLine(web.ProcessId?.ToString() ?? "none");
@@ -2427,6 +2450,7 @@ sealed class RunnerOptions
     public bool SocketContainmentPeer { get; private set; }
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
+    public string? WebRacePipe { get; private set; }
     public bool ContinuingService { get; private set; }
     public bool ServiceQuotaFailure { get; private set; }
     public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
@@ -2575,6 +2599,10 @@ sealed class RunnerOptions
                     if (options.ContinuingWeb) throw new ArgumentException("--continuing-web may be specified only once.");
                     options.ContinuingWeb = true;
                     break;
+                case "--web-race-pipe":
+                    if(options.WebRacePipe is not null)throw new ArgumentException("--web-race-pipe may be specified only once.");
+                    options.WebRacePipe=ReadValue(args,ref i,arg);WebRaceRendezvous.ValidatePipeName(options.WebRacePipe);
+                    break;
                 case "--service-quota-failure":
                     if (options.ServiceQuotaFailure) throw new ArgumentException("--service-quota-failure may be specified only once.");
                     options.ServiceQuotaFailure = true;
@@ -2690,6 +2718,7 @@ sealed class RunnerOptions
         Console.WriteLine("--service-quota-failure is an explicit expected capture under --continuing-service; requires replaced default markers and exact final CLROS_M16_016_QUOTA_CLEANUP, disables positive raw socket controls, retains frame/process/endpoint cleanup, and returns22 with acceptance pending. No quota or guest behavior is accepted by capture alone.");
         Console.WriteLine("--continuing-service requires the captured modern ARP fixture, guest port 8080 forward, virtio RNG, SingleMinimalApi, summary log and a 780..900-second timeout; owned raw socket controls run alongside serial capture until TEST_PASS m16-012 and confirmed process/frame cleanup. Other web, scripted peer, HTTP or panic modes are forbidden.");
         Console.WriteLine("--web-log-case normal|records64 requires --continuing-web (default normal); normal expects logging POST 200 and GET /__clros/vectors with 49152 exact binary bytes, records64 expects logging 500 with an empty body and skips vectors. Repeat POST 409 and final health 200 are required in both cases.");
+        Console.WriteLine("--web-race-pipe <clros-web-race-32lowerhex> requires normal continuing-web and an owned local producer. After ordinary controls it waits for joined race-report hashes within the original deadline; dry-run/preflight opens no pipe.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
@@ -2889,10 +2918,12 @@ sealed class RunnerOptions
     {
         if (!ContinuingWeb)
         {
+            if(WebRacePipe is not null)throw new ArgumentException("--web-race-pipe requires --continuing-web.");
             if (webLogCaseConfigured) throw new ArgumentException("--web-log-case requires --continuing-web.");
             if (webConfigBody is not null) throw new ArgumentException("--web-config-body requires --continuing-web.");
             return;
         }
+        if(WebRacePipe is not null&&WebLogCase!="normal")throw new ArgumentException("--web-race-pipe requires normal web logging.");
         if (SocketForwardPort is null || HttpProbe is null || string.IsNullOrWhiteSpace(SummaryLogPath) ||
             WorkloadProfile != OS.Kernel.Build.WorkloadProfile.SingleMinimalApiName || TimeoutSeconds > 285 ||
             ContinuingNetworkPeer || ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic || ExpectedUnhandledException)
@@ -3049,6 +3080,8 @@ sealed class ServiceEvidence
 
 sealed class ContinuingWebEvidence
 {
+    public WebRaceRendezvous.Report? RaceGate;
+    public bool AliveAfterRaceGate;
     public WebSocketControls.Report? Controls;
     public WebFrameControl.Report? Frames;
     public bool AliveAfterControls;

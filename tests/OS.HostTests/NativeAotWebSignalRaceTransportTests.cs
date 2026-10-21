@@ -1,8 +1,10 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using OS.Tooling;
+using OS.Tools.QemuRunner;
 
 // Real loopback HTTP/stream controls, with independently supplied diagnostic
 // bodies. They establish no native signal, guest flow, process or syscall proof.
@@ -172,6 +174,55 @@ internal static class NativeAotWebSignalRaceTransportTests
     private static byte[] Bytes(NativeAotServiceQuotaPeer.WireTrace trace, int connection, string direction) =>
         trace.Operations.Where(op => op.ConnectionId == connection && op.Direction == direction && op.Outcome == "complete")
             .SelectMany(op => Convert.FromBase64String(op.DataBase64)).ToArray();
+
+    [HostTest("web race owner reaches actual loopback DONE with creator held reports then refuses failed runner")]
+    private static async Task OwnedReportsBeforeDone()
+    {
+        using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await using var peer = new Peer(); string path = Output(), summary = path + ".summary";
+        string root = HostToolProcess.FindRepositoryRoot();
+        Task<ProcessResult>? callback = null; Task<NativeAotWebRacePeer.Completion>? owner = null;
+        bool done = false, joined = false; NativeAotWebRacePeer.Completion? completion = null;
+        Task<ProcessResult> Run(string name, CancellationToken token) => callback = RunCore(name, token);
+        async Task<ProcessResult> RunCore(string name, CancellationToken token)
+        {
+            try
+            {
+                var report = await WebRaceRendezvous.WaitInRunnerAsync(name, peer.Port, Environment.ProcessId, TimeSpan.FromSeconds(10), cancellation: token);
+                HostCheck.Equal(peer.Port, report.Port); HostCheck.Equal(Environment.ProcessId, report.QemuProcessId);
+                string Hash(string file) => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file)));
+                HostCheck.Equal(Hash(path), report.Digests.SelectedSha256);
+                HostCheck.Equal(Hash(path + ".attempts.json"), report.Digests.AttemptsSha256);
+                HostCheck.Equal(Hash(path + ".wire.json"), report.Digests.WireSha256);
+                done = true;
+                // Deliberate failure after genuine coordinated HTTP capture;
+                // no successful runner, summary or Completion is fabricated.
+                return new(1, "failed-after-done", "", false, false, false, TimeSpan.Zero);
+            }
+            finally { joined = true; }
+        }
+        try
+        {
+            owner = NativeAotWebRacePeer.RunOwnedAsync(root, peer.Port, Health, path, summary, Run, limit.Token);
+            string? reason = null;
+            try { completion = await owner; } catch (ToolFailure error) { reason = error.Reason; }
+            HostCheck.Equal("web_race_owner_runner_failed", reason);
+            HostCheck.True(completion is null && done && joined && callback is { IsCompleted: true } && owner.IsCompleted);
+            HostCheck.Equal("failed-after-done", File.ReadAllText(path + ".runner.log"));
+            HostCheck.Equal("", File.ReadAllText(path + ".runner.stderr.log")); HostCheck.True(!File.Exists(summary));
+            foreach (string file in new[] { path, path + ".attempts.json", path + ".wire.json", path + ".runner.log", path + ".runner.stderr.log" })
+            { using var closed = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None); }
+            HostCheck.Equal("signalrace-run", Wire(path).Purpose);
+            HostCheck.Equal(19, QemuTranscripts.InspectNativeAotWebSignalRaceHostHttp(File.ReadAllBytes(path + ".wire.json"),
+                File.ReadAllText(path + ".attempts.json"), File.ReadAllText(path), peer.Endpoint, Health).Samples.Count);
+        }
+        finally
+        {
+            limit.Cancel();
+            if (owner is not null) try { _ = await owner.WaitAsync(TimeSpan.FromSeconds(10)); } catch when (owner.IsCompleted) { }
+            if (callback is not null) try { _ = await callback.WaitAsync(TimeSpan.FromSeconds(10)); } catch when (callback.IsCompleted) { }
+        }
+    }
 
     [HostTest("web race observed transport owns persistent role connections and exact real HTTP bytes")]
     private static async Task CompleteTransport()

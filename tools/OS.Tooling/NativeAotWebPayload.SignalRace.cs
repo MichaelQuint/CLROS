@@ -18,7 +18,8 @@ public static partial class NativeAotWebPayload
         string observationPath,CancellationToken cancellation=default)=>CaptureSignalRaceCoreAsync(client,endpoint,expectedHealthBody,observationPath,cancellation,null);
 
     private static async Task<string> CaptureSignalRaceCoreAsync(HttpClient client,string endpoint,string expectedHealthBody,
-        string observationPath,CancellationToken cancellation,NativeAotServiceQuotaPeer.WireCapture? wire)
+        string observationPath,CancellationToken cancellation,NativeAotServiceQuotaPeer.WireCapture? wire,
+        Action<CreatedRaceReport,CreatedRaceReport>? retainCreated=null)
     {
         ArgumentNullException.ThrowIfNull(client);RaceInputs(endpoint,expectedHealthBody);
         string path=Path.GetFullPath(observationPath),parent=Path.GetDirectoryName(path)!;
@@ -115,8 +116,19 @@ public static partial class NativeAotWebPayload
                 catch(Exception error){joinFailure??=error;}
             }
             if(joinFailure is not null){semanticComplete=false;if(!primaryFailure)failure="web_signalrace_request_join_failed";}
-            try{byte[] json=Encoding.UTF8.GetBytes(Json());await output.WriteAsync(json);await output.FlushAsync();}
-            finally{byte[] json=Encoding.UTF8.GetBytes(attempts.Json(semanticComplete,failure));await attemptOutput.WriteAsync(json);await attemptOutput.FlushAsync();}
+            byte[] selectedBytes=Encoding.UTF8.GetBytes(Json()),attemptBytes=Encoding.UTF8.GetBytes(attempts.Json(semanticComplete,failure));
+            try{await output.WriteAsync(selectedBytes);await output.FlushAsync();}
+            finally{await attemptOutput.WriteAsync(attemptBytes);await attemptOutput.FlushAsync();}
+            if(retainCreated is not null&&semanticComplete&&!primaryFailure&&joinFailure is null)
+            {
+                CreatedRaceReport? selectedFile=null,attemptFile=null;
+                try
+                {
+                    selectedFile=CreatedRaceReport.Retain(output,selectedBytes);attemptFile=CreatedRaceReport.Retain(attemptOutput,attemptBytes);
+                    retainCreated(selectedFile,attemptFile);selectedFile=null;attemptFile=null;
+                }
+                finally{selectedFile?.Dispose();attemptFile?.Dispose();}
+            }
             if(joinFailure is not null&&!primaryFailure)throw new InvalidDataException("web_signalrace_request_join_failed",joinFailure);
         }
     }
