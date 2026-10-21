@@ -379,6 +379,15 @@ Read/Create passes; altered/earlier-failed ELF, partial decode and aliases refus
 Prepared instruction authority is host-only. Original owned CLROS guest and
 quota termination/churn cleanup remain unqualified; no complete Kestrel follows.
 
+[Step1520](../done/step1520.md) preserves three failed owned attempts at
+`ec419d08`: r01 refuses mixed host producer cohorts before QEMU; r02 rejects a
+selected29-byte health body in the existing fixed17-byte socket control; r03
+uses the corrected default body and reaches race orchestration, but every race
+status remains phase0 while POST is pending until timeout. Fresh EFI/image and
+all962 source joins are saved; all owned processes are stopped. No complete
+summary/owned race receipt or acceptance follows. The expert is tasked with the
+phase0 stall; earlier failed attempts remain failed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

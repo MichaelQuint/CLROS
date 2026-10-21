@@ -516,6 +516,13 @@ This is host instruction-boundary authority only. Original owned CLROS guest,
 quota-triggered offending-workload termination and churn cleanup remain next;
 complete Kestrel/Gate14, isolation, cloud and production remain incomplete.
 
+[Step1520](../done/step1520.md) retains the failed original native-v7 guest
+attempts: mixed producer cohort before launch, then a selected-body/fixed-control
+mismatch, then a corrected default-body guest with pending race POST and phase0
+status until timeout. Original EFI/native/source/serial/packet/report evidence is
+preserved; no complete owned race receipt exists. Expert diagnosis precedes a
+minimal fix and fresh execution. No quota or Kestrel acceptance is added.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
