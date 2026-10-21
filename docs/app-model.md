@@ -507,6 +507,15 @@ is gracefully stopped; previous failures remain failed. Fresh ELF/index/source
 admission and the original owned CLROS guest still follow. No quota termination,
 complete Kestrel/Gate14, isolation, cloud or production acceptance is added.
 
+[Step1519](../done/step1519.md) separately admits that exact ELF and its
+independently reviewed complete index:1,426,926 instruction starts/198 syscalls,
+entry0x408f77, fourteen current-source pins and nine app files. All19 focused
+checks/3 fixtures pass unchanged/zero reuse; actual held Read/Create prepares
+lookup and rejects changed/earlier-failed ELF, partial decode and aliases.
+This is host instruction-boundary authority only. Original owned CLROS guest,
+quota-triggered offending-workload termination and churn cleanup remain next;
+complete Kestrel/Gate14, isolation, cloud and production remain incomplete.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

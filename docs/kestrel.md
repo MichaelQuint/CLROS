@@ -369,6 +369,16 @@ SHA652E2E00D49C2529BB8C2439820F8A58F7086766E01D2C08D0748CA659C9BFAE
 remains unadmitted pending exact independent decoder/index/source review.
 No CLROS guest, quota termination or complete Kestrel/Gate14 acceptance follows.
 
+[Step1519](../done/step1519.md) admits that exact ELF and complete reviewed
+instruction lookup after independent decoder/debug/source review:1,426,926
+starts/198 syscalls, all4,575,791 executable-section bytes, entry0x408f77 and
+digestBD21ABDEBDA40026C43936D111E1FC31296C7A4D73925C798ACCCC1EA3D01326.
+Fourteen source pins cover the actual nine-file app; original guards remain.
+All19 focused checks/3 fixtures pass unchanged/zero reuse. Actual held
+Read/Create passes; altered/earlier-failed ELF, partial decode and aliases refuse.
+Prepared instruction authority is host-only. Original owned CLROS guest and
+quota termination/churn cleanup remain unqualified; no complete Kestrel follows.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
