@@ -69,6 +69,35 @@ internal static class NativeAotServiceQuotaWireReportTests
         Reject(() => NativeAotServiceQuotaPeer.SerializeWireReport(trace));
     }
 
+    [HostTest("quota partial wire uses900 second ceiling while stream controls retain exact600 second ceiling")]
+    private static void TimeProfiles()
+    {
+        const long quotaMaximum = 900L * TimeSpan.TicksPerSecond, controlMaximum = 600L * TimeSpan.TicksPerSecond;
+        foreach (long end in new[] { controlMaximum + 1, quotaMaximum })
+        {
+            string json = NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("quota-partial", end));
+            var copy = NativeAotServiceQuotaPeer.InspectWireReport(Encoding.UTF8.GetBytes(json));
+            HostCheck.True(copy.SnapshotTicks == end && copy.Connections[0].DisposedTicks == end - 1 && copy.Operations[1].EndedTicks == end - 6);
+            HostCheck.Equal(json, NativeAotServiceQuotaPeer.SerializeWireReport(copy));
+        }
+        Reject(() => NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("quota-partial", quotaMaximum + 1)));
+        var lateQuota = JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("quota-partial", quotaMaximum)))!.AsObject();
+        lateQuota["snapshotTicks"] = quotaMaximum + 1; Reject(() => Inspect(lateQuota));
+        string control = NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("stream-control", controlMaximum));
+        HostCheck.Equal(controlMaximum, NativeAotServiceQuotaPeer.InspectWireReport(Encoding.UTF8.GetBytes(control)).SnapshotTicks);
+        Reject(() => NativeAotServiceQuotaPeer.SerializeWireReport(AtEnd("stream-control", controlMaximum + 1)));
+        var lateControl = JsonNode.Parse(control)!.AsObject(); lateControl["snapshotTicks"] = controlMaximum + 1;
+        Reject(() => Inspect(lateControl));
+    }
+
+    private static NativeAotServiceQuotaPeer.WireTrace AtEnd(string purpose, long end)
+    {
+        var original = Fixture(); long shift = end - original.SnapshotTicks;
+        return original with { Purpose = purpose, SnapshotTicks = end,
+            Connections = original.Connections.Select(c => c with { ConnectedTicks = c.ConnectedTicks + shift, DisposedTicks = c.DisposedTicks + shift }).ToArray(),
+            Operations = original.Operations.Select(o => o with { StartedTicks = o.StartedTicks + shift, EndedTicks = o.EndedTicks + shift }).ToArray() };
+    }
+
     private static JsonObject Root() => JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeWireReport(Fixture()))!.AsObject();
     private static JsonObject Operation(JsonObject r) => r["operations"]![0]!.AsObject();
     private static JsonObject Connection(JsonObject r) => r["connections"]![0]!.AsObject();

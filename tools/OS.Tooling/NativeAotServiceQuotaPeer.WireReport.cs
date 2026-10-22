@@ -141,9 +141,10 @@ public static partial class NativeAotServiceQuotaPeer
 
     private static void RequireWire(WireTrace trace,bool signalRace=false)
     {
-        const long maximumTicks = 600L * TimeSpan.TicksPerSecond;
+        long maximumSeconds = !signalRace && trace.Purpose is ("quota-run" or "quota-partial") ? MaximumPeerSeconds : 600;
+        long maximumTicks = maximumSeconds * TimeSpan.TicksPerSecond;
         WireNeed(trace.Port is >=1 and <=65535 && (signalRace?trace.Purpose is "signalrace-run" or "signalrace-partial":trace.Purpose is "quota-run" or "quota-partial" or "stream-control") &&
-            trace.SnapshotTicks is >0 and <=maximumTicks && trace.RawBytes is >=0 and <=WireMaximumRawBytes, "trace");
+            trace.SnapshotTicks > 0 && trace.SnapshotTicks <= maximumTicks && trace.RawBytes is >=0 and <=WireMaximumRawBytes, "trace");
         WireNeed(trace.Connections.Count >= (trace.Purpose is "quota-partial" or "signalrace-partial" ? 0 : 1) && trace.Connections.Count <= WireMaximumConnections && trace.Exchanges.Count <= (signalRace?1024:WireMaximumExchanges) &&
             trace.Operations.Count <= WireMaximumOperations && trace.Samples.Count <= ReportSampleNames.Length, "array_bound");
         long prior = 0; var live = new List<WireConnection>();

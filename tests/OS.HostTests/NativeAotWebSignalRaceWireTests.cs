@@ -81,4 +81,26 @@ internal static class NativeAotWebSignalRaceWireTests
             Reject(()=>NativeAotWebPayload.ValidateSignalRaceTransport(attempts,selected,bytes,Endpoint,Health));
         }
     }
+
+    [HostTest("web race copied wire retains600 second ceiling independently of quota900 second profile")]
+    private static void TimeBoundary()
+    {
+        const long maximum=600L*TimeSpan.TicksPerSecond;
+        Peer.WireTrace AtEnd(long end)
+        {
+            var trace=Trace();long shift=end-trace.SnapshotTicks;
+            return trace with{SnapshotTicks=end,
+                Connections=trace.Connections.Select(c=>c with{ConnectedTicks=c.ConnectedTicks+shift,DisposedTicks=c.DisposedTicks+shift}).ToArray(),
+                Exchanges=trace.Exchanges.Select(e=>e with{StartedTicks=e.StartedTicks+shift,EndedTicks=e.EndedTicks+shift}).ToArray(),
+                Operations=trace.Operations.Select(o=>o with{StartedTicks=o.StartedTicks+shift,EndedTicks=o.EndedTicks+shift}).ToArray()};
+        }
+        string json=NativeAotWebPayload.SerializeSignalRaceWire(AtEnd(maximum));
+        var copy=NativeAotWebPayload.InspectSignalRaceWire(Encoding.UTF8.GetBytes(json));
+        HostCheck.True(copy.SnapshotTicks==maximum&&copy.Exchanges[0].EndedTicks==maximum-3&&copy.Connections[0].DisposedTicks==maximum-1);
+        HostCheck.Equal(json,NativeAotWebPayload.SerializeSignalRaceWire(copy));
+        Reject(()=>NativeAotWebPayload.SerializeSignalRaceWire(AtEnd(maximum+1)));
+        var late=JsonNode.Parse(json)!.AsObject();late["snapshotTicks"]=maximum+1;
+        Reject(()=>NativeAotWebPayload.InspectSignalRaceWire(Encoding.UTF8.GetBytes(late.ToJsonString())));
+        Reject(()=>NativeAotWebPayload.SerializeSignalRaceWire(AtEnd(900L*TimeSpan.TicksPerSecond)));
+    }
 }

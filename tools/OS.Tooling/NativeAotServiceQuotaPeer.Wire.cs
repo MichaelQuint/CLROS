@@ -7,9 +7,9 @@ namespace OS.Tooling;
 
 public static partial class NativeAotServiceQuotaPeer
 {
-    // The fixture permits400s/100ms startup retries and180s/50ms polls,
-    // plus setup.8192 leaves a bound above those serialized application loops;
-    // unexpected handler retries or fragmentation must fail rather than truncate.
+    // Capture capacities are independent of startup/operation deadlines.
+    // Unexpected retries, polling or fragmentation that exhaust these retained
+    // witness bounds must fail rather than truncate, even before a deadline.
     public const int WireMaximumConnections = 8192, WireMaximumExchanges = 8192,
         WireMaximumOperations = 65536, WireMaximumOperationBytes = 65536,
         WireMaximumRawBytes = 4 * 1024 * 1024, WireMaximumReportBytes = 32 * 1024 * 1024;

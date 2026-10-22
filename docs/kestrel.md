@@ -527,6 +527,15 @@ that exact reset wrapper within the existing400s deadline. Pressure/poll
 classification remains unchanged. Fresh quota/ordinary lifecycle acceptance is
 still required; both startup failures remain failed originals.
 
+[Step1536](../done/step1536.md) records successful startup/held-connection/worker
+progress after that repair, followed by the180s operation deadline before quota
+pressure. The instrumented guest completes14 random requests in151.247s;
+readiness still requires more than32 and another advancing sample. The bounded
+host calibration allows480s operation and900s quota child/report time. Runner900s
+and owner960s remain independent outer caps. Signal-race and stream-control
+reports retain600s bounds, all capture capacities and the600s application
+watchdog remain unchanged. A fresh original quota run is still required.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

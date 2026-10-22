@@ -109,7 +109,7 @@ public static partial class NativeAotServiceQuotaPeer
                     string[] arguments = [tool, "nativeaot", "service", "quota-peer", "--port", port.ToString(CultureInfo.InvariantCulture),
                         .. wirePath is null ? Array.Empty<string>() : new[] { "--wire-report", wirePath }];
                     peer = ProcessRunner.RunAsync(new("dotnet", arguments, root)
-                    { Timeout = TimeSpan.FromSeconds(600), OutputCharacterLimit = ReportMaximumBytes + 2 + (observeWire ? 256 : 0) }, owned.Token);
+                    { Timeout = TimeSpan.FromSeconds(MaximumPeerSeconds), OutputCharacterLimit = ReportMaximumBytes + 2 + (observeWire ? 256 : 0) }, owned.Token);
                     var first = await Task.WhenAny(runner, peer);
                     if (first == runner)
                     {
@@ -174,8 +174,10 @@ public static partial class NativeAotServiceQuotaPeer
     /// listening row, and own one separate quota peer child beside the supplied
     /// runner. The callback must use a bounded process API, honor cancellation and
     /// confirm termination; the existing QEMU runner remains the sole PCAP owner.
-    /// The peer has400s startup plus180s operation within a600s child bound; the
-    /// aggregate owner bound is960s. Expected runner22 awaits the peer; every
+    /// The peer has400s startup plus480s operation within a900s child bound,
+    /// starting after listen. The independent960s owner clock starts before the
+    /// runner, which retains its separately configured bound. Outer caps may
+    /// reject before all inner budgets expire. Expected runner22 awaits the peer; every
     /// failure/cancellation cancels and joins both tasks before return/throw.
     /// Existing plain log directories must be under root; both children's fresh stdout/stderr are
     /// retained exactly even on failure. This does not open publication admission

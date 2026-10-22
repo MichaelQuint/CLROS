@@ -48,7 +48,7 @@ internal static class NativeAotServiceQuotaPeerReportTests
             r => r["samples"]!.AsArray().Add(Row(r, 17).DeepClone()), r => Row(r, 0)["name"] = "quota.unknown",
             r => Row(r, 1)["name"] = "health.startup", r => Row(r, 0)["body"] = new string('x', 8193),
             r => Row(r, 0)["body"] = "CLROS_SERVICE_HEALTH_OK\n", r => Row(r, 0)["body"] = "\u0100",
-            r => Row(r, 0)["elapsedTicks"] = 0, r => Row(r, 17)["elapsedTicks"] = 6_000_000_001L })
+            r => Row(r, 0)["elapsedTicks"] = 0, r => Row(r, 17)["elapsedTicks"] = 9_000_000_001L })
         { var root = Root(); change(root); Reject(root); }
     }
 
@@ -91,6 +91,35 @@ internal static class NativeAotServiceQuotaPeerReportTests
             fixture with { WorkerCallsBefore = 0 }, fixture with { Samples = [] } })
             Reject(() => NativeAotServiceQuotaPeer.SerializeReport(bad));
         Reject(() => NativeAotServiceQuotaPeer.SerializeReport(null!));
+    }
+
+    [HostTest("quota peer copied report accepts beyond600 through900 seconds and refuses the next tick")]
+    private static void TimeBoundary()
+    {
+        const long maximum = 900L * TimeSpan.TicksPerSecond;
+        foreach (long end in new[] { 600L * TimeSpan.TicksPerSecond + 1, maximum })
+        {
+            string json = NativeAotServiceQuotaPeer.SerializeReport(AtEnd(end));
+            var copy = NativeAotServiceQuotaPeer.InspectReport(Encoding.UTF8.GetBytes(json));
+            HostCheck.True(copy.PressureAbortedTicks == end && copy.Samples[^1].ElapsedTicks == end && copy.HeldTicks > 600L * TimeSpan.TicksPerSecond - 19);
+            HostCheck.Equal(json, NativeAotServiceQuotaPeer.SerializeReport(copy));
+        }
+        Reject(() => NativeAotServiceQuotaPeer.SerializeReport(AtEnd(maximum + 1)));
+        var lateSample = JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeReport(AtEnd(maximum)))!.AsObject();
+        Row(lateSample, 17)["elapsedTicks"] = maximum + 1; Reject(lateSample);
+        var lateAbort = JsonNode.Parse(NativeAotServiceQuotaPeer.SerializeReport(AtEnd(maximum)))!.AsObject();
+        lateAbort["pressureAbortedTicks"] = maximum + 1; Reject(lateAbort);
+    }
+
+    private static NativeAotServiceQuotaPeer.Observation AtEnd(long end)
+    {
+        var original = Fixture(); long shift = end - original.PressureAbortedTicks;
+        var samples = original.Samples.Select(s => s with { ElapsedTicks = s.ElapsedTicks + shift }).ToArray();
+        samples[^1] = samples[^1] with { ElapsedTicks = end };
+        return original with { HeldTicks = original.HeldTicks + shift, PressureStartedTicks = original.PressureStartedTicks + shift,
+            RetainedTicks = original.RetainedTicks + shift, HealthyTicks = original.HealthyTicks + shift,
+            WorkerProgressTicks = original.WorkerProgressTicks + shift, OverlapTicks = original.OverlapTicks + shift,
+            PressureAbortedTicks = end, Samples = samples };
     }
 
     private static NativeAotServiceQuotaPeer.Observation Fixture()

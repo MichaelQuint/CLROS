@@ -15,7 +15,11 @@ namespace OS.Tooling;
 public static partial class NativeAotServiceQuotaPeer
 {
     private const string Lifecycle = "/__clros/service/lifecycle/", Quota = "/__clros/service/quota";
-    private const int ChunkBytes = 1_048_576, MaximumChunks = 64, StartupSeconds = 400, OperationalSeconds = 180;
+    private const int ChunkBytes = 1_048_576, MaximumChunks = 64, StartupSeconds = 400, OperationalSeconds = 480;
+
+    /// <summary>Quota child lifetime and copied quota elapsed-time ceiling in
+    /// seconds. Separate runner/owner clocks retain their independent bounds.</summary>
+    public const int MaximumPeerSeconds = 900;
 
     /// <summary>Copied original response text at a monotonic elapsed100ns tick.
     /// Status samples are independent observations, not atomic snapshots.</summary>
@@ -39,7 +43,7 @@ public static partial class NativeAotServiceQuotaPeer
 
     /// <summary>Stimulate one already-listening v3-quota service. Startup is
     /// bounded400s to cover the real initial TCP ISN quiet interval. A separate
-    /// operational180s starts after first health; later exchanges retain20s.
+    /// operational480s starts after first health; later exchanges retain20s.
     /// The pressure POST is never retried; any response, phase2, premature I/O end, timeout
     /// or cancellation rejects. Only pressure I/O abort after measured overlap
     /// returns values. The helper's16s deliberate waits are not a wall-time bound.

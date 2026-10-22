@@ -37,7 +37,7 @@ public static partial class NativeAotServiceQuotaPeer
     /// exactly19 root fields and18 ordered samples, each with3 fields and at
     /// most8192 body characters. Reject duplicate/missing/unknown fields, malformed
     /// values and inconsistent overlap witnesses. Elapsed ticks are100ns within
-    /// a600s report bound; counters retain their declared integer units. Returns
+    /// a900s quota report bound; counters retain their declared integer units. Returns
     /// copied immutable strings and a read-only sample array. Supplied values
     /// prove no original I/O, pending task, socket ownership, kernel quota,
     /// process exit, packet, native image, cleanup, Completion or guest run.</summary>
@@ -83,7 +83,7 @@ public static partial class NativeAotServiceQuotaPeer
 
     private static void RequireReport(Observation value)
     {
-        const long maximumTicks = 600L * TimeSpan.TicksPerSecond;
+        const long maximumTicks = (long)MaximumPeerSeconds * TimeSpan.TicksPerSecond;
         Need(value.Port is >= 1 and <= 65535 && value.ConnectionLimit == 4 &&
             value.PressureError is "ConnectionError" or "ResponseEnded", "report_connection_values");
         var samples = value.Samples; long previous = 0;
