@@ -599,6 +599,14 @@ Eight focused controls and original public native/packet/accounting replay pass.
 No guest code or timers change, and the failed original remains failed. Fresh
 owned V2 and the remaining acceptance batch still precede closure.
 
+[Step1542](../done/step1542.md) admits the fresh original `cd275855` Linux
+publication after step1541's one event-owned preparation yield. The exact ELF,
+debug/source/compiler/output joins and complete instruction index pass; six host
+admission checks and five actual package rejection controls pass. The yield does
+not make write/signal/read atomic or prevent GC and timer preemption. Fresh owned
+Smoke and ordinary V2, affected ancestors and the stable full-host run remain
+required. All three earlier Smoke captures remain failed originals.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
