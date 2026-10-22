@@ -123,7 +123,13 @@ public unsafe partial struct LinuxThreadServices
 
     private bool WakeEpollChanges(ulong flags)
     {
-        if (!LinuxEpollServices.RefreshThreads(_descriptors, _self)) { _failed = true; return false; }
+        LinuxEpollServices.ThreadRefresh refresh = default;
+        return WakeEpollChanges(flags, ref refresh);
+    }
+
+    private bool WakeEpollChanges(ulong flags, ref LinuxEpollServices.ThreadRefresh refresh)
+    {
+        if (!refresh.Refresh(_descriptors, _self)) { _failed = true; return false; }
         if (_descriptors->Epoll == null) return true;
         LinuxEpollServices.ReadinessScan scan = default;
         for (uint i = 0; i < _owner.Capacity; i++)

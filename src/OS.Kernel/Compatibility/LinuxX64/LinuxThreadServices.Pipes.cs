@@ -157,7 +157,11 @@ public unsafe partial struct LinuxThreadServices
     }
     private bool WakePipeChanges(ulong flags, uint* before)
     {
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (!LinuxEpollServices.ThreadRefresh.Begin(_descriptors, _self, out var refresh)) { _failed = true; return false; }
+#else
         if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return false; }
+#endif
         var a = _descriptors->Owner;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
@@ -169,13 +173,17 @@ public unsafe partial struct LinuxThreadServices
                 ? a.Pipes[p].BufferedBytes < before[p * 3] || a.Pipes[p].ReaderCount < before[p * 3 + 1]
                 : a.Pipes[p].BufferedBytes > before[p * 3] || a.Pipes[p].WriterCount < before[p * 3 + 2];
             if (!changed) continue;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            // Inspection may enter the thread owner: do not retain admission.
+            refresh = default;
+#endif
             var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
             if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
             if (state.Completion != KernelThreadTable.Completion.None) continue;
             if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
         }
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        return WakeEpollChanges(flags);
+        return WakeEpollChanges(flags, ref refresh);
 #else
         return true;
 #endif

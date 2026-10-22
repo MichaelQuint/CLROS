@@ -389,6 +389,70 @@ internal static unsafe class LinuxEpollServicesTests
         HostCheck.True(Fds.Audit(m.Files.State)); m.Drain();
     }
 
+    [HostTest("linux.epoll mixed pipe waits preserve unchanged readers and earlier wakes on later rejection")]
+    private static void MixedPipeThreadRefresh()
+    {
+        foreach (bool writeFirst in new[] { false, true })
+        for (int damage = 0; damage < 3; damage++)
+        {
+            using Model m = new(); var child = m.Thread.Clone(); var actor = m.Thread.Clone();
+            var firstPipe = m.Pipe(0); var secondPipe = m.Pipe(); uint epoll = m.Create();
+            HostCheck.Equal(0L, m.Control(epoll, 1, secondPipe.Read, 1, 44));
+            HostCheck.Equal(LinuxSyscallAction.Blocked, m.Call(0, firstPipe.Read, Output, 1).Action);
+            var firstView = m.Thread.View(m.Parent); var firstWait = firstView.Wait;
+            HostCheck.True(firstView.PipePending && firstView.WaitSource == 2);
+            HostCheck.True(!m.Thread.Service->CurrentImage(Key, 2, out _));
+            HostCheck.True(m.Thread.Service->CommitPipeWait(Key, 2, m.Thread.Kernel.Capture(m.Parent), out bool handoff) && handoff);
+            m.Thread.Kernel.Confirm();
+            HostCheck.Equal(KernelThreadTable.State.Waiting, m.Thread.Kernel.Inspect(m.Parent).State);
+            HostCheck.Equal(child.Value, m.Thread.Kernel.Dispatch().Value);
+            HostCheck.Equal(LinuxSyscallAction.Blocked, m.Call(232, epoll, Output + 32, 1, ulong.MaxValue).Action);
+            var secondView = m.Thread.View(child); var secondWait = secondView.Wait;
+            HostCheck.Equal(3U, secondView.WaitSource); m.Park(child);
+            HostCheck.Equal(actor.Value, m.Thread.Kernel.Dispatch().Value);
+            HostCheck.Equal(2U, m.Files.State->RetainedPipeOperations);
+
+            uint childSlot = unchecked((uint)child.Value) - 1;
+            byte* operation = (byte*)(m.Thread.Slots + childSlot) + Marshal.OffsetOf<LinuxThreadServices.Slot>("EpollOperation");
+            ulong* changed = (ulong*)(operation + Marshal.OffsetOf<Epoll.Operation>(damage == 1 ? "Self" : "Owner"));
+            ulong original = *changed;
+            if (damage != 0) *changed = damage == 1 ? original ^ 8UL : 0;
+            try
+            {
+                // Writing B leaves the source2 reader unchanged. Writing A must
+                // retain its wake even if the subsequent source3 check rejects.
+                m.Thread.Put32(Data, 0x63);
+                var result = m.Call(1, writeFirst ? firstPipe.Write : secondPipe.Write, Data, 1);
+                HostCheck.Equal(damage == 0 ? LinuxSyscallAction.Return : LinuxSyscallAction.Rejected, result.Action);
+                HostCheck.Equal(damage != 0, m.Thread.Service->Failed);
+                if (damage == 0) HostCheck.Equal(1L, result.Value);
+                var first = m.Thread.Kernel.Inspect(m.Parent); var second = m.Thread.Kernel.Inspect(child);
+                bool secondReady = !writeFirst && damage == 0;
+                HostCheck.Equal(writeFirst ? KernelThreadTable.State.Ready : KernelThreadTable.State.Waiting, first.State);
+                HostCheck.Equal(writeFirst ? KernelThreadTable.Completion.Woken : KernelThreadTable.Completion.None, first.Completion);
+                HostCheck.Equal(firstWait.Sequence, first.Wait.Sequence);
+                HostCheck.Equal(firstWait.Thread.Value, first.Wait.Thread.Value);
+                HostCheck.Equal(secondReady ? KernelThreadTable.State.Ready : KernelThreadTable.State.Waiting, second.State);
+                HostCheck.Equal(secondReady ? KernelThreadTable.Completion.Woken : KernelThreadTable.Completion.None, second.Completion);
+                HostCheck.Equal(secondWait.Sequence, second.Wait.Sequence);
+                HostCheck.Equal(secondWait.Thread.Value, second.Wait.Thread.Value);
+                HostCheck.Equal(2U, m.Files.State->RetainedPipeOperations);
+                HostCheck.Equal(writeFirst ? 1U : 0U, m.Files.Admission.Pipes[0].BufferedBytes);
+                HostCheck.Equal(writeFirst ? 0U : 1U, m.Files.Admission.Pipes[1].BufferedBytes);
+                for (int pipe = 0; pipe < 2; pipe++)
+                {
+                    HostCheck.Equal(1U, m.Files.Admission.Pipes[pipe].ReaderCount);
+                    HostCheck.Equal(1U, m.Files.Admission.Pipes[pipe].WriterCount);
+                }
+                byte buffered = 0;
+                HostCheck.Equal(1L, m.Files.Admission.Pipes[writeFirst ? 0 : 1].Peek(&buffered, 1, true));
+                HostCheck.Equal((byte)0x63, buffered);
+            }
+            finally { *changed = original; }
+            HostCheck.True(Fds.Audit(m.Files.State)); m.Drain();
+        }
+    }
+
     [HostTest("m16-012 checked syscall gateway retains and completes an actual epoll block", HostLane.Fast, 8)]
     private static void Gateway()
     {

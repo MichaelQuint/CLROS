@@ -1,5 +1,23 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1549](../done/step1549.md) carries one descriptor admission across the
+unchanged source2 pipe-wait scan into epoll refresh. The stack-only token binds
+the descriptor and thread owner, is consumed before refresh and is discarded
+before any thread inspection/wake. Default or mismatched tokens audit again;
+the full post-refresh retained-operation admission remains. The clean host
+build and70 focused checks pass, including mixed pipe/epoll waits and damaged
+later operations that retain earlier wakes and owned bytes. Fresh native and
+guest qualification remain required.
+
+The corrected-reader original at `fc677b5d` still fails
+`web_signalrace_missed_recovery_gate`. Its EFI, native object and both maps
+match the preceding3e9e0000 original, but the timer preempts after tgkill and
+before competing consumption; the waiter returns readiness before the read.
+The original result and all1,041 files are preserved. This new optimization
+removes a demonstrated duplicate audit without changing the required race,
+timer, priority, deadlines or one-attempt policy. It does not guarantee a
+particular guest schedule or qualify #225/#748/#737 or PR790 merge.
+
 [Step1548](../done/step1548.md) repairs completion-before-Park interpretation.
 The real kernel snapshot is Parking3, while Pending5 means delayed ready
 publication. The value reader and exact scheduler/signal-race consumers now
