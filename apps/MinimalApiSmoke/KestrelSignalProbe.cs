@@ -142,8 +142,8 @@ internal sealed class KestrelSignalProbe
     }
 
     // One dedicated actor borrows both pipe ends only through this delegate.
-    // The three nonblocking calls form one finite transaction after Go. Once
-    // entered, request cancellation cannot abandon a successfully sent signal.
+    // The three nonblocking calls form one finite, preemptible sequence after Go.
+    // Once entered, cancellation cannot abandon a successfully sent signal.
     private sealed class Actor(int process, int target, int read, int write, EventLifetime? lifetime) : IDisposable
     {
         internal readonly ManualResetEventSlim Go = new(false);
@@ -159,6 +159,14 @@ internal sealed class KestrelSignalProbe
                 { if (!Go.Wait(TimeSpan.FromSeconds(15))) Fatal("actor_release"); }
                 else lifetime.Wait(Go);
                 if (Volatile.Read(ref Abort) != 0) return;
+                if (lifetime is not null)
+                {
+                    // Finish preparation's quantum before exposing readiness.
+                    // The waiter is still blocked. Later preemption/GC remains
+                    // possible; only the original native order proves the race.
+                    Abi.YieldBeforeRace(); lifetime.Check();
+                    if (Volatile.Read(ref Abort) != 0) return;
+                }
                 Abi.WriteByte(write, Abi.WakeByte);
                 Abi.SendSignal(process, target); Volatile.Write(ref Sent, 1);
                 ConsumedByte = Abi.ReadByte(read);

@@ -82,6 +82,7 @@ internal static unsafe class KestrelSignalProbeTests
         Refused(() => { _ = KestrelSignalProbeAbi.Wait(3, 0); }); Refused(() => KestrelSignalProbeAbi.WriteWake(4));
         Refused(() => KestrelSignalProbeAbi.WriteByte(4, 0x6b)); Refused(() => { _ = KestrelSignalProbeAbi.ReadByte(3); });
         Refused(() => KestrelSignalProbeAbi.Close(4)); Refused(() => KestrelSignalProbeAbi.SendSignal(1, 2));
+        Refused(KestrelSignalProbeAbi.YieldBeforeRace);
     }
 
     private static void Offset<T>(string field, int expected) where T : struct =>

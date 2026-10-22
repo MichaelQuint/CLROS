@@ -55,6 +55,9 @@ internal static unsafe class KestrelSignalProbeAbi
     }
     internal static int GetPid() => Positive(Invoke(39), "getpid");
     internal static int GetTid() => Positive(Invoke(186), "gettid");
+    // One real scheduler yield before the event-owned actor starts its pipe
+    // transaction. This grants no priority or atomicity and never retries I/O.
+    internal static void YieldBeforeRace() => Exact(Invoke(24), 0, "race_yield");
     internal static void CreatePipe(out int read, out int write)
     {
         read = write = -1;

@@ -1,5 +1,17 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1541](../done/step1541.md) records three failed original event-owned
+Smoke scheduling witnesses at `d2c5a197`. The fixed three-boot experiment ended
+without extension; every original remains failed. Ready data was returned
+before the actor's competing read, so none establishes the required repark/EINTR
+race. The explicit v3 actor now performs one real `sched_yield` after preparation
+and checks its existing lifetime/Abort before writing. This avoids carrying a
+partly consumed preparation quantum into write/signal/read; it grants no atomicity
+and cannot prevent later preemption or GC suspension. Legacy behavior, deadlines,
+one-shot admission, exact native-order and cleanup requirements stay unchanged.
+Fresh Linux publication, source/native/index admission and full guest validation
+are required; the previous pinned app does not cover this source change.
+
 ## Request churn development
 
 [Step1497](../done/step1497.md) adds explicit diagnostics to the real
