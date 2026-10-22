@@ -264,6 +264,8 @@ public static class ToolCommand
         }
         catch (Exception error)
         {
+            if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "service" && args[2] == "quota-peer")
+                Console.Error.Write(NativeAotServiceQuotaPeer.DescribeFailure(error));
             Console.Error.WriteLine("TEST_FAIL " + (args.FirstOrDefault() == "done" ? "done.step.allocate" : "tooling") + " " + error.Message.ReplaceLineEndings(" "));
             return 1;
         }

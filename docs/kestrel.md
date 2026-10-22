@@ -510,6 +510,15 @@ permits both only after common gateway authentication; direct IRQ validation
 keeps exact SS0. The original remains failed. Corrected guest, RAM comparison,
 ordinary V2 fit and final stable gates remain required; no app republish is needed.
 
+[Step1534](../done/step1534.md) records the corrected gateway's fresh quota256
+attempt at `ad7bdc36`: stack leases and listen succeed, but the host health
+exchange fails before the TCP quiet deadline and before pressure. The original
+seven inbound SYNs have no guest reply or HTTP payload. Its partial wire report
+does not retain the exception type. Failure-only quota peer diagnostics now
+retain a bounded typed exception tree; startup retry classification and all
+deadlines remain unchanged pending a fresh capture. This is not quota cleanup
+or ordinary native-headroom acceptance.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

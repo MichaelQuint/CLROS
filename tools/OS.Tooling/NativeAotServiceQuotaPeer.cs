@@ -47,6 +47,43 @@ public static partial class NativeAotServiceQuotaPeer
     public static Task<Observation> RunAsync(int port, CancellationToken cancellation = default) =>
         RunCoreAsync(port, null, cancellation);
 
+    /// <summary>Format at most eight copied exception nodes for failed host CLI
+    /// diagnostics, including aggregate siblings. Omits messages, stacks and
+    /// payloads; bounded tokens/output confer no transport or guest verdict.</summary>
+    public static string DescribeFailure(Exception error)
+    {
+        ArgumentNullException.ThrowIfNull(error);
+        var pending = new Queue<(Exception Error, int Parent)>(); pending.Enqueue((error, -1));
+        var output = new StringBuilder(); int node = 0;
+        static string Token(string? value, int maximum) => value is { Length: > 0 } && value.Length <= maximum &&
+            value.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '.') ? value : "-";
+        while (pending.Count > 0 && node < 8)
+        {
+            var (current, parent) = pending.Dequeue();
+            string http = current is HttpRequestException request ? request.HttpRequestError.ToString() :
+                current is HttpIOException input ? input.HttpRequestError.ToString() : "-";
+            string socket = current is SocketException socketError ? socketError.SocketErrorCode.ToString() : "-";
+            string native = current is SocketException nativeError ? nativeError.NativeErrorCode.ToString(CultureInfo.InvariantCulture) : "-";
+            output.Append("QUOTA_PEER_ERROR node=").Append(node.ToString(CultureInfo.InvariantCulture))
+                .Append(" parent=").Append(parent.ToString(CultureInfo.InvariantCulture))
+                .Append(" type=").Append(Token(current.GetType().FullName, 160))
+                .Append(" hresult=").Append(current.HResult.ToString("X8", CultureInfo.InvariantCulture))
+                .Append(" http=").Append(Token(http, 48)).Append(" socket=").Append(Token(socket, 48))
+                .Append(" native=").Append(native).Append(" reason=")
+                .Append(current is ToolFailure failure ? Token(failure.Reason, 96) : "-").Append("\r\n");
+            if (current is AggregateException aggregate)
+            {
+                // Queue only the bounded prefix; retain one overflow sentinel.
+                foreach (var child in aggregate.InnerExceptions)
+                { if (pending.Count >= 9) break; pending.Enqueue((child, node)); }
+            }
+            else if (current.InnerException is Exception inner) pending.Enqueue((inner, node));
+            node++;
+        }
+        if (pending.Count > 0) output.Append("QUOTA_PEER_ERROR truncated=true\r\n");
+        return output.ToString();
+    }
+
     private static async Task<Observation> RunCoreAsync(int port, WireCapture? wire, CancellationToken cancellation)
     {
         Need(port is >= 1 and <= 65535, "port");
