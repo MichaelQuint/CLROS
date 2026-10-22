@@ -155,12 +155,14 @@ internal static unsafe class LinuxDescriptorServicesTests
         using var owner = new Owner(); owner.Begin(); var pipe = owner.Pipe();
         owner.Memory.At(Data)[0] = 0x63;
         uint copies = owner.Context->InputCopies;
-        ulong original = owner.Memory.Memory.Tables[0];
-        owner.Memory.Memory.Tables[0] ^= 2; // Remove write access from the table pointer.
+        ulong original = owner.Memory.Memory.Tables[1];
+        HostCheck.Equal(0UL, original);
+        owner.Memory.Memory.Tables[1] = 2; // Dirty unused root slot; Data still maps through slot0.
+        HostCheck.Equal((byte)0x63, *owner.Memory.At(Data));
         HostCheck.Equal(-14L, owner.Call(1, pipe.Write, Data, 1));
         HostCheck.Equal(copies, owner.Context->InputCopies);
         HostCheck.Equal(0U, owner.Admission.Pipes[0].BufferedBytes);
-        owner.Memory.Memory.Tables[0] = original;
+        owner.Memory.Memory.Tables[1] = original;
         HostCheck.Equal(1L, owner.Call(1, pipe.Write, Data, 1));
         HostCheck.Equal(1L, owner.Call(0, pipe.Read, Output, 1));
         HostCheck.Equal((byte)0x63, *owner.Memory.At(Output));

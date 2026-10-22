@@ -48,18 +48,21 @@ public unsafe partial struct LinuxThreadServices
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User) || _descriptors == null) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
         if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return new(LinuxSyscallAction.Rejected);
-        if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        if (frame.Number is 232 or 281 && _descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
+        if (frame.Number is 232 or 281)
+        {
+            if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
+            if (_descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
+        }
 #endif
-        bool pipe = LinuxDescriptorServices.BeginPipe(_descriptors, _self, frame, ref slot->PipeOperation, out long value);
+        uint* before = stackalloc uint[(int)LinuxDescriptorServices.MaximumPipes * 3];
+        if (!LinuxDescriptorServices.DispatchThreads(_descriptors, _self, frame, ref slot->PipeOperation, before, out bool pipe, out long value))
+        { _failed = true; return new(LinuxSyscallAction.Rejected); }
         if (pipe)
         {
             if (slot->PipeOperation.IsActive) return ContinuePipe(flags, slot);
             return new(LinuxSyscallAction.Return, value);
         }
-        uint* before = stackalloc uint[12]; PipeSnapshot(before);
-        value = LinuxDescriptorServices.DispatchThreads(_descriptors, _self, frame);
         if (!WakePipeChanges(flags, before)) return new(LinuxSyscallAction.Rejected);
         return new(LinuxSyscallAction.Return, value);
     }

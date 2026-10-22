@@ -159,9 +159,10 @@ public static unsafe partial class LinuxDescriptorServices
     public static long Dispatch(State* state, LinuxSyscallFrame frame)
         => state == null || ((ulong)state & 7) != 0 || state->ThreadOwner != 0 || !Audit(state) ? Fault : DispatchCore(state, frame);
 
-    // Both entry points audit immediately before this private body. DispatchThreads
-    // also checks the exact thread owner. Neither path mutates state or invokes a
-    // callback between admission and this call; no audit survives a later call.
+    // Both entry points audit before this private body. DispatchThreads also
+    // checks the exact thread owner, selects nonblocking/non-pipe calls and takes
+    // a read-only pipe snapshot. Neither path mutates state or invokes a callback
+    // between admission and this call; no audit survives a later call.
     private static long DispatchCore(State* state, LinuxSyscallFrame frame)
     {
         uint fd = unchecked((uint)frame.Argument0);

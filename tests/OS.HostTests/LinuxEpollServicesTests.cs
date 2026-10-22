@@ -150,19 +150,25 @@ internal static unsafe class LinuxEpollServicesTests
             HostCheck.Equal(0L, m.Control(epoll, 1, pipe.Read, 1, 77));
             HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key + 1, 2));
             HostCheck.True(m.Thread.Service->PollDescriptorReadiness(Key, 2));
+            byte ready = 0x63;
+            // Stage readiness without refreshing watches: an incorrectly early
+            // refresh after the following corruption would now change the snapshot.
+            HostCheck.Equal(1L, m.Files.Admission.Pipes[0].Write(&ready, 1, true, true));
             byte[] before = new ReadOnlySpan<byte>(m.Registrations, 8 * sizeof(Epoll.Registration)).ToArray();
             ulong* changed = control switch
             {
                 0 => (ulong*)((byte*)m.Files.State + Marshal.OffsetOf<Fds.State>("ThreadOwner")),
-                1 => m.Files.Memory.Memory.Tables,
+                1 => m.Files.Memory.Memory.Tables + 1,
                 _ => (ulong*)((byte*)m.State + Marshal.OffsetOf<Epoll.State>("Self"))
             };
             ulong original = *changed; *changed ^= 2;
             HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key, 2));
             HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
-            HostCheck.Equal(0U, m.Files.Admission.Pipes[0].BufferedBytes);
+            HostCheck.Equal(1U, m.Files.Admission.Pipes[0].BufferedBytes);
             *changed = original;
             HostCheck.True(Fds.Audit(m.Files.State));
+            HostCheck.True(Epoll.Refresh(m.State));
+            HostCheck.True(!before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
             m.Drain();
         }
     }

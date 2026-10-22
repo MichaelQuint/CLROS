@@ -1,5 +1,15 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1546](../done/step1546.md) combines pipe selection and descriptor dispatch
+under one complete synchronous admission, removing two further duplicate audits.
+All67 relevant focused checks pass, including strengthened controls that expose
+premature copying, readiness changes and descriptor duplication. The same host
+comparison is400.2766ms per2,000 pairs, about48.5% below the original baseline.
+The first optimization's fresh guest still failed: tgkill preceded preemption,
+but the waiter completed readiness before the actor read. That original and its
+native review are preserved. The new pipe transaction still needs a fresh guest
+and original native review; it does not yet complete #225/#737 or qualify merge.
+
 [Step1544](../done/step1544.md) consolidates three exact duplicate descriptor/
 epoll audits within serialized calls. Every distinct admission predicate and
 post-mutation audit remains. The unchanged application, timer, signal ordering
