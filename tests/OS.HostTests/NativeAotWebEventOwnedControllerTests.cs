@@ -58,6 +58,74 @@ internal static class NativeAotWebEventOwnedControllerTests
         HostCheck.Equal("web_race_roles_event_contract_pending",reason);
     }
 
+    [HostTest("web event-owned unselected churn polls permit continuous progress beyond eight")]
+    private static async Task UnselectedContinuousPoll()
+    {
+        string path=Output(),json=await Capture(new Peer(true),path);
+        var selected=JsonNode.Parse(json)!.AsObject();
+        var ledger=JsonNode.Parse(File.ReadAllText(path+".attempts.json"))!.AsObject();
+        var samples=selected["samples"]!.AsArray();
+        var rows=ledger["attempts"]!.AsArray();
+        var links=ledger["selections"]!.AsArray();
+        HostCheck.Equal(21,rows.Count);
+
+        int Index(string kind)=>Array.FindIndex(samples.ToArray(),s=>s!["kind"]!.GetValue<string>()==kind);
+        string Work(string body,int count)=>System.Text.RegularExpressions.Regex.Replace(body,
+            @"\b(timers|workers|collections)=\d+",m=>m.Groups[1].Value+"="+count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        string Encoded(string body)=>Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(body));
+        void SetSelectedWork(string kind,int count)
+        {
+            int sample=Index(kind);
+            string body=Work(samples[sample]!["body"]!.GetValue<string>(),count);
+            samples[sample]!["body"]=body;
+            int id=links[sample]!["attempt"]!.GetValue<int>();
+            rows[id-1]!["bodyBase64"]=Encoded(body);
+        }
+
+        // Copied progress stays monotonic, and finite recovery adds exactly eight.
+        SetSelectedWork("churn-overlap",10);
+        SetSelectedWork("churn-drained",10);
+        SetSelectedWork("final-churn",18);
+        int after=links[Index("recovery-armed")]!["attempt"]!.GetValue<int>();
+        int completion=rows[after-1]!["completion"]!.GetValue<int>()+1;
+        int overlap=links[Index("churn-overlap")]!["attempt"]!.GetValue<int>();
+        var poll=rows[overlap-1]!.DeepClone();
+        poll["bodyBase64"]=Encoded(Work(samples[Index("churn-overlap")]!["body"]!.GetValue<string>(),9));
+        foreach(var row in rows)
+        {
+            var value=row!;int id=value["id"]!.GetValue<int>(),done=value["completion"]!.GetValue<int>();
+            if(id>after)value["id"]=id+1;
+            if(done>=completion)value["completion"]=done+1;
+        }
+        foreach(var link in links)
+            foreach(string key in new[]{"attempt","related"})
+            {
+                var value=link!;int id=value[key]!.GetValue<int>();
+                if(id>after)value[key]=id+1;
+            }
+        poll["id"]=after+1;poll["completion"]=completion;rows.Insert(after,poll);
+        HostCheck.Equal(new NativeAotWebPayload.SignalRaceAttemptSummary(22,21,1,0,true),
+            NativeAotWebPayload.InspectSignalRaceAttempts(ledger.ToJsonString(),selected.ToJsonString(),Endpoint,Health));
+
+        foreach(int version in new[]{1,2})
+        {
+            var legacy=selected.DeepClone().AsObject();legacy["schema"]="clros.web.signalrace.v"+version;
+            var oldSamples=legacy["samples"]!.AsArray();
+            for(int i=oldSamples.Count-1;i>=0;i--)
+            {
+                string kind=oldSamples[i]!["kind"]!.GetValue<string>();
+                if(version==1&&(kind is "initial-armed" or "start-request")){oldSamples.RemoveAt(i);continue;}
+                oldSamples[i]!["body"]=oldSamples[i]!["body"]!.GetValue<string>()
+                    .Replace("CLROS_SIGNAL_RACE_V3_STATUS","CLROS_SIGNAL_RACE_STATUS",StringComparison.Ordinal)
+                    .Replace("CLROS_SIGNAL_RACE_V3_OK","CLROS_SIGNAL_RACE_OK",StringComparison.Ordinal);
+            }
+            string? reason=null;
+            try{_=NativeAotWebPayload.ValidateSignalRaceEvidence(legacy.ToJsonString(),Endpoint,Health);}
+            catch(InvalidDataException error){reason=error.Message;}
+            HostCheck.Equal("web_churn_status_invariant",reason);
+        }
+    }
+
     [HostTest("web event-owned controller keeps actual churn beyond eight operations until explicit cancellation and exact finite recovery")]
     private static async Task ActualContinuingChurn()
     {

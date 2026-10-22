@@ -483,6 +483,15 @@ continuing-helper correction. This is development evidence; repaired native,
 guest, component-budget/termination cleanup and stable full/ancestor gates remain
 required before #737/#748/#225 closure or complete Kestrel acceptance.
 
+[Step1531](../done/step1531.md) preserves the successful original `293dafb4`
+Linux native-v8 qualification, its separate validation and complete source/output
+joins. Two reviewed corrections still precede fresh Smoke publication: terminal
+churn counters and active/root release publish atomically, and unselected
+event-owned status polls use continuous limits. The retained service publication
+needs only a reviewed current-consumer source-pin refresh; its original
+ELF/index/package and producer provenance stay unchanged. No new guest or quota
+acceptance follows from these Linux and host results.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

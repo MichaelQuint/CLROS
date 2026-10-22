@@ -130,6 +130,46 @@ internal static class KestrelRequestChurnTests
         HostCheck.Equal(1L, exercise.Inspect().Started); Drained(exercise);
     }
 
+    [HostTest("churn snapshots conserve admitted requests through completion cancellation and watchdog failure")]
+    private static async Task ConcurrentTerminalSnapshots()
+    {
+        var exercise = new KestrelChurnExercise();
+        using var stop = new CancellationTokenSource();
+        using var observing = new ManualResetEventSlim();
+        long snapshots = 0;
+        Task<bool> reader = Task.Factory.StartNew(() =>
+        {
+            observing.Set();
+            while (!stop.IsCancellationRequested)
+            {
+                var value = exercise.Inspect(); snapshots++;
+                if (value.Started != value.Active + value.Completed + value.Canceled + value.Failed ||
+                    value.Waiting > value.Active || value.HeldBytes > value.Active * 65536L) return false;
+            }
+            return true;
+        }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        try
+        {
+            observing.Wait();
+            for (int i = 0; i < 64; i++)
+            {
+                using var request = new CancellationTokenSource();
+                Task<string?> running = exercise.RunUntilCanceledAsync(request.Token);
+                request.Cancel();
+                try { await running; } catch (OperationCanceledException) when (request.IsCancellationRequested) { }
+                HostCheck.True(running.IsCanceled);
+            }
+            using var finite = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            HostCheck.Equal(KestrelChurnExercise.SuccessBody, await exercise.RunAsync(finite.Token));
+            using var failure = new CancellationTokenSource(); bool expired = false;
+            try { await exercise.RunUntilCanceledAsync(failure.Token, TimeSpan.FromMilliseconds(1)); }
+            catch (TimeoutException error) { expired = error.Message == "CLROS_CHURN_FAIL deadline"; }
+            HostCheck.True(expired && exercise.Inspect() is { Started: 66, Completed: 1, Canceled: 64, Failed: 1 });
+            Drained(exercise);
+        }
+        finally { stop.Cancel(); HostCheck.True(await reader && snapshots > 0); }
+    }
+
     private static void Drained(KestrelChurnExercise exercise) =>
         HostCheck.True(exercise.Inspect() is { Active: 0, Waiting: 0, HeldBytes: 0 });
 

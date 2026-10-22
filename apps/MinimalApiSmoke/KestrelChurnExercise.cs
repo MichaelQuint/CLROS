@@ -73,7 +73,7 @@ internal sealed class KestrelChurnExercise
             if (Expired()) throw new TimeoutException("CLROS_CHURN_FAIL deadline");
             work.ThrowIfCancellationRequested();
         }
-        byte[]? payload = null; bool retained = false;
+        byte[]? payload = null; bool retained = false, succeeded = false, requestCanceled = false;
         try
         {
             if (budget is { } limit)
@@ -105,19 +105,26 @@ internal sealed class KestrelChurnExercise
                 Check();
             }
             cancellation.ThrowIfCancellationRequested();
-            lock (gate) completed = checked(completed + 1);
+            succeeded = true;
             return SuccessBody;
         }
         catch (OperationCanceledException error) when (Expired())
-        { lock (gate) failed = checked(failed + 1); throw new TimeoutException("CLROS_CHURN_FAIL deadline", error); }
+        { throw new TimeoutException("CLROS_CHURN_FAIL deadline", error); }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
-        { lock (gate) canceled = checked(canceled + 1); throw; }
-        catch
-        { lock (gate) failed = checked(failed + 1); throw; }
+        { requestCanceled = true; throw; }
         finally
         {
             GC.KeepAlive(payload); payload = null;
-            lock (gate) { if (retained) heldBytes -= PayloadBytes; active--; }
+            // Publish the terminal outcome and released slot together so a
+            // status snapshot never counts one request as active and finished.
+            lock (gate)
+            {
+                if (succeeded) completed = checked(completed + 1);
+                else if (requestCanceled) canceled = checked(canceled + 1);
+                else failed = checked(failed + 1);
+                if (retained) heldBytes -= PayloadBytes;
+                active--;
+            }
             watchdog?.Dispose();
         }
     }

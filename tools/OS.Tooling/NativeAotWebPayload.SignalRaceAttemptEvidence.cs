@@ -130,7 +130,7 @@ public static partial class NativeAotWebPayload
                     RaceNeed(id<Kind("baseline-churn")||id>firstChurn&&id<Kind("churn-pending")||
                         id>Kind("recovery-armed")&&id<Kind("churn-overlap")||id>Kind("overlap-health")&&id<Kind("churn-drained")||
                         id>Kind("churn-complete")&&id<Kind("final-churn"),"attempt_churn_poll_window");
-                    _=ChurnStatus(RaceDecode(bodies[id-1]));
+                    _=ChurnStatus(RaceDecode(bodies[id-1]),eventOwned);
                 }
                 else
                 {

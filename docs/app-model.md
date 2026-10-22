@@ -631,6 +631,17 @@ Framework callback/request threads may remain live. All80 focused checks pass;
 fresh repaired native publication, prepared admission and guest acceptance remain
 pending. The failed original and its earlier reader revision remain immutable.
 
+[Step1531](../done/step1531.md) records successful original Linux native-v8
+qualification and separate validation at `293dafb4`: continuous churn cancels
+and drains at9 operations, then finite recovery adds exactly8. That original
+remains unadmitted. The next source repair publishes terminal churn outcomes
+and slot/root release atomically and applies continuous limits to unselected
+event-owned polls too. Legacy finite limits remain unchanged. The unchanged
+service ELF/index/package passes current consumer preparation after one reviewed
+source-pin refresh; original publication provenance retains its original hashes.
+Corrected Smoke publication, native review/admission and owned guest validation
+still precede quota/service acceptance.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;
