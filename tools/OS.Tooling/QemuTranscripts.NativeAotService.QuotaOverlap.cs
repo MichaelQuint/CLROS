@@ -28,7 +28,10 @@ public static partial class QemuTranscripts
     /// Memory/HostHttp/Temporal values; inspect the supplied strict peer JSON.
     /// Rejoin retained mmap positions and every selected socket slice to actual
     /// original CALLs. Map fd2 markers across arbitrary segmentation to genuine
-    /// write/writev CALLs. Require held cancel/echo prefixes before pressure;
+    /// write/writev CALLs, including vector fragments and independently counted
+    /// fd1 output. Only fully validated service startup metadata may intervene;
+    /// partial value fixtures without startup permit no metadata gaps.
+    /// Require held cancel/echo prefixes before pressure;
     /// selected quota/worker/health/lifecycle responses and forced-GC markers
     /// must lie after the first still-retained allocation and before denial.
     /// RETAINED publication need not precede quota.retained's response. This
@@ -76,24 +79,49 @@ public static partial class QemuTranscripts
                 returns[held.CallRecordIndex].Identity == held.Identity && returns[held.CallRecordIndex].Ordinal == held.Ordinal,
                 "quota_overlap_retained");
         }
+        HashSet<int> startupMetadata = [];
+        if (rows.Contains("TEST_START m16.014.startup", StringComparer.Ordinal))
+            _ = ReadServiceStartup(framed, out startupMetadata, NativeAotServiceContract.QuotaFailure);
         List<(int At, int Call, int Start, int End, ulong Identity, ulong Ordinal)> writes = [];
-        int written = 0, write = 0;
+        HashSet<int> boundWrites = [];
+        int written = 0, stdoutWritten = 0, write = 0;
         for (int at = 0; at < rows.Length; at++) if (rows[at].StartsWith("M16_005_WRITE", StringComparison.Ordinal))
         {
-            Need(write < framed.WriteLengths.Count && framed.WriteChannels[write] == 2, "quota_overlap_write");
-            int bytes = framed.WriteLengths[write++];
-            Need(rows[at] == "M16_005_WRITE fd=2 bytes=" + bytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + " data=" &&
-                returns.ContainsKey(at+1), "quota_overlap_write_call");
-            var call = calls[at+1]; var returned = returns[at+1];
-            Need(call["nr"] is 1 or 20 && call["a0"] == 2 && call["valueBits"] == (ulong)bytes && call["action"] == 1 &&
+            Need(write < framed.WriteLengths.Count, "quota_overlap_write");
+            uint channel = framed.WriteChannels[write];
+            List<(int At, int Start, int End)> parts = [];
+            int next = at, bytes = 0;
+            while (next < rows.Length)
+            {
+                if (rows[next].StartsWith("M16_005_WRITE", StringComparison.Ordinal))
+                {
+                    Need(write < framed.WriteLengths.Count && channel is 1 or 2 && framed.WriteChannels[write] == channel,
+                        "quota_overlap_write");
+                    int count = framed.WriteLengths[write++];
+                    Need(rows[next] == FormattableString.Invariant($"M16_005_WRITE fd={channel} bytes={count} data="),
+                        "quota_overlap_write_call");
+                    if (channel == 2) { parts.Add((next, written, written + count)); written += count; }
+                    else stdoutWritten += count;
+                    bytes += count;
+                }
+                else if (!startupMetadata.Contains(next)) break;
+                next++;
+            }
+            Need(returns.ContainsKey(next) && boundWrites.Add(next), "quota_overlap_write_call");
+            var call = calls[next]; var returned = returns[next];
+            Need(call["nr"] is 1 or 20 && call["a0"] == channel && call["valueBits"] == (ulong)bytes && call["action"] == 1 &&
                 call["status"] == 1 && returned.ValueBits == (ulong)bytes && returned.Identity == call["identity"],
                 "quota_overlap_write_call");
             Need(call["nr"] == 1 ? call["a2"] is > 0 and <= 65536 && (ulong)bytes <= call["a2"] :
                 call["a2"] is > 0 and <= OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices.MaximumVectors,
                 "quota_overlap_write_call");
-            writes.Add((at,at+1,written,written+bytes,returned.Identity,returned.Ordinal)); written += bytes;
+            foreach (var part in parts) writes.Add((part.At,next,part.Start,part.End,returned.Identity,returned.Ordinal));
+            at = next;
         }
-        Need(write == framed.WriteLengths.Count && written == Encoding.UTF8.GetByteCount(framed.Stderr), "quota_overlap_write_count");
+        Need(write == framed.WriteLengths.Count && written == Encoding.UTF8.GetByteCount(framed.Stderr) &&
+            stdoutWritten == Encoding.UTF8.GetByteCount(framed.Stdout) && calls.All(pair =>
+                !(pair.Value["nr"] is 1 or 20 && pair.Value["a0"] is 1 or 2 && unchecked((long)pair.Value["valueBits"]) > 0) ||
+                boundWrites.Contains(pair.Key)), "quota_overlap_write_count");
         ServiceQuotaProgressMarker Marker(string name, int index)
         {
             string prefix = name + (index < 0 ? " " : " index=" + index.ToString(System.Globalization.CultureInfo.InvariantCulture) + " ");

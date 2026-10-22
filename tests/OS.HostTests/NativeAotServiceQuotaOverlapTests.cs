@@ -24,11 +24,12 @@ internal static class NativeAotServiceQuotaOverlapTests
             names.Select((name,i)=>new NativeAotServiceQuotaPeer.Sample(name,i+1,bodies[i])).ToArray());
     }
 
-    private static Vector Fixture(bool segmented=false,bool responseBeforeMap=false,bool echoLate=false)
+    private static Vector Fixture(bool segmented=false,bool responseBeforeMap=false,bool echoLate=false,
+        bool startup=false,bool warnings=false,bool vectors=false,string? gap=null)
     {
         // Independent borrowed values isolate this new seam. No complete memory,
         // HostHttp, socket/scheduler, packet, owned process or guest is fabricated.
-        var peer=Peer();var raw=new StringBuilder();int row=0;ulong ordinal=0;
+        var peer=Peer();var raw=new StringBuilder();int row=0,stdout=0,stderr=0;ulong ordinal=0;
         List<QemuTranscripts.ServiceQuotaHostHttpMessage> messages=[];
         List<QemuTranscripts.ServiceQuotaHostHttpSample> samples=[];
         List<QemuTranscripts.ServiceQuotaHttpSyscallInterval> intervals=[];
@@ -40,10 +41,20 @@ internal static class NativeAotServiceQuotaOverlapTests
             Row($"M16_008_CALL identity={Identity} nr={nr} a0={fd} a1={(nr==9?1048576UL:0x500000)} a2={(nr==9?3:bytes)} a3={(nr==9?0x22:0)} a4={(nr==9?uint.MaxValue:0)} a5=0 rip=4198402 rsp=1879048184 flags=514 fs=0 gs=0 clock={ordinal} valueBits={bits} action=1 status=1 ordinal={ordinal} waitSource=0 waitDeadline=0 waitSequence=0 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4198402 returnRsp=1879048184 returnFlags=514 returnFs=0 returnGs=0 returnValueBits={bits}");
             return at;
         }
-        void Output(string text)
+        void Output(string text,int fd=2,Action? beforeCall=null)
         {
-            foreach(string part in segmented?text.Chunk(7).Select(c=>new string(c)):new[]{text})
-            {int bytes=Encoding.ASCII.GetByteCount(part);Row($"M16_005_WRITE fd=2 bytes={bytes} data={part}");Call(1,2,bytes,(ulong)bytes);}
+            string[] parts=(vectors?text.Chunk((text.Length+1)/2):segmented?text.Chunk(7):new[]{text.ToCharArray()})
+                .Select(c=>new string(c)).ToArray();
+            int total=0;
+            for(int i=0;i<parts.Length;i++)
+            {
+                string part=parts[i];int bytes=Encoding.ASCII.GetByteCount(part);total+=bytes;
+                if(fd==2)stderr+=bytes;else stdout+=bytes;
+                Row($"M16_005_WRITE fd={fd} bytes={bytes} data={part}");
+                if(i==parts.Length-1)beforeCall?.Invoke();
+                if(!vectors)Call(1,fd,bytes,(ulong)bytes);
+            }
+            if(vectors)Call(20,fd,total,(ulong)parts.Length);
         }
         QemuTranscripts.ServiceQuotaHttpSyscallInterval Io(int exchange,int connection,bool response,string kind,int bytes)
         {
@@ -67,11 +78,38 @@ internal static class NativeAotServiceQuotaOverlapTests
             var res=new QemuTranscripts.ServiceQuotaHttpPrefix(response.Start,headers?response.End:response.Start+1,response.End,"HTTP/1.1 200 OK",new Dictionary<string,string>(),"length",headers?0:body.Length,"complete",headers?"":Convert.ToBase64String(Encoding.ASCII.GetBytes(body)));
             samples.Add(new(peer.Samples[index].Name,messages.Count,headers));messages.Add(new(request.ConnectionId,index+1,req,res,[],[]));
         }
-        Output("CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_CCTOR minimal.api.service\nCLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\nCLROS_SERVICE_GC_BEGIN "+Gc+"CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\nCLROS_M10_011_READY\nCLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14\n");
+        int settings=Encoding.UTF8.GetByteCount(NativeAotServicePackage.QuotaSettingsJson);
+        if(startup)
+        {
+            Row("TEST_START m16.014.startup");
+            Row($"M16_014_ENTER identity={Identity} rip=4198402 argc=5 envc=4 configBytes={settings}");
+            Call(39,0,1);
+            Row($"M16_014_CONFIG fd=4 bytes={settings} source=immutable-package copied=user");
+            Call(0,4,settings,(ulong)settings);
+        }
+        Output("CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_CCTOR minimal.api.service\nCLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\n",
+            beforeCall:startup?()=>Row($"M16_014_STARTUP writer={Identity} stages=4"):null);
+        if(startup)
+        {
+            Row($"M16_014_BIND identity={Identity} fd=5");Call(49,5,0);
+            Row("M16_014_LISTEN fd=5 address=0 port=8080 owner=live");Call(50,5,0);
+        }
+        Output("CLROS_SERVICE_GC_BEGIN "+Gc);
+        Output("CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\n",beforeCall:startup?()=>
+        {
+            Row($"M16_014_LIVE argc=5 envc=4 configBytes={settings} bindFd=5 stdoutBytes={stdout} stderrBytes={stderr} active=1 clock={ordinal+1} owner=retained externalHttp=required");
+            Row("CLROS_M16_014_LISTENING");Row("TEST_PASS m16.014.startup");
+        }:null);
+        Output("CLROS_M10_011_READY\nCLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14\n");
+        void Warning()
+        {
+            if(warnings)Output("warn: Microsoft.AspNetCore.Server.Kestrel[22]\n      As of \"10/22/2026 03:21:00 +00:00\", the heartbeat has been running for \"00:00:02\" which is longer than \"00:00:01\". This could be caused by thread pool starvation.\n",1);
+        }
+        Warning();
         for(int i=0;i<11;i++)Response(i,Request(i));
         if(!echoLate)Io(100,3,false,"echo-prefix",10);
         Io(101,4,false,"pressure-request",5);
-        Output("CLROS_SERVICE_QUOTA_BEGIN chunkBytes=1048576 maximumChunks=64\n");
+        Output("CLROS_SERVICE_QUOTA_BEGIN chunkBytes=1048576 maximumChunks=64\n",beforeCall:gap is null?null:()=>Row(gap));
         if(echoLate)Io(100,3,false,"echo-prefix",10);
         Output("CLROS_SERVICE_QUOTA_ATTEMPT index=0 retainedBytes=0 gcCommitted=9000000\n");
         var pending=Request(11);if(responseBeforeMap)Response(11,pending);
@@ -80,6 +118,7 @@ internal static class NativeAotServiceQuotaOverlapTests
         // Valid publication race: the poll has already sent its response when
         // the independently segmented RETAINED marker begins publication.
         Output("CLROS_SERVICE_QUOTA_RETAINED index=0 retainedBytes=1048576 collectionsBefore=7 collectionsAfter=8 gcCommitted=9000000\n");
+        Warning();
         for(int i=12;i<18;i++)Response(i,Request(i));
         Output("CLROS_SERVICE_QUOTA_ATTEMPT index=1 retainedBytes=1048576 gcCommitted=9000000\n");
         Row("M16_014_MEMORY value=copy");Row("M16_016_TOPOLOGY value=copy");int denial=Call(9,0,-12);
@@ -126,6 +165,31 @@ internal static class NativeAotServiceQuotaOverlapTests
         Reject(v with{Raw=Encoding.UTF8.GetBytes(raw.Replace("fdGeneration=1","fdGeneration=2",StringComparison.Ordinal))});
         var samples=v.Host.Samples.ToArray();samples[11]=samples[11] with{MessageIndex=samples[10].MessageIndex};
         Reject(v with{Host=v.Host with{Samples=samples}});
+    }
+    [HostTest("quota overlap authenticates startup metadata stdout warnings and vector fragments without shifting stderr offsets")]
+    private static void ConsoleWrites()
+    {
+        var baseline=Read(Fixture());
+        foreach(bool vectors in new[]{false,true})foreach(bool split in new[]{false,true})
+        {
+            var v=Fixture(segmented:split,startup:true,warnings:true,vectors:vectors);var actual=Read(v);
+            HostCheck.Equal(baseline.Begin.ByteStart,actual.Begin.ByteStart);
+            HostCheck.Equal(baseline.ForcedGcMarkers[0].ByteEnd,actual.ForcedGcMarkers[0].ByteEnd);
+            HostCheck.True(actual.Samples.Count==7 && actual.Begin.Writes.All(w=>w.CallRecordIndex>w.WriteRecordIndex));
+            if(vectors)HostCheck.True(actual.Begin.Writes.Count==2 && actual.Begin.Writes.Select(w=>w.CallRecordIndex).Distinct().Count()==1);
+        }
+    }
+    [HostTest("quota overlap rejects unvalidated metadata and malformed or detached stdout calls")]
+    private static void ConsoleRefusals()
+    {
+        Reject(Fixture(gap:$"M16_014_STARTUP writer={Identity} stages=4"));
+        Reject(Fixture(startup:true,gap:"M16_016_UNREVIEWED value=1"));
+        Reject(Fixture(gap:"TEST_START m16.014.startup"));
+        var v=Fixture(warnings:true);string raw=Encoding.UTF8.GetString(v.Raw);
+        Reject(v with{Raw=Encoding.UTF8.GetBytes(raw.Replace("nr=1 a0=1 ","nr=1 a0=2 ",StringComparison.Ordinal))});
+        Reject(v with{Raw=Encoding.UTF8.GetBytes(raw.Replace("M16_005_WRITE fd=1", "M16_005_WRITE fd=2",StringComparison.Ordinal))});
+        var full=Fixture(startup:true);
+        Reject(full with{Raw=Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(full.Raw).Replace("stages=4","stages=3",StringComparison.Ordinal))});
     }
     private static void Reject(Vector v)
     {try{_ = Read(v);}catch(Exception error)when(error is ToolFailure or InvalidDataException){return;}throw new InvalidOperationException("expected quota overlap rejection");}

@@ -554,6 +554,16 @@ execution transfers to the acceptance reviewer under its existing permissions,
 where the unchanged producer passes all17 actual transport checks. A fresh owned
 capture and final acceptance remain required.
 
+[Step1538](../done/step1538.md) preserves r06 after successful external peer and
+native cleanup, with final owned validation stopped by an overlap-reader defect.
+Console envelopes can precede authenticated startup metadata and can use fd1;
+writev may publish several fragments before one CALL. The corrected mapper uses
+the existing full startup validator, checks both channels and exact successful
+CALL byte totals, and retains stderr-only progress offsets. Unknown metadata and
+unbound successful console calls reject. 26 focused checks and the original r06
+public native/stream/temporal/overlap/NIC replay pass. This does not turn the failed
+owned capture into acceptance; a fresh complete owned run remains required.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
