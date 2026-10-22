@@ -7,6 +7,8 @@ and one-attempt policy are retained. All62 focused host checks pass; a host-only
 pipe write/read comparison improves from777.569ms to579.8792ms per2,000 pairs.
 That measurement does not qualify the outstanding guest race. Fresh native
 review, original guest execution and the stable acceptance batch remain required.
+The three reviewed source identities are admitted in
+[step1545](../done/step1545.md); the initial publication rejection is retained.
 
 [Step1543](../done/step1543.md) records a complete original configured V2 service
 pass at `3b325f4e`: 923,022ms actual QEMU lifetime, 55 accepted connections,
