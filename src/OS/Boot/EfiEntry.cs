@@ -881,7 +881,7 @@ public static unsafe partial class EfiEntry
                 {
                     if (c->Selected == 0 || c->UserTimer != c->Selected || !c->Timer.IsPrepared ||
                         !LinuxNativeUserWorker(c, c->Selected - 1) ||
-                        !(gatewayCallback ? LinuxNativeUserGates(c, true) : LinuxNativeTimerInstalled(c))) return false;
+                        !(gatewayCallback ? LinuxNativeUserGates(c, true, allowSyscall: true) : LinuxNativeTimerInstalled(c))) return false;
                 }
                 else if (ownedIst || gatewayCallback && state->LinuxSyscallPlan.UserInterrupts) return false;
             }

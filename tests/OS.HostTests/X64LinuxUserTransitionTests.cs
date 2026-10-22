@@ -397,6 +397,78 @@ internal static unsafe class X64LinuxUserTransitionTests
         finally { NativeMemory.AlignedFree(code); NativeMemory.AlignedFree(fault); }
     }
 
+    [HostTest("m16-009 active gate observation permits syscall SS16 only explicitly and preserves IRQ descriptor guards")]
+    private static void ActiveGateObservation()
+    {
+        byte* data = Allocate(Transition.DataBytes), storage = Allocate(4096);
+        try
+        {
+            HostCheck.True(data != null && storage != null);
+            new Span<byte>(data, (int)Transition.DataBytes).Clear();
+            new Span<byte>(storage, 4096).Clear();
+            ulong* observed = (ulong*)storage;
+            // Independent packed GDTR/IDTR observations. These copied values
+            // exercise equality/admission only; no host CPU transition occurs.
+            *(ulong*)(data + 0x98) = observed[17] = 0x000000200600003f;
+            *(ulong*)(data + 0xa0) = observed[18] = 0;
+            *(ulong*)(data + 0xb8) = observed[19] = 0x0000002010000fff;
+            *(ulong*)(data + 0xc0) = observed[20] = 0;
+            observed[3] = 2; observed[4] = 8; observed[5] = 16; observed[6] = 24;
+            HostCheck.True(Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords));
+            observed[5] = 0;
+            HostCheck.True(Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords));
+            HostCheck.True(Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+            HostCheck.True(Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords + 1));
+
+            foreach (ulong invalid in new ulong[] { 1, 8, 24, 0x10000, 0x100000000, 0x100000010, ulong.MaxValue })
+            {
+                observed[5] = invalid;
+                HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+            }
+            observed[5] = 0;
+            foreach (int field in new[] { 3, 4, 6, 17, 18, 19, 20 })
+            {
+                ulong original = observed[field]; observed[field] ^= field == 3 ? 0x200UL : 1UL;
+                HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords), "IRQ field " + field);
+                HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true), "common field " + field);
+                observed[field] = original;
+            }
+            foreach (uint offset in new uint[] { 0x98, 0xa0, 0xb8, 0xc0 })
+            {
+                *(ulong*)(data + offset) ^= 1;
+                HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+                *(ulong*)(data + offset) ^= 1;
+            }
+            foreach (ulong flags in new ulong[] { 0, 0x202, 0x402, 0x602 })
+            {
+                observed[3] = flags;
+                HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+            }
+            observed[3] = 2;
+            foreach (int selector in new[] { 4, 6 })
+            {
+                observed[selector] |= 1UL << 32;
+                HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+                observed[selector] &= uint.MaxValue;
+            }
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(null, Transition.DataBytes, observed, Transition.ObservationWords));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data + 1, Transition.DataBytes, observed, Transition.ObservationWords));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes - 1, observed, Transition.ObservationWords));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, null, Transition.ObservationWords));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, (ulong*)(storage + 1), Transition.ObservationWords));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords - 1));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, uint.MaxValue));
+            // Old capture metadata cannot silently choose the calling policy.
+            *(ulong*)(data + Transition.VectorOffset) = 0xe1;
+            *(ulong*)(data + Transition.CaptureStackOffset) = 0x12345000;
+            observed[5] = 16;
+            HostCheck.True(Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords, allowSyscall: true));
+            HostCheck.True(!Transition.ValidateActiveUserGateObservation(data, Transition.DataBytes, observed, Transition.ObservationWords));
+        }
+        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); }
+    }
+
     [HostTest("m16-009 active gateway admits actual swapped user bases and rejects every mismatched CPU or retained root field")]
     private static void CallbackEnvelope()
     {

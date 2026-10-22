@@ -23,6 +23,22 @@ public static unsafe partial class X64LinuxUserTransition
         (flags & 0x602) == 2 && cs == 8 && (ss == 16 || ss == 0) && tr == 24 && fs == 0 && gs == 0 &&
         fsBase == *(ulong*)(data + CallbackFsOffset) && gsBase == (ulong)data && kernelGsBase == *(ulong*)(data + CallbackGsOffset);
 
+    /// <summary>Compare a borrowed active user-timer gateway CPU sample with
+    /// its retained descriptor registers. The IRQ-off owner separately checks
+    /// gate/TSS bytes, roots, worker and callback identity. Direct user IRQs
+    /// require NULL SS; only an already authenticated common gateway may opt
+    /// into the additional ordinary SYSCALL SS16 envelope. Invalid extents or
+    /// mismatched values return false without writing either buffer. This is
+    /// a value check, not authority to enter, restore or release the gateway.</summary>
+    public static bool ValidateActiveUserGateObservation(byte* data, uint bytes,
+        ulong* observed, uint words, bool allowSyscall = false) =>
+        Buffer(data, bytes, DataBytes, 4096) && words <= uint.MaxValue / 8 &&
+        Buffer((byte*)observed, words * 8, ObservationWords * 8, 8) &&
+        (observed[3] & 0x602) == 2 && observed[4] == 8 &&
+        (observed[5] == 0 || allowSyscall && observed[5] == 16) && observed[6] == 24 &&
+        observed[17] == *(ulong*)(data + 0x98) && observed[18] == *(ulong*)(data + 0xa0) &&
+        observed[19] == *(ulong*)(data + 0xb8) && observed[20] == *(ulong*)(data + 0xc0);
+
     /// <summary>Emit or compare the explicit GP/PF capture region, separate from
     /// the original 4-KiB gateway. Only normalized user GP/PF stubs and, under
     /// explicit user IRQ policy, the owned E1/IST4 stub may enter it. The owner

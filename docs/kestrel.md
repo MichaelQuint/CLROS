@@ -501,6 +501,15 @@ captures and one refreshed configured positive V2 lifecycle still precede guest
 and ordinary-headroom acceptance. The shared 36 MiB pool does not enforce
 independent 16 MiB GC and 20 MiB native partitions.
 
+[Step1533](../done/step1533.md) preserves the first actual quota256 guest at
+`470bc00d`: one successful mmap is followed by an observer abort before listen
+or pressure, then real exit/reap and a rejected final lease audit. Expert review
+finds the new stack observer enters an active-gate check that assumes interrupt
+SS0, while an ordinary SYSCALL callback retains SS16. The repair explicitly
+permits both only after common gateway authentication; direct IRQ validation
+keeps exact SS0. The original remains failed. Corrected guest, RAM comparison,
+ordinary V2 fit and final stable gates remain required; no app republish is needed.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
