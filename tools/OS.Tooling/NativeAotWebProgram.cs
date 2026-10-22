@@ -12,8 +12,8 @@ namespace OS.Tooling;
 public sealed class NativeAotWebProgram
 {
     internal const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
-    internal const int ElfBytes = 8_858_120;
-    private const string ElfSha256 = "652E2E00D49C2529BB8C2439820F8A58F7086766E01D2C08D0748CA659C9BFAE";
+    internal const int ElfBytes = 8_870_568;
+    private const string ElfSha256 = "48FC94E3559A72CE94B20FE7AF55335C5E2B5368656D626A624643E2D7F6BCB8";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     /// <summary>Complete decoder identity; a report alone grants no lookup authority.</summary>
@@ -87,10 +87,10 @@ public sealed class NativeAotWebProgram
         sources.VerifyUnchanged(); return new(root, parsed);
     }
 
-    // LLVM22.1.3: all 4,575,791 bytes of five executable sections, every 198
+    // LLVM22.1.3: all 4,586,191 bytes of five executable sections, every 198
     // syscall continuation and the original entry. Executable-load bytes outside
     // these sections grant no starts. This is not a control-flow proof.
-    private static Inspection Reviewed => new(1_426_926, 198, "BD21ABDEBDA40026C43936D111E1FC31296C7A4D73925C798ACCCC1EA3D01326");
+    private static Inspection Reviewed => new(1_429_880, 198, "89092BF5DBEA03886D1EABA1389E36528B837172777C69B2D5FFE4EC04329C86");
 
     /// <summary>Reads distinct bounded plain single-link package/dump snapshots
     /// under concurrent read locks, then prepares lookup. Files remain caller-owned;
@@ -137,11 +137,11 @@ public sealed class NativeAotWebProgram
         ("Directory.Build.targets", "85AFD90F9DD0F550B6A3C6AD71D28BF714A8C930158DB872F8DA5D316889931A"),
         ("tools/Directory.Build.props", "44B8268EA6934335DBC79FEF47C1CE1FDEE49393C929C92E322417B14AA321AE"),
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
-        ("apps/MinimalApiSmoke/Program.cs", "15AE8D40703AA92FAFA013332C7DA72AEA7AA8975E130CE050032AAAC2F28C80"),
-        ("apps/MinimalApiSmoke/KestrelChurnExercise.cs", "8540ED1AAACDA9B5A3AF5912EFA75D8C88B72DFB2BB3051289D74EE91FF2C464"),
-        ("apps/MinimalApiSmoke/KestrelSignalProbe.cs", "68C3511B34489103BFEBFFAB044927B7AF86D40FB409326CD0BD91A2FED87DDE"),
+        ("apps/MinimalApiSmoke/Program.cs", "EA20A6457F22DBBA7EB0FC0423266E41B335B405802D3F4D980690FDBE539C5E"),
+        ("apps/MinimalApiSmoke/KestrelChurnExercise.cs", "5EEF724987A8FEA8BF4ADF667DA5DC578B8DA1A6A62477A550295546D66CBDF1"),
+        ("apps/MinimalApiSmoke/KestrelSignalProbe.cs", "D44146A94C28492DCB739E02A701E38F2F0C5C90F0E93103AB9E91C08732B0A7"),
         ("apps/MinimalApiSmoke/KestrelSignalProbeAbi.cs", "DF485562F1A9384E02A0700D2D1C7A39A3C96EF0804D68B527DBC078EBC275FA"),
-        ("apps/MinimalApiSmoke/KestrelSignalRaceState.cs", "3ACCA50A0E41DD72BFA6EBD6A944C55ABAAD441F9B66A05A7E443F7390B85CD1"),
+        ("apps/MinimalApiSmoke/KestrelSignalRaceState.cs", "DC9280162252D0A0D3134AF1AFB4BF9C891602F11CDB093C3B94032D779BB80B"),
         ("apps/MinimalApiSmoke/KestrelVectorExercise.cs", "0A2E42A133FD7D56767686D388D9DA22D464B3955E6AA31BF386D5CDF3A87001"),
         ("apps/MinimalApiSmoke/MinimalApiSmoke.csproj", "CA968E841DBCACBC8C78B3201F97419A43321458E2D6617BB9B83C0D46023C80"),
         ("apps/MinimalApiSmoke/appsettings.json", "FF0AB2FFB263DF50157F565C6AA386B50D23C9AC9A03F47D53B225C0471A0CE6"),

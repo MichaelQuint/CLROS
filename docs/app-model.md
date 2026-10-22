@@ -642,6 +642,13 @@ source-pin refresh; original publication provenance retains its original hashes.
 Corrected Smoke publication, native review/admission and owned guest validation
 still precede quota/service acceptance.
 
+[Step1532](../done/step1532.md) retains the successful corrected `c31d7cf7`
+native-v8 original and exact reviewed Smoke admission identity. Host-only RAM
+selection leaves the original service and Smoke publications unchanged. The
+next guest batch compares the same quota image/policy at 256 and 512 MiB and
+refreshes one ordinary configured V2 lifecycle; prior memory fault controls do
+not establish RAM invariance or the current ordinary native-headroom bound.
+
 The explicit, default-off `QuotaFailure` service contract requests termination
 on operation-local physical backing exhaustion. Memory calls report that cause
 separately from errno. The flag proves necessary total backing insufficiency;

@@ -492,6 +492,15 @@ needs only a reviewed current-consumer source-pin refresh; its original
 ELF/index/package and producer provenance stay unchanged. No new guest or quota
 acceptance follows from these Linux and host results.
 
+[Step1532](../done/step1532.md) reviews the corrected original `c31d7cf7`
+Linux native-v8 publication. Exact ELF/debug/source/index joins and original
+signal/churn cleanup traces pass; the prepared-program pins select this ELF.
+The optional host RAM forwarder permits the required 256/512 MiB quota
+comparison without changing the payload or its budgets. Owned Smoke, both quota
+captures and one refreshed configured positive V2 lifecycle still precede guest
+and ordinary-headroom acceptance. The shared 36 MiB pool does not enforce
+independent 16 MiB GC and 20 MiB native partitions.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

@@ -14,6 +14,7 @@ public static class QemuProfiles
     {
         SmokeContracts.ValidateWorkload(options.WorkloadProfile);
         Require(options.DiskFormat is "raw" or "qcow2", "qemu.smoke.invalid_args disk_format=" + options.DiskFormat);
+        Require(options.MemoryMiB is null or > 0, "qemu_memory_mib_out_of_range");
         Dictionary<string, bool> flags = new(options.Flags, StringComparer.Ordinal);
         bool Selected(string name) => flags.TryGetValue("Enable" + name + "Probe", out bool selected) && selected;
         Require(!Selected("M16019Unavailable") && !Selected("M16019Invalid"),"realtime_rejection_requires_separate_capture");

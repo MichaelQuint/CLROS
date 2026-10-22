@@ -4,7 +4,7 @@ using OS.Tooling;
 
 internal static class NativeAotWebReplayTests
 {
-    private const int WebElfBytes=8_858_120;
+    private const int WebElfBytes=8_870_568;
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,

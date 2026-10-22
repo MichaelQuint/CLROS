@@ -23,6 +23,9 @@ public sealed class QemuSmokeOptions
     public string LinuxThreadingApplication { get; set; } = "";
     public string LinuxThreadingDisassembly { get; set; } = "";
     public string DiskFormat { get; set; } = "raw";
+    /// <summary>Optional QEMU guest RAM in MiB. Null preserves the runner's
+    /// default; this does not alter workload entitlement or allocator budgets.</summary>
+    public int? MemoryMiB { get; set; }
     public int TimeoutSeconds { get; set; } = 30;
     public int StartupTimeoutSeconds { get; set; } = 30;
     public bool DryRun { get; set; }
@@ -70,7 +73,7 @@ public sealed class QemuSmokeOptions
             ["bootpolicy"] = "BootPolicy", ["image"] = "Image", ["efiartifact"] = "EfiArtifact", ["seriallog"] = "SerialLog",
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
-            ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
+            ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["memorymib"] = "MemoryMiB", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["webeventownedsignalrace"] = "WebEventOwnedSignalRace", ["requiremarker"] = "RequireMarker",
@@ -113,6 +116,7 @@ public sealed class QemuSmokeOptions
                 case "LinuxThreadingApplication": result.LinuxThreadingApplication = value; break;
                 case "LinuxThreadingDisassembly": result.LinuxThreadingDisassembly = value; break;
                 case "DiskFormat": result.DiskFormat = value.ToLowerInvariant(); break;
+                case "MemoryMiB": result.MemoryMiB = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "TimeoutSeconds": result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "StartupTimeoutSeconds": result.StartupTimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "DryRun": result.DryRun = bit; break;
