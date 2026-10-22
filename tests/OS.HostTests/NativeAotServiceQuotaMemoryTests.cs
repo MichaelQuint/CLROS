@@ -11,7 +11,8 @@ internal static class NativeAotServiceQuotaMemoryTests
     // physical allocator, source pins, peer or actual guest is constructed.
     private enum HeldMutation { None, Advise, PartialUnmap, Shrink, GrowInto, FixedReplace, Protect }
 
-    private static string Raw(bool segmented = false, HeldMutation mutation = HeldMutation.None, bool understateRetention = false)
+    private static string Raw(bool segmented = false, HeldMutation mutation = HeldMutation.None, bool understateRetention = false,
+        ulong? frozenBudget = null, ulong? serviceFinish = null)
     {
         var text = new StringBuilder("M16_016_BUDGET gc=16777216 nativeReserve=20971520 static=16777216 pool=37748736 entitlement=67108864\r\nTEST_START m16.014.startup\r\n");
         ulong ordinal = 0, reserved = 2 * 1048576UL;
@@ -36,7 +37,7 @@ internal static class NativeAotServiceQuotaMemoryTests
         // PROT_NONE retains backing; only subsequent DONTNEED releases it.
         Observe(10, 0, Arena + 4 * 1048576, 10 * 1048576, 0, 0, Mprotect, 3584, 4);
         Observe(28, 0, Arena + 4 * 1048576, 10 * 1048576, 4, 0, Madvise, 1024, 3);
-        Output("CLROS_SERVICE_GC_BEGIN " + Gc + "CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\nCLROS_M10_011_READY\nCLROS_SERVICE_QUOTA_BEGIN chunkBytes=1048576 maximumChunks=64\n");
+        Output("CLROS_SERVICE_GC_BEGIN " + Gc + "CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\nCLROS_M10_011_READY\nCLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14\nCLROS_SERVICE_QUOTA_BEGIN chunkBytes=1048576 maximumChunks=64\n");
         for (int index = 0; index < 32; index++)
         {
             Output($"CLROS_SERVICE_QUOTA_ATTEMPT index={index} retainedBytes={(ulong)index * 1048576} gcCommitted=4194304\n");
@@ -57,15 +58,16 @@ internal static class NativeAotServiceQuotaMemoryTests
         Output("CLROS_SERVICE_QUOTA_ATTEMPT index=32 retainedBytes=33554432 gcCommitted=4194304\n");
         Observe(9, NoMemory, 0, 1048576, 3, 0x22, Mmap, 9216, 4);
         text.Append($"M16_016_QUOTA_ABORT identity=4294967297 ordinal={ordinal} nr=9 backed=9216 pool=9216 exit=99 policy=terminate cause=physical-backing\r\n");
-        text.Append($"M16_016_MEMORY poolPages=9216 peakPages=9216 endPages=0\r\nM16_008_BUDGET_END nanos={ordinal}\r\n");
+        text.Append($"M16_016_MEMORY poolPages=9216 peakPages=9216 endPages=0\r\nM16_008_BUDGET_END nanos={frozenBudget ?? ordinal - 1}\r\n");
         text.Append("M16_008_OWNER_END reaped=3 transfers=16 irqs=1 exit=99 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
+        text.Append($"M16_014_END identity=4294967297 calls={ordinal} started=0 nanos={serviceFinish ?? ordinal + 1} reaped=3 process=drained mappings=restored pool=scrubbed random=zero reservation=retained\r\n");
         return text.ToString();
     }
 
     private static QemuTranscripts.ServiceQuotaMemoryInspection Read(string raw) =>
         QemuTranscripts.InspectNativeAotServiceQuotaMemoryForTests(Encoding.UTF8.GetBytes(raw), 67108864);
-    private static void Reject(string raw)
-    { bool rejected = false; try { _ = Read(raw); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
+    private static void Reject(string raw, string? reason = null)
+    { bool rejected = false; try { _ = Read(raw); } catch (ToolFailure error) { if (reason is not null) HostCheck.Equal(reason, error.Reason); rejected = true; } HostCheck.True(rejected); }
 
     [HostTest("quota memory reports real operation-local topology strict live GC ownership and retained mmap bytes without recovery placeholders")]
     private static void ValuesAndCopies()
@@ -122,6 +124,38 @@ internal static class NativeAotServiceQuotaMemoryTests
         int finalMemory = Array.FindLastIndex(rows, row => row.StartsWith("M16_014_MEMORY ", StringComparison.Ordinal));
         var changedRows = rows.ToArray(); changedRows[finalMemory] = changedRows[finalMemory].Replace("reserved=119537664", "reserved=119533568", StringComparison.Ordinal);
         HostCheck.True(!changedRows.SequenceEqual(rows)); Reject(string.Join("\r\n", changedRows));
+    }
+
+    [HostTest("quota memory separates frozen budget from denial and genuine post-owner finish")]
+    private static void FrozenBudgetAndServiceFinish()
+    {
+        string raw = Raw();
+        HostCheck.True(raw.Contains("M16_008_BUDGET_END nanos=38\r\n", StringComparison.Ordinal) &&
+            raw.Contains($"clock=39 valueBits={NoMemory}", StringComparison.Ordinal) && raw.Contains("started=0 nanos=40 reaped=3", StringComparison.Ordinal));
+        HostCheck.Equal(39UL, Read(raw).Denial.Ordinal);
+        // The isolated memory seam must not equate peak service worker with
+        // denied worker; complete scheduler replay owns that history join.
+        HostCheck.Equal(39UL, Read(raw.Replace("M16_014_END identity=4294967297 calls=39", "M16_014_END identity=4294967298 calls=40", StringComparison.Ordinal)).Denial.Ordinal);
+        Reject(Raw(serviceFinish: 38), "service_quota_memory_denial");
+        Reject(Raw(frozenBudget: 41), "service_quota_memory_end");
+        Reject(Raw(serviceFinish: (ulong)long.MaxValue + 1), "service_quota_memory_end");
+        string[] rows = raw.Split("\r\n", StringSplitOptions.None);
+        int service = Array.FindIndex(rows, r => r.StartsWith("M16_014_END ", StringComparison.Ordinal));
+        Reject(string.Join("\r\n", rows.Where((_, at) => at != service)), "service_quota_memory_once");
+        var duplicate = rows.ToList(); duplicate.Insert(service, rows[service]);
+        Reject(string.Join("\r\n", duplicate), "service_quota_memory_once");
+        var reordered = rows.ToArray(); (reordered[service - 1], reordered[service]) = (reordered[service], reordered[service - 1]);
+        Reject(string.Join("\r\n", reordered), "service_quota_memory_end");
+        foreach (var (from, to, reason) in new[] {
+            ("random=zero reservation=retained", "random=retained reservation=retained", "service_quota_memory_service_end"),
+            ("reaped=3 process=drained", "reaped=2 process=drained", "service_quota_memory_end"),
+            ("started=0 nanos=40", "started=39 nanos=40", "service_quota_memory_end"),
+            ("identity=4294967297 calls=39", "identity=0 calls=39", "service_quota_memory_end"),
+            ("identity=4294967297 calls=39", "identity=4294967297 calls=0", "service_quota_memory_end") })
+        {
+            var changed = rows.ToArray(); changed[service] = changed[service].Replace(from, to, StringComparison.Ordinal);
+            HostCheck.True(changed[service] != rows[service]); Reject(string.Join("\r\n", changed), reason);
+        }
     }
 
     [HostTest("quota memory preserves existing GC arena identity pins and rejects native retention revocation or recovery output")]

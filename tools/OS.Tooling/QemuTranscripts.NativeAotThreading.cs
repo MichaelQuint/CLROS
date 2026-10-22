@@ -418,7 +418,10 @@ public static partial class QemuTranscripts
             else Need(app=="NativeAotSuspensionSmoke" ? clones>=3 && normalExits>=1 && signalReturns>=2 && history.Any(t=>t.NormalExit && t.Returned>=2) : clones>=5,"threading_workload_lifetimes");
             if(serviceQuotaFailure)QuotaMemoryEnd();
             var finished=Row("M16_008_BUDGET_END","nanos:dec");
-            Need(finished["nanos"]>=clock && (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
+            // Quota cancellation freezes admission before the final syscall;
+            // QuotaFinish binds the fresh post-reap clock to both observations.
+            Need((serviceQuotaFailure ? finished["nanos"]>=budget.StartedNanoseconds : finished["nanos"]>=clock) &&
+                (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
                 (service?budget.CancellationRequested && finished["nanos"]<=long.MaxValue:budget.Observe(finished["nanos"])),"runtime_budget_complete");
             if(service)serviceBudgetFinished=finished["nanos"];
             // Group cancellation retires pending/active signal state during

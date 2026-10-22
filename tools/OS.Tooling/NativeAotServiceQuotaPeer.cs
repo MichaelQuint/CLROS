@@ -15,7 +15,7 @@ namespace OS.Tooling;
 public static partial class NativeAotServiceQuotaPeer
 {
     private const string Lifecycle = "/__clros/service/lifecycle/", Quota = "/__clros/service/quota";
-    private const int ChunkBytes = 1_048_576, MaximumChunks = 64, StartupSeconds = 400, OperationalSeconds = 480;
+    private const int ChunkBytes = 1_048_576, MaximumChunks = 64, StartupSeconds = 400, OperationalSeconds = 540;
 
     /// <summary>Quota child lifetime and copied quota elapsed-time ceiling in
     /// seconds. Separate runner/owner clocks retain their independent bounds.</summary>
@@ -43,7 +43,7 @@ public static partial class NativeAotServiceQuotaPeer
 
     /// <summary>Stimulate one already-listening v3-quota service. Startup is
     /// bounded400s to cover the real initial TCP ISN quiet interval. A separate
-    /// operational480s starts after first health; later exchanges retain20s.
+    /// operational540s starts after first health; later exchanges retain20s.
     /// The pressure POST is never retried; any response, phase2, premature I/O end, timeout
     /// or cancellation rejects. Only pressure I/O abort after measured overlap
     /// returns values. The helper's16s deliberate waits are not a wall-time bound.
@@ -205,7 +205,7 @@ public static partial class NativeAotServiceQuotaPeer
                     var sample = await Get(Quota + "/status"); var next = ReadQuota(sample.Body); Progress(next, quota);
                     Need(next.Phase == 1, "quota_stopped"); quota = next; lastQuota = sample;
                 }
-                catch (Exception error) when (IoAbort(error) && !token.IsCancellationRequested) { break; }
+                catch (Exception error) when (TerminalIoAbort(error) && !token.IsCancellationRequested) { break; }
                 if (!pressure.IsCompleted) await Task.Delay(50, token);
             }
             var aborted = await pressure; token.ThrowIfCancellationRequested();
@@ -282,10 +282,9 @@ public static partial class NativeAotServiceQuotaPeer
             wire?.EndExchange(exchange, "response", (int)response.StatusCode, "", clock.Elapsed.Ticks); ended = true;
             throw new ToolFailure("quota_peer_pressure_http_response", ((int)response.StatusCode).ToString(CultureInfo.InvariantCulture));
         }
-        catch (Exception error) when (IoAbort(error) && !token.IsCancellationRequested)
+        catch (Exception error) when (TerminalIoAbort(error) && !token.IsCancellationRequested)
         {
-            string kind = error is HttpRequestException requestError ? requestError.HttpRequestError.ToString() :
-                error is HttpIOException streamError ? streamError.HttpRequestError.ToString() : "ConnectionError";
+            string kind = PressureErrorKind(error);
             long at = clock.Elapsed.Ticks; wire?.EndExchange(exchange, "io-error", 0, "", at); ended = true;
             return new(at, kind);
         }
@@ -361,14 +360,27 @@ public static partial class NativeAotServiceQuotaPeer
     private static bool IoAbort(Exception error) => error is HttpRequestException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.ResponseEnded } or
         HttpIOException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.ResponseEnded } or
         IOException { InnerException: SocketException } or SocketException;
-    private static bool StartupIoAbort(Exception error) => IoAbort(error) || error is HttpRequestException
+    private static bool WrappedConnectionReset(Exception error) => error is HttpRequestException
     {
         HttpRequestError: HttpRequestError.Unknown,
         InnerException: IOException { InnerException: SocketException { SocketErrorCode: SocketError.ConnectionReset } }
     };
+    private static bool StartupIoAbort(Exception error) => IoAbort(error) || WrappedConnectionReset(error);
+    private static bool TerminalIoAbort(Exception error) => IoAbort(error) || WrappedConnectionReset(error);
+    private static string PressureErrorKind(Exception error)
+    {
+        Need(TerminalIoAbort(error), "pressure_error_kind");
+        return WrappedConnectionReset(error) ? nameof(HttpRequestError.ConnectionError) :
+            error is HttpRequestException request ? request.HttpRequestError.ToString() :
+            error is HttpIOException input ? input.HttpRequestError.ToString() : nameof(HttpRequestError.ConnectionError);
+    }
 
     /// <summary>Classify copied host exceptions using the actual initial-health
     /// or pressure predicate. Supplies no retry, deadline, socket or guest proof.</summary>
-    public static bool IsTransportFailureForTests(Exception error, bool startup) => startup ? StartupIoAbort(error) : IoAbort(error);
+    public static bool IsTransportFailureForTests(Exception error, bool startup) => startup ? StartupIoAbort(error) : TerminalIoAbort(error);
+
+    /// <summary>Normalize copied admitted terminal transport errors to the actual
+    /// pressure report category. Other shapes throw; no I/O or guest proof follows.</summary>
+    public static string PressureErrorKindForTests(Exception error) => PressureErrorKind(error);
     private static void Need(bool value, string reason) { if (!value) throw new ToolFailure("quota_peer_" + reason); }
 }

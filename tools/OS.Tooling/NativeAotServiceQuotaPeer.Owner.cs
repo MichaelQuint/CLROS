@@ -174,8 +174,8 @@ public static partial class NativeAotServiceQuotaPeer
     /// listening row, and own one separate quota peer child beside the supplied
     /// runner. The callback must use a bounded process API, honor cancellation and
     /// confirm termination; the existing QEMU runner remains the sole PCAP owner.
-    /// The peer has400s startup plus480s operation within a900s child bound,
-    /// starting after listen. The independent960s owner clock starts before the
+    /// The peer has400s startup and540s operation, subject to an independent900s
+    /// child bound starting after listen. The independent960s owner clock starts before the
     /// runner, which retains its separately configured bound. Outer caps may
     /// reject before all inner budgets expire. Expected runner22 awaits the peer; every
     /// failure/cancellation cancels and joins both tasks before return/throw.

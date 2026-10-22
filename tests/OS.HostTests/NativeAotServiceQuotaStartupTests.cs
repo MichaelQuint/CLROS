@@ -158,16 +158,17 @@ internal static class NativeAotServiceQuotaStartupTests
         throw new InvalidDataException("startup fixture request header bound");
     }
 
-    [HostTest("quota startup admits only observed unknown reset wrapper without widening pressure or protocol failures")]
+    [HostTest("quota startup and terminal transport admit exact observed reset wrapper and normalize pressure category")]
     private static void TransportClassification()
     {
         static SocketException Socket(SocketError error = SocketError.ConnectionReset) => new((int)error);
         static HttpRequestException Http(HttpRequestError kind, Exception? inner = null) => new(kind, "copied failure", inner);
         (Exception Error, bool Startup, bool Pressure)[] cases =
         [
-            (Http(HttpRequestError.Unknown, new IOException("transport", Socket())), true, false),
+            (Http(HttpRequestError.Unknown, new IOException("transport", Socket())), true, true),
             (Http(HttpRequestError.Unknown, new IOException("transport", Socket(SocketError.TimedOut))), false, false),
             (Http(HttpRequestError.Unknown, new IOException("transport", Socket(SocketError.AccessDenied))), false, false),
+            (Http(HttpRequestError.Unknown, new IOException("transport", Socket(SocketError.OperationAborted))), false, false),
             (Http(HttpRequestError.ConnectionError), true, true),
             (Http(HttpRequestError.ResponseEnded), true, true),
             (new HttpIOException(HttpRequestError.ResponseEnded, "ended"), true, true),
@@ -177,6 +178,10 @@ internal static class NativeAotServiceQuotaStartupTests
             (Http(HttpRequestError.Unknown, Socket()), false, false),
             (Http(HttpRequestError.Unknown, new IOException("no socket")), false, false),
             (Http(HttpRequestError.Unknown, new IOException("non socket", new FormatException())), false, false),
+            (Http(HttpRequestError.Unknown, new IOException("wrong depth", new IOException("transport", Socket()))), false, false),
+            (Http(HttpRequestError.Unknown, new HttpRequestException(HttpRequestError.ConnectionError, "wrong wrapper", Socket())), false, false),
+            (new HttpIOException(HttpRequestError.Unknown, "wrong wrapper", new IOException("transport", Socket())), false, false),
+            (new AggregateException(Http(HttpRequestError.Unknown, new IOException("transport", Socket()))), false, false),
             (Http(HttpRequestError.Unknown, new FormatException("format", Socket())), false, false),
             (Http(HttpRequestError.Unknown, new InvalidDataException("data", Socket())), false, false),
             (Http(HttpRequestError.HttpProtocolError, new IOException("transport", Socket())), false, false),
@@ -193,6 +198,19 @@ internal static class NativeAotServiceQuotaStartupTests
         {
             HostCheck.Equal(item.Startup, NativeAotServiceQuotaPeer.IsTransportFailureForTests(item.Error, startup: true));
             HostCheck.Equal(item.Pressure, NativeAotServiceQuotaPeer.IsTransportFailureForTests(item.Error, startup: false));
+            if (item.Pressure)
+            {
+                string expected = item.Error is HttpRequestException { HttpRequestError: HttpRequestError.ResponseEnded } or
+                    HttpIOException { HttpRequestError: HttpRequestError.ResponseEnded } ? "ResponseEnded" : "ConnectionError";
+                HostCheck.Equal(expected, NativeAotServiceQuotaPeer.PressureErrorKindForTests(item.Error));
+            }
+            else
+            {
+                bool refused = false;
+                try { _ = NativeAotServiceQuotaPeer.PressureErrorKindForTests(item.Error); }
+                catch (ToolFailure error) when (error.Reason == "quota_peer_pressure_error_kind") { refused = true; }
+                HostCheck.True(refused);
+            }
         }
     }
 }

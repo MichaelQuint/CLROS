@@ -67,7 +67,7 @@ internal static class NativeAotServiceQuotaOverlapTests
             var res=new QemuTranscripts.ServiceQuotaHttpPrefix(response.Start,headers?response.End:response.Start+1,response.End,"HTTP/1.1 200 OK",new Dictionary<string,string>(),"length",headers?0:body.Length,"complete",headers?"":Convert.ToBase64String(Encoding.ASCII.GetBytes(body)));
             samples.Add(new(peer.Samples[index].Name,messages.Count,headers));messages.Add(new(request.ConnectionId,index+1,req,res,[],[]));
         }
-        Output("CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_CCTOR minimal.api.service\nCLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\nCLROS_SERVICE_GC_BEGIN "+Gc+"CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\nCLROS_M10_011_READY\n");
+        Output("CLROS_APP_ENTRY minimal.api.service\nCLROS_APP_CCTOR minimal.api.service\nCLROS_APP_CTOR minimal.api.service\nCLROS_APP_BUILT minimal.api.service\nCLROS_SERVICE_GC_BEGIN "+Gc+"CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\nCLROS_M10_011_READY\nCLROS_SERVICE_RANDOM_CONTROLS zero=0 invalid=-22 fault=-14\n");
         for(int i=0;i<11;i++)Response(i,Request(i));
         if(!echoLate)Io(100,3,false,"echo-prefix",10);
         Io(101,4,false,"pressure-request",5);
@@ -83,6 +83,9 @@ internal static class NativeAotServiceQuotaOverlapTests
         for(int i=12;i<18;i++)Response(i,Request(i));
         Output("CLROS_SERVICE_QUOTA_ATTEMPT index=1 retainedBytes=1048576 gcCommitted=9000000\n");
         Row("M16_014_MEMORY value=copy");Row("M16_016_TOPOLOGY value=copy");int denial=Call(9,0,-12);
+        Row($"M16_008_BUDGET_END nanos={ordinal-1}");
+        Row("M16_008_OWNER_END reaped=3 transfers=16 irqs=1 exit=99 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
+        Row($"M16_014_END identity={Identity} calls={ordinal} started=0 nanos={ordinal+1} reaped=3 process=drained mappings=restored pool=scrubbed random=zero reservation=retained");
         var snapshot=new QemuTranscripts.ServiceQuotaMemorySnapshot(denial-2,Identity,ordinal,9,0,0,0,0,0,0,0,0,0,0,0);
         var memory=new QemuTranscripts.ServiceQuotaMemoryInspection(0,0,0,0,0,0,default,default,[],0,0,1,1048576,snapshot,0,0,0)
         {RetainedCalls=[new(0,0x200000000,1048576,mapping,Identity,mapOrdinal)]};

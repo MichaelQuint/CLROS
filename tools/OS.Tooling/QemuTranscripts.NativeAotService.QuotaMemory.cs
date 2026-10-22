@@ -70,7 +70,8 @@ public static partial class QemuTranscripts
             Need(found.Length == 1, "service_quota_memory_once"); return found[0];
         }
         int budgetAt = One("M16_016_BUDGET"), memoryAt = One("M16_016_MEMORY"), ownerAt = One("M16_008_OWNER_END "),
-            clockAt = One("M16_008_BUDGET_END "), abortAt = One("M16_016_QUOTA_ABORT "), startupAt = One("TEST_START m16.014.startup");
+            clockAt = One("M16_008_BUDGET_END "), serviceAt = One("M16_014_END "),
+            abortAt = One("M16_016_QUOTA_ABORT "), startupAt = One("TEST_START m16.014.startup");
         var budget = ReadRecord(rows[budgetAt], "M16_016_BUDGET", "gc:dec", "nativeReserve:dec", "static:dec", "pool:dec", "entitlement:dec");
         const ulong page = 4096, chunk = 1048576, pool = LinuxAppConfiguration.ConfiguredServicePoolPages * page;
         Need(entitlementBytes == NativeAotServicePackage.MemoryBytes && budget["entitlement"] == entitlementBytes &&
@@ -82,8 +83,13 @@ public static partial class QemuTranscripts
         Need(rows[ownerAt].EndsWith(ownerSuffix, StringComparison.Ordinal), "service_quota_memory_owner");
         var owner = ReadRecord(rows[ownerAt][..^ownerSuffix.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec", "userReserved:dec", "userBacked:dec");
         var clock = ReadRecord(rows[clockAt], "M16_008_BUDGET_END", "nanos:dec");
-        Need(abortAt < memoryAt && memoryAt + 1 == clockAt && clockAt + 1 == ownerAt && owner["exit"] == 99 && owner["reaped"] > 0 &&
-            owner["userReserved"] == 0 && owner["userBacked"] == 0 && clock["nanos"] <= long.MaxValue &&
+        const string serviceSuffix = " process=drained mappings=restored pool=scrubbed random=zero reservation=retained";
+        Need(rows[serviceAt].EndsWith(serviceSuffix, StringComparison.Ordinal), "service_quota_memory_service_end");
+        var service = ReadRecord(rows[serviceAt][..^serviceSuffix.Length], "M16_014_END", "identity:dec", "calls:dec", "started:dec", "nanos:dec", "reaped:dec");
+        Need(abortAt < memoryAt && memoryAt + 1 == clockAt && clockAt + 1 == ownerAt && ownerAt + 1 == serviceAt &&
+            owner["exit"] == 99 && owner["reaped"] > 0 && owner["userReserved"] == 0 && owner["userBacked"] == 0 &&
+            service["identity"] > 0 && service["calls"] > 0 && service["reaped"] == owner["reaped"] &&
+            service["started"] <= clock["nanos"] && clock["nanos"] <= service["nanos"] && service["nanos"] <= long.MaxValue &&
             finalMemory["poolPages"] == pool / page && finalMemory["peakPages"] is > 0 && finalMemory["peakPages"] <= pool / page &&
             finalMemory["endPages"] == 0, "service_quota_memory_end");
         var calls = ValidateLinuxServiceCallOrdinals(rows);
@@ -169,7 +175,7 @@ public static partial class QemuTranscripts
         int finalCall = returns.Keys.Max(), lastAttempt = Boundary("CLROS_SERVICE_QUOTA_ATTEMPT index=" + output.CompletedChunks + " ", true);
         var denied = callValues[finalCall];
         Need(PressureMap(denied) && denied["valueBits"] == deniedValue && finalCall > lastAttempt && finalCall < abortAt &&
-            clock["nanos"] >= denied["clock"], "service_quota_memory_denial");
+            service["nanos"] >= denied["clock"], "service_quota_memory_denial");
         const string abortSuffix = " exit=99 policy=terminate cause=physical-backing";
         Need(rows[abortAt].EndsWith(abortSuffix, StringComparison.Ordinal), "service_quota_memory_abort");
         var abort = ReadRecord(rows[abortAt][..^abortSuffix.Length], "M16_016_QUOTA_ABORT", "identity:dec", "ordinal:dec", "nr:dec", "backed:dec", "pool:dec");

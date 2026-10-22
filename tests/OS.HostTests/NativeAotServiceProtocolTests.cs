@@ -64,14 +64,15 @@ internal static class NativeAotServiceProtocolTests
         v.Call(43,6,[5,0,0]);SocketRow(43,0,0,0,0);
         v.Call(45,1,[6,0x500800,1,0,0,0]);SocketRow(45,0,1,0,1);
         v.Call(44,1,[6,0x500800,1,0,0,0]);SocketRow(44,0,1,1,1);v.Output();
+        ulong frozenBudget=v.Clock;v.Clock++;
         v.Call(9,-12,[0,1048576,3,0x22,uint.MaxValue,0]);
         v.Rows.Add($"M16_016_QUOTA_ABORT identity={v.Main.Id} ordinal={v.Main.Ordinal} nr=9 backed=9216 pool=9216 exit=99 policy=terminate cause=physical-backing");
         v.Drain(v.Clock);v.Exit(4,2,3);v.Select(first);v.Exit(4,1,2);v.Select(second);v.Exit(4,0,1);
         foreach(int fd in Enumerable.Range(0,7))v.Rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
         v.Rows.Add("M16_016_MEMORY poolPages=9216 peakPages=9216 endPages=0");
-        v.Rows.Add($"M16_008_BUDGET_END nanos={v.Clock}");
+        v.Rows.Add($"M16_008_BUDGET_END nanos={frozenBudget}");
         v.Rows.Add($"M16_008_OWNER_END reaped=3 transfers={v.Transfers} irqs={v.Epoch} exit=99 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
-        v.Rows.Add($"M16_014_END identity={v.Main.Id} calls={v.Main.Ordinal} started=0 nanos={v.Clock} reaped=3 process=drained mappings=restored pool=scrubbed random=zero reservation=retained");
+        v.Rows.Add($"M16_014_END identity={v.Main.Id} calls={v.Main.Ordinal} started=0 nanos={v.Clock+2} reaped=3 process=drained mappings=restored pool=scrubbed random=zero reservation=retained");
         v.Rows.AddRange(["M16_016_QUOTA_PROCESS_FAILURE exit=99 cause=physical-backing",
             "M16_016_QUOTA_NATIVE process=drained timer=restored descriptors=closed guard=detached mappings=restored pool=scrubbed initialStack=zero random=zero reservation=retained",
             "M16_016_QUOTA_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true"]);
@@ -89,6 +90,45 @@ internal static class NativeAotServiceProtocolTests
         HostCheck.True(report.Calls<4096 && report.Clones==2 && report.Reaped==3 && report.Irqs==1 && report.Drains==3);
         HostCheck.True(!v.Rows.Any(row=>row.StartsWith("M16_014_PROGRESS ",StringComparison.Ordinal)||row=="TEST_PASS m16.014"));
         HostCheck.True(v.Rows.SequenceEqual(before));
+    }
+
+    [HostTest("quota full replay accepts frozen admission before denial only with exact post-reap finish while ordinary service stays strict")]
+    private static void QuotaClockDomains()
+    {
+        var v=QuotaVector();var result=InspectQuota(v);HostCheck.Equal(3,result.Reaped);
+        int budget=v.Rows.FindIndex(r=>r.StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal));
+        int service=v.Rows.FindIndex(r=>r.StartsWith("M16_014_END ",StringComparison.Ordinal));
+        HostCheck.Equal("M16_008_BUDGET_END nanos=30",v.Rows[budget]);
+        HostCheck.True(v.Rows.Any(r=>r.Contains("clock=31 valueBits=18446744073709551604",StringComparison.Ordinal))&&
+            v.Rows.Any(r=>r.StartsWith("M16_009_DRAIN ",StringComparison.Ordinal)&&r.Contains("nanos=31",StringComparison.Ordinal))&&
+            v.Rows[service].Contains("started=0 nanos=33 reaped=3",StringComparison.Ordinal));
+        void Refuse(string[] rows,string? reason=null)
+        {
+            bool rejected=false;try{InspectQuota(v,rows);}catch(ToolFailure error)
+            {if(reason is not null)HostCheck.Equal(reason,error.Reason);rejected=true;}HostCheck.True(rejected);
+        }
+        var boundary=v.Rows.ToArray();boundary[service]=boundary[service].Replace("nanos=33","nanos=31",StringComparison.Ordinal);
+        HostCheck.Equal(3,InspectQuota(v,boundary).Reaped);
+        var advancedDrain=v.Rows.ToArray();int drain=Array.FindLastIndex(advancedDrain,r=>r.StartsWith("M16_009_DRAIN ",StringComparison.Ordinal));
+        advancedDrain[drain]=advancedDrain[drain].Replace("nanos=31","nanos=32",StringComparison.Ordinal);
+        Refuse(advancedDrain,"threading_drain_binding");
+        Refuse(v.Rows.Where((_,at)=>at!=service).ToArray());
+        var duplicate=v.Rows.ToList();duplicate.Insert(service,v.Rows[service]);Refuse(duplicate.ToArray());
+        var reordered=v.Rows.ToArray();(reordered[service-1],reordered[service])=(reordered[service],reordered[service-1]);Refuse(reordered);
+        foreach(var (from,to) in new[]{("nanos=33","nanos=30"),
+            ($"identity={v.Main.Id}",$"identity={v.Main.Id+(1UL<<32)}"),($"calls={v.Main.Ordinal}",$"calls={v.Main.Ordinal+1}"),
+            ("started=0","started=1"),("reaped=3","reaped=2")})
+        {
+            var changed=v.Rows.ToArray();changed[service]=changed[service].Replace(from,to,StringComparison.Ordinal);
+            HostCheck.True(changed[service]!=v.Rows[service]);Refuse(changed,"service_quota_owner_accounting");
+        }
+        var suffix=v.Rows.ToArray();suffix[service]=suffix[service].Replace("random=zero","random=retained",StringComparison.Ordinal);
+        Refuse(suffix,"service_quota_owner_cleanup");
+        var lateBudget=v.Rows.ToArray();lateBudget[budget]="M16_008_BUDGET_END nanos=34";
+        Refuse(lateBudget,"service_quota_owner_accounting");
+        var ordinary=Vector();var oldRows=ordinary.Rows.ToArray();
+        int oldBudget=Array.FindIndex(oldRows,r=>r.StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal));
+        oldRows[oldBudget]=$"M16_008_BUDGET_END nanos={ordinary.Clock-1}";Reject(ordinary,oldRows);
     }
 
     [HostTest("quota replay rejects substituted denial return native close exit generation and positive completion")]

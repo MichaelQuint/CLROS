@@ -536,6 +536,24 @@ and owner960s remain independent outer caps. Signal-race and stream-control
 reports retain600s bounds, all capture capacities and the600s application
 watchdog remain unchanged. A fresh original quota run is still required.
 
+[Step1537](../done/step1537.md) preserves the next failed owned run: all17 overlap
+samples and quota cleanup markers are present, but terminal control/pressure I/O
+hits the captured wrapped reset. The terminal-only predicate now admits that exact
+shape and labels it ConnectionError; early completion/cancellation/overlap gates
+remain mandatory. Strict offline replay also exposes reader omissions: the
+unchanged app emits exact Kestrel[22] heartbeat warnings on stdout and its random
+controls on stderr. The reader preserves and checks those bytes rather than
+requiring empty stdout. A second strict replay exposes frozen budget admission
+being mistaken for the post-reap finish clock. Quota-only readers now bind the
+unique exact service-end row and retain mandatory full finish/history checks;
+ordinary clock checks are unchanged. Operation540s gives measured margin over the470.85s path;
+900s child/report/runner and960s owner remain independent caps. The failed original
+does not become accepted. Corrected-reader strict native replay and69focused host
+checks pass. The developer chat's restricted context denies loopback Connect(10013);
+execution transfers to the acceptance reviewer under its existing permissions,
+where the unchanged producer passes all17 actual transport checks. A fresh owned
+capture and final acceptance remain required.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
