@@ -1,5 +1,13 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1544](../done/step1544.md) consolidates three exact duplicate descriptor/
+epoll audits within serialized calls. Every distinct admission predicate and
+post-mutation audit remains. The unchanged application, timer, signal ordering
+and one-attempt policy are retained. All62 focused host checks pass; a host-only
+pipe write/read comparison improves from777.569ms to579.8792ms per2,000 pairs.
+That measurement does not qualify the outstanding guest race. Fresh native
+review, original guest execution and the stable acceptance batch remain required.
+
 [Step1543](../done/step1543.md) records a complete original configured V2 service
 pass at `3b325f4e`: 923,022ms actual QEMU lifetime, 55 accepted connections,
 52 retired transport lifetimes and checked process/descriptor/mapping cleanup.

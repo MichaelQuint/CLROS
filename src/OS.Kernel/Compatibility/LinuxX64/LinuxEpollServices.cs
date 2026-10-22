@@ -126,6 +126,20 @@ public static unsafe class LinuxEpollServices
     public static bool Refresh(State* state)
     {
         if (!Current(state)) return false;
+        return RefreshCore(state);
+    }
+
+    // Attached audits the complete descriptor/epoll graph and exact owner.
+    // No callback or mutation intervenes before refresh. The caller's subsequent
+    // retained-operation checks still audit the state after readiness changes.
+    internal static bool RefreshThreads(Fds.State* descriptors, ulong owner)
+    {
+        if (!Fds.Attached(descriptors, owner)) return false;
+        return descriptors->Epoll == null || RefreshCore(descriptors->Epoll);
+    }
+
+    private static bool RefreshCore(State* state)
+    {
         for (uint i = 0; i < state->RegistrationCount; i++)
         {
             Registration* r = state->Registrations + i;
@@ -249,7 +263,9 @@ public static unsafe class LinuxEpollServices
     }
     private static bool CurrentOperation(ulong owner, ref Operation operation)
     {
-        if (operation.Active != 1 || !Current(operation.Owner) || !Fds.Attached(operation.Owner->Descriptors, owner) ||
+        // Current has just audited these descriptors. Preserve Attached's exact
+        // owner predicates without repeating its unchanged, callback-free audit.
+        if (operation.Active != 1 || !Current(operation.Owner) || owner == 0 || operation.Owner->Descriptors->ThreadOwner != owner ||
             operation.Description >= operation.Owner->Descriptors->Owner.DescriptionCount) return false;
         fixed (Operation* p = &operation) if ((ulong)p != operation.Self) return false;
         var d = operation.Owner->Descriptors->Owner.Descriptions[operation.Description];

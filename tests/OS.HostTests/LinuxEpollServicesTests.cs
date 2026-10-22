@@ -141,6 +141,32 @@ internal static unsafe class LinuxEpollServicesTests
         HostCheck.True(Fds.Audit(files.State)); HostCheck.Equal(3U, files.State->ActiveDescriptors); HostCheck.True(Fds.End(files.State));
     }
 
+    [HostTest("linux.epoll threaded refresh rejects changed owner mappings or port identity before readiness mutation")]
+    private static void ThreadedRefreshAdmission()
+    {
+        for (int control = 0; control < 3; control++)
+        {
+            using Model m = new(); uint epoll = m.Create(); var pipe = m.Pipe();
+            HostCheck.Equal(0L, m.Control(epoll, 1, pipe.Read, 1, 77));
+            HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key + 1, 2));
+            HostCheck.True(m.Thread.Service->PollDescriptorReadiness(Key, 2));
+            byte[] before = new ReadOnlySpan<byte>(m.Registrations, 8 * sizeof(Epoll.Registration)).ToArray();
+            ulong* changed = control switch
+            {
+                0 => (ulong*)((byte*)m.Files.State + Marshal.OffsetOf<Fds.State>("ThreadOwner")),
+                1 => m.Files.Memory.Memory.Tables,
+                _ => (ulong*)((byte*)m.State + Marshal.OffsetOf<Epoll.State>("Self"))
+            };
+            ulong original = *changed; *changed ^= 2;
+            HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key, 2));
+            HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
+            HostCheck.Equal(0U, m.Files.Admission.Pipes[0].BufferedBytes);
+            *changed = original;
+            HostCheck.True(Fds.Audit(m.Files.State));
+            m.Drain();
+        }
+    }
+
     [HostTest("m16-012 epoll validates ctl ABI and bounded capacity without consuming watches", HostLane.Fast, 1)]
     private static void CapacityAndErrors()
     {
