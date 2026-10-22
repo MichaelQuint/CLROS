@@ -157,4 +157,42 @@ internal static class NativeAotServiceQuotaStartupTests
         }
         throw new InvalidDataException("startup fixture request header bound");
     }
+
+    [HostTest("quota startup admits only observed unknown reset wrapper without widening pressure or protocol failures")]
+    private static void TransportClassification()
+    {
+        static SocketException Socket(SocketError error = SocketError.ConnectionReset) => new((int)error);
+        static HttpRequestException Http(HttpRequestError kind, Exception? inner = null) => new(kind, "copied failure", inner);
+        (Exception Error, bool Startup, bool Pressure)[] cases =
+        [
+            (Http(HttpRequestError.Unknown, new IOException("transport", Socket())), true, false),
+            (Http(HttpRequestError.Unknown, new IOException("transport", Socket(SocketError.TimedOut))), false, false),
+            (Http(HttpRequestError.Unknown, new IOException("transport", Socket(SocketError.AccessDenied))), false, false),
+            (Http(HttpRequestError.ConnectionError), true, true),
+            (Http(HttpRequestError.ResponseEnded), true, true),
+            (new HttpIOException(HttpRequestError.ResponseEnded, "ended"), true, true),
+            (new IOException("transport", Socket()), true, true),
+            (Socket(), true, true),
+            (Http(HttpRequestError.Unknown), false, false),
+            (Http(HttpRequestError.Unknown, Socket()), false, false),
+            (Http(HttpRequestError.Unknown, new IOException("no socket")), false, false),
+            (Http(HttpRequestError.Unknown, new IOException("non socket", new FormatException())), false, false),
+            (Http(HttpRequestError.Unknown, new FormatException("format", Socket())), false, false),
+            (Http(HttpRequestError.Unknown, new InvalidDataException("data", Socket())), false, false),
+            (Http(HttpRequestError.HttpProtocolError, new IOException("transport", Socket())), false, false),
+            (Http(HttpRequestError.InvalidResponse, new IOException("transport", Socket())), false, false),
+            (Http(HttpRequestError.Unknown, new OperationCanceledException()), false, false),
+            (new OperationCanceledException(), false, false),
+            (new TaskCanceledException(), false, false),
+            (new IOException("untyped"), false, false),
+            (new FormatException("format"), false, false),
+            (new InvalidDataException("data"), false, false),
+            (new ToolFailure("quota_peer_startup_health"), false, false)
+        ];
+        foreach (var item in cases)
+        {
+            HostCheck.Equal(item.Startup, NativeAotServiceQuotaPeer.IsTransportFailureForTests(item.Error, startup: true));
+            HostCheck.Equal(item.Pressure, NativeAotServiceQuotaPeer.IsTransportFailureForTests(item.Error, startup: false));
+        }
+    }
 }

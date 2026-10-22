@@ -144,7 +144,7 @@ public static partial class NativeAotServiceQuotaPeer
                         var health = await Text(control, "GET", "/healthz", clock, startup.Token, TimeSpan.FromMilliseconds(remaining), wire);
                         Need(health.Body == "CLROS_SERVICE_HEALTH_OK", "startup_health"); Keep("health.startup", health); break;
                     }
-                    catch (Exception error) when (IoAbort(error) && !startup.IsCancellationRequested)
+                    catch (Exception error) when (StartupIoAbort(error) && !startup.IsCancellationRequested)
                     { await Task.Delay(100, startup.Token); }
                 }
             }
@@ -357,5 +357,14 @@ public static partial class NativeAotServiceQuotaPeer
     private static bool IoAbort(Exception error) => error is HttpRequestException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.ResponseEnded } or
         HttpIOException { HttpRequestError: HttpRequestError.ConnectionError or HttpRequestError.ResponseEnded } or
         IOException { InnerException: SocketException } or SocketException;
+    private static bool StartupIoAbort(Exception error) => IoAbort(error) || error is HttpRequestException
+    {
+        HttpRequestError: HttpRequestError.Unknown,
+        InnerException: IOException { InnerException: SocketException { SocketErrorCode: SocketError.ConnectionReset } }
+    };
+
+    /// <summary>Classify copied host exceptions using the actual initial-health
+    /// or pressure predicate. Supplies no retry, deadline, socket or guest proof.</summary>
+    public static bool IsTransportFailureForTests(Exception error, bool startup) => startup ? StartupIoAbort(error) : IoAbort(error);
     private static void Need(bool value, string reason) { if (!value) throw new ToolFailure("quota_peer_" + reason); }
 }

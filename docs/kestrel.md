@@ -519,6 +519,14 @@ retain a bounded typed exception tree; startup retry classification and all
 deadlines remain unchanged pending a fresh capture. This is not quota cleanup
 or ordinary native-headroom acceptance.
 
+[Step1535](../done/step1535.md) captures the missing original exception in the
+diagnostic-only quota256 run: `HttpRequestException(Unknown)` wraps
+`IOException` and `SocketException(ConnectionReset, native10054)`. The EFI/image
+are byte-identical to the preceding failed run. Initial health retries now admit
+that exact reset wrapper within the existing400s deadline. Pressure/poll
+classification remains unchanged. Fresh quota/ordinary lifecycle acceptance is
+still required; both startup failures remain failed originals.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
