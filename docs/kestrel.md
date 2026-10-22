@@ -577,6 +577,16 @@ termination and full evidence validation are unchanged.51focused checks pass.
 Fresh V2/event-owned Smoke, affected ancestors and final full acceptance remain
 required before #748/#225/#737 closure or PR790 acceptance.
 
+[Step1540](../done/step1540.md) preserves V2r02's failed full consumer after
+successful916,877ms guest/runner cleanup. The isolation reader incorrectly
+forbade a byte-identical retransmission of the unacknowledged second persist
+probe while the independent healthy connection completed. It now permits only
+exact raw repeats at or after the selected second probe; earliest-probe/reopen
+ordering, zero windows, healthy completion and literal HTTP joins remain strict.
+Eight focused controls and original public native/packet/accounting replay pass.
+No guest code or timers change, and the failed original remains failed. Fresh
+owned V2 and the remaining acceptance batch still precede closure.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

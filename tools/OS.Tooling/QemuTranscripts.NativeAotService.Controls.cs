@@ -153,11 +153,13 @@ public static partial class QemuTranscripts
         var freshObserved = incoming.FirstOrDefault(packet => packet.Raw.AsSpan().SequenceEqual(freshPacket!.Raw));
         Need(zeroObserved is not null && freshObserved is not null, "service_control_reopen_wire");
         long zeroAt = zeroObserved!.Ordinal, freshAt = freshObserved!.Ordinal;
+        // The second probe remains unacknowledged while the healthy flow runs.
+        // Permit its exact retransmission, never new bytes or an earlier probe.
         Need(firstProbe!.Ordinal < zeroAt && zeroAt < secondProbe!.Ordinal && secondProbe.Ordinal < freshAt &&
             healthy[^1].Ordinal < freshAt && persist.Where(packet => !packet.Outgoing && packet.Ordinal < freshAt).All(packet => packet.Window == 0) &&
             !persist.Any(packet => packet.Outgoing && packet.Ordinal < firstProbe.Ordinal && packet.Payload.Length != 0) &&
             persist.Where(packet => packet.Outgoing && packet.Ordinal > firstProbe.Ordinal && packet.Ordinal < freshAt && packet.Payload.Length != 0)
-                .All(packet => packet.Ordinal == secondProbe.Ordinal), "service_control_isolation");
+                .All(packet => packet.Ordinal >= secondProbe.Ordinal && packet.Raw.AsSpan().SequenceEqual(secondProbe.Raw)), "service_control_isolation");
         Need(zeroPacket!.Ack == unchecked(firstProbe.Sequence + 1) && freshPacket!.Ack == unchecked(secondProbe!.Sequence + 1) &&
             firstProbe.Sequence==unchecked(persist[1].Sequence+1), "service_control_probe_ack");
         ServiceSocketControls.HttpExchange[] exchanges = [control.Persist!, control.Healthy!, control.Unread!.Http!]; List<JsonElement> expected = [];

@@ -23,6 +23,42 @@ internal static class NativeAotServiceControlTests
         HostCheck.True(result.PendingResets == 2 && result.Http.CompleteCloses == 2);
     }
 
+    [HostTest("service isolation permits exact persist retransmission and rejects changed byte sequence ACK flags or window")]
+    private static async Task RepeatedPersistProbe()
+    {
+        var (control, frames, bytes) = await ServiceSocketControlTests.Exercise("repeat-persist-probe");
+        var second = control.Observations.Single(row => row.Ordinal == control.SecondProbeOrdinal);
+        var repeated = control.Observations.Single(row => row.Ordinal > second.Ordinal && row.Hex == second.Hex);
+        _ = Inspect(bytes, JsonSerializer.Serialize(control), JsonSerializer.Serialize(frames));
+        Reject(() => Inspect(bytes, JsonSerializer.Serialize(control with { SecondProbeOrdinal = repeated.Ordinal }), JsonSerializer.Serialize(frames)));
+        byte[] original = Convert.FromHexString(repeated.Hex);
+        uint sequence = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(38));
+        uint ack = System.Buffers.Binary.BinaryPrimitives.ReadUInt32BigEndian(original.AsSpan(42));
+        foreach (var change in new[] { (Sequence: sequence + 1, Ack: ack, Flags: (byte)0x18, Window: (ushort)8192, Data: "T"),
+            (Sequence: sequence, Ack: ack + 1, Flags: (byte)0x18, Window: (ushort)8192, Data: "T"),
+            (Sequence: sequence, Ack: ack, Flags: (byte)0x19, Window: (ushort)8192, Data: "T"),
+            (Sequence: sequence, Ack: ack, Flags: (byte)0x18, Window: (ushort)4096, Data: "T"),
+            (Sequence: sequence, Ack: ack, Flags: (byte)0x18, Window: (ushort)8192, Data: "X") })
+        {
+            byte[] replacement = ContinuingTcpScenario.Write(new(true, (ushort)control.Persist.Port, change.Sequence, change.Ack,
+                change.Flags, change.Window, change.Data), 0x52550a000202);
+            HostCheck.Equal(original.Length, replacement.Length);
+            byte[] changed = bytes.ToArray(); int offset = 24;
+            for (long ordinal = 1; ordinal <= repeated.Ordinal; ordinal++)
+            {
+                int length = checked((int)System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(changed.AsSpan(offset + 8)));
+                if (ordinal == repeated.Ordinal) replacement.CopyTo(changed, offset + 16);
+                offset += 16 + length;
+            }
+            var copied = control with { Observations = control.Observations.Select(row => row.Ordinal == repeated.Ordinal
+                ? row with { Hex = Convert.ToHexString(replacement) } : row).ToArray() };
+            string? reason = null;
+            try { _ = Inspect(changed, JsonSerializer.Serialize(copied), JsonSerializer.Serialize(frames)); }
+            catch (ToolFailure error) { reason = error.Reason; }
+            HostCheck.Equal("service_control_isolation", reason ?? "accepted");
+        }
+    }
+
     [HostTest("independent service capture refuses ledger substitutions trailing retries missing packets and false windows")]
     private static async Task Refusals()
     {
