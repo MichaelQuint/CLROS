@@ -1,12 +1,22 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1548](../done/step1548.md) repairs completion-before-Park interpretation.
+The real kernel snapshot is Parking3, while Pending5 means delayed ready
+publication. The value reader and exact scheduler/signal-race consumers now
+agree with that contract. The preceding3e9e0000 guest reached repark and a
+pending-signal winner, then failed the old reader's wake-state check. Its
+original files and the scoped16-body/4,558-byte native review are preserved.
+The corrected-reader build and64 focused checks pass. Fresh original guest
+validation and the stable acceptance batch remain required.
+
 [Step1547](../done/step1547.md) shares one successful post-refresh descriptor
 audit across consecutive not-ready retained epoll operations in the same
 exclusive IRQ-off scan. Every operation identity is still checked; the scan
 audits a changed owner and is discarded before thread inspection or wake.
 The host build and69 focused checks pass, including null-owner and damaged
 later-operation controls that preserve the original partial-wake behavior.
-This source has no new native review, guest result or timing measurement yet.
+Its original native review and failed guest follow-up are recorded in step1548.
+No guest timing measurement or completed race qualification follows yet.
 
 The preceding pipe transaction at `8b2d6a38` has its original scoped native
 review:962 source joins and12 bodies totalling4,117 bytes. Its fresh guest still

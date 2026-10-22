@@ -53,7 +53,7 @@ internal static class NativeAotWebSignalRaceTests
             v.Call(234,0,[1,1,12]);v.Call(0,1,[read,b,1]);v.Irq(40,2,3);v.Select(v.Main);
             if(omitRepark)return;
             v.Rows.Add($"M16_012_REPARK identity={v.Main.Id} previous=1 sequence=2 deadline={(untimed?0:1000020)} clock=40");
-            v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=2 completion=5 state=5 clock=40");
+            v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=2 completion=5 state=3 clock=40");
             v.Main.Sequence=2;v.Supervisor(3,2,3);v.Select(actor);v.Irq(50,2,3);v.Select(v.Main);
             v.Rows.Add($"M16_012_COMPLETE identity={v.Main.Id} sequence=2 completion=5 valueBits={unchecked((ulong)-4L)} clock=50");
             v.Resume(-4);v.Main.Frame=frame;v.Main.Depth=1;v.Main.Mask=1UL<<11;v.Main.Rsp=frame-64;v.Call(186,1);
@@ -104,7 +104,7 @@ internal static class NativeAotWebSignalRaceTests
         else {v.Wake(actorJoin);v.Wait(actorTail);v.Drain(70);v.Supervisor(3,2,active);}
         v.Select(waiter);if(omitRepark)return;
         v.Rows.Add($"M16_012_REPARK identity={waiter.Id} previous=1 sequence=2 deadline={(untimed?0:1000030)} clock=70");
-        v.Rows.Add($"M16_012_WAKE identity={waiter.Id} sequence=2 completion=5 state=5 clock=70");
+        v.Rows.Add($"M16_012_WAKE identity={waiter.Id} sequence=2 completion=5 state=3 clock=70");
         waiter.Sequence=2;v.Supervisor(3,2,active);v.Select(v.Main);v.Resume(0);
         v.Wait(ack);v.Drain(80);v.Supervisor(3,1,active);v.Select(waiter);
         v.Rows.Add($"M16_012_COMPLETE identity={waiter.Id} sequence=2 completion=5 valueBits={unchecked((ulong)-4L)} clock=80");
@@ -169,6 +169,23 @@ internal static class NativeAotWebSignalRaceTests
     private static void Incomplete()
     {
         Reject(()=>Run(omitRepark:true));Reject(()=>Run(wrongRecovery:true));Reject(()=>Run(leaveOpen:true));
+    }
+
+    [HostTest("web race pending signal retains Parking and rejects substituted ready running or pending states")]
+    private static void ParkingWake()
+    {
+        foreach(bool eventOwned in new[]{false,true})
+        {
+            HostCheck.True(Run(eventOwned:eventOwned).Steps.Count>=17);
+            foreach(uint state in new[]{1U,2U,5U})
+                Reject(()=>Run(eventOwned:eventOwned,mutate:rows=>
+                {
+                    int at=rows.FindIndex(row=>row.StartsWith("M16_012_WAKE ",StringComparison.Ordinal) &&
+                        row.Contains("completion=5 state=3",StringComparison.Ordinal));
+                    HostCheck.True(at>=0);
+                    rows[at]=rows[at].Replace("completion=5 state=3","completion=5 state="+state,StringComparison.Ordinal);
+                }));
+        }
     }
 
     [HostTest("web race rejects multiple probe generations instead of silently choosing matching descriptor numbers")]

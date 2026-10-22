@@ -59,7 +59,7 @@ internal static class NativeAotSocketProtocolTests
         else
         {
             v.Call(281,0,[5,0x500600,16,uint.MaxValue,0,8],3,3);
-            if(repark)v.Rows.Add($"M16_012_WAKE identity={poller.Id} sequence=2 completion=1 state=5 clock={v.Clock}");
+            if(repark)v.Rows.Add($"M16_012_WAKE identity={poller.Id} sequence=2 completion=1 state=3 clock={v.Clock}");
             v.Drain(60);v.Supervisor(3,repark?2:1,2);
             if(repark)
             {
@@ -155,6 +155,9 @@ internal static class NativeAotSocketProtocolTests
     {
         var vector=Vector(true,repark:true);var report=Inspect(vector.Rows,true);
         HostCheck.True(report.Reaped==3 && report.Irqs==3 && report.Transfers==20);
+        foreach(uint state in new[]{1U,5U})
+            Reject(vector.Rows.Select(row=>row.Replace("sequence=2 completion=1 state=3", "sequence=2 completion=1 state="+state,
+                StringComparison.Ordinal)),"socket_wake_lifetime",true);
         var changed=vector.Rows.ToList();int at=changed.FindIndex(row=>row.StartsWith("M16_012_REPARK",StringComparison.Ordinal));
         changed.Insert(at+1,"M16_009_DRAIN identity=4294967298 epoch=7 nanos=70");Reject(changed,"record_shape",true);
     }

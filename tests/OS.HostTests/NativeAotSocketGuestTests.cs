@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using OS.Kernel.Threading;
 using OS.Tooling;
 
 internal static class NativeAotSocketGuestTests
@@ -93,6 +94,66 @@ internal static class NativeAotSocketGuestTests
         }
         Reject(() => NativeAotSocketGuest.Read(false, Raw(Call() + Wake(2) + Complete(2, 0) + Resume(0))), "wake_deadline");
         Reject(() => NativeAotSocketGuest.Read(false, Raw(Call() + Wake(5) + Complete(5, 0) + Resume(0))), "completion_result");
+    }
+
+    [HostTest("socket guest accepts actual Parking completion winners without weakening their bindings")]
+    private static void ParkingWinners()
+    {
+        uint parking = (uint)KernelThreadTable.State.Parking;
+        foreach ((uint completion, long result, ulong deadline) in new[] { (1U, 2L, 0UL), (2U, 0L, 5UL), (5U, -4L, 0UL) })
+        {
+            var capture = NativeAotSocketGuest.Read(false, Raw(Call(deadline: deadline) + Wake(completion, state: parking) +
+                Complete(completion, result) + Resume(result)));
+            HostCheck.Equal(0, capture.PendingWaits); HostCheck.Equal(2, capture.Readiness.Count);
+            HostCheck.Equal(parking, capture.Readiness[0].State);
+            HostCheck.Equal(completion, capture.Readiness[0].Completion);
+            HostCheck.Equal(unchecked((ulong)result), capture.Readiness[1].ValueBits);
+        }
+        foreach (uint state in new[] { 0U, 2U, 4U, 6U, 7U, 8U, 9U, uint.MaxValue })
+            Reject(() => NativeAotSocketGuest.Read(false, Raw(Call() + Wake(state: state))), "wake_state");
+        foreach (uint completion in new[] { 0U, 3U, 4U, 6U })
+            Reject(() => NativeAotSocketGuest.Read(false, Raw(Call() + Wake(completion, state: parking))), "wake_state");
+        string interrupt = Call() + Wake(5, state: parking);
+        foreach ((string records, string reason) in new[] {
+            (Call() + Wake(2, state: parking), "wake_deadline"),
+            (Call(deadline: 100) + Wake(2, state: parking), "wake_deadline"),
+            (Call() + Wake(sequence: 2, state: parking), "wake_owner"),
+            (Call() + "M16_012_POLL identity=0 clock=11 ready=0 idle=0\r\n" + Wake(state: parking), "wake_state"),
+            (interrupt + Wake(5, state: parking), "wake_owner"),
+            (interrupt + Complete(), "completion_owner"),
+            (interrupt + Complete(5, 0), "completion_result"),
+            (interrupt + Resume(-4), "resume_owner"),
+            (interrupt + Complete(5, -4) + Resume(0), "resume_result") })
+            Reject(() => NativeAotSocketGuest.Read(false, Raw(records)), reason);
+    }
+
+    [HostTest("socket guest reparks then records completion-before-Park with the original deadline")]
+    private static void ParkingAfterRepark()
+    {
+        uint parking = (uint)KernelThreadTable.State.Parking;
+        foreach ((uint completion, long result, ulong deadline, ulong clock) in new[] {
+            (1U, 2L, 0UL, 13UL), (2U, 0L, 100UL, 100UL), (5U, -4L, 0UL, 12UL) })
+        {
+            string repark = $"M16_012_REPARK identity={Identity} previous=1 sequence=2 deadline={deadline} clock=12\r\n";
+            var capture = NativeAotSocketGuest.Read(false, Raw(Call(deadline: deadline) + Wake() + repark +
+                Wake(completion, sequence: 2, clock: clock, state: parking) +
+                Complete(completion, result, sequence: 2, clock: clock + 1) + Resume(result)));
+            HostCheck.Equal(0, capture.PendingWaits); HostCheck.Equal(4, capture.Readiness.Count);
+            HostCheck.Equal(1UL, capture.Readiness[1].PreviousSequence);
+            HostCheck.Equal(2UL, capture.Readiness[1].Sequence);
+            HostCheck.Equal(deadline, capture.Readiness[1].Deadline);
+            HostCheck.Equal(parking, capture.Readiness[2].State);
+            HostCheck.Equal(completion, capture.Readiness[2].Completion);
+        }
+        string retried = $"M16_012_REPARK identity={Identity} previous=1 sequence=2 deadline=0 clock=12\r\n";
+        string prefix = Call() + Wake();
+        foreach (string invalid in new[] {
+            retried.Replace("previous=1", "previous=0", StringComparison.Ordinal),
+            retried.Replace("sequence=2", "sequence=1", StringComparison.Ordinal),
+            retried.Replace("deadline=0", "deadline=1", StringComparison.Ordinal),
+            retried.Replace("clock=12", "clock=9", StringComparison.Ordinal) })
+            Reject(() => NativeAotSocketGuest.Read(false, Raw(prefix + invalid)), "repark_owner");
+        Reject(() => NativeAotSocketGuest.Read(false, Raw(prefix + retried + Complete(5, -4, sequence: 2, clock: 13))), "completion_owner");
     }
 
     [HostTest("socket guest rejects orphan duplicate mismatched and fabricated epoll completion observations")]

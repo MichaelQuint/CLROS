@@ -109,7 +109,7 @@ public static partial class QemuTranscripts
                 }
                 var t=history.SingleOrDefault(t=>t.Identity==observed.Identity && !t.Reaped);
                 Need(t is not null && t.WaitSource==3 && t.LastSequence==observed.Sequence && t.Epoll is not null &&
-                    !t.EpollObserved && observed.State==(t.Parking?5U:1U),"socket_wake_lifetime");
+                    !t.EpollObserved && observed.State==(t.Parking?3U:1U),"socket_wake_lifetime");
                 // Prior syscall wakes are serialized before a later native clock
                 // advance. A known deadline/signal winner cannot be replaced.
                 Clock(observed.Clock);

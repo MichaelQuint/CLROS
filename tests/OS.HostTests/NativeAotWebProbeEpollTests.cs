@@ -115,7 +115,7 @@ internal static class NativeAotWebProbeEpollTests
             v.Resume(-4);return;
         }
         v.Rows.Add($"M16_012_REPARK identity={v.Main.Id} previous=1 sequence=2 deadline={Deadline} clock=40");
-        v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=2 completion=5 state=5 clock=40");
+        v.Rows.Add($"M16_012_WAKE identity={v.Main.Id} sequence=2 completion=5 state=3 clock=40");
         v.Main.Sequence=2;v.Supervisor(3,2,3);v.Select(actor);v.Irq(50,2,3);v.Select(v.Main);
         v.Rows.Add($"M16_012_COMPLETE identity={v.Main.Id} sequence=2 completion=5 valueBits={unchecked((ulong)-4L)} clock=50");
         v.Resume(-4);

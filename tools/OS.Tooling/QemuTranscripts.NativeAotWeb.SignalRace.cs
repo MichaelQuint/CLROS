@@ -197,7 +197,7 @@ public static partial class QemuTranscripts
             var completed=Event(NativeAotSocketGuest.ObservationKind.Complete,repark.Sequence);
             var recovered=Event(NativeAotSocketGuest.ObservationKind.Wake,recovery.Wait.Sequence);
             var recoveredComplete=Event(NativeAotSocketGuest.ObservationKind.Complete,recovery.Wait.Sequence);
-            Need(ready.Completion==1 && repark.Deadline==initial.Wait.Deadline && interrupted.Completion==5 && interrupted.State==5 &&
+            Need(ready.Completion==1 && repark.Deadline==initial.Wait.Deadline && interrupted.Completion==5 && interrupted.State==3 &&
                 completed.Completion==5 && completed.ValueBits==Bits(-4) && recovery.Wait.Sequence>repark.Sequence &&
                 recovered.Completion==1 && recoveredComplete.Completion==1 && recoveredComplete.ValueBits==1,"web_race_winners");
             var frames=trace.Frames.Where(f=>f.Identity==waiter.Identity && f.Signal==12).ToArray();
