@@ -1,5 +1,20 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1547](../done/step1547.md) shares one successful post-refresh descriptor
+audit across consecutive not-ready retained epoll operations in the same
+exclusive IRQ-off scan. Every operation identity is still checked; the scan
+audits a changed owner and is discarded before thread inspection or wake.
+The host build and69 focused checks pass, including null-owner and damaged
+later-operation controls that preserve the original partial-wake behavior.
+This source has no new native review, guest result or timing measurement yet.
+
+The preceding pipe transaction at `8b2d6a38` has its original scoped native
+review:962 source joins and12 bodies totalling4,117 bytes. Its fresh guest still
+failed `web_signalrace_missed_recovery_gate`: tgkill preceded preemption, but
+the waiter returned readiness before competing consumption. Both the failed
+original and its native inputs are preserved. The new scan keeps the required
+race order, timer and one-attempt policy; #225/#748/#737 and PR790 remain pending.
+
 [Step1546](../done/step1546.md) combines pipe selection and descriptor dispatch
 under one complete synchronous admission, removing two further duplicate audits.
 All67 relevant focused checks pass, including strengthened controls that expose
@@ -7,8 +22,9 @@ premature copying, readiness changes and descriptor duplication. The same host
 comparison is400.2766ms per2,000 pairs, about48.5% below the original baseline.
 The first optimization's fresh guest still failed: tgkill preceded preemption,
 but the waiter completed readiness before the actor read. That original and its
-native review are preserved. The new pipe transaction still needs a fresh guest
-and original native review; it does not yet complete #225/#737 or qualify merge.
+native review are preserved. Step1547 records the pipe transaction's completed
+scoped native review and failed fresh guest. It does not complete #225/#737 or
+qualify merge.
 
 [Step1544](../done/step1544.md) consolidates three exact duplicate descriptor/
 epoll audits within serialized calls. Every distinct admission predicate and
