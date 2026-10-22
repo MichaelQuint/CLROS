@@ -1,16 +1,21 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1541](../done/step1541.md) records three failed original event-owned
-Smoke scheduling witnesses at `d2c5a197`. The fixed three-boot experiment ended
-without extension; every original remains failed. Ready data was returned
-before the actor's competing read, so none establishes the required repark/EINTR
-race. The explicit v3 actor now performs one real `sched_yield` after preparation
-and checks its existing lifetime/Abort before writing. This avoids carrying a
-partly consumed preparation quantum into write/signal/read; it grants no atomicity
-and cannot prevent later preemption or GC suspension. Legacy behavior, deadlines,
-one-shot admission, exact native-order and cleanup requirements stay unchanged.
-Fresh Linux publication, source/native/index admission and full guest validation
-are required; the previous pinned app does not cover this source change.
+[Step1543](../done/step1543.md) records a complete original configured V2 service
+pass at `3b325f4e`: 923,022ms actual QEMU lifetime, 55 accepted connections,
+52 retired transport lifetimes and checked process/descriptor/mapping cleanup.
+The original owned consumer passes after the host capture and persist-reader
+repairs in steps1539/1540. Earlier failed captures remain failed.
+
+The separately republished event-owned Smoke still fails its required scheduling
+witness. Its explicit preparation yield executes, but a later timer preemption
+lets the waiter return readiness before the actor's directed signal and read.
+The four original failures remain preserved; no unchanged retry is scheduled.
+The remaining #225 witness must retain readiness wake, directed signal,
+competing consumption, repark, EINTR and recovery in that order during real churn.
+Signaling after repark would test a different race. Preserve the original
+deadlines, one-attempt admission and checked teardown. A reviewed fixture fix,
+successful owned Smoke, affected ancestors and the stable unfiltered full-host
+run still precede #748/#225/#737 closure and PR790 merge.
 
 ## Request churn development
 
