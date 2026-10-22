@@ -109,13 +109,13 @@ unhandled negative and three timer reruns. Fresh static Hello, runtime exerciser
 and Minimal API payloads pass its separate Linux-host qualifier. Earlier failures
 and source checkpoints remain in their original step records.
 
-The foundation records below retain their historical toolchain and profile scope.
+The foundation records below retain each profile's evidence scope.
 Step1225 lists the finite set requalified on .NET 11.
 
 | Foundation | Accepted scope and evidence |
 | --- | --- |
 | Firmware exit | Ordinary `VerifiedExit` performs owned subsystem checks after real `ExitBootServices`, then halts. [Step1094](done/step1094.md). |
-| Upstream payload feasibility | Pinned .NET 10 static Hello, runtime exerciser and real Minimal API qualify on a Linux builder. This is Linux-host evidence. [Step1198](done/step1198.md). |
+| Upstream payload feasibility | Pinned .NET 11 static Hello, runtime exerciser and real Minimal API qualify on a Linux builder. This is Linux-host evidence. [Step1225](done/step1225.md); the original .NET 10 qualification remains historical in [step1198](done/step1198.md). |
 | Payload loading and startup | Bounded service loop, ELF mappings and Linux initial-stack construction. [Step1200](done/step1200.md). |
 | User/syscall boundary | Mechanical CPL3 ELF write/exit, register preservation, controlled faults and restoration. [Step1201](done/step1201.md). |
 | Linux memory and startup services | Sparse reservations, bounded backing, time and entropy; the unchanged payload reaches unsupported `ARCH_SET_FS` before Hello. [Step1205](done/step1205.md). |
