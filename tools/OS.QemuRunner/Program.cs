@@ -2725,7 +2725,7 @@ sealed class RunnerOptions
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
         Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409, the normal-case binary vector response and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");
         Console.WriteLine("--service-quota-failure is an explicit expected capture under --continuing-service; requires replaced default markers and exact final CLROS_M16_016_QUOTA_CLEANUP, disables positive raw socket controls, retains frame/process/endpoint cleanup, and returns22 with acceptance pending. No quota or guest behavior is accepted by capture alone.");
-        Console.WriteLine("--continuing-service requires the captured modern ARP fixture, guest port 8080 forward, virtio RNG, SingleMinimalApi, summary log and a 780..900-second timeout; owned raw socket controls run alongside serial capture until TEST_PASS m16-012 and confirmed process/frame cleanup. Other web, scripted peer, HTTP or panic modes are forbidden.");
+        Console.WriteLine("--continuing-service requires the captured modern ARP fixture, guest port 8080 forward, virtio RNG, SingleMinimalApi, summary log and a 780..1080-second timeout (quota:780..900); owned raw socket controls run alongside serial capture until TEST_PASS m16-012 and confirmed process/frame cleanup. Other web, scripted peer, HTTP or panic modes are forbidden.");
         Console.WriteLine("--web-log-case normal|records64 requires --continuing-web (default normal); normal expects logging POST 200 and GET /__clros/vectors with 49152 exact binary bytes, records64 expects logging 500 with an empty body and skips vectors. Repeat POST 409 and final health 200 are required in both cases.");
         Console.WriteLine("--web-race-pipe <clros-web-race-32lowerhex> requires normal continuing-web and an owned local producer. After ordinary controls it waits for joined race-report hashes within the original deadline; dry-run/preflight opens no pipe.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
@@ -2917,9 +2917,9 @@ sealed class RunnerOptions
         if (!ContinuingService) return;
         if (!VirtioNegotiationDevice || !ArpReceiveFixture || EthernetCapturePath is null || SocketForwardPort is null ||
             string.IsNullOrWhiteSpace(SummaryLogPath) || WorkloadProfile != OS.Kernel.Build.WorkloadProfile.SingleMinimalApiName ||
-            FirmwareRngSource != "virtio" || TimeoutSeconds is < 780 or > 900 || ContinuingWeb || ContinuingNetworkPeer || SocketContainmentPeer ||
+            FirmwareRngSource != "virtio" || TimeoutSeconds < 780 || TimeoutSeconds > (ServiceQuotaFailure ? 900 : 1080) || ContinuingWeb || ContinuingNetworkPeer || SocketContainmentPeer ||
             httpProbeConfigured || ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic || ExpectedUnhandledException)
-            throw new ArgumentException("--continuing-service requires captured modern ARP networking, guest port 8080 forward, summary log, SingleMinimalApi, virtio RNG and a 780..900-second timeout without web, peer, HTTP or panic modes.");
+            throw new ArgumentException("--continuing-service requires captured modern ARP networking, guest port 8080 forward, summary log, SingleMinimalApi, virtio RNG and a 780..1080-second timeout (quota:780..900) without web, peer, HTTP or panic modes.");
         ServiceEvidence = new() { QuotaFailure = ServiceQuotaFailure };
     }
 

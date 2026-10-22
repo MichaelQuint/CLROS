@@ -5,6 +5,20 @@ using OS.Tools.QemuRunner;
 
 internal static class WebFrameControlTests
 {
+    [HostTest("web frame control service capture lifetime remains bounded and joins pending accept")]
+    private static void CaptureBounds()
+    {
+        using (var service = new WebFrameControl(TimeSpan.FromMinutes(18), continuingService: true))
+            HostCheck.True(service.Stop() && service.Completion.IsCompletedSuccessfully);
+        foreach (bool service in new[] { false, true })
+        {
+            bool rejected = false;
+            try { using var invalid = new WebFrameControl(TimeSpan.FromMinutes(service ? 18 : 5) + TimeSpan.FromTicks(1), continuingService: service); }
+            catch (ArgumentOutOfRangeException) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+    }
+
     private static byte[] Frame(ushort port, byte flags, ReadOnlySpan<byte> payload = default)
     {
         byte[] bytes = new byte[54 + payload.Length];
@@ -112,8 +126,8 @@ internal static class WebFrameControlTests
         void Refuse(Action action) { bool refused = false; try { action(); } catch (Exception error) when (error is ArgumentException or InvalidOperationException) { refused = true; } HostCheck.True(refused); }
         using (var legacy = new WebFrameControl(TimeSpan.FromSeconds(10)))
             Refuse(() => legacy.InjectServiceFrameAsync(Frame(50000, 0x10), "x"));
-        Refuse(() => { using var invalid = new WebFrameControl(TimeSpan.FromSeconds(901), continuingService: true); });
-        using (var maximum = new WebFrameControl(TimeSpan.FromSeconds(900), continuingService: true)) HostCheck.True(maximum.Stop());
+        Refuse(() => { using var invalid = new WebFrameControl(TimeSpan.FromSeconds(1081), continuingService: true); });
+        using (var maximum = new WebFrameControl(TimeSpan.FromSeconds(1080), continuingService: true)) HostCheck.True(maximum.Stop());
         using var gate = new WebFrameControl(TimeSpan.FromSeconds(10), continuingService: true);
         Refuse(() => gate.InjectServiceFrameAsync(Frame(50000, 0x10), "x"));
         Refuse(() => gate.SelectServiceClients(50000, 50000, 50002)); gate.SelectServiceClients(50000, 50001, 50002);

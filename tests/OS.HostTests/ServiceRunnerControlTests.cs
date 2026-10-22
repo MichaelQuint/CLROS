@@ -7,7 +7,7 @@ internal static class ServiceRunnerControlTests
     [HostTest("service runner CLI admits bounded modern captured service dry run without creating owners", HostLane.Fast, 0)]
     private static void Selection()
     {
-        foreach (string timeout in new[] { "780", "900" })
+        foreach (string timeout in new[] { "780", "900", "1080" })
         {
             string[] args = Fixture(timeout); var result = Run(args);
             HostCheck.Equal(0, result.ExitCode); HostCheck.Equal("", result.Error);
@@ -31,7 +31,7 @@ internal static class ServiceRunnerControlTests
     {
         foreach (string flag in new[] { "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", "--socket-forward-port", "--summary-log", "--firmware-rng-source" })
             Reject(Remove(Fixture(), flag, flag is not ("--virtio-negotiation-device" or "--arp-receive-fixture")));
-        foreach (string timeout in new[] { "779", "901" }) Reject(Fixture(timeout));
+        foreach (string timeout in new[] { "779", "1081" }) Reject(Fixture(timeout));
         Reject(Replace(Fixture(), "--workload-profile", "MultiMinimalApi"));
         Reject(Replace(Fixture(), "--firmware-rng-source", "missing"));
     }
@@ -100,6 +100,7 @@ internal static class ServiceRunnerControlTests
     [HostTest("quota runner CLI refuses missing real service inputs mode unions and ordinary success requirements")]
     private static void QuotaInputs()
     {
+        Reject([..Fixture("901"), "--service-quota-failure"]);
         foreach (string flag in new[] { "--continuing-service", "--replace-default-required-markers", "--virtio-negotiation-device",
             "--arp-receive-fixture", "--ethernet-capture", "--socket-forward-port", "--summary-log", "--firmware-rng-source" })
             Reject([..Remove(Fixture(), flag, flag is "--ethernet-capture" or "--socket-forward-port" or "--summary-log" or "--firmware-rng-source"), "--service-quota-failure"]);

@@ -41,12 +41,13 @@ public static class QemuProfiles
         if(!signalEpoll&&!service&&!sockets&&!vectors&&!containment&&!web)NativeAotRuntimeSelection.Bind(options, profile.Flags);
         string runtimeApp = signalEpoll||service||sockets||vectors||containment||web?"":NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
         if(signalEpoll&&!options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=90;
-        if(service && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=900;
+        int serviceMaximumSeconds = service && options.ServiceLifecycle ? 1080 : 900;
+        if(service && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=serviceMaximumSeconds;
         if(containment && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=180;
         if ((sockets||vectors||runtimeApp.Length != 0) && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
             options.TimeoutSeconds = 600;
-        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (service||sockets||vectors||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
-        Require(!service || options.TimeoutSeconds is >=780 and <=900,"service_timeout_must_cover_quiet_runtime_and_transport_drain");
+        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (service ? serviceMaximumSeconds : sockets||vectors||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
+        Require(!service || options.TimeoutSeconds >=780 && options.TimeoutSeconds <=serviceMaximumSeconds,"service_timeout_must_cover_quiet_runtime_and_transport_drain");
         Require(!service || options.FirmwareRngSource=="virtio","service_virtio_rng_required");
         Require(!(sockets||vectors)||options.TimeoutSeconds>=600,"socket_timeout_must_cover_runtime_and_transport_drain");
         Require(!containment||options.TimeoutSeconds>=120 && options.TimeoutSeconds<=295-QemuCaptureSession.RunnerCaptureAllowanceSeconds,

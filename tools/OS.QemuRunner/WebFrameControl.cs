@@ -44,13 +44,13 @@ public sealed class WebFrameControl : IDisposable
     private Exception? priorIoFailure;
 
     /// <summary>Start exclusive framed I/O for 1 second through 5 minutes.
-    /// Explicit continuingService permits up to15min and serialized bounded
+    /// Explicit continuingService permits up to18min and serialized bounded
     /// raw-frame injection, excluding the legacy deadline/VLAN operations.
     /// Start QEMU with Arguments after construction; no other reader/writer may
     /// use these sessions. Stop must join before accepting any evidence.</summary>
     public WebFrameControl(TimeSpan maximumLifetime, bool continuingService = false)
     {
-        if (maximumLifetime < TimeSpan.FromSeconds(1) || maximumLifetime > TimeSpan.FromMinutes(continuingService ? 15 : 5))
+        if (maximumLifetime < TimeSpan.FromSeconds(1) || maximumLifetime > TimeSpan.FromMinutes(continuingService ? 18 : 5))
             throw new ArgumentOutOfRangeException(nameof(maximumLifetime));
         this.continuingService = continuingService;
         backend = new(maximumLifetime, continuingService: continuingService);

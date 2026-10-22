@@ -564,6 +564,19 @@ unbound successful console calls reject. 26 focused checks and the original r06
 public native/stream/temporal/overlap/NIC replay pass. This does not turn the failed
 owned capture into acceptance; a fresh complete owned run remains required.
 
+[Step1539](../done/step1539.md) records two complete original owned quota captures
+at `a2494fd9`, with the same EFI/disk/policy at actual256MiB and512MiB. Both
+terminate the offending workload and return every recorded stack/socket lease.
+The independently joined pre-pressure non-GC bound is17,473,536bytes; whole-run
+pressure peaks remain separate. The36MiB pool is shared, without enforced
+independent16MiB/20MiB partitions. Ordinary V2's first fresh capture remains
+failed: its last real TIME-WAIT deadline904.778guest seconds exceeded the900s
+host capture. Only the V2 host selection now defaults to and permits1080s;
+V1/quota remain900s. Guest TCP timers, app/peer watchdogs, capture capacities,
+termination and full evidence validation are unchanged.51focused checks pass.
+Fresh V2/event-owned Smoke, affected ancestors and final full acceptance remain
+required before #748/#225/#737 closure or PR790 acceptance.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five

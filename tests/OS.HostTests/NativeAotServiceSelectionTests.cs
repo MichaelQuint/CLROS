@@ -175,6 +175,25 @@ internal static class NativeAotServiceSelectionTests
         }
     }
 
+    [HostTest("service lifecycle capture admits bounded drain margin without extending v1 or quota")]
+    private static void CaptureBounds()
+    {
+        foreach (string mode in new[] { "v1", "v2", "quota" })
+        {
+            int maximum = mode == "v2" ? 1080 : 900;
+            QemuSmokeOptions Options(int? seconds = null)
+            {
+                var options = ServiceOptions(); options.ServiceLifecycle = mode == "v2"; options.ServiceQuotaFailure = mode == "quota";
+                if (seconds.HasValue) { options.TimeoutSeconds = seconds.Value; options.Explicit.Add("TimeoutSeconds"); }
+                return options;
+            }
+            var defaults = Options(); _ = QemuProfiles.Create(defaults); HostCheck.Equal(maximum, defaults.TimeoutSeconds);
+            foreach (int seconds in new[] { 780, maximum }) _ = QemuProfiles.Create(Options(seconds));
+            Reject(() => QemuProfiles.Create(Options(779)), "service_timeout_must_cover_quiet_runtime_and_transport_drain");
+            Reject(() => QemuProfiles.Create(Options(maximum + 1)), "qemu_timeout_out_of_range");
+        }
+    }
+
     private static QemuSmokeOptions ServiceOptions()
     {
         var options = new QemuSmokeOptions { BuildEfi = true, FirmwareRngSource = "virtio",

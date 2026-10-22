@@ -25,7 +25,7 @@ internal static class ContinuingServiceProfileTests
         options.Flags["EnableM16014Probe"] = true;
         var plan = QemuProfiles.Create(options);
         HostCheck.True(options.ServiceLifecycle && plan.IsEnabled("EnableM16014Probe") && plan.IsEnabled("EnableM10004Probe"));
-        HostCheck.Equal(900, options.TimeoutSeconds);
+        HostCheck.Equal(1080, options.TimeoutSeconds);
     }
 
     [HostTest("service lifecycle launch requires original package admission before starting children")]

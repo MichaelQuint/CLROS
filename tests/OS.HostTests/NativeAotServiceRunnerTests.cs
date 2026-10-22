@@ -15,6 +15,15 @@ internal static class NativeAotServiceRunnerTests
         HostCheck.Equal(797_900L, Inspect(Rewrite(f, "SERVICE_PROCESS_LIFETIME_MS 798000", "SERVICE_PROCESS_LIFETIME_MS 797900")).LifetimeMilliseconds);
     }
 
+    [HostTest("service runner admits lifecycle capture margin but rejects its next second and ordinary widening")]
+    private static void CaptureBounds()
+    {
+        var f = Fixture(); f.Options.ServiceLifecycle = true; f.Options.TimeoutSeconds = 1080;
+        _ = Inspect(f);
+        f.Options.TimeoutSeconds = 1081; Reject(() => Inspect(f));
+        f.Options.ServiceLifecycle = false; f.Options.TimeoutSeconds = 901; Reject(() => Inspect(f));
+    }
+
     [HostTest("service runner rejects timeout cancellation truncation and unconfirmed or spontaneous process exit")]
     private static void ProcessFailures()
     {
