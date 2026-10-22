@@ -161,16 +161,19 @@ internal sealed class KestrelSignalProbe
                 if (Volatile.Read(ref Abort) != 0) return;
                 if (lifetime is not null)
                 {
-                    // Finish preparation's quantum before exposing readiness.
-                    // The waiter is still blocked. Later preemption/GC remains
-                    // possible; only the original native order proves the race.
-                    Abi.YieldBeforeRace(); lifetime.Check();
+                    // Finish clock/token preparation before yielding. A cached
+                    // cancellation check adds no clock query after the yield;
+                    // the same absolute lifetime is checked after the finite
+                    // transaction. GC/preemption can still change its order.
+                    lifetime.Check(); CancellationToken transactionStop = lifetime.Token;
+                    Abi.YieldBeforeRace(); transactionStop.ThrowIfCancellationRequested();
                     if (Volatile.Read(ref Abort) != 0) return;
                 }
                 Abi.WriteByte(write, Abi.WakeByte);
                 Abi.SendSignal(process, target); Volatile.Write(ref Sent, 1);
                 ConsumedByte = Abi.ReadByte(read);
                 Need(ConsumedByte == Abi.WakeByte, "competing_byte");
+                lifetime?.Check();
             }
             catch (Exception error) { Error = error; }
             finally { Volatile.Write(ref Finished, 1); }

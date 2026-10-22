@@ -1,5 +1,23 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1550](../done/step1550.md) moves the event-owned actor's clock/token
+preparation before its final yield and checks the same absolute lifetime after
+the finite write/signal/read transaction. A cached linked token and Abort still
+refuse cancellation before write; no new cancellation point can abandon a sent
+signal before competing consumption. The operation remains120s with separate
+joined cleanup. The build and36 focused checks pass. Existing prepared admission
+correctly refuses the changed app; fresh Linux publication is required.
+
+The0ad5ffd4 token implementation has scoped17-body/4,693-byte native review,
+including962 source joins and14 unchanged bodies/3,639 bytes. Its fresh original
+still fails missed recovery and is preserved. That trace contains post-yield
+futex synchronization and a clock query before write/signal/read; moving clock
+preparation removes that demonstrated extra call from the intended sequence,
+without guaranteeing protection from GC or timer preemption. Earlier complete
+raw3e9e0000 race/cleanup artifacts support separate corrected-reader replay;
+that does not reconstruct lost private owned-runner authority or relabel the
+original outer failure. Fresh owned qualification and acceptance remain pending.
+
 [Step1549](../done/step1549.md) carries one descriptor admission across the
 unchanged source2 pipe-wait scan into epoll refresh. The stack-only token binds
 the descriptor and thread owner, is consumed before refresh and is discarded

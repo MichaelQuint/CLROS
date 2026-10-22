@@ -20,6 +20,7 @@ internal static class KestrelSignalRaceLifetimeTests
     private static void WaitCanceled(CancellationTokenSource request, TimeSpan budget, bool callerCancels)
     {
         using var lifetime = new KestrelSignalProbe.EventLifetime(request.Token, budget);
+        lifetime.Check(); var transactionStop = lifetime.Token;
         using var gate = new ManualResetEventSlim();
         using var entered = new ManualResetEventSlim();
         Exception? failure = null; int canceled = 0;
@@ -35,7 +36,11 @@ internal static class KestrelSignalRaceLifetimeTests
             HostCheck.True(entered.Wait(TimeSpan.FromSeconds(5)));
             if (callerCancels) request.Cancel();
             HostCheck.True(thread.Join(TimeSpan.FromSeconds(5)), "managed canceled waiter must terminate");
-            HostCheck.True(failure is null && canceled == 1 && lifetime.Token.IsCancellationRequested);
+            HostCheck.True(failure is null && canceled == 1 && transactionStop.IsCancellationRequested);
+            bool entryRefused = false, completionRefused = false;
+            try { transactionStop.ThrowIfCancellationRequested(); } catch (OperationCanceledException) { entryRefused = true; }
+            try { lifetime.Check(); } catch (OperationCanceledException) { completionRefused = true; }
+            HostCheck.True(entryRefused && completionRefused, "cached entry cancellation and absolute completion fence retain the original lifetime");
         }
         finally
         {
