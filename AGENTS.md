@@ -56,7 +56,10 @@ The durable goal covers NativeAOT MinimalApi, an actual Standalone Blazor client
 served from FAT32, then persistent logs/uploads and SQLite. The first batch is
 #780, #781 -> #782 and #768-#774. Use exactly one storage subagent; the primary
 agent owns shared integration, documentation, tracker and serialized builds.
-[Step1558](done/step1558.md) records current development. #224/#225/#737 are
+[Steps1558](done/step1558.md)/[1559](done/step1559.md) record current development.
+The new server is `apps/MinimalApiStaticFiles`; preserve exact original smoke
+app and `NativeAotPayload`/`NativeAotWebPayload` bytes. Publish through the fixed
+static-file wrapper and immutable original socket recipe. #224/#225/#737 are
 closed within step1556's finite scope; #226/#227 and all new disk/write claims
 remain open. After each5-10 issue batch audit README, all first-party docs and
 guides, update affected Gitea issues/comments and canonical records, retain

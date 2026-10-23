@@ -4,7 +4,9 @@
 
 [Step1558](../done/step1558.md) records host FAT/tracker repairs, reproducible
 webroot tooling and a published Standalone Blazor candidate. No completion gate
-advances from this development checkpoint. The accepted finite service scope in
+advances from this development checkpoint. [Step1559](../done/step1559.md) adds
+Linux-reference research evidence and the host retained-block leaf, while the
+separate static app needs final publication and live integration. The accepted finite service scope in
 step1556 is preserved. #226/#227, disk-to-HTTP/browser qualification, sustained
 static service, writable FAT32 and SQLite remain open acceptance boundaries.
 
@@ -44,8 +46,8 @@ do not override this summary or relabel their original evidence.
 
 ## Earlier qualified profiles
 
-Development history is retained unchanged in [steps1426â€“1437](../done/step1437.md)
-and [steps1438â€“1476](../done/step1476.md). Those dated receipts preserve their
+Development history is retained unchanged in [steps1426–1437](../done/step1437.md)
+and [steps1438–1476](../done/step1476.md). Those dated receipts preserve their
 original source, failures and scope; step1477 supersedes their pending-run status.
 
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
@@ -322,7 +324,7 @@ runtime operations. No existing gate changes to Pass in this migration.
 Historical CoreCLR/TPA wording below applies to that future route; NativeAOT
 acceptance must satisfy the explicit first-web contract in workload profiles.
 
-#674â€“#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
+#674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
 [step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
 finally throws the original rooted exception, own-funclet unwind recovers the
 same-root parent, and the outer typed catch reaches the original compiled
@@ -342,7 +344,7 @@ raw inputs and original compiler/catalog/link/loaded-PC/process/argument/GPT/FAT
 embedded-EFI evidence. Firmware services remain active in this Diagnostic.
 General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
-#670â€“#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
+#670–#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
 at frozen source `056280a`: 4,539 full-host checks across 588 groups (92 Native),
 complete/successful/unchanged-input receipt, zero failures/timeouts/reuse, native
 review and four affected guest regressions. All 689 raw inputs, original
@@ -365,7 +367,7 @@ typed catch and compiled continuation execute under measured ABI/lifetime guards
 The 183-node callback graph remains within 15,904/16,400 first-party stack bytes;
 firmware internals are excluded. The helper acquires no lifetime or CPU authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
-#141â€“#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
+#141–#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
 unfiltered full-host checks across 558 groups, linked native ABI/stack review,
 one 194-record ARP guest capture, independent request/reply libpcap and thirteen
 ancestor regressions pass. The default-off profile checks one modern no-offload
@@ -373,7 +375,7 @@ receive buffer, one matching ARP reply and supplied-tick cache controls.
 Continuing RX, timers, DHCP/DNS/TCP/HTTP, application execution and hosted .NET/
 Kestrel remain incomplete. Numbered gates are unchanged.
 
-#134/#136â€“#140/#633 are qualified in [step1162](../done/step1162.md): 4,422
+#134/#136–#140/#633 are qualified in [step1162](../done/step1162.md): 4,422
 unfiltered full-host checks across 552 groups, linked native ABI/stack review,
 297/297/168-record IRQ/recovery/net captures, an exact fixed Ethernet frame in
 QEMU libpcap and eleven ancestor regressions pass on unchanged implementation.

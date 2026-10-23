@@ -62,7 +62,7 @@ internal static class NativeAotStaticFileEvidenceTests
     [HostTest("static reference shutdown requires signal exit marker and endpoint refusal")]
     internal static void Shutdown()
     {
-        string stderr = "CLROS_APP_ENTRY minimal.api.smoke\nCLROS_STATIC_FILES_APP_END v1\n";
+        string stderr = "CLROS_APP_ENTRY minimal.api.static-files\nCLROS_STATIC_FILES_APP_END v1\n";
         string[] trace = ["1720000000.000 --- SIGTERM {si_signo=SIGTERM, si_code=SI_USER} ---", "1720000000.001 exit_group(0) = ?"];
         var receipt = new NativeAotStaticFileContract.Shutdown(15, 0, true);
         NativeAotStaticFileContract.ValidateShutdown(stderr, trace, receipt);
@@ -129,10 +129,11 @@ internal static class NativeAotStaticFileEvidenceTests
                     "\"fixture-etag\"", "Tue, 01 Jan 1980 00:00:00 GMT", range));
             }
             Row("GET", "/healthz", 200, "OS_MINIMAL_API_OK"u8.ToArray());
-            Row("GET", "/config", 200, "{\"appId\":\"minimal.api.smoke\"}"u8.ToArray());
+            Row("GET", "/config", 200, "{\"appId\":\"minimal.api.static-files\"}"u8.ToArray());
             Row("GET", "/api/status", 200, Encoding.UTF8.GetBytes("{\"profile\":\"v1\",\"ready\":true,\"message\":\"CLROS ready — café\"}"));
             Row("GET", "/api/items", 200, "{\"items\":[{\"id\":1},{\"id\":2,\"detail\":null}]}"u8.ToArray());
             Row("GET", "/api/items?empty=true", 200, "{\"items\":[]}"u8.ToArray());
+            Row("GET", "/fixture-nonce.txt", 200, "CLROS-DISK-A-0001\n"u8.ToArray());
             Row("GET", "/", 200, index, "text/html");
             Row("HEAD", "/", 200, [], "text/html", index.Length);
             Row("GET", "/index.html", 200, index, "text/html");

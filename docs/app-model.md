@@ -3,10 +3,11 @@
 ## Static-file and Blazor development (2026-10-23)
 
 The approved next batch is disk-first, followed by writable files and SQLite.
-[Step1558](../done/step1558.md) records the opt-in MinimalApiSmoke profile
+[Step1558](../done/step1558.md) records the initial opt-in research profile; [step1559](../done/step1559.md)
+isolates the candidate in `apps/MinimalApiStaticFiles`. It selects
 `CLROS_STATIC_FILES_PROFILE=v1`, a physical `/app/wwwroot`, and source-generated
-object responses at `/api/status` and `/api/items`. The previous profile keeps
-its original root/health/configuration behavior. The new Standalone Blazor
+object responses at `/api/status` and `/api/items`. The original `MinimalApiSmoke` source inventory, publisher inputs, ELF and
+instruction admission retain their exact accepted identities. The new Standalone Blazor
 fixture runs in the external browser and fetches both JSON routes and the disk
 variant nonce; its WebAssembly assets are ordinary files served by the future
 guest NativeAOT server.

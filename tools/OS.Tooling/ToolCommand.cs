@@ -244,7 +244,7 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
-                Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
+                Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");
                 Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");

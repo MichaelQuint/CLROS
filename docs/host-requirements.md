@@ -3,18 +3,21 @@
 ## Static-file candidate host work (2026-10-23)
 
 [Step1558](../done/step1558.md) records a successful Standalone Blazor publication
-using the existing pinned SDK/runtime. `nativeaot static-files prepare-client`
+using the existing pinned SDK/runtime. The separate `MinimalApiStaticFiles`
+publication reuses the immutable original socket recipe and requires its complete
+retained evidence root; only app/output substitution is allowed. [Step1559](../done/step1559.md)
+preserves original web/service source admission and the earlier a34 research run. `nativeaot static-files prepare-client`
 retains raw SDK assets and generates host HTML/CSS; compression/debug sidecars
 are excluded from the disk fixture. The browser client uses the standard
 WebAssembly runtime and does not change the NativeAOT server architecture.
 The new Linux-only reference command is:
 
 ```text
-dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-directory> --webroot <prepared-webroot>
+dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --recipe-root <original-socket-evidence-root> --output <fresh-directory> --webroot <prepared-webroot>
 dotnet run --project tools/OS.Tooling -- nativeaot static-files validate <evidence-directory>
 ```
 
-It reuses the pinned publisher for MinimalApiSmoke, records per-thread file/HTTP
+It reuses the fixed-app publisher for MinimalApiStaticFiles, records per-thread file/HTTP
 traces, checks metadata/ranges/JSON/assets and owns shutdown. Its receipt remains
 Linux-reference evidence; the first complete successful invocation is pending.
 The development builder uses a fresh writable overlay over explicitly read-only
@@ -231,7 +234,7 @@ Required for the complete `OS.HostTests` native-inspection fixtures:
   instructions and relocations. MSVC x64 tools alone do not install this
   optional component. A successful managed build or EFI publish does not
   establish that the disassembler is available.
-- Add the component through Visual Studio Installer â†’ Modify â†’ Individual
+- Add the component through Visual Studio Installer → Modify → Individual
   components. See Microsoft's [component inventory](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=visualstudio).
 
 For a user-local copy, retain the publisher/package checksum and tool identity,

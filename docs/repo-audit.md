@@ -1,5 +1,9 @@
 # Repository Audit
 
+[Step1559](../done/step1559.md) records the active static-app admission split,
+retained Linux-reference observations and14-check block service host leaf.
+These development results do not advance guest storage or completion gates.
+
 ## Current acceptance (October 23, 2026)
 
 [PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) merged at
@@ -336,7 +340,7 @@ artifacts, transient review-harness failures and the unchanged acceptance bounda
 
 ## Historical audit snapshots
 
-The #134/#136â€“#140/#633 bounded driver batch is qualified in
+The #134/#136–#140/#633 bounded driver batch is qualified in
 [step1162](../done/step1162.md): 4,422 full-host checks across 552 groups pass with
 zero reuse/input changes. Linked native review, IRQ/recovery/net guests, exact
 fixed-frame libpcap and eleven ancestor captures pass. M06's bounded packaged-read

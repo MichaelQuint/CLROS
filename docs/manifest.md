@@ -2,7 +2,7 @@
 
 ## Planned physical webroot profile (2026-10-23)
 
-The new application candidate selects static middleware only with
+The separate `apps/MinimalApiStaticFiles` candidate selects static middleware only with
 `CLROS_STATIC_FILES_PROFILE=v1`; the guest namespace is one read-only
 `/app/wwwroot`. [Step1558](../done/step1558.md) records the development boundary.
 The Blazor asset inventory belongs to the separate FAT32 image and its receipt,

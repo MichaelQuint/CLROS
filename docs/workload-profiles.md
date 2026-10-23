@@ -168,6 +168,11 @@ retains its original planning context; its first service prerequisite is now
 satisfied within step1556's finite boundary. Preserve original owners/evidence,
 serialize shared boot/native/guest work, and qualify dependencies before closure.
 
+[Step1559](../done/step1559.md) keeps the new static server in a separate fixed
+app/project, preserving accepted app/publisher/ELF/index identities. The initial
+a34 research run is retained separately; final publication uses the immutable
+original socket recipe through `NativeAotStaticFilePublisher`.
+
 The first disk demo now includes the actual pinned Standalone Blazor WebAssembly
 client, not only HTML/CSS/JavaScript. The client loads its raw framework assets
 from FAT32 and renders `/api/status`, `/api/items` and a disk-only nonce. Keep

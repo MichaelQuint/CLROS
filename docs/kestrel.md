@@ -3,7 +3,7 @@
 ## Static-file candidate development (2026-10-23)
 
 [Step1558](../done/step1558.md) starts the approved #780/#781/#782 and #768-#774
-batch. The selected v1 application uses upstream default-file/static middleware,
+batch. The separate `MinimalApiStaticFiles` v1 application uses upstream default-file/static middleware,
 physical `/app/wwwroot` and generated JSON DTOs. It admits HTML/CSS/JavaScript,
 JSON/text, WASM and bounded binary assets explicitly; directory listing, unknown
 extensions, native executables/config files and compressed sidecars are not
@@ -12,7 +12,7 @@ range, ETag and Last-Modified behavior remains independently checked.
 
 The real Standalone Blazor client publishes with the pinned .NET11 SDK. This
 is development evidence, not CLROS static-file acceptance. #768 must retain the
-Linux NativeAOT per-thread traces and HTTP matrix; #772 qualifies staged file
+final separate-app Linux NativeAOT per-thread traces and HTTP matrix; #772 qualifies staged file
 APIs, and #773/#774 add live disk descriptors and an external browser witness.
 #775 remains the later sustained service and clean-shutdown milestone.
 
@@ -22,11 +22,47 @@ predecessors. Next are #226 evidence packaging and #227 complete local Gate14;
 neither issue is closed by the finite results below. [Current gate status](completion-gates.md#current-acceptance-october-23-2026)
 is the summary; the recipes and retained receipts here keep their exact scope.
 
+The frozen a34f0ce3 research run passes60 Linux HTTP observations over45 raw
+Blazor assets (5,922,507 bytes), including overlap, ranges and graceful shutdown.
+It retains its original app/source scope. The separate candidate needs a fresh
+publication; [step1559](../done/step1559.md) records the split and baseline gates.
+
+### Measured file ABI research boundary
+
+The a34 research reference uses the pinned .NET11 RC2 musl server and real
+published client bytes. Its file observations below guide implementation; the
+separate final app must rerun them. Traces are retained under
+`artifacts/nativeaot-fat32-web-r01/reference-a34-r01/artifacts/static-reference-r01`.
+The archive SHA256 is
+`5CC32E982DCD9D8E784511CCDEE72A16BB1A714DC2CD69D757557050BE3EAC2E`.
+
+| Linux x64 operation | Observed webroot contract | Existing adapter / next requirement |
+| --- | --- | --- |
+| `stat(4)`, `lstat(6)`, `fstat(5)` | Directory/file kind, length and modification time; path metadata precedes conditional/range decisions | Package144-byte stat wire exists; disk metadata and confined generation-bound handles remain pending |
+| `open(2)`, `fcntl(72)`, `close(3)` | `O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC`, then `F_SETFD(FD_CLOEXEC)` | Package flags are admitted; disk ownership and last-close cleanup remain pending |
+| `pread64(17)` |630 retained webroot calls; explicit offsets and requests up to16KiB, including510..1031 range | Package offset reads exist; disk waits must yield through owned continuations and revalidate before copy-out |
+| `flock(73)` | Shared/nonblocking advisory acquisition and unlock,98 calls | Unsupported today. Upstream treats this as best effort except contention; no writable locking or SQLite claim follows |
+| `fadvise64(221)` |49 sequential hints with offset0/length0 | Unsupported today; pinned upstream explicitly permits an unsupported hint. Verify the selected errno/fallback in the final profile |
+| `geteuid(107)` |106 calls while reference files were mode0644 | Not a user subsystem. Final reference uses uniformly read-only0444 files/0555 directories matching the intended mount; remeasure before adding identity behavior |
+| `getdents64(217)`, `statfs(137)` | NUMA/cgroup startup observations outside the webroot; no webroot directory enumeration | Keep existing startup rejection/fallback scope separate from file service |
+| `sendfile(40)`, file-backed `mmap(9)`, watchers | No webroot use observed in this finite matrix | No success shim or general support is introduced; absence is not an exhaustive closure proof |
+
+Pinned source review follows
+[StaticFileContext](https://raw.githubusercontent.com/dotnet/aspnetcore/v11.0.0-rc.2.26504.105/src/Middleware/StaticFiles/src/StaticFileContext.cs),
+[PhysicalFileInfo](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/Microsoft.Extensions.FileProviders.Physical/src/PhysicalFileInfo.cs),
+[SafeFileHandle.Unix](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/System.Private.CoreLib/src/Microsoft/Win32/SafeHandles/SafeFileHandle.Unix.cs)
+and [System.Native PAL I/O](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/native/libs/System.Native/pal_io.c).
+The middleware derives validators from file metadata and uses the response's
+asynchronous file path. FileStream's Unix sharing lock and sequential advice
+have distinct fallback policies. Neither is evidence of durable write/locking
+semantics. The actual final native package inventory, traces and controlled
+guest behavior take precedence over a source-only inference.
+
 ## Current finite boundary
 
 Original owned Smoke at `32c14ccd` and quota at 256/512 MiB plus positive configured
 V2 at `20e665ad` pass their complete finite consumers. Smoke proves readiness
-wake â†’ directed signal â†’ competing consumption â†’ repark â†’ EINTR â†’ recovery
+wake → directed signal → competing consumption → repark → EINTR → recovery
 during continuous cancelled churn, with 21 roles, 37 edges, 31 Dates and complete
 actor/waiter/descriptor restoration. Quota measures fixed-policy RAM256/512 fit,
 fragmentation and component returns; V2 completes two managed cancellations and
@@ -819,7 +855,7 @@ and production remain incomplete.
 ## Planned static-file acceptance
 
 The [ordered roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
-adds #768â€“#775 after current service qualification and #224. The existing `/config`
+adds #768–#775 after current service qualification and #224. The existing `/config`
 already uses source-generated JSON; the candidate adds `/api/status` and
 `/api/items` DTOs. #772 qualifies a separate staged-file intermediate profile.
 [#774](http://192.168.4.35:3000/admin/CLROS/issues/774) requires a real external

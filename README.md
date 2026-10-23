@@ -80,7 +80,10 @@ The approved next milestone serves an actual Standalone Blazor WebAssembly app
 from a FAT32 webroot through the NativeAOT MinimalApi. Persistent logs/uploads
 and SQLite follow the read milestone. [Step1558](done/step1558.md) records current
 host-only development: tracker/FAT repairs, reproducible disk fixtures and the
-published Blazor candidate. Continuing guest disk reads and disk-backed HTTP are
+published Blazor candidate. [Step1559](done/step1559.md) separates the static
+server from accepted smoke inputs, retains the Linux research trace and adds a
+14-check host-tested continuing block owner. Native integration and fresh final
+candidate publication remain pending. Continuing guest disk reads and disk-backed HTTP are
 not qualified yet. The branch keeps accepted step1556 evidence unchanged.
 
 ## Next implementation

@@ -44,6 +44,11 @@ Do not:
 - `NativeAotRuntimeSmoke` / `NativeAotRuntimeMatrix`: bounded upstream runtime behavior.
 - `NativeAotSocketSmoke` (sync/async modes) and `NativeAotSocketVectors`: measured socket/epoll fixtures.
 - `MinimalApiSmoke` / `MinimalApiService`: finite Kestrel health, service and churn profiles.
+- `MinimalApiStaticFiles`: separate physical-webroot/JSON candidate; original smoke
+  source/ELF/index admission stays unchanged. See step1559; guest acceptance pending.
+- `BlazorStaticFilesSmoke`: real Standalone browser WebAssembly client; generated
+  host HTML/CSS and raw SDK outputs belong under artifacts. Its host publish or
+  Linux asset fetch is separate from an external browser boot against CLROS.
 
 The following older examples retain their separate host/planning boundaries:
 

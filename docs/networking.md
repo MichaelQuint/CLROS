@@ -421,7 +421,7 @@ Its separate receive negotiation selects VERSION_1+MRG_RXBUF solely to obtain
 the device-written buffer count on this QEMU backend. The driver posts one
 buffer and requires num_buffers=1; no multi-buffer assembly is implemented.
 
-The bounded #136â€“#140 batch is qualified in [step1162](../done/step1162.md):
+The bounded #136–#140 batch is qualified in [step1162](../done/step1162.md):
 4,422 full-host checks, linked native ABI/stack review, a 168-record guest receipt
 and an independent exact 60-byte frame in QEMU libpcap pass. The default-off
 `EnableM07VirtioNetProbe` binds modern PCI, negotiates VERSION_1 only, uses one
@@ -430,7 +430,7 @@ then transmits and reclaims one fixed experimental Ethernet frame. It resets,
 disables bus mastering, fences, releases descriptors/DMA and restores the original
 allocator/command. Eleven ancestor regressions pass. Continuing RX/I/O and live
 DHCP/DNS/TCP/HTTP remain incomplete; M07 and later gates stay open.
-Development history is in steps1158â€“1161.
+Development history is in steps1158–1161.
 
 ## Current Status
 

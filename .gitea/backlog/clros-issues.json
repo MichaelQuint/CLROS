@@ -34490,7 +34490,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:host",
@@ -34501,14 +34501,14 @@
       "dependencyKeys": [
         "M10-011"
       ],
-      "currentEvidence": "Approved disk-first/then-write implementation batch is underway in done/step1558.md. The explicit v1 server profile adds physical /app/wwwroot middleware and generated JSON; a real pinned .NET11 standalone Blazor client publishes successfully. Raw prepared framework assets total43 files/5921991 bytes before generated HTML/CSS; largest wasm is2009369 bytes. Two initial JSON/profile tests pass. Linux-reference syscall/HTTP qualification, exact candidate admission and guest qualification remain pending.",
+      "currentEvidence": "Steps1558/1559 retain the initial a34f0ce3 Linux static-file research run:60 HTTP observations,45 raw Blazor assets/5922507 bytes, actual metadata/open/pread64 plus ranges/conditional/concurrent reads and graceful shutdown. Original native/source/output joins replay on its owned builder; receipt archive5CC32E98... retained. The final candidate is now self-contained apps/MinimalApiStaticFiles with a fixed-app wrapper over the immutable socket recipe, preserving original smoke/publisher bytes. Ten focused candidate tests and six original web admission plus three service-publisher tests pass. Fresh separate-app Linux publication and exact candidate index/package admission remain pending; no guest disk/browser claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
-        "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
+        "Live #737/#766/#224 are closed within their accepted finite scopes; preserve that evidence before this roadmap. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Prefer the smallest measured contract: bounded caller-owned buffers, status results, explicit owner/generation/lifetime and no hidden kernel allocation, reflection or exceptions. Proposed new file names and markers below are implementation targets, not current capabilities.",
         "Focused normal-harness checks come first. At a stable guest batch, retain an unchanged-input full-host run, original emitted-native/ABI/stack review and affected guest ancestors. Reserve a done step, record exact runnable commands, hashes, failures and scope, and post reviewed evidence before closure. Dry-run or Linux-host success is not CLROS guest proof.",
-        "Reuse apps/MinimalApiSmoke with an explicitly selected new profile; preserve the accepted /healthz and /config baseline and its source/package hashes. Add small DTOs and JsonSerializerContext entries, with one principal type per new file. Never substitute hand-written JSON or kernel-authored HTTP responses.",
+        "Use separate apps/MinimalApiStaticFiles and fixed NativeAotStaticFilePublisher; preserve exact original apps/MinimalApiSmoke, NativeAotPayload and NativeAotWebPayload bytes, ELF and index admission. Add DTO/context entries with one principal type per file. Never substitute hand-written JSON or kernel-authored HTTP responses.",
         "Start with UseDefaultFiles/UseStaticFiles and an explicit physical web root /app/wwwroot, directory listing off, unknown extensions off and immutable configuration/watchers disabled. Preserve the old root response in the old profile. Avoid introducing MVC/Razor, reflection, hot reload, a custom IServer or a direct in-memory IFileProvider that would bypass file syscalls.",
         "Use the current SDK/runtime/compiler/native pins from NativeAotPayload.cs, not the .NET10 documentation version. On the qualified Linux musl builder publish, hash and trace startup plus GET/HEAD, ranges, conditional requests, 404, concurrent reads and shutdown. Inspect pinned StaticFileContext, PhysicalFileProvider, FileStream/RandomAccess and System.Native implementations.",
         "Record actual syscall numbers, wire layouts, flags, offsets, errno and fallback behavior. Determine whether pread64, stat-family calls, directory operations, sendfile, mmap, fadvise or watchers are exercised; do not implement an unmeasured list or silently claim unsupported operations succeeded.",
@@ -34534,12 +34534,9 @@
         }
       ],
       "ownedPaths": [
-        "apps/MinimalApiSmoke/Program.cs",
-        "apps/MinimalApiSmoke/MinimalApiSmoke.csproj",
-        "apps/MinimalApiSmoke/StaticFileStatusResponse.cs",
-        "apps/MinimalApiSmoke/StaticFileItemResponse.cs",
-        "apps/MinimalApiSmoke/StaticFileJsonContext.cs",
-        "tools/OS.Tooling/NativeAotWebPayload.cs",
+        "apps/MinimalApiStaticFiles/StaticFileStatusResponse.cs",
+        "apps/MinimalApiStaticFiles/StaticFileItemResponse.cs",
+        "apps/MinimalApiStaticFiles/StaticFileJsonContext.cs",
         "tools/OS.Tooling/NativeAotWebProgram.cs",
         "tools/OS.Tooling/NativeAotStaticFileContract.cs",
         "tests/OS.HostTests/NativeAotStaticFileContractTests.cs",
@@ -34551,12 +34548,17 @@
         "apps/BlazorStaticFilesSmoke/BlazorStaticFilesSmoke.csproj",
         "apps/BlazorStaticFilesSmoke/Program.cs",
         "apps/BlazorStaticFilesSmoke/StaticFileDemo.cs",
-        "apps/MinimalApiSmoke/StaticFileApplication.cs",
-        "apps/MinimalApiSmoke/StaticFileItemsResponse.cs",
+        "apps/MinimalApiStaticFiles/StaticFileApplication.cs",
+        "apps/MinimalApiStaticFiles/StaticFileItemsResponse.cs",
         "tools/OS.Tooling/BlazorStaticFileAssets.cs",
-        "tools/OS.Tooling/NativeAotPayload.cs",
         "tests/OS.HostTests/NativeAotStaticFileEvidenceTests.cs",
-        "CLROS.slnx"
+        "CLROS.slnx",
+        "apps/MinimalApiStaticFiles/Program.cs",
+        "apps/MinimalApiStaticFiles/MinimalApiStaticFiles.csproj",
+        "apps/MinimalApiStaticFiles/StaticFileConfigurationResponse.cs",
+        "tools/OS.Tooling/NativeAotStaticFilePublisher.cs",
+        "tests/OS.HostTests/NativeAotStaticFilePublisherTests.cs",
+        "tests/OS.HostTests/OS.HostTests.csproj"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34579,10 +34581,9 @@
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-Linux-builder-evidence-directory>",
         "dotnet publish apps/BlazorStaticFilesSmoke/BlazorStaticFilesSmoke.csproj -c Release --nologo -o <fresh-artifacts-publish> -m:1",
         "dotnet run --project tools/OS.Tooling -- nativeaot static-files prepare-client <published-wwwroot> <fresh-artifacts-webroot>",
-        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-Linux-evidence> --webroot <prepared-webroot>"
+        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --recipe-root <original-socket-evidence-root> --output <fresh-Linux-evidence> --webroot <prepared-webroot>"
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",
@@ -34602,7 +34603,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:tooling",
         "evidence:host",
@@ -34618,7 +34619,7 @@
         "M11-024",
         "M11-025"
       ],
-      "currentEvidence": "Development implementation in done/step1558.md adds a measured recursive VFAT webroot importer, independent image extraction/extent receipts, preserved EFI/package/manifest identities, equal-layout DiskA/DiskB nonce variants and four controlled corruption variants. Six focused native-lane host image tests pass before a final CRC-valid GPT-range consistency control; final rerun and real candidate/image binding remain pending. No live guest disk/HTTP/write claim.",
+      "currentEvidence": "Development implementation in done/step1558.md adds a measured recursive VFAT webroot importer, independent image extraction/extent receipts, preserved EFI/package/manifest identities, equal-layout DiskA/DiskB nonce variants and four controlled corruption variants. Six final native-lane host image tests pass including CRC-valid GPT-range inconsistency; real candidate/image binding remains pending. No live guest disk/HTTP/write claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -34702,7 +34703,7 @@
         "M06-007",
         "M06-019"
       ],
-      "currentEvidence": "LiveDeviceExistingIReadOnlyBlockDeviceContract.ReadBlocks permits only one attempted one-sector read per fresh lifetime. Steps1152/1156 renegotiate/reset per sector; step1162 adds bounded MSI-X/poll recovery but not continuing storage.",
+      "currentEvidence": "Step1559 develops the retained polling-only ContinuingReadOnlyBlockService leaf. Fourteen focused host checks pass with65538 real submissions across ushort index wrap, cancellation drain, stale/copy tokens, malformed/error completion, configuration/deadline/clock faults, callback matrices, active-owner/DMA output-alias rejection, reset quarantine/retry and zero managed allocation. Existing one-shot adapter is unchanged. Separate BDF/BAR native pump integration, original native review and live guest/device qualification remain pending; no guest continuing-read claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -34901,7 +34902,7 @@
         "M10-015",
         "M10-016"
       ],
-      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "currentEvidence": "Step1556 qualifies the earlier finite service/quota/churn at original Smoke32c14ccd and quota/V220e665ad, with #224/#225/#737 closed. Steps1558/1559 develop the separate static app, Linux reference observations, host FAT fixtures and retained-block leaf. This issue still needs its exact staged/disk/browser guest acceptance. No new guest static-file, filesystem write or SQLite scope is accepted.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -35000,7 +35001,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "currentEvidence": "Step1556 qualifies the earlier finite service/quota/churn at original Smoke32c14ccd and quota/V220e665ad, with #224/#225/#737 closed. Steps1558/1559 develop the separate static app, Linux reference observations, host FAT fixtures and retained-block leaf. This issue still needs its exact staged/disk/browser guest acceptance. No new guest static-file, filesystem write or SQLite scope is accepted.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -35105,7 +35106,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "currentEvidence": "Step1556 qualifies the earlier finite service/quota/churn at original Smoke32c14ccd and quota/V220e665ad, with #224/#225/#737 closed. Steps1558/1559 develop the separate static app, Linux reference observations, host FAT fixtures and retained-block leaf. This issue still needs its exact staged/disk/browser guest acceptance. No new guest static-file, filesystem write or SQLite scope is accepted.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",

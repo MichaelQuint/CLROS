@@ -236,18 +236,7 @@ public static class NativeAotPayload
         Require(sources.All(source => !Path.Exists(source)), "native_cache_still_present");
     }
 
-    internal static Task QualifyWebApplicationAsync(string root, string destination, TextWriter output) =>
-        QualifyAsync(root, destination, output, ["MinimalApiSmoke"]);
-
-    internal static string[] SourcePaths(string root, IEnumerable<string> apps) =>
-        apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
-            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
-            .Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts"))
-            .Concat(ToolingBuildInputs.SourceInputs(root).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')))
-            .Concat(new[] { "NuGet.Config", "nuget.config" }.Where(path => File.Exists(Path.Combine(root, path))))
-            .Distinct().Order().ToArray();
-
-    private static async Task QualifyAsync(string root, string destination, TextWriter output, string[]? selectedApps = null)
+    private static async Task QualifyAsync(string root, string destination, TextWriter output)
     {
         Require(OperatingSystem.IsLinux(), "linux_builder_required");
         using var repositoryLease = OpenQualificationLease(root);
@@ -256,8 +245,13 @@ public static class NativeAotPayload
         using var ownership = new FileStream(Path.Combine(destination, "qualification.lock"), FileMode.CreateNew,
             FileAccess.Write, FileShare.None);
         Require(ToolingBuildInputs.Validate(root).Count == 0, "tooling_inputs_changed");
-        string[] apps = selectedApps ?? ["NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke"];
-        string[] inputs = SourcePaths(root, apps);
+        string[] apps = ["NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke"];
+        string[] inputs = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts"))
+            .Concat(ToolingBuildInputs.SourceInputs(root).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')))
+            .Concat(new[] { "NuGet.Config", "nuget.config" }.Where(path => File.Exists(Path.Combine(root, path))))
+            .Distinct().Order().ToArray();
         Dictionary<string, string> hashes = HashInputs(root, inputs);
         await File.WriteAllTextAsync(Path.Combine(destination, "inputs.json"), JsonSerializer.Serialize(hashes));
         var commands = new List<object>();

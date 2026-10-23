@@ -27,10 +27,10 @@ public static class NativeAotStaticFileContract
         try
         {
             root = Path.GetFullPath(root);
-            if (args is ["qualify", "--output", var destination, "--webroot", var webroot])
-                await QualifyAsync(root, Path.GetFullPath(destination), Path.GetFullPath(webroot), output);
+            if (args is ["qualify", "--recipe-root", var recipe, "--output", var destination, "--webroot", var webroot])
+                await QualifyAsync(root, Path.GetFullPath(recipe), Path.GetFullPath(destination), Path.GetFullPath(webroot), output);
             else if (args is ["validate", var evidence]) Validate(root, Path.GetFullPath(evidence));
-            else throw new ArgumentException("nativeaot static-files qualify --output <fresh-directory> --webroot <prepared-webroot> | validate <evidence-directory>");
+            else throw new ArgumentException("nativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot> | validate <evidence-directory>");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }
@@ -41,13 +41,13 @@ public static class NativeAotStaticFileContract
         }
     }
 
-    private static async Task QualifyAsync(string root, string destination, string webroot, TextWriter output)
+    private static async Task QualifyAsync(string root, string recipe, string destination, string webroot, TextWriter output)
     {
-        Need(OperatingSystem.IsLinux(), "static_files_linux_builder_required");
+        if (!OperatingSystem.IsLinux()) throw new InvalidDataException("static_files_linux_builder_required");
         var assets = WebRootImageFixture.SnapshotPublishedRoot(webroot);
         Need(assets.Files.Any(x => x.Path == "index.html") &&
             assets.Files.Any(x => x.Path == "_framework/blazor.webassembly.js"), "static_files_blazor_assets_missing");
-        await NativeAotPayload.QualifyWebApplicationAsync(root, destination, output);
+        Need(await NativeAotStaticFilePublisher.RunAsync(root, ["publish", "--recipe-root", recipe, "--output", destination], output) == 0, "static_files_publication_failed");
         using var lease = NativeAotPayload.OpenQualificationLease(root);
         Need(ToolingBuildInputs.Validate(root).Count == 0, "static_files_source_changed");
         const string referenceRoot = "/app/wwwroot";
@@ -65,14 +65,20 @@ public static class NativeAotStaticFileContract
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 await File.WriteAllBytesAsync(target, bytes);
                 File.SetLastWriteTimeUtc(target, new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                File.SetUnixFileMode(target, UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
             }
             files.VerifyUnchanged();
         }
         await File.WriteAllTextAsync(Path.Combine(referenceRoot, "fixture-nonce.txt"), "CLROS-DISK-A-0001\n");
+        File.SetLastWriteTimeUtc(Path.Combine(referenceRoot, "fixture-nonce.txt"), new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+        File.SetUnixFileMode(Path.Combine(referenceRoot, "fixture-nonce.txt"), UnixFileMode.UserRead | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        foreach (string directory in Directory.GetDirectories(referenceRoot, "*", SearchOption.AllDirectories).Append(referenceRoot))
+            File.SetUnixFileMode(directory, UnixFileMode.UserRead | UnixFileMode.UserExecute | UnixFileMode.GroupRead |
+                UnixFileMode.GroupExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start(); int port = ((IPEndPoint)listener.LocalEndpoint).Port; listener.Stop();
         string endpoint = "http://127.0.0.1:" + port;
-        string executable = Path.Combine(destination, "MinimalApiSmoke", "MinimalApiSmoke");
+        string executable = Path.Combine(destination, NativeAotStaticFilePublisher.Application, NativeAotStaticFilePublisher.Application);
         string[] arguments = ["-ff", "-yy", "-ttt", "-s", "256", "-o", Path.Combine(destination, "static-trace"),
             executable, "--urls", endpoint];
         await File.WriteAllTextAsync(Path.Combine(destination, "static-command.json"), JsonSerializer.Serialize(new
@@ -82,8 +88,7 @@ public static class NativeAotStaticFileContract
         }));
         List<Observation> observations = [];
         int requestId = -1;
-        using var process = NativeAotWebPayload.Start("strace", arguments, root, null,
-            new Dictionary<string, string> { ["CLROS_STATIC_FILES_PROFILE"] = "v1" });
+        using var process = Start(arguments, root);
         Task stdout = NativeAotWebPayload.CaptureAsync(process.StandardOutput, Path.Combine(destination, "static-run.stdout.log"), process);
         Task stderr = NativeAotWebPayload.CaptureAsync(process.StandardError, Path.Combine(destination, "static-run.stderr.log"), process);
         try
@@ -122,6 +127,7 @@ public static class NativeAotStaticFileContract
             await Request("GET", "/api/status");
             await Request("GET", "/api/items");
             await Request("GET", "/api/items?empty=true");
+            await Request("GET", "/fixture-nonce.txt");
             var index = await Request("GET", "/");
             await Request("HEAD", "/");
             foreach (var asset in assets.Files)
@@ -169,7 +175,8 @@ public static class NativeAotStaticFileContract
         await File.WriteAllLinesAsync(Path.Combine(destination, "static-observed-syscalls.txt"), syscalls);
         await File.WriteAllTextAsync(Path.Combine(destination, "static-boundary.txt"),
             "Linux-reference NativeAOT/file ABI and HTTP observations only. Per-thread strace is observed coverage, not an exhaustive syscall contract. No CLROS guest/disk/browser or writable-storage authority.\n");
-        var sources = JsonSerializer.Deserialize<Dictionary<string, string>>(await File.ReadAllTextAsync(Path.Combine(destination, "inputs.json")))!;
+        using var publication = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(destination, "publication.json")));
+        var sources = publication.RootElement.GetProperty("sources").Deserialize<Dictionary<string, string>>()!;
         Need(ToolingBuildInputs.Validate(root).Count == 0 && sources.All(x =>
             FileHash(Path.Combine(root, x.Key)).Equals(x.Value, StringComparison.OrdinalIgnoreCase)), "static_files_source_changed");
         var receipt = new Receipt("clros.nativeaot.static-files.v1", NativeAotPayload.SdkVersion, NativeAotPayload.RuntimeVersion,
@@ -189,7 +196,7 @@ public static class NativeAotStaticFileContract
         Need(receipt.Schema == "clros.nativeaot.static-files.v1" && receipt.Sdk == NativeAotPayload.SdkVersion &&
             receipt.Runtime == NativeAotPayload.RuntimeVersion, "static_files_receipt_pin");
         Need(receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000, "static_files_receipt_inventory");
-        Need(NativeAotPayload.SourcePaths(root, ["MinimalApiSmoke"]).SequenceEqual(receipt.Sources.Keys.Order()), "static_files_source_inventory");
+        Need(NativeAotStaticFilePublisher.SourcePaths(root).SequenceEqual(receipt.Sources.Keys.Order(StringComparer.Ordinal)), "static_files_source_inventory");
         foreach (var source in receipt.Sources)
         {
             AuthorityFiles.RequirePlainPath(root, Path.Combine(root, source.Key), "static_files_source_path");
@@ -198,11 +205,17 @@ public static class NativeAotStaticFileContract
         Need(OutputHashes(destination).OrderBy(x => x.Key).SequenceEqual(receipt.Outputs.OrderBy(x => x.Key)), "static_files_output_changed");
         ValidateNativeInputs(JsonSerializer.Deserialize<Dictionary<string, string>>(
             File.ReadAllText(Path.Combine(destination, "native-inputs.json")))!);
-        using var inspections = JsonDocument.Parse(File.ReadAllText(Path.Combine(destination, "inspection.json")));
-        string elf = Path.Combine(destination, "MinimalApiSmoke", "MinimalApiSmoke");
+        NativeAotStaticFilePublisher.RequireCurrentSources(root);
+        using var publication = JsonDocument.Parse(File.ReadAllText(Path.Combine(destination, "publication.json")));
+        var published = publication.RootElement;
+        Need(published.GetProperty("succeeded").GetBoolean() && published.GetProperty("application").GetString() == NativeAotStaticFilePublisher.Application &&
+            published.GetProperty("sdk").GetString() == receipt.Sdk && published.GetProperty("runtime").GetString() == receipt.Runtime, "static_files_publication_policy");
+        var publishedSources = published.GetProperty("sources").Deserialize<Dictionary<string, string>>()!;
+        Need(publishedSources.OrderBy(x => x.Key).SequenceEqual(receipt.Sources.OrderBy(x => x.Key)), "static_files_publication_sources");
+        string elf = Path.Combine(destination, NativeAotStaticFilePublisher.Application, NativeAotStaticFilePublisher.Application);
         Need(new FileInfo(elf).Length <= NativeAotPayload.MaximumImageBytes, "static_files_elf_size");
         Need(NativeAotPayload.Inspect(File.ReadAllBytes(elf)).Sha256 ==
-            inspections.RootElement.GetProperty("MinimalApiSmoke").GetProperty("Sha256").GetString(), "static_files_elf_changed");
+            published.GetProperty("image").GetProperty("Sha256").GetString(), "static_files_elf_changed");
         Need(TraceSyscalls(destination).SequenceEqual(File.ReadAllLines(Path.Combine(destination, "static-observed-syscalls.txt"))),
             "static_files_syscall_inventory");
         string[] trace = Directory.GetFiles(destination, "static-trace.*").SelectMany(File.ReadLines).ToArray();
@@ -230,7 +243,7 @@ public static class NativeAotStaticFileContract
     {
         Need(shutdown is { Signal: 15, ExitCode: 0, EndpointRefused: true }, "static_files_shutdown_receipt");
         Need(stderr.Split('\n').Count(x => x.TrimEnd('\r') == "CLROS_STATIC_FILES_APP_END v1") == 1 &&
-            !stderr.Contains("CLROS_APP_FAIL", StringComparison.Ordinal), "static_files_shutdown_marker");
+            !stderr.Contains("CLROS_STATIC_FILES_APP_FAIL", StringComparison.Ordinal), "static_files_shutdown_marker");
         Need(trace.Any(x => x.Contains("--- SIGTERM {", StringComparison.Ordinal)) &&
             trace.Any(x => Regex.IsMatch(x, @"\bexit_group\(0\)\s+=")), "static_files_shutdown_trace");
     }
@@ -247,7 +260,7 @@ public static class NativeAotStaticFileContract
     /// asset inventory, generated-JSON contract and finite metadata/range cases.</summary>
     public static void ValidateHttp(string destination, WebRootImageFixture.Snapshot assets, IReadOnlyList<Observation> rows)
     {
-        Need(rows.Count == assets.Files.Length + 15 && rows.Select(x => x.BodyFile).Distinct().Count() == rows.Count,
+        Need(rows.Count == assets.Files.Length + 16 && rows.Select(x => x.BodyFile).Distinct().Count() == rows.Count,
             "static_files_http_inventory");
         foreach (var row in rows)
         {
@@ -260,7 +273,7 @@ public static class NativeAotStaticFileContract
         byte[] Bytes(Observation row) => File.ReadAllBytes(Path.Combine(destination, row.BodyFile));
         Need(System.Text.Encoding.UTF8.GetString(Bytes(Get("GET", "/healthz"))) == "OS_MINIMAL_API_OK", "static_files_health");
         using var config = JsonDocument.Parse(Bytes(Get("GET", "/config")));
-        Need(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke", "static_files_config");
+        Need(config.RootElement.GetProperty("appId").GetString() == "minimal.api.static-files", "static_files_config");
         using var status = JsonDocument.Parse(Bytes(Get("GET", "/api/status")));
         Need(status.RootElement.ValueKind == JsonValueKind.Object && status.RootElement.GetProperty("profile").GetString() == "v1" &&
             status.RootElement.GetProperty("ready").GetBoolean() && status.RootElement.GetProperty("message").GetString() == "CLROS ready — café", "static_files_status_json");
@@ -269,6 +282,7 @@ public static class NativeAotStaticFileContract
             items.RootElement.GetProperty("items")[1].GetProperty("detail").ValueKind == JsonValueKind.Null, "static_files_items_json");
         using var empty = JsonDocument.Parse(Bytes(Get("GET", "/api/items?empty=true")));
         Need(empty.RootElement.GetProperty("items").GetArrayLength() == 0, "static_files_empty_json");
+        Need(Bytes(Get("GET", "/fixture-nonce.txt")).AsSpan().SequenceEqual("CLROS-DISK-A-0001\n"u8), "static_files_reference_nonce");
         foreach (var asset in assets.Files)
         {
             string url = "/" + string.Join('/', asset.Path.Split('/').Select(Uri.EscapeDataString));
@@ -293,6 +307,19 @@ public static class NativeAotStaticFileContract
         Need(rows.Count(x => x.Method == "GET" && x.Path == "/" && x.Status == 304 && x.BodyBytes == 0) == 2, "static_files_conditional");
         Get("GET", "/.clros-missing", 404);
         Get("POST", "/index.html", 404);
+    }
+
+    private static Process Start(string[] arguments, string root)
+    {
+        var info = new ProcessStartInfo("setsid") { WorkingDirectory = root, UseShellExecute = false,
+            RedirectStandardOutput = true, RedirectStandardError = true };
+        info.ArgumentList.Add("strace");
+        foreach (string argument in arguments) info.ArgumentList.Add(argument);
+        info.Environment["CLROS_STATIC_FILES_PROFILE"] = "v1";
+        info.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+        info.Environment["DOTNET_ENVIRONMENT"] = "Production";
+        info.Environment.Remove("OS_SMOKE_EXPECTED_BODY");
+        return Process.Start(info) ?? throw new InvalidDataException("static_files_start_failed");
     }
 
     private static Dictionary<string, string> OutputHashes(string destination)

@@ -14,6 +14,11 @@ EFI/package/manifest files, writes equal-layout DiskA/DiskB variants, and
 independently reconstructs file hashes and logical-order physical extents.
 Its six final native-lane host checks pass, including GPT consistency controls;
 real candidate binding remains pending. These are host results.
+[Step1559](../done/step1559.md) adds the polling-only retained block owner with
+14 focused host checks: one DMA lease, one sector in flight, bounded progress,
+token revocation/cancellation and reset quarantine. It does not yet bind a live
+combined device. Block/NIC must use separate BDF/BAR ownership with the active
+Linux timer; the one-shot private-IDT MSI-X profile is not the service owner.
 Continuing guest reads, application file descriptors and disk-backed HTTP remain
 #770 -> #771 -> #773 -> #774; writable files remain the following ladder.
 
@@ -117,12 +122,12 @@ The probes remain default off and require package completion plus owned APIC.
 The M06 epic criterion is the bounded packaged manifest/payload read after
 firmware exit and reviewed completion of its nineteen keyed children. It is
 separate from Gate7: continuing storage, general workload activation and payload
-execution remain incomplete. Development history is in steps1157â€“1161.
+execution remain incomplete. Development history is in steps1157–1161.
 
 ## Bounded manifest/package read and staging profile
 
 [Step1153](../done/step1153.md) implements the pure helpers for owned issues
-#130â€“#133 and shared integration #631. The bounded native v0 manifest validator
+#130–#133 and shared integration #631. The bounded native v0 manifest validator
 admits required fields plus package/native-aot kind fields, source-backed path
 offsets and strict relative paths. Environment/listen fields remain unsupported
 in this disk validator; the existing broader host parser is unchanged.
