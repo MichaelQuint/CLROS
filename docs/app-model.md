@@ -1,5 +1,20 @@
 # App Model
 
+## Current application boundary (October 23, 2026)
+
+The Linux NativeAOT path runs the pinned Hello/runtime fixtures and bounded
+Kestrel workloads inside CLROS. [Step1556](../done/step1556.md), merged by PR790
+at `82656076`, adds accepted quota256/512 termination, configured V2 cancellation
+and owned Smoke signal-race churn. #748/#225/#737 and their step1481 predecessors
+are closed. #226 -> #227 complete evidence/local Gate14 acceptance remains open.
+The 36 MiB pool stays shared; multi-app isolation and disk-backed static files
+are not accepted. See [current gate status](completion-gates.md#current-acceptance-october-23-2026).
+
+The dated checkpoints below retain their original scopes. OSAPPv0 planners and
+the future flat `OSHost_*` ABI remain separate from the working Linux ELF path.
+
+## Earlier profile evidence
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
 757 fixtures (94 Native), six strict web/quota prefixes, three finite policy/vector
@@ -84,10 +99,10 @@ unsupported generic tasks before invocation. Both earlier failed full attempts
 remain failed; the original successful producer and dependencies were preserved
 before documentation rebuilds.
 
-Fourteen finite issue scopes have reviewed support for dependency-ordered
-reconciliation; step1481 names their criteria, original receipts and limitations.
-Tracker closure still requires evidence comments, versioned preview/apply and
-readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
+The fourteen finite predecessor scopes reviewed in step1481 are closed,
+confirmed by the October23 live tracker readback. Step1481 retains their
+criteria, original receipts and limitations; closure does not broaden them.
+Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
 15 individual ancestors and native reviews keep their original `810b3eef` scopes.
 
 Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
@@ -122,6 +137,10 @@ The following dated development notes retain contract details and historical
 observations. Use the current boundary above for validation and reconciliation.
 
 ## Quota termination development
+
+Historical checkpoints follow. Step1556 and PR790 subsequently qualified the
+named quota/churn scopes and closed #748/#225/#737; pending statements in this
+section describe their original runs, including failures that remain failed.
 
 [Step1482](../done/step1482.md) integrates the previously reviewed quota draft
 under #737. The managed app, kernel and host graph compile; fourteen focused
@@ -1985,8 +2004,8 @@ The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
 application target. Steps1307/1332/1351/1380/1389/1405 qualify their named bounded
 runtime, network, socket, configuration, logging, startup and vector profiles.
-Kestrel support remains mandatory; continue #220 and the later service/gate
-prerequisites. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
+Steps1419/1481/1556 add finite Kestrel, repeated-service and quota/churn
+qualification; #226/#227 still own complete local Gate14 acceptance. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 
@@ -2305,13 +2324,20 @@ Placeholder apps exist to reserve the expected surfaces:
 
 ## Unsupported Behavior
 
-Actual app execution, app ABI, live stdout/stderr routing, package reads through the live boot path, package payload execution, network access, socket listen/bind behavior, app exit capture, restart policy execution, and process/resource/isolation enforcement are pending. Hosted .NET 10, in-guest ASP.NET Minimal API, Kestrel, and workload-profile completion claims remain governed by `docs/completion-gates.md`.
+General application launch, arbitrary Linux ABI support, restart policy,
+independent per-process resource enforcement and multi-app isolation remain
+pending. The qualified Linux ELF profiles already exercise application entry,
+logging, immutable package reads, sockets/Kestrel, exit and cleanup within their
+specific scopes. They do not implement the legacy OSAPPv0 launcher or exported
+CoreCLR PAL. Complete workload claims remain governed by `docs/completion-gates.md`.
 
 The app-package, app-launch-descriptor, app-payload, app-executable-mapping, app-executable-memory, app-invocation, app-lifecycle, app-selection, app-argument-vector, and app-entry readiness helpers are not wired into the default boot path or live EFI artifact yet.
 
 ## Tests
 
-No app-execution tests exist. Host tests cover image-builder package byte placement, package/manifest planning, app-selection composition, and app readiness markers only:
+Real Linux NativeAOT guest execution is qualified in steps1307 through1556 as
+summarized above. The following tests cover the separate legacy app-model
+planners: image/package placement, selection composition and readiness markers.
 
 ```text
 TEST_PASS imagebuilder emits dry-run package placement plan without writing image
@@ -2637,7 +2663,10 @@ TEST_PASS boot.sequence app lifecycle preserves default markers
 
 ## Known Limitations
 
-The apps are normal host projects for now, not freestanding native-tier binaries or hosted .NET 10 workloads. Manifest environment fields and listen endpoints are parsed and carried as metadata only; they are not process environment variables, ASP.NET configuration, hosted runtime state, socket binds, or TCP listeners.
+The older native-tier examples and OSAPPv0/PAL planners remain host contracts.
+The separate pinned Linux NativeAOT fixtures are published static executables
+with actual CLROS guest entry, environment/configuration and sockets in their
+qualified profiles. Do not transfer that evidence to the legacy planners.
 
 The AWS metadata policy planner is a host-tested decision fixture only; it does not enforce per-app metadata permissions, proxy metadata responses, fetch IMDSv2 tokens, expose user data, or expose IAM credentials.
 
@@ -2645,20 +2674,30 @@ The AWS metadata policy planner is a host-tested decision fixture only; it does 
 
 `NativeAppPayloadMappingPlanner` computes ranges only; it does not allocate executable memory, enforce W^X/NX at runtime, relocate code, validate a complete executable format, or jump to an app entrypoint. `NativeAppPayloadStagingPlanner` copies executable bytes only from already-loaded package memory into caller-owned staging memory; it does not read live storage, allocate pages, map executable memory, change protections, relocate code, or invoke the app. `NativeAppPackageStagingReadinessPlanner` validates consistency across already-produced staging and planning results only; it does not create boot-owned staging memory, allocate pages, map executable memory, change protections, relocate code, or invoke the app. `BootSequence.RunAppPackageStagingReadiness` only emits marker metadata from that readiness value and is not part of the default boot path. `NativeAppExecutableMemoryPlan` is host-tested permission and layout planning only; it does not allocate pages, copy executable bytes, change page protections, flush instruction caches, relocate code, or invoke an app entrypoint. `NativeAppInvocationPlanner` is host-tested metadata planning only; it does not allocate stacks, switch stacks, create threads, map pages, finalize an ABI, or execute app code.
 
-`MinimalApiSmoke` can be published, staged into a host-built raw ESP, and read back from `\OS\APP.PKG` on the host, but it still runs only on the host Kestrel stack. The in-guest hosted .NET, Minimal API, and Kestrel claim boundary is `docs/completion-gates.md`.
+`MinimalApiSmoke` runs actual Kestrel in the qualified Linux NativeAOT guest
+profiles. The host-only `kestrel.smoke.package.v0` tooling remains separate.
+Complete local acceptance still requires #226/#227 as defined in
+`docs/completion-gates.md`.
 
-The current `\OS\APP.PKG` path is readable only through the host-tested parser stack over an in-memory block-device abstraction, and package file lookup/staging is limited to already-loaded package bytes. The PAL package-file handle table is also host-tested only and does not export ABI symbols. `NativeAppSelectionLoader` composes those host-tested reads, backup-GPT fallback, nested manifest/package primary/backup GPT table-source metadata, and nested manifest/package required sizes for caller-owned scratch buffers, but still depends on caller-provided buffers and an injected block device; the default-result guard prevents accidental readiness from an uninitialized result, but it is still only host evidence. `NativeAppSelectionBootScratchPlan` only validates future boot-owned buffer sizes; it does not allocate those buffers, read storage, parse the manifest/package, or call the loader. `VirtioBlockNativeAppSelectionPreflight` adds read-session and scratch gating before the host-tested selection loader and rejects default/zero result values as not successful, and `BootSequence.RunAppSelectionPreflightReadiness` only turns that result into host-tested markers. Both still consume host-provided evidence and do not perform live virtio-blk reads or boot-time loading. `OsPackageFileStagingPlanner` copies from caller-owned package bytes only; it does not prove boot-owned staging memory, executable mapping, or app launch. The live boot path does not yet read the package from virtio-blk or pass it into `BootSequence.RunAppPackageReadiness`. The launch plan does not parse package content, load binaries, schedule threads, or bind hosted runtime services.
+The legacy app-selection path described here uses a host-tested parser stack
+over an injected block device. Separate bounded disk diagnostics read packages,
+and Linux ELF profiles stage `\OS\APP.PKG` through firmware before exit;
+neither supplies continuing disk-backed files while Kestrel serves requests. The PAL package-file handle table is also host-tested only and does not export ABI symbols. `NativeAppSelectionLoader` composes those host-tested reads, backup-GPT fallback, nested manifest/package primary/backup GPT table-source metadata, and nested manifest/package required sizes for caller-owned scratch buffers, but still depends on caller-provided buffers and an injected block device; the default-result guard prevents accidental readiness from an uninitialized result, but it is still only host evidence. `NativeAppSelectionBootScratchPlan` only validates future boot-owned buffer sizes; it does not allocate those buffers, read storage, parse the manifest/package, or call the loader. `VirtioBlockNativeAppSelectionPreflight` adds read-session and scratch gating before the host-tested selection loader and rejects default/zero result values as not successful, and `BootSequence.RunAppSelectionPreflightReadiness` only turns that result into host-tested markers. Both still consume host-provided evidence and do not perform live virtio-blk reads or boot-time loading. `OsPackageFileStagingPlanner` copies from caller-owned package bytes only; it does not prove boot-owned staging memory, executable mapping, or app launch. The live boot path does not yet read the package from virtio-blk or pass it into `BootSequence.RunAppPackageReadiness`. The launch plan does not parse package content, load binaries, schedule threads, or bind hosted runtime services.
 
 The selected app launch descriptor resolves metadata and validates only the small v0 native payload header. The explicit package/native runtime selection still does not map the binary into memory, validate a complete executable format, allocate stacks, enter an app ABI, start a thread, route live stdout/stderr, capture exit codes, or enter any hosted runtime. `NativeAppArgumentHandoffPlanner` only composes invocation and parsed argument-vector metadata; it does not define a final `argc`/`argv` ABI, materialize strings, allocate stacks, switch stacks, start hosted .NET, or run app code. `OSHostAppLogTable` preserves stdout/stderr bytes in host tests only; it is not connected to a launcher, serial writer, or hosted runtime console stream. `NativeAppExitStatusFormatter` formats and parses future exit marker bytes only; it does not observe a real app exit, enforce a restart policy, or expose a host runner result by itself. Its parser consumes already-present marker bytes and can infer launcher-failure-shaped formatter output only from the current `code=255` plus non-OK status convention. `NativeAppExitLogObserver` scans the host-tested app-log table only; it does not ingest live serial data, supervisor-owned ring buffers, or hosted runtime logs. `NativeAppExitLogObserverDiagnosticFormatter` formats observer metadata only; it does not make the observer a live supervisor or serial-log ingestion path. `NativeAppLifecyclePlanner` is readiness aggregation only; it does not create supervisor state, start/restart apps, route live app logs, capture exits, or enforce crash policy. QEMU runner `APP_EXIT_RESULT` summary lines only reflect serial text parsing when such lines are present; they are not live app-exit evidence.
 
 `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPPING_READY`, `APP_EXEC_MEMORY_READY`, `APP_INVOCATION_READY`, `APP_ARGS_HANDOFF_READY`, `APP_LIFECYCLE_READY`, `APP_SELECTION_READY`, `APP_SELECTION_PREFLIGHT_READY`, `NATIVE_MANIFEST_ENV_READY`, `FETCHAPP_CONFIG_PREFLIGHT_READY`, `FETCHAPP_HTTP_ENDPOINT_READY`, `APP_EXIT_OBSERVER_READY`, and `APP_ENTRY_READY` are host-tested readiness markers only. They prove that the relevant manifest, package, descriptor, payload, executable-memory, invocation, argument-handoff, lifecycle, preflight, manifest environment, FetchApp config, FetchApp request endpoint, observer, and entry status objects can be aggregated without exceptions. They do not prove live boot package reads, live virtio-blk reads, boot-owned scratch allocation, manifest/config reads from live storage, process environment materialization, executable page allocation or mapping, live W^X/NX enforcement, payload copying, relocation, stack allocation or switching, a final ABI, supervisor/log/exit handling, live app-exit observation, hosted .NET, Kestrel, live FetchApp execution, or app execution.
 
-`kestrel.smoke.package.v0` is a hosted-workload package contract only. It defines future Minimal API package files, manifest fields, environment/config propagation, `GET /healthz` response text, and runner markers. It is not runtime evidence; the required hosted .NET 10, PAL, socket, TCP listener, and Kestrel proof remains in `docs/completion-gates.md`.
+`kestrel.smoke.package.v0` is a hosted-workload package contract only. It defines future Minimal API package files, manifest fields, environment/config propagation, `GET /healthz` response text, and runner markers. It is not runtime evidence; its future hosted-runtime/PAL proof remains distinct from the accepted Linux
+NativeAOT path and complete gate criteria in `docs/completion-gates.md`.
 
 ## Next Steps
 
-1. Implement host-only scheduler foundations #183-#185, starting with #183's x64 saved-context layout. Preserve the qualified #708 ownership repair, #684 sparse reservations and #685 mechanical descriptors/pipes. Host layout/queues do not establish execution.
-2. Qualify actual context switching, interrupt and lifecycle work #186-#188 and synchronization #191/#192 before #686 mechanical threads/TLS/futex and per-thread signal masks. #687 adds signal startup/delivery, qualifies the unchanged pinned Hello and then exercises suspension. #688 repeats Hello and adds the runtime exerciser. Do not move upstream application GC/EH into the kernel.
-3. Connect continuing NIC/TCP and Linux socket/readiness services to the pinned Minimal API payload and qualify external Kestrel traffic under the [workload roadmap](workload-profiles.md).
-4. Add private address spaces, descriptors/config, resource budgets and supervisor lifecycle for two applications, proving one survives the other's failure.
-5. Preserve the legacy OSAPPv0 planners and `kestrel.smoke.package.v0` tooling as separate contracts. CoreCLR/framework-dependent launch and broader storage/package selection remain later work.
+1. Preserve the accepted Linux runtime/socket/service profiles and complete
+   #226 evidence packaging before #227 local Gate14 acceptance.
+2. Follow the disk/static-file roadmap after the host FAT fixes and image fixtures;
+   staged package reads do not establish demand disk I/O during Kestrel service.
+3. Add fault containment, private resources and supervisor lifecycle for two
+   applications, proving one survives the other's failure.
+4. Keep OSAPPv0 and `kestrel.smoke.package.v0` as separate contracts. CoreCLR
+   hosting and general process/app launch remain later work.

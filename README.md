@@ -8,136 +8,48 @@
   <strong>A C#-first NativeAOT operating system for minimal cloud workloads.</strong>
 </p>
 
-CLROS is an experimental operating system for VM images containing configured
-.NET 11 applications and the services they need. The first application milestone
-is one real NativeAOT ASP.NET Minimal API serving `GET /healthz` through Kestrel.
-Hardware-protected isolation for multiple applications follows.
+CLROS is an experimental C#-first operating system for VM images containing
+configured .NET 11 applications. It uses a restricted Linux x64 compatibility
+layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
+First-party kernel, shared-library and application source is C# 14.
 
-**The unchanged pinned .NET11 NativeAOT Hello and bounded runtime workloads run
-inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime batch;
-[step1419](done/step1419.md) qualifies bounded Kestrel health, responses and UTC.
+**The pinned Hello and bounded .NET runtime workloads already run inside CLROS.
+Real Kestrel also serves external HTTP in qualified finite guest profiles.**
+The complete local single-app Gate 14 remains open; CLROS is not cloud-ready or
+production-ready.
 
-[Step1479](done/step1479.md) completes the fresh original v1 service and five
-memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
-passes the original 829,226ms service lifetime; all three expected memory faults
-pass their dedicated full-parent restoration checks. Failed originals remain failed.
+## Current status — October 23, 2026
 
-[Step1481](done/step1481.md) records the corrected runner's stable unfiltered full:
-5,918 checks across 792 fixtures (698 Fast, 94 Native) at `96ba8dbd`, unchanged
-inputs, zero reuse and no failures. The exact declared-return whitelist rejects
-unsupported generic tasks before invocation. Both earlier failed full attempts
-remain failed; the original successful producer and dependencies were preserved
-before documentation rebuilds.
+[PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) is merged to master at
+`82656076`. The live tracker confirms #748, #225 and the finite #737 integration
+closed, following the fourteen predecessor closures reviewed in
+[step1481](done/step1481.md).
 
-Fourteen finite issue scopes have reviewed support for dependency-ordered
-reconciliation; step1481 names their criteria, original receipts and limitations.
-Tracker closure still requires evidence comments, versioned preview/apply and
-readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
-15 individual ancestors and native reviews keep their original `810b3eef` scopes.
-
-Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
-positive V2 at `20e665ad` pass their complete finite consumers, retaining their
-original producer scopes. All 20 ancestor profiles are qualified: 17 positives
-and three expected negatives, with complete independent source/native joins.
-The stable unfiltered full at committed `28a79996` passes 6,258 checks across
-847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
-[Step1556](done/step1556.md) records exact provenance, measured fit/returned leases and
-all failed-original history. The 36 MiB pool remains shared, not independent
-16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
-isolation, cloud and production remain unaccepted.
-This updates only the named finite boundary; historical scopes and other
-unfinished work retain their original limits.
-CLROS is not cloud-ready or production-ready.
-
-The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
-real guest disk. The [static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
-keeps current service qualification first and distinguishes staged files from
-live disk reads. This feature is not implemented or qualified yet.
-
-[Step1225](done/step1225.md) qualifies the pinned .NET 11 OS/tooling migration and
-fresh Linux-host application payloads. C# remains 14. Historical .NET 10 results
-retain their original identities; only the explicitly rerun profiles have current
-compiler and guest evidence.
-
-## Current accepted evidence
-
-[Step1419](done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
-implementation `88b02b4d`: 5,676 unchanged full-host checks across 757 fixtures
-(94 Native), six strict web/quota prefixes, three finite policy/vector guests
-and eight affected ancestors. The application captures retain `02859bfd` through
-exact source/native joins. External HTTP verifies exact entities, advancing Date
-windows and stopped-guest refusal; one healthy connection survives a bad peer's
-timeout and rejected VLAN traffic. Live workers remain until runner termination.
-The clock uses copied UEFI UTC and HPET within a declared 600-second lifetime.
-No general service, isolation, numbered, cloud or production gate advances.
-
-[Step1380](done/step1380.md) qualifies #217 configuration and #741/#742
-network containment at implementation `3ef7316d`: 5,537 full-host checks across
-731 fixtures (94 Native), three web and three containment captures, three repaired
-signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
-retain exact original source/object/EFI/package/serial/packet joins. Selected
-configuration is observed inside the upstream NativeAOT application; the healthy
-old peers survive another connection's timeout and unsupported RX content.
-Later step1389 qualifies finite #218 logging, step1405 qualifies #219/#745
-startup/vectors, and step1419 qualifies the bounded #220-#223 ladder under #737.
-This adds no whole-stack, general Kestrel, numbered, cloud or production gate.
-
-The earlier socket/staging qualification is [step1351](done/step1351.md): **5,433 full-host
-checks across 713 fixtures (94 Native), three sync and three async socket guests,
-three V2 staging guests and 33 fresh strict ancestors**. The unchanged upstream
-socket fixtures exchange real TCP bytes and drain their owned lifetimes. V2
-staging preserves the immutable package without entering the application.
-
-[Step1332](done/step1332.md) separately qualifies **5,341 full-host checks
-across 700 fixtures (94 Native), three strict TCP captures and 20 fresh affected
-ancestors**, with original native/source/producer joins. The default-off finite
-network service retains Virtio-net queues through ARP/ICMP and real TCP ownership,
-handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
-cooperative worker advances throughout and exits/reaps before checked cleanup.
-Step1351 adds bounded Linux sockets and epoll. Step1380 qualifies the selected
-configuration slice incorporated from PR739. Later finite Kestrel acceptance is
-described above; step1437 retains the service-prerequisite history, with current
-acceptance status in step1477. Repeated
-service and Gate14 requirements remain incomplete.
-
-[Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
-across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles
-and 24 fresh affected ancestors**, with original native/ABI/stack review and exact
-source/object/EFI/package/transcript joins. Three retained strict GC-stress
-repetitions and a separately identified raw-state diagnostic prove the bounded
-exit-request/GC interaction. Accepted scope includes mechanical waits/TLS/Linux
-threads/signals and the exact unchanged pinned Hello, focused GC/ThreadPool,
-original RuntimeSmoke and RuntimeMatrix workloads on single-vCPU QEMU/OVMF.
-This does not qualify arbitrary Linux apps, general kernel EH or Kestrel.
-
-[Step1225](done/step1225.md) separately retains the .NET 11 migration acceptance:
-4,783 full-host checks and 29 audited strict QEMU captures, including an expected
-unhandled negative and three timer reruns. Fresh static Hello, runtime exerciser
-and Minimal API payloads pass its separate Linux-host qualifier. Earlier failures
-and source checkpoints remain in their original step records.
-
-The foundation records below retain each profile's evidence scope.
-Step1225 lists the finite set requalified on .NET 11.
-
-| Foundation | Accepted scope and evidence |
+| Capability | Accepted scope |
 | --- | --- |
-| Firmware exit | Ordinary `VerifiedExit` performs owned subsystem checks after real `ExitBootServices`, then halts. [Step1094](done/step1094.md). |
-| Upstream payload feasibility | Pinned .NET 11 static Hello, runtime exerciser and real Minimal API qualify on a Linux builder. This is Linux-host evidence. [Step1225](done/step1225.md); the original .NET 10 qualification remains historical in [step1198](done/step1198.md). |
-| Payload loading and startup | Bounded service loop, ELF mappings and Linux initial-stack construction. [Step1200](done/step1200.md). |
-| User/syscall boundary | Mechanical CPL3 ELF write/exit, register preservation, controlled faults and restoration. [Step1201](done/step1201.md). |
-| Linux memory and startup services | Sparse reservations, bounded backing, time and entropy; the unchanged payload reaches unsupported `ARCH_SET_FS` before Hello. [Step1205](done/step1205.md). |
-| Descriptors and pipes | Mechanical package/proc reads, live `openat`, descriptor/pipe errors and checked last-close cleanup. [Step1208](done/step1208.md). |
-| Heap ownership | Qualified `brk` and fixed-mapping ownership repair, including a real protected-page fault control. [Step1209](done/step1209.md). |
-| Cooperative transfer | Seventeen checked transfers across distinct guarded stacks and independent original-context restoration. [Step1218](done/step1218.md). |
-| Hardware timer | Four owned interrupts, safe deferred wake and IDT/IST/APIC/mapping restoration. [Step1224](done/step1224.md). |
-| Cooperative lifecycle | Repeated hardware-backed waits, retained joins, deferred cancellation and supervisor-only scrub/reuse. [Step1230](done/step1230.md). |
-| Continuing network/TCP | Finite retained queues, independent wire captures, bounded TCP lifetimes and a cooperative progress witness. [Step1332](done/step1332.md). |
-| Linux sockets/epoll and web prerequisites | Finite socket/staging scope in [step1351](done/step1351.md); bounded configuration and network containment in [step1380](done/step1380.md). |
+| Boot and firmware exit | Ordinary `VerifiedExit` leaves boot services, checks owned subsystems and halts. [Step1094](done/step1094.md). Application probes are explicit, default-off profiles. |
+| .NET 11 applications | Pinned Hello, focused GC/ThreadPool, RuntimeSmoke and RuntimeMatrix execute in single-vCPU QEMU/OVMF guests. [Step1307](done/step1307.md). |
+| TCP and Linux sockets/epoll | Finite retained NIC/TCP lifetimes and unchanged upstream synchronous/asynchronous socket fixtures. [Step1332](done/step1332.md), [step1351](done/step1351.md). |
+| Kestrel health/configuration/logging | Exact external HTTP entities, startup, vectors, endpoint policy and finite UTC/Date behavior. [Step1380](done/step1380.md), [step1389](done/step1389.md), [step1405](done/step1405.md), [step1419](done/step1419.md). |
+| Repeated service and memory controls | Original v1 lifetime and dedicated memory-fault restoration controls; corrected awaited host-runner qualification. [Step1479](done/step1479.md), [step1481](done/step1481.md). |
+| Quota termination and async churn | Original signal-race Smoke, quota at 256/512 MiB, positive configured V2 and 20 ancestor profiles. [Step1556](done/step1556.md). |
 
-Runtime and network qualification remain separate bounded profiles.
-Only Gate 2 passes within its documented scope. The
-[completion gates](docs/completion-gates.md) define all claim boundaries;
-[step records](done/) retain historical results and their exact tested inputs.
+The latest accepted unfiltered full-host run at `28a79996` passes **6,258 checks
+across 847 fixtures (753 Fast, 94 Native)**, with unchanged inputs and zero reuse.
+This is retained acceptance evidence, not a test run of this documentation update.
+Original Smoke (`32c14ccd`) and quota/V2 (`20e665ad`) keep their own source,
+native and producer identities. Failed originals remain failed.
+
+Quota proves offending-workload exit 99 and cleanup after physical denial;
+V2 separately completes managed cancellations and drains 59 lifetimes; Smoke
+proves continuous cancelled churn with the directed-signal/readiness race.
+The **36 MiB dynamic pool is shared**; the 16 MiB GC limit and declared 20 MiB
+native headroom are not independently enforced partitions.
+
+Only numbered Gate 2 passes. [Completion gates](docs/completion-gates.md)
+and the [Kestrel ledger](docs/kestrel.md) define the exact accepted boundaries.
+Historical .NET 10 receipts retain their original toolchains; the pinned .NET 11
+migration is recorded in [step1225](done/step1225.md).
 
 ## NativeAOT-first architecture
 
@@ -148,7 +60,7 @@ libraries stay with the application. Application GC and exception handling remai
 upstream responsibilities. A Linux RID alone does not make an executable
 freestanding or prove CLROS compatibility. Step1225 qualifies the .NET 11 publish
 recipe and records native dependencies and observed runtime/ABI requirements;
-the required CLROS guest services remain on the implementation roadmap.
+the guest profiles above qualify only their measured CLROS service subsets.
 
 First-party kernel, shared library and app source committed here is C#.
 `src/OS` retains an explicit no-stdlib NativeAOT EFI build. Upstream native
@@ -164,41 +76,24 @@ The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 
 ## Next implementation
 
-The [architecture review implementation order](docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16)
-places fixes at the acceptance stage that needs them:
-
-1. Preserve [step1419's bounded Kestrel/health/UTC qualification](done/step1419.md)
-   and the accepted configuration, logging, startup and vector predecessors.
-   Continue under [#737](http://192.168.4.35:3000/admin/CLROS/issues/737).
-   Web prefixes retain live workers until runner termination; they do not
-   qualify continuing service or application shutdown/reap.
-2. Preserve [step1556's finite quota/churn qualification](done/step1556.md):
-   the original owned Smoke, quota at 256/512 MiB and configured positive V2 captures,
-   and all 20 qualified ancestor profiles. Final stable full validation:
-   **PASS: 6,258 checks/847 fixtures, unchanged inputs and zero reuse**. Exact
-   provenance and failed history stay in the step.
-   The next application scope is #226/#227's complete local Gate14 requirements;
-   they are not accepted by this finite batch. Preserve #737's owner and the
-   managed dependency order.
-
-3. Add user-fault containment, reconcile accepted SIGPIPE dispositions with
-   I/O behavior, and qualify two hardware-isolated local apps before deployment
-   to a specific provider.
-4. After the local service baseline, measure TCP/audit/logging improvements and
-   add host-side Roslyn contract checks, ABI generation and workload capability
-   generation. These are tracked implementation proposals, with no performance
-   or security superiority claim until measured and qualified.
+1. Complete [#226](http://192.168.4.35:3000/admin/CLROS/issues/226) evidence
+   packaging, then [#227](http://192.168.4.35:3000/admin/CLROS/issues/227) local
+   Gate 14 acceptance. The finite #737 integration is closed; preserve its
+   accepted evidence and refresh live ownership before claiming successor work.
+2. Finish the open host repairs: [#780](http://192.168.4.35:3000/admin/CLROS/issues/780)
+   tracker conflict protection and [#781](http://192.168.4.35:3000/admin/CLROS/issues/781)
+   → [#782](http://192.168.4.35:3000/admin/CLROS/issues/782) FAT selection/traversal
+   bounds. The FAT repairs precede #769 disk-fixture acceptance.
+3. Follow the [disk-backed static-file roadmap](docs/workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
+   for JSON endpoints and read-only HTML/CSS/JS from a real guest disk. Staged
+   files and demand disk reads have separate acceptance; this feature is planned.
+4. Qualify fault containment and two isolated local apps before provider work.
+   Measured TCP/audit/logging optimization and host Roslyn/ABI tooling retain
+   their later dependency order.
 
 Use the [managed issue manifest](.gitea/backlog/clros-issues.json) for exact
-acceptance, owned paths and dependencies, and the
-[LAN Gitea backlog](http://192.168.4.35:3000/admin/CLROS/issues) for current claims.
-Refresh both before starting work. Follow the dependency graph rather than
-numeric issue order; optional research is not a first-web prerequisite.
-
-The [October 18 incremental review](docs/repo-audit.md#october-18-incremental-review)
-covers the four merged batches since the previous review. Two host reproductions
-confirm the empty-send defect; current handoff and time-API claims are corrected.
-The earlier review findings retain their individual accepted or open scopes.
+acceptance and dependencies, and the [LAN tracker](http://192.168.4.35:3000/admin/CLROS/issues)
+for live state and ownership. Older planning text is not implementation evidence.
 
 ## Build and test
 

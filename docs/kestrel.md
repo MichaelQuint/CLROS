@@ -1,5 +1,11 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+PR790 merged at `82656076` on October 23, 2026. Live tracker readback confirms
+#748, #225 and the finite #737 integration closed, following the step1481
+predecessors. Next are #226 evidence packaging and #227 complete local Gate14;
+neither issue is closed by the finite results below. [Current gate status](completion-gates.md#current-acceptance-october-23-2026)
+is the summary; the recipes and retained receipts here keep their exact scope.
+
 ## Current finite boundary
 
 Original owned Smoke at `32c14ccd` and quota at 256/512 MiB plus positive configured

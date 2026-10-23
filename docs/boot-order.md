@@ -1,17 +1,26 @@
 # Boot Order
 
-Development `BootSequence.RunOwnedLinuxSignals` selects the M16-009 child through
+## Qualified Linux application path
+
+Steps1307/1351/1419/1556 qualify the bounded thread/runtime, socket, Kestrel and
+quota/churn profiles. Ordinary `VerifiedExit` remains terminal and application
+probes remain default off. The ordered source in `BootSequence.cs` is the
+authority; complete Gate14 and general app scheduling remain open.
+
+The earlier wiring checkpoints below were subsequently qualified in step1307.
+
+`BootSequence.RunOwnedLinuxSignals` selects the M16-009 child through
 the same native thread owner after actual APIC and common startup/service/firmware
 admission. Its complete parent closure stays enabled, but the standalone M16-008
 leaf is not also invoked. [Step1254](../done/step1254.md) records source wiring;
-guest qualification remains deferred to the stable batch.
+step1307 supplies the later bounded guest qualification.
 
-Development `BootSequence.RunOwnedLinuxThreads` requires completed startup,
+`BootSequence.RunOwnedLinuxThreads` requires completed startup,
 service stop, revoked firmware authority and actual APIC setup. M16-008 runs
 after PCI/APIC, reusing common memory/descriptor/CPL3 admission with explicit
 saved-user resumption. Existing M16-005 through M16-007 keep their original
 location. [Step1244](../done/step1244.md) records source/host and C# checks only;
-native execution and guest qualification remain pending the stable batch.
+step1307 supplies the later native and guest qualification.
 
 `BootSequence.StageLinuxElfPackage` and `RunOwnedLinuxElfPackage` are explicit
 default-off M16-002 boundaries. Firmware staging precedes the final map/exit
@@ -320,10 +329,11 @@ The no-stdlib EFI artifact also has an `EXIT_BOOT_SERVICES_FRESH_MAP_PROBE` buil
 
 ## Unsupported Behavior
 
-All default reusable hardware phases are pending: OS-owned UEFI snapshot,
-`ExitBootServices`, persistent owned serial and descriptor state, ACPI, PCI,
-storage, network, manifest loading, and app launch. Default-off terminal EFI
-probes below are evidence paths, not emitted `BootSequence` phases.
+Ordinary `VerifiedExit` already has an owned UEFI snapshot, real firmware exit
+and owned diagnostic checks. General continuing hardware services, default
+application launch and firmware-page reclamation remain incomplete. Diagnostic
+and application profiles have explicit BootSequence paths and prerequisites;
+their acceptance does not make them ordinary enabled boot phases.
 
 The IDT descriptor, IDTR descriptor, GDT descriptor, M02-007 caller-owned GDT
 encoder, TSS/IST layout, readiness gate, table and instruction plans, fault-probe

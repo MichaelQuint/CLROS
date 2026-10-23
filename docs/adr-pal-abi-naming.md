@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-OS will eventually expose a flat host/guest PAL ABI for hosted .NET 10/CoreCLR work. The modern SharpOS reference uses `SharpOSHost_*` names for the same conceptual boundary, but this repository is named OS. Reusing the reference prefix in first-party exports would blur product identity and make later hosted-runtime integration harder to audit.
+CLROS reserves a flat host/guest PAL ABI for future .NET 11/CoreCLR work. The modern SharpOS reference uses `SharpOSHost_*` names for the same conceptual boundary, but this project is named CLROS; `OS` remains its assembly/namespace/ABI prefix. Reusing the reference prefix in first-party exports would blur product identity and make later hosted-runtime integration harder to audit.
 
 ## Decision
 
@@ -47,6 +47,10 @@ When adapting code or docs from a reference repository:
 
 ## Consequences
 
-The ABI name now matches the project identity and is easy to grep. Hosted runtime work will need a small adaptation layer when consuming reference material, but the boundary stays explicit and auditable.
+The stable `OSHost_*` prefix matches the repository's technical naming while
+CLROS remains the product name. Future hosted-runtime work may need an
+adaptation layer for reference material; the boundary stays explicit and auditable.
 
-This ADR does not implement any PAL function and does not claim hosted .NET 10, Minimal API, or Kestrel support.
+This ADR does not implement any PAL function and does not itself qualify hosted .NET, Minimal API, or Kestrel support. The
+current Linux NativeAOT route has separate finite guest evidence and keeps its
+syscall/errno/fd contracts distinct from this ABI.

@@ -1,5 +1,12 @@
 # Storage
 
+Current master has bounded post-exit block/GPT/FAT/package diagnostics through
+step1162, not continuing disk-to-Kestrel file service. As of October 23,
+#781 -> #782 host FAT fixes remain open and precede #769 disk fixtures; active
+development is not merged acceptance. The later #770/#771/#773 read-only service
+ladder remains planned. Finite Kestrel/quota acceptance in step1556 does not
+extend storage capabilities.
+
 ## October 19 host parser findings
 
 The [review](repo-audit.md#october-19-whole-project-review) confirms that older
@@ -399,11 +406,12 @@ Kernel-facing parsers should prefer the non-throwing `TryRead` and `TryWrite` va
 
 ## Unsupported Behavior
 
-Beyond the accepted terminal binding/queue, block-contract, LBA0 and bounded GPT
-diagnostics, continuing virtio-blk I/O, writes, flushes,
-discard/TRIM, guest FAT interpretation, boot-time disk-backed package reads,
-MBR fallback, deeper directory traversal, package payload loading and app loading
-remain pending. Legacy parser limitations described below also remain.
+Beyond the accepted bounded block/GPT/FAT/manifest/package diagnostics through
+step1162, continuing virtio-blk I/O, writes, flushes, discard/TRIM, general FAT
+traversal, MBR fallback and demand disk-backed application reads remain pending.
+The Linux ELF application path separately stages immutable packages before
+firmware exit and executes qualified payloads; it does not provide continuing
+disk file service. Legacy parser limitations described below also remain.
 
 ## Tests
 

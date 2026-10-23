@@ -1,5 +1,10 @@
 # Cloud Provider Requirements Traceability
 
+The local implementation now has finite .NET 11 Linux NativeAOT/Kestrel evidence
+through step1556/PR790. Complete local Gate14 (#226/#227), multi-app isolation
+and all provider scopes remain open. The provider requirements below are a
+roadmap, not evidence of deployment; see [current acceptance](completion-gates.md#current-acceptance-october-23-2026).
+
 ## Current Status
 
 This document reconciles the Azure and AWS requirement notes with the current
@@ -44,7 +49,7 @@ Related provider-neutral gates:
 - Gate 7: Storage
 - Gate 8: Networking
 - Gate 9: Native-tier app model
-- Gate 14: Hosted .NET 10 Minimal API/Kestrel
+- Gate 14: .NET 11 NativeAOT Minimal API/Kestrel; future hosted runtime separately qualified
 - Gate 11: Cloud image artifacts
 - Gate 13: Security
 
@@ -63,9 +68,9 @@ Related provider-neutral gates:
 | Cloud metadata / readiness | Specialized no-agent image first. Generalized no-agent flow later requires WireServer goal-state GET and health POST to `168.63.129.16`. | Baked AMI with no SSM/cloud-init first. IMDSv2, user data, IAM credentials, and CloudWatch are later optional tracks. | Azure WireServer goal-state parsing, ready health-body formatting, request metadata, AWS IMDSv2 token/metadata/user-data request planning, and default-deny app metadata policy fixtures are host-tested only. No live provider metadata client or readiness flow exists. | Gates 8, 11, 13 | Keep metadata optional for first specialized/baked boot. Wire policy-mediated metadata access only after live networking and app supervisor boundaries exist. |
 | TLS and ingress | Terminate TLS outside the VM first through Azure ingress or a separate terminator. | Terminate TLS outside the instance first through AWS ingress or a separate terminator. | No TLS stack, certificate store, ALPN, HTTP/2, or HTTPS evidence. | Gates 8, 10, 13 | Do not claim HTTPS. Plain HTTP Kestrel proof is the first hosted workload target. |
 | Native-tier default app model | Single configured workload by default remains the early OS model. | Single configured workload by default remains the early OS model. | Host-tested native manifest/package/payload planning exists. No live app execution. | Gate 9 | Finish single native workload path before treating the OS as a provider multi-app ASP.NET platform. |
-| ASP.NET Minimal API/Kestrel | Mandatory product goal for the CloudReady milestone, preferably Native AOT Minimal API apps. | Mandatory product goal for the CloudReady milestone, preferably Native AOT Minimal API apps or a documented custom OS target/shim. | `MinimalApiSmoke` is host-buildable only. `kestrel.smoke.package.v0` is a future contract. No in-guest hosted .NET 10 or Kestrel support; see [`docs/kestrel.md`](kestrel.md) for the smoke contract. | Gate 14 | Implement hosted runtime/PAL, sockets, timers, threading, package/config access, and an external HTTP probe before claiming Kestrel; provider-scoped claim details live in [`docs/completion-gates.md`](completion-gates.md#gate-14-provider-split). |
-| Multi-app ASP.NET platform | Provider requirement docs describe multiple isolated ASP.NET Minimal API processes with a supervisor. | Provider requirement docs describe multiple isolated ASP.NET Minimal API processes with a supervisor. | No process model, per-process address spaces, scheduler-backed threads, app supervisor, restart policy, per-app ports, or per-app logs. | Gates 6, 8, 9, 10, 13 | Treat multi-app ASP.NET as a later platform track after single-app hosted proof. It requires process isolation and supervisor work beyond the early single-workload default. |
-| Security posture | No SSH, no shell, no Azure agent/extensions initially. Per-app containment required for multi-app. | No SSH, no SSM/cloud-init/CloudWatch agent initially. Per-app metadata control required for multi-app. | Manifest validation and W^X planning are host-tested only. No live process isolation or metadata policy. | Gate 13 | Add kernel/user separation, per-process address spaces, validated syscall pointers, W^X/NX, per-app resource limits, and provider metadata mediation. |
+| ASP.NET Minimal API/Kestrel | Mandatory product goal for the CloudReady milestone, preferably Native AOT Minimal API apps. | Mandatory product goal for the CloudReady milestone, preferably Native AOT Minimal API apps or a documented custom OS target/shim. | Pinned .NET 11 Linux NativeAOT fixtures have finite local Kestrel evidence through step1556. Complete local Gate14 and all provider scopes remain open; `kestrel.smoke.package.v0` remains a separate legacy contract. See [`docs/kestrel.md`](kestrel.md) for the smoke contract. | Gate 14 | Complete #226/#227 local evidence before provider qualification. The NativeAOT route uses the restricted Linux adapter; future CoreCLR/PAL hosting is separate. Provider-scoped criteria live in [`docs/completion-gates.md`](completion-gates.md#gate-14-provider-split). |
+| Multi-app ASP.NET platform | Provider requirement docs describe multiple isolated ASP.NET Minimal API processes with a supervisor. | Provider requirement docs describe multiple isolated ASP.NET Minimal API processes with a supervisor. | No qualified multi-app isolation, per-process resource model, supervisor/restart policy or independent app endpoints/logs. The finite Linux thread/runtime profiles do not qualify those broader capabilities. | Gates 6, 8, 9, 10, 13 | Treat multi-app ASP.NET as a later platform track after single-app hosted proof. It requires process isolation and supervisor work beyond the early single-workload default. |
+| Security posture | No SSH, no shell, no Azure agent/extensions initially. Per-app containment required for multi-app. | No SSH, no SSM/cloud-init/CloudWatch agent initially. Per-app metadata control required for multi-app. | Finite user/kernel mappings, hostile-pointer controls, manifest admission, entropy ownership and quota cleanup have scoped evidence. General process isolation and provider metadata enforcement remain unqualified. | Gate 13 | Add kernel/user separation, per-process address spaces, validated syscall pointers, W^X/NX, per-app resource limits, and provider metadata mediation. |
 | Operational import | Azure resource creation and Compute Gallery deployment are deployment-layer responsibilities. | S3/vmimport or AMI registration, VPC/security group, and EC2 launch are deployment-layer responsibilities. | `docs/cloud-import.md` says provider import is documentation-only and unvalidated. | Gate 11 | Add provider-specific import commands only with validation date, account constraints, artifact hash, and serial evidence. |
 
 ## Milestone Reconciliation
@@ -83,7 +88,7 @@ This remains the base dependency chain:
 5. Networking.
 6. Native-tier single workload.
 7. Cloud image artifacts.
-8. Hosted .NET 10 Minimal API/Kestrel.
+8. .NET 11 NativeAOT Minimal API/Kestrel, then separately qualified hosted-runtime work.
 
 This track keeps the product default narrow: a minimal cloud appliance with one configured workload by default and no general-purpose multi-user surface.
 

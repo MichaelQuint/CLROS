@@ -1,5 +1,23 @@
 # Workload Profiles ADR
 
+## Current roadmap position (October 23, 2026)
+
+PR790 is merged at `82656076`. #748/#225 and the finite #737 integration are
+closed; the fourteen step1481 prerequisites, including #224/#747/#760, are
+closed too. [Step1556](../done/step1556.md) records 6,258 full-host checks,
+847 fixtures and 20 ancestor profiles, plus original owned quota/churn captures.
+Hello/runtime, sockets and finite Kestrel service are already qualified.
+
+#226 evidence packaging -> #227 complete local Gate14 remains the next
+application acceptance boundary. #780 conflict protection and #781 -> #782
+host FAT repairs remain open; the FAT repairs precede #769 disk fixtures.
+The disk/static-file ladder below remains planned. Multi-app isolation and
+provider qualification follow their exact dependencies. Only numbered Gate 2
+passes; see [completion gates](completion-gates.md#current-acceptance-october-23-2026).
+
+Older dated roadmap/evidence paragraphs retain their original scope; refresh
+live issue state and ownership before implementation.
+
 ## Status
 
 Accepted for planning. This document defines workload profile names and gate
@@ -27,10 +45,10 @@ unsupported generic tasks before invocation. Both earlier failed full attempts
 remain failed; the original successful producer and dependencies were preserved
 before documentation rebuilds.
 
-Fourteen finite issue scopes have reviewed support for dependency-ordered
-reconciliation; step1481 names their criteria, original receipts and limitations.
-Tracker closure still requires evidence comments, versioned preview/apply and
-readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
+The fourteen finite predecessor scopes reviewed in step1481 are closed,
+confirmed by the October23 live tracker readback. Step1481 retains their
+criteria, original receipts and limitations; closure does not broaden them.
+Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
 15 individual ancestors and native reviews keep their original `810b3eef` scopes.
 
 Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
@@ -81,10 +99,10 @@ gate advances. See the step for exact commands, hashes and retained failures.
 ## October 19 review follow-up order
 
 The [review](repo-audit.md#october-19-whole-project-review) is frozen at merged
-`2dcd1311`, with separate development `8bb79eb8`; newer work is excluded. Keep
-#737's owner and #224/#747/#748/#760 -> #225 batch. Incorporate #778 and #779
-before #224 acceptance without interrupting sealed runs. Repair the validator
-and re-read original evidence; the socket fix also needs guest qualification.
+`2dcd1311`, with separate development `8bb79eb8`. Its #778/#779 and service
+follow-ups were subsequently qualified by steps1481/1556; #224/#747/#748/#760,
+#225 and #737 are now closed. Preserve those receipts and the ownership of
+currently active successor work.
 
 [#780 tracker conflict protection](http://192.168.4.35:3000/admin/CLROS/issues/780)
 is independent host tooling. Before [#769 disk fixtures](http://192.168.4.35:3000/admin/CLROS/issues/769),
@@ -105,18 +123,19 @@ qualification or qualify a repair.
 `e759827ce349bcb19895cbe269f08feac3fc72c9`, reports development guest HTTP
 responses. Reinspection of retained r12 packets finds Unix-epoch Date headers;
 owned realtime is an external-HTTP acceptance prerequisite. Step1380 now
-qualifies the selected configuration/network slice; step1419 adds bounded UTC/HTTP, while the remaining
-continuing-service ladder stays open. Refresh current master and the tracker
+qualifies the selected configuration/network slice; step1419 adds bounded UTC/HTTP,
+and steps1481/1556 subsequently qualify the named repeated-service/quota/churn
+scopes. Complete local Gate14 remains open. Refresh current master and the tracker
 before implementation. Exact dependencies, owned
 paths, commands and acceptance are in `.gitea/backlog/clros-issues.json`.
 
 | Acceptance stage | Implementation order and required issue work |
 | --- | --- |
-| Qualified application startup | Steps1380/1389/1405 retain #217/#218/#219/#745 and containment prerequisites; step1419 adds bounded #220/#221/#222/#759/#223. Step1477 retains the implemented service foundations under #737; acceptance remains open pending the recorded validation matrix. |
+| Qualified application startup | Steps1380/1389/1405 retain #217/#218/#219/#745 and containment prerequisites; step1419 adds bounded #220/#221/#222/#759/#223. Steps1481/1556 qualify the named repeated-service and quota/churn scopes; #737 is closed. Complete #226/#227 local Gate14 acceptance remains open. |
 | Qualified socket ladder #220-#222 | Step1419 adds actual multi-segment Kestrel responses and same-connection progress across timeout/rejected-frame controls, manifest endpoint policy negatives, exact health and stopped-guest refusal. Preserve the accepted vector/epoll and bounded-prefix restrictions. |
 | Qualified external HTTP #223 | Step1419 qualifies [M16-019 owned realtime](http://192.168.4.35:3000/admin/CLROS/issues/759), observed Date intervals/tolerance, exact status/body/hash/deadline and stale/epoch rejection. The UTC-RTC/HPET source and finite lifetime remain explicit; repeated service follows separately. |
-| Repeated service #224 | Step1437 records the implemented prerequisite [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |
-| Async/memory churn #225 and local Gate 14 | [M16-020 pending signals before renewed waits](http://192.168.4.35:3000/admin/CLROS/issues/760) closes the consumed-readiness race before churn. [M16-015 fragmented physical backing](http://192.168.4.35:3000/admin/CLROS/issues/747) -> [M16-016 GC/native budgets](http://192.168.4.35:3000/admin/CLROS/issues/748) also feed #225. Then preserve #226 evidence and close #227's local gate only against its complete criteria. |
+| Repeated service #224 (closed) | Step1481 qualifies the finite service and its prerequisites. Step1437 records the implemented prerequisite [M16-014 continuing execution policy](http://192.168.4.35:3000/admin/CLROS/issues/746) and [#240 replenished randomness](http://192.168.4.35:3000/admin/CLROS/issues/240). Require [M07-032 pending reset cleanup](http://192.168.4.35:3000/admin/CLROS/issues/757) -> [M07-033 continuing ISNs](http://192.168.4.35:3000/admin/CLROS/issues/758), plus [M07-029 zero-window persist](http://192.168.4.35:3000/admin/CLROS/issues/743) -> [M07-030 compact TIME-WAIT](http://192.168.4.35:3000/admin/CLROS/issues/744). Limits remain explicit; raising finite counters is insufficient. |
+| Async/memory churn #225 (closed); local Gate 14 (open) | Step1556 qualifies #225/#748 after #747/#760; PR790 and live readback complete their closure. [M16-020 pending signals before renewed waits](http://192.168.4.35:3000/admin/CLROS/issues/760) closes the consumed-readiness race before churn. [M16-015 fragmented physical backing](http://192.168.4.35:3000/admin/CLROS/issues/747) -> [M16-016 GC/native budgets](http://192.168.4.35:3000/admin/CLROS/issues/748) also feed #225. Then preserve #226 evidence and close #227's local gate only against its complete criteria. |
 | Two protected local applications | After local Kestrel, [M16-017 CPL3 #UD/#DE containment](http://192.168.4.35:3000/admin/CLROS/issues/749) and [M16-021 SIGPIPE disposition consistency](http://192.168.4.35:3000/admin/CLROS/issues/761) precede #292's general terminate/reap acceptance. Retain the explicit ignored-SIGPIPE restriction until qualified. #291 extends M16-016's resource model; #298 still needs a second protected app surviving failure. Keep the existing M14 process/address-space/descriptor/fairness ladder. |
 | Measured performance | After the local gate, [M15-016 matched workload baselines](http://192.168.4.35:3000/admin/CLROS/issues/750) feeds [M07-031 congestion-controlled flight](http://192.168.4.35:3000/admin/CLROS/issues/751), [M16-018 mutation-scoped audits](http://192.168.4.35:3000/admin/CLROS/issues/752), and existing [#242 bounded release logging](http://192.168.4.35:3000/admin/CLROS/issues/242). Existing #308 retains sustained production load qualification. |
 | C# build-time assurance and specialization | After the local gate, [M11-019 Roslyn effects/context/ownership checks](http://192.168.4.35:3000/admin/CLROS/issues/753) -> [M11-020 independently checked ABI generation](http://192.168.4.35:3000/admin/CLROS/issues/754). ABI generation also waits for M16-017. [M11-021 capability/resource generation](http://192.168.4.35:3000/admin/CLROS/issues/755) then consumes the per-process service boundary #294 and M16-016 budgets. These tools do not block first web or two-app qualification. |

@@ -1,5 +1,11 @@
 # Image Builder
 
+As of October 23, PR790/step1556 qualifies finite application service, not a
+new disk image feature. #781 -> #782 host FAT repairs remain open prerequisites
+for #769 webroot fixtures. Existing v1/V2 package commands retain their exact
+format and source admission; proposed static-file commands below are not yet
+implemented. Preserve the same distinction in image receipts and guest claims.
+
 The planned [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
 will generate deterministic HTML/CSS/JS and boundary assets in the existing
 read-only FAT32 image, preserving EFI/package bytes and both FATs. Its disk-only

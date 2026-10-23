@@ -54,8 +54,9 @@ qualifies the historical .NET 10 static Linux payloads on the task-local Alpine 
 [step1197](../done/step1197.md) preserves development and bootstrap failures.
 [Step1225](../done/step1225.md) qualifies the current .NET 11 Linux r04 recipe:
 three fresh static payloads, runtime exercise, HTTP/configuration/shutdown and
-zero publish warnings. This remains Linux-host evidence; neither unchanged Hello
-nor Kestrel has run inside CLROS.
+zero publish warnings. Those receipts remain Linux-host evidence. Separate
+CLROS guest qualification now covers Hello/runtime (step1307) and finite
+Kestrel profiles (steps1419/1481/1556); complete local Gate14 remains open.
 Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
 
 ```text

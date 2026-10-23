@@ -1,5 +1,15 @@
 # Boot
 
+## Current boot scope
+
+Ordinary `VerifiedExit` performs owned post-firmware checks and halts. Explicit
+default-off Linux profiles progress through package staging, CPL3, scheduler,
+upstream runtime and sockets to finite Kestrel service. Steps1307/1351/1419 and
+[step1556](../done/step1556.md) qualify those named scopes, including quota
+termination/cleanup and async churn. This does not add a default app launcher
+or complete local Gate14. Preserve the `BootSequence` phase order and original
+profile prerequisites. Older receipts below describe their original scope.
+
 M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,
 maps code RX and data RW/NX, and omits data page 3 as the kernel stack guard.

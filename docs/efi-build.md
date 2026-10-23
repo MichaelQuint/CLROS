@@ -1,5 +1,15 @@
 # EFI Build
 
+## Latest qualified inputs
+
+[Step1556](../done/step1556.md), merged by PR790, is the latest finite
+service/quota/churn acceptance. Its full-host/ancestor source is `28a79996`;
+original Smoke retains `32c14ccd`, and quota/V2 retain `20e665ad`. Build and
+source admission must preserve those separate original native/producer joins.
+The .NET 11/C# 14 pins remain in [host requirements](host-requirements.md).
+This documentation refresh creates no new EFI, native review or guest evidence.
+Earlier publication checkpoints below retain their original scope and failures.
+
 [Step1419](../done/step1419.md) qualifies the later bounded service/time batch:
 5,676 unchanged unfiltered host checks, nine strict application captures and
 eight affected ancestors. Exact source/policy forward joins retain the original
