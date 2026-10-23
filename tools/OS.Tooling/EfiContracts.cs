@@ -53,7 +53,10 @@ public static partial class EfiContracts
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
     public const string ProjectSourceSha256 = "7966c7890cf35269abac2695e363bbe15a60b692c6d2535e7929dd13f4a2ae49";
     public const string CanonicalProjectSha256 = "da1092540f07cafbd13118f43513e283145503fcc4e09955b071aa88e7c9fd8b";
-    public const string EfiEntrySourceSha256 = "26c01fcbc6e888537616defedea0ed4a7e03b6e6318bc62ba81ea84f327352d7";
+    // Current normalized source authority for fresh M02/M04 builds (step1555).
+    // Reviewed M16-only changes leave those selected paths unchanged; historical
+    // artifact receipts retain their original source hashes.
+    public const string EfiEntrySourceSha256 = "0be4604de85a39f42ec872f41019dfcb2c205ba492c842896ac1e5cc0c743a2c";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
