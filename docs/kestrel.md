@@ -1,5 +1,17 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1554](../done/step1554.md) records the fresh original owned Smoke at
+`32c14ccd`: the final `qemu.smoke.web-race` gate passes, with21 HTTP roles,
+37 order edges,31 Date values and zero pending headers. Its actual512MiB
+guest and all1,042 preserved files retain exact original source/native joins.
+The subsequent ancestor batch refuses a stale socket consumer source pin
+before native build or guest entry. Independent review finds the socket-used
+publisher helpers unchanged; only the separate current-consumer pin is updated.
+The original socket producer receipt, ELF and instruction identities remain.
+The build and four focused socket-package checks pass with zero reuse.
+Fresh affected ancestors, service refreshes and stable full-host acceptance
+still precede PR790 merge. Complete Kestrel/Gate14 remains incomplete.
+
 [Step1553](../done/step1553.md) preserves the step1552 guest's genuine producer
 ordering failure: the exact overlap GET bytes were consumed before the native
 recovery wait, despite a later route log. The final reader correctly refuses.
