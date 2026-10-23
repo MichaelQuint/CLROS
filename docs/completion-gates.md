@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+## Current static-file implementation boundary (2026-10-23)
+
+[Step1558](../done/step1558.md) records host FAT/tracker repairs, reproducible
+webroot tooling and a published Standalone Blazor candidate. No completion gate
+advances from this development checkpoint. The accepted finite service scope in
+step1556 is preserved. #226/#227, disk-to-HTTP/browser qualification, sustained
+static service, writable FAT32 and SQLite remain open acceptance boundaries.
+
+
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
 memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
 passes the original 829,226ms service lifetime; all three expected memory faults

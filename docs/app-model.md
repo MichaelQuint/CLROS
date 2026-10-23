@@ -1,5 +1,22 @@
 # App Model
 
+## Static-file and Blazor development (2026-10-23)
+
+The approved next batch is disk-first, followed by writable files and SQLite.
+[Step1558](../done/step1558.md) records the opt-in MinimalApiSmoke profile
+`CLROS_STATIC_FILES_PROFILE=v1`, a physical `/app/wwwroot`, and source-generated
+object responses at `/api/status` and `/api/items`. The previous profile keeps
+its original root/health/configuration behavior. The new Standalone Blazor
+fixture runs in the external browser and fetches both JSON routes and the disk
+variant nonce; its WebAssembly assets are ordinary files served by the future
+guest NativeAOT server.
+
+The pinned Windows client publication succeeds. Linux-reference file ABI,
+staged guest middleware and actual post-readiness disk HTTP remain separate
+qualification steps. The complete Blazor tree is not staged in the ELF/package:
+#772 keeps the small staged fixture; #774 must prove the real disk/browser path.
+
+
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
 implementation `88b02b4d`: 5,676 unchanged unfiltered full-host checks across
 757 fixtures (94 Native), six strict web/quota prefixes, three finite policy/vector

@@ -34501,7 +34501,7 @@
       "dependencyKeys": [
         "M10-011"
       ],
-      "currentEvidence": "Master aaefd322 (2026-10-18) retains step1419's bounded Kestrel /healthz and source-generated /config responses. The #737 service batch remains development-only: step1430 has no successful combined full capture or service-worker execution. No disk-backed StaticFileMiddleware path is qualified.",
+      "currentEvidence": "Approved disk-first/then-write implementation batch is underway in done/step1558.md. The explicit v1 server profile adds physical /app/wwwroot middleware and generated JSON; a real pinned .NET11 standalone Blazor client publishes successfully. Raw prepared framework assets total43 files/5921991 bytes before generated HTML/CSS; largest wasm is2009369 bytes. Two initial JSON/profile tests pass. Linux-reference syscall/HTTP qualification, exact candidate admission and guest qualification remain pending.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -34513,7 +34513,8 @@
         "Use the current SDK/runtime/compiler/native pins from NativeAotPayload.cs, not the .NET10 documentation version. On the qualified Linux musl builder publish, hash and trace startup plus GET/HEAD, ranges, conditional requests, 404, concurrent reads and shutdown. Inspect pinned StaticFileContext, PhysicalFileProvider, FileStream/RandomAccess and System.Native implementations.",
         "Record actual syscall numbers, wire layouts, flags, offsets, errno and fallback behavior. Determine whether pread64, stat-family calls, directory operations, sendfile, mmap, fadvise or watchers are exercised; do not implement an unmeasured list or silently claim unsupported operations succeeded.",
         "Retain a source/trace contract and exact candidate ELF/package admission. Include empty DTO collections, Unicode, null policy and content-type checks. Add a documented runnable qualifier extension under nativeaot static-files; list all new options in the receipt.",
-        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance."
+        "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
+        "Approved 2026-10-23: include a real C# standalone Blazor client with pinned .NET11 browser-wasm outputs. Generate host HTML/CSS via C# tooling; serve raw assets without PWA/service workers or compressed sidecars. Keep the existing small staged middleware fixture separate from the complete disk-only Blazor webroot."
       ],
       "referenceInfluences": [
         {
@@ -34546,7 +34547,16 @@
         "docs/kestrel.md",
         "docs/app-model.md",
         "docs/host-requirements.md",
-        "tools/OS.Tooling/ToolCommand.cs"
+        "tools/OS.Tooling/ToolCommand.cs",
+        "apps/BlazorStaticFilesSmoke/BlazorStaticFilesSmoke.csproj",
+        "apps/BlazorStaticFilesSmoke/Program.cs",
+        "apps/BlazorStaticFilesSmoke/StaticFileDemo.cs",
+        "apps/MinimalApiSmoke/StaticFileApplication.cs",
+        "apps/MinimalApiSmoke/StaticFileItemsResponse.cs",
+        "tools/OS.Tooling/BlazorStaticFileAssets.cs",
+        "tools/OS.Tooling/NativeAotPayload.cs",
+        "tests/OS.HostTests/NativeAotStaticFileEvidenceTests.cs",
+        "CLROS.slnx"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34569,7 +34579,10 @@
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-Linux-builder-evidence-directory>"
+        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-Linux-builder-evidence-directory>",
+        "dotnet publish apps/BlazorStaticFilesSmoke/BlazorStaticFilesSmoke.csproj -c Release --nologo -o <fresh-artifacts-publish> -m:1",
+        "dotnet run --project tools/OS.Tooling -- nativeaot static-files prepare-client <published-wwwroot> <fresh-artifacts-webroot>",
+        "dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-Linux-evidence> --webroot <prepared-webroot>"
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",
@@ -34605,7 +34618,7 @@
         "M11-024",
         "M11-025"
       ],
-      "currentEvidence": "Steps1150/1152/1156 qualify bounded GPT/FAT/package reads. FatImageFixture and PackageImageFixture mutate controlled disk fixtures; they do not provide a Kestrel webroot or continuing filesystem.",
+      "currentEvidence": "Development implementation in done/step1558.md adds a measured recursive VFAT webroot importer, independent image extraction/extent receipts, preserved EFI/package/manifest identities, equal-layout DiskA/DiskB nonce variants and four controlled corruption variants. Six focused native-lane host image tests pass before a final CRC-valid GPT-range consistency control; final rerun and real candidate/image binding remain pending. No live guest disk/HTTP/write claim.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -35001,7 +35014,8 @@
         "Bound descriptors, requests, file/metadata caches and outstanding byte buffers. Backpressure must preserve NIC/timer/GC/other-request progress. Close, process exit and storage reset release or quarantine the correct original handles; stale completions cannot target reused fds.",
         "Use a mechanical user-mode file exercise before Kestrel, then retain the same code/profile for the integrated batch. Source references include LinuxDescriptorServices*.cs, LinuxSyscallGateway.cs, existing wait/worker ownership in the currently accepted service implementation and M16-024's exact file contract.",
         "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
-        "The contract table must state exact errno for absent paths (ENOENT), non-directory components (ENOTDIR), reading directories (EISDIR), write/mutation requests (EROFS or the measured access error), invalid seek/overflow, unsupported syscalls and device failures (EIO). Test both raw syscall and .NET exception/HTTP behavior."
+        "The contract table must state exact errno for absent paths (ENOENT), non-directory components (ENOTDIR), reading directories (EISDIR), write/mutation requests (EROFS or the measured access error), invalid seek/overflow, unsupported syscalls and device failures (EIO). Test both raw syscall and .NET exception/HTTP behavior.",
+        "Approved 2026-10-23: the primary integrator owns thread-service pending disk-operation wiring and its lifecycle/signal checks under this shared lane. Reuse owned blocking continuations and include disk operations in revoke/reap and signal eligibility checks; do not poll storage inside IRQ-off descriptor callbacks."
       ],
       "referenceInfluences": [],
       "ownedPaths": [
@@ -35028,7 +35042,11 @@
         "docs/efi-build.md",
         "docs/security.md",
         "docs/workload-profiles.md",
-        "tools/OS.Tooling/ToolCommand.cs"
+        "tools/OS.Tooling/ToolCommand.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Pipes.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Disk.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Signals.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -35138,7 +35156,8 @@
         "Actual cold block requests occur after Kestrel readiness and map to the requested asset bytes. Changing only the disk contents changes responses; missing/corrupt/disk-read failures cannot return successful stale asset bytes.",
         "GET/HEAD, length/media type, single ranges/416, conditional requests/304 and absent files match the pinned upstream contract. Path confinement holds through middleware and raw syscall controls, including an outside-root sentinel.",
         "Concurrent assets and JSON stay responsive under declared budgets. Each finite run follows the accepted service shutdown and demonstrates file/fd/storage cleanup or explicitly retains uncertain DMA with a failing outcome; runner kill is not graceful-cleanup proof.",
-        "Independent admission/HTTP/evidence negative controls reject swapped disk/package/serial, omitted read receipts, stale browser output and incorrect hashes. Document the exact bounded demo scope without claiming full service, Gate7/Gate14, cloud or production."
+        "Independent admission/HTTP/evidence negative controls reject swapped disk/package/serial, omitted read receipts, stale browser output and incorrect hashes. Document the exact bounded demo scope without claiming full service, Gate7/Gate14, cloud or production.",
+        "The external browser boots the actual pinned Standalone Blazor WebAssembly client from the guest FAT32 webroot, loads its framework WASM/JavaScript and generated CSS, displays both MinimalApi DTO results and the independently fetched disk-variant nonce, and retains network evidence plus an attached screenshot. A host browser demo alone does not qualify this criterion."
       ],
       "requiredMarkers": [
         "TEST_PASS host.tests.focused",
@@ -35421,7 +35440,7 @@
         "M00-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p2",
         "type:tooling",
         "evidence:host",
@@ -35443,7 +35462,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Make backlog synchronization preserve concurrent unmanaged issue text and labels and fail clearly on a write conflict.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Offline API fixture injects an operator note after the issue-list snapshot during evidence-comment reads. ReconcileAsync applies stale body and returns0; output: injected=True retained=False syncExit=0. Existing5 cases pass; expected-preservation case fails. BacklogSync.cs:99 snapshots remote state; lines149-169 merge and PATCH without fresh issue content_version. The live server exposes content_version (fresh #224 read returned10). No real user note was erased by this review. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Development repair in done/step1558.md: fresh issue GET and content_version PATCH, immediate content readback, additive/specific managed-label edits, and one unpaginated comment inventory. Eleven focused BacklogSyncTests pass, including zero/negative versions and ambiguous open ownership. Sentinel and stale-zero version-only live LAN PATCH controls return HTTP409 with body/title/version unchanged. No runtime or guest acceptance; reviewed closure remains pending.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35472,7 +35491,7 @@
         "docs/issue-labels.md",
         "docs/windows-handoff.md"
       ],
-      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "evidenceBoundary": "Host tooling/parser development and focused verification only. Original October19 reproductions and failures remain in done/step1440.md and issue attachments. Reviewed closure is pending; no new guest, Kestrel, numbered gate, isolation, writable storage, cloud or production claim.",
       "desiredState": "open"
     },
     {
@@ -35484,7 +35503,7 @@
         "M06-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p2",
         "type:tooling",
         "evidence:host",
@@ -35507,7 +35526,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Do not return successful file bytes from stale FAT0 when the BPB selects FAT1.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Normal-harness synthetic disk has65525 data clusters, two512-sector FATs, BPB_ExtFlags=0x81 (FAT1 active) and equally long divergent FAT chains. Distinct per-cluster bytes prove returned content follows stale FAT0 while result is Success. Existing37 tests pass; the new expected-correct-or-reject case fails. Fat32Parser.ParseBpb at827-956 ignores offsets40-43 and sets FirstFatLba to the first copy; ReadFatEntry at608 uses it. The separate live FATClusterChainsLoopBadClusterTruncationDetection.ParseBpb already rejects nonzero flags/version and is not the failing implementation. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Development repair in done/step1558.md: host BPB parsing rejects nonzero ExtFlags/FSVer with UnsupportedGeometry before file-chain reads. Distinct-cluster divergent-FAT and mirrored-mode controls pass within 47 focused StorageFat32ParserTests. Live numeric parser and accepted guest scopes are unchanged; reviewed closure remains pending.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35543,7 +35562,7 @@
         "docs/image-builder.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "evidenceBoundary": "Host tooling/parser development and focused verification only. Original October19 reproductions and failures remain in done/step1440.md and issue attachments. Reviewed closure is pending; no new guest, Kestrel, numbered gate, isolation, writable storage, cloud or production claim.",
       "desiredState": "open"
     },
     {
@@ -35555,7 +35574,7 @@
         "M11-024"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p2",
         "type:tooling",
         "evidence:host",
@@ -35577,7 +35596,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Use an explicit traversal/memory budget for host directory reads instead of allocating an entry for every cluster on disk.",
-      "currentEvidence": "October19 deep review at merged 2dcd1311490074b33096d8561eed575b887a45b8. Measured local characterization: a sparse in-memory block device advertises valid geometry with1,000,000 clusters and an empty root. ReadRootDirectoryEntries completes after two sector reads and returns0 entries, but GC.GetAllocatedBytesForCurrentThread grows4,001,096 bytes. Lines184-186 and1014-1016 allocate uint[volume.ClusterCount], chosen at1148-1159. This is measured allocation scaling, not a demonstrated process OOM or guest regression; the live parser already takes caller-owned bounded history. See done/step1440.md and docs/repo-audit.md; reproduction patch/log is attached to the issue. This records a finding, not a qualified fix.",
+      "currentEvidence": "Development repair in done/step1558.md: default directory traversal uses one fixed4096-entry stack history; caller Span<uint> overloads reuse explicit scratch and report DirectoryBudgetExceeded distinctly from cycles/output exhaustion. Forty-seven focused FAT tests pass; 32 empty-directory walks allocate34304 bytes for both65525-cluster and one-million-cluster volumes. Existing host sector buffers and file-length-based content scratch remain; no allocation-free or guest claim. Reviewed closure remains pending.",
       "implementationNotes": [
         "Keep the active #737 developer's batch and sealed inputs intact. Integrate this slice at the stated acceptance boundary; review has claimed no runtime files.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -35609,7 +35628,7 @@
         "docs/image-builder.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Host reproduction or measurement only. No fix, live attack, new guest acceptance, numbered gate, general Kestrel, isolation, cloud or production claim.",
+      "evidenceBoundary": "Host tooling/parser development and focused verification only. Original October19 reproductions and failures remain in done/step1440.md and issue attachments. Reviewed closure is pending; no new guest, Kestrel, numbered gate, isolation, writable storage, cloud or production claim.",
       "desiredState": "open"
     },
     {

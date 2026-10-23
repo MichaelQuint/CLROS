@@ -162,6 +162,15 @@ SMP and cloud-provider qualification follow the first working NativeAOT service.
 The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 [architecture](docs/architecture.md) and [PAL](docs/pal.md) explain the boundaries.
 
+## Current implementation batch
+
+The approved next milestone serves an actual Standalone Blazor WebAssembly app
+from a FAT32 webroot through the NativeAOT MinimalApi. Persistent logs/uploads
+and SQLite follow the read milestone. [Step1558](done/step1558.md) records current
+host-only development: tracker/FAT repairs, reproducible disk fixtures and the
+published Blazor candidate. Continuing guest disk reads and disk-backed HTTP are
+not qualified yet. The branch keeps accepted step1556 evidence unchanged.
+
 ## Next implementation
 
 The [architecture review implementation order](docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16)

@@ -1,5 +1,26 @@
 # Host Requirements
 
+## Static-file candidate host work (2026-10-23)
+
+[Step1558](../done/step1558.md) records a successful Standalone Blazor publication
+using the existing pinned SDK/runtime. `nativeaot static-files prepare-client`
+retains raw SDK assets and generates host HTML/CSS; compression/debug sidecars
+are excluded from the disk fixture. The browser client uses the standard
+WebAssembly runtime and does not change the NativeAOT server architecture.
+The new Linux-only reference command is:
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --output <fresh-directory> --webroot <prepared-webroot>
+dotnet run --project tools/OS.Tooling -- nativeaot static-files validate <evidence-directory>
+```
+
+It reuses the pinned publisher for MinimalApiSmoke, records per-thread file/HTTP
+traces, checks metadata/ranges/JSON/assets and owns shutdown. Its receipt remains
+Linux-reference evidence; the first complete successful invocation is pending.
+The development builder uses a fresh writable overlay over explicitly read-only
+archived layers, preserving the cleanup archive and original evidence.
+
+
 The shared host-validation project now lives under
 `src/OS.Std.NoRuntime.Shared`, alongside OS and OS.Kernel. It links existing
 audited source from `std/no-runtime/shared`. Existing solution commands
@@ -54,8 +75,8 @@ qualifies the historical .NET 10 static Linux payloads on the task-local Alpine 
 [step1197](../done/step1197.md) preserves development and bootstrap failures.
 [Step1225](../done/step1225.md) qualifies the current .NET 11 Linux r04 recipe:
 three fresh static payloads, runtime exercise, HTTP/configuration/shutdown and
-zero publish warnings. This remains Linux-host evidence; neither unchanged Hello
-nor Kestrel has run inside CLROS.
+zero publish warnings. This remains Linux-host publication evidence. CLROS guest runtime and finite
+Kestrel qualifications are separately recorded in steps1307/1419/1556.
 Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
 
 ```text

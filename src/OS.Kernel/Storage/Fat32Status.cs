@@ -42,5 +42,6 @@ public enum Fat32Status
     DirectoryFatReadFailed = 37,
     DirectoryFatShortRead = 38,
     DirectoryClusterChainLoop = 39,
-    InvalidDirectoryNextCluster = 40
+    InvalidDirectoryNextCluster = 40,
+    DirectoryBudgetExceeded = 41
 }

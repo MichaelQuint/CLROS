@@ -18,14 +18,18 @@ dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001
 dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001 --apply
 ```
 
-**Known concurrency defect:** [#780](http://192.168.4.35:3000/admin/CLROS/issues/780)
-reproduces a lost concurrent unmanaged note in compiled apply. Until repaired,
-preview is safe; existing-body updates need fresh GET, preserved unmanaged text
-and labels, current `content_version`, conflict handling and exact readback.
-This review used compiled creation for five new issues, versioned API writes
-for five existing records, then a zero-change scoped preview. The current
-manifest has 394 issues (17 epics, 377 children); auxiliary keyed live issues are
-separate. Historical inventory counts below retain their original dates.
+**Development repair:** [#780](http://192.168.4.35:3000/admin/CLROS/issues/780)
+now refetches each issue before applying current-version content, reads content
+back immediately, and changes labels with additive/specific-label operations.
+Whole-label replacement has no version precondition on this server and is not
+used by synchronization. Conflicts fail without blindly replaying stale content;
+unmanaged labels and sticky ownership survive fresh reconciliation. Open issues
+with conflicting ownership markers fail before either marker can be deleted.
+Eleven focused checks and no-content-change live409 controls (including version
+zero) pass. Nonnegative versions are valid; missing/negative versions fail.
+Final review/closure remains
+pending in [step1558](../done/step1558.md). Comments are read once without paging
+and checked against the advertised count before evidence-based closure.
 
 Selection limits issue writes while retaining the complete dependency and
 ownership graph; relevant label/milestone definitions are reconciled too.

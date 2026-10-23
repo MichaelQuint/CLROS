@@ -476,7 +476,8 @@ public static partial class NativeAotWebPayload
         }
     }
 
-    internal static Process Start(string executable, string[] args, string root, string? expectedBody = "OS_MINIMAL_API_OK")
+    internal static Process Start(string executable, string[] args, string root, string? expectedBody = "OS_MINIMAL_API_OK",
+        IReadOnlyDictionary<string, string>? environment = null)
     {
         var start = new ProcessStartInfo("setsid") { WorkingDirectory = root, UseShellExecute = false,
             RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
@@ -491,6 +492,8 @@ public static partial class NativeAotWebPayload
         start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
         start.Environment["DOTNET_ENVIRONMENT"] = "Production";
         start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+        start.Environment.Remove("CLROS_STATIC_FILES_PROFILE");
+        if (environment is not null) foreach (var pair in environment) start.Environment[pair.Key] = pair.Value;
         return Process.Start(start) ?? throw new IOException("native_process_start");
     }
 

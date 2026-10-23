@@ -1,12 +1,32 @@
 # Image Builder
 
+## Webroot fixture development (2026-10-23)
+
+[Step1558](../done/step1558.md) adds the host-side recursive FAT32 webroot importer
+and an independent GPT/BPB/VFAT byte verifier. It accepts a measured prepared
+asset tree and writes a fresh image under `artifacts`; the original image is
+preserved. DiskA and DiskB have the same executable/package and asset layout,
+with one different byte in `fixture-nonce.txt`. Read-only attributes and declared
+1980-01-01 UTC metadata are deterministic. Empty, nested, fragmented and larger
+than64KiB controls plus an outside-root sentinel are generated separately.
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot static-files prepare-client <published-wwwroot> <fresh-artifacts-webroot>
+dotnet run --project tools/OS.Tooling -- nativeaot static-files image <base-image> <prepared-webroot> <fresh-artifacts-image> DiskA
+```
+
+The image command emits `<image>.webroot.json` with measured assets, preserved
+files and physical extents. Six final focused host checks pass; #769 still needs
+exact qualified candidate binding. A host image receipt is not guest disk/HTTP proof.
+
+
 The planned [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
 will generate deterministic HTML/CSS/JS and boundary assets in the existing
 read-only FAT32 image, preserving EFI/package bytes and both FATs. Its disk-only
 variants use the same application ELF/package with different asset contents;
 an independent readback records exact paths, cluster/LBA extents, lengths,
 timestamp policy and hashes. A separate staged variant supports #772 only.
-The proposed fixture command in the issue is not implemented yet. See the
+The development command above implements the host fixture portion. See the
 [dependency roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18).
 
 Linux ELF v1 package/staging is qualified in

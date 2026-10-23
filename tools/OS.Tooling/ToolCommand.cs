@@ -6,6 +6,31 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["nativeaot", "static-files", "image", var baseImage, var assetsRoot, var diskOutput, var diskVariant])
+            {
+                string repository = Repository.FindRoot();
+                var snapshot = WebRootImageFixture.SnapshotPublishedRoot(assetsRoot);
+                var receipt = WebRootImageFixture.Apply(repository, baseImage, assetsRoot, snapshot, diskOutput, diskVariant);
+                WebRootImageFixture.Verify(diskOutput, receipt);
+                using var receiptFile = new FileStream(Path.GetFullPath(diskOutput) + ".webroot.json", FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                System.Text.Json.JsonSerializer.Serialize(receiptFile, receipt);
+                Console.WriteLine("TEST_PASS nativeaot.static-files.image variant=" + diskVariant + " sha256=" + receipt.FinalSha256);
+                return 0;
+            }
+            if (args is ["nativeaot", "static-files", "prepare-client", var publishedRoot, var clientRoot])
+            {
+                BlazorStaticFileAssets.Prepare(Repository.FindRoot(), publishedRoot, clientRoot);
+                Console.WriteLine("TEST_PASS nativeaot.static-files.prepare-client");
+                return 0;
+            }
+            if (args is ["nativeaot", "static-files", "host-page", var publishedWebRoot])
+            {
+                BlazorStaticFileAssets.WriteHostPage(Repository.FindRoot(), publishedWebRoot);
+                Console.WriteLine("TEST_PASS nativeaot.static-files.host-page");
+                return 0;
+            }
+            if (args.Length >= 3 && args[0] == "nativeaot" && args[1] == "static-files")
+                return NativeAotStaticFileContract.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args is ["linux", "web-index", var webElf, var webDump])
             {
                 Console.WriteLine("TEST_START linux.web-index");
@@ -219,6 +244,7 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
+                Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");
                 Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");

@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/apps/">
+    <Project Path="apps/BlazorStaticFilesSmoke/BlazorStaticFilesSmoke.csproj" />
     <Project Path="apps/DiagnosticApp/DiagnosticApp.csproj" />
     <Project Path="apps/FetchApp/FetchApp.csproj" />
     <Project Path="apps/HelloSharpFs/HelloSharpFs.csproj" />

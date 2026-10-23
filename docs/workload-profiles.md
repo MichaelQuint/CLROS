@@ -140,6 +140,31 @@ analysis, documentation or a longer diagnostic timeout cannot close a guest
 issue. See [review evidence](repo-audit.md#october-16-architecture-review) and
 [completion gates](completion-gates.md#architecture-review-acceptance-boundaries).
 
+## Approved implementation continuation (2026-10-23)
+
+The user approved ten related issues: #780, #781 -> #782, and #768-#774, with
+one storage subagent and one primary integrator. #224/#225/#737 are closed on
+LAN master at82656076; #226/#227 remain open. The historical roadmap below
+retains its original planning context; its first service prerequisite is now
+satisfied within step1556's finite boundary. Preserve original owners/evidence,
+serialize shared boot/native/guest work, and qualify dependencies before closure.
+
+The first disk demo now includes the actual pinned Standalone Blazor WebAssembly
+client, not only HTML/CSS/JavaScript. The client loads its raw framework assets
+from FAT32 and renders `/api/status`, `/api/items` and a disk-only nonce. Keep
+#772's staged fixture small; disk mode must not embed/stage the complete assets.
+[Step1558](../done/step1558.md) records development only.
+
+After this read milestone, #226/#227/#775 accompany six bounded successor
+issues: measured write/SQLite contracts; continuing writable block plus flush;
+FAT create/grow/overwrite/truncate/delete; confined writable Linux descriptors
+and locking; log/upload restart persistence; and pinned SQLite rollback-journal
+transactions/recovery. #468's preallocated in-place overwrite remains a separate
+limited scope. No successful sector write alone establishes durable commits.
+After each batch audit README, all first-party docs/guides and Gitea, update
+every affected statement, retain a new immutable done receipt, merge only
+verified work, reconcile/read back the tracker, and continue the durable goal.
+
 ## Disk-backed static-file roadmap (2026-10-18)
 
 This is planned work, recorded in [step1431](../done/step1431.md). The initial

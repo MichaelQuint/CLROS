@@ -1,5 +1,23 @@
 # Storage
 
+## Current development batch (2026-10-23)
+
+[Step1558](../done/step1558.md) records development of #781/#782 host FAT repairs
+and #769's reproducible webroot fixtures. The host parser rejects unsupported
+FAT flags/version and offers reusable directory-history spans with a default
+4096-cluster budget. Directory budget exhaustion is distinct from a cycle or
+full output buffer. The 47 focused parser checks pass; the live numeric parser
+and its earlier guest scope are unchanged.
+
+The new host importer measures the prepared Blazor asset inventory, preserves
+EFI/package/manifest files, writes equal-layout DiskA/DiskB variants, and
+independently reconstructs file hashes and logical-order physical extents.
+Its six initial native-lane host checks pass; the final GPT consistency control
+and real candidate binding still need verification. These are host results.
+Continuing guest reads, application file descriptors and disk-backed HTTP remain
+#770 -> #771 -> #773 -> #774; writable files remain the following ladder.
+
+
 ## October 19 host parser findings
 
 The [review](repo-audit.md#october-19-whole-project-review) confirms that older

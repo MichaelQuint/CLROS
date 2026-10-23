@@ -1,5 +1,22 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+## Static-file candidate development (2026-10-23)
+
+[Step1558](../done/step1558.md) starts the approved #780/#781/#782 and #768-#774
+batch. The selected v1 application uses upstream default-file/static middleware,
+physical `/app/wwwroot` and generated JSON DTOs. It admits HTML/CSS/JavaScript,
+JSON/text, WASM and bounded binary assets explicitly; directory listing, unknown
+extensions, native executables/config files and compressed sidecars are not
+served. The qualification profile sends `Cache-Control: no-store`; upstream
+range, ETag and Last-Modified behavior remains independently checked.
+
+The real Standalone Blazor client publishes with the pinned .NET11 SDK. This
+is development evidence, not CLROS static-file acceptance. #768 must retain the
+Linux NativeAOT per-thread traces and HTTP matrix; #772 qualifies staged file
+APIs, and #773/#774 add live disk descriptors and an external browser witness.
+#775 remains the later sustained service and clean-shutdown milestone.
+
+
 ## Current finite boundary
 
 Original owned Smoke at `32c14ccd` and quota at 256/512 MiB plus positive configured

@@ -205,6 +205,18 @@ This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use
 `docs/documentation-map.md` to find the canonical source for each topic.
 
+## Current approved batch (2026-10-23)
+
+The durable goal covers NativeAOT MinimalApi, an actual Standalone Blazor client
+served from FAT32, then persistent logs/uploads and SQLite. The first batch is
+#780, #781 -> #782 and #768-#774. Use exactly one storage subagent; the primary
+agent owns shared integration, documentation, tracker and serialized builds.
+[Step1558](done/step1558.md) records current development. #224/#225/#737 are
+closed within step1556's finite scope; #226/#227 and all new disk/write claims
+remain open. After each5-10 issue batch audit README, all first-party docs and
+guides, update affected Gitea issues/comments and canonical records, retain
+immutable evidence, commit/push/review/merge verified work and continue.
+
 ## Project Identity
 
 The project name is `CLROS`.

@@ -17,7 +17,10 @@ try
     // The qualification profile uses immutable configuration and HTTP/1.1 only.
     // Set this before default configuration providers are created, so no watcher starts.
     Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
-    var builder = WebApplication.CreateSlimBuilder(args);
+    bool staticFiles = StaticFileApplication.SelectProfile(Environment.GetEnvironmentVariable("CLROS_STATIC_FILES_PROFILE"));
+    var builder = staticFiles
+        ? WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = args, WebRootPath = "/app/wwwroot" })
+        : WebApplication.CreateSlimBuilder(args);
     builder.WebHost.ConfigureKestrel(options =>
         options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http1));
     builder.Services.ConfigureHttpJsonOptions(options =>
@@ -28,9 +31,10 @@ try
     var app = builder.Build();
     Console.Error.WriteLine("CLROS_APP_BUILT minimal.api.smoke");
 
-    app.MapGet("/", (IConfiguration configuration) =>
-        TypedResults.Text(GetExpectedBody(configuration), "text/plain"))
-        .WithName("KestrelSmokeRoot");
+    if (staticFiles) StaticFileApplication.Configure(app);
+    else app.MapGet("/", (IConfiguration configuration) =>
+            TypedResults.Text(GetExpectedBody(configuration), "text/plain"))
+            .WithName("KestrelSmokeRoot");
 
     app.MapGet("/healthz", (IConfiguration configuration) =>
         TypedResults.Text(GetExpectedBody(configuration), "text/plain"))
@@ -111,6 +115,7 @@ try
     });
 
     app.Run();
+    if (staticFiles) Console.Error.WriteLine("CLROS_STATIC_FILES_APP_END v1");
     GC.KeepAlive(startupWitness);
 }
 catch
