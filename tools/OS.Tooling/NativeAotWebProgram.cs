@@ -13,7 +13,7 @@ public sealed class NativeAotWebProgram
 {
     internal const int MaximumDisassemblyBytes = 128 * 1024 * 1024;
     internal const int ElfBytes = 8_870_568;
-    private const string ElfSha256 = "352710C620BF5651270EBF60D1D6847D020DA76E1E03C6ABE7EDC4A6161E9929";
+    private const string ElfSha256 = "17133A28D440014E3899D04981959FC74A89B5E8E5743AD7D3A873A6111E2C8E";
     private readonly NativeAotInstructionIndex index;
     internal string SourceRoot { get; }
     /// <summary>Complete decoder identity; a report alone grants no lookup authority.</summary>
@@ -87,10 +87,10 @@ public sealed class NativeAotWebProgram
         sources.VerifyUnchanged(); return new(root, parsed);
     }
 
-    // LLVM22.1.3: all 4,586,287 bytes of five executable sections, every 198
+    // LLVM22.1.3: all 4,586,383 bytes of five executable sections, every 198
     // syscall continuation and the original entry. Executable-load bytes outside
     // these sections grant no starts. This is not a control-flow proof.
-    private static Inspection Reviewed => new(1_429_905, 198, "2A64C746E43305781276F759BE3BA8DD06E9A72AC2E1C1833D76BDE3858EAB42");
+    private static Inspection Reviewed => new(1_429_942, 198, "02CAE2617DD0198AFF93C0CAA9B4DE2976E3824391A475835DEFE93DCEBA0182");
 
     /// <summary>Reads distinct bounded plain single-link package/dump snapshots
     /// under concurrent read locks, then prepares lookup. Files remain caller-owned;
@@ -139,7 +139,7 @@ public sealed class NativeAotWebProgram
         ("tools/OS.Tooling/NativeAotPayload.cs", "44F16ABB380FE7F3CD42BA3C7E54710172F0320998CF2E85E296F8A7CE184AA5"),
         ("apps/MinimalApiSmoke/Program.cs", "EA20A6457F22DBBA7EB0FC0423266E41B335B405802D3F4D980690FDBE539C5E"),
         ("apps/MinimalApiSmoke/KestrelChurnExercise.cs", "5EEF724987A8FEA8BF4ADF667DA5DC578B8DA1A6A62477A550295546D66CBDF1"),
-        ("apps/MinimalApiSmoke/KestrelSignalProbe.cs", "640755759A924C90F49CDB071E7DDFBFB348704416FF78D91B6040DEEC4E8F40"),
+        ("apps/MinimalApiSmoke/KestrelSignalProbe.cs", "9B44F56033CE3871CD95D5479D2BFA7C656AADEA898AD63C38B5B69B5C9982A2"),
         ("apps/MinimalApiSmoke/KestrelSignalProbeAbi.cs", "8FFA4BBB46191D805EEBAD93E8EB7D9B3DA8AE8265C1BD7A4AC231119CF3328A"),
         ("apps/MinimalApiSmoke/KestrelSignalRaceState.cs", "DC9280162252D0A0D3134AF1AFB4BF9C891602F11CDB093C3B94032D779BB80B"),
         ("apps/MinimalApiSmoke/KestrelVectorExercise.cs", "0A2E42A133FD7D56767686D388D9DA22D464B3955E6AA31BF386D5CDF3A87001"),

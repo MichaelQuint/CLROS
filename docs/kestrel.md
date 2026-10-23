@@ -1,5 +1,16 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1552](../done/step1552.md) records the fresh original Linux-native-v8
+qualification and independent bounded source/debug/body/instruction review for
+the step1550 actor. All 932 source files, 970 frozen inputs, six compiler outputs
+and 191 publication outputs join the preserved originals. The new exact ELF and
+complete 1,429,942-instruction/198-syscall index replace only the previous
+prepared-program identities; all 14 app/build/publisher source guards remain.
+The host build, solution build, six focused admission checks and actual
+prepared-package Read with five refusal controls pass. Fresh owned CLROS
+qualification, affected ancestors, service refreshes and full-host acceptance
+still precede PR790 merge.
+
 [Step1550](../done/step1550.md) moves the event-owned actor's clock/token
 preparation before its final yield and checks the same absolute lifetime after
 the finite write/signal/read transaction. A cached linked token and Abort still
