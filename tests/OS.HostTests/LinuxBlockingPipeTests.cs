@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
 using OS.Pal;
@@ -67,6 +68,31 @@ internal static unsafe class LinuxBlockingPipeTests
             HostCheck.True(new ReadOnlySpan<byte>(Files.Admission.PipeBuffers, (int)(Files.Admission.PipeCount * Files.Admission.PipeCapacity)).IndexOfAnyExcept((byte)0) == -1);
         }
         public void Dispose() { Files.Dispose(); Thread.Dispose(); }
+    }
+
+    [HostTest("linux.descriptor thread dispatch rejects changed ownership and mappings before selecting or mutating a pipe")]
+    private static void ThreadCallAdmission()
+    {
+        for (int kind = 0; kind < 3; kind++)
+        for (int damage = 0; damage < 2; damage++)
+        {
+            using Owner o = new(); var m = o.Thread;
+            var parent = m.Start(); HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
+            var pipe = o.Pipe(kind == 0 ? 0U : Descriptors.NonBlock);
+            uint descriptors = o.Files.State->ActiveDescriptors;
+            m.Put32(Data, 0x63);
+            ulong* changed = damage == 0
+                ? (ulong*)((byte*)o.Files.State + Marshal.OffsetOf<Descriptors.State>("ThreadOwner"))
+                : o.Files.Memory.Memory.Tables + 1;
+            ulong original = *changed; *changed ^= 2;
+            var result = kind == 2 ? o.Call(72, pipe.Write, 0, 3) : o.Call(1, pipe.Write, Data, 1);
+            HostCheck.Equal(LinuxSyscallAction.Rejected, result.Action);
+            HostCheck.Equal(descriptors, o.Files.State->ActiveDescriptors);
+            HostCheck.Equal(0U, o.Files.State->RetainedPipeOperations);
+            HostCheck.Equal(0U, o.Files.Admission.Pipes[0].BufferedBytes);
+            o.ScratchClean();
+            *changed = original; o.Drain();
+        }
     }
 
     [HostTest("linux.blocking-pipe read parks and wakes on real bytes with scrubbed scratch and explicit descriptor ownership")]

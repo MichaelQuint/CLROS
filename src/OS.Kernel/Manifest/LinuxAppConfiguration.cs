@@ -14,9 +14,16 @@ public static unsafe class LinuxAppConfiguration
 
     public readonly struct GcBudget
     {
-        internal GcBudget(Status status, ulong pool = 0, ulong statics = 0, ulong native = 0, ulong gc = 0, ulong entitlement = 0)
-        { Result = status; PoolBytes = pool; StaticBytes = statics; NativeReserveBytes = native; GcLimitBytes = gc; EntitlementBytes = entitlement; }
+        internal GcBudget(Status status, ulong pool = 0, ulong statics = 0, ulong native = 0, ulong gc = 0, ulong entitlement = 0,
+            bool terminateOnPhysicalBackingExhaustion = false)
+        { Result = status; TerminateOnPhysicalBackingExhaustion = terminateOnPhysicalBackingExhaustion;
+            PoolBytes = pool; StaticBytes = statics; NativeReserveBytes = native; GcLimitBytes = gc; EntitlementBytes = entitlement; }
         public readonly Status Result;
+        /// <summary>Explicit immutable owner policy; absent by default. This bit
+        /// supplies no failure classification, process or cleanup authority and
+        /// does not partition the shared GC/native pool. Only a successful budget
+        /// can carry it; the EFI service owner separately admits its diagnostic.</summary>
+        public readonly bool TerminateOnPhysicalBackingExhaustion;
         public readonly ulong PoolBytes, StaticBytes, NativeReserveBytes, GcLimitBytes, EntitlementBytes;
         public bool Succeeded => Result == Status.Success;
     }
@@ -79,6 +86,7 @@ public static unsafe class LinuxAppConfiguration
             (ulong)bytes > ulong.MaxValue - length || !manifest.Succeeded || manifest.ByteCount != length ||
             manifest.EnvironmentCount > 16) return new(Status.InvalidManifest);
         byte* setting = null; uint settingBytes = 0;
+        bool terminateOnPhysicalBackingExhaustion = false;
         for (uint i = 0; i < manifest.EnvironmentCount; i++)
         {
             uint at = i * 4, key = manifest.EnvironmentRanges[at], keyBytes = manifest.EnvironmentRanges[at + 1],
@@ -90,11 +98,18 @@ public static unsafe class LinuxAppConfiguration
                 if (setting != null) return new(Status.UnsupportedOverride);
                 setting = bytes + value; settingBytes = valueBytes;
             }
+            else if (AsciiPointerMatcher.Matches(bytes + key, keyBytes, 23, 0x454D5F534F524C43, 0x4858455F59524F4D, 0x004E4F4954535541))
+            {
+                if (terminateOnPhysicalBackingExhaustion ||
+                    !AsciiPointerMatcher.Matches(bytes + value, valueBytes, 9, 0x74616E696D726574, 0x0000000000000065))
+                    return new(Status.UnsupportedOverride);
+                terminateOnPhysicalBackingExhaustion = true;
+            }
             else if (keyBytes >= 9 && AsciiPointerMatcher.Matches(bytes + key, 9, 9, 0x475F54454E544F44, 0x43) ||
                 keyBytes >= 10 && AsciiPointerMatcher.Matches(bytes + key, 10, 10, 0x5F53554C504D4F43, 0x4347))
                 return new(Status.UnsupportedOverride);
         }
-        if (setting == null) return new(required ? Status.MissingLimit : Status.Unconfigured);
+        if (setting == null) return new(required || terminateOnPhysicalBackingExhaustion ? Status.MissingLimit : Status.Unconfigured);
         if (!AsciiHexParser.TryParseUInt64(setting, settingBytes, out ulong gc) || gc < MinimumGcLimitBytes || (gc & 4095) != 0)
             return new(Status.InvalidLimit);
         ulong pool = poolPages * 4096UL, entitlement = manifest.MemoryBytes;
@@ -102,6 +117,6 @@ public static unsafe class LinuxAppConfiguration
             pool == 0 || pool > entitlement || staticBytes == 0 || (staticBytes & 4095) != 0 || staticBytes > entitlement - pool ||
             nativeReserveBytes == 0 || (nativeReserveBytes & 4095) != 0 || nativeReserveBytes >= pool || gc > pool - nativeReserveBytes)
             return new(Status.InvalidEntitlement);
-        return new(Status.Success, pool, staticBytes, nativeReserveBytes, gc, entitlement);
+        return new(Status.Success, pool, staticBytes, nativeReserveBytes, gc, entitlement, terminateOnPhysicalBackingExhaustion);
     }
 }

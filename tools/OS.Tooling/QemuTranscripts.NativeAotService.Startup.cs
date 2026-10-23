@@ -18,9 +18,21 @@ public static partial class QemuTranscripts
     public static ServiceStartupInspection InspectNativeAotServiceStartupForTests(ReadOnlySpan<byte> raw, bool lifecycle = false) =>
         ReadServiceStartup(NativeAotThreadingOutput.ReadService(raw), out _, lifecycle);
 
+    /// <summary>Explicit value-only startup contract selection. This checks no
+    /// package, source/index, memory ownership, native image or guest authority.</summary>
+    public static ServiceStartupInspection InspectNativeAotServiceStartupForTests(ReadOnlySpan<byte> raw, NativeAotServiceContract contract) =>
+        ReadServiceStartup(NativeAotThreadingOutput.ReadService(raw), out _, contract);
+
     private static unsafe ServiceStartupInspection ReadServiceStartup(NativeAotThreadingOutput.Capture framed,
         out HashSet<int> metadataPositions, bool lifecycle = false)
+        => ReadServiceStartup(framed, out metadataPositions, lifecycle ? NativeAotServiceContract.V2 : NativeAotServiceContract.V1);
+
+    private static unsafe ServiceStartupInspection ReadServiceStartup(NativeAotThreadingOutput.Capture framed,
+        out HashSet<int> metadataPositions, NativeAotServiceContract contract)
     {
+        Need(contract is NativeAotServiceContract.V1 or NativeAotServiceContract.V2 or NativeAotServiceContract.QuotaFailure,
+            "service_startup_contract");
+        bool lifecycle = contract != NativeAotServiceContract.V1, quota = contract == NativeAotServiceContract.QuotaFailure;
         string text = framed.NormalizedTail;
         Need(text.EndsWith("\r\n", StringComparison.Ordinal), "service_startup_records");
         string[] rows = text[..^2].Split("\r\n", StringSplitOptions.None);
@@ -55,7 +67,8 @@ public static partial class QemuTranscripts
                 !row.StartsWith("TEST_PASS m16.014.startup", StringComparison.Ordinal), "service_startup_unknown_record");
         }
 
-        uint settingsBytes = (uint)Encoding.UTF8.GetByteCount(lifecycle ? NativeAotServicePackage.LifecycleSettingsJson : NativeAotServicePackage.SettingsJson);
+        uint settingsBytes = (uint)Encoding.UTF8.GetByteCount(quota ? NativeAotServicePackage.QuotaSettingsJson :
+            lifecycle ? NativeAotServicePackage.LifecycleSettingsJson : NativeAotServicePackage.SettingsJson);
         var entry = ReadRecord(rows[enter], "M16_014_ENTER", "identity:dec", "rip:dec", "argc:dec", "envc:dec", "configBytes:dec");
         const string configSuffix = " source=immutable-package copied=user", listenSuffix = " address=0 port=8080 owner=live",
             liveSuffix = " owner=retained externalHttp=required";
@@ -67,7 +80,7 @@ public static partial class QemuTranscripts
         var listener = ReadRecord(rows[listen][..^listenSuffix.Length], "M16_014_LISTEN", "fd:dec");
         var lifetime = ReadRecord(rows[live][..^liveSuffix.Length], "M16_014_LIVE", "argc:dec", "envc:dec", "configBytes:dec",
             "bindFd:dec", "stdoutBytes:dec", "stderrBytes:dec", "active:dec", "clock:dec");
-        ulong environmentCount = lifecycle ? 3UL : 2UL;
+        ulong environmentCount = quota ? 4UL : lifecycle ? 3UL : 2UL;
         Need(entry["argc"] == 5 && entry["envc"] == environmentCount && entry["configBytes"] == settingsBytes &&
             settings["bytes"] == settingsBytes && settings["fd"] is >=3 && settings["fd"] < NativeAotServicePackage.Descriptors &&
             listener["fd"] is >=3 && listener["fd"] < NativeAotServicePackage.Descriptors && prefix["stages"] == 4 &&
@@ -85,6 +98,17 @@ public static partial class QemuTranscripts
         {
             var memory = ReadRecord(rows[entryCall++], "M16_014_MEMORY", "nr:dec", "regions:dec", "regionLimit:dec", "backed:dec", "pool:dec", "reserved:dec");
             Need(memory["nr"] == parsed[first]["nr"], "service_startup_memory_call");
+            if (quota)
+            {
+                int position = entryCall++;
+                var topology = ReadRecord(rows[position], "M16_016_TOPOLOGY", "identity:dec", "ordinal:dec", "nr:dec",
+                    "pool:dec", "backed:dec", "free:dec", "freeRuns:dec", "largestFreeRun:dec", "regions:dec", "regionLimit:dec", "tables:dec", "tableLimit:dec");
+                Need(topology["identity"] == entry["identity"] && topology["ordinal"] == 1 && topology["nr"] == memory["nr"] &&
+                    topology["pool"] == memory["pool"] && topology["backed"] == memory["backed"] &&
+                    topology["regions"] == memory["regions"] && topology["regionLimit"] == memory["regionLimit"],
+                    "service_startup_quota_topology");
+                metadataPositions.Add(position);
+            }
             // Full memory bounds, operation coverage and pressure joins belong
             // to the independent memory replay before complete acceptance.
         }
@@ -98,7 +122,8 @@ public static partial class QemuTranscripts
             listenCall["action"] == 1 && listenCall["status"] == 1 && listenCall["valueBits"] == 0, "service_startup_listen_call");
 
         byte[] stdout = Encoding.UTF8.GetBytes(framed.Stdout), stderr = Encoding.UTF8.GetBytes(framed.Stderr);
-        byte[] message = Encoding.ASCII.GetBytes(lifecycle ? "CLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" :
+        byte[] message = Encoding.ASCII.GetBytes(quota ? "CLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\n" :
+            lifecycle ? "CLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" :
             "CLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n");
         int messageAt = stderr.AsSpan().IndexOf(message);
         Need(messageAt > 0 && stderr[messageAt - 1] == (byte)'\n' &&

@@ -104,7 +104,9 @@ public static class NativeAotSocketGuest
             {
                 ulong[] value = Record(row, "M16_012_WAKE", "identity", "sequence", "completion", "state", "clock");
                 Need(pending.TryGetValue(value[0], out var wait) && wait.Sequence == value[1] && wait.Completion == 0, "wake_owner");
-                Need(value[2] is 1 or 2 or 5 && value[3] is 1 or 5 && value[4] >= clock && value[4] <= long.MaxValue, "wake_state");
+                // Completion before Park retains Parking (3). A completed
+                // Waiting slot is Ready (1) or queued for publication (5).
+                Need(value[2] is 1 or 2 or 5 && value[3] is 1 or 3 or 5 && value[4] >= clock && value[4] <= long.MaxValue, "wake_state");
                 // A won completion may remain retained while the table clock
                 // advances beyond its old deadline. Do not replace that winner.
                 Need(value[2] != 2 || wait.Deadline != 0 && value[4] >= wait.Deadline, "wake_deadline");

@@ -1,5 +1,773 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+## Current finite boundary
+
+Original owned Smoke at `32c14ccd` and quota at 256/512 MiB plus positive configured
+V2 at `20e665ad` pass their complete finite consumers. Smoke proves readiness
+wake → directed signal → competing consumption → repark → EINTR → recovery
+during continuous cancelled churn, with 21 roles, 37 edges, 31 Dates and complete
+actor/waiter/descriptor restoration. Quota measures fixed-policy RAM256/512 fit,
+fragmentation and component returns; V2 completes two managed cancellations and
+59 fresh/59 retired lifetimes. Pressure and ordinary fit remain separate.
+
+All 20 ancestor profiles are qualified: 17 positives and three expected negatives.
+The completed independent source/native audit reports zero consistency errors.
+The stable unfiltered full at committed `28a79996` passes 6,258 checks across
+847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
+[Step1556](../done/step1556.md) retains exact provenance, measurements and failed
+history. Complete Kestrel/Gate14, #226/#227, independent GC/native partitions,
+isolation, cloud and production remain unaccepted.
+This updates only the named finite boundary; historical scopes and other
+unfinished work retain their original limits.
+
+## Retained development history
+
+The first 28a full completed 6,258 checks across 847 fixtures (753 Fast/94 Native)
+with zero reuse, but FAILED final admission for two changed build inputs. Its
+1,845-file preservation is E14C156B9B17FF29E79D6CBA4991CA55D50A60F0D35D64F8BE71891196247DD4.
+Root confirmed Git-stamp-only AssemblyInformationalVersion drift: pre-commit
+host producers versus two post-commit Native self-rebuilds. That original stays
+failed. The committed 28a rebuild passes in 46.33 s with four existing warnings
+and zero errors, followed by 10 focused checks across two fixtures with zero
+reuse and four stable DLL hashes. Fresh full r02 now passes all 6,258 checks,
+with final unchanged-input admission and zero reuse. The failed r01 is unchanged.
+
+R11 supplies 19 qualified originals (16 ordinary CLI exit 0 and three expected
+fault CLI exit 1 with full-parent restoration); retained R09 sync supplies the
+twentieth. The independent audit verifies 171 saved R11 native files, 338 job
+files, 962 source joins per job, 3,434 tracked pins and 27 retained inputs:
+CB5B027EBB14CA1B5D56BA57AB2A9D4B3D22D42CE2967A88190F761F97A6543C.
+R09's wrapper and R10's startup failure remain failed. The later same-EFI async
+pass does not prove the firmware cause or stable firmware behavior. Earlier
+paragraphs retain their dated original boundaries.
+
+[Step1554](../done/step1554.md) records the fresh original owned Smoke at
+`32c14ccd`: the final `qemu.smoke.web-race` gate passes, with21 HTTP roles,
+37 order edges,31 Date values and zero pending headers. Its actual512MiB
+guest and all1,042 preserved files retain exact original source/native joins.
+The subsequent ancestor batch refuses a stale socket consumer source pin
+before native build or guest entry. Independent review finds the socket-used
+publisher helpers unchanged; only the separate current-consumer pin is updated.
+The original socket producer receipt, ELF and instruction identities remain.
+The build and four focused socket-package checks pass with zero reuse.
+Fresh affected ancestors, service refreshes and stable full-host acceptance
+still precede PR790 merge. Complete Kestrel/Gate14 remains incomplete.
+
+[Step1553](../done/step1553.md) preserves the step1552 guest's genuine producer
+ordering failure: the exact overlap GET bytes were consumed before the native
+recovery wait, despite a later route log. The final reader correctly refuses.
+The host now waits for a provisional second pending same-thread/same-epoll call
+after acknowledgment and before sending overlap requests. The existing500ms
+linked observer cap and all final replay/HTTP byte/order checks remain. App,
+kernel and the qualified Linux package are unchanged. The corrected host build
+and all32 focused owner/transport/role/initial checks pass with zero reuse.
+A fresh owned guest still precedes the remaining acceptance batch.
+
+[Step1552](../done/step1552.md) records the fresh original Linux-native-v8
+qualification and independent bounded source/debug/body/instruction review for
+the step1550 actor. All 932 source files, 970 frozen inputs, six compiler outputs
+and 191 publication outputs join the preserved originals. The new exact ELF and
+complete 1,429,942-instruction/198-syscall index replace only the previous
+prepared-program identities; all 14 app/build/publisher source guards remain.
+The host build, solution build, six focused admission checks and actual
+prepared-package Read with five refusal controls pass. Fresh owned CLROS
+qualification, affected ancestors, service refreshes and full-host acceptance
+still precede PR790 merge.
+
+[Step1550](../done/step1550.md) moves the event-owned actor's clock/token
+preparation before its final yield and checks the same absolute lifetime after
+the finite write/signal/read transaction. A cached linked token and Abort still
+refuse cancellation before write; no new cancellation point can abandon a sent
+signal before competing consumption. The operation remains120s with separate
+joined cleanup. The build and36 focused checks pass. Existing prepared admission
+correctly refuses the changed app; fresh Linux publication is required.
+
+The0ad5ffd4 token implementation has scoped17-body/4,693-byte native review,
+including962 source joins and14 unchanged bodies/3,639 bytes. Its fresh original
+still fails missed recovery and is preserved. That trace contains post-yield
+futex synchronization and a clock query before write/signal/read; moving clock
+preparation removes that demonstrated extra call from the intended sequence,
+without guaranteeing protection from GC or timer preemption. Earlier complete
+raw3e9e0000 race/cleanup artifacts support separate corrected-reader replay;
+that does not reconstruct lost private owned-runner authority or relabel the
+original outer failure. Fresh owned qualification and acceptance remain pending.
+
+[Step1549](../done/step1549.md) carries one descriptor admission across the
+unchanged source2 pipe-wait scan into epoll refresh. The stack-only token binds
+the descriptor and thread owner, is consumed before refresh and is discarded
+before any thread inspection/wake. Default or mismatched tokens audit again;
+the full post-refresh retained-operation admission remains. The clean host
+build and70 focused checks pass, including mixed pipe/epoll waits and damaged
+later operations that retain earlier wakes and owned bytes. Fresh native and
+guest qualification remain required.
+
+The corrected-reader original at `fc677b5d` still fails
+`web_signalrace_missed_recovery_gate`. Its EFI, native object and both maps
+match the preceding3e9e0000 original, but the timer preempts after tgkill and
+before competing consumption; the waiter returns readiness before the read.
+The original result and all1,041 files are preserved. This new optimization
+removes a demonstrated duplicate audit without changing the required race,
+timer, priority, deadlines or one-attempt policy. It does not guarantee a
+particular guest schedule or qualify #225/#748/#737 or PR790 merge.
+
+[Step1548](../done/step1548.md) repairs completion-before-Park interpretation.
+The real kernel snapshot is Parking3, while Pending5 means delayed ready
+publication. The value reader and exact scheduler/signal-race consumers now
+agree with that contract. The preceding3e9e0000 guest reached repark and a
+pending-signal winner, then failed the old reader's wake-state check. Its
+original files and the scoped16-body/4,558-byte native review are preserved.
+The corrected-reader build and64 focused checks pass. Fresh original guest
+validation and the stable acceptance batch remain required.
+
+[Step1547](../done/step1547.md) shares one successful post-refresh descriptor
+audit across consecutive not-ready retained epoll operations in the same
+exclusive IRQ-off scan. Every operation identity is still checked; the scan
+audits a changed owner and is discarded before thread inspection or wake.
+The host build and69 focused checks pass, including null-owner and damaged
+later-operation controls that preserve the original partial-wake behavior.
+Its original native review and failed guest follow-up are recorded in step1548.
+No guest timing measurement or completed race qualification follows yet.
+
+The preceding pipe transaction at `8b2d6a38` has its original scoped native
+review:962 source joins and12 bodies totalling4,117 bytes. Its fresh guest still
+failed `web_signalrace_missed_recovery_gate`: tgkill preceded preemption, but
+the waiter returned readiness before competing consumption. Both the failed
+original and its native inputs are preserved. The new scan keeps the required
+race order, timer and one-attempt policy; #225/#748/#737 and PR790 remain pending.
+
+[Step1546](../done/step1546.md) combines pipe selection and descriptor dispatch
+under one complete synchronous admission, removing two further duplicate audits.
+All67 relevant focused checks pass, including strengthened controls that expose
+premature copying, readiness changes and descriptor duplication. The same host
+comparison is400.2766ms per2,000 pairs, about48.5% below the original baseline.
+The first optimization's fresh guest still failed: tgkill preceded preemption,
+but the waiter completed readiness before the actor read. That original and its
+native review are preserved. Step1547 records the pipe transaction's completed
+scoped native review and failed fresh guest. It does not complete #225/#737 or
+qualify merge.
+
+[Step1544](../done/step1544.md) consolidates three exact duplicate descriptor/
+epoll audits within serialized calls. Every distinct admission predicate and
+post-mutation audit remains. The unchanged application, timer, signal ordering
+and one-attempt policy are retained. All62 focused host checks pass; a host-only
+pipe write/read comparison improves from777.569ms to579.8792ms per2,000 pairs.
+That measurement does not qualify the outstanding guest race. Fresh native
+review, original guest execution and the stable acceptance batch remain required.
+The three reviewed source identities are admitted in
+[step1545](../done/step1545.md); the initial publication rejection is retained.
+
+[Step1543](../done/step1543.md) records a complete original configured V2 service
+pass at `3b325f4e`: 923,022ms actual QEMU lifetime, 55 accepted connections,
+52 retired transport lifetimes and checked process/descriptor/mapping cleanup.
+The original owned consumer passes after the host capture and persist-reader
+repairs in steps1539/1540. Earlier failed captures remain failed.
+
+The separately republished event-owned Smoke still fails its required scheduling
+witness. Its explicit preparation yield executes, but a later timer preemption
+lets the waiter return readiness before the actor's directed signal and read.
+The four original failures remain preserved; no unchanged retry is scheduled.
+The remaining #225 witness must retain readiness wake, directed signal,
+competing consumption, repark, EINTR and recovery in that order during real churn.
+Signaling after repark would test a different race. Preserve the original
+deadlines, one-attempt admission and checked teardown. A reviewed fixture fix,
+successful owned Smoke, affected ancestors and the stable unfiltered full-host
+run still precede #748/#225/#737 closure and PR790 merge.
+
+## Request churn development
+
+[Step1497](../done/step1497.md) adds explicit diagnostics to the real
+MinimalApiSmoke app: POST `/__clros/churn` and GET `/__clros/churn/status`.
+An empty POST must have Content-Length0, exactly `X-CLROS-Churn: v1`, no query
+and no Transfer-Encoding. Invalid input returns400; a third concurrent request
+returns429. Each admitted call retains one64KiB patterned buffer across eight
+finite cancellable timer awaits and actual awaited ThreadPool/full-GC/data checks.
+Success is `CLROS_CHURN_OK iterations=8 bytes=65536 timers=8 workers=8 collections=8`.
+Request cancellation propagates after the current awaited operation drains.
+Status counters describe completed operations and retained roots; collection
+observations can overlap and do not count unique global collections or backing.
+
+Four focused host checks pass. An actual managed-host Kestrel run observes three
+disconnect cancellations, three completions, seven malformed400 responses and ten
+exact healthy responses. Final active/waiting/held state is zero. The owned host
+process is stopped through its bounded owner with termination confirmed; this is
+not graceful app-exit or CLROS guest evidence. The unchanged `/healthz` body is
+`OS_MINIMAL_API_OK` under default configuration.
+
+For local development after building, run `dotnet run --project
+apps/MinimalApiSmoke --no-build -- --urls http://127.0.0.1:5081`, then send
+`curl.exe --header "X-CLROS-Churn: v1" --data "" http://127.0.0.1:5081/__clros/churn`.
+Focused checks use `dotnet tests/OS.HostTests/bin/Debug/net11.0/OS.HostTests.dll
+--lane full --filter KestrelRequestChurnTests` and emit `host.tests.focused`.
+
+The old prepared web ELF/source/index pins remain unchanged and must reject
+this unpublished source. [Step1498](../done/step1498.md) implements the qualifier
+extension: existing Linux `nativeaot web qualify --output <fresh-directory>` runs
+the bounded churn in both owned app sessions and writes `web-churn.json` plus
+`web-churn-default.json`. Receipt `clros.nativeaot.web.v4` hashes both reports and
+revalidates their exact corresponding HTTP endpoint/body. Earlier receipts stay
+historical evidence and cannot supply current churn qualification.
+
+Each report selects42 ordered observations: initial zero state, seven malformed
+requests, three pending/cancel/drain and pending/complete/health/drain cycles, then
+final zero ownership. Strict bounded copied-value checks require exact schema,
+fields, bodies, canonical status counters and progress; they grant no process or
+file authority. All request tasks are canceled/joined on failure; partial reports
+remain rejected and retained. Six focused checks pass across two original
+producers. The production capture passes on managed Kestrel in both configurations;
+an injected health transport fault during a real pending request retains nine
+rejected observations and leaves the request drained and health responsive.
+
+Genuine Linux NativeAOT publication and its exact new ELF/index admission remain
+pending until the next app slice is stable; preserve old accepted evidence. #225 still requires
+directed signal delivery with readiness consumed by a competing thread during
+real churn, physical/metadata fragmentation, effective component budgets and
+offending-workload cleanup. The mechanical signal race alone cannot supply that
+contract. #748/#225 and broader Kestrel/Gate14 remain open.
+
+## Signal ownership prerequisite
+
+[Step1499](../done/step1499.md) adds a one-shot explicit POST
+`/__clros/signalprobe`, requiring Content-Length0, exactly `X-CLROS-Signal: v1`
+and no query/transfer encoding. Malformed requests return400; unsupported hosts
+return501 before libc entry. Linux x64 reserves SIGUSR2 only if its actual
+disposition is default. Repeated/concurrent attempts return409. It creates one
+dedicated waiter and three descriptors; it never targets Kestrel or GC workers.
+
+The source pin is dotnet/dotnet `820230c386db5b0106c5430b3e5aee92a7826bf5`,
+which maps runtime to `474ed963699fc29809015392738a15231aaae2de` in its
+[source manifest](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/source-manifest.json).
+The [native registration](https://github.com/dotnet/runtime/blob/474ed963699fc29809015392738a15231aaae2de/src/native/libs/System.Native/pal_signal.c)
+retains SA_SIGINFO/SA_RESTART; no shared flags are cleared. Its native handler
+writes a signal byte to the global pipe, and the
+[managed implementation](https://github.com/dotnet/runtime/blob/474ed963699fc29809015392738a15231aaae2de/src/libraries/System.Private.CoreLib/src/System/Runtime/InteropServices/PosixSignalRegistration.Unix.cs)
+queues the USR callback separately. The callback sets Cancel first; it cannot
+prove target Tid or native wait interruption. The probe copies those observations
+separately and still requires original syscall/signal/handler/restorer evidence.
+
+Unregister only after native return and callback acknowledgment; reject action
+drift and verify the exact saved disposition, including libc restorer
+normalization. Restore the waiter's mask, verify its alternate stack unchanged,
+join it before descriptor release. The callback owns managed counters only;
+unregistration does not claim to join queued framework callbacks or stop the
+runtime-owned signal thread/pipe. Unsafe uncertainty exits the owned diagnostic
+process70; no success is inferred. A positive body begins `CLROS_SIGNAL_PROBE_OK`
+and contains copied values, not guest authority.
+
+Four focused ABI/layout/admission/platform controls and actual Windows HTTP
+400/501/health checks pass. No signal executed in those controls. Actual Linux
+NativeAOT ownership/interruption/restoration remains the next experiment; only
+then add the competing pipe reader during real churn. Preserve #225's full race,
+fragmentation, budget and cleanup requirements and the separate mechanical scope.
+
+[Step1500](../done/step1500.md) records one original Linux NativeAOT ownership
+capture at source `9dd1e01a`. The canonical payload qualifier passes; the separate
+single probe POST returns 200 with exact health before/after. Original traces
+bind sender/callback Tid 2907, waiter 2911, directed SIGUSR2, entered epoll,
+EINTR, native handler pipe delivery, sigreturn and exact action/mask restoration.
+The alternate stack is disabled before/after. The sender and callback legitimately
+share a ThreadPool Tid; neither is the waiter. All three borrowed descriptors
+close after managed Join. Native pthread tail cleanup and exit occur afterward;
+managed Join is not evidence of prior native exit/reap. The owned app then exits
+0 and the controller confirms process-group death and joined logs.
+
+Retain 131 originals, 908 source joins, 1,042 unchanged native/compiler inputs,
+the exact ELF/debug CRC association and reviewed RX handler/restorer byte windows.
+The handler window is not a claimed whole symbol/call-chain/stack extent. This
+capture contains no churn or competing readiness. It adds no web-v4 churn report,
+prepared-image admission, CLROS guest race or issue acceptance. The old web image
+guards remain unchanged. Next add the dedicated competing reader and recovery
+phase during genuinely pending churn, preserving all #225/#748 criteria.
+
+[Step1501](../done/step1501.md) implements that explicit actor/recovery path in
+the same one-shot owner. POST `/__clros/signalrace` shares admission with the
+ownership probe. One dedicated actor writes byte0x5a, directs SIGUSR2 to the
+actual waiter and consumes exactly that byte through a nonblocking read. After
+managed actor Join and the original-result/callback checks, the waiter borrows
+the read end for a fresh epoll wait. GET `/__clros/signalrace/status` exposes
+copied phase/identity data. One empty versioned POST to
+`/__clros/signalrace/recover` requests a fresh byte0x6b; the request owner writes
+it, and the waiter must return the exact ready tag and read that byte. Recovery
+admission is atomic and refuses premature, duplicate or terminal requests.
+
+Cancellation joins the actor before inspecting its sent flag, then acknowledges
+any successful signal before unregister. It releases/wakes/joins the waiter
+before closing the three descriptors. Unsafe cleanup uncertainty still exits
+the owned diagnostic process70. These are managed delegate joins; native tail
+exit remains separate. Early ready returns, absent recovery or timeouts fail
+without retrying. Phase4 only coordinates recovery; original traces must prove
+the actual empty wait and all write/signal/competing-read/repark/return ordering.
+
+Nine ABI/copied-state/platform checks and Windows HTTP refusal/status/health
+controls pass. No native actor, recovery or churn-overlap capture ran in this
+step. Step1500's original Linux ownership capture remains at `9dd1e01a`; it is
+not new race evidence. Next integrate the owned HTTP churn/race producer and
+strict original-order consumer, then finish fragmentation/effective-budget/
+offender-cleanup/RAM controls before the stable native/guest batch. No current
+web index admission or #225/#748 acceptance changes.
+
+[Step1502](../done/step1502.md) adds two host-reader prerequisites to the real
+web replay. Literal Smoke may query `sigaltstack` without changing it; the reader
+checks the complete 24-byte writable span and scalar result. One additional
+CLOEXEC/NONBLOCK pipe shares the existing descriptor namespace, retains both
+descriptor generations and replays bounded counts, occupancy, atomic writes,
+EAGAIN, EOF, EPIPE and explicit close/reuse independently of the runtime signal
+pipe. These scalar records establish neither byte values nor alternate-stack
+contents. Service and other profiles retain their prior admission. Pipe epoll
+watches, signal12 replay, original race ordering and the owned HTTP orchestration
+remain unfinished; current source/ELF/index guards remain closed.
+
+[Step1503](../done/step1503.md) adds the probe read-end epoll and directed
+signal12 replay prerequisites. Watches retain object/generation identity;
+modeled counts bound readiness and closure removes watches before fd reuse.
+Standard12 coalesces independently of activation35's four-entry queue. A prior
+readiness win survives tgkill; empty recheck/repark publishes a new sequence
+before pending12 can win EINTR. Delivery selection survives IRQs before the
+first observed handler call. These are host scalar/scheduler contracts, with
+copied event/action/frame contents still opaque. All 63 focused checks across
+six replay fixtures pass with unchanged inputs and zero reuse. At that step,
+original-index race projection, owned HTTP churn orchestration and new
+native/guest admission remain unfinished.
+
+[Step1504](../done/step1504.md) implements a default-off native qualification mode:
+`nativeaot web qualify --signal-race --output <fresh-directory>`. Default v4
+qualification retains its two sessions; v5 additionally owns a fresh third
+session with directed race during pending churn, advancing timer/worker/collection
+counters, actual cancellation/drain, one recovery, later progress and refusals.
+Its copied selection may request an immutable original-order projection only
+after complete web scheduler replay. That projection retains original normalized
+indices, model identities/FS/descriptor generations, exact race/recovery order
+and explicit closes; absent native EXIT/REAP remains absent. Actual native and
+owned guest execution, pointed-to contents and quota-cleanup acceptance remain
+required. Current ELF/source/index guards are unchanged.
+The small build and80 focused checks across10 fixtures pass with unchanged
+inputs/zero reuse; this is host development evidence.
+
+[Step1505](../done/step1505.md) retains the first native attempt at `0f0e0a90`.
+All three payloads publish/inspect and the base Linux qualification passes; the
+combined race qualifier fails with `web_signalrace_status_callback`. The waiter
+actually returns ready before SIGUSR2, so no EINTR race witness exists. A cleanup6
+snapshot with callback0 exposes a separate reader diagnostic defect. All206
+original files and exact source/compiler/ELF joins survive a verified builder
+recovery. No success receipt or new prepared-image admission follows. Guest
+integration additionally needs owned all-attempt exchange association and an
+explicit packet contract; selected HTTP samples alone cannot identify repeated
+wire exchanges or turn host cancellation into an HTTP response.
+
+[Step1506](../done/step1506.md) corrects the cleanup6/failed8 diagnostic while
+retaining strict acknowledged/success roles and explicit missed-gate rejection.
+Every logical HTTP call now survives in a fresh `.attempts.json` companion,
+including unselected/rejected polls, bounded raw partial bodies, terminal faults
+and cancellations. Selected v1 rows link to their logical request IDs; the churn
+cancellation remains a host event. Header receipt ends pending overlap even if
+the body stalls, and joining another failed request preserves the primary error.
+The strict copied inspector checks terminal outcomes, bytes, logical order and
+poll windows. New explicit race qualification writes v6 and requires the
+companion; historical v4/v5 validation remains supported. The small build and23
+focused checks across five fixtures pass with unchanged inputs/zero reuse.
+These are host fake-handler/copied-value controls. No native rerun, successful
+race witness, real connection/exchange association or guest admission follows.
+
+[Step1507](../done/step1507.md) adds an owned observed transport adapter for that
+controller. Three role-specific persistent HTTP/1.1 handlers permit control,
+pending churn and pending race together. The existing bounded stream recorder
+supplies actual connected endpoints/stream IDs, attempted writes, successful
+read bytes, unknown failed transfers and joined disposal. A separate strict
+`clros.web.signalrace.wire.v1` profile binds logical attempt IDs to real request
+writes; quota schemas/routes remain strict. Raw read offsets remain independent
+of HTTP response framing. Five real-loopback controls and32 related checks pass
+with unchanged inputs/zero reuse, including partial failure and HTTP700 retention.
+The API is not yet wired into native qualification or the guest runner. Full HTTP
+FIFO framing, held runner/child evidence and actual PCAP association remain next;
+no NAT tuple, native race or guest acceptance is inferred from local stream IDs.
+
+[Step1508](../done/step1508.md) frames the retained known stream bytes, binds
+request writes to exchange IDs, and pairs responses FIFO on each connection.
+Every response outcome needs a unique complete request/response, exact decoded
+body/status/media type and read-time bounds. Failed retries, unknown attempted
+writes and incomplete response suffixes remain explicit; consumed failure bodies
+are checked only as prefixes. Selected samples bind complete message indices;
+churn cancellation stays a host event with index-1. All23 focused checks across
+six fixtures pass, including the actual loopback controls, identical-body FIFO,
+ambiguous retries and existing quota readers. Quota parsing remains unchanged.
+These consistency checks still require an owned guest runner/evidence bundle,
+explicit race completion/packet contract and actual PCAP/native/source joins.
+
+[Step1509](../done/step1509.md) implements the separate ownership component and
+default-off runner rendezvous. After ordinary controls, the runner sends READY
+over a fresh same-user named pipe and waits for DONE within its original deadline,
+monitoring child/frame/serial health. The Tooling owner joins observed HTTP work,
+checks creator-handle identities and exact flushed-byte hashes against held
+selected/attempt/wire originals, frames HTTP, then sends their hashes and joins
+the runner. Failure paths close the pipe, cancel/join started tasks and retain
+available original logs and partial reports. Only explicit mode emits race fields;
+ordinary dry-run output remains byte-identical. All35 focused checks/six fixtures
+pass unchanged/zero reuse, including real pipes and a full loopback handoff that
+deliberately rejects its failed runner result. No successful guest receipt is
+fabricated. QemuSmoke wiring, a separate exact race summary/UTC/packet contract,
+actual PCAP association and fresh native/source/ELF/index admission remain next.
+No native or QEMU trial ran; the original native failure remains failed.
+
+[Step1510](../done/step1510.md) adds the exact explicit race runner reader while
+preserving the ordinary reader's bytes and nine UTC windows. It checks the two
+gate rows at their original positions, PID/forward/hash identity and a positive
+producer UTC window of at most45s after ordinary controls and inside the child.
+The window is copied owner data, not independent monotonic or Date authority.
+Explicit replay now permits bounded later lifetimes only after the original
+eight-lifetime control events. The first extra accept requires completed ordinary
+I/O and bad-peer private retirement; final accepts must equal the complete census.
+Tuple/generation/TIME-WAIT guards and normal/records64 defaults remain exact.
+All65 focused checks/six fixtures pass unchanged/zero reuse, including complete
+copied race projection after a ninth accept. Whole-PCAP integration still needs
+the ordinary VLAN/withheld-ACK controls plus concurrent race-flow byte association;
+the service packet parser cannot consume that capture unchanged. QemuSmoke wiring,
+race HTTP Date/packet joins and fresh native/source/ELF/index admission remain open.
+
+[Step1511](../done/step1511.md) consumes the original whole web PCAP with two
+explicit record-owning passes. The strict web reader retains its eight flows,
+literal VLAN, withheld-ACK, HTTP and nine UTC checks. Added declared TCP starts
+only after the complete ordinary healthy After response and EOF. Bounded concurrent
+stream reconstruction reads the same PCAP and delegates only already-validated
+ordinary TCP/VLAN record IDs; counts must agree, with no unknown quiet SYNs.
+Original record numbers, timestamps and first-byte islands remain intact; no
+filtered or renumbered capture is constructed. Service/ordinary defaults remain
+unchanged. All31 focused checks/six fixtures pass unchanged/zero reuse. This is
+a copied packet inventory: unique host-byte/guest-flow association, race HTTP
+Date/syscall/role joins, QemuSmoke wiring and fresh native/source/image admission
+remain required. No native or QEMU run occurred.
+
+[Step1512](../done/step1512.md) binds strict race wire/attempt/selected HTTP to
+the copied added packet inventory by directional bytes and unique injective
+assignment. Every payload guest must match; every successful HTTP host must be
+covered. Ambiguous or missing matches reject without equating host and guest
+ports or clocks. Completed logical responses retain exact clipped original
+request/response ranges and persistent packet order. Failed/cancelled attempts,
+unknown write tails, holes, unread responses, empty flows and unassigned hosts
+remain explicit. Rechecked copied bounds are504 streams,4MiB aggregate extents,
+65536 ranges/edges and64MiB comparison work. All23 focused checks/six fixtures
+pass unchanged/zero reuse, including whole-PCAP ordinary/VLAN controls followed
+by persistent added HTTP. This supplied-value consistency check adds no private
+producer or guest authority. Race Date/owned UTC, syscall/role joins, QemuSmoke
+wiring and fresh exact native/source/image admission remain required. No native
+or QEMU trial ran; the original failed native attempt remains failed.
+
+[Step1513](../done/step1513.md) adds race Date and native-CALL coverage consumers.
+Every complete contiguous guest response header needs canonical RFC1123 Date
+within the supplied whole producer UTC window plus/minus5s, without regression
+against the ordinary last Date or on a persistent stream. Concurrent streams
+have no global Date order; pending headers remain explicit. Wire ticks acquire
+no UTC origin. The complete web replay now projects added-lifetime accepts and
+positive socket CALLs with original row indices, checked transport identity and
+replay descriptor IDs/counters. Ordinary/probe-pipe calls are excluded. This uses
+existing replay facts and fabricates no quota-only post-CALL diagnostic row.
+The typed temporal consumer requires exact original HTTP packet ranges, consuming
+receive/accepted-send coverage and persistent FIFO, excluding peeks. All30 focused
+checks/six fixtures pass unchanged/zero reuse, including complete-model projection
+and independent Date/temporal controls. No EFI/kernel or quota grammar changed.
+HTTP/replay actor roles, owned QemuSmoke and fresh exact native/source/image joins
+still precede guest acceptance; the original native failure remains failed.
+
+[Step1514](../done/step1514.md) joins all19 selected HTTP/body roles to the
+complete replay's original socket CALLs and actor/recovery order. It recomputes
+strict byte assignment and temporal coverage from raw inputs and the replay's
+immutable projection. Host cancellation remains metadata: a separate unique,
+fully consumed churn request is required, including an unknown host-write tail,
+without inventing a response. Original-row edges require actor read/resume/
+callback before armed response, actual recovery wait before overlap consumption,
+the recovery request before its native writer, and recovery read/three closes
+before the race response. Recovery replies may precede the writer; independent
+race/repeat replies have no imposed order. All27 focused checks/six fixtures pass
+unchanged/zero reuse. The complete-model positive exercises replies before the
+writer; race reply before repeat remains allowed but untested. Copied bytes and
+complete-model replay prove no original native/guest or GC/ThreadPool cleanup.
+Owned QemuSmoke integration and fresh exact native/source/image admission remain
+next. No native or QEMU run occurred; the original native failure remains failed.
+
+[Step1515](../done/step1515.md) composes those consumers behind explicit,
+default-off `--web-signal-race` in QemuSmoke. Ordinary web remains unchanged.
+The dedicated launch uses the private creator-owned race completion, one forward
+port and a fresh rendezvous. Eight distinct original outputs stay held against
+the exact four pre-run package/index/image/EFI records through complete replay,
+whole-PCAP ordinary/added reconstruction, HTTP roles, Date and final source/native
+checks. Existing deadlines and old source/ELF/index admission remain unchanged.
+All11 focused checks/two fixtures pass unchanged/zero reuse; these cover command
+construction, prelaunch refusal and existing owner failure ownership. No positive
+owned guest run or native race was executed. The expert's separate proposal adds
+a one-shot phase2 start gate and controlled Linux-host scheduling, with a versioned
+race-first controller; it remains unapplied here. Original206-file failure stays
+failed. That execution repair, fresh admission and actual guest evidence remain
+required before any race acceptance.
+
+[Step1516](../done/step1516.md) applies the one-shot phase2 start gate and explicit
+v2 controller: pending race, original wait preparation, short churn/progress,
+then exactly one start POST. Selected/attempts-v2 add initial-armed/start roles
+for21 samples. The private guest owner rechecks a provisional serial blocked
+wait (action3/status9); final immutable replay requires original initial wait
+before start consumption before actor write. Phase snapshots and copied rows
+cannot establish that order. Historical v1/19-sample diagnostics remain explicit.
+
+The separate private Linux experiment binds the actual owned tracer/session,
+thread generations/pidfds, one CPU, policies and sleeping232/epoll/pipe before
+tracer/actor FIFO scheduling, with rechecks, tracer restoration and confirmed
+session death. Native v7 requires the paired v2 reports and complete hashed
+scheduling journal; v5/v6 remain historical v1 and ordinary v4 is unchanged.
+All70 focused host checks/14 fixtures pass unchanged/zero reuse; tested producers
+are preserved. No Linux scheduling/native qualification or guest run occurred.
+The native scheduling assumptions, actual EINTR/churn/recovery and fresh exact
+source/ELF/index/image admission still require original execution evidence.
+#737/#225/#748 remain open; old admission pins remain closed.
+
+[Step1517](../done/step1517.md) preserves the first controlled v7 attempt at
+`de39e4db` as failed: `sched_getscheduler errno=38`, partial v2 reports, no web
+receipt, and only the confirmed four-task stop journal row. All205 original
+files and970 source/producer inputs match their preserved hashes. The actual
+builder's musl1.2.6-r2 scheduler exports are ENOSYS stubs; a no-mutation self-query
+under the pinned runtime confirms raw Linux x64 getters work on the same thread.
+The private owner now invokes syscalls143/144/145 through libc, retaining errno,
+affinity, task ownership, readbacks and cleanup. All16 focused checks/3 fixtures
+pass unchanged/zero reuse. This repairs host interop; controlled scheduling,
+actual EINTR/churn/recovery, native v7 and guest/admission remain unqualified.
+
+[Step1518](../done/step1518.md) records the fresh single controlled native v7
+qualification at `e5dadc2e`: native and production receipt validation both exit0.
+All214 original files,193 receipt outputs,932 receipt sources and970 transferred
+source/producer inputs match their exact hashes. Selected-v2 has21 samples;
+attempts-v2 has24 entries with one intentionally canceled pending churn. The
+13-row original journal and role traces retain actual initial blocking,
+write/signal/consume, EINTR/callback, fresh recovery, tracer restoration and
+confirmed original task/session death. Independent review finds no contradiction.
+This is a bounded Linux-host experiment using the documented cooperative
+numeric-TID lifetime assumption; separate thread traces are not a global kernel
+chronology. Both earlier failed attempts stay failed. The fresh8,858,120-byte ELF
+SHA652E2E00D49C2529BB8C2439820F8A58F7086766E01D2C08D0748CA659C9BFAE
+remains unadmitted pending exact independent decoder/index/source review.
+No CLROS guest, quota termination or complete Kestrel/Gate14 acceptance follows.
+
+[Step1519](../done/step1519.md) admits that exact ELF and complete reviewed
+instruction lookup after independent decoder/debug/source review:1,426,926
+starts/198 syscalls, all4,575,791 executable-section bytes, entry0x408f77 and
+digestBD21ABDEBDA40026C43936D111E1FC31296C7A4D73925C798ACCCC1EA3D01326.
+Fourteen source pins cover the actual nine-file app; original guards remain.
+All19 focused checks/3 fixtures pass unchanged/zero reuse. Actual held
+Read/Create passes; altered/earlier-failed ELF, partial decode and aliases refuse.
+Prepared instruction authority is host-only. Original owned CLROS guest and
+quota termination/churn cleanup remain unqualified; no complete Kestrel follows.
+
+[Step1520](../done/step1520.md) preserves three failed owned attempts at
+`ec419d08`: r01 refuses mixed host producer cohorts before QEMU; r02 rejects a
+selected29-byte health body in the existing fixed17-byte socket control; r03
+uses the corrected default body and reaches race orchestration, but every race
+status remains phase0 while POST is pending until timeout. Fresh EFI/image and
+all962 source joins are saved; all owned processes are stopped. No complete
+summary/owned race receipt or acceptance follows. The expert is tasked with the
+phase0 stall; earlier failed attempts remain failed.
+
+[Step1521](../done/step1521.md) resolves r03's cause from original packet/source
+evidence: the race SYNs receive no SYN-ACK because seven full TIME-WAITs and the
+status connection occupy all eight bulk slots. Finite web now provisions16
+bulk slots with derived backing storage and strict16-slot readers; service and
+mechanical profiles keep8. Full240-second TIME-WAIT and the exact ordinary
+eight-lifetime controls remain. All93 focused checks/8 fixtures pass unchanged/
+zero reuse. This is host implementation/model evidence; fresh native mapping,
+owned guest race and stable acceptance remain pending.
+
+[Step1522](../done/step1522.md) reviews the exact fresh native geometry and
+preserves owned r05's later `web_signalrace_missed_initial_gate` failure. The
+sixteen-slot bound is genuine and original PCAP202 contains the race POST after
+handshake. Status0,1,1,6 never yields the required initial-armed sample; no
+churn/start/recovery is requested. Exact native/source/packet/report originals
+are saved and QEMU stops. Expert diagnosis is required before the next scoped
+correction; no complete owned race or quota/Kestrel acceptance follows.
+
+[Step1523](../done/step1523.md) implements explicit-header event-owned v3 in the
+app, preserving the old timed diagnostic. Its exact-1 epoll waits are owned by
+one120-second operation cancellation and separate15-second cleanup grace, with
+joined worker retirement before fd disposal. Nineteen focused checks and11
+Windows HTTP dispatch/refusal checks pass; native signal behavior is unrun.
+Old prepared source admission still refuses changed app bytes. Versioned v3
+native/runner budgets and fresh qualification precede another guest;
+no legacy failure is reinterpreted or accepted.
+
+[Step1524](../done/step1524.md) implements the explicit v3 copied controller and
+strict paired selected/attempt schemas under one150-second capture deadline.
+Borrowed client timeout and default selector headers are checked before files
+or requests; exact v3 race headers/prefixes and the ordinary v1 repeat probe are
+retained in the attempt contract. All36 focused checks across seven fixtures
+pass with unchanged inputs and zero reuse. Legacy v1/v2 checks pass; native role
+admission explicitly refuses copied v3. Native event-wait/journal integration,
+owner/runner/Date windows and fresh original
+qualification/admission remain prerequisites to another owned guest.
+
+[Step1525](../done/step1525.md) binds observed v3 request selectors to complete
+local HTTP stream headers without changing legacy checks or the raw recorder
+schema. Real loopback capture passes with 21 selected samples and 23 attempts;
+truncated-response and pre-cancelled reports retain their incomplete status.
+All 22 focused checks pass, and nine original reports plus the tested producers
+are preserved. This supplies local TCP/framing evidence only. Native/guest
+ownership remains closed until the versioned journal, exact event-wait contract,
+nested budgets and fresh qualification/admission are integrated.
+
+[Step1526](../done/step1526.md) adds explicit native-v8 qualification dispatch
+and schedule-v2 pairing for selected/attempt-v3, preserving the old modes.
+Expert review resolves the native deadline conflict: one 210-second operation
+lease starts before strace, with 165 seconds required before race admission;
+v8 avoids an independently timed TERM helper. Joined report retention remains
+uncancelled, and late success is rejected. All 23 focused host checks pass;
+no new Linux native wait, signal, cleanup or guest is qualified. The exact raw
+timeout expectation still needs original native observations/disassembly.
+Guest role/remaining-budget/Date integration and fresh native publication,
+reviewed prepared admission and original owned guest evidence remain pending.
+
+[Step1527](../done/step1527.md) checks the exact named event-owned initial,
+recovery and repark waits in complete copied replay, retaining descriptor and
+causal guards. Selected-v3 role joins require the immutable checked event profile;
+legacy profiles remain separate. All 41 focused checks pass after preserving
+one failed negative fixture and correcting only its ordering. No new native or
+guest execution follows. Explicit guest owner/pipe/runner/remaining-time/Date
+composition and fresh native qualification/admission still precede an owned guest.
+
+[Step1528](../done/step1528.md) checks the shared explicit v3 pipe protocol and
+copied runner/Date windows. The new whole-IPC cap is165s; the original absolute
+clock must retain at least165s immediately before READY after connection.
+Legacy pipe/JSON/profile and45s bounds remain. All43 focused checks pass,
+including real local pipes, insufficient-budget EOF before READY, profile
+crossings and exact copied165s boundaries. This is unmeasured shared policy;
+production QEMU options and owner dispatch remain legacy pending the next slice.
+No fresh Linux-native qualification, guest admission or Kestrel acceptance follows.
+
+[Step1529](../done/step1529.md) connects the explicit event selector to production
+owner/runner/held replay/Date dispatch. The selected profile must agree across
+pipe, original reports, private Completion, summary and complete replay; old timed
+selection remains separate. The original285s runner clock supplies the pre-READY
+budget callback and retains a specific insufficient-budget failure. All47 focused
+checks pass, including actual local v3 ownership failures and reports held before
+DONE, with no successful synthetic Completion. Fresh native-v8 publication and
+original source/debug/ELF/index qualification, deliberate prepared admission and
+an original owned guest remain required. This adds no Kestrel acceptance.
+
+[Step1530](../done/step1530.md) retains the original native-v8
+`web_signalrace_lost_overlap` failure and repairs its demonstrated finite-churn
+race. Explicit initial churn v2 repeats actual awaited timer/ThreadPool/full-GC
+work until request cancellation, with a fixed watchdog that fails on expiry.
+Final churn remains finite v1/exactly8; strict attempt/header/guest joins reject
+exchanged selectors. Both dedicated probe threads must also have original native
+EXIT/REAP before final healthy send; callback/request threads remain live.
+All80 focused checks pass, including the actual finite-helper failure and
+continuing-helper correction. This is development evidence; repaired native,
+guest, component-budget/termination cleanup and stable full/ancestor gates remain
+required before #737/#748/#225 closure or complete Kestrel acceptance.
+
+[Step1531](../done/step1531.md) preserves the successful original `293dafb4`
+Linux native-v8 qualification, its separate validation and complete source/output
+joins. Two reviewed corrections still precede fresh Smoke publication: terminal
+churn counters and active/root release publish atomically, and unselected
+event-owned status polls use continuous limits. The retained service publication
+needs only a reviewed current-consumer source-pin refresh; its original
+ELF/index/package and producer provenance stay unchanged. No new guest or quota
+acceptance follows from these Linux and host results.
+
+[Step1532](../done/step1532.md) reviews the corrected original `c31d7cf7`
+Linux native-v8 publication. Exact ELF/debug/source/index joins and original
+signal/churn cleanup traces pass; the prepared-program pins select this ELF.
+The optional host RAM forwarder permits the required 256/512 MiB quota
+comparison without changing the payload or its budgets. Owned Smoke, both quota
+captures and one refreshed configured positive V2 lifecycle still precede guest
+and ordinary-headroom acceptance. The shared 36 MiB pool does not enforce
+independent 16 MiB GC and 20 MiB native partitions.
+
+[Step1533](../done/step1533.md) preserves the first actual quota256 guest at
+`470bc00d`: one successful mmap is followed by an observer abort before listen
+or pressure, then real exit/reap and a rejected final lease audit. Expert review
+finds the new stack observer enters an active-gate check that assumes interrupt
+SS0, while an ordinary SYSCALL callback retains SS16. The repair explicitly
+permits both only after common gateway authentication; direct IRQ validation
+keeps exact SS0. The original remains failed. Corrected guest, RAM comparison,
+ordinary V2 fit and final stable gates remain required; no app republish is needed.
+
+[Step1534](../done/step1534.md) records the corrected gateway's fresh quota256
+attempt at `ad7bdc36`: stack leases and listen succeed, but the host health
+exchange fails before the TCP quiet deadline and before pressure. The original
+seven inbound SYNs have no guest reply or HTTP payload. Its partial wire report
+does not retain the exception type. Failure-only quota peer diagnostics now
+retain a bounded typed exception tree; startup retry classification and all
+deadlines remain unchanged pending a fresh capture. This is not quota cleanup
+or ordinary native-headroom acceptance.
+
+[Step1535](../done/step1535.md) captures the missing original exception in the
+diagnostic-only quota256 run: `HttpRequestException(Unknown)` wraps
+`IOException` and `SocketException(ConnectionReset, native10054)`. The EFI/image
+are byte-identical to the preceding failed run. Initial health retries now admit
+that exact reset wrapper within the existing400s deadline. Pressure/poll
+classification remains unchanged. Fresh quota/ordinary lifecycle acceptance is
+still required; both startup failures remain failed originals.
+
+[Step1536](../done/step1536.md) records successful startup/held-connection/worker
+progress after that repair, followed by the180s operation deadline before quota
+pressure. The instrumented guest completes14 random requests in151.247s;
+readiness still requires more than32 and another advancing sample. The bounded
+host calibration allows480s operation and900s quota child/report time. Runner900s
+and owner960s remain independent outer caps. Signal-race and stream-control
+reports retain600s bounds, all capture capacities and the600s application
+watchdog remain unchanged. A fresh original quota run is still required.
+
+[Step1537](../done/step1537.md) preserves the next failed owned run: all17 overlap
+samples and quota cleanup markers are present, but terminal control/pressure I/O
+hits the captured wrapped reset. The terminal-only predicate now admits that exact
+shape and labels it ConnectionError; early completion/cancellation/overlap gates
+remain mandatory. Strict offline replay also exposes reader omissions: the
+unchanged app emits exact Kestrel[22] heartbeat warnings on stdout and its random
+controls on stderr. The reader preserves and checks those bytes rather than
+requiring empty stdout. A second strict replay exposes frozen budget admission
+being mistaken for the post-reap finish clock. Quota-only readers now bind the
+unique exact service-end row and retain mandatory full finish/history checks;
+ordinary clock checks are unchanged. Operation540s gives measured margin over the470.85s path;
+900s child/report/runner and960s owner remain independent caps. The failed original
+does not become accepted. Corrected-reader strict native replay and69focused host
+checks pass. The developer chat's restricted context denies loopback Connect(10013);
+execution transfers to the acceptance reviewer under its existing permissions,
+where the unchanged producer passes all17 actual transport checks. A fresh owned
+capture and final acceptance remain required.
+
+[Step1538](../done/step1538.md) preserves r06 after successful external peer and
+native cleanup, with final owned validation stopped by an overlap-reader defect.
+Console envelopes can precede authenticated startup metadata and can use fd1;
+writev may publish several fragments before one CALL. The corrected mapper uses
+the existing full startup validator, checks both channels and exact successful
+CALL byte totals, and retains stderr-only progress offsets. Unknown metadata and
+unbound successful console calls reject. 26 focused checks and the original r06
+public native/stream/temporal/overlap/NIC replay pass. This does not turn the failed
+owned capture into acceptance; a fresh complete owned run remains required.
+
+[Step1539](../done/step1539.md) records two complete original owned quota captures
+at `a2494fd9`, with the same EFI/disk/policy at actual256MiB and512MiB. Both
+terminate the offending workload and return every recorded stack/socket lease.
+The independently joined pre-pressure non-GC bound is17,473,536bytes; whole-run
+pressure peaks remain separate. The36MiB pool is shared, without enforced
+independent16MiB/20MiB partitions. Ordinary V2's first fresh capture remains
+failed: its last real TIME-WAIT deadline904.778guest seconds exceeded the900s
+host capture. Only the V2 host selection now defaults to and permits1080s;
+V1/quota remain900s. Guest TCP timers, app/peer watchdogs, capture capacities,
+termination and full evidence validation are unchanged.51focused checks pass.
+Fresh V2/event-owned Smoke, affected ancestors and final full acceptance remain
+required before #748/#225/#737 closure or PR790 acceptance.
+
+[Step1540](../done/step1540.md) preserves V2r02's failed full consumer after
+successful916,877ms guest/runner cleanup. The isolation reader incorrectly
+forbade a byte-identical retransmission of the unacknowledged second persist
+probe while the independent healthy connection completed. It now permits only
+exact raw repeats at or after the selected second probe; earliest-probe/reopen
+ordering, zero windows, healthy completion and literal HTTP joins remain strict.
+Eight focused controls and original public native/packet/accounting replay pass.
+No guest code or timers change, and the failed original remains failed. Fresh
+owned V2 and the remaining acceptance batch still precede closure.
+
+[Step1542](../done/step1542.md) admits the fresh original `cd275855` Linux
+publication after step1541's one event-owned preparation yield. The exact ELF,
+debug/source/compiler/output joins and complete instruction index pass; six host
+admission checks and five actual package rejection controls pass. The yield does
+not make write/signal/read atomic or prevent GC and timer preemption. Fresh owned
+Smoke and ordinary V2, affected ancestors and the stable full-host run remain
+required. All three earlier Smoke captures remain failed originals.
+
 ## Continuing-service foundations
 
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
@@ -935,8 +1703,12 @@ empty-send boundary; no runtime fix is included in that review.
 
 1. Preserve the accepted memory/descriptor/thread/signal/runtime scopes through [step1307](../done/step1307.md).
 2. Preserve [step1380](../done/step1380.md) configuration/containment and [step1389](../done/step1389.md) finite logging under continuing integration #737.
-3. Under #737, complete #743/#744/#746/#240/#757/#758 and #766 before #224 repeated service. The empty-send correction follows accepted #745; preserve genuine reset/shutdown errors and nonempty backpressure.
-4. Complete #760/#747/#748 and the exact #225 async/churn prerequisites, then #226/#227. Retain fresh guest boots, external `/healthz`, cancellation/shutdown, resource reuse and stopped-guest refusal at the appropriate gate. Earlier finite receipts do not close these service requirements.
+3. Preserve [step1556](../done/step1556.md)'s completed finite owned Smoke, quota
+   and configured V2 originals, the 20 qualified ancestor profiles and stable
+   full. Keep their exact source/producer scopes and failed history.
+4. Continue #226/#227's complete local Gate14 requirements in the next batch. Retain
+   actual health, cancellation/shutdown, resource reuse and stopped-guest
+   refusal at the appropriate gate; this finite batch does not accept Gate14.
 5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.
 
 Time-API evidence correction: step1419's `realtime/gettimeofday` layout wording

@@ -4,7 +4,7 @@ using OS.Tooling;
 internal static class NativeAotServiceGcBackingTests
 {
     private const ulong Reservation = 0x100185000, Start = Reservation + 4096, ArenaBytes = 5 * 16777216UL;
-    private const ulong Mmap = 0x47059a, Munmap = 0x470691, Madvise = 0x470541, Mprotect = 0x47064a;
+    private const ulong Mmap = 0x4705da, Munmap = 0x4706d1, Madvise = 0x470581, Mprotect = 0x47068a;
     private const ulong NoMemory = unchecked((ulong)-12L);
 
     // Independent copied-value vectors, not an original executable/capture.
@@ -61,6 +61,22 @@ internal static class NativeAotServiceGcBackingTests
         HostCheck.True(!Read(raw.Replace($"rip={Mmap}", "rip=4198402", StringComparison.Ordinal)).ArenaIdentified);
         HostCheck.True(!Read(raw.Replace($"a1={ArenaBytes + 4096}", $"a1={ArenaBytes + 8192}", StringComparison.Ordinal)).ArenaIdentified);
         HostCheck.True(!Read(raw.Replace("a4=4294967295", "a4=3", StringComparison.Ordinal)).ArenaIdentified);
+    }
+
+    [HostTest("GC backing rejects the preceding ELF syscall continuations and mixed trim identity")]
+    private static void PrecedingPublication()
+    {
+        string current = new Trace().Arena().ToString();
+        string preceding = current.Replace($"rip={Mmap}", $"rip={0x47059aUL}", StringComparison.Ordinal)
+            .Replace($"rip={Munmap}", $"rip={0x470691UL}", StringComparison.Ordinal)
+            .Replace($"rip={Madvise}", $"rip={0x470541UL}", StringComparison.Ordinal);
+        HostCheck.True(!Read(preceding).ArenaIdentified);
+        Reject(current.Replace($"rip={Munmap}", $"rip={0x470691UL}", StringComparison.Ordinal));
+        Reject(current.Replace($"rip={Madvise}", $"rip={0x470541UL}", StringComparison.Ordinal));
+        var currentArena = new Trace().Arena().Call(10, Start, 4096, 3, 0, Mprotect);
+        HostCheck.Equal(4096UL, Read(currentArena).LastBackedBytes);
+        var staleCommit = Read(currentArena.ToString().Replace($"rip={Mprotect}", $"rip={0x47064aUL}", StringComparison.Ordinal));
+        HostCheck.Equal(0UL, staleCommit.LastBackedBytes); HostCheck.Equal(1, staleCommit.RevokedPages);
     }
 
     [HostTest("GC arena startup permits unrelated workers while rejecting interleaved mutations of its pending reservation")]

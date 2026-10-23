@@ -34,11 +34,13 @@ public static partial class QemuTranscripts
     {
         var result=SocketLifetimes(rows,continuingWeb);return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
-    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5,WebSocketControls.Report? controls=null)
+    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5,WebSocketControls.Report? controls=null,bool signalRace=false)
     {
         Need(controls is null || continuingWeb && webConnections is 7 or 8,"web_transport_selection");
+        Need(!signalRace || continuingWeb && controls is not null && webConnections==8,"web_transport_race_selection");
         Need(!continuingWeb || controls is not null || !rows.Any(IsWebControlEvent),"web_transport_unexpected_controls");
         if(controls is not null)RequireWebControlEvents(controls);
+        ulong maximumConnections=continuingWeb?16UL:8UL;
         List<SocketLifetime> all=[];Dictionary<string,SocketLifetime> known=[];Dictionary<ulong,SocketLifetime> active=[];
         Dictionary<ulong,ulong> generations=[];ulong clock=0,owner=0,epoch=0;int controlEvents=0;
         foreach(string row in rows.Where(r=>IsSocketTransport(r) || controls is not null && IsWebControlEvent(r)))
@@ -62,13 +64,14 @@ public static partial class QemuTranscripts
                 controlEvents++;continue;
             }
             var r=SocketTransport(row);bool slot=row.StartsWith("M16_011_SLOT ",StringComparison.Ordinal);
-            Need(r["slot"]<8 && r["index"]<8 && r["owner"]>=4096 && r["owner"]%8==0 && r["epoch"]!=0 && r["generation"]!=0 &&
+            Need(r["slot"]<maximumConnections && r["index"]<maximumConnections && r["owner"]>=4096 && r["owner"]%8==0 && r["epoch"]!=0 && r["generation"]!=0 &&
                 r["local"]==0x0a00020f && r["localPort"]==8080 && r["remote"]==0x0a000202 && r["remotePort"] is >0 and <=65535 &&
                 r["clock"]>=clock && r["clock"]<=long.MaxValue,"socket_transport_identity");clock=r["clock"];
             if(owner==0){owner=r["owner"];epoch=r["epoch"];}Need(owner==r["owner"] && epoch==r["epoch"],"socket_transport_owner");
             string key=string.Join(":",new[]{r["owner"],r["epoch"],r["generation"],r["index"]});
             if(slot && r["event"]==0)
             {
+                if(signalRace)Need(all.Count<512 && (all.Count<webConnections || controlEvents==2),"web_transport_race_fresh");
                 Need(!known.ContainsKey(key) && !active.ContainsKey(r["slot"]) && active.Values.All(v=>v.First["index"]!=r["index"]) &&
                     (controls is null || all.All(v=>v.RemotePort!=r["remotePort"])) &&
                     r["generation"]==generations.GetValueOrDefault(r["index"])+1 && r["deadline"]==0 && r["duration"]==0,"socket_transport_fresh");
@@ -90,7 +93,8 @@ public static partial class QemuTranscripts
                 lifetime!.MaximumDeadline=r["deadline"];lifetime.Waits++;lifetime.Drain=r["drain"]==1;
             }
         }
-        Need(continuingWeb?(controls is null?webConnections is 5 or 6:webConnections is 7 or 8) && all.Count==webConnections && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==webConnections:
+        Need(continuingWeb?(controls is null?webConnections is 5 or 6:webConnections is 7 or 8) &&
+            (signalRace?all.Count>=webConnections && all.Count<=512:all.Count==webConnections) && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==all.Count:
             all.Count==4 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Any(v=>v.Waits!=0),"socket_transport_complete");
         if(controls is not null)
         {

@@ -328,14 +328,52 @@ internal static class NativeAotServiceStartupReplayTests
     }
     private const string EntryMemory = "M16_014_MEMORY nr=12 regions=0 regionLimit=256 backed=0 pool=9216 reserved=0\r\n";
 
-    private static string Raw(bool segmented = false, string? prefix = null, string listening = Listening, uint listenChannel = 2,
-        bool lifecycle = false, string? entryMemory = null)
+    [HostTest("quota startup binds exact v3 settings environment listening and first-call topology across framed writes")]
+    private static void QuotaStartup()
     {
+        foreach (bool segmented in new[] { false, true })
+        {
+            string raw = Raw(segmented, quotaFailure: true);
+            var value = QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), NativeAotServiceContract.QuotaFailure);
+            HostCheck.Equal(Writer, value.WriterIdentity);
+            HostCheck.Equal((uint)Encoding.UTF8.GetByteCount(NativeAotServicePackage.QuotaSettingsJson), value.SettingsBytes);
+            Reject(raw); Reject(raw, lifecycle: true);
+        }
+    }
+
+    [HostTest("quota startup rejects downgraded contract environment wrong channel and missing or substituted topology")]
+    private static void QuotaStartupRejections()
+    {
+        string valid = Raw(quotaFailure: true);
+        string topology = $"M16_016_TOPOLOGY identity={Writer} ordinal=1 nr=12 pool=9216 backed=0 free=9216 freeRuns=1 largestFreeRun=9216 regions=0 regionLimit=256 tables=4 tableLimit=128\r\n";
+        foreach (string raw in new[] { valid.Replace("envc=4", "envc=3", StringComparison.Ordinal),
+            Raw(quotaFailure: true, listening: Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal)),
+            Raw(quotaFailure: true, listenChannel: 1), valid.Replace(topology, "", StringComparison.Ordinal),
+            valid.Replace(topology, topology.Replace("ordinal=1", "ordinal=2", StringComparison.Ordinal), StringComparison.Ordinal),
+            valid.Replace(topology, topology.Replace("backed=0", "backed=1", StringComparison.Ordinal), StringComparison.Ordinal) })
+        {
+            bool rejected = false;
+            try { _ = QemuTranscripts.InspectNativeAotServiceStartupForTests(Encoding.UTF8.GetBytes(raw), NativeAotServiceContract.QuotaFailure); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+    }
+
+    private static string Raw(bool segmented = false, string? prefix = null, string listening = Listening, uint listenChannel = 2,
+        bool lifecycle = false, string? entryMemory = null, bool quotaFailure = false)
+    {
+        if (quotaFailure)
+        {
+            lifecycle = true;
+            entryMemory ??= EntryMemory;
+            entryMemory += $"M16_016_TOPOLOGY identity={Writer} ordinal=1 nr=12 pool=9216 backed=0 free=9216 freeRuns=1 largestFreeRun=9216 regions=0 regionLimit=256 tables=4 tableLimit=128\r\n";
+        }
         prefix ??= Prefix; int last = prefix.LastIndexOf("CLROS_APP_BUILT", StringComparison.Ordinal);
         string beforeBuilt = prefix[..last], built = prefix[last..];
-        uint settings = (uint)Encoding.UTF8.GetByteCount(lifecycle ? NativeAotServicePackage.LifecycleSettingsJson : NativeAotServicePackage.SettingsJson);
-        int environmentCount = lifecycle ? 3 : 2;
-        if (lifecycle && listening == Listening) listening = Listening.Replace("contract=v1", "contract=v2", StringComparison.Ordinal);
+        uint settings = (uint)Encoding.UTF8.GetByteCount(quotaFailure ? NativeAotServicePackage.QuotaSettingsJson :
+            lifecycle ? NativeAotServicePackage.LifecycleSettingsJson : NativeAotServicePackage.SettingsJson);
+        int environmentCount = quotaFailure ? 4 : lifecycle ? 3 : 2;
+        if (lifecycle && listening == Listening) listening = Listening.Replace("contract=v1", quotaFailure ? "contract=v3-quota" : "contract=v2", StringComparison.Ordinal);
         List<string> rows = ["TEST_START m16.014\r\n", "TEST_START m16.014.startup\r\n",
             $"M16_014_ENTER identity={Writer} rip=4198402 argc=5 envc={environmentCount} configBytes={settings}\r\n"];
         Dictionary<ulong, ulong> ordinals = []; ulong clock = 0;

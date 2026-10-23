@@ -123,15 +123,23 @@ public unsafe partial struct LinuxThreadServices
 
     private bool WakeEpollChanges(ulong flags)
     {
-        if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return false; }
+        LinuxEpollServices.ThreadRefresh refresh = default;
+        return WakeEpollChanges(flags, ref refresh);
+    }
+
+    private bool WakeEpollChanges(ulong flags, ref LinuxEpollServices.ThreadRefresh refresh)
+    {
+        if (!refresh.Refresh(_descriptors, _self)) { _failed = true; return false; }
         if (_descriptors->Epoll == null) return true;
-        if (!LinuxEpollServices.Refresh(_descriptors->Epoll)) { _failed = true; return false; }
+        LinuxEpollServices.ReadinessScan scan = default;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
             Slot* slot = _owner.Slots + i;
             if (!slot->Wait.IsValid || slot->WaitSource != 3 || !slot->EpollOperation.IsActive) continue;
-            if (!LinuxEpollServices.HasEvents(_self, ref slot->EpollOperation, out bool ready)) { _failed = true; return false; }
+            if (!scan.HasEvents(_self, ref slot->EpollOperation, out bool ready)) { _failed = true; return false; }
             if (!ready) continue;
+            // Never carry descriptor authority across a thread-table operation.
+            scan = default;
             var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
             if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
             if (state.Completion != KernelThreadTable.Completion.None) continue;

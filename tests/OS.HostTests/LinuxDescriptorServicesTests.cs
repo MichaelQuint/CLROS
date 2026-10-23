@@ -149,6 +149,26 @@ internal static unsafe class LinuxDescriptorServicesTests
         HostCheck.Equal(3U, owner.State->ActiveDescriptors);
     }
 
+    [HostTest("linux.descriptor dispatch audits damaged mappings before user copy or pipe mutation")]
+    private static void DispatchAdmissionAfterMappingDamage()
+    {
+        using var owner = new Owner(); owner.Begin(); var pipe = owner.Pipe();
+        owner.Memory.At(Data)[0] = 0x63;
+        uint copies = owner.Context->InputCopies;
+        ulong original = owner.Memory.Memory.Tables[1];
+        HostCheck.Equal(0UL, original);
+        owner.Memory.Memory.Tables[1] = 2; // Dirty unused root slot; Data still maps through slot0.
+        HostCheck.Equal((byte)0x63, *owner.Memory.At(Data));
+        HostCheck.Equal(-14L, owner.Call(1, pipe.Write, Data, 1));
+        HostCheck.Equal(copies, owner.Context->InputCopies);
+        HostCheck.Equal(0U, owner.Admission.Pipes[0].BufferedBytes);
+        owner.Memory.Memory.Tables[1] = original;
+        HostCheck.Equal(1L, owner.Call(1, pipe.Write, Data, 1));
+        HostCheck.Equal(1L, owner.Call(0, pipe.Read, Output, 1));
+        HostCheck.Equal((byte)0x63, *owner.Memory.At(Output));
+        HostCheck.True(Services.End(owner.State));
+    }
+
     [HostTest("m16-007 immutable view admission rejects alias duplicates and reserved proc namespace", HostLane.Fast, 1)]
     private static void ViewAdmission()
     {

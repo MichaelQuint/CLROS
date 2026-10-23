@@ -37,7 +37,7 @@ public static partial class QemuTranscripts
         return (ledger.Inspection, at);
     }
 
-    // Original ELF3F1EF78C and runtime VMR820230c386db5b0106c5430b3e5aee92a7826bf5:
+    // Original ELF165683B2 and runtime VMR820230c386db5b0106c5430b3e5aee92a7826bf5:
     // GCHeap.Initialize -> initialize_gc -> virtual_alloc -> VirtualReserve.
     // Default region arena is5*hard-limit; libc alignment adds one page, then
     // VirtualReserve trims it and excludes the exact arena from dumps. Shared
@@ -45,7 +45,7 @@ public static partial class QemuTranscripts
     private sealed class ServiceGcBacking
     {
         private const ulong Limit = NativeAotServicePackage.LifecycleGcLimitBytes, Bytes = 5 * Limit, Page = 4096;
-        private const ulong Mmap = 0x47059a, Munmap = 0x470691, Madvise = 0x470541, Mprotect = 0x47064a;
+        private const ulong Mmap = 0x4705da, Munmap = 0x4706d1, Madvise = 0x470581, Mprotect = 0x47068a;
         private const byte Owned = 1, Backed = 2, Protection = 12;
         private byte[] pages = [];
         private ulong reservation, start, end, identity, ordinal, backed, peak;

@@ -23340,7 +23340,7 @@
         "M16-020"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -23377,13 +23377,14 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Add an async/cancellation route and repeated-request churn.",
-      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
+      "currentEvidence": "Fresh complete original owned consumers pass: event-owned MinimalApiSmoke at 32c14ccd4f0549f8c8a56ea629ef3aa9aa47a89b; quota at 256/512 MiB and configured positiveV2/512 at 20e665ad443bf88b8135d3327ff898743850ccfe. Original scopes are not relabeled to28a79996902692267165f0936df1aeaeb5fc75e3. Smoke preserves21 roles/37 edges/31 Dates and exact directed-signal->competing-consumption->repark->EINTR/recovery with real continuous cancelled churn. Quota originals join actual physical denial to offending-workload exit 99 and all checked reaps/descriptor/timer/memory/component cleanup. PositiveV2 completes two managed cancellations and 59 fresh/59 retired lifetimes. Actual256/512QEMUargv match the same quotaimage and fixed 16,777,216BGC/20,971,520Bdeclarednative/37,748,736Bpool/67,108,864Bentitlement. OrdinarynonGCupper15,904,768/17,473,536 B; positiveV2 upper18,776,064 B,GC+upper35,553,280 B,static+bound62,824,448 B; all named ordinary-fit bounds hold. Quota region peaks133/138 of256,tables52 of128; denial free192/79pages,largest92/73pages; cooperative stackleases17/17 and18/18 returned,sockets4/4returned,finaldynamicpthread/stack/context/socketborrowers0. Peaks are separately defined; no cross-run simultaneous peak or physical release of retained reservations is inferred. The 36 MiB pool is shared,not independent 16/20 MiB partitions. See done/step1556.md and criterion4-original-data-mapping-r03.md. All failed originals stay failed:20e full withheld Native afterM04 source guard;28a completed6,258 checks/847 fixtures(753 Fast,94 Native)/zero reuse but FAILED finaladmission for2stale_build_input,1,845 files preservedSHAE14C156B9B17FF29E79D6CBA4991CA55D50A60F0D35D64F8BE71891196247DD4. Committed28a rebuild root271 passed46.33 s/four existing warnings/zero errors after48 saved/current Tooling/QemuRunner producers matched;10 focused checks/two fixtures/zero reuse and four DLL hashes stable. Stable fullr02 at committed28a PASSES 6,258 checks/847 fixtures (753 Fast,94 Native), Complete/Succeeded/InputsUnchanged true,zero reuse; result 981EC71ADC36960C73F7A76ED578DF096E8F7E8B511DCE1165C6F0FDED3CBF01;1,845-file preservation 788C319A6F634477BB64DAEBD535537C38BFF4181961A9F3776416F725C7C66C. Common frozen3,434-source archive EA3711A3A06F8D54C5958C050062B02C6D9FCD0267615F77E79636DD9D366DE6 at artifacts/quota-termination-20261020/final-source-28a-preserved-r01/preservation.json. The completed independent ancestor audit reports zero errors across 20 captures: 19 R11 jobs (16 ordinary CLI exit 0 and three expected-fault CLI exit 1 with full parent/restoration checks), plus the retained R09 sync CLI pass. This is 17 positives and three expected negatives. It verifies 171 saved R11 native files (19 × 9), 338 top-level job files, 962 source joins per R11 job, 3,434 current tracked pins and 27 unchanged inputs; the retained R09 capture separately verifies 983 saved files and 962 source joins. Audit: artifacts/quota-termination-20261020/expert-final-r11-originals-review-r01/review.json, SHA256 CB5B027EBB14CA1B5D56BA57AB2A9D4B3D22D42CE2967A88190F761F97A6543C. Actual tracker closure follows normal PR790 merged readback and versioned evidence reconciliation; canonical desiredState=closed is reviewed source intent before merge, not an assertion that the tracker is already closed. No full Kestrel/Gate14,#226/#227,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Add an async/cancellation fixture route to the real MinimalApiSmoke app and run request churn with timer/ThreadPool activity and forced collections. Assert cancellation propagation, no deadlock, bounded resources and continued /healthz service.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Claim lane:nativeaot-integration before shared boot/app/tooling edits. Keep live profile defaults off, add explicit source admission, and record the actual supported runnable command and expected markers.",
-        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences."
+        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences.",
+        "Marker names now describe actual emitted CLI/serial prefixes and HTTP companion bodies. Full original validators still enforce exact arguments, schemas, bytes, order, cleanup, configured fit and negative controls; finding marker text alone is not acceptance. Fresh-output placeholders document reproduction only and must never overwrite original captures."
       ],
       "referenceInfluences": [
         {
@@ -23405,10 +23406,12 @@
         "Require M16-020 and exercise readiness consumed by a competing thread after a directed signal. Verify signal delivery, cancellation, GC/ThreadPool progress and clean teardown; a finite async response does not establish this race is safe."
       ],
       "requiredMarkers": [
-        "TEST_START m10.012",
-        "TEST_PASS m10.012",
-        "TEST_FAIL m10.012 <reason>",
-        "CLROS_M10_012_READY"
+        "TEST_START qemu.smoke",
+        "WEB_RACE_PREFIX",
+        "CLROS_SIGNAL_RACE_V3_OK",
+        "CLROS_CHURN_STATUS",
+        "TEST_PASS qemu.smoke.web-race",
+        "TEST_FAIL qemu.smoke <reason>"
       ],
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
@@ -23416,14 +23419,15 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M10_012_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu smoke -BootPolicy Diagnostic -EnableM10004Probe -BuildEfi -WebEventOwnedSignalRace -WorkloadProfile SingleMinimalApi -LinuxThreadingApplication MinimalApiSmoke -LinuxElfPackage artifacts/quota-termination-20261020/transactionfence-owned-guest-package-r01/web.elfpkg -LinuxThreadingDisassembly artifacts/quota-termination-20261020/transactionfence-admission-decode-r01/elf.asm -FirmwareRngSource virtio -TimeoutSeconds 285 -MemoryMiB 512 -EfiArtifact \"<fresh-EFI>\" -Image \"<fresh-image>\" -SerialLog \"<fresh-serial>\" -SummaryLog \"<fresh-summary>\" -Qemu \"C:/Program Files/qemu/qemu-system-x86_64.exe\" -OvmfCode \"C:/Program Files/qemu/share/edk2-x86_64-code.fd\""
       ],
       "documentationPaths": [
         "docs/app-model.md",
         "docs/workload-profiles.md"
       ],
-      "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence.",
-      "desiredState": "open"
+      "evidenceBoundary": "Only this NativeAOT-first slice; no CoreCLR, cloud or multi-process acceptance. M10-014 closes the local single-app claim only after complete current guest/external HTTP evidence. Original Smoke32c/quota and V2 at20e remain scoped to those producers. The shared pool does not enforce independent GC/native partitions; returned borrowers do not release retained firmware/global backing. #226/#227 and broad Gate14 remain unaccepted.",
+      "desiredState": "closed"
     },
     {
       "key": "M10-013",
@@ -33167,9 +33171,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p1",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -33181,16 +33185,17 @@
         "M16-015",
         "M10-004"
       ],
-      "currentEvidence": "Step1481 records the original corrected-runner full at 96ba8dbd: 5,918 checks/792 fixtures (698 Fast,94 Native),4,642 selected,complete unchanged inputs,zero reuse,no failures/cancellation/input failures; receipt904A9E69422E6DF886A14B36C53A1FA5A2FEC4ECAE7C62D55DA61E1494E55B92. Original producer15664DF5 and102 producer/dependency/evidence files were preserved before documentation rebuilds. Both earlier full attempts remain failed. Fresh original v1(829,226ms) and five memory controls atfee0c9af retain906source/nine-native joins each; configured v2(826,707ms),15 individual ancestors and native reviews keep original810b3eef scope. Criteria review supports14 finite scopes for dependency-ordered reconciliation after evidence comments and versioned readback; desired closure is not proof of live tracker state. #748/#225 remain open: actual quota-triggered offending-workload termination/cleanup,component-budget fit and same-churn directed-signal readiness remain unproved. The36MiB dynamic pool is shared;16MiB GC plus declared20MiB native headroom does not enforce partitions; native saturation remains outside request churn. No complete Kestrel/Gate14,isolation,cloud or production acceptance.",
+      "currentEvidence": "Fresh complete original owned consumers pass: event-owned MinimalApiSmoke at 32c14ccd4f0549f8c8a56ea629ef3aa9aa47a89b; quota at 256/512 MiB and configured positiveV2/512 at 20e665ad443bf88b8135d3327ff898743850ccfe. Original scopes are not relabeled to28a79996902692267165f0936df1aeaeb5fc75e3. Smoke preserves21 roles/37 edges/31 Dates and exact directed-signal->competing-consumption->repark->EINTR/recovery with real continuous cancelled churn. Quota originals join actual physical denial to offending-workload exit 99 and all checked reaps/descriptor/timer/memory/component cleanup. PositiveV2 completes two managed cancellations and 59 fresh/59 retired lifetimes. Actual256/512QEMUargv match the same quotaimage and fixed 16,777,216BGC/20,971,520Bdeclarednative/37,748,736Bpool/67,108,864Bentitlement. OrdinarynonGCupper15,904,768/17,473,536 B; positiveV2 upper18,776,064 B,GC+upper35,553,280 B,static+bound62,824,448 B; all named ordinary-fit bounds hold. Quota region peaks133/138 of256,tables52 of128; denial free192/79pages,largest92/73pages; cooperative stackleases17/17 and18/18 returned,sockets4/4returned,finaldynamicpthread/stack/context/socketborrowers0. Peaks are separately defined; no cross-run simultaneous peak or physical release of retained reservations is inferred. The 36 MiB pool is shared,not independent 16/20 MiB partitions. See done/step1556.md and criterion4-original-data-mapping-r03.md. All failed originals stay failed:20e full withheld Native afterM04 source guard;28a completed6,258 checks/847 fixtures(753 Fast,94 Native)/zero reuse but FAILED finaladmission for2stale_build_input,1,845 files preservedSHAE14C156B9B17FF29E79D6CBA4991CA55D50A60F0D35D64F8BE71891196247DD4. Committed28a rebuild root271 passed46.33 s/four existing warnings/zero errors after48 saved/current Tooling/QemuRunner producers matched;10 focused checks/two fixtures/zero reuse and four DLL hashes stable. Stable fullr02 at committed28a PASSES 6,258 checks/847 fixtures (753 Fast,94 Native), Complete/Succeeded/InputsUnchanged true,zero reuse; result 981EC71ADC36960C73F7A76ED578DF096E8F7E8B511DCE1165C6F0FDED3CBF01;1,845-file preservation 788C319A6F634477BB64DAEBD535537C38BFF4181961A9F3776416F725C7C66C. Common frozen3,434-source archive EA3711A3A06F8D54C5958C050062B02C6D9FCD0267615F77E79636DD9D366DE6 at artifacts/quota-termination-20261020/final-source-28a-preserved-r01/preservation.json. The completed independent ancestor audit reports zero errors across 20 captures: 19 R11 jobs (16 ordinary CLI exit 0 and three expected-fault CLI exit 1 with full parent/restoration checks), plus the retained R09 sync CLI pass. This is 17 positives and three expected negatives. It verifies 171 saved R11 native files (19 × 9), 338 top-level job files, 962 source joins per R11 job, 3,434 current tracked pins and 27 unchanged inputs; the retained R09 capture separately verifies 983 saved files and 962 source joins. Audit: artifacts/quota-termination-20261020/expert-final-r11-originals-review-r01/review.json, SHA256 CB5B027EBB14CA1B5D56BA57AB2A9D4B3D22D42CE2967A88190F761F97A6543C. Actual tracker closure follows normal PR790 merged readback and versioned evidence reconciliation; canonical desiredState=closed is reviewed source intent before merge, not an assertion that the tracker is already closed. No full Kestrel/Gate14,#226/#227,isolation,cloud or production acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md and the listed subsystem docs. Use C#14/.NET11 with the exact host-requirements pins; keep the kernel/std no-stdlib boundary.",
-        "Implementation order is encoded by dependencyKeys. Do not reopen qualified predecessor issues. Preserve the active #737 / PR739 owner: lane:nativeaot-integration must be handed off or explicitly incorporated by that owner before overlapping implementation. This planning issue claims no lane.",
-        "Paths for new fixture/helper types are proposed, not existing implementations. Keep one cohesive slice, explicit status/ownership/lifetime contracts and no hidden allocation or general kernel EH expansion.",
+        "Preserve #737 / PR790's integration owner. Shared paths retain their original applied collision-lane scopes; this finite closure does not transfer #737 ownership or rewrite historical ownedPaths.",
+        "The implemented finite path reuses the real MinimalApiService, source-sealed packages, original QEMU peer/runner/packet validators and public accounting projections. Do not replace these with copied completion or a marker-only pass.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Focused host checks come first. At a stable acceptance boundary, run the unfiltered full host lane, review original emitted native bodies and qualify affected real QEMU guests plus ancestors with exact source/object/EFI/package/serial/PCAP joins. Add a default-off regression profile/marker through the listed integration paths when the existing profile cannot exercise the case; do not treat a future marker as already supported.",
         "Measure the pinned runtime's actual GC sizing/configuration behavior first. Separate advertised system totals from an immutable app commit budget, and reserve headroom for native runtime, stacks, page tables, sockets and kernel. Use the pinned runtime's supported GC configuration; verify it takes effect inside the guest.",
         "Reference: https://learn.microsoft.com/en-us/dotnet/core/runtime-config/garbage-collector . Do not fake total RAM to mask an unaccounted pool.",
-        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance."
+        "Guest closure must name the exact implemented runner/profile command and its source-sealed inputs. Baseline socket ancestors use: dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage <qualified-socket.pkg> -LinuxThreadingDisassembly <original-disassembly.txt> -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY . Replace placeholders with retained paths and add the actual case-specific profile/options; an ancestor pass alone is not this issue's acceptance.",
+        "Marker names now describe actual emitted CLI/serial prefixes and HTTP companion bodies. Full original validators still enforce exact arguments, schemas, bytes, order, cleanup, configured fit and negative controls; finding marker text alone is not acceptance. Fresh-output placeholders document reproduction only and must never overwrite original captures."
       ],
       "referenceInfluences": [],
       "ownedPaths": [
@@ -33265,9 +33270,11 @@
         "Reserve a unique done step; retain exact commands, input/output hashes, failures and scope. Post evidence before reviewed closure; planning, host models and Linux-host HTTP do not qualify CLROS guest behavior."
       ],
       "requiredMarkers": [
-        "TEST_START m16.016",
-        "TEST_PASS m16.016",
-        "TEST_FAIL m16.016 <reason>"
+        "TEST_START qemu.smoke",
+        "M16_014_MEMORY",
+        "M16_016_TOPOLOGY",
+        "TEST_PASS qemu.smoke.quota",
+        "TEST_FAIL qemu.smoke <reason>"
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
@@ -33276,7 +33283,10 @@
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "dotnet run --project tests/OS.HostTests --no-build -- --lane full"
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu smoke -BootPolicy Diagnostic -EnableM16014Probe -BuildEfi -ServiceQuotaFailure -WorkloadProfile SingleMinimalApi -LinuxThreadingApplication MinimalApiService -LinuxElfPackage artifacts/quota-termination-20261020/fresh-service-programs-r01/QuotaFailure.elfpkg -LinuxThreadingDisassembly artifacts/quota-termination-20261020/quota-service-native-r02/elf.asm -FirmwareRngSource virtio -TimeoutSeconds 900 -MemoryMiB 256 -EfiArtifact \"<fresh-EFI>\" -Image \"<fresh-image>\" -SerialLog \"<fresh-serial>\" -SummaryLog \"<fresh-summary>\" -Qemu \"C:/Program Files/qemu/qemu-system-x86_64.exe\" -OvmfCode \"C:/Program Files/qemu/share/edk2-x86_64-code.fd\"",
+        "dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu smoke -BootPolicy Diagnostic -EnableM16014Probe -BuildEfi -ServiceQuotaFailure -WorkloadProfile SingleMinimalApi -LinuxThreadingApplication MinimalApiService -LinuxElfPackage artifacts/quota-termination-20261020/fresh-service-programs-r01/QuotaFailure.elfpkg -LinuxThreadingDisassembly artifacts/quota-termination-20261020/quota-service-native-r02/elf.asm -FirmwareRngSource virtio -TimeoutSeconds 900 -MemoryMiB 512 -EfiArtifact \"<fresh-EFI>\" -Image \"<fresh-image>\" -SerialLog \"<fresh-serial>\" -SummaryLog \"<fresh-summary>\" -Qemu \"C:/Program Files/qemu/qemu-system-x86_64.exe\" -OvmfCode \"C:/Program Files/qemu/share/edk2-x86_64-code.fd\"",
+        "dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu smoke -BootPolicy Diagnostic -EnableM16014Probe -BuildEfi -ServiceLifecycle -WorkloadProfile SingleMinimalApi -LinuxThreadingApplication MinimalApiService -LinuxElfPackage artifacts/quota-termination-20261020/fresh-service-programs-r01/V2.elfpkg -LinuxThreadingDisassembly artifacts/quota-termination-20261020/quota-service-native-r02/elf.asm -FirmwareRngSource virtio -TimeoutSeconds 1080 -MemoryMiB 512 -EfiArtifact \"<fresh-EFI>\" -Image \"<fresh-image>\" -SerialLog \"<fresh-serial>\" -SummaryLog \"<fresh-summary>\" -Qemu \"C:/Program Files/qemu/qemu-system-x86_64.exe\" -OvmfCode \"C:/Program Files/qemu/share/edk2-x86_64-code.fd\""
       ],
       "documentationPaths": [
         "docs/app-model.md",
@@ -33284,7 +33294,7 @@
         "docs/workload-profiles.md",
         "docs/completion-gates.md"
       ],
-      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged."
+      "evidenceBoundary": "Only the explicitly measured regression and its owned guest integration. No broad Linux compatibility, arbitrary workload, general EH, multi-app, provider or production claim. Existing finite qualifications remain unchanged. Original Smoke32c/quota and V2 at20e remain scoped to those producers. The shared pool does not enforce independent GC/native partitions; returned borrowers do not release retained firmware/global backing. #226/#227 and broad Gate14 remain unaccepted."
     },
     {
       "key": "M16-017",

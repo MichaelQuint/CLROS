@@ -45,7 +45,7 @@ public static unsafe partial class EfiEntry
         // Validate both the retained private IDT and its actual active envelope.
         // The gateway changes RSP0/IDTR; the supervisor timer validator cannot
         // stand in for those observations. Every unborrowed byte stays original.
-        private static bool LinuxNativeUserGates(LinuxNativeControl* c, bool active)
+        private static bool LinuxNativeUserGates(LinuxNativeControl* c, bool active, bool allowSyscall = false)
         {
             Storage* state = c->State;
             byte* data = (byte*)state->LinuxSyscallData, idt = data + X64LinuxUserTransition.IdtOffset;
@@ -69,9 +69,8 @@ public static unsafe partial class EfiEntry
                     state->Arena.Descriptors->Tss[i] != (i < 104 ? c->OriginalTss[i] : 0)) return false;
             ulong* observed = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->LinuxSyscallCode + X64LinuxUserTransition.ObserveOffset))(observed);
-            return (observed[3] & 0x602) == 2 && observed[4] == 8 && observed[5] == 0 && observed[6] == 24 &&
-                observed[17] == *(ulong*)(data + 0x98) && observed[18] == *(ulong*)(data + 0xa0) &&
-                observed[19] == *(ulong*)(data + 0xb8) && observed[20] == *(ulong*)(data + 0xc0);
+            return X64LinuxUserTransition.ValidateActiveUserGateObservation(data, X64LinuxUserTransition.DataBytes,
+                observed, X64LinuxUserTransition.ObservationWords, allowSyscall);
         }
 
         private static bool LinuxNativeUserGate(byte* gate, ulong address) =>

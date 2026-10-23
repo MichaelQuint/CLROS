@@ -20,16 +20,18 @@ public static partial class QemuTranscripts
     /// Supplied controls add original-position transport/descriptor joins;
     /// omission retains the historical leaf scope, whose check flag is false.
     /// Production always supplies its mandatory checked runner reports.
-    /// Independent native/source/packet/runner admission remains mandatory.</summary>
+    /// Independent native/source/packet/runner admission remains mandatory.
+    /// Explicit eventOwned selects the leaf's exact named-wait checks and
+    /// requires a race selection; omitted mode retains historical scope.</summary>
     public static (WebParentReport Parent,WebReplayReport Leaf) ValidateNativeAotWebCapturePrefix(string root,byte[] package,
-        NativeAotWebProgram program,ReadOnlySpan<byte> raw,WebControlInspection? controls=null)
+        NativeAotWebProgram program,ReadOnlySpan<byte> raw,WebControlInspection? controls=null,WebSignalRaceSelection? signalRace=null,bool eventOwned=false)
     {
         Need(raw.Length is >FirmwarePrefixBytes and <=8*1024*1024,"web_capture_extent");
         ReadOnlySpan<byte> start="TEST_START m10.004\r\n"u8;
         int at=raw.IndexOf(start);
         Need(at>=FirmwarePrefixBytes && raw[at-2]==13 && raw[at-1]==10 && raw[(at+start.Length)..].IndexOf(start)<0,"web_raw_start");
         var parent=InspectNativeAotWebParentForTests(package,raw[..at]);
-        var leaf=ValidateNativeAotWebContinuingPrefix(root,package,program,raw[at..],parent.UserRoot,parent.KernelRoot,controls);
+        var leaf=ValidateNativeAotWebContinuingPrefix(root,package,program,raw[at..],parent.UserRoot,parent.KernelRoot,controls,signalRace,eventOwned);
         var framed=NativeAotThreadingOutput.ReadWeb(raw[at..]);
         string complete=framed.NormalizedTail[..(framed.NormalizedTail.Length-leaf.Observations.TrailingFragment.Length)];
         var rows=complete[..^2].Split("\r\n",StringSplitOptions.None);

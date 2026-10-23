@@ -95,6 +95,70 @@ internal static class NativeAotServicePackageTests
         Reject(original.AsSpan(0, original.Length - 1).ToArray()); Reject([]);
     }
 
+    [HostTest("service quota package seals explicit termination and rejects crossed positive contracts")]
+    private static unsafe void QuotaPolicy()
+    {
+        byte[] elf = Image(), quota = NativeAotServicePackage.Create(elf, NativeAotServiceContract.QuotaFailure);
+        var description = NativeAotServicePackage.Describe(quota, NativeAotServiceContract.QuotaFailure);
+        HostCheck.Equal(4U, description.Environment); HostCheck.Equal(5U, description.Arguments);
+        var view = LinuxElfPackage.Validate(quota);
+        byte[] manifest = quota.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes).ToArray();
+        string text = Encoding.ASCII.GetString(manifest);
+        HostCheck.True(text.Contains("args=--clros-service=v3-quota --urls=http://0.0.0.0:8080 --contentRoot /app/apps\n", StringComparison.Ordinal));
+        HostCheck.True(text.EndsWith("env.DOTNET_GCHeapHardLimit=1000000\nenv.CLROS_MEMORY_EXHAUSTION=terminate\n", StringComparison.Ordinal));
+        fixed (byte* p = manifest)
+        {
+            var budget = LinuxAppConfiguration.ReadGcBudget(p, (uint)manifest.Length, view.Manifest, 8192, 16 * 1024 * 1024, 16 * 1024 * 1024, true);
+            HostCheck.True(budget.Succeeded && budget.TerminateOnPhysicalBackingExhaustion);
+            HostCheck.Equal(NativeAotServicePackage.LifecycleGcLimitBytes, budget.GcLimitBytes);
+        }
+        foreach (var contract in new[] { NativeAotServiceContract.V1, NativeAotServiceContract.V2 })
+        {
+            RejectContract(quota, contract);
+            RejectContract(NativeAotServicePackage.Create(elf, contract), NativeAotServiceContract.QuotaFailure);
+        }
+    }
+
+    [HostTest("service quota package rejects missing mismatched and broadened immutable termination policy")]
+    private static void QuotaPolicyMutations()
+    {
+        byte[] elf = Image(), quota = NativeAotServicePackage.Create(elf, NativeAotServiceContract.QuotaFailure);
+        var view = LinuxElfPackage.Validate(quota);
+        string manifest = Encoding.ASCII.GetString(quota.AsSpan((int)view.ManifestOffset, (int)view.ManifestBytes));
+        foreach (var change in new[] {
+            ("env.CLROS_MEMORY_EXHAUSTION=terminate\n", ""),
+            ("env.CLROS_MEMORY_EXHAUSTION=terminate\n", "env.CLROS_MEMORY_EXHAUSTION=errno\n"),
+            ("env.DOTNET_GCHeapHardLimit=1000000\n", ""),
+            ("--clros-service=v3-quota", "--clros-service=v2"),
+            ("env.DOTNET_GCHeapHardLimit=1000000\n", "env.DOTNET_GCHeapHardLimit=800000\n") })
+            RejectContract(NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(NativeAotServicePackage.QuotaSettingsJson),
+                Encoding.ASCII.GetBytes(manifest.Replace(change.Item1, change.Item2, StringComparison.Ordinal))), NativeAotServiceContract.QuotaFailure);
+        RejectContract(NativeAotWebPackage.Create(elf, Encoding.ASCII.GetBytes(NativeAotServicePackage.LifecycleSettingsJson),
+            Encoding.ASCII.GetBytes(manifest)), NativeAotServiceContract.QuotaFailure);
+    }
+
+    [HostTest("service package rejects unknown contract selectors before producing an envelope")]
+    private static void UnknownContract()
+    {
+        byte[] elf = Image(), package = NativeAotServicePackage.Create(elf);
+        foreach (var contract in new[] { (NativeAotServiceContract)0, (NativeAotServiceContract)4, (NativeAotServiceContract)(-1) })
+        {
+            bool rejected = false;
+            try { _ = NativeAotServicePackage.Create(elf, contract); } catch (ArgumentOutOfRangeException) { rejected = true; }
+            HostCheck.True(rejected);
+            rejected = false;
+            try { _ = NativeAotServicePackage.Describe(package, contract); } catch (ArgumentOutOfRangeException) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+    }
+
+    private static void RejectContract(byte[] package, NativeAotServiceContract contract)
+    {
+        bool rejected = false; try { _ = NativeAotServicePackage.Describe(package, contract); }
+        catch (InvalidDataException) { rejected = true; }
+        HostCheck.True(rejected, "noncanonical service contract accepted");
+    }
+
     private static void Reject(byte[] package)
     {
         bool rejected = false; try { _ = NativeAotServicePackage.Describe(package); }

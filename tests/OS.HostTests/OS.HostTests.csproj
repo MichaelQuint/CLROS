@@ -15,6 +15,10 @@
 
 	<ItemGroup>
 		<Compile Include="..\..\apps\MinimalApiService\ServiceLifecycleExercise.cs" Link="AppFixtures\ServiceLifecycleExercise.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelChurnExercise.cs" Link="AppFixtures\KestrelChurnExercise.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbeAbi.cs" Link="AppFixtures\KestrelSignalProbeAbi.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalProbe.cs" Link="AppFixtures\KestrelSignalProbe.cs" />
+		<Compile Include="..\..\apps\MinimalApiSmoke\KestrelSignalRaceState.cs" Link="AppFixtures\KestrelSignalRaceState.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiConsoleAdapter.cs" Link="EfiAdapters\EfiConsoleAdapter.cs" />
 		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.cs" />

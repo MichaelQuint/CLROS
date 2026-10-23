@@ -77,8 +77,13 @@ internal static class NativeAotWebPacketTests
     private static void Reject(Action action)
     {bool rejected=false;try{action();}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
 
-    private sealed record ControlPackets(List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp,uint[] Ports,
+    internal sealed record ControlPackets(List<byte[]> Frames,uint Anchor,QemuArpReceiveReceipt Arp,uint[] Ports,
         QemuTranscripts.WebUtcObservation[] Windows,QemuTranscripts.WebControlInspection Controls,int VlanAt);
+    // Fresh copied synthetic bytes only; no original capture/guest authority.
+    internal static ControlPackets RaceControls()
+    {
+        var value=Controls();return value with{Frames=value.Frames.Select(frame=>frame.ToArray()).ToList(),Ports=value.Ports.ToArray(),Windows=value.Windows.ToArray()};
+    }
     private static ControlPackets Controls(bool quota=false)
     {
         var original=Vector(quota:quota,dates:i=>Date(i));var frames=original.Frames;int ordinary=quota?5:6,vlanAt=0;

@@ -68,6 +68,35 @@ internal static unsafe class LinuxMemoryServicesTests
     private static long Map(Owner owner, ulong address, ulong bytes, uint protection, ulong flags = 0x100022) =>
         LinuxMemoryServices.Map(owner.State, address, bytes, protection, flags, ulong.MaxValue, 0);
 
+    [HostTest("linux.memory complete mixed backing demand rejects atomically before allocation and preserves retained none pages")]
+    private static void MixedBackingCapacity()
+    {
+        using var owner = new Owner(backingPages: 4); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner, Start, 2 * 4096, 3));
+        *owner.At(Start) = 0x73;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start, 4096, 0));
+        HostCheck.Equal((long)Start + 8192, Map(owner, Start + 8192, 3 * 4096, 0));
+        var before = Snapshot(owner);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, Start, 5 * 4096, 3)); Same(owner, before);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start, 4 * 4096, 3));
+        HostCheck.Equal(4U, owner.State->BackedPages); HostCheck.Equal((byte)0x73, *owner.At(Start));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start + 8192), 8192).IndexOfAnyExcept((byte)0) < 0);
+    }
+
+    [HostTest("linux.memory full pool fixed replacement reuses eligible backing without double charging")]
+    private static void ReplacementBackingCapacity()
+    {
+        using var owner = new Owner(backingPages: 4); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner, Start, 4 * 4096, 3));
+        *owner.At(Start) = 0x41; *owner.At(Start + 3 * 4096) = 0x63;
+        HostCheck.Equal((long)Start + 4096, Map(owner, Start + 4096, 2 * 4096, 3, 0x32));
+        HostCheck.Equal(4U, owner.State->BackedPages);
+        HostCheck.Equal((byte)0x41, *owner.At(Start)); HostCheck.Equal((byte)0x63, *owner.At(Start + 3 * 4096));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start + 4096), 8192).IndexOfAnyExcept((byte)0) < 0);
+        var before = Snapshot(owner);
+        HostCheck.Equal(-12L, Map(owner, Start + 4096, 4 * 4096, 3, 0x32)); Same(owner, before);
+    }
+
     [HostTest("linux.memory backing high-water counts published commits and survives replacement release and cleanup")]
     private static void BackingHighWater()
     {
@@ -126,6 +155,96 @@ internal static unsafe class LinuxMemoryServicesTests
         HostCheck.True(before.Pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Pool, before.Pool.Length)));
         HostCheck.True(before.Static.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.StaticRanges, before.Static.Length)));
     }
+
+    private static LinuxMemoryServices.Observation ObserveUnchanged(Owner owner,
+        uint backed, uint runs, uint largest, uint regions)
+    {
+        var before = Snapshot(owner);
+        byte[] candidate = new ReadOnlySpan<byte>(owner.Memory.CandidateTables, (int)owner.Memory.TablePages * 4096).ToArray();
+        HostCheck.True(LinuxMemoryServices.TryObserve(owner.State, out var observed));
+        Same(owner, before);
+        HostCheck.True(candidate.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.CandidateTables, candidate.Length)));
+        HostCheck.Equal(owner.Memory.PoolPages, observed.PoolPages);
+        HostCheck.Equal(backed, observed.BackedPages); HostCheck.Equal(owner.Memory.PoolPages - backed, observed.FreePages);
+        HostCheck.Equal(runs, observed.FreeRuns); HostCheck.Equal(largest, observed.LargestFreeRunPages);
+        HostCheck.Equal(regions, observed.DynamicRegions); HostCheck.Equal(LinuxMemoryServices.MaximumRegions, observed.RegionCapacity);
+        HostCheck.Equal(owner.State->Root.UsedTables, observed.UsedTables); HostCheck.Equal(owner.Memory.TablePages, observed.TableCapacity);
+        return observed;
+    }
+
+    [HostTest("linux.memory observation counts physical holes independently of virtual and physical extent order")]
+    private static void ObservationPhysicalRuns()
+    {
+        using var empty = new Owner(); empty.Begin(); ObserveUnchanged(empty, 0, 1, PoolPages, 0);
+        using var owner = FragmentedPool(); ObserveUnchanged(owner, 8, 2, 4, 2);
+        // Two physical holes back one new virtual interval beyond the old owners.
+        HostCheck.Equal((long)(Start + 0x100000), Map(owner, Start + 0x100000, 6 * 4096, 3));
+        ObserveUnchanged(owner, 14, 1, 2, 4);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start + 0x10000, 4 * 4096));
+        ObserveUnchanged(owner, 10, 2, 4, 3);
+    }
+
+    [HostTest("linux.memory observation retains none backing excludes virtual-only reservations and reports current tables")]
+    private static void ObservationRetainedNone()
+    {
+        using var owner = new Owner(backingPages: 4); owner.Begin();
+        uint staticTables = ObserveUnchanged(owner, 0, 1, 4, 0).UsedTables;
+        HostCheck.Equal((long)Start, Map(owner, Start, 4 * 4096, 3));
+        HostCheck.True(ObserveUnchanged(owner, 4, 0, 0, 1).UsedTables > staticTables);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start, 4 * 4096, 0));
+        HostCheck.Equal(staticTables, ObserveUnchanged(owner, 4, 0, 0, 1).UsedTables);
+        HostCheck.Equal((long)(Start + 0x10000), Map(owner, Start + 0x10000, 2 * 4096, 0));
+        HostCheck.Equal(staticTables, ObserveUnchanged(owner, 4, 0, 0, 2).UsedTables);
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start, 4 * 4096, 4));
+        HostCheck.Equal(staticTables, ObserveUnchanged(owner, 0, 1, 4, 2).UsedTables);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start, 0x20000));
+        HostCheck.Equal(staticTables, ObserveUnchanged(owner, 0, 1, 4, 0).UsedTables);
+    }
+
+    [HostTest("linux.memory observation reflects only published fixed replacement backing and metadata")]
+    private static void ObservationFixedReplacement()
+    {
+        using var owner = new Owner(backingPages: 8); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner, Start, 6 * 4096, 3));
+        HostCheck.Equal((long)(Start + 0x10000), Map(owner, Start + 0x10000, 2 * 4096, 3));
+        ObserveUnchanged(owner, 8, 0, 0, 2);
+        HostCheck.Equal((long)(Start + 2 * 4096), Map(owner, Start + 2 * 4096, 2 * 4096, 0, 0x32));
+        ObserveUnchanged(owner, 6, 1, 2, 4);
+        HostCheck.Equal((long)Start, Map(owner, Start, 6 * 4096, 0, 0x32));
+        ObserveUnchanged(owner, 2, 1, 6, 2);
+        HostCheck.Equal((long)Start, Map(owner, Start, 6 * 4096, 3, 0x32));
+        ObserveUnchanged(owner, 8, 0, 0, 2);
+    }
+
+    [HostTest("linux.memory observation preserves physical and metadata rollback and rejects invalid state without mutation")]
+    private static void ObservationRollback()
+    {
+        using var tight = FragmentedPool(tables: 8);
+        ObserveUnchanged(tight, 8, 2, 4, 2); var before = Snapshot(tight);
+        HostCheck.Equal(-12L, Map(tight, Start + 0x40000000, 6 * 4096, 3)); Same(tight, before);
+        ObserveUnchanged(tight, 8, 2, 4, 2);
+        using var owner = FragmentedPool(); before = Snapshot(owner);
+        HostCheck.Equal(-12L, Map(owner, Start + 0x100000, 9 * 4096, 3)); Same(owner, before);
+        ObserveUnchanged(owner, 8, 2, 4, 2);
+        for (uint i = 0; i < LinuxMemoryServices.MaximumRegions - 3; i++)
+            HostCheck.Equal((long)(Start + 0x200000 + i * 8192), Map(owner, Start + 0x200000 + i * 8192, 4096, 0));
+        before = Snapshot(owner);
+        HostCheck.Equal(-12L, Map(owner, Start + 0x100000, 6 * 4096, 3)); Same(owner, before);
+        var observed = ObserveUnchanged(owner, 8, 2, 4, LinuxMemoryServices.MaximumRegions - 1);
+        HostCheck.True(!LinuxMemoryServices.TryObserve(null, out observed)); EmptyObservation(observed);
+        using var invalid = new Owner(); before = Snapshot(invalid);
+        HostCheck.True(!LinuxMemoryServices.TryObserve(invalid.State, out observed)); EmptyObservation(observed); Same(invalid, before);
+        // Altered admitted tables cannot be copied as an accepted observation.
+        owner.Memory.Tables[0] ^= 4; before = Snapshot(owner);
+        HostCheck.True(!LinuxMemoryServices.TryObserve(owner.State, out observed)); EmptyObservation(observed); Same(owner, before);
+        owner.Memory.Tables[0] ^= 4;
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    private static void EmptyObservation(LinuxMemoryServices.Observation observed) =>
+        HostCheck.True(observed.PoolPages == 0 && observed.BackedPages == 0 && observed.FreePages == 0 &&
+            observed.FreeRuns == 0 && observed.LargestFreeRunPages == 0 && observed.DynamicRegions == 0 &&
+            observed.RegionCapacity == 0 && observed.UsedTables == 0 && observed.TableCapacity == 0);
 
     [HostTest("linux.memory owned image cookie permissions survive mmap and restore original leaf identity")]
     private static void ImageRoundTrip()

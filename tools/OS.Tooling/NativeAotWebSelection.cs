@@ -19,7 +19,13 @@ public static class NativeAotWebSelection
 
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
-        string app = Application(flags); if (app.Length == 0) return false;
+        if (options.WebSignalRace && options.WebEventOwnedSignalRace) throw new ToolFailure("web_race_profile_conflict");
+        string app = Application(flags);
+        if (app.Length == 0)
+        {
+            if (options.HasWebSignalRace) throw new ToolFailure("web_race_requires_web");
+            return false;
+        }
         if (options.LinuxThreadingApplication.Length == 0 && !options.Explicit.Contains("LinuxThreadingApplication"))
             options.LinuxThreadingApplication = app;
         _ = Application(flags, options.LinuxThreadingApplication);

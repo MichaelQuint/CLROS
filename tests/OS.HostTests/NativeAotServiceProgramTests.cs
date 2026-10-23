@@ -19,10 +19,10 @@ internal static class NativeAotServiceProgramTests
         HostCheck.Equal(2, report.InstructionCount); HostCheck.Equal(1, report.SyscallCount);
         HostCheck.Equal(64, report.Sha256.Length);
         string root = Path.Combine(Path.GetTempPath(), "clros-nonexistent-service-" + Guid.NewGuid().ToString("N"));
-        foreach (bool lifecycle in new[] { false, true })
+        foreach (var contract in new[] { NativeAotServiceContract.V1, NativeAotServiceContract.V2, NativeAotServiceContract.QuotaFailure })
         {
             bool rejected = false;
-            try { NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf, lifecycle), dump, lifecycle); }
+            try { NativeAotServiceProgram.Create(root, NativeAotServicePackage.Create(elf, contract), dump, contract); }
             catch (InvalidDataException error) { rejected = error.Message == "service_package_identity"; }
             HostCheck.True(rejected);
         }

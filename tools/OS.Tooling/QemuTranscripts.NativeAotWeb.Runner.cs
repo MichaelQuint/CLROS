@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using OS.Tools.QemuRunner;
 
 namespace OS.Tooling;
@@ -30,7 +31,13 @@ public static partial class QemuTranscripts
     public static WebRunnerReport InspectNativeAotWebRunnerForTests(QemuSmokeOptions options,QemuSmokePlan plan,
         ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration,bool logQuota=false,
         bool requireControls=true)
+        =>ReadWebRunner(options,plan,runner,raw,summaryBytes,context,body,configuration,logQuota,requireControls);
+
+    private static WebRunnerReport ReadWebRunner(QemuSmokeOptions options,QemuSmokePlan plan,
+        ProcessResult runner,byte[] raw,byte[] summaryBytes,WebRunnerContext context,string body,string configuration,bool logQuota,
+        bool requireControls,WebRaceRendezvous.Report? raceGate=null,WebUtcObservation? producerWindow=null,bool eventOwned=false)
     {
+        Need(raceGate is null?producerWindow is null&&!eventOwned:producerWindow is not null&&requireControls&&!logQuota,"web_race_runner_mode");
         RequireCompleteProcess(runner,"web_runner_incomplete");
         Need(runner.ExitCode==0 && runner.StandardError.Length==0 && raw.Length is >0 and <=8*1024*1024 &&
             summaryBytes.Length is >3 and <=16*1024*1024 && summaryBytes.AsSpan(0,3).SequenceEqual(Encoding.UTF8.GetPreamble()),"web_runner_inputs");
@@ -97,6 +104,7 @@ public static partial class QemuTranscripts
                 Need(utc[^1].StartedUtc==exchanges[i-ordinary].StartedUtc && utc[^1].CompletedUtc==exchanges[i-ordinary].CompletedUtc,
                     "web_runner_control_utc_join");
         }
+        if(raceGate is not null)ValidateWebRaceRunnerWindow(raceGate,producerWindow!.Value,context,pid,started,ended,utc,eventOwned);
         string serial=DecodeUtf8(raw);var stream=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
             successTerminalMarker:"TEST_PASS m10.004",orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
         stream.Feed(raw);var completed=stream.Complete();
@@ -159,6 +167,7 @@ public static partial class QemuTranscripts
             "WEB_CONFIG_PROBE_BODY_BYTES "+configBytes,"WEB_CONFIG_PROBE_BODY_SHA256 "+configHash,"WEB_CONFIG_PROBE_ELAPSED_MS "+config,
             ..extraSummary,
             ..requireControls?new[]{"WEB_SOCKET_CONTROLS "+socketsJson,"WEB_FRAME_CONTROL "+framesJson,"WEB_PROCESS_ALIVE_AFTER_CONTROLS true"}:Array.Empty<string>(),
+            ..raceGate is null?Array.Empty<string>():new[]{"WEB_RACE_GATE "+JsonSerializer.Serialize(raceGate),"WEB_PROCESS_ALIVE_AFTER_RACE_GATE true"},
             "WEB_ENDPOINT_PRELAUNCH_AVAILABLE true","WEB_ENDPOINT_STOPPED_REFUSED true","WEB_PROCESS_ID "+pid,
             "WEB_PROCESS_START_UTC "+first,"WEB_PROCESS_END_UTC "+last,"WEB_PROCESS_LIFETIME_MS "+life,
             ..utcRows,

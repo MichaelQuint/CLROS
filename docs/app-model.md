@@ -90,14 +90,611 @@ Tracker closure still requires evidence comments, versioned preview/apply and
 readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
 15 individual ancestors and native reviews keep their original `810b3eef` scopes.
 
-#748/#225 remain open: quota-triggered offending-workload termination and cleanup
-during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
-20MiB native headroom does not enforce independent partitions. Native saturation
-occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
-and production remain incomplete.
+Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
+positive V2 at `20e665ad` pass their complete finite consumers, retaining their
+original producer scopes. All 20 ancestor profiles are qualified: 17 positives
+and three expected negatives, with complete independent source/native joins.
+The stable unfiltered full at committed `28a79996` passes 6,258 checks across
+847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
+[Step1556](../done/step1556.md) records exact provenance, measured fit/returned leases and
+all failed-original history. The 36 MiB pool remains shared, not independent
+16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
+isolation, cloud and production remain unaccepted.
+This updates only the named finite boundary; historical scopes and other
+unfinished work retain their original limits.
+
+The actual 256/512 MiB RAM observations bind the same quota image and fixed
+policy: GC 16,777,216 B, declared native headroom 20,971,520 B, shared pool
+37,748,736 B and entitlement 67,108,864 B. Ordinary complete-snapshot non-GC
+bounds are 15,904,768/17,473,536 B. Positive V2 independently has an 18,776,064 B
+ordinary non-GC upper bound, 35,553,280 B GC + upper and 62,824,448 B static +
+bound; the existing fit guards pass. Pressure maxima remain separate.
+
+Quota memory rows bound region/table occupancy and physical free runs; exact
+thread/stack/socket histories return dynamic leases and borrowers to zero.
+Retained firmware/global backing is not released. Quota's held cancellation
+ends through offending-workload termination; V2 separately proves completed
+managed cancellation, and Smoke proves continuous cancelled churn and the exact
+directed-signal/consumed-readiness race. This finite union does not imply a
+same-VM combined peak or arbitrary-workload/isolation acceptance.
 
 The following dated development notes retain contract details and historical
-observations. Use step1481 for current validation and scoped reconciliation.
+observations. Use the current boundary above for validation and reconciliation.
+
+## Quota termination development
+
+[Step1482](../done/step1482.md) integrates the previously reviewed quota draft
+under #737. The managed app, kernel and host graph compile; fourteen focused
+fixtures pass145 checks; the updated six-file publisher passes three separate
+focused checks. The active M16-014 C# Compile target also passes with
+the complete evaluated profile. This produces IL, not native/guest evidence;
+#748/#225 remain open.
+
+[Step1483](../done/step1483.md) adds the bounded quota peer child owner and
+strict child CLI, plus a separate negative runner value inspector. Five owner
+checks and ten positive peer regressions pass; six capture-value checks pass
+with a later producer. Expected runner22 awaits the finishing peer. Failure or
+cancellation joins both owned children and retains their logs. The inspector
+recomputes terminal/stream metrics, quiet drain and cleanup observations, and
+checks borrowed PCAP framing; its copied result remains `captured/pending`.
+These checks do not activate the guarded QemuSmoke quota path or establish the
+missing packet/peer/syscall temporal joins.
+
+The frozen `6fed0467` source/producer publishes a fresh original static ELF on
+the pinned external Linux builder. All24 exported originals,881 source hashes
+and22 output hashes match. Independent decode covers every executable-section
+byte and all198 syscall continuations; the retained debug file has the exact
+GNU debug-link CRC and executable addresses. This is publication/index evidence.
+It does not execute the app or supply fresh prepared-program/GC admission,
+complete native ABI/stack review, a full-host gate or CLROS guest acceptance.
+
+[Step1484](../done/step1484.md) binds the fresh original ELF, complete instruction
+index and fourteen current source identities for v1, v2 and quota preparation.
+The GC arena reader uses the fresh four libc continuations after exact original
+body/relocation review; allocation and ownership predicates remain unchanged.
+This is instruction-boundary admission and copied GC accounting, not a native
+control-flow, GC-root/stack or guest proof. Prior v1/v2 captures retain their
+original producers and image identities; the fresh image needs new qualification.
+
+[Step1485](../done/step1485.md) adds optional first-appearance byte-range
+observations to the existing TCP reader. Each copied range retains the original
+record, seconds/microseconds, direction, guest-observed remote port and stream
+offset. Retransmissions retain their first witness; overlapping and out-of-order
+bytes keep separate original ranges. Existing positive HTTP/close policies stay
+unchanged. These observations do not establish complete HTTP exchanges, a peer
+clock/port mapping, quota teardown or an owned capture.
+
+[Step1486](../done/step1486.md) adds an explicit observed quota-peer mode and a
+strict wire companion. It copies actual connected endpoints and raw stream I/O,
+with logical exchange/sample IDs, direction offsets and elapsed100ns ticks.
+Reads reserve capture capacity before consuming data; shutdown gates new work
+and joins pending connects/I/O before a final or partial snapshot. Failed writes
+retain attempted bytes with unknown transferred count. The explicit observed
+owner/CLI route retains a fresh companion beside the four original logs, checks
+creation identity and binds its digest/length to captured child stderr. Successful
+completion requires the full quota-run companion to match every v1 sample;
+partial child failures retain evidence and refuse completion. Ordinary v1 stdout
+and the default owner route remain unchanged. This is still not a complete
+original packet/peer/syscall consumer or actual quota guest proof.
+Host I/O failure can follow QEMU/slirp shutdown: the kernel abort path deliberately
+abandons transport without FIN or synthetic RST, so neither fact proves guest
+quota cleanup by itself.
+
+[Step1487](../done/step1487.md) adds a separate quota-only persistent HTTP prefix
+reader. It returns consumed complete-message intervals and an explicit unfinished
+header/body/chunk suffix, preserving header-only cancellation and partial echo.
+Its bounded copied values do not bind samples, connections, PCAP or clocks;
+those joins remain required before the quota capture guard can open. Existing
+positive service readers and caps remain unchanged.
+
+[Step1488](../done/step1488.md) retains each validated quota fresh transport
+reservation's original normalized row index and full lifetime/tuple fields.
+Repeated ports across generations stay distinct; pending SYN reservations and
+unadmitted startup host writes do not establish HTTP or host-to-guest identity.
+Original byte/flow joins remain separate.
+
+[Step1489](../done/step1489.md) separates known host directional bytes from
+failed-write attempts and binds completed logical controls/polls and selected
+samples to parsed original host HTTP intervals. A quota-only packet stream
+inventory retains contiguous prefixes, first-seen byte islands and transport
+facts, with4MiB directional/aggregate logical extents checked before allocation.
+Positive packet/close/reset defaults stay unchanged. These copied host and packet
+inventories still require an original-byte host-to-guest flow join and complete
+capture/syscall/native/process ownership before quota acceptance.
+
+[Step1490](../done/step1490.md) adds bounded global unique byte-based flow
+assignment and complete HTTP/header interval joins to original first-seen packet
+ranges. Failed startup attempts and empty guest flows retain explicit unassigned
+status. Per-message PCAP record order preserves request/response causality
+without joining clock origins. This copied-value join still needs genuine held
+capture/syscall/native/process ownership; the quota guard remains closed.
+
+[Step1491](../done/step1491.md) factors the exact original NIC/ARP/TCP/quiet-SYN
+accounting for the negative quota path. Its copied counter inspection retains
+parent/wire associations without requiring graceful FIN or TIMEWAIT expiry.
+The positive service wrapper retains its existing FIN/compact-expiry check.
+This supplies no syscall/HTTP temporal or held-capture authority.
+
+[Step1492](../done/step1492.md) adds quota-only original post-CALL socket
+descriptor/generation/connection observations and cumulative accepted/consumed
+byte offsets. Complete syscall replay consumes the rows directly; a copied
+reader preserves original serial positions and transport census identities.
+Peeks consume no bytes. Required HTTP intervals now retain clipped consuming
+receive/accepted-send slices and per-message syscall ordering. Previously
+unmeasured descriptor operations remain unsupported by complete replay. Sixteen
+focused checks across four fixtures pass with three preserved producers. The
+active EFI publishes and passes artifact verification after review of eight
+source-admission identities; its original image/object/map inputs are retained.
+Retained-memory/GC/worker/health overlap and held capture joins remain pending.
+This does not qualify the native ABI, fresh guests or quota termination.
+
+[Step1493](../done/step1493.md) projects each already validated retained mmap's
+original CALL and joins segmented stderr marker bytes and selected HTTP responses
+to original write/socket calls. The retained poll may start before the map and
+return before its log is published. Held prefixes precede pressure; forced-GC
+markers and worker/health/lifecycle/quota responses lie before denial. Six focused
+overlap/memory checks pass. An internal holder and composed consumer use the
+private observed peer Completion, actual pre-run input records and eight held
+outputs, verified before and after inspection. Their genuine successful capture
+path is unexercised. At step1493, QemuSmoke caller integration was still pending;
+step1494 below supplies that route. No issue or guest gate is accepted by these
+copied-value checks.
+
+[Step1494](../done/step1494.md) supplies the explicit quota caller. It retains
+the actual four pre-run input records, runs the observed private owner, holds
+all eight original outputs and invokes the complete consumer before rechecking
+source/native/input/output locks and emitting `TEST_PASS qemu.smoke.quota`.
+Runner22 alone supplies no success. Twenty-nine focused selection/profile/owner/
+runner checks pass, including bad live-input refusal before any child. Positive
+and dry-run paths remain separate. No genuine successful quota capture or new
+full/native/guest qualification is supplied by this integration.
+
+[Step1495](../done/step1495.md) adds quota component instrumentation for the retained cooperative
+kernel-stack backing, its generation-bound callback stack/context leases and
+the fixed 320KiB socket buffer backing. Socket loans begin only when actual RX/TX
+owners bind, including private established connections; pending SYN reservations
+borrow no windows. Per-generation observations and cumulative current/peak/return
+counters survive loans released between observations. Returns follow actual
+scrubbing and original release, with a distinct post-End abort boundary. These
+capacities are borrowed from retained backing; they are not new physical
+allocations or measured stack depth. Guest pthread allocation attribution remains
+separate: clone RSP/TLS alone supplies no complete stack extent. The strict
+component consumer joins the original generation census and complete scheduler
+history before removing metadata. Fifty-four focused host checks across five
+fixtures pass with unchanged inputs and zero reuse. These remain development
+evidence until current native and original guest qualification.
+
+[Step1496](../done/step1496.md) adds the quota-only successful-clone observation:
+112 bytes are copied through the existing complete user-page preflight into
+owned kernel stack storage. The reader joins the original parent/child identity,
+Tid, TLS, SP and syscall continuation to the pinned musl self/map/top/size/guard
+fields and original default mmap/protection sequence. It replays committed
+backing separately from virtual access and binds every memory count to the
+native topology observations in the complete consumer. Fixed replacement revokes
+the old allocation's attribution; PROT_NONE and kernel reap retain backing until
+real discard/unmap or final checked owner cleanup. Cached generations count an
+allocation once. In-place growth beyond the original logical stack is pthread
+tail/remainder, without inventing a TLS or stack size. Failed-before-clone and
+custom/unproved allocations remain unclassified or fail qualification.
+Twenty focused checks pass. The active EFI profile publishes and verifies with
+937 raw source joins; these are not guest or complete ABI/stack acceptance.
+The literal MinimalApiSmoke async/cancellation route and directed-signal
+competing-readiness churn still precede the stable whole-batch gates.
+
+[Step1497](../done/step1497.md) implements the explicit request churn in literal
+MinimalApiSmoke. POST `/__clros/churn` requires exactly `X-CLROS-Churn: v1`, an
+empty Content-Length0 request and no query/transfer encoding; malformed requests
+return400 and capacity exhaustion429. At most two calls retain64KiB each across
+eight finite cancellable timer awaits, awaited real ThreadPool work and checked
+full collections. Cancellation propagates after awaited work drains; status at
+`/__clros/churn/status` reports operation counters and retained roots, not physical
+backing. Health/configuration behavior stays unchanged. Four focused helper
+checks and actual managed-host Kestrel cancellation/completion/health controls
+pass. Prepared web ELF/source pins are deliberately unchanged, so changed
+unpublished source cannot acquire the old lookup authority. Fresh publication,
+original guest/component-fit evidence and the directed-signal competing-readiness
+workload remain required before #225 acceptance; no issue closes.
+
+[Step1498](../done/step1498.md) integrates those requests into the existing web
+qualifier's default/configured owned child sessions. Receipt v4 requires both
+new churn reports and rejects historical v3 as current evidence. A bounded
+42-observation reader joins exact endpoint/configuration, seven malformed cases,
+three cancel/complete cycles, continued health and drained operation/root counters.
+Duplicate/unknown/missing/reordered/failure/stale values fail closed. A request
+fault cancels and joins outstanding HTTP tasks and retains a rejected partial
+report. Six focused checks pass across their two original producers; both actual
+managed-host production captures and a pending-request transport-fault control
+pass. This does not publish/admit a new Linux NativeAOT ELF or prove the remaining
+directed-signal competing-readiness/physical-budget/guest criteria. Preserve the
+initial null-test-overload failure and all original inputs; no issue closes.
+
+[Step1499](../done/step1499.md) implements the explicit Linux-x64 signal ownership
+prerequisite at POST `/__clros/signalprobe` (`X-CLROS-Signal: v1`, empty body,
+no query/transfer encoding). It reserves only default-disposition SIGUSR2 through
+the pinned .NET registration facility. One dedicated waiter reports its actual
+Tid, masks/alternate stack and raw epoll result; a separate ThreadPool callback
+sets Cancel first and acknowledges delivery. Callback scheduling is not native
+target/interruption proof. After both observations, unregister and verify exact
+disposition restoration, restore the waiter's mask/unchanged alternate stack,
+join it and close its descriptors. Unsafe cleanup uncertainty exits the owned
+diagnostic process70. The shared .NET signal pipe/thread remain runtime-owned.
+Four ABI/platform checks and Windows route400/501/health controls pass, without
+executing a signal. Actual Linux NativeAOT handler/restorer/interruption/cleanup
+must be measured before adding the competing-readiness actor. The existing
+mechanical selector and prepared image guards stay unchanged; no issue closes.
+
+[Step1500](../done/step1500.md) follows with one successful original Linux
+NativeAOT signal ownership experiment at source `9dd1e01a`. The trace joins actual
+directed delivery, epoll EINTR, native pipe/managed callback, sigreturn and exact
+disposition/mask restoration; the disabled alternate stack stays unchanged.
+Managed Join precedes three descriptor closes, while native pthread tail exit
+follows them. The owned app exits 0 with confirmed process-group death. Original
+ELF/debug/source/compiler bytes and all 131 captured files are retained. This
+contains no competing readiness or churn overlap and supplies no CLROS guest
+acceptance, new web image admission or issue closure. The same tandem agent's
+bounded competing-reader/recovery plan remains the next implementation slice.
+
+[Step1501](../done/step1501.md) implements the explicit competing-reader and
+recovery slice in literal Smoke. A dedicated actor writes/sends/consumes the
+original byte, then relinquishes read ownership through managed Join. A copied
+status phase and one atomic recovery request coordinate a fresh wait/write/read
+with a distinct byte. Cancellation joins the actor before trusting its sent
+flag and preserves signal acknowledgment/restoration before waiter/fd cleanup.
+Nine focused ABI/state/platform checks and actual Windows400/501/idle-status/
+health controls pass. Native race/repark/recovery, real churn overlap and the
+owned original-order producer/consumer remain unvalidated or unfinished. The
+earlier Linux ownership capture supplies none of those new claims. Preserve
+prepared image guards and all #225/#748 acceptance requirements.
+
+[Step1502](../done/step1502.md) extends only the literal Smoke host consumer:
+a read-only alternate-stack query and one separately owned nonblocking probe
+pipe now have scalar access/result and descriptor-generation/count replay.
+The runtime blocking signal pipe remains independent. Copied pipe-byte and
+alternate-stack contents, pipe epoll/signal12 race replay, owned churn/race HTTP
+orchestration and new native/guest qualification remain separate requirements.
+No prepared-image admission or issue acceptance follows from this reader work.
+
+[Step1503](../done/step1503.md) extends that host replay through pipe read-end
+epoll identity/readiness and separate coalesced signal12 delivery. Pending
+signals cannot replace a won readiness event; a genuine empty recheck/repark
+must publish the replacement sequence before EINTR. A fresh recovery wait
+remains distinct. Synthetic coverage does not provide original guest race,
+copied event/action/frame contents, HTTP churn overlap or workload cleanup.
+The small build and 63 focused checks across six affected replay fixtures pass;
+full-host/native/guest qualification remains deferred to the stable batch.
+
+[Step1504](../done/step1504.md) connects copied HTTP stimulus/progress/role
+validation to an optional original-order projection after full web replay.
+The default-off v5 native mode uses a fresh third owned session; v4 remains
+unchanged. Controller failures retain rejected partial evidence and join both
+pending requests. Projection fields carry actual replay generations and original
+indices, while callback code, pointed-to bytes/events/actions and native/guest
+ownership remain separate. The new mode and guest integration require execution.
+The small build and80 focused checks across10 affected fixtures pass with
+unchanged inputs/zero reuse; no new native or guest execution is claimed.
+
+[Step1505](../done/step1505.md) records the subsequent failed native race attempt:
+the initial wait returns ready before signal delivery, and cleanup6/callback0 is
+misclassified by the reader. Original206-file evidence,915-source/38-producer
+joins and1,042 unchanged native inputs are retained through controlled recovery.
+The failure stays failed; no new ELF/index admission or guest acceptance is made.
+The guest path still needs owned exchange IDs for all attempts and a separate
+packet contract before selected roles can join the original-order projection.
+
+[Step1506](../done/step1506.md) fixes cleanup/failed status diagnostics and keeps
+every logical HTTP attempt in a bounded raw-byte companion, including rejected
+polls, partial reads, cancellation and faults. Selected v1 responses retain
+exact logical links; the host cancellation event links the original pending
+churn call. Strict inspection checks joined terminal tasks, logical ordering,
+allowed poll windows and the complete selected contract. New explicit race
+receipts use v6; v4/v5 retain their original validation paths. All23 focused
+checks across five fixtures pass with unchanged inputs and zero reuse. This
+does not identify actual wire connections/exchanges or prove native/guest
+execution. The original native failure remains failed and is not rerun here.
+
+[Step1507](../done/step1507.md) supplies the observed transport prerequisite:
+three owned persistent role handlers reuse the bounded actual stream recorder
+under a separate web-race schema. Each logical attempt binds its request-write
+exchange IDs and actual connected streams; raw read offsets do not invent HTTP
+response associations. All37 focused checks across eight fixtures pass, including
+five real-loopback controls and the existing quota recorder/profile/prefix cases.
+Quota schema/roles/routes remain strict. The adapter is still separate from native
+qualification and the guest runner. HTTP FIFO framing, held owner/runner joins,
+actual packet-flow association and fresh source/ELF/index admission remain required.
+
+[Step1508](../done/step1508.md) adds the HTTP FIFO join over actual retained host
+stream bytes: exact request-write exchange identity, unique complete response,
+status/body/media/read-time checks and selected message bindings. Failed retries,
+incomplete suffixes and unknown attempted writes remain explicit; the host cancel
+event is never converted to an HTTP response. All23 focused checks across six
+fixtures pass unchanged/zero reuse, including real loopback integration and
+unchanged quota parser regressions. Owned guest-runner completion/evidence,
+actual packet association and fresh native/source/image admission remain pending.
+
+[Step1509](../done/step1509.md) adds a private owned web-race completion component
+and explicit runner READY/DONE pipe. Creation-handle identities, lengths and
+exact flushed-byte digests bridge report-writer closure to held originals before
+DONE. The owner joins HTTP work and runner cleanup, retaining partial reports and
+available stdout/stderr on refusal. The gate follows ordinary controls, monitors
+child/frame/serial health and stays within the original runner deadline; normal
+mode output is unchanged. All35 focused checks/six fixtures pass, including a
+full loopback DONE followed by deliberate runner failure without Completion.
+This component is not yet wired into QemuSmoke/native admission or an exact
+race summary/UTC/packet consumer. Actual PCAP, native/source/ELF/index joins and
+guest execution remain unproved; no acceptance issue closes.
+
+[Step1510](../done/step1510.md) checks the explicit race summary separately from
+ordinary exact runner bytes and UTC windows. PID/forward/digests and a bounded
+owner-supplied producer interval join the copied runner frame. Explicit replay
+preserves the original eight-control boundary before later accepts, checks full
+ordinary I/O/private retirement at the first extra accept, and joins final accept
+count to the bounded lifetime census. Complete copied race projection still runs;
+selection alone does not bypass it. All65 focused checks/six fixtures pass without
+reuse. These host checks establish no packet association or guest acceptance.
+Whole-PCAP handling of ordinary VLAN/withheld ACK controls, concurrent race flows,
+HTTP Date checks, QemuSmoke wiring and fresh native/source/image admission remain.
+
+[Step1511](../done/step1511.md) retains exact ordinary web controls while
+inventorying added concurrent streams from the same whole original PCAP. Two
+explicit passes delegate original record IDs rather than filter or renumber
+capture bytes. The first added SYN follows complete ordinary After bytes and EOF;
+delegation/TCP counts agree, with no unknown quiet SYNs. Original first-byte ranges,
+holes, retransmissions, partial streams and supported reset/empty-FIN facts remain
+copied diagnostics, not cleanup or host/NAT identity. All31 focused checks/six
+fixtures pass unchanged/zero reuse. Unique host-flow assignment, race HTTP Date
+and syscall/role joins, owned QemuSmoke and fresh native/source/image admission
+still precede actual guest acceptance.
+
+[Step1512](../done/step1512.md) adds strict copied host-HTTP/added-stream byte
+assignment. Unique injective matching covers all payload guests and every
+successful host; original packet ranges cover complete logical responses in
+persistent request/response order. Unknown failed writes explain only observed
+islands, while undelivered writes, unread responses, retries, empty streams and
+unassigned attempts remain explicit. Caller-owned arrays are copied and bounded;
+ports and clocks supply no identity. All23 focused checks/six fixtures pass with
+unchanged inputs and zero reuse. The same reused subagent authors independent
+whole-PCAP/ambiguity/partial-write/order controls and reviews production/receipts.
+Race Date/owned UTC and syscall/role joins, owned QemuSmoke and fresh exact native/
+source/image admission still precede guest acceptance. No native or QEMU run
+occurred and no quota-triggered offender cleanup is accepted.
+
+[Step1513](../done/step1513.md) checks every complete contiguous race response
+Date against the supplied whole producer UTC window and ordinary Date baseline,
+preserving cached seconds and concurrent completion order. Partial bodies retain
+Date checks; pending headers confer no Date witness. Original packet ranges join
+complete HTTP intervals to consuming receives/accepted sends from a separate typed
+web CALL projection. The projection is collected after existing checked CALLs and
+returned only after complete replay; it retains original indices, transport tuple/
+generation and replay descriptor IDs/counters. It adds no native diagnostic row.
+All30 focused checks/six fixtures pass unchanged/zero reuse. Copied controls and
+complete-model replay remain distinct from original native/guest evidence. Actor
+role/HTTP ordering, owned QemuSmoke and fresh exact native/source/image admission
+remain next; no acceptance issue closes.
+
+[Step1514](../done/step1514.md) binds all19 selected HTTP/body roles to original
+socket CALL intervals from the complete replay, recomputing strict raw-byte
+assignment and temporal coverage. A host-cancelled churn exchange requires a
+unique complete consumed request, even with an unknown host-write tail, and no
+response is fabricated. Original-row edges connect actor read/resume/callback,
+recovery park/request/writer/read and three cleanup closes to their HTTP roles.
+An armed reply does not require prior sigreturn. Recovery replies may precede
+the writer, as the positive complete-model test demonstrates; race reply before
+repeat is allowed but untested. All27 focused checks/six fixtures pass unchanged
+with zero reuse. Copied inputs and complete-model observations do not establish
+native/guest execution, callback code identity or actual GC/ThreadPool/offender
+cleanup. Owned QemuSmoke composition and fresh exact native/source/image joins
+remain next; #737/#225/#748 stay open.
+
+[Step1515](../done/step1515.md) adds default-off `--web-signal-race` to QemuSmoke.
+Only the actual web profile can select it. A dedicated runner calls the private
+owned producer; eight original outputs remain held, distinct from the exact four
+pre-run package/index/image/EFI inputs, through complete replay, whole-PCAP,
+HTTP-role, Date and final source/native checks. Stale or aliased reports refuse
+before input access. All11 focused checks/two fixtures pass unchanged/zero reuse;
+copied dry-run commands and owner failure checks grant no successful native/guest
+execution. Existing old source/ELF/index admission stays closed. The expert's
+separate one-shot phase2 start/native scheduling proposal is unapplied; explicit
+versioned controller/role integration and actual execution still follow.
+
+[Step1516](../done/step1516.md) implements the one-shot phase2 start and v2
+race-first controller. It prepares the initial wait before short churn, then
+issues exactly one start while progress is pending. Selected/attempts-v2 bind21
+roles; original replay requires initial wait before consumed start before actor
+write. The private guest owner uses a provisional blocked serial row, while final
+immutable replay retains authority. Separate controlled Linux-native v7 requires
+the v2 pair and complete hashed schedule journal, actual owned generations,
+policies/CPU/pipe checks, tracer restoration and confirmed session stop.
+Historical v1/v5/v6 and ordinary v4 remain explicit. All70 focused checks/14
+fixtures pass unchanged/zero reuse. These are host contracts and copied/loopback
+controls: no Linux native or guest execution, new admission, quota termination
+or complete Kestrel acceptance follows. #737/#225/#748 remain open.
+
+[Step1517](../done/step1517.md) records the first controlled native v7 attempt
+at `de39e4db` as failed during the first scheduler query: musl's named getter returns
+ENOSYS. All205 original files/970 inputs are preserved and checked; partial v2
+reports and confirmed four-task stop do not qualify the race. Actual loaded
+musl1.2.6-r2 binary inspection and a same-thread read-only probe support the
+three private Linux x64 syscall imports. All16 focused checks/3 fixtures pass
+unchanged/zero reuse. Native scheduling/EINTR/churn/recovery, new admission,
+guest execution and quota termination remain unproved.
+
+[Step1518](../done/step1518.md) adds the fresh bounded Linux-native v7 pass at
+`e5dadc2e`, plus successful production receipt validation. All214 original files,
+193 receipt outputs and970 transferred source/producer inputs match; selected-v2
+has21 samples, attempts-v2 has24 entries and the original schedule journal13 rows.
+Actual role traces retain EINTR, write/signal/consume and fresh recovery; the
+tracer restores and all four original tasks/session terminate. Independent review
+preserves cooperative numeric-TID and separate-trace ordering limits. The builder
+is gracefully stopped; previous failures remain failed. Fresh ELF/index/source
+admission and the original owned CLROS guest still follow. No quota termination,
+complete Kestrel/Gate14, isolation, cloud or production acceptance is added.
+
+[Step1519](../done/step1519.md) separately admits that exact ELF and its
+independently reviewed complete index:1,426,926 instruction starts/198 syscalls,
+entry0x408f77, fourteen current-source pins and nine app files. All19 focused
+checks/3 fixtures pass unchanged/zero reuse; actual held Read/Create prepares
+lookup and rejects changed/earlier-failed ELF, partial decode and aliases.
+This is host instruction-boundary authority only. Original owned CLROS guest,
+quota-triggered offending-workload termination and churn cleanup remain next;
+complete Kestrel/Gate14, isolation, cloud and production remain incomplete.
+
+[Step1520](../done/step1520.md) retains the failed original native-v7 guest
+attempts: mixed producer cohort before launch, then a selected-body/fixed-control
+mismatch, then a corrected default-body guest with pending race POST and phase0
+status until timeout. Original EFI/native/source/serial/packet/report evidence is
+preserved; no complete owned race receipt exists. Expert diagnosis precedes a
+minimal fix and fresh execution. No quota or Kestrel acceptance is added.
+
+[Step1521](../done/step1521.md) implements the expert's bounded finite-web
+capacity correction:16 bulk TCP slots and derived storage only for M10-004,
+preserving continuing-service/mechanical8 and full240-second TIME-WAIT. The
+original race POST never reached the guest at the exhausted8-slot bound.
+All93 focused checks/8 fixtures pass unchanged/zero reuse, including real model
+capacity/replacement/expiry and strict reader boundaries. Fresh native/image and
+complete owned guest evidence remain next; no quota or Kestrel gate is accepted.
+
+[Step1522](../done/step1522.md) reviews the enlarged native storage:689136 bytes
+fit wholly within exact RW image data; initialization and observation use16.
+Fresh owned r05 publishes byte-identical reviewed EFI and now delivers the race
+POST (original PCAP202). It fails the initial gate with status0,1,1,6, before
+churn/start/recovery. Preserve1036 source/native/producer/guest files and the
+failed result. Expert source/serial diagnosis precedes another correction;
+complete owned race, quota termination and Kestrel acceptance remain incomplete.
+
+[Step1523](../done/step1523.md) adds a separately selected event-owned v3 app
+foundation. Exact `X-CLROS-Signal: v3` selects untimed initial/recovery epoll
+under one120-second operation deadline and separate15-second joined cleanup;
+legacy timed behavior remains. Cross-profile status/start/recovery refuses and
+v3 copied prefixes differ. All19 focused checks and11 actual Windows HTTP
+routing/refusal checks pass. Old prepared admission correctly refuses changed
+app sources. V3 owner/native integration and fresh Linux-native,
+index/admission and actual owned guest evidence remain pending; no gate closes.
+
+[Step1524](../done/step1524.md) adds the explicit borrowed-client v3 controller
+and paired selected/attempt evidence. It owns one150-second capture deadline,
+requires an infinite or at least150-second client timeout, and refuses default
+signal/churn selector headers before creating reports. Race/status/start/recover
+use v3; the ordinary repeat signal probe retains v1. Exact per-attempt selector
+fields and v3 response prefixes are checked; legacy v1/v2 shapes remain.
+All36 focused checks pass. These are copied HTTP/controller checks; the native
+role reader explicitly refuses v3 until its event-wait contract is integrated.
+Native journal/owner/runner/Date budgets and fresh
+qualification/admission/guest evidence remain required.
+
+[Step1525](../done/step1525.md) adds explicit observed v3 capture using the
+existing owned loopback stream recorder. Fully observed HTTP headers must match
+the paired v3 attempt selectors, including the status GET; unexpected signal or
+churn selectors are refused. Partial headers retain their limited authority.
+All 22 focused checks pass, including real local TCP capture with 21 selected
+samples and 23 attempts, retained truncated-response/pre-cancel controls and
+legacy readers. Nine original report files and the tested producers are saved.
+The native/guest owner and role reader remain closed to v3; native journal,
+receipt, wait-contract and deadline integration precede fresh qualification.
+
+[Step1526](../done/step1526.md) implements the explicit native-v8 path:
+`--event-owned-signal-race` pairs selected/attempt-v3 with schedule-v2. Historical
+receipt/journal pairings remain. The new native session owns a 210-second
+operation deadline before process start and requires at least 165 seconds left
+before creating race reports or mutating scheduling. V8 uses an infinite client
+timeout and direct TERM to the independently verified child, followed by owned
+exit/log waits. Report retention remains uncancelled; monotonic checks reject
+late success. This is cancellation policy, not a hard I/O/cleanup wall bound.
+All 23 focused checks pass. The all-ones raw timeout is a pinned-wrapper
+hypothesis requiring fresh native observations/disassembly. No new native run
+or guest admission is supplied; guest roles/runner/Date composition remains next.
+
+[Step1527](../done/step1527.md) adds explicit copied event-owned replay and role
+consistency. Both named initial/recovery epoll waits require maxevents1, exact
+raw all-ones timeout, blocked status/source, zero deadline and positive sequence;
+the selected repark keeps zero deadline and advances sequence. Complete replay,
+descriptor generations, original positions and causal guards remain. An immutable
+report profile binds selected-v3 roles to those checks; legacy v1/v2 retain their
+defaults and refuse the event profile. All 41 focused checks pass. One initial
+negative fixture hit an earlier sequence guard; its failed source/results and
+producers are preserved before a test-only ordering correction and fresh rerun.
+These are copied model/role checks. Guest owner/rendezvous/runner/remaining-time/
+Date integration and fresh original native qualification/admission remain pending.
+
+[Step1528](../done/step1528.md) adds the shared v3 rendezvous and copied runner/
+Date-window foundation. A separate pipe prefix and READY/DONE tokens bind the
+explicit profile; legacy names, tokens and serialized false-profile reports stay
+unchanged. The new runner entry bounds whole IPC to165s and requires at least
+165s left on a borrowed original absolute clock at entry and after connect,
+immediately before READY. Insufficient budget refuses before READY; failure
+closes, cancels and joins pending IPC. Copied runner and Date readers permit
+165s only through explicit event entries, preserving legacy45s and Date guards.
+All43 focused checks pass. Production QEMU option/owner/Completion dispatch is
+still legacy; wiring it and proving fresh native/guest originals remain pending.
+
+[Step1529](../done/step1529.md) wires explicit
+`--web-event-owned-signal-race` through production options, owned v3 capture,
+immutable Completion, runner protocol/summary and held replay/role/Date checks.
+The old `--web-signal-race` stays timed; simultaneous true profiles refuse.
+The runner passes its original stopwatch to the165s pre-READY budget checks and
+retains `race_gate_insufficient_absolute_budget` on refusal. Original285/owner330,
+legacy35/45 and the provisional500ms serial check stay unchanged. All47 focused
+checks pass, including real local failed/cancelled capture and held reports before
+DONE; tests deliberately return a failed runner and create no successful
+Completion. No prepared source/ELF/index pins change. Fresh original native-v8
+qualification and deliberate admission still precede another guest.
+
+[Step1530](../done/step1530.md) preserves the first native-v8 failure at
+`ea66bf90`: all three payload publications pass, but finite eight-iteration
+churn completes before the required overlap observation. Original EINTR and
+recovery-armed progress do not make its cleanup wake successful recovery.
+The expert-reviewed repair gives only the initial event-owned churn request
+`X-CLROS-Churn: v2`: real awaited work continues until request cancellation under
+one fixed120s watchdog. Expiry fails and drains; final fresh churn stays finite
+v1/exactly8. Mandatory v3 `churnVersion` values bind those distinct selectors to
+attempts, raw headers and guest consumption. Legacy contracts stay finite.
+Event-owned replay also requires generation-bound native EXIT/REAP for both
+dedicated probe threads after their last CALL and before final healthy send.
+Framework callback/request threads may remain live. All80 focused checks pass;
+fresh repaired native publication, prepared admission and guest acceptance remain
+pending. The failed original and its earlier reader revision remain immutable.
+
+[Step1531](../done/step1531.md) records successful original Linux native-v8
+qualification and separate validation at `293dafb4`: continuous churn cancels
+and drains at9 operations, then finite recovery adds exactly8. That original
+remains unadmitted. The next source repair publishes terminal churn outcomes
+and slot/root release atomically and applies continuous limits to unselected
+event-owned polls too. Legacy finite limits remain unchanged. The unchanged
+service ELF/index/package passes current consumer preparation after one reviewed
+source-pin refresh; original publication provenance retains its original hashes.
+Corrected Smoke publication, native review/admission and owned guest validation
+still precede quota/service acceptance.
+
+[Step1532](../done/step1532.md) retains the successful corrected `c31d7cf7`
+native-v8 original and exact reviewed Smoke admission identity. Host-only RAM
+selection leaves the original service and Smoke publications unchanged. The
+next guest batch compares the same quota image/policy at 256 and 512 MiB and
+refreshes one ordinary configured V2 lifecycle; prior memory fault controls do
+not establish RAM invariance or the current ordinary native-headroom bound.
+
+The explicit, default-off `QuotaFailure` service contract requests termination
+on operation-local physical backing exhaustion. Memory calls report that cause
+separately from errno. The flag proves necessary total backing insufficiency;
+metadata or placement refusal alone cannot set it, though another refusal may
+coexist. A read-only observation audits the admitted
+tables before copying pool/free-run/region/table values. The native source routes
+the configured denial through process shutdown99, real worker reap, descriptor/
+mapping restoration and a separate negative cleanup trailer. Its actual native
+execution and cleanup remain unproved.
+
+The fixture retains bounded native mappings and forces managed collections while
+the peer model requires healthy-worker progress and held partial requests. Strict
+readers join denial, retained mappings, output, process/fd/transport teardown,
+outer cleanup and copied peer samples; synthetic rows/reports grant no guest
+authority. The 36MiB dynamic backing remains shared. Retained virtual mmap bytes
+and conservative component bounds are not measured physical component peaks or
+proof that effective budgets fit the committed entitlement.
+
+The separate owned quota route now reaches the strict consumer; its successful
+original capture remains unexercised. Finish allocated-backing component/peak
+observations, active native ABI/frame review, stable full and original guest/
+packet/process qualification before acceptance. #225 additionally requires the actual
+MinimalApiSmoke workload and directed-signal/readiness evidence during its churn.
+The separate finite signal proof and this service fixture do not supply that.
 
 ## Continuing service and resource follow-ups
 

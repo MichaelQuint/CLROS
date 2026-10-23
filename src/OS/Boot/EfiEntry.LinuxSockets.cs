@@ -58,7 +58,114 @@ public static unsafe partial class EfiEntry
             return 1;
         }
 
-        private const uint LinuxSocketConnections = 8, LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
+#if M16_014_PROBE
+        // Observe only committed quota-profile socket calls on this serialized
+        // kernel turn. Counters belong to the actual TCP lifetime, not an fd,
+        // sequence number or ring-buffer position. No I/O is retried here.
+        private static bool ObserveLinuxQuotaSocketCall(LinuxNativeControl* c, uint index,
+            LinuxSyscallFrame call, LinuxSyscallResult result)
+        {
+            bool accept = call.Number is 43 or 288, read = call.Number is 0 or 45 or 47,
+                send = call.Number is 1 or 20 or 44 or 46;
+            if ((!accept && !read && !send) || result.Action != LinuxSyscallAction.Return ||
+                result.Value < 0 || (!accept && result.Value == 0)) return true;
+            if (c == null || c->State == null || !LinuxQuotaPolicy(c->State) || c->Phase != 3 || c->Published != 1 ||
+                c->State->NetworkPhase != 2 || c->Selected == 0 || c->Selected > c->Capacity ||
+                index != c->Selected - 1 || !c->Threads.Current.IsValid ||
+                c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity ||
+                c->Gates[index].Status != LinuxSyscallGateStatus.Active ||
+                (accept ? result.Value > uint.MaxValue : result.Value > LinuxDescriptorServices.MaximumIo)) return false;
+            Storage* state = c->State;
+            uint fd = accept ? (uint)result.Value : (uint)call.Argument0;
+            fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
+            {
+                if (o->Boot != state || o->Sockets.Descriptors != &state->LinuxDescriptors ||
+                    !LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out var token) ||
+                    !LinuxDescriptorServices.IsCurrent(&state->LinuxDescriptors, token)) return false;
+                if (!LinuxDescriptorServices.SocketDescription(&state->LinuxDescriptors, fd, out uint endpoint, out _))
+                    return !accept && call.Number is 0 or 1 or 20; // Ordinary output/file/pipe calls are not sockets.
+                uint description = state->LinuxDescriptors.Owner.Slots[fd].Description;
+                if (description == 0 || description > state->LinuxDescriptors.Owner.DescriptionCount ||
+                    endpoint >= o->Sockets.Count || o->Sockets.Slots != (LinuxSocketServices.Endpoint*)o->Endpoints ||
+                    o->Sockets.Initialized != 1 || o->Network.Initialized != 1 || o->Network.Failed != 0 ||
+                    o->Network.Count != LinuxSocketConnections || o->Network.Slots != (SocketNetwork.Slot*)o->Slots ||
+                    o->Network.Table != &o->Table || o->Network.Sockets != &o->Sockets) return false;
+                description--; // Descriptor storage names descriptions as index+1; the row records the actual zero-based index.
+                var d = state->LinuxDescriptors.Owner.Descriptions + description;
+                var e = o->Sockets.Slots + endpoint;
+                if (d->Type != (uint)LinuxDescriptorServices.Kind.Socket || d->Pipe != endpoint ||
+                    d->Inode == 0 || e->Phase != 5) return false; // Connected, including retained peer-reset reads.
+                uint slotIndex = LinuxSocketConnections;
+                for (uint i = 0; i < LinuxSocketConnections; i++)
+                {
+                    var candidate = o->Network.Slots + i;
+                    if (&candidate->Sender != e->Sender || &candidate->Receiver != e->Receiver) continue;
+                    if (slotIndex != LinuxSocketConnections) return false;
+                    slotIndex = i;
+                }
+                if (slotIndex == LinuxSocketConnections) return false;
+                var slot = o->Network.Slots + slotIndex;
+                var sender = &slot->Sender; var receiver = &slot->Receiver;
+                var handle = sender->Handle;
+                var held = (LinuxSocketLifetime*)o->Lifetimes + slotIndex;
+                if (slot->Phase != 3 || sender->Table != &o->Table || receiver->Table != &o->Table ||
+                    sender->Receiver != receiver || !LinuxQuotaSocketHandleEquals(handle, receiver->Handle) ||
+                    !LinuxQuotaSocketHandleEquals(handle, slot->Handshake.Connection) ||
+                    held->Active != 1 || !LinuxQuotaSocketHandleEquals(handle, held->Handle) ||
+                    TcpConnectionTable.ReadOwned(&o->Table, handle, out var entry) != TcpConnectionTable.OwnershipStatus.Success ||
+                    !held->Key.HasSameEndpoint(entry.Key) ||
+                    entry.ReceiveOwnerAddress != (ulong)receiver || entry.SendOwnerAddress != (ulong)sender ||
+                    TcpSendWindow.Validate(sender, out _, entry.State == TcpConnectionLifecycleState.Closed, true) != TcpSendWindow.Status.Success ||
+                    TcpReceiveWindow.Validate(receiver, out _, receiver->PeerClosed != 0 ||
+                        sender->CloseState == TcpConnectionCloseState.Reset) != TcpReceiveWindow.Status.Success) return false;
+                ulong bytes = accept ? 0 : (ulong)result.Value;
+                ulong flags = call.Number is 44 or 45 ? call.Argument3 : call.Number is 46 or 47 ? call.Argument2 : 0;
+                bool peek = read && (flags & 2) != 0;
+                ulong offset = read ? held->AppReceived : send ? held->AppSent : 0;
+                ulong sent = held->AppSent, received = held->AppReceived;
+                if (accept && (sent != 0 || received != 0) || bytes > ~0UL - offset) return false;
+                if (send) sent += bytes;
+                else if (read && !peek) received += bytes;
+                if (!LinuxText(state, "M16_016_SOCKET identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                    !LinuxText(state, " ordinal=") || !LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) ||
+                    !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) ||
+                    !LinuxText(state, " fd=") || !LinuxNumber(state, fd) ||
+                    !LinuxText(state, " fdGeneration=") || !LinuxNumber(state, token.Generation) ||
+                    !LinuxText(state, " description=") || !LinuxNumber(state, description) ||
+                    !LinuxText(state, " inode=") || !LinuxNumber(state, d->Inode) ||
+                    !LinuxText(state, " slot=") || !LinuxNumber(state, slotIndex) ||
+                    !LinuxText(state, " owner=") || !LinuxNumber(state, handle.OwnerAddress) ||
+                    !LinuxText(state, " epoch=") || !LinuxNumber(state, handle.Epoch) ||
+                    !LinuxText(state, " generation=") || !LinuxNumber(state, handle.Generation) ||
+                    !LinuxText(state, " index=") || !LinuxNumber(state, handle.Index) ||
+                    !LinuxText(state, " local=") || !LinuxNumber(state, PackLinuxSocketAddress(entry.Key.LocalAddress)) ||
+                    !LinuxText(state, " localPort=") || !LinuxNumber(state, entry.Key.LocalPort) ||
+                    !LinuxText(state, " remote=") || !LinuxNumber(state, PackLinuxSocketAddress(entry.Key.RemoteAddress)) ||
+                    !LinuxText(state, " remotePort=") || !LinuxNumber(state, entry.Key.RemotePort) ||
+                    !LinuxText(state, " offset=") || !LinuxNumber(state, offset) ||
+                    !LinuxText(state, " bytes=") || !LinuxNumber(state, bytes) ||
+                    !LinuxText(state, " peek=") || !LinuxNumber(state, peek ? 1UL : 0UL) ||
+                    !LinuxText(state, " sent=") || !LinuxNumber(state, sent) ||
+                    !LinuxText(state, " received=") || !LinuxNumber(state, received) ||
+                    !LinuxText(state, "\r\n")) return false;
+                held->AppSent = sent; held->AppReceived = received;
+                return true;
+            }
+        }
+
+        private static bool LinuxQuotaSocketHandleEquals(TcpConnectionTable.Handle first, TcpConnectionTable.Handle second) =>
+            first.OwnerAddress == second.OwnerAddress && first.Epoch == second.Epoch &&
+            first.Generation == second.Generation && first.Index == second.Index;
+#endif
+
+#if M10_004_PROBE && !M16_014_PROBE
+        // Finite web controls retain seven TIME-WAIT tuples while concurrent
+        // control/race/churn roles and a replacement connection remain live.
+        private const uint LinuxSocketConnections = 16;
+#else
+        private const uint LinuxSocketConnections = 8;
+#endif
+        private const uint LinuxSocketReceive = 8192, LinuxSocketSend = 32768;
         // Borrowed observations only. A release is reported after the original
         // handle becomes stale and its network slot disappears or is reused.
         private struct LinuxSocketLifetime
@@ -68,7 +175,8 @@ public static unsafe partial class EfiEntry
             internal ulong MaximumDeadline, Duration;
             internal uint Active, WaitObserved, DrainObserved, TimeoutObserved;
 #if M16_014_PROBE
-            internal uint LastCloseObserved;
+            internal uint LastCloseObserved, QuotaLeaseObserved;
+            internal ulong AppSent, AppReceived;
 #endif
         }
         // Image-resident ownership outlives every borrowed callback, including a
@@ -90,13 +198,18 @@ public static unsafe partial class EfiEntry
 #if M16_014_PROBE
             internal ulong CompactTransfers, CompactFresh, CompactRetired;
             internal uint BulkHighWater, CompactHighWater;
+            internal uint QuotaLeasePublished;
+            internal ulong QuotaLeaseAcquired, QuotaLeaseReturned;
+            internal ulong QuotaBindingAcquired, QuotaBindingReturned;
             internal fixed ulong CompactGenerations[64], CompactDeadlines[64];
 #endif
-            internal fixed byte Endpoints[2048], Ports[32], Registrations[2560], Slots[8192], Entries[1024];
-            internal fixed ulong Generations[8];
-            internal fixed ulong Lifetimes[128];
+            internal fixed byte Endpoints[2048], Ports[32], Registrations[2560];
+            internal fixed byte Slots[1024 * (int)LinuxSocketConnections], Entries[128 * (int)LinuxSocketConnections];
+            internal fixed ulong Generations[(int)LinuxSocketConnections];
+            internal fixed ulong Lifetimes[16 * (int)LinuxSocketConnections];
             internal fixed ulong WakeIdentities[(int)LinuxNativeWorkers], WakeSequences[(int)LinuxNativeWorkers];
-            internal fixed byte Buffers[327680], Input[1536], Output[1536];
+            internal fixed byte Buffers[((int)LinuxSocketReceive + (int)LinuxSocketSend) * (int)LinuxSocketConnections];
+            internal fixed byte Input[1536], Output[1536];
         }
         private static LinuxSocketStorage s_linuxSocketStorage;
 
@@ -137,7 +250,13 @@ public static unsafe partial class EfiEntry
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
                     state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
                     state->ApicPhase == 2, device->Running, state, &RunOwnedLinuxSyscalls));
-                return ran && o->Phase == 3 && o->Failed == 0 &&
+                bool completed = ran;
+#if M16_014_PROBE
+                if (!ran && LinuxQuotaPolicy(state) && state->LinuxQuota == LinuxQuotaDisposition.CpuRestored &&
+                    state->LinuxSyscallExitCode == 99 && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0)
+                    completed = true; // Continue only the verified negative owner's remaining NIC teardown.
+#endif
+                return completed && o->Phase == 3 && o->Failed == 0 &&
                     LinuxText(state, "M16_011_WIRE received=") && LinuxNumber(state, o->Received) &&
                     LinuxText(state, " arp=") && LinuxNumber(state, o->ArpReceived) &&
                     LinuxText(state, " accepted=") && LinuxNumber(state, o->Accepted) &&
@@ -165,9 +284,9 @@ public static unsafe partial class EfiEntry
                 if (o->Boot != state || o->Phase != 1 || o->Device == null || !o->Device->Running ||
                     state->LinuxView.Manifest.Ipv4 != 0 || state->LinuxView.Manifest.Port != 8080 ||
                     sizeof(LinuxSocketServices.Endpoint) * 16 > 2048 || sizeof(LinuxEpollServices.Port) * 4 > 32 ||
-                    sizeof(LinuxEpollServices.Registration) * 64 > 2560 || sizeof(SocketNetwork.Slot) * 8 > 8192 ||
-                    sizeof(TcpConnectionTableEntry) * 8 > 1024 || (sizeof(LinuxSocketLifetime) & 7) != 0 ||
-                    sizeof(LinuxSocketLifetime) * 8 > 1024 ||
+                    sizeof(LinuxEpollServices.Registration) * 64 > 2560 || sizeof(SocketNetwork.Slot) > 1024 ||
+                    sizeof(TcpConnectionTableEntry) > 128 || (sizeof(LinuxSocketLifetime) & 7) != 0 ||
+                    sizeof(LinuxSocketLifetime) > 16 * sizeof(ulong) ||
                     !ReadNetworkTime(state, out ulong now)) return false;
                 if (!LinuxSocketServices.Begin(&o->Sockets, &state->LinuxDescriptors, (LinuxSocketServices.Endpoint*)o->Endpoints,
                         16, new(10, 0, 2, 15), 8080) ||
@@ -189,14 +308,22 @@ public static unsafe partial class EfiEntry
                     LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
                 if (!SocketNetwork.Begin(&o->Network, &o->Sockets, &o->Table, (SocketNetwork.Slot*)o->Slots, LinuxSocketConnections,
                     o->Buffers, LinuxSocketReceive, LinuxSocketSend, new(2, 0, 0, 0, 0, 1), o->Peer, new(10, 0, 2, 2), sequence, io,
-                    compactTimeWait: Probes.EnableM16014Probe, sequence: sequenceOwner)) return false;
+                    compactTimeWait: Probes.EnableM16014Probe, sequence: sequenceOwner
+#if M16_014_PROBE
+                    , measureLeases: LinuxQuotaPolicy(state)
+#endif
+                    )) return false;
 #if M16_014_PROBE
                 if (!LinuxText(state, "M07_033_BOUND quietUntil=") || !LinuxNumber(state, state->LinuxServiceSequence.QuietDeadline) ||
                     !LinuxText(state, " clock=") || !LinuxNumber(state, now) ||
                     !LinuxText(state, " tickNanos=4000 quietNanos=240000000000 secret=independent lease=network\r\n")) return false;
 #endif
                 o->Phase = 2;
+#if M10_004_PROBE && !M16_014_PROBE
+                return LinuxText(state, "M16_011_BOUND connections=16 rx=8192 tx=32768 epoll=4 watches=64 nic=live\r\n");
+#else
                 return LinuxText(state, "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live\r\n");
+#endif
             }
         }
 
@@ -331,8 +458,11 @@ public static unsafe partial class EfiEntry
                     }
                     else if (compact != TcpTimeWaitTable.Status.NotFound) return false;
 #endif
-                    if (TcpConnectionTable.ReadOwned(&o->Table, held->Handle, out _) != TcpConnectionTable.OwnershipStatus.StaleHandle ||
-                        !WriteLinuxSocketLifetime(o, "M16_011_SLOT event=1", i, held, now) ||
+                    if (TcpConnectionTable.ReadOwned(&o->Table, held->Handle, out _) != TcpConnectionTable.OwnershipStatus.StaleHandle) return false;
+#if M16_014_PROBE
+                    if (LinuxQuotaPolicy(o->Boot) && held->QuotaLeaseObserved != 0 && !WriteLinuxQuotaSocketLease(o, i, held, false, false)) return false;
+#endif
+                    if (!WriteLinuxSocketLifetime(o, "M16_011_SLOT event=1", i, held, now) ||
                         !LinuxText(o->Boot, " deadline=") || !LinuxNumber(o->Boot, held->MaximumDeadline) ||
                         !LinuxText(o->Boot, " duration=") || !LinuxNumber(o->Boot, held->Duration) || !LinuxText(o->Boot, "\r\n")) return false;
                     o->Retired++; *held = default;
@@ -345,6 +475,9 @@ public static unsafe partial class EfiEntry
                     TcpConnectionTable.ReadOwned(&o->Table, handle, out var entry) != TcpConnectionTable.OwnershipStatus.Success) return false;
                 if (held->Active == 0)
                 {
+#if M16_014_PROBE
+                    if (held->AppSent != 0 || held->AppReceived != 0) return false;
+#endif
                     held->Handle = handle; held->Key = entry.Key; held->Active = 1;
                     if (!WriteLinuxSocketLifetime(o, "M16_011_SLOT event=0", i, held, now) ||
                         !LinuxText(o->Boot, " deadline=0 duration=0\r\n")) return false;
@@ -352,6 +485,11 @@ public static unsafe partial class EfiEntry
                 }
                 else if (!held->Key.HasSameEndpoint(entry.Key)) return false;
 #if M16_014_PROBE
+                // Pending SYN reservations have no RX/TX loan. The surrounding
+                // Receive/Pump snapshots expose every successful establishment
+                // before another transport mutation can release that generation.
+                if (LinuxQuotaPolicy(o->Boot) && slot->Phase >= 2 && held->QuotaLeaseObserved == 0 &&
+                    (slot->LeaseGeneration != handle.Generation || !WriteLinuxQuotaSocketLease(o, i, held, true, false))) return false;
                 // Observe actual last-description closure before the next
                 // receive/pump. SHUT_WR and live duplicate descriptors do not
                 // satisfy IsClosing. The copied tuple/generation grants no
@@ -394,16 +532,73 @@ public static unsafe partial class EfiEntry
             // Mark the completed serialized snapshot, only when a peak changes.
             // Equal clock reads cannot identify separate observation boundaries.
             // At most8+64 peak advances exist for this fixed owner lifetime.
-            if (priorBulk == o->BulkHighWater && priorCompact == o->CompactHighWater) return true;
-            return LinuxText(o->Boot, "M07_030_HIGHWATER bulk=") && LinuxNumber(o->Boot, o->BulkHighWater) &&
+            bool logged = priorBulk == o->BulkHighWater && priorCompact == o->CompactHighWater ||
+                LinuxText(o->Boot, "M07_030_HIGHWATER bulk=") && LinuxNumber(o->Boot, o->BulkHighWater) &&
                 LinuxText(o->Boot, " compact=") && LinuxNumber(o->Boot, o->CompactHighWater) &&
                 LinuxText(o->Boot, " clock=") && LinuxNumber(o->Boot, now) && LinuxText(o->Boot, "\r\n");
+            return logged && (!LinuxQuotaPolicy(o->Boot) || ObserveLinuxQuotaSocketLeases(o, false));
 #else
             return true;
 #endif
         }
 
 #if M16_014_PROBE
+        private static bool WriteLinuxQuotaSocketLease(LinuxSocketStorage* o, uint index, LinuxSocketLifetime* held, bool acquired, bool end)
+        {
+            if (index >= LinuxSocketConnections || held->Active != 1 || held->QuotaLeaseObserved != (acquired ? 0U : 1U) ||
+                held->Handle.OwnerAddress != (ulong)&o->Table || held->Handle.Index >= LinuxSocketConnections ||
+                held->Handle.Generation == 0 || acquired && end ||
+                (acquired ? o->QuotaBindingAcquired : o->QuotaBindingReturned) == ~0UL) return false;
+            if (!LinuxText(o->Boot, "M16_016_SOCKET_LEASE event=") || !LinuxNumber(o->Boot, acquired ? 0U : 1U) ||
+                !LinuxText(o->Boot, " slot=") || !LinuxNumber(o->Boot, index) ||
+                !LinuxText(o->Boot, " owner=") || !LinuxNumber(o->Boot, held->Handle.OwnerAddress) ||
+                !LinuxText(o->Boot, " epoch=") || !LinuxNumber(o->Boot, held->Handle.Epoch) ||
+                !LinuxText(o->Boot, " generation=") || !LinuxNumber(o->Boot, held->Handle.Generation) ||
+                !LinuxText(o->Boot, " index=") || !LinuxNumber(o->Boot, held->Handle.Index) ||
+                !LinuxText(o->Boot, " rxBytes=") || !LinuxNumber(o->Boot, LinuxSocketReceive) ||
+                !LinuxText(o->Boot, " txBytes=") || !LinuxNumber(o->Boot, LinuxSocketSend) ||
+                !LinuxText(o->Boot, " end=") || !LinuxNumber(o->Boot, end ? 1U : 0U) || !LinuxText(o->Boot, "\r\n")) return false;
+            held->QuotaLeaseObserved = acquired ? 1U : 0U;
+            if (acquired) o->QuotaBindingAcquired++; else o->QuotaBindingReturned++;
+            return true;
+        }
+
+        // Static image backing is retained separately from measured borrower
+        // peaks. Loans released between observations remain in the counters.
+        private static bool ObserveLinuxQuotaSocketLeases(LinuxSocketStorage* o, bool end)
+        {
+            if (o == null || !LinuxQuotaPolicy(o->Boot) || o->Phase != 2 || o->Failed != 0 || o->QuotaLeasePublished > 1 ||
+                o->Network.Buffers != o->Buffers || o->Network.Count != LinuxSocketConnections ||
+                o->Network.ReceiveBytes != LinuxSocketReceive || o->Network.SendBytes != LinuxSocketSend ||
+                !SocketNetwork.TryObserveLeases(&o->Network, out var lease) || lease.Ended != end ||
+                lease.BackingBytes != 327680 || lease.Acquired < o->QuotaLeaseAcquired || lease.Returned < o->QuotaLeaseReturned) return false;
+            if (end)
+            {
+                var c = (LinuxNativeControl*)(o->Boot->CooperativePool + LinuxThreadProgram.MetadataPage * Page);
+                if (o->Boot->CooperativePhase != 5 || c->State != o->Boot || c->Phase != 5 ||
+                    c->Key != (o->Boot->CooperativePool ^ 0x4d31363030384f57UL) || c->QuotaStackEnded != 1 ||
+                    c->QuotaStackAcquired != c->Reaped || lease.Leases != 0 || lease.Acquired != lease.Returned) return false;
+                var held = (LinuxSocketLifetime*)o->Lifetimes;
+                for (uint i = 0; i < LinuxSocketConnections; i++)
+                    if (held[i].QuotaLeaseObserved != 0 && !WriteLinuxQuotaSocketLease(o, i, held + i, false, true)) return false;
+            }
+            if (lease.Acquired != o->QuotaBindingAcquired || lease.Returned != o->QuotaBindingReturned) return false;
+            if (!end && o->QuotaLeasePublished != 0 && lease.Acquired == o->QuotaLeaseAcquired && lease.Returned == o->QuotaLeaseReturned) return true;
+            if (!LinuxText(o->Boot, "M16_016_SOCKET_LEASES backingBytes=") || !LinuxNumber(o->Boot, lease.BackingBytes) ||
+                !LinuxText(o->Boot, " acquired=") || !LinuxNumber(o->Boot, lease.Acquired) ||
+                !LinuxText(o->Boot, " returned=") || !LinuxNumber(o->Boot, lease.Returned) ||
+                !LinuxText(o->Boot, " live=") || !LinuxNumber(o->Boot, lease.Leases) ||
+                !LinuxText(o->Boot, " rxBytes=") || !LinuxNumber(o->Boot, lease.ReceiveBytes) ||
+                !LinuxText(o->Boot, " txBytes=") || !LinuxNumber(o->Boot, lease.SendBytes) ||
+                !LinuxText(o->Boot, " peakLive=") || !LinuxNumber(o->Boot, lease.PeakLeases) ||
+                !LinuxText(o->Boot, " peakRxBytes=") || !LinuxNumber(o->Boot, lease.PeakReceiveBytes) ||
+                !LinuxText(o->Boot, " peakTxBytes=") || !LinuxNumber(o->Boot, lease.PeakSendBytes) ||
+                !LinuxText(o->Boot, " end=") || !LinuxNumber(o->Boot, end ? 1U : 0U) ||
+                !LinuxText(o->Boot, " backing=retained\r\n")) return false;
+            o->QuotaLeasePublished = end ? 2U : 1U; o->QuotaLeaseAcquired = lease.Acquired; o->QuotaLeaseReturned = lease.Returned;
+            return true;
+        }
+
         // Observe fixed metadata around each real transport mutation. Generation
         // changes require the preceding record's actual deadline to have passed;
         // duplicate FIN restarts remain visible after the bulk slot is reused.
@@ -543,6 +738,18 @@ public static unsafe partial class EfiEntry
                             !LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)closed)) ||
                             !LinuxText(state, "\r\n") || closed != 0) return false;
                     }
+#if M16_014_PROBE
+                bool quotaAbort = abort && LinuxQuotaPolicy(state) && state->LinuxQuota == LinuxQuotaDisposition.Terminating;
+                uint quotaRetained = 0, quotaCompact = 0;
+                if (quotaAbort)
+                {
+                    // Descriptor closure can change retained owners. Publish
+                    // their exact generations before the deliberate abort.
+                    if (!ObserveLinuxSocketLifetimes(o)) return false;
+                    quotaRetained = o->Network.RetainedConnections; quotaCompact = o->Network.CompactTimeWaitConnections;
+                    if (quotaRetained < quotaCompact) return false;
+                }
+#endif
                 if (abort)
                 { if (!SocketNetwork.Abort(&o->Network)) return false; }
                 else
@@ -554,6 +761,14 @@ public static unsafe partial class EfiEntry
                     if (!ObserveLinuxSocketLifetimes(o) || o->Fresh != o->Retired) return false;
                 }
                 if (!SocketNetwork.End(&o->Network) || TcpConnectionTable.RetireOwned(&o->Table) != TcpConnectionTable.OwnershipStatus.Success) return false;
+#if M16_014_PROBE
+                if (quotaAbort && !ObserveLinuxQuotaSocketLeases(o, true)) return false;
+                if (quotaAbort && (!ReadNetworkTime(state, out o->Ended) || o->Ended < o->Started ||
+                    !LinuxText(state, "M16_016_QUOTA_SOCKETS bulkAborted=") || !LinuxNumber(state, quotaRetained - quotaCompact) ||
+                    !LinuxText(state, " compactDiscarded=") || !LinuxNumber(state, quotaCompact) ||
+                    !LinuxText(state, " clock=") || !LinuxNumber(state, o->Ended) ||
+                    !LinuxText(state, " retained=0 transport=aborted timewait=discarded buffers=scrubbed descriptors=closed table=retired\r\n"))) return false;
+#endif
                 if (!abort && (!ReadNetworkTime(state, out o->Ended) || o->Ended < o->MaximumDeadline)) return false;
 #if M16_014_PROBE
                 if (!abort && (o->CompactFresh != o->CompactRetired ||

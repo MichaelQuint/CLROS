@@ -147,7 +147,20 @@ public static unsafe class LinuxStartupServices
     /// mappings again after any operation that can remove/protect those pages.
     /// </summary>
     public static long Dispatch(State* state, LinuxSyscallFrame frame)
+        => Dispatch(state, frame, out _);
+
+    /// <summary>Dispatch with one copied, operation-local physical backing
+    /// observation under the same inactive-root/serialized-owner contract.
+    /// True proves the candidate growth needs more total backing pages than its
+    /// actual exclusive pool supplies after replacement. Other metadata, table
+    /// or guard refusals can coexist; this is not an exclusive errno diagnosis,
+    /// a GC/native partition or permission to stop a process. False includes
+    /// success and any refusal without this proven physical shortfall. Failed
+    /// calls retain existing byte-level state/accounting atomicity; brk still
+    /// returns its old break on failure. No observation survives into later calls.</summary>
+    public static long Dispatch(State* state, LinuxSyscallFrame frame, out bool physicalBackingExhausted)
     {
+        physicalBackingExhausted = false;
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
             !EntropyState(state) ||
             !LinuxMemoryServices.Audit(state->Owner.Memory)) return Fault;
@@ -157,13 +170,15 @@ public static unsafe class LinuxStartupServices
             case 9:
                 if (frame.Argument2 > 0xffffffffUL) return Invalid;
                 return LinuxMemoryServices.Map(a.Memory, frame.Argument0, frame.Argument1, (uint)frame.Argument2,
-                    frame.Argument3, frame.Argument4, frame.Argument5);
+                    frame.Argument3, frame.Argument4, frame.Argument5, out physicalBackingExhausted);
             case 10:
                 if (frame.Argument2 > 0xffffffffUL) return Invalid;
-                return LinuxMemoryServices.Protect(a.Memory, frame.Argument0, frame.Argument1, (uint)frame.Argument2);
+                return LinuxMemoryServices.Protect(a.Memory, frame.Argument0, frame.Argument1, (uint)frame.Argument2,
+                    out physicalBackingExhausted);
             case 11: return LinuxMemoryServices.Unmap(a.Memory, frame.Argument0, frame.Argument1);
-            case 12: return Brk(state, frame.Argument0);
-            case 25: return LinuxMemoryServices.Remap(a.Memory, frame.Argument0, frame.Argument1, frame.Argument2, frame.Argument3);
+            case 12: return Brk(state, frame.Argument0, out physicalBackingExhausted);
+            case 25: return LinuxMemoryServices.Remap(a.Memory, frame.Argument0, frame.Argument1, frame.Argument2, frame.Argument3,
+                out physicalBackingExhausted);
             case 28: return LinuxMemoryServices.Advise(a.Memory, frame.Argument0, frame.Argument1, unchecked((uint)frame.Argument2));
             case 39: case 186: return a.ProcessId;
             case 97: return frame.Argument1 == 0 ? Fault : Limit(state, unchecked((uint)frame.Argument0), frame.Argument1);
@@ -190,12 +205,14 @@ public static unsafe class LinuxStartupServices
         }
     }
 
-    private static long Brk(State* state, ulong requested)
+    private static long Brk(State* state, ulong requested, out bool physicalBackingExhausted)
     {
+        physicalBackingExhausted = false;
         var a = state->Owner; ulong current = state->CurrentBreak;
         if (requested == 0) return (long)current;
         if (requested < a.HeapStart || requested > a.HeapStart + a.HeapBytes) return (long)current;
-        if (LinuxMemoryServices.ResizeHeap(a.Memory, a.HeapStart, current, requested) != 0) return (long)current;
+        if (LinuxMemoryServices.ResizeHeap(a.Memory, a.HeapStart, current, requested, out physicalBackingExhausted) != 0)
+            return (long)current;
         state->CurrentBreak = requested; return (long)requested;
     }
 

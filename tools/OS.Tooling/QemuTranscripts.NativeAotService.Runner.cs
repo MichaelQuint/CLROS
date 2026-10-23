@@ -34,7 +34,8 @@ public static partial class QemuTranscripts
             raw.Length > 0 && raw.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity &&
             summaryBytes.Length > 3 && summaryBytes.Length <= SerialMarkerStateMachine.ContinuingServiceByteCapacity, "service_runner_inputs");
         Need(NativeAotServiceSelection.Application(plan.Flags, options.LinuxThreadingApplication) == NativeAotServicePackage.Application &&
-            options.WorkloadProfile == "SingleMinimalApi" && options.FirmwareRngSource == "virtio" && options.TimeoutSeconds is >= 780 and <= 900 &&
+            options.WorkloadProfile == "SingleMinimalApi" && options.FirmwareRngSource == "virtio" && options.TimeoutSeconds >= 780 &&
+            options.TimeoutSeconds <= (options.ServiceLifecycle ? 1080 : 900) &&
             context.ForwardPort is >= 1 and <= 65535 && Path.IsPathFullyQualified(context.Qemu) && Path.IsPathFullyQualified(context.Ovmf) &&
             !Controls.IsMatch(context.Qemu) && !Controls.IsMatch(context.Ovmf) && plan.Required.Contains("TEST_PASS m16-012") &&
             context.StartedUtc != default && context.StartedUtc.Offset == TimeSpan.Zero && context.CompletedUtc.Offset == TimeSpan.Zero &&

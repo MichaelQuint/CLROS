@@ -1915,6 +1915,11 @@ double-fault recovery nor universal triple-fault prevention.
 - `tools/OS.QemuRunner` accepts `--disk-format raw|qcow2`, defaults to `raw`, and passes the selected format into the QEMU ESP drive argument.
 - `tools/OS.QemuRunner` accepts `--workload-profile SingleMinimalApi|MultiMinimalApi`, defaults to `SingleMinimalApi` for direct CLI runs, and emits `WORKLOAD_PROFILE <value>` in dry-run, real-run console output, and real-run summary logs. Scripts still pass the selected workload profile explicitly.
 - `tools/OS.QemuRunner` discovers QEMU and OVMF from explicit arguments, environment variables, and common install paths.
+- `OS.Tooling qemu smoke -MemoryMiB 256|512` forwards optional positive integer
+  MiB as runner `--memory <value>M`, including owned web/service paths. Omitting
+  it preserves the runner's 256 MiB default. Zero/negative values fail before
+  building or starting children. VM RAM does not change application entitlement,
+  GC limits or allocator budgets. M01's separate fixed-RAM capture stays unchanged.
 - Real mode fails with machine-readable reasons for missing image, missing QEMU, missing OVMF, timeout, missing serial marker, `OS_SMOKE_FAIL`, any `TEST_FAIL ...` marker, conflicting terminal state, cleanup failure, or a spontaneous nonzero QEMU exit.
 - `dotnet run --project tools/OS.Tooling -- qemu smoke` preserves dry-run behavior without requiring QEMU, OVMF, or an image. Real mode now runs a host preflight before optional EFI/image build and before launching `OS.QemuRunner`. The preflight resolves QEMU and OVMF, emits `TEST_START qemu.smoke.preflight`, `QEMU_SCRIPT_PREFLIGHT_QEMU`, `QEMU_SCRIPT_PREFLIGHT_OVMF`, and `TEST_PASS qemu.smoke.preflight`, or fails early with `TEST_FAIL qemu.smoke qemu_not_found` or `TEST_FAIL qemu.smoke ovmf_not_found`.
 - Before launching the runner in real mode, `dotnet run --project tools/OS.Tooling -- qemu smoke` validates the selected image artifact and disk format, emits `QEMU_SCRIPT_PREFLIGHT_IMAGE` and `QEMU_SCRIPT_PREFLIGHT_DISK_FORMAT`, and fails with `TEST_FAIL qemu.smoke image_not_found`, `image_empty`, or `disk_format_mismatch` when the artifact cannot be used.

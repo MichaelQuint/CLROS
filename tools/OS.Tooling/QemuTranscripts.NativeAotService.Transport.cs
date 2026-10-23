@@ -22,7 +22,7 @@ public static partial class QemuTranscripts
     }
     private sealed record ServiceCompact(ServiceBulk Bulk,ulong Generation,ulong Original,ulong Deadline,ulong Duration,ulong Clock);
 
-    private static ServiceTransportInspection ReadServiceTransport(string[] rows,out HashSet<int> metadata)
+    private static ServiceTransportInspection ReadServiceTransport(string[] rows,out HashSet<int> metadata,bool quotaFailure=false)
     {
         Need(rows is not null && rows.Length is >0 and <=1_000_000 && rows.All(row=>row is not null && row.Length<=4096) &&
             rows.Sum(row=>(long)row.Length+2)<=128L*1024*1024,"service_transport_input");
@@ -171,6 +171,7 @@ public static partial class QemuTranscripts
             }
             else if(line.StartsWith("M07_030_END ",StringComparison.Ordinal))
             {
+                Need(!quotaFailure,"service_quota_transport_graceful_end");
                 const string suffix=" owner=retired";
                 Need(bound && !ended && line.EndsWith(suffix,StringComparison.Ordinal),"service_transport_end");
                 var row=ReadRecord(line[..^suffix.Length],"M07_030_END","transfers:dec","retired:dec","bulkHighWater:dec","compactHighWater:dec","bytesPerRecord:dec","clock:dec","deadline:dec");
@@ -181,6 +182,20 @@ public static partial class QemuTranscripts
                     row["compactHighWater"]==(ulong)compactHigh && compactHigh is >8 and <=64 &&
                     row["bytesPerRecord"]==(ulong)System.Runtime.CompilerServices.Unsafe.SizeOf<OS.Net.TcpTimeWaitTable.Entry>() && row["bytesPerRecord"] is >0 and <=64 &&
                     row["deadline"]==maximum && clock>=maximum,"service_transport_complete");ended=true;
+            }
+            else if(quotaFailure && line.StartsWith("M16_016_QUOTA_SOCKETS",StringComparison.Ordinal))
+            {
+                const string suffix=" retained=0 transport=aborted timewait=discarded buffers=scrubbed descriptors=closed table=retired";
+                Need(bound && !ended && line.EndsWith(suffix,StringComparison.Ordinal),"service_quota_transport_end");
+                var row=ReadRecord(line[..^suffix.Length],"M16_016_QUOTA_SOCKETS","bulkAborted:dec","compactDiscarded:dec","clock:dec");
+                Time(row["clock"]);
+                Need(fresh>=4 && bulk.Count+compact.Count>0 && pending.Count==0 &&
+                    row["bulkAborted"]==(ulong)bulk.Count && row["compactDiscarded"]==(ulong)compact.Count &&
+                    transfers==retired+compact.Count && bulkHigh==observedBulkHigh && compactHigh==observedCompactHigh,
+                    "service_quota_transport_accounting");
+                // These exact live generations are deliberately discarded,
+                // without inventing expired deadlines or graceful retirements.
+                bulk.Clear();compact.Clear();ended=true;
             }
             else if(line.StartsWith("M07_033_END ",StringComparison.Ordinal))
             {

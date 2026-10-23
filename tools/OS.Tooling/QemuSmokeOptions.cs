@@ -23,6 +23,9 @@ public sealed class QemuSmokeOptions
     public string LinuxThreadingApplication { get; set; } = "";
     public string LinuxThreadingDisassembly { get; set; } = "";
     public string DiskFormat { get; set; } = "raw";
+    /// <summary>Optional QEMU guest RAM in MiB. Null preserves the runner's
+    /// default; this does not alter workload entitlement or allocator budgets.</summary>
+    public int? MemoryMiB { get; set; }
     public int TimeoutSeconds { get; set; } = 30;
     public int StartupTimeoutSeconds { get; set; } = 30;
     public bool DryRun { get; set; }
@@ -32,9 +35,21 @@ public sealed class QemuSmokeOptions
     /// <summary>Explicit v2 continuing-service stimulus/report selection.
     /// Default false preserves v1. This flag grants no native or guest authority.</summary>
     public bool ServiceLifecycle { get; set; }
+    /// <summary>Explicit quota-negative continuing-service selection. Default
+    /// false preserves positive v1/v2. Package and runner admission stay separate.</summary>
+    public bool ServiceQuotaFailure { get; set; }
     /// <summary>Explicit canonical mechanical epoll/signal race under M16-012.
     /// Default false preserves the original prepared NativeAOT socket profile.</summary>
     public bool SignalEpollRace { get; set; }
+    /// <summary>Explicit owned web signal/readiness race after ordinary controls.
+    /// Default false preserves ordinary web. Source/native/image admission and
+    /// a successful original race remain mandatory for this execution path.</summary>
+    public bool WebSignalRace { get; set; }
+    /// <summary>Explicit event-owned v3 web race. Default false retains the
+    /// historical selection; simultaneous true race profiles refuse. Complete
+    /// original native/source/image and owned capture admission remain required.</summary>
+    public bool WebEventOwnedSignalRace { get; set; }
+    internal bool HasWebSignalRace => WebSignalRace || WebEventOwnedSignalRace;
     public List<string> RequireMarker { get; } = [.. DefaultRequiredMarkers];
     public List<string> RequireOrderedMarker { get; } = [];
     public List<string> RequireUniqueMarker { get; } = [];
@@ -58,10 +73,10 @@ public sealed class QemuSmokeOptions
             ["bootpolicy"] = "BootPolicy", ["image"] = "Image", ["efiartifact"] = "EfiArtifact", ["seriallog"] = "SerialLog",
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
-            ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
+            ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["memorymib"] = "MemoryMiB", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
-            ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["signalepollrace"] = "SignalEpollRace", ["requiremarker"] = "RequireMarker",
+            ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["webeventownedsignalrace"] = "WebEventOwnedSignalRace", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
             ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant",
             ["linuxhellodisassembly"] = "LinuxHelloDisassembly",
@@ -75,7 +90,8 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
-            bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "SignalEpollRace";
+            if (!first && name == "WebEventOwnedSignalRace") throw new ArgumentException("qemu_duplicate_option " + name);
+            bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
             bool bit = false;
             if (flag && !bool.TryParse(value.TrimStart('$'), out bit)) throw new ArgumentException("qemu_invalid_boolean " + name);
@@ -100,6 +116,7 @@ public sealed class QemuSmokeOptions
                 case "LinuxThreadingApplication": result.LinuxThreadingApplication = value; break;
                 case "LinuxThreadingDisassembly": result.LinuxThreadingDisassembly = value; break;
                 case "DiskFormat": result.DiskFormat = value.ToLowerInvariant(); break;
+                case "MemoryMiB": result.MemoryMiB = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "TimeoutSeconds": result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "StartupTimeoutSeconds": result.StartupTimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "DryRun": result.DryRun = bit; break;
@@ -107,7 +124,10 @@ public sealed class QemuSmokeOptions
                 case "SkipImageBuild": result.SkipImageBuild = bit; break;
                 case "RequireNativeAppMarkers": result.RequireNativeAppMarkers = bit; break;
                 case "ServiceLifecycle": result.ServiceLifecycle = bit; break;
+                case "ServiceQuotaFailure": result.ServiceQuotaFailure = bit; break;
                 case "SignalEpollRace": result.SignalEpollRace = bit; break;
+                case "WebSignalRace": result.WebSignalRace = bit; break;
+                case "WebEventOwnedSignalRace": result.WebEventOwnedSignalRace = bit; break;
                 case "RequireMarker": if (first) result.RequireMarker.Clear(); result.RequireMarker.Add(value); break;
                 case "RequireOrderedMarker": result.RequireOrderedMarker.Add(value); break;
                 case "RequireUniqueMarker": result.RequireUniqueMarker.Add(value); break;

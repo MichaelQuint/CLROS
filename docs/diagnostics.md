@@ -16,6 +16,15 @@ retains stopped CPU/RAM diagnostics before owned-child cleanup. Eighty short
 pristine-image replays did not reproduce the original hang; this is containment
 and diagnostic coverage, not a root-cause fix.
 
+[Step1533](../done/step1533.md) records a quota-observer startup failure before
+listen or pressure. The common authenticated syscall/interrupt gateway audit
+accepts SS16/SS0 respectively; the direct user-IRQ gate keeps exact NULL SS.
+The active CPU/descriptor-register predicate is shared with executable host
+negative controls. Private IDT/TSS bytes, worker/timer/root ownership and final
+lease conservation remain mandatory. Earlier ordinary callback fields describing
+an interrupt may be stale, so they do not classify current entry. Preserved
+native bytes establish the rejecting old branch; corrected QEMU proof is separate.
+
 ## Historical development receipts
 
 The named development checkpoints below retain their original scope; step1307

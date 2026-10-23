@@ -94,6 +94,11 @@ public static unsafe partial class EfiEntry
             ulong serviceCalls = c == null ? 0 : c->ServicePeakCalls, serviceIdentity = c == null ? 0 : c->ServicePeakIdentity;
             ulong serviceFinished = c == null ? 0 : c->ServiceFinished, serviceStarted = c == null ? 0 : c->Budget.StartedNanoseconds;
             bool serviceStopped = c != null && c->ServiceReady == 1 && c->ServiceShutdown == 1 && c->Budget.CancellationRequested;
+            bool quotaStopped = c != null && LinuxQuotaPolicy(state) && state->LinuxQuota == LinuxQuotaDisposition.Terminating &&
+                c->Failed == 1 && c->Stopping == 1 && !c->Process.Failed && c->ServiceShutdown == 0 &&
+                c->Budget.CancellationRequested && state->LinuxSyscallExitCode == 99 &&
+                state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0 && reaped != 0 &&
+                serviceFinished >= serviceStarted;
 #endif
             bool failed = c != null && (c->Failed != 0 || c->Process.Failed);
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
@@ -139,7 +144,15 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " nanos=") || !LinuxNumber(state, serviceFinished) ||
                 !LinuxText(state, " reaped=") || !LinuxNumber(state, reaped) ||
                 !LinuxText(state, " process=drained mappings=restored pool=scrubbed random=zero reservation=retained\r\n") ||
-                !LinuxText(state, success ? "TEST_PASS m16.014\r\n" : "TEST_FAIL m16.014 process-or-policy\r\n")) return false;
+                !LinuxText(state, quotaStopped ? "M16_016_QUOTA_PROCESS_FAILURE exit=99 cause=physical-backing\r\n" :
+                    success ? "TEST_PASS m16.014\r\n" : "TEST_FAIL m16.014 process-or-policy\r\n")) return false;
+            if (quotaStopped)
+            {
+                if (success || !logged || state->LinuxQuota != LinuxQuotaDisposition.Terminating ||
+                    !LinuxText(state, "M16_016_QUOTA_NATIVE process=drained timer=restored descriptors=closed guard=detached mappings=restored pool=scrubbed initialStack=zero random=zero reservation=retained\r\n"))
+                    return false;
+                state->LinuxQuota = LinuxQuotaDisposition.NativeCleaned;
+            }
 #endif
             return success;
 #endif
@@ -246,6 +259,13 @@ public static unsafe partial class EfiEntry
 #if M16_014_PROBE
                     ulong finished = 0;
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
+                    if (c->State->LinuxQuota == LinuxQuotaDisposition.Terminating)
+                    {
+                        if (!LinuxQuotaPolicy(c->State) || c->Failed != 1 || c->Stopping != 1 || c->Process.Failed ||
+                            c->ServiceShutdown != 0 || !c->Budget.CancellationRequested ||
+                            clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds) return false;
+                        c->ServiceFinished = finished; return false;
+                    }
                     if (c->Failed != 0 || c->Process.Failed || c->ServiceReady != 1 || c->ServiceShutdown != 1 ||
                         !c->Budget.CancellationRequested || clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds) return false;
                     c->ServiceFinished = finished; return true;

@@ -99,6 +99,33 @@ public static unsafe class LinuxMemoryServices
         public readonly bool HasImageProtections => Image.Bytes != 0;
     }
 
+    /// <summary>Copied physical-pool and metadata occupancy from one audited
+    /// serialized owner. Free runs are disjoint physical extents, independent
+    /// of virtual holes; retained PROT_NONE backing stays occupied. Table use
+    /// includes the actual static and dynamic root. These values grant no
+    /// allocation, consumer classification, partition or execution authority.</summary>
+    public readonly struct Observation
+    {
+        internal Observation(uint pool, uint backed, uint free, uint runs, uint largest,
+            uint regions, uint tables, uint tableCapacity)
+        {
+            PoolPages = pool; BackedPages = backed; FreePages = free;
+            FreeRuns = runs; LargestFreeRunPages = largest;
+            DynamicRegions = regions; RegionCapacity = MaximumRegions;
+            UsedTables = tables; TableCapacity = tableCapacity;
+        }
+        /// <summary>Actual admitted pool capacity and occupied/free 4KiB pages;
+        /// retained static mappings are outside this pool.</summary>
+        public readonly uint PoolPages, BackedPages, FreePages;
+        /// <summary>Number of maximal free physical runs and largest run in
+        /// 4KiB pages. Both are zero when the pool has no free pages.</summary>
+        public readonly uint FreeRuns, LargestFreeRunPages;
+        /// <summary>Published dynamic region inventory and its compile-time limit.</summary>
+        public readonly uint DynamicRegions, RegionCapacity;
+        /// <summary>Current audited Root.UsedTables and admitted table arena capacity.</summary>
+        public readonly uint UsedTables, TableCapacity;
+    }
+
     internal struct ImageProtection
     {
         internal ulong Start, Bytes;
@@ -201,7 +228,13 @@ public static unsafe class LinuxMemoryServices
     /// real zero-filled backing. Unknown flags/protections fail before mutation.
     /// </summary>
     public static long Map(State* state, ulong address, ulong bytes, uint protection, ulong flags, ulong descriptor, ulong offset)
-        => MapCore(state, address, bytes, protection, flags, descriptor, offset, false);
+        => MapCore(state, address, bytes, protection, flags, descriptor, offset, false, out _);
+
+    // Operation-local observation for the serialized startup owner. It does not
+    // change State, distinguish GC/native consumers or authorize termination.
+    internal static long Map(State* state, ulong address, ulong bytes, uint protection, ulong flags, ulong descriptor,
+        ulong offset, out bool physicalBackingExhausted)
+        => MapCore(state, address, bytes, protection, flags, descriptor, offset, false, out physicalBackingExhausted);
 
     /// <summary>
     /// Startup-only reservation of the admitted heap with no physical backing.
@@ -209,10 +242,12 @@ public static unsafe class LinuxMemoryServices
     /// mmap cannot create this ownership tag. Failure preserves live state.
     /// </summary>
     internal static long ReserveHeap(State* state, ulong address, ulong bytes)
-        => MapCore(state, address, bytes, 0, 0x100022, ~0UL, 0, true);
+        => MapCore(state, address, bytes, 0, 0x100022, ~0UL, 0, true, out _);
 
-    private static long MapCore(State* state, ulong address, ulong bytes, uint protection, ulong flags, ulong descriptor, ulong offset, bool heap)
+    private static long MapCore(State* state, ulong address, ulong bytes, uint protection, ulong flags, ulong descriptor,
+        ulong offset, bool heap, out bool physicalBackingExhausted)
     {
+        physicalBackingExhausted = false;
         if (!Valid(state)) return Fault;
         const ulong fixedFlag = 0x10, noReplace = 0x100000, noReserve = 0x4000;
         if ((flags & 0x22) != 0x22 || (flags & ~(0x22UL | fixedFlag | noReplace | noReserve)) != 0 ||
@@ -244,6 +279,8 @@ public static unsafe class LinuxMemoryServices
         if (count == WorkingRegions) return NoMemory;
         uint added = count++;
         candidate[added] = new() { Start = address, Bytes = bytes, Protection = protection, Heap = heap };
+        if (BackingCapacityExceeded(state->Memory, candidate, count))
+        { physicalBackingExhausted = true; return NoMemory; }
         if (protection != 0 && !Allocate(state->Memory, candidate, ref count, ref candidate[added])) return NoMemory;
         Sort(candidate, count);
         return Apply(state, candidate, count) == 0 ? (long)address : NoMemory;
@@ -259,7 +296,12 @@ public static unsafe class LinuxMemoryServices
     /// Same-page changes retain existing protection and backing.
     /// </summary>
     internal static long ResizeHeap(State* state, ulong heapStart, ulong current, ulong requested)
+        => ResizeHeap(state, heapStart, current, requested, out _);
+
+    internal static long ResizeHeap(State* state, ulong heapStart, ulong current, ulong requested,
+        out bool physicalBackingExhausted)
     {
+        physicalBackingExhausted = false;
         if (!Valid(state)) return Fault;
         if (heapStart < DynamicStart || (heapStart & 4095) != 0 || current < heapStart || requested < heapStart ||
             current > X64UserAddressSpace.UserEnd || requested > X64UserAddressSpace.UserEnd) return Invalid;
@@ -281,6 +323,8 @@ public static unsafe class LinuxMemoryServices
                 candidate[i].Protection = grow ? 3U : 0U;
                 if (!grow) { candidate[i].Backing = 0; candidate[i].Fresh = false; candidate[i].FreshFrom = 0; }
             }
+        if (grow && BackingCapacityExceeded(state->Memory, candidate, count))
+        { physicalBackingExhausted = true; return NoMemory; }
         if (grow)
             for (uint i = 0; i < count; i++)
                 if (candidate[i].Protection != 0 && candidate[i].Backing == 0 &&
@@ -299,7 +343,12 @@ public static unsafe class LinuxMemoryServices
     /// EINVAL. Neither path changes original static provenance or image backing.
     /// </summary>
     public static long Protect(State* state, ulong address, ulong bytes, uint protection)
+        => Protect(state, address, bytes, protection, out _);
+
+    internal static long Protect(State* state, ulong address, ulong bytes, uint protection,
+        out bool physicalBackingExhausted)
     {
+        physicalBackingExhausted = false;
         if (!Valid(state)) return Fault;
         if (!Protection(protection) || !Round(bytes, out bytes)) return Invalid;
         if (address < DynamicStart) return ProtectImage(state, address, bytes, protection);
@@ -308,6 +357,8 @@ public static unsafe class LinuxMemoryServices
         uint count = CopyRegions(state, candidate);
         if (!Covered(candidate, count, address, bytes)) return NoMemory;
         if (!Split(candidate, ref count, address, bytes, protection, false)) return NoMemory;
+        if (BackingCapacityExceeded(state->Memory, candidate, count))
+        { physicalBackingExhausted = true; return NoMemory; }
         for (uint i = 0; i < count; i++)
             if (candidate[i].Protection != 0 && candidate[i].Backing == 0 && !Allocate(state->Memory, candidate, ref count, ref candidate[i])) return NoMemory;
         Sort(candidate, count);
@@ -418,7 +469,12 @@ public static unsafe class LinuxMemoryServices
     /// musl's genuine stack-bound discovery without an endless synthetic failure.
     /// </summary>
     public static long Remap(State* state, ulong address, ulong oldBytes, ulong newBytes, ulong flags)
+        => Remap(state, address, oldBytes, newBytes, flags, out _);
+
+    internal static long Remap(State* state, ulong address, ulong oldBytes, ulong newBytes, ulong flags,
+        out bool physicalBackingExhausted)
     {
+        physicalBackingExhausted = false;
         if (!Valid(state)) return Fault;
         if (flags != 0 || !Round(oldBytes, out oldBytes) || !Round(newBytes, out newBytes) ||
             address < Page || (address & 4095) != 0 || address >= X64UserAddressSpace.UserEnd ||
@@ -436,6 +492,8 @@ public static unsafe class LinuxMemoryServices
                 if (Intersects(candidate, count, address + oldBytes, newBytes - oldBytes)) return NoMemory;
                 if (r.Backing != 0)
                 {
+                    if ((newBytes - oldBytes) / Page > state->Memory.PoolPages - state->BackedPages)
+                    { physicalBackingExhausted = true; return NoMemory; }
                     if (newBytes > state->Memory.PoolPages * Page ||
                         r.Backing - state->Memory.PoolPhysical > state->Memory.PoolPages * Page - newBytes) return NoMemory;
                     for (uint j = 0; j < count; j++) if (j != i && candidate[j].Backing != 0 &&
@@ -463,6 +521,45 @@ public static unsafe class LinuxMemoryServices
     /// The owner must still establish pointer mapping and inactive-root lifetime.
     /// </summary>
     public static bool Audit(State* state) => Valid(state);
+
+    /// <summary>Audit and copy current physical-pool/metadata occupancy without
+    /// changing state, tables, backing, guards or candidate scratch. The owner
+    /// supplies the same stable mapped storage and IRQ-off/inactive-root
+    /// serialization as Audit; the output must not alias borrowed storage.
+    /// Invalid state returns false with a default output. After the existing
+    /// root audit, free-run work uses at most Count+1 scans of Count regions,
+    /// bounded by MaximumRegions; it allocates no heap storage or persistent
+    /// state and does not scan every pool page. No future allocation or separate
+    /// GC/native capacity is promised by these observations.</summary>
+    public static bool TryObserve(State* state, out Observation observation)
+    {
+        observation = default;
+        if (!Valid(state)) return false;
+        var memory = state->Memory;
+        uint count = state->Count, free = 0, runs = 0, largest = 0;
+        ulong cursor = memory.PoolPhysical, end = cursor + memory.PoolPages * Page;
+        // Virtual order need not match physical order. Select the next backed
+        // extent; Accounting already proved all such extents disjoint/in-pool.
+        for (uint visited = 0; visited <= count; visited++)
+        {
+            ulong next = end, bytes = 0;
+            for (uint i = 0; i < count; i++)
+            {
+                ulong backing = state->Regions[i * 4 + 2];
+                if (backing >= cursor && backing < next)
+                { next = backing; bytes = state->Regions[i * 4 + 1]; }
+            }
+            uint pages = (uint)((next - cursor) / Page);
+            if (pages != 0)
+            { free += pages; runs++; if (pages > largest) largest = pages; }
+            if (next == end) break;
+            cursor = next + bytes;
+        }
+        if (free != memory.PoolPages - state->BackedPages) return false;
+        observation = new(memory.PoolPages, state->BackedPages, free, runs, largest,
+            count, state->Root.UsedTables, memory.TablePages);
+        return true;
+    }
 
     /// <summary>Classify an actual user page fault against retained virtual
     /// ownership, including PROT_NONE reservations without a present PTE.
@@ -709,6 +806,27 @@ public static unsafe class LinuxMemoryServices
 
     private static bool AppendMapping(X64UserMappingRange* mappings, ref uint count, X64UserMappingRange range)
     { if (count == X64UserAddressSpace.MaximumRanges) return false; mappings[count++] = range; return true; }
+
+    // Count the complete candidate demand before any backing selection. A
+    // PROT_NONE reservation with retained backing still consumes pages; an
+    // unbacked PROT_NONE reservation does not. MAP_FIXED has already removed
+    // eligible replaced backing. This proves only total physical insufficiency;
+    // metadata, tables, VA, contiguous placement and guards have separate bounds
+    // and can also refuse the same request. Valid checked original backing is
+    // disjoint; Split/Slice retain that property before this demand-only check.
+    private static bool BackingCapacityExceeded(Admission memory, Region* regions, uint count)
+    {
+        ulong available = memory.PoolPages;
+        for (uint i = 0; i < count; i++)
+        {
+            Region r = regions[i];
+            if (r.Backing == 0 && r.Protection == 0) continue;
+            ulong pages = r.Bytes / Page;
+            if (pages > available) return true;
+            available -= pages;
+        }
+        return false;
+    }
 
     private static bool Allocate(Admission memory, Region* regions, ref uint count, ref Region r)
     {

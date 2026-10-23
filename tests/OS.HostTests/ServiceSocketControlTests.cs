@@ -171,7 +171,11 @@ internal static class ServiceSocketControlTests
                     }
                 }
                 else if (current.Zero && current.Probes ==1 && window ==0 && ack ==unchecked(current.Server +1))
-                { Reply(port, current, unchecked(current.Server +1), 0x18, Encoding.ASCII.GetString(current.Response, 1, 1)); current.Probes = 2; }
+                {
+                    Reply(port, current, unchecked(current.Server +1), 0x18, Encoding.ASCII.GetString(current.Response, 1, 1)); current.Probes = 2;
+                    if (mode == "repeat-persist-probe")
+                        Reply(port, current, unchecked(current.Server +1), 0x18, Encoding.ASCII.GetString(current.Response, 1, 1));
+                }
                 else if (current.Zero && current.Probes ==2 && window !=0 && ack ==unchecked(current.Server +2))
                 {
                     HostCheck.True(healthyClosed); current.Probes = 3;

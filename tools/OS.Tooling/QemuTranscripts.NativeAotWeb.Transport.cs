@@ -13,12 +13,14 @@ public static partial class QemuTranscripts
     /// <summary>Inspect borrowed transport rows against explicit control
     /// expectations. Require exact live handle/tuple/generation, isolated drop,
     /// close timeout, later private retirement and healthy overlap. Existing
-    /// generation/TIME-WAIT guards apply. Malformed/incomplete rows throw; no
-    /// input is mutated or retained and no guest execution is established.</summary>
-    public static WebSocketControlInspection InspectNativeAotWebTransportForTests(string[] rows,WebControlInspection controls,bool logQuota=false)
+    /// generation/TIME-WAIT guards apply. Explicit signalRace permits at most512
+    /// lifetimes after the exact normal eight-lifetime control boundary; ordinary
+    /// defaults stay exact. Malformed/incomplete rows throw; no input is mutated
+    /// or retained and no guest execution is established.</summary>
+    public static WebSocketControlInspection InspectNativeAotWebTransportForTests(string[] rows,WebControlInspection controls,bool logQuota=false,bool signalRace=false)
     {
         Need(rows is not null && rows.Length is >0 and <=100000 && controls is not null,"web_transport_inputs");
-        var all=SocketLifetimes(rows!,true,logQuota?7:8,controls!.Sockets);
+        var all=SocketLifetimes(rows!,true,logQuota?7:8,controls!.Sockets,signalRace);
         return WebTransportDetails(all,controls.Sockets);
     }
 

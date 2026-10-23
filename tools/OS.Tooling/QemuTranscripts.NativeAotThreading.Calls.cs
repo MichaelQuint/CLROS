@@ -12,22 +12,28 @@ public static partial class QemuTranscripts
             bool entered=incoming!=t.Frames.Count;
             if(incoming!=t.Frames.Count)
             {
-                Need(incoming==t.Frames.Count+1 && t.Requests>0,"threading_unrequested_handler");
+                Need(incoming==t.Frames.Count+1 && t.DeliverySignal!=0,"threading_unrequested_handler");
+                uint selected=t.DeliverySignal;
+                // The literal Posix SIGUSR2 registration defers its own signal.
+                // Scalar rows still do not disclose action or siginfo bytes.
+                if(selected==12)Need((value.BlockedSignals&(1UL<<11))!=0,"web_signal12_handler_mask");
                 ulong frame=r["nr"]==15?r["rsp"]-8:value.SignalFrame;
                 ulong interrupted=t.DeliveryRsp??t.SavedRsp;
                 Need(interrupted>=1100,"threading_signal_redzone");
                 ulong fp=(interrupted-128-512)&~63UL, expected=((fp-440)&~15UL)-8;
                 Need(frame==expected && memory.Covered(frame-8,448,3) && memory.Covered(fp,512,3),"threading_signal_frame_geometry");
-                Need(phases is null || t.SignalProofs.Count!=0,"runtime_signal_request_evidence");
-                CollectionSignal? proof=phases is null?null:t.SignalProofs.Dequeue();
+                CollectionSignal? proof=t.DeliveryProof;
                 Need(proof is null || proof.Identity==t.Identity,"runtime_signal_generation");
-                t.Requests--; t.Delivered++; t.Frames.Push((frame,interrupted,proof));t.DeliveryRsp=null;
+                t.Delivered++; t.Frames.Push((frame,interrupted,proof,selected));
+                ObserveWebSignalRaceFrame(t,selected,frame,value.RecordIndex,returned:false);
+                t.DeliveryRsp=null;t.DeliverySignal=0;t.DeliveryProof=null;
             }
             if(r["nr"]==15)
             {
                 Need(t.Frames.Count>0 && r["action"]==5 && r["status"]==1,"threading_sigreturn_without_frame");
                 var frame=t.Frames.Pop(); Need(r["rsp"]==frame.Frame+8 && value.Rsp==frame.Rsp && instruction(value.Rip),"threading_sigreturn_context");
                 Envelope(t,value.Rip,value.Rsp,value.Flags,value.Fs,value.Gs,15); t.Returned++; signalReturns++;
+                ObserveWebSignalRaceFrame(t,frame.Signal,frame.Frame,value.RecordIndex,returned:true);
                 if(frame.Proof is not null)phases!.Collected(frame.Proof);
                 t.TimedRestart=null; // rt_sigreturn invalidates the restart callback.
             }
@@ -45,8 +51,9 @@ public static partial class QemuTranscripts
             t.WaitSource=source; t.WaitAddress=address; t.WaitMode=mode; t.WaitBits=bits;
             t.Deadline=witness.Deadline; t.LastSequence=witness.Sequence;
             t.WaitOrder=++waitOrder;t.AddressOrder=++addressOrder;t.Parking=true;
+            InterruptPendingWait(t);
         }
-        private int LowestFd()=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite,-1);
+        private int LowestFd(int excluded=-1)=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite && fd!=excluded,-1);
         private readonly uint[] descriptorGenerations=new uint[16];
         private void InstallDescriptorGeneration(int fd)
         {
@@ -59,14 +66,18 @@ public static partial class QemuTranscripts
             Need(witness.Identity==t.Identity && (service || witness.Ordinal<=4096),"threading_wait_generation");
             if(t.Tid==1 && witness.Ordinal<=3)Need(nr==(witness.Ordinal==1?9UL:witness.Ordinal==2?158UL:218UL),"threading_main_startup_order");
             RuntimeThread? targetClock=nr is 200 or 234?slots.SingleOrDefault(x=>x?.Tid==unchecked((int)(nr==200?a:b))):null;
+            int requestedSignal=unchecked((int)(nr==200?b:c));
             bool readsClock=nr==202 && (((uint)b&~384U) is 0 or 9) || nr==219 && t.TimedRestart.HasValue ||
                 targetClock is not null && !targetClock.Exiting && targetClock.WaitSource==1 &&
-                unchecked((int)(nr==200?b:c))==35 && (targetClock.Mask&(1UL<<34))==0;
+                (requestedSignal==35 || web && !service && requestedSignal==12) &&
+                (targetClock.Mask&(1UL<<(requestedSignal-1)))==0;
             ulong beforeClock=clock;
             Need(r["clock"]==clock || readsClock || socket,"threading_unowned_clock_change"); Clock(r["clock"]);
             if(service) ServiceCall(t,witness);
             ulong action=1,status=1;
-            if(web && WebFileCall(r,witness)) { }
+            if(WebAlternateStackCall(r)) { }
+            else if(WebProbePipeCall(r)) { }
+            else if(web && WebFileCall(r,witness)) { }
             else if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
             else switch(nr)
             {
@@ -79,6 +90,10 @@ public static partial class QemuTranscripts
                     if(d==0x32 && HelloMemory.Overlap(a,HelloMemory.Round(b),0x400000000,0x200000)) heapIntact=false;
                     break;
                 case 10: case 11: case 28:
+                    // The actual startup adapter admits only DONTNEED and
+                    // DONTDUMP/DODUMP. Unsupported advice returns EINVAL before
+                    // extent admission and preserves all ownership/backing.
+                    if(nr==28&&c is not (4 or 16 or 17)){Need(v==Bits(-22),"threading_advice_unsupported");break;}
                     Need(a>=4096 && a%4096==0 && b>0 && b<=0x1000000000,"threading_mapping_extent");
                     if(a<0x100000000)
                     {
@@ -99,7 +114,7 @@ public static partial class QemuTranscripts
                             ArmExit(t,r);
                         memory.Unmap(a,b);if(HelloMemory.Overlap(a,HelloMemory.Round(b),0x400000000,0x200000))heapIntact=false;
                     }
-                    else Need(c is 4 or 8 or 16 or 17 && memory.Covered(a,HelloMemory.Round(b),0),"threading_advice");
+                    else Need(c is 4 or 16 or 17 && memory.Covered(a,HelloMemory.Round(b),0),"threading_advice");
                     break;
                 case 12:
                     if(a==0)Need(v==currentBreak,"threading_brk_query");
@@ -175,18 +190,24 @@ public static partial class QemuTranscripts
                     Need(nr==200 || a==1,"threading_signal_process");
                     var recipient=slots.SingleOrDefault(x=>x?.Tid==target);
                     if(recipient is null){Need(v==Bits(-3),"threading_signal_stale_target");break;}
-                    Need(v==0 && signal is 0 or 35,"threading_signal_request");
-                    if(signal==35 && !recipient.Exiting)
+                    Need(signal is 0 or 35 || web && !service && signal==12,"threading_signal_request");
+                    if(signal!=0 && !recipient.Exiting)
                     {
-                        Need(actions.Contains(35) && recipient.Requests<4,"threading_signal_action");recipient.Requests++;
-                        if(phases is not null)recipient.SignalProofs.Enqueue(new(recipient.Identity,
-                            history.Count(x=>!x.Reaped && x.WaitSource!=0 && x.Completion is null),
-                            recipient!=t && ready.Contains(recipient) && recipient.WaitSource==0 && recipient.LastUserIrq!=0));
-                        // NativeAOT unblocks its activation signal. A real staged
-                        // wait is interrupted only when its completion has not won.
-                        if(recipient.WaitSource!=0 && recipient.Completion is null && (recipient.Mask&(1UL<<34))==0)
-                        {if(recipient.WaitSource==3)recipient.EpollWinner=5;Complete(recipient,-4);}
+                        Need(actions.Contains((ulong)signal),"threading_signal_action");
+                        if(signal==35 && recipient.Requests==4)
+                        {Need(v==Bits(-11),"threading_signal_queue_full");break;}
+                        Need(v==0,"threading_signal_request");
+                        if(signal==12)recipient.PendingUsr2=true;
+                        else
+                        {
+                            recipient.Requests++;
+                            if(phases is not null)recipient.SignalProofs.Enqueue(new(recipient.Identity,
+                                history.Count(x=>!x.Reaped && x.WaitSource!=0 && x.Completion is null),
+                                recipient!=t && ready.Contains(recipient) && recipient.WaitSource==0 && recipient.LastUserIrq!=0));
+                        }
+                        InterruptPendingWait(recipient);
                     }
+                    else Need(v==0,"threading_signal_request");
                     break;
                 case 2: case 257:
                     Need(memory.Covered(nr==2?a:b,1,1) && (nr!=257 || a==Bits(-100)) && ((nr==2?b:c)&~(web?0x98100UL:0x98000UL))==0,"threading_open");
@@ -252,6 +273,7 @@ public static partial class QemuTranscripts
                 case 60:
                     Need(a==0 && v==0,"threading_thread_exit");t.Exiting=t.NormalExit=true;normalExits++;action=4;status=2;break;
                 case 231:
+                    Need(!serviceQuotaFailure,"service_quota_user_group_exit");
                     Need(!web || service,"web_replay_unexpected_group_exit");
                     if(service)Need(serviceReady && budget.RequestCancellation(),"service_owned_shutdown");
                     Need(a==0 && v==0 && writes==writeLengths.Count,"threading_group_exit");stopping=true;action=2;status=2;

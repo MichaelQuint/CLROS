@@ -4,19 +4,20 @@ using OS.Tooling;
 
 internal static class NativeAotWebReplayTests
 {
-    private const int WebElfBytes=8_766_792;
+    private const int WebElfBytes=8_870_568;
     // Independent synthetic observations over the existing ELF/thread vector;
     // caller predicates do not grant prepared-program or guest authority.
     private static List<string> Vector(bool groupExit=false,bool reopenSettings=false,bool earlySettings=false,
         long? readAfterShutdown=null,long? sendAfterShutdown=null,bool invalidDescriptor=false,ulong? failedWrite=null,int? zeroSendMessage=null,bool zeroAfterShutdown=false,
         bool controls=false,bool quota=false,bool badOpen=false,bool healthyClosed=false,bool retireAfterRequest=false,
-        ulong? clockId=null,long clockResult=0,ulong clockAddress=0x500800)
+        ulong? clockId=null,long clockResult=0,ulong clockAddress=0x500800,
+        Action<NativeAotThreadingTranscriptTests.Vector>? probe=null)
     {
         var v=new NativeAotThreadingTranscriptTests.Vector(false).Start();
         for(int i=0;i<v.Rows.Count;i++)v.Rows[i]=v.Rows[i].Replace("entropyBytes=32","entropyBytes=4096",StringComparison.Ordinal)
             .Replace("packageBytes=1320176","packageBytes="+WebElfBytes.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal).Replace("workers=4","workers=16",StringComparison.Ordinal)
             .Replace("epochs=8192 steps=16384","epochs=1000000 steps=4000000",StringComparison.Ordinal);
-        v.Rows.Insert(3,"M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
+        v.Rows.Insert(3,"M16_011_BOUND connections=16 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
         if(clockId is ulong id)v.Call(228,clockResult,[id,clockAddress]);
         v.Call(2,5,[0x500200,0x88100,0]);v.Call(5,0,[5,0x500800]);
         if(earlySettings)v.Call(17,51,[5,0x500800,1024,0]);
@@ -69,18 +70,122 @@ internal static class NativeAotWebReplayTests
         v.Rows.Add("M16_005_WRITE fd=1 bytes=5 data=hello");v.Call(1,5,[1,0x500800,5]);
         if(invalidDescriptor)v.Call(20,-9,[1234,0x500800,1]);
         if(failedWrite is ulong failed)v.Call(failed,-5,[1,0x500800,failed==1?5UL:2UL]);
+        probe?.Invoke(v);
         if(groupExit)v.Call(231,0,[0],2);
         return v.Rows;
     }
     private static QemuTranscripts.WebReplayReport Inspect(List<string> rows,string fragment="M16_008_CALL identity=4294967297 nr=202",
-        QemuTranscripts.WebControlInspection? controls=null,bool quota=false)=>
+        QemuTranscripts.WebControlInspection? controls=null,bool quota=false,QemuTranscripts.WebSignalRaceSelection? signalRace=null,bool eventOwned=false)=>
         QemuTranscripts.InspectNativeAotWebReplayForTests(NativeAotThreadingTranscriptTests.Elf(),
-            Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota);
+            Encoding.UTF8.GetBytes(string.Join("\r\n",rows)+"\r\n"+fragment),_=>true,_=>true,8192,12288,51,5,controls,quota,signalRace,eventOwned);
+    // Shared synthetic callback only; the caller receives no prepared-program,
+    // captured-process, source/native or guest execution authority.
+    internal static QemuTranscripts.WebReplayReport InspectProbe(Action<NativeAotThreadingTranscriptTests.Vector> probe,string fragment="",QemuTranscripts.WebSignalRaceSelection? signalRace=null,bool controls=false,bool eventOwned=false)=>
+        Inspect(Vector(probe:probe,controls:controls),fragment,controls:controls?NativeAotWebTransportTests.Report():null,signalRace:signalRace,eventOwned:eventOwned);
     private static void Reject(Action action)
     { bool failed=false;try{action();}catch(ToolFailure){failed=true;}HostCheck.True(failed); }
 
     private static void RejectClock(Action action)
     { string? reason=null;try{action();}catch(ToolFailure error){reason=error.Reason;}HostCheck.Equal("threading_monotonic_clock",reason); }
+
+    [HostTest("web replay requires its sixteen-slot bound and rejects stale eight or oversized markers")]
+    private static void WebSlotBound()
+    {
+        HostCheck.Equal(2,Inspect(Vector()).SocketAccepts);
+        foreach(int count in new[]{8,17})
+        {
+            var rows=Vector();int at=rows.FindIndex(row=>row.StartsWith("M16_011_BOUND ",StringComparison.Ordinal));
+            HostCheck.True(at>=0);rows[at]=rows[at].Replace("connections=16","connections="+count.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal);
+            Reject(()=>Inspect(rows));
+        }
+    }
+
+    [HostTest("web alternate stack query checks complete writable span and permits null without claiming contents")]
+    private static void AlternateStackAccess()
+    {
+        const ulong page=0x100500000;
+        void Check(ulong pointer,long result,ulong protection=3)=>HostCheck.Equal(2,Inspect(Vector(probe:v=>
+        {
+            v.Call(9,(long)page,[0,4096,protection,0x22,ulong.MaxValue,0]);
+            v.Call(131,result,[0,pointer]);
+        })).SocketAccepts);
+        Check(0,0);Check(0x500800,0);Check(page+4096-24,0);
+        foreach(ulong pointer in new[]{1UL,4095UL,page+4096-23,page+4096,ulong.MaxValue-11})Check(pointer,-14);
+        Check(page,-14,1);Check(page,-14,0);
+        HostCheck.Equal(2,Inspect(Vector(probe:v=>
+        {
+            v.Call(9,(long)page,[0,8192,3,0x22,ulong.MaxValue,0]);
+            v.Call(131,0,[0,page+4096-12]);
+            v.Call(10,0,[page+4096,4096,1]);
+            v.Call(131,-14,[0,page+4096-12]);
+        })).SocketAccepts);
+    }
+
+    [HostTest("web alternate stack query rejects mutation fabricated results and nonweb admission")]
+    private static void AlternateStackRefusals()
+    {
+        foreach(var call in new (long Result,ulong Input,ulong Output)[]{(0,0,1),(-14,0,0),(-14,0,0x500800),(0,0x500800,0),(-14,1,0)})
+            Reject(()=>Inspect(Vector(probe:v=>v.Call(131,call.Result,[call.Input,call.Output]))));
+        var ordinary=NativeAotSocketProtocolTests.Vector(policyPrefix:v=>v.Call(131,0,[0,0]));
+        Reject(()=>QemuTranscripts.InspectNativeAotSocketProtocolForTests(false,NativeAotThreadingTranscriptTests.Elf(),
+            Encoding.UTF8.GetBytes(string.Join("\r\n",ordinary.Rows)+"\r\n"),
+            address=>address==0x400200 || address==0x400202,address=>address==0x400202,8192,12288));
+    }
+
+    [HostTest("web nonblocking probe pipe isolates legacy pipe bytes and closes with EOF broken pipe and fd reuse")]
+    private static void ProbePipeLifetime()
+    {
+        var report=Inspect(Vector(probe:v=>
+        {
+            v.Call(293,0,[0x500500,0x80800]);
+            v.Call(1,1,[4,0x500800,1]);v.Call(0,-11,[7,0x500800,1]);
+            v.Call(1,1,[8,0x500800,1]);v.Call(0,1,[7,0x500800,1]);v.Call(0,1,[3,0x500800,1]);
+            v.Call(0,-9,[8,0x500800,1]);v.Call(1,-9,[7,0x500800,1]);
+            v.Call(0,-11,[7,0x500800,1]);v.Call(3,0,[8]);v.Call(0,0,[7,0x500800,1]);v.Call(3,0,[7]);
+            v.Call(293,0,[0x500500,0x80800]);v.Call(3,0,[7]);v.Call(1,-32,[8,0x500800,1]);v.Call(3,0,[8]);
+        }));
+        HostCheck.True(report.Active==2 && report.Ready==0 && report.Sent==36 && report.Received==40 && report.Observations.StdoutBytes==5);
+    }
+
+    [HostTest("web nonblocking probe pipe checks exact capacity and atomic insufficient space without consuming")]
+    private static void ProbePipeCapacity()
+    {
+        HostCheck.Equal(2,Inspect(Vector(probe:v=>
+        {
+            v.Call(293,0,[0x500500,0x80800]);v.Call(1,4096,[8,0x500800,4096]);
+            v.Call(1,-11,[8,0x500800,1]);v.Call(0,1,[7,0x500800,1]);
+            v.Call(1,-11,[8,0x500800,2]);v.Call(0,4095,[7,0x500800,4096]);v.Call(0,-11,[7,0x500800,1]);
+            v.Call(3,0,[8]);v.Call(0,0,[7,0x500800,1]);v.Call(3,0,[7]);
+        })).SocketAccepts);
+    }
+
+    [HostTest("web nonblocking probe pipe rejects impossible creation IO aliases and unmeasured descriptor operations")]
+    private static void ProbePipeRefusals()
+    {
+        foreach(var create in new (ulong Pointer,ulong Flags,long Result)[]{(1,0x80800,0),(0x500500,0x80000,0),(0x500500,0x80801,0),(0x500500,0x80800,1)})
+            Reject(()=>Inspect(Vector(probe:v=>v.Call(293,create.Result,[create.Pointer,create.Flags]))));
+        Action<NativeAotThreadingTranscriptTests.Vector>[] invalid=[
+            v=>v.Call(293,0,[0x500500,0x80800]),
+            v=>v.Call(0,1,[7,0x500800,1]),v=>v.Call(1,1,[7,0x500800,1]),v=>v.Call(0,1,[8,0x500800,1]),
+            v=>v.Call(1,1,[9,0x500800,1]),v=>v.Call(1,1,[8,1,1]),v=>v.Call(0,0,[7,1,1]),
+            v=>v.Call(1,1,[8,0x500800,2]),v=>v.Call(1,4097,[8,0x500800,4097]),
+            v=>v.Call(17,0,[7,0x500800,1,0]),v=>v.Call(72,0,[7,2,1]),
+            v=>{v.Call(3,0,[7]);v.Call(3,0,[8]);v.Call(1,1,[8,0x500800,1]);}];
+        foreach(var corrupt in invalid)Reject(()=>Inspect(Vector(probe:v=>{v.Call(293,0,[0x500500,0x80800]);corrupt(v);} )));
+    }
+
+    [HostTest("web nonblocking probe pipe refuses fabricated EOF EAGAIN and partial atomic writes")]
+    private static void ProbePipeResults()
+    {
+        foreach(long result in new long[]{0,1,-32})Reject(()=>Inspect(Vector(probe:v=>
+        {v.Call(293,0,[0x500500,0x80800]);v.Call(0,result,[7,0x500800,1]);})));
+        Reject(()=>Inspect(Vector(probe:v=>
+        {v.Call(293,0,[0x500500,0x80800]);v.Call(1,-11,[8,0x500800,1]);})));
+        foreach(long result in new long[]{0,1,2})Reject(()=>Inspect(Vector(probe:v=>
+        {v.Call(293,0,[0x500500,0x80800]);v.Call(1,4095,[8,0x500800,4095]);v.Call(1,result,[8,0x500800,2]);})));
+        Reject(()=>Inspect(Vector(probe:v=>
+        {v.Call(293,0,[0x500500,0x80800]);v.Call(1,1,[8,0x500800,1]);v.Call(0,0,[7,0x500800,1]);})));
+    }
 
     [HostTest("web runtime replay requires checked successful realtime and preserves monotonic and unsupported clock IDs")]
     private static void Realtime()

@@ -48,18 +48,21 @@ public unsafe partial struct LinuxThreadServices
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User) || _descriptors == null) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
         if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return new(LinuxSyscallAction.Rejected);
-        if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        if (frame.Number is 232 or 281 && _descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
+        if (frame.Number is 232 or 281)
+        {
+            if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
+            if (_descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
+        }
 #endif
-        bool pipe = LinuxDescriptorServices.BeginPipe(_descriptors, _self, frame, ref slot->PipeOperation, out long value);
+        uint* before = stackalloc uint[(int)LinuxDescriptorServices.MaximumPipes * 3];
+        if (!LinuxDescriptorServices.DispatchThreads(_descriptors, _self, frame, ref slot->PipeOperation, before, out bool pipe, out long value))
+        { _failed = true; return new(LinuxSyscallAction.Rejected); }
         if (pipe)
         {
             if (slot->PipeOperation.IsActive) return ContinuePipe(flags, slot);
             return new(LinuxSyscallAction.Return, value);
         }
-        uint* before = stackalloc uint[12]; PipeSnapshot(before);
-        value = LinuxDescriptorServices.DispatchThreads(_descriptors, _self, frame);
         if (!WakePipeChanges(flags, before)) return new(LinuxSyscallAction.Rejected);
         return new(LinuxSyscallAction.Return, value);
     }
@@ -154,7 +157,11 @@ public unsafe partial struct LinuxThreadServices
     }
     private bool WakePipeChanges(ulong flags, uint* before)
     {
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (!LinuxEpollServices.ThreadRefresh.Begin(_descriptors, _self, out var refresh)) { _failed = true; return false; }
+#else
         if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return false; }
+#endif
         var a = _descriptors->Owner;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
@@ -166,13 +173,17 @@ public unsafe partial struct LinuxThreadServices
                 ? a.Pipes[p].BufferedBytes < before[p * 3] || a.Pipes[p].ReaderCount < before[p * 3 + 1]
                 : a.Pipes[p].BufferedBytes > before[p * 3] || a.Pipes[p].WriterCount < before[p * 3 + 2];
             if (!changed) continue;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            // Inspection may enter the thread owner: do not retain admission.
+            refresh = default;
+#endif
             var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
             if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
             if (state.Completion != KernelThreadTable.Completion.None) continue;
             if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
         }
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        return WakeEpollChanges(flags);
+        return WakeEpollChanges(flags, ref refresh);
 #else
         return true;
 #endif

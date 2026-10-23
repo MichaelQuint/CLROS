@@ -141,9 +141,12 @@ public static partial class QemuTranscripts
         internal uint EpollMaximum, EpollWinner;
         internal bool EpollObserved, EpollEligible;
         internal ulong? DeliveryRsp;
+        internal uint DeliverySignal;
+        internal CollectionSignal? DeliveryProof;
+        internal bool PendingUsr2;
         internal bool Parking, Exiting, Reaped, GroupRetired, NormalExit;
         internal int Requests, Delivered, Returned;
-        internal readonly Stack<(ulong Frame,ulong Rsp,CollectionSignal? Proof)> Frames=[];
+        internal readonly Stack<(ulong Frame,ulong Rsp,CollectionSignal? Proof,uint Signal)> Frames=[];
     }
 
     private readonly record struct FutexReplay(ulong Address,uint Op,uint Expected,ulong Timeout,uint Bits,ulong Rip,ulong Deadline);
@@ -161,7 +164,7 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity;
-        private readonly bool broader,socket,web,service,containment,vectors,webLogQuota;
+        private readonly bool broader,socket,web,service,containment,vectors,webLogQuota,webRaceTransport;
         private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
         private readonly int webSettingsFd;
@@ -187,16 +190,20 @@ public static partial class QemuTranscripts
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
-            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false)
+            bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false,bool serviceQuotaFailure=false,bool webRaceTransport=false)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
             vectors=app==NativeAotSocketVectorsPublisher.Application;
             service=app==NativeAotServicePackage.Application;
+            Need(!serviceQuotaFailure || service && configuredServiceMemory,"threading_service_quota_mode");
+            this.serviceQuotaFailure=serviceQuotaFailure; quotaImageBytes=elf.Length;
             Need(!configuredServiceMemory || service,"threading_configured_memory");
             memoryPoolPages=configuredServiceMemory?OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages:LinuxMemoryServices.ApplicationPoolPages;
             web=service || app=="MinimalApiSmoke";socket=web || containment || vectors || app is "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync";
             Need(!webLogQuota || web && !service,"web_quota_application");this.webLogQuota=webLogQuota;
+            Need(!webRaceTransport || web && !service && !webLogQuota && webControls is not null,"web_race_transport_application");
+            this.webRaceTransport=webRaceTransport;
             this.webSettingsBytes=webSettingsBytes;this.webSettingsFd=webSettingsFd;
             this.webSettingsCall=webSettingsCall;
             Need(!web || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
@@ -216,7 +223,7 @@ public static partial class QemuTranscripts
             }
             this.rows=service?ValidateLinuxServiceCallOrdinals(rows!):ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             Need(webControls is null || web && !service,"web_controls_application");this.webControls=webControls;
-            if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets);
+            if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets,webRaceTransport);
             memory=new(elf,memoryPoolPages); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=service?0U:web?4096U:broader||socket?256U:32U;
             Need(containment==(containmentCapture is not null) && (socket&&!containment)==(socketCapture is not null),"socket_protocol_capture");
             this.containmentCapture=containmentCapture;
@@ -243,10 +250,10 @@ public static partial class QemuTranscripts
         internal ThreadingProtocolReport Validate()
         {
             Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,memoryPoolPages,continuingService:service);
-            int bytes=service?NativeAotServiceProgram.ElfBytes:web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
+            int bytes=service?(serviceQuotaFailure?quotaImageBytes:NativeAotServiceProgram.ElfBytes):web?NativeAotWebProgram.ElfBytes:containment?NativeAotSocketContainmentPackage.ElfBytes:vectors?NativeAotSocketVectorsPackage.ElfBytes:socket?2117424:broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
-            if(socket)Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live");
+            if(socket)Exact("M16_011_BOUND connections="+(web&&!service?16:8)+" rx=8192 tx=32768 epoll=4 watches=64 nic=live");
             var armed=LinuxSyscallArm(Take()); const string policy=" timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
             string line=Take(); Need(line.EndsWith(policy,StringComparison.Ordinal),"threading_bound_policy");
             var bound=ReadRecord(line[..^policy.Length],"M16_008_BOUND","root:dec","pool:dec","workers:dec","code:dec","metadata:dec","userImage:dec");
@@ -265,7 +272,7 @@ public static partial class QemuTranscripts
             }
             while(active!=0)
             {
-                if(service) ServiceProgress();
+                if(service && (!serviceQuotaFailure || !quotaAborted)) ServiceProgress();
                 SocketObservations(supervisor:true);
                 if(web && !service && position==rows.Length)throw new WebBoundary("dispatch_or_idle");
                 Need((uint)(transfers/2+ticks+socketIdlePolls)<budget.MaximumSteps,"threading_transfer_bound");
@@ -330,7 +337,10 @@ public static partial class QemuTranscripts
                             Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                             Need(r["nr"]==60,"threading_exit_tail_syscall");
                         }
-                        Call(t,r,waits[index],output); Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
+                        Call(t,r,waits[index],output);
+                        ObserveWebSignalRaceCall(t,r,waits[index]);
+                        if(serviceQuotaFailure)QuotaSocketObservation(r,returns[index]);
+                        Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;
                         if(Starts("M16_008_SYSCALL_TIME "))
                         {
@@ -340,6 +350,8 @@ public static partial class QemuTranscripts
                         ExpectDelivery(t);
                         SocketObservations();
                         calls++; ending=r["action"] is 2 or 3 or 4 or 6; exiting=r["action"] is 2 or 4; action=r["action"];
+                        if(serviceQuotaFailure && Starts("M16_016_QUOTA_ABORT "))
+                        { QuotaAbort(t,r,waits[index]); ending=exiting=true; action=4; }
                         if(ending) break;
                     }
                     if(prepareBlocked){t.Parking=false;if(t.Completion.HasValue)Enqueue(t);}
@@ -402,24 +414,33 @@ public static partial class QemuTranscripts
                     app=="NativeAotRuntimeMatrix"?peak>=9 && normalExits>=6:peak>=5 && clones>=4,"runtime_workload_lifetimes");
                 phases!.Finish();
             }
-            else if(socket)SocketFinish();
+            else if(socket) { if(serviceQuotaFailure)QuotaCloseDescriptors();else SocketFinish(); }
             else Need(app=="NativeAotSuspensionSmoke" ? clones>=3 && normalExits>=1 && signalReturns>=2 && history.Any(t=>t.NormalExit && t.Returned>=2) : clones>=5,"threading_workload_lifetimes");
+            if(serviceQuotaFailure)QuotaMemoryEnd();
             var finished=Row("M16_008_BUDGET_END","nanos:dec");
-            Need(finished["nanos"]>=clock && (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
+            // Quota cancellation freezes admission before the final syscall;
+            // QuotaFinish binds the fresh post-reap clock to both observations.
+            Need((serviceQuotaFailure ? finished["nanos"]>=budget.StartedNanoseconds : finished["nanos"]>=clock) &&
+                (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
                 (service?budget.CancellationRequested && finished["nanos"]<=long.MaxValue:budget.Observe(finished["nanos"])),"runtime_budget_complete");
             if(service)serviceBudgetFinished=finished["nanos"];
             // Group cancellation retires pending/active signal state during
             // actual off-stack reap. It does not fabricate a user sigreturn.
-            Need(history.All(t=>t.GroupRetired || t.Delivered==t.Returned && t.Requests==0),"threading_unreturned_signal");
+            Need(history.All(t=>t.GroupRetired || t.Delivered==t.Returned && t.Requests==0 && !t.PendingUsr2 && t.DeliverySignal==0),"threading_unreturned_signal");
             Need(entropyBytes>0 && barrierRegistered && signalPipeCreated && stackProbe && files.Count==0 &&
                 new ulong[]{2,3,8,11,13,18,35}.All(actions.Contains),"threading_runtime_startup");
             const string cleanup=" userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
             string owner=Take(); Need(owner.EndsWith(cleanup,StringComparison.Ordinal),"threading_owner_cleanup");
             var end=ReadRecord(owner[..^cleanup.Length],"M16_008_OWNER_END","reaped:dec","transfers:dec","irqs:dec","exit:dec");
-            Need(end["reaped"]==(ulong)reaped && end["transfers"]==(ulong)transfers && end["irqs"]==(ulong)epochs && end["exit"]==0,"threading_owner_accounting");
-            if(service) ServiceFinish();
-            Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
-            Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009"); Need(position==rows.Length,"threading_extra_record");
+            Need(end["reaped"]==(ulong)reaped && end["transfers"]==(ulong)transfers && end["irqs"]==(ulong)epochs && end["exit"]==(serviceQuotaFailure?99UL:0UL),"threading_owner_accounting");
+            if(serviceQuotaFailure)QuotaFinish();
+            else
+            {
+                if(service) ServiceFinish();
+                Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+                Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009");
+            }
+            Need(position==rows.Length,"threading_extra_record");
             return new(calls,clones,reaped,irqs,drains,ticks,transfers,signalReturns);
         }
 
@@ -431,12 +452,32 @@ public static partial class QemuTranscripts
             if(fs!=0) Need(memory.Covered(fs,8,1),"threading_live_tls");
         }
         private void Enqueue(RuntimeThread t){Need(!ready.Contains(t) && !t.Reaped,"threading_duplicate_ready");ready.Enqueue(t);}
-        private static void ExpectDelivery(RuntimeThread t)
+        private static uint PendingSignal(RuntimeThread t)=>t.PendingUsr2 && (t.Mask&(1UL<<11))==0?12U:
+            t.Requests>0 && (t.Mask&(1UL<<34))==0?35U:0;
+        private void ExpectDelivery(RuntimeThread t)
         {
             // Native PrepareUserReturn runs at dispatch and after every returning
-            // call. Retain its interrupted RSP even if an IRQ captures the new
-            // handler before the first handler syscall can observe its frame.
-            if(t.Requests>0 && (t.Mask&(1UL<<34))==0 && t.DeliveryRsp is null)t.DeliveryRsp=t.SavedRsp;
+            // call. Selection consumes one pending entry now; keep its number,
+            // proof and interrupted RSP across IRQs before the first handler CALL.
+            // Standard12 coalesces; the independent realtime35 queue has four slots.
+            if(t.Exiting || t.WaitSource!=0 || t.DeliverySignal!=0)return;
+            uint signal=PendingSignal(t);if(signal==0)return;
+            t.DeliverySignal=signal;t.DeliveryRsp=t.SavedRsp;
+            if(signal==12)t.PendingUsr2=false;
+            else
+            {
+                t.Requests--;
+                Need(phases is null || t.SignalProofs.Count!=0,"runtime_signal_request_evidence");
+                t.DeliveryProof=phases is null?null:t.SignalProofs.Dequeue();
+            }
+        }
+        // Publishing a new wait rechecks the real pending queue. An already-won
+        // readiness completion stays intact until Prepare actually reparks it.
+        private void InterruptPendingWait(RuntimeThread t)
+        {
+            if(t.Exiting || t.WaitSource==0 || t.Completion.HasValue || PendingSignal(t)==0)return;
+            if(t.WaitSource==3)t.EpollWinner=5;
+            Complete(t,-4);
         }
         private void Complete(RuntimeThread t,long result)
         { if(t.Completion.HasValue) return; t.Completion=result; if(!t.Parking) Enqueue(t); }

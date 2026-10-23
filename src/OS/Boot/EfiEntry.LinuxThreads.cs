@@ -18,6 +18,16 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
+#if M16_014_PROBE
+        // One serialized, supervisor-only negative lifetime. Each stage requires
+        // its exact predecessor and independently checked owned restoration;
+        // neither a log string nor an arbitrary false return can advance it.
+        private enum LinuxQuotaDisposition : uint { None, Pending, Terminating, NativeCleaned, CpuRestored, NetworkCleaned }
+
+        private static bool LinuxQuotaPolicy(Storage* state) => state != null &&
+            state->LinuxServices.GcBudget.Succeeded && state->LinuxServices.GcBudget.TerminateOnPhysicalBackingExhaustion;
+#endif
+
         private const uint LinuxNativeWorkers = NativeProgram.MaximumWorkers, LinuxNativeFutexes = 16;
         // Metadata lives only in the program's retained RW/NX arena. No user leaf
         // exposes this storage. One IRQ-off BSP owns the complete lifetime.
@@ -26,6 +36,11 @@ public static unsafe partial class EfiEntry
             internal Storage* State;
             internal ulong Key, AliasSerial;
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
+#if M16_014_PROBE
+            internal ulong QuotaStackAcquired, QuotaStackLastReturned, QuotaStackPeakBytes, QuotaContextPeakBytes;
+            internal uint QuotaStackPeakLive, QuotaStackStarted, QuotaStackEnded;
+            internal fixed ulong QuotaStackGenerations[(int)LinuxNativeWorkers];
+#endif
 #if M10_004_PROBE
             internal uint WebFlags, WebBoundFd, WebStartMatch;
             internal ulong WebConfigBytes, WebStdoutBytes, WebStderrBytes;
@@ -446,7 +461,12 @@ public static unsafe partial class EfiEntry
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* data = (byte*)state->LinuxSyscallData;
             var returning = result;
+#if M16_014_PROBE
+            bool quotaPending = state->LinuxQuota == LinuxQuotaDisposition.Pending;
+            if (!quotaPending && result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser)
+#else
             if (result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser)
+#endif
                 returning = LinuxNativeUserReturn(c, index, out image);
             if (returning.Action == LinuxSyscallAction.RestoreUser &&
                 !X64LinuxUserTransition.RestoreActiveUserImage(data, X64LinuxUserTransition.DataBytes, image,
@@ -500,6 +520,13 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
                 LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
                 LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
+#if M16_014_PROBE && CLROS_LINUX_SOCKETS
+            if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaSocketCall(c, index, call, result);
+#endif
+#if M16_014_PROBE
+            if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaPthreadCall(c, index, call, result);
+            if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaStackLeases(c, false);
+#endif
 #if CLROS_LINUX_SOCKETS
             if (logged && call.Number is 232 or 281 && result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
                 unchecked((int)call.Argument3) > 0)
@@ -517,6 +544,22 @@ public static unsafe partial class EfiEntry
             // obscure their winner. CALL above introduces a newly staged wait.
 #if CLROS_LINUX_SOCKETS
             logged = logged && ObserveLinuxSocketWaits(c);
+#endif
+#if M16_014_PROBE
+            if (quotaPending && logged && result.Action == LinuxSyscallAction.Return &&
+                c->Gates[index].Status == LinuxSyscallGateStatus.Active && call.Number is 9 or 10 or 12 or 25)
+            {
+                if (!LinuxQuotaPolicy(state) || c->Stopping != 0 || c->Failed != 0 || c->Process.Failed ||
+                    c->ServiceShutdown != 0 || !c->Budget.RequestCancellation() ||
+                    !LinuxText(state, "M16_016_QUOTA_ABORT identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                    !LinuxText(state, " ordinal=") || !LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) ||
+                    !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) ||
+                    !LinuxText(state, " backed=") || !LinuxNumber(state, state->LinuxMemory.BackedPages) ||
+                    !LinuxText(state, " pool=") || !LinuxNumber(state, LinuxMemoryPoolPages(state)) ||
+                    !LinuxText(state, " exit=99 policy=terminate cause=physical-backing\r\n")) return LinuxNativeAbort(c, index);
+                state->LinuxQuota = LinuxQuotaDisposition.Terminating;
+                return LinuxNativeAbort(c, index);
+            }
 #endif
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
@@ -772,6 +815,137 @@ public static unsafe partial class EfiEntry
         }
 #endif
 
+#if M16_014_PROBE
+        // Copy one newly published child's raw TCB prefix on the serialized
+        // parent turn. The process/memory owners retain all backing; no guest
+        // pointer or alias survives this call, and no libc layout is inferred.
+        private static bool ObserveLinuxQuotaPthreadCall(LinuxNativeControl* c, uint index,
+            LinuxSyscallFrame call, LinuxSyscallResult result)
+        {
+            if (call.Number != 56 || result.Action != LinuxSyscallAction.Return || result.Value <= 0) return true;
+            if (c == null || c->State == null || LinuxNativeOwner(c->State) != c || !LinuxQuotaPolicy(c->State) ||
+                c->Phase != 3 || c->Published != 1 || c->Stopping != 0 || c->Capacity == 0 || c->Capacity > LinuxNativeWorkers ||
+                c->Slots == null || c->KernelSlots == null || c->Plan.Count != c->Capacity ||
+                c->Selected == 0 || c->Selected > c->Capacity || index != c->Selected - 1 ||
+                !c->Threads.Current.IsValid || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity ||
+                c->Gates[index].Status != LinuxSyscallGateStatus.Active || LinuxNativeCallOrdinal(c, index) == 0 ||
+                result.Value > int.MaxValue || call.Argument0 != LinuxThreadServices.PthreadCloneFlags ||
+                !c->Process.Inspect(c->Key, 2, c->Threads.Current, out var parent) || parent.Exiting ||
+                parent.Kernel.Value != c->Slots[index].Kernel.Value || parent.Tid != c->Slots[index].Tid) return false;
+            uint childIndex = c->Capacity, childTid = (uint)result.Value;
+            for (uint i = 0; i < c->Capacity; i++)
+            {
+                if (c->Slots[i].Tid != childTid) continue;
+                if (childIndex != c->Capacity) return false;
+                childIndex = i;
+            }
+            if (childIndex == c->Capacity || childIndex == index) return false;
+            var slot = c->Slots + childIndex; var kernel = c->KernelSlots + childIndex;
+            ulong identity = ((ulong)kernel->Generation << 32) | (childIndex + 1UL);
+            var binding = c->Plan.Bindings[childIndex];
+            var created = c->Threads.Inspect(c->Key, 2, slot->Kernel);
+            if (kernel->Generation == 0 || slot->Kernel.Value != identity || !created.Succeeded ||
+                created.State != KernelThreadTable.State.Ready || created.Identity.Value != identity ||
+                created.Context.Identity != identity || created.Context.Context != binding.Context.Context ||
+                created.Entry != binding.Entry.Entry || created.Argument != (ulong)slot ||
+                binding.Context.Identity != identity || binding.Argument != (ulong)slot ||
+                !c->Process.Inspect(c->Key, 2, slot->Kernel, out var child) || child.Exiting || child.Tid != childTid ||
+                child.ClearTid != call.Argument3 || child.Frame.FsBase != call.Argument4 || child.Frame.Rsp != call.Argument1 ||
+                child.Frame.Rip != call.Rip) return false;
+            byte* data = stackalloc byte[112];
+            if (!LinuxThreadKernelRange(c, data, 112, false) || CopyLinuxAlias(c->State, call.Argument4, data, 112, false) != 1) return false;
+            Storage* state = c->State;
+            if (!LinuxText(state, "M16_016_PTHREAD identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                !LinuxText(state, " ordinal=") || !LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) ||
+                !LinuxText(state, " child=") || !LinuxNumber(state, identity) ||
+                !LinuxText(state, " childTid=") || !LinuxNumber(state, childTid) ||
+                !LinuxText(state, " tls=") || !LinuxNumber(state, call.Argument4) ||
+                !LinuxText(state, " sp=") || !LinuxNumber(state, call.Argument1) ||
+                !LinuxText(state, " parentTid=") || !LinuxNumber(state, call.Argument2) ||
+                !LinuxText(state, " clearTid=") || !LinuxNumber(state, call.Argument3) ||
+                !LinuxText(state, " rip=") || !LinuxNumber(state, call.Rip) || !LinuxText(state, " bytes=112 data=")) return false;
+            for (uint i = 0; i < 112; i++)
+            {
+                uint high = (uint)data[i] >> 4, low = (uint)data[i] & 15;
+                if (!LinuxByte(state, (byte)(high < 10 ? '0' + high : 'a' + high - 10)) ||
+                    !LinuxByte(state, (byte)(low < 10 ? '0' + low : 'a' + low - 10))) return false;
+            }
+            return LinuxText(state, "\r\n");
+        }
+
+        // These are kernel callback stack/context leases. The guest pthread
+        // stack remains owned by user memory; clone RSP supplies no full bound.
+        private static bool ObserveLinuxQuotaStackLeases(LinuxNativeControl* c, bool end)
+        {
+            if (c == null || !LinuxQuotaPolicy(c->State) || c->Phase != 3 || c->Published != 1 ||
+                c->Capacity == 0 || c->Capacity > LinuxNativeWorkers || c->Plan.Count != c->Capacity ||
+                c->QuotaStackEnded != 0 || !LinuxNativeVerify(c)) return false;
+            Storage* state = c->State;
+            if (c->QuotaStackStarted == 0 || end)
+            {
+                if (!CooperativeAuditPool(state, true) || !FirstExitOwnedArena.ValidateCanaries(state->Arena) ||
+                    c->Plan.Supervisor.StackGuardStart != (ulong)state->Arena.Storage + 21 * Page ||
+                    c->Plan.Supervisor.StackBytes != 66 * Page) return false;
+                if (c->QuotaStackStarted == 0)
+                {
+                    ulong worker = 0;
+                    for (uint page = NativeProgram.WorkerPage; page < NativeProgram.IrqGuardPage; page++)
+                        if (!NativeProgram.IsGuardPage(page)) worker += Page;
+                    if (!LinuxText(state, "M16_016_STACK_BACKING cooperativePages=") || !LinuxNumber(state, CooperativePoolPages) ||
+                        !LinuxText(state, " workerMappedBytes=") || !LinuxNumber(state, worker) ||
+                        !LinuxText(state, " switchMappedBytes=") || !LinuxNumber(state, (NativeProgram.SwitchPages - 2UL) * Page) ||
+                        !LinuxText(state, " irqMappedBytes=") || !LinuxNumber(state, (NativeProgram.IrqPages - 2UL) * Page) ||
+                        !LinuxText(state, " mainSupervisorUsableBound=") || !LinuxNumber(state, c->Plan.Supervisor.StackBytes - 2 * Page) ||
+                        !LinuxText(state, " reservation=retained\r\n")) return false;
+                }
+            }
+            ulong stacks = 0, contexts = 0; uint live = 0; bool changed = c->QuotaStackStarted == 0;
+            for (uint i = 0; i < c->Capacity; i++)
+            {
+                var slot = c->KernelSlots + i;
+                if (slot->State is KernelThreadTable.State.Empty or KernelThreadTable.State.Retired) continue;
+                var d = slot->Context; ulong identity = ((ulong)slot->Generation << 32) | (i + 1UL);
+                var held = c->Plan.Bindings[i].Context;
+                if (slot->Generation == 0 || d.Identity != identity || held.Identity != identity || d.Context != held.Context ||
+                    d.ContextBytes != NativeContext.Bytes || d.StackGuardStart != state->CooperativePool +
+                        (NativeProgram.WorkerPage + i * NativeProgram.WorkerPages) * Page || d.StackBytes != NativeProgram.WorkerPages * Page ||
+                    held.StackGuardStart != d.StackGuardStart || held.StackBytes != d.StackBytes ||
+                    !c->Threads.Inspect(c->Key, 2, new(identity)).Succeeded) return false;
+                ulong prior = c->QuotaStackGenerations[i];
+                if (prior != slot->Generation)
+                {
+                    if (prior != 0 && slot->Generation != prior + 1 || c->QuotaStackAcquired == ~0UL ||
+                        !LinuxText(state, "M16_016_STACK_LEASE identity=") || !LinuxNumber(state, identity) ||
+                        !LinuxText(state, " index=") || !LinuxNumber(state, i) ||
+                        !LinuxText(state, " stack=") || !LinuxNumber(state, d.StackGuardStart + Page) ||
+                        !LinuxText(state, " stackBytes=") || !LinuxNumber(state, d.StackBytes - 2 * Page) ||
+                        !LinuxText(state, " context=") || !LinuxNumber(state, (ulong)d.Context) ||
+                        !LinuxText(state, " contextBytes=") || !LinuxNumber(state, d.ContextBytes) || !LinuxText(state, "\r\n")) return false;
+                    c->QuotaStackGenerations[i] = slot->Generation; c->QuotaStackAcquired++; changed = true;
+                }
+                live++; stacks += d.StackBytes - 2 * Page; contexts += d.ContextBytes;
+            }
+            if (c->QuotaStackAcquired < c->Reaped || c->QuotaStackAcquired - c->Reaped != live ||
+                live != c->Process.ActiveThreads || end && (live != 0 || c->Selected != 0 || c->Threads.HandoffPending)) return false;
+            if (live > c->QuotaStackPeakLive) c->QuotaStackPeakLive = live;
+            if (stacks > c->QuotaStackPeakBytes) c->QuotaStackPeakBytes = stacks;
+            if (contexts > c->QuotaContextPeakBytes) c->QuotaContextPeakBytes = contexts;
+            changed |= c->QuotaStackLastReturned != c->Reaped || end;
+            if (changed && (!LinuxText(state, "M16_016_STACK_LEASES acquired=") || !LinuxNumber(state, c->QuotaStackAcquired) ||
+                !LinuxText(state, " returned=") || !LinuxNumber(state, c->Reaped) ||
+                !LinuxText(state, " live=") || !LinuxNumber(state, live) ||
+                !LinuxText(state, " stackBytes=") || !LinuxNumber(state, stacks) ||
+                !LinuxText(state, " contextBytes=") || !LinuxNumber(state, contexts) ||
+                !LinuxText(state, " peakLive=") || !LinuxNumber(state, c->QuotaStackPeakLive) ||
+                !LinuxText(state, " peakStackBytes=") || !LinuxNumber(state, c->QuotaStackPeakBytes) ||
+                !LinuxText(state, " peakContextBytes=") || !LinuxNumber(state, c->QuotaContextPeakBytes) ||
+                !LinuxText(state, " end=") || !LinuxNumber(state, end ? 1U : 0U) || !LinuxText(state, "\r\n"))) return false;
+            c->QuotaStackStarted = 1; c->QuotaStackLastReturned = c->Reaped;
+            if (end) c->QuotaStackEnded = 1;
+            return true;
+        }
+#endif
+
         // Valid only after real workers/IRQ/native references have drained.
         // Failure retains the pool and outstanding ownership for fail-closed
         // termination; it never authorizes restoring/unmapping a live resource.
@@ -779,6 +953,9 @@ public static unsafe partial class EfiEntry
         {
             if (c == null || c->Installed != 0 || c->Timer.IsPrepared || c->Process.ActiveThreads != 0 ||
                 c->Threads.Current.IsValid || c->Threads.HandoffPending || !FirstExitOwnedArena.InMainStack(c->State->Arena, supervisorRsp, 8)) return false;
+#if M16_014_PROBE
+            if (LinuxQuotaPolicy(c->State) && !ObserveLinuxQuotaStackLeases(c, true)) return false;
+#endif
             if (c->GuardAttached != 0)
             {
                 if (!LinuxMemoryServices.DetachMutationGuard(&c->State->LinuxMemory, c->State, &LinuxThreadMemoryGuard)) return false;

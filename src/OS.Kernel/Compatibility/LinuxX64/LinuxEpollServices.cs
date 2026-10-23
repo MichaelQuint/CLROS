@@ -126,6 +126,38 @@ public static unsafe class LinuxEpollServices
     public static bool Refresh(State* state)
     {
         if (!Current(state)) return false;
+        return RefreshCore(state);
+    }
+
+    /// <summary>Stack-only admission for one serialized IRQ-off refresh. Begin
+    /// audits the complete descriptor/epoll graph and exact thread owner. Carry
+    /// only across unchanged field reads; discard before inspection, callbacks
+    /// or mutation. Refresh consumes the admission before readiness changes;
+    /// default, consumed or mismatched admissions perform the full audit again.
+    /// Retained-operation checks still audit the resulting readiness graph.</summary>
+    internal ref struct ThreadRefresh
+    {
+        private Fds.State* _descriptors;
+        private ulong _owner;
+
+        internal static bool Begin(Fds.State* descriptors, ulong owner, out ThreadRefresh refresh)
+        {
+            refresh = default;
+            if (!Fds.Attached(descriptors, owner)) return false;
+            refresh._descriptors = descriptors; refresh._owner = owner; return true;
+        }
+
+        internal bool Refresh(Fds.State* descriptors, ulong owner)
+        {
+            bool admitted = _descriptors != null && _descriptors == descriptors && _owner == owner;
+            this = default;
+            if (!admitted && !Fds.Attached(descriptors, owner)) return false;
+            return descriptors->Epoll == null || RefreshCore(descriptors->Epoll);
+        }
+    }
+
+    private static bool RefreshCore(State* state)
+    {
         for (uint i = 0; i < state->RegistrationCount; i++)
         {
             Registration* r = state->Registrations + i;
@@ -234,13 +266,42 @@ public static unsafe class LinuxEpollServices
     {
         ready = false;
         if (!CurrentOperation(owner, ref operation)) return false;
+        ready = HasReadyEvents(ref operation); return true;
+    }
+
+    /// <summary>Stack-only readiness scan for one exclusive IRQ-off poll after
+    /// refresh. Start fresh and discard before thread inspection/wake, callbacks
+    /// or mutations. Consecutive not-ready operations may share one successful
+    /// graph audit; changed owners are audited again. Every operation identity
+    /// is checked on every visit. Failure does not mutate the owned graph.</summary>
+    internal ref struct ReadinessScan
+    {
+        private State* _audited;
+
+        internal bool HasEvents(ulong owner, ref Operation operation, out bool ready)
+        {
+            ready = false;
+            if (operation.Active != 1) return false;
+            if (_audited == null || _audited != operation.Owner)
+            {
+                if (!LinuxEpollServices.HasEvents(owner, ref operation, out ready)) return false;
+                _audited = operation.Owner; return true;
+            }
+            if (!CurrentOperationAfterAudit(owner, ref operation)) return false;
+            ready = HasReadyEvents(ref operation); return true;
+        }
+    }
+
+    private static bool HasReadyEvents(ref Operation operation)
+    {
+        bool ready = false;
         var state = operation.Owner;
         for (uint i = 0; i < state->RegistrationCount; i++)
         {
             Registration r = state->Registrations[i];
             if (r.Port == operation.Port + 1 && ((r.Interest & Edge) != 0 ? r.Pending : r.Ready) != 0) ready = true;
         }
-        return true;
+        return ready;
     }
     internal static bool EndOperation(ulong owner, ref Operation operation)
     {
@@ -248,8 +309,13 @@ public static unsafe class LinuxEpollServices
         operation = default; return true;
     }
     private static bool CurrentOperation(ulong owner, ref Operation operation)
+        => operation.Active == 1 && Current(operation.Owner) && CurrentOperationAfterAudit(owner, ref operation);
+
+    private static bool CurrentOperationAfterAudit(ulong owner, ref Operation operation)
     {
-        if (operation.Active != 1 || !Current(operation.Owner) || !Fds.Attached(operation.Owner->Descriptors, owner) ||
+        // Current or the unchanged local scan covers the descriptor graph.
+        // Preserve every operation's exact owner and retained identity checks.
+        if (owner == 0 || operation.Owner->Descriptors->ThreadOwner != owner ||
             operation.Description >= operation.Owner->Descriptors->Owner.DescriptionCount) return false;
         fixed (Operation* p = &operation) if ((ulong)p != operation.Self) return false;
         var d = operation.Owner->Descriptors->Owner.Descriptions[operation.Description];

@@ -1,5 +1,12 @@
 # Networking
 
+[Step1554](../done/step1554.md) refreshes the socket reader's separate
+current-consumer source pin after reviewing the shared web publisher's added
+race/session qualification paths. The socket-used helpers and all original
+socket producer/app inputs are unchanged. The original receipt, ELF, package
+and index pins remain exact. Four focused package checks pass after reproducing
+the stale-pin refusal; fresh socket/vector ancestors remain required.
+
 [Step1479](../done/step1479.md) completes the fresh original v1 service and five
 memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
 passes the original 829,226ms service lifetime; all three expected memory faults

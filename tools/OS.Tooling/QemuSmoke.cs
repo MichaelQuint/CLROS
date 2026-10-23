@@ -33,16 +33,20 @@ public static class QemuSmoke
         NativeAotSocketVectorsProgram? vectorsProgram=null;
         NativeAotSocketVectorsPeer.Completion? vectorsPeer=null;
         NativeAotWebProgram? webProgram=null;
+        NativeAotWebRacePeer.Completion? webRacePeer=null;
         NativeAotServiceProgram? serviceProgram=null;
         NativeAotServicePeer.Completion? servicePeer=null;
+        NativeAotServiceQuotaPeer.Completion? serviceQuotaPeer=null;
         int serviceForwardPort=0;
         DateTimeOffset serviceStarted=default,serviceCompleted=default;
         AuthorityFiles? serviceInputs=null;
+        AuthorityFile? servicePackageInput=null,serviceDisassemblyInput=null,serviceImageInput=null,serviceEfiInput=null;
         EfiVerification? serviceNative=null;
         int webForwardPort=0;
         DateTimeOffset webStarted=default,webCompleted=default;
         NativeAotWebProgram.Configuration webConfiguration=default;
         AuthorityFiles? webInputs=null;
+        AuthorityFile? webPackageInput=null,webDisassemblyInput=null,webImageInput=null,webEfiInput=null;
         EfiVerification? webNative=null;
         try
         {
@@ -53,9 +57,21 @@ public static class QemuSmoke
             bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
             bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
             bool service=NativeAotServiceSelection.Application(plan.Flags).Length!=0;
+            var serviceContract=service?NativeAotServiceSelection.Contract(options,plan.Flags):NativeAotServiceContract.V1;
             if((signalEpoll||service||sockets||containment||vectors||web)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
+            if(options.HasWebSignalRace&&!options.DryRun)
+            {
+                string serial=Path.GetFullPath(options.SerialLog,root),race=serial+".race.json";
+                string[] targets=[serial,Path.GetFullPath(options.SummaryLog,root),serial+".pcap",race,race+".attempts.json",
+                    race+".wire.json",race+".runner.log",race+".runner.stderr.log"];
+                var comparer=OperatingSystem.IsWindows()?StringComparer.OrdinalIgnoreCase:StringComparer.Ordinal;
+                string[] originals=[options.LinuxElfPackage,options.LinuxThreadingDisassembly,options.Image,options.EfiArtifact];
+                if(targets.Distinct(comparer).Count()!=targets.Length || targets.Any(p=>Path.Exists(p) ||
+                    originals.Any(s=>s.Length!=0&&comparer.Equals(p,Path.GetFullPath(s,root)))))
+                    throw new ToolFailure("web_race_output_not_fresh_or_aliased");
+            }
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
                 throw new ToolFailure("hello_profile_requires_m16_009");
             if (plan.IsEnabled("EnableM16002Probe") && !options.DryRun)
@@ -77,22 +93,23 @@ public static class QemuSmoke
                         if(service)
                         {
                             serviceInputs=new();
-                            var p=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
-                            var d=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
+                            var p=servicePackageInput=serviceInputs.Open(Path.GetDirectoryName(package)!,package,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
+                            var d=serviceDisassemblyInput=serviceInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"service instructions","service_instructions",128*1024*1024,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
-                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),options.ServiceLifecycle);
+                            serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),serviceContract);
                             NativeAotServiceProgram.HoldSources(root,serviceInputs);serviceInputs.VerifyUnchanged();
                         }
                         else if(web)
                         {
                             webInputs=new();
-                            var p=webInputs.Open(Path.GetDirectoryName(package)!,package,"web package","web_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
-                            var d=webInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"web instructions","web_instructions",NativeAotWebProgram.MaximumDisassemblyBytes,singleLink:true);
+                            var p=webPackageInput=webInputs.Open(Path.GetDirectoryName(package)!,package,"web package","web_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
+                            var d=webDisassemblyInput=webInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"web instructions","web_instructions",NativeAotWebProgram.MaximumDisassemblyBytes,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
                             byte[] bytes=p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package");
                             webProgram=NativeAotWebProgram.Create(root,bytes,d.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes,"web_instructions"));
                             NativeAotWebProgram.HoldSources(root,webInputs);
                             webConfiguration=NativeAotWebProgram.DescribeConfiguration(bytes);
+                            if(options.HasWebSignalRace&&webConfiguration.LogQuota)throw new ToolFailure("web_race_normal_logging_required");
                             webInputs.VerifyUnchanged();
                         }
                         else if(vectors)vectorsProgram=NativeAotSocketVectorsProgram.Read(root,package,disassembly);
@@ -195,10 +212,11 @@ public static class QemuSmoke
                         ..plan.Flags.Where(p=>p.Value).Select(p=>"-"+p.Key)],false),output.WriteLine);
                     webNative.Verify();
                     string imagePath=Path.GetFullPath(options.Image,root),efiPath=Path.GetFullPath(options.EfiArtifact,root),packagePath=Path.GetFullPath(options.LinuxElfPackage,root);
-                    var imageInput=webInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"web image","web_image",64*1024*1024,singleLink:true);
-                    var efiInput=webInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"web EFI","web_efi",16*1024*1024,singleLink:true);
+                    var imageInput=webImageInput=webInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"web image","web_image",64*1024*1024,singleLink:true);
+                    var efiInput=webEfiInput=webInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"web EFI","web_efi",16*1024*1024,singleLink:true);
                     var packageInput=webInputs.Open(Path.GetDirectoryName(packagePath)!,packagePath,"web package","web_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                     AuthorityFiles.RequireDistinct(imageInput,efiInput,packageInput);
+                    if(options.HasWebSignalRace)AuthorityFiles.RequireDistinct(webPackageInput!,webDisassemblyInput!,imageInput,efiInput);
                     var locations=LinuxElfImageFixture.Inspect(imageInput.ReadBytes(64*1024*1024,"web_image"),
                         efiInput.ReadBytes(16*1024*1024,"web_efi"),packageInput.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package"));
                     webInputs.VerifyUnchanged();
@@ -209,8 +227,8 @@ public static class QemuSmoke
                     serviceNative=new(EfiOptions.Parse(["--root",root,"--boot-policy",plan.BootPolicy,"--efi-artifact",options.EfiArtifact,
                         ..plan.Flags.Where(p=>p.Value).Select(p=>"-"+p.Key)],false),output.WriteLine);serviceNative.Verify();
                     string imagePath=Path.GetFullPath(options.Image,root),efiPath=Path.GetFullPath(options.EfiArtifact,root),packagePath=Path.GetFullPath(options.LinuxElfPackage,root);
-                    var imageInput=serviceInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"service image","service_image",64*1024*1024,singleLink:true);
-                    var efiInput=serviceInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"service EFI","service_efi",16*1024*1024,singleLink:true);
+                    var imageInput=serviceImageInput=serviceInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"service image","service_image",64*1024*1024,singleLink:true);
+                    var efiInput=serviceEfiInput=serviceInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"service EFI","service_efi",16*1024*1024,singleLink:true);
                     var packageInput=serviceInputs.Open(Path.GetDirectoryName(packagePath)!,packagePath,"service package","service_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                     AuthorityFiles.RequireDistinct(imageInput,efiInput,packageInput);
                     var locations=LinuxElfImageFixture.Inspect(imageInput.ReadBytes(64*1024*1024,"service_image"),efiInput.ReadBytes(16*1024*1024,"service_efi"),
@@ -233,6 +251,8 @@ public static class QemuSmoke
             }
             List<string> arguments = ["--image", options.Image, "--disk-format", options.DiskFormat, "--workload-profile", options.WorkloadProfile,
                 "--serial-log", options.SerialLog, "--summary-log", options.SummaryLog, "--timeout", timeout.ToString(CultureInfo.InvariantCulture)];
+            if(options.MemoryMiB is int memory)
+                arguments.AddRange(["--memory",memory.ToString(CultureInfo.InvariantCulture)+"M"]);
             arguments.AddRange(["--startup-timeout", options.StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture)]);
             if (plan.ReplaceDefaultRequiredMarkers) arguments.Add("--replace-default-required-markers");
             if (plan.IsEnabled("EnableM02UnexpectedVectorPanicProbe")) arguments.Add("--expect-unexpected-vector-panic");
@@ -246,6 +266,7 @@ public static class QemuSmoke
             if(containment)arguments.Add("--socket-containment-peer");
             else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web) arguments.Add("--continuing-network-peer");
             if(service)arguments.Add("--continuing-service");
+            if(service&&serviceContract==NativeAotServiceContract.QuotaFailure)arguments.Add("--service-quota-failure");
             if((service||sockets||vectors)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if(web)
             {
@@ -261,6 +282,10 @@ public static class QemuSmoke
                     "--http-probe-expected-status","200","--http-probe-expected-body",options.DryRun?"OS_CONFIG_SELECTED_R01":webConfiguration.Body,
                     "--http-probe-timeout","20","--web-config-body",options.DryRun?"{}":webConfiguration.Json,
                     "--web-log-case",!options.DryRun && webConfiguration.LogQuota?"records64":"normal"]);
+                if(options.WebEventOwnedSignalRace)arguments.Add("--web-event-owned-signal-race");
+                if(options.HasWebSignalRace&&options.DryRun)
+                    arguments.AddRange(["--web-race-pipe",options.WebEventOwnedSignalRace?
+                        "clros-web-race-v3-00000000000000000000000000000000":"clros-web-race-00000000000000000000000000000000"]);
             }
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);
@@ -298,8 +323,19 @@ public static class QemuSmoke
             ProcessResult runner;
             if(service&&!options.DryRun)
             {
-                servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
-                runner=servicePeer.Runner;
+                if(serviceContract==NativeAotServiceContract.QuotaFailure)
+                {
+                    if(serviceProgram is null || serviceInputs is null || serviceNative is null || servicePackageInput is null ||
+                        serviceDisassemblyInput is null || serviceImageInput is null || serviceEfiInput is null)
+                        throw new ToolFailure("service_quota_original_inputs_required");
+                    serviceQuotaPeer=await NativeAotServiceQuotaPeer.RunObservedOwnedAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation);
+                    runner=serviceQuotaPeer.Runner;
+                }
+                else
+                {
+                    servicePeer=await NativeAotServicePeer.RunAsync(root,options.SerialLog+".peer.log",options.SerialLog,RunSocketRunner,cancellation,lifecycle:options.ServiceLifecycle);
+                    runner=servicePeer.Runner;
+                }
             }
             else if(vectors&&!options.DryRun)
             {
@@ -312,6 +348,27 @@ public static class QemuSmoke
                     cancellation,token=>NativeAotSocketPeer.WaitForAcceptAsync(Path.GetFullPath(options.SerialLog,root),plan.IsEnabled("EnableM16012Probe"),token),
                     receiveGateSerial:plan.IsEnabled("EnableM16012Probe")?options.SerialLog:null);
                 runner=socketPeer.Runner;
+            }
+            else if(web&&options.HasWebSignalRace&&!options.DryRun)
+            {
+                async Task<ProcessResult> RunWebRaceRunner(string pipe,CancellationToken token)
+                {
+                    webStarted=DateTimeOffset.UtcNow;
+                    try
+                    {
+                        var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--web-race-pipe",pipe],root)
+                            {Timeout=TimeSpan.FromSeconds(options.TimeoutSeconds+60),OutputCharacterLimit=16*1024*1024,
+                                EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
+                        output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
+                    }
+                    finally{webCompleted=DateTimeOffset.UtcNow;}
+                }
+                webRacePeer=options.WebEventOwnedSignalRace?
+                    await NativeAotWebRacePeer.RunEventOwnedAsync(root,webForwardPort,webConfiguration.Body,
+                        options.SerialLog+".race.json",options.SummaryLog,RunWebRaceRunner,cancellation,initialWaitSerial:options.SerialLog):
+                    await NativeAotWebRacePeer.RunOwnedAsync(root,webForwardPort,webConfiguration.Body,
+                        options.SerialLog+".race.json",options.SummaryLog,RunWebRaceRunner,cancellation,initialWaitSerial:options.SerialLog);
+                runner=webRacePeer.Runner;
             }
             else if (capture is null)
             {
@@ -327,7 +384,39 @@ public static class QemuSmoke
                 QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
             }
             if (options.DryRun) return runner.ExitCode;
+            if(serviceQuotaPeer is not null)
+            {
+                // Expected runner22 is only the private owner's capture
+                // disposition. Inspect every original before quota success;
+                // the owner has already joined its still-finishing peer.
+                var context=new QemuTranscripts.ServiceRunnerContext(serviceForwardPort,qemu,ovmf,serviceStarted,serviceCompleted);
+                using var quotaEvidence=QemuTranscripts.HoldServiceQuotaEvidence(root,options,serviceProgram!,serviceQuotaPeer,runner,
+                    context,serviceInputs!,servicePackageInput!,serviceDisassemblyInput!,serviceImageInput!,serviceEfiInput!);
+                if(capture is not null)
+                {
+                    capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");
+                }
+                _=QemuTranscripts.InspectOwnedServiceQuota(root,options,plan,serviceProgram!,context,quotaEvidence);
+                NativeAotServiceProgram.HoldSources(root,serviceInputs!);
+                serviceInputs!.VerifyUnchanged();serviceNative!.VerifyHeldInputs();quotaEvidence.Verify();
+                cancellation.ThrowIfCancellationRequested();
+                output.WriteLine("TEST_PASS qemu.smoke.quota");
+                return 0;
+            }
             if (runner.ExitCode != 0 && (capture is not null || web || service)) return runner.ExitCode;
+            if(webRacePeer is not null)
+            {
+                if(webProgram is null||webInputs is null||webNative is null||webPackageInput is null||
+                    webDisassemblyInput is null||webImageInput is null||webEfiInput is null)
+                    throw new ToolFailure("web_race_original_inputs_required");
+                int result=QemuTranscripts.InspectOwnedWebRace(root,options,plan,webProgram,webRacePeer,runner,
+                    new(webForwardPort,qemu,ovmf,webStarted,webCompleted),webInputs,webPackageInput,webDisassemblyInput,webImageInput,webEfiInput,output,
+                    ()=>{if(capture is not null){capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");}},
+                    ()=>{NativeAotWebProgram.HoldSources(root,webInputs);webInputs.VerifyUnchanged();webNative.VerifyHeldInputs();cancellation.ThrowIfCancellationRequested();});
+                cancellation.ThrowIfCancellationRequested();
+                if(result==0)output.WriteLine("TEST_PASS qemu.smoke.web-race");
+                return result;
+            }
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
             using AuthorityFiles? threadingEvidence = servicePeer is not null?QemuTranscripts.HoldServiceEvidence(root,options,servicePeer):

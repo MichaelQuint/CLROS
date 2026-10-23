@@ -165,6 +165,7 @@ public static unsafe partial class EfiEntry
             internal FirmwareEntropyCapture.State LinuxServiceSequenceCapture;
             internal FirmwareEntropyCapture.Buffer LinuxServiceSequenceScratch, LinuxServiceSequenceRetained;
             internal uint LinuxServiceRandomPhase;
+            internal LinuxQuotaDisposition LinuxQuota;
 #endif
 #endif
 #if M16_007_PROBE
@@ -880,7 +881,7 @@ public static unsafe partial class EfiEntry
                 {
                     if (c->Selected == 0 || c->UserTimer != c->Selected || !c->Timer.IsPrepared ||
                         !LinuxNativeUserWorker(c, c->Selected - 1) ||
-                        !(gatewayCallback ? LinuxNativeUserGates(c, true) : LinuxNativeTimerInstalled(c))) return false;
+                        !(gatewayCallback ? LinuxNativeUserGates(c, true, allowSyscall: true) : LinuxNativeTimerInstalled(c))) return false;
                 }
                 else if (ownedIst || gatewayCallback && state->LinuxSyscallPlan.UserInterrupts) return false;
             }
@@ -1684,6 +1685,9 @@ public static unsafe partial class EfiEntry
                 LinuxMemoryPoolPages(state) == OS.Manifest.LinuxAppConfiguration.ConfiguredServicePoolPages ?
                     OS.Manifest.LinuxAppConfiguration.ConfiguredServiceNativeReserveBytes : LinuxMemoryPoolPages(state) * Page / 2);
             if (!gcBudget.Succeeded && gcBudget.Result != OS.Manifest.LinuxAppConfiguration.Status.Unconfigured) return false;
+#if !M16_014_PROBE
+            if (gcBudget.TerminateOnPhysicalBackingExhaustion) return false;
+#endif
             state->LinuxMemoryPhase = 3;
             state->LinuxMemoryCheckpoint = 2;
             LinuxMemoryServices.Admission memory = new()
@@ -1804,7 +1808,20 @@ public static unsafe partial class EfiEntry
             Storage* state = (Storage*)context;
             var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset + X64LinuxElfReadBackBridge.ReadCr3Offset);
             if (!LinuxSyscallAuthority(state) || state->LinuxMemoryPhase != 4 || frame == null || readRoot() != state->LinuxDispatchRoot) return -14;
+#if M16_014_PROBE
+            long result = LinuxStartupServices.Dispatch(&state->LinuxServices, *frame, out bool physicalBackingExhausted);
+            if (physicalBackingExhausted && LinuxQuotaPolicy(state))
+            {
+                LinuxNativeControl* c = LinuxNativeOwner(state);
+                if (c == null || c->Phase != 3 || c->Selected == 0 || c->Selected > c->Capacity ||
+                    c->Stopping != 0 || c->Failed != 0 || state->LinuxQuota != LinuxQuotaDisposition.None ||
+                    c->Threads.Current.Value != c->Plan.Bindings[c->Selected - 1].Context.Identity)
+                { state->LinuxSyscallFailed = 1; return -5; }
+                state->LinuxQuota = LinuxQuotaDisposition.Pending;
+            }
+#else
             long result = LinuxStartupServices.Dispatch(&state->LinuxServices, *frame);
+#endif
 #if M16_014_PROBE
             if (frame->Number == 318 && !(LinuxText(state, "M11_012_RANDOM requested=") && LinuxNumber(state, frame->Argument1) &&
                 LinuxText(state, " flags=") && LinuxNumber(state, frame->Argument2) &&
@@ -2204,11 +2221,28 @@ public static unsafe partial class EfiEntry
             bool executed = RunLinuxNativeOwner(state);
             ulong* finalCpu = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
             observe(finalCpu);
-            bool restored = executed && *(ulong*)(data + X64LinuxUserTransition.PhaseOffset) == 2 &&
+#if M16_014_PROBE
+            bool quotaNativeCleaned = !executed && LinuxQuotaPolicy(state) &&
+                state->LinuxQuota == LinuxQuotaDisposition.NativeCleaned;
+            bool ownerReturned = executed || quotaNativeCleaned;
+#else
+            bool ownerReturned = executed;
+#endif
+            bool restored = ownerReturned && *(ulong*)(data + X64LinuxUserTransition.PhaseOffset) == 2 &&
                 *(ulong*)(state->Arena.Descriptors->Tss + 4) == *(ulong*)(data + 0xd0) &&
                 (finalCpu[3] & 0x74700) == (original[3] & 0x74700) && FirstExitOwnedArena.ValidateCanaries(state->Arena);
             for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) if (i != 3 && finalCpu[i] != original[i]) restored = false;
             for (uint i = 0; i < 512; i++) if (data[X64LinuxUserTransition.KernelFxOffset + i] != data[X64LinuxUserTransition.UserFxOffset + i]) restored = false;
+#if M16_014_PROBE
+            if (quotaNativeCleaned)
+            {
+                if (!restored || state->LinuxQuota != LinuxQuotaDisposition.NativeCleaned ||
+                    !LinuxText(state, "M16_016_QUOTA_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n"))
+                    return false;
+                state->LinuxQuota = LinuxQuotaDisposition.CpuRestored;
+                return false; // Expected process failure; outer NIC ownership still must retire.
+            }
+#endif
 #if M16_009_PROBE
             if (!restored)
             { _ = LinuxText(state, "TEST_FAIL m16-009 native-return\r\n"); return false; }

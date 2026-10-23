@@ -31,15 +31,29 @@ public static unsafe partial class LinuxDescriptorServices
         state->ThreadOwner = 0; return true;
     }
     internal static bool Attached(State* state, ulong owner) => Audit(state) && owner != 0 && state->ThreadOwner == owner;
-    internal static long DispatchThreads(State* state, ulong owner, LinuxSyscallFrame frame)
-        => Attached(state, owner) ? DispatchCore(state, frame) : Fault;
+    // One synchronous admission covers pipe selection and ordinary dispatch.
+    // The false BeginPipe branch only reads metadata; the snapshot also only
+    // reads. Neither can invalidate the audit before DispatchCore. The caller
+    // supplies disjoint stack storage for MaximumPipes * 3 counts and retains
+    // all post-mutation wake/operation checks under the same exclusive owner.
+    internal static bool DispatchThreads(State* state, ulong owner, LinuxSyscallFrame frame,
+        ref PipeOperation operation, uint* before, out bool pipe, out long value)
+    {
+        pipe = false; value = Fault;
+        if (!Attached(state, owner)) return false;
+        pipe = BeginPipe(state, frame, ref operation, out value);
+        if (pipe) return true;
+        var a = state->Owner;
+        for (uint i = 0; i < a.PipeCount; i++)
+        { before[i * 3] = a.Pipes[i].BufferedBytes; before[i * 3 + 1] = a.Pipes[i].ReaderCount; before[i * 3 + 2] = a.Pipes[i].WriterCount; }
+        value = DispatchCore(state, frame); return true;
+    }
 
     // False selects the unchanged descriptor path (non-pipe/nonblocking/I/Ov).
     // True either returns an immediate value or publishes one retained operation.
-    internal static bool BeginPipe(State* state, ulong owner, LinuxSyscallFrame frame, ref PipeOperation operation, out long value)
+    private static bool BeginPipe(State* state, LinuxSyscallFrame frame, ref PipeOperation operation, out long value)
     {
         value = Fault;
-        if (!Attached(state, owner)) return true;
         if (frame.Number is not (0 or 1)) return false;
         Description* d = Find(state, unchecked((uint)frame.Argument0));
         if (d == null || (Kind)d->Type is not (Kind.PipeRead or Kind.PipeWrite) || (d->Flags & NonBlock) != 0) return false;

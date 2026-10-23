@@ -17,10 +17,11 @@ public static class NativeAotSocketPackage
     /// <summary>Raw SHA256 of the one retained original ELF used by both modes.</summary>
     public const string ElfSha256 = "8DDAC5986AFF981448D8B1F3BAF5FDA09E89368C578A7389BBB243FA5BFABE3D";
     // The retained receipt binds its original producer source. The current
-    // consumer includes the separately reviewed logging/vector extension; changing
-    // that helper does not rewrite the original receipt or republish its ELF.
+    // consumer includes the separately reviewed web race/session extensions;
+    // socket-used helpers are unchanged. See step1554. This does not rewrite
+    // the original receipt or republish its ELF.
     private const string WebPayloadSource = "tools/OS.Tooling/NativeAotWebPayload.cs";
-    private const string CurrentWebPayloadSha256 = "CEDB569E9AAF83AFE0377617A0440A08A8D7EDBE8145DFA1D7E8CF30B853A408";
+    private const string CurrentWebPayloadSha256 = "129FD1AE91130FBFFC772D4A189A1FBB4EEEBF8236FF69B6B827A3A40B4C1FA3";
     private static readonly (string Path, string Hash)[] ProducerSources = [
         ("global.json", "FD3FDAAE1B349B01D6E6835EC111903F107A2643F3BCE313FAD4DC20180F5FB2"),
         ("Directory.Build.props", "DF8A0D794DB73060124F5134EB930DCDBF6EE526C2410227F0C668AB6D10C5E5"),

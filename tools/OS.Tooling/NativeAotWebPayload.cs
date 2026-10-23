@@ -16,7 +16,7 @@ namespace OS.Tooling;
 /// three-app publisher. Owns its extra HTTP child sessions and a sealed receipt;
 /// publication remains exclusively NativeAotPayload's recipe. No CLROS guest
 /// authority follows from this builder or its read-only receipt validation.</summary>
-public static class NativeAotWebPayload
+public static partial class NativeAotWebPayload
 {
     private const string SdkVersion = NativeAotPayload.SdkVersion;
     private const string RuntimeVersion = NativeAotPayload.RuntimeVersion;
@@ -35,12 +35,16 @@ public static class NativeAotWebPayload
         {
             if (args is ["qualify", "--output", var destination])
                 await QualifyAsync(Path.GetFullPath(root), Path.GetFullPath(destination), output);
+            else if(args is ["qualify","--signal-race","--output",var raceDestination])
+                await QualifyAsync(Path.GetFullPath(root),Path.GetFullPath(raceDestination),output,signalRace:true);
+            else if(args is ["qualify","--event-owned-signal-race","--output",var eventDestination])
+                await QualifyAsync(Path.GetFullPath(root),Path.GetFullPath(eventDestination),output,signalRace:true,eventOwned:true);
             else if (args is ["validate", var evidence])
                 ValidateQualification(Path.GetFullPath(root), Path.GetFullPath(evidence));
             else if (args is ["package", "--recipe-root", var recipeRoot, "--recipe-evidence", var recipeEvidence,
                 "--output", var package])
                 output.WriteLine("NATIVEAOT_WEB_PACKAGE sha256=" + NativeAotWebPackage.Write(root, recipeRoot, recipeEvidence, package));
-            else throw new ArgumentException("nativeaot web qualify --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package>");
+            else throw new ArgumentException("nativeaot web qualify [--signal-race | --event-owned-signal-race] --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package>");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }
@@ -51,8 +55,9 @@ public static class NativeAotWebPayload
         }
     }
 
-    private static async Task QualifyAsync(string root, string destination, TextWriter output)
+    private static async Task QualifyAsync(string root, string destination, TextWriter output,bool signalRace=false,bool eventOwned=false)
     {
+        Require(!eventOwned||signalRace,"signalrace_event_mode");
         Require(OperatingSystem.IsLinux(), "linux_builder_required");
         int result = await NativeAotPayload.RunAsync(root, ["qualify", "--output", destination], output);
         Require(result == 0, "native_payload_qualification_failed");
@@ -68,12 +73,13 @@ public static class NativeAotWebPayload
             string executable = Path.Combine(destination, "MinimalApiSmoke", "MinimalApiSmoke");
             await RunHttpAsync(root, destination, executable, commands, configured: false);
             await RunHttpAsync(root, destination, executable, commands, configured: true);
+            if(signalRace)await RunHttpAsync(root,destination,executable,commands,configured:false,signalRace:true,eventOwned:eventOwned);
         }
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "web-commands.json"), JsonSerializer.Serialize(commands));
         }
-        var receipt = new QualificationReceipt("clros.nativeaot.web.v3", SdkVersion, RuntimeVersion,
+        var receipt = new QualificationReceipt(eventOwned?"clros.nativeaot.web.v8":signalRace?"clros.nativeaot.web.v7":"clros.nativeaot.web.v4", SdkVersion, RuntimeVersion,
             sources, OutputHashes(destination));
         await File.WriteAllTextAsync(Path.Combine(destination, "web-receipt.json"), JsonSerializer.Serialize(receipt));
         ValidateQualification(root, destination);
@@ -99,7 +105,7 @@ public static class NativeAotWebPayload
         Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
         QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
             ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema == "clros.nativeaot.web.v3" && receipt.Sdk == SdkVersion &&
+        Require(receipt.Schema is "clros.nativeaot.web.v4" or "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8" && receipt.Sdk == SdkVersion &&
             receipt.Runtime == RuntimeVersion, "native_receipt_pin");
         Require(receipt.Sources is not null && receipt.Outputs is not null &&
             receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
@@ -114,6 +120,8 @@ public static class NativeAotWebPayload
         Dictionary<string, string> outputs = OutputHashes(destination);
         Require(outputs.OrderBy(row => row.Key).SequenceEqual(receipt.Outputs.OrderBy(row => row.Key)),
             "native_evidence_changed");
+        if(receipt.Schema is "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8")
+            Require(receipt.Outputs.ContainsKey("web-signalrace-schedule.jsonl"),"signalrace_schedule_required");
         var nativeInputs = JsonSerializer.Deserialize<Dictionary<string, string>>(
             File.ReadAllText(Path.Combine(destination, "native-inputs.json")));
         Require(nativeInputs is not null && nativeInputs.Count > 0 &&
@@ -137,7 +145,13 @@ public static class NativeAotWebPayload
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-trace");
         ValidateHttpTraces(destination, "WebMinimalApiSmoke-default-trace");
         foreach (string suffix in new[] { "", "-default" })
-        { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); }
+        { ValidateRecordedLogging(destination, suffix); ValidateRecordedVectors(destination,suffix); ValidateRecordedChurn(destination,suffix); }
+        if(receipt.Schema is "clros.nativeaot.web.v5" or "clros.nativeaot.web.v6" or "clros.nativeaot.web.v7" or "clros.nativeaot.web.v8")
+        {
+            ValidateHttpEvidence(File.ReadAllText(Path.Combine(destination,"web-http-signalrace.json")),DefaultWebBody);
+            ValidateHttpTraces(destination,"WebMinimalApiSmoke-signalrace-trace");
+            ValidateRecordedLogging(destination,"-signalrace");ValidateRecordedVectors(destination,"-signalrace");ValidateRecordedSignalRace(destination,receipt.Schema);
+        }
     }
 
     /// <summary>
@@ -292,14 +306,27 @@ public static class NativeAotWebPayload
             .Any(line => Regex.IsMatch(line, "^inotify_(init|init1|add_watch)\\(")), "http_file_watcher");
     }
 
-    private static async Task RunHttpAsync(string root, string destination, string executable, List<object> commands, bool configured)
+    private static async Task RunHttpAsync(string root, string destination, string executable, List<object> commands, bool configured,bool signalRace=false,bool eventOwned=false)
     {
+        Require(!eventOwned||signalRace&&!configured,"signalrace_event_mode");
+        // V8 alone partitions one operation lease: at most45s setup, then
+        // 150s capture plus15s post-capture reserve. This is cancellation policy,
+        // not a hard bound on native calls, report-retention IO or cleanup.
+        var eventClock=eventOwned?Stopwatch.StartNew():null;
+        using var eventDeadline=eventOwned?new CancellationTokenSource(TimeSpan.FromSeconds(210)):null;
+        void CheckEventOperation()
+        {
+            if(!eventOwned)return;
+            eventDeadline!.Token.ThrowIfCancellationRequested();
+            Require(eventClock!.Elapsed<TimeSpan.FromSeconds(210),"signalrace_event_session_deadline");
+        }
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         string endpoint = "http://127.0.0.1:" + port;
-        string suffix = configured ? "" : "-default";
+        string suffix = signalRace?"-signalrace":configured ? "" : "-default";
+        QemuTranscripts.WebSignalRaceSelection? raceSelection=null;
         string trace = Path.Combine(destination, "WebMinimalApiSmoke" + suffix + "-trace");
         string log = Path.Combine(destination, "WebMinimalApiSmoke" + suffix + "-run");
         string expectedBody = DefaultWebBody + (configured ? "_" + Guid.NewGuid().ToString("N") : "");
@@ -309,32 +336,40 @@ public static class NativeAotWebPayload
             Require(HashFile(Path.Combine(workingDirectory, name)) ==
                 HashFile(Path.Combine(root, "apps", "MinimalApiSmoke", name)), "http_published_config_changed");
         commands.Add(new { executable = "strace", arguments, workingDirectory, log });
+        Task stdout=Task.CompletedTask,stderr=Task.CompletedTask;
+        SignalRaceNativeSchedule? nativeSchedule=null;Exception? runFailure=null;
+        CheckEventOperation();
         using var process = Start("strace", arguments, workingDirectory, configured ? expectedBody : null);
-        Task stdout = CaptureAsync(process.StandardOutput, log + ".stdout.log", process);
-        Task stderr = CaptureAsync(process.StandardError, log + ".stderr.log", process);
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-        using var client = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(30) };
         try
         {
+            // Every fallible post-start operation is protected by session cleanup.
+            stdout=CaptureAsync(process.StandardOutput,log+".stdout.log",process);
+            stderr=CaptureAsync(process.StandardError,log+".stderr.log",process);
+            using var legacyDeadline=eventOwned?null:new CancellationTokenSource(TimeSpan.FromMinutes(2));
+            CancellationToken operation=eventDeadline?.Token??legacyDeadline!.Token;
+            CancellationToken evidenceToken=eventOwned?operation:CancellationToken.None;
+            using var client=new HttpClient(new HttpClientHandler{UseProxy=false})
+                {Timeout=eventOwned?Timeout.InfiniteTimeSpan:TimeSpan.FromSeconds(30)};
+            CheckEventOperation();
             while (true)
             {
                 Require(!process.HasExited, "http_payload_exited");
                 try
                 {
-                    using var response = await client.GetAsync(endpoint + "/healthz", deadline.Token);
+                    using var response = await client.GetAsync(endpoint + "/healthz", operation);
                     if (response.IsSuccessStatusCode) break;
                 }
                 catch (HttpRequestException) { }
-                await Task.Delay(100, deadline.Token);
+                await Task.Delay(100, operation);
             }
             foreach (string path in new[] { "/", "/healthz" })
             {
-                using var response = await client.GetAsync(endpoint + path, deadline.Token);
+                using var response = await client.GetAsync(endpoint + path, operation);
                 Require(response.StatusCode == HttpStatusCode.OK &&
                     response.Content.Headers.ContentType?.MediaType == "text/plain" &&
-                    await response.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "http_status_or_body");
+                    await response.Content.ReadAsStringAsync(operation) == expectedBody, "http_status_or_body");
             }
-            using var config = JsonDocument.Parse(await client.GetStringAsync(endpoint + "/config", deadline.Token));
+            using var config = JsonDocument.Parse(await client.GetStringAsync(endpoint + "/config", operation));
             Require(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke" &&
                 config.RootElement.GetProperty("expectedBody").GetString() == expectedBody, "http_config_contract");
             string evidence = JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" },
@@ -342,46 +377,85 @@ public static class NativeAotWebPayload
                 configBody = config.RootElement.GetProperty("expectedBody").GetString(),
                 bodyBytes = config.RootElement.GetProperty("expectedBodyBytes").GetInt32() });
             ValidateHttpEvidence(evidence, expectedBody);
-            await File.WriteAllTextAsync(Path.Combine(destination, "web-http" + suffix + ".json"), evidence);
-            using var logging = await client.PostAsync(endpoint + "/__clros/logexercise", null, deadline.Token);
-            string loggingBody = await logging.Content.ReadAsStringAsync(deadline.Token);
+            await File.WriteAllTextAsync(Path.Combine(destination, "web-http" + suffix + ".json"), evidence,evidenceToken);
+            using var logging = await client.PostAsync(endpoint + "/__clros/logexercise", null, operation);
+            string loggingBody = await logging.Content.ReadAsStringAsync(operation);
             Require(logging.StatusCode == HttpStatusCode.OK && loggingBody == LoggingBody, "logging_http");
-            using var repeat = await client.PostAsync(endpoint + "/__clros/logexercise", null, deadline.Token);
+            using var repeat = await client.PostAsync(endpoint + "/__clros/logexercise", null, operation);
             Require(repeat.StatusCode == HttpStatusCode.Conflict, "logging_repeat");
-            using(var vector=await client.GetAsync(endpoint+"/__clros/vectors",HttpCompletionOption.ResponseHeadersRead,deadline.Token))
+            using(var vector=await client.GetAsync(endpoint+"/__clros/vectors",HttpCompletionOption.ResponseHeadersRead,operation))
             {
                 Require(vector.StatusCode==HttpStatusCode.OK && vector.Content.Headers.ContentLength==WebVectorResponse.Length &&
                     vector.Content.Headers.ContentType?.MediaType=="application/octet-stream","vector_http_headers");
-                byte[] bytes=await vector.Content.ReadAsByteArrayAsync(deadline.Token);
+                byte[] bytes=await vector.Content.ReadAsByteArrayAsync(operation);
                 string vectorEvidence=JsonSerializer.Serialize(new{status=(int)vector.StatusCode,
                     contentType=vector.Content.Headers.ContentType?.MediaType,contentLength=vector.Content.Headers.ContentLength,
                     bodyBytes=bytes.Length,sha256=Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant()});
                 ValidateVectorEvidence(vectorEvidence,bytes);
-                await File.WriteAllBytesAsync(Path.Combine(destination,"web-vectors"+suffix+".bin"),bytes);
-                await File.WriteAllTextAsync(Path.Combine(destination,"web-vectors"+suffix+".json"),vectorEvidence);
+                await File.WriteAllBytesAsync(Path.Combine(destination,"web-vectors"+suffix+".bin"),bytes,evidenceToken);
+                await File.WriteAllTextAsync(Path.Combine(destination,"web-vectors"+suffix+".json"),vectorEvidence,evidenceToken);
             }
-            using var healthAfter = await client.GetAsync(endpoint + "/healthz", deadline.Token);
+            if(signalRace)
+            {
+                CheckEventOperation();
+                // Refuse before the schedule constructor opens its journal or
+                // the controller creates reports; never refresh the operation.
+                Require(!eventOwned||TimeSpan.FromSeconds(210)-eventClock!.Elapsed>=TimeSpan.FromSeconds(165),
+                    "signalrace_event_capture_budget");
+                nativeSchedule=new(process,executable,destination,eventOwned);
+                var hooks=new RaceStartHooks(nativeSchedule.PrepareAsync,token=>
+                {
+                    nativeSchedule.RecheckBeforeStart(token);nativeSchedule.MarkStartIssued();return Task.CompletedTask;
+                },token=>{token.ThrowIfCancellationRequested();nativeSchedule.RestoreTracer();return Task.CompletedTask;});
+                string raceJson=await CaptureSignalRaceCoreAsync(client,endpoint,expectedBody,Path.Combine(destination,"web-signalrace.json"),
+                    operation,null,startGate:true,startHooks:hooks,eventOwned:eventOwned);
+                raceSelection=ValidateSignalRaceEvidence(raceJson,endpoint,expectedBody);
+            }
+            else await RunChurnAsync(client, endpoint, expectedBody,
+                Path.Combine(destination, "web-churn" + suffix + ".json"), operation);
+            using var healthAfter = await client.GetAsync(endpoint + "/healthz", operation);
             Require(healthAfter.StatusCode == HttpStatusCode.OK &&
-                await healthAfter.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "logging_health_after");
+                await healthAfter.Content.ReadAsStringAsync(operation) == expectedBody, "logging_health_after");
             await File.WriteAllTextAsync(Path.Combine(destination, "web-logging" + suffix + ".json"),
-                JsonSerializer.Serialize(new { status = 200, body = loggingBody, repeatStatus = 409, healthAfter = 200 }));
-            string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token))
+                JsonSerializer.Serialize(new { status = 200, body = loggingBody, repeatStatus = 409, healthAfter = 200 }),evidenceToken);
+            string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", operation))
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
+            if(signalRace)Require(raceSelection!.Pid==int.Parse(children[0],System.Globalization.CultureInfo.InvariantCulture),"signalrace_tracee_identity");
             Require(File.ResolveLinkTarget($"/proc/{children[0]}/exe", true)?.FullName == executable, "http_tracee_executable");
-            await ExecuteAsync("kill", ["-TERM", children[0]], root,
+            if(eventOwned)
+            {
+                CheckEventOperation();
+                // The same independently verified live child used above. This
+                // retains cooperative PID identity, not atomic pidfd signaling.
+                Require(Kill(int.Parse(children[0],System.Globalization.CultureInfo.InvariantCulture),15)==0,"http_shutdown_signal");
+                CheckEventOperation();
+            }
+            else await ExecuteAsync("kill", ["-TERM", children[0]], root,
                 Path.Combine(destination, "WebMinimalApiSmoke" + suffix + "-shutdown"), TimeSpan.FromSeconds(10));
-            await process.WaitForExitAsync(deadline.Token);
+            await process.WaitForExitAsync(operation);
             Require(process.ExitCode == 0, "http_shutdown_exit");
-            await Task.WhenAll(stdout, stderr).WaitAsync(deadline.Token);
+            await Task.WhenAll(stdout, stderr).WaitAsync(operation);
             ValidateHttpTraces(destination, Path.GetFileName(trace));
             ValidateRecordedLogging(destination, suffix);
+            CheckEventOperation();
         }
+        catch(Exception error){runFailure=error;throw;}
         finally
         {
-            await StopSessionAsync(process);
-            await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(10));
+            // Attempt every owned cleanup operation, even when restoration or
+            // journaling fails. Retain the original failure with cleanup errors.
+            Exception? cleanup=null;
+            void Retain(Exception error)=>cleanup=cleanup is null?error:new AggregateException(cleanup,error);
+            try{nativeSchedule?.RestoreTracer();}catch(Exception error){Retain(error);}
+            bool stopConfirmed=false;
+            try{await StopSessionAsync(process);stopConfirmed=true;}catch(Exception error){Retain(error);}
+            if(stopConfirmed)try{nativeSchedule?.ConfirmStopped();}catch(Exception error){Retain(error);}
+            try{nativeSchedule?.Dispose();}catch(Exception error){Retain(error);}
+            try{await Task.WhenAll(stdout,stderr).WaitAsync(TimeSpan.FromSeconds(10));}catch(Exception error){Retain(error);}
+            if(cleanup is not null)throw runFailure is null?cleanup:new AggregateException(runFailure,cleanup);
         }
+        CheckEventOperation();
     }
 
     internal static async Task ExecuteAsync(string executable, string[] args, string root, string log, TimeSpan timeout)

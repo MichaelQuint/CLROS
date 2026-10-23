@@ -35,11 +35,18 @@ Tracker closure still requires evidence comments, versioned preview/apply and
 readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
 15 individual ancestors and native reviews keep their original `810b3eef` scopes.
 
-#748/#225 remain open: quota-triggered offending-workload termination and cleanup
-during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
-20MiB native headroom does not enforce independent partitions. Native saturation
-occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
-and production remain incomplete.
+Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
+positive V2 at `20e665ad` pass their complete finite consumers, retaining their
+original producer scopes. All 20 ancestor profiles are qualified: 17 positives
+and three expected negatives, with complete independent source/native joins.
+The stable unfiltered full at committed `28a79996` passes 6,258 checks across
+847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
+[Step1556](done/step1556.md) records exact provenance, measured fit/returned leases and
+all failed-original history. The 36 MiB pool remains shared, not independent
+16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
+isolation, cloud and production remain unaccepted.
+This updates only the named finite boundary; historical scopes and other
+unfinished work retain their original limits.
 CLROS is not cloud-ready or production-ready.
 
 The next planned feature is JSON endpoints plus read-only HTML/CSS/JS from a
@@ -109,13 +116,13 @@ unhandled negative and three timer reruns. Fresh static Hello, runtime exerciser
 and Minimal API payloads pass its separate Linux-host qualifier. Earlier failures
 and source checkpoints remain in their original step records.
 
-The foundation records below retain their historical toolchain and profile scope.
+The foundation records below retain each profile's evidence scope.
 Step1225 lists the finite set requalified on .NET 11.
 
 | Foundation | Accepted scope and evidence |
 | --- | --- |
 | Firmware exit | Ordinary `VerifiedExit` performs owned subsystem checks after real `ExitBootServices`, then halts. [Step1094](done/step1094.md). |
-| Upstream payload feasibility | Pinned .NET 10 static Hello, runtime exerciser and real Minimal API qualify on a Linux builder. This is Linux-host evidence. [Step1198](done/step1198.md). |
+| Upstream payload feasibility | Pinned .NET 11 static Hello, runtime exerciser and real Minimal API qualify on a Linux builder. This is Linux-host evidence. [Step1225](done/step1225.md); the original .NET 10 qualification remains historical in [step1198](done/step1198.md). |
 | Payload loading and startup | Bounded service loop, ELF mappings and Linux initial-stack construction. [Step1200](done/step1200.md). |
 | User/syscall boundary | Mechanical CPL3 ELF write/exit, register preservation, controlled faults and restoration. [Step1201](done/step1201.md). |
 | Linux memory and startup services | Sparse reservations, bounded backing, time and entropy; the unchanged payload reaches unsupported `ARCH_SET_FS` before Hello. [Step1205](done/step1205.md). |
@@ -165,13 +172,14 @@ places fixes at the acceptance stage that needs them:
    Continue under [#737](http://192.168.4.35:3000/admin/CLROS/issues/737).
    Web prefixes retain live workers until runner termination; they do not
    qualify continuing service or application shutdown/reap.
-2. Resume [step1477's exact checkpoint](done/step1477.md): run the repaired
-   original v1 producer and five memory controls, preserving the 15 successful
-   originals and the full-host receipt at its exact source. Review current
-   #224/#778/#779, large-message #787, fragmented backing #747 and pending-signal
-   #760 evidence before closure. Complete #748's quota-triggered failure/cleanup
-   criteria before #225's remaining churn acceptance. Then qualify #226/#227's
-   complete local Gate14 requirements. Keep #737's owner and dependency order.
+2. Preserve [step1556's finite quota/churn qualification](done/step1556.md):
+   the original owned Smoke, quota at 256/512 MiB and configured positive V2 captures,
+   and all 20 qualified ancestor profiles. Final stable full validation:
+   **PASS: 6,258 checks/847 fixtures, unchanged inputs and zero reuse**. Exact
+   provenance and failed history stay in the step.
+   The next application scope is #226/#227's complete local Gate14 requirements;
+   they are not accepted by this finite batch. Preserve #737's owner and the
+   managed dependency order.
 
 3. Add user-fault containment, reconcile accepted SIGPIPE dispositions with
    I/O behavior, and qualify two hardware-isolated local apps before deployment

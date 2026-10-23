@@ -89,6 +89,11 @@ public static partial class QemuTranscripts
     public static WebPacketInspection InspectNativeAotWebPacketsForTests(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,
         IReadOnlyList<uint> ports,int forward,string body,string configuration,bool logQuota=false,
         IReadOnlyList<WebUtcObservation>? utcWindows=null,WebControlInspection? controls=null)
+        =>ReadWebPackets(bytes,anchor,arp,ports,forward,body,configuration,logQuota,utcWindows,controls);
+
+    private static WebPacketInspection ReadWebPackets(byte[] bytes,uint anchor,QemuArpReceiveReceipt arp,
+        IReadOnlyList<uint> ports,int forward,string body,string configuration,bool logQuota,
+        IReadOnlyList<WebUtcObservation>? utcWindows,WebControlInspection? controls,WebRacePacketPartition? race=null)
     {
         int ordinary=logQuota?5:6,connections=ordinary+(controls is null?0:2);
         Need(ports.Count==connections && ports.Distinct().Count()==connections && ports.All(p=>p is >0 and <=65535) && forward is >0 and <=65535 &&
@@ -98,12 +103,13 @@ public static partial class QemuTranscripts
             ports[ordinary+1]==controls.Sockets.Before.SourcePort && controls.Sockets.After.SourcePort==controls.Sockets.Before.SourcePort,
             "web_wire_control_ports");
         _=QemuEthernetCapture.Inspect(bytes,anchor);
-        int offset=24,prefixStage=0,prefixEnd=0,resolutionSent=0,tcpRecords=0;ulong timestamp=0;
+        int offset=24,prefixStage=0,prefixEnd=0,resolutionSent=0,tcpRecords=0,record=0;ulong timestamp=0;
         bool resolved=false;List<WebWireFlow> flows=[];int vlan=0;
         byte[] beforeRequest=controls is null?[]:Convert.FromHexString(controls.Sockets.Before.RequestHex);
         byte[] beforeResponse=controls is null?[]:Convert.FromHexString(controls.Sockets.Before.ResponseHex);
         while(offset<bytes.Length)
         {
+            record++;
             ulong now=(ulong)BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset))*1_000_000+
                 BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset+4));
             Need(now>=timestamp,"web_wire_clock");timestamp=now;
@@ -129,7 +135,8 @@ public static partial class QemuTranscripts
                 var healthy=flows[^1];
                 Need(healthy.ClientSeen==beforeRequest.Length && healthy.ServerSeen==beforeResponse.Length &&
                     healthy.ResponseExtent==beforeResponse.Length && healthy.Response.AsSpan(0,beforeResponse.Length).SequenceEqual(beforeResponse) &&
-                    !healthy.ServerFin && !healthy.ClientFin,"web_wire_control_vlan_order");continue;
+                    !healthy.ServerFin && !healthy.ClientFin,"web_wire_control_vlan_order");
+                race?.OrdinaryRecords.Add(record);continue;
             }
             Need(frame.Length<=1514,"web_wire_frame_extent");if(SocketIgnoredRouterAdvertisement(frame))continue;
             bool outgoing=MatchNetworkMac(frame[6..],0x020000000001),incoming=MatchNetworkMac(frame[6..],arp.PeerMac);
@@ -146,8 +153,13 @@ public static partial class QemuTranscripts
                 }
                 continue;
             }
-            if(!ReadSocketTcpFrame(frame,outgoing,arp.PeerMac,out var packet))continue;tcpRecords++;
+            if(!ReadSocketTcpFrame(frame,outgoing,arp.PeerMac,out var packet))continue;
             uint remote=packet.Remote,sequence=packet.Sequence,ack=packet.Ack;byte flags=packet.Flags;var payload=packet.Payload;
+            if(race is not null && race.Ports.Contains(remote))
+            {
+                race.Record(record,flows.Count,vlan,flows.Count==connections?flows[^1]:null,incoming,flags);continue;
+            }
+            tcpRecords++;race?.OrdinaryRecords.Add(record);
             var flow=flows.SingleOrDefault(f=>f.Port==remote);
             if(incoming && flags==2)
             {

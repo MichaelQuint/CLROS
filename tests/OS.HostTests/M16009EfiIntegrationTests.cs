@@ -94,6 +94,48 @@ internal static unsafe class M16009EfiIntegrationTests
         }
     }
 
+    [HostTest("m16-009 only authenticated common gateway pool admission opts into syscall SS")]
+    private static void ActiveGateModes()
+    {
+        string root=HostToolProcess.FindRepositoryRoot();
+        var profile=EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{{"EnableM16009Probe",true}});
+        var options=new CSharpParseOptions(preprocessorSymbols:profile.Flags.Where(p=>p.Value).Select(p=>EfiContracts.ProbeSymbols[p.Key]));
+        SyntaxNode common=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")),options).GetRoot();
+        SyntaxNode irq=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.LinuxUserInterrupts.cs")),options).GetRoot();
+        HostCheck.True(Modes(common,irq));
+        var opted=Calls(common,"LinuxNativeUserGates").Single();
+        var argument=opted.ArgumentList.Arguments[2];
+        HostCheck.True(!Modes(common.ReplaceNode(argument,argument.WithExpression(SyntaxFactory.LiteralExpression(SyntaxKind.FalseLiteralExpression))),irq),"common syscall envelope must be selected");
+        var handler=irq.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m=>m.Identifier.Text=="LinuxNativeUserInterrupt");
+        var strict=Calls(handler,"LinuxNativeUserGates").Single();
+        HostCheck.True(!Modes(common,irq.ReplaceNode(strict,strict.AddArgumentListArguments(argument))),"direct IRQ must stay strict");
+        var authentication=Calls(common,"X64LinuxUserTransition.ValidateCallback").Single();
+        HostCheck.True(!Modes(common.ReplaceNode(authentication,SyntaxFactory.LiteralExpression(SyntaxKind.TrueLiteralExpression)),irq),"common callback authentication must remain");
+
+        static InvocationExpressionSyntax[] Calls(SyntaxNode node,string name)=>node.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()==name).ToArray();
+        static bool Modes(SyntaxNode common,SyntaxNode irq)
+        {
+            var callers=Calls(common,"LinuxNativeUserGates");
+            if(callers.Length!=1||callers[0].ArgumentList.Arguments.Count!=3)return false;
+            var call=callers[0];var selected=call.ArgumentList.Arguments[2];
+            if(selected.NameColon?.Name.Identifier.Text!="allowSyscall"||!selected.Expression.IsKind(SyntaxKind.TrueLiteralExpression)||
+                call.Parent is not ConditionalExpressionSyntax choice||choice.Condition.ToString()!="gatewayCallback"||choice.WhenTrue!=call||
+                call.Ancestors().OfType<MethodDeclarationSyntax>().First().Identifier.Text!="CooperativeAdmitPool")return false;
+            var authentication=Calls(common,"X64LinuxUserTransition.ValidateCallback");
+            if(authentication.Length!=1||authentication[0].SpanStart>=call.SpanStart||
+                authentication[0].Ancestors().OfType<VariableDeclaratorSyntax>().FirstOrDefault()?.Identifier.Text!="gatewayCallback")return false;
+            var methods=irq.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
+            var handler=methods.Single(m=>m.Identifier.Text=="LinuxNativeUserInterrupt");
+            var direct=Calls(handler,"LinuxNativeUserGates");
+            var gates=methods.Single(m=>m.Identifier.Text=="LinuxNativeUserGates");
+            var predicate=Calls(gates,"X64LinuxUserTransition.ValidateActiveUserGateObservation");
+            return direct.Length==1&&direct[0].ArgumentList.Arguments.Count==2&&
+                direct[0].ArgumentList.Arguments[1].Expression.IsKind(SyntaxKind.TrueLiteralExpression)&&
+                gates.ParameterList.Parameters.Count==3&&gates.ParameterList.Parameters[2].Default?.Value.IsKind(SyntaxKind.FalseLiteralExpression)==true&&
+                predicate.Length==1&&predicate[0].ArgumentList.Arguments.Count==5&&predicate[0].ArgumentList.Arguments[4].Expression.ToString()=="allowSyscall";
+        }
+    }
+
     // Native CPU observations cannot run in a host fixture. Check that their
     // rejecting gate dominates both private walk callers; removed gates are
     // independent negatives. Actual code/descriptor/PTE rejection remains in

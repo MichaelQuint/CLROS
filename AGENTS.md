@@ -26,11 +26,18 @@ Tracker closure still requires evidence comments, versioned preview/apply and
 readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
 15 individual ancestors and native reviews keep their original `810b3eef` scopes.
 
-#748/#225 remain open: quota-triggered offending-workload termination and cleanup
-during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
-20MiB native headroom does not enforce independent partitions. Native saturation
-occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
-and production remain incomplete.
+Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
+positive V2 at `20e665ad` pass their complete finite consumers, retaining their
+original producer scopes. All 20 ancestor profiles are qualified: 17 positives
+and three expected negatives, with complete independent source/native joins.
+The stable unfiltered full at committed `28a79996` passes 6,258 checks across
+847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
+[Step1556](done/step1556.md) records exact provenance, measured fit/returned leases and
+all failed-original history. The 36 MiB pool remains shared, not independent
+16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
+isolation, cloud and production remain unaccepted.
+This updates only the named finite boundary; historical scopes and other
+unfinished work retain their original limits.
 
 Preserve #737's current owner. #780 conflict protection and #781 -> #782 host
 FAT repairs remain open; they precede disk-fixture #769. The former paused-primary

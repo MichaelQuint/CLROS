@@ -86,6 +86,39 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " pool=") || !LinuxNumber(state, state->LinuxMemory.Memory.PoolPages) ||
                     !LinuxText(state, " reserved=") || !LinuxNumber(state, state->LinuxMemory.ReservedBytes) ||
                     !LinuxText(state, "\r\n")) return false;
+#if M16_014_PROBE
+                if (LinuxQuotaPolicy(state))
+                {
+                    // Copy topology only for the exact live quota owner and
+                    // current dispatched generation, before its raw CALL row.
+                    if (LinuxNativeOwner(state) != c || state->CooperativePhase != 2 ||
+                        state->LinuxMemoryPhase != 4 || state->LinuxSyscallPhase != 4 ||
+                        c->Selected == 0 || c->Selected > c->Capacity || c->Failed != 0 || c->Stopping != 0 ||
+                        c->Process.Failed || c->ServiceShutdown != 0 || !c->Budget.IsContinuingService ||
+                        state->LinuxSyscallFailed != 0 || state->LinuxSyscallFaults != 0 ||
+                        state->LinuxQuota is not (LinuxQuotaDisposition.None or LinuxQuotaDisposition.Pending)) return false;
+                    uint index = c->Selected - 1;
+                    var running = c->Threads.Inspect(c->Key, 2, c->Threads.Current);
+                    ulong ordinal = LinuxNativeCallOrdinal(c, index);
+                    if (!running.Succeeded || running.State != OS.Kernel.Threading.KernelThreadTable.State.Running ||
+                        c->Entered[index] != 1 || c->Gates[index].Status != LinuxSyscallGateStatus.Active || ordinal == 0 ||
+                        c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity ||
+                        !LinuxMemoryServices.TryObserve(&state->LinuxMemory, out var topology)) return false;
+                    if (!LinuxText(state, "M16_016_TOPOLOGY identity=") || !LinuxNumber(state, c->Threads.Current.Value) ||
+                        !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
+                        !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) ||
+                        !LinuxText(state, " pool=") || !LinuxNumber(state, topology.PoolPages) ||
+                        !LinuxText(state, " backed=") || !LinuxNumber(state, topology.BackedPages) ||
+                        !LinuxText(state, " free=") || !LinuxNumber(state, topology.FreePages) ||
+                        !LinuxText(state, " freeRuns=") || !LinuxNumber(state, topology.FreeRuns) ||
+                        !LinuxText(state, " largestFreeRun=") || !LinuxNumber(state, topology.LargestFreeRunPages) ||
+                        !LinuxText(state, " regions=") || !LinuxNumber(state, topology.DynamicRegions) ||
+                        !LinuxText(state, " regionLimit=") || !LinuxNumber(state, topology.RegionCapacity) ||
+                        !LinuxText(state, " tables=") || !LinuxNumber(state, topology.UsedTables) ||
+                        !LinuxText(state, " tableLimit=") || !LinuxNumber(state, topology.TableCapacity) ||
+                        !LinuxText(state, "\r\n")) return false;
+                }
+#endif
             }
             // A rejected bind is still the first bind attempt. Observe it before
             // the general errno return so later output/retry cannot erase failure.
@@ -187,10 +220,13 @@ public static unsafe partial class EfiEntry
                 return true;
 #endif
             }
-            string started = Probes.EnableM16014Probe ?
-                (state->LinuxServices.GcBudget.Succeeded ? "\nCLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" :
-                "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n") :
-                "\n      Application started. Press Ctrl+C to shut down.\n";
+#if M16_014_PROBE
+            string started = LinuxQuotaPolicy(state) ? "\nCLROS_SERVICE_LISTEN contract=v3-quota endpoint=0.0.0.0:8080\n" :
+                state->LinuxServices.GcBudget.Succeeded ? "\nCLROS_SERVICE_LISTEN contract=v2 endpoint=0.0.0.0:8080\n" :
+                "\nCLROS_SERVICE_LISTEN contract=v1 endpoint=0.0.0.0:8080\n";
+#else
+            string started = "\n      Application started. Press Ctrl+C to shut down.\n";
+#endif
             for (uint i = 0; i < bytes && (c->WebFlags & 8) == 0; i++)
             {
                 byte value = source[i]; if (value == 13) continue;
