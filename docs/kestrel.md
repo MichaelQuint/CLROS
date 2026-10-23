@@ -1,5 +1,46 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+## Current finite boundary
+
+Original owned Smoke at `32c14ccd` and quota at 256/512 MiB plus positive configured
+V2 at `20e665ad` pass their complete finite consumers. Smoke proves readiness
+wake → directed signal → competing consumption → repark → EINTR → recovery
+during continuous cancelled churn, with 21 roles, 37 edges, 31 Dates and complete
+actor/waiter/descriptor restoration. Quota measures fixed-policy RAM256/512 fit,
+fragmentation and component returns; V2 completes two managed cancellations and
+59 fresh/59 retired lifetimes. Pressure and ordinary fit remain separate.
+
+All 20 ancestor profiles are qualified: 17 positives and three expected negatives.
+The completed independent source/native audit reports zero consistency errors.
+The stable unfiltered full at committed `28a79996` passes 6,258 checks across
+847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
+[Step1556](../done/step1556.md) retains exact provenance, measurements and failed
+history. Complete Kestrel/Gate14, #226/#227, independent GC/native partitions,
+isolation, cloud and production remain unaccepted.
+This updates only the named finite boundary; historical scopes and other
+unfinished work retain their original limits.
+
+## Retained development history
+
+The first 28a full completed 6,258 checks across 847 fixtures (753 Fast/94 Native)
+with zero reuse, but FAILED final admission for two changed build inputs. Its
+1,845-file preservation is E14C156B9B17FF29E79D6CBA4991CA55D50A60F0D35D64F8BE71891196247DD4.
+Root confirmed Git-stamp-only AssemblyInformationalVersion drift: pre-commit
+host producers versus two post-commit Native self-rebuilds. That original stays
+failed. The committed 28a rebuild passes in 46.33 s with four existing warnings
+and zero errors, followed by 10 focused checks across two fixtures with zero
+reuse and four stable DLL hashes. Fresh full r02 now passes all 6,258 checks,
+with final unchanged-input admission and zero reuse. The failed r01 is unchanged.
+
+R11 supplies 19 qualified originals (16 ordinary CLI exit 0 and three expected
+fault CLI exit 1 with full-parent restoration); retained R09 sync supplies the
+twentieth. The independent audit verifies 171 saved R11 native files, 338 job
+files, 962 source joins per job, 3,434 tracked pins and 27 retained inputs:
+CB5B027EBB14CA1B5D56BA57AB2A9D4B3D22D42CE2967A88190F761F97A6543C.
+R09's wrapper and R10's startup failure remain failed. The later same-EFI async
+pass does not prove the firmware cause or stable firmware behavior. Earlier
+paragraphs retain their dated original boundaries.
+
 [Step1554](../done/step1554.md) records the fresh original owned Smoke at
 `32c14ccd`: the final `qemu.smoke.web-race` gate passes, with21 HTTP roles,
 37 order edges,31 Date values and zero pending headers. Its actual512MiB
@@ -1662,8 +1703,12 @@ empty-send boundary; no runtime fix is included in that review.
 
 1. Preserve the accepted memory/descriptor/thread/signal/runtime scopes through [step1307](../done/step1307.md).
 2. Preserve [step1380](../done/step1380.md) configuration/containment and [step1389](../done/step1389.md) finite logging under continuing integration #737.
-3. Under #737, complete #743/#744/#746/#240/#757/#758 and #766 before #224 repeated service. The empty-send correction follows accepted #745; preserve genuine reset/shutdown errors and nonempty backpressure.
-4. Complete #760/#747/#748 and the exact #225 async/churn prerequisites, then #226/#227. Retain fresh guest boots, external `/healthz`, cancellation/shutdown, resource reuse and stopped-guest refusal at the appropriate gate. Earlier finite receipts do not close these service requirements.
+3. Preserve [step1556](../done/step1556.md)'s completed finite owned Smoke, quota
+   and configured V2 originals, the 20 qualified ancestor profiles and stable
+   full. Keep their exact source/producer scopes and failed history.
+4. Continue #226/#227's complete local Gate14 requirements in the next batch. Retain
+   actual health, cancellation/shutdown, resource reuse and stopped-guest
+   refusal at the appropriate gate; this finite batch does not accept Gate14.
 5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.
 
 Time-API evidence correction: step1419's `realtime/gettimeofday` layout wording

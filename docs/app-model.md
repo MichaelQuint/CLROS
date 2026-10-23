@@ -90,14 +90,36 @@ Tracker closure still requires evidence comments, versioned preview/apply and
 readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
 15 individual ancestors and native reviews keep their original `810b3eef` scopes.
 
-#748/#225 remain open: quota-triggered offending-workload termination and cleanup
-during churn are unproved. The 36MiB dynamic pool is shared; 16MiB GC plus declared
-20MiB native headroom does not enforce independent partitions. Native saturation
-occurs before listen and after drain. Complete Kestrel/Gate14, isolation, cloud
-and production remain incomplete.
+Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
+positive V2 at `20e665ad` pass their complete finite consumers, retaining their
+original producer scopes. All 20 ancestor profiles are qualified: 17 positives
+and three expected negatives, with complete independent source/native joins.
+The stable unfiltered full at committed `28a79996` passes 6,258 checks across
+847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
+[Step1556](../done/step1556.md) records exact provenance, measured fit/returned leases and
+all failed-original history. The 36 MiB pool remains shared, not independent
+16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
+isolation, cloud and production remain unaccepted.
+This updates only the named finite boundary; historical scopes and other
+unfinished work retain their original limits.
+
+The actual 256/512 MiB RAM observations bind the same quota image and fixed
+policy: GC 16,777,216 B, declared native headroom 20,971,520 B, shared pool
+37,748,736 B and entitlement 67,108,864 B. Ordinary complete-snapshot non-GC
+bounds are 15,904,768/17,473,536 B. Positive V2 independently has an 18,776,064 B
+ordinary non-GC upper bound, 35,553,280 B GC + upper and 62,824,448 B static +
+bound; the existing fit guards pass. Pressure maxima remain separate.
+
+Quota memory rows bound region/table occupancy and physical free runs; exact
+thread/stack/socket histories return dynamic leases and borrowers to zero.
+Retained firmware/global backing is not released. Quota's held cancellation
+ends through offending-workload termination; V2 separately proves completed
+managed cancellation, and Smoke proves continuous cancelled churn and the exact
+directed-signal/consumed-readiness race. This finite union does not imply a
+same-VM combined peak or arbitrary-workload/isolation acceptance.
 
 The following dated development notes retain contract details and historical
-observations. Use step1481 for current validation and scoped reconciliation.
+observations. Use the current boundary above for validation and reconciliation.
 
 ## Quota termination development
 
