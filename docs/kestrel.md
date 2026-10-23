@@ -1,5 +1,15 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1553](../done/step1553.md) preserves the step1552 guest's genuine producer
+ordering failure: the exact overlap GET bytes were consumed before the native
+recovery wait, despite a later route log. The final reader correctly refuses.
+The host now waits for a provisional second pending same-thread/same-epoll call
+after acknowledgment and before sending overlap requests. The existing500ms
+linked observer cap and all final replay/HTTP byte/order checks remain. App,
+kernel and the qualified Linux package are unchanged. The corrected host build
+and all32 focused owner/transport/role/initial checks pass with zero reuse.
+A fresh owned guest still precedes the remaining acceptance batch.
+
 [Step1552](../done/step1552.md) records the fresh original Linux-native-v8
 qualification and independent bounded source/debug/body/instruction review for
 the step1550 actor. All 932 source files, 970 frozen inputs, six compiler outputs

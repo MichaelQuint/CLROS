@@ -37,6 +37,7 @@ internal static class NativeAotWebSignalRaceTransportTests
         internal string Endpoint => "http://127.0.0.1:" + Port;
         internal int StartRequests { get { lock(gate)return startRequests; } }
         internal Task RequestObserved=>requestObserved.Task;
+        internal Action? RecoveryArmed;
         // Listener/handlers exist only when an explicitly selected test runs.
         internal Peer(bool partial = false, bool unsupported = false, bool startGate = false, bool eventOwned = false,bool stall=false)
         {
@@ -96,7 +97,7 @@ internal static class NativeAotWebSignalRaceTransportTests
                             lock (gate) connection.Responses.Add(response);
                             await stream.WriteAsync(response, stop.Token); client.Client.Shutdown(SocketShutdown.Send); return;
                         }
-                        int status = 200; string body;
+                        int status = 200; string body;bool phaseFour=false;
                         if (unsupported)
                         {
                             HostCheck.Equal("GET", words[0]); HostCheck.Equal("/__clros/churn/status", words[1]);
@@ -156,6 +157,7 @@ internal static class NativeAotWebSignalRaceTransportTests
                             {
                                 int active = churnStarted == 1 && !canceled ? 1 : 0, work = churnStarted == 0 ? 0 : complete ? 10 : (startGate?released:raceStarted) ? 2 : 1;
                                 int phase=recovered?7:startGate&&!released?2:4;
+                                phaseFour=words[1]=="/__clros/signalrace/status"&&raceStarted&&phase==4;
                                 if(startGate&&raceStarted&&!released&&words[1]=="/__clros/signalrace/status")initialObserved=true;
                                 body = words[1] switch
                                 {
@@ -170,6 +172,7 @@ internal static class NativeAotWebSignalRaceTransportTests
                         byte[] bytes = Encoding.ASCII.GetBytes($"HTTP/1.1 {status} {(status == 200 ? "OK" : status == 409 ? "Conflict" : "Unsupported")}\r\nContent-Type: text/plain\r\nContent-Length: {Encoding.ASCII.GetByteCount(body)}\r\n\r\n{body}");
                         lock (gate) connection.Responses.Add(bytes);
                         await stream.WriteAsync(bytes.AsMemory(0, 17), stop.Token); await stream.WriteAsync(bytes.AsMemory(17), stop.Token);
+                        if(phaseFour)Interlocked.Exchange(ref RecoveryArmed,null)?.Invoke();
                     }
                 }
                 catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
@@ -229,6 +232,20 @@ internal static class NativeAotWebSignalRaceTransportTests
         string selectedInitial=eventOwned?initial.Replace("a3=1 a4=0","a3=18446744073709551615 a4=0",StringComparison.Ordinal)
             .Replace("waitDeadline=2500000000","waitDeadline=0",StringComparison.Ordinal):initial;
         byte[] serialBytes=Encoding.UTF8.GetBytes(selectedInitial);File.WriteAllBytes(serial,serialBytes);
+        const string recoveryRows="M16_008_RESUME identity=4294967303 valueBits=18446744073709551612 status=1\r\n"+
+            "M16_008_CALL identity=4294967303 nr=232 a0=10 a1=5244928 a2=1 a3=1 a4=0 a5=0 rip=4194818 rsp=4296794048 flags=514 fs=4296796160 gs=0 clock=30 valueBits=0 action=3 status=9 ordinal=3 waitSource=3 waitDeadline=5000000000 waitSequence=2 signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=4296794048 returnFlags=514 returnFs=4296796160 returnGs=0 returnValueBits=0\r\n";
+        string selectedRecovery=eventOwned?recoveryRows.Replace("a3=1 a4=0","a3=18446744073709551615 a4=0",StringComparison.Ordinal)
+            .Replace("waitDeadline=5000000000","waitDeadline=0",StringComparison.Ordinal):recoveryRows;
+        byte[] completedSerialBytes=Encoding.UTF8.GetBytes(selectedInitial+selectedRecovery);int recoveryAppends=0;
+        peer.RecoveryArmed=()=>
+        {
+            // Copied pending recovery appears only after the mock phase4 reply.
+            // It remains a stimulus hint, never a complete native replay.
+            HostCheck.Equal(1,Interlocked.Increment(ref recoveryAppends));
+            HostCheck.True(File.ReadAllBytes(serial).SequenceEqual(serialBytes));
+            File.AppendAllText(serial,selectedRecovery);
+            HostCheck.True(NativeAotWebRacePeer.InspectRecoveryWaitForTests(File.ReadAllText(serial),7,eventOwned));
+        };
         Task<ProcessResult>? callback = null; Task<NativeAotWebRacePeer.Completion>? owner = null;
         bool done = false, joined = false; NativeAotWebRacePeer.Completion? completion = null;
         Task<ProcessResult> Run(string name, CancellationToken token) => callback = RunCore(name, token);
@@ -260,7 +277,7 @@ internal static class NativeAotWebSignalRaceTransportTests
             try { completion = await owner; } catch (ToolFailure error) { reason = error.Reason; }
             HostCheck.Equal("web_race_owner_runner_failed", reason);
             HostCheck.True(completion is null && done && joined && callback is { IsCompleted: true } && owner.IsCompleted&&peer.StartRequests==1);
-            HostCheck.True(File.ReadAllBytes(serial).SequenceEqual(serialBytes));
+            HostCheck.True(recoveryAppends==1&&File.ReadAllBytes(serial).SequenceEqual(completedSerialBytes));
             HostCheck.Equal("failed-after-done", File.ReadAllText(path + ".runner.log"));
             HostCheck.Equal("", File.ReadAllText(path + ".runner.stderr.log")); HostCheck.True(!File.Exists(summary));
             foreach (string file in new[] { path, path + ".attempts.json", path + ".wire.json", path + ".runner.log", path + ".runner.stderr.log" })

@@ -98,7 +98,8 @@ public static class NativeAotWebRacePeer
                 var startHooks=new NativeAotWebPayload.RaceStartHooks(async (status,token)=>
                 {
                     initial=status.ToArray();await WaitForInitialWaitAsync(root,initialWaitSerial,initial,token,eventOwned);
-                },token=>WaitForInitialWaitAsync(root,initialWaitSerial,initial!,token,eventOwned),_=>Task.CompletedTask);
+                },token=>WaitForInitialWaitAsync(root,initialWaitSerial,initial!,token,eventOwned),
+                    token=>WaitForRecoveryWaitAsync(root,initialWaitSerial,initial!,token,eventOwned));
                 capture = NativeAotWebPayload.CaptureOwnedObservedSignalRaceAsync(port, health, path, owned.Token,startHooks,eventOwned);
                 _ = await Task.WhenAny(capture, runner);
                 owned.Token.ThrowIfCancellationRequested();
@@ -153,6 +154,8 @@ public static class NativeAotWebRacePeer
     /// The 330s owner bound does not extend the runner's existing 285s deadline.
     /// Explicit v2 holds phase2 before short churn and rechecks a provisional
     /// initial-wait row from initialWaitSerial before the one start request.
+    /// After phase4, wait for a provisional second pending wait on that same
+    /// thread/epoll before consuming overlap GETs; phase4 alone cannot order it.
     /// Missing serial cannot complete this production path; final immutable
     /// replay still proves the exact original wait/request/actor order.
     /// Complete receipts still require separate native/source/serial/PCAP admission.</summary>
@@ -165,7 +168,8 @@ public static class NativeAotWebRacePeer
     /// identical path/source/process/report ownership and joined failure rules.
     /// Use a fresh v3 pipe and observed150s HTTP capture; require selected-v3
     /// originals and a provisional exact zero-deadline initial wait before the
-    /// start request. The callback must pass the explicit runner mode and v3
+    /// start request, then a second pending same-thread/epoll wait before
+    /// overlap requests. The callback must pass the explicit runner mode and v3
     /// pipe with the original <=285s deadline; the owner remains330s. Complete
     /// native/source/serial/packet/replay admission is still separate.</summary>
     public static Task<Completion> RunEventOwnedAsync(string root,int port,string expectedHealthBody,
@@ -181,27 +185,42 @@ public static class NativeAotWebRacePeer
     /// This pure seam authenticates no original row, descriptor, process or
     /// runtime and never replaces complete held replay and causal admission.</summary>
     public static bool InspectInitialWaitForTests(string serial,int waiterTid,bool eventOwned=false)
-        =>HasInitialWait(serial,waiterTid,eventOwned);
+        =>HasPendingWait(serial,waiterTid,eventOwned,1);
+
+    /// <summary>Inspect bounded copied rows for a provisional second pending
+    /// wait by the selected thread on its original epoll descriptor. Event mode
+    /// requires maxevents1/all-ones timeout/zero deadline. Reject missing,
+    /// resumed, repeated or mismatched waits. This delays external requests;
+    /// it authenticates no original or blocked state and never replaces full
+    /// held replay, HTTP byte coverage and recovery/overlap order validation.</summary>
+    public static bool InspectRecoveryWaitForTests(string serial,int waiterTid,bool eventOwned=false)
+        =>HasPendingWait(serial,waiterTid,eventOwned,2);
 
     // A provisional live read delays the one start POST; it confers no native
     // authority. Full immutable replay/role validation later requires the exact
     // original initial-wait < start-consumption < actor-write relationship.
-    private static async Task WaitForInitialWaitAsync(string root,string? serial,ulong[] status,CancellationToken cancellation,bool eventOwned)
+    private static Task WaitForInitialWaitAsync(string root,string? serial,ulong[] status,CancellationToken cancellation,bool eventOwned)
+        =>WaitForPendingWaitAsync(root,serial,status,cancellation,eventOwned,false);
+
+    private static Task WaitForRecoveryWaitAsync(string root,string? serial,ulong[] status,CancellationToken cancellation,bool eventOwned)
+        =>WaitForPendingWaitAsync(root,serial,status,cancellation,eventOwned,true);
+
+    private static async Task WaitForPendingWaitAsync(string root,string? serial,ulong[] status,CancellationToken cancellation,bool eventOwned,bool recovery)
     {
         Need(!string.IsNullOrEmpty(serial)&&status is {Length:6}&&status[0]==2&&status[1]==1&&
-            status[2] is >0 and <=int.MaxValue,"initial_wait_inputs");
-        string path=System.IO.Path.GetFullPath(serial!,root);AuthorityFiles.RequirePlainPath(root,path,"web_race_owner_initial_path");
+            status[2] is >0 and <=int.MaxValue,recovery?"recovery_wait_inputs":"initial_wait_inputs");
+        string path=System.IO.Path.GetFullPath(serial!,root);AuthorityFiles.RequirePlainPath(root,path,recovery?"web_race_owner_recovery_path":"web_race_owner_initial_path");
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation);deadline.CancelAfter(TimeSpan.FromMilliseconds(500));
-        try{await NativeAotSocketPeer.WaitForSerialAsync(path,text=>HasInitialWait(text,(int)status[2],eventOwned),deadline.Token);}
-        catch(OperationCanceledException)when(!cancellation.IsCancellationRequested){throw new ToolFailure("web_race_owner_initial_wait_timeout");}
+        try{await NativeAotSocketPeer.WaitForSerialAsync(path,text=>HasPendingWait(text,(int)status[2],eventOwned,recovery?2:1),deadline.Token);}
+        catch(OperationCanceledException)when(!cancellation.IsCancellationRequested){throw new ToolFailure(recovery?"web_race_owner_recovery_wait_timeout":"web_race_owner_initial_wait_timeout");}
     }
 
-    private static bool HasInitialWait(string text,int waiterTid,bool eventOwned)
+    private static bool HasPendingWait(string text,int waiterTid,bool eventOwned,int expectedWaits)
     {
         if(string.IsNullOrEmpty(text)||text.Length>8*1024*1024||waiterTid<=0)return false;
         int start=text.IndexOf("TEST_START m10.004\r\n",StringComparison.Ordinal),end=text.LastIndexOf("\r\n",StringComparison.Ordinal);
         if(start<0||end<start)return false;
-        string? identity=null;bool pending=false;int waits=0;
+        string? identity=null,epoll=null;bool pending=false;int waits=0;
         foreach(string row in text[start..end].Split("\r\n",StringSplitOptions.None))
         {
             var call=Regex.Match(row,@"^M16_008_CALL identity=([1-9][0-9]*) nr=([0-9]+) .* valueBits=([0-9]+) action=([0-9]+) status=([0-9]+) ",RegexOptions.CultureInvariant);
@@ -215,16 +234,30 @@ public static class NativeAotWebRacePeer
                 pending=false;
                 if(call.Groups[2].Value=="232")
                 {
-                    waits++;pending=call.Groups[3].Value=="0"&&call.Groups[4].Value=="3"&&call.Groups[5].Value=="9"&&
+                    waits++;
+                    if(expectedWaits==2)
+                    {
+                        var descriptor=Regex.Match(row,@" a0=([0-9]+)(?: |$)",RegexOptions.CultureInvariant);
+                        if(!descriptor.Success)return false;
+                        if(epoll is null)epoll=descriptor.Groups[1].Value;
+                        else if(epoll!=descriptor.Groups[1].Value)return false;
+                    }
+                    pending=call.Groups[3].Value=="0"&&call.Groups[4].Value=="3"&&call.Groups[5].Value=="9"&&
                         Regex.IsMatch(row,@" ordinal=[1-9][0-9]* waitSource=3 waitDeadline="+(eventOwned?"0":"[1-9][0-9]*")+
                             @" waitSequence=[1-9][0-9]*(?: |$)",RegexOptions.CultureInvariant)&&
                         (!eventOwned||Regex.IsMatch(row,@" a2=1 a3=18446744073709551615(?: |$)",RegexOptions.CultureInvariant));
+                    if(expectedWaits==2&&!pending)return false;
                 }
+            }
+            else if(identity is not null&&row.StartsWith("M16_008_CALL identity="+identity+" ",StringComparison.Ordinal))
+            {
+                if(expectedWaits==2)return false;
+                pending=false;
             }
             else if(identity is not null&&(row.StartsWith("M16_008_RESUME identity="+identity+" ",StringComparison.Ordinal)||
                 row.StartsWith("M16_008_EXIT identity="+identity+" ",StringComparison.Ordinal)||row.StartsWith("M16_008_REAP old="+identity+" ",StringComparison.Ordinal)))pending=false;
         }
-        return identity is not null&&pending&&waits==1;
+        return identity is not null&&pending&&waits==expectedWaits;
     }
 
     private sealed record Reports(AuthorityFile Selected, AuthorityFile Attempts, AuthorityFile Wire,
