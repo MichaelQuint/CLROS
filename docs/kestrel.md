@@ -16,12 +16,17 @@ Linux NativeAOT per-thread traces and HTTP matrix; #772 qualifies staged file
 APIs, and #773/#774 add live disk descriptors and an external browser witness.
 #775 remains the later sustained service and clean-shutdown milestone.
 
+PR790 merged at `82656076` on October 23, 2026. Live tracker readback confirms
+#748, #225 and the finite #737 integration closed, following the step1481
+predecessors. Next are #226 evidence packaging and #227 complete local Gate14;
+neither issue is closed by the finite results below. [Current gate status](completion-gates.md#current-acceptance-october-23-2026)
+is the summary; the recipes and retained receipts here keep their exact scope.
 
 ## Current finite boundary
 
 Original owned Smoke at `32c14ccd` and quota at 256/512 MiB plus positive configured
 V2 at `20e665ad` pass their complete finite consumers. Smoke proves readiness
-wake → directed signal → competing consumption → repark → EINTR → recovery
+wake â†’ directed signal â†’ competing consumption â†’ repark â†’ EINTR â†’ recovery
 during continuous cancelled churn, with 21 roles, 37 edges, 31 Dates and complete
 actor/waiter/descriptor restoration. Quota measures fixed-policy RAM256/512 fit,
 fragmentation and component returns; V2 completes two managed cancellations and
@@ -814,7 +819,7 @@ and production remain incomplete.
 ## Planned static-file acceptance
 
 The [ordered roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
-adds #768–#775 after current service qualification and #224. The existing `/config`
+adds #768â€“#775 after current service qualification and #224. The existing `/config`
 already uses source-generated JSON; the candidate adds `/api/status` and
 `/api/items` DTOs. #772 qualifies a separate staged-file intermediate profile.
 [#774](http://192.168.4.35:3000/admin/CLROS/issues/774) requires a real external

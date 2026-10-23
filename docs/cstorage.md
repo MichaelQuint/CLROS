@@ -12,11 +12,17 @@ and its earlier guest scope are unchanged.
 The new host importer measures the prepared Blazor asset inventory, preserves
 EFI/package/manifest files, writes equal-layout DiskA/DiskB variants, and
 independently reconstructs file hashes and logical-order physical extents.
-Its six initial native-lane host checks pass; the final GPT consistency control
-and real candidate binding still need verification. These are host results.
+Its six final native-lane host checks pass, including GPT consistency controls;
+real candidate binding remains pending. These are host results.
 Continuing guest reads, application file descriptors and disk-backed HTTP remain
 #770 -> #771 -> #773 -> #774; writable files remain the following ladder.
 
+Current master has bounded post-exit block/GPT/FAT/package diagnostics through
+step1162, not continuing disk-to-Kestrel file service. As of October 23,
+#781 -> #782 host FAT fixes remain open and precede #769 disk fixtures; active
+development is not merged acceptance. The later #770/#771/#773 read-only service
+ladder remains planned. Finite Kestrel/quota acceptance in step1556 does not
+extend storage capabilities.
 
 ## October 19 host parser findings
 
@@ -111,12 +117,12 @@ The probes remain default off and require package completion plus owned APIC.
 The M06 epic criterion is the bounded packaged manifest/payload read after
 firmware exit and reviewed completion of its nineteen keyed children. It is
 separate from Gate7: continuing storage, general workload activation and payload
-execution remain incomplete. Development history is in steps1157–1161.
+execution remain incomplete. Development history is in steps1157â€“1161.
 
 ## Bounded manifest/package read and staging profile
 
 [Step1153](../done/step1153.md) implements the pure helpers for owned issues
-#130–#133 and shared integration #631. The bounded native v0 manifest validator
+#130â€“#133 and shared integration #631. The bounded native v0 manifest validator
 admits required fields plus package/native-aot kind fields, source-backed path
 offsets and strict relative paths. Environment/listen fields remain unsupported
 in this disk validator; the existing broader host parser is unchanged.
@@ -417,11 +423,12 @@ Kernel-facing parsers should prefer the non-throwing `TryRead` and `TryWrite` va
 
 ## Unsupported Behavior
 
-Beyond the accepted terminal binding/queue, block-contract, LBA0 and bounded GPT
-diagnostics, continuing virtio-blk I/O, writes, flushes,
-discard/TRIM, guest FAT interpretation, boot-time disk-backed package reads,
-MBR fallback, deeper directory traversal, package payload loading and app loading
-remain pending. Legacy parser limitations described below also remain.
+Beyond the accepted bounded block/GPT/FAT/manifest/package diagnostics through
+step1162, continuing virtio-blk I/O, writes, flushes, discard/TRIM, general FAT
+traversal, MBR fallback and demand disk-backed application reads remain pending.
+The Linux ELF application path separately stages immutable packages before
+firmware exit and executes qualified payloads; it does not provide continuing
+disk file service. Legacy parser limitations described below also remain.
 
 ## Tests
 

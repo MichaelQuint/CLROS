@@ -1,5 +1,13 @@
 # Documentation Map
 
+For the October 23 accepted state, start with [README](../README.md),
+[current completion status](completion-gates.md#current-acceptance-october-23-2026)
+and [step1556](../done/step1556.md). The live merge/tracker readback is documented
+in [step1557](../done/step1557.md). The [Kestrel ledger](kestrel.md) owns finite
+service recipes; the [workload roadmap](workload-profiles.md) owns remaining
+dependencies. Dated development paragraphs and immutable steps retain their
+original failures and limits; they are not current ownership instructions.
+
 The NativeAOT-first architecture and ordered issue roadmap are canonical in
 `docs/workload-profiles.md`; `.gitea/backlog/clros-issues.json` owns exact
 dependencies and ticket acceptance. Existing app-model, PAL, manifest,
@@ -68,6 +76,7 @@ Directory-local guides:
 | `scripts/AGENTS.override.md` | Migration notice for historical script paths | Historical evidence refers to removed scripts |
 | `src/OS/AGENTS.override.md` | Freestanding no-stdlib EFI artifact rules | The EFI project remains subject to stricter runtime/link rules while included in `CLROS.slnx` |
 | `src/OS.Kernel/AGENTS.override.md` | Kernel-contract implementation rules | Kernel-facing code needs constrained NativeAOT/status-code/marker guidance |
+| `src/OS.Std.NoRuntime.Shared/AGENTS.override.md` | Host project linking audited shared source | The host project must not duplicate implementations or leak framework inputs into EFI |
 | `std/no-runtime/shared/AGENTS.override.md` | Shared no-runtime utility rules | Shared BCL-like work needs stricter compatibility and no-runtime guidance |
 | `tests/AGENTS.override.md` | Host test marker and determinism rules | Host tests remain the first evidence layer for contract behavior |
 | `tools/AGENTS.override.md` | Host tool command/output rules | Tooling remains host-only and must preserve deterministic machine-readable output |

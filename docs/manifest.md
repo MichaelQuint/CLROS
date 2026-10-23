@@ -10,6 +10,11 @@ not to ELF/package data records. Existing package limits (seven data files,
 64KiB each) and accepted v1/v2 package profiles remain unchanged. Guest manifest
 admission for this environment entry and disk root remains #772/#773 work.
 
+The active workload route is the versioned Linux ELF envelope with pinned
+.NET 11 NativeAOT payloads. Configuration and finite quota behavior are qualified
+through steps1380/1556. The older JSON `runtime.kind: "dotnet10"` below is an
+unchanged reserved schema-v0 value, not the current target framework or a
+CoreCLR implementation. Preserve its spelling in examples and validators.
 
 M16-002 implements the [NativeAOT-first roadmap](workload-profiles.md) package
 boundary: an explicit versioned Linux ELF profile, executable digest,
@@ -41,15 +46,17 @@ IPv6, leading-zero numbers and port 0 reject. Endpoint admission is not networki
 than memory, `threads` 1..64 and `descriptors` 1..1024. These are declared process
 limits; runtime enforcement belongs to the later loader/process/syscall slices.
 
-The development `NativeAotServiceContract.QuotaFailure` envelope in
+The `NativeAotServiceContract.QuotaFailure` envelope introduced in
 [step1482](../done/step1482.md) adds the explicit diagnostic environment policy
 `CLROS_MEMORY_EXHAUSTION=terminate`, alongside the configured GC hard limit.
 Missing/invalid/conflicting budget policy rejects; absence retains ordinary
 memory errno behavior. This changes neither Linux envelope version nor the
 meaning of declared `memory`. The 36MiB dynamic pool is shared: a 16MiB GC limit
 plus declared20MiB native headroom is not separate partition enforcement.
-Physical-denial termination/cleanup, measured component fit and guest quota
-acceptance remain unqualified; see the [app-model boundary](app-model.md#quota-termination-development).
+[Step1556](../done/step1556.md) now qualifies measured fit and physical-denial
+termination/cleanup for the original 256/512 MiB quota captures. Positive V2 and
+Smoke retain their separate cancellation/churn scopes. General per-process
+budget isolation and complete local Gate14 remain unaccepted.
 
 Static ELF identity/program-table bounds, no interpreter/dynamic segment, no
 executable stack, W^X load flags, bounded memory and file-backed entry are checked
@@ -311,7 +318,9 @@ Native-tier manifests can omit `runtime` or declare it explicitly:
 }
 ```
 
-Hosted .NET 10 manifests reserve the Minimal API/Kestrel launch contract. This is validation only; it does not mean the OS can load CoreCLR, start Kestrel, or serve HTTP yet.
+The legacy `dotnet10` manifest value reserves a future hosted-runtime contract.
+This validator does not load CoreCLR or launch Kestrel. The separate Linux ELF
+route already has finite guest HTTP evidence; neither route has complete Gate14.
 
 ```json
 {
@@ -551,7 +560,8 @@ but it does not implement those behaviors.
 
 `validate-package` and `build-native-app-package` are also host-side only. They prove manifest/package/payload consistency for local artifacts, not in-guest package reads, executable mapping, or native app launch.
 
-The accepted `dotnet10` contract is reserved for the mandatory hosted .NET 10/ASP.NET Minimal API/Kestrel milestone. It is not runtime evidence; use `docs/completion-gates.md` for the claim boundary.
+The accepted `dotnet10` schema value is a legacy reserved hosted-runtime contract,
+separate from the active .NET 11 Linux NativeAOT milestone. It is not runtime evidence; use `docs/completion-gates.md` for the claim boundary.
 
 ## Next Steps
 

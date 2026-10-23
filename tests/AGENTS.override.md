@@ -4,7 +4,9 @@ This directory contains host-side tests. Root `AGENTS.md` applies, with these lo
 
 ## Purpose
 
-Host tests provide fast evidence for contracts before QEMU/libvirt boot tests exist.
+Host tests provide focused contract evidence alongside the separate native and
+QEMU qualification layers. Real QEMU profiles already exist; libvirt lifecycle
+acceptance remains separate.
 
 They are not a substitute for QEMU evidence, but every host-testable behavior should be covered here first.
 
@@ -16,10 +18,14 @@ Every test group must emit:
 - `TEST_PASS <name>`
 - `TEST_FAIL <name> <reason>`
 
-The full harness must emit:
+Successful selection determines the final marker:
 
-- `TEST_PASS host.tests` on full success.
-- `TEST_FAIL host.tests failures=<count>` on failure.
+- Default fast lane: `TEST_PASS host.tests.fast`.
+- Filtered run: `TEST_PASS host.tests.focused`.
+- Unfiltered full lane: `TEST_PASS host.tests`.
+
+Failures emit `TEST_FAIL host.tests failures=<count>`. A focused or resumed
+subset must not be reported as a fresh full-host acceptance run.
 
 Keep names stable because scripts and future CI will parse them.
 
@@ -35,6 +41,9 @@ Keep names stable because scripts and future CI will parse them.
 - Register independent cases with `[HostTest("stable marker name")]`; use
   `[HostFixture]` only for groups requiring shared setup/teardown. Never execute
   tests in module initializers. Discovery and `--list` must have no side effects.
+- Async fixtures must be awaited. The runner validates declared return types
+  before invocation and rejects async void and unsupported generic returns;
+  step1481 qualifies the corrected runner. Do not count started work as passed.
 - Use `HostCheck` for assertions and grouped execution. It reports failures
   without hiding later cases. Do not introduce another local runner.
 - Shared reviewed expectations belong in `OS.Tooling.EfiContracts`; derive

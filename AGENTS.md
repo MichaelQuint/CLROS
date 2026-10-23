@@ -2,208 +2,53 @@
 
 ## Start here
 
-`done/step1478.md` records workspace cleanup. Develop from `C:/Projects/CLROS`
-on current LAN master. The fifteen old linked checkouts and their ignored
-evidence are archived under `C:/Projects/CLROS-archive/2026-10-19-workspace-cleanup`;
-use its `cleanup-state.json` for original-to-archive path mappings. Primary build
-caches are archived too; build current tooling before running new validation.
+Read [README.md](README.md), [documentation map](docs/documentation-map.md),
+[workload profiles](docs/workload-profiles.md) and
+[completion gates](docs/completion-gates.md) for current status and exact scope.
+Keep this guide an operating contract; put detailed evidence in `done/` and
+subsystem docs instead of duplicating the milestone history here.
 
-`done/step1479.md` completes the fresh original v1 service and five
-memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
-passes the original 829,226ms service lifetime; all three expected memory faults
-pass their dedicated full-parent restoration checks. Failed originals remain failed.
+As of October 23, 2026, LAN master includes PR790 at `82656076`.
+[Step1556](done/step1556.md) qualifies finite quota termination and async churn:
+6,258 unfiltered full-host checks across 847 fixtures (753 Fast, 94 Native),
+unchanged inputs, zero reuse, and 20 ancestor profiles. Original Smoke remains
+at `32c14ccd`; quota256/512 and positive V2 remain at `20e665ad`; full-host and
+the R11 ancestors remain at `28a79996`. Preserve all original and failed receipts.
+The 36 MiB pool is shared, not independent 16 MiB GC/20 MiB native partitions.
 
-[Step1481](done/step1481.md) records the corrected runner's stable unfiltered full:
-5,918 checks across 792 fixtures (698 Fast, 94 Native) at `96ba8dbd`, unchanged
-inputs, zero reuse and no failures. The exact declared-return whitelist rejects
-unsupported generic tasks before invocation. Both earlier failed full attempts
-remain failed; the original successful producer and dependencies were preserved
-before documentation rebuilds.
+Live readback confirms #748, #225 and the finite #737 integration closed, with
+the fourteen step1481 predecessor scopes also closed. Hello and bounded runtime,
+socket and Kestrel service profiles already execute in CLROS. #226 -> #227 and
+complete local Kestrel/Gate14 remain open. Only numbered Gate 2 passes;
+arbitrary workloads, multi-app isolation, cloud and production remain unaccepted.
 
-Fourteen finite issue scopes have reviewed support for dependency-ordered
-reconciliation; step1481 names their criteria, original receipts and limitations.
-Tracker closure still requires evidence comments, versioned preview/apply and
-readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
-15 individual ancestors and native reviews keep their original `810b3eef` scopes.
+Refresh LAN master and live ownership before work. #780 tracker conflict
+protection and #781 -> #782 host FAT repairs remain open; the FAT repairs precede
+#769 disk fixtures. Preserve any active development lane. Do not claim new work
+under the closed #737 integration or make host FAT repairs a first-web runtime
+prerequisite. Use each managed issue's exact dependencies, not numeric order.
 
-Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
-positive V2 at `20e665ad` pass their complete finite consumers, retaining their
-original producer scopes. All 20 ancestor profiles are qualified: 17 positives
-and three expected negatives, with complete independent source/native joins.
-The stable unfiltered full at committed `28a79996` passes 6,258 checks across
-847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
-[Step1556](done/step1556.md) records exact provenance, measured fit/returned leases and
-all failed-original history. The 36 MiB pool remains shared, not independent
-16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
-isolation, cloud and production remain unaccepted.
-This updates only the named finite boundary; historical scopes and other
-unfinished work retain their original limits.
+The primary checkout is `C:/Projects/CLROS`. Inspect its branch, dirty files and
+active worktrees before editing; use a separate worktree when another agent owns
+overlapping work. [Step1478](done/step1478.md) archived the fifteen old linked
+checkouts and build caches under
+`C:/Projects/CLROS-archive/2026-10-19-workspace-cleanup`; its `cleanup-state.json`
+maps historical evidence paths. That cleanup does not prohibit new worktrees.
+The earlier paused-primary and frozen October 20 validation instructions are
+historical. Build current tooling before new validation in a fresh checkout.
 
-Preserve #737's current owner. #780 conflict protection and #781 -> #782 host
-FAT repairs remain open; they precede disk-fixture #769. The former paused-primary
-restriction was superseded by the user's workspace cleanup request in step1478.
+Pick one cohesive dependency-compatible slice. Run focused checks during work;
+reserve expensive full-host/native/guest qualification for a stable batch.
+Do not expand general kernel EH without a demonstrated requirement.
 
-`done/step1419.md`, merged at `6a698f72`, retains the earlier finite Kestrel
-health/configuration/logging/socket/Date qualification. Step1420's source review
-preserves syscall228 realtime acceptance; syscall96/gettimeofday remains
-unsupported. Step1437 supersedes only the named service-prerequisite limits.
+Keep one main public type per new file where practical. Document public and
+unsafe APIs with purpose, ownership/lifetime, execution context, failure
+behavior and unsupported cases. Avoid boilerplate comments.
 
-`done/step1380.md` qualifies #217 manifest configuration and #741/#742 network
-containment at implementation `3ef7316d`: 5,537 full-host checks across 731
-fixtures (94 Native), three web and three containment captures, three repaired
-signal/partial-pipe repetitions and fifteen other ancestors. All 24 captures
-retain exact original native/source/package/serial/packet joins. Signal/runtime
-workers now have eight usable pages between both guards; web keeps sixteen and
-mechanical threads four. Native stack bounds remain scoped and partial.
-Step1351 retains the earlier #214/#215/#216 and #689/#690 qualifications.
-Later steps1389/1405/1419 qualify the finite output/startup/vector/socket/time
-slices. Refresh exact continuing-service dependencies under #737 before work.
-No complete Kestrel, new numbered, isolation, cloud or production gate is accepted.
-
-The October 16 architecture review is now ordered in
-`docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16`
-and the canonical backlog. Preserve the current #737 application owner.
-M07-027/M07-028, M16-013 and the bounded #220-#223 ladder are qualified;
-step1437 retains the service-foundation/empty-send history before #224;
-the memory and pending-signal graph still precedes #225.
-M16-017 fault containment belongs before process termination
-and crash-isolation acceptance. Host Roslyn/generator and measured performance
-work follow the local Kestrel gate. Planning issues do not reopen accepted
-finite profiles or claim their fixes are implemented.
-
-`done/step1332.md` qualifies #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153
-and shared integration #734 at implementation `fd296378`: 5,341 full-host checks
-across 700 fixtures (94 Native), three strict TCP guests and20 fresh ancestors,
-with exact original source/native/producer joins. The default-off finite service
-proves retained Virtio-net queues, real bounded TCP lifetimes, independent packets,
-240-second TIME-WAIT and an actual cooperative progress/exit/reap witness.
-The separate8-page network and32-page worker firmware reservations remain retained;
-the original two-page allocator is preserved. No Linux app is entered by this
-network profile. Step1351 adds the later bounded sockets/epoll qualification;
-the M10 application ladder still precedes guest Kestrel.
-
-`done/step1307.md` qualifies #191/#192 -> #686 -> #687 -> #193 -> #194 -> #688
-and shared integration #733: 5,202 full-host checks across 687 fixtures (94 Native),
-44 strict captures across 32 batch profiles, three retained strict GC-stress
-repetitions and 24 fresh ancestors, with exact original native/provenance joins.
-The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
-RuntimeMatrix now run in CLROS guests. Supplemental raw-state evidence proves
-an exit-requested worker blocked by active upstream GC before later exit/reap;
-it does not prove already-entered DetachCurrentThread. No guest Kestrel or new
-numbered/cloud/production gate is accepted. Step1332 adds the later finite
-continuing-network/TCP qualification; sockets/epoll remain the next boundary.
-
-`done/step1225.md` qualifies the .NET 11 OS/tooling migration at implementation
-source `d728d2c`: 4,783 full-host checks, original native review and
-29 independently audited strict QEMU captures, including the expected unhandled
-negative and three timer captures. Fresh Linux-host payload qualification also
-passes; step1307 adds the later finite guest runtime qualification. Use the exact pins and
-x86-64-v2 CPU contract in `docs/host-requirements.md`; C# remains 14.
-Preserve older .NET 10 receipts and the scope of profiles not rerun in step1225.
-M09-006/#188 is qualified in `done/step1230.md` at implementation source
-`e0dac79`: 4,806 full-host checks across 626 fixtures (94 Native), original
-native review, three byte-identical 177-application-record lifecycle guests and
-15 fresh ancestors pass. Seven hardware ticks drive 38 cooperative transfers;
-four supervisor reaps return 23 internal page leases. The 32-page firmware
-reservation remains retained. Step1307 adds the later wait/TLS/Linux/runtime batch;
-Kestrel remains incomplete.
-
-1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
-2. Refresh the LAN tracker and select the first unfinished dependency-compatible
-   NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
-   #708/#711's brk/fixed-map ownership repair is qualified in step1209.
-   Host scheduler foundations #183-#185 are qualified in step1210-step1212,
-   with external ownership/serialization and host-only boundaries retained.
-   #186/#719 cooperative transfer is qualified in step1218: 4,742 full-host
-   checks, original native review, three 99-record/17-transfer guests and seven
-   ancestors pass. #187 and children #721/#723-#726 are qualified in step1224:
-   4,776 full-host checks, six original native bodies, three 115-record timer
-   guests and ten ancestors pass. #188 lifecycle is qualified in step1230;
-   Step1307 qualifies the later #191/#192 through #688 batch; step1332 qualifies
-   finite continuing network/TCP. Step1351 qualifies bounded sockets/epoll and
-   web publish/staging; #217-#220 continue before guest Kestrel.
-   Review step1207 preserves
-   the original defect and corrected scheduler boundaries.
-   Use exact dependencies and acceptance from the managed issue, not numeric
-   milestone order or a generic "smallest ready" optional ticket.
-3. Preserve existing work. Pick one cohesive implementation slice, reuse the
-   ticket's exact source references, run focused checks first, then qualify
-   the stable guest batch. Do not expand general kernel EH without a need.
-4. Keep one main public type per new file where practical. Document public and
-   unsafe APIs with purpose, ownership/lifetime, execution context, failure
-   behavior and unsupported cases; avoid boilerplate comments.
-5. The shared host project is `src/OS.Std.NoRuntime.Shared`. Its audited
-   implementation source remains under `std/no-runtime/shared` and appears as
-   linked files. Do not duplicate those types or move EFI source paths casually.
-
-The #708/#711 ownership repair is qualified in `done/step1209.md`: 4,688 fresh
-full-host checks across 613 fixtures (94 Native), original scoped ownership/ABI
-review, three 138-record mixed-operation guests, one 119-record readonly foreign
-heap fault control and five fresh memory/descriptor ancestors pass. Heap tags
-survive owned protection/advice/shrink/regrow; fixed replacements and holes
-relinquish ownership, and subsequent brk changes fail closed before publication.
-The exact foreign page remains read-only: actual CPL3 write faults with PF/error7,
-then owned restoration succeeds. General Linux memory compatibility, unchanged
-Hello/runtime, GC/EH/ThreadPool, Kestrel and numbered/cloud/production gates remain
-incomplete.
-
-The #684/#706 default-off memory/startup batch is qualified in `done/step1205.md`:
-4,646 full-host checks across 608 fixtures (94 Native), original scoped native
-review, three 150-record high-output guests, two controlled memory negatives and
-twelve ancestors pass. Sparse user reservations reach 64 GiB; physical/table
-bounds remain below 4 GiB. A mechanical ELF replays the 8,234,266,624-byte
-reservation with bounded backing and proves high copy-in/out, live monotonic
-time, fresh entropy and owned restoration. The unchanged upstream payload stops
-at unsupported ARCH_SET_FS, before Hello. Threads/TLS/futex/
-signals, upstream GC/EH/ThreadPool, Kestrel, numbered/cloud/production gates remain
-incomplete.
-
-The #685/#707 default-off descriptor/pipe child is qualified in `done/step1208.md`:
-4,679 full-host checks across 613 fixtures (94 Native), eight original native
-bodies, three 173-record descriptor guests, three 175-record pipe guests and
-fifteen retained ancestors pass. The live descriptor fixture now executes three
-openat routes; step1206's initial omission and step1207's correction remain recorded.
-Original package/proc views, exact fd/pipe errors and
-last-close ownership are genuine; buffers are checked after release. Blocking
-pipes belong to #686; first unchanged Hello to #687. General threads/signals,
-upstream runtime, Kestrel and numbered/cloud/production gates remain incomplete.
-
-The #683/#699 default-off CPL3/syscall batch is qualified in `done/step1201.md`:
-4,619 full-host checks across 604 groups (94 Native), original scoped native
-review, three 121-record write/exit guests, four 112-record controlled-negative
-guests and seven ancestors pass. A C#-authored mechanical ELF checks actual
-selectors, errno, cross-page write, GPR/flag/FS/GS/SSE preservation and exit 42.
-Owned NULL FS/GS selectors are established before the restoration baseline.
-General processes, threads/TLS/futex/signals, real NativeAOT Hello (#687), guest
-application GC/EH, Kestrel, numbered gates, cloud and production remain incomplete.
-
-The corrected handoff is recorded in `done/step1202.md`. #684 distinguishes
-sparse virtual reservations from committed pages: the pinned Hello reserves
-8,234,266,624 bytes with `PROT_NONE`, beyond the earlier 4-GiB user range.
-#685 qualifies mechanical descriptors/pipes; #686 qualifies mechanical
-threads/TLS/futex, blocking pipes and real per-thread masks; #687 adds signal
-delivery and runs the first unchanged pinned Hello before focused suspension.
-#688 repeats Hello and qualifies the full runtime after GC/ThreadPool checks.
-Stock Linux/musl remains primary. Host transport and optional WASI HTTP studies
-are separate research, not dependencies of #684 or substitutes for guest Kestrel.
-
-The #662/#663/#664 default-off caller-window batch is qualified in
-`done/step1187.md`: 4532 full-host checks across 587 groups (92 Native), original native review,
-three byte-identical 95-record guests and twelve ancestors pass. One no-EH frame
-and two real callers feed the existing cleanup/typed dispatch planner. Actual
-return RIP is retained; exact EH lengths come from the original compiler catalog.
-Measured parent/funclet ABI and retained lifetime guards remain. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
-
-The #654/#655/#656 default-off filtered-catch batch is qualified in
-`done/step1181.md`: 4518 full-host checks, original native review, three
-88-record filter guests and eleven ancestors pass. Two same-range nonthrowing
-compiler filters share the original parent local; only the second catch and
-compiled continuation execute. General EH, #90/#91/#84, Gate4 and hosted
-.NET/Kestrel remain incomplete.
-
-This is the root operating contract for agents working in this repository. Keep
-it concise. Put subsystem detail in the relevant `docs/*.md` file and use
-`docs/documentation-map.md` to find the canonical source for each topic.
+The shared host project is `src/OS.Std.NoRuntime.Shared`. Its audited source
+remains linked from `std/no-runtime/shared`; do not duplicate types or casually
+move EFI inputs. Use pinned .NET 11 and C# 14 as specified below and in
+[host requirements](docs/host-requirements.md).
 
 ## Current approved batch (2026-10-23)
 
@@ -236,57 +81,17 @@ intended deployment model is a minimal single-workload cloud appliance:
 - .NET 11 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
-Ordinary `VerifiedExit` is accepted in `done/step1094.md`: three frozen-source
-79-record QEMU/OVMF captures leave boot services and finish original owned
-subsystem checks before terminal success. Explicit `Diagnostic` retains the
-legacy profiles; dangerous probe defaults remain false. This does not add
-firmware-page reclamation or a continuing workload.
+Ordinary `VerifiedExit` is accepted in [step1094](done/step1094.md) and ends
+after owned post-firmware checks. Diagnostic/application profiles remain
+explicit and default off. The pinned Linux NativeAOT route qualifies bounded
+Hello/runtime execution (step1307), TCP (step1332), sockets/epoll (step1351),
+Kestrel health/UTC (step1419), repeated service (steps1479/1481), and quota/churn
+(step1556). These profiles do not turn ordinary boot into a general app launcher.
 
-Current implementation is bounded boot/runtime work with host-tested contracts
-and accepted QEMU/OVMF profiles for real firmware exit, owned diagnostics and
-subsystem use, allocation/collection, constructors, dispatch and unwind metadata.
-One-frame restoration and EH-clause decoding retain their accepted host-only
-contracts. The separate bounded throw/catch profile has final acceptance in
-`done/step1075.md`: one real throw, typed catch and compiled continuation, with
-local-input admission rejection. `done/step1088.md` accepts a separate bounded
-compiler-finally profile: one cleanup before typed catch and compiled continuation,
-with the original exception and checked parent-stack side effect. The bounded
-rethrow and post-firmware UC/WC/WB mapping profiles are accepted in
-`done/step1120.md`. Rethrow reaches the outer typed handler and compiled
-continuation with the same rooted exception. General EH and arbitrary rethrow
-remain incomplete. The #638–#640 default-off typed-search/two-cleanup profile is
-qualified in `done/step1167.md`: 4,456 full-host checks, native controls, three
-89-record guests and five ancestor regressions pass. An annotation/digest-only
-follow-up passes six focused checks and three fresh byte-identical guests.
-#90, constructor cached failures and Gate4 remain incomplete. See
-`docs/completion-gates.md` for each scope.
-The #650-#652 default-off constructor-failure batch is qualified in
-`done/step1176.md`: 4,502 full-host checks, native review, three 92-record guests
-and ten ancestors pass. One real constructor throw is wrapped and genuinely
-thrown to an outer typed catch and compiled continuation. Only one pinned Read
-body branch is interpreted locally; general unwinding is unchanged. Repeated
-compiler access/cached rethrow, #90/#84 and Gate4 remain incomplete.
-
-The #646-#648 bounded physical-frame dispatch batch is qualified in
-`done/step1171.md`: 4,488 full-host checks, final native review, three 88-record
-frame guests and seven ancestors pass. The separate default-off `M04FrameDispatch`
-profile executes one earlier-frame cleanup, outer typed catch and compiled
-continuation with distinct caller contexts. #90, general EH and Gate4 remain open.
-The #642–#644 default-off frame-search/type-predicate/unhandled batch is qualified
-in `done/step1169.md`: 4,473 full-host checks, native review, three 73-record
-expected-terminal guests and six ancestor captures pass. It stops after three
-frames and one nonmatching catch without cleanup or handler transfer. General
-multi-frame dispatch, general EH, constructor cached failures and Gate4 remain incomplete.
-Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
-queue setup are accepted in `done/step1140.md`. One default-off sector read with
-checked completion and reset/allocator cleanup is accepted in `done/step1143.md`.
-A one-attempt live block-contract adapter and protective LBA0 validation are
-accepted in `done/step1147.md`. General workload manifest/package loading, continuing storage
-and Gate 7 remain incomplete.
-PAL and app-model progress remains host-tested contract/planning evidence;
-step1332 adds the qualified default-off finite continuing-network/TCP service.
-General networking, Linux socket/epoll integration and guest Kestrel remain
-incomplete. CLROS is not cloud-ready or production-ready.
+General kernel EH, arbitrary Linux compatibility, continuing disk-backed static
+files, complete local Gate14, multi-app isolation and provider readiness remain
+unfinished. Historical profile limits and current gate criteria live in the
+canonical docs and immutable steps, not in an inferred claim from a test count.
 
 Never claim Kestrel, hosted .NET, real `ExitBootServices`, live PCI/storage/
 networking, cloud-provider support, cloud readiness, or production readiness
@@ -393,7 +198,6 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build -- --lane full
 dotnet run --project .\tools\OS.Tooling -- repo check
 dotnet run --project .\tools\OS.Tooling -- contracts check
-dotnet run --project tools/OS.Tooling -- repo check
 dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
 dotnet run --project tools/OS.Tooling -- efi build
 git diff --check
@@ -480,7 +284,8 @@ Rules:
   logs.
 - Review open issues before creating a new one.
 - Prefer updating a matching issue over creating a duplicate.
-- Pick the smallest `agent:ready` issue that is not blocked.
+- Pick the first unfinished dependency-compatible `agent:ready` issue in
+  `docs/workload-profiles.md`; preserve live ownership and collision lanes.
 - Keep issues small, actionable, and detailed enough for another agent to
   implement.
 - Include exact files, commands, expected markers, docs to read, and acceptance

@@ -1,5 +1,14 @@
 # Drivers
 
+## Current driver boundary
+
+Finite retained Virtio-net/TCP service is qualified in step1332 and exercised
+by the socket/Kestrel profiles through [step1556](../done/step1556.md). Bounded
+block/FAT/package diagnostics retain their separate step1162 scope. The older
+host-only helper inventories below do not negate those live profile results or
+grant general driver support. Continuing disk service and provider-specific
+ENA/NVMe/VMBus/NetVSC/StorVSC qualification remain unfinished.
+
 The bounded modern RX/header/ARP extension is qualified in
 [step1164](../done/step1164.md): 4,441 full-host checks, linked native review,
 one 194-record ARP guest capture, independent request/reply libpcap and thirteen

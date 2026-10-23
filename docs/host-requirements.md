@@ -75,8 +75,9 @@ qualifies the historical .NET 10 static Linux payloads on the task-local Alpine 
 [step1197](../done/step1197.md) preserves development and bootstrap failures.
 [Step1225](../done/step1225.md) qualifies the current .NET 11 Linux r04 recipe:
 three fresh static payloads, runtime exercise, HTTP/configuration/shutdown and
-zero publish warnings. This remains Linux-host publication evidence. CLROS guest runtime and finite
-Kestrel qualifications are separately recorded in steps1307/1419/1556.
+zero publish warnings. Those receipts remain Linux-host evidence. Separate
+CLROS guest qualification now covers Hello/runtime (step1307) and finite
+Kestrel profiles (steps1419/1481/1556); complete local Gate14 remains open.
 Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
 
 ```text
@@ -230,7 +231,7 @@ Required for the complete `OS.HostTests` native-inspection fixtures:
   instructions and relocations. MSVC x64 tools alone do not install this
   optional component. A successful managed build or EFI publish does not
   establish that the disassembler is available.
-- Add the component through Visual Studio Installer → Modify → Individual
+- Add the component through Visual Studio Installer â†’ Modify â†’ Individual
   components. See Microsoft's [component inventory](https://learn.microsoft.com/en-us/visualstudio/install/workload-component-id-vs-community?view=visualstudio).
 
 For a user-local copy, retain the publisher/package checksum and tool identity,

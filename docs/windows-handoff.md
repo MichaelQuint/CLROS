@@ -1,19 +1,28 @@
 # Windows development-machine handoff
 
-## October 20 resumed validation
+## Current handoff (October 23, 2026)
+
+Canonical LAN master includes PR790 at `82656076`. #748/#225/#737 and all
+fourteen predecessor scopes reviewed in step1481 are closed. Step1556 retains
+the 6,258-check/847-fixture stable full and 20 ancestor profiles, with exact
+original Smoke/quota/V2 source and native joins. #226/#227 local Gate14 remains
+open; #780 and #781 -> #782 are the open tracker/FAT host repairs before the
+disk-fixture work. See [current gate status](completion-gates.md#current-acceptance-october-23-2026).
+
+Inspect `git status --short --branch`, `git worktree list` and current LAN
+ownership before editing. The primary may hold active development on a feature
+branch; do not switch it or absorb another agent's changes for a docs update.
+The old instruction to keep `codex/resume-service-validation-20261020` frozen
+was specific to a completed run. It is not a current workspace restriction.
+
+## October 20 resumed validation (historical)
 
 [Step1479](../done/step1479.md) completes the original v1 and five memory
-controls after workspace cleanup. The six-command controller is terminal/passed;
-source/native copies remain under `artifacts/service-validation-20261020-r01/`.
-The host-only unsupported Task<int> repair passes its red/green focused checks.
-All 16 issues remain open pending a fresh full-host gate and scoped closure review.
-
-Keep the primary on `codex/resume-service-validation-20261020` while the frozen
-full lane runs. Locate its exact process using `full-host-return-kinds-r01.state.json`
-in that evidence root; verify PID and start time or the live session before
-calling it stopped. A state file alone is not liveness evidence. Do not edit or
-switch source during the gate, and do not restart solely after an observation
-timeout. The separate quota-classification proposal remains ignored/unapplied.
+controls after cleanup, with original sources/native copies retained under
+`artifacts/service-validation-20261020-r01/`. Step1481 supplies the corrected
+declared-return/awaited full-host qualification; step1556 subsequently qualifies
+quota termination and async churn. Earlier failure receipts remain failed.
+Archived state files describe those runs, not current process liveness.
 
 ## October 19 workspace cleanup
 
@@ -57,8 +66,9 @@ the complete `nativeaot-logging` evidence snapshot is preserved in the archive
 above, and development resumes from the primary checkout.
 
 Step1479 completes the repaired v1 producer and five memory controls against their
-exact source. Qualify the new host runner, then review the 14 conditional candidates. Keep #748/#225 open
-until their full quota/failure/cleanup criteria pass. Do not repeat the completed
+exact source. Step1481 later qualifies the corrected runner and fourteen
+predecessor scopes; step1556 and PR790 complete #748/#225 and the finite #737
+integration. Their earlier pending state is historical. Do not repeat the completed
 full-host run solely to refresh a count; the newer host-only delta needs scoped
 validation, and any future kernel/runtime changes need the relevant stable gate.
 Refresh all issue dependencies and retained hashes before reusing evidence.

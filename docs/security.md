@@ -5,8 +5,10 @@ The [October19 review](repo-audit.md#october-19-whole-project-review) adds
 data retaining fd-less bulk TCP capacity, and
 [#780](http://192.168.4.35:3000/admin/CLROS/issues/780) for concurrent tracker data
 loss. Both are reproduced in local host fixtures; no live attack was attempted.
-Resource-peak evidence must also be independently reconstructed under #779.
-These open repairs do not change the accepted profile or isolation boundary.
+#778 unread-close retirement and #779 resource-peak reconstruction were later
+qualified by step1481 and are closed. #780 remains open as of October23; protect
+tracker writes with fresh versioned reads and readback. Step1556 adds finite
+quota termination/churn, not general isolation or production security.
 
 [Step1437](../done/step1437.md) qualifies the bounded DRBG/TCP-key ownership
 contracts defined in [step1424](../done/step1424.md).
@@ -41,7 +43,7 @@ continuing quotas, arbitrary NativeAOT workload or production-security proof.
 
 The [NativeAOT-first profile](workload-profiles.md) admits only manifest-bound
 immutable executables and explicitly authorized endpoints/resources.
-Its planned Linux adapter does not authorize a shell, SSH, arbitrary exec,
+Its restricted Linux adapter does not authorize a shell, SSH, arbitrary exec,
 remote workload acquisition or a general POSIX environment.
 Qualification must test user/kernel protection, W^X, hostile pointers and
 signal contexts, descriptor ownership, quotas and cross-process failures.
@@ -95,7 +97,11 @@ across the signal, I/O, time and workload owners.
 
 ## Current Status
 
-Security is policy baseline only.
+Security includes a policy baseline and finite qualified user/kernel mapping,
+descriptor ownership, network containment, entropy ownership and quota cleanup
+controls. These are bounded profile results, not general exploit resistance,
+multi-app isolation, cryptographic certification or production readiness.
+See steps1201/1380/1481/1556 and `docs/completion-gates.md`.
 
 ## Implemented Behavior
 
@@ -219,7 +225,11 @@ Security is policy baseline only.
 
 ## Unsupported Behavior
 
-In-kernel manifest loading, live W^X/NX enforcement, panic redaction, debug/release log split, a post-firmware entropy pool, full license scanning, and SBOM generation are pending.
+General manifest-driven process launch, general W^X/NX enforcement, panic
+redaction, debug/release log separation, full license scanning and SBOM
+generation remain pending. Bounded Linux ELF admission/mappings and continuing
+DRBG/TCP-key ownership already have scoped evidence; they do not establish
+arbitrary process isolation or entropy quality.
 
 M01-034 remains linked-artifact host/build evidence. M01-035 now adds checked
 `EfiEntry` source calls against that exact binding and a fresh all-switch build,
@@ -402,12 +412,12 @@ execution boundaries remain with M01-026 and later hardware evidence.
 
 ## Next Steps
 
-1. Preserve the accepted M01-035/M01-026 publication and owned-root evidence.
-   General live W^X/NX enforcement and broader security claims require their
-   own source-bound evidence beyond those finite profiles.
-2. Move manifest validation contract into the package/image path and later kernel parser.
-3. Add license/provenance metadata for any adapted reference source.
-4. Implement real page-permission transitions for generated stubs using the W^X policy, materialization, and transition-plan contracts.
-5. Implement real page-permission transitions for native app payload pages using the executable-memory plan contract.
-6. Document page permissions and shellcode-stub exceptions.
-7. Implement a real entropy plan that seeds a post-firmware pool before `ExitBootServices` and exposes only status-coded kernel-facing APIs.
+1. Preserve bounded mapping, user-pointer, descriptor, entropy/key and quota
+   controls with their original native and hostile-input evidence.
+2. Complete local Gate14 before advancing general process termination/isolation.
+   #749 user-fault containment and #761 SIGPIPE policy precede the later
+   two-app crash-survival and per-process resource claims.
+3. Finish #780 tracker conflict protection; keep versioned updates and readback
+   until its fix is accepted. Finish #781/#782 before trusting new disk fixtures.
+4. Retain license/provenance records and explicit unsupported security features;
+   no provider, production or superiority claim follows from finite controls.

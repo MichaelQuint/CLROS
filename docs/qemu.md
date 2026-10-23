@@ -1,5 +1,18 @@
 # QEMU
 
+## Current acceptance and recipe selection
+
+[Step1556](../done/step1556.md) records the latest qualified finite Smoke,
+quota256/512, configured V2 and 20 ancestor profiles. The stable full-host run
+at `28a79996` passes 6,258 checks/847 fixtures; original guest inputs retain
+their separate heads. #779/#784 and the #225/#748/#737 integration are closed.
+Complete local Gate14 remains open under #226/#227.
+
+Use the [Kestrel ledger](kestrel.md) for the current owned service/race/quota
+recipes and admission requirements. A low-level example or successful replay
+does not replace an original owned consumer result. Earlier development recipes
+and pending states below retain their dated scope and failures.
+
 The October19 [validator finding #779](http://192.168.4.35:3000/admin/CLROS/issues/779)
 shows ten concurrent compact owners accepted with reported peak9. Step1446 now
 derives independent occupancy maxima at ownership mutations while retaining
@@ -15,7 +28,8 @@ replay observes signaled exit requests blocked by actual upstream GC and later
 exit/reap; its pauses and immediate owned-process cleanup give it diagnostic-only
 status. The original strict captures retain their measured quiet/termination
 authority. Select `NativeAotRuntimeSmoke` explicitly for the original payload;
-M16-010 otherwise selects `NativeAotRuntimeMatrix`. Guest Kestrel remains pending.
+M16-010 otherwise selects `NativeAotRuntimeMatrix`. Later finite Kestrel
+qualification is summarized above; full local Gate14 remains pending.
 
 ## Containment diagnostic (development)
 

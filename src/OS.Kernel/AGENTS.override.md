@@ -4,7 +4,11 @@ This directory contains host-testable kernel contracts. Root `AGENTS.md` applies
 
 ## Purpose
 
-`OS.Kernel` holds code that should eventually run in the kernel, but is currently compiled as a normal `net11.0` library so host tests can verify contracts before real boot integration.
+`OS.Kernel` builds as a normal `net11.0` library for host contract tests.
+An explicitly audited subset is already source-linked into `src/OS` under
+`NOSTDLIB_EFI` and runs in qualified boot/application profiles. Host compilation
+alone does not establish EFI inclusion or guest execution; inspect explicit
+compile items, admission rules and the matching evidence before extending it.
 
 ## Architecture Rules
 

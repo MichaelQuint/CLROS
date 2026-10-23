@@ -19,6 +19,10 @@ The image command emits `<image>.webroot.json` with measured assets, preserved
 files and physical extents. Six final focused host checks pass; #769 still needs
 exact qualified candidate binding. A host image receipt is not guest disk/HTTP proof.
 
+As of October 23, PR790/step1556 qualifies finite application service, not a
+new disk image feature. #781 -> #782 host FAT repairs remain open prerequisites
+for #769 webroot fixtures. Existing v1/V2 package commands retain their exact
+format and source admission; the new static-file commands above remain development-only. Preserve the same distinction in image receipts and guest claims.
 
 The planned [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
 will generate deterministic HTML/CSS/JS and boundary assets in the existing

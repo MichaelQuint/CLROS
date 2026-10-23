@@ -9,39 +9,43 @@ step1556 is preserved. #226/#227, disk-to-HTTP/browser qualification, sustained
 static service, writable FAT32 and SQLite remain open acceptance boundaries.
 
 
-[Step1479](../done/step1479.md) completes the fresh original v1 service and five
-memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
-passes the original 829,226ms service lifetime; all three expected memory faults
-pass their dedicated full-parent restoration checks. Failed originals remain failed.
+## Current acceptance (October 23, 2026)
 
-[Step1481](../done/step1481.md) records the corrected runner's stable unfiltered full:
-5,918 checks across 792 fixtures (698 Fast, 94 Native) at `96ba8dbd`, unchanged
-inputs, zero reuse and no failures. The exact declared-return whitelist rejects
-unsupported generic tasks before invocation. Both earlier failed full attempts
-remain failed; the original successful producer and dependencies were preserved
-before documentation rebuilds.
+[PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) merged at
+`826560764a77b1eafa5abcdd5ede577af033f67c`. Live tracker readback confirms
+#748 (GC/native budgets), #225 (async/cancellation churn) and the finite #737
+integration are closed. The fourteen predecessor scopes reviewed in
+[step1481](../done/step1481.md), including #224, #747 and #760, are also closed.
 
-Fourteen finite issue scopes have reviewed support for dependency-ordered
-reconciliation; step1481 names their criteria, original receipts and limitations.
-Tracker closure still requires evidence comments, versioned preview/apply and
-readback. Fresh v1/memory evidence stays at `fee0c9af`; retained configured v2,
-15 individual ancestors and native reviews keep their original `810b3eef` scopes.
+[Step1556](../done/step1556.md) records the latest accepted finite batch:
+original owned signal-race Smoke at `32c14ccd`, quota at 256/512 MiB and
+configured positive V2 at `20e665ad`, and 20 ancestor profiles (17 positives,
+three expected negatives with complete restoration checks). The stable
+unfiltered full at `28a79996` passes **6,258 checks across 847 fixtures
+(753 Fast, 94 Native)** with unchanged inputs and zero reuse. Each capture
+retains its original source/native/producer identity; failed originals stay failed.
 
-Original owned event-race Smoke at `32c14ccd` and quota at 256/512 MiB plus configured
-positive V2 at `20e665ad` pass their complete finite consumers, retaining their
-original producer scopes. All 20 ancestor profiles are qualified: 17 positives
-and three expected negatives, with complete independent source/native joins.
-The stable unfiltered full at committed `28a79996` passes 6,258 checks across
-847 fixtures (753 Fast, 94 Native), unchanged inputs and zero reuse.
-[Step1556](../done/step1556.md) records exact provenance, measured fit/returned leases and
-all failed-original history. The 36 MiB pool remains shared, not independent
-16 MiB GC/20 MiB native partitions. #226/#227, complete Kestrel/Gate14,
-isolation, cloud and production remain unaccepted.
-This updates only the named finite boundary; historical scopes and other
-unfinished work retain their original limits.
+Quota proves physical-denial termination, exit 99 and checked cleanup. V2
+separately proves two completed managed cancellations and 59 fresh/59 retired
+lifetimes; Smoke proves cancelled churn and the directed-signal/readiness race.
+The 36 MiB pool remains shared, without independent 16 MiB GC/20 MiB native
+partition enforcement. These profiles do not imply a simultaneous combined peak.
 
-Development history is retained unchanged in [steps1426–1437](../done/step1437.md)
-and [steps1438–1476](../done/step1476.md). Those dated receipts preserve their
+**Only numbered Gate 2 passes.** #226 evidence packaging and #227 complete local
+Gate 14 acceptance remain open. Three fresh source-matched complete boots,
+external HTTP, repeated/concurrent requests, async/cancellation, clean shutdown
+and stopped-guest refusal must satisfy those issues before Gate 14 changes.
+General workloads, multi-app isolation, cloud/provider and production acceptance
+remain open. See the [Kestrel ledger](kestrel.md) for exact finite recipes.
+
+This is a documentation/tracker readback, not a new runtime test run. Earlier
+sections describe the named profile or dated checkpoint; their pending states
+do not override this summary or relabel their original evidence.
+
+## Earlier qualified profiles
+
+Development history is retained unchanged in [steps1426â€“1437](../done/step1437.md)
+and [steps1438â€“1476](../done/step1476.md). Those dated receipts preserve their
 original source, failures and scope; step1477 supersedes their pending-run status.
 
 [Step1419](../done/step1419.md) qualifies bounded #220/#221/#222/#759/#223 at
@@ -55,7 +59,8 @@ actual socket dispatch-table bindings retain their bounded review scopes.
 
 Web workers remain active until runner termination; guest app-exit/reap/resource
 cleanup remains unqualified. **Only the existing numbered Gate2 passes.**
-Repeated service #224 still needs #743/#744/#746/#240/#757/#758 and #766; general Kestrel,
+That step left repeated service #224 and its prerequisites pending; steps1481/1556
+subsequently qualify the named service scopes. General Kestrel,
 whole-stack, isolation, local Gate14, cloud and production remain incomplete.
 
 [Step1420](../done/step1420.md) adds a host-reproduced empty-send compatibility
@@ -317,7 +322,7 @@ runtime operations. No existing gate changes to Pass in this migration.
 Historical CoreCLR/TPA wording below applies to that future route; NativeAOT
 acceptance must satisfy the explicit first-web contract in workload profiles.
 
-#674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
+#674â€“#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
 [step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
 finally throws the original rooted exception, own-funclet unwind recovers the
 same-root parent, and the outer typed catch reaches the original compiled
@@ -337,7 +342,7 @@ raw inputs and original compiler/catalog/link/loaded-PC/process/argument/GPT/FAT
 embedded-EFI evidence. Firmware services remain active in this Diagnostic.
 General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
-#670–#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
+#670â€“#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
 at frozen source `056280a`: 4,539 full-host checks across 588 groups (92 Native),
 complete/successful/unchanged-input receipt, zero failures/timeouts/reuse, native
 review and four affected guest regressions. All 689 raw inputs, original
@@ -360,7 +365,7 @@ typed catch and compiled continuation execute under measured ABI/lifetime guards
 The 183-node callback graph remains within 15,904/16,400 first-party stack bytes;
 firmware internals are excluded. The helper acquires no lifetime or CPU authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
-#141–#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
+#141â€“#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
 unfiltered full-host checks across 558 groups, linked native ABI/stack review,
 one 194-record ARP guest capture, independent request/reply libpcap and thirteen
 ancestor regressions pass. The default-off profile checks one modern no-offload
@@ -368,7 +373,7 @@ receive buffer, one matching ARP reply and supplied-tick cache controls.
 Continuing RX, timers, DHCP/DNS/TCP/HTTP, application execution and hosted .NET/
 Kestrel remain incomplete. Numbered gates are unchanged.
 
-#134/#136–#140/#633 are qualified in [step1162](../done/step1162.md): 4,422
+#134/#136â€“#140/#633 are qualified in [step1162](../done/step1162.md): 4,422
 unfiltered full-host checks across 552 groups, linked native ABI/stack review,
 297/297/168-record IRQ/recovery/net captures, an exact fixed Ethernet frame in
 QEMU libpcap and eleven ancestor regressions pass on unchanged implementation.
@@ -460,6 +465,10 @@ clock does not change Gate 6 or claim live TSC fallback, timer interrupts,
 PCI, hosted .NET/Kestrel, cloud readiness or production readiness.
 
 ## Current Status
+
+The October23 summary above governs current acceptance and issue state. The
+inventory below records individual profile receipts at their original sources;
+older pending-state descriptions do not reopen qualified successors.
 
 Issue #95/shared integration #606 implements a post-exit selection of the
 original retained MADT, HPET and MCFG tables. [Step1123](../done/step1123.md)
@@ -2254,6 +2263,11 @@ Kernel-facing `app.kind=package`, `runtime.kind=native-aot`, `env.KEY=value`, an
 The `kestrel.smoke.package.v0` contract is documentation evidence only. It defines future package files, manifest fields, `OS_SMOKE_EXPECTED_BODY=OS_MINIMAL_API_OK`, `GET /healthz`, `HTTP_PROBE_PASS`, and `TEST_PASS kestrel.smoke` requirements, but it does not prove hosted runtime launch, exported PAL file/config/socket/timer/thread functions, TCP listener support, runner HTTP probing, or Kestrel.
 
 ## Next Steps
+
+Complete #226 evidence packaging before #227 local Gate14, preserving the
+finite step1556 results. Follow the current workload roadmap for host FAT,
+disk service, process containment and provider work. The earlier platform
+boundaries below remain separate; none implies a new numbered gate.
 
 1. Preserve the distinct accepted materialization/readback/free, executable
    publication, common-entry and IDT/IDTR/IST-backed terminal fault scopes.

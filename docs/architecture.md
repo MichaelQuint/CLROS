@@ -1,5 +1,19 @@
 # Architecture
 
+## Current architecture boundary (October 23, 2026)
+
+CLROS uses C# 14/.NET 11, an explicit no-stdlib EFI kernel and a restricted
+Linux x64 syscall adapter for pinned static `linux-musl-x64` NativeAOT apps.
+Hello/runtime, TCP/sockets and finite Kestrel service already have guest
+evidence. PR790/step1556 completes the finite quota/churn integration; #737 is
+closed. [Current acceptance](completion-gates.md#current-acceptance-october-23-2026)
+lists the evidence and remaining #226/#227 local Gate14 work.
+
+Ordinary boot remains a terminal `VerifiedExit` path; application profiles are
+explicit and default off. General Linux compatibility, continuing disk-backed
+web files, exported CoreCLR PAL, SMP, multi-app isolation and providers remain
+later work. The older feature receipts below retain their named scopes.
+
 The [NativeAOT-first decision](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12)
 is the current implementation order: upstream static Linux NativeAOT payload,
 restricted C# Linux adapter, continuing services and real Kestrel, then two
@@ -9,7 +23,8 @@ ordering below. Kernel and application heaps/GC/EH remain separate.
 The default-off block profile adds a bounded post-firmware binding, negotiation,
 queue-zero setup and reset transaction after owned PCI enumeration. It is
 accepted in [step1140](../done/step1140.md); continuing storage
-and block I/O remain absent. See [storage](cstorage.md#bounded-modern-block-queue-profile).
+remains incomplete; bounded block reads and FAT/package diagnostics were
+subsequently qualified in steps1143 through1162. See [storage](cstorage.md#bounded-modern-block-queue-profile).
 
 The bounded APIC/MSI-X integration in [step1137](../done/step1137.md)
 uses owned UC mappings and a temporary IDT for one returning queue completion.
@@ -198,10 +213,11 @@ workload execution.
 
 ## Unsupported Behavior
 
-A complete kernel runtime, exported hosted-tier PAL, general owned hardware
-drivers, scheduler, runtime storage I/O, live network I/O, app launcher,
-hosted .NET 10 runtime, ASP.NET Minimal API path, Kestrel path and completed
-workload profile remain unsupported. The accepted opt-in firmware-exit and
+A complete kernel runtime, exported CoreCLR PAL, general hardware drivers,
+SMP/preemptive process scheduling, continuing disk-backed app I/O, arbitrary
+Linux applications and a completed workload profile remain unsupported.
+Bounded cooperative/timer/runtime, live TCP/socket and Kestrel service profiles
+are qualified separately; they are not general-purpose implementations. The accepted opt-in firmware-exit and
 owned-diagnostics profiles retain their bounded terminal scopes. ACPI probe
 evidence does not imply ECAM mapping, PCI enumeration, APIC/timer use or a
 general post-firmware physical-memory interface.
@@ -799,10 +815,11 @@ Minimal API, Kestrel, CloudReady status, or production readiness.
 
 ## Next Steps
 
-1. Preserve the accepted bounded boot, diagnostics and runtime profiles while
-   keeping their exact source and evidence boundaries distinct.
-2. Extend reusable post-firmware platform interfaces and continuing execution
-   only through the issues that own those remaining boundaries.
-3. Add post-firmware physical-memory and MMIO ownership rules so the ACPI probe evidence can become durable platform discovery and PCI contracts can move from caller-owned bytes to live platform enumeration.
-4. Keep all shared utility implementation in `std/no-runtime/shared` before kernel/app use.
-5. Use `docs/workload-profiles.md` to keep the first hosted workload target on `SingleMinimalApi` while tracking the additional process/isolation work needed before `MultiMinimalApi`.
+1. Complete #226 evidence packaging and #227 local SingleMinimalApi acceptance
+   while preserving every accepted source/profile boundary.
+2. Finish #780 and #781 -> #782 host repairs; follow the ordered disk/static-file
+   roadmap rather than treating boot-time staging as continuing storage.
+3. Qualify user-fault containment, per-process resources and two-app isolation
+   before provider deployment. General kernel EH and CoreCLR remain separate.
+4. Keep shared utilities under `std/no-runtime/shared` and follow the exact
+   dependencies in `docs/workload-profiles.md` and the live tracker.

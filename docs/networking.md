@@ -1,31 +1,25 @@
 # Networking
 
-[Step1554](../done/step1554.md) refreshes the socket reader's separate
-current-consumer source pin after reviewing the shared web publisher's added
-race/session qualification paths. The socket-used helpers and all original
-socket producer/app inputs are unchanged. The original receipt, ELF, package
-and index pins remain exact. Four focused package checks pass after reproducing
-the stale-pin refusal; fresh socket/vector ancestors remain required.
+## Current network/service boundary (October 23, 2026)
 
-[Step1479](../done/step1479.md) completes the fresh original v1 service and five
-memory controls at `fee0c9af`, with exact source/native joins. The repaired reader
-passes the original 829,226ms service lifetime; all three expected memory faults
-pass their dedicated full-parent restoration checks. Failed originals remain failed.
+Finite TCP (step1332), Linux sockets/epoll (step1351), Kestrel health/UTC
+(step1419), repeated-service controls (steps1479/1481), and quota/async churn
+(step1556) are qualified. PR790 merged at `82656076`; #224/#778/#779/#760 and
+#748/#225/#737 are closed. The latest accepted stable full at `28a79996`
+passes 6,258 checks/847 fixtures with unchanged inputs and zero reuse.
 
-Closure review finds another #784 gap: unsupported `Task<int>` fixtures can
-execute and pass. The new declared-type whitelist has a genuine red regression
-and 33 passing focused runner checks. A fresh stable unfiltered full-host gate
-is required; the retained 5,917-check result remains bound to `810b3eef`.
-See step1479 and `artifacts/service-validation-20261020-r01/` for exact receipts
-and the new gate's process/state. Preserve its frozen source until terminal.
+[Step1556](../done/step1556.md) includes all 20 ancestor profiles after the
+step1554 socket-consumer pin review. Its original Smoke checks the directed
+signal/readiness race during cancelled churn; quota256/512 checks termination
+and returns; V2 separately completes cancellation/drain. Original capture
+identities and failed attempts remain intact. The 36 MiB pool is shared.
+Complete local Gate14 (#226/#227), general networking, isolation and provider
+acceptance remain open. See the [Kestrel ledger](kestrel.md) for exact recipes.
 
-All 16 affected issues and seven reopened prerequisites remain open. Supported
-closures require the new full-host result and exact dependency/criteria review.
-#748/#225 still lack quota-triggered offending-workload termination and cleanup
-during churn. The 36MiB dynamic pool is shared; 16MiB GC plus declared 20MiB native
-headroom does not enforce independent partitions. Native saturation occurs before
-listen and after drain. Complete Kestrel/Gate14, isolation, cloud and production
-remain incomplete. Bounded native reviews retain their explicit original scopes.
+## Earlier development and profile evidence
+
+The pending states below describe their dated checkpoints; steps1481/1556
+supersede them only for the named qualified service and regression scopes.
 
 Step1455 adds explicit service-v2 PCAP reconstruction for patterned32KiB
 requests,512KiB streamed responses, held-stream/healthy-peer ordering and two
@@ -440,7 +434,8 @@ Development history is in steps1158â€“1161.
 
 ## Current Status
 
-The default-off finite continuing service is qualified in [step1332](../done/step1332.md). The following inventory records the individual host-tested helper contracts. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. The earlier fixed-TX/ARP profiles retain their historical scope; step1332 adds finite retained RX/TX and TCP lifetimes. Application sockets and general workload networking remain incomplete.
+The default-off finite continuing service is qualified in [step1332](../done/step1332.md). The following inventory records the individual host-tested helper contracts. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. The earlier fixed-TX/ARP profiles retain their historical scope; step1332 adds finite retained RX/TX and TCP lifetimes. Steps1351 through1556 add bounded application sockets/epoll and Kestrel
+service; general workload networking remains incomplete.
 
 The kernel-facing native manifest can now record one bounded listen endpoint as metadata for future hosted-workload binding. That metadata is host-tested through manifest parsing, launch-plan creation, bind-policy validation against a future PAL IPv4 bind endpoint, mock socket-table bind composition, and mock socket-table listener creation; it does not export PAL functions, open a live socket, enter real TCP listen state, wait on a scheduler, or prove Kestrel behavior.
 
@@ -645,8 +640,9 @@ Beyond the qualified finite M07-026 profile, the following remain incomplete:
   general ICMP/UDP delivery.
 - Live DHCP lease/retry behavior, DNS packet I/O/cache/CNAME/AAAA, and a general
   TCP stack including unsupported congestion/transport behavior.
-- Application socket/epoll integration, exported manifest-approved/PAL socket
-  operations, real HTTP client/server socket workloads and guest Kestrel.
+- General application networking and exported `OSHost_*` PAL sockets. The
+  restricted Linux socket/epoll and Kestrel fixtures have the finite evidence
+  above; arbitrary clients, full local Gate14 and provider networking do not.
 
 Legacy packet-buffer helpers and the host-only `OSHost_*` mock tables retain
 those individual scopes. Step1332 qualifies the explicit bounded retained
@@ -2541,18 +2537,13 @@ TLS, HTTPS, certificates, ALPN, HTTP/2, HTTP/3, QUIC, WebSockets, and TLS offloa
 
 ## Next Steps
 
-1. Wire `TcpReceiveDispatcher` into future TCP control-block/socket I/O paths after live virtio-net RX and connection-table ownership exist, and continue checksum integration only when each surrounding packet path is ready to enforce checksums.
-2. Wire `IcmpReceiveDispatcher` into a future diagnostic ping state machine after live virtio-net RX/TX, ARP routing, timers, and packet reply generation exist.
-3. Wire future PCI enumeration to snapshot config bytes, feed them through `VirtioPciCapabilityListParser` and `VirtioPciDeviceDiscovery`, then feed live feature bits and queue counts into `VirtioDeviceInitializationPlan`.
-4. Wire live virtio-net feature negotiation into `VirtioDeviceInitializationPlan`, parse device configuration with `VirtioNetDeviceConfig`, then feed queue metadata into `VirtioNetQueuePlan`.
-5. Replace the host-tested `VirtioPciBarRegisterWindowLiveAccessorBoundary` fake accessor with an owned live BAR-backed volatile register accessor, plus MMIO ownership rules, real memory-ordering primitive, and DMA ownership prerequisites needed to replace the current fake RX/TX readiness and completion/slab-selection/classification/dispatch boundaries.
-6. Feed future used RX buffers through `VirtioNetReceiveRegisterWindowDispatchPlanner` before ARP/IPv4 body parsers, keeping offload and mergeable-buffer feature negotiation explicit.
-7. Keep TX completion/reclaim gated on executed notification provenance while replacing fake sink/register-window notification with live BAR-backed notification, completion, and reclaim evidence.
-8. Wire ARP neighbor resolution and cache lookups over future virtio-net packet I/O.
-9. Wire the host-tested DHCP client state machine to future UDP receive/send dispatch over virtio-net packet I/O with retry timers.
-10. Wire the host-tested DNS resolver transaction to future UDP receive/send dispatch over virtio-net packet I/O with retry timers and cache policy.
-11. Add the Layer 1 packet tests for TCP header encode/decode.
-12. Expand the host-only TCP state-machine harness beyond active/passive handshake frame planners, caller-owned listener backlog, established stream, and close/reset primitives into TCP control blocks, retransmission, timers, windows, and backpressure before wiring real virtio-net RX/TX.
-13. Wire the host-tested HTTP TCP GET planner to future TCP/socket I/O once connection lifecycle, segmentation, retransmission, timers, and stream ownership are represented by a broader TCP control-block contract.
-14. Add PAL socket mock tests that exercise the `OSHost_*` behavior without Kestrel.
-15. Add in-guest Kestrel socket compatibility smoke only after hosted .NET, PAL, TCP, timers, threading, and runner HTTP verification exist.
+1. Preserve accepted retained NIC/TCP, Linux socket/epoll and Kestrel service
+   profiles through step1556; complete #226 evidence and #227 local Gate14.
+2. Keep unqualified general TCP behavior, DHCP/DNS packet I/O, dynamic routing,
+   offload and provider devices explicit. Host planners are not live support.
+3. Follow the disk/static-file ladder without blocking NIC/timer/runtime progress
+   during reads; it needs new device lifetime and cancellation evidence.
+4. After the local service baseline, measure #750 workload baselines before
+   #751 TCP flight, #752 audit cost and #242 logging optimizations.
+5. Keep the future exported `OSHost_*` socket PAL separate from the restricted
+   Linux adapter and require independent evidence for multi-app networking.

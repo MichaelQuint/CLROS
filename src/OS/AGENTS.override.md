@@ -38,8 +38,10 @@ the freestanding publish boundary separate from normal managed projects.
 - No runtime dependency on normal `System.Private.CoreLib`.
 - No `Console`, `File`, `Task`, reflection, LINQ, or normal BCL usage.
 - Avoid managed allocation unless the allocation helper and heap behavior are explicitly implemented and tested.
-- Avoid exceptions, `try/catch`, and `throw`.
-- Avoid static reference fields until class constructor/runtime initialization work is implemented.
+- Avoid exceptions, `try/catch`, and `throw` outside explicitly qualified,
+  default-off runtime probes. Bounded EH receipts do not authorize general EH.
+- Avoid static reference fields outside supported initialization/rooting
+  contracts; bounded constructor/GC profiles do not grant general runtime use.
 - Keep unsafe code small and localized.
 
 ## Minimal Runtime Rules
@@ -61,7 +63,9 @@ Before adding a stub:
 4. Document if behavior is a placeholder.
 5. Re-run `dotnet run --project tools/OS.Tooling -- efi build`.
 
-Do not use permissive shell placeholders as a model for the real kernel runtime. The current type-cast helpers are publish-boundary placeholders only.
+Do not treat compiler stubs as general runtime implementations. Unsupported
+type-cast helpers fail fast; selected EH probes have bounded retained-exception
+type matching. Preserve those conditional boundaries and original native review.
 
 ## Link Rules
 
@@ -105,9 +109,12 @@ The PE headers should report:
 
 Do not claim boot proof from this directory. Boot proof requires QEMU/OVMF execution and serial markers.
 
-## Next Local Milestones
+## Current Local Boundary
 
-1. Introduce a typed, allocation-free boot handoff to `OS.Kernel` only after the boundary is designed.
-2. Move UEFI service access behind platform interfaces.
-3. Capture the UEFI memory map before ExitBootServices.
-4. Keep QEMU serial marker evidence updated after every boot-path change.
+Ordinary `VerifiedExit` already captures required firmware state, leaves boot
+services and performs owned checks (step1094). Explicit default-off profiles
+also run pinned Linux NativeAOT applications and finite Kestrel service
+(steps1307 through1556). Keep `BootSequence` authoritative, source-link only
+audited no-stdlib inputs, and preserve default-off probes and exact profile
+prerequisites. Complete local Gate14, general runtime support, continuing disk
+service and multi-app isolation still need their own evidence.

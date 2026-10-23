@@ -1,6 +1,6 @@
 # `apps` Override
 
-This directory contains first-party workload examples for the OS application model. Root `AGENTS.md` applies; this file narrows how agents should work on app projects.
+This directory contains first-party CLROS workload fixtures and examples. Root `AGENTS.md` applies; this file narrows how agents should work on app projects.
 
 ## Purpose
 
@@ -11,9 +11,13 @@ Apps under this tree are used to prove the single-workload CloudReady model:
 - Packaged file reads.
 - Network client behavior.
 - HTTP server behavior.
-- Future hosted .NET 11 ASP.NET Minimal API and Kestrel support.
+- Pinned Linux NativeAOT runtime, socket and Kestrel qualification.
 
-Current apps are host-buildable `net11.0` placeholders. They are not proof that the OS can run hosted .NET 11 workloads yet.
+Projects target `net11.0`; their execution evidence differs. Hello, focused
+GC/ThreadPool, RuntimeSmoke/RuntimeMatrix, socket and finite Kestrel fixtures
+have CLROS guest qualification in steps1307 through1556. Other samples remain
+host-only. Check `docs/kestrel.md` and `docs/completion-gates.md` before claiming
+a profile; complete Gate14 and arbitrary hosted .NET support remain open.
 
 ## Project Rules
 
@@ -27,12 +31,21 @@ Use:
 
 Do not:
 
-- Add Linux, POSIX, or SSH assumptions.
+- Add unmeasured Linux/POSIX requirements or an SSH/admin surface. The selected
+  `linux-musl-x64` NativeAOT route may use the explicitly supported Linux adapter;
+  new syscalls require measured upstream need and their own qualification.
 - Add app behavior that requires unimplemented kernel services without documenting the prerequisite.
 - Hide missing OS capabilities behind host-only mocks without naming them as mocks.
 - Claim Kestrel, Minimal API hosting, or hosted .NET support from a host-only app run.
 
 ## Example App Roles
+
+- `NativeAotHello`: unchanged pinned Linux NativeAOT Hello.
+- `NativeAotRuntimeSmoke` / `NativeAotRuntimeMatrix`: bounded upstream runtime behavior.
+- `NativeAotSocketSmoke` (sync/async modes) and `NativeAotSocketVectors`: measured socket/epoll fixtures.
+- `MinimalApiSmoke` / `MinimalApiService`: finite Kestrel health, service and churn profiles.
+
+The following older examples retain their separate host/planning boundaries:
 
 - `HelloSharpFs`: packaged file read and manifest argument smoke.
 - `FetchApp`: DNS/TCP/HTTP client smoke once OS networking exists.
@@ -45,9 +58,9 @@ Keep each app focused. If a new scenario combines storage, networking, and hoste
 
 Kestrel support is mandatory for the product goal, but it must be proven with real OS evidence.
 
-Before app code can claim Kestrel support, the repository needs:
+For each new Kestrel scope, preserve or extend evidence for:
 
-- A documented hosted .NET 11 runtime boundary.
+- The pinned upstream .NET 11 NativeAOT/Linux boundary. CoreCLR is a later route.
 - Socket/timer/threading behavior sufficient for Kestrel.
 - Network stack evidence through TCP.
 - An image/package path that launches the Minimal API app.

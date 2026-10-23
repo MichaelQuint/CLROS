@@ -1,5 +1,14 @@
 # PAL
 
+## Linux adapter and PAL distinction
+
+The current .NET 11 route uses pinned static `linux-musl-x64` applications and
+restricted Linux x64 syscalls in C#. Finite Kestrel service, quota termination
+and async churn are qualified through [step1556](../done/step1556.md).
+These results do not implement the separate exported `OSHost_*` ABI or CoreCLR
+hosting. Keep errno/fd/register semantics out of that flat POD/status contract.
+Complete local Gate14 remains open under #226/#227.
+
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192, #686/#687,
 #193/#194/#688 and shared #733 batch: 5,202 full-host checks, 44 strict batch
 captures across 32 profiles, three retained strict GC repetitions and 24 fresh
@@ -8,7 +17,8 @@ NativeAOT Hello/GC/ThreadPool/runtime workloads now have guest evidence. The
 supplemental saved-context witness shows a signaled exit event and its worker
 blocked on the actual upstream GC event during suspension, then real exit/reap;
 it does not show already-entered native detach. The flat OSHost_* PAL remains a
-separate host-tested ABI contract. Kestrel and new numbered gates remain incomplete.
+separate host-tested ABI contract. Later finite Kestrel evidence is summarized
+above; complete local Gate14 and other numbered gates remain incomplete.
 
 ## Historical development receipts
 
@@ -1164,7 +1174,11 @@ Most UEFI platform interfaces are still pending:
 
 - `IPlatformKeyboard`
 
-`IPlatformFirmware`, `IPlatformMemoryMap`, `IPlatformConsole`, `IPlatformConfigurationTables`, `IPlatformTimer`, `IPlatformRandom`, `IPlatformPhysicalMemory`, `IPlatformFramebuffer`, and `IPlatformFileSystem` are first guard contracts. They are not wired into the no-stdlib EFI artifact as a full platform implementation or real `ExitBootServices` flow yet. The live EFI artifact owns and summarizes the memory-map bytes and optional probe builds can read pre-shutdown ACPI bytes, but the shutdown transition is still blocked.
+`IPlatformFirmware`, `IPlatformMemoryMap`, `IPlatformConsole`, `IPlatformConfigurationTables`, `IPlatformTimer`, `IPlatformRandom`, `IPlatformPhysicalMemory`, `IPlatformFramebuffer`, and `IPlatformFileSystem` are first guard contracts. They are not a full exported platform/PAL implementation. The separate EFI
+adapters already perform real `ExitBootServices` and owned post-exit checks
+(step1094), with continuing finite application profiles qualified separately.
+Do not describe firmware shutdown as blocked or infer that every host interface
+is consumed by the live EFI path.
 
 ## Tests
 

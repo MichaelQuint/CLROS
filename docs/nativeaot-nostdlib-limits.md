@@ -23,7 +23,7 @@ HMAC/signature API or certification. Kernel use is the 16 MiB data-only Linux EL
 not initialize upstream app GC/EH or a hosted runtime. See
 [step1199](../done/step1199.md) for qualified profile evidence.
 
-[Step1421](../done/step1421.md) adds development-only `HmacSha256.TryCompute`
+[Step1421](../done/step1421.md) introduces `HmacSha256.TryCompute`
 (keys0..64, messages0..256, disjoint32-byte output) and `HmacSha256Drbg`
 (`Instantiate`, `Generate`, `Reseed`, `Erase`). The serialized, address-bound
 owner requires32 entropy+16 nonce bytes, optional0..32-byte personalization,
@@ -36,8 +36,9 @@ are erased using `SensitiveMemory.Clear`, with inlining/optimization disabled.
 reseed-required owner remains initialized but cannot generate. [Step1423](../done/step1423.md)
 adds explicit service source/adapter/cleanup wiring, with guarded independent
 firmware entropy/nonce capture and no firmware callbacks after exit. Native
-erase review and guest evidence remain pending. Registers/other copies, entropy
-quality, prediction resistance, longer
+erase and bounded service ownership evidence follow in step1437, with corrected
+full-host qualification in step1481 and retained regressions in step1556.
+Registers/other copies, entropy quality, prediction resistance, longer
 HMAC keys/messages, streams and certification are outside this API's guarantees.
 
 #674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in

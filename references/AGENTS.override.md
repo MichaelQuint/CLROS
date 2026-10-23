@@ -31,7 +31,7 @@ not first-party CLROS source and do not provide CLROS completion evidence.
 - Do not let reference NuGet configuration, SDK selection, environment
   variables, build targets, source generators, or native libraries affect the
   first-party build.
-- First-party kernel/std/app source remains C# 14/.NET 10 and may not acquire
+- First-party kernel/std/app source remains C# 14/.NET 11 and may not acquire
   committed `.c`, `.cpp`, `.h`, `.asm`, or `.s` files from a reference.
 
 ## Adaptation and Evidence
