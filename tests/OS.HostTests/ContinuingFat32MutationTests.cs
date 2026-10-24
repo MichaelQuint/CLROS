@@ -34,6 +34,12 @@ internal static unsafe class ContinuingFat32MutationTests
     { C.RequestToken value = default; var status = C.BeginTruncate(f.State, file, length, &value); request = value; return status; }
     private static C.Status Delete(Fixture f, C.FileToken file, out C.RequestToken request)
     { C.RequestToken value = default; var status = C.BeginDelete(f.State, file, &value); request = value; return status; }
+    private static C.FreeCursor Cursor(Fixture f, uint first = 2)
+    { C.FreeCursor value = default; HostCheck.Equal(C.Status.Success, C.CreateFreeCursor(f.State, first, &value)); return value; }
+    private static C.RequestToken Search(Fixture f, C.FreeCursor cursor, uint wanted, uint clusters, uint reads)
+    { C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginFindFree(f.State, cursor, wanted, clusters, reads, &request)); return request; }
+    private static C.FreeResult Free(Fixture f, C.RequestToken request, Span<uint> output, C.Status expected = C.Status.Success)
+    { C.FreeResult result = default; HostCheck.Equal(expected, C.CopyFree(f.State, request, output, &result)); return result; }
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
@@ -946,6 +952,224 @@ internal static unsafe class ContinuingFat32MutationTests
         HostCheck.True(f.State->IsReady && receipt.NewFile.Owner == 0); entry[0] = original;
         byte length = entry[28]; entry[28] ^= 1; HostCheck.Equal(C.Status.InvalidState, C.CopyMutationResult(f.State, request, &receipt));
         entry[28] = length; HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT discovery reads actual mirrored FATs admits only low28 free clusters and leaves journals frontiers and FSInfo untouched")]
+    private static void FreeDiscovery()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Fat(5, 0xa0000000); f.Fat(7, 0x0ffffff7); f.Fat(8, 0x0ffffff2); f.Fat(9, 0x0fffffff); f.Fat(10, 0xb0000000); f.Fat(11, 1);
+        f.Mount(); byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 65536).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 65536).ToArray();
+        byte[] maps = new ReadOnlySpan<byte>(f.Input.DirectoryMap, (int)C.MaximumClusters * 4).ToArray(), info = f.Volatile.Slice((First + 1) * 512, 512).ToArray();
+        int start = f.Trace.Count; var cursor = Cursor(f); var request = Search(f, cursor, 4, 12, 2); HostCheck.Equal(C.Status.Ready, f.Run());
+        uint[] output = Enumerable.Repeat(0xdeadbeefU, 16).ToArray(); var result = Free(f, request, output);
+        HostCheck.True(result.Status == C.Status.Success && result.Count == 4 && result.Scanned == 12 && result.SectorReads == 2 && SameRequest(result.Request, request) &&
+            output.AsSpan(0, 4).SequenceEqual(new uint[] { 5, 10, 12, 13 }) && output.AsSpan(4).IndexOfAnyExcept(0xdeadbeefU) < 0 && result.NextCursor.NextCluster == 14 &&
+            result.NextCursor.Owner == (ulong)f.State && result.NextCursor.Epoch == f.Input.Epoch && result.NextCursor.Revision == 1 && result.NextCursor.Generation == request.Generation);
+        HostCheck.True(f.Trace.Skip(start).Select(row => row.Type).SequenceEqual(new uint[] { 0, 0 }) && f.State->ChangeCount == 0 && f.State->VolumeRevision == 1 &&
+            f.Device.State->SubmittedBytes == 0 && f.Device.State->CompletedBytes == 0 && f.Device.State->DurableBytes == 0 && !f.State->Dirty);
+        HostCheck.True(new ReadOnlySpan<byte>(f.Input.Before, 65536).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 65536).SequenceEqual(after) &&
+            new ReadOnlySpan<byte>(f.Input.DirectoryMap, (int)C.MaximumClusters * 4).SequenceEqual(maps) && f.Volatile.Slice((First + 1) * 512, 512).SequenceEqual(info)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT discovery distinguishes cluster sector and zero budgets and resumes only from a copied generation cursor")]
+    private static void FreeBudgets()
+    {
+        using var f = new Fixture(); f.Mount(); uint[] output = new uint[16];
+        foreach (var sample in new (uint Clusters, uint Reads, uint Count, uint Scanned, uint ActualReads, uint Next)[]
+        { (0, 2, 0, 0, 0, 2), (8, 0, 0, 0, 0, 2), (8, 1, 0, 0, 1, 2), (1, 2, 0, 1, 2, 3), (4, 2, 1, 4, 2, 6), (8, 2, 4, 8, 2, 10) })
+        {
+            var request = Search(f, Cursor(f), 16, sample.Clusters, sample.Reads); f.Run(); var result = Free(f, request, output, C.Status.SearchBudgetExceeded);
+            HostCheck.True(result.Status == C.Status.SearchBudgetExceeded && result.Count == sample.Count && result.Scanned == sample.Scanned &&
+                result.SectorReads == sample.ActualReads && result.NextCursor.NextCluster == sample.Next);
+        }
+        var original = Cursor(f); var first = Search(f, original, 4, 4, 2); f.Run(); var partial = Free(f, first, output, C.Status.SearchBudgetExceeded);
+        HostCheck.True(partial.Count == 1 && output[0] == 5 && partial.NextCursor.NextCluster == 6);
+        C.RequestToken invalid = default; HostCheck.Equal(C.Status.StaleToken, C.BeginFindFree(f.State, original, 3, 5, 2, &invalid));
+        var continuation = Search(f, partial.NextCursor, 3, 5, 2); f.Run(); var complete = Free(f, continuation, output);
+        HostCheck.True(complete.Count == 3 && complete.Scanned == 4 && complete.SectorReads == 2 && output.AsSpan(0, 3).SequenceEqual(new uint[] { 7, 8, 9 })); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT discovery crosses FAT sector boundaries with exact read budgets and no cached half-sector candidate publication")]
+    private static void FreeSectorBoundary()
+    {
+        using var f = new Fixture(); f.Fat(126, 0xfffffff); f.Fat(129, 0xfffffff); f.Mount(); uint[] output = new uint[16];
+        var request = Search(f, Cursor(f, 126), 3, 5, 2); f.Run(); var partial = Free(f, request, output, C.Status.SearchBudgetExceeded);
+        HostCheck.True(partial.Count == 1 && output[0] == 127 && partial.Scanned == 2 && partial.SectorReads == 2 && partial.NextCursor.NextCluster == 128);
+        request = Search(f, partial.NextCursor, 2, 3, 2); f.Run(); var result = Free(f, request, output);
+        HostCheck.True(result.Count == 2 && result.Scanned == 3 && result.SectorReads == 2 && output.AsSpan(0, 2).SequenceEqual(new uint[] { 128, 130 }));
+        request = Search(f, Cursor(f, 126), 3, 5, 4); f.Run(); result = Free(f, request, output);
+        HostCheck.True(result.Count == 3 && result.SectorReads == 4 && result.NextCursor.NextCluster == 131); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT discovery physical EndOfScan returns only remaining-range candidates and never wraps or invents ENOSPC")]
+    private static void FreeEndOfScan()
+    {
+        using var f = new Fixture(); f.Mount(); uint[] output = new uint[16];
+        var request = Search(f, Cursor(f, Clusters), 3, 10, 2); f.Run(); var result = Free(f, request, output, C.Status.EndOfScan);
+        HostCheck.True(result.Count == 2 && result.Scanned == 2 && result.SectorReads == 2 && result.NextCursor.NextCluster == Clusters + 2 &&
+            output.AsSpan(0, 2).SequenceEqual(new uint[] { Clusters, Clusters + 1 }));
+        request = Search(f, result.NextCursor, 1, 0, 0); f.Run(); result = Free(f, request, [], C.Status.EndOfScan);
+        HostCheck.True(result.Count == 0 && result.Scanned == 0 && result.SectorReads == 0 && result.NextCursor.NextCluster == Clusters + 2);
+        f.Fat(Clusters, 0xfffffff); f.Fat(Clusters + 1, 0xfffffff);
+        request = Search(f, Cursor(f, Clusters), 1, 2, 2); f.Run(); result = Free(f, request, [], C.Status.EndOfScan);
+        HostCheck.True(result.Count == 0 && result.Scanned == 2 && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT discovery cursor rejects wrong epoch revision owner generation range and unrelated request reuse before I/O")]
+    private static void FreeCursorGuards()
+    {
+        using var f = new Fixture(); f.Mount(); var original = Cursor(f); var file = File(f); C.RequestToken request = default;
+        uint before = f.Device.Hardware->Notifies;
+        HostCheck.Equal(C.Status.StaleToken, C.BeginFindFree(f.State, original, 1, 1, 2, &request));
+        var valid = Cursor(f);
+        for (int field = 0; field < 4; field++)
+        { var wrong = valid; ((ulong*)&wrong)[field]++; HostCheck.Equal(C.Status.StaleToken, C.BeginFindFree(f.State, wrong, 1, 1, 2, &request)); }
+        foreach (uint next in new uint[] { 0, 1, Clusters + 3, uint.MaxValue })
+        { var wrong = valid; ((uint*)&wrong)[8] = next; HostCheck.Equal(C.Status.StaleToken, C.BeginFindFree(f.State, wrong, 1, 1, 2, &request)); }
+        HostCheck.Equal(C.Status.InvalidAllocation, C.BeginFindFree(f.State, valid, 0, 1, 2, &request));
+        HostCheck.Equal(C.Status.CapacityExceeded, C.BeginFindFree(f.State, valid, 17, 1, 2, &request));
+        HostCheck.Equal(C.Status.CapacityExceeded, C.BeginFindFree(f.State, valid, 1, f.Input.WorkBudget + 1, 2, &request));
+        C.FreeCursor invalid = default; HostCheck.Equal(C.Status.InvalidAllocation, C.CreateFreeCursor(f.State, 1, &invalid));
+        HostCheck.Equal(before, f.Device.Hardware->Notifies);
+        Grow(f, file, 950, [], out request); f.Run(); Result(f, request);
+        var staleRevision = valid; ((ulong*)&staleRevision)[3] = request.Generation;
+        HostCheck.Equal(C.Status.StaleToken, C.BeginFindFree(f.State, staleRevision, 1, 1, 2, &request)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT geometry-only required-candidate helper handles empty tails different cluster sizes aliases stale and oversized requests without I/O")]
+    private static void GrowthCandidateGeometry()
+    {
+        using (var f = new Fixture())
+        {
+            f.Mount(); var file = File(f); uint count = 99, before = f.Device.Hardware->Calls;
+            foreach (var row in new (uint Length, uint Count)[] { (900, 0), (950, 0), (1024, 0), (1025, 1), (5126, 9) })
+            { HostCheck.Equal(C.Status.Success, C.GrowthCandidatesRequired(f.State, file, row.Length, &count)); HostCheck.Equal(row.Count, count); }
+            HostCheck.Equal(C.Status.Unsupported, C.GrowthCandidatesRequired(f.State, file, 899, &count)); HostCheck.Equal(0U, count);
+            HostCheck.Equal(C.Status.CapacityExceeded, C.GrowthCandidatesRequired(f.State, file, 19 * 512, &count));
+            HostCheck.Equal(C.Status.CapacityExceeded, C.GrowthCandidatesRequired(f.State, file, uint.MaxValue, &count));
+            foreach (ulong pointer in new[] { 0UL, 8UL, (ulong)f.State, (ulong)f.Input.After, (ulong)f.Device.Data, 0x400000UL, (ulong)f.Output + 1 })
+                HostCheck.Equal(C.Status.InvalidStorage, C.GrowthCandidatesRequired(f.State, file, 1300, (uint*)pointer));
+            HostCheck.Equal(before, f.Device.Hardware->Calls);
+            var request = Search(f, Cursor(f), 1, 10, 2); HostCheck.Equal(C.Status.Busy, C.GrowthCandidatesRequired(f.State, file, 1300, &count));
+            C.Cancel(f.State, request); f.Run(); Free(f, request, [], C.Status.Cancelled);
+            Grow(f, file, 950, [], out request); f.Run(); Result(f, request);
+            HostCheck.Equal(C.Status.StaleToken, C.GrowthCandidatesRequired(f.State, file, 1300, &count)); HostCheck.Equal(0U, count); C.Stop(f.State);
+            HostCheck.Equal(C.Status.InvalidState, C.GrowthCandidatesRequired(f.State, file, 1300, &count));
+        }
+        using (var f = new Fixture(2))
+        {
+            f.Fat(4, 0xfffffff); f.Mount(); var file = File(f); uint count = 0;
+            HostCheck.Equal(C.Status.Success, C.GrowthCandidatesRequired(f.State, file, 5126, &count)); HostCheck.Equal(5U, count); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            Put16(f.Volatile, Data * 512 + 32 + 26, 0); Put32(f.Volatile, Data * 512 + 32 + 28, 0); f.Mount(); var file = File(f); uint count = 0;
+            HostCheck.Equal(C.Status.Success, C.GrowthCandidatesRequired(f.State, file, 5126, &count)); HostCheck.Equal(11U, count); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT discovery output capacity alias checks preserve held Ready metadata buffers and DMA ownership")]
+    private static void FreeAliases()
+    {
+        using var f = new Fixture(); f.Mount(); var request = Search(f, Cursor(f, 8), 4, 4, 2); f.Run();
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray(), device = new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).ToArray();
+        uint[] candidates = Enumerable.Repeat(0xcacacacaU, 16).ToArray(); C.FreeResult result = default;
+        new Span<byte>(&result, sizeof(C.FreeResult)).Fill(0xcb);
+        foreach (ulong pointer in new[] { 0UL, 8UL, 0x0000800000000000UL, (ulong)f.Output + 1, (ulong)f.State, (ulong)f.Input.Before, (ulong)f.Input.After,
+            (ulong)f.Input.Fat0, (ulong)f.Device.State, (ulong)f.Device.Pool, (ulong)f.Device.Data, 0x400000UL, 0x402000UL, 0x403000UL })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyFree(f.State, request, candidates, (C.FreeResult*)pointer));
+        foreach (ulong pointer in new[] { 8UL, (ulong)f.State, (ulong)f.Input.After, (ulong)f.Input.Fat0, (ulong)f.Device.Data })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyFree(f.State, request, new Span<uint>((void*)pointer, 16), &result));
+        HostCheck.Equal(C.Status.InvalidStorage, C.CopyFree(f.State, request, candidates.AsSpan(0, 3), &result));
+        new Span<byte>(f.Output, 128).Fill(0xcc);
+        HostCheck.Equal(C.Status.InvalidStorage, C.CopyFree(f.State, request, new Span<uint>(f.Output, 16), (C.FreeResult*)(f.Output + 8)));
+        HostCheck.True(new ReadOnlySpan<byte>(&result, sizeof(C.FreeResult)).IndexOfAnyExcept((byte)0xcb) < 0 && candidates.AsSpan().IndexOfAnyExcept(0xcacacacaU) < 0 &&
+            new ReadOnlySpan<byte>(f.Output, 128).IndexOfAnyExcept((byte)0xcc) < 0 && new ReadOnlySpan<byte>(f.State, sizeof(C.State)).SequenceEqual(state) &&
+            new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).SequenceEqual(device));
+        Free(f, request, candidates); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT discovery cancellation and mirror failure revoke partial or held candidates without a continuation cursor")]
+    private static void FreeCancellation()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Fixture(); f.Mount(); var request = Search(f, Cursor(f), 4, 20, 2); uint[] output = Enumerable.Repeat(99U, 16).ToArray();
+            if (held) f.Run(); else { C.Pump(f.State); C.Cancel(f.State, request); f.Device.Complete(); f.Run(); }
+            if (held) HostCheck.Equal(C.Status.Cancelled, C.Cancel(f.State, request));
+            var result = Free(f, request, output, held ? C.Status.StaleToken : C.Status.Cancelled);
+            HostCheck.True(result.NextCursor.Owner == 0 && result.Count == 0 && output.AsSpan().IndexOfAnyExcept(99U) < 0 && !f.State->RequestActive && !f.State->Dirty); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); Put32(f.Volatile, (First + Reserved + FatSectors) * 512 + 128 * 4, 1);
+            var request = Search(f, Cursor(f, 127), 2, 2, 4); f.Run(); uint[] output = Enumerable.Repeat(99U, 16).ToArray();
+            var result = Free(f, request, output, C.Status.MirrorMismatch);
+            HostCheck.True(result.Count == 0 && result.NextCursor.Owner == 0 && output.AsSpan().IndexOfAnyExcept(99U) < 0 && !f.State->Dirty); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT every discovery IN failure and a reset after held Ready publish no candidates and require actual retirement")]
+    private static void FreeReadFailures()
+    {
+        for (uint failure = 1; failure <= 4; failure++)
+        {
+            using var f = new Fixture(); f.Mount(); f.FailAt = f.Device.Hardware->Notifies + failure;
+            var request = Search(f, Cursor(f, 127), 3, 3, 4); HostCheck.Equal(C.Status.BlockFailure, f.Run());
+            uint[] output = Enumerable.Repeat(99U, 16).ToArray(); var result = Free(f, request, output, C.Status.BlockFailure);
+            HostCheck.True(result.Count == 0 && result.NextCursor.Owner == 0 && output.AsSpan().IndexOfAnyExcept(99U) < 0 && f.Device.State->SubmittedBytes == 0);
+            HostCheck.Equal(C.Status.Busy, C.Stop(f.State)); B.Stop(f.Device.State); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); var request = Search(f, Cursor(f, 8), 2, 2, 2); f.Run(); B.Stop(f.Device.State);
+            uint[] output = Enumerable.Repeat(99U, 16).ToArray(); var result = Free(f, request, output, C.Status.BlockFailure);
+            HostCheck.True(result.Count == 0 && result.NextCursor.Owner == 0 && output.AsSpan().IndexOfAnyExcept(99U) < 0); C.Stop(f.State);
+            C.FreeCursor cursor = default; HostCheck.Equal(C.Status.InvalidState, C.CreateFreeCursor(f.State, 2, &cursor));
+            HostCheck.Equal(C.Status.InvalidState, C.BeginFindFree(f.State, cursor, 1, 1, 2, &request));
+        }
+    }
+
+    [HostTest("continuing FAT discovered clusters are not reservations and growth revalidates changed mirrored allocation before any OUT")]
+    private static void FreeGrowthRevalidation()
+    {
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f);
+            var request = Search(f, Cursor(f, 8), 1, 1, 2); f.Run(); uint[] candidates = new uint[16]; var result = Free(f, request, candidates);
+            HostCheck.True(result.Count == 1 && candidates[0] == 8); f.Fat(8, 0xfffffff);
+            Grow(f, file, 1300, candidates.AsSpan(0, 1), out request); f.Run(); Result(f, request, C.Status.InvalidAllocation);
+            uint required = 0; HostCheck.Equal(C.Status.Success, C.GrowthCandidatesRequired(f.State, file, 1300, &required)); HostCheck.Equal(1U, required);
+            HostCheck.True(f.Device.State->SubmittedBytes == 0 && f.State->VolumeRevision == 1 && !f.State->Dirty); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); var file = File(f); f.FailPublication = 1; Overwrite(f, file, 0, "x"u8, out _); f.Run();
+            byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 512).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 512).ToArray();
+            uint calls = f.Device.Hardware->Notifies, count = 1; C.FreeCursor cursor = default; C.RequestToken request = default;
+            HostCheck.Equal(C.Status.RecoveryRequired, C.CreateFreeCursor(f.State, 2, &cursor));
+            HostCheck.Equal(C.Status.RecoveryRequired, C.BeginFindFree(f.State, cursor, 1, 1, 2, &request));
+            HostCheck.Equal(C.Status.RecoveryRequired, C.GrowthCandidatesRequired(f.State, file, 1300, &count));
+            HostCheck.True(count == 0 && cursor.Owner == 0 && f.Device.Hardware->Notifies == calls &&
+                new ReadOnlySpan<byte>(f.Input.Before, 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 512).SequenceEqual(after));
+        }
+    }
+
+    [HostTest("continuing FAT repeated discovery allocates no managed buffers and final candidate copy has no new clock callback")]
+    private static void FreeAllocation()
+    {
+        using var f = new Fixture(); f.Record = false; f.Mount(); uint[] output = new uint[16];
+        var request = Search(f, Cursor(f, 8), 16, 16, 2); f.Run(); C.FreeResult result = default;
+        f.Device.Hardware->ClockFailure = true; uint calls = f.Device.Hardware->Calls;
+        HostCheck.Equal(C.Status.Success, C.CopyFree(f.State, request, output, &result)); HostCheck.Equal(calls, f.Device.Hardware->Calls); f.Device.Hardware->ClockFailure = false;
+        bool good = true; long allocated = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 8; i++)
+        {
+            C.FreeCursor cursor = default; C.RequestToken next = default;
+            good &= C.CreateFreeCursor(f.State, 8, &cursor) == C.Status.Success && C.BeginFindFree(f.State, cursor, 16, 16, 2, &next) == C.Status.Pending &&
+                f.Run() == C.Status.Ready && C.CopyFree(f.State, next, output, &result) == C.Status.Success && result.Count == 16;
+        }
+        HostCheck.True(good && GC.GetAllocatedBytesForCurrentThread() == allocated && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
     }
 
     private static bool SameRequest(C.RequestToken a, C.RequestToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation;

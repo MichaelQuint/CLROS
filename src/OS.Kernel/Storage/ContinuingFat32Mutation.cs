@@ -26,11 +26,12 @@ public static unsafe class ContinuingFat32Mutation
         InvalidVolume, InvalidName, NotFound, NotFile, ReadOnly, Unsupported,
         CorruptDirectory, CorruptChain, MirrorMismatch, BudgetExceeded,
         CapacityExceeded, StaleToken, Busy, Cancelled, GenerationExhausted,
-        BlockFailure, RecoveryRequired, AlreadyExists, InvalidAllocation
+        BlockFailure, RecoveryRequired, AlreadyExists, InvalidAllocation,
+        SearchBudgetExceeded, EndOfScan
     }
     internal enum Life : byte { Mounting = 1, Idle, Working, Ready, Faulted, Retired }
-    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete }
-    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo, ReadData, ShrinkDirectory, DeleteDirectory, ReleaseFat }
+    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete, FindFree }
+    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo, ReadData, ShrinkDirectory, DeleteDirectory, ReleaseFat, FindFree }
     internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit, FileData }
     internal enum Transform : byte { Zero, Fat, Directory, FsInfo, ShrinkDirectory, Tombstone }
     private const byte LookupName = 1, LookupToken = 2, ValidateRoot = 3, CreateRoot = 4;
@@ -91,6 +92,29 @@ public static unsafe class ContinuingFat32Mutation
         public readonly bool Deleted;
         internal MutationResult(Status status, uint bytes, RequestToken request, FileToken original, FileToken next, bool deleted)
         { Status = status; Bytes = bytes; Request = request; OriginalFile = original; NewFile = next; Deleted = deleted; }
+    }
+    /// <summary>Copied forward-only scan position, invalidated by any new
+    /// request or issued mutation. It is not a free-space reservation. Only
+    /// CreateFreeCursor or a consumed FreeResult supplies a current cursor.</summary>
+    public readonly struct FreeCursor
+    {
+        public readonly ulong Owner, Epoch, Revision, Generation;
+        public readonly uint NextCluster;
+        internal FreeCursor(State* s, uint next)
+        { Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; Generation = s->RequestGeneration; NextCluster = next; }
+    }
+    /// <summary>Copied candidate facts at one volume revision/request. Success
+    /// found the wanted count. SearchBudgetExceeded may contain a verified
+    /// partial prefix; EndOfScan reached the physical end of the remaining
+    /// cursor range, not a whole-volume ENOSPC claim. No cluster is reserved.</summary>
+    public readonly struct FreeResult
+    {
+        public readonly Status Status;
+        public readonly uint Count, Scanned, SectorReads;
+        public readonly RequestToken Request;
+        public readonly FreeCursor NextCursor;
+        internal FreeResult(Status status, uint count, uint scanned, uint reads, RequestToken request, FreeCursor next)
+        { Status = status; Count = count; Scanned = scanned; SectorReads = reads; Request = request; NextCursor = next; }
     }
     /// <summary>Zeroed retained unmanaged owner; it contains only POD values
     /// and pointers into Admission. Copying/moving an active owner is forbidden.
@@ -264,6 +288,104 @@ public static unsafe class ContinuingFat32Mutation
         }
     }
 
+    /// <summary>Copy the additional cluster count required by mounted geometry
+    /// for a current file token. Equal length and growth within an existing tail
+    /// return Success/count0; shrink is Unsupported. At most16 additional and
+    ///4096 total clusters are admitted. No I/O, free-space search, reservation,
+    /// mutation or physical fingerprint refresh occurs. Validate ordinary
+    /// output storage before writing; valid failure output is0.</summary>
+    public static Status GrowthCandidatesRequired(State* s, FileToken file, uint newLength, uint* count)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (!Storage((ulong)count, 4, 4) || !Caller(s, (ulong)count, 4)) return Status.InvalidStorage;
+        *count = 0;
+        if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
+        if (!FileMatches(s, file)) return Status.StaleToken;
+        if (newLength < file.Length) return Status.Unsupported;
+        ulong clusterBytes = s->Volume.SectorsPerCluster * 512UL;
+        if (clusterBytes == 0) return Status.InvalidVolume;
+        ulong oldCount = ((ulong)file.Length + clusterBytes - 1) / clusterBytes,
+            newCount = ((ulong)newLength + clusterBytes - 1) / clusterBytes;
+        if (newCount > MaximumClusters || newCount - oldCount > MaximumGrowthClusters) return Status.CapacityExceeded;
+        *count = (uint)(newCount - oldCount); return Status.Success;
+    }
+
+    /// <summary>Copy a scan cursor for a current idle mounted owner. Accepts
+    ///2..ClusterCount+2 inclusive; the exclusive end starts an empty range.
+    /// No I/O occurs. Output aliases reject before writes; valid failures clear
+    /// output. A subsequent unrelated request invalidates this cursor.</summary>
+    public static Status CreateFreeCursor(State* s, uint firstCluster, FreeCursor* cursor)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (!Output(s, (ulong)cursor, (ulong)sizeof(FreeCursor))) return Status.InvalidStorage;
+        *cursor = default;
+        if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
+        if (firstCluster < 2 || firstCluster > s->Volume.ClusterCount + 2) return Status.InvalidAllocation;
+        *cursor = new(s, firstCluster); return Status.Success;
+    }
+
+    /// <summary>Start one forward scan for1..16 free clusters, copying the
+    /// cursor/budgets before return. The cluster budget may not exceed admitted
+    /// WorkBudget; the independent sector budget counts actual IN submissions
+    /// including both FAT copies. Zero budgets produce SearchBudgetExceeded.
+    /// Every Pump inspects at most one entry or submits/completes one sector.
+    /// Full mirrored sectors must agree before low28-bit zero is admitted;
+    /// reserved upper bits retain the existing FAT contract. No FSInfo hint,
+    /// OUT, FLUSH, allocation, wraparound or reservation is used. BeginGrow must
+    /// still revalidate every returned candidate before mutation.</summary>
+    public static Status BeginFindFree(State* s, FreeCursor cursor, uint wanted, uint clusterBudget, uint sectorReadBudget, RequestToken* request)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken))) return Status.InvalidStorage;
+        *request = default;
+        if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
+        if (cursor.Owner != (ulong)s || cursor.Epoch != s->Input.Epoch || cursor.Revision != s->Revision || cursor.Generation != s->RequestGeneration ||
+            cursor.NextCluster < 2 || cursor.NextCluster > s->Volume.ClusterCount + 2) return Status.StaleToken;
+        if (wanted == 0) return Status.InvalidAllocation;
+        if (wanted > MaximumGrowthClusters || clusterBudget > s->Input.WorkBudget) return Status.CapacityExceeded;
+        if (s->RequestGeneration == ulong.MaxValue) return Status.GenerationExhausted;
+        Begin(s, Kind.FindFree); s->Step = Step.FindFree; s->WalkNext = cursor.NextCluster; s->Offset = cursor.Revision;
+        // This kind borrows otherwise inactive growth counters/16-value POD
+        // storage; journal bytes/maps remain unchanged and no layout grows.
+        s->Wanted = wanted; s->GrowthCursor = clusterBudget; s->FsCursor = sectorReadBudget;
+        *request = new(s); return Status.Pending;
+    }
+
+    /// <summary>Consume one scan Ready prefix into exclusive ordinary RAM.
+    /// Bounds/aliases and capacity authenticate before any output write. Invalid
+    /// capacity preserves Ready. Success/budget/end metadata binds this request
+    /// and a continuation cursor; other errors/cancellation consume clean Ready
+    /// with default metadata/no candidates. Faulted owners retain cleanup.
+    /// Device/reset/revision must still match before positive publication.
+    /// No clock callback or fallible work follows copying; candidates remain
+    /// unreserved and may not be reused after another request/mutation.</summary>
+    public static Status CopyFree(State* s, RequestToken request, Span<uint> candidates, FreeResult* result)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        fixed (uint* output = candidates)
+        {
+            if (!Output(s, (ulong)result, (ulong)sizeof(FreeResult)) || candidates.Length > MaximumGrowthClusters || candidates.Length != 0 &&
+                (!Caller(s, (ulong)output, (ulong)candidates.Length * 4) || Overlap((ulong)output, (ulong)candidates.Length * 4, (ulong)result, (ulong)sizeof(FreeResult)))) return Status.InvalidStorage;
+            if (!Matches(s, request) || s->Kind != Kind.FindFree) { *result = default; return Status.StaleToken; }
+            if (s->Phase != Life.Ready) { *result = default; return s->Phase == Life.Faulted ? s->Failure : Status.Pending; }
+            Status status = s->Failure;
+            bool usable = status is Status.Success or Status.SearchBudgetExceeded or Status.EndOfScan;
+            if (usable && (s->GrowthCount > MaximumGrowthClusters || s->GrowthCount > s->Wanted || s->GrowthCount > candidates.Length)) return Status.InvalidStorage;
+            *result = default;
+            if (usable)
+            {
+                if (s->Revision != s->Offset) return Status.StaleToken;
+                if (!DeviceCurrent(s) || s->Input.Device->RequestPending) return DeviceFailure(s, Block.Status.InvalidState);
+                for (uint i = 0; i < s->GrowthCount; i++)
+                    if (s->Growth[i] < 2 || s->Growth[i] - 2 >= s->Volume.ClusterCount || i != 0 && s->Growth[i] <= s->Growth[i - 1]) return Status.InvalidState;
+                for (uint i = 0; i < s->GrowthCount; i++) output[i] = s->Growth[i];
+                *result = new(status, s->GrowthCount, s->PlannedBytes, s->FatCursor, request, new(s, s->WalkNext));
+            }
+            ScrubFree(s);
+            EndRequest(s); return status;
+        }
+    }
+
     /// <summary>Shrink one root file without reallocating or erasing hidden
     /// bytes. Plan all changes before OUT; publish/FLUSH the shorter directory
     /// length, then both FAT releases/FLUSH, then FSInfo/FLUSH when allocation
@@ -377,6 +499,7 @@ public static unsafe class ContinuingFat32Mutation
             case Step.Scan: return Scan(s);
             case Step.Plan: return Plan(s);
             case Step.ReadData: return ReadFileData(s);
+            case Step.FindFree: return FindFree(s);
             case Step.GrowCandidates: return CheckGrowthCandidates(s);
             case Step.GrowData: return PlanGrowthData(s);
             case Step.GrowFat: return PlanGrowthFat(s);
@@ -496,7 +619,7 @@ public static unsafe class ContinuingFat32Mutation
         next = new(s, original.EntryOffset, first, s->NewLength, raw); return true;
     }
 
-    /// <summary>Write/barrier Ready completion wins. A held read Ready is
+    /// <summary>Write/barrier Ready completion wins. A held read/discovery Ready is
     /// revoked/scrubbed immediately. Otherwise revoke continuation and drain
     /// the actual token without retracting DMA. Before first write the plan may
     /// be discarded after reads drain; later cancellation retains recovery.</summary>
@@ -505,8 +628,9 @@ public static unsafe class ContinuingFat32Mutation
         if (!Bound(s) || !Matches(s, request)) return Status.StaleToken;
         if (s->Phase == Life.Ready)
         {
-            if (s->Kind != Kind.Read) return Status.Ready;
-            ScrubRead(s); s->Failure = Status.Cancelled; EndRequest(s); return Status.Cancelled;
+            if (s->Kind is not (Kind.Read or Kind.FindFree)) return Status.Ready;
+            if (s->Kind == Kind.Read) ScrubRead(s); else ScrubFree(s);
+            s->Failure = Status.Cancelled; EndRequest(s); return Status.Cancelled;
         }
         if (s->Phase == Life.Faulted) return s->Failure;
         s->Cancelled = true;
@@ -607,6 +731,24 @@ public static unsafe class ContinuingFat32Mutation
         value = EndianPrimitives.ReadUInt32LittleEndian(new ReadOnlySpan<byte>(s->Input.Fat0 + (cluster % 128) * 4, 4)) & 0x0fffffff;
         return Status.Success;
     }
+    private static Status FindFree(State* s)
+    {
+        if (s->GrowthCount == s->Wanted) return Finish(s, Status.Success);
+        if (s->WalkNext == s->Volume.ClusterCount + 2) return Finish(s, Status.EndOfScan);
+        if (s->WalkNext < 2 || s->WalkNext - 2 >= s->Volume.ClusterCount) return Finish(s, Status.InvalidVolume);
+        if (s->PlannedBytes == s->GrowthCursor || s->Work == s->Input.WorkBudget) return Finish(s, Status.SearchBudgetExceeded);
+        ulong lba = s->Volume.FirstFatLba + s->WalkNext / 128;
+        bool read = s->FatPart == 0 || s->FatLba != lba || s->FatPart == 1;
+        if (read && s->FatCursor == s->FsCursor) return Finish(s, Status.SearchBudgetExceeded);
+        ulong submitted = s->Input.Device->Submitted;
+        Status status = RawFat(s, s->WalkNext, out uint value);
+        if (s->Input.Device->Submitted != submitted) s->FatCursor++;
+        if (status != Status.Success) return status;
+        s->WalkNext++; s->PlannedBytes++; s->Work++;
+        if (value == 0) s->Growth[s->GrowthCount++] = s->WalkNext - 1;
+        return Status.Pending;
+    }
+
     private static void ResetScan(State* s)
     { s->DirectorySector = s->DirectorySlot = 0; s->Vfat = default; s->LoadedDirectoryLba = ulong.MaxValue; s->Step = Step.Scan; }
     private static void Advance(State* s)
@@ -918,6 +1060,7 @@ public static unsafe class ContinuingFat32Mutation
     { s->Failure = status; s->Phase = s->Kind == Kind.Mount ? Life.Faulted : Life.Ready; return Status.Ready; }
     private static void EndRequest(State* s) { s->Phase = Life.Idle; s->IoActive = false; s->Cancelled = false; }
     private static void ScrubRead(State* s) { for (uint i = 0; i < s->Wanted; i++) s->Input.Input[i] = 0; }
+    private static void ScrubFree(State* s) { for (uint i = 0; i < MaximumGrowthClusters; i++) s->Growth[i] = 0; }
     private static bool FileMatches(State* s, FileToken file) => file.Owner == (ulong)s && file.Epoch == s->Input.Epoch && file.Revision == s->Revision &&
         file.EntryOffset >= s->Volume.FirstDataLba * 512 && file.EntryOffset / 512 < s->Volume.PartitionFirstLba + s->Volume.TotalSectors && (file.EntryOffset & 31) == 0;
     private static bool Fingerprint(FileToken file, ReadOnlySpan<byte> raw) => U64(raw, 0) == file.Fingerprint0 && U64(raw, 8) == file.Fingerprint1 && U64(raw, 16) == file.Fingerprint2 && U64(raw, 24) == file.Fingerprint3;
