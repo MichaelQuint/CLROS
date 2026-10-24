@@ -1285,9 +1285,9 @@ internal static unsafe class ContinuingFat32MutationTests
         private int publication;
         internal Span<byte> Volatile => new(Device.Hardware->Medium, Sectors * 512);
         internal Span<byte> Persistent => new(Device.Hardware->Persistent, Sectors * 512);
-        internal Fixture(byte sectorsPerCluster = 1)
+        internal Fixture(byte sectorsPerCluster = 1, bool observe = false)
         {
-            ulong capacity = (ulong)Data + Clusters * (ulong)sectorsPerCluster; Device = new(capacity);
+            ulong capacity = (ulong)Data + Clusters * (ulong)sectorsPerCluster; Device = new(capacity, observe);
             new Span<byte>(arena, 208896).Fill(0xa7); byte[] image = new byte[Sectors * 512];
             Span<byte> boot = image.AsSpan(First * 512, 512); Put16(boot, 11, 512); boot[13] = sectorsPerCluster; Put16(boot, 14, Reserved); boot[16] = 2;
             Put32(boot, 32, (uint)(capacity - First)); Put32(boot, 36, FatSectors); Put32(boot, 44, 2); boot[510] = 0x55; boot[511] = 0xaa;

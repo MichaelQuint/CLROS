@@ -450,6 +450,218 @@ internal static unsafe class WritableBlockSessionTests
         }
     }
 
+    [HostTest("writable observation accumulates exact published OUT validated FLUSH and committed IN without callback authority")]
+    private static void ObservationChain()
+    {
+        using var f = new Fixture(observe: true); HostCheck.Equal(Block.Status.Success, f.Start());
+        byte[] input = new byte[512]; Fill(input); byte[] expected = input.ToArray();
+        HostCheck.Equal(Block.Status.Success, Write(f, 3, input, out var write)); input.AsSpan().Clear();
+        var o = f.Observation;
+        HostCheck.True(o->Request.Owner == (ulong)f.State && o->Request.Epoch == f.Input.Epoch && o->Request.Generation == write.Generation &&
+            o->Kind == Block.Operation.Write && o->Sector == 3 && o->Flags == Block.ObservationFlags.Published && o->PayloadBytes == 512 && o->CompletionBytes == 0 &&
+            o->SubmittedCount == 1 && o->CompletedCount == 0 && o->AvailableIndex == 1 && o->ConsumedIndex == 0 && o->SubmittedBytes == 512 && o->CompletedBytes == 0 &&
+            o->FlushAcknowledgedBytes == 0 && o->DeviceResult == Block.Status.Uninitialized && new ReadOnlySpan<byte>(o->Data, 512).SequenceEqual(expected));
+        f.Complete(); HostCheck.Equal(Block.Status.Success, Poll(f, out _));
+        HostCheck.True(o->Flags == (Block.ObservationFlags.Published | Block.ObservationFlags.CompletionValidated) && o->CompletionBytes == 512 && o->CompletedBytes == 512 &&
+            o->CompletedCount == 1 && o->ConsumedIndex == 1 && o->DeviceResult == Block.Status.Success && o->FlushAcknowledgedBytes == 0);
+        HostCheck.Equal(Block.Status.Success, Flush(f, out var flush));
+        HostCheck.True(o->Kind == Block.Operation.Flush && o->Request.Generation == flush.Generation && o->PayloadBytes == 0 && o->CompletionBytes == 0 &&
+            o->FlushTargetBytes == 512 && o->FlushAcknowledgedBytes == 0 && new ReadOnlySpan<byte>(o->Data, 512).IndexOfAnyExcept((byte)0) < 0);
+        f.Complete(); HostCheck.Equal(Block.Status.Success, Poll(f, out _));
+        HostCheck.True(o->FlushAcknowledgedBytes == 512 && o->DeviceResult == Block.Status.Success && o->CompletionBytes == 0);
+        HostCheck.Equal(Block.Status.Success, Read(f, 3, out var read));
+        f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f, out _));
+        HostCheck.True(o->Request.Generation == read.Generation && o->Kind == Block.Operation.Read && o->CompletionBytes == 512 && o->PayloadBytes == 0 &&
+            (o->Flags & Block.ObservationFlags.ReadCopied) == 0 && new ReadOnlySpan<byte>(o->Data, 512).IndexOfAnyExcept((byte)0) < 0);
+        byte[] output = new byte[512]; HostCheck.Equal(Block.Status.Success, Block.CopyRead(f.State, read, output));
+        HostCheck.True(output.AsSpan().SequenceEqual(expected) && new ReadOnlySpan<byte>(o->Data, 512).SequenceEqual(output) && o->PayloadBytes == 512 &&
+            o->Flags == (Block.ObservationFlags.Published | Block.ObservationFlags.CompletionValidated | Block.ObservationFlags.ReadCopied));
+        byte[] retained = new ReadOnlySpan<byte>(o, sizeof(Block.Observation)).ToArray();
+        HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); HostCheck.True(new ReadOnlySpan<byte>(o, sizeof(Block.Observation)).SequenceEqual(retained));
+    }
+
+    [HostTest("writable observation admission and active source output aliases reject before any borrowed bytes change")]
+    private static void ObservationAliases()
+    {
+        using var f = new Fixture(observe: true); f.Negotiate();
+        foreach (ulong address in new[] { 8UL, 0x0000800000000000UL, 0x00007ffffffffff8UL, (ulong)f.Observation + 1,
+            (ulong)f.State, (ulong)f.Pool, (ulong)f.Slot, (ulong)f.Data, Common, Notify, Config })
+        {
+            var a = f.Input; a.Observation = (Block.Observation*)address;
+            uint calls = f.Hardware->Calls; HostCheck.Equal(Block.Status.InvalidAccess, Block.Start(f.State, a));
+            HostCheck.True(calls == f.Hardware->Calls && new ReadOnlySpan<byte>(f.State, sizeof(Block.State)).IndexOfAnyExcept((byte)0) < 0 &&
+                new ReadOnlySpan<byte>(f.Observation, sizeof(Block.Observation)).IndexOfAnyExcept((byte)0) < 0);
+        }
+        HostCheck.Equal(Block.Status.Success, Block.Start(f.State, f.Input));
+        byte[] bytes = new byte[512]; Fill(bytes); Write(f, 3, bytes, out _);
+        byte[] slot = new ReadOnlySpan<byte>(f.Observation, sizeof(Block.Observation)).ToArray(), state = new ReadOnlySpan<byte>(f.State, sizeof(Block.State)).ToArray(), dma = new ReadOnlySpan<byte>(f.Data, 4096).ToArray();
+        uint prior = f.Hardware->Calls;
+        HostCheck.Equal(Block.Status.InvalidStorage, Block.SubmitFlush(f.State, (Block.RequestToken*)f.Observation));
+        Block.RequestToken token = default; HostCheck.Equal(Block.Status.InvalidStorage, Block.SubmitWrite(f.State, 3, new ReadOnlySpan<byte>(f.Observation->Data, 512), &token));
+        HostCheck.Equal(Block.Status.InvalidStorage, Block.Poll(f.State, (Block.Completion*)f.Observation));
+        HostCheck.True(prior == f.Hardware->Calls && new ReadOnlySpan<byte>(f.Observation, sizeof(Block.Observation)).SequenceEqual(slot) &&
+            new ReadOnlySpan<byte>(f.State, sizeof(Block.State)).SequenceEqual(state) && new ReadOnlySpan<byte>(f.Data, 4096).SequenceEqual(dma));
+        f.Complete(); Poll(f, out _); Read(f, 3, out token); f.Complete(); Poll(f, out _);
+        HostCheck.Equal(Block.Status.InvalidStorage, Block.CopyRead(f.State, token, new Span<byte>(f.Observation->Data, 512)));
+        HostCheck.True(f.State->ReadReady && f.Observation->PayloadBytes == 0); Block.Cancel(f.State, token); Block.Stop(f.State);
+    }
+
+    [HostTest("writable observation cancelled and failed IN never reports copied bytes or hides wire completion")]
+    private static void ObservationReadFailures()
+    {
+        for (int mode = 0; mode < 5; mode++)
+        {
+            using var f = new Fixture(observe: true); f.Start(); Read(f, 3, out var token);
+            if (mode == 0) Block.Cancel(f.State, token);
+            f.Complete(length: mode == 3 ? 512U : mode == 4 ? 1U : 513U, status: mode == 4 ? (byte)1 : (byte)0);
+            var status = Poll(f, out _);
+            if (mode < 3 && mode != 0) HostCheck.Equal(Block.Status.Ready, status);
+            if (mode == 1) Block.Cancel(f.State, token);
+            if (mode == 2)
+            {
+                ulong* generation = (ulong*)((byte*)f.Slot + ManagedOffset(f.Slot, "Generation")); ulong prior = *generation; (*generation)++;
+                byte[] output = Enumerable.Repeat((byte)0x71, 512).ToArray();
+                HostCheck.Equal(Block.Status.DmaRejected, Block.CopyRead(f.State, token, output)); *generation = prior;
+                HostCheck.True(output.All(value => value == 0x71));
+            }
+            HostCheck.True(f.Observation->PayloadBytes == 0 && (f.Observation->Flags & Block.ObservationFlags.ReadCopied) == 0 &&
+                new ReadOnlySpan<byte>(f.Observation->Data, 512).IndexOfAnyExcept((byte)0) < 0);
+            if (mode == 3) HostCheck.True(status == Block.Status.InvalidCompletion && f.Observation->Flags == Block.ObservationFlags.Published && f.Observation->CompletedCount == 0);
+            else HostCheck.True((f.Observation->Flags & Block.ObservationFlags.CompletionValidated) != 0 && f.Observation->CompletedCount == 1 &&
+                f.Observation->DeviceResult == (mode == 4 ? Block.Status.DeviceIoError : Block.Status.Success));
+            if (mode < 2) HostCheck.True(f.Observation->Cancelled);
+            Block.Stop(f.State);
+        }
+    }
+
+    [HostTest("writable observation captures partial failed publication without fabricated completion or flush acknowledgment")]
+    private static void ObservationPublicationFailure()
+    {
+        byte[] bytes = new byte[512]; Fill(bytes); uint count;
+        using (var good = new Fixture(observe: true))
+        { good.Start(); uint before = good.Hardware->Calls; Write(good, 3, bytes, out _); count = good.Hardware->Calls - before; Block.Stop(good.State); }
+        bool sawUnpublished = false, sawPublished = false;
+        for (uint at = 1; at <= count; at++) foreach (bool after in new[] { false, true })
+        {
+            using var f = new Fixture(observe: true); f.Start(); f.Hardware->FailCall = f.Hardware->Calls + at; f.Hardware->FailAfterWrite = after;
+            HostCheck.True(Write(f, 3, bytes, out _) != Block.Status.Success && f.State->LastFailure != Block.Status.Success);
+            if (f.State->Submitted == 0)
+            { sawUnpublished = true; HostCheck.True(f.Observation->Flags == Block.ObservationFlags.None && f.Observation->Request.Generation == 0); }
+            else
+            {
+                sawPublished = true; HostCheck.True(f.Observation->Flags == Block.ObservationFlags.Published && f.Observation->SubmittedCount == 1 &&
+                    f.Observation->PayloadBytes == 512 && new ReadOnlySpan<byte>(f.Observation->Data, 512).SequenceEqual(bytes) && f.State->Dirty);
+            }
+            HostCheck.True(f.Observation->CompletedCount == 0 && f.Observation->FlushAcknowledgedBytes == 0 && f.State->Completed == 0 && f.State->DurableBytes == 0);
+            byte[] receipt = new ReadOnlySpan<byte>(f.Observation, sizeof(Block.Observation)).ToArray(); Block.Stop(f.State);
+            HostCheck.True(new ReadOnlySpan<byte>(f.Observation, sizeof(Block.Observation)).SequenceEqual(receipt));
+        }
+        HostCheck.True(sawUnpublished && sawPublished);
+    }
+
+    [HostTest("writable observation FLUSH wire failure and cancellation preserve actual acknowledged frontier only")]
+    private static void ObservationFlushFailure()
+    {
+        foreach (bool fail in new[] { false, true })
+        {
+            using var f = new Fixture(observe: true); f.Start(); byte[] bytes = new byte[512]; Write(f, 3, bytes, out _); f.Complete(); Poll(f, out _);
+            Flush(f, out var token); Block.Cancel(f.State, token); f.Complete(status: fail ? (byte)1 : (byte)0);
+            HostCheck.Equal(fail ? Block.Status.DeviceIoError : Block.Status.Cancelled, Poll(f, out _));
+            HostCheck.True(f.Observation->Kind == Block.Operation.Flush && f.Observation->FlushTargetBytes == 512 && f.Observation->Cancelled &&
+                f.Observation->FlushAcknowledgedBytes == (fail ? 0UL : 512UL) && f.Observation->DeviceResult == (fail ? Block.Status.DeviceIoError : Block.Status.Success) &&
+                f.Observation->PayloadBytes == 0 && f.Observation->CompletionBytes == 0 && new ReadOnlySpan<byte>(f.Observation->Data, 512).IndexOfAnyExcept((byte)0) < 0);
+            Block.Stop(f.State);
+        }
+    }
+
+    [HostTest("writable optional observation preserves null behavior callback counts allocation and ushort ring reuse")]
+    private static void ObservationDefaultAndWrap()
+    {
+        using var plain = new Fixture(); using var observed = new Fixture(observe: true); plain.Start(); observed.Start();
+        byte[] bytes = new byte[512]; Fill(bytes); ulong previous = 0; uint calls0 = plain.Hardware->Calls, calls1 = observed.Hardware->Calls;
+        long allocated = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 65538; i++)
+        {
+            good &= Write(plain, 3, bytes, out _) == Block.Status.Success && Write(observed, 3, bytes, out _) == Block.Status.Success;
+            plain.Complete(); observed.Complete(); good &= Poll(plain, out _) == Block.Status.Success && Poll(observed, out _) == Block.Status.Success;
+            good &= observed.Observation->Request.Generation == ++previous && observed.Observation->AvailableIndex == unchecked((ushort)previous) &&
+                observed.Observation->ConsumedIndex == unchecked((ushort)previous) && observed.Observation->CompletedCount == previous;
+        }
+        HostCheck.True(good && allocated == GC.GetAllocatedBytesForCurrentThread() && plain.Hardware->Calls - calls0 == observed.Hardware->Calls - calls1 &&
+            plain.State->SubmittedBytes == observed.State->SubmittedBytes && plain.State->CompletedBytes == observed.State->CompletedBytes && plain.State->DurableBytes == observed.State->DurableBytes);
+        Block.Stop(plain.State); Block.Stop(observed.State);
+    }
+
+    [HostTest("writable observation engine Pump preserves every generation and accumulates same-turn IN completion plus copy")]
+    private static void ObservationEnginePump()
+    {
+        using var f = new ContinuingFat32MutationTests.Fixture(observe: true); f.Record = false;
+        var o = f.Device.Observation; ulong generation = 0; Block.ObservationFlags lastFlags = 0; Block.Operation lastKind = default; bool sawReadCopy = false, sawWrite = false, sawFlush = false;
+        CStatusDrive();
+        void Sample()
+        {
+            if (o->Flags == Block.ObservationFlags.None) return;
+            if (o->Request.Generation != generation)
+            {
+                HostCheck.True(o->Request.Generation == generation + 1 && (generation == 0 || (lastFlags & Block.ObservationFlags.CompletionValidated) != 0 &&
+                    (lastKind != Block.Operation.Read || (lastFlags & Block.ObservationFlags.ReadCopied) != 0)));
+                generation = o->Request.Generation;
+            }
+            else HostCheck.True((o->Flags & lastFlags) == lastFlags);
+            if ((o->Flags & Block.ObservationFlags.ReadCopied) != 0)
+            {
+                sawReadCopy = true; HostCheck.True(o->PayloadBytes == 512 && o->CompletionBytes == 512 &&
+                    new ReadOnlySpan<byte>(o->Data, 512).SequenceEqual(f.Volatile.Slice(checked((int)o->Sector * 512), 512)));
+            }
+            if (o->Kind == Block.Operation.Write) HostCheck.True(o->PayloadBytes == 512 && new ReadOnlySpan<byte>(o->Data, 512).SequenceEqual(new ReadOnlySpan<byte>(f.Device.Data + 512, 512)));
+            sawWrite |= o->Kind == Block.Operation.Write; sawFlush |= o->Kind == Block.Operation.Flush;
+            lastFlags = o->Flags; lastKind = o->Kind;
+        }
+        OS.Storage.ContinuingFat32Mutation.Status Drive()
+        {
+            for (int i = 0; i < 100000; i++) { var result = f.Turn(); Sample(); if (result != OS.Storage.ContinuingFat32Mutation.Status.Pending) return result; }
+            throw new InvalidOperationException("observation engine did not terminate");
+        }
+        void CStatusDrive()
+        {
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Pending, OS.Storage.ContinuingFat32Mutation.Start(f.State, f.Input));
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Ready, Drive());
+            OS.Storage.ContinuingFat32Mutation.RequestToken request = default; OS.Storage.ContinuingFat32Mutation.FileToken file = default;
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Pending, OS.Storage.ContinuingFat32Mutation.BeginOpenRoot(f.State, "DATA.BIN", &request));
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Ready, Drive()); OS.Storage.ContinuingFat32Mutation.CopyOpen(f.State, request, &file);
+            byte[] bytes = Enumerable.Range(0, 37).Select(i => (byte)(i + 81)).ToArray();
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Pending, OS.Storage.ContinuingFat32Mutation.BeginOverwrite(f.State, file, 500, bytes, &request));
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Ready, Drive()); OS.Storage.ContinuingFat32Mutation.Result result = default;
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Success, OS.Storage.ContinuingFat32Mutation.CopyResult(f.State, request, &result));
+            HostCheck.True(result.Bytes == 37 && sawReadCopy && sawWrite && sawFlush && generation == f.Device.State->Submitted && generation == f.Device.State->Completed);
+            HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Success, OS.Storage.ContinuingFat32Mutation.Stop(f.State));
+        }
+    }
+
+    private delegate bool BorrowObservation(OS.Storage.ContinuingFat32Mutation.State* state, ulong epoch, ulong address, ulong bytes);
+    [HostTest("writable observation POD sizes keep state receipt pool and slot within one supervisor metadata page")]
+    private static void ObservationLayout()
+    {
+        HostCheck.True(!System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<Block.State>() &&
+            !System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<Block.Admission>() &&
+            !System.Runtime.CompilerServices.RuntimeHelpers.IsReferenceOrContainsReferences<Block.Observation>() && sizeof(Block.Observation) <= 1024 &&
+            sizeof(Block.State) + sizeof(OS.Storage.ContinuingFat32Mutation.State) + sizeof(DmaBufferPool) + sizeof(DmaBufferSlot) + sizeof(Block.Observation) <= 4096);
+        Console.WriteLine($"WRITABLE_OBSERVATION_LAYOUT state={sizeof(Block.State)} admission={sizeof(Block.Admission)} observation={sizeof(Block.Observation)} engine={sizeof(OS.Storage.ContinuingFat32Mutation.State)} pool={sizeof(DmaBufferPool)} slot={sizeof(DmaBufferSlot)}");
+    }
+
+    [HostTest("writable observation extent cannot alias continuing engine admission output or provider borrow")]
+    private static void ObservationEngineAliases()
+    {
+        using var f = new ContinuingFat32MutationTests.Fixture(observe: true);
+        var a = f.Input; a.Sector = (byte*)f.Device.Observation; byte[] before = new ReadOnlySpan<byte>(f.Device.Observation, sizeof(Block.Observation)).ToArray();
+        HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.InvalidStorage, OS.Storage.ContinuingFat32Mutation.Start(f.State, a));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Device.Observation, sizeof(Block.Observation)).SequenceEqual(before)); f.Mount();
+        var borrow = typeof(OS.Storage.ContinuingFat32Mutation).GetMethod("CanBorrowStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<BorrowObservation>();
+        HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Device.Observation, 8));
+        HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.InvalidStorage, OS.Storage.ContinuingFat32Mutation.BeginOpenRoot(f.State, "DATA.BIN", (OS.Storage.ContinuingFat32Mutation.RequestToken*)f.Device.Observation));
+        HostCheck.Equal(OS.Storage.ContinuingFat32Mutation.Status.Success, OS.Storage.ContinuingFat32Mutation.Stop(f.State));
+    }
+
     internal struct Hardware
     {
         internal byte* Data;
@@ -603,14 +815,16 @@ internal static unsafe class WritableBlockSessionTests
         internal readonly DmaBufferPool* Pool = (DmaBufferPool*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferPool));
         internal readonly DmaBufferSlot* Slot = (DmaBufferSlot*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferSlot));
         internal readonly Hardware* Hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware));
+        internal readonly Block.Observation* Observation;
         private static readonly int ownerOffset = (int)Marshal.OffsetOf<DmaBufferSlot>("Owner");
         internal DmaBufferOwnership Owner => *(DmaBufferOwnership*)((byte*)Slot + ownerOffset);
         private readonly ulong lifetime;
         private readonly ulong expectedCapacity;
         private readonly VirtioMappedRegion common, notify, device;
         internal VirtioNegotiationResult Negotiation;
-        internal Fixture(ulong capacity = Capacity)
+        internal Fixture(ulong capacity = Capacity, bool observe = false)
         {
+            if (observe) Observation = (Block.Observation*)NativeMemory.AllocZeroed((nuint)sizeof(Block.Observation));
             new Span<byte>(backing, 12288).Fill(0xa5);
             HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
             lifetime = (ulong)Interlocked.Increment(ref epoch);
@@ -635,7 +849,7 @@ internal static unsafe class WritableBlockSessionTests
             ExpectedCapacity = expectedCapacity, CompletionTimeoutNanos = 1000,
             Access = new() { Queue = new() { Context = Hardware, Read8 = &Read8, Write8 = &Write8, Read16 = &Read16, Write16 = &Write16,
                 Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn },
-            Clock = new() { Context = Hardware, Read = &Clock }
+            Clock = new() { Context = Hardware, Read = &Clock }, Observation = Observation
         };
         internal VirtioNegotiationResult Negotiate() => Negotiation = Block.Negotiate(common, 3, Input.Access.Queue);
         internal Block.Status Start() { Negotiate(); return Block.Start(State, Input); }
@@ -681,7 +895,7 @@ internal static unsafe class WritableBlockSessionTests
         {
             if (State->RequiresCleanup) HostCheck.Equal(Block.Status.Success, Block.Stop(State));
             NativeMemory.Free(Hardware->Medium); NativeMemory.Free(Hardware->Persistent);
-            NativeMemory.AlignedFree(backing); NativeMemory.Free(State); NativeMemory.Free(Pool); NativeMemory.Free(Slot); NativeMemory.Free(Hardware);
+            NativeMemory.AlignedFree(backing); NativeMemory.Free(State); NativeMemory.Free(Pool); NativeMemory.Free(Slot); NativeMemory.Free(Hardware); NativeMemory.Free(Observation);
         }
     }
 }

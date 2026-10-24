@@ -24,6 +24,34 @@ public static unsafe class WritableBlockSession
     }
     public enum Operation : byte { Write, Flush, Read }
 
+    [System.Flags]
+    public enum ObservationFlags : byte { None, Published = 1, CompletionValidated = 2, ReadCopied = 4 }
+
+    /// <summary>Optional accumulating receipt for the latest actual request.
+    /// Exclusive ordinary RAM belongs to the serialized supervisor until Stop
+    /// succeeds. Sample/copy it after EVERY block call or single engine Pump:
+    /// it is one slot, not a log, and the next publication replaces it. One
+    /// engine Pump can submit one generation OR poll/copy its existing one,
+    /// never both. Missing samples grant no evidence; consumers reject gaps.
+    /// Data is exact published OUT bytes, or successful committed IN copy bytes;
+    /// FLUSH/errors/uncopied IN have no payload. CompletionValidated is the
+    /// validated device result, distinct from cancellation and caller delivery.
+    /// FLUSH frontiers acknowledge the device protocol, not end-to-end storage
+    /// durability. No callback, execution authority or concurrent reader exists.
+    /// Stop preserves this past receipt; its owner scrubs/releases it afterward.</summary>
+    public struct Observation
+    {
+        public RequestToken Request;
+        public Operation Kind;
+        public ulong Sector, SubmittedCount, CompletedCount, SubmittedBytes, CompletedBytes, FlushTargetBytes, FlushAcknowledgedBytes;
+        public ushort AvailableIndex, ConsumedIndex;
+        public uint PayloadBytes, CompletionBytes;
+        public Status DeviceResult;
+        public ObservationFlags Flags;
+        public bool Cancelled;
+        public fixed byte Data[512];
+    }
+
     /// <summary>Trusted monotonic nanoseconds, exactly1 on success. The adapter
     /// retains nonthrowing code/context and the actual mapping/device authority.</summary>
     public struct ClockAccess
@@ -47,6 +75,10 @@ public static unsafe class WritableBlockSession
         public VirtioNegotiationResult Negotiation;
         public VirtioBlkReadAccess Access;
         public ClockAccess Clock;
+        /// <summary>Optional exclusive aligned slot, disjoint from owner,
+        /// pool/slots, DMA, MMIO and every source/output. Borrowed until Stop;
+        /// only valid admitted Start clears it. Null preserves legacy behavior.</summary>
+        public Observation* Observation;
     }
 
     /// <summary>Copied identity only. The exact retained owner, epoch and
@@ -196,6 +228,7 @@ public static unsafe class WritableBlockSession
             return Status.UnsupportedFeatures;
         if (!Admit(s, a)) return Status.InvalidAccess;
         s->Self = (ulong)s; s->PoolEpoch = a.Pool->Epoch; s->Input = a; s->Phase = StartingPhase;
+        if (a.Observation != null) *a.Observation = default;
         Status result = ReadClock(s, out _);
         if (result == Status.Success) result = ReadCapacity(s);
         if (result == Status.Success && s->Capacity != a.ExpectedCapacity) result = Status.ConfigurationChanged;
@@ -275,8 +308,23 @@ public static unsafe class WritableBlockSession
             if (!Fence(s)) return Fault(s, Status.OrderingFailed);
             s->Generation++; s->Sector = sector; s->Kind = kind; s->Deadline = now + s->Input.CompletionTimeoutNanos;
             s->FlushTarget = s->CompletedWriteBytes; s->CancelRequested = false; s->Phase = PendingPhase;
+            // After the first successful release fence only ordinary RAM work
+            // remains before actual index publication. Capture the exact DMA
+            // OUT payload while it is still unpublished, never stale IN data.
+            if (s->Input.Observation != null)
+            {
+                Observation* observed = s->Input.Observation; *observed = default;
+                observed->Request = new(s); observed->Kind = kind; observed->Sector = sector;
+                if (kind == Operation.Write)
+                { for (uint i = 0; i < 512; i++) observed->Data[i] = data[512 + i]; observed->PayloadBytes = 512; }
+            }
             s->AvailableIndex = unchecked((ushort)(s->AvailableIndex + 1)); available[1] = s->AvailableIndex;
             s->SubmittedCount++; if (kind == Operation.Write) s->SubmittedWriteBytes += 512;
+            if (s->Input.Observation != null)
+            {
+                Observation* observed = s->Input.Observation;
+                ObserveFrontiers(s, observed); observed->Flags = ObservationFlags.Published;
+            }
             if (!Fence(s)) return Fault(s, Status.OrderingFailed);
             var a = s->Input.Access.Queue;
             if (a.Write16(a.Context, s->NotifyAddress, 0) != 1) return Fault(s, Status.WriteFailed);
@@ -318,10 +366,11 @@ public static unsafe class WritableBlockSession
             s->UsedConsumed = index; s->CompletedCount++; s->Deadline = 0;
             result = status == 0 ? Status.Success : status == 1 ? Status.DeviceIoError : Status.UnsupportedRequest;
             *completion = new(s, result);
-            if (result != Status.Success) return Fault(s, result);
+            if (result != Status.Success) { ObserveCompletion(s, result); return Fault(s, result); }
             if (s->Kind == Operation.Write) s->CompletedWriteBytes += 512;
             else if (s->Kind == Operation.Flush) s->FlushedWriteBytes = s->FlushTarget;
             s->Phase = s->Kind == Operation.Read && !s->CancelRequested ? ReadReadyPhase : IdlePhase;
+            ObserveCompletion(s, result);
             return s->CancelRequested ? Status.Cancelled : s->Phase == ReadReadyPhase ? Status.Ready : Status.Success;
         }
         if (s->Phase == ReadReadyPhase) { *completion = new(s, Status.Success); return Status.Ready; }
@@ -337,7 +386,9 @@ public static unsafe class WritableBlockSession
         if (!Running(s)) return Status.InvalidState;
         if (s->Phase is not (PendingPhase or ReadReadyPhase) || !token.IsInitialized || token.Owner != (ulong)s ||
             token.Epoch != s->Input.Epoch || token.Generation != s->Generation) return Status.StaleToken;
-        s->CancelRequested = true; if (s->Phase == ReadReadyPhase) s->Phase = IdlePhase; return Status.Success;
+        s->CancelRequested = true;
+        if (s->Input.Observation != null) s->Input.Observation->Cancelled = true;
+        if (s->Phase == ReadReadyPhase) s->Phase = IdlePhase; return Status.Success;
     }
 
     /// <summary>Copy exactly512 validated IN bytes to exclusive ordinary RAM,
@@ -358,8 +409,11 @@ public static unsafe class WritableBlockSession
             Status status = CheckUnchanged(s); if (status != Status.Success) return Fault(s, status);
             if (!Fence(s)) return Fault(s, Status.OrderingFailed);
             byte* source = (byte*)s->Queue.Layout.Range.CpuVirtualAddress + 512;
-            for (uint i = 0; i < 512; i++) output[i] = source[i];
+            for (uint i = 0; i < 512; i++)
+            { byte value = source[i]; output[i] = value; if (s->Input.Observation != null) s->Input.Observation->Data[i] = value; }
         }
+        if (s->Input.Observation != null)
+        { s->Input.Observation->PayloadBytes = 512; s->Input.Observation->Flags |= ObservationFlags.ReadCopied; }
         s->Phase = IdlePhase; return Status.Success;
     }
 
@@ -449,7 +503,9 @@ public static unsafe class WritableBlockSession
         (Storage((ulong)s->Input.Pool, (ulong)sizeof(DmaBufferPool)) && s->Input.Pool->Self == (ulong)s->Input.Pool &&
         s->Input.Pool->Epoch == s->PoolEpoch && s->Input.Pool->Count is > 0 and <= 64 &&
         Storage((ulong)s->Input.Pool->Slots, s->Input.Pool->Count * (ulong)sizeof(DmaBufferSlot))));
-    private static bool Running(State* s) => Bound(s) && s->Running;
+    private static bool Running(State* s) => Bound(s) && s->Running &&
+        (s->Input.Observation == null || Storage((ulong)s->Input.Observation, (ulong)sizeof(Observation)) &&
+            CallerBufferCore(s, (ulong)s->Input.Observation, (ulong)sizeof(Observation)));
     // Read-only admission fact for retained providers. No clock/MMIO check or
     // I/O permission follows; each actual operation still revalidates hardware.
     internal static bool CanAdmitStorage(State* s, ulong expectedEpoch) =>
@@ -467,7 +523,9 @@ public static unsafe class WritableBlockSession
             range.DeviceAddress == original.DeviceAddress && range.ByteLength == original.ByteLength;
     }
     private static bool MetadataOutput(State* s, ulong start, ulong bytes) => Storage(start, bytes) && CallerBuffer(s, start, bytes);
-    private static bool CallerBuffer(State* s, ulong start, ulong bytes) => Storage(start, bytes, 1) &&
+    private static bool CallerBuffer(State* s, ulong start, ulong bytes) => CallerBufferCore(s, start, bytes) &&
+        (s->Input.Observation == null || !Overlap(start, bytes, (ulong)s->Input.Observation, (ulong)sizeof(Observation)));
+    private static bool CallerBufferCore(State* s, ulong start, ulong bytes) => Storage(start, bytes, 1) &&
         !Overlap(start, bytes, (ulong)s, (ulong)sizeof(State)) && !Overlap(start, bytes, (ulong)s->Input.Pool, (ulong)sizeof(DmaBufferPool)) &&
         !Overlap(start, bytes, (ulong)s->Input.Pool->Slots, s->Input.Pool->Count * (ulong)sizeof(DmaBufferSlot)) &&
         !Overlap(start, bytes, s->Input.Pool->Window.CpuVirtualBase, s->Input.Pool->Window.ByteLength) &&
@@ -482,12 +540,13 @@ public static unsafe class WritableBlockSession
             a.CompletionTimeoutNanos is 0 or > 60000000000UL || a.Clock.Read == null || q.Read8 == null || q.Write8 == null || q.Read16 == null ||
             q.Write16 == null || q.Read32 == null || q.Write32 == null || q.Fence == null || q.BusMasterOff == null || a.Access.BusMasterOn == null ||
             a.Access.PrepareInterrupt != null || a.Access.WaitInterrupt != null || a.Access.StopInterrupt != null ||
-            !Storage((ulong)s, (ulong)sizeof(State)) || !Storage((ulong)a.Pool, (ulong)sizeof(DmaBufferPool))) return false;
+            !Storage((ulong)s, (ulong)sizeof(State)) || !Storage((ulong)a.Pool, (ulong)sizeof(DmaBufferPool)) ||
+            a.Observation != null && !Storage((ulong)a.Observation, (ulong)sizeof(Observation))) return false;
         if (a.Pool->Self != (ulong)a.Pool || a.Pool->Epoch == 0 || a.Pool->Count is 0 or > 64 || !a.Pool->Window.IsInitialized ||
             a.Pool->Window.ByteLength != a.Pool->Count * 4096UL || !Storage((ulong)a.Pool->Slots, a.Pool->Count * (ulong)sizeof(DmaBufferSlot))) return false;
-        ulong* starts = stackalloc ulong[] { (ulong)s, (ulong)a.Pool, (ulong)a.Pool->Slots };
-        ulong* lengths = stackalloc ulong[] { (ulong)sizeof(State), (ulong)sizeof(DmaBufferPool), a.Pool->Count * (ulong)sizeof(DmaBufferSlot) };
-        for (int i = 0; i < 3; i++)
+        ulong* starts = stackalloc ulong[] { (ulong)s, (ulong)a.Pool, (ulong)a.Pool->Slots, (ulong)a.Observation };
+        ulong* lengths = stackalloc ulong[] { (ulong)sizeof(State), (ulong)sizeof(DmaBufferPool), a.Pool->Count * (ulong)sizeof(DmaBufferSlot), (ulong)sizeof(Observation) };
+        for (int i = 0; i < (a.Observation == null ? 3 : 4); i++)
         {
             if (Overlap(starts[i], lengths[i], a.Pool->Window.CpuVirtualBase, a.Pool->Window.ByteLength) ||
                 OverlapsRegion(starts[i], lengths[i], a.Common) || OverlapsRegion(starts[i], lengths[i], a.Notify) || OverlapsRegion(starts[i], lengths[i], a.Device)) return false;
@@ -497,6 +556,22 @@ public static unsafe class WritableBlockSession
             RegionOverlap(a.Common, a.Notify) || RegionOverlap(a.Common, a.Device) || RegionOverlap(a.Notify, a.Device)) return false;
         for (ulong i = 0; i < (ulong)sizeof(State); i++) if (((byte*)s)[i] != 0) return false;
         return true;
+    }
+    private static void ObserveFrontiers(State* s, Observation* observed)
+    {
+        observed->SubmittedCount = s->SubmittedCount; observed->CompletedCount = s->CompletedCount;
+        observed->SubmittedBytes = s->SubmittedWriteBytes; observed->CompletedBytes = s->CompletedWriteBytes;
+        observed->FlushTargetBytes = s->Kind == Operation.Flush ? s->FlushTarget : 0;
+        observed->FlushAcknowledgedBytes = s->FlushedWriteBytes;
+        observed->AvailableIndex = s->AvailableIndex; observed->ConsumedIndex = s->UsedConsumed;
+    }
+    private static void ObserveCompletion(State* s, Status result)
+    {
+        if (s->Input.Observation == null) return;
+        Observation* observed = s->Input.Observation; ObserveFrontiers(s, observed);
+        observed->DeviceResult = result; observed->Cancelled = s->CancelRequested;
+        observed->CompletionBytes = result == Status.Success && s->Kind != Operation.Flush ? 512U : 0;
+        observed->Flags |= ObservationFlags.CompletionValidated;
     }
     private static bool RegionAlias(VirtioMappedRegion r, OS.Kernel.Platform.DmaAddressWindow w) =>
         Overlap(r.VirtualStart, r.Bytes, w.CpuVirtualBase, w.ByteLength) || Overlap(r.PhysicalStart, r.Bytes, w.PhysicalBase, w.ByteLength);

@@ -1139,10 +1139,12 @@ public static unsafe class ContinuingFat32Mutation
         if (!Storage((ulong)p, (ulong)sizeof(DmaBufferPool), 8) || p->Self != (ulong)p || p->Epoch != d->PoolEpoch || p->Count is < 1 or > 64 ||
             !Storage((ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot), 8) || !p->Window.IsInitialized || p->Window.ByteLength != p->Count * 4096UL ||
             !Storage(p->Window.CpuVirtualBase, p->Window.ByteLength, 1) || !a.Common.IsValid || !a.Notify.IsValid || !a.Device.IsValid ||
-            !Storage(a.Common.VirtualStart, a.Common.Bytes, 1) || !Storage(a.Notify.VirtualStart, a.Notify.Bytes, 1) || !Storage(a.Device.VirtualStart, a.Device.Bytes, 1)) return false;
+            !Storage(a.Common.VirtualStart, a.Common.Bytes, 1) || !Storage(a.Notify.VirtualStart, a.Notify.Bytes, 1) || !Storage(a.Device.VirtualStart, a.Device.Bytes, 1) ||
+            a.Observation != null && !Storage((ulong)a.Observation, (ulong)sizeof(Block.Observation), 8)) return false;
         return !Overlap(address, bytes, (ulong)d, (ulong)sizeof(Block.State)) && !Overlap(address, bytes, (ulong)p, (ulong)sizeof(DmaBufferPool)) &&
             !Overlap(address, bytes, (ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot)) && !Overlap(address, bytes, p->Window.CpuVirtualBase, p->Window.ByteLength) &&
-            !Overlap(address, bytes, a.Common.VirtualStart, a.Common.Bytes) && !Overlap(address, bytes, a.Notify.VirtualStart, a.Notify.Bytes) && !Overlap(address, bytes, a.Device.VirtualStart, a.Device.Bytes);
+            !Overlap(address, bytes, a.Common.VirtualStart, a.Common.Bytes) && !Overlap(address, bytes, a.Notify.VirtualStart, a.Notify.Bytes) && !Overlap(address, bytes, a.Device.VirtualStart, a.Device.Bytes) &&
+            (a.Observation == null || !Overlap(address, bytes, (ulong)a.Observation, (ulong)sizeof(Block.Observation)));
     }
     private static bool Storage(ulong start, ulong bytes, ulong alignment) => start >= 4096 && (start & (alignment - 1)) == 0 && bytes != 0 && start < 0x0000800000000000UL && bytes <= 0x0000800000000000UL - start;
     private static bool Overlap(ulong a, ulong n, ulong b, ulong m) => n != 0 && m != 0 && a < b + m && b < a + n;
