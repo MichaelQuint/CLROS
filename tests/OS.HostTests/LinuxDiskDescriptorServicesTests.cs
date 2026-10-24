@@ -300,6 +300,38 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         HostCheck.Equal(0x416dU, o.Thread.Read32(Output + 24)); HostCheck.Equal(0UL, o.Thread.Read64(Output + 64));
     }
 
+    [HostTest("linux.disk first queued read submits once without completing or copying until a later turn")]
+    private static void FirstReadSubmission()
+    {
+        using Owner o = new(); uint fd = o.Open();
+        new Span<byte>(o.Thread.At(Output), 700).Fill(0xa5);
+        ulong submitted = o.Storage.Device->Submitted, completed = o.Storage.Device->Completed, copied = o.Storage.Device->Copied;
+        var call = o.Call(17, fd, Output, 700, 0); var request = o.Begin(call);
+        HostCheck.Equal(Fds.DiskProgress.Pending, request.Progress);
+        HostCheck.Equal(submitted, o.Storage.Device->Submitted);
+        HostCheck.Equal(Fds.DiskProgress.Pending, Fds.PumpDiskOne(o.Files.State, o.ThreadOwner).Progress);
+        HostCheck.Equal(submitted + 1, o.Storage.Device->Submitted);
+        HostCheck.Equal(completed, o.Storage.Device->Completed); HostCheck.Equal(copied, o.Storage.Device->Copied);
+        HostCheck.True(o.Storage.Device->ReadPending && new ReadOnlySpan<byte>(o.Thread.At(Output), 700).IndexOfAnyExcept((byte)0xa5) < 0);
+        o.Storage.Tick(); Fds.PumpDiskOne(o.Files.State, o.ThreadOwner);
+        HostCheck.Equal(submitted + 1, o.Storage.Device->Submitted);
+        HostCheck.Equal(completed + 1, o.Storage.Device->Completed); HostCheck.Equal(copied + 1, o.Storage.Device->Copied);
+        HostCheck.Equal(Fds.DiskProgress.Pending, Fds.PollDisk(o.Files.State, o.ThreadOwner, request.Token).Progress);
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 700).IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.Equal(Fds.DiskProgress.Ready, o.Ready(request.Token).Progress);
+        HostCheck.Equal(700L, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, request.Token, call).Value);
+        for (int i = 0; i < 700; i++) HostCheck.Equal(Payload(i), o.Thread.At(Output)[i]);
+        submitted = o.Storage.Device->Submitted;
+        foreach (var empty in new[] { o.Call(17, fd, Output, 0, 0), o.Call(17, fd, Output, 700, 700) })
+        {
+            var zero = o.Begin(empty);
+            HostCheck.Equal(Fds.DiskProgress.Ready, Fds.PumpDiskOne(o.Files.State, o.ThreadOwner).Progress);
+            HostCheck.Equal(0L, Fds.CompleteDisk(o.Files.State, o.ThreadOwner, o.Worker, zero.Token, empty).Value);
+            HostCheck.Equal(submitted, o.Storage.Device->Submitted);
+        }
+        HostCheck.Equal(0L, o.Run(o.Call(8, fd, 0, 1)));
+    }
+
     [HostTest("linux.disk measured16KiB pread requests return complete8KiB ranges and real EOF")]
     private static void ShortReads()
     {

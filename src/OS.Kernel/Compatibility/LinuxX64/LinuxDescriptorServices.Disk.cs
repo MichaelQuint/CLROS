@@ -314,7 +314,9 @@ public static unsafe partial class LinuxDescriptorServices
             Fs.OperationToken op = default;
             Fs.Status started = Fs.BeginRead(disk->Mount, disk->Bindings[r->Binding].File, r->Offset, wanted, &op);
             if (started != Fs.Status.Pending) return DrainDisk(state, r, DiskErrno(started), false, started);
-            r->Operation = op; r->Phase = DiskWorking; return DiskObservation(disk, r);
+            r->Operation = op; r->Phase = DiskWorking;
+            // BeginRead only reserves the range. Use this selected turn's one
+            // ordinary Poll to submit its first sector; never poll it twice.
         }
         Fs.Status status = Fs.Poll(disk->Mount, r->Operation);
         if (status == Fs.Status.Ready) { r->Phase = DiskReady; return DiskObservation(disk, r); }
