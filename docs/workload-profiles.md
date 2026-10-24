@@ -18,6 +18,19 @@ passes; see [completion gates](completion-gates.md#current-acceptance-october-23
 Older dated roadmap/evidence paragraphs retain their original scope; refresh
 live issue state and ownership before implementation.
 
+## Product scope and adapter boundaries
+
+The [core/adapter contract](architecture.md#core-services-and-application-adapters)
+keeps CLROS a .NET 11 Minimal API cloud appliance with no guest shell/terminal,
+SSH or command-execution admin endpoint. Common OS services must be reusable by
+Linux and the future custom PE path; neither Linux nor Windows compatibility is
+an end in itself. Add compatibility only for a documented supported workload
+need, with explicit limits and failures. #793 defines that capability contract;
+#795 must keep generic lifecycle/resource ownership reusable beneath ABI-specific
+startup. PE runtime porting remains separate and does not delay the current
+Kestrel batch. Optional hosted developer tools do not authorize a production
+administration surface or change the default appliance profile.
+
 ## Status
 
 Accepted for planning. This document defines workload profile names and gate

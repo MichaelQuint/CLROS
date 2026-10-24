@@ -9,6 +9,17 @@ These results do not implement the separate exported `OSHost_*` ABI or CoreCLR
 hosting. Keep errno/fd/register semantics out of that flat POD/status contract.
 Complete local Gate14 remains open under #226/#227.
 
+The [core/adapter contract](architecture.md#core-services-and-application-adapters)
+requires both the current Linux route and future custom PE route to reuse CLROS
+resource owners and services. The internal core contract is explicit status,
+ownership and lifetime; Linux errno/fds and PE imports remain adapter concerns.
+The exported `OSHost_*` ABI is a future boundary for runtime/app consumers, not
+a requirement to wrap every internal C# operation. A Linux syscall gateway is
+not the shared PAL for PE. Use the smallest concrete shared operation when a
+second consumer is needed, and retain independent adapter error/layout controls.
+Existing `LinuxMemoryServices` ownership logic is an extraction candidate when
+reuse is required; its current location does not establish full PE reuse.
+
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192, #686/#687,
 #193/#194/#688 and shared #733 batch: 5,202 full-host checks, 44 strict batch
 captures across 32 profiles, three retained strict GC repetitions and 24 fresh

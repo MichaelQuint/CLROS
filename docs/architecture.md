@@ -10,9 +10,10 @@ closed. [Current acceptance](completion-gates.md#current-acceptance-october-23-2
 lists the evidence and remaining #226/#227 local Gate14 work.
 
 Ordinary boot remains a terminal `VerifiedExit` path; application profiles are
-explicit and default off. General Linux compatibility, continuing disk-backed
-web files, exported CoreCLR PAL, SMP, multi-app isolation and providers remain
-later work. The older feature receipts below retain their named scopes.
+explicit and default off. Continuing disk-backed web files, exported CoreCLR
+PAL, SMP, multi-app isolation and providers remain later work. General Linux
+or Windows compatibility is not a product goal. The older feature receipts
+below retain their named scopes.
 
 The [NativeAOT-first decision](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12)
 is the current implementation order: upstream static Linux NativeAOT payload,
@@ -51,6 +52,54 @@ The bounded BAR/DMA batch #101-#104/#612 is accepted in
 a 122-record real diagnostic capture, and a 79-record ordinary regression.
 The default-off profile proves quiescent BAR sizing/restoration and owned-page
 address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
+
+## Core services and application adapters
+
+The product is a simple cloud appliance for supported .NET 11 NativeAOT
+Minimal API applications, normally one workload per VM. CLROS defines resource
+ownership, isolation, lifecycle and security policy. Linux supplies one supported
+application ABI; it does not define the kernel's internal architecture.
+
+| Layer | Responsibility |
+| --- | --- |
+| Shared CLROS services | Owned memory and mappings, scheduling/waits, clocks/randomness, device/block/filesystem services, network streams, resource budgets and cleanup. Use explicit statuses and owned handles/tokens. |
+| Linux application adapter | Translate syscall registers/numbers, flags, errno, descriptors, signal frames and ELF startup into supported core operations. Linux-specific semantic state belongs here. |
+| Future custom PE adapter | Validate PE imports/relocations and startup, then bind its app/runtime contract to the same core operations. It must not need Linux syscall frames or fd tables. This is not Windows binary compatibility. |
+| Boot/supervisor composition | Select the admitted workload, bind capabilities and adapter lifetimes, enforce limits and reclaim resources. This layer may intentionally know which adapter it wires. |
+
+Dependency direction is adapter to core. Common services must not acquire a
+dependency on `Compatibility/LinuxX64` or another app ABI. Shared C# calls do not
+need an exported ABI or virtual interface for every operation; the future flat
+`OSHost_*` boundary is a separate client of those services. Reusing the core does
+not itself port the .NET runtime/BCL to PE or qualify PE application execution.
+
+The October 23 source review finds useful separation already: Linux threads use
+`Threading/KernelThreadTable.cs`; memory uses `Memory/X64UserAddressSpace.cs`;
+networking uses the common `Net` services. The development disk adapter at
+`9a8e29d8` also uses `OS.Storage.ReadOnlyWebRootFileSystem`; that observation is
+not disk acceptance. `Memory/BootReservedRange.cs` has Linux profile reservation
+labels, which identify boot resources rather than impose an application ABI.
+
+The separation is not complete. `Compatibility/LinuxX64/LinuxMemoryServices.cs`
+still combines Linux mapping rules with reservation/backing/accounting work.
+When another adapter or supported extension needs that work, extract the small
+shared ownership operations into `Memory`, retaining Linux flag/errno translation
+in the adapter and requalifying affected behavior. Do not duplicate the allocator,
+add a second scheduler for PE, or perform a broad rewrite of qualified paths.
+
+Every compatibility expansion must name its supported workload/runtime need,
+smallest required behavior, core owner, ABI translation, limits, failure policy
+and focused validation. Unsupported operations must report the documented failure,
+not fabricated success. Keep ordinary deployment generic and driven by package
+metadata; runtime qualification may require native review, normal app rebuilds
+must not. The existing #793/#795 general-hosting work owns this review, without
+making a PE runtime port a prerequisite of local Kestrel.
+
+Production images expose no guest shell, terminal, SSH, arbitrary process launch
+or command-execution admin endpoint. Host build/deployment tools and bounded serial
+diagnostics are separate from a guest command interpreter. Preserve hardware
+protection, capability checks, quotas and safe cleanup; a smaller interface is
+attack-surface reduction, not proof of security. See [security](security.md).
 
 ## Build-time assurance and measured optimization
 

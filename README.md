@@ -68,6 +68,12 @@ components may be built externally and packaged with applications; reference
 repositories are not imported into the first-party build. The stable `OSHost_*`
 ABI remains separate from Linux register, errno and descriptor semantics.
 
+CLROS is designed as a single-workload appliance with no guest shell, terminal,
+SSH or command-execution administration endpoint. Core OS services must remain
+reusable by the Linux adapter and the future custom PE path. Compatibility grows
+only for the supported .NET workload contract; general Linux or Windows coverage
+is not a product goal. See the [core/adapter contract](docs/architecture.md#core-services-and-application-adapters).
+
 The initial guest target is x86-64 QEMU/OVMF with one vCPU, an immutable application
 package and one configured HTTP endpoint. CoreCLR/framework-dependent hosting,
 SMP and cloud-provider qualification follow the first working NativeAOT service.

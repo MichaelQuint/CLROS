@@ -84,6 +84,22 @@ intended deployment model is a minimal single-workload cloud appliance:
 - .NET 11 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
+CLROS owns its architecture and security policy. Linux compatibility is a
+bounded application adapter, not a goal of reproducing a general Linux system.
+Keep memory ownership, scheduling/waits, storage, networking, quotas and cleanup
+in reusable CLROS services suitable for both Linux and future custom PE apps.
+Keep syscall numbers, errno, fd tables, Linux structures/signals and ELF startup
+in the adapter; future PE imports/startup translate to the same core services.
+Do not route PE apps through Linux syscalls or require exported `OSHost_*` calls
+for ordinary internal C# calls. Prefer concrete shared operations over speculative
+abstraction frameworks. Existing mixed code needs a scoped, qualified extraction
+when extended for reuse, not a wholesale rewrite during an active batch.
+Require a supported .NET workload need before expanding compatibility. Normal
+app deployment must not add kernel code or require manual disassembly. Production
+images expose no interactive shell, terminal, SSH or command-execution admin
+endpoint; host tooling and bounded diagnostics remain separate. See the
+[core/adapter contract](docs/architecture.md#core-services-and-application-adapters).
+
 Ordinary `VerifiedExit` is accepted in [step1094](done/step1094.md) and ends
 after owned post-firmware checks. Diagnostic/application profiles remain
 explicit and default off. The pinned Linux NativeAOT route qualifies bounded
