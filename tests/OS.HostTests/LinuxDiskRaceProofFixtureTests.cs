@@ -41,6 +41,9 @@ internal static class LinuxDiskRaceProofFixtureTests
             }
         }
         string threads = Read("EfiEntry.LinuxThreads.cs");
+        Ordered(threads, "LinuxSyscallFrame call = *frame;",
+            "if (call.Number != 231 && !PollLinuxSocketNetwork(c))",
+            "ObserveNativeDiskExitCall(c, index, call)");
         Ordered(threads, "ObserveNativeDiskExitCall(c, index, call)", "LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame)");
         Ordered(threads, "ObserveNativeDiskExitCommit(c, index, false)", "c->Process.CommitExit(c->Key, 2, worker, out long clearTid)",
             "ObserveNativeDiskExitCommit(c, index, true)");
@@ -54,6 +57,7 @@ internal static class LinuxDiskRaceProofFixtureTests
         HostCheck.True(evidence.Contains("CopyLinuxAlias(state, 0x404000UL + offset, chunk, 128, false)", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("offset < 8192; offset += 128", StringComparison.Ordinal));
         HostCheck.True(!evidence.Contains("CompletedCount++", StringComparison.Ordinal) && !evidence.Contains("Block.Poll(", StringComparison.Ordinal));
+        HostCheck.True(evidence.Contains("M16_025_EXIT_REJECT reason=", StringComparison.Ordinal));
     }
 
     [HostTest("disk race packages are canonical deterministic two-worker cooperative children")]

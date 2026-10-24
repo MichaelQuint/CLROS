@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1587](../done/step1587.md) adds failure-only M16_025_EXIT_REJECT reasons:1 native owner/admission,2 parent wait,3 pending device/token,4 request/filesystem join,5 binding/sentinel. Embedded retained scalars are logged only after the boot-owner check; rejected request pointers are never dereferenced for diagnostics. No successful stage is fabricated. Original r01 has no such reason record and remains failed; its precise first rejected subcondition was not captured.
+
 [Step1586](../done/step1586.md) rejects impossible IRQ TIMING as well as TICK rows in the idle-only ExitPending path. Original consumption retains all indexed stage/IO records and no fabricated completion. Full-only runner serial capacity now shares128MiB with the final consumer; ordinary16MiB/service64MiB stay unchanged. HTTP failures save bounded stage/ordinal/error-chain/cancellation snapshots before owner cancellation and joined-runner diagnostics afterward. r02 lacks those receipts and remains failed.
 
 [Step1585](../done/step1585.md) adds copied finite FIFO/typed-terminal consumers, without changing markers, native paths or probe defaults. The ordinary5dd6e6c0 unfiltered full pass is6516 checks/882 fixture results; full DiskA r01 later emits native-return/service failures after31 HTTP captures, requested=0 and exit99. Original race launch remains refused.

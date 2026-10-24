@@ -499,10 +499,13 @@ public static unsafe partial class EfiEntry
                     image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return 0;
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
-#if CLROS_LINUX_SOCKETS
-            if (!PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
-#endif
             LinuxSyscallFrame call = *frame;
+#if CLROS_LINUX_SOCKETS
+            // A validated process-wide exit revokes waits before opportunistic
+            // device progress. Dispatch the genuine shutdown first; the normal
+            // exit/reap/reset path still owns cancellation and quiescence.
+            if (call.Number != 231 && !PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
+#endif
 #if M10_017_PROBE || M10_018_PROBE
             LinuxStaticFileBefore staticFileBefore = default;
             if (!LinuxStaticCaptureBefore(c, call, &staticFileBefore)) return LinuxNativeAbort(c, index);

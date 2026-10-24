@@ -1,5 +1,7 @@
 # App Model
 
+[Step1587](../done/step1587.md) gives validated process-wide exit precedence over opportunistic device progress; real Shutdown, CommitExit, cancellation, reset and release retain authority. The original pending-exit r01 failed before stage1, so the repaired order still needs a new original. M16-027 claims a bounded global writable descriptor implementation slice with reservation-before-create and cursor-after-copy rules; source5/native/SQLite acceptance is pending.
+
 [Step1586](../done/step1586.md) preserves full DiskA r02 as failed after35 HTTP responses, beyond the repaired UTC boundary but without browser or cleanup. The runner full-only serial cap now agrees with its128MiB consumer; actual full callback timeout remains3060s. A connected exact ExitPending consumer is preparation pending fresh guest evidence. Retained writable storage/descriptor/observer work remains isolated and does not qualify logs/uploads, durability or SQLite recovery.
 
 [Step1585](../done/step1585.md) preserves full DiskA r01 as failed:31 captured API/framework HTTP responses, no browser, native-return/service failure at about600s despite the full2100s execution policy. Full unfiltered host success at the same5dd6e6c0 source does not supersede that failed guest. Separate writable descriptor/lock/data-image preparations remain unintegrated host contracts.

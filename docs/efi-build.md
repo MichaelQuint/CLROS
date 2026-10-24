@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1587](../done/step1587.md) changes the reviewed native syscall-entry order: validated exit_group enters genuine shutdown before opportunistic polling. Other calls retain their pump. Exact source pins and focused admission checks accompany failure-only pending-exit diagnostics; native ABI/stack and a fresh original are still required. Full r03 continues independently at91cd04cd and must not inherit edits during its owned run.
+
 [Step1586](../done/step1586.md) retains original full r02 EFI at a692a4f4: no imports,2042 runtime records/1615 distinct unwind entries, SHA D1ABCA9F47F3CA4C5231FB6E8DD244A18927DD7A7BC10C40AE5A91B9D2E22FBB. Native/image preparation passes; the HTTP run later fails. The2048-record bound is unchanged. The new original ExitPending consumer still requires fresh selected native/source/ABI/stack and guest joins; host fixtures supply no native acceptance.
 
 [Step1585](../done/step1585.md) preserves the frozen5dd6e6c0 unfiltered full/native pass. The original full DiskA EFI has2032 runtime records/1605 distinct unwind entries and SHA4419557E3C237D90B29D4E515DD7D514F44F41702F980A2769A7A56A38F9784E; imports are absent and same-build source/object/map joins pass. Its later guest fails; publication is not full read/browser acceptance. The full-only finite UTC allowance is repaired to3600s with a reviewed Realtime source pin and source-admission controls. Ordinary600s/service continuing rules remain. The repaired EFI and new pending-exit observations still need original emitted-native/guest qualification.

@@ -1,4 +1,6 @@
 <p align="center">
+
+[Step1587](done/step1587.md) preserves the first original ExitPending failure: syscall-entry polling consumed the outstanding sector before the strict pending observation, and cleanup failed without an accepted terminal. Validated process-wide exit now precedes opportunistic polling; failure-only reason codes retain pending-state scalars. This repair still needs a fresh source-matched guest. Full DiskA r03 runs separately at committed91cd04cd; its result remains pending. The next writable descriptor scope is claimed without advancing write or SQLite acceptance.
   <img src="img/clros_logo.png" alt="CLROS logo" width="500">
 </p>
 

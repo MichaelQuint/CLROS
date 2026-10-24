@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1587](../done/step1587.md) owns original ExitPending r01 failure identities, validated exit_group-before-poll repair and failure-only diagnostics. Storage owns pending/reset semantics, diagnostics owns reasons1-5, and QEMU owns original-run provenance. M16-027 records the four-path writable descriptor claim; gateway/source5/native integration remains root-owned and unqualified.
+
 [Step1586](../done/step1586.md) owns ExitPending complete-consumer preparation, original full r02 failure identities, the live/final full serial-policy repair and bounded failure/runner diagnostics. Storage owns physical-prefix/FIFO/reset semantics; QEMU and host requirements own capture policy; Kestrel/application docs retain HTTP/browser limits. No original race or full demo has newly qualified.
 
 [Step1585](../done/step1585.md) owns the5dd6e6c0 full-host pass and first failed full DiskA run. Host requirements retain exact full timing/hash; QEMU/Kestrel/application docs retain the guest/HTTP/browser failure boundary. Storage owns finite FIFO/reset and isolated writable preparation scopes. Issue labels track scoped ownership/readback.

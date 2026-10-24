@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1587](../done/step1587.md) records a failed original mechanical ExitPending capture and its unqualified exit-before-poll repair. Separate full DiskA r03 at91cd04cd remains pending; full r01/r02 remain failed and no external Blazor demonstration is accepted. Writable descriptor preparation does not establish persistence, SQLite transactions or general Kestrel acceptance.
+
 [Step1586](../done/step1586.md) preserves full DiskA r02:35 responses through GET Microsoft.Extensions.Options.wasm26905B, then next HEAD fails. Packets show one connection, next request ACKed with a nonzero window and no FIN/RST; the live16MiB runner cap is a confirmed source defect and strongest explanation, not an observed original runner reason. Full-only128MiB and failure/runner receipts are repaired. Actual browser, remaining HTTP matrix and graceful cleanup still await original qualification.
 
 [Step1585](../done/step1585.md) records first full DiskA r01 at5dd6e6c0. The server listens at21484978800ns and captures31 HTTP responses through GET Microsoft.Extensions.Logging.Abstractions.wasm (28441 bytes), then the guest returns failure at about600s. The next HEAD/remaining asset matrix and external Blazor browser do not complete. HTTP receipt Complete=false; process exit99/requested=0 is not graceful shutdown or qualified service.

@@ -52,14 +52,17 @@ public static unsafe partial class EfiEntry
                 var parked = c->Threads.Inspect(c->Key, 2, parent->Kernel);
                 if (index != 1 || call.Argument0 != 42 || c->Capacity != 2 || o->Boot != c->State || o->Phase != 7 ||
                     o->ExitObservation.Phase != 0 || c->GuardAttached != 1 || c->ProcessAttached != 1 ||
-                    parent->Kernel.Value != 0x100000001 || c->Threads.Current.Value != 0x100000002 ||
-                    parent->Exiting != 0 || parent->WaitSource != 4 || !parent->Wait.IsValid ||
+                    parent->Kernel.Value != 0x100000001 || c->Threads.Current.Value != 0x100000002)
+                    return RejectNativeDiskExitObservation(c, index, 1);
+                if (parent->Exiting != 0 || parent->WaitSource != 4 || !parent->Wait.IsValid ||
                     !parked.Succeeded || parked.State != KernelThreadTable.State.Waiting ||
                     parked.Completion != KernelThreadTable.Completion.None || parked.Wait.Sequence != parent->Wait.Sequence ||
                     parent->WaitCall.Number != 0 || parent->WaitCall.Argument0 != 3 ||
-                    parent->WaitCall.Argument1 != 0x404000 || parent->WaitCall.Argument2 != 8192 || parent->DiskOutputBytes != 8192 ||
-                    !token.IsActive || token.Owner != (ulong)(&o->Descriptors) || token.Epoch != o->Descriptors.Epoch ||
-                    token.Index >= LinuxDescriptorServices.DiskSlots || !o->Device.ReadPending || !o->Mount.IoActive) return false;
+                    parent->WaitCall.Argument1 != 0x404000 || parent->WaitCall.Argument2 != 8192 || parent->DiskOutputBytes != 8192)
+                    return RejectNativeDiskExitObservation(c, index, 2);
+                if (!token.IsActive || token.Owner != (ulong)(&o->Descriptors) || token.Epoch != o->Descriptors.Epoch ||
+                    token.Index >= LinuxDescriptorServices.DiskSlots || !o->Device.ReadPending || !o->Mount.IoActive)
+                    return RejectNativeDiskExitObservation(c, index, 3);
                 var request = o->Requests + token.Index;
                 var fs = request->Operation;
                 if (request->Generation != token.Generation || request->Worker.Value != parent->Kernel.Value ||
@@ -72,14 +75,15 @@ public static unsafe partial class EfiEntry
                     fs.Index >= o->Mount.Input.OperationCount || fs.Index != o->Mount.IoIndex || fs.Generation != o->Mount.IoGeneration ||
                     o->Operations[fs.Index].Generation != fs.Generation || o->Mount.Input.Device != &o->Device ||
                     o->Mount.IoToken.Owner != (ulong)(&o->Device) || o->Mount.IoToken.Epoch != o->Device.PoolEpoch ||
-                    o->Mount.IoToken.Generation != o->Device.RequestGeneration || o->Device.Submitted != o->Device.Completed + 1) return false;
+                    o->Mount.IoToken.Generation != o->Device.RequestGeneration || o->Device.Submitted != o->Device.Completed + 1)
+                    return RejectNativeDiskExitObservation(c, index, 4);
                 var binding = o->Bindings + request->Binding;
                 var description = c->State->LinuxDescriptors.Owner.Descriptions + request->Description;
                 if (binding->Generation != request->BindingGeneration || binding->Description != request->Description ||
                     !binding->File.IsInitialized || binding->File.Owner != (ulong)(&o->Mount) ||
                     binding->File.Epoch != fs.Epoch || binding->File.Index >= o->Mount.Input.FileCount ||
                     o->Files[binding->File.Index].Generation != binding->File.Generation || description->Position != request->Offset ||
-                    !NativeDiskExitSentinelBytes(c->State)) return false;
+                    !NativeDiskExitSentinelBytes(c->State)) return RejectNativeDiskExitObservation(c, index, 5);
                 o->ExitObservation = new()
                 {
                     Main = parent->Kernel.Value, Child = c->Threads.Current.Value, Ordinal = LinuxNativeCallOrdinal(c, 0),
@@ -97,6 +101,29 @@ public static unsafe partial class EfiEntry
                     Cursor = description->Position, SlotActive = true, SlotBytes = parent->DiskOutputBytes
                 };
                 return WriteNativeDiskExitObservation(o);
+            }
+        }
+
+        // Failure-only scalars from the validated native control and retained
+        // static owner. Never dereference a rejected request/binding token or
+        // manufacture a successful stage. The caller still aborts and retains
+        // every uncertain owner through the ordinary cleanup path.
+        private static bool RejectNativeDiskExitObservation(LinuxNativeControl* c, uint index, uint reason)
+        {
+            fixed (NativeDiskOwner* o = &s_nativeDisk)
+            {
+                if (o->Boot != c->State) return false;
+                _ = LinuxText(c->State, "M16_025_EXIT_REJECT reason=") && LinuxNumber(c->State, reason) &&
+                    LinuxText(c->State, " index=") && LinuxNumber(c->State, index) &&
+                    LinuxText(c->State, " phase=") && LinuxNumber(c->State, o->ExitObservation.Phase) &&
+                    LinuxText(c->State, " readPending=") && LinuxNumber(c->State, o->Device.ReadPending ? 1UL : 0UL) &&
+                    LinuxText(c->State, " ioActive=") && LinuxNumber(c->State, o->Mount.IoActive ? 1UL : 0UL) &&
+                    LinuxText(c->State, " submitted=") && LinuxNumber(c->State, o->Device.Submitted) &&
+                    LinuxText(c->State, " completed=") && LinuxNumber(c->State, o->Device.Completed) &&
+                    LinuxText(c->State, " copied=") && LinuxNumber(c->State, o->Device.Copied) &&
+                    LinuxText(c->State, " generation=") && LinuxNumber(c->State, o->Device.RequestGeneration) &&
+                    LinuxText(c->State, " sector=") && LinuxNumber(c->State, o->Device.RequestSector) && LinuxText(c->State, "\r\n");
+                return false;
             }
         }
 

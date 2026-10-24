@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1587](../done/step1587.md) extends M16-027 ownership by the global descriptor core/Pipes/new WritableDisk partial/new test paths. Fresh scoped preview1/apply1/readback9unchanged verifies zero drift before agent source edits. Gateway, source5 threads and native integration stay root-owned. Preserve the failed original ExitPending and pending full r03 boundaries; no issue closes from this ownership preparation.
+
 [Step1586](../done/step1586.md) reconciles M16-025 complete ExitPending-consumer preparation and M10-018 original r02 failure/capture repair, plus isolated M06-021/M16-027 admission/observer scopes. Refresh content versions, preview/apply/readback and preserve all original failures. No issue closes from copied inspection, connected launch or host-only writable preparation.
 
 [Step1585](../done/step1585.md) extends M06-021 ownership to two isolated WritableDataImageFixture tool/test paths and M10-018 ownership to Realtime source plus its clock/startup tests. Each scoped preview1/apply1/readback9 unchanged confirms zero drift before edits. The full-profile finite UTC repair and copied FIFO/reset evidence retain open issue states and dependencies; isolated write/discovery/provider checkpoints grant no guest acceptance. Refresh content versions before later evidence reconciliation.
