@@ -147,4 +147,55 @@ internal static class NativeAotSqliteContractTests
         bool rejected=false;try{await NativeAotSqliteContract.RunManagedReferenceAsync(root,output);}catch(ToolFailure failure){rejected=failure.Reason=="sqlite_contract_fresh_output_required";}
         HostCheck.True(rejected);Console.WriteLine("SQLITE_MANAGED_REFERENCE "+output);
     }
+
+    [HostTest("sqlite contract source and provider admission reject altered inputs before native compilation")]
+    private static void UpstreamAdmission()
+    {
+        Reject(()=>NativeAotSqliteContract.InspectSourceArchiveValues(new byte[2946650]),"source_archive_hash");
+        Reject(()=>NativeAotSqliteContract.InspectSourceArchiveValues("untrusted upstream replacement"u8),"source_archive_hash");
+        Reject(()=>NativeAotSqliteContract.InspectProviderImports("shared library is not a signed provider package"u8),"provider_package_hash");
+        var archive=NativeAotSqliteContract.InspectStaticArchiveValues(ArchiveVector());
+        NativeAotSqliteContract.RequireProviderSymbols(archive,Array.AsReadOnly(new[]{"sqlite3_open_v2","sqlite3_step"}));
+        Reject(()=>NativeAotSqliteContract.RequireProviderSymbols(archive,Array.AsReadOnly(new[]{"sqlite3_unlock_notify"})),"provider_symbols_missing");
+    }
+
+    [HostTest("sqlite contract static recipe preserves original musl policy and enables only measured optional exports")]
+    private static void StaticRecipe()
+    {
+        string directory=Path.GetFullPath(Path.Combine("artifacts","sqlite-recipe-values")),source=Path.Combine(directory,"sqlite3.c"),
+            obj=Path.Combine(directory,"sqlite3.o"),archive=Path.Combine(directory,"libe_sqlite3.a");
+        var imports=Array.AsReadOnly(new[]{"sqlite3_open_v2","sqlite3_column_table_name","sqlite3_preupdate_hook"});
+        var compile=NativeAotSqliteContract.StaticCompileArguments(source,obj,imports);
+        HostCheck.True(compile.Take(4).SequenceEqual(new[]{"-c",source,"-o",obj}) && compile.Contains("-march=x86-64-v2") &&
+            compile.Contains("-DSQLITE_THREADSAFE=1") && compile.Contains("-DSQLITE_ENABLE_COLUMN_METADATA=1") &&
+            compile.Contains("-DSQLITE_ENABLE_PREUPDATE_HOOK=1") && !compile.Any(a=>a.Contains("SNAPSHOT",StringComparison.Ordinal) || a.Contains("OMIT",StringComparison.Ordinal)));
+        string[] old=NativeAotThreadingPayload.PublishArguments("NativeAotSuspensionSmoke",directory).ToArray();
+        old[1]="apps/NativeAotSocketSmoke/NativeAotSocketSmoke.csproj";
+        string recipe=System.Text.Json.JsonSerializer.Serialize(new[]{new{executable="dotnet",arguments=old}});
+        var publish=NativeAotSqliteContract.StaticPublishArguments(recipe,directory,archive);
+        HostCheck.True(publish[1]=="apps/NativeAotSqliteContract/NativeAotSqliteContract.csproj" &&
+            publish.Contains("-p:StaticExecutable=true") && publish.Contains("-p:PositionIndependentExecutable=false") &&
+            publish.Contains("-p:SqliteNativeArchive="+archive) && publish.Contains("--no-restore") &&
+            publish.Where(a=>a.StartsWith("-p:RuntimeFrameworkVersion=",StringComparison.Ordinal)).Single()=="-p:RuntimeFrameworkVersion="+NativeAotPayload.RuntimeVersion);
+        Reject(()=>NativeAotSqliteContract.StaticPublishArguments(recipe,directory,Path.Combine(directory,"libe_sqlite3.so")),"publish_archive");
+        bool rejected=false;
+        try{NativeAotSqliteContract.StaticPublishArguments(recipe.Replace("StaticExecutable=true","StaticExecutable=false",StringComparison.Ordinal),directory,archive);}
+        catch(ToolFailure failure){rejected=failure.Reason.Contains("recipe_changed",StringComparison.Ordinal);}
+        HostCheck.True(rejected);
+    }
+
+    [HostTest("sqlite contract distinguishes provider metadata from actual retained object imports")]
+    private static void RetainedImports()
+    {
+        string[] metadata=["sqlite3_open_v2","sqlite3_close_v2","sqlite3_prepare_v2","sqlite3_step","sqlite3_key"];
+        const string actual="                 U sqlite3_open_v2\n                 U sqlite3_close_v2\n                 U sqlite3_prepare_v2\n                 U sqlite3_step\n                 U malloc\n";
+        var result=NativeAotSqliteContract.InspectRetainedImportValues(actual,metadata);
+        HostCheck.True(result.Count==4 && !result.Contains("sqlite3_key"));
+        Reject(()=>NativeAotSqliteContract.InspectRetainedImportValues(actual+" U sqlite3_not_in_provider\n",metadata),"retained_import_unknown");
+        Reject(()=>NativeAotSqliteContract.InspectRetainedImportValues(actual.Replace(" U sqlite3_step"," U malloc",StringComparison.Ordinal),metadata),"retained_import_missing");
+        var weak=NativeAotSqliteContract.InspectFinalUndefinedValues("__gmon_start__ w\n_ITM_registerTMCloneTable w\n");
+        HostCheck.True(weak.Count==2 && weak.All(w=>w.Binding=='w') && NativeAotSqliteContract.InspectFinalUndefinedValues("").Count==0);
+        Reject(()=>NativeAotSqliteContract.InspectFinalUndefinedValues("sqlite3_key w\n"),"final_undefined_sqlite");
+        Reject(()=>NativeAotSqliteContract.InspectFinalUndefinedValues("malloc U\n"),"final_undefined_strong");
+    }
 }
