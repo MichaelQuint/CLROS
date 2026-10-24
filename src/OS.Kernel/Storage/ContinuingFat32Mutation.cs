@@ -72,6 +72,19 @@ public static unsafe class ContinuingFat32Mutation
             Fingerprint0 = U64(raw, 0); Fingerprint1 = U64(raw, 8); Fingerprint2 = U64(raw, 16); Fingerprint3 = U64(raw, 24);
         }
     }
+    /// <summary>Copied successful regular-file open facts. AllocatedClusters
+    /// is the actual validated full-chain count, including its final cluster;
+    /// Allocated512Blocks counts that chain's sectors, not rounded file bytes.
+    /// The engine rejects preallocated/overlong chains. These historical facts
+    /// grant no Linux stat policy, current fd/device authority or persistence.</summary>
+    public readonly struct OpenFacts
+    {
+        public readonly FileToken File;
+        public readonly uint ClusterBytes, AllocatedClusters;
+        public readonly ulong Allocated512Blocks;
+        internal OpenFacts(FileToken file, uint clusterBytes, uint clusters, ulong blocks)
+        { File = file; ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
+    }
     public readonly struct Result
     {
         public readonly Status Status;
@@ -529,6 +542,34 @@ public static unsafe class ContinuingFat32Mutation
         if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
         Status result = s->Failure; if (result == Status.Success) *file = s->File;
         EndRequest(s); return result;
+    }
+
+    /// <summary>Consume only a matching successful retained regular-file Open
+    /// into exclusive aligned ordinary RAM. factsBytes must equal sizeof
+    /// OpenFacts; validate the full extent/aliases before any output write.
+    /// Invalid storage preserves output and Ready. Other rejections clear the
+    /// admitted output but preserve the request; existing CopyOpen drains an
+    /// unsuccessful open. No I/O/callback/allocation occurs. The original clean
+    /// running block/DMA lifetime must still be current, while the final fd and
+    /// user-memory checks remain the caller's responsibility. Raw timestamp and
+    /// POSIX inode/mode policy are not introduced here.</summary>
+    public static Status CopyOpenFacts(State* s, RequestToken request, OpenFacts* facts, uint factsBytes)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (factsBytes != sizeof(OpenFacts) || !Output(s, (ulong)facts, (ulong)sizeof(OpenFacts))) return Status.InvalidStorage;
+        *facts = default;
+        if (!Matches(s, request) || s->Kind != Kind.Open) return Status.StaleToken;
+        if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
+        if (s->Failure != Status.Success) return s->Failure;
+        if (!CanAdmitStorage(s, s->Input.Epoch)) return Status.BlockFailure;
+        uint sectors = s->Volume.SectorsPerCluster, clusterBytes = sectors * 512U;
+        if (sectors is 0 or > 128 || (sectors & (sectors - 1)) != 0 || !FileMatches(s, s->File) ||
+            ((s->File.Fingerprint1 >> 24) & 0x18) != 0) return Status.InvalidState;
+        if (s->TargetCount > MaximumClusters || s->TargetCount != ((ulong)s->File.Length + clusterBytes - 1) / clusterBytes ||
+            (s->File.Length == 0 ? s->File.FirstCluster != 0 : s->File.FirstCluster < 2 || s->File.FirstCluster - 2 >= s->Volume.ClusterCount))
+            return Status.CorruptChain;
+        *facts = new(s->File, clusterBytes, s->TargetCount, (ulong)s->TargetCount * sectors);
+        EndRequest(s); return Status.Success;
     }
 
     /// <summary>Consume a retained overwrite/barrier result. No user pointer,

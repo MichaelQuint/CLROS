@@ -43,6 +43,176 @@ internal static unsafe class ContinuingFat32MutationTests
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
+    [HostTest("continuing FAT copied open allocation facts use actual paired chain and multisector cluster geometry without IO or layout growth")]
+    private static void OpenAllocationFacts()
+    {
+        HostCheck.True(!RuntimeHelpers.IsReferenceOrContainsReferences<C.OpenFacts>() && sizeof(C.OpenFacts) == sizeof(C.FileToken) + 16);
+        foreach (byte sectors in new byte[] { 1, 2, 4, 8 })
+        {
+            using var f = new Fixture(sectors); if (sectors != 1) f.Fat(4, 0xfffffff);
+            f.Mount(); HostCheck.Equal(C.Status.Pending, Open(f, "DATA.BIN", out var request)); HostCheck.Equal(C.Status.Ready, f.Run());
+            uint calls = f.Device.Hardware->Calls; ulong submitted = f.Device.State->Submitted;
+            C.OpenFacts facts = default; long allocated = GC.GetAllocatedBytesForCurrentThread();
+            HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+            HostCheck.True(GC.GetAllocatedBytesForCurrentThread() == allocated && f.Device.Hardware->Calls == calls && f.Device.State->Submitted == submitted);
+            HostCheck.True(facts.ClusterBytes == sectors * 512U && facts.AllocatedClusters == (sectors == 1 ? 2U : 1U) &&
+                facts.Allocated512Blocks == facts.AllocatedClusters * (ulong)sectors && facts.File.Length == 900 && facts.File.FirstCluster == 4 &&
+                facts.File.Revision == f.State->VolumeRevision && !f.State->RequestActive && f.Trace.All(row => row.Type == 0));
+            if (sectors >= 4) HostCheck.True(facts.Allocated512Blocks != (facts.File.Length + 511UL) / 512);
+            PhysicalFingerprint(facts.File, f.Volatile.Slice(Data * 512 + 32, 32));
+            // Independently follow the literal low-28 entries in both actual
+            // fake-medium FATs, rather than deriving an allocation from size.
+            uint cluster = facts.File.FirstCluster, count = 0;
+            while (true)
+            {
+                uint left = U32(f.Volatile, (First + Reserved) * 512 + checked((int)cluster) * 4) & 0xfffffff;
+                uint right = U32(f.Volatile, (First + Reserved + FatSectors) * 512 + checked((int)cluster) * 4) & 0xfffffff;
+                HostCheck.Equal(left, right); HostCheck.True(++count <= 2);
+                if (left >= 0xffffff8) break; cluster = left;
+            }
+            HostCheck.Equal(count, facts.AllocatedClusters);
+            C.FileToken old = default; HostCheck.Equal(C.Status.StaleToken, C.CopyOpen(f.State, request, &old));
+            C.OpenFacts duplicate = default; HostCheck.Equal(C.Status.StaleToken, C.CopyOpenFacts(f.State, request, &duplicate, (uint)sizeof(C.OpenFacts)));
+            HostCheck.Equal(0UL, duplicate.File.Owner); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+        Console.WriteLine($"CONTINUING_OPEN_FACTS_LAYOUT state={sizeof(C.State)} token={sizeof(C.FileToken)} facts={sizeof(C.OpenFacts)}");
+    }
+
+    [HostTest("continuing FAT empty open allocation is zero while raw historical metadata remains unchanged")]
+    private static void EmptyOpenFacts()
+    {
+        using var f = new Fixture(4); Span<byte> raw = f.Volatile.Slice(Data * 512 + 32, 32);
+        Put16(raw, 26, 0); Put32(raw, 28, 0); raw[11] = 0x21; Put16(raw, 24, 33);
+        f.Mount(); Open(f, "DATA.BIN", out var request); HostCheck.Equal(C.Status.Ready, f.Run()); C.OpenFacts facts = default;
+        HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(facts.ClusterBytes == 2048 && facts.AllocatedClusters == 0 && facts.Allocated512Blocks == 0 &&
+            facts.File.Length == 0 && facts.File.FirstCluster == 0 && facts.File.EntryOffset == (ulong)Data * 512 + 32);
+        PhysicalFingerprint(facts.File, raw); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        HostCheck.True(facts.ClusterBytes == 2048 && facts.File.Length == 0); // Copied historical value survives owner retirement.
+    }
+
+    [HostTest("continuing FAT open allocation rejects preallocated overlong mirrored and directory targets without consuming failed opens")]
+    private static void InvalidOpenFacts()
+    {
+        foreach (int mode in new[] { 0, 1, 2, 3 })
+        {
+            using var f = new Fixture(); Span<byte> raw = f.Volatile.Slice(Data * 512 + 32, 32);
+            C.Status expected = C.Status.CorruptChain;
+            if (mode == 0) Put32(raw, 28, 0); // A zero-length file may not retain a cluster.
+            if (mode == 1) { f.Fat(6, 8); f.Fat(8, 0xfffffff); } // Three clusters for900B is overlong.
+            if (mode == 2)
+            {
+                // Put the target in a different FAT sector: corruption in the
+                // root's shared FAT sector correctly rejects mount itself.
+                Put16(raw, 26, 128); f.Fat(128, 130); f.Fat(130, 0xfffffff);
+                Put32(f.Volatile, (First + Reserved + FatSectors) * 512 + 128 * 4, 0xfffffff); expected = C.Status.MirrorMismatch;
+            }
+            if (mode == 3) { raw[11] = 0x10; Put32(raw, 28, 0); expected = C.Status.Unsupported; }
+            f.Mount(); Open(f, "DATA.BIN", out var request); HostCheck.Equal(C.Status.Ready, f.Run());
+            ulong submitted = f.Device.State->Submitted; uint calls = f.Device.Hardware->Calls; C.OpenFacts facts = default;
+            HostCheck.Equal(expected, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+            HostCheck.Equal(expected, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+            HostCheck.True(f.State->RequestActive && facts.File.Owner == 0 && facts.ClusterBytes == 0 && facts.AllocatedClusters == 0 && facts.Allocated512Blocks == 0 &&
+                f.Device.State->Submitted == submitted && f.Device.Hardware->Calls == calls && f.Device.State->SubmittedBytes == 0);
+            C.FileToken file = default; HostCheck.Equal(expected, C.CopyOpen(f.State, request, &file));
+            HostCheck.True(!f.State->RequestActive && file.Owner == 0); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT open facts validate complete output size and aliases before touching caller engine device or ready ownership")]
+    private static void OpenFactsAliases()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); Open(f, "DATA.BIN", out var request); f.Run();
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray(), backing = new ReadOnlySpan<byte>(f.Input.Changes, (int)f.BackingBytes).ToArray();
+        byte[] device = new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).ToArray(), dma = new ReadOnlySpan<byte>(f.Device.Data, 4096).ToArray();
+        byte[] observed = new ReadOnlySpan<byte>(f.Device.Observation, sizeof(B.Observation)).ToArray(); uint calls = f.Device.Hardware->Calls;
+        new Span<byte>(f.Output, 128).Fill(0x5a);
+        foreach (uint bytes in new uint[] { 0, (uint)sizeof(C.FileToken), (uint)sizeof(C.OpenFacts) - 1, (uint)sizeof(C.OpenFacts) + 1, uint.MaxValue })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyOpenFacts(f.State, request, (C.OpenFacts*)f.Output, bytes));
+        foreach (ulong pointer in new[] { 0UL, 8UL, 0x0000800000000000UL, 0x00007ffffffffff8UL, (ulong)f.Output + 1,
+            (ulong)f.State, (ulong)f.Input.Changes, (ulong)f.Input.Before, (ulong)f.Input.After, (ulong)f.Input.DirectoryMap, (ulong)f.Input.FileMap,
+            (ulong)f.Input.WalkMap, (ulong)f.Input.Sector, (ulong)f.Input.Fat0, (ulong)f.Input.Fat1, (ulong)f.Input.Input, (ulong)f.Input.Name,
+            (ulong)f.Input.LongName, (ulong)f.Input.EncodedEntries, (ulong)f.Input.Before - 80,
+            (ulong)f.Device.State, (ulong)f.Device.Pool, (ulong)f.Device.Slot, (ulong)f.Device.Data, (ulong)f.Device.Observation, 0x400000UL, 0x402000UL, 0x403000UL })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyOpenFacts(f.State, request, (C.OpenFacts*)pointer, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Output, 128).IndexOfAnyExcept((byte)0x5a) < 0 && f.Device.Hardware->Calls == calls &&
+            new ReadOnlySpan<byte>(f.State, sizeof(C.State)).SequenceEqual(state) && new ReadOnlySpan<byte>(f.Input.Changes, (int)f.BackingBytes).SequenceEqual(backing) &&
+            new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).SequenceEqual(device) && new ReadOnlySpan<byte>(f.Device.Data, 4096).SequenceEqual(dma) &&
+            new ReadOnlySpan<byte>(f.Device.Observation, sizeof(B.Observation)).SequenceEqual(observed));
+        HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, request, (C.OpenFacts*)f.Output, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(((C.OpenFacts*)f.Output)->Allocated512Blocks == 2 && !f.State->RequestActive); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT open facts distinguish pending cancelled winner foreign and stale request generations without IO")]
+    private static void OpenFactsLifetime()
+    {
+        using var f = new Fixture(); f.Mount(); Open(f, "DATA.BIN", out var old); C.OpenFacts facts = default;
+        uint calls = f.Device.Hardware->Calls;
+        HostCheck.Equal(C.Status.Pending, C.CopyOpenFacts(f.State, old, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(facts.File.Owner == 0 && f.State->RequestActive && calls == f.Device.Hardware->Calls);
+        HostCheck.Equal(C.Status.Ready, C.Cancel(f.State, old));
+        HostCheck.Equal(C.Status.Cancelled, C.CopyOpenFacts(f.State, old, &facts, (uint)sizeof(C.OpenFacts))); HostCheck.True(f.State->RequestActive);
+        C.FileToken none = default; HostCheck.Equal(C.Status.Cancelled, C.CopyOpen(f.State, old, &none));
+        Open(f, "DATA.BIN", out var current); HostCheck.Equal(C.Status.Ready, f.Run()); calls = f.Device.Hardware->Calls;
+        foreach (int field in new[] { 0, 1, 2 })
+        {
+            C.RequestToken foreign = current; ((ulong*)&foreign)[field]++;
+            HostCheck.Equal(C.Status.StaleToken, C.CopyOpenFacts(f.State, foreign, &facts, (uint)sizeof(C.OpenFacts)));
+        }
+        HostCheck.Equal(C.Status.StaleToken, C.CopyOpenFacts(f.State, old, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(f.State->RequestActive && facts.File.Owner == 0 && calls == f.Device.Hardware->Calls);
+        HostCheck.Equal(C.Status.Ready, C.Cancel(f.State, current)); // Already validated Open Ready remains the winner.
+        HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, current, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(facts.AllocatedClusters == 2 && !f.State->RequestActive); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT open allocation facts retain copied lineage across mutation but cannot recapture stale tokens")]
+    private static void OpenFactsRevisions()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); Open(f, "DATA.BIN", out var first); f.Run(); C.OpenFacts original = default;
+        HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, first, &original, (uint)sizeof(C.OpenFacts)));
+        Create(f, "SIDE.TXT", "SIDE    TXT"u8, out var mutation); f.Run(); Result(f, mutation);
+        C.OpenFacts facts = default; HostCheck.Equal(C.Status.StaleToken, C.CopyOpenFacts(f.State, first, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.Equal(C.Status.StaleToken, Read(f, original.File, 0, 1, out _));
+        Open(f, "DATA.BIN", out var next); f.Run(); HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, next, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(facts.File.Revision == original.File.Revision + 1 && facts.AllocatedClusters == original.AllocatedClusters &&
+            facts.Allocated512Blocks == original.Allocated512Blocks && facts.ClusterBytes == original.ClusterBytes && facts.File.EntryOffset == original.File.EntryOffset);
+        Truncate(f, facts.File, 0, out mutation); f.Run(); C.MutationResult result = default;
+        HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, mutation, &result));
+        Open(f, "DATA.BIN", out next); f.Run(); HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, next, &facts, (uint)sizeof(C.OpenFacts)));
+        HostCheck.True(facts.File.Length == 0 && facts.AllocatedClusters == 0 && facts.Allocated512Blocks == 0 && original.Allocated512Blocks == 2 && original.File.Length == 900);
+        C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT open facts require original running DMA and preserve error or retired request ownership")]
+    private static void OpenFactsDeviceLifetime()
+    {
+        using (var f = new Fixture())
+        {
+            f.Mount(); Open(f, "DATA.BIN", out var request); f.Run();
+            ulong* generation = (ulong*)((byte*)f.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Device.Slot, "Generation")); ulong original = *generation;
+            C.OpenFacts facts = default; uint calls = f.Device.Hardware->Calls; (*generation)++;
+            try
+            {
+                HostCheck.Equal(C.Status.BlockFailure, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+                HostCheck.True(f.State->RequestActive && facts.File.Owner == 0 && f.Device.Hardware->Calls == calls);
+            }
+            finally { *generation = original; }
+            HostCheck.Equal(C.Status.Success, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+            Open(f, "DATA.BIN", out request); f.Run(); B.Stop(f.Device.State);
+            HostCheck.Equal(C.Status.BlockFailure, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+            HostCheck.True(f.State->RequestActive && facts.File.Owner == 0); C.Stop(f.State);
+            HostCheck.Equal(C.Status.InvalidState, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); Open(f, "DATA.BIN", out var request); f.FailAt = f.Device.Hardware->Notifies + 1;
+            HostCheck.Equal(C.Status.BlockFailure, f.Run()); C.OpenFacts facts = default;
+            HostCheck.Equal(C.Status.BlockFailure, C.CopyOpenFacts(f.State, request, &facts, (uint)sizeof(C.OpenFacts)));
+            HostCheck.True(facts.File.Owner == 0 && facts.Allocated512Blocks == 0); B.Stop(f.Device.State); C.Stop(f.State);
+        }
+    }
+
     [HostTest("continuing FAT POD backing is bounded and mount open use actual sectors without a raw image admission")]
     private static void PodMount()
     {
