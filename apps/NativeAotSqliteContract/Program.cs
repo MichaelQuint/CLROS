@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Data.Sqlite;
 
@@ -26,7 +25,7 @@ internal static class Program
                 connection.Open();
                 string version=Scalar(connection,"SELECT sqlite_version()"),source=Scalar(connection,"SELECT sqlite_source_id()");
                 Require(version=="3.53.4","engine_pin");
-                Console.WriteLine("SQLITE_ENGINE version="+version+" sourceSha256="+Hash(Encoding.UTF8.GetBytes(source)));
+                Console.WriteLine("SQLITE_ENGINE version="+version+" sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(source)));
                 Require(Scalar(connection,"PRAGMA journal_mode=DELETE")=="delete","journal_policy");
                 Execute(connection,"PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY; PRAGMA page_size=4096;");
                 Require(Scalar(connection,"PRAGMA synchronous")=="2" && Scalar(connection,"PRAGMA locking_mode=NORMAL")=="normal" &&
@@ -38,7 +37,7 @@ internal static class Program
                     Insert(connection,committed,1);VerifyRow(connection,committed);
                     Require(File.Exists(database+"-journal"),"commit_journal");committed.Commit();
                 }
-                Console.WriteLine("SQLITE_COMMIT rows=1 textSha256="+Hash(Encoding.UTF8.GetBytes(Text))+" blobSha256="+Hash(Blob)+" journal=true");
+                Console.WriteLine("SQLITE_COMMIT rows=1 textBytes="+Encoding.UTF8.GetByteCount(Text)+" blobBytes="+Blob.Length+" journal=true");
                 using(var rolledBack=connection.BeginTransaction(deferred:false))
                 {Insert(connection,rolledBack,2);Require(File.Exists(database+"-journal"),"rollback_journal");rolledBack.Rollback();}
                 Require(Scalar(connection,"SELECT count(*) FROM sample")=="1","rollback_count");
@@ -90,6 +89,5 @@ internal static class Program
     private static void Execute(SqliteConnection connection,string sql){using var command=connection.CreateCommand();command.CommandText=sql;command.ExecuteNonQuery();}
     private static int Error(Action action,int expected)
     {try{action();}catch(SqliteException error){Require(error.SqliteErrorCode==expected,"error_code");return error.SqliteErrorCode;}throw new InvalidOperationException("expected_sqlite_failure");}
-    private static string Hash(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes));
     private static void Require(bool condition,string reason){if(!condition)throw new InvalidOperationException(reason);}
 }

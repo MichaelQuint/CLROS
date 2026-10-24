@@ -92,10 +92,9 @@ internal static class NativeAotSqliteContractTests
 
     private static string Transcript()
     {
-        string hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("CLROS SQLite — café"))),
-            blob=Convert.ToHexString(SHA256.HashData(Enumerable.Range(0,34003).Select(i=>(byte)(i^(i>>9))).ToArray()));
-        return "TEST_START m10.020\nSQLITE_ENGINE version=3.53.4 sourceSha256="+new string('A',64)+
-            "\nSQLITE_POLICY journal=delete synchronous=2 locking=normal pageSize=4096\nSQLITE_COMMIT rows=1 textSha256="+hash+" blobSha256="+blob+
+        string source=Convert.ToBase64String(Encoding.UTF8.GetBytes("2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc"));
+        return "TEST_START m10.020\nSQLITE_ENGINE version=3.53.4 sourceBase64="+source+
+            "\nSQLITE_POLICY journal=delete synchronous=2 locking=normal pageSize=4096\nSQLITE_COMMIT rows=1 textBytes=22 blobBytes=34003"+
             " journal=true\nSQLITE_ROLLBACK rows=1 journal=true\nSQLITE_LOCK busy=5 rows=1\nSQLITE_REOPEN rows=1 integrity=ok\n"+
             "SQLITE_FAILURE readonly=8 missingParent=14\nSQLITE_CLEANUP journal=false wal=false shm=false\nTEST_PASS m10.020\n";
     }
@@ -106,7 +105,7 @@ internal static class NativeAotSqliteContractTests
         string original=Transcript();var value=NativeAotSqliteContract.InspectTranscriptValues(original);
         HostCheck.True(value.Engine=="3.53.4" && !value.GrantsNativeAotGuestOrDurabilityAuthority);
         foreach(var change in new[]{("synchronous=2","synchronous=0"),("busy=5","busy=0"),("readonly=8","readonly=0"),
-            ("journal=false","journal=true"),("rows=1 integrity=ok","rows=2 integrity=ok"),("sourceSha256="+new string('A',64),"sourceSha256=unknown")})
+            ("journal=false","journal=true"),("rows=1 integrity=ok","rows=2 integrity=ok"),("sourceBase64=","sourceBase64=unknown")})
             Reject(()=>NativeAotSqliteContract.InspectTranscriptValues(original.Replace(change.Item1,change.Item2,StringComparison.Ordinal)),"transcript_");
         Reject(()=>NativeAotSqliteContract.InspectTranscriptValues(original+"TEST_PASS m10.020\n"),"transcript_inventory");
     }

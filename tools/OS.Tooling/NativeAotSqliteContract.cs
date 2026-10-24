@@ -311,15 +311,19 @@ public static class NativeAotSqliteContract
     {
         Need(output.Length is >0 and <=65536,"transcript_size");string[] lines=output.Replace("\r\n","\n").TrimEnd('\n').Split('\n');
         Need(lines.Length==10 && lines[0]=="TEST_START m10.020" && lines[9]=="TEST_PASS m10.020","transcript_inventory");
-        const string prefix="SQLITE_ENGINE version=3.53.4 sourceSha256=";
-        Need(lines[1].StartsWith(prefix,StringComparison.Ordinal) && Hex(lines[1][prefix.Length..]),"transcript_engine");
+        const string prefix="SQLITE_ENGINE version=3.53.4 sourceBase64=";
+        byte[] source=new byte[128];
+        Need(lines[1].StartsWith(prefix,StringComparison.Ordinal) && lines[1].Length-prefix.Length<=172 &&
+            Convert.TryFromBase64String(lines[1][prefix.Length..],source,out int sourceBytes) &&
+            source.AsSpan(0,sourceBytes).SequenceEqual(Encoding.UTF8.GetBytes(SourceId)),"transcript_engine");
+        string sourceHash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SourceId)));
         string text=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("CLROS SQLite — café"))),
             blob=Convert.ToHexString(SHA256.HashData(Enumerable.Range(0,34003).Select(i=>(byte)(i^(i>>9))).ToArray()));
         string[] expected=["SQLITE_POLICY journal=delete synchronous=2 locking=normal pageSize=4096",
-            "SQLITE_COMMIT rows=1 textSha256="+text+" blobSha256="+blob+" journal=true","SQLITE_ROLLBACK rows=1 journal=true",
+            "SQLITE_COMMIT rows=1 textBytes=22 blobBytes=34003 journal=true","SQLITE_ROLLBACK rows=1 journal=true",
             "SQLITE_LOCK busy=5 rows=1","SQLITE_REOPEN rows=1 integrity=ok","SQLITE_FAILURE readonly=8 missingParent=14",
             "SQLITE_CLEANUP journal=false wal=false shm=false"];
-        Need(lines.Skip(2).Take(7).SequenceEqual(expected),"transcript_contract");return new(EngineVersion,lines[1][prefix.Length..],text,blob);
+        Need(lines.Skip(2).Take(7).SequenceEqual(expected),"transcript_contract");return new(EngineVersion,sourceHash,text,blob);
     }
 
     /// <summary>Copy bounded complete strace -ff/-ttt rows, retaining original
@@ -433,7 +437,7 @@ public static class NativeAotSqliteContract
         {
             await File.WriteAllTextAsync(Path.Combine(destination,"commands.json"),JsonSerializer.Serialize(commands),CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
-            {Schema="clros-sqlite-managed-reference-v1",Succeeded=succeeded,Failure=failure,Transcript=transcript,DatabaseSha256=databaseHash,
+            {Schema="clros-sqlite-managed-reference-v2",Succeeded=succeeded,Failure=failure,Transcript=transcript,DatabaseSha256=databaseHash,
                 LinuxNativeAotQualified=false,GuestQualified=false,DurabilityQualified=false}),CancellationToken.None);
         }
         return new(destination,transcript!,databaseHash);
@@ -520,7 +524,8 @@ public static class NativeAotSqliteContract
             Need(imports is not null,"provider_import_missing");
             for(int round=0;round<2;round++)
             {
-                string obj=Path.Combine(destination,"sqlite3-r"+round+".o"),lib=round==0?a:Path.Combine(destination,"libe_sqlite3-repeat.a");
+                string roundDirectory=Path.Combine(destination,"round"+round);Directory.CreateDirectory(roundDirectory);
+                string obj=Path.Combine(roundDirectory,"sqlite3.o"),lib=round==0?a:Path.Combine(destination,"libe_sqlite3-repeat.a");
                 await Run("compile-r"+round,"gcc",StaticCompileArguments(c,obj,imports!),TimeSpan.FromMinutes(10));
                 await Run("archive-r"+round,"ar",["crD",lib,obj]);Native(obj);Native(lib);
             }
