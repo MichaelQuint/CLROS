@@ -77,6 +77,9 @@ public unsafe partial struct LinuxThreadServices
     public bool MayChangeUserRange(ulong key, ulong flags, ulong address, ulong bytes)
     {
         if (!Access(key, flags) || !UserExtent(address, bytes)) return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (!MayChangeDiskOutput(address, bytes)) return false;
+#endif
         if (_futexEnabled) for (uint i = 0; i < _futex.Capacity; i++)
             if (_futex.Cells[i].References != 0 && Overlap(address, bytes, _futex.Cells[i].Address, 4)) return false;
         return true;

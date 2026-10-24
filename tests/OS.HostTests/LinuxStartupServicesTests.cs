@@ -302,6 +302,31 @@ internal static unsafe class LinuxStartupServicesTests
         public uint Reads, Copies, Fences, PartialCopyBytes;
         public bool FailCopy, FailClock, Regress;
     }
+    [HostTest("linux.startup brk shrink cannot invalidate retained disk output while nonoverlapping heap growth remains available")]
+    private static void DiskOutputBrkGuard()
+    {
+        using var startup = new Owner(); startup.Begin();
+        HostCheck.Equal((long)Heap + 3 * 4096, startup.Call(12, Heap + 3 * 4096));
+        using var disk = new LinuxDiskThreadServicesTests.Owner(); uint fd = disk.Open();
+        var threads = disk.Thread;
+        threads.UseMemory(startup.Memory.Memory);
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(startup.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard));
+        try
+        {
+            var child = threads.Clone(); disk.Begin(17, fd, Heap + 4096 + 128, 5); disk.Park();
+            HostCheck.Equal(child.Value, threads.Kernel.Dispatch().Value);
+            BrkRejected(startup, Heap + 4096);
+            HostCheck.Equal((long)Heap + 4 * 4096, startup.Call(12, Heap + 4 * 4096));
+            HostCheck.Equal((long)Heap + 3 * 4096, startup.Call(12, Heap + 3 * 4096));
+            disk.Ready(); BrkRejected(startup, Heap + 4096); // Held Ready still protects original backing.
+            // Completion won, so consume its genuine copy-fault result. This
+            // host fixture intentionally cannot copy dynamic user memory.
+            threads.Yield(child); HostCheck.Equal(-14L, disk.Consume());
+            HostCheck.Equal((long)Heap + 4096, startup.Call(12, Heap + 4096));
+        }
+        finally { HostCheck.True(LinuxMemoryServices.DetachMutationGuard(startup.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard)); }
+    }
+
     private sealed class Owner : IDisposable
     {
         public readonly LinuxMemoryServicesTests.Owner Memory;

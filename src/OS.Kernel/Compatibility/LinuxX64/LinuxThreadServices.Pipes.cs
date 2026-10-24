@@ -21,7 +21,7 @@ public unsafe partial struct LinuxThreadServices
         if (!a.SigpipeIgnored || a.PackageProcessId != 0 && a.PackageProcessId != _owner.ProcessId ||
             a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
             (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
-        for (uint i = 0; i < 25; i++)
+        for (uint i = 0; i < DescriptorExtentCount; i++)
         {
             DescriptorExtent(descriptors, i, out ulong start, out ulong bytes);
             if (bytes == 0) continue;
@@ -54,6 +54,9 @@ public unsafe partial struct LinuxThreadServices
             if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
             if (_descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
         }
+#endif
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (TryBeginDisk(flags, slot, frame, out var diskResult)) return diskResult;
 #endif
         uint* before = stackalloc uint[(int)LinuxDescriptorServices.MaximumPipes * 3];
         if (!LinuxDescriptorServices.DispatchThreads(_descriptors, _self, frame, ref slot->PipeOperation, before, out bool pipe, out long value))
@@ -192,7 +195,7 @@ public unsafe partial struct LinuxThreadServices
     private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
-        for (uint i = 0; i < 25; i++)
+        for (uint i = 0; i < DescriptorExtentCount; i++)
         {
             // Validated futex words may use application backing; service metadata may not.
             if (i == 8 && !includeUserBacking) continue;
@@ -201,9 +204,17 @@ public unsafe partial struct LinuxThreadServices
         }
         return false;
     }
+    private const uint DescriptorExtentCount = 25
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        + LinuxDescriptorServices.DiskExtentCount
+#endif
+        ;
     private static void DescriptorExtent(LinuxDescriptorServices.State* state, uint index, out ulong start, out ulong bytes)
     {
         var a = state->Owner; start = bytes = 0;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (index >= 25) { LinuxDescriptorServices.DiskExtentAt(state, index - 25, out start, out bytes); return; }
+#endif
         switch (index)
         {
             case 0: start = (ulong)state; bytes = (uint)sizeof(LinuxDescriptorServices.State); break;

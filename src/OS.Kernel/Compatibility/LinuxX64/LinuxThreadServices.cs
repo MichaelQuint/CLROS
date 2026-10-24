@@ -40,6 +40,10 @@ public unsafe partial struct LinuxThreadServices
         internal KernelThreadWait Wait;
         internal uint FutexCellIndex, WaitSource;
         internal LinuxDescriptorServices.PipeOperation PipeOperation;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        internal LinuxDescriptorServices.DiskToken DiskOperation;
+        internal uint DiskOutputBytes;
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         internal LinuxEpollServices.Operation EpollOperation;
 #endif
@@ -365,6 +369,9 @@ public unsafe partial struct LinuxThreadServices
         if (s->Exiting != 1 || captured.Identity != s->Kernel.Value) return false;
         if (!_owner.Threads->Exit(_owner.ThreadKey, flags, s->Kernel, captured, unchecked((int)s->ExitCode)).Succeeded) return false;
         bool dropped = DropPipeOperation(flags, s);
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        dropped = dropped && DropDiskOperation(s);
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         dropped = dropped && DropEpollOperation(s);
 #endif
@@ -410,6 +417,9 @@ public unsafe partial struct LinuxThreadServices
         this = default; return true;
     }
     private static bool HasDescriptorOperation(Slot* slot) => slot->PipeOperation.IsActive
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        || slot->DiskOperation.IsActive
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         || slot->EpollOperation.IsActive
 #endif

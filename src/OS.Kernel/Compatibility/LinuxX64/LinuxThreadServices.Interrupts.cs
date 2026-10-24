@@ -27,6 +27,11 @@ public unsafe partial struct LinuxThreadServices
         _failed = true; return false;
     }
 
+    private static bool InterruptibleWaitSource(uint source) => source is 1 or 2 or 3
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        or 4
+#endif
+        ;
     private bool InterruptWait(ulong flags, Slot* slot)
     {
         // Expired real-clock deadlines precede an interrupt, even if the CPU
@@ -34,7 +39,7 @@ public unsafe partial struct LinuxThreadServices
         if ((slot->WaitSource == 1 || slot->WaitSource == 3 && slot->WaitDeadline != 0) && (!Clock(out ulong now) ||
             _owner.Threads->Advance(_owner.ThreadKey, flags, now) != KernelThreadTable.Status.Ok)) return false;
         var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
-        if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence || slot->WaitSource is not (1 or 2 or 3)) return false;
+        if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence || !InterruptibleWaitSource(slot->WaitSource)) return false;
         if (state.Completion != KernelThreadTable.Completion.None) return true;
         return _owner.Threads->Interrupt(_owner.ThreadKey, flags, slot->Wait).Succeeded;
     }

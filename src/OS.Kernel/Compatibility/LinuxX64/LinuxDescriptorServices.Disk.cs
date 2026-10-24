@@ -236,10 +236,13 @@ public static unsafe partial class LinuxDescriptorServices
     /// original call supplied afresh. Revalidate the original fd generation
     /// before any output. Copy at most8KiB through shared descriptor scratch,
     /// recheck user mappings, scrub scratch, then commit a shared read cursor.
+    /// The pending thread passes its original writable-prefix ceiling; a newly
+    /// mapped tail cannot enlarge it. Zero-byte EOF remains valid at ceiling0.
+    /// Direct legacy owners retain their own mapping-lifetime obligation.
     /// A close/reuse, cancel or exit grants no late output or position change.</summary>
-    public static DiskResult CompleteDisk(State* state, ulong owner, OSHostHandle worker, DiskToken token, LinuxSyscallFrame call)
+    public static DiskResult CompleteDisk(State* state, ulong owner, OSHostHandle worker, DiskToken token, LinuxSyscallFrame call, uint outputBytes = DiskCompletionBytes)
     {
-        if (!Attached(state, owner) || !DiskRequestFor(state, token, out DiskRequest* r) ||
+        if (outputBytes > DiskCompletionBytes || !Attached(state, owner) || !DiskRequestFor(state, token, out DiskRequest* r) ||
             !worker.IsValid || worker.Value != r->Worker.Value || call.Number != r->Number) return new(DiskProgress.Rejected);
         if (r->Borrowed && (!IsCurrent(state, r->OriginalFd) || unchecked((uint)call.Argument0) != r->OriginalFd.Number))
             return DrainDisk(state, r, BadDescriptor, true, Fs.Status.Cancelled);
@@ -251,7 +254,7 @@ public static unsafe partial class LinuxDescriptorServices
             Fs.Status checkedFile = Fs.Inspect(state->Disk->Mount, state->Disk->Bindings[r->Binding].File, &live);
             if (checkedFile != Fs.Status.Success) return DrainDisk(state, r, Io, true, checkedFile);
         }
-        if (r->Kind is DiskOpen or DiskStat) return CompleteDiskOpen(state, r, call);
+        if (r->Kind is DiskOpen or DiskStat) return CompleteDiskOpen(state, r, call, outputBytes);
         Description* description = state->Owner.Descriptions + r->Description;
         if (r->Kind == DiskSeek) { description->Position = r->Offset; return FinishDisk(state, r, (long)r->Offset); }
         if (call.Argument2 != r->Requested || r->Positioned && call.Argument3 != r->Offset) return new(DiskProgress.Rejected);
@@ -265,7 +268,7 @@ public static unsafe partial class LinuxDescriptorServices
             r->Operation = default;
         }
         long value = copied;
-        if (copied != 0 && !Output(state, call.Argument1, state->Owner.Scratch, copied)) value = Fault;
+        if (copied > outputBytes || copied != 0 && !Output(state, call.Argument1, state->Owner.Scratch, copied)) value = Fault;
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
         if (value >= 0 && !r->Positioned) description->Position = r->Offset + copied;
         return FinishDisk(state, r, value, copiedStatus);
@@ -319,7 +322,7 @@ public static unsafe partial class LinuxDescriptorServices
         return DrainDisk(state, r, DiskErrno(status), false, status);
     }
 
-    private static DiskResult CompleteDiskOpen(State* state, DiskRequest* r, LinuxSyscallFrame call)
+    private static DiskResult CompleteDiskOpen(State* state, DiskRequest* r, LinuxSyscallFrame call, uint outputBytes)
     {
         Fs.OpenResult file = default;
         Fs.Status copied = Fs.CopyOpen(state->Disk->Mount, r->Operation, &file);
@@ -328,7 +331,7 @@ public static unsafe partial class LinuxDescriptorServices
         Fs.Status checkedFile = Fs.Inspect(state->Disk->Mount, file.File, &info);
         long value = checkedFile == Fs.Status.Success ? 0 : Io;
         if (value == 0 && r->RequireDirectory && !info.Info.IsDirectory) value = NotDirectory;
-        if (value == 0 && r->Kind == DiskStat) value = DiskStatOutput(state, info, call.Argument1);
+        if (value == 0 && r->Kind == DiskStat) value = outputBytes < 144 ? Fault : DiskStatOutput(state, info, call.Argument1);
         if (value == 0 && r->Kind == DiskOpen)
         {
             if (info.Info.IsDirectory) value = Unsupported; // No public directory-fd API in this slice.
