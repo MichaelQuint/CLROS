@@ -72,14 +72,16 @@ public static partial class QemuTranscripts
 
     private static ServiceWireCapture ServiceWirePackets(byte[] bytes, uint anchor, QemuArpReceiveReceipt arp,
         IReadOnlyList<uint> ports, bool concurrent, bool lifecycle = false, Action<ServiceWireByteRange>? observe = null, bool quotaStreams = false,
-        IReadOnlySet<int>? delegatedWebRecords = null)
+        IReadOnlySet<int>? delegatedWebRecords = null,bool diskStaticFull=false)
     {
+        Need(!diskStaticFull || concurrent && lifecycle && quotaStreams && delegatedWebRecords is null,"disk_full_wire_mode");
+        int streamMaximum=diskStaticFull?DiskStaticCapturePolicy.StreamBytes:QuotaPacketMaximumExtent;
         if (ports is null) throw new ToolFailure("service_wire_ports");
         Need(ports.Count is >0 and <=512 && ports.Distinct().Count() == ports.Count &&
             ports.All(port => port is >0 and <=65535), "service_wire_ports");
         Need(delegatedWebRecords is null || quotaStreams && concurrent && lifecycle && delegatedWebRecords.Count>0,
             "web_race_wire_delegation");
-        _ = QemuEthernetCapture.Inspect(bytes, anchor);
+        _ = QemuEthernetCapture.Inspect(bytes, anchor,diskStaticFull);
         int offset = 24, stage = 0, prefixEnd = 0, resolution = 0, tcpRecords = 0, quietSyns = 0, record = 0;
         ulong timestamp = 0; bool resolved = false; List<ServiceWireFlow> flows = []; int quotaExtent = 0,delegated=0;
         while (offset < bytes.Length)
@@ -169,13 +171,13 @@ public static partial class QemuTranscripts
                     // Count logical extents including holes before ANY growth.
                     // This is a parser extent budget, not allocated backing.
                     ulong end = (ulong)relative + (uint)payload.Length;
-                    Need(end <= QuotaPacketMaximumExtent, "service_quota_wire_extent");
+                    Need(end <= (ulong)streamMaximum, "service_quota_wire_extent");
                     int previous = outgoing ? flow.ResponseExtent : flow.RequestExtent;
                     int added = Math.Max(previous, (int)end) - previous;
-                    Need(added <= QuotaPacketMaximumExtent - quotaExtent, "service_quota_wire_aggregate");
+                    Need(added <= streamMaximum - quotaExtent, "service_quota_wire_aggregate");
                     quotaExtent += added;
                 }
-                GrowServiceWireBuffer(flow, outgoing, relative, payload.Length, lifecycle, quotaStreams);
+                GrowServiceWireBuffer(flow, outgoing, relative, payload.Length, lifecycle, quotaStreams,diskStaticFull);
             }
             byte[] data = outgoing ? flow.Response : flow.Request; bool[] seen = outgoing ? flow.ResponseSeen : flow.RequestSeen;
             int contiguous = outgoing ? flow.ServerSeen : flow.ClientSeen, extent = outgoing ? flow.ResponseExtent : flow.RequestExtent;
@@ -208,7 +210,7 @@ public static partial class QemuTranscripts
             else { flow.RequestExtent = extent; flow.ClientSeen = contiguous; }
             if ((flags & 1) != 0)
             {
-                Need((extent > 0 || delegatedWebRecords is not null) && relative + payload.Length == extent && contiguous == extent, "service_wire_fin_sequence");
+                Need((extent > 0 || diskStaticFull || delegatedWebRecords is not null) && relative + payload.Length == extent && contiguous == extent, "service_wire_fin_sequence");
                 if (outgoing) { if (!flow.ServerFin) { flow.ServerFinFirst = !flow.ClientFin; flow.ServerFinRecord = record; } flow.ServerFin = true; }
                 else { if (!flow.ClientFin) flow.ClientFinRecord = record; flow.ClientFin = true; }
             }
@@ -219,9 +221,9 @@ public static partial class QemuTranscripts
         return new(flows, tcpRecords, quietSyns);
     }
 
-    private static void GrowServiceWireBuffer(ServiceWireFlow flow, bool outgoing, uint relative, int bytes, bool lifecycle, bool quotaStreams = false)
+    private static void GrowServiceWireBuffer(ServiceWireFlow flow, bool outgoing, uint relative, int bytes, bool lifecycle, bool quotaStreams = false,bool diskStaticFull=false)
     {
-        int maximum = quotaStreams ? QuotaPacketMaximumExtent : lifecycle ? outgoing ? 524288 + 8192 : 32768 + 4096 : outgoing ? 16384 : 4096;
+        int maximum = diskStaticFull ? DiskStaticCapturePolicy.StreamBytes : quotaStreams ? QuotaPacketMaximumExtent : lifecycle ? outgoing ? 524288 + 8192 : 32768 + 4096 : outgoing ? 16384 : 4096;
         Need((ulong)relative + (uint)bytes <= (uint)maximum, "service_wire_payload_extent");
         int needed = (int)relative + bytes, current = outgoing ? flow.Response.Length : flow.Request.Length;
         if (needed <= current) return;

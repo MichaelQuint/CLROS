@@ -11,6 +11,9 @@ public static class NativeAotDiskSelection
     public static bool StaticSelected(IReadOnlyDictionary<string, bool> flags) =>
         Selected(flags) && flags.TryGetValue("EnableM10018Probe", out bool value) && value;
 
+    public static bool FullStaticSelected(IReadOnlyDictionary<string, bool> flags) =>
+        StaticSelected(flags) && flags.TryGetValue("EnableM10018FullProbe", out bool value) && value;
+
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
         bool disk = Selected(flags);
@@ -39,6 +42,13 @@ public static class NativeAotDiskSelection
             throw new ToolFailure("disk_mechanical_original_raw_required");
         if (options.WebRootFixture is not ("DiskA" or "DiskB") || options.WebRootAssets.Length == 0)
             throw new ToolFailure("disk_webroot_fixture_required");
+        if (FullStaticSelected(flags))
+        {
+            if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = DiskStaticCapturePolicy.DefaultTimeoutSeconds;
+            if (options.TimeoutSeconds is < DiskStaticCapturePolicy.MinimumTimeoutSeconds or > DiskStaticCapturePolicy.MaximumTimeoutSeconds)
+                throw new ToolFailure("disk_static_full_timeout");
+            return true;
+        }
         if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = web ? 825 : 180;
         if (web ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 285)
             throw new ToolFailure(web ? "disk_static_timeout" : "disk_mechanical_timeout");

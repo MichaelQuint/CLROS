@@ -9,6 +9,9 @@ public unsafe struct LinuxStaticFileObservation
     public const ulong RequestDelayNanoseconds = 120_000_000_000;
     public const ulong GraceNanoseconds = 60_000_000_000;
     private ulong main, boundWriter, readyAt, requestedAt, exitedAt, last;
+    private bool diskStaticFull;
+    private readonly ulong RequestDelay => diskStaticFull ? DiskStaticExecutionPolicy.RequestDelayNanoseconds : RequestDelayNanoseconds;
+    private readonly ulong Grace => diskStaticFull ? DiskStaticExecutionPolicy.GraceNanoseconds : GraceNanoseconds;
     private uint boundFd, position;
     private bool entered, bound, ready, requested, ended, exited, closed, failed;
     public enum Progress : byte { Rejected, Waiting, RequestTermination, Draining, Exited, GraceExpired }
@@ -24,10 +27,10 @@ public unsafe struct LinuxStaticFileObservation
 
     /// <summary>Bind the actual handle returned by Process.Start, before user
     /// entry. A reused/default observer or empty handle rejects unchanged.</summary>
-    public bool Begin(ulong generation)
+    public bool Begin(ulong generation, bool diskStaticFull = false)
     {
         if (main != 0 || generation == 0) return false;
-        main = generation; return true;
+        main = generation; this.diskStaticFull = diskStaticFull; return true;
     }
 
     /// <summary>Borrow one already copied stdout/stderr record. Exact stderr
@@ -90,8 +93,8 @@ public unsafe struct LinuxStaticFileObservation
         if (failed || main == 0 || !Time(now)) { Reject(); return Progress.Rejected; }
         if (exited) return GracefulExit ? Progress.Exited : Progress.Rejected;
         if (!ready) return Progress.Waiting;
-        if (!requested) return now - readyAt >= RequestDelayNanoseconds ? Progress.RequestTermination : Progress.Waiting;
-        if (now - requestedAt >= GraceNanoseconds) { Reject(); return Progress.GraceExpired; }
+        if (!requested) return now - readyAt >= RequestDelay ? Progress.RequestTermination : Progress.Waiting;
+        if (now - requestedAt >= Grace) { Reject(); return Progress.GraceExpired; }
         return Progress.Draining;
     }
 
@@ -100,7 +103,7 @@ public unsafe struct LinuxStaticFileObservation
     /// early, mismatched or regressing observations reject permanently.</summary>
     public bool RecordRequest(ulong target, ulong now)
     {
-        if (failed || !ready || requested || target != main || !Time(now) || now - readyAt < RequestDelayNanoseconds) return Reject();
+        if (failed || !ready || requested || target != main || !Time(now) || now - readyAt < RequestDelay) return Reject();
         requestedAt = now; requested = true; return true;
     }
 
@@ -110,13 +113,13 @@ public unsafe struct LinuxStaticFileObservation
     public bool RecordExit(ulong writer, uint code, ulong now)
     {
         if (failed || writer != main || !ready || !requested || !ended || !closed || exited || code != 0 ||
-            !Time(now) || now - requestedAt >= GraceNanoseconds) return Reject();
+            !Time(now) || now - requestedAt >= Grace) return Reject();
         exitedAt = now; exited = true; return true;
     }
 
     private bool Time(ulong now)
     {
-        if (now > long.MaxValue || now < last || now > (ulong)long.MaxValue - RequestDelayNanoseconds - GraceNanoseconds) return false;
+        if (now > long.MaxValue || now < last || now > (ulong)long.MaxValue - RequestDelay - Grace) return false;
         last = now; return true;
     }
     private bool Reject() { failed = true; return false; }

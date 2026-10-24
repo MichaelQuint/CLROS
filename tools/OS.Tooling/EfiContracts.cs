@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "5e881114361f04e3da165b690fa21bdffce5e91af261bf9bf0bf083d3ee88f85";
-    public const string CanonicalProjectSha256 = "99730940f9fc849580fb93bd2426e02cd3b422d4be5c014a17643f38114b1a13";
+    public const string ProjectSourceSha256 = "9cc1f0adef742d7be502193de89cc6262737f6911c415b66f4ae91721b130792";
+    public const string CanonicalProjectSha256 = "ce26546f0d1fca802acb9d2886524a3b4cb1582319cae11067cb3b7acabef344";
     // Current normalized source authority for fresh M02/M04 builds (step1555).
     // Reviewed M16-only changes leave those selected paths unchanged; historical
     // artifact receipts retain their original source hashes.
@@ -326,6 +326,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs|Compatibility\LinuxX64\LinuxElfStartup.cs",
         @"..\OS.Kernel\Memory\X64UserAddressSpace.cs|Memory\X64UserAddressSpace.cs",
         @"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs|Std\Text\AsciiArgumentSplitter.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\DiskStaticExecutionPolicy.cs|Compatibility\LinuxX64\DiskStaticExecutionPolicy.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs|Compatibility\LinuxX64\LinuxSyscallGateway.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.ExitTail.cs|Compatibility\LinuxX64\LinuxSyscallGateway.ExitTail.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs|Compatibility\LinuxX64\LinuxMemoryServices.cs",
@@ -486,7 +487,7 @@ public static partial class EfiContracts
         "EnableM07VirtioNetProbe",
         "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe",
         "EnableM09011Probe", "EnableM09012Probe",
-        "EnableM10004Probe", "EnableM10017Probe", "EnableM10018Probe",
+        "EnableM10004Probe", "EnableM10017Probe", "EnableM10018FullProbe", "EnableM10018Probe",
         "EnableM16002Probe",
         "EnableM16003Probe",
         "EnableM16004Probe",

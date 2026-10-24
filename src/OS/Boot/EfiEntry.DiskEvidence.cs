@@ -25,6 +25,8 @@ public static unsafe partial class EfiEntry
             internal bool Enabled, Failed;
         }
         private const uint NativeDiskEvidenceCapacity = 8, NativeDiskEvidenceLimit = 65536;
+        private static uint SelectedNativeDiskEvidenceLimit => OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ?
+            OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumDeviceRecords : NativeDiskEvidenceLimit;
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte ObserveNativeDisk(void* context, Block.Observation* observation, byte* bytes)
@@ -40,7 +42,7 @@ public static unsafe partial class EfiEntry
             // A read admitted before arming retains its earlier scope.
             if (evidence->Generation != observation->Generation) return 1;
             bool copy = observation->Kind == Block.ObservationKind.CopyReady;
-            if (evidence->Count == NativeDiskEvidenceCapacity || evidence->Total == NativeDiskEvidenceLimit ||
+            if (evidence->Count == NativeDiskEvidenceCapacity || evidence->Total == SelectedNativeDiskEvidenceLimit ||
                 (copy ? bytes == null || observation->Bytes != 512 : bytes != null))
             { evidence->Failed = true; return 0; }
             NativeDiskRecord* record = &evidence->A + evidence->Count;

@@ -1,5 +1,14 @@
 # CLROS AI Agent Guide
 
+[Step1581](done/step1581.md) adds the explicitly selected, default-off
+`-EnableM10018FullProbe` candidate. Its finite policy, full asset HTTP peer,
+consecutive-read/send checks and original external Chromium capture are now
+connected. This is implementation with focused host evidence; no full guest or
+browser execution has passed yet. Step1580's five-response result retains its
+scope. Three full boots across DiskA/B, actual storage races/errors and stable
+full/native/ancestor verification still precede read-batch closure. Exactly two
+isolated agents continue writable descriptors and pinned SQLite reference work.
+
 ## Start here
 
 [Step1580](done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
@@ -25,7 +34,7 @@ documentation/tracker and native/guest serialization. Preserve every failed run.
 [Step1578](done/step1578.md) adds an original five-response disk/static
 consumer candidate joining held image/native/source/process, full scheduler,
 physical sectors, TCP entities and read-before-send order. Its scope is explicitly
-`five-response-development`; no fresh guest has qualified it yet. Host controls
+`five-response-development`; step1580 later supplies its fresh original pass. Host controls
 cover cancellation receipts and ownership/clock substitution. Separate lifecycle
 fixtures add interrupt, EOF winner and pending-exit controls; actual race guests
 remain required. Full Blazor/browser, stable batch and all writes/SQLite stay open.

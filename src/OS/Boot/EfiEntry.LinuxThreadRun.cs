@@ -69,7 +69,7 @@ public static unsafe partial class EfiEntry
                         if (c->Budget.RequiresClock && !(LinuxText(state, "M16_008_BUDGET started=") && LinuxNumber(state, c->Budget.StartedNanoseconds) &&
                             LinuxText(state, " epochs=") && LinuxNumber(state, c->Budget.MaximumEpochs) &&
                             LinuxText(state, " steps=") && LinuxNumber(state, c->Budget.MaximumSteps) &&
-                            LinuxText(state, " nanos=") && LinuxNumber(state, LinuxThreadExecutionBudget.RuntimeNanoseconds) && LinuxText(state, "\r\n"))) c->Failed = 1;
+                            LinuxText(state, " nanos=") && LinuxNumber(state, c->Budget.ElapsedLimitNanoseconds) && LinuxText(state, "\r\n"))) c->Failed = 1;
 #endif
                         var plan = state->LinuxSyscallPlan;
                         LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
@@ -81,8 +81,16 @@ public static unsafe partial class EfiEntry
                         {
 #if M10_017_PROBE || M10_018_PROBE
                             c->StaticMain = first;
-                            if (!c->StaticApp.Begin(first.Value) || !LinuxText(state, LinuxStaticStart))
+                            if (!c->StaticApp.Begin(first.Value, OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe) || !LinuxText(state, LinuxStaticStart))
                                 return LinuxNativeCleanupRejected(state, 12);
+#endif
+#if M10_018_FULL_PROBE
+                            if (!(LinuxText(state, "M10_018_POLICY profile=DiskStaticFullV1 version=") && LinuxNumber(state, DiskStaticExecutionPolicy.Version) &&
+                                LinuxText(state, " calls=") && LinuxNumber(state, DiskStaticExecutionPolicy.MaximumCalls) &&
+                                LinuxText(state, " requestNanos=") && LinuxNumber(state, DiskStaticExecutionPolicy.RequestDelayNanoseconds) &&
+                                LinuxText(state, " graceNanos=") && LinuxNumber(state, DiskStaticExecutionPolicy.GraceNanoseconds) &&
+                                LinuxText(state, " runtimeNanos=") && LinuxNumber(state, DiskStaticExecutionPolicy.RuntimeNanoseconds) &&
+                                LinuxText(state, " renewal=none\r\n"))) return LinuxNativeCleanupRejected(state, 12);
 #endif
                             c->Phase = 3; ran = LinuxNativeRun(c);
                         }

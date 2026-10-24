@@ -49,10 +49,10 @@ public static class NativeDiskReadObservations
     /// without a distinct zero-byte completion is outside this finite contract.
     /// Return bounded immutable copies; malformed, incomplete, extra or divergent
     /// observations throw ToolFailure. No I/O or owner lifetime is introduced.</summary>
-    public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary)
+    public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, bool diskStaticFull = false)
     {
         int rowCount = selectedRows?.Count ?? 0;
-        Need(rowCount is > 0 and <= MaximumRows && rawImage.Length >= 512 &&
+        Need(rowCount>0 && rowCount<=(diskStaticFull?DiskStaticCapturePolicy.DeviceRows:MaximumRows) && rawImage.Length >= 512 &&
             rawImage.Length <= WebRootImageFixture.MaximumImageBytes && rawImage.Length % 512 == 0, "input");
         Need(boundary.Owner != 0 && boundary.Epoch != 0 && boundary.BootstrapCopied <= boundary.BootstrapCompleted &&
             boundary.Submitted > boundary.BootstrapCompleted && boundary.Completed == boundary.Submitted &&

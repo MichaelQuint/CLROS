@@ -56,7 +56,8 @@ internal static class EfiCompileInventoryTests
                 bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
                     requested.IsEnabled("M09010") && other.IsEnabled("M09009");
                 bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
-                HostCheck.True(waitPair || signalPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
+                bool diskPair=requested.IsEnabled("M10018") && other.IsEnabled("M10018");
+                HostCheck.True(waitPair || signalPair || diskPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
                 try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
                 catch (ToolFailure failure) { actual = failure.Reason; }
                 HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
@@ -89,7 +90,8 @@ internal static class EfiCompileInventoryTests
         EfiOptions.Parse(["--EnableM10004Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10017Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM16025Probe"], true).Profile(),
-        EfiOptions.Parse(["--EnableM10018Probe"], true).Profile()
+        EfiOptions.Parse(["--EnableM10018Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile()
     ];
 
     // The project declarations are an independent oracle for the shared helper.
@@ -120,6 +122,7 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM16011Probe)' == 'true'" => profile.IsEnabled("EnableM16011Probe"),
             "'$(EnableM10004Probe)' == 'true'" => profile.IsEnabled("EnableM10004Probe"),
             "'$(EnableM10017Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe"),
+            "'$(EnableM10017Probe)' == 'true' or '$(EnableM10018Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe") || profile.IsEnabled("EnableM10018Probe"),
             "'$(EnableM16025Probe)' == 'true'" => profile.IsEnabled("EnableM16025Probe"),
             "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)

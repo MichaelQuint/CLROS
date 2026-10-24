@@ -1,5 +1,21 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1581](../done/step1581.md) connects explicit `DiskStaticFullV1` through the
+original finite owner. The external peer sends health/config/status/items,
+then the independent asset GET/HEAD/range/conditional/confinement matrix, then
+simultaneous largest-asset and status requests, then a fresh Chromium session.
+The current publication produces114 asset requests and120 peer responses before
+the browser. Expected bytes come from independent FAT32 extraction.
+
+Full capture uses bounded multi-read/body-prefix joins and exact HTTP/TCP
+reconstruction. Original browser process, CDP traffic/bodies, rendered API and
+nonce values, screenshot and all artifact identities remain held through final
+source/native callbacks. Browser HTTP exchanges must match the reconstructed
+wire multiset; CDP IDs do not invent NAT/connection identities. Cache and service
+workers are disabled, and every admitted request uses the guest origin. No full
+guest/browser execution is qualified yet. The five-response development owner
+and existing accepted service profiles retain their separate limits and scope.
+
 [Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
 the original outer consumer passes native/source/image/process, 2,985 replayed
 calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
@@ -63,9 +79,9 @@ mechanical M16-025 profile now reaches its exact59-call sequence and exit42 in
 original r08, whose outer command remains failed. Step1570 connects a complete
 original-consumer candidate with 30 focused checks passing unchanged; fresh
 capture remains required.
-M10-018 still rejects
-selection. Complete post-readiness disk/HTTP joins and a real external Blazor
-boot with network evidence and screenshot remain required for #774.
+Step1580 subsequently passes the original five-response M10-018 owner.
+Step1581 connects the explicit full candidate; its original full disk/HTTP and
+external Blazor execution with network/screenshot evidence remain required.
 [Step1571](../done/step1571.md) subsequently records three fresh complete
 mechanical consumer passes at `c66befd5` across both disk variants. Those59-call
 probes precede upstream HTTP and browser integration; #774 remains open.
@@ -100,9 +116,9 @@ earlier a34 archive and failed attempts remain unchanged.
 
 | Linux x64 operation | Observed webroot contract | Existing adapter / next requirement |
 | --- | --- | --- |
-| `stat(4)`, `lstat(6)`, `fstat(5)` | Directory/file kind, length and modification time; path metadata precedes conditional/range decisions | Package144-byte stat wire exists; disk metadata and confined generation-bound handles remain pending |
-| `open(2)`, `fcntl(72)`, `close(3)` | `O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC`, then `F_SETFD(FD_CLOEXEC)` | Package flags are admitted; disk ownership and last-close cleanup remain pending |
-| `pread64(17)` |631 retained webroot calls; explicit offsets and16KiB requests, including510..1031 range | Package offset reads exist; disk waits must yield through owned continuations and revalidate before copy-out |
+| `stat(4)`, `lstat(6)`, `fstat(5)` | Directory/file kind, length and modification time; path metadata precedes conditional/range decisions | Readonly disk metadata and confined generation-bound handles are implemented; full guest matrix qualification remains pending |
+| `open(2)`, `fcntl(72)`, `close(3)` | `O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC`, then `F_SETFD(FD_CLOEXEC)` | Readonly disk ownership and last-close cleanup are implemented; race/error guest qualification remains pending |
+| `pread64(17)` |631 retained webroot calls; explicit offsets and16KiB requests, including510..1031 range | Readonly disk waits use owned continuations and revalidate before copy-out; full matrix and cancellation guests remain pending |
 | `flock(73)` | Shared/nonblocking advisory acquisition and unlock,100 calls | Unsupported today. Upstream treats this as best effort except contention; no writable locking or SQLite claim follows |
 | `fadvise64(221)` |50 sequential hints with offset0/length0 | Unsupported today; pinned upstream explicitly permits an unsupported hint. Verify the selected errno/fallback in the guest profile |
 | `geteuid(107)` | Zero calls with uniform0444 files/0555 directories | The earlier0644 research run made106 calls. The final immutable mount contract avoids that path; this does not add a user subsystem |

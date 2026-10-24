@@ -2497,6 +2497,7 @@ sealed class RunnerOptions
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
     public bool FiniteStaticFiles { get; private set; }
+    public bool FullDiskStaticFiles {get; private set;}
     public bool DiskStaticFiles => FiniteStaticFiles && ReadOnlyWebRootDisk;
     public bool ReadOnlyWebRootDisk { get; private set; }
     public StaticFileProcessEvidence? StaticEvidence { get; private set; }
@@ -2650,6 +2651,9 @@ sealed class RunnerOptions
                     if (options.ContinuingWeb) throw new ArgumentException("--continuing-web may be specified only once.");
                     options.ContinuingWeb = true;
                     break;
+                case "--full-disk-static-files":
+                    if(options.FullDiskStaticFiles)throw new ArgumentException("duplicate full disk static selection");
+                    options.FullDiskStaticFiles=true;break;
                 case "--finite-static-files":
                     if (options.FiniteStaticFiles) throw new ArgumentException("--finite-static-files may be specified only once.");
                     options.FiniteStaticFiles = true;
@@ -2752,10 +2756,12 @@ sealed class RunnerOptions
         if (options.VirtioBlockBootImagePath is not null && (!options.VirtioBlockQueueDevice || options.DiskFormat != "raw"))
             throw new ArgumentException("--virtio-block-boot-image requires the dedicated raw Virtio block fixture.");
         options.FinishParsing();
+        if(options.FullDiskStaticFiles && (!options.DiskStaticFiles || options.TimeoutSeconds is <2200 or >3600))
+            throw new ArgumentException("--full-disk-static-files requires the finite readonly disk parent and explicit2200..3600-second deadline");
         if (options.ReadOnlyWebRootDisk && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.DiskFormat != "raw" ||
             options.VirtioBlockQueueDevice || options.VirtioBlockBootImagePath is not null || options.PciBarTestDevice ||
             options.ContinuingNetworkPeer || options.SocketContainmentPeer || options.ContinuingWeb || options.ContinuingService ||
-            options.HttpProbe is not null || (options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
+            options.HttpProbe is not null || (options.FullDiskStaticFiles ? options.TimeoutSeconds is <2200 or >3600 : options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
             !options.defaultRequiredMarkersReplaced || string.IsNullOrWhiteSpace(options.SummaryLogPath)))
             throw new ArgumentException("--readonly-webroot-disk requires the finite captured raw disk/network child without another fixture.");
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
@@ -2777,7 +2783,7 @@ sealed class RunnerOptions
         options.ValidateContinuingService();
         if (options.FiniteStaticFiles && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.EthernetCapturePath is null ||
             options.SocketForwardPort is null || string.IsNullOrWhiteSpace(options.SummaryLogPath) || options.WorkloadProfile != "SingleMinimalApi" ||
-            options.TimeoutSeconds is <600 or >900 || !options.defaultRequiredMarkersReplaced || options.MarkerPresets.Count != 0 ||
+            (!options.FullDiskStaticFiles && options.TimeoutSeconds is <600 or >900) || !options.defaultRequiredMarkersReplaced || options.MarkerPresets.Count != 0 ||
             options.ContinuingWeb || options.ContinuingService || options.ContinuingNetworkPeer || options.SocketContainmentPeer ||
             options.HttpProbe is not null || options.ServiceQuotaFailure))
             throw new ArgumentException("--finite-static-files requires captured forwarded modern networking, SingleMinimalApi, a600..900-second deadline and explicit finite markers without another application peer.");

@@ -14,6 +14,7 @@ public static partial class QemuTranscripts
         IReadOnlyList<LinuxDiskAuxiliary> DeviceRows, ulong Owner, ulong Epoch,
         ulong BootstrapCompleted, ulong BootstrapCopied, int ReadinessRecordIndex)
     {
+        public bool FullProfile { get; init; }
         public bool CheckedDeviceBytesOrHttp => false;
         public bool GrantsOriginalExecutionAuthority => false;
     }
@@ -45,12 +46,12 @@ public static partial class QemuTranscripts
     public static DiskStaticSectorValues InspectNativeAotDiskStaticSectorValues(DiskStaticReplayReport replay,
         WebRootDiskInventory.Inspection inventory,byte[] heldImage,NativeDiskReadObservations.Boundary final)
     {
-        Need(replay is not null && inventory is not null && replay.Operations is {Count:>0 and <=4096} &&
+        Need(replay is not null && inventory is not null && replay.Operations.Count>0 && replay.Operations.Count<=(replay.FullProfile?DiskStaticExecutionPolicy.MaximumCalls:4096) &&
             final.Owner==replay.Owner && final.Epoch==replay.Epoch && final.BootstrapCompleted==replay.BootstrapCompleted &&
             final.BootstrapCopied==replay.BootstrapCopied,"disk_static_sector_boundary");
         ArgumentNullException.ThrowIfNull(replay);
         ArgumentNullException.ThrowIfNull(inventory);
-        var device=NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r=>r.Text).ToArray(),heldImage,final);
+        var device=NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r=>r.Text).ToArray(),heldImage,final,diskStaticFull:replay.FullProfile);
         var data=NativeDiskStaticReadWindows.Inspect(inventory,device,replay.DeviceRows.Select(r=>r.RecordIndex).ToArray(),replay.Reads);
         var metadata=WebRootDiskInventory.ClassifyMetadata(inventory,heldImage,data.Residual.Select(c=>c.Observation.Sector).ToArray());
         var operations=replay.Operations.OrderBy(o=>o.BeginRecordIndex).ToArray();
@@ -89,13 +90,13 @@ public static partial class QemuTranscripts
     /// original image/native/process/packet/HTTP owners remain mandatory.</summary>
     public static DiskStaticReplayReport InspectNativeAotDiskStaticProtocolForTests(byte[] elf,
         ReadOnlySpan<byte> raw, Func<ulong,bool> instruction, Func<ulong,bool> syscallReturn,
-        ulong userRoot, ulong kernelRoot, WebRootDiskInventory.Inspection inventory)
+        ulong userRoot, ulong kernelRoot, WebRootDiskInventory.Inspection inventory,bool diskStaticFull=false)
     {
         Need(inventory is not null,"disk_static_inventory_missing");
-        var output=NativeAotThreadingOutput.ReadWeb(raw);
-        var capture=NativeAotSocketGuest.ReadDiskStaticReadiness(output);
+        var output=NativeAotThreadingOutput.ReadWeb(raw,diskStaticFull);
+        var capture=NativeAotSocketGuest.ReadDiskStaticReadiness(output,diskStaticFull);
         var replay=new ThreadingProtocol(NativeAotStaticFilePublisher.Application,Rows(output),elf,instruction,
-            syscallReturn,output.WriteLengths,userRoot,kernelRoot,socketCapture:capture,diskInventory:inventory);
+            syscallReturn,output.WriteLengths,userRoot,kernelRoot,socketCapture:capture,diskInventory:inventory,diskStaticFull:diskStaticFull);
         return replay.DiskStaticValidate();
     }
 
@@ -140,7 +141,7 @@ public static partial class QemuTranscripts
                 "disk_static_complete_observations");
             return new(StaticReport(protocol),Array.AsReadOnly(diskReadWindows.ToArray()),Array.AsReadOnly(diskOperations.ToArray()),
                 Array.AsReadOnly(diskSocketWrites.ToArray()),Array.AsReadOnly(diskIo.ToArray()),
-                diskOwner,diskEpoch,diskBootstrapCompleted,diskBootstrapCopied,diskReadyIndex);
+                diskOwner,diskEpoch,diskBootstrapCompleted,diskBootstrapCopied,diskReadyIndex) {FullProfile=diskStaticFull};
         }
 
         private void DiskStaticSocketQueued(Dictionary<string,ulong> call,int index)
@@ -204,7 +205,7 @@ public static partial class QemuTranscripts
             Need(thread.Disk is null && witness.Source==4 && witness.Deadline==0 && call["valueBits"]==0 &&
                 nr is 0 or 2 or 4 or 6 or 8 or 17 or 257 && staticFileWitness is null && staticPathWitness is null,
                 "disk_static_pending_call");
-            Need(diskOperations.Count+history.Count(t=>t.Disk is not null)<4096,"disk_static_operation_bound");
+            Need(diskOperations.Count+history.Count(t=>t.Disk is not null)<(diskStaticFull?DiskStaticExecutionPolicy.MaximumCalls:4096),"disk_static_operation_bound");
             if(nr is 2 or 257)
             {
                 ulong flags=call[nr==257?"a2":"a1"];
@@ -231,7 +232,7 @@ public static partial class QemuTranscripts
             if(diskInventory is null)return false;
             if(Starts("M16_023_IO "))
             {
-                Need(diskReadyIndex>=0 && diskIo.Count<NativeDiskReadObservations.MaximumRows,"disk_static_io_scope");
+                Need(diskReadyIndex>=0 && diskIo.Count<(diskStaticFull?DiskStaticCapturePolicy.DeviceRows:NativeDiskReadObservations.MaximumRows),"disk_static_io_scope");
                 diskIo.Add(new(position,Take()));return true;
             }
             if(!Starts("M16_025_WAKE "))return false;

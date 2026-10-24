@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1581](../done/step1581.md) adds catalog entry76,
+`app.nativeaot-disk-static-full-v1` / `EnableM10018FullProbe`. It defaults false
+and requires the existing disk/static parent. The exact `M10_018_POLICY`
+record binds the finite source-selected ceilings; it does not establish HTTP,
+browser, storage or cleanup success. Ordinary and development probes keep their
+existing limits and acceptance. See `qemu.md` for the candidate command.
+
 [Step1571](../done/step1571.md) records fresh r09/r10/r11 complete mechanical
 passes at `c66befd5`, each joining59 calls,35 waits,62 post-bootstrap sectors,
 seven file windows,74 transfers and37 IRQ epochs (36 drains, one instruction

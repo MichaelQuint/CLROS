@@ -19,7 +19,10 @@ public static class NativeDiskStaticReadWindows
     public readonly record struct ReadWindow(ulong Identity, ulong Ordinal, ulong Number,
         ulong DescriptorGeneration, ulong RequestGeneration, int BeginRecordIndex,
         int CompleteRecordIndex, ulong Inode, ulong Offset, ulong Requested,
-        uint OutputPrefix, uint ReturnedBytes);
+        uint OutputPrefix, uint ReturnedBytes)
+    {
+        public uint Descriptor { get; init; }
+    }
 
     /// <summary>One immutable committed sector with its original three-stage
     /// positions. ObservationIndex indexes the supplied inspected IO list;

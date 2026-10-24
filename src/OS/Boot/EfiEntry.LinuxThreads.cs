@@ -423,10 +423,10 @@ public static unsafe partial class EfiEntry
             if (c->Gates[index].Status == LinuxSyscallGateStatus.Uninitialized)
             {
                 LinuxSyscallAdmission admission = new() { UserRoot = c->State->LinuxUserRoot.Root,
-                    MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls, MaximumWrite = LinuxSyscallGateway.MaximumWrite,
+                    MaximumCalls = OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ? DiskStaticExecutionPolicy.MaximumCalls : LinuxSyscallGateway.MaximumThreadCalls, MaximumWrite = LinuxSyscallGateway.MaximumWrite,
                     Scratch = (byte*)c->State->LinuxSyscallData + X64LinuxUserTransition.ScratchOffset, ScratchBytes = 4096,
                     FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true,
-                    ContinuingService = OS.Kernel.Diagnostics.Probes.EnableM16014Probe };
+                    ContinuingService = OS.Kernel.Diagnostics.Probes.EnableM16014Probe, DiskStaticFull = OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe };
                 LinuxSyscallAccess access = c->User;
                 access.Startup = &DispatchLinuxStartup; access.Descriptors = &DispatchLinuxDescriptors; access.Threads = &DispatchLinuxNativeThreadService;
                 if (LinuxSyscallGateway.Begin(ref c->Gates[index], admission, access) != LinuxSyscallGateStatus.Active) return LinuxNativeAbort(c, index);
@@ -842,7 +842,7 @@ public static unsafe partial class EfiEntry
             bool application = LinuxUsesApplicationLimits(c->State) || OS.Kernel.Diagnostics.Probes.EnableM16025Probe;
             return (!application || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now, application,
                 continuingWeb: OS.Kernel.Diagnostics.Probes.EnableM10004Probe,
-                continuingService: OS.Kernel.Diagnostics.Probes.EnableM16014Probe);
+                continuingService: OS.Kernel.Diagnostics.Probes.EnableM16014Probe, diskStaticFull: OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe);
         }
 
 #if M16_014_PROBE

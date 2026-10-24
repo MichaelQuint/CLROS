@@ -1,5 +1,14 @@
 # App Model
 
+[Step1581](../done/step1581.md) adds the explicitly selected, default-off
+`-EnableM10018FullProbe` candidate. Its finite policy, full asset HTTP peer,
+consecutive-read/send checks and original external Chromium capture are now
+connected. This is implementation with focused host evidence; no full guest or
+browser execution has passed yet. Step1580's five-response result retains its
+scope. Three full boots across DiskA/B, actual storage races/errors and stable
+full/native/ancestor verification still precede read-batch closure. Exactly two
+isolated agents continue writable descriptors and pinned SQLite reference work.
+
 [Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
 the original outer consumer passes native/source/image/process, 2,985 replayed
 calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual

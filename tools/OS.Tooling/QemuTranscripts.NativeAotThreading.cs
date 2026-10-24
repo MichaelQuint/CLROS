@@ -165,7 +165,7 @@ public static partial class QemuTranscripts
         private readonly HelloMemory memory;
         private readonly ulong userRoot,kernelRoot;
         private readonly int capacity, descriptorCapacity;
-        private readonly bool staticFiles;
+        private readonly bool staticFiles, diskStaticFull;
         private readonly bool broader,socket,web,service,containment,vectors,webLogQuota,webRaceTransport;
         private readonly NativeAotSocketContainmentGuest.Capture? containmentCapture;
         private readonly uint webSettingsBytes;
@@ -193,7 +193,7 @@ public static partial class QemuTranscripts
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
             bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false,bool serviceQuotaFailure=false,bool webRaceTransport=false,
-            WebRootDiskInventory.Inspection? diskInventory=null)
+            WebRootDiskInventory.Inspection? diskInventory=null,bool diskStaticFull=false)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
@@ -201,7 +201,8 @@ public static partial class QemuTranscripts
             service=app==NativeAotServicePackage.Application;
             staticFiles=app==NativeAotStaticFilePublisher.Application; descriptorCapacity=staticFiles?32:16;
             Need(diskInventory is null || staticFiles,"disk_static_replay_application");
-            this.diskInventory=diskInventory;
+            Need(!diskStaticFull || diskInventory is not null && staticFiles && !service,"disk_static_full_replay_mode");
+            this.diskStaticFull=diskStaticFull; this.diskInventory=diskInventory;
             descriptorGenerations=new uint[descriptorCapacity];
             Need(!serviceQuotaFailure || service && configuredServiceMemory,"threading_service_quota_mode");
             this.serviceQuotaFailure=serviceQuotaFailure; quotaImageBytes=elf.Length;
@@ -216,11 +217,11 @@ public static partial class QemuTranscripts
             Need(!web || staticFiles || webSettingsBytes is >0 and <=65536 && webSettingsFd is >=3 and <16 &&
                 webSettingsCall.Identity!=0 && webSettingsCall.Ordinal!=0,"web_replay_configuration");
             Need(broader || socket || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
-            Need(rows is not null && rows.Length >=25 && rows.Length <=(service?1_000_000:100000) && instruction is not null && syscall is not null &&
+            Need(rows is not null && rows.Length >=25 && rows.Length <=(diskStaticFull?DiskStaticCapturePolicy.ProtocolRows:service?1_000_000:100000) && instruction is not null && syscall is not null &&
                 lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n>0 && n<=(web?8192:4096)) && lengths.Sum()<=(web?65536:vectors?32768:4096),"threading_protocol_input");
             this.app=app; this.instruction=instruction!; this.syscall=syscall!; writeLengths=lengths!.ToArray();
             exitTails=FindExitTails(elf,this.instruction,this.syscall);
-            var diskCalls=diskInventory is null?default:ReadLinuxDiskCallObservations(rows!);
+            var diskCalls=diskInventory is null?default:ReadLinuxDiskCallObservations(rows!,diskStaticFull);
             waits=(diskInventory is not null?diskCalls.Waits:service?ReadLinuxServiceCallWaits(rows!):ReadLinuxCallWaits(rows!,allowEpoll:socket)).ToDictionary(x=>x.RecordIndex);
             returns=(diskInventory is not null?diskCalls.Returns:service?ReadLinuxServiceCallReturns(rows!):ReadLinuxCallReturns(rows!,allowEpoll:socket)).ToDictionary(x=>x.RecordIndex);
             if(socket)
@@ -229,7 +230,7 @@ public static partial class QemuTranscripts
                 socketMessageInputs=messages.ToDictionary(x=>x.RecordIndex);
                 socketMessageCalls=messages.ToDictionary(x=>x.CallRecordIndex);
             }
-            this.rows=diskInventory is not null?ValidateLinuxDiskCallOrdinals(rows!):service?ValidateLinuxServiceCallOrdinals(rows!):ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
+            this.rows=diskInventory is not null?ValidateLinuxDiskCallOrdinals(rows!,diskStaticFull):service?ValidateLinuxServiceCallOrdinals(rows!):ValidateLinuxCallOrdinals(rows!,allowEpoll:socket); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             Need(webControls is null || web && !service,"web_controls_application");this.webControls=webControls;
             if(webControls is not null)webLifetimes=SocketLifetimes(this.rows,true,webLogQuota?7:8,webControls.Sockets,webRaceTransport);
             memory=new(elf,memoryPoolPages); capacity=broader||socket?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=service?0U:web?4096U:broader||socket?256U:32U;
@@ -277,10 +278,13 @@ public static partial class QemuTranscripts
             else
             {
                 var b=Row("M16_008_BUDGET","started:dec","epochs:dec","steps:dec","nanos:dec");
-                Need(budget.Begin((uint)capacity,b["started"],application:true,continuingWeb:web) && b["epochs"]==budget.MaximumEpochs &&
-                    b["steps"]==budget.MaximumSteps && b["nanos"]==LinuxThreadExecutionBudget.RuntimeNanoseconds,"runtime_budget_policy");
+                Need(budget.Begin((uint)capacity,b["started"],application:true,continuingWeb:web,diskStaticFull:diskStaticFull) && b["epochs"]==budget.MaximumEpochs &&
+                    b["steps"]==budget.MaximumSteps && b["nanos"]==budget.ElapsedLimitNanoseconds,"runtime_budget_policy");
             }
             if(staticFiles)Exact("TEST_START m10."+(diskInventory is null?"017":"018"));
+            if(diskStaticFull)Exact("M10_018_POLICY profile=DiskStaticFullV1 version="+DiskStaticExecutionPolicy.Version+
+                " calls="+DiskStaticExecutionPolicy.MaximumCalls+" requestNanos="+DiskStaticExecutionPolicy.RequestDelayNanoseconds+
+                " graceNanos="+DiskStaticExecutionPolicy.GraceNanoseconds+" runtimeNanos="+DiskStaticExecutionPolicy.RuntimeNanoseconds+" renewal=none");
             while(active!=0)
             {
                 if(staticFiles)StaticSupervisor();

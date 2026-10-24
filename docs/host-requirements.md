@@ -1,5 +1,15 @@
 # Host Requirements
 
+[Step1581](../done/step1581.md) adds an original external browser capture for the
+full disk/static candidate. It requires installed Microsoft Edge or Google
+Chrome on Windows, started in an owned job with a fresh ignored profile and
+CDP endpoint. It records executable identity, process termination, protocol,
+network bodies, DOM and PNG screenshot under the original fresh evidence root.
+The5-minute browser deadline is inside the peer's1700-second deadline; full
+QEMU timeout defaults3000s and admits2200..3600s only with explicit full mode.
+No browser execution has passed yet. The Linux builder remains serialized;
+original retained recipes and persistent builder/seed owners must be preserved.
+
 ## Full-lane build baseline
 
 Commit qualification changes before the final baseline build. Freeze that HEAD

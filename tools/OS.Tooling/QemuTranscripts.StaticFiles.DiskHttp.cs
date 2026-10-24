@@ -14,7 +14,7 @@ public static partial class QemuTranscripts
     public sealed record DiskStaticHttpInspection(int Connections,int Responses,int TcpRecords,int RequestBytes,int ResponseBytes,
         IReadOnlyList<DiskStaticHttpDataJoin> Files,IReadOnlyList<StaticFileHttpFlow> Flows)
     {
-        public string Scope=>DiskStaticHttpContract.Scope;
+        public string Scope {get;init;}=DiskStaticHttpContract.Scope;
         public bool GrantsOriginalNativeProcessOrBrowserAuthority=>false;
     }
 

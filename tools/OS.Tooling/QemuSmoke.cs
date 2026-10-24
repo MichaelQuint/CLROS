@@ -36,6 +36,7 @@ public static class QemuSmoke
         NativeAotStaticFileProgram? staticProgram=null;
         NativeAotStagedStaticPeer.Completion? staticPeer=null;
         NativeAotDiskStaticPeer.Completion? diskStaticPeer=null;
+        NativeAotDiskStaticBrowser.Completion? diskBrowser=null;
         NativeAotWebRacePeer.Completion? webRacePeer=null;
         NativeAotServiceProgram? serviceProgram=null;
         NativeAotServicePeer.Completion? servicePeer=null;
@@ -333,6 +334,7 @@ public static class QemuSmoke
             else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web&&!staticFiles&&!diskFiles) arguments.Add("--continuing-network-peer");
             if (diskFiles) arguments.Add("--readonly-webroot-disk");
             if(staticFiles)arguments.Add("--finite-static-files");
+            if(NativeAotDiskSelection.FullStaticSelected(plan.Flags))arguments.Add("--full-disk-static-files");
             if(service)arguments.Add("--continuing-service");
             if(service&&serviceContract==NativeAotServiceContract.QuotaFailure)arguments.Add("--service-quota-failure");
             if((service||sockets||vectors||staticFiles)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
@@ -395,7 +397,14 @@ public static class QemuSmoke
             {
                 if (diskStatic)
                 {
-                    diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
+                    if(NativeAotDiskSelection.FullStaticSelected(plan.Flags))
+                    {
+                        if(diskImageInput is null || diskImageReceipt is null)throw new ToolFailure("disk_full_image_owner_required");
+                        var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                        diskStaticPeer=await NativeAotDiskStaticPeer.RunAsync(root,options.SerialLog,RunSocketRunner,cancellation,inventory,
+                            async (port,directory,token)=>{diskBrowser=await NativeAotDiskStaticBrowser.RunAsync(root,port,directory,inventory,token);});
+                    }
+                    else diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
                     runner = diskStaticPeer.Runner;
                 }
                 else
@@ -481,8 +490,21 @@ public static class QemuSmoke
                             if(capture is not null){capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");}
                             diskInputs.VerifyUnchanged();diskNative.VerifyHeldInputs();webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
                             cancellation.ThrowIfCancellationRequested();
-                        });
-                    output.WriteLine($"TEST_PASS qemu.smoke.disk-static scope={DiskStaticHttpContract.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} blazor_qualified=false");
+                            diskBrowser?.VerifyUnchanged();
+                        },NativeAotDiskSelection.FullStaticSelected(plan.Flags)?(messages,held)=>
+                        {
+                            if(diskBrowser is null || diskImageInput is null || diskImageReceipt is null || diskBrowser.Port!=webForwardPort ||
+                                Path.GetFullPath(diskBrowser.Directory)!=Path.GetFullPath(Path.Combine(diskStaticPeer.Directory,"browser")))
+                                throw new ToolFailure("disk_full_browser_original_owner_required");
+                            diskBrowser.VerifyUnchanged();var browserFiles=diskBrowser.ArtifactPaths.Select(path=>held.Open(root,path,
+                                "original disk browser evidence","disk_browser_original_capture",NativeAotDiskStaticBrowser.MaximumProtocolBytes,allowEmpty:true,singleLink:true)).ToArray();
+                            if(browserFiles.Length is 0 or >272 || browserFiles.Sum(f=>f.Length)>128*1024*1024 ||
+                                browserFiles.Any(f=>Path.GetDirectoryName(f.Path)!=diskBrowser.Directory))throw new ToolFailure("disk_full_browser_artifact_inventory");
+                            var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                            _=NativeAotDiskStaticBrowser.ValidateOriginal(diskBrowser,inventory,QemuTranscripts.InspectDiskStaticBrowserWireValues(messages));
+                            diskBrowser.VerifyUnchanged();return browserFiles;
+                        }:null);
+                    output.WriteLine($"TEST_PASS qemu.smoke.disk-static scope={original.Http.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} {(diskBrowser is null?"blazor_qualified=false":"blazor_booted=true")}");
                     return 0;
                 }
                 var report = QemuTranscripts.InspectLinuxDiskFileRun(root, options, plan, runner,

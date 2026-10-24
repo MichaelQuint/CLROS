@@ -1,5 +1,21 @@
 # Storage
 
+[Step1581](../done/step1581.md) connects the full finite read candidate to the
+original disk/sector, syscall, HTTP and browser owners. Each positive HTTP body
+requires one uniquely identified fd generation's contiguous reads; every queued
+body prefix follows its supplying completions. Authenticated serial phase
+boundaries exclude earlier same-file reads on other connections. Same-phase
+ambiguity fails closed. Selected native/device evidence admits196608 records;
+ordinary mechanical/development limits remain65536. No full guest has passed.
+
+Successor host-only commits089e7bed (#798) and170e8bac (#799) remain isolated,
+unintegrated and unmerged. The mutation planner currently borrows an entire
+stable image snapshot plus bounded before/after-sector journal; that snapshot
+has no admitted guest backing in the36MiB application boundary. Writable fd
+preparation (#800) and the original pinned SQLite Linux reference (#791) proceed
+in two isolated agent checkouts. No FAT write, sync durability, reboot recovery,
+SQLite locking/transaction or persistent application acceptance follows.
+
 [Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
 the original outer consumer passes native/source/image/process, 2,985 replayed
 calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
@@ -67,8 +83,8 @@ This diagnostic observation repair is not guest or shared-cursor acceptance.
 [Step1572](../done/step1572.md) connects the original full static-server disk
 envelope and retains file observations across source4 parks. Disk-sector
 observation starts at actual successful listen, with explicit prior counters.
-The five-response owner is diagnostic only; even runner exit0 cannot pass the
-full command until the complete disk/static consumer is implemented.
+At step1572 the five-response owner was incomplete. Step1580 supersedes that
+limitation with a complete original development pass; full Blazor remains open.
 
 [Step1571](../done/step1571.md) records original r09/r10/r11 at `c66befd5`:
 DiskA/DiskB/DiskA each passes the complete owned mechanical consumer with

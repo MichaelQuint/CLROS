@@ -12,7 +12,7 @@ public sealed class EfiProfile
         "M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival", "M05PciEnumeration", "M05VirtioNegotiation",
         "M05VirtqueuePolling", "M07VirtioNet", "M07ArpReceive", "M16002", "M16003"];
     private static readonly string[] SocketNetworkExtensions = ["M05ApicSetup", "M16004", "M16005", "M16006", "M16007",
-        "M16008", "M16009", "M16011", "M16012", "M16013", "M16014", "M10004", "M10017", "M16023", "M16024", "M16025", "M10018", "M16019Unavailable", "M16019Invalid"];
+        "M16008", "M16009", "M16011", "M16012", "M16013", "M16014", "M10004", "M10017", "M16023", "M16024", "M16025", "M10018", "M10018Full", "M16019Unavailable", "M16019Invalid"];
     private EfiProfile(string bootPolicy, Dictionary<string, bool> flags) { BootPolicy = bootPolicy; this.flags = flags; }
     public IEnumerable<string> CommandArguments() => new[] { "--boot-policy", BootPolicy }.Concat(flags.Where(p => p.Value).Select(p => "--" + p.Key));
 
@@ -23,6 +23,12 @@ public sealed class EfiProfile
         {
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
+        }
+        if (flags["EnableM10018FullProbe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM10018Probe", out bool parent) && !parent)
+                throw new ToolFailure("disk_static_full_explicit_false_prerequisite");
+            flags["EnableM10018Probe"] = true;
         }
         if (flags["EnableM10018Probe"])
         {
@@ -261,7 +267,7 @@ public sealed class EfiProfile
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
                     !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
                     !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe") &&
-                    !(flags["EnableM16025Probe"] && flag.Key is "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM10018Probe") &&
+                    !(flags["EnableM16025Probe"] && flag.Key is "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM10018Probe" or "EnableM10018FullProbe") &&
                     !(flags["EnableM10004Probe"] && flag.Key is "EnableM10017Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe") &&
                     !(containment && flag.Key is "EnableM07027Probe" or "EnableM07028Probe") &&
                     !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))

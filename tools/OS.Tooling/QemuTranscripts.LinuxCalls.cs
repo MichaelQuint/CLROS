@@ -84,22 +84,22 @@ public static partial class QemuTranscripts
     /// canonical; separate consumers must authenticate the original fd, memory,
     /// device and wait-completion lifetimes. Historical readers remain strict.</summary>
     public static (IReadOnlyList<LinuxCallWaitObservation> Waits, IReadOnlyList<LinuxCallReturnObservation> Returns)
-        ReadLinuxDiskCallObservations(string[] tail)
+        ReadLinuxDiskCallObservations(string[] tail,bool diskStaticFull=false)
     {
-        _ = ParseLinuxCalls(tail, 2, out var waits, out var returns, allowEpoll: true, allowDisk: true);
+        _ = ParseLinuxCalls(tail, 2, out var waits, out var returns, allowEpoll: true, allowDisk: true,diskStaticFull:diskStaticFull);
         return (Array.AsReadOnly(waits), Array.AsReadOnly(returns));
     }
 
     /// <summary>Strip only the reviewed finite disk child's complete current
     /// suffixes after validating them. The returned array is independent; this
     /// grants no instruction, scheduler, native or execution authority.</summary>
-    public static string[] ValidateLinuxDiskCallOrdinals(string[] tail) =>
-        ParseLinuxCalls(tail, 2, out _, out _, allowEpoll: true, allowDisk: true);
+    public static string[] ValidateLinuxDiskCallOrdinals(string[] tail,bool diskStaticFull=false) =>
+        ParseLinuxCalls(tail, 2, out _, out _, allowEpoll: true, allowDisk: true,diskStaticFull:diskStaticFull);
 
     private static string[] ParseLinuxCalls(string[] tail, int required, out LinuxCallWaitObservation[] waits,
-        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false, bool allowDisk = false)
+        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false, bool allowDisk = false,bool diskStaticFull=false)
     {
-        Need(tail is not null,"linux_call_ordinal_input");
+        Need(tail is not null && (!diskStaticFull || allowDisk && !continuingService),"linux_call_ordinal_input");
         string[] result=tail!.ToArray(); Dictionary<ulong,ulong> counts=[];
         List<LinuxCallWaitObservation> observations=[];
         List<LinuxCallReturnObservation> returned=[];
@@ -121,7 +121,7 @@ public static partial class QemuTranscripts
                 !line[..suffix].Contains(" returnRip=",StringComparison.Ordinal),"linux_call_ordinal_shape");
             ulong identity=Number(match.Groups[1].Value), ordinal=Number(match.Groups[2].Value);
             counts.TryGetValue(identity,out ulong previous);
-            Need(previous!=ulong.MaxValue && ordinal==previous+1 && (continuingService || ordinal<=4096),"linux_call_ordinal_continuity"); counts[identity]=ordinal;
+            Need(previous!=ulong.MaxValue && ordinal==previous+1 && (continuingService || ordinal<=(diskStaticFull?OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumCalls:4096)),"linux_call_ordinal_continuity"); counts[identity]=ordinal;
             bool present=match.Groups[3].Success;
             Need(required==0 || present,"linux_call_wait_missing");
             if(present)

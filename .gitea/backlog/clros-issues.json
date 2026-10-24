@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1580: fresh original018r05 at592b63035a89600534bc5c0908046eb0513166ae, DiskB, exits0 from its complete original owner: native2031runtime/1604unwind, exact held source/package/image/receipt, full parent/scheduler replay2985calls/13clones/14reaps/994epochs/2006transfers,12post-readiness sector copies (2data+10metadata),5HTTP200 bodies, actual exit0 and storage/NIC cleanup. Scope is strictly five-response-development, blazor_qualified=false. Failed originals remain failed. Full45asset/browser, three full boots across bothvariants, actual races/errors/concurrency and stable full/native/ancestor gates remain pending. Expert review requires explicit DiskStaticFullV1 finite policy; no continuing-service reuse or shared default cap increase. New policy/capture/budget paths are primary-owned before edits. Exactly two isolated implementation agents continue blocked write/SQLite successors.",
+      "currentEvidence": "Step1581 connects explicit default-off DiskStaticFullV1: finite32768calls/1800s request/120s grace/2100s runtime, selected native196608device records and bounded full serial/packet/streams; independent114-request asset matrix plus4API and2concurrent requests, consecutive read-before-queued-body-prefix joins and fresh original Chromium CDP/process/network/DOM/screenshot owner. Phase boundaries are resolved through serial queued sends, preserving same-phase ambiguity rejection. Focused host checks and static source admission pass; original full guest/browser, three DiskA/B full boots, actual races/errors and stable full/native/ancestor gates remain pending. Step1580 original018r05 at592b6303 remains five-response-development, blazor_qualified=false; every failed original remains failed. Exactly two isolated implementation agents continue #800 writable fd host preparation and #791 measured SQLite Linux reference; no write/durability or CLROS SQLite qualification. Existing accepted service defaults, dependencies and ownership are preserved.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36352,7 +36352,19 @@
         "tools/OS.Tooling/DiskStaticCapturePolicy.cs",
         "tools/OS.Tooling/NativeAotThreadingOutput.cs",
         "tools/OS.Tooling/NativeDiskReadObservations.cs",
-        "tools/OS.Tooling/QemuEthernetCapture.cs"
+        "tools/OS.Tooling/QemuEthernetCapture.cs",
+        "tools/OS.Tooling/EfiProjectAdmission.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.Runner.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.Http.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotService.Packets.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxCalls.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.DiskFullHttp.cs",
+        "tools/OS.Tooling/NativeAotDiskStaticBrowser.cs",
+        "tests/OS.HostTests/NativeAotDiskStaticBrowserTests.cs",
+        "tests/OS.HostTests/EfiCompileInventoryTests.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tests/OS.HostTests/M16008EfiIntegrationTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37792,7 +37804,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Qualify confined writable Linux descriptors, locking and synchronization",
-      "currentEvidence": "Planning and static source review only; no implementation or guest acceptance. Preserve current active owners and all original/failed receipts.",
+      "currentEvidence": "User-authorized isolated successor preparation while primary qualifies read batch. Fresh LAN2026-10-24 #800 open/unassigned/content_version1, no competing owner. storage_review owns only LinuxWritableDescriptorServices.cs and LinuxWritableDescriptorServicesTests.cs in codex/writable-block after host-only commits089e7bed/170e8bac. Primary owns shared integration/docs/backlog/evidence/native serialization. Whole-image mutation admission, global generation refresh, actual continuing storage, durable rollback-journal integration and original guest/SQLite qualification remain unaccepted. Existing M06-021 dependency stays blocked; no activation or closure.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",

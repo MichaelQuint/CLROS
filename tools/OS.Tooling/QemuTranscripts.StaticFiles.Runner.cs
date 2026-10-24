@@ -54,10 +54,10 @@ public static partial class QemuTranscripts
         return new((int)id,(long)lifetime);
     }
 
-    private static string NormalizeStaticFileWrites(string text)
+    private static string NormalizeStaticFileWrites(string text,bool diskStaticFull=false)
     {
         byte[] raw=Encoding.UTF8.GetBytes(text);var leaf=SocketRawLeaf(raw);int start=raw.AsSpan().IndexOf(leaf);
-        var output=NativeAotThreadingOutput.ReadWeb(leaf);
+        var output=NativeAotThreadingOutput.ReadWeb(leaf,diskStaticFull);
         return DecodeUtf8(raw.AsSpan(0,start).ToArray())+output.NormalizedTail+DecodeUtf8(raw.AsSpan(start+leaf.Length).ToArray());
     }
 

@@ -31,16 +31,16 @@ public static class QemuEthernetCapture
         return bytes;
     }
 
-    public static QemuEthernetCaptureReceipt Inspect(ReadOnlySpan<byte> bytes, uint expectedFrameCrc)
-        => InspectCore(bytes, expectedFrameCrc, null).Frame;
+    public static QemuEthernetCaptureReceipt Inspect(ReadOnlySpan<byte> bytes, uint expectedFrameCrc,bool diskStaticFull=false)
+        => InspectCore(bytes, expectedFrameCrc, null,diskStaticFull).Frame;
 
     public static QemuArpCaptureReceipt InspectArp(ReadOnlySpan<byte> bytes, QemuArpReceiveReceipt expected)
         => InspectCore(bytes, 0xd24c49dd, expected).Arp;
 
     private static (QemuEthernetCaptureReceipt Frame, QemuArpCaptureReceipt Arp) InspectCore(
-        ReadOnlySpan<byte> bytes, uint expectedFrameCrc, QemuArpReceiveReceipt? arpExpected)
+        ReadOnlySpan<byte> bytes, uint expectedFrameCrc, QemuArpReceiveReceipt? arpExpected,bool diskStaticFull=false)
     {
-        Need(bytes.Length <= MaximumBytes, "file_extent");
+        Need(bytes.Length <= (diskStaticFull?DiskStaticCapturePolicy.PacketBytes:MaximumBytes), "file_extent");
         Need(bytes.Length >= 24, "header_truncated");
         Need(BinaryPrimitives.ReadUInt32LittleEndian(bytes) == 0xa1b2c3d4 &&
             BinaryPrimitives.ReadUInt16LittleEndian(bytes[4..]) == 2 &&

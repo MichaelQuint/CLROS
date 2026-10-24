@@ -1,3 +1,5 @@
+using OS.Kernel.Compatibility.LinuxX64;
+
 namespace OS.Tooling;
 
 public static partial class QemuTranscripts
@@ -68,7 +70,7 @@ public static partial class QemuTranscripts
         private void Call(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,bool output)
         {
             ulong nr=r["nr"],a=r["a0"],b=r["a1"],c=r["a2"],d=r["a3"],e=r["a4"],f=r["a5"],v=r["valueBits"];
-            Need(witness.Identity==t.Identity && (service || witness.Ordinal<=4096),"threading_wait_generation");
+            Need(witness.Identity==t.Identity && (service || witness.Ordinal<=(diskStaticFull?DiskStaticExecutionPolicy.MaximumCalls:LinuxSyscallGateway.MaximumThreadCalls)),"threading_wait_generation");
             if(t.Tid==1 && witness.Ordinal<=3)Need(nr==(witness.Ordinal==1?9UL:witness.Ordinal==2?158UL:218UL),"threading_main_startup_order");
             RuntimeThread? targetClock=nr is 200 or 234?slots.SingleOrDefault(x=>x?.Tid==unchecked((int)(nr==200?a:b))):null;
             int requestedSignal=unchecked((int)(nr==200?b:c));

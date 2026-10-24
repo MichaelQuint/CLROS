@@ -1,5 +1,25 @@
 # QEMU
 
+[Step1581](../done/step1581.md) connects the full finite disk/static candidate.
+Use fresh output paths and the same pinned disk server package/index/assets:
+
+```text
+dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu smoke -BuildEfi -EnableM10018FullProbe -LinuxElfPackage artifacts/readonly-disk-waits-r01/static-disk-r01.pkg -LinuxThreadingDisassembly artifacts/readonly-disk-waits-r01/static-files-llvm22.1.3.txt -WebRootFixture DiskA -WebRootAssets artifacts/readonly-disk-waits-r01/blazor-webroot-r01 -EfiArtifact artifacts/efi/BOOTX64-disk-full-r01.EFI -Image artifacts/images/disk-full-r01.raw -SerialLog artifacts/readonly-disk-waits-r01/disk-full-r01.serial.log -SummaryLog artifacts/readonly-disk-waits-r01/disk-full-r01.summary.log -Qemu "C:/Program Files/qemu/qemu-system-x86_64.exe" -OvmfCode "C:/Program Files/qemu/share/edk2-x86_64-code.fd" -TimeoutSeconds 3000
+```
+
+This runnable candidate has not passed a full original execution. Full mode
+requires its disk/static parent and cannot combine with continuing-service,
+staged-static or race selection. It preserves readonly PCI0:7 and NIC0:6.
+Timeout is2200..3600s (default3000); serial/summary/packet limits are128/256/64MiB,
+aggregate stream limit24MiB, protocol rows1000000 and device rows196608.
+Per-call copyout remains8192 bytes. Expected peer entities are bounded16MiB,
+2MiB each. Browser traffic/bodies/DOM/screenshot and original process cleanup
+are checked against the actual packet streams and independent image bytes.
+Only an original full pass can emit `scope=disk-static-full-v1` with
+`blazor_booted=true`; three fresh boots across both variants and all remaining
+batch checks still precede issue closure. `-EnableM10018Probe` alone keeps the
+825-second, five-response development contract and `blazor_qualified=false`.
+
 [Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
 the original outer consumer passes native/source/image/process, 2,985 replayed
 calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
@@ -87,11 +107,11 @@ OS.Tooling. It uses the original AHCI boot image with snapshot writes and a
 second read-only view at PCI0:7; the NIC stays at PCI0:6. Timeout is 180 seconds
 by default, bounded 120..285. Source gates remain default off. M16-023/024 are
 parents of this combined profile; they have no separate capture selector.
-Step1572 admits M10-018 only with its exact full server package/index and
-DiskA/B fixture, distinct018 markers and a600..825-second finite runner. Its
-five-response HTTP owner retains partial evidence but is diagnostic: the outer
-command still rejects even successful runner exit until the complete disk/static
-consumer is implemented. It cannot qualify or rescue a capture.
+M10-018 requires the exact indexed disk server package and DiskA/B fixture.
+The original five-response development owner passes in step1580, preserving its
+600..825-second runner policy. Step1581 adds the explicit full modifier and its
+larger finite limits; no original full execution has passed. Failed captures
+retain their original outcomes.
 Dry run checks argument/device policy only. Step1570 connects the candidate
 mechanical consumer after r08's original `disk_files_complete_consumer_required`
 failure. [Step1571](../done/step1571.md) records three fresh complete owned

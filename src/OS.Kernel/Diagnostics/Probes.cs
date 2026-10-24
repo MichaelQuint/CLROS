@@ -17,6 +17,11 @@ public static partial class Probes
 #else
     public const bool EnableM16025Probe = false;
 #endif
+#if M10_018_FULL_PROBE
+    public const bool EnableM10018FullProbe = true;
+#else
+    public const bool EnableM10018FullProbe = false;
+#endif
 #if M10_018_PROBE
     public const bool EnableM10018Probe = true;
 #else
@@ -377,7 +382,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 75;
+    public const int ProbeCatalogCount = 76;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -685,6 +690,10 @@ public static partial class Probes
     public static ProbeDefinition GetM16025Probe() =>
         new("app.linux-diskfiles", nameof(EnableM16025Probe), EnableM16025Probe,
             ProbeRisk.Destructive, "Mechanical Linux disk descriptors with owned I/O waits and cleanup; native and guest evidence required.");
+
+    public static ProbeDefinition GetM10018FullProbe() =>
+        new("app.nativeaot-disk-static-full-v1", nameof(EnableM10018FullProbe), EnableM10018FullProbe,
+            ProbeRisk.Destructive, "Finite full disk asset and external Blazor capture; requires the disk/static parent and original consumer.");
 
     public static ProbeDefinition GetM10018Probe() =>
         new("app.nativeaot-disk-static-files", nameof(EnableM10018Probe), EnableM10018Probe,
@@ -1109,6 +1118,9 @@ public static partial class Probes
                 return true;
             case 74:
                 definition = GetM10018Probe();
+                return true;
+            case 75:
+                definition = GetM10018FullProbe();
                 return true;
             default:
                 definition = default;

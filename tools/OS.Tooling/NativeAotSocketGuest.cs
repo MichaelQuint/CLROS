@@ -65,13 +65,13 @@ public static class NativeAotSocketGuest
     // complete scheduling/lifetime replay remains a separate requirement.
     internal static Capture ReadReadiness(NativeAotThreadingOutput.Capture output) => ReadReadiness(output, service: false);
 
-    internal static Capture ReadDiskStaticReadiness(NativeAotThreadingOutput.Capture output) => ReadReadiness(output, service:false, disk:true);
+    internal static Capture ReadDiskStaticReadiness(NativeAotThreadingOutput.Capture output,bool diskStaticFull=false) => ReadReadiness(output, service:false, disk:true,diskStaticFull:diskStaticFull);
 
-    private static Capture ReadReadiness(NativeAotThreadingOutput.Capture output, bool service, bool disk=false)
+    private static Capture ReadReadiness(NativeAotThreadingOutput.Capture output, bool service, bool disk=false,bool diskStaticFull=false)
     {
         Need(output.NormalizedTail.EndsWith("\r\n", StringComparison.Ordinal), "raw_terminal");
         string[] rows = output.NormalizedTail[..^2].Split("\r\n", StringSplitOptions.None);
-        var diskCalls = disk ? QemuTranscripts.ReadLinuxDiskCallObservations(rows) : default;
+        var diskCalls = disk ? QemuTranscripts.ReadLinuxDiskCallObservations(rows,diskStaticFull) : default;
         var waits = disk ? diskCalls.Waits : service ? QemuTranscripts.ReadLinuxServiceCallWaits(rows) : QemuTranscripts.ReadLinuxCallWaits(rows, allowEpoll: true);
         _ = disk ? diskCalls.Returns : service ? QemuTranscripts.ReadLinuxServiceCallReturns(rows) : QemuTranscripts.ReadLinuxCallReturns(rows, allowEpoll: true);
         var calls = waits.ToDictionary(value => value.RecordIndex);

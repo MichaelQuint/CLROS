@@ -31,6 +31,7 @@ public static class QemuProfiles
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
         bool diskFiles=NativeAotDiskSelection.Bind(options,profile.Flags);
         bool diskStatic=NativeAotDiskSelection.StaticSelected(profile.Flags);
+        bool diskStaticFull=NativeAotDiskSelection.FullStaticSelected(profile.Flags);
         bool signalEpoll=LinuxSignalEpollSelection.Bind(options,profile.Flags);
         bool service=NativeAotServiceSelection.Bind(options,profile.Flags);
         bool quota=service&&NativeAotServiceSelection.Contract(options,profile.Flags)==NativeAotServiceContract.QuotaFailure;
@@ -49,8 +50,8 @@ public static class QemuProfiles
         if(containment && !options.Explicit.Contains("TimeoutSeconds"))options.TimeoutSeconds=180;
         if ((sockets||vectors||staticFiles||runtimeApp.Length != 0) && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
             options.TimeoutSeconds = 600;
-        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (service ? serviceMaximumSeconds : sockets||vectors||staticFiles||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
-        Require(!staticFiles || options.TimeoutSeconds>=600 && options.TimeoutSeconds<=900-QemuCaptureSession.RunnerCaptureAllowanceSeconds,
+        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (diskStaticFull ? DiskStaticCapturePolicy.MaximumTimeoutSeconds : service ? serviceMaximumSeconds : sockets||vectors||staticFiles||runtimeApp.Length != 0 ? 900 : 300), "qemu_timeout_out_of_range");
+        Require(!staticFiles || diskStaticFull || options.TimeoutSeconds>=600 && options.TimeoutSeconds<=900-QemuCaptureSession.RunnerCaptureAllowanceSeconds,
             "static_files_timeout_must_cover_shutdown_transport_and_capture_drain");
         Require(!service || options.TimeoutSeconds >=780 && options.TimeoutSeconds <=serviceMaximumSeconds,"service_timeout_must_cover_quiet_runtime_and_transport_drain");
         Require(!service || options.FirmwareRngSource=="virtio","service_virtio_rng_required");
@@ -234,6 +235,7 @@ public static class QemuProfiles
             string[] prefix = QemuTranscripts.SocketMarkers(true).TakeWhile(x => x != "TEST_START m16-011").ToArray();
             string[] tail = ["M16_025_END ", "CLROS_M16_023_READY", "TEST_PASS m16.023", "CLROS_M16_024_READY", "TEST_PASS m16.024", "CLROS_M16_025_READY", "TEST_PASS m16.025", "M10_018_CLEANUP ", "CLROS_M10_018_READY", "TEST_PASS m10.018", "CLROS_M07_026_READY", "TEST_PASS m07-026", "CLROS_M16_011_READY", "TEST_PASS m16-011", "CLROS_M16_012_READY", "TEST_PASS m16-012"];
             string[] records = [..prefix, "TEST_START m16-011", "TEST_START m16-012", "TEST_START m10.018", "M16_023_BOUND ", "M10_018_DISK_READY ", "M16_023_IO ", "M16_025_COMPLETE ", "M10_018_LISTENING ", "M10_018_TERMINATE ", "M10_018_APP_EXIT ", "M10_018_OWNER_END ", ..tail];
+            if(diskStaticFull)records=[..records,"M10_018_POLICY profile=DiskStaticFullV1 "];
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M16_002_STAGE_REJECTED", "M16_008_STOP ", "CLROS_M10_017_READY", "CLROS_M10_004_READY"], true, records.Where(x => x is not ("M16_023_IO " or "M16_025_COMPLETE ")).ToArray());
             ordered = Merge(prefix, tail);
         }

@@ -193,7 +193,7 @@ public static partial class QemuTranscripts
         if(socketProgram is not null)protocolText=NormalizeSocketWrites(protocolText,socketProgram.Asynchronous);
         if(containmentProgram is not null)protocolText=NormalizeSocketContainmentWrites(protocolText);
         if(vectorsProgram is not null)protocolText=NormalizeSocketVectorWrites(protocolText);
-        if(staticFiles)protocolText=NormalizeStaticFileWrites(protocolText);
+        if(staticFiles)protocolText=NormalizeStaticFileWrites(protocolText,NativeAotDiskSelection.FullStaticSelected(plan.Flags));
         string[] protocol = protocolText.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
         int suffixBytes = raw.Length - protocolEnd;
         int streamLines = protocol.Length + (noSuffix ? 2 : suffixBytes == 251 ? 4 : 5), invalidLines = noSuffix || suffixBytes == 251 ? 1 : 2;

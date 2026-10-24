@@ -7,8 +7,8 @@ using System.Text.Json;
 
 namespace OS.Tooling;
 
-/// <summary>Own a bounded five-response development peer and its original
-/// runner. Preserve fresh partial failures, join child cleanup and record a
+/// <summary>Own the explicitly selected bounded development or full HTTP peer
+/// and its original runner. Preserve fresh partial failures, join child cleanup and record a
 /// stopped endpoint. Complete native/image/packet/file validation remains the
 /// enclosing original consumer's obligation; this is not Blazor acceptance.</summary>
 public static class NativeAotDiskStaticPeer
@@ -18,24 +18,31 @@ public static class NativeAotDiskStaticPeer
 
     public sealed class Completion
     {
-        internal Completion(int port,string directory,string hash,ProcessResult runner)
-        {Port=port;Directory=directory;ReceiptSha256=hash;Runner=runner;}
+        internal Completion(int port,string directory,string hash,ProcessResult runner,bool full=false)
+        {Port=port;Directory=directory;ReceiptSha256=hash;Runner=runner;FullProfile=full;}
         public int Port {get;}
         public string Directory {get;}
         public string ReceiptSha256 {get;}
         public ProcessResult Runner {get;}
+        public bool FullProfile {get;}
     }
 
     /// <summary>Start exactly one caller-supplied cancellable runner and a
     /// single pooled HTTP/1.1 connection after actual guest readiness. The owner
-    /// retains no live child on return or throw. At most five64KiB bodies are
-    /// copied to a fresh artifacts directory; no redirects, proxy, decompression
+    /// retains no live child on return or throw. Development copies five64KiB
+    /// bodies; full mode requires an independent image inventory and original
+    /// browser callback, with at most16MiB in2MiB entities. Results are copied
+    /// to a fresh artifacts directory; no redirects, proxy, decompression
     /// or external content can satisfy the requests. A competing bind, missing
     /// readiness, wrong response, timeout or incomplete cleanup fails.</summary>
     public static async Task<Completion> RunAsync(string root,string serial,
-        Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation)
+        Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation,
+        WebRootDiskInventory.Inspection? fullInventory=null,Func<int,string,CancellationToken,Task>? browser=null)
     {
         root=Path.GetFullPath(root);serial=Path.GetFullPath(serial,root);
+        bool full=fullInventory is not null;
+        if(full!=(browser is not null))throw new ToolFailure("disk_http_full_browser_owner_required");
+        var assetPlan=full?DiskStaticHttpContract.CreateAssetPlan(fullInventory!):null;
         string directory=serial+".disk-http";
         if(!directory.StartsWith(Path.Combine(root,"artifacts")+Path.DirectorySeparatorChar,
             OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) || Path.Exists(directory))
@@ -67,7 +74,7 @@ public static class NativeAotDiskStaticPeer
                 using FileStream output=new(Path.Combine(directory,"stopped.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
                 await JsonSerializer.SerializeAsync(output,new{Port=port,EndpointRefused=true,RunnerExit=result.ExitCode},cancellationToken:cancellation);output.Flush(true);
             }
-            return new(port,directory,NativeAotWebPayload.HashFile(Path.Combine(directory,"http.json")),result);
+            return new(port,directory,NativeAotWebPayload.HashFile(Path.Combine(directory,"http.json")),result,full);
         }
         finally
         {
@@ -79,43 +86,83 @@ public static class NativeAotDiskStaticPeer
         {
             using var startup=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);startup.CancelAfter(TimeSpan.FromSeconds(240));
             await NativeAotSocketPeer.WaitForSerialAsync(serial,text=>text.Contains("M10_018_LISTENING ",StringComparison.Ordinal),startup.Token);
-            using var matrix=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);matrix.CancelAfter(TimeSpan.FromSeconds(DiskStaticHttpContract.MatrixTimeoutSeconds));
-            using HttpClient client=new(new SocketsHttpHandler{AllowAutoRedirect=false,AutomaticDecompression=DecompressionMethods.None,UseProxy=false,MaxConnectionsPerServer=1})
-            {BaseAddress=new Uri("http://127.0.0.1:"+port),Timeout=TimeSpan.FromSeconds(60),DefaultRequestVersion=HttpVersion.Version11,DefaultVersionPolicy=HttpVersionPolicy.RequestVersionExact};
-            List<Response> rows=[];bool complete=false;
+            using var matrix=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);
+            matrix.CancelAfter(TimeSpan.FromSeconds(full?1700:DiskStaticHttpContract.MatrixTimeoutSeconds));
+            HttpClient Client()=>new(new SocketsHttpHandler{AllowAutoRedirect=false,AutomaticDecompression=DecompressionMethods.None,UseProxy=false,MaxConnectionsPerServer=1})
+            {BaseAddress=new Uri("http://127.0.0.1:"+port),Timeout=TimeSpan.FromSeconds(full?240:60),DefaultRequestVersion=HttpVersion.Version11,DefaultVersionPolicy=HttpVersionPolicy.RequestVersionExact};
+            using HttpClient client=Client();List<Response> rows=[];bool complete=false;int totalBodyBytes=0;
+            async Task<Response> Request(HttpClient sender,int ordinal,string method,string path,int expected,
+                IReadOnlyList<DiskStaticHttpContract.Header>? selected=null,uint? expectedBytes=null,string? expectedHash=null)
+            {
+                // The raw target is part of the contract: preserve encoded dot
+                // segments which an ordinary Uri constructor would normalize.
+                var uri=new Uri("http://127.0.0.1:"+port+path,new UriCreationOptions{DangerousDisablePathAndQueryCanonicalization=true});
+                using var request=new HttpRequestMessage(new HttpMethod(method),uri);
+                if(selected is not null)foreach(var header in selected)
+                    if(!request.Headers.TryAddWithoutValidation(header.Name,header.Value))throw new ToolFailure("disk_http_request_header");
+                string[] headers=request.Headers.Select(h=>h.Key+": "+string.Join(",",h.Value)).ToArray();long started=Stopwatch.GetTimestamp();
+                using var response=await sender.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,matrix.Token);
+                using var source=await response.Content.ReadAsStreamAsync(matrix.Token);using MemoryStream body=new();byte[] buffer=new byte[8192];
+                for(int read;(read=await source.ReadAsync(buffer,matrix.Token))!=0;)
+                {if(body.Length+read>(full?DiskStaticHttpContract.MaximumAssetBytes:DiskStaticHttpContract.MaximumBodyBytes))throw new ToolFailure("disk_http_body_capacity");body.Write(buffer,0,read);}
+                long finished=Stopwatch.GetTimestamp();byte[] bytes=body.ToArray();
+                if(Interlocked.Add(ref totalBodyBytes,bytes.Length)>(full?DiskStaticHttpContract.MaximumExpectedBodyBytes:5*DiskStaticHttpContract.MaximumBodyBytes))
+                    throw new ToolFailure("disk_http_aggregate_body_capacity");
+                string name=ordinal.ToString("D3",CultureInfo.InvariantCulture)+".body";
+                using(FileStream output=new(Path.Combine(directory,name),FileMode.CreateNew,FileAccess.Write,FileShare.Read))
+                {await output.WriteAsync(bytes,matrix.Token);output.Flush(true);}
+                List<string> responseHeaders=[];int headerCharacters=0;
+                foreach(var header in response.Headers.Concat(response.Content.Headers))
+                {
+                    string line=header.Key+": "+string.Join(",",header.Value);
+                    if(responseHeaders.Count==32 || line.Length is 0 or >1024 || line.Any(c=>c is <' ' or >'~') || (headerCharacters+=line.Length)>4096)
+                        throw new ToolFailure("disk_http_header_capacity");
+                    responseHeaders.Add(line);
+                }
+                string hash=Convert.ToHexString(SHA256.HashData(bytes));
+                var row=new Response(ordinal,method,path,(int)response.StatusCode,headers,responseHeaders.ToArray(),bytes.Length,hash,name,started,finished);
+                lock(rows)rows.Add(row);
+                if((int)response.StatusCode!=expected)throw new ToolFailure("disk_http_status "+path);
+                if(expectedBytes.HasValue && bytes.Length!=expectedBytes.Value || expectedHash is not null && hash!=expectedHash)
+                    throw new ToolFailure("disk_http_response "+method+" "+path);
+                return row;
+            }
             try
             {
-                foreach(string path in DiskStaticHttpContract.Paths)
+                if(!full)
                 {
-                    int ordinal=rows.Count;using var request=new HttpRequestMessage(HttpMethod.Get,path);
-                    string[] headers=request.Headers.Select(h=>h.Key+": "+string.Join(",",h.Value)).ToArray();long started=Stopwatch.GetTimestamp();
-                    using var response=await client.SendAsync(request,HttpCompletionOption.ResponseHeadersRead,matrix.Token);
-                    using var source=await response.Content.ReadAsStreamAsync(matrix.Token);using MemoryStream body=new();byte[] buffer=new byte[8192];
-                    for(int read;(read=await source.ReadAsync(buffer,matrix.Token))!=0;)
-                    {if(body.Length+read>DiskStaticHttpContract.MaximumBodyBytes)throw new ToolFailure("disk_http_body_capacity");body.Write(buffer,0,read);}
-                    long finished=Stopwatch.GetTimestamp();byte[] bytes=body.ToArray();string name=ordinal.ToString("D3",CultureInfo.InvariantCulture)+".body";
-                    using(FileStream output=new(Path.Combine(directory,name),FileMode.CreateNew,FileAccess.Write,FileShare.Read))
-                    {await output.WriteAsync(bytes,matrix.Token);output.Flush(true);}
-                    List<string> responseHeaders=[];int headerCharacters=0;
-                    foreach(var header in response.Headers.Concat(response.Content.Headers))
-                    {
-                        string line=header.Key+": "+string.Join(",",header.Value);
-                        if(responseHeaders.Count==32 || line.Length is 0 or >1024 ||
-                            line.Any(c=>c is <' ' or >'~') || (headerCharacters+=line.Length)>4096)
-                            throw new ToolFailure("disk_http_header_capacity");
-                        responseHeaders.Add(line);
-                    }
-                    rows.Add(new(ordinal,"GET",path,(int)response.StatusCode,headers,responseHeaders.ToArray(),
-                        bytes.Length,Convert.ToHexString(SHA256.HashData(bytes)),name,started,finished));
-                    if(response.StatusCode!=HttpStatusCode.OK)throw new ToolFailure("disk_http_status "+path);
+                    foreach(string path in DiskStaticHttpContract.Paths)_=await Request(client,rows.Count,"GET",path,200);
+                }
+                else
+                {
+                    foreach(string path in new[]{"/healthz","/config","/api/status","/api/items"})
+                        _=await Request(client,rows.Count,"GET",path,200);
+                    foreach(var item in assetPlan!.Requests)
+                        _=await Request(client,rows.Count,item.Method,item.Target,item.Status,item.Headers,item.BodyBytes,item.BodySha256);
+                    using HttpClient asset=Client(),json=Client();
+                    var largest=assetPlan.Assets.OrderByDescending(a=>a.Bytes).First();int at=rows.Count;
+                    var pending=new[]{Request(asset,at,"GET",largest.Target+"?clros-concurrent=asset",200,expectedBytes:largest.Bytes,expectedHash:largest.Sha256),
+                        Request(json,at+1,"GET","/api/status?clros-concurrent=json",200)};
+                    try{_=await Task.WhenAll(pending);}
+                    finally{foreach(var task in pending)try{_=await task;}catch{}}
+                    // Both finite HTTP owners close before browser entry. The
+                    // browser owns its own fresh cache, network and process.
+                    asset.Dispose();json.Dispose();client.Dispose();
+                    await browser!(port,Path.Combine(directory,"browser"),matrix.Token);
                 }
                 complete=true;
             }
             finally
             {
                 using FileStream receipt=new(Path.Combine(directory,"http.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt,new{Schema=DiskStaticHttpContract.Schema,Scope=DiskStaticHttpContract.Scope,
-                    Port=port,Complete=complete,ClockFrequency=Stopwatch.Frequency,Responses=rows},cancellationToken:CancellationToken.None);receipt.Flush(true);
+                if(full)
+                    await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-http-full-v1",Scope="disk-static-full-v1",Port=port,Complete=complete,
+                        ClockFrequency=Stopwatch.Frequency,ImageSha256=assetPlan!.ImageSha256,PublishedInventorySha256=assetPlan.PublishedInventorySha256,
+                        Responses=rows.OrderBy(r=>r.Ordinal).ToArray()},cancellationToken:CancellationToken.None);
+                else
+                    await JsonSerializer.SerializeAsync(receipt,new{Schema=DiskStaticHttpContract.Schema,Scope=DiskStaticHttpContract.Scope,
+                        Port=port,Complete=complete,ClockFrequency=Stopwatch.Frequency,Responses=rows.OrderBy(r=>r.Ordinal).ToArray()},cancellationToken:CancellationToken.None);
+                receipt.Flush(true);
             }
         }
     }

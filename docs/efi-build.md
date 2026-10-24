@@ -1,5 +1,16 @@
 # EFI Build
 
+[Step1581](../done/step1581.md) adds default-off `EnableM10018FullProbe` and
+`M10_018_FULL_PROBE`, requiring the existing disk/static parent. It uses that
+same authoritative boot phase and preserves all existing profile defaults.
+The reviewed C# policy selects32768 finite calls,1800s after listener readiness,
+120s shutdown grace and2100s total runtime, with no service quota renewal.
+32768 maximum64KiB accounted completions fit uint. Original serial policy must
+match the source-sealed selection. The explicit policy source link,76-entry
+probe catalog, canonical project shape, symbol inventory and affected reviewed
+source identities are updated together. Native/stack publication and guest
+qualification remain pending; a successful managed build does not supply them.
+
 [Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
 the original outer consumer passes native/source/image/process, 2,985 replayed
 calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual

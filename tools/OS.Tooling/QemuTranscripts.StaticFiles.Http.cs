@@ -204,7 +204,7 @@ public static partial class QemuTranscripts
     }
 
     private static (int End, int HeaderEnd, int Status, Dictionary<string, string> Headers, byte[] Body) StaticResponse(
-        ReadOnlySpan<byte> bytes, string method)
+        ReadOnlySpan<byte> bytes, string method,bool diskStaticFull=false)
     {
         var head = ServiceHttpHead(bytes);
         Need(head.First.Length >= 13 && head.First.StartsWith("HTTP/1.1 ", StringComparison.Ordinal) && head.First[12] == ' ', "static_http_status");
@@ -214,13 +214,13 @@ public static partial class QemuTranscripts
         bool chunked = head.Headers.TryGetValue("Transfer-Encoding", out string? transfer), hasLength = head.Headers.TryGetValue("Content-Length", out string? text);
         Need(!head.Headers.ContainsKey("Trailer") && !head.Headers.ContainsKey("Content-Encoding") &&
             (!chunked || !hasLength && transfer == "chunked"), "static_http_framing");
-        int length = hasLength ? QuotaHttpPrefixLength(text!) : 0; Need(length <= 65536, "static_http_entity_bound");
+        int length = hasLength ? QuotaHttpPrefixLength(text!) : 0; Need(length <= (diskStaticFull?DiskStaticHttpContract.MaximumAssetBytes:65536), "static_http_entity_bound");
         if (method == "HEAD" || status == 304)
         { Need(!chunked && (method != "HEAD" || hasLength), "static_http_no_body"); return (head.End, head.End, status, head.Headers, []); }
         Need(chunked || hasLength, "static_http_framing");
         if (chunked)
         {
-            var decoded = QuotaHttpPrefixChunks(bytes[head.End..], 65536);
+            var decoded = QuotaHttpPrefixChunks(bytes[head.End..], diskStaticFull?DiskStaticHttpContract.MaximumAssetBytes:65536);
             Need(decoded.State == "complete", "static_http_chunk_complete");
             return (head.End + decoded.Consumed, head.End, status, head.Headers, Convert.FromBase64String(decoded.Body));
         }

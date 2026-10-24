@@ -63,7 +63,7 @@ public static partial class QemuTranscripts
 
         private void StaticInitialize(NativeAotThreadingOutput.Capture output)
         {
-            Need(output.Stderr == StaticEntry + StaticEnd && staticObservation.Begin(0x100000001), "static_replay_output_contract");
+            Need(output.Stderr == StaticEntry + StaticEnd && staticObservation.Begin(0x100000001,diskStaticFull), "static_replay_output_contract");
             staticStdout = Encoding.UTF8.GetBytes(output.Stdout); staticStderr = Encoding.UTF8.GetBytes(output.Stderr);
             staticViews = diskInventory is null ? StaticViews() : (["/app/apps/" + NativeAotStaticFilePublisher.Application], [(ulong)NativeAotStaticFileProgram.ElfBytes]);
         }
@@ -248,7 +248,7 @@ public static partial class QemuTranscripts
                 {
                     var pending = diskCompleting ?? throw new ToolFailure("disk_static_unparked_positive_read");
                     diskReadWindows.Add(new(witness.Identity,witness.Ordinal,nr,file.Generation,pending.Request,
-                        pending.BeginIndex,position-1,file.Inode,offset,wanted,pending.OutputPrefix,(uint)expected));
+                        pending.BeginIndex,position-1,file.Inode,offset,wanted,pending.OutputPrefix,(uint)expected) {Descriptor=(uint)call["a0"]});
                 }
             }
             else if (nr == 5) Need(result == Bits(memory.Covered(call["a1"], 144, 3) ? 0 : -14), "static_replay_fstat");

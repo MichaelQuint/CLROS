@@ -18,9 +18,16 @@ public static partial class QemuTranscripts
     internal static DiskStaticOriginalInspection InspectDiskStaticRun(string root,QemuSmokeOptions options,QemuSmokePlan plan,
         ProcessResult runner,NativeAotStaticFileProgram program,NativeAotDiskStaticPeer.Completion peer,
         AuthorityFile image,AuthorityFile efi,AuthorityFile package,AuthorityFile imageReceipt,
-        WebRootImageFixture.Receipt receipt,WebRunnerContext context,Action verifyOriginalInputs)
+        WebRootImageFixture.Receipt receipt,WebRunnerContext context,Action verifyOriginalInputs,
+        Func<IReadOnlyList<StaticFileHttpWireMessage>,AuthorityFiles,IReadOnlyList<AuthorityFile>>? inspectOriginalBrowser=null)
     {
         RequireCompleteProcess(runner,"disk_static_runner_incomplete");
+        bool full=NativeAotDiskSelection.FullStaticSelected(plan.Flags);
+        Need(peer.FullProfile==full && (inspectOriginalBrowser is not null)==full,"disk_static_original_full_owner");
+        int serialMaximum=full?DiskStaticCapturePolicy.SerialBytes:8*1024*1024,
+            summaryMaximum=full?DiskStaticCapturePolicy.SummaryBytes:16*1024*1024,
+            packetMaximum=full?DiskStaticCapturePolicy.PacketBytes:4*1024*1024,
+            httpMaximum=full?524288:65536,bodyMaximum=full?DiskStaticHttpContract.MaximumAssetBytes:65536;
         Need(runner.Succeeded && runner.StandardError.Length==0 && ReferenceEquals(runner,peer.Runner) && peer.Port==context.ForwardPort &&
             NativeAotDiskSelection.StaticSelected(plan.Flags) && !program.Staged && plan.BuildEfi && !options.DryRun && !options.SkipImageBuild &&
             options.WorkloadProfile=="SingleMinimalApi" && options.FirmwareRngSource=="virtio" && options.LinuxElfImageVariant=="Intact" &&
@@ -31,19 +38,21 @@ public static partial class QemuTranscripts
         AuthorityFile Hold(string path,int maximum,bool empty=false)=>captured.Open(root,Path.GetFullPath(path,root),
             "original disk static evidence","disk_static_capture",maximum,allowEmpty:empty,singleLink:true);
         Need(Path.GetFullPath(peer.Directory)==Path.GetFullPath(options.SerialLog+".disk-http",root),"disk_static_peer_directory");
-        var serial=Hold(options.SerialLog,8*1024*1024);var summary=Hold(options.SummaryLog,16*1024*1024);
-        var pcap=Hold(options.SerialLog+".pcap",4*1024*1024);var http=Hold(Path.Combine(peer.Directory,"http.json"),65536);
+        var serial=Hold(options.SerialLog,serialMaximum);var summary=Hold(options.SummaryLog,summaryMaximum);
+        var pcap=Hold(options.SerialLog+".pcap",packetMaximum);var http=Hold(Path.Combine(peer.Directory,"http.json"),httpMaximum);
         var stopped=Hold(Path.Combine(peer.Directory,"stopped.json"),4096);
-        var bodyFiles=Enumerable.Range(0,5).Select(i=>Hold(Path.Combine(peer.Directory,i.ToString("D3",CultureInfo.InvariantCulture)+".body"),65536,true)).ToArray();
-        AuthorityFiles.RequireDistinct([image,efi,package,imageReceipt,serial,summary,pcap,http,stopped,..bodyFiles]);
+
         InspectDiskStaticReceiptIdentityValues(http.Sha256,peer.ReceiptSha256,
             imageReceipt.ReadUtf8(16*1024*1024,"disk_static_image_receipt"),JsonSerializer.Serialize(receipt));
-        byte[] raw=serial.ReadBytes(8*1024*1024,"disk_static_serial"),packageBytes=package.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"disk_static_package"),
+        byte[] raw=serial.ReadBytes(serialMaximum,"disk_static_serial"),packageBytes=package.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"disk_static_package"),
             imageBytes=image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_static_image");
         var packageView=NativeAotStaticFileProgram.RequirePackage(packageBytes,false);
         _=LinuxElfImageFixture.Inspect(imageBytes,efi.ReadBytes(16*1024*1024,"disk_static_efi"),packageBytes);
         var inventory=WebRootDiskInventory.Inspect(image.Path,imageBytes,receipt);
-        byte[] summaryBytes=summary.ReadBytes(16*1024*1024,"disk_static_summary");
+        int bodies=full?4+DiskStaticHttpContract.CreateAssetPlan(inventory).Requests.Count+2:5;
+        var bodyFiles=Enumerable.Range(0,bodies).Select(i=>Hold(Path.Combine(peer.Directory,i.ToString("D3",CultureInfo.InvariantCulture)+".body"),bodyMaximum,true)).ToArray();
+        AuthorityFiles.RequireDistinct([image,efi,package,imageReceipt,serial,summary,pcap,http,stopped,..bodyFiles]);
+        byte[] summaryBytes=summary.ReadBytes(summaryMaximum,"disk_static_summary");
         Need(summaryBytes.AsSpan().StartsWith(Encoding.UTF8.GetPreamble()),"disk_static_summary_bom");
         string[] child=DecodeUtf8(summaryBytes[3..]).Split("\r\n",StringSplitOptions.RemoveEmptyEntries).TakeLast(StaticFileProcessEvidence.SummaryCount).ToArray();
         var process=InspectNativeAotStaticFileChildForTests(child,context,options.TimeoutSeconds);
@@ -55,14 +64,15 @@ public static partial class QemuTranscripts
         AssertStandardRunnerResult(root,options,plan,stdout,staticProgram:program,staticForwardPort:peer.Port,staticChildRows:child);
         int at=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);Need(at>FirmwarePrefixBytes,"disk_static_parent_start");
         var parent=InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,at),diskStatic:true);
-        string text=NormalizeStaticFileWrites(DecodeUtf8(raw[FirmwarePrefixBytes..]));
+        string text=NormalizeStaticFileWrites(DecodeUtf8(raw[FirmwarePrefixBytes..]),full);
         Need(text.EndsWith("\r\n",StringComparison.Ordinal),"disk_static_serial_terminal");
         string[] rows=text[..^2].Split("\r\n",StringSplitOptions.None);
         Need(rows.All(r=>r.Length>0 && !Controls.IsMatch(r)),"disk_static_serial_rows");
         var replay=InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset,(int)packageView.PayloadBytes).ToArray(),
-            SocketRawLeaf(raw),program.IsInstruction,program.IsSyscallReturn,parent.UserRoot,parent.KernelRoot,inventory);
-        Need(replay.Static.Connections.Count==1,"disk_static_development_connections");
-        var envelope=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,diskStaticConnections:1).Proof;
+            SocketRawLeaf(raw),program.IsInstruction,program.IsSyscallReturn,parent.UserRoot,parent.KernelRoot,inventory,full);
+        int connections=full?replay.Static.Connections.Count:1;
+        Need(connections is >0 and <=32 && (full || replay.Static.Connections.Count==1),"disk_static_connections");
+        var envelope=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,diskStaticConnections:connections).Proof;
         Need(replay.Static.ReadyNanoseconds>=parent.PeerEnd && replay.Static.ExitedNanoseconds<=envelope.End["end"] &&
             replay.Static.FileObservations>0 && replay.Static.PathObservations>0 && replay.Static.Signal15Returns==1,"disk_static_parent_leaf");
         foreach(string row in rows.Where(r=>r.StartsWith("M16_008_TIMING ",StringComparison.Ordinal) || r.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal)))
@@ -85,10 +95,20 @@ public static partial class QemuTranscripts
             "started:dec","epochs:dec","steps:dec","nanos:dec");
         var budgetEnd=ReadRecord(rows.Single(r=>r.StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal)),"M16_008_BUDGET_END","nanos:dec");
         Need(budget["started"]>=disk["clock"] && budgetEnd["nanos"]<=envelope.End["end"],"disk_static_budget_lifetime");
-        byte[] packetBytes=pcap.ReadBytes(4*1024*1024,"disk_static_packets");
-        var bodyBytes=bodyFiles.ToDictionary(b=>Path.GetFileName(b.Path),b=>b.ReadBytes(65536,"disk_static_body"));
-        var wire=InspectNativeAotDiskStaticHttpValues(packetBytes,parent.FrameAnchor,parent.Arp,
-            envelope.Lifetimes.Select(l=>l.RemotePort).ToArray(),http.ReadBytes(65536,"disk_static_http"),bodyBytes,inventory,replay);
+        byte[] packetBytes=pcap.ReadBytes(packetMaximum,"disk_static_packets");
+        var bodyBytes=bodyFiles.ToDictionary(b=>Path.GetFileName(b.Path),b=>b.ReadBytes(bodyMaximum,"disk_static_body"));
+        DiskStaticHttpInspection wire;
+        if(full)
+        {
+            var inspected=InspectNativeAotDiskStaticFullHttpValues(packetBytes,parent.FrameAnchor,parent.Arp,
+                envelope.Lifetimes.Select(l=>l.RemotePort).ToArray(),http.ReadBytes(httpMaximum,"disk_static_http"),bodyBytes,inventory,replay);
+            var browserFiles=inspectOriginalBrowser!(inspected.BrowserMessages,captured);
+            Need(browserFiles.Count is >0 and <=272,"disk_static_browser_artifact_bound");
+            AuthorityFiles.RequireDistinct([image,efi,package,imageReceipt,serial,summary,pcap,http,stopped,..bodyFiles,..browserFiles]);
+            wire=inspected.Http;
+        }
+        else wire=InspectNativeAotDiskStaticHttpValues(packetBytes,parent.FrameAnchor,parent.Arp,
+            envelope.Lifetimes.Select(l=>l.RemotePort).ToArray(),http.ReadBytes(httpMaximum,"disk_static_http"),bodyBytes,inventory,replay);
         using(var stoppedDocument=JsonDocument.Parse(stopped.ReadBytes(4096,"disk_static_stopped")))
         {
             var value=stoppedDocument.RootElement;StaticObject(value,"Port","EndpointRefused","RunnerExit");

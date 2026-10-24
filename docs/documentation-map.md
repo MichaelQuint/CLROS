@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1581](../done/step1581.md) records the full finite disk/static candidate.
+`qemu.md` owns its command and selected capture limits; `kestrel.md` owns the
+HTTP/browser phases; `efi-build.md` and `diagnostics.md` own the default-off
+profile/admission changes; `host-requirements.md` owns external Chromium needs.
+Storage and completion gates retain unqualified race/write/durability boundaries.
+
 [Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
 the original outer consumer passes native/source/image/process, 2,985 replayed
 calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual

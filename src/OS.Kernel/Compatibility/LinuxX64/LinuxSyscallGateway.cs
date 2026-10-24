@@ -71,6 +71,8 @@ public unsafe struct LinuxSyscallAdmission
     // Explicit preemptible service policy. MaximumCalls is then a per-hardware-
     // turn quota; only the trusted supervisor may renew it after a new turn.
     public bool ContinuingService;
+    // Explicit finite M10-018 full owner; never compatible with quota renewal.
+    public bool DiskStaticFull;
 }
 
 public unsafe struct LinuxSyscallGateState
@@ -122,13 +124,14 @@ public static unsafe partial class LinuxSyscallGateway
         if (state.CallsValue != 0 || state.BytesValue != 0 || state.TotalCallsValue != 0 || state.TotalBytesValue != 0 || state.TurnValue != 0 ||
             !Empty(state.Pending) || !EmptyExitTail(state.ExitTail) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
             admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
-            admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
+            admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.DiskStaticFull ? DiskStaticExecutionPolicy.MaximumCalls : admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
             admission.Scratch == null || admission.ScratchBytes < admission.MaximumWrite || admission.ScratchBytes > MaximumWrite ||
             (ulong)admission.Scratch > ~0UL - admission.ScratchBytes || access.Context == null ||
             access.PageAccess == null || access.CopyFromUser == null || access.Write == null)
             return LinuxSyscallGateStatus.InvalidAdmission;
-        if (admission.ContinuingService && (!admission.EnableThreads || !access.UserInterrupts))
+        if (admission.DiskStaticFull && (!admission.EnableThreads || !access.UserInterrupts || admission.ContinuingService) ||
+            admission.ContinuingService && (!admission.EnableThreads || !access.UserInterrupts))
             return LinuxSyscallGateStatus.InvalidAdmission;
         if (admission.EnableStartup != (access.Startup != null) ||
             admission.EnableDescriptors != (access.Descriptors != null) ||
@@ -285,7 +288,8 @@ public static unsafe partial class LinuxSyscallGateway
 
     private static void AccountBytes(ref LinuxSyscallGateState state, uint bytes)
     {
-        // Each turn is at most4096 calls *64KiB; Dispatch reserves lifetime
+        // Ordinary turns are at most4096 calls; finite DiskStaticFullV1 admits
+        // at most32768. Both *64KiB fit uint. Dispatch reserves lifetime
         // headroom before invoking any synchronous or deferred IO callback.
         state.BytesValue += bytes; state.TotalBytesValue += bytes;
     }

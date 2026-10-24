@@ -19,7 +19,8 @@ public unsafe struct LinuxThreadExecutionBudget
     public const uint WebMaximumEpochs = 1_000_000, WebMaximumSteps = 4_000_000;
     public const ulong ServiceProgressNanoseconds = 30_000_000_000;
     private uint _workers;
-    private bool _application, _web;
+    private bool _application, _web, _diskStaticFull;
+    public readonly ulong ElapsedLimitNanoseconds => _diskStaticFull ? DiskStaticExecutionPolicy.RuntimeNanoseconds : RuntimeNanoseconds;
     private bool _service, _cancelled, _runnable;
     private ulong _started, _last;
     private ulong _lastProgress, _progress;
@@ -45,11 +46,12 @@ public unsafe struct LinuxThreadExecutionBudget
     /// than wrapping. The enclosing source-sealed profile authorizes that mode;
     /// this value cannot infer it from a workload. Reentry or invalid input
     /// rejects without mutation. This establishes no native execution authority.</summary>
-    public bool Begin(uint workers, ulong now, bool application = false, bool continuingWeb = false, bool continuingService = false)
+    public bool Begin(uint workers, ulong now, bool application = false, bool continuingWeb = false, bool continuingService = false, bool diskStaticFull = false)
     {
         if (_workers != 0 || workers == 0 || workers > LinuxThreadProgram.MaximumWorkers || now > long.MaxValue ||
-            continuingWeb && !application || continuingService && (!application || !continuingWeb)) return false;
-        _workers = workers; _application = application || workers > 8; _web = continuingWeb;
+            continuingWeb && !application || continuingService && (!application || !continuingWeb) ||
+            diskStaticFull && (!application || !continuingWeb || continuingService)) return false;
+        _diskStaticFull = diskStaticFull; _workers = workers; _application = application || workers > 8; _web = continuingWeb;
         _service = continuingService; _runnable = continuingService;
         _started = _last = _lastProgress = now; return true;
     }
@@ -72,7 +74,7 @@ public unsafe struct LinuxThreadExecutionBudget
     public bool Observe(ulong now)
     {
         if (_workers == 0 || _cancelled || now > long.MaxValue || now < _last ||
-            HasElapsedLimit && now - _started >= RuntimeNanoseconds ||
+            HasElapsedLimit && now - _started >= ElapsedLimitNanoseconds ||
             _service && _runnable && now - _lastProgress >= ServiceProgressNanoseconds) return false;
         _last = now; return true;
     }
