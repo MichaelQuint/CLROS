@@ -5,28 +5,64 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Trusted serialized supervisor callbacks, borrowed for this
+    /// invocation only. Both must be null for one-step mode, or nonnull with a
+    /// stable Context. Clock returns monotonic nanoseconds; Flush retains each
+    /// step's evidence before any next step. Return exactly1; never throw,
+    /// reenter or mutate thread/descriptor/FS/block ownership. No user pointers.
+    /// A callback failure rejects while all original backing stays retained.</summary>
+    public struct DiskPumpAccess
+    {
+        public void* Context;
+        public delegate* unmanaged<void*, ulong*, byte> Clock;
+        public delegate* unmanaged<void*, byte> Flush;
+    }
+
     /// <summary>Advance one of eight retained requests, including cancelled
     /// orphan records, then inspect at most16 actual worker generations. Wake
-    /// only its original live source4 wait. A signal/deadline/cancel winner is
-    /// never overwritten. This serialized IRQ-off pump never copies user bytes.</summary>
-    public bool PollDiskReadiness(ulong key, ulong flags)
+    /// only its original live source4 wait. Optional trusted callbacks permit
+    /// at most4 separate steps/5ms elapsed checks, flushing every step; no
+    /// progress, ready/cancelled/exiting work or budget expiry yields. A
+    /// signal/deadline/cancel winner is never overwritten. This serialized
+    /// IRQ-off pump never copies user bytes.</summary>
+    public bool PollDiskReadiness(ulong key, ulong flags, DiskPumpAccess access = default)
     {
         if (!Access(key, flags) || _descriptors == null || !LinuxDescriptorServices.Attached(_descriptors, _self)) return false;
         if (_descriptors->Disk == null) return true;
-        var progress = LinuxDescriptorServices.PumpDiskOne(_descriptors, _self);
-        if (progress.Progress == LinuxDescriptorServices.DiskProgress.Rejected) { _failed = true; return false; }
-        for (uint i = 0; i < _owner.Capacity; i++)
+        bool quantum = access.Clock != null || access.Flush != null;
+        ulong started = 0;
+        if (quantum && (access.Context == null || access.Clock == null || access.Flush == null ||
+            access.Clock(access.Context, &started) != 1)) return false;
+        // Four separate primitives, with an elapsed check before each extra
+        // step. A primitive/flush can overshoot5ms; this is not an IRQ bound.
+        for (uint step = 0; step < (quantum ? 4U : 1U); step++)
         {
-            Slot* slot = _owner.Slots + i;
-            if (!slot->DiskOperation.IsActive || !slot->Wait.IsValid || slot->WaitSource != 4 || slot->Exiting != 0) continue;
-            var current = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
-            if (!current.Succeeded || current.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
-            if (current.Completion != KernelThreadTable.Completion.None) continue;
-            var observed = LinuxDescriptorServices.PollDisk(_descriptors, _self, slot->DiskOperation);
-            if (observed.Progress == LinuxDescriptorServices.DiskProgress.Rejected || observed.Worker.Value != slot->Kernel.Value)
-            { _failed = true; return false; }
-            if (observed.Progress != LinuxDescriptorServices.DiskProgress.Ready) continue;
-            if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
+            if (step != 0)
+            {
+                ulong now = 0;
+                if (access.Clock(access.Context, &now) != 1 || now < started) return false;
+                if (now - started >= 5000000UL) break;
+            }
+            var progress = LinuxDescriptorServices.PumpDiskOne(_descriptors, _self);
+            if (progress.Progress == LinuxDescriptorServices.DiskProgress.Rejected) { _failed = true; return false; }
+            bool ready = false;
+            for (uint i = 0; i < _owner.Capacity; i++)
+            {
+                Slot* slot = _owner.Slots + i;
+                if (!slot->DiskOperation.IsActive) continue;
+                if (!slot->Wait.IsValid || slot->WaitSource != 4 || slot->Exiting != 0) { ready = true; continue; }
+                var current = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
+                if (!current.Succeeded || current.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
+                if (current.Completion != KernelThreadTable.Completion.None) { ready = true; continue; }
+                var observed = LinuxDescriptorServices.PollDisk(_descriptors, _self, slot->DiskOperation);
+                if (observed.Progress == LinuxDescriptorServices.DiskProgress.Rejected || observed.Worker.Value != slot->Kernel.Value)
+                { _failed = true; return false; }
+                if (observed.Progress != LinuxDescriptorServices.DiskProgress.Ready) continue;
+                if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
+                ready = true;
+            }
+            if (quantum && access.Flush(access.Context) != 1) return false;
+            if (ready || !progress.Advanced) break;
         }
         return true;
     }

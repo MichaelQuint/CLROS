@@ -32,9 +32,13 @@ public static unsafe partial class LinuxDescriptorServices
         public readonly DiskToken Token;
         public readonly OSHostHandle Worker;
         public readonly Fs.Status Failure;
+        /// <summary>One selected live pending request made an actual block
+        /// submit/completion/copy transition. Only the serialized current owner
+        /// may use this to consider another bounded step; it grants no copy.</summary>
+        public readonly bool Advanced;
         internal DiskResult(DiskProgress progress, long value = 0, DiskToken token = default,
-            OSHostHandle worker = default, Fs.Status failure = Fs.Status.Success)
-        { Progress = progress; Value = value; Token = token; Worker = worker; Failure = failure; }
+            OSHostHandle worker = default, Fs.Status failure = Fs.Status.Success, bool advanced = false)
+        { Progress = progress; Value = value; Token = token; Worker = worker; Failure = failure; Advanced = advanced; }
     }
 
     /// <summary>One original open description's filesystem handle. Duplicated
@@ -219,7 +223,19 @@ public static unsafe partial class LinuxDescriptorServices
         {
             uint i = (d->NextPump + n) % DiskSlots;
             if (d->Requests[i].Phase == 0) continue;
-            d->NextPump = (i + 1) % DiskSlots; return StepDisk(state, d->Requests + i);
+            var device = d->Mount->Input.Device;
+            ulong epoch = device->Input.Epoch, generation = d->Requests[i].Generation;
+            ulong submitted = device->Submitted, completed = device->Completed, copied = device->Copied, cancelled = device->Cancelled;
+            d->NextPump = (i + 1) % DiskSlots;
+            DiskResult result = StepDisk(state, d->Requests + i);
+            bool advanced = result.Progress == DiskProgress.Pending && result.Worker.IsValid &&
+                d->Requests[i].Generation == generation && !d->Requests[i].Cancelling &&
+                d->Mount->Ready && d->Mount->Input.Device == device && device->Running && device->Input.Epoch == epoch &&
+                device->Cancelled == cancelled && device->Submitted >= submitted && device->Submitted - submitted <= 1 &&
+                device->Completed >= completed && device->Completed - completed <= 1 &&
+                device->Copied >= copied && device->Copied - copied <= 1 &&
+                (device->Submitted != submitted || device->Completed != completed || device->Copied != copied);
+            return new(result.Progress, result.Value, result.Token, result.Worker, result.Failure, advanced);
         }
         return new(DiskProgress.Immediate);
     }

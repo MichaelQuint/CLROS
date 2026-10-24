@@ -675,12 +675,16 @@ public static unsafe partial class EfiEntry
 
         private static bool PollLinuxSocketNetwork(LinuxNativeControl* c, bool observe = true)
         {
+#if M16_025_PROBE
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+#endif
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
                 return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&
                     RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
                     (!observe || RecordLinuxSocketPoll(c)) &&
 #if M16_025_PROBE
-                    c->Process.PollDiskReadiness(c->Key, 2) && FlushNativeDiskEvidence(c->State) &&
+                    disk->Boot == c->State && c->Process.PollDiskReadiness(c->Key, 2,
+                        new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush }) &&
 #endif
                     c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
         }

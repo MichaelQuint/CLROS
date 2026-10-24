@@ -977,6 +977,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal ushort Selected, Size, Enabled, ConfigVector, QueueVector;
         internal byte Status;
         internal bool Bus, Pending;
+        internal bool CompleteOnPoll;
+        internal nint DiskHandle;
     }
     [UnmanagedCallersOnly] private static byte Read8(void* c, ulong address, byte* value)
     {
@@ -991,7 +993,11 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
     [UnmanagedCallersOnly] private static byte Read16(void* c, ulong address, ushort* value)
     {
         var h = (Hardware*)c;
-        if (address == (ulong)h->Data + 150) { *value = *(ushort*)(h->Data + 150); return 1; }
+        if (address == (ulong)h->Data + 150)
+        {
+            if (h->CompleteOnPoll) Complete(h);
+            *value = *(ushort*)(h->Data + 150); return 1;
+        }
         switch (address - Common)
         {
             case 16: *value = h->ConfigVector; break; case 18: *value = 1; break; case 22: *value = h->Selected; break;
@@ -1030,6 +1036,19 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
     [UnmanagedCallersOnly] private static byte BusOff(void* c) { ((Hardware*)c)->Bus = false; return 1; }
     [UnmanagedCallersOnly] private static byte Clock(void* c, ulong* value) { *value = 0; return 1; }
 
+    // A test device publishes a genuine used-ring completion. Immediate mode
+    // runs at the device's next index read; it never edits block/FS ownership.
+    private static void Complete(Hardware* h)
+    {
+        if (!h->Pending) return;
+        var disk = (Disk)GCHandle.FromIntPtr(h->DiskHandle).Target!;
+        ulong lba = h->Sector; disk.Reads[lba]++;
+        if (disk.Sectors.TryGetValue(lba, out var bytes)) bytes.CopyTo(new Span<byte>(h->Data + 512, 512)); else new Span<byte>(h->Data + 512, 512).Clear();
+        bool failure = lba == disk.FailLba; h->Data[272] = failure ? (byte)1 : (byte)0;
+        byte* used = h->Data + 152 + (h->Produced & 7) * 8; *(uint*)used = 0; *(uint*)(used + 4) = failure ? 1U : 513U;
+        h->Produced++; *(ushort*)(h->Data + 150) = unchecked((ushort)h->Produced); h->Pending = false;
+    }
+
     internal sealed class Fixture : IDisposable
     {
         internal const int ArenaBytes = 262144;
@@ -1042,6 +1061,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal readonly DmaBufferPool* Pool = (DmaBufferPool*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferPool));
         private readonly DmaBufferSlot* dmaSlot = (DmaBufferSlot*)NativeMemory.AllocZeroed((nuint)sizeof(DmaBufferSlot));
         private readonly Hardware* hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware));
+        private readonly GCHandle diskHandle;
+        internal bool CompleteOnPoll { set => hardware->CompleteOnPoll = value; }
         internal readonly Fs.Mount* Mount;
         internal readonly Fs.Operation* Operations;
         internal readonly Fs.FileHandle* Files;
@@ -1062,6 +1083,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             ulong lifetime = (ulong)Interlocked.Increment(ref epoch);
             HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
             HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, dmaSlot, 1, lifetime));
+            diskHandle = GCHandle.Alloc(Disk); hardware->DiskHandle = GCHandle.ToIntPtr(diskHandle);
             hardware->Data = Data; hardware->Capacity = Disk.Capacity; hardware->Status = 11;
             PciSizedBar* bars = stackalloc PciSizedBar[6]; new Span<PciSizedBar>(bars, 6).Clear();
             HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0xc, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
@@ -1093,12 +1115,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         private byte* Take(uint bytes) { byte* p = Arena + arenaAt; arenaAt = (arenaAt + bytes + 7) & ~7U; if (arenaAt > arenaCapacity) throw new InvalidOperationException("fixture_arena"); return p; }
         internal void Tick()
         {
-            if (!hardware->Pending) return;
-            ulong lba = hardware->Sector; Disk.Reads[lba]++;
-            if (Disk.Sectors.TryGetValue(lba, out var bytes)) bytes.CopyTo(new Span<byte>(Data + 512, 512)); else new Span<byte>(Data + 512, 512).Clear();
-            bool failure = lba == Disk.FailLba; Data[272] = failure ? (byte)1 : (byte)0;
-            byte* used = Data + 152 + (hardware->Produced & 7) * 8; *(uint*)used = 0; *(uint*)(used + 4) = failure ? 1U : 513U;
-            hardware->Produced++; *(ushort*)(Data + 150) = unchecked((ushort)hardware->Produced); hardware->Pending = false;
+            Complete(hardware);
         }
         internal Fs.Status StartMount()
         {
@@ -1151,6 +1168,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             if (Mount->RequiresCleanup) { _ = Fs.Stop(Mount); }
             if (!Device->Retired) _ = Block.Stop(Device);
             if (Mount->RequiresCleanup) _ = Fs.Stop(Mount);
+            diskHandle.Free();
             NativeMemory.AlignedFree(Arena); NativeMemory.AlignedFree(blockBacking); NativeMemory.Free(Device); NativeMemory.Free(Pool); NativeMemory.Free(dmaSlot); NativeMemory.Free(hardware);
         }
     }

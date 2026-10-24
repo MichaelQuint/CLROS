@@ -353,6 +353,9 @@ public static unsafe partial class EfiEntry
         private static byte NativeDiskClock(void* context, ulong* time)
         { var o = (NativeDiskOwner*)context; if (time == null || !ReadNetworkTime(o->Boot, out ulong now)) return 0; *time = now; return 1; }
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte NativeDiskQuantumFlush(void* context)
+        { var o = (NativeDiskOwner*)context; return o != null && o->Boot != null && FlushNativeDiskEvidence(o->Boot) ? (byte)1 : (byte)0; }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte NativeDiskBusMasterOn(void* context) => SetNativeDiskBusMaster((NativeDiskOwner*)context, true);
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte NativeDiskBusMasterOff(void* context) => SetNativeDiskBusMaster((NativeDiskOwner*)context, false);

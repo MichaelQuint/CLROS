@@ -23,8 +23,19 @@ internal static unsafe class LinuxDiskThreadServicesTests
         internal readonly OSHostHandle Main;
         private const ulong SignalKey = 0x64736b7369676e6c;
         private Signals.State* signalState;
-        internal Owner(bool signals = false)
+        internal Owner(bool signals = false, bool large = false)
         {
+            if (large)
+            {
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(Storage.Disk.Sector(Storage.Disk.Data(4)).AsSpan(60), 8192);
+                uint[] clusters = [10, 12, .. Enumerable.Range(1000, 14).Select(i => (uint)i)];
+                for (int i = 0; i < clusters.Length; i++)
+                {
+                    Storage.Disk.SetFat(clusters[i], i + 1 == clusters.Length ? 0x0fffffff : clusters[i + 1]);
+                    byte[] sector = Storage.Disk.Sector(Storage.Disk.Data(clusters[i]));
+                    for (int n = 0; n < 512; n++) sector[n] = unchecked((byte)((i * 512 + n) * 31 ^ ((i * 512 + n) >> 8) ^ 0x5a));
+                }
+            }
             Storage.MountReady();
             Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut; Files.Begin();
             HostCheck.True(Fds.AttachDisk(Files.State, Disk, new() { Mount = Storage.Mount, Bindings = bindings, Requests = requests,
@@ -103,6 +114,171 @@ internal static unsafe class LinuxDiskThreadServicesTests
             finally
             { if (signalState != null) NativeMemory.AlignedFree(signalState); NativeMemory.Free(Disk); NativeMemory.Free(bindings); NativeMemory.Free(requests); Files.Dispose(); Thread.Dispose(); Storage.Dispose(); }
         }
+    }
+
+    private struct PumpContext
+    {
+        internal Block.State* Device;
+        internal ulong Now, Increment, Submitted, Completed, Copied;
+        internal uint Flushes;
+        internal uint ClockCalls, FailClockAt, FailFlushAt;
+        internal bool Bad, Regress;
+    }
+    [UnmanagedCallersOnly]
+    private static byte PumpClock(void* context, ulong* now)
+    {
+        var c = (PumpContext*)context; c->ClockCalls++;
+        if (c->ClockCalls == c->FailClockAt) return 0;
+        *now = c->Regress && c->ClockCalls == 2 ? c->Now - 1 : c->Now; c->Now += c->Increment; return 1;
+    }
+    [UnmanagedCallersOnly]
+    private static byte PumpFlush(void* context)
+    {
+        var c = (PumpContext*)context; var d = c->Device;
+        c->Bad |= d->Submitted < c->Submitted || d->Submitted - c->Submitted > 1 ||
+            d->Completed < c->Completed || d->Completed - c->Completed > 1 ||
+            d->Copied < c->Copied || d->Copied - c->Copied > 1 || d->Submitted - d->Completed > 1;
+        c->Submitted = d->Submitted; c->Completed = d->Completed; c->Copied = d->Copied; c->Flushes++;
+        return c->Flushes == c->FailFlushAt ? (byte)0 : (byte)1;
+    }
+
+    [HostTest("linux.disk-thread bounded quantum reduces outer passes with identical real sixteen-sector completion and no early user copy")]
+    private static void ImmediateQuantum()
+    {
+        foreach (bool quantum in new[] { false, true })
+        {
+            using Owner o = new(large: true); uint fd = o.Open(); o.Storage.CompleteOnPoll = true;
+            new Span<byte>(o.Thread.At(Output), 8192).Fill(0xa5);
+            o.Begin(17, fd, Output, 8192); o.Park(); ulong submitted = o.Storage.Device->Submitted;
+            PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted };
+            LinuxThreadServices.DiskPumpAccess access = quantum ? new() { Context = &context, Clock = &PumpClock, Flush = &PumpFlush } : default;
+            int outer = 0;
+            while (o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None && outer < 100)
+            {
+                uint flushed = context.Flushes;
+                HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access)); outer++;
+                HostCheck.True(context.Flushes - flushed <= 4);
+                HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 8192).IndexOfAnyExcept((byte)0xa5) < 0);
+            }
+            HostCheck.Equal(quantum ? 8 : 32, outer);
+            HostCheck.Equal(submitted + 16, o.Storage.Device->Submitted);
+            HostCheck.Equal(submitted + 16, o.Storage.Device->Completed); HostCheck.Equal(submitted + 16, o.Storage.Device->Copied);
+            HostCheck.True(!context.Bad); if (quantum) HostCheck.Equal(32U, context.Flushes);
+            HostCheck.Equal(8192L, o.Consume());
+            for (int i = 0; i < 8192; i++) HostCheck.Equal(unchecked((byte)(i * 31 ^ (i >> 8) ^ 0x5a)), o.Thread.At(Output)[i]);
+            HostCheck.Equal(0L, o.Run(8, fd, 0, 1));
+            Console.WriteLine($"DISK_QUANTUM_WORK enabled={quantum} outerPasses={outer} submitted=16 completed=16 copied=16 peakOutstanding=1");
+        }
+    }
+
+    [HostTest("linux.disk-thread quantum yields on delayed completion and elapsed budget while cancellation revokes copy")]
+    private static void QuantumYields()
+    {
+        foreach (bool elapsed in new[] { false, true })
+        {
+            using Owner o = new(); uint fd = o.Open(); var child = o.Thread.Clone(); o.Begin(17, fd, Output, 700); o.Park();
+            ulong submitted = o.Storage.Device->Submitted;
+            PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted,
+                Increment = elapsed ? 5000000UL : 0 };
+            var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush };
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            HostCheck.Equal(elapsed ? 1U : 2U, context.Flushes); HostCheck.Equal(submitted + 1, o.Storage.Device->Submitted);
+            HostCheck.Equal(submitted, o.Storage.Device->Completed); HostCheck.Equal(submitted, o.Storage.Device->Copied);
+            context.Increment = 0; uint before = context.Flushes;
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            HostCheck.Equal(before + 1, context.Flushes); HostCheck.Equal(submitted, o.Storage.Device->Completed);
+            HostCheck.True(!context.Bad && o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None);
+            // Cancellation occurs at a real serialized invocation boundary;
+            // callbacks never manufacture IRQ-off reentrancy.
+            HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value);
+            HostCheck.Equal(0L, o.Thread.DescriptorCall(3, fd).Value);
+            new Span<byte>(o.Thread.At(Output), 700).Fill(0x69); o.Storage.Tick();
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            o.Ready(); o.Thread.Yield(child); HostCheck.Equal(-9L, o.Consume());
+            HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 700).IndexOfAnyExcept((byte)0x69) < 0);
+        }
+    }
+
+    [HostTest("linux.disk-thread quantum clock and flush failures stop before another step and preserve teardown")]
+    private static void QuantumCallbackFailures()
+    {
+        for (int mode = 0; mode < 4; mode++)
+        {
+            using Owner o = new(); uint fd = o.Open(); o.Begin(17, fd, Output, 700); o.Park();
+            new Span<byte>(o.Thread.At(Output), 700).Fill(0x77); ulong submitted = o.Storage.Device->Submitted;
+            PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted,
+                Now = 10, FailClockAt = mode == 0 ? 1U : mode == 1 ? 2U : 0, FailFlushAt = mode == 2 ? 1U : 0, Regress = mode == 3 };
+            HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2, new() { Context = &context, Clock = &PumpClock, Flush = &PumpFlush }));
+            HostCheck.Equal(mode == 0 ? submitted : submitted + 1, o.Storage.Device->Submitted);
+            HostCheck.Equal(mode == 0 ? 0U : 1U, context.Flushes);
+            HostCheck.Equal(submitted, o.Storage.Device->Completed); HostCheck.Equal(submitted, o.Storage.Device->Copied);
+            HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 700).IndexOfAnyExcept((byte)0x77) < 0 && !o.May(Output, 700));
+        }
+    }
+
+    [HostTest("linux.disk-thread quantum preserves an interrupted wait winner and exiting worker while retaining pending owners")]
+    private static void QuantumWaitWinner()
+    {
+        foreach (bool shutdown in new[] { false, true })
+        {
+            using Owner o = new(); uint fd = o.Open(); o.Begin(17, fd, Output, 700); o.Park();
+            ulong submitted = o.Storage.Device->Submitted;
+            PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted };
+            var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush };
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access)); o.Storage.Tick();
+            if (shutdown) HostCheck.True(o.Thread.Service->Shutdown(Key, 2, 7));
+            else HostCheck.True(o.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, o.Thread.View(o.Main).Wait).Succeeded);
+            uint before = context.Flushes; new Span<byte>(o.Thread.At(Output), 700).Fill(0x69);
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            HostCheck.Equal(before + 1, context.Flushes); HostCheck.Equal(submitted + 1, o.Storage.Device->Submitted);
+            HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 700).IndexOfAnyExcept((byte)0x69) < 0);
+            if (shutdown) HostCheck.True(o.Thread.View(o.Main).Exiting);
+            else
+            {
+                HostCheck.Equal(KernelThreadTable.Completion.Interrupted, o.Thread.Kernel.Inspect(o.Main).Completion);
+                HostCheck.Equal(-4L, o.Consume());
+            }
+        }
+    }
+
+    [HostTest("linux.disk-thread quantum retains round robin competing requests and yields to an already ready worker")]
+    private static void QuantumCompeting()
+    {
+        const ulong firstOutput = Base + 0x1000;
+        HostCheck.True(firstOutput + 16384 <= Base + LinuxThreadServicesTests.UserBytes);
+        using Owner o = new(large: true); uint first = o.Open(), second = o.Open(); var child = o.Thread.Clone();
+        o.Storage.CompleteOnPoll = true; o.Begin(17, first, firstOutput, 8192); o.Park();
+        HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value); o.Begin(17, second, firstOutput + 8192, 8192);
+        HostCheck.True(o.Thread.Service->CommitDiskWait(Key, 2, o.Thread.Kernel.Capture(child), out bool handoff) && handoff);
+        o.Thread.Kernel.Confirm(); new Span<byte>(o.Thread.At(firstOutput), 16384).Fill(0x77);
+        ulong submitted = o.Storage.Device->Submitted;
+        PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted };
+        var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush };
+        for (int i = 0; i < 256; i++)
+        {
+            bool ready = o.Thread.Kernel.Inspect(o.Main).Completion != KernelThreadTable.Completion.None ||
+                o.Thread.Kernel.Inspect(child).Completion != KernelThreadTable.Completion.None;
+            uint before = context.Flushes;
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            HostCheck.True(context.Flushes - before <= (ready ? 1U : 4U));
+            if (o.Thread.Kernel.Inspect(o.Main).Completion != KernelThreadTable.Completion.None &&
+                o.Thread.Kernel.Inspect(child).Completion != KernelThreadTable.Completion.None) break;
+        }
+        HostCheck.Equal(submitted + 32, o.Storage.Device->Submitted); HostCheck.Equal(submitted + 32, o.Storage.Device->Completed);
+        HostCheck.Equal(submitted + 32, o.Storage.Device->Copied); HostCheck.True(!context.Bad);
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(firstOutput), 16384).IndexOfAnyExcept((byte)0x77) < 0);
+        // Round robin need not finish the older operation first. Consume the
+        // actual ready queue order rather than prescribing its scheduler order.
+        OSHostHandle previous = default;
+        for (int i = 0; i < 2; i++)
+        {
+            var current = o.Thread.Kernel.Dispatch();
+            HostCheck.True((current.Value == o.Main.Value || current.Value == child.Value) && current.Value != previous.Value);
+            var result = o.Thread.Service->CompleteDiskWait(Key, 2);
+            HostCheck.Equal(LinuxSyscallAction.Return, result.Action); HostCheck.Equal(8192L, result.Value);
+            previous = current; if (i == 0) o.Thread.Yield(current);
+        }
+        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(firstOutput), 8192).SequenceEqual(new ReadOnlySpan<byte>(o.Thread.At(firstOutput + 8192), 8192)));
     }
 
     [HostTest("linux.disk-thread gateway carries stat open lstat seek pread and openat through real waits")]

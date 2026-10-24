@@ -8,13 +8,13 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "fc6edeabd1903691d78f968ccbd21f5f1cd7a93e4179a1ddbf5544e7b24d735c",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "5d1adc1d5b2255d21b8752b21242837062a02986e210e38601a698fe1f8f7f33",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "7afae39875d66e04204b263367ce08700b134482360393af44d00660b79943bc",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "0154310cd3d0d8b294eba266fdfea37389eccf23bdbbc38a3ca2f5a0c363afba",
                 [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "bb09afc107d9405af85ef70520e36d566c1ea27fc38e8d2a7709deff48d6762b",
                 [@"Boot\EfiEntry.DiskEvidence.cs"] = "ea6eb50dde22da537489cb6d8fb9c001f6f36d761405a6dac1f6c4c738d1525b",
                 [@"Boot\EfiEntry.DiskBootstrap.cs"] = "89e8acf5685b78d48f1078deba8f8177cf7ca2efa570e1e66a8be9a13f79ec8d",
-                [@"Boot\EfiEntry.DiskNative.cs"] = "6c42a17a46510e132c9a2d6f430927dc95e77f04cc868814bf5cb6a90ed57f9b",
+                [@"Boot\EfiEntry.DiskNative.cs"] = "b04a76b9d38d52522a4e063b4a6d439d14737815401e6fcceca98cfdfeef12f7",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs"] = "eedd501f486cf9e0f17129577a909d9e18e1320babb90aad31f3b3e92b4e1fe6",
                 [@"Boot\EfiEntry.StaticFiles.cs"] = "0e4a088b4b592dc2f3829b1b68e6900029b9758c35fc24d78cdb1df0cf565386",
                 [@"Boot\EfiEntry.Realtime.cs"] = "c871f076a82826df3763e248bafd0bbb095dfc0b12fe96c41b3a0f7c63b17fc9",
@@ -71,7 +71,7 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "954a6bdc264bb993c2df335ff81bcc7485d5709cc8ed86616119cc5a1abefda6",
                 [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "d0437f9e1e76908f9830bc8c34a66e5b8f6a468acb76c133be9579686e0f8878",
                 [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "1246c16c469b767e7b69b22d5d360cb235781eb0e1d076b6a05f2dd39b02f373",
-                [@"Boot\EfiEntry.LinuxSockets.cs"] = "3b0300640cc91683aea4a11e421f3bf9386b90f5896f6bfc5eac62b2952fd3da",
+                [@"Boot\EfiEntry.LinuxSockets.cs"] = "aea4e0d04b1a7e6ee35d6c89257005e60bb9f474cd437198f538731c5390dbaa",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs"] = "ecc12c5acf7c85b191f1f2ff22c9f32786fd4f604aec7a823878f95cbee396ab",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs"] = "7d429347e2c8dc693af73aa0356cbdc6c43f8b63f2836a1042e6d3e34887651a",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs"] = "399f93820f2dac19cf5bbaab00ba11740e43d967b875cb6518df24ccd074f9d6",
