@@ -30,6 +30,10 @@ internal static unsafe class ContinuingFat32MutationTests
     { C.RequestToken value = default; var status = C.BeginGrow(f.State, file, length, candidates, &value); request = value; return status; }
     private static C.Status Read(Fixture f, C.FileToken file, ulong offset, uint bytes, out C.RequestToken request)
     { C.RequestToken value = default; var status = C.BeginRead(f.State, file, offset, bytes, &value); request = value; return status; }
+    private static C.Status Truncate(Fixture f, C.FileToken file, uint length, out C.RequestToken request)
+    { C.RequestToken value = default; var status = C.BeginTruncate(f.State, file, length, &value); request = value; return status; }
+    private static C.Status Delete(Fixture f, C.FileToken file, out C.RequestToken request)
+    { C.RequestToken value = default; var status = C.BeginDelete(f.State, file, &value); request = value; return status; }
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
@@ -654,6 +658,144 @@ internal static unsafe class ContinuingFat32MutationTests
         HostCheck.Equal(C.Status.InvalidState, C.BeginOverwrite(f.State, file, 0, [], &request)); HostCheck.Equal(C.Status.InvalidState, C.BeginGrow(f.State, file, 1300, new uint[] { 8 }, &request));
         HostCheck.Equal(C.Status.InvalidState, C.BeginCreateEmpty(f.State, "A.TXT", "A       TXT"u8, &request)); HostCheck.Equal(C.Status.InvalidState, C.BeginFlush(f.State, &request));
         HostCheck.Equal(C.Status.InvalidState, C.CopyResult(f.State, request, &result)); HostCheck.Equal(C.Status.InvalidState, C.Pump(f.State)); HostCheck.Equal(C.Status.Success, C.Stop(f.State)); input->Device = device;
+    }
+
+    [HostTest("continuing FAT shrink flushes shorter directory before both FAT releases and FSInfo then independently reopens the preserved prefix")]
+    private static void Shrink()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); int first = f.Trace.Count, flushes = 0;
+        HostCheck.Equal(C.Status.Pending, Truncate(f, file, 300, out var request));
+        while (true)
+        {
+            int before = f.Trace.Count; var status = f.Turn();
+            if (f.Trace.Count != before && f.Trace[^1].Type == 4)
+            {
+                flushes++; HostCheck.Equal(300U, U32(f.Persistent, Data * 512 + 32 + 28));
+                HostCheck.Equal(flushes < 2 ? 6U : 0x0fffffffU, U32(f.Persistent, (First + Reserved) * 512 + 4 * 4) & 0x0fffffff);
+                HostCheck.Equal(flushes < 3 ? 123U : uint.MaxValue, U32(f.Persistent, (First + 1) * 512 + 488)); HostCheck.True(f.State->Dirty);
+            }
+            if (status == C.Status.Ready) break; HostCheck.Equal(C.Status.Pending, status);
+        }
+        HostCheck.Equal(600U, Result(f, request).Bytes); HostCheck.True(flushes == 3 && f.State->ChangeCount == 5 && !f.State->Dirty);
+        HostCheck.Equal(0xb0000000U, U32(f.Persistent, (First + Reserved) * 512 + 6 * 4)); Independent(f, Enumerable.Range(0, 300).Select(Value).ToArray());
+        HostCheck.True(f.Trace.Skip(first).Where(row => row.Type == 1).Select(row => row.Sector).SequenceEqual(new ulong[] { Data, First + Reserved, First + Reserved + FatSectors, First + 1, First + 7 }));
+        HostCheck.Equal(C.Status.StaleToken, Read(f, file, 0, 1, out _)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT truncate-to-zero frees the whole old chain and later explicit growth safely reuses its clusters")]
+    private static void TruncateZero()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f);
+        Truncate(f, file, 0, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(900U, Result(f, request).Bytes);
+        var empty = File(f); HostCheck.True(empty.Length == 0 && empty.FirstCluster == 0);
+        HostCheck.True((U32(f.Persistent, (First + Reserved) * 512 + 4 * 4) & 0x0fffffff) == 0 && (U32(f.Persistent, (First + Reserved) * 512 + 6 * 4) & 0x0fffffff) == 0);
+        Grow(f, empty, 700, new uint[] { 4, 6 }, out request); HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request);
+        Independent(f, new byte[700]); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT same-cluster shrink preserves hidden bytes and later growth zeros only newly exposed data")]
+    private static void ShrinkTail()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f); uint before = f.Device.Hardware->Notifies;
+        HostCheck.Equal(C.Status.Ready, Truncate(f, file, 900, out var noChange)); HostCheck.Equal(0U, Result(f, noChange).Bytes); HostCheck.Equal(before, f.Device.Hardware->Notifies);
+        HostCheck.Equal(C.Status.Unsupported, Truncate(f, file, 901, out _));
+        Truncate(f, file, 800, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(100U, Result(f, request).Bytes);
+        HostCheck.Equal(1U, f.State->ChangeCount); HostCheck.Equal(Value(899), f.Persistent[(Data + 4) * 512 + 387]);
+        var shrunk = File(f); Grow(f, shrunk, 900, [], out request); f.Run(); Result(f, request);
+        byte[] expected = new byte[900]; for (int i = 0; i < 800; i++) expected[i] = Value(i); Independent(f, expected); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT delete scrubs every owned maximum VFAT entry while preserving later entries and rejecting reused-slot tokens")]
+    private static void DeleteLong()
+    {
+        using var f = new Fixture(); PrepareLongRoot(f); f.Mount(); string name = new('x', 255);
+        Create(f, name, "LONGEST BIN"u8, out var request); f.Run(); Result(f, request);
+        Create(f, "LATER.TXT", "LATER   TXT"u8, out request); f.Run(); Result(f, request); var file = File(f, name);
+        Delete(f, file, out request); HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(0U, Result(f, request).Bytes); HostCheck.Equal(3U, f.State->ChangeCount);
+        for (int i = 15; i <= 35; i++)
+        { int sector = i < 16 ? Data : i < 32 ? Data + 3 : Data + 5; var raw = f.Persistent.Slice(sector * 512 + i % 16 * 32, 32); HostCheck.True(raw[0] == 0xe5 && raw[1..].IndexOfAnyExcept((byte)0) < 0); }
+        var device = new Device(f.Device.Hardware->Persistent);
+        HostCheck.True(!Fat32Parser.FindRootDirectoryEntry(device, First, name).Succeeded && Fat32Parser.FindRootDirectoryEntry(device, First, "LATER.TXT").Succeeded);
+        Create(f, "REUSE.BIN", "REUSE   BIN"u8, out request); f.Run(); Result(f, request); var next = File(f, "REUSE.BIN");
+        HostCheck.True(next.EntryOffset != file.EntryOffset && next.Revision > file.Revision); HostCheck.Equal(C.Status.StaleToken, Delete(f, file, out _)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT nonempty short delete releases both FAT copies after tombstone durability and cannot recapture a reused entry")]
+    private static void DeleteShort()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f);
+        Delete(f, file, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request);
+        HostCheck.True(f.Persistent[Data * 512 + 32] == 0xe5 && f.Persistent.Slice(Data * 512 + 33, 31).IndexOfAnyExcept((byte)0) < 0);
+        HostCheck.True((U32(f.Persistent, (First + Reserved) * 512 + 4 * 4) & 0x0fffffff) == 0 && (U32(f.Persistent, (First + Reserved + FatSectors) * 512 + 6 * 4) & 0x0fffffff) == 0);
+        Create(f, "OTHER.BIN", "OTHER   BIN"u8, out request); f.Run(); Result(f, request); var replacement = File(f, "OTHER.BIN");
+        HostCheck.True(replacement.EntryOffset == file.EntryOffset && replacement.Fingerprint0 != file.Fingerprint0);
+        HostCheck.Equal(C.Status.StaleToken, Read(f, file, 0, 1, out _));
+        HostCheck.True(Fat32Parser.FindRootDirectoryEntry(new Device(f.Device.Hardware->Persistent), First, "KEEP.TXT").Succeeded); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT every shrink or delete OUT and stage FLUSH failure retains the full unrecovered journal")]
+    private static void RetireIssuedFailures()
+    {
+        foreach (bool deletion in new[] { false, true })
+        for (int failure = 1; failure <= 8; failure++)
+        {
+            using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); f.FailPublication = failure;
+            if (deletion) Delete(f, file, out _); else Truncate(f, file, 300, out _);
+            HostCheck.Equal(C.Status.RecoveryRequired, f.Run()); HostCheck.True(f.State->Dirty && f.State->ChangeCount == 5 && f.State->VolumeRevision == 2);
+            byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 5 * 512).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 5 * 512).ToArray();
+            B.Stop(f.Device.State); HostCheck.Equal(C.Status.RecoveryRequired, C.Stop(f.State));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Input.Before, 5 * 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 5 * 512).SequenceEqual(after));
+        }
+    }
+
+    [HostTest("continuing FAT every shrink delete preflight read failure leaves media unchanged before any OUT")]
+    private static void RetireReadFailures()
+    {
+        foreach (bool deletion in new[] { false, true })
+        {
+            int reads;
+            using (var f = new Fixture())
+            { PrepareGrowth(f); f.Mount(); var file = File(f); int start = f.Trace.Count; C.RequestToken request; if (deletion) Delete(f, file, out request); else Truncate(f, file, 300, out request); f.Run(); Result(f, request); reads = f.Trace.Skip(start).Count(row => row.Type == 0); C.Stop(f.State); }
+            for (int failure = 1; failure <= reads; failure++)
+            {
+                using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); byte[] before = f.Volatile.ToArray(); f.FailAt = f.Device.Hardware->Notifies + (uint)failure;
+                if (deletion) Delete(f, file, out _); else Truncate(f, file, 300, out _);
+                HostCheck.Equal(C.Status.BlockFailure, f.Run()); HostCheck.True(!f.State->Dirty && f.Device.State->SubmittedBytes == 0 && f.Volatile.SequenceEqual(before));
+                B.Stop(f.Device.State); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+            }
+        }
+    }
+
+    [HostTest("continuing FAT fragmented large delete rejects its journal capacity before tombstones or FAT publication")]
+    private static void DeleteCapacity()
+    {
+        using var f = new Fixture(); PrepareGrowth(f);
+        for (uint i = 0; i < 65; i++) f.Fat(4 + i * 128, i == 64 ? 0x0fffffff : 4 + (i + 1) * 128);
+        Put32(f.Volatile, Data * 512 + 32 + 28, 65 * 512); f.Mount(); var file = File(f);
+        Delete(f, file, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request, C.Status.CapacityExceeded);
+        HostCheck.True(f.State->ChangeCount == 128 && !f.State->Dirty && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT shrink delete readonly controls and cancellation preserve visibility and recovery frontiers")]
+    private static void RetireCancellation()
+    {
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Volatile[Data * 512 + 32 + 11] |= 1; f.Mount(); var file = File(f);
+            Truncate(f, file, 0, out var request); f.Run(); Result(f, request, C.Status.ReadOnly); Delete(f, file, out request); f.Run(); Result(f, request, C.Status.ReadOnly);
+            HostCheck.Equal(0UL, f.Device.State->SubmittedBytes); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); Delete(f, file, out var request); C.Pump(f.State); C.Cancel(f.State, request); f.Device.Complete(); f.Run(); Result(f, request, C.Status.Cancelled);
+            HostCheck.True(!f.State->Dirty && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); Truncate(f, file, 0, out var request);
+            while (!f.Trace.Any(row => row.Type == 4)) f.Turn(); C.Cancel(f.State, request); HostCheck.Equal(C.Status.RecoveryRequired, f.Run());
+            HostCheck.True(f.State->Dirty && U32(f.Persistent, Data * 512 + 32 + 28) == 0 && (U32(f.Persistent, (First + Reserved) * 512 + 4 * 4) & 0x0fffffff) == 6);
+        }
     }
 
     private static void PrepareGrowth(Fixture f)
