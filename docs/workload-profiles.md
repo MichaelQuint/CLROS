@@ -755,3 +755,22 @@ General NativeAOT hosting follows #774: M10-022/#793 contract -> M10-023/#794 ge
 These successor children use `requiredForParent=false`: their addition does not redefine the historical first-web/closed storage foundation scope. Their own dependencies and acceptance remain mandatory before claiming the successor capability. The same policy keeps optional DOOM, IMDS, WireServer and hosted Roslyn/PowerShell outside core epic closure. Explicit dependency edges always override that optional-parent status. #248/#267 explicitly require #246 and #301; #318 requires both #302 and #303 for the both-provider release. No gate has advanced through this administrative correction.
 
 M04-025/#801 is optional demand-gated SharpLibm research after #774, not a Kestrel prerequisite. Require a concrete shared/kernel caller before selecting a minimal primitive; retain the upstream NativeAOT/musl application's math path. Current reference-derived test work is mapped in [reference map](reference-map.md#canonical-upstream-and-backlog-reconciliation-2026-10-23).
+
+## Manifest-driven image tooling successors (2026-10-23)
+
+The OPS-style host workflow is M11-027 through M11-033 / #802-#808, described in
+[image-builder planning](image-builder.md#planned-manifest-driven-packaging-2026-10-23).
+It follows the current batch and the general supported-app contract #793:
+recipe validation #802 -> content plan #803 -> generic image build #804 ->
+offline inspect #807 -> local run #806. #804 also requires #794, and #806 requires
+#795 and #227. #797 now explicitly requires #806 for its existing three-app and
+changed-rebuild gate. This adds no prerequisite to #227 or the active first-web batch.
+
+Data-volume creation #805 additionally waits for #798/#799; guest binding and
+persistence #808 require #805/#806/#800. Declaring a writable mount is not evidence
+of flush/recovery/locking support. All seven new children use
+`requiredForParent=false`, preserving historical epic scope while retaining their
+own mandatory dependency graphs and acceptance. Source/reference inspection,
+host image construction, real local service and provider qualification remain
+separate evidence classes. Common storage ownership remains reusable for future
+PE adapters; the initial recipe supports only the qualified Linux NativeAOT ABI.

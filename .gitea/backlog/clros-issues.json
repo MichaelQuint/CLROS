@@ -24086,7 +24086,8 @@
         "Close only after every child issue is closed with accepted evidence and the milestone exit criterion is satisfied.",
         "Architecture review follow-ups and their acceptance-stage ordering are canonical in docs/workload-profiles.md#architecture-review-implementation-order-2026-10-16. New child issues are open planning; qualified finite predecessors are not reopened. Preserve #737/PR739 ownership and existing evidence boundaries.",
         "Audit placeholder file ownership and evidence classes across children before scheduling them. #231 is a simulated lifecycle test, #237/#238 need real guest enforcement, and #245 is image-format validation rather than provider proof.",
-        "October23 reconciliation: requiredForParent=false marks optional/follow-up children; it does not bypass any explicit dependency. Current claimed implementation and original failure receipts remain preserved."
+        "October23 reconciliation: requiredForParent=false marks optional/follow-up children; it does not bypass any explicit dependency. Current claimed implementation and original failure receipts remain preserved.",
+        "OPS-style host image tooling is planned in M11-027 through M11-033. These seven successor children are optional for historical epic closure, remain blocked on their explicit dependencies and do not claim the active first-web lane. Generic deployment acceptance is M10-026; writable mounts additionally need M06-020/M06-021/M16-027. Existing reproducibility, provider and release issues own their respective later gates."
       ],
       "referenceInfluences": [
         {
@@ -24101,7 +24102,7 @@
         }
       ],
       "acceptanceCriteria": [
-        "All 25 keyed child issues are closed with reviewed evidence.",
+        "All requiredForParent children are closed with reviewed evidence; optional successor children do not imply that their capabilities have passed. The current inventory has 33 keyed children.",
         "Make local artifacts, CI evidence, and release security reproducible and honest.",
         "Canonical documentation and completion gates state only what current first-party evidence proves."
       ],
@@ -24166,7 +24167,8 @@
         "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Reproduce EFI, raw, and qcow2 artifacts from a clean checkout.",
         "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
         "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
-        "Define byte reproducibility versus normalized metadata reproducibility, including timestamps, GUIDs, toolchain and filesystem ordering. Compare independently generated EFI/raw/qcow2 artifacts and preserve provenance, not only a successful builder exit."
+        "Define byte reproducibility versus normalized metadata reproducibility, including timestamps, GUIDs, toolchain and filesystem ordering. Compare independently generated EFI/raw/qcow2 artifacts and preserve provenance, not only a successful builder exit.",
+        "Recipe reproducibility follow-up: apply the existing reproducibility policy to M11-029 artifacts. Pin toolchain/kernel/dependencies, directory ordering, timestamps/GUID policy and conversion versions; separate reproducible seed identity from unique deployment identity. Do not assume the same JSON produces identical bytes when ambient config, random UUIDs or unordered maps remain."
       ],
       "referenceInfluences": [
         {
@@ -24188,7 +24190,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Demonstrate the exact successful repository/evidence behavior required by: Reproduce EFI, raw, and qcow2 artifacts from a clean checkout.",
         "Applicable failure cases are asserted: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice."
+        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
+        "Compare two independent recipe builds under differing host cwd and file-enumeration order, preserving declared normalized/byte equality and exact causes of permitted variation; no latest downloads or ambient user defaults affect the result."
       ],
       "requiredMarkers": [
         "TEST_START m11.001",
@@ -24537,7 +24540,8 @@
         "Positive case: Read or validate the exact well-formed storage object required by: Preserve source, tool, EFI, image, config, serial, and HTTP hashes.",
         "Failure cases: Cover truncation, out-of-range offsets, integer overflow, CRC/hash mismatch, bad or looping cluster chains, invalid UTF/VFAT metadata, path traversal, timeout, reset, and short read as applicable.",
         "Explicitly inapplicable here: TCP loss/reorder and cloud credential failures are outside this storage/package slice.",
-        "Extend existing EvidenceManifestWriter/evidence hashing instead of a parallel title-derived writer. Bind immutable source/tool/config/input/output bytes and reject swapped, missing, stale and path-escaped artifacts; hashes are integrity, not authenticity."
+        "Extend existing EvidenceManifestWriter/evidence hashing instead of a parallel title-derived writer. Bind immutable source/tool/config/input/output bytes and reject swapped, missing, stale and path-escaped artifacts; hashes are integrity, not authenticity.",
+        "Recipe evidence integration: extend the existing evidence writer rather than a parallel receipt system. Bind recipe schema/effective nonsecret configuration, content plan, published dependency closure, kernel/package/content/image hashes, volume seed-versus-deployment identity and conversions. Redact secrets and omit host credential values. A hash is integrity, not authenticity or safe-code proof."
       ],
       "referenceInfluences": [
         {
@@ -24554,7 +24558,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Read or validate the exact well-formed storage object required by: Preserve source, tool, EFI, image, config, serial, and HTTP hashes.",
         "Applicable failure cases are asserted: Cover truncation, out-of-range offsets, integer overflow, CRC/hash mismatch, bad or looping cluster chains, invalid UTF/VFAT metadata, path traversal, timeout, reset, and short read as applicable.",
-        "The evidence report explicitly records these non-goals: TCP loss/reorder and cloud credential failures are outside this storage/package slice."
+        "The evidence report explicitly records these non-goals: TCP loss/reorder and cloud credential failures are outside this storage/package slice.",
+        "Tampered/swapped inputs, stale receipts and dependency-version changes fail verification; image/kernel/tool identity can be followed into local/provider deployment without exposing credentials. Keep successful build, guest HTTP and provider acceptance distinct."
       ],
       "requiredMarkers": [
         "TEST_START m11.005",
@@ -25623,7 +25628,8 @@
         "Positive case: Execute or validate the well-formed runtime/application case required by: Generate fixed-size Azure-compatible VHD and AWS-importable artifact variants without claiming provider proof.",
         "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
         "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
-        "Specify fixed VHD versus VHDX/dynamic VHD, full length/alignment/footer/geometry validation and deterministic output. Revalidate current provider import requirements when implementing; a valid container is not a successful cloud boot."
+        "Specify fixed VHD versus VHDX/dynamic VHD, full length/alignment/footer/geometry validation and deterministic output. Revalidate current provider import requirements when implementing; a valid container is not a successful cloud boot.",
+        "Feed conversions from the same immutable M11-029 raw-image identity and receipt; preserve content/kernel semantics and record source/destination hashes and converter versions. Container format and provider root-disk capacity remain separate from writable data-volume capacity and application quotas."
       ],
       "referenceInfluences": [
         {
@@ -25645,7 +25651,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Generate fixed-size Azure-compatible VHD and AWS-importable artifact variants without claiming provider proof.",
         "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
+        "Independently validate converted layout/footer/alignment and identity; never call format conversion a provider boot or persistence pass."
       ],
       "requiredMarkers": [
         "TEST_START m11.017",
@@ -25947,7 +25954,8 @@
         "Positive case: Complete the guarded AWS operation and capture immutable provider evidence for: Generate an immutable AWS import manifest with artifact hash and region/account placeholders.",
         "Failure cases: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
         "Explicitly inapplicable here: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it.",
-        "Generating a hash-bound import manifest is host tooling, distinct from authenticated #250 import. Specify required schema/version, immutable artifact length/hash and unfilled account/region rejection before execution; never include credentials."
+        "Generating a hash-bound import manifest is host tooling, distinct from authenticated #250 import. Specify required schema/version, immutable artifact length/hash and unfilled account/region rejection before execution; never include credentials.",
+        "OPS-style deployment configuration remains host-side and separate from the image recipe/generated guest manifest. Bind account/region, immutable image artifact and instance/network/data-disk intentions explicitly. Do not store credentials, infer a firewall from guest ports, or hardcode an import transport from an OPS documentation example."
       ],
       "referenceInfluences": [
         {
@@ -25965,7 +25973,8 @@
         "The positive case is demonstrated: Complete the guarded AWS operation and capture immutable provider evidence for: Generate an immutable AWS import manifest with artifact hash and region/account placeholders.",
         "Applicable failure cases are asserted: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
         "The evidence report explicitly records these non-goals: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it.",
-        "Generating a hash-bound import manifest is host tooling, distinct from authenticated #250 import. Specify required schema/version, immutable artifact length/hash and unfilled account/region rejection before execution; never include credentials."
+        "Generating a hash-bound import manifest is host tooling, distinct from authenticated #250 import. Specify required schema/version, immutable artifact length/hash and unfilled account/region rejection before execution; never include credentials.",
+        "The import plan has no mutations, credentials or implicit resource deletion; missing destination/bindings fail before authentication or upload."
       ],
       "requiredMarkers": [
         "TEST_START m12.002",
@@ -26033,7 +26042,8 @@
         "Positive case: Complete the guarded AWS operation and capture immutable provider evidence for: Import/register an AMI through guarded tooling without storing credentials.",
         "Failure cases: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
         "Explicitly inapplicable here: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it.",
-        "Require explicit destination/account/region authorization, immutable image identity, bounded polling, resumable job identity and cleanup limited to owned objects. Reuse compiled cloud tooling; successful upload alone is not AMI bootability."
+        "Require explicit destination/account/region authorization, immutable image identity, bounded polling, resumable job identity and cleanup limited to owned objects. Reuse compiled cloud tooling; successful upload alone is not AMI bootability.",
+        "Use a pinned image receipt and explicit provider settings from the host tool. Select and revalidate a supported AWS import/registration route at implementation time; OPS pinned provider/aws/aws_image.go uses EBS Direct snapshot upload, while some docs describe S3 vmimport. Neither is a CLROS architectural requirement. No guest cloud agent/shell or broad provider plugin framework is needed."
       ],
       "referenceInfluences": [
         {
@@ -26050,7 +26060,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded AWS operation and capture immutable provider evidence for: Import/register an AMI through guarded tooling without storing credentials.",
         "Applicable failure cases are asserted: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
-        "The evidence report explicitly records these non-goals: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it."
+        "The evidence report explicitly records these non-goals: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it.",
+        "Repeated registration is identity/idempotency checked; unknown outcomes are reconciled before retry, credential values never enter images/logs, and an existing image is not deleted merely to reuse its name."
       ],
       "requiredMarkers": [
         "TEST_START m12.003",
@@ -27179,7 +27190,8 @@
         "Failure cases: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
         "Explicitly inapplicable here: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it.",
         "Inject failures at each created-resource boundary and verify repeat cleanup with recorded ownership IDs. Timeouts must leave a resumable diagnostic state, not delete unrelated AMIs, snapshots, buckets or security rules.",
-        "Implementation target correction: maintained host automation is compiled C# under `tools/OS.Tooling`; replace obsolete proposed PowerShell paths through the owning roadmap record before implementation. Do not create the stale script skeleton."
+        "Implementation target correction: maintained host automation is compiled C# under `tools/OS.Tooling`; replace obsolete proposed PowerShell paths through the owning roadmap record before implementation. Do not create the stale script skeleton.",
+        "Apply the same explicit ownership/idempotency model to OPS-style deployment settings: root-image cleanup must not delete independently bound persistent volumes; retain source image, snapshot and instance identities for retry/recovery. Resolve uncertain API outcomes before another create/delete."
       ],
       "referenceInfluences": [
         {
@@ -27196,7 +27208,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded AWS operation and capture immutable provider evidence for: Add instance boot failure and cleanup/idempotency handling.",
         "Applicable failure cases are asserted: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
-        "The evidence report explicitly records these non-goals: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it."
+        "The evidence report explicitly records these non-goals: Azure and MultiMinimalApi remain outside this AWS-specific slice; host/QEMU planning alone cannot close it.",
+        "Failure injection and repeated cleanup preserve independently owned data volumes, old healthy instances and unrelated provider objects; only recorded authorized temporary resources are reclaimed."
       ],
       "requiredMarkers": [
         "TEST_START m12.016",
@@ -27582,7 +27595,8 @@
         "Positive case: Complete the guarded Azure operation and capture immutable provider evidence for: Upload and register an immutable Azure image version without storing credentials.",
         "Failure cases: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
         "Explicitly inapplicable here: AWS and MultiMinimalApi remain outside this Azure-specific slice; host/QEMU planning alone cannot close it.",
-        "Use explicit subscription/resource-group/region and immutable artifact/version identity, bounded upload/registration and owned cleanup. Credential storage and accidental overwrite of an existing image version must fail."
+        "Use explicit subscription/resource-group/region and immutable artifact/version identity, bounded upload/registration and owned cleanup. Credential storage and accidental overwrite of an existing image version must fail.",
+        "Consume the immutable recipe-built image receipt plus separate Azure deployment settings. Keep credentials and subscription access host-side; bind exact Gen2 specialized-image version, storage/root-capacity and logical data-disk mappings. Do not add a guest shell/cloud agent or claim a generic provider abstraction in the first implementation."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -27593,7 +27607,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded Azure operation and capture immutable provider evidence for: Upload and register an immutable Azure image version without storing credentials.",
         "Applicable failure cases are asserted: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
-        "The evidence report explicitly records these non-goals: AWS and MultiMinimalApi remain outside this Azure-specific slice; host/QEMU planning alone cannot close it."
+        "The evidence report explicitly records these non-goals: AWS and MultiMinimalApi remain outside this Azure-specific slice; host/QEMU planning alone cannot close it.",
+        "Repeated upload/registration reconciles exact artifact/version identity, rejects accidental replacement, and leaves independently owned volumes unchanged. Live Azure boot remains its separate dependent gate."
       ],
       "requiredMarkers": [
         "TEST_START m13.002",
@@ -28704,7 +28719,8 @@
         "Failure cases: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
         "Explicitly inapplicable here: AWS and MultiMinimalApi remain outside this Azure-specific slice; host/QEMU planning alone cannot close it.",
         "Exercise partial upload/image/VM/network creation failures and idempotent cleanup against recorded ownership IDs. Do not delete shared images, resource groups or network rules merely because a boot timed out.",
-        "Implementation target correction: maintained host automation is compiled C# under `tools/OS.Tooling`; replace obsolete proposed PowerShell paths through the owning roadmap record before implementation. Do not create the stale script skeleton."
+        "Implementation target correction: maintained host automation is compiled C# under `tools/OS.Tooling`; replace obsolete proposed PowerShell paths through the owning roadmap record before implementation. Do not create the stale script skeleton.",
+        "For declarative deployment retries, reconcile unknown API outcomes and retain exact resource ownership/immutable image identity. VM/root-image cleanup must preserve independent data volumes and the previous healthy release by default."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -28715,7 +28731,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded Azure operation and capture immutable provider evidence for: Add VM/image failure cleanup and idempotency.",
         "Applicable failure cases are asserted: Cover missing authorization, import/registration failure, boot timeout, missing or conflicting serial markers, PCI/channel/device discovery failure, queue timeout/reset, DHCP failure, storage read failure, endpoint failure, artifact-hash mismatch, partial cleanup, and idempotent rerun as applicable.",
-        "The evidence report explicitly records these non-goals: AWS and MultiMinimalApi remain outside this Azure-specific slice; host/QEMU planning alone cannot close it."
+        "The evidence report explicitly records these non-goals: AWS and MultiMinimalApi remain outside this Azure-specific slice; host/QEMU planning alone cannot close it.",
+        "Fault injection at upload, registration, VM, network and data-disk attachment boundaries proves repeat cleanup does not delete shared resources or retained persistent data."
       ],
       "requiredMarkers": [
         "TEST_START m13.016",
@@ -30818,7 +30835,8 @@
         "Positive case: Complete the guarded production behavior and preserve recovery/provenance evidence for: Define signed release-manifest and reproducible-build policy.",
         "Failure cases: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
         "Explicitly inapplicable here: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
-        "Specify canonical signed bytes, trusted keys, rotation/revocation, version/rollback policy and deterministic build inputs. Hash equality alone is not authenticity, and signatures alone do not prove reproducibility."
+        "Specify canonical signed bytes, trusted keys, rotation/revocation, version/rollback policy and deterministic build inputs. Hash equality alone is not authenticity, and signatures alone do not prove reproducibility.",
+        "The signed release envelope must bind the recipe schema/profile, kernel/toolchain/published dependencies, generated manifest and complete content inventory plus exact image/conversion digests. Runtime secrets and provider credentials must never be embedded. Reuse M11-029 and #233 receipts; hashing alone remains insufficient for authenticity."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -30829,7 +30847,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded production behavior and preserve recovery/provenance evidence for: Define signed release-manifest and reproducible-build policy.",
         "Applicable failure cases are asserted: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
-        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates."
+        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
+        "Verify canonical signing bytes, tamper rejection, trust policy and reproducibility separately; a change to any manifest/content/dependency invalidates the signed identity. Preserve explicit rollback-version policy."
       ],
       "requiredMarkers": [
         "TEST_START m15.001",
@@ -30893,7 +30912,8 @@
         "Positive case: Complete the guarded production behavior and preserve recovery/provenance evidence for: Implement atomic image/workload update and rollback semantics.",
         "Failure cases: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
         "Explicitly inapplicable here: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
-        "Define the atomic commit point, durable metadata and fallback image selection. Inject interruption before/after each write/flush/rename or boot-selection update; changing an in-memory state or successful sector write is not crash-safe rollback."
+        "Define the atomic commit point, durable metadata and fallback image selection. Inject interruption before/after each write/flush/rename or boot-selection update; changing an in-memory state or successful sector write is not crash-safe rollback.",
+        "OPS-style replacement must build/register a new immutable image, start a candidate and require explicit externally observed readiness before routing/promoting and retiring the previous instance. Do not assume create-before-delete is health-gated or zero-downtime. Define exclusive writable-volume handoff: no concurrent writers to one FAT32 volume without a separately qualified design. Keep previous images and persistent data available for rollback; no guest shell is required."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -30904,7 +30924,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded production behavior and preserve recovery/provenance evidence for: Implement atomic image/workload update and rollback semantics.",
         "Applicable failure cases are asserted: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
-        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates."
+        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
+        "Inject failed health checks, start/promotion interruption and uncertain provider responses. The previous healthy deployment remains recoverable; data is not formatted/deleted, and rollback respects schema/data compatibility. Report downtime honestly when exclusive disk ownership requires stopping the old writer."
       ],
       "requiredMarkers": [
         "TEST_START m15.002",
@@ -31475,7 +31496,8 @@
         "Positive case: Complete the guarded production behavior and preserve recovery/provenance evidence for: Add provider artifact retention, promotion, rollback, and evidence policies.",
         "Failure cases: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
         "Explicitly inapplicable here: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
-        "Specify immutable release identity, retention minimums, promotion authorization and rollback/cleanup ownership. Provider objects must remain attributable to the exact image/evidence; delete only explicitly owned expired artifacts."
+        "Specify immutable release identity, retention minimums, promotion authorization and rollback/cleanup ownership. Provider objects must remain attributable to the exact image/evidence; delete only explicitly owned expired artifacts.",
+        "Artifact retention links immutable recipe, image/conversion, dependency and evidence identities to provider object IDs. Distinguish root-image retention from independently retained data volumes. Cleanup/promotion is an explicit external host operation, not guest command administration."
       ],
       "referenceInfluences": [],
       "acceptanceCriteria": [
@@ -31486,7 +31508,8 @@
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
         "The positive case is demonstrated: Complete the guarded production behavior and preserve recovery/provenance evidence for: Add provider artifact retention, promotion, rollback, and evidence policies.",
         "Applicable failure cases are asserted: Cover signature/provenance mismatch, interrupted update, rollback failure, crash loop, device/link outage, fuzzed input, retention failure, hash mismatch, and recovery/cleanup idempotency as applicable.",
-        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates."
+        "The evidence report explicitly records these non-goals: Optional Roslyn, PowerShell, and DOOM demonstrations do not advance production or cloud completion gates.",
+        "Retention and failed-promotion tests preserve the prior recoverable release and persistent volumes; garbage collection removes only owned expired artifacts and retains sufficient identity/receipts for rollback."
       ],
       "requiredMarkers": [
         "TEST_START m15.009",
@@ -37200,7 +37223,8 @@
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "- Accept project/published-output and manifest inputs through one documented host-tool interface. Reuse the controlled Linux build recipe and native dependency capture where appropriate; running an automated Linux builder is permitted. No manual VM session, strace capture or disassembly review is a normal deployment prerequisite.\n- Derive payload identity, entry/load/TLS metadata, assets/configuration inventories and integrity hashes from the package/build. Validate target/profile, bounds, arithmetic, permissions, dependencies and manifest policy. Hashes prove the particular package's integrity; they are not an app allow-list compiled into CLROS.\n- Remove source checkout and original-producer evidence folders as prerequisites to consuming an otherwise valid distributable package. Define the real trust model: a supplied hash is not a signature or proof of safe code.\n- Keep existing source-sealed fixture readers unchanged for regression evidence. Any retained diagnostic disassembly/index generation must be automated and separate from a human approval requirement; a reference trace cannot prove every future code path supported.\n- Reject malformed/tampered/wrong-target/unsupported-native-dependency packages with bounded, clear diagnostics. Preserve TOCTOU protections and resource limits.",
         "Use C#14 and the pinned .NET11 toolchain. Keep the initial target one application per VM under a documented linux-musl-x64 contract. Multi-app isolation (#287/#292/#298), broad Linux compatibility, cloud/provider readiness and production acceptance remain separate. SQLite uses direct Microsoft.Data.Sqlite under #791/#792; do not duplicate that work or silently claim its capabilities here.",
-        "Automate metadata/integrity/ABI admission from the published app; hashes must not become an embedded allowlist. Define unsupported dynamic dependencies/relocations as deterministic admission errors and retain whole-package rollback on failure."
+        "Automate metadata/integrity/ABI admission from the published app; hashes must not become an embedded allowlist. Define unsupported dynamic dependencies/relocations as deterministic admission errors and retain whole-package rollback on failure.",
+        "OPS-style recipe integration: M11-027/028 own recipe/content planning and M11-029 assembles images using this generic publisher/admission API. Inspect ELF/native dependency metadata statically on the Windows host; never execute supplied binaries with LD_TRACE_LOADED_OBJECTS/ldd. A trusted automated pinned Linux publisher is allowed. Preserve exact toolchain/dependency receipts; reject unsupported dynamic imports/relocations deterministically. No competing package schema or fixture-name dispatch."
       ],
       "referenceInfluences": [
         {
@@ -37215,7 +37239,8 @@
         }
       ],
       "acceptanceCriteria": [
-        "A clean automated run packages two differently named compatible projects and a changed rebuild using unchanged tooling. The distributable validates without either application's source tree, a hand-created instruction digest or per-app tooling patches. Independent negative tests reject modified bytes, wrong architecture, malformed extents and unsupported dependencies. Publish exact runnable commands and receipts; run focused package/loader tests plus repo/contracts/diff checks. Publication/host validation alone is not guest execution or compatibility acceptance."
+        "A clean automated run packages two differently named compatible projects and a changed rebuild using unchanged tooling. The distributable validates without either application's source tree, a hand-created instruction digest or per-app tooling patches. Independent negative tests reject modified bytes, wrong architecture, malformed extents and unsupported dependencies. Publish exact runnable commands and receipts; run focused package/loader tests plus repo/contracts/diff checks. Publication/host validation alone is not guest execution or compatibility acceptance.",
+        "Publish output from two independent projects and a changed rebuild is consumable by M11-029 with the same tool/kernel binaries; normal deployment requires no interactive VM, manual disassembly or copied developer evidence directory."
       ],
       "requiredMarkers": [
         "TEST_START m10.023",
@@ -37399,7 +37424,8 @@
         "M10-023",
         "M10-024",
         "M10-025",
-        "M10-014"
+        "M10-014",
+        "M11-031"
       ],
       "labels": [
         "agent:blocked",
@@ -37431,7 +37457,8 @@
         "1. Freeze and hash the kernel/EFI image, generic deployment tools and supported runtime contract before selecting the final validation applications.\n2. Use at least three independently authored conforming MinimalApi projects, including one absent from the implementation fixture set. Exercise differing route names/DTOs/configuration, async requests/cancellation, and static-file assets where advertised. Any write/SQLite case requires its separate prerequisites.\n3. Publish/package each through the same automated command, change only the manifest/payload/data portion of the boot image, and boot each in a fresh guest. Kernel/EFI and tool hashes stay identical; the whole disk image is expected to change with its payload.\n4. Change routes, DTOs/assets and an AOT-compatible dependency in at least one project within the contract, republish, and repeat without kernel/tooling edits, app-name registration, new hardcoded ELF/source/index hashes, manual Linux reference capture or manual disassembly review.\n5. Validate external HTTP results and actual app lifecycle independently of fixture-specific logs. Exercise normal exit/requested stop, cleanup, stopped-app connection refusal and deliberate unsupported/malformed/resource-limit cases. Keep each failure's evidence.\n6. Retain exact commands, application provenance, version/dependency manifests, image/kernel/tool hashes, native/guest evidence and an independently reviewed general-hosting gate result. Application tests remain required; absence of per-app OS engineering does not mean arbitrary untested dependencies are supported.",
         "Pass means arbitrary application code within the published versioned contract can use this general deployment workflow. It does not mean every Linux binary, every NuGet dependency, dynamic-loading/JIT workload, multiple simultaneous apps, sustained production uptime or cloud platform is supported. Keep this gate open if any validation app requires an OS patch, manually approved instruction digest or special runtime behavior.",
         "Use C#14 and the pinned .NET11 toolchain. Keep the initial target one application per VM under a documented linux-musl-x64 contract. Multi-app isolation (#287/#292/#298), broad Linux compatibility, cloud/provider readiness and production acceptance remain separate. SQLite uses direct Microsoft.Data.Sqlite under #791/#792; do not duplicate that work or silently claim its capabilities here.",
-        "Keep at least three independent apps and changed rebuilds on frozen kernel/EFI/tool hashes. Require external HTTP and real lifecycle/cleanup; advertise continuing disk/SQLite only after #775/#792 and their prerequisites, while #227 remains required for the broader hosting gate."
+        "Keep at least three independent apps and changed rebuilds on frozen kernel/EFI/tool hashes. Require external HTTP and real lifecycle/cleanup; advertise continuing disk/SQLite only after #775/#792 and their prerequisites, while #227 remains required for the broader hosting gate.",
+        "Include the OPS-style deployment workflow in the existing independent-app gate: use M11-029 image recipes, M11-032 offline verification and M11-031 local launch. Keep the stronger existing requirement of at least three independently authored apps plus a changed rebuild on frozen kernel/tool identities. M11-033 is conditional only when writable persistent volumes are advertised; no new first-web prerequisite."
       ],
       "referenceInfluences": [
         {
@@ -37446,7 +37473,8 @@
         }
       ],
       "acceptanceCriteria": [
-        "1. Freeze and hash the kernel/EFI image, generic deployment tools and supported runtime contract before selecting the final validation applications.\n2. Use at least three independently authored conforming MinimalApi projects, including one absent from the implementation fixture set. Exercise differing route names/DTOs/configuration, async requests/cancellation, and static-file assets where advertised. Any write/SQLite case requires its separate prerequisites.\n3. Publish/package each through the same automated command, change only the manifest/payload/data portion of the boot image, and boot each in a fresh guest. Kernel/EFI and tool hashes stay identical; the whole disk image is expected to change with its payload.\n4. Change routes, DTOs/assets and an AOT-compatible dependency in at least one project within the contract, republish, and repeat without kernel/tooling edits, app-name registration, new hardcoded ELF/source/index hashes, manual Linux reference capture or manual disassembly review.\n5. Validate external HTTP results and actual app lifecycle independently of fixture-specific logs. Exercise normal exit/requested stop, cleanup, stopped-app connection refusal and deliberate unsupported/malformed/resource-limit cases. Keep each failure's evidence.\n6. Retain exact commands, application provenance, version/dependency manifests, image/kernel/tool hashes, native/guest evidence and an independently reviewed general-hosting gate result. Application tests remain required; absence of per-app OS engineering does not mean arbitrary untested dependencies are supported."
+        "1. Freeze and hash the kernel/EFI image, generic deployment tools and supported runtime contract before selecting the final validation applications.\n2. Use at least three independently authored conforming MinimalApi projects, including one absent from the implementation fixture set. Exercise differing route names/DTOs/configuration, async requests/cancellation, and static-file assets where advertised. Any write/SQLite case requires its separate prerequisites.\n3. Publish/package each through the same automated command, change only the manifest/payload/data portion of the boot image, and boot each in a fresh guest. Kernel/EFI and tool hashes stay identical; the whole disk image is expected to change with its payload.\n4. Change routes, DTOs/assets and an AOT-compatible dependency in at least one project within the contract, republish, and repeat without kernel/tooling edits, app-name registration, new hardcoded ELF/source/index hashes, manual Linux reference capture or manual disassembly review.\n5. Validate external HTTP results and actual app lifecycle independently of fixture-specific logs. Exercise normal exit/requested stop, cleanup, stopped-app connection refusal and deliberate unsupported/malformed/resource-limit cases. Keep each failure's evidence.\n6. Retain exact commands, application provenance, version/dependency manifests, image/kernel/tool hashes, native/guest evidence and an independently reviewed general-hosting gate result. Application tests remain required; absence of per-app OS engineering does not mean arbitrary untested dependencies are supported.",
+        "After M11-031, repeat the existing three-app/rebuild matrix using declarative files/directories, cwd, nonsecret configuration and explicit port settings; changing only recipe/payload/data must not require any kernel/tool patch. Test replacement preserving a volume only after M11-033; no write/SQLite claim otherwise."
       ],
       "requiredMarkers": [
         "TEST_START m10.026",
@@ -37808,6 +37836,636 @@
         "docs/completion-gates.md"
       ],
       "evidenceBoundary": "Planning only. Reference/host results do not establish guest execution, durability, isolation, cloud or production readiness.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-027",
+      "title": "[M11-027] Define versioned image recipes, guest manifests and deployment settings",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M10-022"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/ImageRecipe.cs",
+        "tests/OS.HostTests/ImageRecipeTests.cs",
+        "tools/OS.ManifestTool/ImageRecipeValidator.cs",
+        "tools/OS.ManifestTool/Program.cs",
+        "docs/manifest.md",
+        "docs/image-builder.md",
+        "docs/security.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Define a strict JSON image recipe for one supported NativeAOT app, with a bounded generated guest manifest and separate host deployment settings.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Own the contract and validator. Host recipe declares schemaVersion, pinned kernel artifact/hash, supported ABI/profile, published executable, absolute guest destination/cwd, argument array, nonsecret environment, explicit file/directory mappings, logical mounts and declared resources/endpoints. The generated guest subset contains neither host source paths nor provider credentials.",
+        "Keep VM memory/vCPU, host port forwarding, provider account/region and physical disk bindings in deployment configuration. A guest listen endpoint is not a host forwarding rule or a cloud firewall rule. Distinguish image minimum size, writable data capacity, VM RAM and enforced workload quotas.",
+        "Specify defaults < explicit recipe < explicitly supplied CLI options; absent boolean flags cannot reset JSON values. Disable ambient user-config/env expansion by default. Resolve all relative host inputs from the recipe directory, independent of invocation cwd. Reject unknown/duplicate keys, unsupported schema/ABI/capability, malformed paths, missing required values, bounds/overflow and conflicting endpoint/mount declarations.",
+        "Use typed fields rather than arbitrary manifest passthrough or shell hooks. Never implicitly copy an argument path. Keep ordinary config clearly nonsecret: baking an environment value into an image does not protect it. Provider credentials stay host-side; runtime secret references must fail as unsupported until a separate policy-mediated delivery mechanism is qualified. No guest shell/SSH/admin endpoint is introduced.",
+        "Initial support is the qualified Linux NativeAOT contract only. Reserve a format/ABI discriminator for future PE without claiming PE execution. Reuse the runtime policy interpreter from #793/#795; generated metadata does not substitute for enforcement or require recompiling the OS for each app."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/types/config.go",
+          "notes": "Config/RunConfig/ProviderConfig demonstrate the concepts; CLROS deliberately separates their authority and uses typed supported fields."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/cmd/flags_config.go",
+          "notes": "MergeToConfig and config rendering illustrate precedence and raw-text interpolation pitfalls; reject ambient/unsafe behavior."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/fs/manifest.go",
+          "notes": "Host config is transformed into guest filesystem/startup metadata rather than copied wholesale."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Publish a versioned schema and minimal valid example with explicit filesystem, application and deployment separation. Validate it through typed C# APIs and integrate validation with the existing manifest/tool command surface.",
+        "Focused tests cover unknown/duplicate fields, quoting, path traversal, absent-versus-false CLI flags, invocation from another cwd, unsupported writable/secret/PE capabilities, and RAM/disk/quota distinction. No network, process execution or output mutation occurs during validation.",
+        "Generated guest fields are bounded and contain no host paths, credentials or arbitrary host instructions. Record compatibility/migration policy; preserve existing v1/V2 smoke formats.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START ImageRecipeTests",
+        "TEST_PASS ImageRecipeTests",
+        "CLROS_M11_027_READY"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ImageRecipeTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/manifest.md",
+        "docs/image-builder.md",
+        "docs/security.md"
+      ],
+      "evidenceBoundary": "Host contract/planning/build/inspection evidence only; no guest execution, persistence, isolation or cloud readiness follows. CLROS_M11_027_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-028",
+      "title": "[M11-028] Plan deterministic file and directory mappings with bounded safe traversal",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-027",
+        "M10-016"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/ImageContentPlan.cs",
+        "tests/OS.HostTests/ImageContentPlanTests.cs",
+        "docs/image-builder.md",
+        "docs/manifest.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Produce a complete deterministic host-to-guest content plan before image mutation, with explicit copy semantics and a bounded importer.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Extend the existing FAT32 webroot importer and independent readback concepts from #769. Explicit file entries name one source and destination; directory entries copy contents recursively beneath a destination. Handle empty directories deliberately. Do not inherit OPS Files/Dirs/MapDirs path-base differences or ambiguous bare-directory/glob behavior.",
+        "Resolve inputs against the recipe directory. Require a declared import root; reject escaping traversal, symlink/reparse-point escape or cycles, device/special files, output-inside-input recursion, and destination collisions after FAT case/name normalization. Initial KISS policy may reject all symlinks and globs with clear diagnostics. Never silently skip unreadable or broken inputs.",
+        "Bound file count, depth, each file size, aggregate bytes and scratch memory independently of disk capacity; sort entries with specified ordinal ordering. Define timestamps, attributes, empty-file behavior and supported FAT names. Reject collisions with EFI/package/reserved metadata and conflicting file/directory paths.",
+        "Plan shows resolved destinations, lengths/hashes, disk capacity estimates and rejected/unsupported features; it must not create images, start VMs, fetch dependencies or run hooks. Bind inputs to the later build and detect changes after planning; preserve host TOCTOU protections."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/lepton/image.go#L257-L490",
+          "notes": "setManifestFromConfig/addMappedFiles show content mapping; MapDirs is a recursive basename-pattern walk, not a generic mount."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/fs/manifest.go",
+          "notes": "AddFileTo/AddDirectory illustrate traversal, collisions and symlink behavior; CLROS must specify stricter deterministic behavior."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Independent small fixtures cover nested/empty dirs, spaces/Unicode supported by the contract, empty/boundary files and duplicate case-folded destinations; exact destination maps and hashes agree from different invocation directories.",
+        "Negative fixtures reject escapes, broken links/reparse cycles, reserved destinations, overflowing counts/sizes and input changes. Plan is deterministic and leaves inputs/output filesystem untouched.",
+        "Reuse repaired FAT selection/traversal from #781/#782 through #769. Add no unbounded whole-volume directory buffers or alternate filesystem implementation.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START ImageContentPlanTests",
+        "TEST_PASS ImageContentPlanTests",
+        "CLROS_M11_028_READY"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ImageContentPlanTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/image-builder.md",
+        "docs/manifest.md"
+      ],
+      "evidenceBoundary": "Host contract/planning/build/inspection evidence only; no guest execution, persistence, isolation or cloud readiness follows. CLROS_M11_028_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-029",
+      "title": "[M11-029] Build immutable boot images from validated application recipes",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-028",
+        "M10-023"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/ImageRecipeBuild.cs",
+        "tests/OS.HostTests/ImageRecipeBuildTests.cs",
+        "tools/OS.Tooling/ToolCommand.cs",
+        "tools/OS.ImageBuilder/Program.cs",
+        "docs/image-builder.md",
+        "docs/manifest.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Join generic NativeAOT packaging and deterministic content planning into one reusable image-build workflow with immutable output receipts.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Use tools/OS.ImageBuilder/Program.cs RawEspImageBuilder, LinuxElfPackageBuilder and current GPT/FAT32 layouts; reuse OS.ManifestTool and #794 admission. Keep publishing optional and explicit: already-published inputs do not require source or an interactive Linux VM. An automated pinned Linux builder may be used for publish; no guest execution, ldd or manual disassembly for inspection.",
+        "Build from pinned EFI/kernel bytes, validated app/package and content plan; emit only supported bounded guest metadata. Do not squeeze arbitrary wwwroot into the existing seven-file V2 envelope or change sealed smoke producers. Add a versioned generic format only through the #794 owner if necessary.",
+        "Preflight supported layout, free space, file extents and declared capacity; reserve a fresh output, stage writes and publish atomically after independent byte readback. Preserve old image and data volumes on failure. Image minimum size is not a hard storage quota; enforce a separate declared maximum if offered.",
+        "Receipt records schema/profile, exact kernel/tool/SDK/native dependency identities, config/content/package/input/output hashes, sizes, timestamp/GUID policy and layout. Separate immutable build identity from per-deployment instance/disk identities. Same declared inputs yield documented byte reproducibility; changes to app/assets alter payload/image hashes while kernel/tool bytes remain fixed.",
+        "No downloads of latest kernels or packages by default, arbitrary post-build shell hooks, app-name registrations or kernel hash allowlist updates. Provider credentials never enter recipe outputs. Conversion to qcow2/fixed-VHD remains the existing #245 scope."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/lepton/image.go#L492-L539",
+          "notes": "Image construction joins kernel and manifest into a disk; copy the workflow only."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/fs/mkfs.go",
+          "notes": "Nanos uses TFS and optional EFI/FAT; CLROS retains its own GPT/FAT32. BaseVolumeSz extends the image as a floor, not a quota."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/lepton/ldd_linux.go",
+          "notes": "Dependency inspection can execute the submitted binary; CLROS admission must statically inspect inputs and use explicit trusted publication receipts."
+        }
+      ],
+      "acceptanceCriteria": [
+        "One documented build command consumes a recipe and produces a bootable-layout raw image, bounded guest manifest and verified receipt using unchanged generic tooling. Host layout checks alone are labeled host-only.",
+        "Two independently named supported apps and a changed rebuild package without kernel edits, manual VM/disassembly review or source checkout on the consuming host. Verify kernel preservation and expected payload changes.",
+        "Independent readback checks GPT/FAT copies, exact content paths/bytes, package bounds and hashes. Faults before/after staging, full capacity, swapped inputs and existing output paths leave prior artifacts/data intact. Tie comprehensive reproducibility to #229 and provenance to #233.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START ImageRecipeBuildTests",
+        "TEST_PASS ImageRecipeBuildTests",
+        "CLROS_M11_029_READY"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ImageRecipeBuildTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/image-builder.md",
+        "docs/manifest.md"
+      ],
+      "evidenceBoundary": "Host contract/planning/build/inspection evidence only; no guest execution, persistence, isolation or cloud readiness follows. CLROS_M11_029_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-030",
+      "title": "[M11-030] Create and inspect separate data-volume images without destructive reuse",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-028",
+        "M06-020",
+        "M06-021"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/DataVolumeImage.cs",
+        "tests/OS.HostTests/DataVolumeImageTests.cs",
+        "tools/OS.ImageBuilder/DataVolumeBuilder.cs",
+        "docs/image-builder.md",
+        "docs/cstorage.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Provide host-side explicit creation and optional seeding of a separate bounded FAT32 data volume, preserving its lifetime independently of the boot image.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Separate volume provision/format, guest logical mount declaration and VM physical attachment. A volume recipe declares logical name, format/version, exact usable geometry/capacity, identity policy and optional seed content; physical filenames/provider IDs belong to deployment bindings.",
+        "Reuse the existing GPT/FAT32 writer and planner; choose one supported partition/layout contract. Never introduce Nanos TFS. Use the #799 writable FAT/recovery contract when claiming a compatible writable volume. Verify both FATs, metadata/free-space accounting and seeded files independently.",
+        "Create into a new output only, refuse existing/nonempty targets, detect boot/data identity aliasing, and never format on attach or boot. Default data retention is independent of instance/boot-image deletion. Seed imports use M11-028 confinement and limits.",
+        "Define deterministic seed-build bytes separately from unique deployed disk identity; distinguish minimum image size from an enforced maximum/capacity. Empty, too-small, oversized, malformed and duplicate-identity volumes fail with bounded diagnostics. Resizing, hotplug, snapshots, encryption and host shares are outside this first implementation."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/lepton/volume.go",
+          "notes": "CreateLocalVolume/buildVolumeManifest demonstrate independent creation, labeling and optional seed data."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/provider/onprem/onprem_volume.go",
+          "notes": "Volume identity resolution is distinct from host directory sharing; CLROS uses explicit typed volumes."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Focused host tests produce blank and seeded volumes with independent geometry/content/hash verification; identical seed inputs have declared reproducibility and explicit identity handling.",
+        "Interrupted/failed create leaves existing boot/data artifacts unchanged; repeated create cannot overwrite user data. Inspect does not mount or mutate the disk.",
+        "Document that successful host formatting is not guest write durability. Real attachment/mount/reboot persistence is M11-033; Microsoft.Data.Sqlite transactions/recovery remain #792 after #798/#799/#800.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START DataVolumeImageTests",
+        "TEST_PASS DataVolumeImageTests",
+        "CLROS_M11_030_READY"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter DataVolumeImageTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/image-builder.md",
+        "docs/cstorage.md"
+      ],
+      "evidenceBoundary": "Host contract/planning/build/inspection evidence only; no guest execution, persistence, isolation or cloud readiness follows. CLROS_M11_030_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-031",
+      "title": "[M11-031] Run a recipe-built image locally through bounded host lifecycle tooling",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-029",
+        "M11-032",
+        "M10-024",
+        "M10-014"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host",
+        "evidence:qemu"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/ImageRecipeRun.cs",
+        "tests/OS.HostTests/ImageRecipeRunTests.cs",
+        "tools/OS.QemuRunner/RecipeInstance.cs",
+        "docs/qemu.md",
+        "docs/image-builder.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Launch and stop an already-built immutable application image through explicit local deployment settings and the existing QEMU owner.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Reuse OS.QemuRunner/OS.Tooling capture and child cleanup. Local deployment declares verified image receipt, memory/vCPU, QEMU/OVMF paths, explicit host-to-guest port mappings and serial destination. Initial scope is immutable root plus advertised read-only capabilities. Persistent writable binding requires M11-033.",
+        "Expose validate/plan, build, run, status/log capture and stop as composable operations; names are proposed until implemented. Run consumes exact built bytes and does not silently rebuild, fetch latest or alter image data. A convenience build-and-run operation must be explicitly named and record both identities.",
+        "No shell command concatenation, guest installer/terminal/SSH/debug/admin listener or implicit 9P/VirtFS host sharing. Any host-only monitor stays locally scoped and owned by the runner. Port forwarding is separate from guest binding and cloud firewall authorization.",
+        "Validate actual resource/profile support before launch. Bound startup/health/stop timeouts, hold input identity through launch, record owned process/instance IDs, retain serial/failure evidence and clean up only owned children and temporary artifacts. Preserve preexisting data volumes and other VMs.",
+        "Use actual external HTTP and app lifecycle observations to establish local success; QEMU argv, a dry run or OS_BOOT_OK alone is insufficient. Reuse #795 lifecycle and #227 evidence policy rather than a fixture-name route."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/cmd/cmd_run.go",
+          "notes": "OPS run builds and launches; CLROS separates immutable run from explicit rebuild."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/qemu/qemu_unix.go",
+          "notes": "Observe QEMU lifecycle/port/disk wiring; avoid host shell hooks and implicit host shares."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Dry-run/plan has no process or file mutation. A fresh real guest serves an externally verified supported MinimalApi through explicit forwarding using unchanged kernel bytes; exact command/image/profile and serial/HTTP hashes are retained.",
+        "Tests cover missing tools, invalid paths, image swaps, port collisions, startup failure, timeout/cancellation and repeated stop. Successful stop confirms owned child exit and endpoint refusal; failure preserves evidence and does not kill unrelated processes.",
+        "No guest admin surface is present. Report local QEMU scope only; libvirt/provider support uses existing separately qualified lanes.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START ImageRecipeRunTests",
+        "TEST_PASS ImageRecipeRunTests",
+        "CLROS_M11_031_READY",
+        "OS_BOOT_OK",
+        "OS_SMOKE_PASS"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ImageRecipeRunTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/qemu.md",
+        "docs/image-builder.md"
+      ],
+      "evidenceBoundary": "Closure requires a fresh owned QEMU workload/storage capture and external observations for the exact scope, alongside focused host controls. CLROS_M11_031_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-032",
+      "title": "[M11-032] Inspect images, packages and recipes offline with bounded read-only tooling",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-029"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/ImageRecipeInspect.cs",
+        "tests/OS.HostTests/ImageRecipeInspectTests.cs",
+        "docs/image-builder.md",
+        "docs/manifest.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Expose a shell-free host inspect/verify workflow for image layout, guest paths, package identity and effective supported configuration.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Extend existing describe-image and independent FAT/package readers. Inspect reports layout, schema/profile, kernel/package/content hashes, declared cwd/nonsecret environment names, mounts, capacity and supported resource/endpoint policy. Identify declaration-only versus runtime-enforced capabilities explicitly.",
+        "Open inputs read-only, bound traversal/count/length/scratch, verify extents and hashes independently of build receipts, and reject malformed/looping FAT or package structures. Do not boot, mount host kernel filesystems, execute ELF/PE, use ldd, or contact providers.",
+        "Optional extraction requires an explicit destination, no overwrite and the same confinement/collision/limit rules; it must never follow guest paths onto host paths. Default output redacts environment/config values and all known credential fields; provide inventory/hashes without printing sensitive bytes.",
+        "Render deterministic human and machine-readable results with stable failure codes. Reuse #781/#782 host FAT repairs, #794 package admission and M11-028 path semantics; no duplicate parser or new guest console."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/cmd/cmd_image.go",
+          "notes": "Image inspection is host-side management; CLROS should offer bounded read-only inspection without a guest shell."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/fs/manifest.go",
+          "notes": "Filesystem/startup metadata illustrates the inventory exposed by an inspector; source is not a parser acceptance oracle."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Inspect returns correct independent inventories for a valid recipe-built image; tampered bytes, stale receipt, truncation, unknown schemas, bad chains and pathological nesting fail deterministically.",
+        "Input hashes/timestamps prove no mutation; no VM/child/network activity occurs. Negative extraction fixtures cannot escape or overwrite the selected output directory.",
+        "Diagnostic output omits injected secret sentinel values by default. Documentation states that redacted output does not make baked image contents secret.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START ImageRecipeInspectTests",
+        "TEST_PASS ImageRecipeInspectTests",
+        "CLROS_M11_032_READY"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ImageRecipeInspectTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/image-builder.md",
+        "docs/manifest.md"
+      ],
+      "evidenceBoundary": "Host contract/planning/build/inspection evidence only; no guest execution, persistence, isolation or cloud readiness follows. CLROS_M11_032_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M11-033",
+      "title": "[M11-033] Bind logical data volumes to guest mounts with durable ownership",
+      "milestone": "M11",
+      "parentKey": "M11-EPIC",
+      "dependencyKeys": [
+        "M11-030",
+        "M11-031",
+        "M16-027"
+      ],
+      "labels": [
+        "priority:p2",
+        "type:tooling",
+        "component:image",
+        "phase:m11-release",
+        "reference:test-only",
+        "agent:blocked",
+        "evidence:host",
+        "evidence:qemu"
+      ],
+      "priority": "priority:p2",
+      "ownedPaths": [
+        "tools/OS.Tooling/ImageVolumeBinding.cs",
+        "tests/OS.HostTests/ImageVolumeBindingTests.cs",
+        "src/OS.Kernel/Storage/ApplicationVolumeMount.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxApplicationVolumeAdapter.cs",
+        "docs/cstorage.md",
+        "docs/image-builder.md",
+        "docs/security.md"
+      ],
+      "forbiddenPaths": [
+        "src/OS/Boot/EfiEntry.cs",
+        "src/OS/OS.csproj",
+        "src/OS.Kernel/Boot/BootSequence.cs",
+        "src/OS.Kernel/Diagnostics/Probes.cs",
+        "references/** (read-only)",
+        "done/** (reserve one new evidence step; never edit historical receipts)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "Connect a declared logical volume to one explicitly selected VM disk and guest mount, with enforced read-only/root policy and verified persistent data lifetime.",
+      "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
+      "implementationNotes": [
+        "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
+        "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
+        "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
+        "OPS is a UX/source reference only at commit a52795e38ba33a006f0ba740fee0f18fec58fbbb. Do not import its Go implementation, Nanos TFS, or native dependencies into first-party code. Do not execute submitted guest binaries during host inspection. Preserve original fixture admission and immutable receipts.",
+        "Use M11-027 logical mounts, M11-030 disk identity and M11-031 local lifecycle. Deployment binds logical name to exact disk identity/path and attachment parameters. Validate allowed filesystem/layout/capacity and unique identity; never guess a disk from enumeration order, an ambiguous label or an existing host directory.",
+        "At admission reject missing required volume, duplicate IDs, root/data aliasing, nested/overlapping mount destinations, unsupported filesystem/access mode and attempted host share. Attaching never formats or seeds. Initially require offline attach/detach; hotplug remains unsupported.",
+        "Compose common OS.Storage owners and #800 confined descriptor/lock/sync services. Keep mount/resource/cleanup policy independent of Linux fds/errno and reusable by future PE adapters. Root read-only and per-mount access must be enforced by storage/descriptor operations, not just JSON or QEMU drive flags.",
+        "Retain disk identity/handles across reads/writes; confirm all in-flight I/O and DMA are retired before detach/release. Use #798 flush and #799 recovery semantics, bounded drain/failure behavior, and fail closed on uncertain retirement. A failed boot must not reformat or silently discard persistent data.",
+        "The first persistent volume may hold logs/uploads; direct Microsoft.Data.Sqlite remains #791/#792 and their journal/locking/recovery requirements. Do not treat EF Core NativeAOT limitations as SQLite-engine incompatibility. No durability claim from a host-generated image or replay alone."
+      ],
+      "referenceInfluences": [
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/provider/onprem/onprem_volume.go#L242-L341",
+          "notes": "Mount names, volume resolution and VM attachment are separate responsibilities; reject OPS-style implicit path-to-share inference."
+        },
+        {
+          "use": "Source/behavior reference only",
+          "path": "https://github.com/nanovms/ops/blob/a52795e38ba33a006f0ba740fee0f18fec58fbbb/qemu/qemu_unix.go",
+          "notes": "Disk attachment and VirtFS share are distinct transports. CLROS initial scope has explicit disks only."
+        }
+      ],
+      "acceptanceCriteria": [
+        "Fresh owned guests write/read/flush a bounded file, stop, replace the immutable boot/app image and reattach the same data volume; independent bytes/hashes demonstrate preserved data. Root write attempts and read-only mount writes fail without mutation.",
+        "Negative guests cover absent/wrong/duplicate disk, malformed filesystem, timeout/detach while I/O is pending, full capacity, and restart after interrupted writes using the qualified recovery boundary. Preserve all failed receipts and verify no stale DMA/use-after-free.",
+        "Host deletion/cleanup tests prove boot replacement and instance removal retain the data disk by default. Destruction is a separate explicit volume operation with exact owned identity; no broad directory or provider-resource deletion.",
+        "Retain kernel/tool/image/disk identities, exact runner arguments, serial markers, external app/file observations and post-run disk hashes. Do not promote SQLite, hotplug, provider durability or multi-app isolation.",
+        "Update the listed canonical docs with actual implemented command syntax, limits, failures and exact evidence. New CLI examples/fixtures in this issue are proposed until implemented."
+      ],
+      "requiredMarkers": [
+        "TEST_START ImageVolumeBindingTests",
+        "TEST_PASS ImageVolumeBindingTests",
+        "CLROS_M11_033_READY",
+        "OS_BOOT_OK",
+        "OS_SMOKE_PASS"
+      ],
+      "requiredCommands": [
+        "dotnet build tools/OS.Tooling/OS.Tooling.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ImageVolumeBindingTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/cstorage.md",
+        "docs/image-builder.md",
+        "docs/security.md"
+      ],
+      "evidenceBoundary": "Closure requires a fresh owned QEMU workload/storage capture and external observations for the exact scope, alongside focused host controls. CLROS_M11_033_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
       "desiredState": "open",
       "requiredForParent": false
     }

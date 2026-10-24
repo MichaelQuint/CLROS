@@ -22,8 +22,12 @@ dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001 --appl
 reproduces a lost concurrent unmanaged note in compiled apply. Until repaired,
 preview is safe; existing-body updates need fresh GET, preserved unmanaged text
 and labels, current `content_version`, conflict handling and exact readback.
-This review used compiled creation for five new issues, versioned API writes
-for five existing records, then a zero-change scoped preview. The current manifest has 407 managed issues (17 epics, 390 children) plus 11 canonical supplemental descriptions. The supplemental issues retain their original unkeyed identities and milestones. Historical inventory counts below retain their original dates.
+Earlier reviews used compiled creation and versioned API writes with scoped
+readback. The current manifest has 414 managed issues (17 epics, 397 children)
+plus 11 canonical supplemental descriptions. Step1563 adds seven OPS-style
+image-tooling successors (#802-#808) and updates 14 existing descriptions. The
+supplemental issues retain their original unkeyed identities and milestones.
+Historical inventory counts below retain their original dates.
 
 Selection limits issue writes while retaining the complete dependency and
 ownership graph; relevant label/milestone definitions are reconciled too.
