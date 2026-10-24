@@ -163,7 +163,7 @@ public static unsafe partial class LinuxDescriptorServices
             }
             ulong flags = call.Number == 2 ? call.Argument1 : call.Argument2;
             if (flags > uint.MaxValue) return new(WritableDiskProgress.Immediate, Invalid);
-            const uint allowed = 3 | W.Create | W.Exclusive | CloseOnExec | NoFollow | LargeFile | W.DirectoryOnly;
+            const uint allowed = 3 | W.Create | W.Exclusive | CloseOnExec | NoFollow | LargeFile | W.DirectoryOnly | W.NoControllingTerminal;
             if (((uint)flags & ~allowed) != 0 || (flags & 3) == 3) return new(WritableDiskProgress.Immediate, WritableUnsupported);
             ulong mode = call.Number == 2 ? call.Argument2 : call.Argument3;
             if ((flags & W.Create) != 0 && mode != 0x180) return new(WritableDiskProgress.Immediate, WritableUnsupported);

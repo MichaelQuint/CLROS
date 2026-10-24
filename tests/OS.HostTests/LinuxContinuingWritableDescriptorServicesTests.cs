@@ -74,6 +74,29 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.True(f.Run(D.Open(f.State, "/data/DATA.BIN"u8, 0)).Value >= 3);
     }
 
+    [HostTest("continuing confined non TTY opens admit measured O NOCTTY flags without changing access creation or stored status authority")]
+    private static void NonTtyOpen()
+    {
+        using var f = new Owner(); uint before = f.Device->Notifies;
+        var root = f.Open("/data", 0x98100); HostCheck.True(D.InspectCopied(f.State, root).Directory && f.Device->Notifies == before);
+        var read = f.Open(flags: 0x88100); var write = f.Open(flags: 0x88101);
+        HostCheck.True(f.Read(read, 9).SequenceEqual(Enumerable.Range(0, 9).Select(Value)));
+        HostCheck.Equal(-9L, D.BeginWrite(f.State, read, new byte[] { 71 }, 5, true).Value);
+        byte[] expected = Enumerable.Range(0, 900).Select(Value).ToArray(); expected[5] = 71;
+        HostCheck.Equal(1L, f.Run(D.BeginWrite(f.State, write, new byte[] { 71 }, 5, true)).Value); f.Independent("DATA.BIN", expected);
+        uint description = *(uint*)((byte*)(f.Slots + write.Number) + WritableBlockSessionTests.ManagedOffset(f.Slots + write.Number, "Description"));
+        uint flags = *(uint*)((byte*)(f.Descriptions + description - 1) + WritableBlockSessionTests.ManagedOffset(f.Descriptions + description - 1, "Flags"));
+        HostCheck.True((flags & D.NoControllingTerminal) == 0 && (flags & 3) == 1);
+        var created = f.Open("/data/no-terminal-created.bin", 0x881c1);
+        HostCheck.True(D.InspectCopied(f.State, created) is { Valid: true, Length: 0 });
+        before = f.Device->Notifies;
+        foreach (uint unsupported in new uint[] { 0x200, 0x400, 0x800, 3 })
+            HostCheck.Equal(-95L, D.Open(f.State, "/data/DATA.BIN"u8, D.NoControllingTerminal | unsupported).Value);
+        HostCheck.Equal(-13L, D.Open(f.State, "/data/../private/sentinel"u8, D.NoControllingTerminal).Value);
+        HostCheck.Equal(-21L, D.Open(f.State, "/data"u8, D.NoControllingTerminal | 1).Value);
+        HostCheck.Equal(before, f.Device->Notifies);
+    }
+
     [HostTest("continuing descriptors preserve independent opens shared dup cursors positioned reads and explicit EOF")]
     private static void Offsets()
     {

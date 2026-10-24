@@ -330,6 +330,26 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         HostCheck.Equal((long)(W.NoFollow | W.LargeFile), f.Core(72, file, 3));
     }
 
+    [HostTest("writable global measured non TTY FileStream opens preserve close flags actual media access and unsupported flag boundaries")]
+    private static void NonTtyOpen()
+    {
+        using var f = new Owner(); uint root = f.Open("/data", 0x98100);
+        HostCheck.Equal(1L, f.Core(72, root, 1)); HostCheck.Equal((long)W.LargeFile, f.Core(72, root, 3));
+        uint read = f.Open(flags: 0x88100), write = f.Open(flags: 0x88101);
+        HostCheck.Equal(1L, f.Core(72, read, 1)); HostCheck.Equal((long)W.LargeFile, f.Core(72, read, 3));
+        HostCheck.Equal((long)(W.LargeFile | 1), f.Core(72, write, 3));
+        HostCheck.Equal(9L, f.Run(f.Call(17, read, Output, 9, 5))); HostCheck.True(f.Bytes(9).SequenceEqual(Enumerable.Range(5, 9).Select(Value)));
+        HostCheck.Equal(-9L, f.Run(f.WriteCall(read, new byte[] { 71 }, 5)));
+        HostCheck.Equal(1L, f.Run(f.WriteCall(write, new byte[] { 71 }, 5)));
+        byte[] expected = Enumerable.Range(0, 900).Select(Value).ToArray(); expected[5] = 71; f.Independent("DATA.BIN", expected);
+        uint created = f.Open("/data/no-terminal-created.bin", 0x881c1); HostCheck.Equal((long)(W.LargeFile | 1), f.Core(72, created, 3));
+        uint calls = f.Hardware->Calls; f.PutPath("/data/DATA.BIN");
+        foreach (uint unsupported in new uint[] { 0x200, 0x400, 0x800, 3 })
+            HostCheck.Equal(-95L, f.Run(f.Call(2, Path, W.NoControllingTerminal | unsupported)));
+        HostCheck.Equal(calls, f.Hardware->Calls);
+        f.PutPath("/app/fixture.data"); HostCheck.True(f.Core(2, Path, 0x88100) >= 3);
+    }
+
     [HostTest("writable attachment full tree query excludes adapter provider DMA and observer backing and survives original block stop without copy authority")]
     private static void TreeAliases()
     {

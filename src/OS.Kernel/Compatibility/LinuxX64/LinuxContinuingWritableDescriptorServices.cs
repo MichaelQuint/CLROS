@@ -17,7 +17,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     public const uint MaximumDescriptors = 32, MaximumDescriptions = 32, PathBytes = 256, IoBytes = 8192;
     public const uint MaximumProcesses = 4, LockSlots = 32, LockScratchSlots = 65;
     public const uint Create = 0x40, Exclusive = 0x80, CloseOnExec = 0x80000, NoFollow = 0x20000,
-        DirectoryOnly = 0x10000, LargeFile = 0x8000, RwfNoAppend = 0x20;
+        DirectoryOnly = 0x10000, LargeFile = 0x8000, NoControllingTerminal = 0x100, RwfNoAppend = 0x20;
     private const long BadFd = -9, Again = -11, Fault = -14, Exists = -17, Invalid = -22, TableFull = -23,
         FdFull = -24, NoSpace = -28, Unsupported = -95, Overflow = -75, Stale = -116, Interrupted = -4,
         Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29, NoLocks = -37, NoSys = -38, Busy = -16;
@@ -368,7 +368,8 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>Open exact /data as a read-only barrier descriptor, or copy one
     /// printable-ASCII root component and begin actual metadata reads. Creation
-    /// retries at most64 deterministic aliases and publishes an fd only after
+    /// O_NOCTTY is inert for this confined regular-file/directory namespace and
+    /// is not retained as a status flag. Creation retries at most64 deterministic aliases and publishes an fd only after
     /// engine success and an independent reopen. Reservations prevent another
     /// root open from consuming the pending fd/description.</summary>
     public static Result Open(State* s, ReadOnlySpan<byte> path, uint flags) => OpenForProcess(s, PrimaryProcess(s), path, flags);
@@ -376,7 +377,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         if (!Bound(s) || s->Retiring || !ProcessCurrent(s, process)) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
-        const uint allowed = 3 | Create | Exclusive | CloseOnExec | NoFollow | DirectoryOnly | LargeFile;
+        const uint allowed = 3 | Create | Exclusive | CloseOnExec | NoFollow | DirectoryOnly | LargeFile | NoControllingTerminal;
         if ((flags & ~allowed) != 0 || (flags & 3) == 3) return Immediate(Unsupported);
         if (!External(s, path)) return Immediate(Fault);
         bool root = path.SequenceEqual("/data"u8) || path.SequenceEqual("/data/"u8);
@@ -1002,7 +1003,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         Descriptor* f = s->Input.Descriptors + number; f->Generation++; f->Description = description + 1; f->Flags = flags & CloseOnExec; f->Reserved = true;
         Description* d = s->Input.Descriptions + description; ulong generation = d->Generation;
-        *d = new() { Active = true, Reserved = true, Generation = generation + 1, Flags = flags & ~CloseOnExec, Process = process };
+        *d = new() { Active = true, Reserved = true, Generation = generation + 1, Flags = flags & ~(CloseOnExec | NoControllingTerminal), Process = process };
     }
     private static void RetireDescription(State* s, uint index)
     {
