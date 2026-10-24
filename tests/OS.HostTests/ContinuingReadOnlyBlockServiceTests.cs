@@ -352,6 +352,236 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         HostCheck.True(new ReadOnlySpan<byte>(ordinary, 128).IndexOfAnyExcept((byte)0xa5) < 0); return true;
     }
 
+    [HostTest("block.service observer captures exact request completion and copy candidates", HostLane.Fast, 14)]
+    private static bool Observations()
+    {
+        using var f = new Fixture(); using var capture = new Capture(f);
+        HostCheck.Equal(Block.Status.Success, f.Start()); HostCheck.Equal(0U, capture.Sink->Count);
+        Span<byte> output = new(capture.Sink->Output, 512);
+        foreach (ulong sector in new ulong[] { 7, 0x100000001 })
+        {
+            output.Fill(0xa5); uint first = capture.Sink->Count;
+            HostCheck.Equal(Block.Status.Success, Submit(f.State, sector, out var token));
+            HostCheck.Equal(Block.Status.Pending, Poll(f.State, out _)); HostCheck.Equal(first + 1, capture.Sink->Count);
+            f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _));
+            HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _)); HostCheck.Equal(first + 2, capture.Sink->Count);
+            HostCheck.Equal(Block.Status.ShortBuffer, Block.Copy(f.State, token, output[..511]));
+            HostCheck.Equal(Block.Status.InvalidStorage, Block.Copy(f.State, token, new Span<byte>(f.Data, 512)));
+            HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, CorruptToken(token, "Generation"), output));
+            HostCheck.Equal(first + 2, capture.Sink->Count);
+            HostCheck.Equal(Block.Status.Success, Block.Copy(f.State, token, output));
+            var submitted = capture.Sink->Records[first % Capture.RecordCount];
+            var completed = capture.Sink->Records[(first + 1) % Capture.RecordCount];
+            var candidate = capture.Sink->Records[(first + 2) % Capture.RecordCount];
+            HostCheck.Equal(Block.ObservationKind.Submitted, submitted.Kind);
+            HostCheck.Equal(Block.ObservationKind.CompletionValidated, completed.Kind);
+            HostCheck.Equal(Block.ObservationKind.CopyReady, candidate.Kind);
+            HostCheck.True(submitted.Owner == (ulong)f.State && submitted.Epoch == f.Input.Epoch && submitted.Generation != 0 &&
+                submitted.Generation == completed.Generation && submitted.Generation == candidate.Generation &&
+                submitted.Sector == sector && completed.Sector == sector && candidate.Sector == sector);
+            HostCheck.True(submitted.Sequence == f.State->Submitted && completed.Sequence == f.State->Completed &&
+                candidate.Sequence == f.State->Copied && candidate.AvailableIndex == f.State->PublishedIndex &&
+                candidate.ConsumedIndex == f.State->ConsumedIndex);
+            CheckPayload(output, sector); CheckPayload(new ReadOnlySpan<byte>(capture.Sink->Payload, 512), sector);
+            HostCheck.True(!capture.Sink->Bad && !f.State->ReadReady);
+        }
+        uint events = capture.Sink->Count;
+        HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); HostCheck.Equal(events, capture.Sink->Count); f.CheckGuards(); return true;
+    }
+
+    [HostTest("block.service observer rejection preserves outputs and quarantines every stage", HostLane.Fast, 15)]
+    private static bool ObservationRejections()
+    {
+        foreach (var kind in new[] { Block.ObservationKind.Submitted, Block.ObservationKind.CompletionValidated, Block.ObservationKind.CopyReady })
+        foreach (byte rejected in new byte[] { 0, 2, 255 })
+        {
+            using var f = new Fixture(); using var capture = new Capture(f);
+            capture.Sink->Reject = true; capture.Sink->RejectKind = kind; capture.Sink->RejectValue = rejected;
+            HostCheck.Equal(Block.Status.Success, f.Start()); Span<byte> output = new(capture.Sink->Output, 512); output.Fill(0xa5);
+            Block.ReadToken token = default;
+            if (kind == Block.ObservationKind.Submitted)
+            { HostCheck.Equal(Block.Status.ObservationRejected, Submit(f.State, 31, out token)); HostCheck.True(!token.IsInitialized); }
+            else
+            {
+                HostCheck.Equal(Block.Status.Success, Submit(f.State, 31, out token)); f.Complete();
+                if (kind == Block.ObservationKind.CompletionValidated)
+                { HostCheck.Equal(Block.Status.ObservationRejected, Poll(f.State, out var result)); HostCheck.True(!result.Token.IsInitialized && result.Bytes == 0); }
+                else
+                { HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _)); HostCheck.Equal(Block.Status.ObservationRejected, Block.Copy(f.State, token, output)); }
+            }
+            HostCheck.True(!f.State->Running && f.State->RequiresCleanup && !capture.Sink->Bad);
+            HostCheck.Equal(Block.Status.ObservationRejected, f.State->LastFailure); HostCheck.Equal(0UL, f.State->Copied);
+            HostCheck.True(output.IndexOfAnyExcept((byte)0xa5) < 0 && f.Pool->AllocatedMask == 1 && f.Owner == DmaBufferOwnership.Device);
+            HostCheck.Equal(1U, f.Hardware->Notifies); uint events = capture.Sink->Count;
+            if (kind == Block.ObservationKind.CopyReady)
+            {
+                f.Hardware->ResetStuck = true; HostCheck.Equal(Block.Status.ResetFailed, Block.Stop(f.State));
+                HostCheck.Equal(1UL, f.Pool->AllocatedMask); f.Hardware->ResetStuck = false;
+            }
+            HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); HostCheck.Equal(events, capture.Sink->Count);
+            HostCheck.Equal(Block.Status.ObservationRejected, f.State->LastFailure); HostCheck.Equal(0UL, f.Pool->AllocatedMask); f.CheckGuards();
+        }
+        return true;
+    }
+
+    [HostTest("block.service observer reentry rejects all mutators before publication or cleanup", HostLane.Fast, 16)]
+    private static bool ObservationReentry()
+    {
+        foreach (var kind in new[] { Block.ObservationKind.Submitted, Block.ObservationKind.CompletionValidated, Block.ObservationKind.CopyReady })
+        for (int operation = 0; operation < 6; operation++)
+        {
+            using var f = new Fixture(); using var capture = new Capture(f);
+            capture.Sink->ReenterKind = kind; capture.Sink->ReenterOperation = operation;
+            HostCheck.Equal(Block.Status.Success, f.Start()); Span<byte> output = new(capture.Sink->Output, 512); output.Fill(0xa5);
+            Block.Status result = Submit(f.State, 41, out var token);
+            if (kind != Block.ObservationKind.Submitted)
+            {
+                HostCheck.Equal(Block.Status.Success, result); f.Complete(); result = Poll(f.State, out _);
+                if (kind == Block.ObservationKind.CopyReady)
+                { HostCheck.Equal(Block.Status.Ready, result); result = Block.Copy(f.State, token, output); }
+            }
+            HostCheck.Equal(Block.Status.ObservationRejected, result); HostCheck.Equal(Block.Status.ObservationRejected, capture.Sink->NestedStatus);
+            HostCheck.True(capture.Sink->NestedUnchanged && !capture.Sink->Bad && !f.State->Running && f.State->RequiresCleanup);
+            HostCheck.True(output.IndexOfAnyExcept((byte)0xa5) < 0 && f.Pool->AllocatedMask == 1);
+            HostCheck.Equal(1U, f.Hardware->Notifies); HostCheck.Equal(0U, f.Hardware->Resets);
+            uint events = capture.Sink->Count; HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
+            HostCheck.Equal(events, capture.Sink->Count); HostCheck.Equal(0UL, f.Pool->AllocatedMask); f.CheckGuards();
+        }
+        return true;
+    }
+
+    [HostTest("block.service observer excludes invalid and cancelled copies and duplicate readiness", HostLane.Fast, 17)]
+    private static bool ObservationCancellationAndFailures()
+    {
+        using (var f = new Fixture())
+        using (var capture = new Capture(f))
+        {
+            HostCheck.Equal(Block.Status.Success, f.Start()); HostCheck.Equal(Block.Status.Success, Submit(f.State, 8, out var token));
+            HostCheck.Equal(Block.Status.Success, Block.Cancel(f.State, token)); f.Complete();
+            HostCheck.Equal(Block.Status.Cancelled, Poll(f.State, out _)); HostCheck.Equal(2U, capture.Sink->Count);
+            HostCheck.Equal(0U, capture.Sink->Records[1].Bytes); HostCheck.Equal(0UL, capture.Sink->Candidate);
+            HostCheck.Equal(Block.Status.Success, Submit(f.State, 9, out token)); f.Complete();
+            HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _)); HostCheck.Equal(Block.Status.Success, Block.Cancel(f.State, token));
+            HostCheck.Equal(Block.Status.StaleToken, Block.Copy(f.State, token, new Span<byte>(capture.Sink->Output, 512)));
+            HostCheck.Equal(4U, capture.Sink->Count); HostCheck.Equal(0UL, capture.Sink->Candidate);
+            HostCheck.True(!capture.Sink->Bad); HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
+        }
+        for (int mode = 0; mode < 4; mode++)
+        {
+            using var f = new Fixture(); using var capture = new Capture(f); HostCheck.Equal(Block.Status.Success, f.Start());
+            if (mode == 0)
+            {
+                // Seven hardware calls precede/perform notification on this fixture.
+                f.Hardware->FailCall = f.Hardware->Calls + 7; f.Hardware->FailAfterWrite = true;
+                HostCheck.Equal(Block.Status.WriteFailed, Submit(f.State, 10, out _)); HostCheck.Equal(0U, capture.Sink->Count);
+            }
+            else
+            {
+                HostCheck.Equal(Block.Status.Success, Submit(f.State, 10, out var token)); f.Complete(length: mode == 1 ? 512U : 513U);
+                if (mode == 1) HostCheck.Equal(Block.Status.InvalidCompletion, Poll(f.State, out _));
+                else if (mode == 2) { f.Hardware->ClockFailure = true; HostCheck.Equal(Block.Status.ClockFailed, Poll(f.State, out _)); }
+                else
+                {
+                    HostCheck.Equal(Block.Status.Ready, Poll(f.State, out _)); f.Hardware->Generation++;
+                    HostCheck.Equal(Block.Status.ConfigurationChanged, Block.Copy(f.State, token, new Span<byte>(capture.Sink->Output, 512)));
+                }
+                HostCheck.Equal(mode == 3 ? 2U : 1U, capture.Sink->Count); HostCheck.Equal(0UL, capture.Sink->Candidate);
+            }
+            HostCheck.True(!capture.Sink->Bad); HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
+        }
+        return true;
+    }
+
+    [HostTest("block.service observed requests retain generation across ushort ring wrap without allocations", HostLane.Fast, 18)]
+    private static bool ObservationWrapAndAllocation()
+    {
+        using var f = new Fixture(); using var capture = new Capture(f); HostCheck.Equal(Block.Status.Success, f.Start());
+        Span<byte> output = new(capture.Sink->Output, 512); long before = 0; bool good = true;
+        for (uint i = 0; i < 65538; i++)
+        {
+            if (i == 1) before = GC.GetAllocatedBytesForCurrentThread();
+            output.Fill(0xa5); good &= Submit(f.State, i, out var token) == Block.Status.Success; f.Complete();
+            good &= Poll(f.State, out _) == Block.Status.Ready && Block.Copy(f.State, token, output) == Block.Status.Success;
+            good &= capture.Sink->Candidate == f.State->Copied && capture.Sink->LastGeneration == (ulong)i + 1;
+        }
+        long after = GC.GetAllocatedBytesForCurrentThread(); HostCheck.Equal(before, after);
+        HostCheck.True(good && !capture.Sink->Bad); HostCheck.Equal(196614U, capture.Sink->Count);
+        HostCheck.Equal((ushort)2, f.State->PublishedIndex); HostCheck.Equal((ushort)2, f.State->ConsumedIndex);
+        HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards(); return true;
+    }
+
+    private struct ObservationSink
+    {
+        internal Block.State* State;
+        internal Hardware* Hardware;
+        internal Block.Observation* Records;
+        internal byte* Payload;
+        internal byte* Output;
+        internal byte* Metadata;
+        internal Block.Admission Input;
+        internal ulong Candidate, LastGeneration;
+        internal uint Count;
+        internal int ReenterOperation;
+        internal Block.ObservationKind RejectKind, ReenterKind;
+        internal byte RejectValue;
+        internal Block.Status NestedStatus;
+        internal bool Bad, Reject, NestedUnchanged;
+    }
+    private sealed class Capture : IDisposable
+    {
+        internal const uint RecordCount = 12;
+        internal readonly ObservationSink* Sink = (ObservationSink*)NativeMemory.AllocZeroed((nuint)sizeof(ObservationSink));
+        internal Capture(Fixture f)
+        {
+            Sink->State = f.State; Sink->Hardware = f.Hardware; Sink->ReenterOperation = -1;
+            Sink->Records = (Block.Observation*)NativeMemory.AllocZeroed(RecordCount, (nuint)sizeof(Block.Observation));
+            Sink->Payload = (byte*)NativeMemory.AllocZeroed(512); Sink->Output = (byte*)NativeMemory.AllocZeroed(512);
+            Sink->Metadata = (byte*)NativeMemory.AllocZeroed(64);
+            f.Observation = new() { Context = Sink, Observe = &CaptureObservation }; Sink->Input = f.Input;
+        }
+        public void Dispose()
+        { NativeMemory.Free(Sink->Records); NativeMemory.Free(Sink->Payload); NativeMemory.Free(Sink->Output); NativeMemory.Free(Sink->Metadata); NativeMemory.Free(Sink); }
+    }
+    [UnmanagedCallersOnly]
+    private static byte CaptureObservation(void* context, Block.Observation* value, byte* payload)
+    {
+        var sink = (ObservationSink*)context; Block.State* state = sink->State; Hardware* hardware = sink->Hardware;
+        sink->Records[sink->Count++ % Capture.RecordCount] = *value; sink->LastGeneration = value->Generation;
+        sink->Bad |= value->Owner != (ulong)state || value->Epoch != sink->Input.Epoch || value->Generation == 0 ||
+            value->AvailableIndex != state->PublishedIndex || value->ConsumedIndex != state->ConsumedIndex;
+        if (value->Kind == Block.ObservationKind.Submitted)
+            sink->Bad |= payload != null || value->Bytes != 512 || value->Sequence != state->Submitted ||
+                !state->ReadPending || hardware->Notifies != state->Submitted;
+        else if (value->Kind == Block.ObservationKind.CompletionValidated)
+            sink->Bad |= payload != null || value->Bytes is not (0 or 512) || value->Sequence != state->Completed || !state->ReadPending;
+        else if (value->Kind == Block.ObservationKind.CopyReady)
+        {
+            sink->Bad |= payload != hardware->Data + 512 || value->Bytes != 512 || value->Sequence != state->Copied + 1 || !state->ReadReady;
+            sink->Candidate = value->Sequence;
+            if (payload != null) for (int i = 0; i < 512; i++)
+            { sink->Payload[i] = payload[i]; sink->Bad |= payload[i] != Payload(value->Sector, i) || sink->Output[i] != 0xa5; }
+        }
+        else sink->Bad = true;
+        if (sink->ReenterOperation >= 0 && value->Kind == sink->ReenterKind)
+        {
+            uint calls = hardware->Calls; ulong submitted = state->Submitted, completed = state->Completed, copied = state->Copied;
+            new Span<byte>(sink->Metadata, 64).Fill(0xa5);
+            sink->NestedStatus = sink->ReenterOperation switch
+            {
+                0 => Block.Start(state, sink->Input),
+                1 => Block.Submit(state, 22, (Block.ReadToken*)sink->Metadata),
+                2 => Block.Poll(state, (Block.Completion*)sink->Metadata),
+                3 => Block.Copy(state, default, new Span<byte>(sink->Output, 512)),
+                4 => Block.Cancel(state, default),
+                _ => Block.Stop(state)
+            };
+            sink->NestedUnchanged = calls == hardware->Calls && submitted == state->Submitted && completed == state->Completed && copied == state->Copied &&
+                new ReadOnlySpan<byte>(sink->Metadata, 64).IndexOfAnyExcept((byte)0xa5) < 0 &&
+                new ReadOnlySpan<byte>(sink->Output, 512).IndexOfAnyExcept((byte)0xa5) < 0 && hardware->Pool->AllocatedMask == 1;
+        }
+        return sink->Reject && value->Kind == sink->RejectKind ? sink->RejectValue : (byte)1;
+    }
+
     // Test-only value conveniences use distinct stack storage. Production APIs
     // validate explicit metadata pointers before their first output write.
     private static Block.Status Submit(Block.State* state, ulong sector, out Block.ReadToken token)
@@ -510,6 +740,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
         internal DmaBufferOwnership Owner => *(DmaBufferOwnership*)((byte*)Slot + ownerOffset);
         private readonly ulong lifetime;
         private readonly VirtioMappedRegion common, notify, device;
+        internal Block.ObservationAccess Observation;
         internal Fixture()
         {
             new Span<byte>(backing, 12288).Fill(0xa5);
@@ -535,7 +766,7 @@ internal static unsafe class ContinuingReadOnlyBlockServiceTests
             ExpectedCapacity = Capacity, CompletionTimeoutNanos = 1000,
             Access = new() { Queue = new() { Context = Hardware, Read8 = &Read8, Write8 = &Write8, Read16 = &Read16, Write16 = &Write16,
                 Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn },
-            Clock = new() { Context = Hardware, Read = &Clock }
+            Clock = new() { Context = Hardware, Read = &Clock }, Observation = Observation
         };
         internal Block.Status Start() => Block.Start(State, Input);
         internal void Complete(uint id = 0, uint length = 513, byte status = 0, ushort delta = 1)

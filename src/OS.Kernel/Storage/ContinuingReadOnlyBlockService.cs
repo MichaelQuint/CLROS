@@ -18,7 +18,7 @@ public static unsafe class ContinuingReadOnlyBlockService
         DmaRejected, ClockFailed, ClockRegressed, GenerationExhausted,
         SectorOutOfRange, Busy, Idle, Pending, Ready, Cancelled, StaleToken,
         ShortBuffer, InvalidStorage, InvalidCompletion, DeviceIoError,
-        UnsupportedRequest, Timeout, ResetFailed
+        UnsupportedRequest, Timeout, ResetFailed, ObservationRejected
     }
 
     /// <summary>Trusted live monotonic nanoseconds; return exactly1 on success.
@@ -27,6 +27,40 @@ public static unsafe class ContinuingReadOnlyBlockService
     {
         public void* Context;
         public delegate* unmanaged<void*, ulong*, byte> Read;
+    }
+
+    public enum ObservationKind : byte { Submitted, CompletionValidated, CopyReady }
+
+    /// <summary>Copied diagnostic facts, not ownership authority. Sequence is
+    /// the submitted/completed count, or the next copied count for CopyReady.
+    /// CopyReady is a candidate: only a later matching State.Copied count proves
+    /// that its bytes were actually copied. Cancelled completions expose zero.</summary>
+    public readonly struct Observation
+    {
+        public readonly ObservationKind Kind;
+        public readonly ulong Owner, Epoch, Generation, Sector, Sequence;
+        public readonly uint Bytes;
+        public readonly ushort AvailableIndex, ConsumedIndex;
+        internal Observation(State* s, ObservationKind kind, ulong sequence, uint bytes)
+        {
+            Kind = kind; Owner = (ulong)s; Epoch = s->Input.Epoch; Generation = s->RequestGeneration;
+            Sector = s->RequestSector; Sequence = sequence; Bytes = bytes;
+            AvailableIndex = s->AvailableIndex; ConsumedIndex = s->UsedConsumed;
+        }
+    }
+
+    /// <summary>Optional synchronous supervisor observation; null disables it.
+    /// Return exactly1 to accept. Context/code remain mapped and stable through
+    /// Stop. Perform bounded work in the serialized supervisor context; never
+    /// throw, reenter or mutate this owner or the borrowed bytes. Metadata and
+    /// payload are borrowed only until return; copy facts or hash synchronously.
+    /// Payload is null except CopyReady, which borrows exactly512 validated DMA
+    /// bytes before any destination write. Rejection faults without releasing DMA
+    /// or publishing success. Fault/Stop never invoke this callback.</summary>
+    public struct ObservationAccess
+    {
+        public void* Context;
+        public delegate* unmanaged<void*, Observation*, byte*, byte> Observe;
     }
 
     /// <summary>Borrowed authority supplied after VERSION_1 and optional RO-only
@@ -43,6 +77,7 @@ public static unsafe class ContinuingReadOnlyBlockService
         public ulong Epoch, NegotiatedFeatures, ExpectedCapacity, CompletionTimeoutNanos;
         public VirtioBlkReadAccess Access;
         public ClockAccess Clock;
+        public ObservationAccess Observation;
     }
 
     /// <summary>Copyable observation of one request, not device authority. Only
@@ -80,7 +115,7 @@ public static unsafe class ContinuingReadOnlyBlockService
         internal ulong Capacity, NotifyAddress;
         internal ushort AvailableIndex, UsedConsumed;
         internal byte ConfigGeneration, Phase;
-        internal bool DeviceOwned, ReturnedToCpu, Scrubbed, Discard;
+        internal bool DeviceOwned, ReturnedToCpu, Scrubbed, Discard, Observing, ObservationReentered;
         internal Status Failure;
         internal ulong SubmittedCount, CompletedCount, CopiedCount, CancelledCount, PollCount;
         public readonly bool Running => Phase is >= IdlePhase and <= ReadyPhase;
@@ -110,6 +145,7 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// RequiresCleanup before releasing any adapter resource.</summary>
     public static Status Start(State* state, in Admission input)
     {
+        if (RejectReentry(state)) return Status.ObservationRejected;
         Admission a = input;
         if (a.NegotiatedFeatures != BoundedVirtioFeatures.Version1 &&
             a.NegotiatedFeatures != (BoundedVirtioFeatures.Version1 | BoundedVirtioFeatures.BlockReadOnly))
@@ -150,9 +186,11 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// original deadline is never renewed by Poll. Supply aligned, mapped,
     /// exclusive ordinary RAM for the token, disjoint from all retained storage.
     /// It is borrowed only for this call. Invalid owner/output leaves it untouched;
-    /// admitted output is cleared before any other rejection or publication.</summary>
+    /// admitted output is cleared before any other rejection or publication.
+    /// Observer rejection after notification retains published DMA but no token.</summary>
     public static Status Submit(State* s, ulong sector, ReadToken* token)
     {
+        if (RejectReentry(s)) return Status.ObservationRejected;
         if (!Running(s)) return Status.InvalidState;
         if (!MetadataOutput(s, (ulong)token, (ulong)sizeof(ReadToken))) return Status.InvalidStorage;
         *token = default;
@@ -182,6 +220,7 @@ public static unsafe class ContinuingReadOnlyBlockService
         if (!Fence(s)) return Fault(s, Status.OrderingFailed);
         var a = s->Input.Access.Queue;
         if (a.Write16(a.Context, s->NotifyAddress, 0) != 1) return Fault(s, Status.WriteFailed);
+        if (!Observe(s, ObservationKind.Submitted, s->SubmittedCount, 512, null)) return Fault(s, Status.ObservationRejected);
         *token = Token(s); return Status.Success;
     }
 
@@ -193,9 +232,11 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// tags; this contract assumes the admitted device follows the protocol.
     /// Completion output is aligned, mapped exclusive ordinary RAM, disjoint from
     /// retained storage, and borrowed only through return. Invalid owner/output
-    /// leaves it untouched; other outcomes clear it unless they publish a result.</summary>
+    /// leaves it untouched; other outcomes clear it unless they publish a result.
+    /// The observer runs once per newly validated entry, never for repeated Ready.</summary>
     public static Status Poll(State* s, Completion* completion)
     {
+        if (RejectReentry(s)) return Status.ObservationRejected;
         if (!Running(s)) return Status.InvalidState;
         if (!MetadataOutput(s, (ulong)completion, (ulong)sizeof(Completion))) return Status.InvalidStorage;
         *completion = default;
@@ -220,6 +261,8 @@ public static unsafe class ContinuingReadOnlyBlockService
             status = DeviceStatus(s); if (status != Status.Success) return Fault(s, status);
             status = ReadClock(s, out _); if (status != Status.Success) return Fault(s, status);
             s->UsedConsumed = index; s->CompletedCount++; s->Deadline = 0;
+            if (!Observe(s, ObservationKind.CompletionValidated, s->CompletedCount, s->Discard ? 0u : 512u, null))
+                return Fault(s, Status.ObservationRejected);
             *completion = new(Token(s), s->RequestSector, s->Discard ? 0u : 512u);
             if (s->Discard)
             {
@@ -236,9 +279,12 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// <summary>Copy exactly512 validated bytes to exclusive ordinary RAM, then
     /// revoke the token and admit the next read. Short/aliased output preserves
     /// Ready for retry. All status/config/index/fence checks precede the copy.
-    /// Caller memory is never retained; failure copies no bytes.</summary>
+    /// CopyReady observation precedes destination writes; its sequence becomes
+    /// committed only when State.Copied advances. Caller memory is never retained;
+    /// failure, including observer rejection, copies no bytes.</summary>
     public static Status Copy(State* s, ReadToken token, Span<byte> destination)
     {
+        if (RejectReentry(s)) return Status.ObservationRejected;
         if (!Running(s)) return Status.InvalidState;
         if (!Matches(s, token) || s->Phase == IdlePhase) return Status.StaleToken;
         if (s->Discard) return Status.Cancelled;
@@ -250,6 +296,7 @@ public static unsafe class ContinuingReadOnlyBlockService
             Status status = CheckUnchanged(s); if (status != Status.Success) return Fault(s, status);
             if (!Fence(s)) return Fault(s, Status.OrderingFailed);
             byte* source = (byte*)(s->Queue.Layout.Range.CpuVirtualAddress + VirtioBlkDmaLayout.DataOffset);
+            if (!Observe(s, ObservationKind.CopyReady, s->CopiedCount + 1, 512, source)) return Fault(s, Status.ObservationRejected);
             for (uint i = 0; i < 512; i++) output[i] = source[i];
         }
         s->CopiedCount++; s->Phase = IdlePhase; return Status.Success;
@@ -260,6 +307,7 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// Repeated cancellation of that pending token is harmless; it is still Busy.</summary>
     public static Status Cancel(State* s, ReadToken token)
     {
+        if (RejectReentry(s)) return Status.ObservationRejected;
         if (!Running(s)) return Status.InvalidState;
         if (!Matches(s, token) || s->Phase == IdlePhase) return Status.StaleToken;
         if (s->Phase == PendingPhase) s->Discard = true;
@@ -274,6 +322,7 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// idempotent no-op. Restart needs fresh zero state and a unique lifetime epoch.</summary>
     public static Status Stop(State* s)
     {
+        if (RejectReentry(s)) return Status.ObservationRejected;
         if (!Bound(s)) return Status.InvalidState;
         if (s->Phase == RetiredPhase) return Status.Success;
         s->Phase = FaultPhase; s->Discard = true;
@@ -360,6 +409,23 @@ public static unsafe class ContinuingReadOnlyBlockService
     { *(ulong*)p = address; *(uint*)(p + 8) = length; *(ushort*)(p + 12) = flags; *(ushort*)(p + 14) = next; }
     private static bool Fence(State* s)
     { var a = s->Input.Access.Queue; if (a.Fence(a.Context) != 1) return false; s->Queue.Fences++; return true; }
+    private static bool Observe(State* s, ObservationKind kind, ulong sequence, uint bytes, byte* payload)
+    {
+        var access = s->Input.Observation;
+        if (access.Observe == null) return true;
+        Observation observation = new(s, kind, sequence, bytes);
+        s->ObservationReentered = false; s->Observing = true;
+        byte accepted = access.Observe(access.Context, &observation, payload);
+        s->Observing = false;
+        return accepted == 1 && !s->ObservationReentered;
+    }
+    // Reject before output clearing or hardware effects. A nested rejection is
+    // sticky until the outer observer returns, even if it ignores that result.
+    private static bool RejectReentry(State* s)
+    {
+        if (!Storage((ulong)s, (ulong)sizeof(State)) || s->Self != (ulong)s || !s->Observing) return false;
+        s->ObservationReentered = true; return true;
+    }
     private static Status Fault(State* s, Status reason) { s->Phase = FaultPhase; s->Failure = reason; return reason; }
     private static Status CleanupFailure(State* s, Status reason)
     { if (s->Failure is Status.Uninitialized or Status.Success) s->Failure = reason; return reason; }

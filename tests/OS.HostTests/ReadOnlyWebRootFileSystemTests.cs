@@ -385,6 +385,73 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         HostCheck.True(new ReadOnlySpan<byte>(&saved, sizeof(Fs.FileInspection)).SequenceEqual(new ReadOnlySpan<byte>(&info, sizeof(Fs.FileInspection))));
     }
 
+    [HostTest("webroot.fs observer retains same-turn completion bytes and rejects before range publication")]
+    private static bool SectorObservations()
+    {
+        Span<byte> output = stackalloc byte[16];
+        for (int rejected = 0; rejected < 2; rejected++)
+        {
+            FsObservation sink = default;
+            using var f = new Fixture(observation: new() { Context = &sink, Observe = &ObserveSector });
+            sink.Device = f.Device; HostCheck.Equal(0UL, sink.Submitted);
+            f.MountReady(); var file = f.Open("/app/wwwroot/index.html");
+            Fs.OperationToken token = default;
+            HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, file.File, 0, 7, &token));
+            HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); HostCheck.True(f.Device->ReadPending);
+            ulong before = f.Device->Copied, events = sink.CopyCandidates; sink.Reject = rejected != 0;
+            f.Tick(); Fs.Status status = Fs.Poll(f.Mount, token);
+            HostCheck.Equal(events + 1, sink.CopyCandidates); HostCheck.Equal(before + 1, sink.Candidate.Sequence);
+            HostCheck.Equal(f.Disk.Data(10), sink.Candidate.Sector);
+            HostCheck.True(new ReadOnlySpan<byte>(sink.Payload, 512).SequenceEqual(f.Disk.Sector(f.Disk.Data(10))) && !sink.Bad);
+            output.Fill(0xa5); uint bytes = 99;
+            if (rejected == 0)
+            {
+                HostCheck.Equal(Fs.Status.Ready, status); HostCheck.Equal(sink.Candidate.Sequence, f.Device->Copied);
+                HostCheck.True(!f.Device->ReadReady && f.Device->Running);
+                HostCheck.Equal(Fs.Status.Success, Fs.CopyRead(f.Mount, token, output, &bytes)); HostCheck.Equal(7U, bytes);
+                for (int i = 0; i < 7; i++) HostCheck.Equal(Payload(i), output[i]);
+                HostCheck.True(output[7..].IndexOfAnyExcept((byte)0xa5) < 0); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+            }
+            else
+            {
+                HostCheck.Equal(Fs.Status.DeviceFailed, status); HostCheck.Equal(before, f.Device->Copied);
+                HostCheck.Equal(Block.Status.ObservationRejected, f.Device->LastFailure);
+                HostCheck.Equal(Fs.Status.InvalidState, Fs.CopyRead(f.Mount, token, output, &bytes));
+                HostCheck.Equal(99U, bytes); HostCheck.True(output.IndexOfAnyExcept((byte)0xa5) < 0);
+                HostCheck.True(f.Device->RequiresCleanup && f.Pool->AllocatedMask == 1);
+                ulong observed = sink.Submitted + sink.Completed + sink.CopyCandidates;
+                HostCheck.Equal(Block.Status.Success, Block.Stop(f.Device)); HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount));
+                HostCheck.Equal(observed, sink.Submitted + sink.Completed + sink.CopyCandidates);
+            }
+        }
+        return true;
+    }
+    private struct FsObservation
+    {
+        internal Block.State* Device;
+        internal Block.Observation Candidate;
+        internal ulong Submitted, Completed, CopyCandidates;
+        internal bool Reject, Bad;
+        internal fixed byte Payload[512];
+    }
+    [UnmanagedCallersOnly]
+    private static byte ObserveSector(void* context, Block.Observation* observation, byte* payload)
+    {
+        var sink = (FsObservation*)context;
+        sink->Bad |= observation->Owner != (ulong)sink->Device || observation->Generation == 0;
+        if (observation->Kind == Block.ObservationKind.Submitted) sink->Submitted++;
+        else if (observation->Kind == Block.ObservationKind.CompletionValidated) sink->Completed++;
+        else
+        {
+            sink->CopyCandidates++; sink->Candidate = *observation;
+            sink->Bad |= observation->Kind != Block.ObservationKind.CopyReady || payload == null || observation->Bytes != 512 ||
+                observation->Sequence != sink->Device->Copied + 1;
+            if (payload != null) for (int i = 0; i < 512; i++) sink->Payload[i] = payload[i];
+            return sink->Reject ? (byte)0 : (byte)1;
+        }
+        sink->Bad |= payload != null; return 1;
+    }
+
     private static byte Payload(int index) => unchecked((byte)(index * 31 ^ (index >> 8) ^ 0x5a));
     private const ulong Common = 0x400000, Notify = 0x403000, Config = 0x402000, Physical = 0x220000, DeviceBase = 0x123456780000;
 
@@ -536,7 +603,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal Fs.Admission Input => input;
         private uint arenaAt;
         internal uint UsedArenaBytes => arenaAt;
-        internal Fixture(uint cacheSlots = 2, uint workBudget = 65536, uint history = 4096, uint map = 4096, uint clusters = 65525, bool collision = false, uint slots = 2)
+        internal Fixture(uint cacheSlots = 2, uint workBudget = 65536, uint history = 4096, uint map = 4096, uint clusters = 65525, bool collision = false, uint slots = 2,
+            Block.ObservationAccess observation = default)
         {
             HostCheck.True(slots is >= 2 and <= 8);
             arenaCapacity = slots == 2 ? (uint)ArenaBytes : 1048576U;
@@ -559,7 +627,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             Block.Admission block = new() { Common = common, Notify = notify, Device = device, NotifyMultiplier = 4, ResetLimit = 3, Pool = Pool,
                 Epoch = lifetime, NegotiatedFeatures = BoundedVirtioFeatures.Version1, ExpectedCapacity = Disk.Capacity, CompletionTimeoutNanos = 1000,
                 Access = new() { Queue = new() { Context = hardware, Read8 = &Read8, Write8 = &Write8, Read16 = &Read16, Write16 = &Write16,
-                    Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn }, Clock = new() { Context = hardware, Read = &Clock } };
+                    Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn }, Clock = new() { Context = hardware, Read = &Clock }, Observation = observation };
             HostCheck.Equal(Block.Status.Success, Block.Start(Device, block));
             Mount = (Fs.Mount*)Take((uint)sizeof(Fs.Mount)); Operations = (Fs.Operation*)Take(slots * (uint)sizeof(Fs.Operation));
             Files = (Fs.FileHandle*)Take(slots * (uint)sizeof(Fs.FileHandle)); Cache = (Fs.CacheSlot*)Take(cacheSlots * (uint)sizeof(Fs.CacheSlot));
