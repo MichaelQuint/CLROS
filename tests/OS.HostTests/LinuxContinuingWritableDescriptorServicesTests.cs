@@ -327,6 +327,213 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.True(valid && GC.GetAllocatedBytesForCurrentThread() == before);
     }
 
+    [HostTest("continuing process lock admission audits fixed POD tables aliases and copied positive owner PIDs")]
+    private static void LockAdmission()
+    {
+        using var f = new Owner(); f.PrepareLocks(); var a = f.LockInput;
+        HostCheck.True(!RuntimeHelpers.IsReferenceOrContainsReferences<D.RangeLock>() && !RuntimeHelpers.IsReferenceOrContainsReferences<D.ProcessSlot>());
+        a.PrimaryPid = 0; HostCheck.True(!D.EnableLocks(f.State, a)); a = f.LockInput; a.ProcessCount = 5; HostCheck.True(!D.EnableLocks(f.State, a));
+        a = f.LockInput; a.LockCount = 31; HostCheck.True(!D.EnableLocks(f.State, a)); a = f.LockInput; a.ScratchCount = 64; HostCheck.True(!D.EnableLocks(f.State, a));
+        a = f.LockInput; a.Scratch = a.Locks; HostCheck.True(!D.EnableLocks(f.State, a));
+        a = f.LockInput; a.Processes = (D.ProcessSlot*)f.Storage.Input.Before; HostCheck.True(!D.EnableLocks(f.State, a));
+        a = f.LockInput; a.Locks = (D.RangeLock*)f.Descriptions; HostCheck.True(!D.EnableLocks(f.State, a));
+        ((byte*)f.Locks)[0] = 1; HostCheck.True(!D.EnableLocks(f.State, f.LockInput)); ((byte*)f.Locks)[0] = 0;
+        HostCheck.True(D.EnableLocks(f.State, f.LockInput)); HostCheck.True(!D.EnableLocks(f.State, f.LockInput));
+        var primary = D.PrimaryProcess(f.State); HostCheck.True(primary.Pid == 11 && primary.Generation == 1);
+        HostCheck.Equal(-14L, D.Open(f.State, new ReadOnlySpan<byte>(f.Locks, 16), 0).Value);
+        var file = f.Open(flags: 2); HostCheck.Equal(-14L, D.BeginWrite(f.State, file, new ReadOnlySpan<byte>(f.Processes, 8)).Value);
+        Console.WriteLine("HOST_WRITABLE_LOCK_SIZE process=" + sizeof(D.ProcessSlot) + " range=" + sizeof(D.RangeLock) +
+            " backing=" + (4 * sizeof(D.ProcessSlot) + 97 * sizeof(D.RangeLock)) + " state=" + sizeof(D.State) + " description=" + sizeof(D.Description));
+        using var active = new Owner(); active.PrepareLocks(); var root = active.Open("/data");
+        HostCheck.True(!D.EnableLocks(active.State, active.LockInput)); D.Close(active.State, root); HostCheck.True(D.EnableLocks(active.State, active.LockInput));
+    }
+
+    [HostTest("continuing advisory locks distinguish readonly GETLK from SETLK access and reject unsupported wire shapes")]
+    private static void LockValidation()
+    {
+        using var f = new Owner(locks: true); var read = f.Open(); var write = f.Open(flags: 1);
+        var query = new D.LockRequest(1, 0, 123, 9, 456); var result = D.FcntlLock(f.State, read, 5, query);
+        HostCheck.True(result.Value == 0 && result.Lock.Type == 2 && result.Lock.Start == 123 && result.Lock.Length == 9 && result.Lock.Pid == 456);
+        HostCheck.Equal(-9L, D.FcntlLock(f.State, read, 6, query).Value);
+        HostCheck.Equal(-9L, D.FcntlLock(f.State, write, 6, new(0, 0, 123, 9)).Value);
+        foreach (uint command in new uint[] { 7, 36, 37, 38, 999 }) HostCheck.Equal(-38L, D.FcntlLock(f.State, read, command, query).Value);
+        foreach (var bad in new[] { new D.LockRequest(2, 0, 0, 1), new(1, 1, 0, 1), new(1, 0, -1, 1), new(1, 0, 0, -1), new(3, 0, 0, 1) })
+            HostCheck.Equal(-22L, D.FcntlLock(f.State, read, 5, bad).Value);
+        HostCheck.Equal(-75L, D.FcntlLock(f.State, read, 5, new(1, 0, long.MaxValue, 2)).Value);
+        var writable = f.Open(flags: 2);
+        HostCheck.Equal(0L, D.FcntlLock(f.State, writable, 6, new(1, 0, long.MaxValue, 0)).Value);
+        HostCheck.Equal(0L, D.FcntlLock(f.State, read, 6, new(2, 0, long.MaxValue, 0)).Value);
+        using var unconfigured = new Owner(); var plain = unconfigured.Open(); HostCheck.Equal(-38L, D.FcntlLock(unconfigured.State, plain, 5, query).Value);
+    }
+
+    [HostTest("continuing process locks share reads reject conflicting writes and report exact conflicting owner ranges")]
+    private static void LockConflicts()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var b = f.OpenFor(other, flags: 2); const long start = 1073741826;
+        HostCheck.Equal(0L, L(f, primary, a, 6, 0, start, 510).Value); HostCheck.Equal(0L, L(f, other, b, 6, 0, start, 510).Value);
+        byte[] original = f.LockBytes(); HostCheck.Equal(-11L, L(f, other, b, 6, 1, start, 1).Value); HostCheck.True(f.LockBytes().SequenceEqual(original));
+        var conflict = L(f, other, b, 5, 1, start, 1);
+        HostCheck.True(conflict.Value == 0 && conflict.Lock.Type == 0 && conflict.Lock.Start == start && conflict.Lock.Length == 510 && conflict.Lock.Pid == 11 && conflict.Process.Generation == primary.Generation);
+        HostCheck.Equal((short)2, L(f, primary, a, 5, 0, start, 510).Lock.Type);
+        HostCheck.Equal(0L, L(f, other, b, 6, 2, start, 510).Value);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 1, start, 1).Value);
+        conflict = L(f, other, b, 5, 1, start, 1); HostCheck.True(conflict.Lock.Type == 1 && conflict.Lock.Start == start && conflict.Lock.Length == 1 && conflict.Lock.Pid == 11);
+        HostCheck.Equal((short)2, L(f, primary, a, 5, 1, start, 510).Lock.Type);
+    }
+
+    [HostTest("continuing own process lock replacement splits coalesces and unlocks exact finite intervals")]
+    private static void LockReplacement()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var b = f.OpenFor(other);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 1, 100, 100).Value);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 0, 120, 20).Value); HostCheck.Equal(3, f.ActiveLocks());
+        var middle = L(f, other, b, 5, 1, 125, 1); HostCheck.True(middle.Lock.Type == 0 && middle.Lock.Start == 120 && middle.Lock.Length == 20);
+        var right = L(f, other, b, 5, 1, 150, 1); HostCheck.True(right.Lock.Type == 1 && right.Lock.Start == 140 && right.Lock.Length == 60);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 1, 120, 20).Value); HostCheck.Equal(1, f.ActiveLocks());
+        HostCheck.Equal(0L, L(f, primary, a, 6, 2, 130, 20).Value); HostCheck.Equal(2, f.ActiveLocks());
+        HostCheck.Equal((short)2, L(f, other, b, 5, 1, 140, 1).Lock.Type);
+        right = L(f, other, b, 5, 1, 151, 1); HostCheck.True(right.Lock.Start == 150 && right.Lock.Length == 50);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 2, 0, 0).Value); HostCheck.Equal(0, f.ActiveLocks());
+    }
+
+    [HostTest("continuing lock identity joins VFAT and short aliases without conflating another physical file")]
+    private static void LockAliases()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var original = f.Open("/data/a-long-empty-file.txt", 2 | D.Create | D.Exclusive);
+        var alias = f.OpenFor(other, "/data/F0000001.DAT"); var unrelated = f.OpenFor(other);
+        HostCheck.Equal(0L, L(f, primary, original, 6, 1, 1073741825, 1).Value);
+        HostCheck.Equal(11, L(f, other, alias, 5, 1, 1073741825, 1).Lock.Pid);
+        HostCheck.Equal((short)2, L(f, other, unrelated, 5, 1, 1073741825, 1).Lock.Type);
+    }
+
+    [HostTest("continuing any close on an inode releases that process locks including independent opens and dup")]
+    private static void LockClose()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var independent = f.Open(); var duplicate = D.Dup(f.State, a).Descriptor; var b = f.OpenFor(other); var different = f.Open("/data/KEEP.TXT");
+        L(f, primary, a, 6, 1, 10, 10); D.Close(f.State, different); HostCheck.Equal(11, L(f, other, b, 5, 1, 10, 1).Lock.Pid);
+        HostCheck.Equal(0L, D.Close(f.State, independent)); HostCheck.Equal((short)2, L(f, other, b, 5, 1, 10, 1).Lock.Type);
+        L(f, primary, a, 6, 1, 10, 10); HostCheck.Equal(0L, D.Close(f.State, duplicate)); HostCheck.Equal((short)2, L(f, other, b, 5, 1, 10, 1).Lock.Type);
+        L(f, primary, a, 6, 1, 10, 10); HostCheck.Equal(0L, D.CloseForProcess(f.State, other, b)); b = f.OpenFor(other);
+        HostCheck.Equal(11, L(f, other, b, 5, 1, 10, 1).Lock.Pid);
+    }
+
+    [HostTest("continuing process owners cannot lock close duplicate capture or exit another owner handles")]
+    private static void LockOwnership()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process; var b = f.OpenFor(other, flags: 2);
+        HostCheck.Equal(-9L, L(f, primary, b, 6, 1, 0, 1).Value); HostCheck.Equal(-9L, D.FcntlLock(f.State, b, 5, new(1, 0, 0, 1)).Value);
+        HostCheck.Equal(-9L, D.Close(f.State, b)); HostCheck.Equal(-9L, D.CloseForProcess(f.State, primary, b));
+        HostCheck.Equal(-9L, D.Dup(f.State, b).Value); HostCheck.Equal(-9L, D.Capture(f.State, b.Number).Value);
+        var wrong = other; ((ulong*)&wrong)[2]++; HostCheck.Equal(-9L, D.ExitProcess(f.State, wrong).Value); HostCheck.Equal(-9L, L(f, wrong, b, 6, 1, 0, 1).Value);
+        wrong = other; ((uint*)&wrong)[7]++; HostCheck.Equal(-9L, D.CloseForProcess(f.State, wrong, b));
+        HostCheck.Equal(b.Generation, D.CaptureForProcess(f.State, other, b.Number).Descriptor.Generation);
+        HostCheck.Equal(0L, L(f, other, b, 6, 1, 0, 1).Value); HostCheck.Equal(0L, D.CloseForProcess(f.State, other, b));
+    }
+
+    [HostTest("continuing process exit releases locks and PID generation reuse cannot revive previous handles or primary owner")]
+    private static void LockExit()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var b = f.OpenFor(other); L(f, primary, a, 6, 1, 0, 0);
+        HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value); HostCheck.Equal((short)2, L(f, other, b, 5, 1, 0, 1).Lock.Type);
+        var replacement = D.RegisterProcess(f.State, 11); HostCheck.True(replacement.Value == 0 && replacement.Process.Index == primary.Index && replacement.Process.Generation != primary.Generation);
+        HostCheck.True(D.PrimaryProcess(f.State).Owner == 0); HostCheck.Equal(-9L, D.Open(f.State, "/data"u8, 0).Value);
+        var fresh = f.OpenFor(replacement.Process, flags: 2); L(f, replacement.Process, fresh, 6, 1, 0, 1);
+        HostCheck.Equal(-9L, L(f, primary, fresh, 6, 2, 0, 0).Value); HostCheck.Equal(-9L, D.ExitProcess(f.State, primary).Value);
+        var query = L(f, other, b, 5, 1, 0, 1); HostCheck.True(query.Lock.Pid == 11 && query.Process.Generation == replacement.Process.Generation);
+    }
+
+    [HostTest("continuing process exit drains pending or held reads before reused PID and fd can acquire late bytes")]
+    private static void LockExitRead()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var a = f.Open();
+            var request = D.BeginRead(f.State, a, 8); if (held) f.Wait(request); else D.Pump(f.State);
+            var exited = D.ExitProcess(f.State, primary); HostCheck.True(exited.Phase is D.Progress.Immediate or D.Progress.Pending);
+            var replacement = D.RegisterProcess(f.State, 11).Process; var root = f.OpenFor(replacement, "/data");
+            HostCheck.True(root.Number == a.Number && root.Generation != a.Generation);
+            f.CompleteHardware(); f.Drain(); byte[] output = Enumerable.Repeat((byte)0xa5, 8).ToArray();
+            HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, request.Request, output).Phase); HostCheck.True(output.All(v => v == 0xa5));
+        }
+    }
+
+    [HostTest("continuing fixed lock table exhaustion and split overflow leave persistent ranges byte unchanged")]
+    private static void LockCapacity()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var a = f.Open(flags: 2);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 1, 0, 3).Value);
+        for (int i = 0; i < 31; i++) HostCheck.Equal(0L, L(f, primary, a, 6, 1, 100 + i * 4, 1).Value);
+        byte[] before = f.LockBytes(); HostCheck.Equal(-37L, L(f, primary, a, 6, 1, 1000, 1).Value); HostCheck.True(before.SequenceEqual(f.LockBytes()));
+        HostCheck.Equal(-37L, L(f, primary, a, 6, 2, 1, 1).Value); HostCheck.True(before.SequenceEqual(f.LockBytes()));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Scratch, 65 * sizeof(D.RangeLock)).IndexOfAnyExcept((byte)0) < 0);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 2, 0, 0).Value); HostCheck.Equal(0, f.ActiveLocks());
+        HostCheck.Equal(0L, D.RegisterProcess(f.State, 22).Value); HostCheck.Equal(0L, D.RegisterProcess(f.State, 33).Value); HostCheck.Equal(0L, D.RegisterProcess(f.State, 44).Value);
+        HostCheck.Equal(-23L, D.RegisterProcess(f.State, 55).Value); HostCheck.Equal(-17L, D.RegisterProcess(f.State, 22).Value);
+        HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value);
+        *(ulong*)((byte*)f.Processes + WritableBlockSessionTests.ManagedOffset(f.Processes, "Generation")) = ulong.MaxValue;
+        HostCheck.Equal(-23L, D.RegisterProcess(f.State, 55).Value);
+        HostCheck.Equal(ulong.MaxValue, *(ulong*)((byte*)f.Processes + WritableBlockSessionTests.ManagedOffset(f.Processes, "Generation")));
+    }
+
+    [HostTest("continuing own data revisions preserve process locks while another owner exit leaves pending writes alone")]
+    private static void LockDataProgress()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var b = f.OpenFor(other); L(f, primary, a, 6, 1, 1073741825, 1);
+        HostCheck.Equal(37L, f.Run(D.BeginWrite(f.State, a, new byte[37], 500, true)).Value);
+        HostCheck.Equal(11, L(f, other, b, 5, 1, 1073741825, 1).Lock.Pid);
+        var write = D.BeginWrite(f.State, a, new byte[700]);
+        for (int i = 0; i < 10000 && f.Storage.State->IssuedChanges == 0; i++) f.Tick();
+        HostCheck.True(f.Storage.State->Dirty); HostCheck.Equal(0L, D.ExitProcess(f.State, other).Value); HostCheck.True(!f.State->Quarantined);
+        HostCheck.Equal(700L, f.Run(write).Value);
+    }
+
+    [HostTest("continuing exiting dirty writer revokes process locks but retains original request and recovery backing")]
+    private static void LockDirtyExit()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var a = f.Open(flags: 2);
+        HostCheck.Equal(0L, L(f, primary, a, 6, 1, 1073741825, 1).Value);
+        var write = D.BeginWrite(f.State, a, new byte[700]);
+        for (int i = 0; i < 10000 && f.Storage.State->IssuedChanges == 0; i++) f.Tick();
+        HostCheck.True(f.Storage.State->Dirty);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.ExitProcess(f.State, primary).Phase);
+        HostCheck.True(f.State->RequestActive && !f.State->Retired && f.ActiveLocks() == 0 && D.PrimaryProcess(f.State).Owner == 0);
+        HostCheck.Equal(-9L, D.CloseForProcess(f.State, primary, a));
+        var replacement = D.RegisterProcess(f.State, 11).Process;
+        HostCheck.True(replacement.Generation != primary.Generation);
+        HostCheck.Equal(-5L, D.OpenForProcess(f.State, replacement, "/data"u8, 0).Value);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Complete(f.State, write.Request).Phase);
+        byte[] before = new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).ToArray();
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+        HostCheck.True(new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).SequenceEqual(before));
+    }
+
+    [HostTest("continuing process lock replacement queries and unlocks allocate no managed storage or disk operations")]
+    private static void LockAllocation()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var b = f.OpenFor(other); uint notifies = f.Device->Notifies;
+        L(f, primary, a, 6, 1, 100, 100); L(f, primary, a, 6, 2, 0, 0); L(f, other, b, 5, 1, 0, 0);
+        long before = GC.GetAllocatedBytesForCurrentThread(); bool valid = true;
+        for (int i = 0; i < 32; i++)
+        {
+            valid &= L(f, primary, a, 6, 1, 100, 100).Value == 0;
+            valid &= L(f, primary, a, 6, 0, 120, 20).Value == 0;
+            valid &= L(f, other, b, 5, 1, 125, 1).Lock.Pid == 11;
+            valid &= L(f, primary, a, 6, 2, 0, 0).Value == 0;
+        }
+        HostCheck.True(valid && GC.GetAllocatedBytesForCurrentThread() == before && f.Device->Notifies == notifies);
+    }
+
+    private static D.LockResult L(Owner f, D.ProcessToken process, D.DescriptorToken file, uint command, short type, long start, long length) =>
+        D.FcntlLockForProcess(f.State, process, file, command, new(type, 0, start, length));
+
     private sealed class Owner : IDisposable
     {
         internal readonly ContinuingFat32MutationTests.Fixture Storage = new();
@@ -334,6 +541,9 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         internal readonly D.Descriptor* Slots;
         internal readonly D.Description* Descriptions;
         internal readonly byte* InputBytes = (byte*)NativeMemory.AllocZeroed(8192);
+        internal D.ProcessSlot* Processes;
+        internal D.RangeLock* Locks, Scratch;
+        internal D.LockAdmission LockInput;
         internal D.Admission Input;
         internal bool Attached;
         internal bool Record = true;
@@ -343,7 +553,7 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         internal WritableBlockSessionTests.Hardware* Device => Storage.Device.Hardware;
         internal List<(uint Type, ulong Sector)> Trace => Storage.Trace;
         internal ulong DataLba => Storage.Input.PartitionFirst + 32 + 2 * 512;
-        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32)
+        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false)
         {
             Slots = (D.Descriptor*)NativeMemory.AllocZeroed(fdCount, (nuint)sizeof(D.Descriptor));
             Descriptions = (D.Description*)NativeMemory.AllocZeroed(descriptionCount, (nuint)sizeof(D.Description));
@@ -351,7 +561,17 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
             Input = new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = Slots, Descriptions = Descriptions,
                 DescriptorCount = fdCount, DescriptionCount = descriptionCount, Input = InputBytes, InputBytes = 8192, ExclusiveOwnerValidated = true };
             if (attach) { HostCheck.True(D.Start(State, Input)); Attached = true; }
+            if (locks) { PrepareLocks(); HostCheck.True(D.EnableLocks(State, LockInput)); }
         }
+        internal void PrepareLocks()
+        {
+            Processes = (D.ProcessSlot*)NativeMemory.AllocZeroed(4, (nuint)sizeof(D.ProcessSlot));
+            Locks = (D.RangeLock*)NativeMemory.AllocZeroed(32, (nuint)sizeof(D.RangeLock)); Scratch = (D.RangeLock*)NativeMemory.AllocZeroed(65, (nuint)sizeof(D.RangeLock));
+            LockInput = new() { Processes = Processes, Locks = Locks, Scratch = Scratch, ProcessCount = 4, LockCount = 32, ScratchCount = 65, PrimaryPid = 11 };
+        }
+        internal byte[] LockBytes() => new ReadOnlySpan<byte>(Locks, 32 * sizeof(D.RangeLock)).ToArray();
+        internal int ActiveLocks()
+        { int result = 0, offset = WritableBlockSessionTests.ManagedOffset(Locks, "Active"); for (int i = 0; i < 32; i++) if (*((byte*)(Locks + i) + offset) != 0) result++; return result; }
         internal void CompleteHardware()
         {
             if (!Device->Pending) return;
@@ -373,6 +593,8 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         { var result = Wait(begun); return result.Phase == D.Progress.Ready ? D.Complete(State, begun.Request) : result; }
         internal D.DescriptorToken Open(string path = "/data/DATA.BIN", uint flags = 0)
         { var result = Run(D.Open(State, Encoding.ASCII.GetBytes(path), flags)); HostCheck.True(result.Phase == D.Progress.Immediate && result.Value >= 3); return result.Descriptor; }
+        internal D.DescriptorToken OpenFor(D.ProcessToken process, string path = "/data/DATA.BIN", uint flags = 0)
+        { var result = Run(D.OpenForProcess(State, process, Encoding.ASCII.GetBytes(path), flags)); HostCheck.True(result.Phase == D.Progress.Immediate && result.Value >= 3); return result.Descriptor; }
         internal byte[] Read(D.DescriptorToken file, uint bytes, ulong offset = 0, bool positioned = false)
         {
             var begun = D.BeginRead(State, file, bytes, offset, positioned); HostCheck.Equal(D.Progress.Ready, Wait(begun).Phase);
@@ -394,7 +616,8 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
                 if (result.Phase == D.Progress.Pending) { Drain(); result = D.Detach(State); }
                 HostCheck.True(result.Phase == D.Progress.Retired || result.Phase == D.Progress.RecoveryRequired && Storage.State->Dirty);
             }
-            Storage.Dispose(); NativeMemory.Free(InputBytes); NativeMemory.Free(Descriptions); NativeMemory.Free(Slots); NativeMemory.Free(State);
+            Storage.Dispose(); NativeMemory.Free(Scratch); NativeMemory.Free(Locks); NativeMemory.Free(Processes);
+            NativeMemory.Free(InputBytes); NativeMemory.Free(Descriptions); NativeMemory.Free(Slots); NativeMemory.Free(State);
         }
     }
 }

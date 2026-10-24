@@ -8,15 +8,18 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// device backing. No whole-image snapshot, ref struct, user pointer, scheduler
 /// or syscall gateway is retained. Root files and empty creation are confined
 /// to /data; writes remain within existing length. Nested paths, growth,
-/// deletion/truncation, locks and POSIX unlink retention are not supplied.</summary>
+/// deletion/truncation and POSIX unlink retention are not supplied. Optional
+/// process locks use copied caller PIDs, not kernel process authority. The one
+/// supervisor handle table is NOT a per-process Linux fd namespace.</summary>
 public static unsafe class LinuxContinuingWritableDescriptorServices
 {
     public const uint MaximumDescriptors = 32, MaximumDescriptions = 32, PathBytes = 256, IoBytes = 8192;
+    public const uint MaximumProcesses = 4, LockSlots = 32, LockScratchSlots = 65;
     public const uint Create = 0x40, Exclusive = 0x80, CloseOnExec = 0x80000, NoFollow = 0x20000,
         DirectoryOnly = 0x10000, LargeFile = 0x8000, RwfNoAppend = 0x20;
     private const long BadFd = -9, Again = -11, Fault = -14, Exists = -17, Invalid = -22, TableFull = -23,
         FdFull = -24, NoSpace = -28, Unsupported = -95, Overflow = -75, Stale = -116, Interrupted = -4,
-        Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29;
+        Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29, NoLocks = -37, NoSys = -38;
     public enum Progress : byte { Rejected, Immediate, Pending, Ready, RecoveryRequired, Retired }
     internal enum Operation : byte { Open, Read, Write, Sync }
     internal enum Step : byte { Lookup, Create, CreatedLookup, Authenticate, Read, Write, Flush, Done }
@@ -29,6 +32,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         internal ulong Generation, Position;
         internal C.FileToken File;
+        internal ProcessToken Process;
         internal uint References, Borrowers, Flags;
         internal ushort NameLength;
         internal bool Active, Reserved, Directory;
@@ -43,6 +47,46 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         public ulong Epoch;
         public uint DescriptorCount, DescriptionCount, InputBytes;
         public bool ExclusiveOwnerValidated;
+    }
+    public struct ProcessSlot { internal ulong Generation; internal uint Pid; internal bool Active, Exiting; }
+    public struct RangeLock
+    {
+        internal C.FileToken File;
+        internal ProcessToken Process;
+        internal long First, Last;
+        internal short Type;
+        internal bool Active;
+    }
+    /// <summary>Optional zeroed disjoint POD tables, borrowed until Detach.
+    /// PrimaryPid is only a copied positive host contract value. No fork,
+    /// scheduler identity, Linux fd namespace or native lock authority follows.</summary>
+    public struct LockAdmission
+    {
+        public ProcessSlot* Processes;
+        public RangeLock* Locks, Scratch;
+        public uint ProcessCount, LockCount, ScratchCount, PrimaryPid;
+    }
+    public readonly struct ProcessToken
+    {
+        public readonly ulong Owner, Epoch, Generation;
+        public readonly uint Index, Pid;
+        internal ProcessToken(State* s, uint index)
+        { Owner = (ulong)s; Epoch = s->Input.Epoch; Index = index; Generation = s->LockInput.Processes[index].Generation; Pid = s->LockInput.Processes[index].Pid; }
+    }
+    public readonly struct ProcessResult
+    {
+        public readonly long Value;
+        public readonly ProcessToken Process;
+        internal ProcessResult(long value, ProcessToken process = default) { Value = value; Process = process; }
+    }
+    public readonly struct LockRequest(short type, short whence, long start, long length, int pid = 0)
+    { public readonly short Type = type, Whence = whence; public readonly long Start = start, Length = length; public readonly int Pid = pid; }
+    public readonly struct LockResult
+    {
+        public readonly long Value;
+        public readonly LockRequest Lock;
+        public readonly ProcessToken Process;
+        internal LockResult(long value, LockRequest request = default, ProcessToken process = default) { Value = value; Lock = request; Process = process; }
     }
     public readonly struct DescriptorToken
     {
@@ -96,8 +140,10 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         internal ulong Self, KnownRevision, NextGeneration, NextAlias;
         internal Admission Input;
+        internal LockAdmission LockInput;
+        internal ProcessToken PrimaryOwner;
         internal Pending Work;
-        internal bool Active, Retiring, Poisoned, RetiredValue;
+        internal bool Active, Retiring, Poisoned, RetiredValue, Locking;
         public readonly bool RequestActive => Work.Active;
         public readonly bool IsRetiring => Retiring;
         public readonly bool Retired => RetiredValue;
@@ -124,25 +170,141 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         s->Self = (ulong)s; s->Input = a; s->KnownRevision = a.Engine->VolumeRevision; s->NextAlias = 1; s->Active = true; return true;
     }
 
+    /// <summary>Enable fixed process-associated lock tables while no handle or
+    /// request is active. Existing APIs subsequently use this exact primary
+    /// generation. Caller PIDs are copied values only. No table is allocated.</summary>
+    public static bool EnableLocks(State* s, in LockAdmission input)
+    {
+        LockAdmission a = input;
+        if (!Bound(s) || s->Locking || s->Retiring || s->Work.Active || !Revision(s) || a.ProcessCount is < 1 or > MaximumProcesses ||
+            a.LockCount != LockSlots || a.ScratchCount != LockScratchSlots || a.PrimaryPid is 0 or > int.MaxValue) return false;
+        for (uint i = 3; i < s->Input.DescriptorCount; i++) if (s->Input.Descriptors[i].Description != 0) return false;
+        ulong* starts = stackalloc ulong[3] { (ulong)a.Processes, (ulong)a.Locks, (ulong)a.Scratch };
+        ulong* sizes = stackalloc ulong[3] { a.ProcessCount * (ulong)sizeof(ProcessSlot), LockSlots * (ulong)sizeof(RangeLock), LockScratchSlots * (ulong)sizeof(RangeLock) };
+        for (int i = 0; i < 3; i++)
+        {
+            if (!Ordinary(starts[i], sizes[i], 8) || !External(s, new ReadOnlySpan<byte>((void*)starts[i], (int)sizes[i]))) return false;
+            for (int j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
+            for (ulong j = 0; j < sizes[i]; j++) if (((byte*)starts[i])[j] != 0) return false;
+        }
+        s->LockInput = a; s->Locking = true;
+        a.Processes[0] = new() { Active = true, Pid = a.PrimaryPid, Generation = 1 };
+        s->PrimaryOwner = new(s, 0); return true;
+    }
+    public static ProcessToken PrimaryProcess(State* s) => Bound(s) && s->Locking && ProcessCurrent(s, s->PrimaryOwner) ? s->PrimaryOwner : default;
+
+    /// <summary>Register another copied host owner in the same supervisor
+    /// table. This creates neither a Linux process nor its fd namespace.</summary>
+    public static ProcessResult RegisterProcess(State* s, uint pid)
+    {
+        if (!Bound(s) || !s->Locking) return new(NoSys);
+        if (s->Retiring || pid is 0 or > int.MaxValue) return new(Invalid);
+        int free = -1;
+        for (uint i = 0; i < s->LockInput.ProcessCount; i++)
+        {
+            ProcessSlot* p = s->LockInput.Processes + i;
+            if (p->Active && p->Pid == pid) return new(Exists);
+            if (free < 0 && !p->Active && p->Generation != ulong.MaxValue) free = (int)i;
+        }
+        if (free < 0) return new(TableFull);
+        ProcessSlot* slot = s->LockInput.Processes + free; ulong generation = slot->Generation;
+        *slot = new() { Active = true, Pid = pid, Generation = generation + 1 }; return new(0, new(s, (uint)free));
+    }
+
+    /// <summary>Revoke one registered owner before closing its handles and
+    /// releasing its locks. Pending original requests retain their description
+    /// and engine drain; PID/slot reuse cannot resurrect the old generation.</summary>
+    public static Result ExitProcess(State* s, ProcessToken process)
+    {
+        if (!Bound(s) || !s->Locking || !ProcessCurrent(s, process)) return Immediate(BadFd);
+        bool ownedPending = s->Work.Active && Same(s->Input.Descriptions[s->Work.Description].Process, process);
+        s->LockInput.Processes[process.Index].Exiting = true;
+        ReleaseProcessLocks(s, process);
+        for (uint fd = 3; fd < s->Input.DescriptorCount; fd++)
+            if (Find(s, fd, out uint description) && Same(s->Input.Descriptions[description].Process, process)) CloseCore(s, process, new(s, fd), true);
+        if (s->Work.Active && Same(s->Input.Descriptions[s->Work.Description].Process, process))
+        { s->Work.Discard = true; Cancel(s, new(s)); }
+        s->LockInput.Processes[process.Index].Active = false;
+        if (ownedPending && s->Input.Engine->Dirty) return Recovery(s);
+        return s->Work.Active && Same(s->Input.Descriptions[s->Work.Description].Process, process) ? Observe(s) : Immediate(0);
+    }
+
+    /// <summary>Finite POSIX process locks: GETLK5/SETLK6, SEEK_SET and
+    /// nonnegative ranges only; zero length means through signed off_t EOF.
+    /// Read/write access checks apply to SETLK, not GETLK. Blocking/OFD modes
+    /// reject. No-conflict GETLK changes only Type; it grants no future lock.</summary>
+    public static LockResult FcntlLock(State* s, DescriptorToken file, uint command, LockRequest request) =>
+        FcntlLockForProcess(s, PrimaryProcess(s), file, command, request);
+    public static LockResult FcntlLockForProcess(State* s, ProcessToken process, DescriptorToken file, uint command, LockRequest request)
+    {
+        if (!Current(s, file, out uint description) || !Owned(s, process, description)) return new(BadFd);
+        if (!s->Locking) return new(NoSys);
+        if (s->Retiring || !Revision(s)) return new(Io);
+        if (command is not (5 or 6)) return new(NoSys);
+        if (request.Whence != 0 || request.Start < 0 || request.Length < 0 || request.Type is < 0 or > 2 || command == 5 && request.Type == 2) return new(Invalid);
+        if (request.Length != 0 && request.Length - 1 > long.MaxValue - request.Start) return new(Overflow);
+        Description* d = s->Input.Descriptions + description; if (d->Directory) return new(IsDirectory);
+        if (command == 6 && (request.Type == 0 && (d->Flags & 3) == 1 || request.Type == 1 && (d->Flags & 3) == 0)) return new(BadFd);
+        long first = request.Start, last = request.Length == 0 ? long.MaxValue : first + request.Length - 1;
+        if (request.Type != 2)
+            for (uint i = 0; i < LockSlots; i++)
+            {
+                RangeLock row = s->LockInput.Locks[i];
+                if (!row.Active || Same(row.Process, process) || !Physical(row.File, d->File) || row.Last < first || row.First > last || row.Type == 0 && request.Type == 0) continue;
+                if (command == 6) return new(Again);
+                return new(0, new(row.Type, 0, row.First, row.Last == long.MaxValue ? 0 : row.Last - row.First + 1, (int)row.Process.Pid), row.Process);
+            }
+        if (command == 5) return new(0, new(2, request.Whence, request.Start, request.Length, request.Pid));
+        uint count = 0;
+        for (uint i = 0; i < LockSlots; i++)
+        {
+            RangeLock row = s->LockInput.Locks[i]; if (!row.Active) continue;
+            if (!Same(row.Process, process) || !Physical(row.File, d->File) || row.Last < first || row.First > last) s->LockInput.Scratch[count++] = row;
+            else
+            {
+                if (row.First < first) { RangeLock left = row; left.Last = first - 1; s->LockInput.Scratch[count++] = left; }
+                if (row.Last > last) { RangeLock right = row; right.First = last + 1; s->LockInput.Scratch[count++] = right; }
+            }
+        }
+        if (request.Type != 2) s->LockInput.Scratch[count++] = new() { Active = true, File = d->File, Process = process, First = first, Last = last, Type = request.Type };
+        // At most two fragments per32 existing rows plus one new range.
+        for (uint i = 0; i < count; i++)
+            for (uint j = i + 1; j < count;)
+            {
+                RangeLock a = s->LockInput.Scratch[i], b = s->LockInput.Scratch[j];
+                bool near = a.First <= (b.Last == long.MaxValue ? b.Last : b.Last + 1) && b.First <= (a.Last == long.MaxValue ? a.Last : a.Last + 1);
+                if (a.Type != b.Type || !Same(a.Process, b.Process) || !Physical(a.File, b.File) || !near) { j++; continue; }
+                a.First = System.Math.Min(a.First, b.First); a.Last = System.Math.Max(a.Last, b.Last); s->LockInput.Scratch[i] = a;
+                for (uint k = j + 1; k < count; k++) s->LockInput.Scratch[k - 1] = s->LockInput.Scratch[k]; count--;
+                // A merge may now meet an earlier interval; restart this row.
+                j = i + 1;
+            }
+        if (count > LockSlots) { ScrubLocksScratch(s); return new(NoLocks); }
+        for (uint i = 0; i < LockSlots; i++) s->LockInput.Locks[i] = i < count ? s->LockInput.Scratch[i] : default;
+        ScrubLocksScratch(s); return new(0, request);
+    }
+
     /// <summary>Copy the current fd identity. Its generation grants no pin or
     /// permission to resolve a subsequently reused descriptor number.</summary>
-    public static Result Capture(State* s, uint number) => Bound(s) && Find(s, number, out _) ?
+    public static Result Capture(State* s, uint number) => CaptureForProcess(s, PrimaryProcess(s), number);
+    public static Result CaptureForProcess(State* s, ProcessToken process, uint number) => Bound(s) && Find(s, number, out uint description) && Owned(s, process, description) ?
         new(Progress.Immediate, number, descriptor: new(s, number)) : Immediate(BadFd);
 
     /// <summary>Inspect copied open metadata without new I/O. The caller must
     /// retain the original token and separately request fresh authentication
     /// for a future Linux stat wire; this is not a live disk observation.</summary>
     public static Metadata InspectCopied(State* s, DescriptorToken token) =>
-        Current(s, token, out uint description) && Revision(s) ? new(s->Input.Descriptions + description) : default;
+        CurrentPrimary(s, token, out uint description) && Revision(s) ? new(s->Input.Descriptions + description) : default;
 
     /// <summary>Open exact /data as a read-only barrier descriptor, or copy one
     /// printable-ASCII root component and begin actual metadata reads. Creation
     /// retries at most64 deterministic aliases and publishes an fd only after
     /// engine success and an independent reopen. Reservations prevent another
     /// root open from consuming the pending fd/description.</summary>
-    public static Result Open(State* s, ReadOnlySpan<byte> path, uint flags)
+    public static Result Open(State* s, ReadOnlySpan<byte> path, uint flags) => OpenForProcess(s, PrimaryProcess(s), path, flags);
+    public static Result OpenForProcess(State* s, ProcessToken process, ReadOnlySpan<byte> path, uint flags)
     {
-        if (!Bound(s) || s->Retiring) return Immediate(BadFd);
+        if (!Bound(s) || s->Retiring || !ProcessCurrent(s, process)) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         const uint allowed = 3 | Create | Exclusive | CloseOnExec | NoFollow | DirectoryOnly | LargeFile;
         if ((flags & ~allowed) != 0 || (flags & 3) == 3) return Immediate(Unsupported);
@@ -154,7 +316,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (!root && s->Work.Active) return Immediate(Again);
         int fd = FreeFd(s), description = FreeDescription(s); if (fd < 0) return Immediate(FdFull); if (description < 0) return Immediate(TableFull);
         if (!root && s->NextGeneration == ulong.MaxValue) return Immediate(Overflow);
-        Reserve(s, (uint)fd, (uint)description, flags);
+        Reserve(s, (uint)fd, (uint)description, flags, process);
         Description* d = s->Input.Descriptions + description;
         if (root)
         {
@@ -170,9 +332,10 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>Share a live description and cursor. The new descriptor has
     /// its own nonwrapping generation and close-on-exec flag.</summary>
-    public static Result Dup(State* s, DescriptorToken token)
+    public static Result Dup(State* s, DescriptorToken token) => DupForProcess(s, PrimaryProcess(s), token);
+    public static Result DupForProcess(State* s, ProcessToken process, DescriptorToken token)
     {
-        if (!Current(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!Current(s, token, out uint description) || !Owned(s, process, description) || s->Retiring) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         int fd = FreeFd(s); if (fd < 0) return Immediate(FdFull);
         Description* d = s->Input.Descriptions + description; if (d->References == uint.MaxValue) return Immediate(Overflow);
@@ -183,9 +346,12 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// <summary>Revoke the fd before cancelling a borrower. A reused number
     /// cannot receive late bytes/cursor commits. The old description remains
     /// owned through actual engine cancellation drain; dirty failures retain it.</summary>
-    public static long Close(State* s, DescriptorToken token)
+    public static long Close(State* s, DescriptorToken token) => CloseForProcess(s, PrimaryProcess(s), token);
+    public static long CloseForProcess(State* s, ProcessToken process, DescriptorToken token) => CloseCore(s, process, token, false);
+    private static long CloseCore(State* s, ProcessToken process, DescriptorToken token, bool exiting)
     {
-        if (!Current(s, token, out uint description)) return BadFd;
+        if (!CurrentBase(s, token, out uint description) || !Owned(s, process, description, exiting)) return BadFd;
+        if (s->Locking && !s->Input.Descriptions[description].Directory) ReleaseFileLocks(s, process, s->Input.Descriptions[description].File);
         s->Input.Descriptors[token.Number].Description = s->Input.Descriptors[token.Number].Flags = 0;
         Description* d = s->Input.Descriptions + description; d->References--;
         if (s->Work.Active && s->Work.Borrowed && Same(s->Work.Original, token))
@@ -197,7 +363,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// borrower of this description rejects cursor changes until consumed.</summary>
     public static Result Seek(State* s, DescriptorToken token, long offset, uint whence)
     {
-        if (!Current(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         Description* d = s->Input.Descriptions + description; if (d->Directory) return Immediate(IllegalSeek);
         if (d->Borrowers != 0) return Immediate(Again);
@@ -214,7 +380,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// Growth and append are deliberately unsupported in this initial port.</summary>
     public static Result BeginWrite(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes, ulong offset = 0, bool positioned = false)
     {
-        if (!Current(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         Description* d = s->Input.Descriptions + description;
         if (d->Directory) return Immediate(IsDirectory); if ((d->Flags & 3) == 0) return Immediate(BadFd);
@@ -237,7 +403,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// after original fd/description generation checks; no destination is kept.</summary>
     public static Result BeginRead(State* s, DescriptorToken token, uint bytes, ulong offset = 0, bool positioned = false)
     {
-        if (!Current(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         Description* d = s->Input.Descriptions + description;
         if (d->Directory) return Immediate(IsDirectory); if ((d->Flags & 3) == 1) return Immediate(BadFd);
@@ -251,7 +417,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// This supplies no filesystem crash or power-loss durability assertion.</summary>
     public static Result BeginSync(State* s, DescriptorToken token, bool dataOnly = false)
     {
-        if (!Current(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         if (dataOnly && s->Input.Descriptions[description].Directory) return Immediate(Invalid);
         return BeginBorrow(s, token, description, Operation.Sync, 0, 0, false);
@@ -327,6 +493,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (p->Kind == Operation.Open && value >= 0)
         {
             Descriptor* f = s->Input.Descriptors + p->Number; Description* d = s->Input.Descriptions + p->Description;
+            if (!ProcessCurrent(s, d->Process)) { Drop(s); return Immediate(BadFd); }
             if (!f->Reserved || f->Description != p->Description + 1 || !d->Reserved || d->Generation != p->DescriptionGeneration)
             { s->Poisoned = true; Drop(s); return Immediate(Io); }
             d->Reserved = false; d->References = 1; d->File = p->File; d->NameLength = p->NameLength;
@@ -390,7 +557,8 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         if (!Bound(s)) return new(Progress.Rejected);
         s->Retiring = true;
-        for (uint fd = 3; fd < s->Input.DescriptorCount; fd++) if (Find(s, fd, out _)) Close(s, new(s, fd));
+        for (uint fd = 3; fd < s->Input.DescriptorCount; fd++) if (Find(s, fd, out uint description))
+            CloseCore(s, s->Input.Descriptions[description].Process, new(s, fd), true);
         if (s->Input.Engine->Dirty) return Recovery(s);
         if (s->Work.Active)
         {
@@ -399,6 +567,12 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         }
         for (uint i = 0; i < s->Input.DescriptorCount; i++) s->Input.Descriptors[i] = default;
         for (uint i = 0; i < s->Input.DescriptionCount; i++) s->Input.Descriptions[i] = default;
+        if (s->Locking)
+        {
+            for (uint i = 0; i < s->LockInput.ProcessCount; i++) s->LockInput.Processes[i] = default;
+            for (uint i = 0; i < LockSlots; i++) s->LockInput.Locks[i] = default;
+            ScrubLocksScratch(s);
+        }
         new Span<byte>(s->Input.Input, (int)IoBytes).Clear(); s->Active = false; s->RetiredValue = true;
         return new(Progress.Retired);
     }
@@ -482,6 +656,26 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         a.FirstCluster == b.FirstCluster && a.Length == b.Length && a.Fingerprint0 == b.Fingerprint0 && a.Fingerprint1 == b.Fingerprint1 &&
         a.Fingerprint2 == b.Fingerprint2 && a.Fingerprint3 == b.Fingerprint3;
     private static bool Same(DescriptorToken a, DescriptorToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation && a.Number == b.Number;
+    private static bool Same(ProcessToken a, ProcessToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation && a.Index == b.Index && a.Pid == b.Pid;
+    private static bool ProcessMatches(State* s, ProcessToken process, bool exiting = false)
+    {
+        if (!Bound(s)) return false;
+        if (!s->Locking) return process.Owner == 0 && process.Epoch == 0 && process.Generation == 0 && process.Index == 0 && process.Pid == 0;
+        if (process.Owner != (ulong)s || process.Epoch != s->Input.Epoch || process.Generation == 0 || process.Index >= s->LockInput.ProcessCount) return false;
+        ProcessSlot* p = s->LockInput.Processes + process.Index;
+        return p->Active && (exiting || !p->Exiting) && p->Generation == process.Generation && p->Pid == process.Pid;
+    }
+    private static bool ProcessCurrent(State* s, ProcessToken process) => ProcessMatches(s, process);
+    private static bool Owned(State* s, ProcessToken process, uint description, bool exiting = false) =>
+        ProcessMatches(s, process, exiting) && Same(s->Input.Descriptions[description].Process, process);
+    private static bool CurrentPrimary(State* s, DescriptorToken token, out uint description) =>
+        Current(s, token, out description) && Owned(s, PrimaryProcess(s), description);
+    private static void ReleaseFileLocks(State* s, ProcessToken process, C.FileToken file)
+    { for (uint i = 0; i < LockSlots; i++) if (s->LockInput.Locks[i].Active && Same(s->LockInput.Locks[i].Process, process) && Physical(s->LockInput.Locks[i].File, file)) s->LockInput.Locks[i] = default; }
+    private static void ReleaseProcessLocks(State* s, ProcessToken process)
+    { for (uint i = 0; i < LockSlots; i++) if (s->LockInput.Locks[i].Active && Same(s->LockInput.Locks[i].Process, process)) s->LockInput.Locks[i] = default; }
+    private static void ScrubLocksScratch(State* s)
+    { for (uint i = 0; i < LockScratchSlots; i++) s->LockInput.Scratch[i] = default; }
     private static bool Matches(State* s, RequestToken t) => Bound(s) && s->Work.Active && t.Owner == (ulong)s && t.Epoch == s->Input.Epoch && t.Generation == s->Work.Generation;
     private static bool Bound(State* s) => Ordinary((ulong)s, (ulong)sizeof(State), 8) && s->Self == (ulong)s && s->Active &&
         C.CanBorrowStorage(s->Input.Engine, s->Input.Epoch, (ulong)s, (ulong)sizeof(State));
@@ -493,17 +687,19 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         description = f->Description - 1; Description* d = s->Input.Descriptions + description;
         return d->Active && !d->Reserved && d->References != 0;
     }
-    private static bool Current(State* s, DescriptorToken token, out uint description)
+    private static bool CurrentBase(State* s, DescriptorToken token, out uint description)
     { description = 0; return Bound(s) && token.Owner == (ulong)s && token.Epoch == s->Input.Epoch && token.Generation != 0 && Find(s, token.Number, out description) && s->Input.Descriptors[token.Number].Generation == token.Generation; }
+    private static bool Current(State* s, DescriptorToken token, out uint description) =>
+        CurrentBase(s, token, out description) && ProcessCurrent(s, s->Input.Descriptions[description].Process);
     private static int FreeFd(State* s)
     { for (uint i = 3; i < s->Input.DescriptorCount; i++) if (s->Input.Descriptors[i].Description == 0 && s->Input.Descriptors[i].Generation != ulong.MaxValue) return (int)i; return -1; }
     private static int FreeDescription(State* s)
     { for (uint i = 0; i < s->Input.DescriptionCount; i++) if (!s->Input.Descriptions[i].Active && s->Input.Descriptions[i].Generation != ulong.MaxValue) return (int)i; return -1; }
-    private static void Reserve(State* s, uint number, uint description, uint flags)
+    private static void Reserve(State* s, uint number, uint description, uint flags, ProcessToken process)
     {
         Descriptor* f = s->Input.Descriptors + number; f->Generation++; f->Description = description + 1; f->Flags = flags & CloseOnExec; f->Reserved = true;
         Description* d = s->Input.Descriptions + description; ulong generation = d->Generation;
-        *d = new() { Active = true, Reserved = true, Generation = generation + 1, Flags = flags & ~CloseOnExec };
+        *d = new() { Active = true, Reserved = true, Generation = generation + 1, Flags = flags & ~CloseOnExec, Process = process };
     }
     private static void RetireDescription(State* s, uint index)
     {
@@ -548,7 +744,10 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
                 !Overlap(start, count, (ulong)s, (ulong)sizeof(State)) &&
                 !Overlap(start, count, (ulong)s->Input.Descriptors, s->Input.DescriptorCount * (ulong)sizeof(Descriptor)) &&
                 !Overlap(start, count, (ulong)s->Input.Descriptions, s->Input.DescriptionCount * (ulong)sizeof(Description)) &&
-                !Overlap(start, count, (ulong)s->Input.Input, IoBytes);
+                !Overlap(start, count, (ulong)s->Input.Input, IoBytes) && (!s->Locking ||
+                !Overlap(start, count, (ulong)s->LockInput.Processes, s->LockInput.ProcessCount * (ulong)sizeof(ProcessSlot)) &&
+                !Overlap(start, count, (ulong)s->LockInput.Locks, LockSlots * (ulong)sizeof(RangeLock)) &&
+                !Overlap(start, count, (ulong)s->LockInput.Scratch, LockScratchSlots * (ulong)sizeof(RangeLock)));
         }
     }
     private static long Map(C.Status status) => status switch
