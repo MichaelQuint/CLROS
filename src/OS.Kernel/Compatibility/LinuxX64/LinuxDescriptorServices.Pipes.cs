@@ -27,6 +27,9 @@ public static unsafe partial class LinuxDescriptorServices
     internal static bool CanDetachThreads(State* state, ulong owner)
     {
         if (!Attached(state, owner)) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!CanEndWritableDisk(state)) return false;
+#endif
         for (uint i = 0; i < state->Owner.DescriptionCount; i++) if (state->Owner.Descriptions[i].Borrowers != 0) return false;
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (state->Disk != null)
