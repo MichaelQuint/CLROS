@@ -510,6 +510,19 @@ public static unsafe class WritableBlockSession
     // I/O permission follows; each actual operation still revalidates hardware.
     internal static bool CanAdmitStorage(State* s, ulong expectedEpoch) =>
         Running(s) && s->Input.Epoch == expectedEpoch && !s->Dirty && DmaBound(s);
+    // Structural borrowing for another retained owner, including fault/stopped
+    // cleanup. Pool/slots/window must remain retained; no live DMA/MMIO authority.
+    internal static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes)
+    {
+        if (!Bound(s) || s->Input.Epoch != expectedEpoch) return false;
+        var a = s->Input; var p = a.Pool;
+        if (!Storage((ulong)p, (ulong)sizeof(DmaBufferPool)) || p->Self != (ulong)p || p->Epoch != s->PoolEpoch || p->Count is 0 or > 64 ||
+            !Storage((ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot)) || !p->Window.IsInitialized || p->Window.ByteLength != p->Count * 4096UL ||
+            !Storage(p->Window.CpuVirtualBase, p->Window.ByteLength, 1) || !a.Common.IsValid || !a.Notify.IsValid || !a.Device.IsValid ||
+            !Storage(a.Common.VirtualStart, a.Common.Bytes, 1) || !Storage(a.Notify.VirtualStart, a.Notify.Bytes, 1) || !Storage(a.Device.VirtualStart, a.Device.Bytes, 1) ||
+            a.Observation != null && (!Storage((ulong)a.Observation, (ulong)sizeof(Observation)) || !CallerBufferCore(s, (ulong)a.Observation, (ulong)sizeof(Observation)))) return false;
+        return CallerBuffer(s, address, bytes);
+    }
     private static bool DmaBound(State* s, DmaBufferOwnership ownership = DmaBufferOwnership.Device)
     {
         var p = s->Input.Pool; var t = s->Allocation.Token;
