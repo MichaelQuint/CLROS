@@ -2,6 +2,15 @@
 
 ## Disk profile development publication
 
+[Step1570](../done/step1570.md) retains original r08 at `38ba4446`, EFI
+`492BE99AD2AA76DE38321ABC9B5B1C317B50BDA1FF47437FB9C20DF9B89AA453`.
+Its mechanical calls reach exit42, but the outer command still failed. Retained
+LLVM22.1.3 bytes/unwind inventory covers 122 selected native bodies and reports
+direct-path frame sums separately from indirect callback and full stack review.
+This inventory is supplemental, not complete ABI/stack acceptance. A new owned
+consumer candidate joins original runner/packet inputs; fresh qualification is
+still required and must preserve all failed originals.
+
 [Step1569](../done/step1569.md) retains verified r07 EFI
 `05B0B93654CB41200F722F494EAAEA7B60448CACD3450A99EFC1DBF6AD7AB192`
 at committed `704cb0b3`. The mount succeeds before gateway admission rejects

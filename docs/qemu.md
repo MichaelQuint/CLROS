@@ -17,8 +17,25 @@ second read-only view at PCI0:7; the NIC stays at PCI0:6. Timeout is 180 seconds
 by default, bounded 120..285. Source gates remain default off. M16-023/024 are
 parents of this combined profile; they have no separate capture selector.
 M10-018 remains rejected until its complete disk/static consumer is implemented.
-Dry run checks argument/device policy only; real development captures still
-fail `disk_files_complete_consumer_required` until the full consumer is joined.
+Dry run checks argument/device policy only. Step1570 connects the candidate
+mechanical consumer after r08's original `disk_files_complete_consumer_required`
+failure; 30 focused controls pass unchanged, while fresh owned execution
+remains required.
+
+For diagnostic value inspection through compiled OS.Tooling:
+
+```text
+qemu inspect-disk-leaf <canonical-package> <original-serial>
+qemu inspect-disk-values <canonical-package> <raw-image> <original-serial>
+```
+
+The second command requires the image's original `.webroot.json` receipt. Both
+hold bounded plain inputs and report value checks only; they supply no original
+process/native/packet authority and cannot qualify or rescue a failed run. Only
+fresh `qemu smoke` owns the complete original consumer. It retains image/EFI/
+package and capture files through exact runner-summary, sector/window, parent,
+timing/IRQ, packet and source/native checks before `TEST_PASS qemu.smoke.disk-files`.
+That marker covers the finite mechanical exercise, not disk HTTP or Blazor.
 
 Use the [Kestrel ledger](kestrel.md) for the current owned service/race/quota
 recipes and admission requirements. A low-level example or successful replay

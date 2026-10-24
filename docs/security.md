@@ -26,6 +26,10 @@ writable output prefix; mapping changes that overlap it reject until consume
 or cancellation revokes the copy. Observer rejection or uncertain device reset
 retains DMA. Host controls cover these contracts; guest disk, write, locking,
 durability and isolation acceptance remain separate.
+[Step1570](../done/step1570.md) joins mechanical call windows to original sector
+bytes as development evidence. Its original outer command remains failed;
+fresh owned capture, pending cancellation/error controls and the disk/browser
+demonstration remain required. No writable or multi-app security scope advances.
 
 [Step1437](../done/step1437.md) qualifies the bounded DRBG/TCP-key ownership
 contracts defined in [step1424](../done/step1424.md).

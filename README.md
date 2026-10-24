@@ -115,6 +115,13 @@ failing its first deferred stat because the syscall gate rejected that call's
 Blocked result. Six disk calls now have profile-specific blocking admission,
 with real gateway/thread integration controls. Disk-specific startup/network/
 runner value checks are in development; fresh execution and complete joins remain.
+[Step1570](done/step1570.md) retains r08 at `38ba4446`: 59 file calls, 35
+disk completions, seven positive read windows and exit42 reach cleanup markers.
+Its original outer command still failed pending the complete consumer. New
+value inspection joins all 62 post-bootstrap sector copies to that original
+image and their owning calls. Original runner/native/packet integration is now
+a candidate with 30 focused checks passing unchanged; a fresh source-matched
+capture remains required.
 
 SQLite follow-ups [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) and
 [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) use direct

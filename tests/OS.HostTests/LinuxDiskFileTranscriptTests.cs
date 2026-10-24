@@ -139,7 +139,7 @@ internal static class LinuxDiskFileTranscriptTests
 
     // Expected arguments and outcomes are independently decoded from the
     // canonical mechanical machine-code calls, not the inspector's plan.
-    private static unsafe string[] Synthetic(bool auxiliary = false)
+    internal static unsafe string[] Synthetic(bool auxiliary = false)
     {
         byte[] package = F.CreatePackage(), elf = F.CreateElf(); var view = LinuxElfPackage.Validate(package);
         ulong stack; byte* buffer = (byte*)NativeMemory.AlignedAlloc(view.Manifest.StackBytes, 4096); byte* seed = stackalloc byte[32];

@@ -22,7 +22,10 @@ independent opens, shared duplicate offsets, positioned reads, metadata, EOF,
 read-only flags and stale/invalid outputs through the new disk descriptors.
 Pending work parks in owned source4 thread continuations and retains its
 original output ceiling through completion/cancellation. Its current managed
-and C# compilation results do not establish a real disk app or browser boot.
+and development results do not establish a general disk app or browser boot.
+[Step1570](../done/step1570.md) records r08 reaching the exact mechanical59-call
+sequence and exit42; its outer command remains failed. The new original-runner
+consumer candidate requires fresh validation. This is not upstream disk HTTP.
 The full upstream Blazor child remains the subsequent M10-018 boundary.
 
 ## Current application boundary (October 23, 2026)

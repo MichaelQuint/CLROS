@@ -2,11 +2,12 @@
 
 ## Start here
 
-[Step1569](done/step1569.md) records the current isolated disk checkpoint:
-r07 mounts/attaches but fails the first stat at gateway admission. The six-call
-blocking repair and explicit disk parent/runner value checks pass focused host
-controls. The complete consumer remains disabled; fresh original guests and
-independent native/sector/packet/cleanup joins are required before acceptance.
+[Step1570](done/step1570.md) records the current isolated disk checkpoint.
+Original r08 at `38ba4446` reaches 59 calls and exit42, but its outer command
+remains failed. Complete value joins pass on that original; the newly connected
+owned runner/native/packet consumer has 30 focused checks passing unchanged;
+a fresh capture remains required.
+Keep disk HTTP/Blazor, error/cancellation guests and whole-batch gates open.
 
 Read [README.md](README.md), [documentation map](docs/documentation-map.md),
 [workload profiles](docs/workload-profiles.md) and

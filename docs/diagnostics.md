@@ -1,5 +1,11 @@
 # Diagnostics
 
+[Step1570](../done/step1570.md) preserves original r08: 59 file calls, 35 source4
+completions, 62 post-bootstrap sector copies, 74 transfers, 36 drained IRQs and
+one instruction IRQ reach exit42. The original outer command remains failed.
+Compiled report-only inspection now joins original file windows and sector
+bytes; fresh owned runner/native/packet validation remains separate.
+
 [Step1569](../done/step1569.md) retains r07's first actual disk descriptor call:
 nr4 reports source4/sequence1 but action2/status3, then exit99. The gate rejected
 a valid Blocked result before park/pump; no application disk I/O or completion

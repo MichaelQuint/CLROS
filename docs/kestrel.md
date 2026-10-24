@@ -18,8 +18,11 @@ APIs, and #773/#774 add live disk descriptors and an external browser witness.
 
 Isolated read-service integration now includes confined FAT handles, disk
 descriptors, source4 thread waits and a separate retained block adapter. The
-mechanical M16-025 profile has focused managed controls and EFI C# compilation;
-its full native/guest consumer remains unfinished. M10-018 still rejects
+mechanical M16-025 profile now reaches its exact59-call sequence and exit42 in
+original r08, whose outer command remains failed. Step1570 connects a complete
+original-consumer candidate with 30 focused checks passing unchanged; fresh
+capture remains required.
+M10-018 still rejects
 selection. Complete post-readiness disk/HTTP joins and a real external Blazor
 boot with network evidence and screenshot remain required for #774.
 

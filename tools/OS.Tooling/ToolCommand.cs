@@ -6,6 +6,36 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["qemu", "inspect-disk-values", var capturePackage, var captureImage, var captureSerial])
+            {
+                capturePackage = Path.GetFullPath(capturePackage); captureImage = Path.GetFullPath(captureImage); captureSerial = Path.GetFullPath(captureSerial);
+                using AuthorityFiles files = new();
+                AuthorityFile Hold(string path, int maximum) => files.Open(Path.GetDirectoryName(path)!, path, "disk value inspection", "disk_values", maximum, singleLink: true);
+                var package = Hold(capturePackage, 65536); var image = Hold(captureImage, WebRootImageFixture.MaximumImageBytes);
+                var serial = Hold(captureSerial, 8 * 1024 * 1024); var receiptFile = Hold(captureImage + ".webroot.json", 16 * 1024 * 1024);
+                AuthorityFiles.RequireDistinct(package, image, serial, receiptFile);
+                var receipt = System.Text.Json.JsonSerializer.Deserialize<WebRootImageFixture.Receipt>(receiptFile.ReadUtf8(16 * 1024 * 1024, "disk_values_receipt"))
+                    ?? throw new ToolFailure("disk_values_receipt_missing");
+                string[] rows = QemuTranscripts.FirmwareProtocol(captureSerial, "TEST_PASS m16-012\r\n", true, false, "disk_values_capture", linuxThreads: true);
+                var report = QemuTranscripts.InspectLinuxDiskCaptureValues(rows, package.ReadBytes(65536, "disk_values_package"),
+                    image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_values_image"), receipt, captureImage);
+                files.VerifyUnchanged();
+                Console.WriteLine($"TEST_PASS qemu.disk.values report_only=true calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied-report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs} original_process_native_and_packets_required=true");
+                return 0;
+            }
+            if (args is ["qemu", "inspect-disk-leaf", var diskPackage, var diskSerial])
+            {
+                diskPackage = Path.GetFullPath(diskPackage); diskSerial = Path.GetFullPath(diskSerial);
+                using AuthorityFiles files = new();
+                var package = files.Open(Path.GetDirectoryName(diskPackage)!, diskPackage, "disk leaf package", "disk_leaf_package", 65536, singleLink: true);
+                var serial = files.Open(Path.GetDirectoryName(diskSerial)!, diskSerial, "disk leaf serial", "disk_leaf_serial", 8 * 1024 * 1024, singleLink: true);
+                AuthorityFiles.RequireDistinct(package, serial);
+                string[] rows = QemuTranscripts.FirmwareProtocol(diskSerial, "TEST_PASS m16-012\r\n", true, false, "disk_leaf_capture", linuxThreads: true);
+                var report = QemuTranscripts.InspectLinuxDiskCaptureLeafForTests(rows, package.ReadBytes(65536, "disk_leaf_package"));
+                files.VerifyUnchanged();
+                Console.WriteLine($"TEST_PASS qemu.disk.leaf report_only=true calls={report.Calls} transfers={report.Transfers} epochs={report.Epochs} completions={report.Completions.Count} auxiliary={report.Auxiliary.Count} auxiliary_joins=false original_process_and_native_required=true");
+                return 0;
+            }
             if (args is ["linux", "disk-files-package", var diskFilePackage])
             {
                 LinuxDiskFileProofFixture.WritePackage(Repository.FindRoot(), diskFilePackage);
@@ -278,7 +308,7 @@ public static class ToolCommand
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");
                 Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
-                Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|SignalPipeStolen|SignalEpollStolen|NestedAlternateStack|AlternateStackExhaustion]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
+                Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|SignalPipeStolen|SignalEpollStolen|NestedAlternateStack|AlternateStackExhaustion]\nqemu inspect-disk-leaf <mechanical-package> <original-serial> (report only)\nqemu inspect-disk-values <mechanical-package> <raw-image> <original-serial> (report only)\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;
             }
             if (args.Length >= 2 && args[0] == "repo" && args[1] == "check")

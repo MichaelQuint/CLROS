@@ -1,6 +1,13 @@
 # CLROS Completion Gates
 
-## Current static-file implementation boundary (2026-10-23)
+## Current static-file implementation boundary (2026-10-24)
+
+[Step1570](../done/step1570.md) preserves r08's successful mechanical guest
+markers and genuine failed outer command. New complete value joins accept its
+original 59 calls, 62 sector copies, seven read windows and one instruction IRQ.
+The connected original-runner/native/packet candidate has 30 focused checks passing unchanged
+and still requires a fresh source-matched guest. No earlier failed command is rescued, and no
+issue, disk HTTP/Blazor, write/SQLite or numbered gate advances here.
 
 [Step1569](../done/step1569.md) records r07 mounting/attaching after the zero-time
 repair, followed by first-stat gateway rejection and genuine exit99. Conditional
@@ -19,9 +26,10 @@ static service, writable FAT32 and SQLite remain open acceptance boundaries.
 Isolated read-service work adds confined FAT files, pending descriptor/thread
 ownership and a separate PCI0:7 disk adapter. Managed builds and focused host
 checks cover this development. C# compilation of the EFI source is not native
-publication or guest proof. The mechanical disk runner deliberately rejects
-qualification until the complete parent, syscall, wait, sector, NIC and cleanup
-consumer is connected. No disk issue closes from its terminal markers alone.
+publication or guest proof. Before step1570 the mechanical disk runner rejected
+qualification until complete parent, syscall, wait, sector, NIC and cleanup
+consumption. Its connected candidate still needs fresh validation. No disk issue
+closes from terminal markers or value-only reinspection alone.
 [Step1566](../done/step1566.md) records original disk publication, the failed
 pre-exit guest and its host-tested conditional capacity repair. Three fresh
 staged guests pass complete consumers at `5ceeb0c2`; the batch still needs a

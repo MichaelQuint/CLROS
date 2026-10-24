@@ -14,6 +14,10 @@ results and EFI C# compilation. Storage/boot/order/diagnostics own the added
 contracts; QEMU owns current combined-profile selection. Native and guest disk
 qualification remain required. Step1562 owns the reusable core/adapter decision;
 step1563 owns the later image-packaging roadmap.
+[Step1570](../done/step1570.md) adds the exact mechanical capture value joins
+and original-runner candidate. Storage owns file/window semantics, QEMU owns
+the report-only commands and fresh-capture boundary, and EFI build owns the
+limited native inventory. Original r08 remains a failed outer command.
 
 The NativeAOT-first architecture and ordered issue roadmap are canonical in
 `docs/workload-profiles.md`; `.gitea/backlog/clros-issues.json` owns exact

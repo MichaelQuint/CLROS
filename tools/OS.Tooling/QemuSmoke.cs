@@ -51,6 +51,7 @@ public static class QemuSmoke
         AuthorityFile? webPackageInput=null,webDisassemblyInput=null,webImageInput=null,webEfiInput=null;
         EfiVerification? webNative=null;
         AuthorityFiles? diskInputs = null;
+        AuthorityFile? diskImageInput = null, diskEfiInput = null, diskPackageInput = null;
         EfiVerification? diskNative = null;
         WebRootImageFixture.Receipt? diskImageReceipt = null;
         try
@@ -65,7 +66,7 @@ public static class QemuSmoke
             bool staticFiles=NativeAotStaticFileSelection.Application(plan.Flags).Length!=0;
             bool service=NativeAotServiceSelection.Application(plan.Flags).Length!=0;
             var serviceContract=service?NativeAotServiceSelection.Contract(options,plan.Flags):NativeAotServiceContract.V1;
-            if((signalEpoll||service||sockets||containment||vectors||web||staticFiles)&&!options.DryRun)
+            if((signalEpoll||service||sockets||containment||vectors||web||staticFiles||diskFiles)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if(options.HasWebSignalRace&&!options.DryRun)
@@ -246,9 +247,9 @@ public static class QemuSmoke
                     diskNative = new(EfiOptions.Parse(["--root", root, "--boot-policy", plan.BootPolicy, "--efi-artifact", options.EfiArtifact,
                         ..plan.Flags.Where(p => p.Value).Select(p => "-" + p.Key)], false), output.WriteLine);
                     diskNative.Verify(); diskInputs = new();
-                    var image = diskInputs.Open(root, Path.GetFullPath(options.Image, root), "disk image", "disk_image", WebRootImageFixture.MaximumImageBytes, singleLink: true);
-                    var efi = diskInputs.Open(root, Path.GetFullPath(options.EfiArtifact, root), "disk EFI", "disk_efi", 16 * 1024 * 1024, singleLink: true);
-                    var package = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", 65536, singleLink: true);
+                    var image = diskImageInput = diskInputs.Open(root, Path.GetFullPath(options.Image, root), "disk image", "disk_image", WebRootImageFixture.MaximumImageBytes, singleLink: true);
+                    var efi = diskEfiInput = diskInputs.Open(root, Path.GetFullPath(options.EfiArtifact, root), "disk EFI", "disk_efi", 16 * 1024 * 1024, singleLink: true);
+                    var package = diskPackageInput = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", 65536, singleLink: true);
                     AuthorityFiles.RequireDistinct(image, efi, package);
                     byte[] packageBytes = package.ReadBytes(65536, "disk_package");
                     LinuxDiskFileProofFixture.RequirePackage(packageBytes);
@@ -448,9 +449,17 @@ public static class QemuSmoke
             {
                 diskInputs!.VerifyUnchanged(); diskNative!.VerifyHeldInputs();
                 WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
-                // Development captures remain failures until the complete
-                // disk/syscall/continuation/parent/NIC consumer joins them.
-                throw new ToolFailure("disk_files_complete_consumer_required", "runnerExit=" + runner.ExitCode);
+                if (runner.ExitCode != 0) return runner.ExitCode;
+                var report = QemuTranscripts.InspectLinuxDiskFileRun(root, options, plan, runner,
+                    diskImageInput!, diskEfiInput!, diskPackageInput!, diskImageReceipt!, qemu, ovmf,
+                    () =>
+                    {
+                        if (capture is not null)
+                        { capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations"); }
+                        diskInputs.VerifyUnchanged(); diskNative.VerifyHeldInputs(); cancellation.ThrowIfCancellationRequested();
+                    });
+                output.WriteLine($"TEST_PASS qemu.smoke.disk-files calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied-report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs}");
+                return 0;
             }
             if(serviceQuotaPeer is not null)
             {

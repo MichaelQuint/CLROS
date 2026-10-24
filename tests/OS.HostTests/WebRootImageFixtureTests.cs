@@ -187,7 +187,7 @@ internal static class WebRootImageFixtureTests
         catch (ToolFailure failure) { rejected = expected is null || failure.Reason == expected; }
         HostCheck.True(rejected, expected ?? "expected explicit image rejection");
     }
-    private static void WithImage(Action<string, string, string, string> action)
+    internal static void WithImage(Action<string, string, string, string> action)
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string directory = Path.Combine(root, "artifacts/webroot-image-fixture-tests", Guid.NewGuid().ToString("N"));

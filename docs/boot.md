@@ -2,6 +2,11 @@
 
 ## Current boot scope
 
+[Step1570](../done/step1570.md) retains r08's first complete mechanical file
+sequence through exit42 and disk/NIC cleanup markers. Its outer command remains
+failed; candidate full consumption requires a fresh original capture. Firmware,
+boot policy and previously accepted profiles retain their existing scope.
+
 [Step1569](../done/step1569.md) records original r07 reaching the mounted disk
 and first CPL3 stat, then failing because its valid deferred result was outside
 gateway blocking admission. The conditional six-call repair preserves older

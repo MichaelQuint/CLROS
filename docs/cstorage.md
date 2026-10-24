@@ -1,6 +1,18 @@
 # Storage
 
-## Current development batch (2026-10-23)
+## Current development batch (2026-10-24)
+
+[Step1570](../done/step1570.md) retains original r08 at `38ba4446`: the gateway
+repair reaches 59 calls, 35 disk completions, seven positive file-read windows
+and exit42/cleanup markers. The original outer command still fails because its
+consumer was disabled. New compiled value inspection joins exact startup,
+parent/allocator/NIC values, all 62 post-bootstrap sector copies, independently
+parsed file extents, current call windows, HPET timing and exact IRQ instructions.
+The new original-runner consumer keeps serial/summary/packet/image/EFI/package
+and source/native inputs held through final checks. Thirty focused capture/
+parent/leaf/sector/profile controls pass unchanged; a fresh original capture
+remains required. Error/cancellation guests, disk HTTP,
+Blazor and full batch/native/ancestor acceptance remain outstanding.
 
 [Step1569](../done/step1569.md) retains fresh r07 after the timestamp repair:
 mount and descriptor attachment pass (37 bootstrap sector copies), but the first
@@ -10,7 +22,8 @@ addition to existing calls. Actual gateway/thread controls exercise parking,
 pumping, wake and one completion without replay; read/metadata results do not
 inflate output-byte accounting. New disk envelope checks require the exact
 65-map canonical startup and retired disk/NIC tail. They remain value checks;
-the complete runner consumer is still disabled and another fresh guest is needed.
+at that checkpoint the complete consumer was disabled. Step1570 records its
+subsequent candidate integration; another fresh guest remains necessary.
 
 [Step1568](../done/step1568.md) adds an explicit timestamp compatibility policy:
 an all-zero FAT write date/time yields `ModifiedSeconds=0` (unspecified).
