@@ -130,6 +130,11 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1576](done/step1576.md) records the first five-response disk HTTP diagnostic
+at `e5a5c1c0`: NativeAOT server readiness, published host page/nonce from disk,
+owned SIGTERM/exit0 and cleanup. The original outer command remains failed
+pending complete validation; full framework/browser and batch gates stay open.
+
 [Step1572](done/step1572.md) adds the default-off disk static-server diagnostic:
 original indexed disk package, completion-time file observations and a distinct
 post-listen read boundary. Full disk HTTP/Blazor validation remains unfinished.

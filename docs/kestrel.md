@@ -1,5 +1,10 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1576](../done/step1576.md) retains original018r03 with five external200
+responses, including disk index/nonce, followed by owned SIGTERM/exit0 and
+cleanup. The outer command deliberately fails without the complete consumer.
+This diagnostic does not qualify full static middleware/Blazor or Gate14.
+
 ## Static-file candidate development (2026-10-23)
 
 [Step1558](../done/step1558.md) starts the approved #780/#781/#782 and #768-#774

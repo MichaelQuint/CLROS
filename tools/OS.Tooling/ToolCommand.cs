@@ -6,6 +6,29 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["qemu", "inspect-webroot-inventory", var inventoryImage])
+            {
+                inventoryImage = Path.GetFullPath(inventoryImage);
+                using AuthorityFiles files = new();
+                var image = files.Open(Path.GetDirectoryName(inventoryImage)!, inventoryImage, "webroot inventory image",
+                    "webroot_inventory", WebRootImageFixture.MaximumImageBytes, singleLink: true);
+                var receiptFile = files.Open(Path.GetDirectoryName(inventoryImage)!, inventoryImage + ".webroot.json",
+                    "webroot inventory receipt", "webroot_inventory", 16 * 1024 * 1024, singleLink: true);
+                AuthorityFiles.RequireDistinct(image, receiptFile);
+                var receipt = System.Text.Json.JsonSerializer.Deserialize<WebRootImageFixture.Receipt>(
+                    receiptFile.ReadUtf8(16 * 1024 * 1024, "webroot_inventory_receipt")) ?? throw new ToolFailure("webroot_inventory_receipt_missing");
+                var report = WebRootDiskInventory.Inspect(inventoryImage,
+                    image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "webroot_inventory_image"), receipt);
+                files.VerifyUnchanged();
+                Console.WriteLine("WEBROOT_INVENTORY_VALUES " + System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    report.ImageSha256, report.PartitionFirstLba, report.PartitionLastLba,
+                    Entries = report.Entries.Select(e => new { e.Path, e.Inode, e.Bytes, e.IsDirectory, e.Attributes,
+                        e.ModifiedSeconds, e.Sha256, e.ShortEntryLba, e.ShortEntrySlot, e.AllocatedSectors })
+                }));
+                Console.WriteLine($"TEST_PASS qemu.webroot.inventory report_only=true entries={report.Entries.Count} original_native_process_device_and_http_authority=false");
+                return 0;
+            }
             if (args is ["qemu", "inspect-disk-values", var capturePackage, var captureImage, var captureSerial])
             {
                 capturePackage = Path.GetFullPath(capturePackage); captureImage = Path.GetFullPath(captureImage); captureSerial = Path.GetFullPath(captureSerial);
@@ -306,6 +329,7 @@ public static class ToolCommand
                 Console.WriteLine("nativeaot static-files index <original-ELF> <llvm-disassembly> | program <package> <llvm-disassembly> --staged|--disk");
                 Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
+                Console.WriteLine("qemu inspect-webroot-inventory <original-raw-image> requires its .webroot.json receipt; reports copied physical metadata only, without native/process/device/HTTP authority.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");
                 Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
                 Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|SignalPipeStolen|SignalEpollStolen|NestedAlternateStack|AlternateStackExhaustion]\nqemu inspect-disk-leaf <mechanical-package> <original-serial> (report only)\nqemu inspect-disk-values <mechanical-package> <raw-image> <original-serial> (report only)\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");

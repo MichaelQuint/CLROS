@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1576](../done/step1576.md) records original018r03 native verification and
+real application entry after removing redundant wait frames. Five diagnostic
+HTTP responses and exit0/cleanup follow; the outer command remains failed.
+This does not replace full native ABI/callback-stack or stable batch review.
+
 [Step1575](../done/step1575.md) records original018r02's verified2031-record
 image and exact native allocation arithmetic. The final metadata request exceeds
 the28-page arena by1120 bytes; reusing Slot.WaitCall removes1536 duplicate bytes

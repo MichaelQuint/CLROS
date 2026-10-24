@@ -1,5 +1,13 @@
 # Storage
 
+[Step1576](../done/step1576.md) retains original018r03 at `e5a5c1c0`: five
+external HTTP200 responses,12 post-readiness sector copies, actual app exit0
+and disk/NIC cleanup. Index/nonce bodies match independent physical extraction
+and copied sectors. Complete018 validation is absent, so the original outer
+command remains failed. New copied inode/timestamp/extent inventory passes six
+portable controls and reports54 entries in that original image; it grants no
+native, device or execution authority. Full Blazor/browser and batch gates remain.
+
 [Step1575](../done/step1575.md) retains018r02's mounted-disk/pre-thread failure.
 Actual emitted allocations exceed the fixed metadata arena by1120 bytes. The
 observer now reuses the actual retained WaitCall instead of duplicating16 frames;

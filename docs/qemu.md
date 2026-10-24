@@ -1,5 +1,12 @@
 # QEMU
 
+[Step1576](../done/step1576.md) records original018r03: the runner exits0 after
+five HTTP200 responses and owned exit0/cleanup, while the outer command fails
+`disk_static_complete_consumer_required`. The failure remains original. The
+new `qemu inspect-webroot-inventory <original-raw-image>` command requires its
+`.webroot.json` receipt and reports held-image physical metadata only. Value
+inspection cannot rescue r03 or qualify disk HTTP/Blazor.
+
 [Step1575](../done/step1575.md) records018r02: native verification and mount
 pass, but fixed metadata allocation refuses before any app thread. The original
 failed runner has no final summary. Removing redundant wait frames fits the

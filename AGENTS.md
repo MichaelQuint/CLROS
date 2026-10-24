@@ -2,6 +2,11 @@
 
 ## Start here
 
+[Step1576](done/step1576.md) records original018r03 reaching five HTTP200
+responses and owned exit0/cleanup. Its outer command intentionally remains
+failed until complete original disk/static consumption. Independent physical
+inventory is value-only; full Blazor/browser and batch gates remain unfinished.
+
 [Step1572](done/step1572.md) adds the disk static-server diagnostic candidate.
 Its exact indexed payload, source4 completion records and separate018 markers
 remain development-only until complete original HTTP/Blazor validation.

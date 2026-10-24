@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1575 retains original018r02 at75811a93: native verification passes2031 records and real FAT32 mount37 bootstrap copies, then fixed metadata allocation refuses before any first thread or HTTP. Original command fails and final summary is absent. Independent emitted allocation arithmetic confirms1120-byte overflow from redundant16 retained96-byte frames. Observer now borrows actual Slot.WaitCall onto the selected worker stack before completion, keeping320-byte pending records, fixed28-page arena and all legacy offsets. Twelve focused program/source-admission checks pass in separate unchanged zero-reuse scopes. Fresh native018/app, complete original disk/static joins, full Blazor/browser and stable batch gates remain pending. All original failures remain failed; no issue closes.",
+      "currentEvidence": "Step1576 preserves original018r03 at e5a5c1c02ae4d4fde790c2f5466030f4cf7c691b: original native/runner pass, five external HTTP200 responses (health/status/items/published index357B/disk nonce18B), actual readiness37/37/37,12 post-readiness sector copies, owned SIGTERM/app exit0,13 reaps and disk/NIC cleanup. Outer command deliberately FAILS complete_consumer_required and remains failed. Independent physical metadata and copied sector values join both HTTP files to original raw bytes; the new value-only inventory passes6 portable controls and reports54 original entries. Complete scheduler/deferred-file/sector/HTTP/packet consumption, full45-asset Blazor/browser, both variants, negative/concurrent and stable batch gates remain pending. No issue closes or gate advances.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36324,7 +36324,9 @@
         "tools/OS.QemuRunner/QemuCommandBuilder.cs",
         "tests/OS.HostTests/ReadOnlyDiskProfileTests.cs",
         "tests/OS.HostTests/NativeAotDiskStaticProfileTests.cs",
-        "tools/OS.Tooling/EfiVerify.Native.cs"
+        "tools/OS.Tooling/EfiVerify.Native.cs",
+        "tools/OS.Tooling/WebRootDiskInventory.cs",
+        "tests/OS.HostTests/WebRootDiskInventoryTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

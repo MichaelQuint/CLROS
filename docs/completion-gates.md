@@ -1,5 +1,9 @@
 # CLROS Completion Gates
 
+[Step1576](../done/step1576.md) records five-response original disk HTTP
+diagnostics plus copied physical inventory. The original outer command remains
+failed; complete018/browser and all batch/numbered gates remain unfinished.
+
 [Step1572](../done/step1572.md) adds a diagnostic M10-018 disk/static candidate.
 It deliberately withholds complete-command success pending the full consumer;
 selection, focused checks and later diagnostics cannot advance a gate.

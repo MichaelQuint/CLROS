@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1576](../done/step1576.md) records original disk HTTP diagnostics and a
+value-only physical inventory. Storage owns metadata/sector joins; QEMU owns
+the intentionally failed complete-consumer boundary; app/Kestrel docs retain
+the unfinished framework/browser qualification.
+
 [Step1572](../done/step1572.md) records disk static-server diagnostic integration.
 Boot owns its existing disk gate; storage owns deferred file observations; QEMU
 owns the still-failing complete-consumer boundary. No app/gate is qualified.
