@@ -9,6 +9,7 @@ using OS.Tooling;
 using Image = OS.Tooling.WritableDataImageFixture;
 using B = OS.Storage.WritableBlockSession;
 using C = OS.Storage.ContinuingFat32Mutation;
+using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
 
 // Host image/extraction controls only. No native/device/guest persistence claim.
 internal static unsafe class WritableDataImageFixtureTests
@@ -223,6 +224,76 @@ internal static unsafe class WritableDataImageFixtureTests
         Console.WriteLine($"WRITABLE_TRANSITION actualCreateGrowWrite={receipt.Changes.Count} shrink={shrink.Changes.Count} delete={deletion.Changes.Count} outs={media.Outs} flushes={media.Flushes}");
     });
 
+    [HostTest("writable data named log close reopen and upload preserve independent fd cursors across actual shared media growth and flush", HostLane.Native)]
+    private static void LogAndUploadTransition() => WithImage((_, _, _, seed, before) =>
+    {
+        using var media = new MutationMedia(before); using var files = new DescriptorMedia(media);
+        HostCheck.True(seed.Image.Find("LOG.TXT") is { Bytes: 0 } && seed.Image.Find("UPLOAD.BIN") is { Bytes: 0 });
+        var logWriter = files.Open("/data/LOG.TXT", 2); var logReader = files.Open("/data/LOG.TXT");
+        var uploadWriter = files.Open("/data/UPLOAD.BIN", 2); var uploadReader = files.Open("/data/UPLOAD.BIN");
+        HostCheck.True(logWriter.Number != logReader.Number && uploadWriter.Number != uploadReader.Number);
+        byte[] firstLine = "started\n"u8.ToArray(), secondLine = Enumerable.Range(0, 600).Select(i => (byte)('a' + i % 26)).ToArray();
+        var search = new W.FreeSearch(2, 64, 8);
+        HostCheck.Equal(0L, W.Seek(files.State, logWriter, 0, 2).Value);
+        HostCheck.Equal((long)firstLine.Length, files.Run(W.BeginWriteWithFreeSearch(files.State, logWriter, firstLine, search)).Value);
+        HostCheck.True(W.Seek(files.State, logWriter, 0, 1).Value == firstLine.Length && W.Seek(files.State, logReader, 0, 1).Value == 0);
+        HostCheck.True(files.Read(logReader, (uint)firstLine.Length).AsSpan().SequenceEqual(firstLine));
+        files.Sync(logWriter); var closedWriter = logWriter;
+        HostCheck.Equal(0L, W.Close(files.State, closedWriter)); logWriter = files.Open("/data/LOG.TXT", 2);
+        HostCheck.True(logWriter.Number == closedWriter.Number && logWriter.Generation > closedWriter.Generation && W.Seek(files.State, logWriter, 0, 1).Value == 0);
+        ulong writes = media.Device.State->SubmittedBytes;
+        HostCheck.Equal(-9L, W.BeginWrite(files.State, closedWriter, firstLine).Value); HostCheck.Equal(writes, media.Device.State->SubmittedBytes);
+        // This is explicit seek-to-EOF plus sequential write. O_APPEND and a
+        // BCL FileStream are deliberately not part of this host provider test.
+        HostCheck.Equal((long)firstLine.Length, W.Seek(files.State, logWriter, 0, 2).Value);
+        HostCheck.Equal((long)secondLine.Length, files.Run(W.BeginWriteWithFreeSearch(files.State, logWriter, secondLine, search)).Value);
+        byte[] logBytes = firstLine.Concat(secondLine).ToArray();
+        HostCheck.True(W.Seek(files.State, logWriter, 0, 1).Value == logBytes.Length && W.Seek(files.State, logReader, 0, 1).Value == firstLine.Length);
+        HostCheck.True(files.Read(logReader, (uint)secondLine.Length).AsSpan().SequenceEqual(secondLine));
+        HostCheck.Equal(0L, W.Close(files.State, logReader)); logReader = files.Open("/data/LOG.TXT");
+        HostCheck.True(W.Seek(files.State, logReader, 0, 1).Value == 0 && files.Read(logReader, (uint)logBytes.Length).AsSpan().SequenceEqual(logBytes));
+        byte[] upload = Enumerable.Range(0, 1032).Select(i => unchecked((byte)(i * 47 + 13))).ToArray(), expectedUpload = new byte[5126];
+        upload.CopyTo(expectedUpload, 4094);
+        HostCheck.Equal(1032L, files.Run(W.Pwritev2SingleWithFreeSearch(files.State, uploadWriter, upload, 4094, W.RwfNoAppend, search)).Value);
+        HostCheck.True(W.Seek(files.State, uploadWriter, 0, 1).Value == 0 && W.Seek(files.State, uploadReader, 0, 1).Value == 0 &&
+            files.Read(uploadReader, 5126).AsSpan().SequenceEqual(expectedUpload));
+        // The unrelated upload's revisions must not retire the open log inode
+        // or silently redirect either independent open description/cursor.
+        HostCheck.True(files.Read(logReader, (uint)logBytes.Length, 0, true).AsSpan().SequenceEqual(logBytes) &&
+            W.Seek(files.State, logReader, 0, 1).Value == logBytes.Length && W.Seek(files.State, logWriter, 0, 1).Value == logBytes.Length);
+        files.Sync(logWriter); files.Sync(uploadWriter); var directory = files.Open("/data"); files.Sync(directory);
+        byte[] after = media.Snapshot(); var transition = Image.InspectTransition(before, after);
+        HostCheck.True(transition.Before.Find("LOG.TXT")!.Bytes == 0 && transition.Before.Find("UPLOAD.BIN")!.Bytes == 0 &&
+            transition.After.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(logBytes) && transition.After.Find("UPLOAD.BIN")!.CopyBytes().AsSpan().SequenceEqual(expectedUpload) &&
+            transition.After.FreeClusters == seed.Image.FreeClusters - 13 && transition.After.Files.Count == seed.Image.Files.Count && transition.After.Find(Image.ExclusiveCreateName) is null);
+        foreach (var entry in seed.Image.Files.Where(x => x.Name is not ("LOG.TXT" or "UPLOAD.BIN")))
+        {
+            HostCheck.True(transition.After.Find(entry.Name) is { } unchanged && unchanged.Sha256 == entry.Sha256 && unchanged.ShortEntryOffset == entry.ShortEntryOffset &&
+                unchanged.Clusters.SequenceEqual(entry.Clusters) && unchanged.CopyBytes().AsSpan().SequenceEqual(entry.CopyBytes()) &&
+                before.AsSpan((int)entry.ShortEntryOffset, 32).SequenceEqual(after.AsSpan((int)entry.ShortEntryOffset, 32)));
+            foreach (uint cluster in entry.Clusters)
+                HostCheck.True(before.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(after.AsSpan(ClusterOffset(cluster), 512))); // Include guard/slack bytes.
+        }
+        HostCheck.True(transition.After.RootClusters.SequenceEqual(seed.Image.RootClusters));
+        ulong logEntry = seed.Image.Find("LOG.TXT")!.ShortEntryOffset, uploadEntry = seed.Image.Find("UPLOAD.BIN")!.ShortEntryOffset;
+        HostCheck.True(transition.After.Find("LOG.TXT")!.ShortEntryOffset == logEntry && transition.After.Find("UPLOAD.BIN")!.ShortEntryOffset == uploadEntry);
+        foreach (uint cluster in seed.Image.RootClusters)
+        {
+            for (int i = 0; i < 512; i++)
+            {
+                int address = ClusterOffset(cluster) + i; ulong at = (ulong)address;
+                if (!(at >= logEntry && at - logEntry < 32) && !(at >= uploadEntry && at - uploadEntry < 32))
+                    HostCheck.Equal(before[address], after[address]); // Exact independently extracted permitted entry intervals.
+            }
+        }
+        CheckChanges(before, after, transition);
+        HostCheck.True(media.Outs > 0 && media.Flushes > 0 && !media.Device.State->Dirty && media.Device.State->Submitted == media.Device.State->Completed &&
+            media.Device.State->SubmittedBytes == media.Outs * 512UL && media.Device.State->CompletedBytes == media.Outs * 512UL &&
+            media.Device.State->DurableBytes == media.Outs * 512UL);
+        foreach (var file in new[] { logWriter, logReader, uploadWriter, uploadReader, directory }) HostCheck.Equal(0L, W.Close(files.State, file));
+        Console.WriteLine($"WRITABLE_NAMED_MEDIA logBytes={logBytes.Length} uploadBytes={expectedUpload.Length} changedSectors={transition.Changes.Count} outs={media.Outs} flushes={media.Flushes} submittedWriteBytes={media.Device.State->SubmittedBytes} completedWriteBytes={media.Device.State->CompletedBytes} flushAcknowledgedBytes={media.Device.State->DurableBytes} logSha256={transition.After.Find("LOG.TXT")!.Sha256} uploadSha256={transition.After.Find("UPLOAD.BIN")!.Sha256} afterRawSha256={transition.After.RawSha256}");
+    });
+
     [HostTest("writable data transition rejects changes outside partition GPT padding BPB and reserved FSInfo bytes", HostLane.Native)]
     private static void TransitionIdentity() => WithImage((_, _, _, _, before) =>
     {
@@ -314,6 +385,63 @@ internal static unsafe class WritableDataImageFixtureTests
     private static void TransitionMutant(byte[] before, Action<byte[]> mutate, string reason)
     { byte[] after = (byte[])before.Clone(); mutate(after); Reject(() => Image.InspectTransition(before, after), reason); }
 
+    // Uses the original committed provider, not a test-created fd model. The
+    // provider is detached before the borrowed one-queue engine/device owners.
+    private sealed class DescriptorMedia : IDisposable
+    {
+        private readonly MutationMedia media;
+        internal readonly W.State* State = (W.State*)NativeMemory.AllocZeroed((nuint)sizeof(W.State));
+        private readonly W.Descriptor* slots = (W.Descriptor*)NativeMemory.AllocZeroed(32, (nuint)sizeof(W.Descriptor));
+        private readonly W.Description* descriptions = (W.Description*)NativeMemory.AllocZeroed(32, (nuint)sizeof(W.Description));
+        private readonly byte* input = (byte*)NativeMemory.AllocZeroed(W.IoBytes);
+        internal DescriptorMedia(MutationMedia owner)
+        {
+            media = owner;
+            HostCheck.True(W.Start(State, new() { Engine = media.State, Epoch = 702, Descriptors = slots, Descriptions = descriptions,
+                DescriptorCount = 32, DescriptionCount = 32, Input = input, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
+        }
+        private W.Result Wait(W.Result begun)
+        {
+            if (begun.Phase != W.Progress.Pending) return begun;
+            for (int turn = 0; turn < 100000; turn++)
+            {
+                var progress = W.Pump(State); media.CompleteHardware();
+                if (progress.Phase == W.Progress.Ready) return progress;
+                HostCheck.Equal(W.Progress.Pending, progress.Phase);
+            }
+            throw new InvalidOperationException("named media provider did not finish");
+        }
+        internal W.Result Run(W.Result begun)
+        {
+            var ready = Wait(begun); var result = ready.Phase == W.Progress.Ready ? W.Complete(State, begun.Request) : ready;
+            HostCheck.Equal(W.Progress.Immediate, result.Phase); HostCheck.True(result.Value >= 0); return result;
+        }
+        internal W.DescriptorToken Open(string path, uint flags = 0) => Run(W.Open(State, Encoding.ASCII.GetBytes(path), flags)).Descriptor;
+        internal byte[] Read(W.DescriptorToken file, uint count, ulong offset = 0, bool positioned = false)
+        {
+            var begun = W.BeginRead(State, file, count, offset, positioned); HostCheck.Equal(W.Progress.Ready, Wait(begun).Phase);
+            byte[] output = new byte[count]; var copied = W.CopyRead(State, begun.Request, output);
+            HostCheck.True(copied.Phase == W.Progress.Immediate && copied.Value == count); return output;
+        }
+        internal void Sync(W.DescriptorToken file)
+        {
+            ulong submitted = media.Device.State->Submitted, completed = media.Device.State->Completed, writeBytes = media.Device.State->SubmittedBytes;
+            uint flushes = media.Flushes, outs = media.Outs;
+            HostCheck.Equal(0L, Run(W.BeginSync(State, file)).Value);
+            // A clean barrier still performs one real FLUSH, rather than
+            // fabricating success because write frontiers already agree.
+            HostCheck.True(media.Flushes == flushes + 1 && media.Outs == outs && media.Device.State->Submitted > submitted &&
+                media.Device.State->Submitted - submitted == media.Device.State->Completed - completed &&
+                media.Device.State->SubmittedBytes == writeBytes && media.Device.State->CompletedBytes == writeBytes && media.Device.State->DurableBytes == writeBytes &&
+                media.Device.State->LastOperation == B.Operation.Flush);
+        }
+        public void Dispose()
+        {
+            HostCheck.Equal(W.Progress.Retired, W.Detach(State).Phase);
+            NativeMemory.Free(input); NativeMemory.Free(descriptions); NativeMemory.Free(slots); NativeMemory.Free(State);
+        }
+    }
+
     private sealed class MutationMedia : IDisposable
     {
         internal readonly WritableBlockSessionTests.Fixture Device;
@@ -339,11 +467,15 @@ internal static unsafe class WritableDataImageFixtureTests
             for (int i = 0; i < 100000; i++)
             {
                 var status = C.Pump(State);
-                if (Device.Hardware->Pending)
-                { if (Device.Hardware->Type == 1) Outs++; if (Device.Hardware->Type == 4) Flushes++; Device.Complete(); }
+                CompleteHardware();
                 if (status != C.Status.Pending) { HostCheck.Equal(C.Status.Ready, status); return; }
             }
             throw new InvalidOperationException("transition shared-media mutation did not terminate");
+        }
+        internal void CompleteHardware()
+        {
+            if (!Device.Hardware->Pending) return;
+            if (Device.Hardware->Type == 1) Outs++; if (Device.Hardware->Type == 4) Flushes++; Device.Complete();
         }
         internal C.FileToken Open(string name)
         {
@@ -354,7 +486,7 @@ internal static unsafe class WritableDataImageFixtureTests
         public void Dispose()
         {
             HostCheck.Equal(B.Status.Success, B.Stop(Device.State)); HostCheck.Equal(C.Status.Success, C.Stop(State));
-            Device.Dispose(); NativeMemory.AlignedFree(backing); NativeMemory.Free(State);
+            Device.CheckGuards(); Device.Dispose(); NativeMemory.AlignedFree(backing); NativeMemory.Free(State);
         }
     }
 
