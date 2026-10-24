@@ -31,6 +31,7 @@ public static unsafe partial class EfiEntry
             internal Fs.Mount Mount;
             internal LinuxDescriptorServices.DiskState Descriptors;
             internal NativeDiskEvidence Evidence;
+            internal NativeDiskExitObservation ExitObservation;
             internal Fs.Operation* Operations;
             internal Fs.FileHandle* Files;
             internal Fs.CacheSlot* Cache;
@@ -300,7 +301,9 @@ public static unsafe partial class EfiEntry
             {
                 if (o->Boot != state || o->Phase == 0) return false;
                 if (o->Phase == 9) return true;
-                if (o->Device.RequiresCleanup && Block.Stop(&o->Device) != Block.Status.Success || !o->Device.Retired) return false;
+                if (!ObserveNativeDiskExitBeforeStop(o)) return false;
+                var stopped = o->Device.RequiresCleanup ? Block.Stop(&o->Device) : Block.Status.Success;
+                if (stopped != Block.Status.Success || !o->Device.Retired || !ObserveNativeDiskExitStopped(o, stopped)) return false;
                 if (o->Mount.RequiresCleanup && Fs.Stop(&o->Mount) != Fs.Status.Success) return false;
                 if (o->Pool.AllocatedMask != 0) return false;
                 o->Phase = 9; return true;

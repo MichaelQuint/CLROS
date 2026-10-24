@@ -130,6 +130,13 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1583](done/step1583.md) prepares observations for the canonical pending-exit
+disk race: real exit/cancellation, reset retirement, and the entire mapped8KiB
+sentinel before process release. Sixty focused host checks pass; the copied
+consumer grants no original/native/user-memory authority and original race
+launch remains refused. Separate writable-sector and SQLite recovery preparation
+continues in two isolated checkouts. No full disk/browser or write gate advances.
+
 [Step1582](done/step1582.md) preserves the failed unfiltered full run at
 `e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
 The complete diagnostic-policy declarations, independent descendant/conflict

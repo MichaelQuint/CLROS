@@ -1,5 +1,12 @@
 # Issue Labels
 
+[Step1583](../done/step1583.md) reconciles three preparatory evidence summaries
+with fresh versions and readback: preview3/apply3/readback18 unchanged, zero
+drift. Recovery ownership now explicitly reuses the four existing contract paths.
+The separate M16-027 two-file writable mechanical fixture claim has preview1/
+apply1/readback9 unchanged. Existing labels, dependencies, states and unmanaged
+content remain preserved; these handoffs do not authorize guest activation.
+
 [Step1582](../done/step1582.md) adds the existing required ownership-note contract
 to the seven OPS successors M11-027..033 without changing their owners, paths,
 dependencies or states. Fresh scoped preview7/apply7/readback16 unchanged confirms

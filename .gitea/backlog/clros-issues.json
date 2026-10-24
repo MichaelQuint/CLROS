@@ -36097,7 +36097,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1579 adds exact5variant LinuxDiskRaceVariant parsing/selection and safe linux disk-race-package publication. Host controls prove conflicts, canonical byte identity, no overwrite/outside-root side effects, and fail-closed original execution before any child launch. Default canonical59 and018 remain separate. Existing nine-case fixture and preserved five-case mechanical parent controls pass; lifecycle9transcript controls retain step1578 scope. Actual race native admission/observations/complete runner/drain-before-reset/post-quiescence sentinel remain unfinished. No real race, write or durability scope is accepted.",
+      "currentEvidence": "Step1583 prepares canonical ExitPending observations around real exit_group/CommitExit, actual Stop/reset before FS retirement, whole8192-byte sentinel via validated aliases before process release, then dynamic-memory/image-protection restoration. Original descriptor/FS/block identity and current cancellation snapshots remain separate. Expert confirms Stopping suppresses later supervisor pumps; no synthetic completion or counter-growth relaxation. Sixty focused checks unchanged/zeroReuse, repo/contracts/diff pass. Selected EFI compilation, complete original race/device/image/runner joins remain pending and original race launch still refuses. Prior positive mechanical captures keep original scope; no issue closes.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -37093,7 +37093,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "User-authorized preparatory implementation in isolated codex/sqlite-contract while the primary qualifies the read batch. Existing dependencies remain open; no writable activation or acceptance is granted. Shared integration/documentation/tracker remain primary-owned.",
-      "currentEvidence": "Isolated original Linux native reference at frozenf61648c2 passes static upstream archive reproducibility/link,45retained SQLite imports from144unique metadata imports, final static ELF and finite direct-provider transaction fixture. Receipt77B2A06C28E919CDE82383839AA37CDC3A9AB3FC131FD781CA26559B07C4D21B and85output hashes retained; CompleteTraceProjection=false due one unfinished exiting signal-pipe read. Current consumer checkpoint5c7b8093dd76566b898aae6cbf519c581807c22b is separate from that producer. Independent retained storage derivation reports10fd lifetimes/4journals/2sync-order sequences,36pwritev2(RWF_NOAPPEND32),66pread64,64locks,8fsync including2parent-directory and4fchown; all journal unlinks follow close. Managed hot-journal recovery candidate preparation is separately scoped. Native index753461instructions/193syscalls is value-only; no CLROS, durability or recovery acceptance and existing dependencies stay blocked.",
+      "currentEvidence": "Frozen ordinary Linux producer f61648c2 retains receipt77B2A06C28E919CDE82383839AA37CDC3A9AB3FC131FD781CA26559B07C4D21B,85outputs,45retained imports from144metadata imports and CompleteTraceProjection=false for the original unfinished exiting signal-pipe read. Later copied consumers/preparation do not replace this producer. Separate checkpoints b71a2863 Windows owned process-kill recovery,3281a45a prepared/unexecuted Linux recovery runner and0bc80774 copied whole-journal audit remain unintegrated. The audit finds15valid segments/68records covering67changed DB pages plus4uncommitted-tail records/0changed pages; receipt0D7711AC04AFB8D2271E738A35F7879908930532017610AE73B90143CE2EA703. No per-page/physical durability, CLROS or Linux recovery acceptance. Step1583 preserves exact scopes and failed originals.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -37165,7 +37165,11 @@
         "apps/MinimalApiSqlite/MinimalApiSqlite.csproj",
         "tools/OS.Tooling/SqliteRecoveryQualification.cs",
         "tests/OS.HostTests/SqliteRecoveryQualificationTests.cs",
-        "docs/cstorage.md"
+        "docs/cstorage.md",
+        "apps/NativeAotSqliteContract/Program.cs",
+        "apps/NativeAotSqliteContract/NativeAotSqliteContract.csproj",
+        "tools/OS.Tooling/NativeAotSqliteContract.cs",
+        "tests/OS.HostTests/NativeAotSqliteContractTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37174,7 +37178,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement the approved SQLite rollback-journal transaction/recovery successor in `docs/workload-profiles.md`, coordinated under #213. This issue is planned and blocked, with no implementation ownership claimed.\n\nDependencies: the measured provider contract in #791, the #774 read milestone, and the separately qualified writable-block/flush, FAT mutation, confined writable-descriptor/locking and persistence work. Bind their exact successor issue numbers before claiming implementation. A successful sector write or #468's bounded overwrite alone does not satisfy these prerequisites.",
-      "currentEvidence": "Planning and static source review only; no implementation or guest acceptance. Preserve current active owners and all original/failed receipts.",
+      "currentEvidence": "User-authorized isolated preparation reuses the four existing NativeAotSqliteContract app/tool/test paths in codex/sqlite-contract; proposed MinimalApiSqlite integration stays deferred. b71a2863 genuine Windows owned process-kill recovery joins the writer, holds exclusive captured files and independently restores exact committed DB bytes; FULL configured, FlushObserved=false. 3281a45a prepares fresh Linux publish/trace/seed/spill/pidfd-kill/join/RESERVED-lock probe/reopen but has not executed on Linux;18focused checks pass. 0bc80774 copied whole-journal audit passes19focused checks and held Windows capture:15valid segments/68records,67changed pages covered,4records in separately classified uncommitted tail,72distinct original pages. Coverage grants no playback/sync/per-page/power-loss authority. Original Linux f616 receipt/false projection remain unchanged. Primary retains shared integration/docs/tracker/native lease; dependencies remain blocked, no guest/SQLite acceptance or closure.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -37808,7 +37812,9 @@
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxWritableDescriptorServices.cs",
         "tests/OS.HostTests/LinuxWritableDescriptorServicesTests.cs",
-        "docs/cstorage.md"
+        "docs/cstorage.md",
+        "tools/OS.Tooling/LinuxWritableDiskProofFixture.cs",
+        "tests/OS.HostTests/LinuxWritableDiskProofFixtureTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37817,7 +37823,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Qualify confined writable Linux descriptors, locking and synchronization",
-      "currentEvidence": "Isolated e09ee0ba121554d667ac3e66998adab2c08510cc (parent170e8bac), only declared writable descriptor source/tests, clean and not pushed/integrated/merged. Agent reports committed nonincremental graph0warnings/errors and106focused checks unchanged/zeroReuse (23new,18mutation,14block,15legacyfd,14diskfd,22readonlyFS), repo/contracts/diff pass. Includes inode alias/locking identity, actual directory FLUSH with cancellation/retirement failure, and copied single-iovec positioned RWF_NOAPPEND32 seam. Raw Linux wire, uid/gid/fchown/create-mode/F_SETFD/pathstat and continuing sector POD backing remain open. Native/guest/SQLite/durability activation remains blocked.",
+      "currentEvidence": "Isolated e09ee0ba121554d667ac3e66998adab2c08510cc (parent170e8bac), only declared writable descriptor source/tests, clean and not pushed/integrated/merged. Agent reports committed nonincremental graph0warnings/errors and106focused checks unchanged/zeroReuse (23new,18mutation,14block,15legacyfd,14diskfd,22readonlyFS), repo/contracts/diff pass. Includes inode alias/locking identity, actual directory FLUSH with cancellation/retirement failure, and copied single-iovec positioned RWF_NOAPPEND32 seam. Raw Linux wire, uid/gid/fchown/create-mode/F_SETFD/pathstat and continuing sector POD backing remain open. Native/guest/SQLite/durability activation remains blocked. Root delegates asset_matrix, after clean SQLite checkpoint0bc80774, to only the two newly declared LinuxWritableDiskProofFixture source/test paths in the same isolated sqlite-contract checkout. Prepare a canonical finite C# mechanical ELF/package for exclusive /data file create, one-iovec positioned RWF_NOAPPEND write, zero-hole/readback/independent cursors, SQLite byte locks, file/directory fsync, reopen/delete and deterministic errors. No shared helper/CLI/boot/docs/tracker changes or publication. Continuing create/growth/delete, actual Linux wire and all guest acceptance remain prerequisites; labels/dependencies unchanged. Edits start only after fresh scoped ownership apply/readback.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",

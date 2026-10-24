@@ -128,9 +128,12 @@ public static unsafe partial class EfiEntry
             bool staticCompleted = staticApp.GracefulExit && state->LinuxSyscallExitCode == 0;
 #endif
 #if M16_025_PROBE
-            if (!RetireNativeDiskAttachment(state, c)) return LinuxNativeCleanupRejected(state, 13);
+            if (!RetireNativeDiskAttachment(state, c) || !ObserveNativeDiskExitSentinel(state, c)) return LinuxNativeCleanupRejected(state, 13);
 #endif
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
+#if M16_025_PROBE
+            if (!ObserveNativeDiskExitReleased(state, c)) return LinuxNativeCleanupRejected(state, 13);
+#endif
             if (published && !LinuxNativeBeginTeardown(state, c)) return LinuxNativeCleanupRejected(state, 3);
             if (state->LinuxDescriptorPhase == 4)
             {
@@ -142,6 +145,9 @@ public static unsafe partial class EfiEntry
                 state->LinuxDescriptorPhase = 6;
             }
             if (!LinuxNativeClearUserMemory(state)) return LinuxNativeCleanupRejected(state, 5);
+#if M16_025_PROBE
+            if (!ObserveNativeDiskExitMemoryRestored(state)) return LinuxNativeCleanupRejected(state, 13);
+#endif
             if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 6);
             if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 7);
             for (ulong i = 0; i < CooperativePoolPages * Page; i++) ((byte*)state->CooperativePool)[i] = 0;

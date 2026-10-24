@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+[Step1583](../done/step1583.md) is pending-exit observation/copy-contract
+preparation only. Sixty focused checks and repo/contracts pass. No selected
+native publication or original race execution follows; launch remains refused.
+Separate Windows SQLite process-kill recovery and copied journal coverage do
+not qualify Linux recovery, guest writes, synchronization or power-loss durability.
+
 [Step1582](../done/step1582.md) preserves the failed unfiltered full run at
 `e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
 The complete diagnostic-policy declarations, independent descendant/conflict

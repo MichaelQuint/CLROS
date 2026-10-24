@@ -1,5 +1,10 @@
 # Workload Profiles ADR
 
+[Step1583](../done/step1583.md) prepares canonical pending-exit observation
+stages without enabling original race execution. Complete disk/HTTP/Blazor and
+write/SQLite gates stay open. Two isolated agents continue bounded writable
+sector/file and SQLite recovery preparation while the primary owns qualification.
+
 [Step1582](../done/step1582.md) preserves the failed unfiltered full run at
 `e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
 The complete diagnostic-policy declarations, independent descendant/conflict

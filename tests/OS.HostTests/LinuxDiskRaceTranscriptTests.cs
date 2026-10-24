@@ -7,6 +7,92 @@ using F = OS.Tooling.LinuxDiskRaceProofFixture;
 
 internal static class LinuxDiskRaceTranscriptTests
 {
+    [HostTest("exit pending copied stages preserve reset-aborted counters without granting guest authority")]
+    private static void ExitPendingCopiedStages()
+    {
+        foreach (bool drained in new[] { false })
+        {
+            string[] rows = ExitPendingStages(drained), before = rows.ToArray(); byte[] package = F.CreatePackage("ExitPending");
+            var values = QemuTranscripts.InspectLinuxDiskExitPendingValues(rows, package);
+            HostCheck.True(values.ResetAbortedRequest == !drained && !values.CheckedOriginalExecution && !values.CheckedNativeStopOrUserMemory);
+            HostCheck.True(values.Records.Select(r => r.RecordIndex).SequenceEqual(Enumerable.Range(0, 8)) && rows.SequenceEqual(before));
+            string retained = values.Records[0].Values["main"].ToString(CultureInfo.InvariantCulture);
+            Array.Fill(rows, "changed"); Array.Clear(package);
+            HostCheck.Equal(F.MainIdentity.ToString(CultureInfo.InvariantCulture), retained);
+            bool denied = false;
+            try { ((IDictionary<string, ulong>)values.Records[0].Values)["main"] = 0; } catch (NotSupportedException) { denied = true; }
+            HostCheck.True(denied);
+        }
+    }
+
+    [HostTest("exit pending copied stages reject altered owners identities counters reset sentinel and teardown ordering")]
+    private static void ExitPendingCopiedRejections()
+    {
+        string[] rows = ExitPendingStages(false);
+        void Deny(string[] changed, byte[]? package = null)
+        {
+            bool rejected = false;
+            try { _ = QemuTranscripts.InspectLinuxDiskExitPendingValues(changed, package ?? F.CreatePackage("ExitPending")); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        foreach (string key in new[] { "main", "child", "ordinal", "rip", "sequence", "owner", "epoch", "generation", "index", "fd", "fdGeneration",
+            "binding", "bindingGeneration", "description", "position", "fileGeneration", "fileIndex", "inode", "fsOwner", "fsEpoch", "fsGeneration",
+            "fsIndex", "blockOwner", "blockEpoch", "blockGeneration", "sector", "outputBytes", "submitted", "copied" })
+            Deny(Change(rows, 1, key, Field(rows[1], key) + 1));
+        foreach (int index in Enumerable.Range(0, 8))
+        {
+            Deny(Change(rows, index, "stage", index == 0 ? 2UL : 1UL));
+            Deny(Change(rows, index, "available", 0)); Deny(Change(rows, index, "consumed", 0));
+            Deny(Change(rows, index, "sentinelBytes", Field(rows[index], "sentinelBytes") + 1));
+            Deny(Change(rows, index, "completed", Field(rows[index], "completed") + 1));
+            Deny(Change(rows, index, "cancelled", Field(rows[index], "cancelled") + 1));
+            Deny(rows.Where((_, i) => i != index).ToArray());
+            Deny([..rows[..index], rows[index], ..rows[index..]]);
+        }
+        foreach (string key in new[] { "reset", "busMasterOff", "dmaReleased", "resetReads" }) Deny(Change(rows, 4, key, 0));
+        Deny(Change(rows, 4, "poolMask", 1)); Deny(Change(rows, 0, "poolMask", 0));
+        Deny(Change(rows, 7, "userReserved", 4096)); Deny(Change(rows, 7, "userBacked", 1));
+        Deny(Change(rows, 3, "clock", 0)); Deny([..rows, rows[7]]);
+        Deny(ExitPendingStages(true));
+        foreach (string key in new[] { "ioGeneration", "ioSector", "blockPhase", "fsPhase", "ioActive", "fsIoIndex", "fsIoGeneration",
+            "requestPhase", "requestWorker", "slotActive", "slotBytes", "cursor" })
+            Deny(Change(rows, 2, key, Field(rows[2], key) + 1));
+        Deny(rows, F.CreatePackage("Progress")); byte[] corrupted = F.CreatePackage("ExitPending"); corrupted[^1] ^= 1; Deny(rows, corrupted);
+        Deny([..rows[..7], rows[7] + " extra=0"]); Deny([..rows[..7], rows[7].Replace("clock=107", "clock=0107", StringComparison.Ordinal)]);
+    }
+
+    private static string[] ExitPendingStages(bool drained)
+    {
+        string[] fields = ("stage main child ordinal rip sequence owner epoch generation index fd fdGeneration binding bindingGeneration description position " +
+            "fileGeneration fileIndex inode fsOwner fsEpoch fsGeneration fsIndex blockOwner blockEpoch blockGeneration sector outputBytes submitted completed " +
+            "copied cancelled available consumed resetReads reset busMasterOff dmaReleased poolMask sentinelBytes userReserved userBacked " +
+            "ioGeneration ioSector blockPhase fsPhase ioActive fsIoIndex fsIoGeneration requestPhase requestWorker slotActive slotBytes cursor clock").Split(' ');
+        var call = F.Calls("ExitPending").Single(c => c.Role == "main.read");
+        ulong ordinal = (ulong)F.Calls("ExitPending").TakeWhile(c => c.Role != "main.read").Count() + 1;
+        Dictionary<string, ulong> v = fields.ToDictionary(k => k, _ => 0UL, StringComparer.Ordinal);
+        v["main"] = F.MainIdentity; v["child"] = F.ChildIdentity; v["ordinal"] = ordinal; v["rip"] = call.ReturnRip; v["sequence"] = 3;
+        v["owner"] = 0x100000; v["epoch"] = v["fsEpoch"] = v["blockEpoch"] = 0x4d31365f30323301;
+        v["generation"] = 3; v["fd"] = 3; v["fdGeneration"] = v["bindingGeneration"] = v["fileGeneration"] = v["fsGeneration"] = 1;
+        v["description"] = 3; v["inode"] = 1234; v["fsOwner"] = 0x110000; v["blockOwner"] = 0x120000;
+        v["blockGeneration"] = v["submitted"] = v["available"] = 40; v["completed"] = v["consumed"] = v["copied"] = 39;
+        v["sector"] = 1000; v["outputBytes"] = 8192;
+        List<string> rows = [];
+        for (int i = 0; i < 8; i++)
+        {
+            v["stage"] = (ulong)i + 1; v["clock"] = (ulong)i + 100; v["sentinelBytes"] = i is 0 or 5 ? 8192UL : 0;
+            v["poolMask"] = i < 4 ? 1UL : 0; v["resetReads"] = i < 4 ? 0UL : 1;
+            v["reset"] = v["busMasterOff"] = v["dmaReleased"] = i < 4 ? 0UL : 1;
+            v["ioGeneration"] = 40; v["ioSector"] = 1000; v["blockPhase"] = i < 4 ? 3UL : 6;
+            v["fsPhase"] = i < 5 ? 2UL : 4; v["ioActive"] = i < 5 ? 1UL : 0; v["fsIoGeneration"] = 1;
+            v["requestPhase"] = i < 2 ? 2UL : 4; v["requestWorker"] = i < 2 ? F.MainIdentity : 0;
+            v["slotActive"] = i < 2 ? 1UL : 0; v["slotBytes"] = i < 2 ? 8192UL : 0;
+            if (drained && i >= 2) { v["completed"] = v["consumed"] = 40; v["cancelled"] = 1; }
+            rows.Add("M16_025_EXIT_PENDING " + string.Join(' ', fields.Select(f => f + "=" + v[f].ToString(CultureInfo.InvariantCulture))));
+        }
+        return rows.ToArray();
+    }
+
     [HostTest("disk race leaf joins two exact workers overlapping requests and close reuse without granting auxiliary authority")]
     private static void Positive()
     {

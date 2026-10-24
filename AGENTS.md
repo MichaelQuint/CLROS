@@ -1,5 +1,14 @@
 # CLROS AI Agent Guide
 
+[Step1583](done/step1583.md) prepares canonical ExitPending native observations
+and strict copied stages. Keep the original FS/descriptor/wait identity separate
+from current backend state; exit_group suppresses later supervisor pumping in
+this source. Actual CommitExit revokes the slot; real Stop/reset precedes the
+whole8KiB sentinel check, process release and memory restoration. Original race
+launch remains refused. Managed checks do not compile or qualify these EFI paths.
+Keep the primary5dd6e6c0 full-run owner frozen until it joins; both implementation
+agents continue only in their isolated owned source paths.
+
 [Step1582](done/step1582.md) preserves the failed unfiltered full run at
 `e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
 The complete diagnostic-policy declarations, independent descendant/conflict

@@ -9,6 +9,99 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
+    public readonly record struct LinuxDiskExitPendingRecord(int RecordIndex, IReadOnlyDictionary<string, ulong> Values);
+
+    /// <summary>Immutable copied stage values only. ResetAbortedRequest means
+    /// the selected counters report reset retirement rather than a used-ring
+    /// completion. No native stop, user-memory observation, scheduler, original
+    /// artifact, image or guest authority follows from inspecting these values.</summary>
+    public sealed class LinuxDiskExitPendingValues
+    {
+        public IReadOnlyList<LinuxDiskExitPendingRecord> Records { get; }
+        public bool ResetAbortedRequest { get; }
+        public bool CheckedOriginalExecution => false;
+        public bool CheckedNativeStopOrUserMemory => false;
+        internal LinuxDiskExitPendingValues(LinuxDiskExitPendingRecord[] records, bool resetAborted)
+        { Records = Array.AsReadOnly(records); ResetAbortedRequest = resetAborted; }
+    }
+
+    private static readonly string[] DiskExitPendingFields =
+    [ "stage", "main", "child", "ordinal", "rip", "sequence", "owner", "epoch", "generation", "index", "fd", "fdGeneration",
+      "binding", "bindingGeneration", "description", "position", "fileGeneration", "fileIndex", "inode", "fsOwner", "fsEpoch",
+      "fsGeneration", "fsIndex", "blockOwner", "blockEpoch", "blockGeneration", "sector", "outputBytes", "submitted", "completed",
+      "copied", "cancelled", "available", "consumed", "resetReads", "reset", "busMasterOff", "dmaReleased", "poolMask",
+      "sentinelBytes", "userReserved", "userBacked", "ioGeneration", "ioSector", "blockPhase", "fsPhase", "ioActive", "fsIoIndex",
+      "fsIoGeneration", "requestPhase", "requestWorker", "slotActive", "slotBytes", "cursor", "clock" ];
+
+    /// <summary>Borrow at most32768 printable rows of at most1536 characters
+    /// and the entire canonical ExitPending package. Require eight ordered,
+    /// generation-bound scalar stages, unchanged copy/submit counts and actual
+    /// reset-aborted terminal counters. Unknown fields, altered identities,
+    /// missing/duplicate stages or divergent counters throw ToolFailure. Returns
+    /// owned immutable values; separate full protocol/native/device/image and
+    /// original-runner joins remain mandatory before any qualification.</summary>
+    public static LinuxDiskExitPendingValues InspectLinuxDiskExitPendingValues(IReadOnlyList<string> supplied, byte[] package)
+    {
+        Need(supplied is { Count: > 0 and <= 32768 } && package is not null &&
+            Race.PackageVariant(package) == "ExitPending", "disk_exit_pending_input");
+        List<LinuxDiskExitPendingRecord> records = [];
+        for (int i = 0; i < supplied!.Count; i++)
+        {
+            string row = supplied[i];
+            Need(row is { Length: > 0 and <= 1536 } && row.All(c => c is >= ' ' and <= '~'), "disk_exit_pending_row");
+            if (!row.StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal)) continue;
+            Need(records.Count < 8, "disk_exit_pending_stage_count");
+            var fields = ReadRecord(row, "M16_025_EXIT_PENDING", DiskExitPendingFields.Select(f => f + ":dec").ToArray());
+            Need(fields["stage"] == (ulong)records.Count + 1, "disk_exit_pending_stage_order");
+            records.Add(new(i, new System.Collections.ObjectModel.ReadOnlyDictionary<string, ulong>(fields)));
+        }
+        Need(records.Count == 8, "disk_exit_pending_stage_count");
+        var first = records[0].Values;
+        var call = Race.Calls("ExitPending").Single(c => c.Role == "main.read");
+        ulong ordinal = (ulong)Race.Calls("ExitPending").TakeWhile(c => c.Role != "main.read").Count() + 1;
+        Need(first["main"] == Race.MainIdentity && first["child"] == Race.ChildIdentity && first["ordinal"] == ordinal &&
+            first["rip"] == call.ReturnRip && first["sequence"] > 0 && first["generation"] > 0 &&
+            first["index"] < LinuxDescriptorServices.DiskSlots && first["fd"] == Race.OriginalFd && first["fdGeneration"] > 0 &&
+            first["binding"] < LinuxDescriptorServices.DiskSlots && first["bindingGeneration"] > 0 && first["description"] < 16 &&
+            first["position"] == 0 && first["fileGeneration"] > 0 && first["fileIndex"] < 8 && first["inode"] > 0 &&
+            first["fsGeneration"] > 0 && first["fsIndex"] < 8 && first["epoch"] != 0 && first["fsEpoch"] == first["epoch"] &&
+            first["blockEpoch"] == first["epoch"] && first["blockGeneration"] == first["submitted"] &&
+            first["outputBytes"] == Race.ParentOutputBytes && first["submitted"] > 0 &&
+            first["completed"] < ulong.MaxValue && first["submitted"] == first["completed"] + 1 &&
+            first["copied"] <= first["completed"] && first["cancelled"] <= first["completed"], "disk_exit_pending_identity");
+        foreach (string owner in new[] { "owner", "fsOwner", "blockOwner" })
+            Need(first[owner] is >= 4096 and <= 0xfffffff8 && first[owner] % 8 == 0, "disk_exit_pending_owner");
+        Need(first["owner"] != first["fsOwner"] && first["owner"] != first["blockOwner"] &&
+            first["fsOwner"] != first["blockOwner"], "disk_exit_pending_owner");
+        ulong clock = 0;
+        for (int i = 0; i < records.Count; i++)
+        {
+            var v = records[i].Values;
+            foreach (string field in DiskExitPendingFields.Skip(1).Take(28))
+                Need(v[field] == first[field], "disk_exit_pending_binding");
+            Need(v["copied"] == first["copied"] && v["completed"] == first["completed"] && v["cancelled"] == first["cancelled"] &&
+                v["available"] == unchecked((ushort)v["submitted"]) && v["consumed"] == unchecked((ushort)v["completed"]) &&
+                v["reset"] <= 1 && v["busMasterOff"] <= 1 && v["dmaReleased"] <= 1 && v["resetReads"] <= 2048 &&
+                v["clock"] >= clock && v["clock"] <= long.MaxValue &&
+                v["sentinelBytes"] == (i is 0 or 5 ? Race.ParentOutputBytes : 0), "disk_exit_pending_counters");
+            Need(v["ioGeneration"] == first["blockGeneration"] && v["ioSector"] == first["sector"] &&
+                v["blockPhase"] == (i >= 4 ? 6UL : 3UL) && v["fsPhase"] == (i >= 5 ? 4UL : 2UL) &&
+                v["ioActive"] == (i >= 5 ? 0UL : 1UL) && v["fsIoIndex"] == first["fsIndex"] &&
+                v["fsIoGeneration"] == first["fsGeneration"] && v["requestPhase"] == (i < 2 ? 2UL : 4UL) &&
+                v["requestWorker"] == (i < 2 ? first["main"] : 0) && v["slotActive"] == (i < 2 ? 1UL : 0UL) &&
+                v["slotBytes"] == (i < 2 ? first["outputBytes"] : 0) && v["cursor"] == first["position"], "disk_exit_pending_cancel_boundary");
+            if (i >= 4)
+                Need(v["completed"] == records[3].Values["completed"] && v["cancelled"] == records[3].Values["cancelled"] &&
+                    v["reset"] == 1 && v["busMasterOff"] == 1 && v["dmaReleased"] == 1 && v["poolMask"] == 0 &&
+                    v["resetReads"] > records[3].Values["resetReads"], "disk_exit_pending_stop");
+            else Need(v["poolMask"] == 1, "disk_exit_pending_dma_owner");
+            if (i >= 5) Need(v["resetReads"] == records[4].Values["resetReads"], "disk_exit_pending_stop");
+            clock = v["clock"];
+        }
+        Need(records[7].Values["userReserved"] == 0 && records[7].Values["userBacked"] == 0, "disk_exit_pending_memory_restored");
+        return new(records.ToArray(), records[7].Values["completed"] == first["completed"]);
+    }
+
     public readonly record struct LinuxDiskRaceCall(int RecordIndex, ulong Identity, ulong Ordinal, Race.CallSpec Spec);
     public readonly record struct LinuxDiskRaceWindow(int CallRecordIndex, int CompletionRecordIndex,
         ulong Identity, ulong Ordinal, ulong Sequence, ulong RequestGeneration, uint Source, long Value, uint OutputBytes, uint Completion = 1);

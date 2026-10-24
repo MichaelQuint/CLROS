@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1583](../done/step1583.md) records pending-exit observation preparation and
+the separate SQLite recovery checkpoints. Storage owns their lifetime/byte
+contracts; EFI/diagnostics own conditional source and marker boundaries;
+completion gates preserve the unqualified original/native/write scope.
+
 [Step1582](../done/step1582.md) owns the failed full-host result and bounded
 profile/backlog contract repairs. Host requirements and completion gates retain
 its failed/native-withheld boundary; EFI/diagnostics explain the complete policy

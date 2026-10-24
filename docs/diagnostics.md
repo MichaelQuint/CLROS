@@ -1,5 +1,10 @@
 # Diagnostics
 
+[Step1583](../done/step1583.md) adds observation-only pending-exit stages selected
+by the complete canonical package digest. Existing profiles/probe defaults are
+unchanged. Ordered cancellation/reset/sentinel/release records are preparatory;
+no original race runner accepts them yet and no guest race is qualified.
+
 [Step1582](../done/step1582.md) completes the full modifier's explicit project
 Diagnostic/default and VerifiedExit conflict inventories. Independent boot/probe
 surface whitelists and descendant/indirect-exclusion checks retain exact guards;

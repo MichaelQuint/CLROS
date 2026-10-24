@@ -6,6 +6,56 @@ using F = OS.Tooling.LinuxDiskRaceProofFixture;
 
 internal static class LinuxDiskRaceProofFixtureTests
 {
+    [HostTest("exit pending native selection authenticates the entire independently generated package")]
+    private static void ExitPendingNativeIdentity()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.DiskEvidence.cs"));
+        var words = System.Text.RegularExpressions.Regex.Matches(source, @"digest\[(\d)\] == 0x([0-9a-f]{16})");
+        HostCheck.Equal(4, words.Count);
+        byte[] admitted = new byte[32];
+        foreach (System.Text.RegularExpressions.Match word in words)
+            BinaryPrimitives.WriteUInt64LittleEndian(admitted.AsSpan(int.Parse(word.Groups[1].Value) * 8),
+                Convert.ToUInt64(word.Groups[2].Value, 16));
+        byte[] canonical = F.CreatePackage("ExitPending");
+        HostCheck.True(source.Contains("state->LinuxBytes != " + canonical.Length, StringComparison.Ordinal));
+        HostCheck.True(admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(canonical)));
+        foreach (string variant in F.Variants.Where(v => v != "ExitPending"))
+            HostCheck.True(!admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(F.CreatePackage(variant))));
+        canonical[^1] ^= 1;
+        HostCheck.True(!admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(canonical)));
+    }
+
+    [HostTest("exit pending native observations surround actual dispatch cancellation reset and release")]
+    private static void ExitPendingNativeOrdering()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string Read(string leaf) => File.ReadAllText(Path.Combine(root, "src/OS/Boot", leaf));
+        static void Ordered(string text, params string[] steps)
+        {
+            int at = 0;
+            foreach (string step in steps)
+            {
+                int next = text.IndexOf(step, at, StringComparison.Ordinal);
+                HostCheck.True(next >= at, step); at = next + step.Length;
+            }
+        }
+        string threads = Read("EfiEntry.LinuxThreads.cs");
+        Ordered(threads, "ObserveNativeDiskExitCall(c, index, call)", "LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame)");
+        Ordered(threads, "ObserveNativeDiskExitCommit(c, index, false)", "c->Process.CommitExit(c->Key, 2, worker, out long clearTid)",
+            "ObserveNativeDiskExitCommit(c, index, true)");
+        Ordered(Read("EfiEntry.DiskNative.cs"), "ObserveNativeDiskExitBeforeStop(o)", "Block.Stop(&o->Device)",
+            "ObserveNativeDiskExitStopped(o, stopped)", "Fs.Stop(&o->Mount)");
+        Ordered(Read("EfiEntry.LinuxThreadRun.cs"), "RetireNativeDiskAttachment(state, c)", "ObserveNativeDiskExitSentinel(state, c)",
+            "LinuxNativeRelease(c, LinuxNativeRsp(c))", "ObserveNativeDiskExitReleased(state, c)",
+            "LinuxNativeClearUserMemory(state)", "ObserveNativeDiskExitMemoryRestored(state)");
+        string evidence = Read("EfiEntry.DiskEvidence.cs");
+        HostCheck.True(evidence.Contains("!o->Device.ReadPending || !o->Mount.IoActive", StringComparison.Ordinal));
+        HostCheck.True(evidence.Contains("CopyLinuxAlias(state, 0x404000UL + offset, chunk, 128, false)", StringComparison.Ordinal));
+        HostCheck.True(evidence.Contains("offset < 8192; offset += 128", StringComparison.Ordinal));
+        HostCheck.True(!evidence.Contains("CompletedCount++", StringComparison.Ordinal) && !evidence.Contains("Block.Poll(", StringComparison.Ordinal));
+    }
+
     [HostTest("disk race packages are canonical deterministic two-worker cooperative children")]
     private static void Packages()
     {

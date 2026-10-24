@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1583](../done/step1583.md) changes four reviewed M16-025 conditional inputs
+for canonical pending-exit observations, with matching source pins and focused
+host admission checks. No kernel control layout, profile default or compile item
+is added. The retained native disk owner grows only by scalar observations.
+Fresh selected EFI compilation, ABI/stack review and original guest qualification
+remain required; a managed graph build does not compile these EFI methods.
+
 [Step1582](../done/step1582.md) adds the full modifier to both complete project
 boot-policy inventories, retaining explicit parent/conflict rejection. Independent
 checks follow the disk-to-epoll/web parent graph and verify each bridge before

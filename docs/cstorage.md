@@ -1,5 +1,29 @@
 # Storage
 
+[Step1583](../done/step1583.md) prepares canonical ExitPending observations.
+They authenticate the entire package and retain scalar worker/wait, fd/description/
+file, FS and actual pending block identities. Before/after the parent's genuine
+CommitExit, separate slot revocation and current backend snapshots preserve the
+original identity and cursor. Real Block.Stop/reset, bus-master disable, fence,
+DMA return/scrub/release and FS/orphan retirement precede a validated-alias read
+of every byte of the8KiB sentinel, while process/mutation guard remain attached.
+Process release and dynamic-memory/image-protection restoration follow it.
+Reset retirement never invents a used-ring completion or advances I/O counters.
+The strict copied consumer admits only the current source's unchanged software
+counter path, with no original/native/user-memory authority. Sixty focused host
+checks pass; EFI publication, complete race/sector/image/runner joins and actual
+guest observations remain pending. Original race launch still refuses.
+
+Separate SQLite checkpoints b71a2863/3281a45a/0bc80774 remain unintegrated:
+owned Windows process-kill recovery restores exact baseline bytes; a new Linux
+recovery runner is prepared but has not executed. The retained Windows journal
+has15 valid segments/68 records covering all67 changed DB pages and a separate
+zero-header uncommitted tail of4 records,72 distinct original pages overall.
+This is copied byte coverage, not per-page synchronization, physical durability
+or CLROS acceptance. Original Linux producer f61648c2 and its incomplete trace
+projection remain unchanged. The storage agent's continuing POD leaf performs
+actual IN/OUT/FLUSH with bounded caller storage; its native activation is pending.
+
 [Step1582](../done/step1582.md) retains isolated host writable descriptor
 checkpoint e09ee0ba and the pinned Linux SQLite contract experiment separately
 from guest acceptance. Actual SQLite writes use single-iovec `pwritev2` with

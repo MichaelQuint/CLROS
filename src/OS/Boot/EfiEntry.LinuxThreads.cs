@@ -513,6 +513,9 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
+#if M16_025_PROBE
+            if (!ObserveNativeDiskExitCall(c, index, call)) return LinuxNativeAbort(c, index);
+#endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
 #if M10_017_PROBE || M10_018_PROBE
             if (!LinuxStaticRecordFile(c, index, call, result, &staticFileBefore) ||
@@ -775,7 +778,13 @@ public static unsafe partial class EfiEntry
                 }
                 else if (action is LinuxSyscallAction.ThreadExited or LinuxSyscallAction.Terminate)
                 {
+#if M16_025_PROBE
+                    if (!ObserveNativeDiskExitCommit(c, index, false)) return 0;
+#endif
                     if (!c->Process.CommitExit(c->Key, 2, worker, out long clearTid)) return 0;
+#if M16_025_PROBE
+                    if (!ObserveNativeDiskExitCommit(c, index, true)) return 0;
+#endif
                     if (!LinuxText(c->State, "M16_008_EXIT identity=") || !LinuxNumber(c->State, worker.Identity) ||
                         !LinuxText(c->State, " clearTidResult=") || !LinuxNumber(c->State, unchecked((ulong)clearTid)) || !LinuxText(c->State, "\r\n")) return 0;
                 }
