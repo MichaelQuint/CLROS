@@ -140,6 +140,31 @@ internal static class NativeAotSqliteContractTests
         Reject(()=>NativeAotSqliteContract.LinuxReferenceTraceArguments("/fresh/sqlite","/fresh/sqlite",true,"/fresh/trace"),"reference_linux_path");
     }
 
+    [HostTest("sqlite trace keeps nonreturning terminal exit distinct from missing futex continuation and preserves every copied raw row")]
+    private static void TraceReturnAccounting()
+    {
+        const string database="/fresh/contract.db";
+        NativeAotSqliteContract.Trace Parse(string main,string? other=null)
+        {
+            Dictionary<string,string> files=new(){["trace.1"]=main};if(other is not null)files.Add("trace.2",other);
+            return NativeAotSqliteContract.InspectTraceValues(files,database);
+        }
+        const string terminal="1.000003 exit_group(0) = ?\n1.000004 +++ exited with 0 +++\n";
+        var complete=Parse("1.000001 getpid() = 1\n"+terminal);
+        HostCheck.True(complete.CompleteTraceProjection && complete.UnreturnedCalls==0 && complete.TerminalUnreturnedCalls==1 &&
+            complete.Rows.Count==3 && complete.Rows[1].Raw=="1.000003 exit_group(0) = ?" && !complete.GrantsCompleteTraceOrExecutionAuthority);
+        var wait=Parse("1.000001 getpid() = 1\n"+terminal,"1.000001 futex(0x1234, FUTEX_WAIT_PRIVATE, 2, NULL) = ?\n1.000004 +++ exited with 0 +++\n");
+        HostCheck.True(wait.UnjoinedLines==0 && wait.UnreturnedCalls==1 && wait.TerminalUnreturnedCalls==1 && !wait.CompleteTraceProjection &&
+            wait.Calls.Single(c=>c.Syscall=="futex").Result=="?" && wait.Rows.Count==5);
+        var unfinished=Parse(terminal,"1.000001 read(3<pipe:[7]> <unfinished ...>) = ?\n1.000004 +++ exited with 0 +++\n");
+        HostCheck.True(unfinished.UnjoinedLines==1 && !unfinished.CompleteTraceProjection && unfinished.Rows.Count==4 &&
+            unfinished.Rows.Single(r=>r.Kind==NativeAotSqliteContract.TraceRowKind.Unfinished).Raw.Contains("pipe:[7]",StringComparison.Ordinal));
+        foreach(string bad in new[]{terminal.Replace("exited with 0","killed by SIGKILL",StringComparison.Ordinal),
+            terminal.Replace("exit_group(0)","exit_group(1)",StringComparison.Ordinal),terminal.Replace(" = ?"," = 0",StringComparison.Ordinal),
+            "1.000003 exit_group(0) = ?\n",terminal+"1.000005 getpid() = 1\n",terminal+"1.000005 +++ exited with 0 +++\n"})
+            HostCheck.True(!Parse(bad).CompleteTraceProjection);
+    }
+
     [HostTest("sqlite contract trace values preserve arguments errno and unjoined calls while naming storage successors")]
     private static void TraceValues()
     {

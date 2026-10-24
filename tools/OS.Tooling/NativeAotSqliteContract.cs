@@ -83,8 +83,28 @@ public static class NativeAotSqliteContract
     public sealed record Transcript(string Engine,string SourceSha256,string TextSha256,string BlobSha256)
     {public bool GrantsNativeAotGuestOrDurabilityAuthority=>false;}
     public sealed record TraceCall(string Source,int Line,string Syscall,string Arguments,string Result,string Successor,bool MentionsDatabase);
+    public enum TraceRowKind { Call, Unfinished, Resumed, Signal, ProcessTerminal }
+    public sealed record TraceRow(string Source,int Line,string Raw,TraceRowKind Kind);
     public sealed record Trace(IReadOnlyList<TraceCall> Calls,int UnjoinedLines,IReadOnlyList<string> Successors)
-    {public bool GrantsCompleteTraceOrExecutionAuthority=>false;}
+    {
+        public IReadOnlyList<TraceRow> Rows {get;init;}=Array.Empty<TraceRow>();
+        public int UnreturnedCalls=>Calls.Count(c=>c.Result.StartsWith('?') && c.Syscall is not ("exit" or "exit_group"));
+        public int TerminalUnreturnedCalls=>Calls.Count(c=>c.Result.StartsWith('?') && c.Syscall is "exit" or "exit_group");
+        // Normal exit is explicitly nonreturning. It needs the same source's
+        // subsequent exact successful terminal record, never a fabricated return.
+        public bool CompleteTraceProjection=>Rows.Count>0 && UnjoinedLines==0 && UnreturnedCalls==0 &&
+            !Calls.Any(c=>c.Syscall is "exit" or "exit_group" && c.Result!="?") &&
+            Rows.Select(r=>r.Source).Distinct(StringComparer.Ordinal).All(source=>
+            {
+                var rows=Rows.Where(r=>r.Source==source).ToArray();
+                if(rows.Count(r=>r.Kind==TraceRowKind.ProcessTerminal)!=1 ||
+                    !Regex.IsMatch(rows[^1].Raw,@"^\d+\.\d+ \+\+\+ exited with 0 \+\+\+$",RegexOptions.CultureInvariant))return false;
+                var exits=Calls.Where(c=>c.Source==source && c.Result.StartsWith('?') && c.Syscall is "exit" or "exit_group").ToArray();
+                return exits.Length==0 || exits.Length==1 && exits[0].Arguments=="0" && exits[0].Result=="?" &&
+                    rows.Length>=2 && rows[^2].Line==exits[0].Line && rows[^2].Kind==TraceRowKind.Call;
+            });
+        public bool GrantsCompleteTraceOrExecutionAuthority=>false;
+    }
     public sealed record StorageLifetime(int Id,int Descriptor,string Kind,string Path,string OpenFlags,string Mode,int OpenLine,int? CloseLine);
     public sealed record StorageLock(string Type,string Whence,long Start,long Length);
     public sealed record StorageEvent(TraceCall Call,int LifetimeId,int Descriptor,string Kind,long? Count,long? Offset,long Returned,string Flags,StorageLock? Lock);
@@ -534,7 +554,7 @@ public static class NativeAotSqliteContract
     {
         Need(files is {Count:>0 and <=64} && databasePath.Length is >0 and <=255 && databasePath.StartsWith('/') &&
             !databasePath.Any(c=>c is '"' or '\n' or '\r' or '\0'),"trace_input");
-        List<TraceCall> calls=[];int unjoined=0,total=0;
+        List<TraceCall> calls=[];List<TraceRow> rows=[];int unjoined=0,total=0;
         foreach(var file in files.OrderBy(f=>f.Key,StringComparer.Ordinal))
         {
             Need(file.Key.Length is >0 and <=255 && file.Value.Length<=4*1024*1024 &&
@@ -542,8 +562,11 @@ public static class NativeAotSqliteContract
             foreach(string line in file.Value.Replace("\r\n","\n").Split('\n'))
             {
                 lineNumber++;Need(lineNumber<=200000 && line.Length<=8192,"trace_line");if(line.Length==0)continue;
-                if(line.Contains("<unfinished ...>",StringComparison.Ordinal) || line.Contains(" resumed>",StringComparison.Ordinal)){unjoined++;continue;}
-                if(Regex.IsMatch(line,@"^\d+\.\d+ (?:\+\+\+|---)",RegexOptions.CultureInvariant))continue;
+                Need(rows.Count<200000,"trace_row_capacity");
+                if(line.Contains("<unfinished ...>",StringComparison.Ordinal) || line.Contains(" resumed>",StringComparison.Ordinal))
+                {unjoined++;rows.Add(new(file.Key,lineNumber,line,line.Contains(" resumed>",StringComparison.Ordinal)?TraceRowKind.Resumed:TraceRowKind.Unfinished));continue;}
+                if(Regex.IsMatch(line,@"^\d+\.\d+ (?:\+\+\+|---)",RegexOptions.CultureInvariant))
+                {rows.Add(new(file.Key,lineNumber,line,line.Contains("+++",StringComparison.Ordinal)?TraceRowKind.ProcessTerminal:TraceRowKind.Signal));continue;}
                 var match=Regex.Match(line,@"^\d+\.\d+ ([a-zA-Z0-9_]+)\((.*)\) += (.+)$",RegexOptions.CultureInvariant);
                 Need(match.Success && calls.Count<200000,"trace_call");string syscall=match.Groups[1].Value;
                 string successor=syscall switch
@@ -557,10 +580,12 @@ public static class NativeAotSqliteContract
                 };
                 string arguments=match.Groups[2].Value;
                 calls.Add(new(file.Key,lineNumber,syscall,arguments,match.Groups[3].Value,successor,arguments.Contains(databasePath,StringComparison.Ordinal)));
+                rows.Add(new(file.Key,lineNumber,line,TraceRowKind.Call));
             }
         }
         Need(calls.Count>0,"trace_empty");return new(Array.AsReadOnly(calls.ToArray()),unjoined,
-            Array.AsReadOnly(calls.Where(c=>c.Successor.Length!=0).Select(c=>c.Successor).Distinct().Order(StringComparer.Ordinal).ToArray()));
+            Array.AsReadOnly(calls.Where(c=>c.Successor.Length!=0).Select(c=>c.Successor).Distinct().Order(StringComparer.Ordinal).ToArray()))
+            {Rows=Array.AsReadOnly(rows.ToArray())};
     }
 
     /// <summary>Copy measured storage values from bounded strace -ff/-ttt/-yy
@@ -1329,8 +1354,11 @@ public static class NativeAotSqliteContract
                 .ToDictionary(p=>Path.GetRelativePath(destination,p),NativeAotWebPayload.HashFile);
             await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
             {Schema="clros-sqlite-linux-reference-v2",Succeeded=succeeded,Failure=failure,Archive=archive,Imports=imports,RetainedImports=retainedImports,MetadataWithoutArchive=metadataWithoutArchive,WeakUndefined=weakUndefined,Image=image,Transcript=transcript,Verification=verification,
-                TraceUnjoinedLines=trace?.UnjoinedLines,VerificationTraceUnjoinedLines=verificationTrace?.UnjoinedLines,SourceArchiveSha256,SourceArchiveSha3,SourceId,Sources=sources,Native=native,Outputs=files,
-                GuestQualified=false,DurabilityQualified=false,RecoveryQualified=false,CompleteTraceProjection=trace?.UnjoinedLines==0 && verificationTrace?.UnjoinedLines==0}));
+                TraceUnjoinedLines=trace?.UnjoinedLines,VerificationTraceUnjoinedLines=verificationTrace?.UnjoinedLines,
+                TraceUnreturnedCalls=trace?.UnreturnedCalls,VerificationTraceUnreturnedCalls=verificationTrace?.UnreturnedCalls,
+                TraceTerminalUnreturnedCalls=trace?.TerminalUnreturnedCalls,VerificationTraceTerminalUnreturnedCalls=verificationTrace?.TerminalUnreturnedCalls,
+                SourceArchiveSha256,SourceArchiveSha3,SourceId,Sources=sources,Native=native,Outputs=files,
+                GuestQualified=false,DurabilityQualified=false,RecoveryQualified=false,CompleteTraceProjection=trace?.CompleteTraceProjection==true && verificationTrace?.CompleteTraceProjection==true}));
         }
         output.WriteLine("TEST_PASS "+marker);return 0;
     }
