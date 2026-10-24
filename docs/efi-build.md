@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1594](../done/step1594.md) Step1594 retains full read r05 EFI92b68ac3a0ef05f89181642dd6f663a70958c258a193330e5b2350bbf6e44fe9 from source24f74824:2046 runtime records/1619 distinct unwind entries under the unchanged2048 cap. Emitted LookupStep/FileChainStep frames168B, FileChainOne264B and LookupOne56B are scoped local-frame facts, excluding callers/callees. Guarded writable host changes are excluded from this original; no writable native activation or catalogue-bound increase is accepted.
+
 [Step1593](../done/step1593.md) Step1593 repairs a test-only dependency; normalized FS production remains85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b. Scoped graph24.05s/0warnings/errors and60focused controls pass. The next emitted EFI/native stack/catalog review must match its committed source and producer copies; writable native activation remains absent.
 
 [Step1592](../done/step1592.md) Step1592 adds a bounded internal LookupStep wrapper and unchanged single-entry LookupOne helper without allocation, recursion or new stack buffers. The reviewed normalized filesystem source is85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b. Existing2048native catalog bound remains unchanged; emitted native ABI/stack/catalog review and fresh original guests are still required. Guarded writable host imports do not activate new EFI links.

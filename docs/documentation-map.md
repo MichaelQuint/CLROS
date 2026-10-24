@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1594](../done/step1594.md) Step1594 owns guarded writable fstat/thread integration, actual candidate fake-media and copied observation evidence, imported pinned SQLite preparation, and failed read r05 identities. Storage/PAL own metadata lifetime and allocation facts; app-model owns strict crypto-free reporting and original SQLite boundaries; EFI/QEMU/diagnostics retain emitted-source and failed-run scope. Earlier steps remain immutable. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
 [Step1593](../done/step1593.md) Step1593 owns scoped readonly test-dependency repair,60focused passes and failed native log/upload identity/crypto-reporting decision. Application docs own exact writer/readback/report ordering; storage owns actual versus expected bytes; EFI/QEMU retain committed producer and exclusive lease requirements. Step1591/1592 history remains unchanged.
 
 [Step1592](../done/step1592.md) Step1592 owns read LookupStep16 source/reviewed pin,33 filesystem controls, fragmented-large-file measurements, writable/read branch consolidation and the next fresh original boundary. Storage defines batching and retained handles; QEMU/diagnostics retain failed r04 and native provenance; step1591 owns source5 implementation and its exact Gitea evidence comment readbacks.
