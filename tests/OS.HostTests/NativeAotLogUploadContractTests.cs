@@ -25,22 +25,31 @@ internal static class NativeAotLogUploadContractTests
         Reject(() => F.InspectFileValues(log, upload.Concat(new byte[] { 0xa5 }).ToArray()), "upload_bytes");
     }
 
-    [HostTest("log upload copied transcript requires exact phase policy hashes markers and bounded complete output")]
+    [HostTest("log upload copied transcript requires expected before work verified after readback exact phase policy and no legacy crypto fields")]
     private static void TranscriptValues()
     {
         var values = F.InspectFileValues(F.ExpectedLog(), F.ExpectedUpload());
-        string Write(string phase) => "TEST_START m10.027\nLOG_UPLOAD_PHASE " + phase + "\n" +
+        string Write(string phase) => "TEST_START m10.027\nLOG_UPLOAD_PHASE " + phase + $"\nLOG_UPLOAD_EXPECTED logBytes={values.LogBytes} uploadBytes={values.UploadBytes}\n" +
             "LOG_UPLOAD_POLICY append=managed-reopen io=synchronous buffering=0 flushRequested=" + (phase == "write" ? "true" : "false") + "\n" +
-            $"LOG_UPLOAD_FILES logBytes={values.LogBytes} logSha256={values.LogSha256} uploadBytes={values.UploadBytes} uploadSha256={values.UploadSha256}\nTEST_PASS m10.027\n";
+            $"LOG_UPLOAD_VERIFIED logBytes={values.LogBytes} uploadBytes={values.UploadBytes}\nTEST_PASS m10.027\n";
         foreach (string phase in new[] { "write", "verify" })
         {
             string stdout = Write(phase); var transcript = F.InspectTranscriptValues(stdout, phase);
-            HostCheck.True(transcript.Phase == phase && transcript.Files == values && !transcript.GrantsOriginalProcessOrFlushAuthority);
+            HostCheck.True(transcript.Phase == phase && transcript.ExpectedFiles == values && !transcript.GrantsOriginalProcessOrFlushAuthority);
             HostCheck.Equal(transcript, F.InspectTranscriptValues(stdout.Replace("\n", "\r\n", StringComparison.Ordinal), phase));
             foreach (string bad in new[] { stdout + "unexpected\n", stdout[..^1], stdout.Replace("TEST_PASS", "TEST_FAIL", StringComparison.Ordinal),
-                stdout.Replace(values.LogSha256, new string('0', 64), StringComparison.Ordinal), stdout.Replace("buffering=0", "buffering=4096", StringComparison.Ordinal),
-                stdout.Replace("logBytes=", "logBytes=0", StringComparison.Ordinal), stdout.Replace("LOG_UPLOAD_PHASE " + phase, "LOG_UPLOAD_PHASE foreign", StringComparison.Ordinal) })
+                stdout.Replace("LOG_UPLOAD_VERIFIED", "LOG_UPLOAD_FILES", StringComparison.Ordinal), stdout.Replace("buffering=0", "buffering=4096", StringComparison.Ordinal),
+                stdout.Replace("logBytes=", "logBytes=0", StringComparison.Ordinal), stdout.Replace("LOG_UPLOAD_PHASE " + phase, "LOG_UPLOAD_PHASE foreign", StringComparison.Ordinal),
+                stdout.Replace("LOG_UPLOAD_VERIFIED ", "LOG_UPLOAD_VERIFIED logSha256=" + values.LogSha256 + " ", StringComparison.Ordinal),
+                stdout.Replace("LOG_UPLOAD_EXPECTED", "LOG_UPLOAD_VERIFIED", StringComparison.Ordinal),
+                stdout.Replace("LOG_UPLOAD_VERIFIED", "LOG_UPLOAD_EXPECTED", StringComparison.Ordinal),
+                stdout.Replace($"LOG_UPLOAD_VERIFIED logBytes={values.LogBytes} uploadBytes={values.UploadBytes}\n", "", StringComparison.Ordinal),
+                stdout.Replace($"LOG_UPLOAD_EXPECTED logBytes={values.LogBytes} uploadBytes={values.UploadBytes}\n", "", StringComparison.Ordinal) })
                 Reject(() => F.InspectTranscriptValues(bad, phase), "transcript");
+            string legacy = "TEST_START m10.027\nLOG_UPLOAD_PHASE " + phase + "\n" +
+                "LOG_UPLOAD_POLICY append=managed-reopen io=synchronous buffering=0 flushRequested=" + (phase == "write" ? "true" : "false") + "\n" +
+                $"LOG_UPLOAD_FILES logBytes={values.LogBytes} logSha256={values.LogSha256} uploadBytes={values.UploadBytes} uploadSha256={values.UploadSha256}\nTEST_PASS m10.027\n";
+            Reject(() => F.InspectTranscriptValues(legacy, phase), "transcript");
         }
         Reject(() => F.InspectTranscriptValues(new string('x', F.MaximumTranscriptBytes + 1), "write"), "transcript");
         Reject(() => F.InspectTranscriptValues(Write("write"), "unknown"), "phase");
@@ -59,9 +68,12 @@ internal static class NativeAotLogUploadContractTests
             plan.Contains("-p:StaticExecutable=true") && plan.Contains("-p:PositionIndependentExecutable=false") &&
             plan.Contains("-p:RuntimeFrameworkVersion=" + NativeAotPayload.RuntimeVersion));
         string project = File.ReadAllText(Path.Combine(root, "apps", F.Application, F.Application + ".csproj"));
+        string program = File.ReadAllText(Path.Combine(root, "apps", F.Application, "Program.cs"));
         HostCheck.True(project.Contains("<LangVersion>14.0</LangVersion>", StringComparison.Ordinal) &&
             project.Contains("<TargetFramework>net11.0</TargetFramework>", StringComparison.Ordinal) &&
-            !project.Contains("PackageReference", StringComparison.Ordinal) && !project.Contains("Sqlite", StringComparison.OrdinalIgnoreCase));
+            !project.Contains("PackageReference", StringComparison.Ordinal) && !project.Contains("Sqlite", StringComparison.OrdinalIgnoreCase) &&
+            !program.Contains("Security.Cryptography", StringComparison.Ordinal) && !program.Contains("HashData", StringComparison.Ordinal) &&
+            !program.Contains("LOG_UPLOAD_FILES", StringComparison.Ordinal));
         bool rejected = false;
         try { F.PublishArguments(recipe.Replace("-p:StaticExecutable=true", "-p:StaticExecutable=false", StringComparison.Ordinal), destination); }
         catch (ToolFailure) { rejected = true; }
@@ -156,9 +168,13 @@ internal static class NativeAotLogUploadContractTests
         string root = HostToolProcess.FindRepositoryRoot(), parent = Path.Combine(root, "artifacts/log-upload-managed-tests"); Directory.CreateDirectory(parent);
         string output = Path.Combine(parent, Guid.NewGuid().ToString("N"));
         var value = await F.RunManagedReferenceAsync(root, output);
-        HostCheck.True(!value.GrantsLinuxNativeAotGuestOrPersistenceAuthority && value.Write.Phase == "write" && value.Verify.Phase == "verify" && value.Write.Files == value.Verify.Files);
+        HostCheck.True(!value.GrantsLinuxNativeAotGuestOrPersistenceAuthority && value.Write.Phase == "write" && value.Verify.Phase == "verify" && value.Write.ExpectedFiles == value.Verify.ExpectedFiles);
         byte[] log = File.ReadAllBytes(Path.Combine(output, "data", F.LogName)), upload = File.ReadAllBytes(Path.Combine(output, "data", F.UploadName));
-        HostCheck.Equal(value.Write.Files, F.InspectFileValues(log, upload));
+        HostCheck.Equal(value.Write.ExpectedFiles, F.InspectFileValues(log, upload));
+        using (var receipt = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(output, "receipt.json"))))
+            HostCheck.True(receipt.RootElement.GetProperty("Schema").GetString() == "CLROS_LOG_UPLOAD_MANAGED_REFERENCE_V2" &&
+                receipt.RootElement.GetProperty("Write").TryGetProperty("ExpectedFiles", out _) &&
+                !receipt.RootElement.GetProperty("Write").TryGetProperty("Files", out _));
         HostCheck.True(value.Artifacts.All(File.Exists) && File.Exists(Path.Combine(output, "nonempty.stdout.log")));
         HostCheck.True(File.Exists(Path.Combine(output, "relative-root.process.json")) &&
             File.Exists(Path.Combine(output, "missing-upload.process.json")) && File.Exists(Path.Combine(output, "corrupt-upload.process.json")));

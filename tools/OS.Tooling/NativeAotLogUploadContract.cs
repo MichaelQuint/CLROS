@@ -16,11 +16,14 @@ public static class NativeAotLogUploadContract
     public const int MaximumTranscriptBytes = 8192, UploadBytes = 5126;
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "log-upload", [
         ("NativeAotLogUploadContract.csproj", "5CB57DC7E6323F04E7CAE3DADF64FB827BE3CCEE8EB81C97A450C6678CBD5F17"),
-        ("Program.cs", "9B11DFDEED8B8251C0935D31A34514BFA1B03B22626BA2203ED4724D9A852149")]);
+        ("Program.cs", "701446082EC9C6DB152123BD9CC3B7F918827FFAED5DD915823DA5E82E3DBAA3")]);
 
     public readonly record struct FileValues(int LogBytes, string LogSha256, int UploadBytes, string UploadSha256)
     { public bool GrantsPersistenceOrGuestAuthority => false; }
-    public sealed record Transcript(string Phase, FileValues Files)
+    /// <summary>Expected bytes/digests computed by this host inspector, not
+    /// cryptographic reports from the native app. Actual files are inspected
+    /// independently by each original reference owner.</summary>
+    public sealed record Transcript(string Phase, FileValues ExpectedFiles)
     { public bool GrantsOriginalProcessOrFlushAuthority => false; }
     public sealed class ManagedReference
     {
@@ -167,7 +170,8 @@ public static class NativeAotLogUploadContract
     }
 
     /// <summary>Parse only bounded complete copied stdout. Require exact phase,
-    /// requested policy and independently expected byte identities. Normal CRLF
+    /// requested policy, pre-work expected counts and post-readback verified
+    /// counts. App-side digest fields from the old candidate reject. Normal CRLF
     /// is accepted; extra/partial lines, controls or pass-only summaries reject.</summary>
     public static Transcript InspectTranscriptValues(string text, string phase)
     {
@@ -175,10 +179,10 @@ public static class NativeAotLogUploadContract
         Need(text.Length <= MaximumTranscriptBytes && Encoding.UTF8.GetByteCount(text) <= MaximumTranscriptBytes, "transcript");
         string normalized = text.Replace("\r\n", "\n", StringComparison.Ordinal);
         var files = InspectFileValues(ExpectedLog(), ExpectedUpload());
-        string expected = "TEST_START m10.027\nLOG_UPLOAD_PHASE " + phase + "\n" +
+        string counts = "logBytes=" + files.LogBytes.ToString(CultureInfo.InvariantCulture) + " uploadBytes=" + files.UploadBytes.ToString(CultureInfo.InvariantCulture);
+        string expected = "TEST_START m10.027\nLOG_UPLOAD_PHASE " + phase + "\nLOG_UPLOAD_EXPECTED " + counts + "\n" +
             "LOG_UPLOAD_POLICY append=managed-reopen io=synchronous buffering=0 flushRequested=" + (phase == "write" ? "true" : "false") + "\n" +
-            "LOG_UPLOAD_FILES logBytes=" + files.LogBytes.ToString(CultureInfo.InvariantCulture) + " logSha256=" + files.LogSha256 +
-            " uploadBytes=" + files.UploadBytes.ToString(CultureInfo.InvariantCulture) + " uploadSha256=" + files.UploadSha256 + "\nTEST_PASS m10.027\n";
+            "LOG_UPLOAD_VERIFIED " + counts + "\nTEST_PASS m10.027\n";
         Need(normalized == expected, "transcript"); return new(phase, files);
     }
 
@@ -265,11 +269,11 @@ public static class NativeAotLogUploadContract
             await File.WriteAllBytesAsync(log, [], cancellation); await File.WriteAllBytesAsync(upload, [], cancellation);
             var wrote = await Run("write", [executable, "--write", "--root", data]); Need(wrote.StandardError.Length == 0, "write_stderr");
             write = InspectTranscriptValues(wrote.StandardOutput, "write");
-            fileValues = ReadOutputs(data); Need(fileValues.Value == write.Files, "write_files");
+            fileValues = ReadOutputs(data); Need(fileValues.Value == write.ExpectedFiles, "write_files");
             // No held data handle manufactures a write failure for this control.
             var nonempty = await Run("nonempty", [executable, "--write", "--root", data], success: false);
             Need(nonempty.StandardError.Length == 0 && nonempty.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal) ==
-                "TEST_START m10.027\nLOG_UPLOAD_PHASE write\nTEST_FAIL m10.027 InvalidOperationException\n", "nonempty_transcript");
+                FailureTranscript("write", "InvalidOperationException"), "nonempty_transcript");
             Need(ReadOutputs(data) == fileValues.Value, "nonempty_modified");
             foreach (bool nonemptyLog in new[] { true, false })
             {
@@ -279,7 +283,7 @@ public static class NativeAotLogUploadContract
                 await File.WriteAllBytesAsync(Path.Combine(negative, UploadName), second, cancellation);
                 var rejected = await Run(name, [executable, "--write", "--root", negative], success: false);
                 Need(rejected.StandardError.Length == 0 && rejected.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal) ==
-                    "TEST_START m10.027\nLOG_UPLOAD_PHASE write\nTEST_FAIL m10.027 InvalidOperationException\n", "nonempty_transcript");
+                    FailureTranscript("write", "InvalidOperationException"), "nonempty_transcript");
                 using AuthorityFiles negativeFiles = new();
                 var firstHeld = negativeFiles.Open(root, Path.Combine(negative, LogName), "nonempty control log", "log_upload_negative", 4096, allowEmpty: true, singleLink: true);
                 var secondHeld = negativeFiles.Open(root, Path.Combine(negative, UploadName), "nonempty control upload", "log_upload_negative", UploadBytes, allowEmpty: true, singleLink: true);
@@ -295,7 +299,7 @@ public static class NativeAotLogUploadContract
             await File.WriteAllBytesAsync(Path.Combine(missing, LogName), [], cancellation);
             var absent = await Run("missing-upload", [executable, "--write", "--root", missing], success: false);
             Need(absent.StandardError.Length == 0 && absent.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal) ==
-                "TEST_START m10.027\nLOG_UPLOAD_PHASE write\nTEST_FAIL m10.027 FileNotFoundException\n" &&
+                FailureTranscript("write", "FileNotFoundException") &&
                 new FileInfo(Path.Combine(missing, LogName)).Length == 0 && !Path.Exists(Path.Combine(missing, UploadName)), "missing_input_control");
             string corrupt = Path.Combine(destination, "corrupt-upload"); Directory.CreateDirectory(corrupt);
             byte[] corrupted = ExpectedUpload(); corrupted[4094] ^= 1;
@@ -303,7 +307,7 @@ public static class NativeAotLogUploadContract
             await File.WriteAllBytesAsync(Path.Combine(corrupt, UploadName), corrupted, cancellation);
             var corruptResult = await Run("corrupt-upload", [executable, "--verify", "--root", corrupt], success: false);
             Need(corruptResult.StandardError.Length == 0 && corruptResult.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal) ==
-                "TEST_START m10.027\nLOG_UPLOAD_PHASE verify\nTEST_FAIL m10.027 InvalidOperationException\n", "corrupt_input_control");
+                FailureTranscript("verify", "InvalidOperationException"), "corrupt_input_control");
             using (AuthorityFiles corruptedFiles = new())
             {
                 var copied = corruptedFiles.Open(root, Path.Combine(corrupt, UploadName), "corrupt verifier input", "log_upload_corrupt", UploadBytes, singleLink: true);
@@ -313,7 +317,7 @@ public static class NativeAotLogUploadContract
             var uploadHeld = held.Open(root, upload, "original managed upload", "log_upload_upload", UploadBytes, singleLink: true);
             AuthorityFiles.RequireDistinct(logHeld, uploadHeld);
             var verified = await Run("verify", [executable, "--verify", "--root", data]); Need(verified.StandardError.Length == 0, "verify_stderr");
-            verify = InspectTranscriptValues(verified.StandardOutput, "verify"); Need(write.Files == verify.Files, "verify_files");
+            verify = InspectTranscriptValues(verified.StandardOutput, "verify"); Need(write.ExpectedFiles == verify.ExpectedFiles, "verify_files");
             Need(Directory.GetFiles(data).Select(Path.GetFileName).Order(StringComparer.Ordinal).SequenceEqual(new[] { LogName, UploadName }.Order(StringComparer.Ordinal)), "data_inventory");
             inputs.Add(logHeld); inputs.Add(uploadHeld); artifacts.Add(log); artifacts.Add(upload);
             await Save("inputs.json", JsonSerializer.Serialize(inputs.ToDictionary(file => Path.GetRelativePath(root, file.Path).Replace('\\', '/'), file => file.Sha256)));
@@ -329,7 +333,7 @@ public static class NativeAotLogUploadContract
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands), CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(new
-            { Schema = "CLROS_LOG_UPLOAD_MANAGED_REFERENCE_V1", Succeeded = succeeded, Failure = failure, Write = write, Verify = verify, Files = fileValues,
+            { Schema = "CLROS_LOG_UPLOAD_MANAGED_REFERENCE_V2", Succeeded = succeeded, Failure = failure, Write = write, Verify = verify, Files = fileValues,
                 LinuxNativeAotQualified = false, GuestQualified = false, HttpQualified = false, FlushObserved = false, PersistenceQualified = false }), CancellationToken.None);
         }
         artifacts.Add(Path.Combine(destination, "commands.json")); artifacts.Add(Path.Combine(destination, "receipt.json"));
@@ -378,7 +382,7 @@ public static class NativeAotLogUploadContract
             Directory.CreateDirectory(destination); AuthorityFiles.RequirePlainPath(root, destination, "log_upload_linux_output");
             using var ownership = new FileStream(Path.Combine(destination, "ownership.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
             bool succeeded = false; string failure = ""; List<object> commands = []; Dictionary<string, string> native = new(StringComparer.Ordinal);
-            NativeAotPayload.Inspection? image = null; Transcript? write = null, verify = null; TraceValues? writeTrace = null, verifyTrace = null;
+            NativeAotPayload.Inspection? image = null; Transcript? write = null, verify = null; TraceValues? writeTrace = null, verifyTrace = null; FileValues? actualFiles = null;
             async Task Save(string name, string contents)
             {
                 string path = Path.Combine(destination, name); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -527,14 +531,15 @@ public static class NativeAotLogUploadContract
                 var originalLog = held.Open(root, log, "original native log", "log_upload_linux_log", 4096, singleLink: true);
                 var originalUpload = held.Open(root, upload, "original native upload", "log_upload_linux_upload", UploadBytes, singleLink: true);
                 AuthorityFiles.RequireDistinct(originalLog, originalUpload, elf);
+                actualFiles = InspectFileValues(originalLog.ReadBytes(4096, "log_upload_linux_log"), originalUpload.ReadBytes(UploadBytes, "log_upload_linux_upload"));
                 Need(originalLog.InitialIdentity.Key == logIdentity && originalUpload.InitialIdentity.Key == uploadIdentity &&
-                    write.Files == InspectFileValues(originalLog.ReadBytes(4096, "log_upload_linux_log"), originalUpload.ReadBytes(UploadBytes, "log_upload_linux_upload")), "write_files");
+                    write.ExpectedFiles == actualFiles.Value, "write_files");
                 CheckInputs(); await RunTrace("verify", executable, data);
                 verify = InspectTranscriptValues(held.Open(root, Path.Combine(destination, "verify.stdout.log"), "original independent native verify stdout", "log_upload_linux_stdout", MaximumTranscriptBytes, singleLink: true)
                     .ReadUtf8(MaximumTranscriptBytes, "log_upload_linux_stdout"), "verify");
                 Need(held.Open(root, Path.Combine(destination, "verify.stderr.log"), "original verify stderr", "log_upload_linux_stderr", 0, allowEmpty: true, singleLink: true).Length == 0, "verify_stderr");
                 verifyTrace = ReadTrace("verify"); await Save("verify-trace-values.json", JsonSerializer.Serialize(verifyTrace));
-                Need(write.Files == verify.Files && verify.Files == InspectFileValues(originalLog.ReadBytes(4096, "log_upload_linux_log"), originalUpload.ReadBytes(UploadBytes, "log_upload_linux_upload")) &&
+                Need(write.ExpectedFiles == verify.ExpectedFiles && verify.ExpectedFiles == InspectFileValues(originalLog.ReadBytes(4096, "log_upload_linux_log"), originalUpload.ReadBytes(UploadBytes, "log_upload_linux_upload")) &&
                     Directory.GetFiles(data).Select(Path.GetFileName).Order(StringComparer.Ordinal).SequenceEqual(new[] { LogName, UploadName }.Order(StringComparer.Ordinal)), "verify_files");
                 CheckInputs(); succeeded = true;
             }
@@ -549,8 +554,8 @@ public static class NativeAotLogUploadContract
                 await Save("native-inputs.json", JsonSerializer.Serialize(native));
                 var outputs = Directory.GetFiles(destination, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) is not ("ownership.lock" or "publication.lock"))
                     .Order(StringComparer.Ordinal).ToDictionary(path => Path.GetRelativePath(destination, path).Replace('\\', '/'), NativeAotWebPayload.HashFile, StringComparer.Ordinal);
-                await Save("receipt.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_LINUX_REFERENCE_V1", Succeeded = succeeded, Failure = failure,
-                    Image = image, Write = write, Verify = verify, WriteUnjoinedRows = writeTrace?.UnjoinedRows, VerifyUnjoinedRows = verifyTrace?.UnjoinedRows,
+                await Save("receipt.json", JsonSerializer.Serialize(new { Schema = "CLROS_LOG_UPLOAD_LINUX_REFERENCE_V2", Succeeded = succeeded, Failure = failure,
+                    Image = image, Write = write, Verify = verify, Files = actualFiles, WriteUnjoinedRows = writeTrace?.UnjoinedRows, VerifyUnjoinedRows = verifyTrace?.UnjoinedRows,
                     WriteUnreturnedRows = writeTrace?.UnreturnedRows, VerifyUnreturnedRows = verifyTrace?.UnreturnedRows,
                     CompleteTraceProjection = writeTrace?.CompleteTraceProjection == true && verifyTrace?.CompleteTraceProjection == true,
                     Sources = before, Native = native, Outputs = outputs, GuestQualified = false, HttpQualified = false, SyscallClosureQualified = false,
@@ -566,6 +571,9 @@ public static class NativeAotLogUploadContract
         finally { if (!transferred) held.Dispose(); }
     }
 
+    private static string FailureTranscript(string phase, string failure) => "TEST_START m10.027\nLOG_UPLOAD_PHASE " + phase +
+        "\nLOG_UPLOAD_EXPECTED logBytes=" + ExpectedLog().Length.ToString(CultureInfo.InvariantCulture) + " uploadBytes=" + UploadBytes.ToString(CultureInfo.InvariantCulture) +
+        "\nTEST_FAIL m10.027 " + failure + "\n";
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static void Need(bool condition, string reason) { if (!condition) throw new ToolFailure("log_upload_" + reason); }
 }

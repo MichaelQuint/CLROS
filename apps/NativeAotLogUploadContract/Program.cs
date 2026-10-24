@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Security.Cryptography;
 using System.Text;
 
 // Ordinary BCL file workload. Scalar-write/metadata/advisory-lock requirements
@@ -21,12 +20,14 @@ internal static class Program
             Require(Path.IsPathFullyQualified(supplied), "absolute_root_required");
             string root = Path.GetFullPath(supplied), log = Path.Combine(root, LogName), upload = Path.Combine(root, UploadName);
             Console.WriteLine("LOG_UPLOAD_PHASE " + phase);
-            if (phase == "write") Write(log, upload);
             byte[] logBytes = LogBytes(), uploadBytes = UploadPayload();
+            Console.WriteLine("LOG_UPLOAD_EXPECTED logBytes=" + logBytes.Length.ToString(CultureInfo.InvariantCulture) +
+                " uploadBytes=" + uploadBytes.Length.ToString(CultureInfo.InvariantCulture));
+            if (phase == "write") Write(log, upload);
             Verify(log, logBytes); Verify(upload, uploadBytes);
             Console.WriteLine("LOG_UPLOAD_POLICY append=managed-reopen io=synchronous buffering=0 flushRequested=" + (phase == "write" ? "true" : "false"));
-            Console.WriteLine("LOG_UPLOAD_FILES logBytes=" + logBytes.Length.ToString(CultureInfo.InvariantCulture) + " logSha256=" + Hash(logBytes) +
-                " uploadBytes=" + uploadBytes.Length.ToString(CultureInfo.InvariantCulture) + " uploadSha256=" + Hash(uploadBytes));
+            Console.WriteLine("LOG_UPLOAD_VERIFIED logBytes=" + logBytes.Length.ToString(CultureInfo.InvariantCulture) +
+                " uploadBytes=" + uploadBytes.Length.ToString(CultureInfo.InvariantCulture));
             Console.WriteLine("TEST_PASS m10.027"); return 0;
         }
         catch (Exception error)
@@ -81,6 +82,5 @@ internal static class Program
     {
         byte[] bytes = new byte[UploadBytes]; for (int i = 0; i < bytes.Length; i++) bytes[i] = unchecked((byte)((i * 73 + 19) ^ (i >> 3) ^ (i >> 9))); return bytes;
     }
-    private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static void Require(bool condition, string reason) { if (!condition) throw new InvalidOperationException(reason); }
 }
