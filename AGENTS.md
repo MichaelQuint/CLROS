@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1588](done/step1588.md) records isolated writable-thread-waits host integration and the seven root source5 path claims, verified before edits. Keep read qualification on its frozen producer checkout and serialize native work. The combined writable foundation passes192 distinct host controls; source5/global integration and native/guest durability are still unfinished. Exactly two implementation agents remain active.
+
 [Step1587](done/step1587.md) preserves original ExitPending r01 at91cd04cd as FAILED. Do not weaken its strict pending owner or infer active hardware DMA from a software-pending request. Validated exit_group now dispatches genuine shutdown before opportunistic device polling; the new failure-only reasons and ordering need a fresh original. Full DiskA r03 remains owned at91cd04cd: keep that checkout frozen until its runner joins. M16-027 adds four explicitly claimed descriptor partial/test paths; root retains gateway/source5/threads/boot/native/docs/tracker.
 
 [Step1586](done/step1586.md) connects the exact ExitPending original consumer; other race variants remain refused. Fresh original qualification is pending. Full DiskA r02 at a692a4f4 reaches35 HTTP responses beyond600s, then fails without cleanup. Its serial size16MiB+2740 matches an active runner cap missed by full policy. Full-only live/final serial now shares128MiB; actual full callback already has3060s and is unchanged. Keep both failed full originals; no read/Blazor closure. Two agents continue retained writable admission/observation work.

@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1588](../done/step1588.md) claims seven root source5 integration paths on M16-027. The compiled tool resolves its own repository root; cross-checkout reconciliation therefore used an explicit absolute --manifestpath, then preview1/apply1/readback9 unchanged before source edits. Initial implicit-path zero-action previews inspected the earlier read checkout and did not claim the new scope. Preserve both receipts; no issue closes.
+
 [Step1587](../done/step1587.md) extends M16-027 ownership by the global descriptor core/Pipes/new WritableDisk partial/new test paths. Fresh scoped preview1/apply1/readback9unchanged verifies zero drift before agent source edits. Gateway, source5 threads and native integration stay root-owned. Preserve the failed original ExitPending and pending full r03 boundaries; no issue closes from this ownership preparation.
 
 [Step1586](../done/step1586.md) reconciles M16-025 complete ExitPending-consumer preparation and M10-018 original r02 failure/capture repair, plus isolated M06-021/M16-027 admission/observer scopes. Refresh content versions, preview/apply/readback and preserve all original failures. No issue closes from copied inspection, connected launch or host-only writable preparation.

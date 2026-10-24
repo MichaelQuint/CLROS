@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1588](../done/step1588.md) retains exact isolated writable integration build/test logs: the first graph fails for an omitted Fat32Mutation dependency, then the complete graph and192 distinct controls pass. Duplicate selection of68 continuing controls is excluded from the distinct total. These normal-harness markers do not qualify native writable execution.
+
 [Step1587](../done/step1587.md) adds failure-only M16_025_EXIT_REJECT reasons:1 native owner/admission,2 parent wait,3 pending device/token,4 request/filesystem join,5 binding/sentinel. Embedded retained scalars are logged only after the boot-owner check; rejected request pointers are never dereferenced for diagnostics. No successful stage is fabricated. Original r01 has no such reason record and remains failed; its precise first rejected subcondition was not captured.
 
 [Step1586](../done/step1586.md) rejects impossible IRQ TIMING as well as TICK rows in the idle-only ExitPending path. Original consumption retains all indexed stage/IO records and no fabricated completion. Full-only runner serial capacity now shares128MiB with the final consumer; ordinary16MiB/service64MiB stay unchanged. HTTP failures save bounded stage/ordinal/error-chain/cancellation snapshots before owner cancellation and joined-runner diagnostics afterward. r02 lacks those receipts and remains failed.

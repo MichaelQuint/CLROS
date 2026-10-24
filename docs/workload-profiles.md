@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1588](../done/step1588.md) assembles the writable host foundation in an isolated branch while the original read milestone continues.192 distinct controls pass; the agent global descriptor/bootstrap slices and root source5/native integration remain unfinished. Keep #775/#791 -> #798 -> #799 -> #800 -> #792 dependencies and all accepted profile boundaries unchanged.
+
 [Step1587](../done/step1587.md) preserves failed original ExitPending r01 at91cd04cd and records its unqualified syscall-entry ordering repair. Full DiskA r03 is separately pending at that committed source. Continue the same first-ten dependency graph; isolated writable descriptor preparation may proceed in its freshly claimed four-path scope, while gateway/source5/native ownership remains with root. No accepted profile or completion gate is broadened.
 
 [Step1586](../done/step1586.md) connects the exact finite ExitPending original consumer; other variants stay refused and fresh qualification remains required. Full DiskA r02 passes the old600s UTC boundary but fails after35 HTTP responses without browser/cleanup, matching a separately active16MiB live-serial cap. Full-only live/final capture now shares128MiB. Two agents continue bounded writable admission/observation repairs; their host checkpoints do not bypass read-batch dependencies or native ownership.

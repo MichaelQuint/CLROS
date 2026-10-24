@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1588](../done/step1588.md) imports writable host sources into a separate integration branch without adding EFI links or a writable probe. Host build/192 focused controls establish no native ABI, stack fit or guest authority. Native publication remains serialized behind the current original read qualification.
+
 [Step1587](../done/step1587.md) changes the reviewed native syscall-entry order: validated exit_group enters genuine shutdown before opportunistic polling. Other calls retain their pump. Exact source pins and focused admission checks accompany failure-only pending-exit diagnostics; native ABI/stack and a fresh original are still required. Full r03 continues independently at91cd04cd and must not inherit edits during its owned run.
 
 [Step1586](../done/step1586.md) retains original full r02 EFI at a692a4f4: no imports,2042 runtime records/1615 distinct unwind entries, SHA D1ABCA9F47F3CA4C5231FB6E8DD244A18927DD7A7BC10C40AE5A91B9D2E22FBB. Native/image preparation passes; the HTTP run later fails. The2048-record bound is unchanged. The new original ExitPending consumer still requires fresh selected native/source/ABI/stack and guest joins; host fixtures supply no native acceptance.

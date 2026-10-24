@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1588](../done/step1588.md) adds one isolated writable integration checkout using the same pinned .NET11/C#14 tools. Its corrected complete graph passes with0 warnings/errors and192 distinct host controls. Host compilation does not select these new files into EFI or establish native fit, synchronization durability or SQLite acceptance.
+
 [Step1587](../done/step1587.md) preserves failed original ExitPending r01 and exact artifact hashes. Its root source repair has only focused host/admission support until fresh native/guest qualification. Full DiskA r03 runs independently at91cd04cd; toolchain pins and the finite full128MiB serial/3060s callback policies remain unchanged.
 
 [Step1586](../done/step1586.md) gives full disk capture one finite128MiB bound shared by live runner ingestion and final reads; ordinary16MiB and continuing-service64MiB remain. The actual original full callback deadline was already3060s and is unchanged. The frozen5dd6e6c0 full6516-check result retains its exact scope; current focused controls and failed a692a4f4 full r02 cannot promote it into a successful browser/demo result.

@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1588](../done/step1588.md) records only isolated writable host integration; no new QEMU profile or writable native link is added. Native publication and original guest owners remain serialized. First-batch read qualification retains its exact independent source/producer provenance.
+
 [Step1587](../done/step1587.md) preserves original ExitPending r01 as failed, including immutable artifact identities. Its exit-observation ordering repair needs a new source-matched original. Full DiskA r03 is separately running from committed91cd04cd with the repaired128MiB live/final serial policy; preserve its original result and freeze its producer checkout until joining. Neither launch nor copied inspection qualifies a guest.
 
 [Step1586](../done/step1586.md) retains full DiskA r02 at a692a4f4 as failed after35 HTTP responses. Serial16779956B exceeds the still-active16MiB live cap by2740; no cleanup terminal or browser follows. Source identifies immediate runner termination on capacity failure, while the lost runner result prevents exact original attribution. Full-only capacity is now128MiB with bounded failure and joined-runner receipts. The connected exact ExitPending original wrapper is pending a fresh run; use fresh paths and preserve all failures.
