@@ -14,7 +14,11 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
     private const ulong Key = LinuxThreadServicesTests.Key, User = LinuxThreadServicesTests.UserBase;
     private const ulong Path = User + 0x1200, Vector = User + 0x1400, Flock = User + 0x1500, Output = User + 0x2000, Payload = User + 0x3000;
     private delegate bool RetainTree(F.State* state, ulong address, ulong bytes);
-    private static readonly RetainTree Tree = typeof(F).GetMethod("WritableDiskCanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainTree>();
+    private delegate bool RetainTreeWithUserBacking(F.State* state, ulong address, ulong bytes, bool includeUserBacking);
+    private static readonly RetainTree Tree = RetainMethod(typeof(F.State).MakePointerType(), typeof(ulong), typeof(ulong)).CreateDelegate<RetainTree>();
+    private static readonly RetainTreeWithUserBacking TreeWithUserBacking = RetainMethod(typeof(F.State).MakePointerType(), typeof(ulong), typeof(ulong), typeof(bool)).CreateDelegate<RetainTreeWithUserBacking>();
+    private static MethodInfo RetainMethod(params Type[] arguments) => typeof(F).GetMethod("WritableDiskCanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic,
+        binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
     [HostTest("writable canonical mechanical descriptor calls execute their exact copied wire values and checked read bytes over the actual shared media")]
@@ -350,6 +354,39 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         HostCheck.Equal(-5L, f.Run(f.Call(72, fd, 5, Flock))); HostCheck.Equal(writes, f.Thread.Writes);
         HostCheck.Equal(-5L, f.Run(f.Call(72, fd, 6, Flock))); HostCheck.True(!f.HasLocks());
         HostCheck.Equal(-5L, f.Run(f.Call(8, fd, 0, 0)));
+    }
+
+    [HostTest("writable retained tree deliberate futex pool alias preserves default exclusions and rejects crossing pool or supervisor backing")]
+    private static void RetainedUserPool()
+    {
+        using var f = new Owner(observe: true); var memory = f.Files.Memory.Memory;
+        ulong pool = (ulong)memory.Pool, bytes = memory.PoolPages * 4096UL; HostCheck.True(bytes >= 4096);
+        foreach (var range in new (ulong Start, ulong Bytes)[] { (pool, 4), (pool + 128, 4), (pool + bytes - 4, 4), (pool, bytes) })
+        {
+            HostCheck.True(!Tree(f.Files.State, range.Start, range.Bytes) && !TreeWithUserBacking(f.Files.State, range.Start, range.Bytes, true));
+            HostCheck.True(TreeWithUserBacking(f.Files.State, range.Start, range.Bytes, false));
+        }
+        foreach (var range in new (ulong Start, ulong Bytes)[] { (pool - 1, 2), (pool + bytes - 1, 2), (pool - 8, bytes + 16) })
+            HostCheck.True(!TreeWithUserBacking(f.Files.State, range.Start, range.Bytes, false));
+        var a = f.Storage.Input; var b = f.Storage.Device.Input;
+        foreach (var range in new (ulong Start, ulong Bytes)[] {
+            ((ulong)f.Files.State, (ulong)sizeof(F.State)), ((ulong)f.Files.Admission.Scratch, f.Files.Admission.ScratchBytes),
+            ((ulong)f.Files.Admission.Slots, f.Files.Admission.DescriptorCount * (ulong)sizeof(F.Slot)), ((ulong)memory.Tables, memory.TablePages * 4096UL),
+            ((ulong)memory.CandidateTables, memory.TablePages * 4096UL), ((ulong)f.Disk, (ulong)sizeof(F.WritableDiskState)),
+            ((ulong)f.Bindings, f.Files.Admission.DescriptionCount * (ulong)sizeof(F.WritableDiskBinding)),
+            ((ulong)f.Provider, (ulong)sizeof(W.State)), ((ulong)f.ProviderInput, W.IoBytes),
+            ((ulong)f.Storage.State, (ulong)sizeof(C.State)), ((ulong)a.Before, C.JournalChanges * 512UL),
+            ((ulong)f.Storage.Device.State, (ulong)sizeof(B.State)), ((ulong)f.Storage.Device.Data, 4096),
+            ((ulong)f.Storage.Device.Observation, (ulong)sizeof(B.Observation)), (b.Common.VirtualStart, b.Common.Bytes) })
+        {
+            HostCheck.True(!TreeWithUserBacking(f.Files.State, range.Start, range.Bytes, false) &&
+                !TreeWithUserBacking(f.Files.State, range.Start - 1, 2, false) &&
+                !TreeWithUserBacking(f.Files.State, range.Start + range.Bytes - 1, 2, false));
+        }
+        byte outside = 19; uint calls = f.Hardware->Calls;
+        HostCheck.True(TreeWithUserBacking(f.Files.State, (ulong)&outside, 1, false) &&
+            !TreeWithUserBacking(f.Files.State, ulong.MaxValue - 1, 8, false));
+        HostCheck.True(f.Hardware->Calls == calls && outside == 19);
     }
 
     [HostTest("writable global attachment validates original epoch primary and disjoint metadata before changing any caller storage")]

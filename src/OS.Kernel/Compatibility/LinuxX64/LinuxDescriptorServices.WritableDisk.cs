@@ -311,11 +311,18 @@ public static unsafe partial class LinuxDescriptorServices
     // Structural full-tree query for outer thread/futex/signal/native-worker
     // buffers. No callback/I/O/user-copy or new-admission authority. A null
     // attachment is neutral; dirty/fault/orphan backing remains excluded.
-    internal static bool WritableDiskCanRetainStorage(State* state, ulong address, ulong bytes)
+    internal static bool WritableDiskCanRetainStorage(State* state, ulong address, ulong bytes) =>
+        WritableDiskCanRetainStorage(state, address, bytes, includeUserBacking: true);
+
+    // Only the existing futex resolved-user-alias query deliberately excludes
+    // application backing. A range intersecting that pool must be wholly
+    // contained; no supervisor/provider/engine/device exclusion is relaxed.
+    // The default wrapper above preserves existing query/delegate semantics.
+    internal static bool WritableDiskCanRetainStorage(State* state, ulong address, ulong bytes, bool includeUserBacking)
     {
         if (!WritableExtent(state, (ulong)sizeof(State)) || !WritableExtent((void*)address, bytes, 1)) return false;
         if (state->WritableDisk == null) return true;
-        if (!AuditWritableDisk(state) || !WritableBaseOutside(state, address, bytes)) return false;
+        if (!AuditWritableDisk(state) || !WritableBaseOutside(state, address, bytes, includeUserBacking)) return false;
         WritableDiskState* d = state->WritableDisk;
         return !Overlap(address, bytes, (ulong)d, (ulong)sizeof(WritableDiskState)) &&
             !Overlap(address, bytes, (ulong)d->Bindings, d->BindingCount * (ulong)sizeof(WritableDiskBinding)) &&
@@ -565,10 +572,14 @@ public static unsafe partial class LinuxDescriptorServices
         else if (index < WritableBaseExtentCount(s))
         { View view = a.Views[(index - 13) / 2]; bool path = ((index - 13) & 1) == 0; start = (ulong)(path ? view.Path : view.Data); bytes = path ? view.PathBytes : view.Bytes; }
     }
-    private static bool WritableBaseOutside(State* s, ulong address, ulong bytes)
+    private static bool WritableBaseOutside(State* s, ulong address, ulong bytes, bool includeUserBacking = true)
     {
         for (uint i = 0; i < WritableBaseExtentCount(s); i++)
-        { WritableBaseExtentAt(s, i, out ulong start, out ulong count); if (count != 0 && Overlap(address, bytes, start, count)) return false; }
+        {
+            WritableBaseExtentAt(s, i, out ulong start, out ulong count);
+            if (count == 0 || !Overlap(address, bytes, start, count)) continue;
+            if (i != 8 || includeUserBacking || address < start || address - start > count || bytes > count - (address - start)) return false;
+        }
         return true;
     }
     private static long WritableReadPath(State* s, ulong address, byte* path, out uint length)
