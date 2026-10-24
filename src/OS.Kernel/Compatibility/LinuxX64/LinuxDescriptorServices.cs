@@ -9,9 +9,10 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// tables, buffers, package views and callbacks are borrowed, supervisor-only,
 /// exclusive and retained until End. Optional LinuxSocketServices shares the
 /// same fd/description lifetime. End retains faulted/closing TCP ownership until
-/// explicit closed reap. No allocation, firmware, blocking wait,
-/// signal delivery, writable filesystem, directory handles or process creation
-/// is supplied. Negative Linux errno reports rejection. File cursors and pipe
+/// explicit closed reap. An explicit bounded writable-disk attachment supplies
+/// its separate continuing file/directory operations. No allocation, firmware,
+/// blocking wait, signal delivery or process creation is supplied here.
+/// Negative Linux errno reports rejection. File cursors and pipe
 /// reads commit only after complete copy-out; sinks must accept an entire copy.
 /// Linux fd integers may be reused. Internal tokens additionally bind the owner
 /// and generation, without changing Linux's integer descriptor semantics.

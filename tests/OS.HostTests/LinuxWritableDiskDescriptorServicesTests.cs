@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Pal;
+using OS.Storage;
 using C = OS.Storage.ContinuingFat32Mutation;
 using B = OS.Storage.WritableBlockSession;
 using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
@@ -11,10 +12,184 @@ using F = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 internal static unsafe class LinuxWritableDiskDescriptorServicesTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, User = LinuxThreadServicesTests.UserBase;
-    private const ulong Path = User + 0x1200, Output = User + 0x2000;
+    private const ulong Path = User + 0x1200, Vector = User + 0x1400, Flock = User + 0x1500, Output = User + 0x2000, Payload = User + 0x3000;
     private delegate bool RetainTree(F.State* state, ulong address, ulong bytes);
     private static readonly RetainTree Tree = typeof(F).GetMethod("WritableDiskCanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainTree>();
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
+
+    [HostTest("writable canonical mechanical descriptor calls execute their exact copied wire values and checked read bytes over the actual shared media")]
+    private static void MechanicalDescriptorCalls()
+    {
+        using var f = new Owner(); byte[] elf = OS.Tooling.LinuxWritableDiskProofFixture.CreateElf();
+        elf.CopyTo(new Span<byte>(f.Thread.At(User), elf.Length));
+        byte[] payload = OS.Tooling.LinuxWritableDiskProofFixture.ExpectedPayload();
+        var calls = OS.Tooling.LinuxWritableDiskProofFixture.Calls(); int completed = 0;
+        foreach (var spec in calls)
+        {
+            // Stdout and exit are existing thread/gateway obligations. This
+            // host call driver never executes the ELF or grants source5 proof.
+            if (spec.Number is 1 or 231) continue;
+            var call = f.Call(spec.Number, spec.A0, spec.A1, spec.A2, spec.A3, spec.A4, spec.A5);
+            var begun = f.Begin(call); long value;
+            if (begun.Progress == F.WritableDiskProgress.NotHandled)
+            {
+                var core = f.Thread.DescriptorCall(spec.Number, spec.A0, spec.A1, spec.A2, spec.A3);
+                HostCheck.Equal(LinuxSyscallAction.Return, core.Action); value = core.Value;
+            }
+            else if (begun.Progress == F.WritableDiskProgress.Immediate) value = begun.Value;
+            else
+            {
+                HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress);
+                var done = F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call, spec.OutputBytes);
+                HostCheck.Equal(F.WritableDiskProgress.Immediate, done.Progress); value = done.Value;
+            }
+            HostCheck.Equal(spec.Result, value); completed++;
+            const ulong output = OS.Tooling.LinuxWritableDiskProofFixture.Output;
+            if (spec.Role == "read.hole-boundary") HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(output), 16).SequenceEqual(new byte[8].Concat(payload.Take(8)).ToArray()));
+            if (spec.Role == "read.hole") HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(output), 16).IndexOfAnyExcept((byte)0) < 0);
+            if (spec.Role == "read.payload") HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(output), 8).SequenceEqual(payload.AsSpan(0, 8)));
+            if (spec.Role == "read.reopened")
+            {
+                HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(output), payload.Length).SequenceEqual(payload) && f.Thread.At(output)[payload.Length] == 0xa5);
+                byte[] expected = new byte[5126]; payload.CopyTo(expected, 4094); f.Independent("m16-write.bin", expected);
+            }
+            if (spec.Role == "lock.get-own") HostCheck.Equal(2U, *(uint*)f.Thread.At(OS.Tooling.LinuxWritableDiskProofFixture.QueryLock));
+        }
+        HostCheck.Equal(calls.Count - 2, completed); HostCheck.True(completed == 28 && !f.Disk->RequestActive && !f.Provider->RequestActive);
+    }
+
+    [HostTest("writable x64 single iovec grows a hole from independently verified free FAT entries and preserves copied input and independent cursors")]
+    private static void PositionedGrowth()
+    {
+        using var f = new Owner(); uint fd = f.Open("/data/m16-write.bin", 2 | W.Create | W.Exclusive | W.CloseOnExec);
+        byte[] payload = Enumerable.Range(0, 1032).Select(Value).ToArray(), expected = new byte[5126]; payload.CopyTo(expected, 4094);
+        var call = f.WriteCall(fd, payload, 4094); var begun = f.Begin(call);
+        new Span<byte>(f.Thread.At(Payload), payload.Length).Fill(0xee); *(ulong*)f.Thread.At(Vector) = 0;
+        HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress);
+        HostCheck.Equal(1032L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+        HostCheck.Equal(0L, f.Run(f.Call(8, fd, 0, 1))); HostCheck.Equal(5126L, f.Run(f.Call(8, fd, 0, 2)));
+        HostCheck.Equal(16L, f.Run(f.Call(17, fd, Output, 16, 4086)));
+        HostCheck.True(f.Bytes(16).SequenceEqual(new byte[8].Concat(payload.Take(8))));
+        uint other = f.Open("/data/m16-write.bin"); HostCheck.Equal(16L, f.Run(f.Call(0, other, Output, 16)));
+        HostCheck.True(f.Bytes(16).All(value => value == 0)); HostCheck.Equal(5126L, f.Run(f.Call(8, fd, 0, 1)));
+        HostCheck.Equal(16L, f.Run(f.Call(8, other, 0, 1))); f.Independent("m16-write.bin", expected);
+        HostCheck.True(f.Trace.Any(row => row.Type == 0) && f.Trace.Any(row => row.Type == 1) && f.Trace.Any(row => row.Type == 4) &&
+            f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->DurableBytes && !f.Storage.State->Dirty);
+    }
+
+    [HostTest("writable positioned wire rejects unsupported vectors flags compat high offset overflow and failed copies before media effects")]
+    private static void PositionedInput()
+    {
+        using var f = new Owner(); uint fd = f.Open(flags: 2); var good = f.WriteCall(fd, new byte[] { 9, 8, 7 }, 5); uint calls = f.Hardware->Calls;
+        var bad = good; bad.Argument2 = 2; HostCheck.Equal(-95L, f.Run(bad));
+        bad = good; bad.Argument4 = 1; HostCheck.Equal(-95L, f.Run(bad));
+        bad = good; bad.Argument5 = 0; HostCheck.Equal(-95L, f.Run(bad));
+        bad = good; bad.Argument3 = ulong.MaxValue; HostCheck.Equal(-22L, f.Run(bad));
+        bad = good; bad.Argument3 = 0x100000001; HostCheck.Equal(-75L, f.Run(bad));
+        *(ulong*)(f.Thread.At(Vector) + 8) = W.IoBytes + 1; HostCheck.Equal(-22L, f.Run(good));
+        *(ulong*)(f.Thread.At(Vector) + 8) = 3; f.Thread.FailRead(Vector); HostCheck.Equal(-14L, f.Run(good));
+        f.Thread.FailRead(Payload); HostCheck.Equal(-14L, f.Run(good)); f.Thread.FailRead(0);
+        HostCheck.True(!f.Disk->RequestActive && !f.Provider->RequestActive && f.Hardware->Calls == calls && f.Storage.State->VolumeRevision == 1);
+        HostCheck.Equal(3L, f.Run(good)); HostCheck.Equal(0L, f.Run(f.Call(8, fd, 0, 1)));
+    }
+
+    [HostTest("writable file and root fsync issue actual flush while closed unlink authenticates and removes the file before directory sync")]
+    private static void SyncAndClosedUnlink()
+    {
+        using var f = new Owner(); uint fd = f.Open("/data/m16-write.bin", 2 | W.Create | W.Exclusive);
+        HostCheck.Equal(3L, f.Run(f.WriteCall(fd, new byte[] { 1, 2, 3 }, 1)));
+        foreach (ulong sync in new ulong[] { 74, 75 })
+        { int trace = f.Trace.Count; HostCheck.Equal(0L, f.Run(f.Call(sync, fd))); HostCheck.True(f.Trace.Skip(trace).Any(row => row.Type == 4)); }
+        uint root = f.Open("/data", W.DirectoryOnly | W.CloseOnExec | W.LargeFile); int before = f.Trace.Count;
+        HostCheck.Equal(0L, f.Run(f.Call(74, root))); HostCheck.True(f.Trace.Skip(before).Any(row => row.Type == 4));
+        before = f.Trace.Count; HostCheck.Equal(-22L, f.Run(f.Call(75, root))); HostCheck.Equal(before, f.Trace.Count);
+        f.PutPath("/data/m16-write.bin"); HostCheck.Equal(-16L, f.Run(f.Call(87, Path)));
+        HostCheck.Equal(0L, f.Core(3, fd)); HostCheck.Equal(0L, f.Run(f.Call(87, Path)));
+        f.PutPath("/data/m16-write.bin"); HostCheck.Equal(-2L, f.Run(f.Call(2, Path, 0)));
+        before = f.Trace.Count; HostCheck.Equal(0L, f.Run(f.Call(74, root))); HostCheck.True(f.Trace.Skip(before).Any(row => row.Type == 4));
+        HostCheck.True(f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->DurableBytes);
+    }
+
+    [HostTest("writable copied x64 flock query preserves padding and PID data while any close releases actual process locks")]
+    private static void CopiedLocks()
+    {
+        using var f = new Owner(); uint first = f.Open(flags: 2), second = f.Open();
+        f.PutLock(1, 1073741825, 1, 777); HostCheck.Equal(0L, f.Run(f.Call(72, first, 6, Flock)));
+        HostCheck.True(f.HasLocks()); byte[] original = new ReadOnlySpan<byte>(f.Thread.At(Flock), 32).ToArray();
+        HostCheck.Equal(0L, f.Run(f.Call(72, second, 5, Flock))); original[0] = 2;
+        HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(Flock), 32).SequenceEqual(original));
+        f.PutLock(1, 0, 1); HostCheck.Equal(-9L, f.Run(f.Call(72, second, 6, Flock)));
+        f.PutLock(2, 0, 1); HostCheck.Equal(-22L, f.Run(f.Call(72, first, 5, Flock)));
+        f.PutLock(1, 0, 1); *(short*)(f.Thread.At(Flock) + 2) = 1; HostCheck.Equal(-22L, f.Run(f.Call(72, first, 6, Flock)));
+        f.PutLock(1, 0, 1); f.Thread.FailRead(Flock); HostCheck.Equal(-14L, f.Run(f.Call(72, first, 6, Flock))); f.Thread.FailRead(0);
+        f.Thread.FailWrite(Flock); HostCheck.Equal(-14L, f.Run(f.Call(72, first, 5, Flock))); f.Thread.FailWrite(0);
+        HostCheck.True(f.HasLocks()); HostCheck.Equal(0L, f.Core(3, second)); HostCheck.True(!f.HasLocks());
+        HostCheck.Equal(-95L, f.Core(72, first, 7, Flock)); HostCheck.Equal(-95L, f.Core(72, first, 37, Flock));
+    }
+
+    [HostTest("writable already ready write sync and unlink results win interruption without replay or new hardware publication")]
+    private static void ReadyMutations()
+    {
+        foreach (int operation in new[] { 0, 1, 2 })
+        {
+            using var f = new Owner(); uint fd = f.Open(flags: 2); LinuxSyscallFrame call;
+            if (operation == 0) call = f.WriteCall(fd, new byte[] { 71, 72 }, 5);
+            else if (operation == 1) call = f.Call(74, fd);
+            else { HostCheck.Equal(0L, f.Core(3, fd)); f.PutPath("/data/DATA.BIN"); call = f.Call(87, Path); }
+            var begun = f.Begin(call); HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress); uint calls = f.Hardware->Calls;
+            var cancelled = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, false);
+            HostCheck.True(cancelled.Progress == F.WritableDiskProgress.Ready && cancelled.Worker.Value == f.Worker.Value);
+            HostCheck.Equal(operation == 0 ? 2L : 0L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+            HostCheck.Equal(calls, f.Hardware->Calls);
+        }
+    }
+
+    [HostTest("writable dirty cancellation retains adapter and whole storage tree without live worker copy End or successful detach authority")]
+    private static void DirtyRetention()
+    {
+        using var f = new Owner(); uint fd = f.Open(flags: 2); var call = f.WriteCall(fd, new byte[] { 71, 72 }, 5); var begun = f.Begin(call);
+        for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) { f.Pump(); f.CompleteHardware(); }
+        HostCheck.True(f.Storage.State->Dirty); f.AllowRetainedFailure = true;
+        var cancelled = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, true);
+        HostCheck.True(cancelled.Progress == F.WritableDiskProgress.RecoveryRequired && !cancelled.Worker.IsValid && f.Disk->RequestActive);
+        byte value = 19; HostCheck.True(Tree(f.Files.State, (ulong)&value, 1));
+        HostCheck.True(!W.CanBorrowStorage(f.Provider, f.ProviderAdmission.Epoch, (ulong)&value, 1));
+        HostCheck.True(!F.DetachWritableDisk(f.Files.State) && !F.End(f.Files.State));
+        HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+    }
+
+    [HostTest("writable pending positioned write close cancels authentication before OUT and fd reuse cannot receive its completion or cursor")]
+    private static void ClosedWrite()
+    {
+        using var f = new Owner(); uint fd = f.Open(flags: 2); var call = f.WriteCall(fd, new byte[] { 71, 72 }, 5); var begun = f.Begin(call);
+        f.Pump(); HostCheck.True(f.Hardware->Pending && !f.Storage.State->Dirty);
+        HostCheck.Equal(0L, f.Core(3, fd)); f.PutPath("/app/fixture.data"); HostCheck.Equal((long)fd, f.Core(2, Path, 0x88100));
+        var result = f.Ready(begun.Token); HostCheck.True(result.Progress == F.WritableDiskProgress.Ready && result.Worker.Value == f.Worker.Value);
+        HostCheck.Equal(-9L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+        HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && f.Storage.State->VolumeRevision == 1);
+        f.Independent("DATA.BIN", Enumerable.Range(0, 900).Select(Value).ToArray());
+        HostCheck.Equal(0L, f.Core(8, fd, 0, 1)); HostCheck.Equal(8L, f.Core(0, fd, Output, 8));
+    }
+
+    [HostTest("writable failed actual flush keeps recovery request backing and revokes worker on exit without treating reset as successful sync")]
+    private static void FailedFlush()
+    {
+        using var f = new Owner(); uint fd = f.Open(flags: 2); var call = f.WriteCall(fd, new byte[] { 71, 72 }, 5); var begun = f.Begin(call);
+        bool failed = false;
+        for (int i = 0; i < 100000 && !failed; i++)
+        {
+            f.Pump(); if (!f.Hardware->Pending) continue;
+            if (f.Hardware->Type == 4) { f.Storage.Device.Complete(status: 1); failed = true; }
+            else f.CompleteHardware();
+        }
+        HostCheck.True(failed); var result = f.Ready(begun.Token); f.AllowRetainedFailure = true;
+        HostCheck.True(result.Progress == F.WritableDiskProgress.RecoveryRequired && result.Value == -5 && f.Storage.State->Dirty);
+        result = F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call);
+        HostCheck.True(result.Progress == F.WritableDiskProgress.RecoveryRequired && !result.Worker.IsValid);
+        HostCheck.True(!F.DetachWritableDisk(f.Files.State) && f.Provider->RequestActive && f.Disk->RequestActive);
+        HostCheck.True(f.Storage.Device.State->SubmittedBytes > f.Storage.Device.State->DurableBytes);
+        byte outside = 7; HostCheck.True(Tree(f.Files.State, (ulong)&outside, 1));
+    }
 
     [HostTest("writable global binding shares package fd namespace and commits only its independent common read cursor")]
     private static void NamespaceAndCursors()
@@ -142,7 +317,7 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         f.PutPath("/data/../private/sentinel"); HostCheck.Equal(-13L, f.Run(f.Call(2, Path, 0)));
         f.PutPath("/data/nested/file.bin"); HostCheck.Equal(-95L, f.Run(f.Call(2, Path, 0)));
         f.PutPath("/data/mode.bin"); HostCheck.Equal(-95L, f.Run(f.Call(2, Path, 2 | W.Create, 0x1ff)));
-        HostCheck.Equal(-95L, f.Run(f.Call(2, Path, W.DirectoryOnly)));
+        HostCheck.Equal(-20L, f.Run(f.Call(2, Path, W.DirectoryOnly)));
         HostCheck.True(f.Hardware->Calls == calls && f.Storage.State->VolumeRevision == 1);
         HostCheck.Equal(-95L, f.Core(5, root, Output)); HostCheck.Equal(-95L, f.Core(72, root, 4, F.NonBlock));
         uint file = f.Open(flags: W.NoFollow | W.CloseOnExec); HostCheck.Equal(1L, f.Core(72, file, 1));
@@ -176,6 +351,8 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
     [HostTest("writable global attachment validates original epoch primary and disjoint metadata before changing any caller storage")]
     private static void Admission()
     {
+        HostCheck.True(sizeof(F.WritableDiskState) <= 4096 && sizeof(F.WritableDiskBinding) * F.MaximumDescriptors <= 4096);
+        Console.WriteLine($"HOST_LAYOUT writable-descriptor globalState={sizeof(F.State)} attachment={sizeof(F.WritableDiskState)} request={sizeof(F.WritableDiskRequest)} binding={sizeof(F.WritableDiskBinding)} admission={sizeof(F.WritableDiskAdmission)}");
         using var f = new Owner(attach: false, observe: true); byte[] state = new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState)).ToArray();
         var a = f.Admission; a.Epoch++; HostCheck.True(!F.AttachWritableDisk(f.Files.State, f.Disk, a));
         a = f.Admission; a.Process = default; HostCheck.True(!F.AttachWritableDisk(f.Files.State, f.Disk, a));
@@ -201,9 +378,10 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         internal readonly F.WritableDiskState* Disk = (F.WritableDiskState*)NativeMemory.AllocZeroed((nuint)sizeof(F.WritableDiskState));
         internal readonly F.WritableDiskBinding* Bindings;
         internal readonly List<F.WritableDiskToken> Tokens = [];
+        internal readonly List<(uint Type, ulong Sector)> Trace = [];
         internal readonly W.Admission ProviderAdmission;
         internal OSHostHandle Worker;
-        internal bool Attached;
+        internal bool Attached, AllowRetainedFailure;
         internal ulong ThreadOwner => (ulong)Thread.Service;
         internal WritableBlockSessionTests.Hardware* Hardware => Storage.Device.Hardware;
         internal F.WritableDiskAdmission Admission => new() { Provider = Provider, Process = W.PrimaryProcess(Provider), Bindings = Bindings,
@@ -226,11 +404,35 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         internal LinuxSyscallFrame Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0)
         { var call = Thread.CurrentImage()->Frame; call.Number = number; call.Argument0 = a0; call.Argument1 = a1; call.Argument2 = a2; call.Argument3 = a3; call.Argument4 = a4; call.Argument5 = a5; return call; }
         internal void PutPath(string path) { byte[] value = Encoding.ASCII.GetBytes(path + '\0'); value.CopyTo(new Span<byte>(Thread.At(Path), value.Length)); }
+        internal LinuxSyscallFrame WriteCall(uint fd, byte[] payload, ulong offset)
+        {
+            payload.CopyTo(new Span<byte>(Thread.At(Payload), payload.Length));
+            *(ulong*)Thread.At(Vector) = Payload; *(ulong*)(Thread.At(Vector) + 8) = (ulong)payload.Length;
+            return Call(328, fd, Vector, 1, offset, 0, W.RwfNoAppend);
+        }
+        internal void PutLock(short type, long start, long bytes, int pid = 0)
+        {
+            byte* wire = Thread.At(Flock); new Span<byte>(wire, 32).Fill(0xa5);
+            *(short*)wire = type; *(short*)(wire + 2) = 0; *(long*)(wire + 8) = start; *(long*)(wire + 16) = bytes; *(int*)(wire + 24) = pid;
+        }
+        internal bool HasLocks()
+        {
+            FieldInfo active = typeof(W.RangeLock).GetField("Active", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            for (int i = 0; i < 32; i++) if ((bool)active.GetValue(Locks[i])!) return true;
+            return false;
+        }
+        internal void Independent(string name, byte[] expected)
+        {
+            byte[] actual = new byte[expected.Length];
+            var read = Fat32Parser.ReadRootFile(new PersistentDevice(Hardware), Storage.Input.PartitionFirst, name, actual);
+            HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && actual.SequenceEqual(expected));
+        }
         internal byte[] Bytes(int bytes) => new ReadOnlySpan<byte>(Thread.At(Output), bytes).ToArray();
         internal F.WritableDiskResult Begin(LinuxSyscallFrame call)
         { var begun = F.BeginWritableDisk(Files.State, ThreadOwner, Worker, call); if (begun.Token.IsActive) Tokens.Add(begun.Token); return begun; }
         internal F.WritableDiskResult Pump() => F.PumpWritableDiskOne(Files.State, ThreadOwner);
-        internal void CompleteHardware() { if (Hardware->Pending) Storage.Device.Complete(); }
+        internal void CompleteHardware()
+        { if (Hardware->Pending) { Trace.Add((Hardware->Type, Hardware->Sector)); Storage.Device.Complete(); } }
         internal F.WritableDiskResult Ready(F.WritableDiskToken token)
         {
             for (int i = 0; i < 100000; i++)
@@ -249,7 +451,7 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
             HostCheck.Equal(F.WritableDiskProgress.Immediate, result.Progress); return result.Value;
         }
         internal uint Open(string path = "/data/DATA.BIN", uint flags = 0)
-        { PutPath(path); long value = Run(Call(2, Path, flags)); HostCheck.True(value >= 0); return (uint)value; }
+        { PutPath(path); long value = Run(Call(2, Path, flags, (flags & W.Create) != 0 ? 0x180UL : 0)); HostCheck.True(value >= 0); return (uint)value; }
         internal long Core(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0)
         { var result = Thread.DescriptorCall(number, a0, a1, a2); HostCheck.Equal(LinuxSyscallAction.Return, result.Action); return result.Value; }
         internal void Drain()
@@ -262,6 +464,14 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         {
             try
             {
+                // A failed dirty simulated machine is discarded only after its
+                // block reset below. Refused adapter/provider retirement is
+                // preserved as the assertion, never reported as cleanup success.
+                if (AllowRetainedFailure)
+                {
+                    HostCheck.True(Storage.State->Dirty && Disk->RequestActive && !F.DetachWritableDisk(Files.State));
+                    return;
+                }
                 if (Attached)
                 {
                     foreach (var token in Tokens) F.CancelWritableDisk(Files.State, ThreadOwner, token, true);
@@ -281,6 +491,18 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
                 NativeMemory.Free(Provider); NativeMemory.Free(Slots); NativeMemory.Free(Descriptions); NativeMemory.Free(ProviderInput);
                 NativeMemory.Free(Processes); NativeMemory.Free(Locks); NativeMemory.Free(Scratch);
             }
+        }
+    }
+
+    private sealed class PersistentDevice(WritableBlockSessionTests.Hardware* hardware) : IReadOnlyBlockDevice
+    {
+        public BlockDeviceInfo Info => BlockDeviceInfo.Create(512, hardware->MediumSectors).Info;
+        public BlockReadResult ReadBlocks(ulong first, uint count, Span<byte> target)
+        {
+            if (first >= hardware->MediumSectors || count > hardware->MediumSectors - first || target.Length != count * 512)
+                return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockRange);
+            new ReadOnlySpan<byte>(hardware->Persistent + first * 512, checked((int)count * 512)).CopyTo(target);
+            return BlockReadResult.Success(count, count * 512UL);
         }
     }
 }

@@ -10,7 +10,7 @@ public static unsafe partial class LinuxDescriptorServices
 {
     private const long WritableUnsupported = -95, WritableAgain = -11;
     private const byte WritablePending = 1, WritableReady = 2, WritableDraining = 3, WritableRecovery = 4;
-    private const byte WritableOpen = 1, WritableRead = 2;
+    private const byte WritableOpen = 1, WritableRead = 2, WritableWrite = 3, WritableSync = 4, WritableUnlink = 5;
     public enum WritableDiskProgress : byte { Rejected, NotHandled, Immediate, Pending, Ready, Draining, RecoveryRequired }
 
     /// <summary>Copied attachment/request generation, not a user fd, mapping
@@ -138,7 +138,8 @@ public static unsafe partial class LinuxDescriptorServices
         state->WritableDisk = null; *d = default; return true;
     }
 
-    /// <summary>Start only confined /data opens or reads/seeks on bound global
+    /// <summary>Start confined /data opens/unlinks or measured reads, positioned
+    /// writes, syncs and locks on bound global
     /// fds. A null attachment is neutral before input copies. The parent supplies
     /// an actual current worker and retains its original call and output ceiling.
     /// One outstanding request; other writable admissions return EAGAIN.</summary>
@@ -147,16 +148,22 @@ public static unsafe partial class LinuxDescriptorServices
         if (state == null || state->WritableDisk == null) return new(WritableDiskProgress.NotHandled);
         if (!Attached(state, owner) || !worker.IsValid) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk;
-        if (call.Number is 2 or 257)
+        if (call.Number is 2 or 87 or 257)
         {
             byte* path = stackalloc byte[(int)MaximumPath];
-            long copied = WritableReadPath(state, call.Number == 2 ? call.Argument0 : call.Argument1, path, out uint bytes);
+            long copied = WritableReadPath(state, call.Number == 257 ? call.Argument1 : call.Argument0, path, out uint bytes);
             if (copied != 0) return new(WritableDiskProgress.Immediate, copied);
             if (!WritablePath(path, bytes)) return new(WritableDiskProgress.NotHandled);
             if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
+            if (call.Number == 87)
+            {
+                long unlinkStarted = WritableStart(state, worker, call.Number, WritableUnlink);
+                if (unlinkStarted != 0) return new(WritableDiskProgress.Immediate, unlinkStarted);
+                return WritableStarted(state, W.BeginUnlinkForProcess(d->Provider, d->Process, new ReadOnlySpan<byte>(path, (int)bytes)));
+            }
             ulong flags = call.Number == 2 ? call.Argument1 : call.Argument2;
             if (flags > uint.MaxValue) return new(WritableDiskProgress.Immediate, Invalid);
-            const uint allowed = 3 | W.Create | W.Exclusive | CloseOnExec | NoFollow | LargeFile;
+            const uint allowed = 3 | W.Create | W.Exclusive | CloseOnExec | NoFollow | LargeFile | W.DirectoryOnly;
             if (((uint)flags & ~allowed) != 0 || (flags & 3) == 3) return new(WritableDiskProgress.Immediate, WritableUnsupported);
             ulong mode = call.Number == 2 ? call.Argument2 : call.Argument3;
             if ((flags & W.Create) != 0 && mode != 0x180) return new(WritableDiskProgress.Immediate, WritableUnsupported);
@@ -176,22 +183,30 @@ public static unsafe partial class LinuxDescriptorServices
             }
             return WritableStarted(state, begun);
         }
-        if (call.Number is not (0 or 8 or 17)) return new(WritableDiskProgress.NotHandled);
+        if (call.Number is not (0 or 8 or 17 or 72 or 74 or 75 or 328)) return new(WritableDiskProgress.NotHandled);
         Description* opened = Find(state, unchecked((uint)call.Argument0));
         if (opened == null || (Kind)opened->Type != Kind.WritableDisk) return new(WritableDiskProgress.NotHandled);
         if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
         if (call.Number == 8) return WritableSeek(state, opened, unchecked((long)call.Argument1), call.Argument2);
+        if (call.Number == 72) return WritableLock(state, opened, call);
+        if (call.Number == 328) return WritablePwrite(state, worker, opened, call);
+        if (call.Number is 74 or 75)
+        {
+            long syncStarted = WritableStart(state, worker, call.Number, WritableSync);
+            if (syncStarted != 0) return new(WritableDiskProgress.Immediate, syncStarted);
+            WritableBorrow(state, (uint)call.Argument0, opened);
+            return WritableStarted(state, W.BeginSync(d->Provider, d->Bindings[d->Request.Description].File, call.Number == 75));
+        }
         if ((opened->Flags & 3) == 1) return new(WritableDiskProgress.Immediate, BadDescriptor);
         if (call.Argument2 > MaximumIo || call.Number == 17 && call.Argument3 > long.MaxValue) return new(WritableDiskProgress.Immediate, Invalid);
         if (!Capture(state, unchecked((uint)call.Argument0), out Token original)) return new(WritableDiskProgress.Rejected);
         long readStarted = WritableStart(state, worker, call.Number, WritableRead);
         if (readStarted != 0) return new(WritableDiskProgress.Immediate, readStarted);
         WritableDiskRequest* request = &d->Request;
-        request->OriginalFd = original; request->Description = state->Owner.Slots[original.Number].Description - 1;
-        request->BindingGeneration = d->Bindings[request->Description].Generation; request->Borrowed = true;
+        WritableBorrow(state, original.Number, opened);
         request->Positioned = call.Number == 17; request->Requested = (uint)call.Argument2;
         request->Wanted = (uint)(call.Argument2 < W.IoBytes ? call.Argument2 : W.IoBytes);
-        request->Offset = request->Positioned ? call.Argument3 : opened->Position; opened->Borrowers++;
+        request->Offset = request->Positioned ? call.Argument3 : opened->Position;
         return WritableStarted(state, W.BeginRead(d->Provider, d->Bindings[request->Description].File, request->Wanted, request->Offset, true));
     }
 
@@ -254,8 +269,16 @@ public static unsafe partial class LinuxDescriptorServices
             if (opened.Value < 0) return FinishWritable(state, opened.Value, opened.Failure);
             r->TemporaryOpened = opened.Descriptor; return PublishWritableOpen(state);
         }
+        if (r->Operation == WritableUnlink) return CompleteWritableMutation(state);
         if (!IsCurrent(state, r->OriginalFd) || unchecked((uint)originalCall.Argument0) != r->OriginalFd.Number)
             return AbandonWritable(state, BadDescriptor);
+        if (r->Operation == WritableWrite)
+        {
+            if (originalCall.Argument2 != 1 || originalCall.Argument3 != r->Offset || originalCall.Argument4 != 0 || originalCall.Argument5 != W.RwfNoAppend)
+                return new(WritableDiskProgress.Rejected);
+            return CompleteWritableMutation(state);
+        }
+        if (r->Operation == WritableSync) return CompleteWritableMutation(state);
         if (originalCall.Argument2 != r->Requested || r->Positioned && originalCall.Argument3 != r->Offset) return new(WritableDiskProgress.Rejected);
         W.Result read = W.CopyRead(d->Provider, r->ProviderRequest, new Span<byte>(state->Owner.Scratch, (int)W.IoBytes));
         if (read.Phase != W.Progress.Immediate)
@@ -269,14 +292,14 @@ public static unsafe partial class LinuxDescriptorServices
     }
 
     /// <summary>Cancel copy before detaching a worker. A live already-ready
-    /// open result wins interruption; abandoning closes it without user output.
+    /// non-read result wins interruption; abandoning consumes effects without user output.
     /// Clean pending cancellation returns an orphan EINTR while actual DMA drains.
     /// RecoveryRequired retains the record with empty Worker on abandon. No replay.</summary>
     public static WritableDiskResult CancelWritableDisk(State* state, ulong owner, WritableDiskToken token, bool abandoning)
     {
         if (!Attached(state, owner) || !WritableRequestFor(state, token)) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
-        if (!abandoning && r->Operation == WritableOpen && r->Phase == WritableReady) return ObserveWritable(d);
+        if (!abandoning && r->Operation != WritableRead && r->Phase == WritableReady) return ObserveWritable(d);
         r->CopyRevoked = true; r->Orphan = true; r->Worker = default; r->Value = -4;
         return CancelWritableProvider(state);
     }
@@ -313,6 +336,74 @@ public static unsafe partial class LinuxDescriptorServices
         d->Request = new() { Self = self, Generation = ++d->NextGeneration, Number = number, Operation = operation,
             Worker = worker, Phase = WritablePending }; return 0;
     }
+    private static void WritableBorrow(State* state, uint fd, Description* opened)
+    {
+        WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
+        Capture(state, fd, out r->OriginalFd);
+        r->Description = state->Owner.Slots[fd].Description - 1; r->Borrowed = true;
+        r->BindingGeneration = d->Bindings[r->Description].Generation; opened->Borrowers++;
+    }
+    // Linux x64 LP64 pwritev2 uses full64 pos_l in argument3; argument4 is
+    // unused by that ABI. This finite contract requires zero there, one copied
+    // iovec and exactly RWF_NOAPPEND. No iovec/payload pointer survives yield.
+    private static WritableDiskResult WritablePwrite(State* state, OSHostHandle worker, Description* opened, LinuxSyscallFrame call)
+    {
+        if ((opened->Flags & 3) == 0) return new(WritableDiskProgress.Immediate, BadDescriptor);
+        if (call.Argument2 != 1 || call.Argument4 != 0 || call.Argument5 != W.RwfNoAppend) return new(WritableDiskProgress.Immediate, WritableUnsupported);
+        if (call.Argument3 > long.MaxValue) return new(WritableDiskProgress.Immediate, Invalid);
+        ulong* vector = stackalloc ulong[2];
+        if (!WritableInput(state, call.Argument1, (byte*)vector, 16)) return new(WritableDiskProgress.Immediate, Fault);
+        if (vector[1] > W.IoBytes) return new(WritableDiskProgress.Immediate, Invalid);
+        uint bytes = (uint)vector[1];
+        if (bytes != 0 && !WritableInput(state, vector[0], state->Owner.Scratch, bytes))
+        { Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return new(WritableDiskProgress.Immediate, Fault); }
+        long started = WritableStart(state, worker, call.Number, WritableWrite);
+        if (started != 0) { Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return new(WritableDiskProgress.Immediate, started); }
+        WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
+        WritableBorrow(state, (uint)call.Argument0, opened); r->Positioned = true; r->Offset = call.Argument3; r->Requested = bytes;
+        W.Result begun = W.Pwritev2SingleWithFreeSearch(d->Provider, d->Bindings[r->Description].File,
+            new ReadOnlySpan<byte>(state->Owner.Scratch, (int)bytes), r->Offset, W.RwfNoAppend, d->Search);
+        Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return WritableStarted(state, begun);
+    }
+    private static WritableDiskResult CompleteWritableMutation(State* state)
+    {
+        WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
+        W.Result done = W.Complete(d->Provider, r->ProviderRequest);
+        if (done.Phase != W.Progress.Immediate) return AbandonWritable(state, Io);
+        r->ProviderRequest = default;
+        if (done.Value >= 0)
+            for (uint i = 0; i < d->BindingCount; i++)
+                if (d->Bindings[i].Active == 1 && d->Bindings[i].Closing == 0)
+                {
+                    W.Metadata metadata = W.InspectCopied(d->Provider, d->Bindings[i].File);
+                    if (!metadata.Valid) { r->Phase = WritableRecovery; r->Failure = C.Status.InvalidState; return ObserveWritable(d); }
+                    state->Owner.Descriptions[i].Bytes = metadata.Length;
+                }
+        return FinishWritable(state, done.Value, done.Failure);
+    }
+    // Copy32-byte x64 flock with explicit field offsets; padding is preserved
+    // for GETLK, and a no-conflict result changes only l_type. l_pid is data,
+    // never process authority. No blocking/OFD/other whence support.
+    private static WritableDiskResult WritableLock(State* state, Description* opened, LinuxSyscallFrame call)
+    {
+        if (call.Argument1 is not (5 or 6)) return new(WritableDiskProgress.NotHandled);
+        byte* wire = stackalloc byte[32];
+        if (!WritableInput(state, call.Argument2, wire, 32)) return new(WritableDiskProgress.Immediate, Fault);
+        W.LockRequest request = new(*(short*)wire, *(short*)(wire + 2), *(long*)(wire + 8), *(long*)(wire + 16), *(int*)(wire + 24));
+        WritableDiskState* d = state->WritableDisk;
+        W.LockResult result = W.FcntlLockForProcess(d->Provider, d->Process, d->Bindings[opened->Pipe].File, (uint)call.Argument1, request);
+        if (result.Value == 0 && call.Argument1 == 5)
+        {
+            *(short*)wire = result.Lock.Type;
+            if (result.Lock.Type != 2)
+            { *(short*)(wire + 2) = result.Lock.Whence; *(long*)(wire + 8) = result.Lock.Start; *(long*)(wire + 16) = result.Lock.Length; *(int*)(wire + 24) = result.Lock.Pid; }
+            if (!Output(state, call.Argument2, wire, 32)) return new(WritableDiskProgress.Immediate, Fault);
+        }
+        return new(WritableDiskProgress.Immediate, result.Value);
+    }
+    private static bool WritableInput(State* s, ulong address, byte* destination, uint bytes) =>
+        LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, s->Owner.User) &&
+        s->Owner.User.CopyFromUser(s->Owner.User.Context, address, destination, bytes) == 1;
     private static WritableDiskResult WritableStarted(State* state, W.Result begun)
     {
         WritableDiskRequest* r = &state->WritableDisk->Request;
@@ -434,7 +525,7 @@ public static unsafe partial class LinuxDescriptorServices
         if (r->Self != (ulong)r || r->Phase > WritableRecovery) return false;
         if (r->Phase == 0)
         { if (r->Generation != 0 || r->Reserved || r->Borrowed || r->Worker.IsValid || r->ProviderRequest.Owner != 0 || r->TemporaryOpened.Owner != 0 || d->Provider->RequestActive) return false; }
-        else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritableRead ||
+        else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritableUnlink ||
             r->Orphan != !r->Worker.IsValid || r->Orphan && !r->CopyRevoked ||
             r->ProviderRequest.Owner != 0 && (r->ProviderRequest.Owner != (ulong)d->Provider || r->ProviderRequest.Epoch != d->Epoch || r->ProviderRequest.Generation == 0)) return false;
         if (r->Reserved && (!WritableReservationCurrent(s) || r->Operation != WritableOpen)) return false;
