@@ -1,5 +1,7 @@
 # Storage
 
+[Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes complete original joins:8calls, pending next data sector,0committed data-sector copies, real reset retirement, submitted48/completed47/copied47 frozen through release, final memory restoration and fresh cleanup-end clock. This finite cancellation scope does not qualify other race variants, full Blazor, writes or durability. New #809 log/upload work starts with actual BCL contract measurement; FileStream best-effort lock or ignored sync errno never grants storage authority.
+
 [Step1589](../done/step1589.md) bounds cached FAT chain validation to at most64 existing steps per Pump. Batch stops on cache/device I/O, changed ownership/generation/operation, or no cluster progress; outstanding shared I/O permits only the original one step. No allocation, preloaded file body or weakened mirror/corruption validation is added. Worst-case prior-history comparisons remain64*4096.25 filesystem controls pass; native fit and fresh full reads remain required. Failed full r03 and unaccepted ExitPending r02 keep their original evidence.
 
 [Step1588](../done/step1588.md) imports the continuing writable block, bounded FAT planner/engine, deterministic BasicData fixture and retained provider into one isolated integration branch.192 distinct host controls pass over actual shared fake-media IN/OUT/FLUSH and retention paths. Existing readonly native links stay unchanged. No integrated source5, real guest write, reboot extraction, SQLite locking/sync or recovery acceptance follows.

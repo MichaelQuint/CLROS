@@ -36097,7 +36097,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1586 composes strict ExitPending parent/image/metadata/physical-bounds/FIFO/stage/device checks and a separate original process wrapper. Independent VFAT inode and exact fragmented8192-byte copied prefix bind the final uncompleted request to the next LBA; both completed prep opens allow only independently classified metadata. Full/leaf stage and IO indexes must match one snapshot. Idle-only path rejects IRQ TIMING/TICK. Prelaunch exact selected package is enforced at both ownership sites; only ExitPending launch is connected, other races remain refused. Original firmware/native/held image/packet/process joins stay mandatory.46focused race/capture/parent/profile checks pass, unchanged/zeroReuse; no fresh original race has passed yet. Prior positive scopes and all failures remain unchanged; issue open. Step1587 preserves first original ExitPending r01 at91cd04cd as FAILED: software completion/copy48 sector17857 occurs in pre-dispatch poll before strict stage1; no stage1, both workers exit/reap, cleanup stage13 fails. Exact first rejection reason was not captured. Expert-reviewed ordinary validated exit_group now dispatches real Shutdown before opportunistic polling; no canonical-specific pump hold or weaker pending predicate. Failure-only reason1-5 diagnostics added.86distinct focused controls PASS unchanged/zeroReuse; new native/guest original still required. Step1589 preserves original ExitPending r02 atfeb757b5 as guest-success/original-wrapper-FAILED disk_exit_capture_stage_lifetime: stage8=4672098600 follows retained network-end4627614700. A new fresh HPET cleanup terminal follows all final memory/pool/canary/phase checks, retaining original request owner/epoch and <300s budget. Strict full/leaf identity and phase-specific bounds replace the incorrect network-end upper bound for stage8. Missing/duplicate/foreign/backwards/moved/out-of-budget witnesses reject. Old r01/r02 remain failed/unaccepted; new source-matched original/native review required, no closure.",
+      "currentEvidence": "Step1586 composes strict ExitPending parent/image/metadata/physical-bounds/FIFO/stage/device checks and a separate original process wrapper. Independent VFAT inode and exact fragmented8192-byte copied prefix bind the final uncompleted request to the next LBA; both completed prep opens allow only independently classified metadata. Full/leaf stage and IO indexes must match one snapshot. Idle-only path rejects IRQ TIMING/TICK. Prelaunch exact selected package is enforced at both ownership sites; only ExitPending launch is connected, other races remain refused. Original firmware/native/held image/packet/process joins stay mandatory.46focused race/capture/parent/profile checks pass, unchanged/zeroReuse; no fresh original race has passed yet. Prior positive scopes and all failures remain unchanged; issue open. Step1587 preserves first original ExitPending r01 at91cd04cd as FAILED: software completion/copy48 sector17857 occurs in pre-dispatch poll before strict stage1; no stage1, both workers exit/reap, cleanup stage13 fails. Exact first rejection reason was not captured. Expert-reviewed ordinary validated exit_group now dispatches real Shutdown before opportunistic polling; no canonical-specific pump hold or weaker pending predicate. Failure-only reason1-5 diagnostics added.86distinct focused controls PASS unchanged/zeroReuse; new native/guest original still required. Step1589 preserves original ExitPending r02 atfeb757b5 as guest-success/original-wrapper-FAILED disk_exit_capture_stage_lifetime: stage8=4672098600 follows retained network-end4627614700. A new fresh HPET cleanup terminal follows all final memory/pool/canary/phase checks, retaining original request owner/epoch and <300s budget. Strict full/leaf identity and phase-specific bounds replace the incorrect network-end upper bound for stage8. Missing/duplicate/foreign/backwards/moved/out-of-budget witnesses reject. Old r01/r02 remain failed/unaccepted; new source-matched original/native review required, no closure. Step1590 records fresh c3dbab92 original ExitPending r03 PASS in the complete original source/native/image/package/parent/device/process wrapper:8calls,copiedDataSectors0,outstanding1,resetRetiredtrue. All8actual stages and fresh cleanup-end clock1374779300 pass phase joins; submitted48/completed47/copied47 stay frozen through reset/release/restoration. EFI has noimports,2010runtimeRecords/1590unwind under2048unchanged. Originalr01/r02 remainfailed/unaccepted. Other race variants/fullA/B/browser/stablefull/ancestors remainpending, issueopen.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -37834,7 +37834,9 @@
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Interrupts.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.WritableDisk.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
-        "tests/OS.HostTests/LinuxWritableDiskThreadServicesTests.cs"
+        "tests/OS.HostTests/LinuxWritableDiskThreadServicesTests.cs",
+      "src/OS.Kernel/Threading/KernelThreadTable.cs",
+      "tools/OS.Tooling/EfiContracts.Sources.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37843,7 +37845,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Qualify confined writable Linux descriptors, locking and synchronization",
-      "currentEvidence": "Step1586 records isolated a613608a strict provider storage admission and a18728f1 optional-observer alias controls over7212bae3/396f82b7. Original failed1of60 is retained; engine owner repaired current retained alias revalidation. Current154distinct affected controls PASS60provider/65engine/29block, unchanged/zeroReuse; State752B/max34992 unchanged. No private-map bypass or invented observer generation. True global fd binding/source5 continuation remains primary-owned/unimplemented; no mutation auto-restart or cursor-before-user-copy. Native/guest/SQLite locking/sync/recovery acceptance stays pending. Step1587 claims four exact global descriptor partial/test paths for isolated asset_matrix implementation; root retains gateway, source5 thread continuations, boot/native, docs and tracker. Guards preserve accepted EFI profiles; reservation before mutation, provider/global fd separation and cursor-after-user-copy are required. This ownership preparation is not integrated or guest qualified. Isolated40191220 adds internal structural CanRetainStorage using peer eabc11cb original-device identity; strict public admission keeps clean/current-primary/live-DMA gates.66provider+68engine+29block=163distinct controls pass unchanged/zeroReuse, no layout growth. Retained dirty/orphan/dead-primary storage grants no user-copy or I/O authority; final Retired rejects before dereference. Four global descriptor paths are the next implementation slice; root source5 plan is preparation only. Step1588 claims seven root source5 integration paths (thread core/Pipes/Futex/Interrupts/new WritableDisk partial, gateway and new thread test). Root integrates stable host-only block/FAT/provider sources in a separate writable-thread-waits checkout while first-batch native remains serialized. Exactly two agents retain descriptor/bootstrap implementation. No source5 implementation or native activation exists at claim time; no mutation restart, no invented mapping generation, full-tree disjointness and actual output-prefix pin/revalidation required. Step1588 combines21original source commits in isolated codex/writable-thread-waits at5a775fd6: block/FAT planner+engine/deterministic data fixture/retainedprovider. Corrected complete graph passes24.14s0warnings/errors;192distinct focused controls pass29block+18planner+68engine+11image+66provider, unchanged/zeroReuse. Substring filter repeated68engine controls, excluded fromdistincttotal. First graph omitted planner170e8bac and failed3errors/74derivedwarnings, then corrected; original failure retained. No source5/global adapter, EFI link/probe, guest write, persistence or SQLite acceptance. Exactly two agents continue bootstrap anddescriptor slices; root owns source5/native. Scope/state/dependencies preserved.",
+      "currentEvidence": "Step1586 records isolated a613608a strict provider storage admission and a18728f1 optional-observer alias controls over7212bae3/396f82b7. Original failed1of60 is retained; engine owner repaired current retained alias revalidation. Current154distinct affected controls PASS60provider/65engine/29block, unchanged/zeroReuse; State752B/max34992 unchanged. No private-map bypass or invented observer generation. True global fd binding/source5 continuation remains primary-owned/unimplemented; no mutation auto-restart or cursor-before-user-copy. Native/guest/SQLite locking/sync/recovery acceptance stays pending. Step1587 claims four exact global descriptor partial/test paths for isolated asset_matrix implementation; root retains gateway, source5 thread continuations, boot/native, docs and tracker. Guards preserve accepted EFI profiles; reservation before mutation, provider/global fd separation and cursor-after-user-copy are required. This ownership preparation is not integrated or guest qualified. Isolated40191220 adds internal structural CanRetainStorage using peer eabc11cb original-device identity; strict public admission keeps clean/current-primary/live-DMA gates.66provider+68engine+29block=163distinct controls pass unchanged/zeroReuse, no layout growth. Retained dirty/orphan/dead-primary storage grants no user-copy or I/O authority; final Retired rejects before dereference. Four global descriptor paths are the next implementation slice; root source5 plan is preparation only. Step1588 claims seven root source5 integration paths (thread core/Pipes/Futex/Interrupts/new WritableDisk partial, gateway and new thread test). Root integrates stable host-only block/FAT/provider sources in a separate writable-thread-waits checkout while first-batch native remains serialized. Exactly two agents retain descriptor/bootstrap implementation. No source5 implementation or native activation exists at claim time; no mutation restart, no invented mapping generation, full-tree disjointness and actual output-prefix pin/revalidation required. Step1588 combines21original source commits in isolated codex/writable-thread-waits at5a775fd6: block/FAT planner+engine/deterministic data fixture/retainedprovider. Corrected complete graph passes24.14s0warnings/errors;192distinct focused controls pass29block+18planner+68engine+11image+66provider, unchanged/zeroReuse. Substring filter repeated68engine controls, excluded fromdistincttotal. First graph omitted planner170e8bac and failed3errors/74derivedwarnings, then corrected; original failure retained. No source5/global adapter, EFI link/probe, guest write, persistence or SQLite acceptance. Exactly two agents continue bootstrap anddescriptor slices; root owns source5/native. Scope/state/dependencies preserved. Step1590 extends root source5 ownership to existing KernelThreadTable.cs for a bounded authenticated copied retained-extent query. The table stores private slots/ready/deadline/switch/context/supervisor and worker-stack extents that thread-service pointer checks alone cannot prove disjoint from the complete writable provider tree. No table layout/transfer/mapping semantics change is authorized; new query/tests must preserve copied/stale/IF/key rejection and zero side effects. Root owns this existing shared path, agents do not edit it. No new native/guest acceptance.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -38620,6 +38622,78 @@
         "docs/security.md"
       ],
       "evidenceBoundary": "Closure requires a fresh owned QEMU workload/storage capture and external observations for the exact scope, alongside focused host controls. CLROS_M11_033_READY must be emitted only by the scoped verifier after its checks, not merely by argument parsing. Provider execution, production readiness and arbitrary NativeAOT workloads remain separate.",
+      "desiredState": "open",
+      "requiredForParent": false
+    },
+    {
+      "key": "M10-027",
+      "title": "Qualify NativeAOT log and upload file persistence on FAT32",
+      "milestone": "M10",
+      "parentKey": "M10-EPIC",
+      "dependencyKeys": [
+        "M10-018",
+        "M16-027"
+      ],
+      "labels": [
+        "agent:blocked",
+        "component:app-model",
+        "phase:m10-kestrel",
+        "priority:p1",
+        "type:implementation",
+        "lane:nativeaot-integration",
+        "evidence:qemu"
+      ],
+      "priority": "priority:p1",
+      "ownedPaths": [
+        "apps/NativeAotLogUploadContract/Program.cs",
+        "apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj",
+        "tools/OS.Tooling/NativeAotLogUploadContract.cs",
+        "tests/OS.HostTests/NativeAotLogUploadContractTests.cs"
+      ],
+      "forbiddenPaths": [
+        "references/** (read-only)",
+        "unrelated production subsystems",
+        "done/** (reserve a new step; preserve history)"
+      ],
+      "collisionLane": "lane:nativeaot-integration",
+      "summary": "User-authorized preparatory implementation by asset_matrix in isolated codex/sqlite-contract while root qualifies the read batch. Measure an actual ordinary FileStream log/upload workload first, then qualify persistent application files using continuing writable FAT32. Native/gateway/HTTP integration and shared docs remain root-owned and require exact extended claims before edits.",
+      "currentEvidence": "Step1590 reserves the missing dedicated log/upload scope after reviewing current LAN open issues and SQLite-only M10-020/#791. Claim four new C# paths before edits. Root authorizes only finite C#14/.NET11 managed producer, strict copied/file consumer and tests initially. Native publication/trace/guest, HTTP uploads, independent disk extraction/reboot and synchronization remain unimplemented and unqualified. Exactly two implementation agents continue; root serializes native work.",
+      "implementationNotes": [
+        "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md and applicable directory guides. Preserve accepted profiles and immutable evidence.",
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
+        "Use pinned .NET11/C#14, actual FileStream/BCL and ordinary Linux NativeAOT static musl policy. No PInvoke wrapper substitutes for the measured managed workload. Do not add SQLite or EF Core to this scope.",
+        "Begin with --write/--verify --root <existing owned directory>, pre-existing empty LOG.TXT/UPLOAD.BIN. Reject nonempty inputs before effects. Append deterministic UTF8 log records across close/reopen; write5126 deterministic upload bytes in4094+1032 bounded chunks, call Flush(true), close and verify exact byte lengths/EOF from a separate process. Keep outputs for independent extraction.",
+        "Measure the exact pinned runtime file metadata, scalar positioned writes, fcntl/flock differences, filesystem-capability queries, sync/close and error contract on the Linux reference. A BCL best-effort lock or ignored fsync errno must not be accepted as successful CLROS locking or flush authority.",
+        "Keep root native publication/QEMU serialized. Extend exact file ownership before connecting the real MinimalApi upload/log path or native profile. Preserve all failures and original source/recipe/dependency/trace identities.",
+        "At acceptance exercise real guest application logs/uploads, independent image extraction and fresh reboot/reopen; block-write success alone does not prove persistence, synchronization or SQLite durability."
+      ],
+      "referenceInfluences": [],
+      "acceptanceCriteria": [
+        "A pinned actual FileStream NativeAOT workload runs on Linux with retained original source/dependency/recipe/ELF/syscall trace hashes; map every metadata/write/lock/sync gap to existing storage/descriptor issues before claiming guest compatibility.",
+        "Fresh source-matched CLROS guests write logs and user-upload contents through genuine owned continuations, explicitly flush/close, then independently extract exact file bytes and verify them after a fresh reboot/reopen. Preserve boot/package/guard-file bytes and all earlier failures.",
+        "Qualify real MinimalApi upload and log behavior over the same confined disk with bounded inputs, offset/copy/cancellation/process-close/failure controls and explicit cleanup; claim exact integration paths before edits.",
+        "Run focused normal harness checks, stable unfiltered full/native ABI/stack and affected guest regressions; reserve immutable evidence, reconcile every affected doc and tracker using fresh versions/readback before closure."
+      ],
+      "requiredMarkers": [
+        "TEST_START m10.027",
+        "TEST_PASS m10.027",
+        "TEST_FAIL m10.027 <reason>"
+      ],
+      "requiredCommands": [
+        "dotnet build apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj --nologo -m:1",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotLogUploadContractTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
+        "git diff --check"
+      ],
+      "documentationPaths": [
+        "docs/cstorage.md",
+        "docs/kestrel.md",
+        "docs/workload-profiles.md",
+        "docs/completion-gates.md"
+      ],
+      "evidenceBoundary": "Initial claim authorizes isolated managed/host measurement preparation only. Reference traces, Flush(true) return, block FLUSH completion and file-byte equality do not establish guest execution, synchronization, physical durability, HTTP uploads, SQLite recovery, isolation, cloud or production readiness.",
       "desiredState": "open",
       "requiredForParent": false
     }

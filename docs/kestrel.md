@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1590](../done/step1590.md) Fresh original ExitPending r03 atc3dbab92 passes its complete finite8-call exit/reset/cleanup wrapper. Full DiskA r04 is still in progress with the same cached-chain repair; earlier full r01-r03 remain failed. M10-027/#809 adds real FileStream log/upload measurement and later HTTP/persistence qualification, preserving separate NativeAOT, lock/flush and reboot evidence requirements. No complete Blazor or Gate14 acceptance is added.
+
 [Step1589](../done/step1589.md) preserves full DiskA r03 at91cd04cd as failed:64 responses/1,176,061 bytes, then CoreLib headers time out at240.005 seconds. Three repeated metadata calls consume214.996 seconds before open remains pending. The repair batches at most64 cached chain visits without changing request budgets or I/O turns. ExitPending r02 atfeb757b5 has guest success but failed original wrapper; the new cleanup clock requires another original. Three full source-matched A/B/browser captures remain pending.
 
 [Step1588](../done/step1588.md) assembles isolated host-only writable block/FAT/provider prerequisites.192 distinct controls pass, while genuine global-fd/source5/native log/upload/SQLite integration remains unfinished. This changes no full Blazor, Kestrel/Gate14 or persistence acceptance.

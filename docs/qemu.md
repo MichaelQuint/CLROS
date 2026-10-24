@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes qemu.smoke.disk-exit-pending calls=8 copiedDataSectors=0 outstanding=1 resetRetired=true and all original source/native/image/package/parent/process joins. Submitted48/completed47/copied47 stays frozen; final cleanup uses its own HPET clock. r01/r02 originals remain failed/unaccepted. Full r04 is separate and pending; copied leaf tests or this finite race cannot replace full A/B/browser evidence.
+
 [Step1589](../done/step1589.md) preserves full DiskA r03 timeout and ExitPending r02 wrapper failure with exact original serial/summary/packet/native/image identities. Explicit ExitPending now requires one fresh M16_025_EXIT_CLEANUP_END row after stage8 and before BUDGET_END. Stages1-3 precede active-end;4-7 lie between active-end and network-end;8 lies between network-end and fresh cleanup-end. Missing/duplicate/foreign/backwards/moved/out-of-budget witnesses reject. Old captures are not augmented or requalified.
 
 [Step1588](../done/step1588.md) records only isolated writable host integration; no new QEMU profile or writable native link is added. Native publication and original guest owners remain serialized. First-batch read qualification retains its exact independent source/producer provenance.
