@@ -188,6 +188,23 @@ public static unsafe partial class EfiEntry
 
         // Capture the pre-dispatch path and fd identity in retained supervisor
         // metadata. No resolved user pointer or stack borrow survives a park.
+        private static bool LinuxStaticRefreshFile(LinuxNativeControl* c, uint index)
+        {
+            if (index >= c->Capacity || c->StaticPending == null) return false;
+            LinuxStaticPending* pending = c->StaticPending + index;
+            if (!LinuxThreadKernelRange(c, (byte*)pending, (uint)sizeof(LinuxStaticPending), false) ||
+                pending->Identity != c->Threads.Current.Value || pending->Ordinal == 0) return false;
+            LinuxStaticFileIdentity original = pending->Before.File;
+            if (original.Kind == 0) return true;
+            if (!LinuxStaticCaptureFile(c, original.Fd, out var current) || current.Kind != original.Kind ||
+                current.Generation != original.Generation || current.View != original.View ||
+                current.Inode != original.Inode || current.Bytes != original.Bytes) return false;
+            // CursorDiskBusy serializes ordinary reads/seeks through actual
+            // completion. The position now belongs to this operation, after
+            // every older cursor owner committed. Preserve all other identity.
+            pending->Before.File.Position = current.Position; return true;
+        }
+
         private static bool LinuxStaticCompleteFile(LinuxNativeControl* c, uint index, LinuxSyscallResult result)
         {
             if (index >= c->Capacity || c->StaticPending == null) return false;

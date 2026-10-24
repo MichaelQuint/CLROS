@@ -1,5 +1,9 @@
 # QEMU
 
+[Step1573](../done/step1573.md) repairs the018 diagnostic's deferred cursor
+observation before first publication. Existing host cursor/cancellation checks
+pass; the full disk/static consumer and original guest qualification remain.
+
 ## Current acceptance and recipe selection
 
 [Step1556](../done/step1556.md) records the latest qualified finite Smoke,

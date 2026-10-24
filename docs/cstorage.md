@@ -2,6 +2,11 @@
 
 ## Current development batch (2026-10-24)
 
+[Step1573](../done/step1573.md) refreshes018's authenticated original cursor
+immediately before deferred completion, after older cursor owners commit.
+Original path/generation/inode/length stay retained; mismatches fail closed.
+This diagnostic observation repair is not guest or shared-cursor acceptance.
+
 [Step1572](../done/step1572.md) connects the original full static-server disk
 envelope and retains file observations across source4 parks. Disk-sector
 observation starts at actual successful listen, with explicit prior counters.

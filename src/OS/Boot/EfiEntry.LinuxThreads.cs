@@ -333,6 +333,9 @@ public static unsafe partial class EfiEntry
                 var diskWait = view.WaitSource == 4 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
                 var diskOperation = c->Slots[index].DiskOperation;
                 uint diskOutputBytes = c->Slots[index].DiskOutputBytes;
+#if M10_018_PROBE
+                if (view.WaitSource == 4 && !LinuxStaticRefreshFile(c, index)) return LinuxNativeAbort(c, index);
+#endif
 #endif
 #if CLROS_LINUX_SOCKETS
                 var epollWait = view.WaitSource == 3 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
