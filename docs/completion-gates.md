@@ -25,6 +25,9 @@ native, parent, sector/image, NIC or IRQ instruction joins.
 [Step1567](../done/step1567.md) retains the next failed guest and its conditional
 memory-construction repair. Its 41 focused checks and unchanged mechanical
 ELF/package do not advance disk or whole-batch acceptance.
+[Step1568](../done/step1568.md) adds 51 focused FS/descriptor/wait/profile checks
+and retains the next genuine mount failure. Successful pre-mount sector counters
+alone do not qualify the missing complete consumer, disk-backed HTTP or Blazor.
 
 
 ## Current acceptance (October 23, 2026)

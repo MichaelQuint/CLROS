@@ -426,6 +426,77 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         }
         return true;
     }
+
+    [HostTest("webroot.fs preserved boot directories allow unspecified zero FAT timestamps")]
+    private static bool UnspecifiedModifiedTime()
+    {
+        using var f = new Fixture();
+        byte[] root = f.Disk.Sector(f.Disk.Data(2));
+        // Preserve the existing imported app LFN/short pair after the original
+        // image writer's EFI and OS short entries, whose timestamp bytes are zero.
+        root.AsSpan(0, 64).CopyTo(root.AsSpan(64)); root.AsSpan(0, 64).Clear();
+        "EFI        "u8.CopyTo(root); "OS         "u8.CopyTo(root.AsSpan(32));
+        root[11] = root[43] = 0x10;
+        BinaryPrimitives.WriteUInt16LittleEndian(root.AsSpan(26), 20);
+        BinaryPrimitives.WriteUInt16LittleEndian(root.AsSpan(58), 21);
+        f.Disk.SetFat(20, 0x0fffffff); f.Disk.SetFat(21, 0x0fffffff);
+        HostCheck.Equal((ushort)0x21, BinaryPrimitives.ReadUInt16LittleEndian(root.AsSpan(96 + 24)));
+        f.Disk.Sector(f.Disk.Data(3)).AsSpan(32 + 22, 4).Clear();
+        f.Disk.Sector(f.Disk.Data(4)).AsSpan(32 + 22, 4).Clear();
+
+        f.MountReady();
+        var directory = f.Open("/app/wwwroot");
+        HostCheck.Equal(0L, directory.Info.ModifiedSeconds);
+        Fs.FileInspection inspection = default;
+        HostCheck.Equal(Fs.Status.Success, Fs.Inspect(f.Mount, directory.File, &inspection));
+        HostCheck.True(inspection.Info.IsDirectory); HostCheck.Equal(0L, inspection.Info.ModifiedSeconds);
+        Fs.OperationToken cursor = default;
+        HostCheck.Equal(Fs.Status.Pending, Fs.BeginDirectory(f.Mount, directory.File, &cursor));
+        HostCheck.Equal(Fs.Status.Entry, f.Drive(cursor));
+        Span<byte> name = stackalloc byte[256]; Fs.Metadata info = default;
+        HostCheck.Equal(Fs.Status.Success, Fs.CopyEntry(f.Mount, cursor, &info, name));
+        HostCheck.True(name[..info.NameBytes].SequenceEqual("index.html"u8)); HostCheck.Equal(0L, info.ModifiedSeconds);
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, cursor));
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, directory.File));
+
+        var file = f.Open("/app/wwwroot/index.html");
+        HostCheck.Equal(0L, file.Info.ModifiedSeconds);
+        HostCheck.Equal(Fs.Status.Success, Fs.Inspect(f.Mount, file.File, &inspection));
+        HostCheck.True(!inspection.Info.IsDirectory); HostCheck.Equal(0L, inspection.Info.ModifiedSeconds);
+        Span<byte> one = stackalloc byte[1]; f.Read(file.File, 0, 1, one, 1); HostCheck.Equal(Payload(0), one[0]);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+        return true;
+    }
+
+    [HostTest("webroot.fs nonzero malformed FAT timestamps still reject during mount and open")]
+    private static bool MalformedModifiedTime()
+    {
+        (ushort Date, ushort Time)[] cases =
+        [ (0, 1), (1, 0), (0x20, 0), (0x21, 0xf800), (0x21, 0x07e0),
+          (0x21, 0x001f), (0x005e, 0), (0x025d, 0) ];
+        foreach (var item in cases)
+        {
+            using (var f = new Fixture())
+            {
+                byte[] root = f.Disk.Sector(f.Disk.Data(2));
+                BinaryPrimitives.WriteUInt16LittleEndian(root.AsSpan(32 + 24), item.Date);
+                BinaryPrimitives.WriteUInt16LittleEndian(root.AsSpan(32 + 22), item.Time);
+                HostCheck.Equal(Fs.Status.CorruptDirectory, f.StartMount());
+            }
+            using (var f = new Fixture())
+            {
+                byte[] directory = f.Disk.Sector(f.Disk.Data(4));
+                BinaryPrimitives.WriteUInt16LittleEndian(directory.AsSpan(32 + 24), item.Date);
+                BinaryPrimitives.WriteUInt16LittleEndian(directory.AsSpan(32 + 22), item.Time);
+                f.MountReady(); Fs.OperationToken operation = default;
+                HostCheck.Equal(Fs.Status.Pending, Fs.BeginOpen(f.Mount, "/app/wwwroot/index.html"u8, &operation));
+                HostCheck.Equal(Fs.Status.CorruptDirectory, f.Drive(operation));
+                HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, operation));
+            }
+        }
+        return true;
+    }
+
     private struct FsObservation
     {
         internal Block.State* Device;

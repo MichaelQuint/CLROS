@@ -6,6 +6,13 @@ inventory preserves its existing dynamic/table quotas. The mechanical fixture
 now exposes 481 exact main instruction starts, independently decoded and joined
 to retained LLVM22.1.3 bytes without changing its ELF/package. These facts still
 need the complete native/IRQ/parent/sector/packet/runner consumer and fresh guests.
+[Step1568](../done/step1568.md) adds failure-only `M16_023_REJECTED` POD rows.
+They identify caller stage, original parser phase, block/FS failure status,
+submitted/completed/copied counters, active I/O, GPT array/header and partition
+status before cleanup. They perform no device operation or retry. The r06 row
+records 36 successful copies and a corrupt-directory mount result; independent
+image extraction identifies the all-zero EFI directory timestamp. The repair's
+focused checks do not relabel the failed capture or qualify complete disk service.
 
 The isolated M16-025 development profile records continuing read evidence as
 `M16_023_IO` rows: original owner/epoch/generation, LBA, cumulative sequence,

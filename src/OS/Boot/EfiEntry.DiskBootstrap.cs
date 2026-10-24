@@ -17,19 +17,43 @@ public static unsafe partial class EfiEntry
             {
                 if (state->CooperativePhase != 0 || state->LinuxDescriptorPhase != 4 || state->LinuxSyscallPhase != 4 ||
                     state->LinuxMemory.HasMutationGuard || network->Boot != state || network->Phase != 2 ||
-                    network->Device == null || !network->Device->Running || !StartNativeDisk(state)) return false;
+                    network->Device == null || !network->Device->Running) return RejectNativeDiskBootstrap(state, 1);
+                if (!StartNativeDisk(state)) return RejectNativeDiskBootstrap(state, 2);
                 // This outer boot driver owns the bounded cooperative lifetime;
                 // each turn services NIC RX/TX/timers then advances one sector,
                 // parser or mount step. Never spin inside Submit/Poll/Copy.
                 for (uint turn = 0; turn < 3_000_000; turn++)
                 {
-                    if (!PumpLinuxSocketFrames(network)) return false;
+                    if (!PumpLinuxSocketFrames(network)) return RejectNativeDiskBootstrap(state, 3);
                     var progress = NativeDiskBootstrapStep(state); // Fresh HPET +30s absolute deadline inside.
-                    if (progress == NativeDiskProgress.Rejected) return false;
-                    if (progress == NativeDiskProgress.Ready) return AttachNativeDiskDescriptors(state);
+                    if (progress == NativeDiskProgress.Rejected) return RejectNativeDiskBootstrap(state, 4);
+                    if (progress == NativeDiskProgress.Ready)
+                        return AttachNativeDiskDescriptors(state) || RejectNativeDiskBootstrap(state, 5);
                 }
-                return false; // Iteration ceiling is rejection, never readiness.
+                return RejectNativeDiskBootstrap(state, 6); // Iteration ceiling is never readiness.
             }
+        }
+
+        // Failure-only, bounded POD facts on the original supervisor root.
+        // Never call a device, retry, allocate, or infer cleanup from this row.
+        private static bool WriteNativeDiskRejection(Storage* state, uint stage, NativeDiskOwner* o) =>
+            state != null && o != null &&
+            LinuxText(state, "M16_023_REJECTED stage=") && LinuxNumber(state, stage) &&
+            LinuxText(state, " phase=") && LinuxNumber(state, o->Phase) &&
+            LinuxText(state, " blockFailure=") && LinuxNumber(state, (uint)o->Device.LastFailure) &&
+            LinuxText(state, " fsFailure=") && LinuxNumber(state, (uint)o->Mount.LastFailure) &&
+            LinuxText(state, " submitted=") && LinuxNumber(state, o->Device.Submitted) &&
+            LinuxText(state, " completed=") && LinuxNumber(state, o->Device.Completed) &&
+            LinuxText(state, " copied=") && LinuxNumber(state, o->Device.Copied) &&
+            LinuxText(state, " ioActive=") && LinuxNumber(state, o->IoActive ? 1UL : 0UL) &&
+            LinuxText(state, " arraySector=") && LinuxNumber(state, o->ArraySector) &&
+            LinuxText(state, " header=") && LinuxNumber(state, (uint)o->Header.Status) &&
+            LinuxText(state, " partition=") && LinuxNumber(state, (uint)o->Partition.Status) && LinuxText(state, "\r\n");
+
+        private static bool RejectNativeDiskBootstrap(Storage* state, uint stage)
+        {
+            fixed (NativeDiskOwner* o = &s_nativeDisk) _ = WriteNativeDiskRejection(state, stage, o);
+            return false;
         }
 
         // One bounded reset/retirement attempt after actual exit/reaps and timer

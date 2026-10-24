@@ -252,7 +252,11 @@ public static unsafe partial class EfiEntry
                 return NativeDiskProgress.Pending;
             }
         }
-        private static NativeDiskProgress NativeDiskFail(NativeDiskOwner* o) { o->Phase = 8; return NativeDiskProgress.Rejected; }
+        private static NativeDiskProgress NativeDiskFail(NativeDiskOwner* o)
+        {
+            _ = WriteNativeDiskRejection(o->Boot, 7, o); // Retain the failing parser phase before quarantine.
+            o->Phase = 8; return NativeDiskProgress.Rejected;
+        }
 
         // Attach before EnablePipes/EnableFutex so their disjoint-extent checks
         // include all78 disk/FS/DMA/MMIO ranges. Both owners remain retained.

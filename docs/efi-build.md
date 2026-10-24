@@ -15,6 +15,10 @@ that failed guest or qualify disk-to-HTTP service.
 the retained-map check passes, followed by memory-startup rejection. Its
 profile-specific construction-capacity repair and exact mechanical instruction
 metadata pass focused checks; another original publication/guest is required.
+[Step1568](../done/step1568.md) preserves further original r05/r06 failures after
+successful block startup. GPT and sector copies reach the mount, which rejects
+preserved zero timestamps. The explicit zero-metadata policy and failure-only
+diagnostics have fresh source identities; no failed capture is rescued by them.
 
 ## Latest qualified inputs
 

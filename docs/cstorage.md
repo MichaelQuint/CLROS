@@ -2,6 +2,17 @@
 
 ## Current development batch (2026-10-23)
 
+[Step1568](../done/step1568.md) adds an explicit timestamp compatibility policy:
+an all-zero FAT write date/time yields `ModifiedSeconds=0` (unspecified).
+Every other pair must decode as valid Gregorian UTC under the existing fixture
+timezone policy. This permits preserved EFI/OS directory entries produced by
+the base image writer; its metadata and payload bytes are unchanged. VFAT names,
+chains, alias checks, confinement and nonzero invalid-date rejection remain.
+The [Microsoft FAT specification's date/time fields](https://cscie92.dce.harvard.edu/spring2024/Microsoft%20Extensible%20Firmware%20Initiative%20FAT32%20File%20System%20Specification%2C%20Version%201.03%2C%2020001206.pdf)
+define calendar write dates; the zero sentinel here is an explicit CLROS
+compatibility extension. Twenty-two FS checks pass, including mount/open/read,
+metadata and invalid-date controls. Complete disk guest acceptance remains open.
+
 [Step1558](../done/step1558.md) records development of #781/#782 host FAT repairs
 and #769's reproducible webroot fixtures. The host parser rejects unsupported
 FAT flags/version and offers reusable directory-history spans with a default

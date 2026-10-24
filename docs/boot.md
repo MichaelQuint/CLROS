@@ -30,6 +30,9 @@ that failure and its 65 static mappings. M16-025 now has 135 construction entrie
 (128 plus seven); its 64 mutable-region quota and 128 table-page cap remain.
 Ordinary128 and web384 construction limits are unchanged. Complete guest
 qualification of both repairs remains pending.
+[Step1568](../done/step1568.md) retains the subsequent mount rejection after
+those admissions pass, plus its bounded failure diagnostics and timestamp
+compatibility repair. New original guest evidence is still required.
 
 M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,

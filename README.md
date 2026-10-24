@@ -106,6 +106,10 @@ guest qualification remain required. The earlier failed full remains failed.
 and the NIC before memory admission rejects its 65 static mappings. The disk
 profile's construction inventory now preserves room for those mappings and all
 64 mutable regions. Focused checks pass; fresh disk execution remains pending.
+[Step1568](done/step1568.md) identifies the next mount rejection: preserved boot
+directory entries have all-zero timestamps. The read contract now treats that
+exact pair as unspecified metadata; malformed nonzero timestamps still reject.
+Fresh guest qualification and the complete disk consumer remain pending.
 
 SQLite follow-ups [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) and
 [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) use direct

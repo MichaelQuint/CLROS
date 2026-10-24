@@ -158,6 +158,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
 
     /// <summary>Stable physical short-entry identity and declared FAT UTC time.
     /// The fixture's UTC policy is an admission assumption, not a timezone guess.
+    /// ModifiedSeconds is zero for an all-zero FAT date/time (unspecified);
+    /// nonzero FAT timestamps must be valid Gregorian UTC dates from 1980 onward.
     /// Attributes distinguish regular files/directories; length is bytes.</summary>
     public struct Metadata
     {
@@ -656,8 +658,9 @@ public static unsafe class ReadOnlyWebRootFileSystem
         }
         for (uint i = 0; i < length; i++) if (o->Storage.Name[i] is < 33 or > 126) return Fail(m, o, Status.UnsupportedEncoding);
         ushort date = EndianPrimitives.ReadUInt16LittleEndian(raw + 24), time = EndianPrimitives.ReadUInt16LittleEndian(raw + 22);
-        if (!GregorianUtc.TryUnixSeconds((uint)(1980 + (date >> 9)), (uint)((date >> 5) & 15), (uint)(date & 31),
-            (uint)(time >> 11), (uint)((time >> 5) & 63), (uint)((time & 31) * 2), out long seconds)) return Fail(m, o, Status.CorruptDirectory);
+        long seconds = 0; // Project policy: all-zero FAT date/time is unspecified.
+        if ((date != 0 || time != 0) && !GregorianUtc.TryUnixSeconds((uint)(1980 + (date >> 9)), (uint)((date >> 5) & 15), (uint)(date & 31),
+            (uint)(time >> 11), (uint)((time >> 5) & 63), (uint)((time & 31) * 2), out seconds)) return Fail(m, o, Status.CorruptDirectory);
         ulong sector = 0;
         if (Chain.ClusterFirstLba(m->Volume, o->Cursor.Cluster, ref sector) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptDirectory);
         o->Cursor.Pending = new() { FirstCluster = entry.FirstCluster, Length = entry.ByteCount, Attributes = entry.Attributes,
