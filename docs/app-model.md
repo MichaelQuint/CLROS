@@ -1,5 +1,7 @@
 # App Model
 
+[Step1585](../done/step1585.md) preserves full DiskA r01 as failed:31 captured API/framework HTTP responses, no browser, native-return/service failure at about600s despite the full2100s execution policy. Full unfiltered host success at the same5dd6e6c0 source does not supersede that failed guest. Separate writable descriptor/lock/data-image preparations remain unintegrated host contracts.
+
 [Step1581](../done/step1581.md) adds the explicitly selected, default-off
 `-EnableM10018FullProbe` candidate. Its finite policy, full asset HTTP peer,
 consecutive-read/send checks and original external Chromium capture are now

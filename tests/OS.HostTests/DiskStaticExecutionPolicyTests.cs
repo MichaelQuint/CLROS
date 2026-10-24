@@ -4,6 +4,19 @@ using OS.Tooling;
 
 internal static unsafe class DiskStaticExecutionPolicyTests
 {
+    [HostTest("disk full UTC admission uses a finite preentry anchor allowance without changing ordinary or continuing clocks")]
+    private static void RealtimeAdmission()
+    {
+        HostCheck.Equal((ulong)DiskStaticCapturePolicy.MaximumTimeoutSeconds,DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds);
+        HostCheck.True(DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds*1_000_000_000UL>DiskStaticExecutionPolicy.RuntimeNanoseconds);
+        string root=HostToolProcess.FindRepositoryRoot();
+        string source=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.Realtime.cs"));
+        string normalized=string.Concat(source.Where(c=>!char.IsWhiteSpace(c)));
+        HostCheck.True(normalized.Contains("maximumElapsedSeconds:Probes.EnableM16014Probe?0UL:Probes.EnableM10018FullProbe?DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds:600UL,continuing:Probes.EnableM16014Probe",StringComparison.Ordinal));
+        var admission=EfiProjectAdmission.InspectStatic(root);
+        HostCheck.True(admission.Succeeded,admission.Reason+" "+admission.Detail);
+    }
+
     [HostTest("disk full selection rejects mixed and short policy while development stays unchanged")]
     private static void Selection()
     {

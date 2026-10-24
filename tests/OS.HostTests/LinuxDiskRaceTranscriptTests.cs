@@ -7,6 +7,88 @@ using F = OS.Tooling.LinuxDiskRaceProofFixture;
 
 internal static class LinuxDiskRaceTranscriptTests
 {
+    [HostTest("exit pending finite FIFO keeps cancelled disk ownership until actual parent commit and orders all eight stages")]
+    private static void ExitPendingFifo()
+    {
+        string[] rows = ExitPendingStagedLeaf(), before = rows.ToArray(); byte[] package = F.CreatePackage("ExitPending");
+        var report = QemuTranscripts.InspectLinuxDiskExitPendingLeaf(rows, package, 0x200000, 0x100000);
+        HostCheck.True(report.CheckedSchedulerReplay && !report.CheckedUserMemoryOrAuxiliaryJoins &&
+            !report.CheckedPostDeathSentinelOrOrphanDrain && report.ExitPendingStages is not null && report.Abandoned.Count == 1 &&
+            report.MainReadCompletionIndex == -1 && rows.SequenceEqual(before));
+        HostCheck.True(report.Auxiliary.Count(a => a.Text.StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal)) == 8 &&
+            report.ExitPendingStages!.Records.All(s => rows[s.RecordIndex].StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal)));
+        var stage = report.ExitPendingStages!.Records; var abandoned = report.Abandoned[0];
+        HostCheck.True(abandoned.CallRecordIndex < stage[0].RecordIndex && stage[0].RecordIndex < abandoned.GroupExitRecordIndex &&
+            abandoned.GroupExitRecordIndex < stage[1].RecordIndex && stage[1].RecordIndex + 1 == stage[2].RecordIndex);
+        // The historical value-only leaf retains its explicitly smaller scope.
+        HostCheck.True(!Inspect(SyntheticLifecycle("ExitPending"), package).CheckedSchedulerReplay);
+        List<string> idleReady = [];
+        foreach (string row in rows)
+        {
+            if (row.StartsWith("M16_025_COMPLETE ", StringComparison.Ordinal))
+                idleReady.Add($"M16_012_POLL identity=0 clock={Field(row, "clock")} ready=1 idle=1");
+            idleReady.Add(row);
+        }
+        HostCheck.True(QemuTranscripts.InspectLinuxDiskExitPendingLeaf(idleReady, package, 0x200000, 0x100000).CheckedSchedulerReplay);
+    }
+
+    [HostTest("exit pending finite FIFO rejects lost cancellation queue early capability loss and misplaced teardown")]
+    private static void ExitPendingFifoRejections()
+    {
+        string[] rows = ExitPendingStagedLeaf();
+        void Deny(string[] changed)
+        {
+            bool rejected = false;
+            try { _ = QemuTranscripts.InspectLinuxDiskExitPendingLeaf(changed, F.CreatePackage("ExitPending"), 0x200000, 0x100000); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        int childSupervisor = Array.FindIndex(rows, r => r.StartsWith("M16_008_SUPERVISOR identity=" + F.ChildIdentity, StringComparison.Ordinal));
+        Deny(Change(rows, childSupervisor, "ready", 0));
+        var io = ExitPendingDeviceFixture().Rows[7];
+        Deny([..rows[..childSupervisor], io, ..rows[childSupervisor..]]);
+        string[] old = SyntheticLifecycle("ExitPending");
+        int oldSupervisor = Array.FindIndex(old, r => r.StartsWith("M16_008_SUPERVISOR identity=" + F.ChildIdentity, StringComparison.Ordinal));
+        Inspect(Change(old, oldSupervisor, "ready", 0), F.CreatePackage("ExitPending")); // Explicit old upper-bound hole.
+        int first = Index(rows, "M16_025_EXIT_PENDING stage=1 "), second = Index(rows, "M16_025_EXIT_PENDING stage=2 ");
+        int sixth = Index(rows, "M16_025_EXIT_PENDING stage=6 "), lastClose = Index(rows, "M16_011_CLOSE fd=7 ");
+        Deny([..rows[..first], rows[first + 1], rows[first], ..rows[(first + 2)..]]);
+        Deny([..rows[..second], "M16_008_RESUME identity=" + F.MainIdentity + " valueBits=0 status=1", ..rows[second..]]);
+        Deny([..rows[..(second + 1)], "M16_012_POLL identity=4294967297 clock=100 ready=0 idle=0", ..rows[(second + 1)..]]);
+        string[] moved = rows.Where((_, i) => i != sixth).ToArray();
+        Deny([..moved[..lastClose], rows[sixth], ..moved[lastClose..]]);
+        foreach (string key in new[] { "sequence", "generation" })
+        {
+            string[] changed = rows.ToArray();
+            for (int i = 0; i < changed.Length; i++)
+                if (changed[i].StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal)) changed = Change(changed, i, key, Field(changed[i], key) + 1);
+            Deny(changed);
+        }
+        int mainReadPoll = Array.FindIndex(rows, r => r.StartsWith("M16_012_POLL ", StringComparison.Ordinal) && Field(r, "ready") == 1);
+        Deny([..rows[..mainReadPoll], "M16_008_TICK epoch=1 nanos=100 ready=2", ..rows[mainReadPoll..]]);
+        Deny(Change(rows, mainReadPoll, "ready", 0)); Deny(SyntheticLifecycle("ExitPending"));
+    }
+
+    private static string[] ExitPendingStagedLeaf()
+    {
+        string[] original = SyntheticLifecycle("ExitPending"); var leaf = Inspect(original, F.CreatePackage("ExitPending"));
+        int clone = leaf.Calls.Single(c => c.Spec.Role == "prep.clone").RecordIndex;
+        int childExit = leaf.Calls.Single(c => c.Spec.Role == "child.group-exit").RecordIndex;
+        string[] stages = ExitPendingStages(false); List<string> rows = [];
+        for (int i = 0; i < original.Length; i++)
+        {
+            if (i == childExit) rows.Add(stages[0]);
+            if (original[i].StartsWith("M16_008_EXIT identity=" + F.MainIdentity, StringComparison.Ordinal)) rows.AddRange(stages[1..3]);
+            if (original[i].StartsWith("M16_011_CLOSE fd=0 ", StringComparison.Ordinal)) rows.AddRange(stages[3..7]);
+            if (original[i].StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal)) rows.Add(stages[7]);
+            string row = original[i];
+            if (i > clone && i < leaf.MainReadCallIndex && row.StartsWith("M16_012_POLL ", StringComparison.Ordinal))
+                row = Change([row], 0, "ready", 1)[0];
+            rows.Add(row);
+        }
+        return rows.ToArray();
+    }
+
     [HostTest("exit pending device joins every real sector and the last submit to reset retirement")]
     private static void ExitPendingDevice()
     {
@@ -54,7 +136,7 @@ internal static class LinuxDiskRaceTranscriptTests
         Deny(stagesChanged);
     }
 
-    private static (string[] Rows, byte[] Image) ExitPendingDeviceFixture()
+    internal static (string[] Rows, byte[] Image) ExitPendingDeviceFixture()
     {
         byte[] image = new byte[1001 * 512];
         for (int i = 0; i < image.Length; i++) image[i] = unchecked((byte)(i * 13 + (i >> 9)));

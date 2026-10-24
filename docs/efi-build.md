@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1585](../done/step1585.md) preserves the frozen5dd6e6c0 unfiltered full/native pass. The original full DiskA EFI has2032 runtime records/1605 distinct unwind entries and SHA4419557E3C237D90B29D4E515DD7D514F44F41702F980A2769A7A56A38F9784E; imports are absent and same-build source/object/map joins pass. Its later guest fails; publication is not full read/browser acceptance. The full-only finite UTC allowance is repaired to3600s with a reviewed Realtime source pin and source-admission controls. Ordinary600s/service continuing rules remain. The repaired EFI and new pending-exit observations still need original emitted-native/guest qualification.
+
 [Step1584](../done/step1584.md) changes copied host consumers only, joining
 pending-exit stages to real-observation-shaped sectors and reset values. No
 additional EFI input or source pin changes. Managed focused success does not

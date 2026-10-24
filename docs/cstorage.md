@@ -1,5 +1,7 @@
 # Storage
 
+[Step1585](../done/step1585.md) adds the explicit eight-stage ExitPending leaf and finite two-slot FIFO. Child group shutdown queues the cancelled parked parent exactly once; the original disk capability survives until the parent's actual post-CommitExit stage. Exact ready/active counts, supervisor confirmation, generation reap and teardown-stage positions are required. The typed reset terminal admits only its same validated one outstanding request; default positive/018 readers stay drained-only. No original race is enabled. Separate unintegrated data-image3dcaca1d, authenticated mutation-receipt15f8895c, bounded free-cluster discovery c92d87b8 and writable-provider723c96d4 checkpoints retain host-only scopes. Discovery reads both FATs with explicit budgets and no reservation; growth rechecks selected candidates. Native fit, write integration, reboot persistence and SQLite synchronization/recovery remain pending.
+
 [Step1584](../done/step1584.md) joins all copied pending-exit IO observations to
 the unique block binding, raw-image capacity, every committed512-byte sector
 and the exact last outstanding generation/LBA. A separate reset-retirement API

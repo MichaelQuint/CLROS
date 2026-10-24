@@ -130,6 +130,8 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1585](done/step1585.md) records the frozen5dd6e6c0 unfiltered full pass:6516 checks across882 fixture results, unchanged/zero reuse. First full DiskA execution then fails after31 captured HTTP responses at about600s; no browser boots. The full-only UTC allowance is now3600s, retaining the finite2100s execution budget, ordinary600s and continuing-service clock rules. The repair and pending-exit FIFO/reset controls pass116 focused checks; fresh native/guest qualification and original race integration remain pending.
+
 [Step1584](done/step1584.md) joins all copied pending-exit device observations
 to their exact binding, image-sector bytes and final reset-aborted request.
 The ordinary drained reader is unchanged. Seventy-four focused controls pass;

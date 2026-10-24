@@ -57,18 +57,42 @@ public static partial class QemuTranscripts
     [ "CLROS_M16_023_READY", "TEST_PASS m16.023", "CLROS_M16_024_READY", "TEST_PASS m16.024",
       "CLROS_M16_025_READY", "TEST_PASS m16.025" ];
 
-    private static Dictionary<string, ulong> ReadDiskFileEnd(string row)
+    private static Dictionary<string, ulong> ReadDiskFileEnd(string row, LinuxDiskExitPendingDeviceValues? pending = null)
     {
         const string suffix = " device=retired fs=retired dma=zero descriptors=closed reservation=retained";
         Need(row.EndsWith(suffix, StringComparison.Ordinal), "disk_parent_cleanup");
         var end = ReadRecord(row[..^suffix.Length], "M16_025_END", "submitted:dec", "completed:dec", "copied:dec",
             "bootstrapCompleted:dec", "bootstrapCopied:dec", "fsReads:dec", "cacheHits:dec", "cacheMisses:dec");
         Need(end["bootstrapCompleted"] >= 35 && end["bootstrapCopied"] == end["bootstrapCompleted"] &&
-            end["submitted"] > end["bootstrapCompleted"] && end["submitted"] == end["completed"] &&
+            end["submitted"] > end["bootstrapCompleted"] &&
+            (pending is null ? end["submitted"] == end["completed"] : end["completed"] < ulong.MaxValue && end["submitted"] == end["completed"] + 1) &&
             end["copied"] == end["completed"] && end["fsReads"] <= ulong.MaxValue - 34 &&
             end["fsReads"] + 34 == end["submitted"] && end["cacheHits"] <= long.MaxValue &&
             end["cacheMisses"] <= end["fsReads"], "disk_parent_counters");
+        if (pending is not null)
+        {
+            var b = pending.Device.Counters; var last = pending.Stages.Records[7].Values;
+            Need(pending.Device.Cancelled == 0 && pending.Device.ResetRetirement is not null &&
+                end["submitted"] == b.Submitted && end["completed"] == b.Completed && end["copied"] == b.Copied &&
+                end["bootstrapCompleted"] == b.BootstrapCompleted && end["bootstrapCopied"] == b.BootstrapCopied &&
+                last["submitted"] == end["submitted"] && last["completed"] == end["completed"] &&
+                last["copied"] == end["copied"] && last["cancelled"] == 0, "disk_parent_reset_terminal");
+        }
         return end;
+    }
+
+    /// <summary>Inspect only the copied mechanical network envelope and strict
+    /// ExitPending terminal, using a device/stage result built from these same
+    /// rows, canonical package and raw image. The canonical leaf/FIFO, firmware,
+    /// native/source, image receipt, packets and original runner remain separate
+    /// joins. Ordinary/018 callers cannot select this reset-retirement path.</summary>
+    public static LinuxDiskExitPendingDeviceValues InspectLinuxDiskExitPendingNetworkForTests(
+        string[] rows, byte[] package, ReadOnlySpan<byte> rawImage)
+    {
+        var pending = InspectLinuxDiskExitPendingDeviceValues(rows, package, rawImage);
+        var envelope = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending);
+        Need(pending.Stages.Records[7].Values["clock"] <= envelope.Proof.End["end"], "disk_parent_reset_lifetime");
+        return pending;
     }
 
     /// <summary>Check only the supplied mechanical disk/NIC envelope values,

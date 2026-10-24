@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1585](done/step1585.md) preserves the5dd6e6c0 full6516-check/882-fixture pass and failed full DiskA r01 after31 HTTP responses. Do not relabel either result. Pending-exit FIFO now retains the cancelled parent disk capability until actual CommitExit and enforces exact ready counts; typed parent reset accounting preserves ordinary drained readers. Original race launch stays refused. Native lease remains primary-owned; two isolated agents continue writable preparations.
+
 [Step1584](done/step1584.md) adds a separate copied pending-reset device join.
 Require every original IO position, exact binding/counters, copied sector bytes
 and the last uncompleted generation/LBA. Preserve the ordinary drained reader.

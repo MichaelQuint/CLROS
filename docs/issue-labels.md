@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1585](../done/step1585.md) extends M06-021 ownership to two isolated WritableDataImageFixture tool/test paths and M10-018 ownership to Realtime source plus its clock/startup tests. Each scoped preview1/apply1/readback9 unchanged confirms zero drift before edits. The full-profile finite UTC repair and copied FIFO/reset evidence retain open issue states and dependencies; isolated write/discovery/provider checkpoints grant no guest acceptance. Refresh content versions before later evidence reconciliation.
+
 [Step1584](../done/step1584.md) separately reconciles M16-027's two new POD
 descriptor-provider paths: preview1/apply1/readback9 unchanged, zero drift.
 This extends isolated implementation ownership; it changes no state, dependency,

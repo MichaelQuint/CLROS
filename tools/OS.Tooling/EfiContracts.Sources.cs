@@ -17,7 +17,7 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.DiskNative.cs"] = "6c42a17a46510e132c9a2d6f430927dc95e77f04cc868814bf5cb6a90ed57f9b",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs"] = "eedd501f486cf9e0f17129577a909d9e18e1320babb90aad31f3b3e92b4e1fe6",
                 [@"Boot\EfiEntry.StaticFiles.cs"] = "0e4a088b4b592dc2f3829b1b68e6900029b9758c35fc24d78cdb1df0cf565386",
-                [@"Boot\EfiEntry.Realtime.cs"] = "4c43d5db8a3287cd8e0f0103b102070762204a83939b48f6c9189cb4056fafe3",
+                [@"Boot\EfiEntry.Realtime.cs"] = "c871f076a82826df3763e248bafd0bbb095dfc0b12fe96c41b3a0f7c63b17fc9",
                 [@"..\OS.Kernel\Platform\OwnedRealtimeClock.cs"] = "0dfae6f8423a2443ca63800fd48b7b93da455fed1ef90e5ffe728f74c122a709",
                 [@"..\..\std\no-runtime\shared\Time\GregorianUtc.cs"] = "123bff62aaad42b88f372acd07043d850c726fa4f8e3efda92a755bf448e171f",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs"] = "d075d65313f6927335b17e2edb318571a30e8c3f757ee6c07cd347ff3987ab65",

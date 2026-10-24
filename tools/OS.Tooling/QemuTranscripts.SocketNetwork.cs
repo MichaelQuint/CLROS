@@ -215,7 +215,7 @@ public static partial class QemuTranscripts
         var result=SocketNetworkEnvelope(rows,true,staticFiles:true).Proof.Lifetimes;
         return new(result.Count,result.Count(v=>v.Retired!=0),result.Count(v=>v.Waits!=0),result.Max(v=>v.MaximumDeadline));
     }
-    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false,bool diskStatic=false,int diskStaticConnections=1)
+    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof,Dictionary<string,ulong>? DiskEnd) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false,bool diskStatic=false,int diskStaticConnections=1,LinuxDiskExitPendingDeviceValues? diskExitPending=null)
     {
         int parentsEnd=QemuContracts.M03OwnedSubsystemMarkers.Count+7+M16LinuxStartupMarkers.Count+M16ServiceLoopMarkers.Count;
         int apicEnd=parentsEnd+QemuContracts.M05ApicSetupMarkers.Count-QemuContracts.M03OwnedSubsystemMarkers.Count;
@@ -223,7 +223,8 @@ public static partial class QemuTranscripts
         Need(lines.Length>networkStart+12 && !(containment&&asynchronous) && (!vectors || asynchronous && !containment) &&
             (!mechanical||asynchronous&&!containment&&!vectors) && (!staticFiles||asynchronous&&!containment&&!vectors&&!mechanical) &&
             (!diskFiles||mechanical&&!staticFiles || diskStatic && staticFiles && !mechanical) &&
-            (!diskStatic || diskFiles && staticFiles && diskStaticConnections is >0 and <=512),"socket_parent_extent");
+            (!diskStatic || diskFiles && staticFiles && diskStaticConnections is >0 and <=512) &&
+            (diskExitPending is null || asynchronous && mechanical && diskFiles && !staticFiles && !diskStatic && !containment && !vectors),"socket_parent_extent");
         int cursor=networkStart;
         void Exact(string expected){Need(cursor<lines.Length&&lines[cursor++]==expected,"socket_parent_order_"+expected);}
         Exact("TEST_START m07-026");var dma=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");
@@ -243,9 +244,10 @@ public static partial class QemuTranscripts
         var end=ReadRecord(endLine[..^cleanup.Length],"M16_011_END","polls:dec","received:dec","copied:dec","fresh:dec","retired:dec","start:dec","end:dec","maxDeadline:dec");
         Dictionary<string,ulong> Row(uint stage){var value=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");Need(value["stage"]==stage,"socket_network_stage");return value;}
         var stop=Row(4);var pool=Row(5);var allocator=Row(6);
+        Dictionary<string,ulong>? diskEnd=null;
         if(diskFiles)
         {
-            Need(cursor<lines.Length,"disk_parent_end_missing"); _=ReadDiskFileEnd(lines[cursor++]);
+            Need(cursor<lines.Length,"disk_parent_end_missing"); diskEnd=ReadDiskFileEnd(lines[cursor++],diskExitPending);
             foreach(string marker in DiskFileEndMarkers)Exact(marker);
         }
         if(staticFiles)
@@ -280,7 +282,7 @@ public static partial class QemuTranscripts
         Need(allocator["a"]==baseline[0] && allocator["b"]==baseline[1] && allocator["c"]==baseline[2] && allocator["d"]==binding[2] &&
             (dma["a"]+32768<=oldPages[0]||oldPages[0]+8192<=dma["a"]) &&
             (dma["a"]+32768<=binding[3]||binding[3]+16384<=dma["a"]),"socket_allocator_association");
-        return (parentsEnd,apic,new(nic,arp,peer,wire,end,stop,lifetimes,control));
+        return (parentsEnd,apic,new(nic,arp,peer,wire,end,stop,lifetimes,control),diskEnd);
     }
 
     private sealed class SocketWireFlow(uint port,int index,uint sequence,bool vectors)

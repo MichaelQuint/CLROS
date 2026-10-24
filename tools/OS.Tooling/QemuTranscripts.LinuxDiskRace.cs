@@ -180,8 +180,9 @@ public static partial class QemuTranscripts
     /// <summary>Copied scalar checks of the exact two-worker mechanical leaf.
     /// Pending windows and all known auxiliary rows retain original indexes for
     /// parent/sector/timing joins. This inspector checks reported transaction
-    /// ordering, not an instruction interpreter, scheduler replay, sentinel/data
-    /// memory inspection, original firmware, native device or whole-guest proof.</summary>
+    /// ordering. Only the explicit eight-stage ExitPending entry point adds its
+    /// finite FIFO replay. Neither entry point interprets arbitrary instructions
+    /// or proves sentinel/data memory, original firmware/device or a whole guest.</summary>
     public sealed class LinuxDiskRaceLeafReport
     {
         public string Variant { get; }
@@ -191,7 +192,8 @@ public static partial class QemuTranscripts
         public bool CheckedWaitCompletions => true;
         public bool CheckedLifecycleRecords => true;
         public bool CheckedCrossWorkerOrdering => true;
-        public bool CheckedSchedulerReplay => false;
+        public bool CheckedSchedulerReplay => ExitPendingStages is not null;
+        public LinuxDiskExitPendingValues? ExitPendingStages { get; }
         public bool CheckedUserMemoryOrAuxiliaryJoins => false;
         public bool CheckedSignalReturnEnvelopes => Variant is "InterruptWins" or "CompletionWins";
         public bool CheckedPostDeathSentinelOrOrphanDrain => false;
@@ -207,13 +209,14 @@ public static partial class QemuTranscripts
         public int ChildSignalIndex { get; }
         internal LinuxDiskRaceLeafReport(string variant, int transfers, ulong epochs, List<LinuxDiskRaceCall> calls,
             List<LinuxDiskRaceWindow> windows, List<LinuxDiskAuxiliary> auxiliary, int read, int complete, int close,
-            List<LinuxDiskRaceAbandoned> abandoned, int signal)
+            List<LinuxDiskRaceAbandoned> abandoned, int signal, LinuxDiskExitPendingValues? stages = null)
         {
             Variant = variant; Transfers = transfers; Epochs = epochs;
             Calls = Array.AsReadOnly(calls.ToArray()); Windows = Array.AsReadOnly(windows.ToArray());
             Auxiliary = Array.AsReadOnly(auxiliary.ToArray()); MainReadCallIndex = read;
             MainReadCompletionIndex = complete; ChildCloseIndex = close;
             Abandoned = Array.AsReadOnly(abandoned.ToArray()); ChildSignalIndex = signal;
+            ExitPendingStages = stages;
         }
     }
 
@@ -224,6 +227,21 @@ public static partial class QemuTranscripts
     /// and every indexed auxiliary observation require independent validation.</summary>
     public static LinuxDiskRaceLeafReport InspectLinuxDiskRaceLeaf(IReadOnlyList<string> supplied,
         byte[] package, ulong userRoot, ulong kernelRoot)
+        => InspectLinuxDiskRaceLeafCore(supplied, package, userRoot, kernelRoot, null);
+
+    /// <summary>Inspect the canonical ExitPending leaf with all eight original
+    /// stage positions and a finite two-slot FIFO/lifecycle replay. Retain the
+    /// original parked disk capability through group shutdown until the parent's
+    /// real post-CommitExit stage. Require exact ready/active counts and off-stack
+    /// confirmation/reap order. This is copied scheduler consistency, not native,
+    /// user-memory, device, complete-parent or original-execution authority.</summary>
+    public static LinuxDiskRaceLeafReport InspectLinuxDiskExitPendingLeaf(IReadOnlyList<string> supplied,
+        byte[] package, ulong userRoot, ulong kernelRoot)
+        => InspectLinuxDiskRaceLeafCore(supplied, package, userRoot, kernelRoot,
+            InspectLinuxDiskExitPendingValues(supplied, package));
+
+    private static LinuxDiskRaceLeafReport InspectLinuxDiskRaceLeafCore(IReadOnlyList<string> supplied,
+        byte[] package, ulong userRoot, ulong kernelRoot, LinuxDiskExitPendingValues? stages)
     {
         int count = supplied?.Count ?? 0;
         Need(count is > 0 and <= 32768 && package is not null, "disk_race_input");
@@ -236,6 +254,8 @@ public static partial class QemuTranscripts
         }
         string variant = Race.PackageVariant(package!); bool close = variant == "CloseReuse";
         bool signalRace = variant is "InterruptWins" or "CompletionWins", exitPending = variant == "ExitPending";
+        Need(stages is null || exitPending, "disk_race_stage_variant");
+        ExitPendingFifo? fifo = stages is null ? null : new(); int exitStage = 0;
         var manifest = LinuxElfPackage.Validate(package!).Manifest;
         var observations = ReadLinuxDiskCallObservations(input);
         var waits = observations.Waits.ToDictionary(v => v.RecordIndex);
@@ -313,18 +333,56 @@ public static partial class QemuTranscripts
         while (reaped < 2)
         {
             Need(at < rows.Length, "disk_race_truncated"); int index = at; string line = rows[at];
+            if (line.StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal))
+            {
+                Need(stages is not null && exitStage < 3 && stages.Records[exitStage].RecordIndex == index,
+                    "disk_race_exit_stage_position");
+                var v = stages!.Records[exitStage].Values;
+                if (exitStage == 0)
+                {
+                    var p = workers[0].Pending;
+                    Need(MainPending() && selected == 1 && witness && !groupExit && workers[1].Calls < workers[1].Plan.Count &&
+                        workers[1].Plan[workers[1].Calls].Role == "child.group-exit" &&
+                        p is not null && v["ordinal"] == p.Ordinal && v["sequence"] == p.Sequence && v["generation"] == p.Request &&
+                        v["rip"] == p.Spec.ReturnRip && v["outputBytes"] == p.Spec.OutputBytes &&
+                        index + 1 < rows.Length && rows[index + 1].StartsWith("M16_008_CALL ", StringComparison.Ordinal),
+                        "disk_race_exit_stage_pending");
+                    fifo!.BeforeShutdown();
+                }
+                else
+                {
+                    Need(groupExit && MainPending() && workers[1].Reaped && !workers[0].Exited && selected < 0 && awaiting < 0,
+                        "disk_race_exit_stage_commit");
+                    if (exitStage == 1)
+                    {
+                        Need(stages.Records[2].RecordIndex == index + 1, "disk_race_exit_stage_adjacent");
+                        fifo!.BeforeParentCommit();
+                    }
+                    else
+                    {
+                        Need(index + 1 < rows.Length && rows[index + 1].StartsWith("M16_008_EXIT ", StringComparison.Ordinal),
+                            "disk_race_exit_stage_adjacent");
+                        fifo!.AfterParentCommit(); workers[0].Pending = null;
+                    }
+                }
+                Take(); Aux(index); exitStage++; continue;
+            }
             if (line.StartsWith("M16_012_POLL ", StringComparison.Ordinal))
             {
                 var p = Row("M16_012_POLL", "identity:dec", "clock:dec", "ready:dec", "idle:dec");
                 Need(p["ready"] <= 2 && p["idle"] <= 1 && (p["idle"] == 0 || p["identity"] == 0), "disk_race_poll");
                 if (p["identity"] != 0) Select(Worker(p["identity"]));
                 else Need(selected < 0 && awaiting < 0, "disk_race_poll_owner");
+                fifo?.Poll(p["identity"] == 0 ? -1 : Worker(p["identity"]), p["ready"]);
                 Clock(p["clock"]); Aux(index); continue;
             }
             if (line.StartsWith("M16_023_IO ", StringComparison.Ordinal))
-            { RaceIoShape(Take()); Aux(index); continue; }
+            { Need(fifo is null || exitStage == 0, "disk_race_post_shutdown_io"); RaceIoShape(Take()); Aux(index); continue; }
             if (line.StartsWith("M16_008_TICK ", StringComparison.Ordinal))
             {
+                // This explicit socket-backed leaf idles cooperatively through
+                // IdleLinuxSocketNetwork, never the supervisor timer wait path.
+                Need(fifo is null, "disk_exit_fifo_unexpected_tick");
                 var t = Row("M16_008_TICK", "epoch:dec", "nanos:dec", "ready:dec");
                 Need(selected < 0 && awaiting < 0 && workers.Any(w => w.Pending is not null) &&
                     t["epoch"] == ++epoch && epoch < budget["epochs"] && t["ready"] <= 2, "disk_race_tick");
@@ -350,6 +408,7 @@ public static partial class QemuTranscripts
             if (line.StartsWith("M16_005_WRITE ", StringComparison.Ordinal))
             {
                 int w = exitPending ? 1 : 0; Select(w);
+                fifo?.Running(w);
                 Need(!witness && (exitPending ? MainPending() : workers[0].Pending is null && workers[1].Reaped) &&
                     workers[w].Calls < workers[w].Plan.Count && workers[w].Plan[workers[w].Calls].Role == (exitPending ? "child.witness" : "main.witness"), "disk_race_witness_order");
                 Exact("M16_005_WRITE fd=1 bytes=" + Race.Witness(variant).Length + " data=" + Race.Witness(variant)); witness = true; continue;
@@ -359,6 +418,7 @@ public static partial class QemuTranscripts
                 var c = Row("M16_008_CALL", "identity:dec", "nr:dec", "a0:dec", "a1:dec", "a2:dec", "a3:dec", "a4:dec", "a5:dec",
                     "rip:dec", "rsp:dec", "flags:dec", "fs:dec", "gs:dec", "clock:dec", "valueBits:dec", "action:dec", "status:dec");
                 int w = Worker(c["identity"]); Select(w); RaceWorker owner = workers[w];
+                fifo?.Running(w);
                 bool handlerCall = w == 0 && inHandler;
                 Need(owner.Pending is null && (handlerCall ? handlerCalls < handler.Count : owner.Calls < owner.Plan.Count), "disk_race_call_order");
                 var e = handlerCall ? handler[handlerCalls] : owner.Plan[owner.Calls];
@@ -377,7 +437,7 @@ public static partial class QemuTranscripts
                     ret.Fs == owner.Fs && ret.Gs == 0 && ret.ValueBits == c["valueBits"], "disk_race_return");
                 calls.Add(new(index, owner.Identity, (ulong)owner.Ordinal, e));
                 if (e.Role == "child.signal") { Need(signalRace && MainPending() && owner.Calls == 1, "disk_race_signal_owner"); childSignal = index; }
-                if (e.Role == "prep.clone") { Need(!workers[1].Created, "disk_race_duplicate_clone"); workers[1].Created = true; }
+                if (e.Role == "prep.clone") { Need(!workers[1].Created, "disk_race_duplicate_clone"); workers[1].Created = true; fifo?.CreateChild(); }
                 if (w == 1 && e.Role is "child.pin" or "child.disjoint-readonly" or "child.disjoint-writable")
                 { Need(MainPending(), "disk_race_progress_outside_read"); progress.Add(e.Role); }
                 if (e.Role == "child.tid") Need(MainPending(), "disk_race_child_early");
@@ -395,6 +455,7 @@ public static partial class QemuTranscripts
                     if (e.Wait == Race.WaitPolicy.PipeRead) Need(notify < 0, "disk_race_pipe_already_buffered");
                     if (e.Wait == Race.WaitPolicy.Disk) request++;
                     owner.Pending = new(e, index, (ulong)owner.Ordinal, owner.Sequence, e.Wait == Race.WaitPolicy.Disk ? request : 0, source);
+                    fifo?.BeginWait(w, e.Role == "main.read");
                     if (e.Role == "main.read") { mainRead = index; interruptedFlags = c["flags"]; }
                     awaiting = w; action = (uint)LinuxSyscallAction.Blocked;
                 }
@@ -414,7 +475,9 @@ public static partial class QemuTranscripts
                             Need(w == 1 && e.Role == "child.group-exit" && MainPending() && witness && !groupExit, "disk_race_pending_group_exit");
                             var p = workers[0].Pending!;
                             abandoned.Add(new(p.Index, index, workers[0].Identity, p.Ordinal, p.Sequence, p.Request, p.Spec.OutputBytes));
-                            workers[0].Pending = null; groupExit = true;
+                            if (fifo is null) workers[0].Pending = null;
+                            else { Need(exitStage == 1, "disk_race_shutdown_before_stage"); fifo.Shutdown(); }
+                            groupExit = true;
                         }
                         else Need(w == 1 || workers[1].Reaped && witness && (!signalRace || handlerReturned), "disk_race_exit_order");
                         awaiting = w; action = (uint)c["action"]; exitMarker = false;
@@ -426,6 +489,7 @@ public static partial class QemuTranscripts
             {
                 var c = Row("M16_025_COMPLETE", "identity:dec", "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
                 int w = Worker(c["identity"]); Select(w); var p = workers[w].Pending;
+                fifo?.PreparationCompleted(w);
                 Need(p is not null && p.Source == 4 && c["sequence"] == p.Sequence && c["request"] == p.Request && c["outputBytes"] == p.Spec.OutputBytes &&
                     c["completion"] == (ulong)(p.Spec.Role == "main.read" && variant == "InterruptWins" ? KernelThreadTable.Completion.Interrupted : KernelThreadTable.Completion.Woken) &&
                     c["valueBits"] == unchecked((ulong)p.Spec.Result), "disk_race_completion");
@@ -446,6 +510,7 @@ public static partial class QemuTranscripts
                 if (exitPending && groupExit && w == 0 && awaiting < 0 && selected < 0)
                 { awaiting = 0; action = 4; exitMarker = false; }
                 Need(awaiting == w && action is 2 or 4 && !exitMarker && !workers[w].Exited && e["clearTidResult"] == 0, "disk_race_exit");
+                fifo?.ExitRecord(w);
                 exitMarker = true; workers[w].Exited = true; continue;
             }
             if (line.StartsWith("M16_008_SUPERVISOR ", StringComparison.Ordinal))
@@ -454,6 +519,7 @@ public static partial class QemuTranscripts
                 Need(awaiting >= 0 && s["identity"] == workers[awaiting].Identity && s["action"] == action &&
                     (action == 3 || exitMarker), "disk_race_supervisor_order");
                 transfers += 2;
+                fifo?.Supervisor(awaiting, action, s["ready"], s["active"]);
                 Need(transfers / 2 < (int)budget["steps"] && s["transfers"] == (ulong)transfers && s["active"] == (ulong)workers.Count(w => w.Created && !w.Reaped) &&
                     s["ready"] <= (ulong)workers.Count(w => w.Created && !w.Exited && !w.Reaped), "disk_race_supervisor");
                 selected = awaiting = -1; action = 0; continue;
@@ -465,11 +531,23 @@ public static partial class QemuTranscripts
                 var r = ReadRecord(reap[..^suffix.Length], "M16_008_REAP", "old:dec", "next:dec"); int w = Worker(r["old"]);
                 Need(selected < 0 && awaiting < 0 && workers[w].Exited && !workers[w].Reaped && workers[w].Pending is null &&
                     workers[w].Calls == workers[w].Plan.Count && r["next"] == r["old"] + (1UL << 32), "disk_race_reap");
-                workers[w].Reaped = true; reaped++; continue;
+                fifo?.Reap(w); workers[w].Reaped = true; reaped++; continue;
             }
             throw new ToolFailure("disk_race_unknown_record", "index=" + index);
         }
+        void ExitTailStage(int expected)
+        {
+            Need(stages is not null && exitStage == expected - 1 && at == stages.Records[exitStage].RecordIndex,
+                "disk_race_exit_stage_teardown");
+            int index = at; Take(); Aux(index); exitStage++;
+        }
+        if (stages is not null)
+        {
+            fifo!.Drained();
+            for (int stage = 4; stage <= 7; stage++) ExitTailStage(stage);
+        }
         for (uint fd = 0; fd < (exitPending ? 8U : 3U); fd++) { int index = at; Exact("M16_011_CLOSE fd=" + fd + " valueBits=0"); Aux(index); }
+        if (stages is not null) ExitTailStage(8);
         var finished = Row("M16_008_BUDGET_END", "nanos:dec");
         Need(finished["nanos"] >= clock && finished["nanos"] >= budget["started"] && finished["nanos"] <= long.MaxValue &&
             finished["nanos"] - budget["started"] < LinuxThreadExecutionBudget.RuntimeNanoseconds, "disk_race_budget_end");
@@ -483,7 +561,135 @@ public static partial class QemuTranscripts
                 (close ? childClose > mainRead && childClose < mainComplete : signalRace ? childSignal > mainRead && childSignal < mainComplete && handlerReturned :
                  childDuplicate > mainRead && childDuplicate < mainComplete)),
             "disk_race_terminal");
-        return new(variant, transfers, epoch, calls, windows, auxiliary, mainRead, mainComplete, childClose, abandoned, childSignal);
+        return new(variant, transfers, epoch, calls, windows, auxiliary, mainRead, mainComplete, childClose, abandoned, childSignal, stages);
+    }
+
+    // Deliberately finite: the two preparation waits complete before clone,
+    // followed by one parked parent read and child group shutdown. This models
+    // the existing table's FIFO/Cancel/Exit/Confirm/Reap semantics, not hardware
+    // execution or a generic scheduler. Linux-slot Exiting and disk capability
+    // are separate from the kernel slot's lifecycle state.
+    private sealed class ExitPendingFifo
+    {
+        private readonly KernelThreadTable.State[] state = [KernelThreadTable.State.Ready, KernelThreadTable.State.Empty];
+        private readonly bool[] exiting = new bool[2], cancelled = new bool[2];
+        private readonly Queue<int> ready = new([0]);
+        private int current = -1, handoff = -1;
+        private bool childCreated, diskHeld, shutdown;
+
+        internal void Running(int worker)
+        {
+            Need(worker is 0 or 1 && handoff < 0 && !state.Contains(KernelThreadTable.State.Exited), "disk_exit_fifo_dispatch");
+            if (current < 0)
+            {
+                Need(ready.Count > 0 && ready.Dequeue() == worker && state[worker] == KernelThreadTable.State.Ready,
+                    "disk_exit_fifo_order");
+                current = worker; state[worker] = KernelThreadTable.State.Running;
+            }
+            Need(current == worker && state[worker] == KernelThreadTable.State.Running, "disk_exit_fifo_running");
+        }
+        internal void Poll(int worker, ulong count)
+        {
+            Need(!shutdown, "disk_exit_fifo_post_shutdown_poll");
+            // Idle readiness can be serialized after the sole preparation
+            // wait wakes, before its eventual COMPLETE/RESUME. This uniquely
+            // identifies worker0; after clone no such inferred wake is admitted.
+            if (worker < 0 && count == 1 && !childCreated && state[0] == KernelThreadTable.State.Waiting)
+                WakePreparation();
+            if (worker >= 0) Running(worker);
+            else Need(current < 0 && handoff < 0, "disk_exit_fifo_poll_owner");
+            Need(count == (ulong)ready.Count, "disk_exit_fifo_poll_ready");
+        }
+        internal void CreateChild()
+        {
+            Need(current == 0 && !childCreated && state[1] == KernelThreadTable.State.Empty && ready.Count == 0,
+                "disk_exit_fifo_clone");
+            childCreated = true; state[1] = KernelThreadTable.State.Ready; ready.Enqueue(1);
+        }
+        internal void BeginWait(int worker, bool read)
+        {
+            Need(current == worker && state[worker] == KernelThreadTable.State.Running && !shutdown &&
+                worker == 0 && (read ? childCreated && !diskHeld : !childCreated), "disk_exit_fifo_wait");
+            state[worker] = KernelThreadTable.State.Parking; if (read) diskHeld = true;
+        }
+        internal void PreparationCompleted(int worker)
+        {
+            // The only positive disk completions are the sole worker's two
+            // pre-clone opens. Wake queues that same waiter; Flush/Dispatch is
+            // uniquely determined before its emitted completion/RESUME pair.
+            Need(worker == 0 && !childCreated && !shutdown && !diskHeld && current < 0 && handoff < 0,
+                "disk_exit_fifo_prep_completion");
+            if (state[0] == KernelThreadTable.State.Waiting) WakePreparation();
+            Need(state[0] == KernelThreadTable.State.Ready && ready.Count == 1, "disk_exit_fifo_prep_ready");
+            Running(0);
+        }
+        private void WakePreparation()
+        {
+            Need(!childCreated && !shutdown && !diskHeld && current < 0 && handoff < 0 && ready.Count == 0 &&
+                state[0] == KernelThreadTable.State.Waiting, "disk_exit_fifo_prep_wake");
+            state[0] = KernelThreadTable.State.Ready; ready.Enqueue(0);
+        }
+        internal void BeforeShutdown()
+        {
+            Need(current == 1 && handoff < 0 && ready.Count == 0 && diskHeld && !shutdown &&
+                state[0] == KernelThreadTable.State.Waiting && state[1] == KernelThreadTable.State.Running &&
+                !exiting[0] && !exiting[1] && !cancelled[0] && !cancelled[1], "disk_exit_fifo_pending_stage");
+        }
+        internal void Shutdown()
+        {
+            BeforeShutdown(); shutdown = true;
+            exiting[0] = exiting[1] = cancelled[0] = cancelled[1] = true;
+            state[0] = KernelThreadTable.State.Ready; ready.Enqueue(0);
+        }
+        internal void BeforeParentCommit()
+        {
+            Need(shutdown && state[1] == KernelThreadTable.State.Empty && exiting[0] && cancelled[0] && diskHeld,
+                "disk_exit_fifo_parent_continuation");
+            Running(0); Need(ready.Count == 0, "disk_exit_fifo_parent_queue");
+        }
+        internal void AfterParentCommit()
+        {
+            Need(diskHeld && current == 0 && shutdown && exiting[0] && cancelled[0], "disk_exit_fifo_revoke");
+            CommitExit(0); diskHeld = false;
+        }
+        private void CommitExit(int worker)
+        {
+            Need(current == worker && handoff < 0 && state[worker] == KernelThreadTable.State.Running &&
+                exiting[worker] && cancelled[worker], "disk_exit_fifo_commit");
+            state[worker] = KernelThreadTable.State.Exiting; current = -1; handoff = worker;
+        }
+        internal void ExitRecord(int worker)
+        {
+            if (worker == 1) { Need(diskHeld, "disk_exit_fifo_early_revoke"); CommitExit(worker); }
+            else Need(!diskHeld && current < 0 && handoff == 0 && state[0] == KernelThreadTable.State.Exiting,
+                "disk_exit_fifo_parent_exit");
+        }
+        internal void Supervisor(int worker, uint action, ulong count, ulong active)
+        {
+            if (action == 3)
+            {
+                Need(current == worker && handoff < 0 && state[worker] == KernelThreadTable.State.Parking,
+                    "disk_exit_fifo_park");
+                state[worker] = KernelThreadTable.State.Waiting; current = -1; handoff = worker;
+            }
+            Need(current < 0 && handoff == worker && count == (ulong)ready.Count &&
+                active == (ulong)state.Count(s => s != KernelThreadTable.State.Empty), "disk_exit_fifo_supervisor");
+            if (action is 2 or 4)
+            {
+                Need(state[worker] == KernelThreadTable.State.Exiting, "disk_exit_fifo_exit_confirmation");
+                state[worker] = KernelThreadTable.State.Exited;
+            }
+            else Need(action == 3 && state[worker] == KernelThreadTable.State.Waiting, "disk_exit_fifo_wait_confirmation");
+            handoff = -1;
+        }
+        internal void Reap(int worker)
+        {
+            Need(current < 0 && handoff < 0 && state[worker] == KernelThreadTable.State.Exited &&
+                (worker == 1 ? diskHeld : !diskHeld), "disk_exit_fifo_reap");
+            state[worker] = KernelThreadTable.State.Empty;
+        }
+        internal void Drained() => Need(shutdown && !diskHeld && current < 0 && handoff < 0 && ready.Count == 0 &&
+            state.All(s => s == KernelThreadTable.State.Empty), "disk_exit_fifo_drained");
     }
 
     private sealed record RacePending(Race.CallSpec Spec, int Index, ulong Ordinal, ulong Sequence, ulong Request, uint Source);

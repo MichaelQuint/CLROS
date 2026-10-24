@@ -4,6 +4,24 @@ using Clock = OS.Kernel.Platform.OwnedRealtimeClock;
 
 internal static class OwnedRealtimeClockTests
 {
+    [HostTest("time.realtime finite full disk anchor survives600 and later started2100 seconds then expires permanently at3600")]
+    private static void FullDiskLifetime()
+    {
+        const ulong frequency=100_000_000,anchor=123_456;
+        ulong maximum=OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds;
+        Clock.State state=default;
+        HostCheck.True(Clock.Begin(ref state,1_800_000_000,0,anchor,frequency,maximum));
+        HostCheck.True(!state.IsContinuing);
+        foreach(ulong elapsed in new ulong[]{600,601,30+2100,maximum-1})
+        {
+            HostCheck.True(Clock.Read(ref state,anchor+elapsed*frequency,out long seconds,out uint nanos));
+            HostCheck.Equal(1_800_000_000L+(long)elapsed,seconds);HostCheck.Equal(0U,nanos);
+        }
+        RejectedRead(ref state,anchor+maximum*frequency);
+        RejectedRead(ref state,anchor+(maximum-1)*frequency);
+        HostCheck.True(!Clock.Begin(ref state,1_800_000_000,0,anchor,frequency,maximum));
+    }
+
     [HostTest("time.realtime continuing anchor survives finite ceilings and retains rollback overflow and single-owner guards")]
     private static void ServiceLifetime()
     {

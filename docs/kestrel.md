@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1585](../done/step1585.md) records first full DiskA r01 at5dd6e6c0. The server listens at21484978800ns and captures31 HTTP responses through GET Microsoft.Extensions.Logging.Abstractions.wasm (28441 bytes), then the guest returns failure at about600s. The next HEAD/remaining asset matrix and external Blazor browser do not complete. HTTP receipt Complete=false; process exit99/requested=0 is not graceful shutdown or qualified service.
+
 [Step1581](../done/step1581.md) connects explicit `DiskStaticFullV1` through the
 original finite owner. The external peer sends health/config/status/items,
 then the independent asset GET/HEAD/range/conditional/confinement matrix, then

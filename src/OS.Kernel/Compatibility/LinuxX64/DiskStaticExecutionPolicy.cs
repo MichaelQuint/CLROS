@@ -13,4 +13,7 @@ public static class DiskStaticExecutionPolicy
     public const ulong RequestDelayNanoseconds = 1_800_000_000_000;
     public const ulong GraceNanoseconds = 120_000_000_000;
     public const ulong RuntimeNanoseconds = 2_100_000_000_000;
+    // UTC is anchored before workload entry. Leave finite startup/teardown
+    // headroom beyond the later-started execution budget; never renew it.
+    public const ulong RealtimeMaximumElapsedSeconds = 3600;
 }

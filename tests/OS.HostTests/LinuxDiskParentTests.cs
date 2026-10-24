@@ -6,6 +6,36 @@ using System.Globalization;
 
 internal static class LinuxDiskParentTests
 {
+    [HostTest("disk parent admits only the exact typed pending-reset terminal and preserves ordinary drained rejection")]
+    private static void PendingReset()
+    {
+        var (device, image) = LinuxDiskRaceTranscriptTests.ExitPendingDeviceFixture();
+        var rows = Envelope().ToList(); rows.InsertRange(rows.IndexOf("TEST_START m16-009") + 1, device);
+        int end = rows.IndexOf(End); rows[end] = End.Replace("completed=40 copied=40", "completed=39 copied=39", StringComparison.Ordinal);
+        int networkEnd = rows.FindIndex(r => r.StartsWith("M16_011_END ", StringComparison.Ordinal));
+        rows[networkEnd] = rows[networkEnd].Replace(" end=1 ", " end=1000 ", StringComparison.Ordinal);
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage("ExitPending"); string[] before = rows.ToArray();
+        var inspected = QemuTranscripts.InspectLinuxDiskExitPendingNetworkForTests(before, package, image);
+        HostCheck.True(inspected.Device.Counters.Submitted == 40 && inspected.Device.Counters.Completed == 39 &&
+            inspected.Device.Counters.Copied == 39 && inspected.Device.Cancelled == 0 && rows.SequenceEqual(before));
+        Reject(before, "disk_parent_counters"); // Ordinary and018 use this same drained default.
+        void Deny(string[] changed)
+        {
+            bool rejected = false;
+            try { _ = QemuTranscripts.InspectLinuxDiskExitPendingNetworkForTests(changed, package, image); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        Deny(rows.Select(r => r == rows[end] ? r.Replace("copied=39", "copied=38", StringComparison.Ordinal) : r).ToArray());
+        Deny(rows.Select(r => r == rows[end] ? r.Replace("bootstrapCompleted=37", "bootstrapCompleted=36", StringComparison.Ordinal) : r).ToArray());
+        Deny(rows.Select(r => r == rows[end] ? r.Replace("fsReads=6", "fsReads=5", StringComparison.Ordinal) : r).ToArray());
+        Deny(rows.Select(r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) && r.Contains("generation=40 ", StringComparison.Ordinal) ?
+            r.Replace("sector=1000 ", "sector=999 ", StringComparison.Ordinal) : r).ToArray());
+        Deny(rows.Select(r => r.StartsWith("M16_025_EXIT_PENDING stage=5 ", StringComparison.Ordinal) ?
+            r.Replace(" reset=1 ", " reset=0 ", StringComparison.Ordinal) : r).ToArray());
+        Deny(rows.Select(r => r == rows[networkEnd] ? r.Replace(" end=1000 ", " end=1 ", StringComparison.Ordinal) : r).ToArray());
+    }
+
     private const string End = "M16_025_END submitted=40 completed=40 copied=40 bootstrapCompleted=37 bootstrapCopied=37 fsReads=6 cacheHits=20 cacheMisses=2 device=retired fs=retired dma=zero descriptors=closed reservation=retained";
     private static string[] Envelope()
     {

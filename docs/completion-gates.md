@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1585](../done/step1585.md) records unfiltered full6516 checks across882 fixture results at5dd6e6c0, unchanged/zero reuse. Original full DiskA r01 then fails after31 HTTP responses at about600s, before requested shutdown/browser. These distinct results do not close the read batch. Copied finite FIFO/reset accounting, writable POD/data-image and process-lock tests grant no original race, full Blazor, writes/synchronization, reboot recovery or CLROS SQLite acceptance.
+
 [Step1584](../done/step1584.md) adds74 passing focused copied-contract and
 regression checks. Exact sector/reset joins grant no firmware/native/process,
 scheduler or user-memory authority. Full original disk/Blazor, actual races,

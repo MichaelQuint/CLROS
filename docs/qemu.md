@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1585](../done/step1585.md) preserves original full DiskA r01 at5dd6e6c0: source/native/image joins and listening succeed,31 HTTP responses are captured, then native-return/service fail with exit99/reaped19 and no requested shutdown. Last observed time600802031800ns minus start5125929500ns is595676102300ns, below the2100000000000ns execution allowance. Source review confirms the separately anchored600s UTC cap can abort before failed-call logging; the hidden triggering call was not observed. Full-only UTC now has a finite3600s allowance; original command exits1 and remains failed. No browser or full read acceptance; use fresh output names for repaired qualification.
+
 [Step1581](../done/step1581.md) connects the full finite disk/static candidate.
 Use fresh output paths and the same pinned disk server package/index/assets:
 

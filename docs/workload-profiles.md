@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1585](../done/step1585.md) records the5dd6e6c0 full6516-check pass and failed full DiskA r01 after31 HTTP captures. Complete read/Blazor and actual races remain open; FIFO/typed reset inspection is preparatory. Two isolated agents continue FAT32/data-image and writable-fd/lock/receipt work. Shared native/boot/syscall integration remains primary-owned.
+
 [Step1584](../done/step1584.md) adds the separate copied pending-reset device
 consumer without enabling original race execution. The primary5dd6e6c0 full
 run remains frozen; two isolated implementation agents continue bounded FAT32

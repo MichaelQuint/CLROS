@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1585](../done/step1585.md) owns the5dd6e6c0 full-host pass and first failed full DiskA run. Host requirements retain exact full timing/hash; QEMU/Kestrel/application docs retain the guest/HTTP/browser failure boundary. Storage owns finite FIFO/reset and isolated writable preparation scopes. Issue labels track scoped ownership/readback.
+
 [Step1584](../done/step1584.md) owns copied pending-reset device/sector joins.
 Storage documents exact counters and byte associations; diagnostics/EFI preserve
 unchanged launch/native boundaries, and completion gates retain the open scope.

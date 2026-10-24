@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1585](../done/step1585.md) adds copied finite FIFO/typed-terminal consumers, without changing markers, native paths or probe defaults. The ordinary5dd6e6c0 unfiltered full pass is6516 checks/882 fixture results; full DiskA r01 later emits native-return/service failures after31 HTTP captures, requested=0 and exit99. Original race launch remains refused.
+
 [Step1584](../done/step1584.md) adds the copied device/stage association with
 original row indexes. No marker, native path, probe default or launch policy
 changes. All IO must precede the selected pending-exit snapshot; a reset receipt
