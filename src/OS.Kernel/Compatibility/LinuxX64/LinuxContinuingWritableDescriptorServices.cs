@@ -44,6 +44,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         internal uint References, Borrowers, Flags;
         internal ushort NameLength;
         internal bool Active, Reserved, Directory;
+        internal byte FlockMode;
         internal fixed byte Name[(int)PathBytes];
     }
     public struct Admission
@@ -218,9 +219,12 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// Detach must precede engine Stop and backing release: final Retired or an
     /// unmounted/replaced engine grants no retained ownership. No callbacks,
     /// allocation, output writes or mutation occur.</summary>
-    internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes)
+    internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
+        RetainedStorage(s, expectedEpoch, address, bytes, true);
+
+    private static bool RetainedStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes, bool external)
     {
-        if (!Ordinary((ulong)s, (ulong)sizeof(State), 8) || !Ordinary(address, bytes, 1) || expectedEpoch == 0 ||
+        if (!Ordinary((ulong)s, (ulong)sizeof(State), 8) || external && !Ordinary(address, bytes, 1) || expectedEpoch == 0 ||
             s->Self != (ulong)s || !s->Active || s->RetiredValue || s->Input.Epoch != expectedEpoch) return false;
         Admission a = s->Input;
         if (!a.ExclusiveOwnerValidated || a.DescriptorCount is < 4 or > MaximumDescriptors ||
@@ -245,10 +249,10 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         for (uint i = 0; i < count; i++)
         {
             if (!Ordinary(starts[i], sizes[i], i == 3 ? 1UL : 8UL) ||
-                !C.CanRetainStorage(a.Engine, expectedEpoch, starts[i], sizes[i]) || Overlap(address, bytes, starts[i], sizes[i])) return false;
+                !C.CanRetainStorage(a.Engine, expectedEpoch, starts[i], sizes[i]) || external && Overlap(address, bytes, starts[i], sizes[i])) return false;
             for (uint j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
         }
-        return C.CanRetainStorage(a.Engine, expectedEpoch, address, bytes);
+        return !external || C.CanRetainStorage(a.Engine, expectedEpoch, address, bytes);
     }
 
     /// <summary>Enable fixed process-associated lock tables while no handle or
@@ -363,6 +367,53 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (count > LockSlots) { ScrubLocksScratch(s); return new(NoLocks); }
         for (uint i = 0; i < LockSlots; i++) s->LockInput.Locks[i] = i < count ? s->LockInput.Scratch[i] : default;
         ScrubLocksScratch(s); return new(0, request);
+    }
+
+    /// <summary>Nonblocking BSD whole-file locks on this confined regular-file
+    /// namespace: SH|NB5, EX|NB6 and UN8 (also UN|NB12). Blocking modes return
+    /// ENOSYS; other flags return EINVAL. A serialized supervisor must retain
+    /// all admitted storage. No I/O, allocation, cursor change or user copy
+    /// occurs; dirty, retired or replaced storage grants no lock operation.
+    /// Locks belong to open descriptions: dup shares a lock, independent opens
+    /// conflict even in one process, and final reference/borrow retirement
+    /// releases it. POSIX process byte locks remain separate. Conversion first
+    /// drops the old mode, so EAGAIN on conversion does not restore that mode.</summary>
+    public static long Flock(State* s, DescriptorToken file, uint operation) =>
+        FlockForProcess(s, PrimaryProcess(s), file, operation);
+
+    /// <summary>Process-scoped form of Flock. The exact current process and fd
+    /// generations authenticate access, but the lock belongs to the shared
+    /// open description rather than to the PID. Failed admission or invalid
+    /// flags preserve the existing mode; a conflicting conversion drops it.</summary>
+    public static long FlockForProcess(State* s, ProcessToken process, DescriptorToken file, uint operation)
+    {
+        if (!Ordinary((ulong)s, (ulong)sizeof(State), 8) || s->Self != (ulong)s || !s->Active) return BadFd;
+        if (!RetainedStorage(s, s->Input.Epoch, 0, 0, false)) return Io;
+        if (!Current(s, file, out uint description) || !Owned(s, process, description)) return BadFd;
+        if (s->Retiring || !Revision(s) || s->Input.Engine->Dirty || !C.CanAdmitStorage(s->Input.Engine, s->Input.Epoch)) return Io;
+        byte mode;
+        if (operation is 5 or 6) mode = (byte)(operation & 3);
+        else if (operation is 8 or 12) mode = 0;
+        else return operation is 1 or 2 ? NoSys : Invalid;
+        Description* target = s->Input.Descriptions + description;
+        if (target->Directory) return Unsupported;
+        // Validate every retained mode before any conversion can change one.
+        for (uint i = 0; i < s->Input.DescriptionCount; i++)
+        {
+            Description* row = s->Input.Descriptions + i;
+            if (row->FlockMode > 2 || row->FlockMode != 0 &&
+                (!row->Active || row->Reserved || row->Directory || row->References == 0 && row->Borrowers == 0)) return Io;
+        }
+        if (target->FlockMode == mode) return 0;
+        target->FlockMode = 0;
+        if (mode != 0)
+            for (uint i = 0; i < s->Input.DescriptionCount; i++)
+            {
+                Description* row = s->Input.Descriptions + i;
+                if (i != description && row->FlockMode != 0 && Physical(row->File, target->File) &&
+                    (mode == 2 || row->FlockMode == 2)) return Again;
+            }
+        target->FlockMode = mode; return 0;
     }
 
     /// <summary>Copy the current fd identity. Its generation grants no pin or

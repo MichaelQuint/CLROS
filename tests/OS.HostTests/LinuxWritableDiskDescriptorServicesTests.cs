@@ -21,6 +21,58 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
+    [HostTest("writable global flock uses Linux operation values and regular open descriptions while filesystem stats remain unsupported")]
+    private static void FlockWire()
+    {
+        using var f = new Owner(); uint a = f.Open(), b = f.Open(flags: 1), root = f.Open("/data");
+        uint calls = f.Hardware->Calls, copies = f.Thread.Writes; new Span<byte>(f.Thread.At(Output), 120).Fill(0xa5);
+        HostCheck.Equal(0L, f.Run(f.Call(73, a, 5))); HostCheck.Equal(-11L, f.Run(f.Call(73, b, 6)));
+        HostCheck.Equal(-38L, f.Run(f.Call(73, a, 1))); HostCheck.Equal(-22L, f.Run(f.Call(73, a, 7)));
+        HostCheck.Equal(0L, f.Run(f.Call(73, a, 8))); HostCheck.Equal(0L, f.Run(f.Call(73, b, 6)));
+        HostCheck.Equal(-95L, f.Run(f.Call(73, root, 5)));
+        HostCheck.Equal(F.WritableDiskProgress.NotHandled, f.Begin(f.Call(138, a, Output)).Progress);
+        HostCheck.Equal(-38L, f.Core(138, a, Output));
+        HostCheck.True(f.Hardware->Calls == calls && f.Thread.Writes == copies && f.Bytes(120).All(value => value == 0xa5));
+        HostCheck.True(F.Audit(f.Files.State));
+    }
+
+    [HostTest("writable global flock remains immediate during a clean pending read without inventing contention or advancing the cursor")]
+    private static void FlockDuringRead()
+    {
+        using var f = new Owner(); uint a = f.Open(), b = f.Open(); HostCheck.Equal(0L, f.Run(f.Call(73, a, 6)));
+        var call = f.Call(0, a, Output, 8); var read = f.Begin(call); f.Pump(); HostCheck.True(f.Hardware->Pending);
+        uint calls = f.Hardware->Calls;
+        HostCheck.Equal(-11L, f.Run(f.Call(73, b, 5))); HostCheck.Equal(0L, f.Run(f.Call(73, a, 8)));
+        HostCheck.Equal(0L, f.Run(f.Call(73, b, 5))); HostCheck.Equal(calls, f.Hardware->Calls);
+        HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(read.Token).Progress);
+        HostCheck.Equal(8L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, read.Token, call).Value);
+        HostCheck.Equal(8L, f.Run(f.Call(8, a, 0, 1)));
+    }
+
+    [HostTest("writable global final close keeps flock until pending borrower drains and reused numeric fd gains no old lock authority")]
+    private static void FlockCloseReuse()
+    {
+        using var f = new Owner(); uint a = f.Open(), b = f.Open(); HostCheck.Equal(0L, f.Run(f.Call(73, a, 6)));
+        var call = f.Call(0, a, Output, 8); var read = f.Begin(call); f.Pump(); HostCheck.True(f.Hardware->Pending);
+        HostCheck.Equal(0L, f.Core(3, a)); f.PutPath("/app/fixture.data"); HostCheck.Equal((long)a, f.Core(2, Path, 0x88100));
+        HostCheck.Equal(F.WritableDiskProgress.NotHandled, f.Begin(f.Call(73, a, 8)).Progress);
+        HostCheck.Equal(-11L, f.Run(f.Call(73, b, 5)));
+        HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(read.Token).Progress);
+        HostCheck.Equal(-9L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, read.Token, call).Value);
+        HostCheck.Equal(0L, f.Run(f.Call(73, b, 6))); HostCheck.True(F.Audit(f.Files.State));
+    }
+
+    [HostTest("writable global flock keeps BSD modes separate from fcntl process locks and refuses stopped or stale storage")]
+    private static void FlockStorageAndFcntl()
+    {
+        using var f = new Owner(); uint a = f.Open(flags: 2), b = f.Open(flags: 2);
+        HostCheck.Equal(0L, f.Run(f.Call(73, a, 6))); f.PutLock(1, 0, 1);
+        HostCheck.Equal(0L, f.Run(f.Call(72, b, 6, Flock))); // POSIX and BSD locks are independent.
+        HostCheck.Equal(0L, f.Core(3, b)); HostCheck.Equal(0L, f.Run(f.Call(73, a, 6)));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+        HostCheck.Equal(-5L, f.Run(f.Call(73, a, 8))); HostCheck.Equal(0L, f.Core(3, a));
+    }
+
     [HostTest("writable fstat uses real continuing metadata and complete x64 layout with allocated clusters and independent read write cursors")]
     private static void FreshStatWire()
     {

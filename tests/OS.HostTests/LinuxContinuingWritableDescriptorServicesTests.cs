@@ -13,6 +13,170 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
 
+    [HostTest("continuing flock supports measured nonblocking modes validates flags and keeps directory and blocking modes explicit")]
+    private static void FlockModes()
+    {
+        using var f = new Owner(); var a = f.Open(); var b = f.Open(flags: 1); var directory = f.Open("/data");
+        uint calls = f.Device->Calls, notifies = f.Device->Notifies;
+        HostCheck.Equal(0L, D.Flock(f.State, a, 6)); // Linux permits an exclusive advisory lock on a readonly fd.
+        HostCheck.Equal(-11L, D.Flock(f.State, b, 5));
+        foreach (uint operation in new uint[] { 0, 3, 4, 7, 9, 10, 13, 16, uint.MaxValue })
+            HostCheck.Equal(-22L, D.Flock(f.State, a, operation));
+        HostCheck.Equal(-38L, D.Flock(f.State, a, 1)); HostCheck.Equal(-38L, D.Flock(f.State, a, 2));
+        HostCheck.Equal(-11L, D.Flock(f.State, b, 5)); // Invalid requests did not unlock a.
+        HostCheck.Equal(0L, D.Flock(f.State, a, 12)); HostCheck.Equal(0L, D.Flock(f.State, b, 5));
+        HostCheck.Equal(0L, D.Flock(f.State, a, 5)); HostCheck.Equal(0L, D.Flock(f.State, a, 8));
+        HostCheck.Equal(-95L, D.Flock(f.State, directory, 5)); HostCheck.Equal(-95L, D.Flock(f.State, directory, 8));
+        HostCheck.True(f.Device->Calls == calls && f.Device->Notifies == notifies && f.Cursor(a) == 0 && f.Cursor(b) == 0);
+        Console.WriteLine("HOST_WRITABLE_FLOCK_SIZE state=" + sizeof(D.State) + " description=" + sizeof(D.Description));
+    }
+
+    [HostTest("continuing flock belongs to independent open descriptions and remains separate from process byte range locks")]
+    private static void FlockDescriptions()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var sameProcess = f.Open(flags: 2); var b = f.OpenFor(other, flags: 2); var different = f.Open("/data/KEEP.TXT");
+        HostCheck.Equal(0L, D.Flock(f.State, a, 5)); HostCheck.Equal(0L, D.FlockForProcess(f.State, other, b, 5));
+        HostCheck.Equal(-11L, D.Flock(f.State, sameProcess, 6));
+        HostCheck.Equal(0L, D.Flock(f.State, different, 6));
+        HostCheck.Equal(0L, D.Flock(f.State, a, 8)); HostCheck.Equal(0L, D.FlockForProcess(f.State, other, b, 8));
+        HostCheck.Equal(0L, L(f, primary, a, 6, 1, 0, 0).Value);
+        HostCheck.Equal(0L, D.FlockForProcess(f.State, other, b, 6));
+        HostCheck.Equal(-11L, L(f, other, b, 6, 1, 0, 1).Value); // fcntl conflict is independent of flock ownership.
+        HostCheck.Equal(0L, L(f, primary, a, 6, 2, 0, 0).Value);
+        HostCheck.Equal(-11L, D.Flock(f.State, sameProcess, 5));
+        HostCheck.Equal(-9L, D.FlockForProcess(f.State, primary, b, 8));
+        HostCheck.Equal(0L, D.FlockForProcess(f.State, other, b, 8));
+    }
+
+    [HostTest("continuing flock failed nonblocking conversion drops the old shared mode and duplicate unlock uses the same description")]
+    private static void FlockConversion()
+    {
+        using var f = new Owner(); var a = f.Open(); var b = f.Open(); var duplicate = D.Dup(f.State, a).Descriptor;
+        HostCheck.Equal(0L, D.Flock(f.State, a, 5)); HostCheck.Equal(0L, D.Flock(f.State, b, 5));
+        HostCheck.Equal(-11L, D.Flock(f.State, duplicate, 6));
+        HostCheck.Equal(0L, D.Flock(f.State, b, 6)); // a's failed upgrade removed its shared lock.
+        HostCheck.Equal(-11L, D.Flock(f.State, a, 5)); HostCheck.Equal(0L, D.Flock(f.State, b, 8));
+        HostCheck.Equal(0L, D.Flock(f.State, a, 6)); HostCheck.Equal(0L, D.Flock(f.State, duplicate, 8));
+        HostCheck.Equal(0L, D.Flock(f.State, b, 6)); HostCheck.Equal(0L, D.Flock(f.State, b, 5));
+    }
+
+    [HostTest("continuing flock survives one duplicate close and the last pending borrower until actual cancellation retirement")]
+    private static void FlockBorrowLifetime()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Owner(); var a = f.Open(); var b = f.Open(); var duplicate = D.Dup(f.State, a).Descriptor;
+            HostCheck.Equal(0L, D.Flock(f.State, a, 6)); HostCheck.Equal(0L, D.Close(f.State, a));
+            HostCheck.Equal(-11L, D.Flock(f.State, b, 5));
+            var read = D.BeginRead(f.State, duplicate, 8);
+            if (held) HostCheck.Equal(D.Progress.Ready, f.Wait(read).Phase);
+            else { D.Pump(f.State); HostCheck.True(f.Device->Pending); }
+            HostCheck.Equal(0L, D.Close(f.State, duplicate));
+            HostCheck.Equal(f.State->RequestActive ? -11L : 0L, D.Flock(f.State, b, 5));
+            if (f.State->RequestActive) { f.CompleteHardware(); f.Drain(); }
+            HostCheck.True(!f.State->RequestActive); HostCheck.Equal(0L, D.Flock(f.State, b, 6));
+            HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, read.Request, new byte[8]).Phase);
+            var reused = f.Open(); HostCheck.True(reused.Number == a.Number && reused.Generation != a.Generation);
+            HostCheck.Equal(-9L, D.Flock(f.State, a, 8)); HostCheck.Equal(-11L, D.Flock(f.State, reused, 5));
+        }
+    }
+
+    [HostTest("continuing flock process exit retains a pending description until drain and rejects reused PID and fd authority")]
+    private static void FlockExit()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(); var b = f.OpenFor(other); HostCheck.Equal(0L, D.Flock(f.State, a, 6));
+        var read = D.BeginRead(f.State, a, 8); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+        HostCheck.Equal(D.Progress.Pending, D.ExitProcess(f.State, primary).Phase);
+        HostCheck.Equal(-11L, D.FlockForProcess(f.State, other, b, 6));
+        var replacement = D.RegisterProcess(f.State, primary.Pid).Process;
+        HostCheck.True(replacement.Generation != primary.Generation);
+        HostCheck.Equal(-9L, D.FlockForProcess(f.State, primary, a, 8));
+        f.CompleteHardware(); f.Drain(); HostCheck.Equal(0L, D.FlockForProcess(f.State, other, b, 6));
+        var fresh = f.OpenFor(replacement); HostCheck.True(fresh.Number == a.Number && fresh.Generation != a.Generation);
+        HostCheck.Equal(-9L, D.FlockForProcess(f.State, primary, fresh, 8));
+        HostCheck.Equal(-11L, D.FlockForProcess(f.State, replacement, fresh, 5));
+        HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, read.Request, new byte[8]).Phase);
+    }
+
+    [HostTest("continuing flock retains its inode lineage through own writes and refuses dirty mutation or unrelated revision effects")]
+    private static void FlockRevision()
+    {
+        using (var f = new Owner())
+        {
+            var a = f.Open(flags: 2); var b = f.Open(); HostCheck.Equal(0L, D.Flock(f.State, a, 6));
+            var write = D.BeginWrite(f.State, a, new byte[700]);
+            for (int i = 0; i < 10000 && !f.Storage.State->Dirty; i++) f.Tick();
+            HostCheck.True(f.Storage.State->Dirty); HostCheck.Equal(-5L, D.Flock(f.State, a, 8));
+            HostCheck.Equal(-5L, D.Flock(f.State, b, 5)); HostCheck.Equal(700L, f.Run(write).Value);
+            HostCheck.Equal(-11L, D.Flock(f.State, b, 5)); HostCheck.Equal(0L, D.Flock(f.State, a, 8));
+            HostCheck.Equal(0L, D.Flock(f.State, b, 6));
+        }
+        using (var f = new Owner())
+        {
+            var a = f.Open(); HostCheck.Equal(0L, D.Flock(f.State, a, 6));
+            ulong* revision = (ulong*)((byte*)f.Storage.State + WritableBlockSessionTests.ManagedOffset(f.Storage.State, "Revision"));
+            (*revision)++; byte[] before = new ReadOnlySpan<byte>(f.Descriptions, 32 * sizeof(D.Description)).ToArray();
+            HostCheck.Equal(-5L, D.Flock(f.State, a, 8)); HostCheck.True(f.State->Quarantined);
+            HostCheck.True(before.SequenceEqual(new ReadOnlySpan<byte>(f.Descriptions, 32 * sizeof(D.Description))));
+        }
+    }
+
+    [HostTest("continuing flock audits retained extents and original DMA generation before changing any mode")]
+    private static void FlockStorageLifetime()
+    {
+        using var f = new Owner(); var a = f.Open(); var b = f.Open(); HostCheck.Equal(0L, D.Flock(f.State, a, 6));
+        D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var saved = *input;
+        try
+        {
+            input->Descriptions = (D.Description*)input->Input;
+            HostCheck.Equal(-5L, D.Flock(f.State, a, 8));
+        }
+        finally { *input = saved; }
+        ulong* generation = (ulong*)((byte*)f.Storage.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.Slot, "Generation"));
+        ulong old = *generation; uint calls = f.Device->Calls;
+        try
+        {
+            (*generation)++; HostCheck.Equal(-5L, D.Flock(f.State, a, 8)); HostCheck.Equal(-5L, D.Flock(f.State, b, 5));
+        }
+        finally { *generation = old; }
+        HostCheck.True(f.Device->Calls == calls); HostCheck.Equal(-11L, D.Flock(f.State, b, 5));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.Equal(-5L, D.Flock(f.State, a, 8));
+        HostCheck.Equal(0L, D.Close(f.State, a)); HostCheck.Equal(0L, D.Close(f.State, b));
+    }
+
+    [HostTest("continuing flock failed flush and exiting writer retain the borrowed description lock and dirty recovery backing")]
+    private static void FlockDirtyExit()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var a = f.Open(flags: 2); var b = f.OpenFor(other); HostCheck.Equal(0L, D.Flock(f.State, a, 6));
+        uint index = *(uint*)((byte*)(f.Slots + a.Number) + WritableBlockSessionTests.ManagedOffset(f.Slots + a.Number, "Description")) - 1;
+        byte* mode = (byte*)(f.Descriptions + index) + WritableBlockSessionTests.ManagedOffset(f.Descriptions + index, "FlockMode");
+        f.FailureType = 4; var write = D.BeginWrite(f.State, a, new byte[37]);
+        HostCheck.Equal(D.Progress.RecoveryRequired, f.Wait(write).Phase);
+        HostCheck.True(f.Storage.State->Dirty && *mode == 2 && f.State->RequestActive);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.ExitProcess(f.State, primary).Phase);
+        HostCheck.Equal(-5L, D.FlockForProcess(f.State, other, b, 6));
+        HostCheck.True(*mode == 2 && f.State->RequestActive && !f.State->Retired);
+        byte[] journal = new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).ToArray();
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+        HostCheck.True(*mode == 2 && f.State->RequestActive && journal.SequenceEqual(new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024)));
+    }
+
+    [HostTest("continuing flock bounded mode scans make no managed allocations device calls or cursor changes")]
+    private static void FlockAllocation()
+    {
+        using var f = new Owner(); var a = f.Open(); var b = f.Open(); f.Record = false;
+        HostCheck.Equal(0L, D.Flock(f.State, a, 6)); HostCheck.Equal(-11L, D.Flock(f.State, b, 5)); HostCheck.Equal(0L, D.Flock(f.State, a, 8));
+        uint calls = f.Device->Calls, notifies = f.Device->Notifies; long allocated = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 64; i++)
+            good &= D.Flock(f.State, a, 6) == 0 && D.Flock(f.State, b, 5) == -11 && D.Flock(f.State, a, 8) == 0;
+        HostCheck.True(good && GC.GetAllocatedBytesForCurrentThread() == allocated && calls == f.Device->Calls && notifies == f.Device->Notifies);
+        HostCheck.True(f.Cursor(a) == 0 && f.Cursor(b) == 0);
+    }
+
     [HostTest("continuing fresh stat walks actual FAT geometry for read only and write only handles without moving independent cursors")]
     private static void FreshStatGeometry()
     {

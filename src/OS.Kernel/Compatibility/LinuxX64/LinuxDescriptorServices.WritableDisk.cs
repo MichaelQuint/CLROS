@@ -142,7 +142,8 @@ public static unsafe partial class LinuxDescriptorServices
     /// writes, syncs and locks on bound global
     /// fds. A null attachment is neutral before input copies. The parent supplies
     /// an actual current worker and retains its original call and output ceiling.
-    /// One outstanding request; other writable admissions return EAGAIN.</summary>
+    /// One outstanding I/O request; other I/O admissions return EAGAIN.
+    /// Nonblocking flock is synchronous and may run during a clean read.</summary>
     public static WritableDiskResult BeginWritableDisk(State* state, ulong owner, OSHostHandle worker, LinuxSyscallFrame call)
     {
         if (state == null || state->WritableDisk == null) return new(WritableDiskProgress.NotHandled);
@@ -183,9 +184,19 @@ public static unsafe partial class LinuxDescriptorServices
             }
             return WritableStarted(state, begun);
         }
-        if (call.Number is not (0 or 5 or 8 or 17 or 72 or 74 or 75 or 328)) return new(WritableDiskProgress.NotHandled);
+        if (call.Number is not (0 or 5 or 8 or 17 or 72 or 73 or 74 or 75 or 328)) return new(WritableDiskProgress.NotHandled);
         Description* opened = Find(state, unchecked((uint)call.Argument0));
         if (opened == null || (Kind)opened->Type != Kind.WritableDisk) return new(WritableDiskProgress.NotHandled);
+        // Flock is a synchronous open-description operation. An unrelated
+        // pending read does not invent EWOULDBLOCK; the provider authenticates
+        // its exact fd/process generations and current clean storage itself.
+        if (call.Number == 73)
+        {
+            if (!W.CanBorrowStorage(d->Provider, d->Epoch, (ulong)d, (ulong)sizeof(WritableDiskState)))
+                return new(WritableDiskProgress.Immediate, Io);
+            return new(WritableDiskProgress.Immediate,
+                W.FlockForProcess(d->Provider, d->Process, d->Bindings[opened->Pipe].File, (uint)call.Argument1));
+        }
         if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
         // Retained backing is sufficient for close/orphan cleanup, never new
         // I/O, a cursor change or a copied lock query from a stopped device.
