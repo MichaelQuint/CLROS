@@ -65,7 +65,7 @@ public static partial class QemuTranscripts
         {
             Need(output.Stderr == StaticEntry + StaticEnd && staticObservation.Begin(0x100000001), "static_replay_output_contract");
             staticStdout = Encoding.UTF8.GetBytes(output.Stdout); staticStderr = Encoding.UTF8.GetBytes(output.Stderr);
-            staticViews = StaticViews();
+            staticViews = diskInventory is null ? StaticViews() : (["/app/apps/" + NativeAotStaticFilePublisher.Application], [(ulong)NativeAotStaticFileProgram.ElfBytes]);
         }
         internal StaticFileReplayReport StaticReport(ThreadingProtocolReport protocol) => new(protocol,
             staticObservation.ReadyNanoseconds, staticObservation.RequestedNanoseconds, staticObservation.ExitedNanoseconds,
@@ -76,12 +76,12 @@ public static partial class QemuTranscripts
 
         private void StaticSupervisor()
         {
-            if (!Starts("M10_017_TERMINATE ")) return;
+            if (!Starts(StaticTag + "_TERMINATE ")) return;
             Need(socketSelected is null && !stopping && active > 0 && slots[0] is { Reaped: false, Exiting: false } target &&
                 target.Identity == 0x100000001 && actions.Contains(15), "static_replay_termination_owner");
             const string suffix = " owner=supervisor completion=pending";
             string line = Take(); Need(line.EndsWith(suffix, StringComparison.Ordinal), "static_replay_termination_shape");
-            var request = ReadRecord(line[..^suffix.Length], "M10_017_TERMINATE", "main:dec", "signal:dec", "origin:dec", "nanos:dec", "tableClock:dec");
+            var request = ReadRecord(line[..^suffix.Length], StaticTag + "_TERMINATE", "main:dec", "signal:dec", "origin:dec", "nanos:dec", "tableClock:dec");
             Need(request["main"] == 0x100000001 && request["signal"] == 15 && request["origin"] == 128 &&
                 request["nanos"] >= clock && staticObservation.Poll(request["nanos"]) == LinuxStaticFileObservation.Progress.RequestTermination,
                 "static_replay_termination_policy");
@@ -97,48 +97,50 @@ public static partial class QemuTranscripts
             main.PendingTermination = true; InterruptPendingWait(main);
         }
 
-        private void StaticBeforeCall(RuntimeThread thread)
+        private void StaticBeforeCall(RuntimeThread thread, bool deferred = false)
         {
             int count = 0;
-            while (Starts("M10_017_"))
+            while (Starts(StaticTag + "_"))
             {
-                Need(++count <= 3, "static_replay_metadata_bound");
-                if (Starts("M10_017_FILE "))
+                Need(++count <= 4, "static_replay_metadata_bound");
+                if (diskInventory is not null && Starts("M10_018_DISK_READY "))
+                { Need(!deferred, "disk_static_readiness_context"); DiskStaticReady(); continue; }
+                if (Starts(StaticTag + "_FILE "))
                 {
                     Need(staticFileWitness is null, "static_replay_duplicate_file");
-                    staticFileWitness = Row("M10_017_FILE", "identity:dec", "ordinal:dec", "nr:dec", "fd:dec", "generation:dec",
+                    staticFileWitness = Row(StaticTag + "_FILE", "identity:dec", "ordinal:dec", "nr:dec", "fd:dec", "generation:dec",
                         "kind:dec", "view:dec", "inode:dec", "bytes:dec", "position:dec", "afterPosition:dec");
                     continue;
                 }
-                if (Starts("M10_017_PATH "))
+                if (Starts(StaticTag + "_PATH "))
                 {
                     Need(staticPathWitness is null, "static_replay_duplicate_path");
                     string line = Take(); string[] fields = line.Split(' ');
                     Need(fields.Length == 11 && fields[4].StartsWith("pathHex=", StringComparison.Ordinal), "static_replay_path_shape");
                     staticPathHex = fields[4][8..];
                     Need(staticPathHex.Length <= 510 && staticPathHex.Length % 2 == 0 && staticPathHex.All(char.IsAsciiHexDigit), "static_replay_path_bound");
-                    staticPathWitness = ReadRecord(string.Join(' ', fields.Where((_, index) => index != 4)), "M10_017_PATH",
+                    staticPathWitness = ReadRecord(string.Join(' ', fields.Where((_, index) => index != 4)), StaticTag + "_PATH",
                         "identity:dec", "ordinal:dec", "nr:dec", "valueBits:dec", "kind:dec", "view:dec", "inode:dec", "bytes:dec", "mode:dec");
                     continue;
                 }
-                Need(staticLifecycleRow is null, "static_replay_duplicate_lifecycle");
-                if (Starts("M10_017_LISTENING "))
+                Need(!deferred && staticLifecycleRow is null, "static_replay_duplicate_lifecycle");
+                if (Starts(StaticTag + "_LISTENING "))
                 {
                     const string suffix = " http=external cleanup=pending"; string line = Take();
                     Need(line.EndsWith(suffix, StringComparison.Ordinal), "static_replay_listen_shape");
-                    staticLifecycleRow = ReadRecord(line[..^suffix.Length], "M10_017_LISTENING", "main:dec", "writer:dec", "fd:dec", "nanos:dec");
+                    staticLifecycleRow = ReadRecord(line[..^suffix.Length], StaticTag + "_LISTENING", "main:dec", "writer:dec", "fd:dec", "nanos:dec");
                     staticLifecycle = "listen";
                 }
-                else if (Starts("M10_017_APP_EXIT "))
+                else if (Starts(StaticTag + "_APP_EXIT "))
                 {
                     const string suffix = " exit=0 cleanup=pending"; string line = Take();
                     Need(line.EndsWith(suffix, StringComparison.Ordinal), "static_replay_exit_shape");
-                    staticLifecycleRow = ReadRecord(line[..^suffix.Length], "M10_017_APP_EXIT", "main:dec", "nanos:dec");
+                    staticLifecycleRow = ReadRecord(line[..^suffix.Length], StaticTag + "_APP_EXIT", "main:dec", "nanos:dec");
                     staticLifecycle = "exit";
                 }
                 else throw new ToolFailure("static_replay_uninventoried_record");
             }
-            if (count != 0) Need(Starts("M16_008_CALL "), "static_replay_metadata_adjacent_call");
+            if (count != 0) Need(Starts(deferred ? "M16_025_COMPLETE " : "M16_008_CALL "), "static_replay_metadata_adjacent_call");
         }
 
         private unsafe void StaticAfterCall(RuntimeThread thread, Dictionary<string, ulong> call, LinuxCallWaitObservation witness, bool output)
@@ -176,6 +178,7 @@ public static partial class QemuTranscripts
 
         private void StaticGroupExit(RuntimeThread thread, Dictionary<string, ulong> call)
         {
+            if (diskInventory is not null) Need(history.All(t => t.Disk is null), "disk_static_pending_shutdown_unqualified");
             var row = staticLifecycleRow;
             Need(staticLifecycle == "exit" && row is not null && row["main"] == thread.Identity && thread.Identity == 0x100000001 &&
                 row["nanos"] >= call["clock"] && call["a0"] == 0 && call["valueBits"] == 0 && call["action"] == 2 &&
@@ -190,7 +193,7 @@ public static partial class QemuTranscripts
                 "static_replay_complete_lifecycle");
             const string suffix = " app=exit0 process=drained timer=restored descriptors=closed mappings=restored pool=scrubbed nic=pending";
             string line = Take(); Need(line.EndsWith(suffix, StringComparison.Ordinal), "static_replay_cleanup_shape");
-            var row = ReadRecord(line[..^suffix.Length], "M10_017_OWNER_END", "main:dec", "ready:dec", "requested:dec", "exited:dec", "reaped:dec");
+            var row = ReadRecord(line[..^suffix.Length], StaticTag + "_OWNER_END", "main:dec", "ready:dec", "requested:dec", "exited:dec", "reaped:dec");
             Need(row["main"] == 0x100000001 && row["ready"] == staticObservation.ReadyNanoseconds &&
                 row["requested"] == staticObservation.RequestedNanoseconds && row["exited"] == staticObservation.ExitedNanoseconds &&
                 row["reaped"] == (ulong)actualReaped, "static_replay_owner_accounting");
@@ -214,7 +217,7 @@ public static partial class QemuTranscripts
             if (open && unchecked((long)result) < 0) { Need(staticFileWitness is null, "static_replay_failed_open_witness"); return true; }
             var record = staticFileWitness ?? throw new ToolFailure("static_replay_file_binding"); staticFileWitness = null;
             Need(record["identity"] == witness.Identity && record["ordinal"] == witness.Ordinal && record["nr"] == nr &&
-                record["fd"] == (open ? result : fd) && record["generation"] is > 0 and <= uint.MaxValue && record["kind"] is 1 or 2,
+                record["fd"] == (open ? result : fd) && record["generation"] is > 0 and <= uint.MaxValue && (record["kind"] is 1 or 2 || diskInventory is not null && record["kind"] == 5),
                 "static_replay_file_binding");
             fd = record["fd"]; Need(fd >= 3 && fd < (ulong)descriptorCapacity, "static_replay_file_fd");
             if (open)
@@ -231,14 +234,22 @@ public static partial class QemuTranscripts
                 record["kind"] == file.Kind && record["view"] == file.View && record["inode"] == file.Inode && record["bytes"] == file.Bytes &&
                 record["position"] == file.Position, "static_replay_file_generation");
             StaticView(file.Kind, file.View, file.Inode, file.Bytes);
+            if (file.Kind == 5 && nr is 0 or 8 or 17)
+                Need(diskCompleting is not null, "disk_static_missing_pending_file");
             ulong after = file.Position;
             if (nr is 0 or 17)
             {
                 ulong wanted = call["a2"], offset = nr == 17 ? call["a3"] : file.Position;
                 Need(wanted <= 65536 && offset <= long.MaxValue, "static_replay_read_arguments");
                 ulong count = offset >= file.Bytes ? 0 : Math.Min(wanted, Math.Min(8192UL, file.Bytes - offset));
-                long expected = count == 0 || memory.Covered(call["a1"], count, 3) ? (long)count : -14;
+                long expected = (count == 0 || memory.Covered(call["a1"], count, 3)) && (diskCompleting is null || count <= diskCompleting.OutputPrefix) ? (long)count : -14;
                 Need(result == Bits(expected), "static_replay_read_result"); if (nr == 0 && expected > 0) after += count;
+                if (file.Kind == 5 && expected > 0)
+                {
+                    var pending = diskCompleting ?? throw new ToolFailure("disk_static_unparked_positive_read");
+                    diskReadWindows.Add(new(witness.Identity,witness.Ordinal,nr,file.Generation,pending.Request,
+                        pending.BeginIndex,position-1,file.Inode,offset,wanted,pending.OutputPrefix,(uint)expected));
+                }
             }
             else if (nr == 5) Need(result == Bits(memory.Covered(call["a1"], 144, 3) ? 0 : -14), "static_replay_fstat");
             else if (nr == 8)
@@ -265,6 +276,11 @@ public static partial class QemuTranscripts
         }
         private void StaticView(ulong kind, ulong view, ulong inode, ulong bytes)
         {
+            if (kind == 5)
+            {
+                Need(diskInventory is not null && view == uint.MaxValue && diskInventory.Entries.Any(e =>
+                    !e.IsDirectory && e.Inode == inode && e.Bytes == bytes), "disk_static_physical_file"); return;
+            }
             var admitted = staticViews;
             Need(kind == 1 ? view < (ulong)admitted.Paths.Length && inode == 256 + view && bytes == admitted.Sizes[(int)view] :
                 kind == 2 && view == uint.MaxValue && inode is 17 or 18 && bytes is > 0 and <= 8192, "static_replay_package_view");
@@ -276,12 +292,17 @@ public static partial class QemuTranscripts
                 row["valueBits"] == call["valueBits"], "static_replay_path_binding");
             byte[] bytes = Convert.FromHexString(staticPathHex);
             ulong path = call[call["nr"] == 257 ? "a1" : "a0"];
-            Need(memory.Covered(path, (ulong)bytes.Length + 1, 1) && bytes.All(value => value is >= 32 and <= 126), "static_replay_path_copy");
+            Need((diskCompleting is null ? memory.Covered(path, (ulong)bytes.Length + 1, 1) : (ulong)bytes.Length + 1 <= diskCompleting.PathPrefix) && bytes.All(value => value is >= 32 and <= 126), "static_replay_path_copy");
             string text = Encoding.ASCII.GetString(bytes); bool open = call["nr"] is 2 or 257;
             bool trailing = !open && text.EndsWith('/'); string relative = text.StartsWith('/') ? text[1..] : text;
             if (trailing && relative.Length > 0) relative = relative[..^1];
             bool valid = relative.Length <= 255 && !relative.Contains('\\') && !relative.Contains(':') &&
                 relative.Split('/').All(segment => segment.Length > 0 && segment is not ("." or ".."));
+            bool diskRoute = call["nr"] != 89 &&
+                (relative == "app/wwwroot" || relative.StartsWith("app/wwwroot/",StringComparison.Ordinal));
+            Need(diskCompleting is null || diskRoute, "disk_static_pending_path_route");
+            if (diskInventory is not null && diskRoute)
+                return DiskStaticPath(call,row!,text,relative,open,trailing);
             var views = staticViews; int view = Array.IndexOf(views.Paths, "/" + relative);
             long expected; ulong kind = 0, index = uint.MaxValue, inode = 0, size = 0, mode = 0;
             if (text.Length == 0) expected = -2;

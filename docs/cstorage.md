@@ -1,5 +1,15 @@
 # Storage
 
+[Step1577](../done/step1577.md) adds copied physical directory/FAT classification,
+unique positive file-sector assignment and complete disk/static wait replay.
+Original018r03 value inspection matches11 disk operations,2 file windows and
+12 sectors; the10 residuals are exact verified directory/FAT sectors inside
+actual pending-to-Woken intervals. All512 copied bytes match the held image.
+Data copies also precede their own final Woken event. Metadata classification
+does not reconstruct the FS cache. Interrupted/cancelled/close-reuse and
+pending-shutdown races remain unqualified; the positive consumer fails closed.
+No original failed run, issue or storage/write/durability/SQLite gate advances.
+
 [Step1576](../done/step1576.md) retains original018r03 at `e5a5c1c0`: five
 external HTTP200 responses,12 post-readiness sector copies, actual app exit0
 and disk/NIC cleanup. Index/nonce bodies match independent physical extraction

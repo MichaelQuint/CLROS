@@ -2,6 +2,14 @@
 
 ## Start here
 
+[Step1577](done/step1577.md) adds the complete value-only disk/static scheduler
+replay and sector joins. Original018r03 values match2973 calls,13 reaps,11 disk
+operations and all12 copied sectors (2 data,10 directory/FAT). Every positive
+copy precedes its actual final Woken observation. Interrupted/cancelled/close-
+reuse/shutdown races remain rejected or unqualified. The original command is
+still failed: original parent/native/process/HTTP/packet acceptance, full Blazor
+browser and batch gates remain pending. Preserve017 and all failed originals.
+
 [Step1576](done/step1576.md) records original018r03 reaching five HTTP200
 responses and owned exit0/cleanup. Its outer command intentionally remains
 failed until complete original disk/static consumption. Independent physical

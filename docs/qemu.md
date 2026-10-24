@@ -1,5 +1,17 @@
 # QEMU
 
+[Step1577](../done/step1577.md) adds a report-only full disk/static value CLI:
+
+    dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu inspect-disk-static-values <disk-package> <raw-image> <complete-instruction-index> <serial>
+
+It holds distinct bounded original package/image/receipt/index/serial files,
+uses the pinned complete instruction index, replays the entire scheduler/file
+leaf, checks every device byte and joins positive file ranges plus physical
+metadata intervals. It reports2973 calls/13 reaps/11 disk operations/12 sectors
+for the failed original018r03. This is value inspection only: no original
+native, parent, runner, packet or HTTP acceptance is created, and the original
+outer command still fails. Existing017 and mechanical consumers stay separate.
+
 [Step1576](../done/step1576.md) records original018r03: the runner exits0 after
 five HTTP200 responses and owned exit0/cleanup, while the outer command fails
 `disk_static_complete_consumer_required`. The failure remains original. The

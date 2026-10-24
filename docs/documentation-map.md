@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1577](../done/step1577.md) records full value-only disk/static replay.
+Storage owns physical inventory/data/metadata interval contracts; QEMU owns the
+report-only CLI and still-pending complete original execution consumer. App and
+Kestrel docs retain the unfinished real Blazor/browser boundary.
+
 [Step1576](../done/step1576.md) records original disk HTTP diagnostics and a
 value-only physical inventory. Storage owns metadata/sector joins; QEMU owns
 the intentionally failed complete-consumer boundary; app/Kestrel docs retain

@@ -47,7 +47,9 @@ public static partial class QemuTranscripts
             t.Mask=value.BlockedSignals;
         }
 
-        private bool Borrowed(ulong start,ulong bytes)=>history.Any(t=>!t.Reaped && t.WaitSource==1 && HelloMemory.Overlap(start,bytes,t.WaitAddress,4));
+        private bool Borrowed(ulong start,ulong bytes)=>history.Any(t=>!t.Reaped &&
+            (t.WaitSource==1 && HelloMemory.Overlap(start,bytes,t.WaitAddress,4) ||
+             t.Disk is {OutputPrefix:>0} pending && HelloMemory.Overlap(start,bytes,pending.Call["a1"],pending.OutputPrefix)));
         private void Stage(RuntimeThread t,LinuxCallWaitObservation witness,uint source,ulong address,uint mode,uint bits)
         {
             Need(witness.Source==source && witness.Sequence>t.LastSequence && (witness.Deadline==0 || witness.Deadline>clock),"threading_wait_owner");
@@ -80,6 +82,8 @@ public static partial class QemuTranscripts
             ulong action=1,status=1;
             if(WebAlternateStackCall(r)) { }
             else if(WebProbePipeCall(r)) { }
+            else if(diskInventory is not null && witness.Source==4)
+            { DiskStaticStage(t,r,witness);action=3;status=9; }
             else if(staticFiles && StaticFileCall(r,witness)) { }
             else if(web && !staticFiles && WebFileCall(r,witness)) { }
             else if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }

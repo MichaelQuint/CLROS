@@ -125,6 +125,113 @@ internal static class WebRootDiskInventoryTests
         HostCheck.True(entries && sectors && ranges && actual.Find(file.Path) == file);
     });
 
+    [HostTest("disk metadata classifies exact navigation nested directory and verified FAT sectors without expanding served paths", HostLane.Native)]
+    private static void MetadataKinds() => WithInventory((_, _, _, _, raw, actual) =>
+    {
+        int bpb = checked((int)actual.PartitionFirstLba * 512);
+        ulong fat0 = actual.PartitionFirstLba + BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(bpb + 14));
+        uint fatSectors = BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(bpb + 36));
+        ulong fat1 = fat0 + fatSectors, data = fat1 + fatSectors;
+        uint root = BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(bpb + 44));
+        var rootSector = actual.DirectorySectors.Single(s => s.Path == "/");
+        var appSector = actual.DirectorySectors.Single(s => s.Path == "/app");
+        HostCheck.Equal(data + root - 2, rootSector.Lba);
+        HostCheck.Equal(actual.Find(I.Root)!.ShortEntryLba, appSector.Lba);
+        ulong nested = actual.Find(I.Root + "/fixture/nested")!.Sectors[0].Lba;
+        ulong[] lbas = [rootSector.Lba, appSector.Lba, nested, fat0, fat0 + fatSectors - 1, fat1, fat1 + fatSectors - 1, rootSector.Lba];
+        var result = I.ClassifyMetadata(actual, raw, lbas);
+        HostCheck.True(result.Select(s => s.Lba).SequenceEqual(lbas));
+        HostCheck.True(result.Take(3).All(s => s.Kind == I.MetadataKind.Directory) &&
+            result[0].DirectoryPath == "/" && result[1].DirectoryPath == "/app" && result[2].DirectoryPath == I.Root + "/fixture/nested");
+        HostCheck.True(result[3].Kind == I.MetadataKind.Fat0 && result[4].Kind == I.MetadataKind.Fat0 &&
+            result[5].Kind == I.MetadataKind.Fat1 && result[6].Kind == I.MetadataKind.Fat1 &&
+            result.Skip(3).Take(4).All(s => s.DirectoryPath == ""));
+        HostCheck.Equal(result[0], result[^1]);
+        HostCheck.True(actual.Find("/") is null && actual.Find("/app") is null && actual.Entries.All(e => e.Path == I.Root || e.Path.StartsWith(I.Root + "/", StringComparison.Ordinal)));
+        HostCheck.Equal(2 + actual.Entries.Where(e => e.IsDirectory).Sum(e => e.Sectors.Count), actual.DirectorySectors.Count);
+        HostCheck.True(actual.DirectorySectors.Select(s => s.Lba).Distinct().Count() == actual.DirectorySectors.Count);
+    });
+
+    [HostTest("disk metadata rejects reserved preserved sentinel free data and parseable directory-looking asset tail sectors", HostLane.Native)]
+    private static void MetadataExclusions() => WebRootImageFixtureTests.WithImage((root, directory, image, source) =>
+    {
+        byte[] directoryLooking = new byte[513];
+        System.Text.Encoding.ASCII.GetBytes("DIR        ").CopyTo(directoryLooking, 0);
+        directoryLooking[11] = 0x10; BinaryPrimitives.WriteUInt16LittleEndian(directoryLooking.AsSpan(26), 2);
+        File.WriteAllBytes(Path.Combine(source, "directory-looking.bin"), directoryLooking);
+        string output = Path.Combine(directory, "metadata-exclusions.raw");
+        var receipt = WebRootImageFixture.Apply(root, image, source, WebRootImageFixture.SnapshotPublishedRoot(source), output);
+        byte[] raw = File.ReadAllBytes(output); var actual = I.Inspect(output, raw, receipt);
+        var asset = actual.Find(I.Root + "/directory-looking.bin")!;
+        OS.Storage.LiveVfatState vfat = default;
+        var parsed = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate.Consume(
+            raw.AsSpan(checked((int)asset.Sectors[0].Lba * 512), 32), ref vfat, new ushort[260], out var fake);
+        HostCheck.True(parsed == OS.Storage.LiveDirectoryStatus.Entry && (fake.Attributes & 0x10) != 0);
+        HostCheck.Equal(1U, asset.Sectors[^1].ValidBytes);
+        foreach (ulong lba in new[] { asset.Sectors[0].Lba, asset.Sectors[^1].Lba,
+            actual.Find(I.Root + "/fixture/fragmented.bin")!.Sectors[^1].Lba })
+            Reject(() => I.ClassifyMetadata(actual, raw, [lba]), "webroot_disk_inventory_metadata_asset");
+        foreach (var file in receipt.PreservedFiles.Append(receipt.Sentinel))
+        {
+            ulong lba = file.Extents[0].FirstLba;
+            Reject(() => I.ClassifyMetadata(actual, raw, [lba]), "webroot_disk_inventory_metadata_sector");
+        }
+        int bpb = checked((int)actual.PartitionFirstLba * 512);
+        uint reserved = BinaryPrimitives.ReadUInt16LittleEndian(raw.AsSpan(bpb + 14));
+        ulong firstFat = actual.PartitionFirstLba + reserved;
+        uint fatSectors = BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(bpb + 36));
+        ulong firstData = firstFat + 2 * (ulong)fatSectors;
+        uint free = 2;
+        while (BinaryPrimitives.ReadUInt32LittleEndian(raw.AsSpan(checked((int)firstFat * 512 + (int)free * 4))) != 0) free++;
+        ulong freeLba = firstData + free - 2;
+        foreach (ulong lba in new[] { 0UL, 1UL, 2UL, actual.PartitionFirstLba, actual.PartitionFirstLba + 1,
+            actual.PartitionFirstLba + 6, actual.PartitionFirstLba + 7, actual.PartitionFirstLba + reserved - 1,
+            freeLba, (ulong)raw.Length / 512, ulong.MaxValue })
+            Reject(() => I.ClassifyMetadata(actual, raw, [lba]), "webroot_disk_inventory_metadata_sector");
+        HostCheck.True(actual.DirectorySectors.All(s => s.Lba != freeLba && !asset.Sectors.Any(a => a.Lba == s.Lba)));
+    });
+
+    [HostTest("disk metadata requires complete held image identity and bounded inputs before classifying residual copies", HostLane.Native)]
+    private static void MetadataIdentityAndBounds() => WithInventory((_, _, _, _, raw, actual) =>
+    {
+        ulong lba = actual.DirectorySectors[0].Lba;
+        byte[] substitution = raw.ToArray(); substitution[^100] ^= 1;
+        Reject(() => I.ClassifyMetadata(actual, substitution, [lba]), "webroot_disk_inventory_metadata_image");
+        Reject(() => I.ClassifyMetadata(actual, substitution, []), "webroot_disk_inventory_metadata_image");
+        var nonce = actual.Find(I.Root + "/fixture-nonce.txt")!;
+        substitution = raw.ToArray(); substitution[checked((int)nonce.Sectors[0].Lba * 512)] ^= 1;
+        Reject(() => I.ClassifyMetadata(actual, substitution, [lba]), "webroot_disk_inventory_metadata_image");
+        Reject(() => I.ClassifyMetadata(actual, raw, new MetadataCountOnly(I.MaximumMetadataObservations + 1)), "webroot_disk_inventory_metadata_input");
+        Reject(() => I.ClassifyMetadata(actual, raw, null!), "webroot_disk_inventory_metadata_input");
+        Reject(() => I.ClassifyMetadata(null!, raw, [lba]), "webroot_disk_inventory_metadata_input");
+        Reject(() => I.ClassifyMetadata(actual, raw.AsSpan(0, 512), [lba]), "webroot_disk_inventory_metadata_input");
+        Reject(() => I.ClassifyMetadata(actual, raw.AsSpan(0, raw.Length - 1), [lba]), "webroot_disk_inventory_metadata_input");
+        HostCheck.Equal(0, I.ClassifyMetadata(actual, raw, []).Count);
+        var exactBound = I.ClassifyMetadata(actual, raw, Enumerable.Repeat(lba, I.MaximumMetadataObservations).ToArray());
+        HostCheck.Equal(I.MaximumMetadataObservations, exactBound.Count);
+    });
+
+    [HostTest("disk metadata classification and navigation sector inventories remain immutable after borrowed inputs change", HostLane.Native)]
+    private static void MetadataImmutable() => WithInventory((_, _, _, _, raw, actual) =>
+    {
+        var savedDirectories = actual.DirectorySectors.ToArray(); List<ulong> lbas = [savedDirectories[0].Lba, savedDirectories[^1].Lba];
+        var result = I.ClassifyMetadata(actual, raw, lbas); var saved = result.ToArray();
+        lbas[0] = ulong.MaxValue; lbas.Clear(); Array.Clear(raw);
+        HostCheck.True(result.SequenceEqual(saved) && actual.DirectorySectors.SequenceEqual(savedDirectories));
+        bool classified = false, directories = false;
+        try { ((IList<I.MetadataSector>)result)[0] = default; } catch (NotSupportedException) { classified = true; }
+        try { ((IList<I.DirectorySector>)actual.DirectorySectors)[0] = default; } catch (NotSupportedException) { directories = true; }
+        HostCheck.True(classified && directories && !actual.GrantsNativeDeviceOrProcessAuthority);
+    });
+
+    private sealed class MetadataCountOnly(int count) : IReadOnlyList<ulong>
+    {
+        public int Count => count;
+        public ulong this[int index] => throw new InvalidOperationException("metadata_bound_must_precede_indexing");
+        public IEnumerator<ulong> GetEnumerator() => throw new InvalidOperationException("metadata_bound_must_precede_enumeration");
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
     private static void WithInventory(Action<string, string, string, WebRootImageFixture.Receipt, byte[], I.Inspection> action)
         => WebRootImageFixtureTests.WithImage((root, directory, image, source) =>
         {

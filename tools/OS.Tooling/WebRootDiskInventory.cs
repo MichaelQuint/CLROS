@@ -18,10 +18,14 @@ public static class WebRootDiskInventory
     public const string Root = WebRootImageFixture.GuestRoot;
     // This is a host evidence bound, not a larger runtime namespace allowance.
     public const int MaximumEntries = 4096;
+    public const int MaximumMetadataObservations = 65536;
     private static readonly BlockReadResult Complete = BlockReadResult.Success(1, 512);
 
     public readonly record struct Extent(uint FirstCluster, uint Clusters, ulong FirstLba, uint Sectors);
     public readonly record struct Sector(ulong FileOffset, ulong Lba, uint ValidBytes);
+    public readonly record struct DirectorySector(string Path, ulong Lba);
+    public enum MetadataKind : byte { Fat0, Fat1, Directory }
+    public readonly record struct MetadataSector(ulong Lba, MetadataKind Kind, string DirectoryPath);
 
     /// <summary>All collections and content are owned copies. Inode identifies
     /// the actual physical short directory slot: LBA*16+slot+256. Zero mtime is
@@ -94,18 +98,71 @@ public static class WebRootDiskInventory
     public sealed class Inspection
     {
         private readonly Dictionary<string, Entry> byPath;
+        private readonly Dictionary<ulong, string> directoryByLba;
+        private readonly HashSet<ulong> assetSectors;
+        private readonly ulong firstFatLba;
+        private readonly uint fatSectors;
         public string ImageSha256 { get; }
         public ulong PartitionFirstLba { get; }
         public ulong PartitionLastLba { get; }
         public IReadOnlyList<Entry> Entries { get; }
+        /// <summary>Exact checked directory-chain sectors, including navigation
+        /// metadata for '/' and '/app' outside the served namespace. These paths
+        /// do not become Entries/Find routes. No sector is recognized by its byte
+        /// pattern; allocation and global chain ownership establish its role.</summary>
+        public IReadOnlyList<DirectorySector> DirectorySectors { get; }
         public bool GrantsNativeDeviceOrProcessAuthority => false;
-        internal Inspection(string hash, LiveFat32Volume volume, List<Entry> entries)
+        internal Inspection(string hash, LiveFat32Volume volume, List<Entry> entries, List<DirectorySector> navigation)
         {
             ImageSha256 = hash; PartitionFirstLba = volume.PartitionFirstLba; PartitionLastLba = volume.PartitionLastLba;
+            firstFatLba = volume.FirstFatLba; fatSectors = volume.FatSectors;
             Entries = Array.AsReadOnly(entries.OrderBy(e => e.Path, StringComparer.Ordinal).ToArray());
             byPath = Entries.ToDictionary(e => e.Path, StringComparer.Ordinal);
+            DirectorySectors = Array.AsReadOnly(navigation.Concat(Entries.Where(e => e.IsDirectory)
+                .SelectMany(e => e.Sectors.Select(s => new DirectorySector(e.Path, s.Lba)))).OrderBy(s => s.Lba).ToArray());
+            assetSectors = Entries.Where(e => !e.IsDirectory).SelectMany(e => e.Sectors.Select(s => s.Lba)).ToHashSet();
+            directoryByLba = new();
+            foreach (var sector in DirectorySectors)
+                Need(sector.Lba >= volume.FirstDataLba && sector.Lba <= volume.PartitionLastLba &&
+                    !assetSectors.Contains(sector.Lba) && directoryByLba.TryAdd(sector.Lba, sector.Path), "metadata_overlap");
         }
         public Entry? Find(string path) => Canonical(path) && byPath.TryGetValue(path, out var entry) ? entry : null;
+        internal MetadataSector Classify(ulong lba)
+        {
+            // Allocated asset sectors include the complete physical last sector,
+            // so bytes after logical EOF never become directory metadata.
+            Need(!assetSectors.Contains(lba), "metadata_asset");
+            if (lba >= firstFatLba && lba - firstFatLba < fatSectors) return new(lba, MetadataKind.Fat0, "");
+            ulong second = firstFatLba + fatSectors;
+            if (lba >= second && lba - second < fatSectors) return new(lba, MetadataKind.Fat1, "");
+            if (directoryByLba.TryGetValue(lba, out var path)) return new(lba, MetadataKind.Directory, path);
+            throw new ToolFailure("webroot_disk_inventory_metadata_sector");
+        }
+    }
+
+    /// <summary>Synchronously borrow a stable held raw image and at most65536
+    /// residual copied-sector LBAs. Require exact whole-image SHA equality with
+    /// the independent inventory; return immutable classifications in input
+    /// order, retaining repeated reads. Allow only the two already verified FAT
+    /// ranges or exact root/app/confined directory-chain sectors. Asset sectors,
+    /// including tail padding, and all reserved, preserved-file, sentinel or
+    /// unallocated sectors reject. This recognizes physical metadata ownership,
+    /// not whether an operation needed a lookup, its timing, bytes, cache state,
+    /// original observation, device or execution authority. The caller holds the
+    /// original input unchanged through final acceptance. No input alias, owner,
+    /// path route, I/O or callback is retained. Invalid inputs throw ToolFailure.</summary>
+    public static IReadOnlyList<MetadataSector> ClassifyMetadata(Inspection inventory,
+        ReadOnlySpan<byte> heldImage, IReadOnlyList<ulong> residualLbas)
+    {
+        int count = residualLbas?.Count ?? -1;
+        Need(inventory is not null && count is >= 0 and <= MaximumMetadataObservations &&
+            heldImage.Length is >= 34 * 1024 * 1024 and <= WebRootImageFixture.MaximumImageBytes &&
+            heldImage.Length % 512 == 0, "metadata_input");
+        Inspection actual = inventory!;
+        Need(Convert.ToHexString(SHA256.HashData(heldImage)) == actual.ImageSha256, "metadata_image");
+        MetadataSector[] result = new MetadataSector[count];
+        for (int i = 0; i < count; i++) result[i] = actual.Classify(residualLbas![i]);
+        return Array.AsReadOnly(result);
     }
 
     /// <summary>Synchronously borrow exclusive stable raw bytes and receipt,
@@ -122,11 +179,14 @@ public static class WebRootDiskInventory
         Need(rawImage is { Length: >= 34 * 1024 * 1024 and <= WebRootImageFixture.MaximumImageBytes } && rawImage.Length % 512 == 0 &&
             receipt is not null && receipt.WebRootFiles is { Length: > 0 and < MaximumEntries } &&
             receipt.PreservedFiles is not null && receipt.Sentinel is not null, "input");
+        ArgumentNullException.ThrowIfNull(receipt);
+        ArgumentNullException.ThrowIfNull(receipt.PreservedFiles);
+        ArgumentNullException.ThrowIfNull(receipt.WebRootFiles);
         string hash = Convert.ToHexString(SHA256.HashData(rawImage));
         var independent = WebRootImageFixture.ReadBack(originalImagePath);
         Need(hash == independent.Sha256 && hash == receipt.FinalSha256 && independent.PartitionFirstLba == receipt.PartitionFirstLba &&
             independent.PartitionLastLba == receipt.PartitionLastLba && receipt.Variant is "DiskA" or "DiskB", "identity");
-        var expected = receipt.PreservedFiles.Concat(receipt.WebRootFiles).Append(receipt.Sentinel).ToArray();
+        var expected = receipt.PreservedFiles.Concat(receipt.WebRootFiles).Append(receipt.Sentinel!).ToArray();
         Need(expected.Length == independent.Files.Length && expected.Select(e => e.Path).Distinct(StringComparer.Ordinal).Count() == expected.Length &&
             expected.All(e => independent.Files.Any(a => Same(e, a))), "receipt");
         Need(receipt.WebRootFiles.All(f => Canonical(f.Path) && f.Extents is not null), "receipt_scope");
@@ -138,9 +198,9 @@ public static class WebRootDiskInventory
         }
         Need(admitted.Count <= MaximumEntries, "entry_bound");
         Scanner scanner = new(rawImage, independent.PartitionFirstLba, independent.PartitionLastLba, admitted.Count);
-        var app = scanner.Directory(scanner.Volume.RootCluster).SingleOrDefault(e => e.Name == "app");
+        var app = scanner.Directory(scanner.Volume.RootCluster, "/").SingleOrDefault(e => e.Name == "app");
         Need(app is not null && (app.Attributes & 0x10) != 0, "app_directory");
-        var root = scanner.Directory(app!.Cluster).SingleOrDefault(e => e.Name == "wwwroot");
+        var root = scanner.Directory(app!.Cluster, "/app").SingleOrDefault(e => e.Name == "wwwroot");
         Need(root is not null && (root.Attributes & 0x10) != 0, "root_directory");
         scanner.Walk(Root, root!, 0);
         Need(scanner.Entries.Count == admitted.Count && scanner.Entries.All(e => admitted.Contains(e.Path)) &&
@@ -162,7 +222,7 @@ public static class WebRootDiskInventory
             e.Bytes.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\t" + e.Sha256 + "\n"));
         Need(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))) == receipt.PublishedInventorySha256 &&
             fixtures.All(f => scanner.Entries.Any(e => !e.IsDirectory && e.Path == Root + "/" + f)), "published_identity");
-        return new(hash, scanner.Volume, scanner.Entries);
+        return new(hash, scanner.Volume, scanner.Entries, scanner.NavigationSectors);
     }
 
     private static bool Same(WebRootImageFixture.DiskFile a, WebRootImageFixture.DiskFile b) =>
@@ -188,6 +248,7 @@ public static class WebRootDiskInventory
         private readonly int maximumEntries;
         internal readonly LiveFat32Volume Volume;
         internal readonly List<Entry> Entries = [];
+        internal readonly List<DirectorySector> NavigationSectors = [];
         internal Scanner(byte[] raw, ulong first, ulong last, int maximumEntries)
         {
             this.raw = raw; this.maximumEntries = maximumEntries;
@@ -219,7 +280,12 @@ public static class WebRootDiskInventory
                 Need(status == LiveFat32Status.Success, "chain_link"); cluster = next;
             }
         }
-        internal List<Found> Directory(uint first) => ReadDirectory(Clusters(first));
+        internal List<Found> Directory(uint first, string path)
+        {
+            uint[] clusters = Clusters(first);
+            foreach (uint cluster in clusters) NavigationSectors.Add(new(path, ClusterLba(cluster)));
+            return ReadDirectory(clusters);
+        }
         private List<Found> ReadDirectory(uint[] chain)
         {
             List<Found> entries = []; HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);

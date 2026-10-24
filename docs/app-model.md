@@ -1,5 +1,11 @@
 # App Model
 
+[Step1577](../done/step1577.md) joins the diagnostic disk/static leaf to copied
+physical inventory and all observed sector bytes. Generation-bound file/FIFO/
+source4 replay passes value checks; original018r03 remains failed. The actual
+full Blazor framework/browser, original complete HTTP owner and batch gates
+remain pending, as do persistent writes/logs/uploads/direct SQLite recovery.
+
 [Step1576](../done/step1576.md) records an original full-server disk diagnostic
 with five HTTP200 responses and owned shutdown. The host page is the published
 Blazor client page, but framework fetch/browser boot is not demonstrated. Its

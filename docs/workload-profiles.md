@@ -1,5 +1,11 @@
 # Workload Profiles ADR
 
+[Step1577](../done/step1577.md) adds complete copied disk/static scheduler/file
+and sector joins. Original018r03 remains a failed diagnostic; complete original
+HTTP/native/process/packet ownership and the full Blazor/browser witness still
+precede first-batch closure. Continue the approved read then writable FAT/flush/
+log/upload/locking/direct SQLite ladder without promoting these value reports.
+
 ## Current roadmap position (October 23, 2026)
 
 PR790 is merged at `82656076`. #748/#225 and the finite #737 integration are

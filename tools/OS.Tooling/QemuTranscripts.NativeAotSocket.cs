@@ -95,6 +95,7 @@ public static partial class QemuTranscripts
             while(true)
             {
                 SocketTransportObservations();
+                if(DiskStaticObservations())continue;
                 if(!Starts("M16_012_POLL ") && !Starts("M16_012_WAKE "))break;
                 Need(socketObservations.TryGetValue(position,out var observed),"socket_observation_position");
                 if(observed.Kind==NativeAotSocketGuest.ObservationKind.Poll && observed.Identity!=(socketSelected?.Identity??0))break;
@@ -438,7 +439,7 @@ public static partial class QemuTranscripts
 
         private void SocketFinish()
         {
-            if(staticFiles)Need(socketAccepts==3 && socketSent>0 && socketReceived>0 && clones>=2,"static_socket_workload_lifetimes");
+            if(staticFiles)Need((diskInventory is null?socketAccepts==3:socketAccepts is >0 and <=512) && socketSent>0 && socketReceived>0 && clones>=2,"static_socket_workload_lifetimes");
             else if(service)
                 Need(socketAccepts>=10 && socketSent>0 && socketReceived>0 && clones>=2,"service_socket_workload_lifetimes");
             else if(containment)

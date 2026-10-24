@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1577](../done/step1577.md) adds host-only complete disk/static value
+replay; it changes no EFI producer body, arena or ABI. Original018r03 native
+and failed-command identities remain those recorded in step1576. No fresh
+native/guest acceptance follows from retrospective value inspection.
+
 [Step1576](../done/step1576.md) records original018r03 native verification and
 real application entry after removing redundant wait frames. Five diagnostic
 HTTP responses and exit0/cleanup follow; the outer command remains failed.

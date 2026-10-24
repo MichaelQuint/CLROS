@@ -1,5 +1,12 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1577](../done/step1577.md) adds complete value replay for the diagnostic
+disk/static leaf, including actual source4 FIFO wakes, retained file identity,
+original output ceilings and deferred completions. All original018r03 calls,
+reaps, file observations and copied sectors match. This does not rescue that
+failed original: a complete original parent/native/process/HTTP/packet owner,
+full45-asset framework/browser witness and remaining batch gates are pending.
+
 [Step1576](../done/step1576.md) retains original018r03 with five external200
 responses, including disk index/nonce, followed by owned SIGTERM/exit0 and
 cleanup. The outer command deliberately fails without the complete consumer.

@@ -130,6 +130,12 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1577](done/step1577.md) adds complete value-only disk/static scheduler,
+file and sector replay. All2973 original diagnostic calls,13 reaps,11 disk
+operations and12 sectors match. The original018r03 command remains failed;
+original complete HTTP/browser/native/packet acceptance and batch gates remain
+pending. No issue, write/durability or SQLite boundary advances.
+
 [Step1576](done/step1576.md) records the first five-response disk HTTP diagnostic
 at `e5a5c1c0`: NativeAOT server readiness, published host page/nonce from disk,
 owned SIGTERM/exit0 and cleanup. The original outer command remains failed
