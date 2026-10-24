@@ -18,9 +18,11 @@ internal static unsafe class WritableBlockSessionTests
     { Block.RequestToken value = default; var status = Block.SubmitWrite(f.State, sector, bytes, &value); token = value; return status; }
     private static Block.Status Flush(Fixture f, out Block.RequestToken token)
     { Block.RequestToken value = default; var status = Block.SubmitFlush(f.State, &value); token = value; return status; }
+    private static Block.Status Read(Fixture f, ulong sector, out Block.RequestToken token)
+    { Block.RequestToken value = default; var status = Block.SubmitRead(f.State, sector, &value); token = value; return status; }
     private static Block.Status Poll(Fixture f, out Block.Completion completion)
     { Block.Completion value = default; var status = Block.Poll(f.State, &value); completion = value; return status; }
-    private static int ManagedOffset<T>(T* value,string field) where T:unmanaged
+    internal static int ManagedOffset<T>(T* value,string field) where T:unmanaged
     {
         var method=new DynamicMethod("WritableManagedOffset",typeof(int),new[]{typeof(nint)},typeof(WritableBlockSessionTests).Module,true);
         var il=method.GetILGenerator();il.Emit(OpCodes.Ldarg_0);
@@ -311,9 +313,147 @@ internal static unsafe class WritableBlockSessionTests
         HostCheck.Equal(Block.Status.Success,Block.Stop(f.State)); f.CheckGuards();
     }
 
-    private struct Hardware
+    [HostTest("writable queue actual IN retains ReadReady until copy and does not advance write durable frontiers")]
+    private static void ReadFrontiers()
+    {
+        using var f = new Fixture(); HostCheck.Equal(Block.Status.Success, f.Start()); byte[] payload = new byte[512]; Fill(payload);
+        HostCheck.Equal(Block.Status.Success, Write(f, 4, payload, out _)); f.Complete(); HostCheck.Equal(Block.Status.Success, Poll(f, out _));
+        HostCheck.Equal(Block.Status.Success, Read(f, 4, out var token)); HostCheck.Equal(0U, f.Hardware->Type);
+        HostCheck.True(f.State->ReadPending && f.State->RequestPending && !f.State->ReadReady);
+        byte[] result = new byte[512]; HostCheck.Equal(Block.Status.Pending, Block.CopyRead(f.State, token, result));
+        f.Hardware->Now = 1000; f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f, out var completion));
+        HostCheck.True(completion.Kind == Block.Operation.Read && completion.Bytes == 512 && !completion.Cancelled && f.State->ReadReady && f.State->RequestPending);
+        HostCheck.Equal(Block.Status.Busy, Flush(f, out _)); HostCheck.Equal(Block.Status.Busy, Write(f, 5, payload, out _));
+        HostCheck.Equal(Block.Status.Ready, Poll(f, out _)); HostCheck.Equal(2UL, f.State->Completed);
+        f.Hardware->ClockFailure = true; // Already validated Ready data has no new clock/expiry dependency.
+        HostCheck.Equal(Block.Status.Success, Block.CopyRead(f.State, token, result)); f.Hardware->ClockFailure = false;
+        HostCheck.True(result.AsSpan().SequenceEqual(payload) && !f.State->RequestPending && f.State->CompletedBytes == 512 && f.State->SubmittedBytes == 512 && f.State->DurableBytes == 0);
+        HostCheck.Equal(Block.Status.StaleToken, Block.CopyRead(f.State, token, result));
+        HostCheck.Equal(Block.Status.Success, Flush(f, out _)); f.Complete(); HostCheck.Equal(Block.Status.Success, Poll(f, out _));
+        HostCheck.Equal(512UL, f.State->DurableBytes); HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+    }
+
+    [HostTest("writable queue IN status-only errors malformed lengths and timeout never expose stale DMA bytes")]
+    private static void ReadFailures()
+    {
+        foreach (var item in new (uint Id, uint Length, byte Status, ushort Delta, Block.Status Expected)[]
+        { (0,1,0,1,Block.Status.InvalidCompletion), (0,512,0,1,Block.Status.InvalidCompletion), (0,514,0,1,Block.Status.InvalidCompletion),
+          (0,0,1,1,Block.Status.InvalidCompletion), (1,513,0,1,Block.Status.InvalidCompletion), (0,513,0,2,Block.Status.InvalidCompletion),
+          (0,1,1,1,Block.Status.DeviceIoError), (0,513,1,1,Block.Status.DeviceIoError), (0,1,2,1,Block.Status.UnsupportedRequest),
+          (0,513,255,1,Block.Status.InvalidCompletion) })
+        {
+            using var f = new Fixture(); HostCheck.Equal(Block.Status.Success, f.Start()); HostCheck.Equal(Block.Status.Success, Read(f, 3, out var token));
+            byte[] output = Enumerable.Repeat((byte)0x71, 512).ToArray(); f.Complete(item.Id, item.Length, item.Status, item.Delta);
+            HostCheck.Equal(item.Expected, Poll(f, out _)); HostCheck.Equal(Block.Status.InvalidState, Block.CopyRead(f.State, token, output));
+            HostCheck.True(output.All(value => value == 0x71) && f.Pool->AllocatedMask == 1 && f.State->SubmittedBytes == 0 && f.State->DurableBytes == 0);
+            HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+        }
+        using var timeout = new Fixture(); HostCheck.Equal(Block.Status.Success, timeout.Start()); Read(timeout, 3, out _);
+        timeout.Hardware->Now = 1000; HostCheck.Equal(Block.Status.Timeout, Poll(timeout, out _));
+        timeout.Hardware->ResetStuck = true; HostCheck.Equal(Block.Status.ResetFailed, Block.Stop(timeout.State));
+        HostCheck.True(timeout.Pool->AllocatedMask == 1 && timeout.Owner == DmaBufferOwnership.Device);
+        timeout.Hardware->ResetStuck = false; HostCheck.Equal(Block.Status.Success, Block.Stop(timeout.State)); timeout.CheckGuards();
+    }
+
+    [HostTest("writable queue IN copy aliases preserve Ready and changed config used index or lease reject before output")]
+    private static void ReadCopyGuards()
+    {
+        for (int mode = 0; mode < 4; mode++)
+        {
+            using var f = new Fixture(); HostCheck.Equal(Block.Status.Success, f.Start()); Fill(new Span<byte>(f.Hardware->Volatile, 512));
+            Read(f, 3, out var token); f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f, out _)); uint calls = f.Hardware->Calls;
+            byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(Block.State)).ToArray();
+            foreach (ulong address in new[] { 0UL, 8UL, 0x0000800000000000UL, (ulong)f.State, (ulong)f.Pool, (ulong)f.Slot, (ulong)f.Data, Common, Notify, Config })
+                HostCheck.Equal(Block.Status.InvalidStorage, Block.CopyRead(f.State, token, new Span<byte>((void*)address, 512)));
+            HostCheck.Equal(Block.Status.InvalidStorage, Block.CopyRead(f.State, token, new byte[511]));
+            HostCheck.True(calls == f.Hardware->Calls && f.State->ReadReady && new ReadOnlySpan<byte>(f.State, sizeof(Block.State)).SequenceEqual(state));
+            byte[] result = Enumerable.Repeat((byte)0x81, 512).ToArray();
+            if (mode == 0) { f.Hardware->Generation++; HostCheck.Equal(Block.Status.ConfigurationChanged, Block.CopyRead(f.State, token, result)); }
+            else if (mode == 1) { *(ushort*)(f.Data + 150) = 2; HostCheck.Equal(Block.Status.InvalidCompletion, Block.CopyRead(f.State, token, result)); }
+            else if (mode == 2)
+            {
+                ulong* generation = (ulong*)((byte*)f.Slot + ManagedOffset(f.Slot, "Generation")); (*generation)++;
+                HostCheck.Equal(Block.Status.DmaRejected, Block.CopyRead(f.State, token, result)); (*generation)--;
+            }
+            else { f.Hardware->FailCall = calls + 4; HostCheck.Equal(Block.Status.OrderingFailed, Block.CopyRead(f.State, token, result)); }
+            HostCheck.True(result.All(value => value == 0x81)); HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+        }
+    }
+
+    [HostTest("writable queue IN cancellation revokes pending and held Ready copies without altering write frontiers")]
+    private static void ReadCancellation()
+    {
+        foreach (bool ready in new[] { false, true })
+        {
+            using var f = new Fixture(); HostCheck.Equal(Block.Status.Success, f.Start()); Read(f, 4, out var token);
+            if (ready) { f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f, out _)); }
+            HostCheck.Equal(Block.Status.Success, Block.Cancel(f.State, token));
+            if (!ready) { HostCheck.True(f.State->RequestPending); f.Complete(); HostCheck.Equal(Block.Status.Cancelled, Poll(f, out var cancelled)); HostCheck.True(cancelled.Cancelled); }
+            byte[] result = Enumerable.Repeat((byte)0x91, 512).ToArray(); HostCheck.Equal(Block.Status.StaleToken, Block.CopyRead(f.State, token, result));
+            HostCheck.True(result.All(value => value == 0x91) && !f.State->RequestPending && f.State->SubmittedBytes == 0 && f.State->CompletedBytes == 0 && f.State->DurableBytes == 0);
+            HostCheck.Equal(Block.Status.Success, Read(f, 5, out var next)); HostCheck.True(next.Generation != token.Generation);
+            f.Complete(); HostCheck.Equal(Block.Status.Ready, Poll(f, out _)); HostCheck.Equal(Block.Status.Success, Block.Stop(f.State));
+            HostCheck.True(f.State->Retired && f.Pool->AllocatedMask == 0); f.CheckGuards();
+        }
+    }
+
+    [HostTest("writable queue mixed retained IN OUT FLUSH wraps ushort rings with no per-request allocation")]
+    private static void MixedWrap()
+    {
+        using var f = new Fixture(); HostCheck.Equal(Block.Status.Success, f.Start()); Span<byte> bytes = stackalloc byte[512]; Fill(bytes); bool good = true;
+        long allocated = 0; ulong writes = 0;
+        for (uint i = 0; i < 65538; i++)
+        {
+            if (i == 1) allocated = GC.GetAllocatedBytesForCurrentThread();
+            bool read = i % 2 == 0;
+            good &= (read ? Read(f, i, out _) : Write(f, i, bytes, out _)) == Block.Status.Success;
+            // Token is copied from validated completion, never synthesized from counters.
+            f.Complete(); good &= Poll(f, out var done) == (read ? Block.Status.Ready : Block.Status.Success);
+            if (read) good &= Block.CopyRead(f.State, done.Token, bytes) == Block.Status.Success; else writes += 512;
+        }
+        HostCheck.True(good && allocated == GC.GetAllocatedBytesForCurrentThread() && f.State->CompletedBytes == writes && f.State->DurableBytes == 0);
+        Flush(f, out _); f.Complete(); HostCheck.Equal(Block.Status.Success, Poll(f, out _)); HostCheck.Equal(writes, f.State->DurableBytes);
+        HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+    }
+
+    [HostTest("writable queue every IN publication completion and copy callback error retains exact DMA ownership and atomic output")]
+    private static void ReadCallbackFailures()
+    {
+        for (int phase = 0; phase < 3; phase++)
+        {
+            Block.RequestToken Prepare(Fixture f)
+            {
+                HostCheck.Equal(Block.Status.Success, f.Start()); Block.RequestToken token = default;
+                if (phase != 0) { Read(f, 2, out token); f.Complete(); }
+                if (phase == 2) HostCheck.Equal(Block.Status.Ready, Poll(f, out _));
+                return token;
+            }
+            Block.Status Act(Fixture f, Block.RequestToken token, Span<byte> target) =>
+                phase == 0 ? Read(f, 2, out _) : phase == 1 ? Poll(f, out _) : Block.CopyRead(f.State, token, target);
+            uint count; byte[] output = new byte[512];
+            using (var baseline = new Fixture())
+            {
+                var token = Prepare(baseline); uint start = baseline.Hardware->Calls;
+                HostCheck.Equal(phase == 1 ? Block.Status.Ready : Block.Status.Success, Act(baseline, token, output));
+                count = baseline.Hardware->Calls - start; HostCheck.Equal(Block.Status.Success, Block.Stop(baseline.State));
+            }
+            for (uint at = 1; at <= count; at++) foreach (bool after in new[] { false, true })
+            {
+                using var f = new Fixture(); var token = Prepare(f); output.AsSpan().Fill(0x93);
+                f.Hardware->FailCall = f.Hardware->Calls + at; f.Hardware->FailAfterWrite = after;
+                var result = Act(f, token, output);
+                HostCheck.True(result is not (Block.Status.Success or Block.Status.Ready) && result == f.State->LastFailure && f.Hardware->FailureFired &&
+                    f.Pool->AllocatedMask == 1 && f.Owner == DmaBufferOwnership.Device && !f.State->Running &&
+                    f.State->SubmittedBytes == 0 && f.State->CompletedBytes == 0 && f.State->DurableBytes == 0);
+                HostCheck.True(output.All(value => value == 0x93)); HostCheck.Equal(Block.Status.Success, Block.Stop(f.State)); f.CheckGuards();
+            }
+        }
+    }
+
+    internal struct Hardware
     {
         internal byte* Data;
+        internal byte* Medium, Persistent;
         internal DmaBufferPool* Pool;
         internal ulong Capacity, Now, Descriptor, Available, Used, Sector, Offered, Chosen;
         internal uint FeatureSelect, DriverSelect, Type;
@@ -384,18 +524,18 @@ internal static unsafe class WritableBlockSessionTests
                 h->Pool->AllocatedMask != 1 || index != unchecked((ushort)(h->AvailableSeen + 1)) || h->FencedIndex != index ||
                 *(ushort*)(h->Data + 132 + (h->AvailableSeen & 7) * 2) != 0 || *(ushort*)(h->Data + 128) != 1) h->BadOrder = true;
             h->Type = *(uint*)(h->Data + 256);
-            bool write = h->Type == 1;
-            if (!write && h->Type != 4 || *(uint*)(h->Data + 260) != 0 || h->Data[272] != 255) h->BadOrder = true;
-            int descriptors = write ? 3 : 2;
+            bool write = h->Type == 1, read = h->Type == 0;
+            if (!write && !read && h->Type != 4 || *(uint*)(h->Data + 260) != 0 || h->Data[272] != 255) h->BadOrder = true;
+            int descriptors = write || read ? 3 : 2;
             for (int i = 0; i < descriptors; i++)
             {
                 byte* p = h->Data + i * 16;
-                bool payload = write && i == 1, status = i == descriptors - 1;
+                bool payload = (write || read) && i == 1, status = i == descriptors - 1;
                 if (*(ulong*)p != DeviceBase + (i == 0 ? 256UL : payload ? 512UL : 272UL) ||
                     *(uint*)(p + 8) != (i == 0 ? 16U : payload ? 512U : 1U) ||
-                    *(ushort*)(p + 12) != (status ? 2 : 1) || *(ushort*)(p + 14) != (status ? 0 : i + 1)) h->BadOrder = true;
+                    *(ushort*)(p + 12) != (status ? 2 : payload && read ? 3 : 1) || *(ushort*)(p + 14) != (status ? 0 : i + 1)) h->BadOrder = true;
             }
-            if (!write && (*(ulong*)(h->Data + 264) != 0 || new ReadOnlySpan<byte>(h->Data + 32, 16).IndexOfAnyExcept((byte)0) >= 0)) h->BadOrder = true;
+            if (!write && !read && (*(ulong*)(h->Data + 264) != 0 || new ReadOnlySpan<byte>(h->Data + 32, 16).IndexOfAnyExcept((byte)0) >= 0)) h->BadOrder = true;
             h->Sector = *(ulong*)(h->Data + 264); h->AvailableSeen = index; h->Notifies++; h->Pending = true;
             return Exit(h);
         }
@@ -453,7 +593,7 @@ internal static unsafe class WritableBlockSessionTests
     [UnmanagedCallersOnly] private static byte Clock(void* c, ulong* value)
     { var h = (Hardware*)c; if (!Enter(h) || h->ClockFailure) return 0; *value = h->Now; return 1; }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         private static long epoch;
         private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(12288, 4096);
@@ -465,15 +605,17 @@ internal static unsafe class WritableBlockSessionTests
         private static readonly int ownerOffset = (int)Marshal.OffsetOf<DmaBufferSlot>("Owner");
         internal DmaBufferOwnership Owner => *(DmaBufferOwnership*)((byte*)Slot + ownerOffset);
         private readonly ulong lifetime;
+        private readonly ulong expectedCapacity;
         private readonly VirtioMappedRegion common, notify, device;
         internal VirtioNegotiationResult Negotiation;
-        internal Fixture()
+        internal Fixture(ulong capacity = Capacity)
         {
             new Span<byte>(backing, 12288).Fill(0xa5);
             HostCheck.Equal(DmaAddressStatus.Success, DmaAddressWindow.TryCreate((ulong)Data, Physical, DeviceBase, 4096, 64, out var window));
             lifetime = (ulong)Interlocked.Increment(ref epoch);
             HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, Slot, 1, lifetime));
-            Hardware->Data = Data; Hardware->Pool = Pool; Hardware->Capacity = Capacity; Hardware->Status = 0; Hardware->Generation = 7; Hardware->Offered = Block.Features | (1UL << 28);
+            expectedCapacity = capacity;
+            Hardware->Data = Data; Hardware->Pool = Pool; Hardware->Capacity = capacity; Hardware->Status = 0; Hardware->Generation = 7; Hardware->Offered = Block.Features | (1UL << 28);
             PciSizedBar* bars = stackalloc PciSizedBar[6]; new Span<PciSizedBar>(bars, 6).Clear();
             HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0xc, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
             var caps = VirtioPciCapabilitySet.Create(new(VirtioPciCapabilityType.CommonConfiguration, 4, 0, 56, 0),
@@ -489,25 +631,42 @@ internal static unsafe class WritableBlockSessionTests
         {
             Common = common, Notify = notify, Device = device,
             NotifyMultiplier = 4, ResetLimit = 3, Pool = Pool, Epoch = lifetime, Negotiation = Negotiation,
-            ExpectedCapacity = Capacity, CompletionTimeoutNanos = 1000,
+            ExpectedCapacity = expectedCapacity, CompletionTimeoutNanos = 1000,
             Access = new() { Queue = new() { Context = Hardware, Read8 = &Read8, Write8 = &Write8, Read16 = &Read16, Write16 = &Write16,
                 Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn },
             Clock = new() { Context = Hardware, Read = &Clock }
         };
         internal VirtioNegotiationResult Negotiate() => Negotiation = Block.Negotiate(common, 3, Input.Access.Queue);
         internal Block.Status Start() { Negotiate(); return Block.Start(State, Input); }
-        internal void Complete(uint id = 0, uint length = 1, byte status = 0, ushort delta = 1)
+        internal void UseMedium(byte[] image)
+        {
+            HostCheck.True(Hardware->Medium == null && (ulong)image.Length == expectedCapacity * 512);
+            Hardware->Medium = (byte*)NativeMemory.AllocZeroed((nuint)image.Length);
+            Hardware->Persistent = (byte*)NativeMemory.AllocZeroed((nuint)image.Length);
+            image.CopyTo(new Span<byte>(Hardware->Medium, image.Length)); image.CopyTo(new Span<byte>(Hardware->Persistent, image.Length));
+        }
+        internal void Complete(uint id = 0, uint length = uint.MaxValue, byte status = 0, ushort delta = 1)
         {
             if (!Hardware->Pending) Hardware->BadOrder = true;
-            if (status == 0 && id == 0 && length == 1 && delta == 1)
+            uint expected = Hardware->Type == 0 ? 513U : 1U; if (length == uint.MaxValue) length = expected;
+            if (status == 0 && id == 0 && length == expected && delta == 1)
             {
-                if (Hardware->Type == 1) for (int i = 0; i < 512; i++) Hardware->Volatile[i] = Data[512 + i];
+                if (Hardware->Medium != null)
+                {
+                    HostCheck.True(Hardware->Sector < expectedCapacity);
+                    if (Hardware->Type == 0) new ReadOnlySpan<byte>(Hardware->Medium + Hardware->Sector * 512, 512).CopyTo(new Span<byte>(Data + 512, 512));
+                    else if (Hardware->Type == 1) new ReadOnlySpan<byte>(Data + 512, 512).CopyTo(new Span<byte>(Hardware->Medium + Hardware->Sector * 512, 512));
+                    else new ReadOnlySpan<byte>(Hardware->Medium, checked((int)expectedCapacity * 512)).CopyTo(new Span<byte>(Hardware->Persistent, checked((int)expectedCapacity * 512)));
+                }
+                else if (Hardware->Type == 0) for (int i = 0; i < 512; i++) Data[512 + i] = Hardware->Volatile[i];
+                else if (Hardware->Type == 1) for (int i = 0; i < 512; i++) Hardware->Volatile[i] = Data[512 + i];
                 else for (int i = 0; i < 512; i++) Hardware->Durable[i] = Hardware->Volatile[i];
             }
             // An error does not promise an unchanged medium. Simulate a torn
             // OUT independently of the session's counter/error decisions.
             if (status == 1 && Hardware->Type == 1)
-                for (int i = 0; i < 256; i++) Hardware->Volatile[i] = Data[512 + i];
+                for (int i = 0; i < 256; i++)
+                    if (Hardware->Medium != null) Hardware->Medium[Hardware->Sector * 512 + (uint)i] = Data[512 + i]; else Hardware->Volatile[i] = Data[512 + i];
             Data[272] = status; byte* element = Data + 152 + (Hardware->Produced & 7) * 8;
             *(uint*)element = id; *(uint*)(element + 4) = length;
             Hardware->Produced += delta; *(ushort*)(Data + 150) = unchecked((ushort)Hardware->Produced); Hardware->Pending = false;
@@ -515,6 +674,10 @@ internal static unsafe class WritableBlockSessionTests
         internal void CheckGuards() => HostCheck.True(!Hardware->BadOrder &&
             new ReadOnlySpan<byte>(backing, 4096).IndexOfAnyExcept((byte)0xa5) < 0 && new ReadOnlySpan<byte>(Data + 4096, 4096).IndexOfAnyExcept((byte)0xa5) < 0);
         public void Dispose()
-        { NativeMemory.AlignedFree(backing); NativeMemory.Free(State); NativeMemory.Free(Pool); NativeMemory.Free(Slot); NativeMemory.Free(Hardware); }
+        {
+            if (State->RequiresCleanup) HostCheck.Equal(Block.Status.Success, Block.Stop(State));
+            NativeMemory.Free(Hardware->Medium); NativeMemory.Free(Hardware->Persistent);
+            NativeMemory.AlignedFree(backing); NativeMemory.Free(State); NativeMemory.Free(Pool); NativeMemory.Free(Slot); NativeMemory.Free(Hardware);
+        }
     }
 }

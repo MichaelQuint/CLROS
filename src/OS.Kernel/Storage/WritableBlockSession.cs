@@ -2,7 +2,7 @@ using OS.Drivers;
 
 namespace OS.Storage;
 
-/// <summary>Exclusive polling-only modern Virtio OUT/FLUSH owner. One serialized
+/// <summary>Exclusive polling-only modern Virtio IN/OUT/FLUSH owner. One serialized
 /// supervisor caller retains state, callbacks, UC MMIO and coherent WB DMA until
 /// Stop succeeds. This independent host-tested leaf activates no boot device.
 /// Each write borrows exactly512 input bytes synchronously; no caller pointer is
@@ -20,9 +20,9 @@ public static unsafe class WritableBlockSession
         InvalidNotify, ReadFailed, WriteFailed, StatusRejected, OrderingFailed,
         BusMasterFailed, DmaRejected, ClockFailed, ClockRegressed, GenerationExhausted,
         SectorOutOfRange, Busy, Idle, Pending, Cancelled, StaleToken, InvalidStorage,
-        InvalidCompletion, DeviceIoError, UnsupportedRequest, Timeout, ResetFailed
+        InvalidCompletion, DeviceIoError, UnsupportedRequest, Timeout, ResetFailed, Ready
     }
-    public enum Operation : byte { Write, Flush }
+    public enum Operation : byte { Write, Flush, Read }
 
     /// <summary>Trusted monotonic nanoseconds, exactly1 on success. The adapter
     /// retains nonthrowing code/context and the actual mapping/device authority.</summary>
@@ -50,7 +50,8 @@ public static unsafe class WritableBlockSession
     }
 
     /// <summary>Copied identity only. The exact retained owner, epoch and
-    /// generation authenticate cancellation; completion revokes this token.</summary>
+    /// generation authenticate cancellation; OUT/FLUSH completion revokes the
+    /// token. Successful IN retains it until CopyRead or cancellation.</summary>
     public readonly struct RequestToken
     {
         public readonly ulong Owner, Epoch, Generation;
@@ -61,7 +62,9 @@ public static unsafe class WritableBlockSession
     /// <summary>Copied terminal request facts. DeviceResult is the observed
     /// wire outcome; Cancelled is a separate caller disposition and cannot undo
     /// completed writes or successful flush acknowledgements. Bytes is512 for a
-    /// successful OUT and0 for FLUSH/errors. A fault preserves exact failure and
+    /// successful IN/OUT and0 for FLUSH/errors. IN bytes remain borrowed DMA
+    /// until CopyRead; completion alone is not a delivered-byte claim.
+    /// A fault preserves exact failure and
     /// requires retirement before an externally owned retry; no replay occurs.</summary>
     public readonly struct Completion
     {
@@ -74,7 +77,7 @@ public static unsafe class WritableBlockSession
         internal Completion(State* s, Status result)
         {
             Token = new(s); Kind = s->Kind; Sector = s->Sector;
-            Bytes = result == Status.Success && Kind == Operation.Write ? 512U : 0;
+            Bytes = result == Status.Success && Kind != Operation.Flush ? 512U : 0;
             DeviceResult = result; Cancelled = s->CancelRequested;
         }
     }
@@ -97,10 +100,15 @@ public static unsafe class WritableBlockSession
         internal Operation Kind;
         internal bool DeviceOwned, ReturnedToCpu, Scrubbed, CancelRequested, Retry;
         internal Status Failure;
-        public readonly bool Running => Phase is IdlePhase or PendingPhase;
-        public readonly bool RequestPending => Phase == PendingPhase;
+        public readonly bool Running => Phase is IdlePhase or PendingPhase or ReadReadyPhase;
+        /// <summary>Queue ownership is busy through both an in-flight request
+        /// and an unconsumed read result. Legacy writer/mutation admission must
+        /// not treat retained ReadReady DMA as an idle device.</summary>
+        public readonly bool RequestPending => Phase is PendingPhase or ReadReadyPhase;
+        public readonly bool ReadPending => Phase == PendingPhase && Kind == Operation.Read;
+        public readonly bool ReadReady => Phase == ReadReadyPhase;
         public readonly bool Retired => Phase == RetiredPhase;
-        public readonly bool RequiresCleanup => Self != 0 && Phase is >= StartingPhase and <= FaultPhase;
+        public readonly bool RequiresCleanup => Self != 0 && (Phase is >= StartingPhase and <= FaultPhase || Phase == ReadReadyPhase);
         public readonly Status LastFailure => Failure;
         public readonly ulong SectorCount => Capacity;
         public readonly ulong Submitted => SubmittedCount;
@@ -114,7 +122,7 @@ public static unsafe class WritableBlockSession
         public readonly ulong LastSector => Sector;
         public readonly VirtioBlkQueueResult Receipt => Queue;
     }
-    private const byte StartingPhase = 1, IdlePhase = 2, PendingPhase = 3, FaultPhase = 4, RetiredPhase = 5;
+    private const byte StartingPhase = 1, IdlePhase = 2, PendingPhase = 3, FaultPhase = 4, RetiredPhase = 5, ReadReadyPhase = 6;
     private const ulong MaximumAddress = 0x0000800000000000UL;
 
     /// <summary>Perform bounded modern writable-block feature negotiation with
@@ -227,6 +235,12 @@ public static unsafe class WritableBlockSession
     /// frontier. The metadata output follows SubmitWrite lifetime/alias rules.</summary>
     public static Status SubmitFlush(State* s, RequestToken* token) => Submit(s, Operation.Flush, 0, default, token);
 
+    /// <summary>Publish one actual512-byte IN using the SAME exclusive queue.
+    /// No output pointer is retained. Successful Poll retains ReadReady DMA;
+    /// CopyRead or Cancel must consume it before another operation. Read never
+    /// advances write/durable byte frontiers. Token alias rules match writes.</summary>
+    public static Status SubmitRead(State* s, ulong sector, RequestToken* token) => Submit(s, Operation.Read, sector, default, token);
+
     private static Status Submit(State* s, Operation kind, ulong sector, ReadOnlySpan<byte> source, RequestToken* token)
     {
         if (!Running(s)) return Status.InvalidState;
@@ -237,7 +251,7 @@ public static unsafe class WritableBlockSession
                 Overlap((ulong)bytes, 512, (ulong)token, (ulong)sizeof(RequestToken)))) return Status.InvalidStorage;
             *token = default;
             if (s->Phase != IdlePhase) return Status.Busy;
-            if (kind == Operation.Write && sector >= s->Capacity) return Status.SectorOutOfRange;
+            if (kind != Operation.Flush && sector >= s->Capacity) return Status.SectorOutOfRange;
             if (s->Generation == ulong.MaxValue || s->SubmittedCount == ulong.MaxValue ||
                 kind == Operation.Write && s->SubmittedWriteBytes > ulong.MaxValue - 512) return Status.GenerationExhausted;
             if (!DmaBound(s)) return Fault(s, Status.DmaRejected);
@@ -245,13 +259,15 @@ public static unsafe class WritableBlockSession
             result = ReadClock(s, out ulong now); if (result != Status.Success) return Fault(s, result);
             if (now > ulong.MaxValue - s->Input.CompletionTimeoutNanos) return Fault(s, Status.ClockFailed);
             byte* data = (byte*)s->Queue.Layout.Range.CpuVirtualAddress; ulong device = s->Queue.Layout.Range.DeviceAddress;
-            *(uint*)(data + 256) = kind == Operation.Write ? 1u : 4u; *(uint*)(data + 260) = 0; *(ulong*)(data + 264) = sector;
+            *(uint*)(data + 256) = kind == Operation.Write ? 1u : kind == Operation.Flush ? 4u : 0u;
+            *(uint*)(data + 260) = 0; *(ulong*)(data + 264) = sector;
             data[272] = 255;
             Descriptor(data, device + 256, 16, 1, 1);
-            if (kind == Operation.Write)
+            if (kind != Operation.Flush)
             {
-                for (uint i = 0; i < 512; i++) data[512 + i] = bytes[i];
-                Descriptor(data + 16, device + 512, 512, 1, 2); Descriptor(data + 32, device + 272, 1, 2, 0);
+                for (uint i = 0; i < 512; i++) data[512 + i] = kind == Operation.Write ? bytes[i] : (byte)0;
+                Descriptor(data + 16, device + 512, 512, kind == Operation.Write ? (ushort)1 : (ushort)3, 2);
+                Descriptor(data + 32, device + 272, 1, 2, 0);
             }
             else { Descriptor(data + 16, device + 272, 1, 2, 0); Descriptor(data + 32, 0, 0, 0, 0); }
             ushort* available = (ushort*)(data + s->Queue.Layout.Rings.AvailableRing.Offset);
@@ -269,7 +285,9 @@ public static unsafe class WritableBlockSession
     }
 
     /// <summary>Observe at most one used entry with acquire fence and exact
-    /// head/status/length1 checks. Valid completion wins the original deadline.
+    /// head/status/length checks. IN success writes513 bytes (data+status), IN
+    /// errors may write1..513; OUT/FLUSH write only status1. Valid completion
+    /// wins the original deadline. IN Ready is retained until copy/cancel.
     /// Successful OUT advances completed bytes only; successful FLUSH advances
     /// durable bytes. Malformed/error/timeout/config failures quarantine DMA and
     /// preserve dirty/retry/error facts. No completion frees the DMA lease.
@@ -293,7 +311,8 @@ public static unsafe class WritableBlockSession
             uint id = 0, length = 0; byte status = 255; ulong item = used + 4 + (ulong)(s->UsedConsumed & 7) * 8;
             if (a.Read32(a.Context, item, &id) != 1 || a.Read32(a.Context, item + 4, &length) != 1 ||
                 a.Read8(a.Context, s->Queue.Layout.Range.CpuVirtualAddress + 272, &status) != 1) return Fault(s, Status.ReadFailed);
-            if (id != 0 || length != 1 || status > 2) return Fault(s, Status.InvalidCompletion);
+            if (id != 0 || status > 2 || (s->Kind == Operation.Read ? length is 0 or > 513 || status == 0 && length != 513 : length != 1))
+                return Fault(s, Status.InvalidCompletion);
             result = DeviceStatus(s); if (result != Status.Success) return Fault(s, result);
             result = ReadClock(s, out _); if (result != Status.Success) return Fault(s, result);
             s->UsedConsumed = index; s->CompletedCount++; s->Deadline = 0;
@@ -301,9 +320,11 @@ public static unsafe class WritableBlockSession
             *completion = new(s, result);
             if (result != Status.Success) return Fault(s, result);
             if (s->Kind == Operation.Write) s->CompletedWriteBytes += 512;
-            else s->FlushedWriteBytes = s->FlushTarget;
-            s->Phase = IdlePhase; return s->CancelRequested ? Status.Cancelled : Status.Success;
+            else if (s->Kind == Operation.Flush) s->FlushedWriteBytes = s->FlushTarget;
+            s->Phase = s->Kind == Operation.Read && !s->CancelRequested ? ReadReadyPhase : IdlePhase;
+            return s->CancelRequested ? Status.Cancelled : s->Phase == ReadReadyPhase ? Status.Ready : Status.Success;
         }
+        if (s->Phase == ReadReadyPhase) { *completion = new(s, Status.Success); return Status.Ready; }
         result = ReadClock(s, out ulong now); if (result != Status.Success) return Fault(s, result);
         return s->Phase == IdlePhase ? Status.Idle : now >= s->Deadline ? Fault(s, Status.Timeout) : Status.Pending;
     }
@@ -314,9 +335,32 @@ public static unsafe class WritableBlockSession
     public static Status Cancel(State* s, RequestToken token)
     {
         if (!Running(s)) return Status.InvalidState;
-        if (s->Phase != PendingPhase || !token.IsInitialized || token.Owner != (ulong)s ||
+        if (s->Phase is not (PendingPhase or ReadReadyPhase) || !token.IsInitialized || token.Owner != (ulong)s ||
             token.Epoch != s->Input.Epoch || token.Generation != s->Generation) return Status.StaleToken;
-        s->CancelRequested = true; return Status.Success;
+        s->CancelRequested = true; if (s->Phase == ReadReadyPhase) s->Phase = IdlePhase; return Status.Success;
+    }
+
+    /// <summary>Copy exactly512 validated IN bytes to exclusive ordinary RAM,
+    /// then revoke read ownership. Invalid length/alias preserves Ready for
+    /// retry and writes nothing. Current DMA lease/config/status/used index and
+    /// acquire fence are checked before copy; no new expiry or fallible callback
+    /// follows it. Destination is borrowed only until return.</summary>
+    public static Status CopyRead(State* s, RequestToken token, Span<byte> destination)
+    {
+        if (!Running(s)) return Status.InvalidState;
+        if (!token.IsInitialized || token.Owner != (ulong)s || token.Epoch != s->Input.Epoch || token.Generation != s->Generation ||
+            s->Kind != Operation.Read || s->Phase == IdlePhase) return Status.StaleToken;
+        if (s->Phase != ReadReadyPhase) return Status.Pending;
+        fixed (byte* output = destination)
+        {
+            if (destination.Length != 512 || !CallerBuffer(s, (ulong)output, 512)) return Status.InvalidStorage;
+            if (!DmaBound(s)) return Fault(s, Status.DmaRejected);
+            Status status = CheckUnchanged(s); if (status != Status.Success) return Fault(s, status);
+            if (!Fence(s)) return Fault(s, Status.OrderingFailed);
+            byte* source = (byte*)s->Queue.Layout.Range.CpuVirtualAddress + 512;
+            for (uint i = 0; i < 512; i++) output[i] = source[i];
+        }
+        s->Phase = IdlePhase; return Status.Success;
     }
 
     /// <summary>Bounded actual reset/readback, bus-master disable/readback and
@@ -401,7 +445,7 @@ public static unsafe class WritableBlockSession
     private static bool Fence(State* s)
     { var a = s->Input.Access.Queue; if (a.Fence(a.Context) != 1) return false; s->Queue.Fences++; return true; }
     private static bool Bound(State* s) => Storage((ulong)s, (ulong)sizeof(State)) && s->Self == (ulong)s &&
-        s->Phase is >= StartingPhase and <= RetiredPhase && (s->Phase == RetiredPhase ||
+        s->Phase is >= StartingPhase and <= ReadReadyPhase && (s->Phase == RetiredPhase ||
         (Storage((ulong)s->Input.Pool, (ulong)sizeof(DmaBufferPool)) && s->Input.Pool->Self == (ulong)s->Input.Pool &&
         s->Input.Pool->Epoch == s->PoolEpoch && s->Input.Pool->Count is > 0 and <= 64 &&
         Storage((ulong)s->Input.Pool->Slots, s->Input.Pool->Count * (ulong)sizeof(DmaBufferSlot))));
