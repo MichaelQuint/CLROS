@@ -19,6 +19,47 @@ The image command emits `<image>.webroot.json` with measured assets, preserved
 files and physical extents. Six final focused host checks pass; #769 still needs
 exact qualified candidate binding. A host image receipt is not guest disk/HTTP proof.
 
+## Planned manifest-driven packaging (2026-10-23)
+
+The OPS research is now tracked as a successor workflow; these commands and
+schemas are not implemented or accepted. Reuse the existing C# tools and
+GPT/FAT32 builders. Keep a host image recipe, a bounded generated guest manifest,
+and host deployment settings separate. The recipe describes one supported app,
+explicit files/directories, nonsecret configuration and logical volumes.
+Deployment binds actual disks, VM resources, forwarding and provider settings.
+
+| Issue | Scope |
+| --- | --- |
+| [#802 / M11-027](http://192.168.4.35:3000/admin/CLROS/issues/802) | Versioned schemas, strict validation, precedence and capability boundaries. |
+| [#803 / M11-028](http://192.168.4.35:3000/admin/CLROS/issues/803) | Deterministic content planning, confined file/directory import and bounded traversal. |
+| [#804 / M11-029](http://192.168.4.35:3000/admin/CLROS/issues/804) | Immutable recipe builds using #794 generic package admission and existing image writers. |
+| [#805 / M11-030](http://192.168.4.35:3000/admin/CLROS/issues/805) | Explicit separate data-volume creation/seeding with no destructive reuse. |
+| [#806 / M11-031](http://192.168.4.35:3000/admin/CLROS/issues/806) | Local run/stop and external HTTP evidence using existing QEMU ownership. |
+| [#807 / M11-032](http://192.168.4.35:3000/admin/CLROS/issues/807) | Bounded offline inspection and verification without booting or executing app inputs. |
+| [#808 / M11-033](http://192.168.4.35:3000/admin/CLROS/issues/808) | Logical-volume binding, enforced mount access and durable guest ownership. |
+
+Follow the exact dependencies in the canonical backlog, not issue-number order:
+#802 -> #803 -> #804 -> #807 -> #806 is the immutable local path. #805 additionally
+requires #798/#799, and #808 requires #805/#806/#800. Host formatting alone does
+not prove writable storage. The #797 general-hosting gate now includes #806 and
+retains at least three independent apps plus a changed rebuild on unchanged
+kernel/tool binaries. Persistent-volume cases require #808; SQLite remains
+direct Microsoft.Data.Sqlite under #791/#792 and its separate prerequisites.
+
+Existing #229/#233/#245 own reproducibility, provenance and format conversion;
+AWS/Azure and #305/#306/#313 retain provider/release acceptance. Replacement
+requires health checks, recoverable prior images and exclusive writable-volume
+handoff; create-before-delete alone is not a zero-downtime guarantee. No guest
+shell/SSH/admin endpoint, implicit host share, Nanos filesystem, per-app kernel
+patch or manual disassembly is introduced by this roadmap.
+
+Reference: [OPS configuration](https://docs.ops.city/ops/configuration) and
+[pinned OPS source](https://github.com/nanovms/ops/tree/a52795e38ba33a006f0ba740fee0f18fec58fbbb).
+Each issue links the relevant implementation files. [Step1563](../done/step1563.md)
+records tracker creation and verification only.
+
+## Existing implementation and evidence
+
 As of October 23, PR790/step1556 qualifies finite application service, not a
 new disk image feature. #781 -> #782 host FAT repairs remain open prerequisites
 for #769 webroot fixtures. Existing v1/V2 package commands retain their exact

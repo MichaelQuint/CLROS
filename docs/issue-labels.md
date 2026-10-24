@@ -31,7 +31,11 @@ Final review/closure remains
 pending in [step1558](../done/step1558.md). Comments are read once without paging
 and checked against the advertised count before evidence-based closure.
 
-The current manifest has 407 managed issues (17 epics, 390 children) plus 11 canonical supplemental descriptions. Supplemental issues retain their original unkeyed identities and milestones; guarded versioned API reconciliation maintains these descriptions separately from managed sync. Historical inventory counts below retain their original dates.
+The current manifest has 414 managed issues (17 epics, 397 children)
+plus 11 canonical supplemental descriptions. Step1563 adds seven OPS-style
+image-tooling successors (#802-#808) and updates 14 existing descriptions. The
+supplemental issues retain their original unkeyed identities and milestones.
+Historical inventory counts below retain their original dates.
 
 Selection limits issue writes while retaining the complete dependency and
 ownership graph; relevant label/milestone definitions are reconciled too.
