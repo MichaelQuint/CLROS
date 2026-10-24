@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1590](../done/step1590.md) Step1590 reviews204open LAN issues and creates the missing M10-027/#809 log/upload scope with four exact agent paths. Fresh preview1create/apply1/readback9unchanged precedes source edits. Parent M10-EPIC and M16-027 scheduler claim have preview2/apply2/readback15unchanged; a separate source-pin claim has preview1/apply1/readback9unchanged. All remain open; no finite guest result closes a larger issue.
+
 [Step1589](../done/step1589.md) keeps M16-024/M16-025/M10-018 open while recording original failures and unqualified repairs. Reconcile fresh content versions with the explicit current manifest, read back every change and preserve the newer M16-027 seven-path source5 claim. A guest terminal without a passing complete original wrapper does not close an issue.
 
 [Step1588](../done/step1588.md) claims seven root source5 integration paths on M16-027. The compiled tool resolves its own repository root; cross-checkout reconciliation therefore used an explicit absolute --manifestpath, then preview1/apply1/readback9 unchanged before source edits. Initial implicit-path zero-action previews inspected the earlier read checkout and did not claim the new scope. Preserve both receipts; no issue closes.

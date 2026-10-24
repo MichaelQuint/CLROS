@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1590](../done/step1590.md) The fresh original ExitPending r03 publishes all eight genuine teardown stages plus M16_025_EXIT_CLEANUP_END and passes exact full/leaf owner/epoch/index/phase joins. Its terminal clock1374779300 is sampled after final restoration; retained active-end1084928500 keeps its original earlier meaning. Original r02 lacks this witness and remains wrapper-failed. Only explicit ExitPending requires the new row.
+
 [Step1589](../done/step1589.md) adds M16_025_EXIT_CLEANUP_END owner=<original-request-owner> epoch=<original-request-epoch> clock=<fresh-HPET-nanoseconds> only to explicit ExitPending. It follows final stage8, pool/memory/canary checks and phase6 publication, before the retained BUDGET_END row. Its clock is fresh and within the existing300-second lifetime. The earlier network-end clock still describes network drain; r02 lacks this new witness and remains unaccepted.
 
 [Step1588](../done/step1588.md) retains exact isolated writable integration build/test logs: the first graph fails for an omitted Fat32Mutation dependency, then the complete graph and192 distinct controls pass. Duplicate selection of68 continuing controls is excluded from the distinct total. These normal-harness markers do not qualify native writable execution.

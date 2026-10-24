@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1590](done/step1590.md) Fresh original ExitPending r03 atc3dbab92 passes the complete original process/device/image/parent/cleanup consumer. This finite8-call exit race is separate from full disk/Blazor acceptance; full r04 is pending and all earlier failed originals retain their scopes. M10-027/#809 owns four isolated log/upload app/tool/test paths. M16-027 now also claims KernelThreadTable.cs and EfiContracts.Sources.cs for root-only retained-extent/source review; preserve both agent owners and serialize native work.
+
 [Step1589](done/step1589.md) preserves failed full DiskA r03 and guest-success/wrapper-failed ExitPending r02. The bounded64-visit cached-chain repair and fresh HPET cleanup terminal are development changes requiring new source-matched originals. Do not enlarge request/runtime budgets, reinterpret the earlier network-end clock as final cleanup, or synthesize the new witness into retained captures. The isolated writable integration remains host-only; exactly two agents continue bootstrap and descriptor/application preparation.
 
 [Step1588](done/step1588.md) records isolated writable-thread-waits host integration and the seven root source5 path claims, verified before edits. Keep read qualification on its frozen producer checkout and serialize native work. The combined writable foundation passes192 distinct host controls; source5/global integration and native/guest durability are still unfinished. Exactly two implementation agents remain active.
