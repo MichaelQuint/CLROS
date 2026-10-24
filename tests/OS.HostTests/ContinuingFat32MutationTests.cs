@@ -55,6 +55,84 @@ internal static unsafe class ContinuingFat32MutationTests
         HostCheck.True(f.State->Retired && f.Device.State->Running); f.Device.CheckGuards();
     }
 
+    [HostTest("continuing FAT copied open facts retain exact raw attributes size timestamps and physical identity without inventing timestamp validity")]
+    private static void CopiedFileMetadata()
+    {
+        ushort leap = (ushort)(((2024 - 1980) << 9) | (2 << 5) | 29), clock = (ushort)((23 << 11) | (58 << 5) | 28);
+        long leapSeconds = new DateTimeOffset(2024, 2, 29, 23, 58, 56, TimeSpan.Zero).ToUnixTimeSeconds();
+        foreach (var row in new (ushort Date, ushort Time, bool Valid, long Seconds)[]
+        {
+            (0, 0, true, 0), (33, 0, true, 315532800), (leap, clock, true, leapSeconds),
+            ((ushort)(((2023 - 1980) << 9) | (2 << 5) | 29), clock, false, 0),
+            (leap, (ushort)(24 << 11), false, 0), (0, 1, false, 0)
+        })
+        {
+            using var f = new Fixture(); var raw = f.Volatile.Slice(Data * 512 + 32, 32);
+            raw[11] = 0x21; raw[13] = 79; Put16(raw, 14, 0x645c); Put16(raw, 16, 0x41a1); Put16(raw, 18, 0x42e1);
+            Put16(raw, 22, row.Time); Put16(raw, 24, row.Date);
+            f.Mount(); var file = File(f); PhysicalFingerprint(file, raw);
+            var independent = Fat32Parser.FindRootDirectoryEntry(new Device(f.Device.Hardware->Medium), First, "DATA.BIN");
+            HostCheck.True(independent.Succeeded && independent.Entry.Attributes == 0x21 && independent.Entry.FileSize == file.Length &&
+                independent.Entry.FirstCluster == file.FirstCluster && file.Length == 900 && file.FirstCluster == 4 &&
+                file.Owner == (ulong)f.State && file.Epoch == f.Input.Epoch && file.Revision == f.State->VolumeRevision &&
+                file.EntryOffset == (ulong)Data * 512 + 32 && file.EntryOffset / 32 + 256 == (ulong)Data * 16 + 257 &&
+                (byte)(file.Fingerprint1 >> 24) == 0x21 && (byte)(file.Fingerprint1 >> 40) == 79 &&
+                (ushort)(file.Fingerprint1 >> 48) == 0x645c && (ushort)file.Fingerprint2 == 0x41a1 &&
+                (ushort)(file.Fingerprint2 >> 16) == 0x42e1 && (ushort)(file.Fingerprint2 >> 48) == row.Time && (ushort)file.Fingerprint3 == row.Date);
+            // CopyOpen authenticates the raw entry and chain, not Gregorian
+            // semantics. A provider must decode/reject these nonzero-invalid
+            // values, rather than manufacturing a successful timestamp/stat.
+            HostCheck.Equal(row.Valid, CopiedModifiedSeconds(file, out long seconds)); HostCheck.Equal(row.Seconds, seconds);
+            var keep = File(f, "KEEP.TXT");
+            HostCheck.True(keep.EntryOffset != file.EntryOffset && file.Revision == f.State->VolumeRevision &&
+                CopiedModifiedSeconds(file, out seconds) == row.Valid && seconds == row.Seconds && f.Device.State->SubmittedBytes == 0 && f.Trace.All(x => x.Type == 0));
+            C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT copied metadata stays historical across unrelated and target revisions and cannot authenticate a reused physical inode")]
+    private static void FileMetadataRevisions()
+    {
+        using var f = new Fixture(); PrepareGrowth(f);
+        ushort date = (ushort)(((2024 - 1980) << 9) | (2 << 5) | 29), time = (ushort)((12 << 11) | (34 << 5) | 28);
+        Put16(f.Volatile, Data * 512 + 32 + 22, time); Put16(f.Volatile, Data * 512 + 32 + 24, date);
+        f.Mount(); var original = File(f);
+        HostCheck.True(CopiedModifiedSeconds(original, out long modified) && modified == new DateTimeOffset(2024, 2, 29, 12, 34, 56, TimeSpan.Zero).ToUnixTimeSeconds());
+        Create(f, "SIDE.TXT", "SIDE    TXT"u8, out var create); f.Run(); Result(f, create);
+        uint notifies = f.Device.Hardware->Notifies;
+        HostCheck.Equal(C.Status.StaleToken, Read(f, original, 0, 1, out _)); HostCheck.Equal(notifies, f.Device.Hardware->Notifies);
+        var current = File(f); PhysicalFingerprint(current, f.Persistent.Slice((int)current.EntryOffset, 32));
+        HostCheck.True(current.Revision == original.Revision + 1 && current.EntryOffset == original.EntryOffset && current.Length == original.Length &&
+            current.FirstCluster == original.FirstCluster && current.Fingerprint0 == original.Fingerprint0 && current.Fingerprint1 == original.Fingerprint1 &&
+            current.Fingerprint2 == original.Fingerprint2 && current.Fingerprint3 == original.Fingerprint3 && CopiedModifiedSeconds(current, out long seconds) && seconds == modified);
+        Truncate(f, current, 513, out var shrink); f.Run(); C.MutationResult receipt = default;
+        HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, shrink, &receipt));
+        var shrunk = File(f); PhysicalFingerprint(shrunk, f.Persistent.Slice((int)shrunk.EntryOffset, 32));
+        HostCheck.True(SameFile(shrunk, receipt.NewFile) && SameFile(current, receipt.OriginalFile) && shrunk.Length == 513 &&
+            shrunk.Revision == current.Revision + 1 && CopiedModifiedSeconds(shrunk, out seconds) && seconds == modified);
+        notifies = f.Device.Hardware->Notifies;
+        HostCheck.Equal(C.Status.StaleToken, Read(f, current, 0, 1, out _)); HostCheck.Equal(notifies, f.Device.Hardware->Notifies);
+        Delete(f, shrunk, out var deletion); f.Run(); HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, deletion, &receipt));
+        HostCheck.True(receipt.Deleted && receipt.NewFile.Owner == 0);
+        Create(f, "OTHER.BIN", "OTHER   BIN"u8, out create); f.Run(); Result(f, create); var reused = File(f, "OTHER.BIN");
+        HostCheck.True(reused.EntryOffset == original.EntryOffset && reused.EntryOffset / 32 + 256 == original.EntryOffset / 32 + 256 &&
+            reused.Revision > shrunk.Revision && reused.Fingerprint0 != original.Fingerprint0 && reused.Length == 0 && reused.FirstCluster == 0 &&
+            CopiedModifiedSeconds(reused, out seconds) && seconds == 0 && CopiedModifiedSeconds(original, out seconds) && seconds == modified);
+        notifies = f.Device.Hardware->Notifies;
+        HostCheck.Equal(C.Status.StaleToken, Read(f, original, 0, 1, out _)); HostCheck.Equal(notifies, f.Device.Hardware->Notifies);
+        C.Stop(f.State);
+    }
+
+    // Test-side projection of already copied FAT words using the existing
+    // readonly directory UTC/zero-sentinel policy. It grants no live-token,
+    // Linux stat, allocation count or timestamp-update authority.
+    private static bool CopiedModifiedSeconds(C.FileToken file, out long seconds)
+    {
+        ushort date = (ushort)file.Fingerprint3, time = (ushort)(file.Fingerprint2 >> 48); seconds = 0;
+        return date == 0 && time == 0 || OS.Std.Time.GregorianUtc.TryUnixSeconds((uint)(1980 + (date >> 9)), (uint)((date >> 5) & 15),
+            (uint)(date & 31), (uint)(time >> 11), (uint)((time >> 5) & 63), (uint)((time & 31) * 2), out seconds);
+    }
+
     [HostTest("continuing FAT fragmented in-place RMW preserves boundary bytes and acknowledges only actual final FLUSH")]
     private static void FragmentedOverwrite()
     {
