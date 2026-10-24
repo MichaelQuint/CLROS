@@ -8,6 +8,93 @@ using Fs = OS.Storage.ReadOnlyWebRootFileSystem;
 
 internal static unsafe class ReadOnlyWebRootFileSystemTests
 {
+    [HostTest("webroot.fs CoreLib sized fragmented maps isolate metadata walks from retained independent 8KiB reads")]
+    private static void LargeFragmentedReadWork()
+    {
+        // Exact measured asset length, synthetic bytes/layout. This isolates
+        // host storage work, not CoreLib execution or the failed guest timeline.
+        const uint length = 2009369, clusterCount = (length + 511) / 512;
+        const string path = "/app/wwwroot/index.html";
+        using var f = new Fixture(cacheSlots: 4);
+        uint[] chain = Enumerable.Range(0, (int)clusterCount).Select(i => 1024U + (uint)i * 2).ToArray();
+        HostCheck.True(clusterCount == 3925 && chain.Distinct().Count() == clusterCount && chain[^1] < 65525);
+        byte[] shortSector = f.Disk.Sector(f.Disk.Data(4));
+        BinaryPrimitives.WriteUInt16LittleEndian(shortSector.AsSpan(52), (ushort)(chain[0] >> 16));
+        BinaryPrimitives.WriteUInt16LittleEndian(shortSector.AsSpan(58), (ushort)chain[0]);
+        BinaryPrimitives.WriteUInt32LittleEndian(shortSector.AsSpan(60), length);
+        for (int i = 0; i < chain.Length; i++)
+        {
+            f.Disk.SetFat(chain[i], i + 1 == chain.Length ? 0x0fffffffU : chain[i + 1]);
+            byte[] sector = f.Disk.Sector(f.Disk.Data(chain[i]));
+            for (int j = 0; j < 512; j++) sector[j] = LargePayload((ulong)i * 512 + (uint)j);
+            if (i != 0) HostCheck.True(chain[i] != chain[i - 1] + 1); // Every adjacent logical cluster is fragmented.
+        }
+        ulong DataReads() { ulong value = 0; foreach (uint cluster in chain) value += f.Disk.Reads[f.Disk.Data(cluster)]; return value; }
+        ulong DirectoryReads() { ulong value = 0; foreach (uint cluster in new uint[] { 2, 3, 4, 6, 7, 8 }) value += f.Disk.Reads[f.Disk.Data(cluster)]; return value; }
+        var stages = new List<(string Name, ulong Submitted, ulong Fat, ulong Directory, ulong Data, ulong Polls)>();
+        void Stage(string name)
+        {
+            ulong hardware = 0; foreach (uint reads in f.Disk.Reads) hardware += reads;
+            HostCheck.True(f.Device->Submitted == hardware && f.Device->Completed == hardware && f.Device->Copied == hardware &&
+                f.Mount->SectorReads == hardware && f.Device->Running && !f.Device->ReadPending && !f.Device->ReadReady);
+            var prior = stages.Count == 0 ? default : stages[^1];
+            stages.Add((name, hardware, f.Disk.FatReads(), DirectoryReads(), DataReads(), f.DrivePolls));
+            var current = stages[^1];
+            Console.WriteLine($"WEBROOT_LARGE_WORK phase={name} submitted={hardware - prior.Submitted} completed={hardware - prior.Submitted} copied={hardware - prior.Submitted} fat={current.Fat - prior.Fat} directory={current.Directory - prior.Directory} data={current.Data - prior.Data} drivePolls={current.Polls - prior.Polls} cacheHits={f.Mount->CacheHits} cacheMisses={f.Mount->CacheMisses}");
+        }
+        f.MountReady(); Stage("mount");
+        // The current stat-like path opens/validates a complete map, inspects
+        // its metadata, then closes. Inspect itself must issue no device I/O.
+        var stat = f.Open(path); Fs.FileInspection inspection = default; ulong submitted = f.Device->Submitted;
+        HostCheck.Equal(Fs.Status.Success, Fs.Inspect(f.Mount, stat.File, &inspection)); HostCheck.Equal(submitted, f.Device->Submitted);
+        HostCheck.True(inspection.Info.Length == length && inspection.AllocationKnown && inspection.AllocatedBlocks == clusterCount);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, stat.File)); Stage("cold-stat"); HostCheck.Equal(0UL, DataReads());
+        var a = f.Open(path); Stage("first-open"); var b = f.Open(path); Stage("independent-open");
+        HostCheck.True(a.Info.Inode == b.Info.Inode && a.Info.Length == length && b.Info.Length == length && !a.File.Equals(b.File));
+        uint aIndex = Field<Fs.FileToken, uint>(a.File, "Index"), bIndex = Field<Fs.FileToken, uint>(b.File, "Index");
+        HostCheck.True(aIndex != bIndex && f.Files[aIndex].Clusters != f.Files[bIndex].Clusters &&
+            new ReadOnlySpan<uint>(f.Files[aIndex].Clusters, chain.Length).SequenceEqual(chain) &&
+            new ReadOnlySpan<uint>(f.Files[bIndex].Clusters, chain.Length).SequenceEqual(chain));
+        var closed = b.File; HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, closed));
+        var far = f.Open("/app/wwwroot/far.bin"); Stage("cache-evict");
+        Fs.OperationToken invalid = default; submitted = f.Device->Submitted;
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.BeginRead(f.Mount, closed, 0, 8192, &invalid)); HostCheck.Equal(submitted, f.Device->Submitted);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, far.File)); b = f.Open(path); Stage("reopen");
+        HostCheck.True(Field<Fs.FileToken, uint>(b.File, "Index") == bIndex &&
+            Field<Fs.FileToken, ulong>(b.File, "Generation") > Field<Fs.FileToken, ulong>(closed, "Generation") &&
+            new ReadOnlySpan<uint>(f.Files[aIndex].Clusters, chain.Length).SequenceEqual(chain) &&
+            new ReadOnlySpan<uint>(f.Files[bIndex].Clusters, chain.Length).SequenceEqual(chain));
+        HostCheck.Equal(0UL, DataReads());
+        ulong readsBefore = f.Device->Submitted, fatBefore = f.Disk.FatReads(), directoryBefore = DirectoryReads(), hits = f.Mount->CacheHits, misses = f.Mount->CacheMisses;
+        byte[] output = new byte[8192]; uint ranges = (length + 8191) / 8192;
+        void ReadRange(Fs.FileToken file, ulong offset)
+        {
+            uint bytes = (uint)Math.Min(8192UL, length - offset), sectors = (bytes + 511) / 512;
+            output.AsSpan().Fill(0xa5); ulong before = f.Device->Submitted;
+            f.Read(file, offset, 8192, output, bytes);
+            HostCheck.True(f.Device->Submitted == before + sectors && f.Device->Completed == before + sectors && f.Device->Copied == before + sectors);
+            for (uint i = 0; i < bytes; i++) HostCheck.Equal(LargePayload(offset + i), output[i]);
+            HostCheck.True(output.AsSpan((int)bytes).IndexOfAnyExcept((byte)0xa5) < 0);
+        }
+        for (uint i = 0; i < ranges; i++)
+        {
+            ReadRange(a.File, (ulong)i * 8192);
+            ReadRange(b.File, (ulong)(ranges - 1 - i) * 8192); // Independent map/offset in reverse order.
+        }
+        HostCheck.True(f.Device->Submitted - readsBefore == 2UL * clusterCount && DataReads() == 2UL * clusterCount &&
+            f.Disk.FatReads() == fatBefore && DirectoryReads() == directoryBefore && f.Mount->CacheHits == hits && f.Mount->CacheMisses == misses);
+        foreach (uint cluster in chain) HostCheck.Equal(2U, f.Disk.Reads[f.Disk.Data(cluster)]);
+        Stage("two-handle-8KiB-pass");
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, a.File)); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, b.File));
+        submitted = f.Device->Submitted;
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.BeginRead(f.Mount, a.File, 0, 8192, &invalid));
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.BeginRead(f.Mount, b.File, 0, 8192, &invalid)); HostCheck.Equal(submitted, f.Device->Submitted);
+        HostCheck.True(f.UsedArenaBytes < Fixture.ArenaBytes && stages.Count == 7);
+        Console.WriteLine($"WEBROOT_LARGE_SUMMARY bytes={length} clusters={clusterCount} fragmentedExtents={chain.Length} rangesPerHandle={ranges} requestedRange=8192 retainedHandleDataReads={2UL * clusterCount} retainedHandleFatReads={f.Disk.FatReads() - fatBefore} totalSubmitted={f.Device->Submitted} totalCompleted={f.Device->Completed} totalCopied={f.Device->Copied} arenaBytes={f.UsedArenaBytes} maxChainSteps={Fs.MaximumCachedChainSteps} syntheticPayload=true guestTiming=false");
+    }
+
+    private static byte LargePayload(ulong position) => unchecked((byte)((position * 73 + 19) ^ (position >> 9)));
+
     [HostTest("webroot.fs cached long chains advance a bounded selected batch without device progress")]
     private static void CachedChainBatch()
     {
@@ -772,6 +859,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal readonly Fs.FileHandle* Files;
         internal readonly Fs.CacheSlot* Cache;
         internal readonly Disk Disk;
+        internal ulong DrivePolls; // Host Drive/Poll calls only; excludes Begin/Copy and PumpMount.
         private readonly Fs.Admission input;
         internal Fs.Admission Input => input;
         private uint arenaAt;
@@ -834,7 +922,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal Fs.Status Drive(Fs.OperationToken token)
         {
             Fs.Status status = Fs.Status.Pending;
-            for (int i = 0; i < 100000 && status is Fs.Status.Pending or Fs.Status.Busy; i++) { Tick(); status = Fs.Poll(Mount, token); }
+            for (int i = 0; i < 100000 && status is Fs.Status.Pending or Fs.Status.Busy; i++) { Tick(); DrivePolls++; status = Fs.Poll(Mount, token); }
             return status;
         }
         internal Fs.OpenResult Open(string path)
