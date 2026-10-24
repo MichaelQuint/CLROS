@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Text;
 using OS.Storage;
 using C = OS.Storage.ContinuingFat32Mutation;
@@ -9,6 +10,8 @@ using D = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServ
 internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
 {
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
+    private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
+    private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
 
     [HostTest("continuing writable descriptors retain bounded POD without image snapshot or managed references")]
     private static void Pod()
@@ -1140,6 +1143,122 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase);
     }
 
+    [HostTest("continuing retained structural audit excludes all provider engine block DMA MMIO and observation aliases without callbacks allocation or writes")]
+    private static void RetainAliases()
+    {
+        foreach (bool observe in new[] { false, true })
+        {
+            using var f = new Owner(locks: true, observe: observe); byte external = 0x35; ulong address = (ulong)&external;
+            HostCheck.True(Retain(f, address, 1)); byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray(); uint calls = f.Device->Calls;
+            foreach (var extent in ProtectedStorage(f))
+            {
+                HostCheck.True(!Retain(f, extent.Start, extent.Bytes) && !Retain(f, extent.Start, 1) && !Retain(f, extent.Start + extent.Bytes - 1, 1));
+                HostCheck.True(!Retain(f, extent.Start - 1, 2) && !Retain(f, extent.Start + extent.Bytes - 1, 2) && !Retain(f, extent.Start - 8, extent.Bytes + 16));
+            }
+            long allocated = GC.GetAllocatedBytesForCurrentThread(); bool valid = true;
+            for (int i = 0; i < 64; i++) valid &= Retain(f, address, 1) && !Retain(f, (ulong)f.InputBytes, 1);
+            HostCheck.True(valid && allocated == GC.GetAllocatedBytesForCurrentThread() && f.Device->Calls == calls && external == 0x35 &&
+                state.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
+        }
+    }
+
+    [HostTest("continuing retained structural audit rejects copied stale self epoch overflow and corrupted retained shapes without granting volume authority")]
+    private static void RetainIdentity()
+    {
+        using var f = new Owner(locks: true); byte external = 0x63; ulong address = (ulong)&external;
+        HostCheck.True(!RetainPredicate(null, f.Input.Epoch, address, 1) && !RetainPredicate((D.State*)ulong.MaxValue, f.Input.Epoch, address, 1));
+        HostCheck.True(!RetainPredicate(f.State, 0, address, 1) && !RetainPredicate(f.State, f.Input.Epoch + 1, address, 1));
+        HostCheck.True(!Retain(f, address, 0) && !Retain(f, 4095, 1) && !Retain(f, ulong.MaxValue - 3, 8));
+        D.State* copy = (D.State*)NativeMemory.AllocZeroed((nuint)sizeof(D.State));
+        try { *copy = *f.State; HostCheck.True(!RetainPredicate(copy, f.Input.Epoch, address, 1)); }
+        finally { NativeMemory.Free(copy); }
+        D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *input;
+        try
+        {
+            foreach (int defect in Enumerable.Range(0, 5))
+            {
+                *input = original;
+                if (defect == 0) input->DescriptorCount = uint.MaxValue;
+                else if (defect == 1) input->InputBytes--;
+                else if (defect == 2) input->Descriptions = (D.Description*)input->Descriptors;
+                else if (defect == 3) input->Input = f.Storage.Input.Before;
+                else input->ExclusiveOwnerValidated = false;
+                HostCheck.True(!Retain(f, address, 1));
+            }
+        }
+        finally { *input = original; }
+        D.ProcessToken* primary = (D.ProcessToken*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "PrimaryOwner"));
+        ulong* ownerEpoch = (ulong*)((byte*)primary + WritableBlockSessionTests.ManagedOffset(primary, "Epoch")); ulong processEpoch = *ownerEpoch;
+        try { (*ownerEpoch)++; HostCheck.True(!Retain(f, address, 1)); }
+        finally { *ownerEpoch = processEpoch; }
+        ulong* revision = (ulong*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "KnownRevision")); ulong old = *revision;
+        try { (*revision)++; HostCheck.True(Retain(f, address, 1) && !Borrow(f, address, 1) && !f.State->Quarantined); }
+        finally { *revision = old; }
+        HostCheck.True(Retain(f, address, 1) && Borrow(f, address, 1) && external == 0x63);
+    }
+
+    [HostTest("continuing retained dirty recovery ownership survives cancellation and original block stop without allowing new admission or release")]
+    private static void RetainDirtyRecovery()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x49; ulong address = (ulong)&external;
+        var file = f.Open(flags: 2); var request = D.BeginWrite(f.State, file, new byte[37]);
+        for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+        HostCheck.True(f.Storage.State->Dirty && Retain(f, address, 1) && !Borrow(f, address, 1));
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Cancel(f.State, request.Request).Phase);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+        HostCheck.True(f.State->RequestActive && f.State->IsRetiring && Retain(f, address, 1) && !Borrow(f, address, 1));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+        HostCheck.True(Retain(f, address, 1) && !Borrow(f, address, 1) && !f.State->Retired && f.Storage.State->Dirty);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+    }
+
+    [HostTest("continuing retained orphan read ownership outlives fd close primary exit and PID reuse without reviving strict admission")]
+    private static void RetainOrphan()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x27; ulong address = (ulong)&external;
+        var primary = D.PrimaryProcess(f.State); var file = f.Open(); var request = D.BeginRead(f.State, file, 8);
+        D.Pump(f.State); HostCheck.True(f.Device->Pending); HostCheck.Equal(0L, D.Close(f.State, file));
+        HostCheck.True(f.State->RequestActive && Retain(f, address, 1)); HostCheck.Equal(-9L, D.Capture(f.State, file.Number).Value);
+        HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value); HostCheck.True(Retain(f, address, 1) && !Borrow(f, address, 1));
+        f.CompleteHardware(); f.Drain(); HostCheck.True(!f.State->RequestActive && Retain(f, address, 1));
+        HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, request.Request, new byte[8]).Phase);
+        var replacement = D.RegisterProcess(f.State, primary.Pid).Process;
+        HostCheck.True(replacement.Generation != primary.Generation && Retain(f, address, 1) && !Borrow(f, address, 1));
+        HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); HostCheck.True(!Retain(f, address, 1));
+    }
+
+    [HostTest("continuing retained fault backing remains auditable until provider retirement which rejects before any released engine dereference")]
+    private static void RetainFaultRetirement()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x18; ulong address = (ulong)&external;
+        var file = f.Open(); f.FailureType = 0; f.FailureSector = f.DataLba + 2; var request = D.BeginRead(f.State, file, 8);
+        HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); byte[] output = Enumerable.Repeat((byte)0xa5, 8).ToArray();
+        HostCheck.Equal(-5L, D.CopyRead(f.State, request.Request, output).Value);
+        HostCheck.True(f.State->Quarantined && Retain(f, address, 1) && !Borrow(f, address, 1) && output.All(value => value == 0xa5));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.True(Retain(f, address, 1));
+        HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); HostCheck.True(!Retain(f, address, 1));
+        D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *input;
+        try { input->Engine = (C.State*)ulong.MaxValue; HostCheck.True(!Retain(f, address, 1) && !Borrow(f, address, 1)); }
+        finally { *input = original; }
+    }
+
+    [HostTest("continuing retained audit refuses substituted engine and original block epochs even though the same metadata address remains mapped")]
+    private static void RetainEpochs()
+    {
+        using var f = new Owner(observe: true); byte external = 0x71; ulong address = (ulong)&external;
+        B.Admission* block = (B.Admission*)((byte*)f.Storage.Device.State + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.State, "Input")); ulong blockEpoch = block->Epoch;
+        try { block->Epoch++; HostCheck.True(!Retain(f, address, 1)); }
+        finally { block->Epoch = blockEpoch; }
+        C.Admission* engine = (C.Admission*)((byte*)f.Storage.State + WritableBlockSessionTests.ManagedOffset(f.Storage.State, "Input")); ulong engineEpoch = engine->Epoch;
+        try { engine->Epoch++; HostCheck.True(!Retain(f, address, 1)); }
+        finally { engine->Epoch = engineEpoch; }
+        ulong* self = (ulong*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Self")); ulong original = *self;
+        try { (*self)++; HostCheck.True(!Retain(f, address, 1)); }
+        finally { *self = original; }
+        HostCheck.True(Retain(f, address, 1) && Borrow(f, address, 1));
+    }
+
+    private static bool Retain(Owner f, ulong address, ulong bytes) => RetainPredicate(f.State, f.Input.Epoch, address, bytes);
     private static bool Borrow(Owner f, ulong address, ulong bytes) => D.CanBorrowStorage(f.State, f.Input.Epoch, address, bytes);
     private static (ulong Start, ulong Bytes)[] ProtectedStorage(Owner f)
     {

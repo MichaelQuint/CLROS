@@ -193,18 +193,35 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// Teardown deliberately keeps its separate permissive predicates.</summary>
     public static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes)
     {
+        if (!CanRetainStorage(s, expectedEpoch, address, bytes) || s->Retiring || s->Poisoned ||
+            s->Input.Engine->Dirty || s->KnownRevision != s->Input.Engine->VolumeRevision) return false;
+        return (!s->Locking || ProcessCurrent(s, s->PrimaryOwner)) && C.CanAdmitStorage(s->Input.Engine, expectedEpoch);
+    }
+
+    /// <summary>Structural audit for an already retained supervisor interval,
+    /// including dirty/recovery/orphan cleanup. Exact provider, mount and
+    /// original block epochs and disjoint extents must remain mapped under the
+    /// same serialized owner. A fault, stopped original block, retiring provider
+    /// or exited primary does not release that backing. No I/O, current-volume,
+    /// live-process, user-copy or new-admission authority follows. Provider
+    /// Detach must precede engine Stop and backing release: final Retired or an
+    /// unmounted/replaced engine grants no retained ownership. No callbacks,
+    /// allocation, output writes or mutation occur.</summary>
+    internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes)
+    {
         if (!Ordinary((ulong)s, (ulong)sizeof(State), 8) || !Ordinary(address, bytes, 1) || expectedEpoch == 0 ||
-            s->Self != (ulong)s || !s->Active || s->Retiring || s->RetiredValue || s->Poisoned || s->Input.Epoch != expectedEpoch) return false;
+            s->Self != (ulong)s || !s->Active || s->RetiredValue || s->Input.Epoch != expectedEpoch) return false;
         Admission a = s->Input;
         if (!a.ExclusiveOwnerValidated || a.DescriptorCount is < 4 or > MaximumDescriptors ||
             a.DescriptionCount is < 1 or > MaximumDescriptions || a.InputBytes != IoBytes ||
-            !Ordinary((ulong)a.Engine, (ulong)sizeof(C.State), 8) || !a.Engine->IsMounted || a.Engine->Retired || a.Engine->Dirty ||
-            s->KnownRevision != a.Engine->VolumeRevision) return false;
+            !Ordinary((ulong)a.Engine, (ulong)sizeof(C.State), 8) || !a.Engine->IsMounted || a.Engine->Retired) return false;
         LockAdmission l = s->LockInput;
         if (s->Locking)
         {
             if (l.ProcessCount is < 1 or > MaximumProcesses || l.LockCount != LockSlots || l.ScratchCount != LockScratchSlots ||
-                l.PrimaryPid is 0 or > int.MaxValue || l.PrimaryPid != s->PrimaryOwner.Pid) return false;
+                l.PrimaryPid is 0 or > int.MaxValue || l.PrimaryPid != s->PrimaryOwner.Pid ||
+                s->PrimaryOwner.Owner != (ulong)s || s->PrimaryOwner.Epoch != expectedEpoch ||
+                s->PrimaryOwner.Generation == 0 || s->PrimaryOwner.Index >= l.ProcessCount) return false;
         }
         else if (l.Processes != null || l.Locks != null || l.Scratch != null || l.ProcessCount != 0 || l.LockCount != 0 ||
             l.ScratchCount != 0 || l.PrimaryPid != 0 || !Same(s->PrimaryOwner, default)) return false;
@@ -217,11 +234,10 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         for (uint i = 0; i < count; i++)
         {
             if (!Ordinary(starts[i], sizes[i], i == 3 ? 1UL : 8UL) ||
-                !C.CanBorrowStorage(a.Engine, expectedEpoch, starts[i], sizes[i]) || Overlap(address, bytes, starts[i], sizes[i])) return false;
+                !C.CanRetainStorage(a.Engine, expectedEpoch, starts[i], sizes[i]) || Overlap(address, bytes, starts[i], sizes[i])) return false;
             for (uint j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
         }
-        if (s->Locking && !ProcessCurrent(s, s->PrimaryOwner)) return false;
-        return C.CanBorrowStorage(a.Engine, expectedEpoch, address, bytes) && C.CanAdmitStorage(a.Engine, expectedEpoch);
+        return C.CanRetainStorage(a.Engine, expectedEpoch, address, bytes);
     }
 
     /// <summary>Enable fixed process-associated lock tables while no handle or
