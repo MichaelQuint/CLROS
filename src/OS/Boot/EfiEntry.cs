@@ -68,7 +68,7 @@ public static unsafe partial class EfiEntry
         private const uint CooperativePoolPages = Cooperative.PoolPages, CooperativeCodePages = 2;
 #endif
 #if M16_007_PROBE
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
         private const uint LinuxDescriptorPages = 70, LinuxDescriptorSlots = 32;
         private const uint LinuxDescriptorDescriptions = 0x200, LinuxDescriptorPipeMetadata = 0xc00;
         private const uint LinuxDescriptorViews = 0xcc0, LinuxDescriptorPaths = 0xe00;
@@ -1966,7 +1966,7 @@ public static unsafe partial class EfiEntry
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
             return LinuxText(state,
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
                 "M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
 #else
                 "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
@@ -2043,7 +2043,7 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
             if (!LinuxText(state, "\r\n")) return 0;
             state->LinuxSyscallWrites++;
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
             return LinuxStaticObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;
 #elif M10_004_PROBE
             return LinuxWebObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;

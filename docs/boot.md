@@ -2,6 +2,10 @@
 
 ## Current boot scope
 
+[Step1572](../done/step1572.md) connects the default-off018 candidate through
+the existing disk-specific BootSequence gate. Mount precedes user entry and
+actual listen arms sector evidence; complete app qualification is pending.
+
 [Step1571](../done/step1571.md) records three original M16-025 mechanical
 captures passing the complete owned consumer across both disk variants. Each
 reaches59 calls,62 demand sectors, exit42 and confirmed owned cleanup. This

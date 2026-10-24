@@ -79,9 +79,9 @@ public static unsafe partial class EfiEntry
                             c->Process.Start(c->Key, 2, c->Initial, X64LinuxUserTransition.UserImageBytes, default, out var first) > 0 &&
                             first.Value == c->Plan.Bindings[0].Context.Identity)
                         {
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
                             c->StaticMain = first;
-                            if (!c->StaticApp.Begin(first.Value) || !LinuxText(state, "TEST_START m10.017\r\n"))
+                            if (!c->StaticApp.Begin(first.Value) || !LinuxText(state, LinuxStaticStart))
                                 return LinuxNativeCleanupRejected(state, 12);
 #endif
                             c->Phase = 3; ran = LinuxNativeRun(c);
@@ -89,7 +89,7 @@ public static unsafe partial class EfiEntry
                     }
                 }
             }
-#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
             // Keep this supervisor stack, original PTEs, mappings and live owners.
             // A continuing web driver has no successful guest return or teardown.
             return LinuxWebRetainFailure(state, c, 1);
@@ -115,7 +115,7 @@ public static unsafe partial class EfiEntry
                 serviceFinished >= serviceStarted;
 #endif
             bool failed = c != null && (c->Failed != 0 || c->Process.Failed);
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
             var staticApp = c == null ? default : c->StaticApp;
             bool staticCompleted = staticApp.GracefulExit && state->LinuxSyscallExitCode == 0;
 #endif
@@ -159,9 +159,9 @@ public static unsafe partial class EfiEntry
 #if M16_025_PROBE && !M10_018_PROBE
             success &= state->LinuxSyscallExitCode == 42;
 #endif
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
             success &= staticCompleted;
-            if (!LinuxText(state, "M10_017_OWNER_END main=") || !LinuxNumber(state, staticApp.MainGeneration) ||
+            if (!LinuxText(state, LinuxStaticTag + "_OWNER_END main=") || !LinuxNumber(state, staticApp.MainGeneration) ||
                 !LinuxText(state, " ready=") || !LinuxNumber(state, staticApp.ReadyNanoseconds) ||
                 !LinuxText(state, " requested=") || !LinuxNumber(state, staticApp.RequestedNanoseconds) ||
                 !LinuxText(state, " exited=") || !LinuxNumber(state, staticApp.ExitedNanoseconds) ||
@@ -303,7 +303,7 @@ public static unsafe partial class EfiEntry
                     if (c->Failed != 0 || c->Process.Failed || c->ServiceReady != 1 || c->ServiceShutdown != 1 ||
                         !c->Budget.CancellationRequested || clock(c->State, &finished) != 1 || finished < c->Budget.ObservedNanoseconds) return false;
                     c->ServiceFinished = finished; return true;
-#elif M10_017_PROBE
+#elif M10_017_PROBE || M10_018_PROBE
                     ulong finished = 0; delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                     return c->Failed == 0 && !c->Process.Failed && c->StaticApp.GracefulExit &&
                         c->State->LinuxSyscallExitCode == 0 && clock(c->State, &finished) == 1 && c->Budget.Observe(finished);
@@ -330,7 +330,7 @@ public static unsafe partial class EfiEntry
                     bool progress = clockRead && LinuxServiceObserveWorkers(c, now);
                     if ((!progress || !c->Budget.Continue(now, c->Epoch, step)) &&
                         !LinuxNativeStop(c, !clockRead ? 6U : !progress ? 7U : 1U, step, now, clockRead)) return false;
-#elif M10_017_PROBE
+#elif M10_017_PROBE || M10_018_PROBE
                     if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step) || !LinuxStaticSupervisor(c, now)) &&
                         !LinuxNativeStop(c, clockRead ? 8U : 6U, step, now, clockRead)) return false;
 #elif M10_004_PROBE
@@ -340,7 +340,7 @@ public static unsafe partial class EfiEntry
                         !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Budget.RequiresClock && clockRead)) return false;
 #endif
                 }
-#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                 if (c->Stopping != 0 || c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 ||
                     c->State->LinuxSyscallFailed != 0) return false;
 #else
@@ -350,7 +350,7 @@ public static unsafe partial class EfiEntry
 #if CLROS_LINUX_SOCKETS
                 if (c->Stopping == 0 && !PollLinuxSocketNetwork(c))
                 {
-#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                     return false;
 #else
                     if (!LinuxNativeStop(c, 2, step)) return false;
@@ -363,7 +363,7 @@ public static unsafe partial class EfiEntry
 #if CLROS_LINUX_SOCKETS
                 else if (c->Stopping == 0)
                 {
-#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                     if (!IdleLinuxSocketNetwork(c)) return false;
 #else
                     if (!IdleLinuxSocketNetwork(c) && !LinuxNativeStop(c, 3, step)) return false;
@@ -377,7 +377,7 @@ public static unsafe partial class EfiEntry
 #endif
                 else if (!LinuxNativeStop(c, 4, step)) return false;
             }
-#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
             return false; // Counter ceiling reached; the outer owner retains everything.
 #else
             // The bounded driver itself has made no native transfer here.

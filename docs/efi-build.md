@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1572](../done/step1572.md) adds explicit018 compilation of the existing
+static lifecycle leaf, a distinct disk gate and completion-time file records.
+Reviewed conditional source and project pins change; native/guest qualification
+for this integration remains separate from the mechanical step1571 results.
+
 ## Disk profile development publication
 
 [Step1571](../done/step1571.md) retains three fresh complete owned mechanical

@@ -2497,6 +2497,7 @@ sealed class RunnerOptions
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
     public bool FiniteStaticFiles { get; private set; }
+    public bool DiskStaticFiles => FiniteStaticFiles && ReadOnlyWebRootDisk;
     public bool ReadOnlyWebRootDisk { get; private set; }
     public StaticFileProcessEvidence? StaticEvidence { get; private set; }
     public string? WebRacePipe { get; private set; }
@@ -2754,7 +2755,7 @@ sealed class RunnerOptions
         if (options.ReadOnlyWebRootDisk && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.DiskFormat != "raw" ||
             options.VirtioBlockQueueDevice || options.VirtioBlockBootImagePath is not null || options.PciBarTestDevice ||
             options.ContinuingNetworkPeer || options.SocketContainmentPeer || options.ContinuingWeb || options.ContinuingService ||
-            options.FiniteStaticFiles || options.HttpProbe is not null || options.TimeoutSeconds is < 120 or > 295 ||
+            options.HttpProbe is not null || (options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
             !options.defaultRequiredMarkersReplaced || string.IsNullOrWhiteSpace(options.SummaryLogPath)))
             throw new ArgumentException("--readonly-webroot-disk requires the finite captured raw disk/network child without another fixture.");
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
@@ -2935,8 +2936,8 @@ sealed class RunnerOptions
         if (FiniteStaticFiles)
         {
             StaticEvidence = new();
-            AddRequiredMarker("CLROS_M10_017_READY"); AddUniqueMarker("CLROS_M10_017_READY");
-            AddRequiredMarker("TEST_PASS m10.017"); AddUniqueMarker("TEST_PASS m10.017");
+            AddRequiredMarker(DiskStaticFiles ? "CLROS_M10_018_READY" : "CLROS_M10_017_READY"); AddUniqueMarker(DiskStaticFiles ? "CLROS_M10_018_READY" : "CLROS_M10_017_READY");
+            AddRequiredMarker(DiskStaticFiles ? "TEST_PASS m10.018" : "TEST_PASS m10.017"); AddUniqueMarker(DiskStaticFiles ? "TEST_PASS m10.018" : "TEST_PASS m10.017");
             AddRequiredMarker("TEST_PASS m16-012");
         }
         if (ContinuingWeb)

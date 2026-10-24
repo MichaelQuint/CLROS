@@ -1,5 +1,9 @@
 # Documentation Map
 
+[Step1572](../done/step1572.md) records disk static-server diagnostic integration.
+Boot owns its existing disk gate; storage owns deferred file observations; QEMU
+owns the still-failing complete-consumer boundary. No app/gate is qualified.
+
 [Step1571](../done/step1571.md) records three fresh complete original mechanical
 disk captures. Storage and QEMU own that positive read boundary; Kestrel/app
 model own the still-pending disk HTTP/Blazor demonstration. Earlier failed

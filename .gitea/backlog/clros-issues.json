@@ -36198,7 +36198,11 @@
         "tests/OS.HostTests/LinuxDiskParentTests.cs",
         "tools/OS.Tooling/QemuTranscripts.LinuxDiskCapture.cs",
         "tests/OS.HostTests/LinuxDiskCaptureTests.cs",
-        "tests/OS.HostTests/WebRootImageFixtureTests.cs"
+        "tests/OS.HostTests/WebRootImageFixtureTests.cs",
+        "tools/OS.Tooling/LinuxDiskRaceProofFixture.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxDiskRace.cs",
+        "tests/OS.HostTests/LinuxDiskRaceProofFixtureTests.cs",
+        "tests/OS.HostTests/LinuxDiskRaceTranscriptTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -36258,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1556 qualifies the earlier finite service/quota/churn at original Smoke32c14ccd and quota/V220e665ad, with #224/#225/#737 closed. Steps1558/1559 develop the separate static app, Linux reference observations, host FAT fixtures and retained-block leaf. This issue still needs its exact staged/disk/browser guest acceptance. No new guest static-file, filesystem write or SQLite scope is accepted.",
+      "currentEvidence": "Step1572 adds development-only full018 diagnostic selection for the exact original indexed server disk envelope, existing disk BootSequence gate, 32 descriptors, distinct finite lifecycle markers and completion-time file observations retained across source4 waits. Sector observations arm at actual successful listen with original prior counters. New3 profile controls and existing5 disk/2 staged/11 diskthread focused checks pass in separate unchanged zero-reuse scopes. The five-response HTTP owner is diagnostic only: even runner exit0 still rejects until the complete disk/static consumer exists. First original native018 boot, full HTTP/Blazor/browser, negative/concurrent guests and stable batch gates remain pending. Step1571 mechanical positives do not qualify this app. No issue closes.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36304,7 +36308,22 @@
         "docs/qemu.md",
         "docs/workload-profiles.md",
         "docs/completion-gates.md",
-        "tools/OS.Tooling/ToolCommand.cs"
+        "tools/OS.Tooling/ToolCommand.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreads.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadRun.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "src/OS/Boot/EfiEntry.NetworkService.cs",
+        "src/OS/Boot/EfiEntry.DiskNative.cs",
+        "src/OS/Boot/EfiEntry.DiskEvidence.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxStaticFileObservation.cs",
+        "tools/OS.Tooling/NativeAotStaticFileSelection.cs",
+        "tools/OS.Tooling/NativeAotDiskSelection.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxDiskStatic.cs",
+        "tools/OS.Tooling/NativeAotDiskStaticPeer.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tests/OS.HostTests/ReadOnlyDiskProfileTests.cs",
+        "tests/OS.HostTests/NativeAotDiskStaticProfileTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

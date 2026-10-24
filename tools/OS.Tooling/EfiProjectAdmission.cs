@@ -170,7 +170,7 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs|Compatibility\LinuxX64\LinuxThreadServices.Disk.cs" => profile.IsEnabled("EnableM16025Probe"),
             @"Boot\EfiEntry.StaticFiles.cs|" or
-            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs" => profile.IsEnabled("EnableM10017Probe"),
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs" => profile.IsEnabled("EnableM10017Probe") || profile.IsEnabled("EnableM10018Probe"),
             @"Boot\EfiEntry.LinuxWeb.cs|" or
             @"Boot\EfiEntry.Realtime.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs|Compatibility\LinuxX64\LinuxAppLogBudget.cs" or

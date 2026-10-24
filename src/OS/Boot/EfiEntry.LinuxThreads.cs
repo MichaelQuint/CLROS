@@ -36,10 +36,13 @@ public static unsafe partial class EfiEntry
             internal Storage* State;
             internal ulong Key, AliasSerial;
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
             internal LinuxStaticFileObservation StaticApp;
             internal OSHostHandle StaticMain;
             internal LinuxDescriptorServices.Token StaticListener;
+#if M10_018_PROBE
+            internal LinuxStaticPending* StaticPending;
+#endif
 #endif
 #if M16_014_PROBE
             internal ulong QuotaStackAcquired, QuotaStackLastReturned, QuotaStackPeakBytes, QuotaContextPeakBytes;
@@ -162,6 +165,10 @@ public static unsafe partial class EfiEntry
             c->Registrations = (WaitAddress.Registration*)registrations; c->Initial = (X64LinuxUserTransition.UserImage*)initial;
             c->CodeCopy = codeCopy;
             c->Signals = (LinuxSignalServices.State*)signals;
+#if M10_018_PROBE
+            if (!LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxStaticPending) * LinuxNativeWorkers, out byte* staticPending)) return false;
+            c->StaticPending = (LinuxStaticPending*)staticPending;
+#endif
             c->User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
 #if M16_009_PROBE
                 UserInterrupts = state->LinuxSyscallPlan.UserInterrupts,
@@ -308,6 +315,12 @@ public static unsafe partial class EfiEntry
             c->Entered[index] = 0;
             if (view.Exiting)
             {
+#if M10_018_PROBE
+                // This is observation metadata only. Disk cancellation/drain
+                // remains with the original thread/descriptor owners.
+                if (c->StaticPending == null) return 0;
+                c->StaticPending[index] = default;
+#endif
                 if (c->Gates[index].Status == LinuxSyscallGateStatus.Blocked)
                     _ = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], new(LinuxSyscallAction.ThreadExited, exitCode: view.ExitCode));
                 c->Actions[index] = (uint)LinuxSyscallAction.ThreadExited; return 2;
@@ -332,6 +345,10 @@ public static unsafe partial class EfiEntry
 #endif
                 view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
+#if M10_018_PROBE
+                if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Return &&
+                    !LinuxStaticCompleteFile(c, index, completion)) return LinuxNativeAbort(c, index);
+#endif
 #if M16_025_PROBE
                 if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Return &&
                     (!diskWait.Succeeded ||
@@ -462,7 +479,7 @@ public static unsafe partial class EfiEntry
             if (!PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
 #endif
             LinuxSyscallFrame call = *frame;
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
             LinuxStaticFileBefore staticFileBefore = default;
             if (!LinuxStaticCaptureBefore(c, call, &staticFileBefore)) return LinuxNativeAbort(c, index);
             bool staticListenerClosing = call.Number == 3 && LinuxDescriptorServices.IsCurrent(&state->LinuxDescriptors, c->StaticListener) &&
@@ -473,8 +490,8 @@ public static unsafe partial class EfiEntry
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
-#if M10_017_PROBE
-            if (!LinuxStaticObserveFile(c, index, call, result, &staticFileBefore) ||
+#if M10_017_PROBE || M10_018_PROBE
+            if (!LinuxStaticRecordFile(c, index, call, result, &staticFileBefore) ||
                 !LinuxStaticObserveCall(c, call, result, staticListenerClosing, staticListenerLast)) return LinuxNativeAbort(c, index);
 #elif M10_004_PROBE
             if (!LinuxWebObserveCall(c, call, result)) return LinuxNativeAbort(c, index);

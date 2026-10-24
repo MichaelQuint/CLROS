@@ -7,7 +7,7 @@ public static class NativeAotStaticFileSelection
     public static string Application(IReadOnlyDictionary<string, bool> flags, string? selected = null)
     {
         bool On(string name) => flags.TryGetValue("Enable" + name + "Probe", out bool enabled) && enabled;
-        if (!On("M10017")) return "";
+        if (!On("M10017") && !On("M10018")) return "";
         if (On("M16014") || On("M09011") || On("M09012") || On("M16010") || On("M16019Unavailable") || On("M16019Invalid"))
             throw new ToolFailure("static_files_profile_conflict");
         if (selected is not null && selected != NativeAotStaticFilePublisher.Application)

@@ -16,7 +16,11 @@ OS.Tooling. It uses the original AHCI boot image with snapshot writes and a
 second read-only view at PCI0:7; the NIC stays at PCI0:6. Timeout is 180 seconds
 by default, bounded 120..285. Source gates remain default off. M16-023/024 are
 parents of this combined profile; they have no separate capture selector.
-M10-018 remains rejected until its complete disk/static consumer is implemented.
+Step1572 admits M10-018 only with its exact full server package/index and
+DiskA/B fixture, distinct018 markers and a600..825-second finite runner. Its
+five-response HTTP owner retains partial evidence but is diagnostic: the outer
+command still rejects even successful runner exit until the complete disk/static
+consumer is implemented. It cannot qualify or rescue a capture.
 Dry run checks argument/device policy only. Step1570 connects the candidate
 mechanical consumer after r08's original `disk_files_complete_consumer_required`
 failure. [Step1571](../done/step1571.md) records three fresh complete owned

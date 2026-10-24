@@ -2,6 +2,12 @@
 
 ## Current development batch (2026-10-24)
 
+[Step1572](../done/step1572.md) connects the original full static-server disk
+envelope and retains file observations across source4 parks. Disk-sector
+observation starts at actual successful listen, with explicit prior counters.
+The five-response owner is diagnostic only; even runner exit0 cannot pass the
+full command until the complete disk/static consumer is implemented.
+
 [Step1571](../done/step1571.md) records original r09/r10/r11 at `c66befd5`:
 DiskA/DiskB/DiskA each passes the complete owned mechanical consumer with
 59 calls, 35 disk completions, 62 post-bootstrap sector copies, seven positive

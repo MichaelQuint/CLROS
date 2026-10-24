@@ -58,6 +58,7 @@ public static class QemuSmoke
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
             bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
+            bool diskStatic = NativeAotDiskSelection.StaticSelected(plan.Flags);
             bool signalEpoll=LinuxSignalEpollSelection.Bind(options,plan.Flags);
             bool sockets=!signalEpoll&&NativeAotSocketSelection.Application(plan.Flags).Length!=0;
             bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
@@ -116,7 +117,7 @@ public static class QemuSmoke
                             byte[] bytes=p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package");
                             if(staticFiles)
                             {
-                                staticProgram=NativeAotStaticFileProgram.Create(root,bytes,d.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes,"static_instructions"),staged:true);
+                                staticProgram=NativeAotStaticFileProgram.Create(root,bytes,d.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes,"static_instructions"),staged:!diskStatic);
                                 NativeAotStaticFileProgram.HoldSources(root,webInputs);
                             }
                             else
@@ -249,10 +250,11 @@ public static class QemuSmoke
                     diskNative.Verify(); diskInputs = new();
                     var image = diskImageInput = diskInputs.Open(root, Path.GetFullPath(options.Image, root), "disk image", "disk_image", WebRootImageFixture.MaximumImageBytes, singleLink: true);
                     var efi = diskEfiInput = diskInputs.Open(root, Path.GetFullPath(options.EfiArtifact, root), "disk EFI", "disk_efi", 16 * 1024 * 1024, singleLink: true);
-                    var package = diskPackageInput = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", 65536, singleLink: true);
+                    var package = diskPackageInput = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, singleLink: true);
                     AuthorityFiles.RequireDistinct(image, efi, package);
-                    byte[] packageBytes = package.ReadBytes(65536, "disk_package");
-                    LinuxDiskFileProofFixture.RequirePackage(packageBytes);
+                    byte[] packageBytes = package.ReadBytes(diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, "disk_package");
+                    if (diskStatic) NativeAotStaticFileProgram.RequirePackage(packageBytes, false);
+                    else LinuxDiskFileProofFixture.RequirePackage(packageBytes);
                     var locations = LinuxElfImageFixture.Inspect(image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"),
                         efi.ReadBytes(16 * 1024 * 1024, "disk_efi"), packageBytes);
                     diskInputs.VerifyUnchanged();
@@ -379,8 +381,16 @@ public static class QemuSmoke
             ProcessResult runner;
             if(staticFiles&&!options.DryRun)
             {
-                staticPeer=await NativeAotStagedStaticPeer.RunAsync(root,options.SerialLog,options.SerialLog+".static",RunSocketRunner,cancellation);
-                runner=staticPeer.Runner;
+                if (diskStatic)
+                {
+                    var diskPeer = await NativeAotDiskStaticPeer.RunDiagnosticAsync(root, options.SerialLog, RunSocketRunner, cancellation);
+                    runner = diskPeer.Runner;
+                }
+                else
+                {
+                    staticPeer=await NativeAotStagedStaticPeer.RunAsync(root,options.SerialLog,options.SerialLog+".static",RunSocketRunner,cancellation);
+                    runner=staticPeer.Runner;
+                }
             }
             else if(service&&!options.DryRun)
             {
@@ -450,6 +460,7 @@ public static class QemuSmoke
                 diskInputs!.VerifyUnchanged(); diskNative!.VerifyHeldInputs();
                 WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
                 if (runner.ExitCode != 0) return runner.ExitCode;
+                if (diskStatic) throw new ToolFailure("disk_static_complete_consumer_required runnerExit=0");
                 var report = QemuTranscripts.InspectLinuxDiskFileRun(root, options, plan, runner,
                     diskImageInput!, diskEfiInput!, diskPackageInput!, diskImageReceipt!, qemu, ovmf,
                     () =>

@@ -1,5 +1,10 @@
 # App Model
 
+[Step1572](../done/step1572.md) admits the indexed M10-018 disk/static candidate
+through its existing BootSequence gate and separate finite markers. Deferred
+file observations retain copied scalars/path identity, never a user pointer.
+This development diagnostic does not qualify disk HTTP or Blazor.
+
 ## Static-file and Blazor development (2026-10-23)
 
 The approved next batch is disk-first, followed by writable files and SQLite.

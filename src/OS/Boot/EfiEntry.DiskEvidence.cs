@@ -56,6 +56,21 @@ public static unsafe partial class EfiEntry
             o->Evidence.Enabled = true; return true;
         }
 
+#if M10_018_PROBE
+        // The post-readiness boundary comes from the actual successful listen,
+        // not process launch or the earlier mount. A pre-arming request keeps
+        // its prior scope and is excluded by the generation observation rule.
+        private static bool ArmLinuxStaticDisk(Storage* state, ulong now)
+        {
+            fixed (NativeDiskOwner* o = &s_nativeDisk)
+                return o->Boot == state && ArmNativeDiskEvidence(o) &&
+                    LinuxText(state, "M10_018_DISK_READY submitted=") && LinuxNumber(state, o->Device.Submitted) &&
+                    LinuxText(state, " completed=") && LinuxNumber(state, o->Device.Completed) &&
+                    LinuxText(state, " copied=") && LinuxNumber(state, o->Device.Copied) &&
+                    LinuxText(state, " clock=") && LinuxNumber(state, now) && LinuxText(state, "\r\n");
+        }
+#endif
+
         // Invoked only after the actual bounded block/filesystem pump returns.
         // CopyReady is merely a candidate; the committed counter must match
         // before its bytes may be identified as an actual owned-buffer copy.

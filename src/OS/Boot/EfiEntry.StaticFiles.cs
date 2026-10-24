@@ -1,4 +1,4 @@
-#if M10_017_PROBE
+#if M10_017_PROBE || M10_018_PROBE
 using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Boot;
@@ -7,6 +7,21 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
+#if M10_018_PROBE
+        private const string LinuxStaticTag = "M10_018";
+        private const string LinuxStaticStart = "TEST_START m10.018\r\n";
+        private const string LinuxStaticFinish = "M10_018_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M10_018_READY\r\nTEST_PASS m10.018\r\n";
+        private struct LinuxStaticPending
+        {
+            internal LinuxStaticFileBefore Before;
+            internal LinuxSyscallFrame Call;
+            internal ulong Identity, Ordinal;
+        }
+#else
+        private const string LinuxStaticTag = "M10_017";
+        private const string LinuxStaticStart = "TEST_START m10.017\r\n";
+        private const string LinuxStaticFinish = "M10_017_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M10_017_READY\r\nTEST_PASS m10.017\r\n";
+#endif
         private struct LinuxStaticFileIdentity
         {
             internal uint Fd, Generation, Kind, View;
@@ -32,9 +47,15 @@ public static unsafe partial class EfiEntry
             uint fd = (uint)number;
             var description = LinuxDescriptorServices.Find(state, fd);
             if (description == null || description->Type != (uint)LinuxDescriptorServices.Kind.Package &&
+#if M10_018_PROBE
+                description->Type != (uint)LinuxDescriptorServices.Kind.Disk &&
+#endif
                 description->Type != (uint)LinuxDescriptorServices.Kind.Snapshot) return true;
             if (!LinuxDescriptorServices.Capture(state, fd, out var token) || !LinuxDescriptorServices.IsCurrent(state, token)) return false;
             uint kind = description->Type == (uint)LinuxDescriptorServices.Kind.Package ? 1U : 2U;
+#if M10_018_PROBE
+            if (description->Type == (uint)LinuxDescriptorServices.Kind.Disk) kind = 5;
+#endif
             uint view = uint.MaxValue;
             if (kind == 1)
             {
@@ -43,7 +64,7 @@ public static unsafe partial class EfiEntry
                     { if (view != uint.MaxValue) return false; view = i; }
                 if (view == uint.MaxValue) return false;
             }
-            else
+            else if (kind == 2)
             {
                 uint index = owner.Slots[fd].Description - 1;
                 if (index >= owner.DescriptionCount || description->Data != owner.Snapshots + index * LinuxDescriptorServices.SnapshotBytes ||
@@ -82,10 +103,10 @@ public static unsafe partial class EfiEntry
         }
 
         private static bool LinuxStaticObserveFile(LinuxNativeControl* c, uint index, LinuxSyscallFrame call,
-            LinuxSyscallResult result, LinuxStaticFileBefore* before)
+            LinuxSyscallResult result, LinuxStaticFileBefore* before, ulong originalOrdinal = 0)
         {
             Storage* state = c->State;
-            ulong ordinal = LinuxNativeCallOrdinal(c, index), identity = c->Threads.Current.Value;
+            ulong ordinal = originalOrdinal == 0 ? LinuxNativeCallOrdinal(c, index) : originalOrdinal, identity = c->Threads.Current.Value;
             LinuxStaticFileIdentity file = before->File;
             bool opened = call.Number is 2 or 257 && result.Value >= 0;
             if (opened && (!LinuxStaticCaptureFile(c, (ulong)result.Value, out file) || file.Kind == 0)) return false;
@@ -112,15 +133,18 @@ public static unsafe partial class EfiEntry
                             for (uint i = 0; i < owner.ViewCount; i++)
                                 if (owner.Views[i].Inode == inode && owner.Views[i].Bytes == bytes)
                                 { if (view != uint.MaxValue) return false; view = i; }
-                            if (view == uint.MaxValue) return false;
-                            kind = 1;
+                            if (view != uint.MaxValue) kind = 1;
+#if M10_018_PROBE
+                            else if (LinuxStaticIsDiskPath(before)) kind = 5;
+#endif
+                            else return false;
                         }
                     }
                     else return false;
                 }
                 else if (call.Number == 89 && result.Value >= 0)
                 { kind = 4; bytes = (ulong)result.Value; }
-                if (!LinuxText(state, "M10_017_PATH identity=") || !LinuxNumber(state, identity) ||
+                if (!LinuxText(state, LinuxStaticTag + "_PATH identity=") || !LinuxNumber(state, identity) ||
                     !LinuxText(state, " ordinal=") || !LinuxNumber(state, ordinal) ||
                     !LinuxText(state, " nr=") || !LinuxNumber(state, call.Number) || !LinuxText(state, " pathHex=")) return false;
                 for (uint i = 0; i < before->PathBytes; i++)
@@ -144,13 +168,52 @@ public static unsafe partial class EfiEntry
                     after.View != file.View || after.Inode != file.Inode || after.Bytes != file.Bytes) return false;
                 afterPosition = after.Position;
             }
-            return LinuxText(state, "M10_017_FILE identity=") && LinuxNumber(state, identity) &&
+            return LinuxText(state, LinuxStaticTag + "_FILE identity=") && LinuxNumber(state, identity) &&
                 LinuxText(state, " ordinal=") && LinuxNumber(state, ordinal) && LinuxText(state, " nr=") && LinuxNumber(state, call.Number) &&
                 LinuxText(state, " fd=") && LinuxNumber(state, file.Fd) && LinuxText(state, " generation=") && LinuxNumber(state, file.Generation) &&
                 LinuxText(state, " kind=") && LinuxNumber(state, file.Kind) && LinuxText(state, " view=") && LinuxNumber(state, file.View) &&
                 LinuxText(state, " inode=") && LinuxNumber(state, file.Inode) && LinuxText(state, " bytes=") && LinuxNumber(state, file.Bytes) &&
                 LinuxText(state, " position=") && LinuxNumber(state, file.Position) && LinuxText(state, " afterPosition=") &&
                 LinuxNumber(state, afterPosition) && LinuxText(state, "\r\n");
+        }
+
+#if M10_018_PROBE
+        private static bool LinuxStaticIsDiskPath(LinuxStaticFileBefore* before)
+        {
+            const string root = "/app/wwwroot";
+            if (!before->HasPath || before->PathBytes < root.Length) return false;
+            for (uint i = 0; i < root.Length; i++) if (before->Path[i] != root[(int)i]) return false;
+            return before->PathBytes == root.Length || before->Path[root.Length] == '/';
+        }
+
+        // Capture the pre-dispatch path and fd identity in retained supervisor
+        // metadata. No resolved user pointer or stack borrow survives a park.
+        private static bool LinuxStaticCompleteFile(LinuxNativeControl* c, uint index, LinuxSyscallResult result)
+        {
+            if (index >= c->Capacity || c->StaticPending == null) return false;
+            LinuxStaticPending* pending = c->StaticPending + index;
+            if (!LinuxThreadKernelRange(c, (byte*)pending, (uint)sizeof(LinuxStaticPending), false) ||
+                pending->Identity != c->Threads.Current.Value || pending->Ordinal == 0) return false;
+            bool observed = LinuxStaticObserveFile(c, index, pending->Call, result, &pending->Before, pending->Ordinal);
+            *pending = default; return observed;
+        }
+#endif
+
+        private static bool LinuxStaticRecordFile(LinuxNativeControl* c, uint index, LinuxSyscallFrame call,
+            LinuxSyscallResult result, LinuxStaticFileBefore* before)
+        {
+#if M10_018_PROBE
+            if (index >= c->Capacity || c->StaticPending == null) return false;
+            LinuxStaticPending* pending = c->StaticPending + index;
+            if (!LinuxThreadKernelRange(c, (byte*)pending, (uint)sizeof(LinuxStaticPending), false) || pending->Identity != 0) return false;
+            if (result.Action == LinuxSyscallAction.Blocked && c->Slots[index].WaitSource == 4)
+            {
+                *pending = new() { Before = *before, Call = call, Identity = c->Threads.Current.Value,
+                    Ordinal = LinuxNativeCallOrdinal(c, index) };
+                return pending->Identity != 0 && pending->Ordinal != 0;
+            }
+#endif
+            return LinuxStaticObserveFile(c, index, call, result, before);
         }
 
         // Static output has its own exact app identity. The accepted smoke's
@@ -182,7 +245,10 @@ public static unsafe partial class EfiEntry
             {
                 ulong now = 0; delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                 if (clock(c->State, &now) != 1 || !c->StaticApp.RecordListen(writer, unchecked((uint)call.Argument0), succeeded, now) ||
-                    !LinuxText(c->State, "M10_017_LISTENING main=") || !LinuxNumber(c->State, c->StaticMain.Value) ||
+#if M10_018_PROBE
+                    !ArmLinuxStaticDisk(c->State, now) ||
+#endif
+                    !LinuxText(c->State, LinuxStaticTag + "_LISTENING main=") || !LinuxNumber(c->State, c->StaticMain.Value) ||
                     !LinuxText(c->State, " writer=") || !LinuxNumber(c->State, writer) ||
                     !LinuxText(c->State, " fd=") || !LinuxNumber(c->State, call.Argument0) ||
                     !LinuxText(c->State, " nanos=") || !LinuxNumber(c->State, now) ||
@@ -198,7 +264,7 @@ public static unsafe partial class EfiEntry
                 ulong now = 0; delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                 if (result.Action != LinuxSyscallAction.Terminate || clock(c->State, &now) != 1 ||
                     result.ExitCode != 0 || !c->StaticApp.RecordExit(writer, unchecked((uint)call.Argument0), now) ||
-                    !LinuxText(c->State, "M10_017_APP_EXIT main=") || !LinuxNumber(c->State, writer) ||
+                    !LinuxText(c->State, LinuxStaticTag + "_APP_EXIT main=") || !LinuxNumber(c->State, writer) ||
                     !LinuxText(c->State, " nanos=") || !LinuxNumber(c->State, now) ||
                     !LinuxText(c->State, " exit=0 cleanup=pending\r\n")) return false;
             }
@@ -215,7 +281,7 @@ public static unsafe partial class EfiEntry
             var progress = c->StaticApp.Poll(now);
             if (progress == LinuxStaticFileObservation.Progress.RequestTermination)
                 return c->Process.RequestTermination(c->Key, 2, c->StaticMain) && c->StaticApp.RecordRequest(c->StaticMain.Value, now) &&
-                    LinuxText(c->State, "M10_017_TERMINATE main=") && LinuxNumber(c->State, c->StaticMain.Value) &&
+                    LinuxText(c->State, LinuxStaticTag + "_TERMINATE main=") && LinuxNumber(c->State, c->StaticMain.Value) &&
                     LinuxText(c->State, " signal=15 origin=128 nanos=") && LinuxNumber(c->State, now) &&
                     LinuxText(c->State, " tableClock=") && LinuxNumber(c->State, c->Threads.ObservedTicks) &&
                     LinuxText(c->State, " owner=supervisor completion=pending\r\n");

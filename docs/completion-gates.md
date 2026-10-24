@@ -1,5 +1,9 @@
 # CLROS Completion Gates
 
+[Step1572](../done/step1572.md) adds a diagnostic M10-018 disk/static candidate.
+It deliberately withholds complete-command success pending the full consumer;
+selection, focused checks and later diagnostics cannot advance a gate.
+
 ## Current static-file implementation boundary (2026-10-24)
 
 [Step1571](../done/step1571.md) records three fresh original complete mechanical

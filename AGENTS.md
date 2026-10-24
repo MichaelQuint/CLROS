@@ -2,6 +2,10 @@
 
 ## Start here
 
+[Step1572](done/step1572.md) adds the disk static-server diagnostic candidate.
+Its exact indexed payload, source4 completion records and separate018 markers
+remain development-only until complete original HTTP/Blazor validation.
+
 [Step1571](done/step1571.md) records three fresh complete mechanical disk
 captures at `c66befd5`, spanning DiskA/DiskB/DiskA. Each joins 59 calls and 62
 demand sector copies to original native/source/image/runner/packet inputs.
