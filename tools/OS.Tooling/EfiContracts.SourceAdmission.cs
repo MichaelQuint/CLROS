@@ -3,6 +3,13 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "reviewed_source4_wait_output_ceiling_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "reviewed_disk_descriptor_generation_close_drain_identity",
+        [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "reviewed_confined_fat_files_cache_cursor_identity",
+        [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "reviewed_retained_read_block_observer_identity",
+        [@"Boot\EfiEntry.DiskEvidence.cs"] = "reviewed_bounded_committed_sector_observation_identity",
+        [@"Boot\EfiEntry.DiskBootstrap.cs"] = "reviewed_disk_quiescent_flush_retirement_identity",
+        [@"Boot\EfiEntry.DiskNative.cs"] = "reviewed_retained_bdf7_disk_mapping_bootstrap_identity",
         [@"Boot\EfiEntry.StaticFiles.cs"] = "reviewed_finite_static_file_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs"] = "reviewed_finite_static_file_observation_source_identity",
         [@"Boot\EfiEntry.Realtime.cs"] = "reviewed_m16_owned_realtime_pre_entry_source_identity",

@@ -1,5 +1,28 @@
 # Host Requirements
 
+## Full-lane build baseline
+
+Commit qualification changes before the final baseline build. Freeze that HEAD
+and rebuild the complete HostTests project-reference graph:
+
+```text
+dotnet build tests/OS.HostTests/OS.HostTests.csproj --no-incremental --nologo -m:1
+```
+
+The SDK embeds `SourceRevisionId` in assembly version metadata. A dependency
+built before the final commit can retain an earlier stamp; native fixtures that
+rebuild it then change its bytes during the full lane. Compare the producer and
+HostTests copied DLL hashes and product versions for `MinimalApiSmoke` and
+`OS.X64TextSerializerGenerator` before testing. Both versions must identify the
+frozen HEAD and each pair must have identical bytes. Keep HEAD, source and build
+inputs frozen until the run and its final validation finish.
+
+The retained r03 full run failed this guard after its fixtures rebuilt two older
+stamps. Its 6,388 checks across 864 fixtures do not establish full acceptance.
+After the corrected baseline at `5ceeb0c2`, the two rebuilding fixture groups
+and repository recovery pass 27 focused checks with unchanged dependency bytes.
+A fresh unfiltered full remains required; preserve the failed original.
+
 ## Static-file candidate host work (2026-10-23)
 
 [Step1558](../done/step1558.md) records a successful Standalone Blazor publication

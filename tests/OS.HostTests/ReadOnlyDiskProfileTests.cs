@@ -41,6 +41,9 @@ internal static class ReadOnlyDiskProfileTests
     [HostTest("disk profile compiles only its explicit conditional source additions", HostLane.Fast, 2)]
     private static void CompileInventory()
     {
+        foreach (var (flag, symbol) in new[] { ("M16023", "M16_023_PROBE"), ("M16024", "M16_024_PROBE"),
+            ("M16025", "M16_025_PROBE"), ("M10018", "M10_018_PROBE") })
+            HostCheck.Equal(symbol, EfiContracts.ProbeSymbols["Enable" + flag + "Probe"]);
         var disk = EfiProfile.Create("", new Dictionary<string, bool> { ["EnableM16025Probe"] = true });
         string[] items = EfiProjectAdmission.ExpectedCompileItems(disk);
         HostCheck.True(items.Contains(@"Boot\EfiEntry.DiskNative.cs|"));
@@ -72,5 +75,24 @@ internal static class ReadOnlyDiskProfileTests
         try { _ = QemuProfiles.Create(QemuSmokeOptions.Parse(arguments)); }
         catch (ToolFailure) { rejected = true; }
         HostCheck.True(rejected);
+    }
+
+    [HostTest("disk static source admission requires every new reviewed conditional input and rejects mutations", HostLane.Fast, 4)]
+    private static void SourceAdmission()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        var project = EfiProjectAdmission.InspectStatic(root);
+        HostCheck.True(project.Succeeded, project.Reason + ":" + project.Detail);
+        string[] sources = [@"Boot\EfiEntry.DiskNative.cs", @"Boot\EfiEntry.DiskBootstrap.cs", @"Boot\EfiEntry.DiskEvidence.cs",
+            @"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs", @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs",
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs", @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"];
+        foreach (string source in sources)
+        {
+            HostCheck.True(EfiContracts.SourceAdmissionReasons.ContainsKey(source) && EfiContracts.SourceIdentities.ContainsKey(source));
+            string text = File.ReadAllText(Path.GetFullPath(Path.Combine(root, "src", "OS", source.Replace('\\', Path.DirectorySeparatorChar))));
+            HostCheck.True(EfiSourceAdmission.Inspect(text, source).Succeeded);
+            var changed = EfiSourceAdmission.Inspect(text + "\n// unreviewed source mutation\n", source);
+            HostCheck.True(!changed.Succeeded && changed.Reason == "forbidden_active_source");
+        }
     }
 }

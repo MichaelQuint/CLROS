@@ -12,10 +12,13 @@ disk-fixture work. See [current gate status](completion-gates.md#current-accepta
 Inspect `git status --short --branch`, `git worktree list` and current LAN
 ownership before editing. The primary may hold active development on a feature
 branch; do not switch it or absorb another agent's changes for a docs update.
-During the current run, the primary staged source stays frozen while its stable
-full lane and automatic guest sequence execute. Disk integration proceeds in
-the attached `codex/readonly-disk-waits` worktree. Join those commands before
-changing their source, and serialize native publication/guest work across lanes.
+Commit and freeze qualification changes before the final complete test-graph
+build; compare producer/copied DLL hashes and revision stamps as described in
+the [host baseline](host-requirements.md#full-lane-build-baseline). The failed
+r03 full retains its original mixed-stamp evidence. Disk integration proceeds
+in the attached `codex/readonly-disk-waits` worktree while the primary owns the
+staged guest sequence. Join commands before changing their source, and serialize
+native publication/guest work across lanes.
 The old instruction to keep `codex/resume-service-validation-20261020` frozen
 was specific to a completed run. It is not a current workspace restriction.
 

@@ -215,6 +215,13 @@ differ from this root guide.
 
 Run from `C:\Projects\CLROS`.
 
+For final qualification, commit changes before building and freeze HEAD. Rebuild
+the complete HostTests reference graph with `--no-incremental`; verify producer
+and copied DLL hashes/revision stamps agree before starting the full lane.
+Native fixtures rebuild some dependencies, so a pre-commit binary baseline can
+drift even while source stays frozen. Keep final exact-byte input guards enabled.
+See [host baseline](docs/host-requirements.md#full-lane-build-baseline).
+
 ```powershell
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo

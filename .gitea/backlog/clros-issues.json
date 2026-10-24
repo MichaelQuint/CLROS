@@ -36180,7 +36180,10 @@
         "tools/OS.Tooling/QemuTranscripts.LinuxCalls.cs",
         "tests/OS.HostTests/LinuxCallOrdinalTests.cs",
         "tools/OS.Tooling/NativeDiskReadObservations.cs",
-        "tests/OS.HostTests/NativeDiskReadObservationTests.cs"
+        "tests/OS.HostTests/NativeDiskReadObservationTests.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
