@@ -181,6 +181,48 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         s->Self = (ulong)s; s->Input = a; s->KnownRevision = a.Engine->VolumeRevision; s->NextAlias = 1; s->Active = true; return true;
     }
 
+    /// <summary>Read-only structural admission for an external supervisor
+    /// extent, including future wire metadata or output scratch. The same
+    /// serialized owner retains all mappings during this call. Validate exact
+    /// provider/mount epoch, current clean device/DMA ownership and every own
+    /// extent before accepting a nonempty disjoint byte range. Clean pending
+    /// reads may pass; dirty, retiring, faulted or stale owners cannot. This
+    /// performs no callbacks, I/O, allocation or output writes and grants no
+    /// user mapping, copy, operation-completion or native execution authority.
+    /// Teardown deliberately keeps its separate permissive predicates.</summary>
+    public static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes)
+    {
+        if (!Ordinary((ulong)s, (ulong)sizeof(State), 8) || !Ordinary(address, bytes, 1) || expectedEpoch == 0 ||
+            s->Self != (ulong)s || !s->Active || s->Retiring || s->RetiredValue || s->Poisoned || s->Input.Epoch != expectedEpoch) return false;
+        Admission a = s->Input;
+        if (!a.ExclusiveOwnerValidated || a.DescriptorCount is < 4 or > MaximumDescriptors ||
+            a.DescriptionCount is < 1 or > MaximumDescriptions || a.InputBytes != IoBytes ||
+            !Ordinary((ulong)a.Engine, (ulong)sizeof(C.State), 8) || !a.Engine->IsMounted || a.Engine->Retired || a.Engine->Dirty ||
+            s->KnownRevision != a.Engine->VolumeRevision) return false;
+        LockAdmission l = s->LockInput;
+        if (s->Locking)
+        {
+            if (l.ProcessCount is < 1 or > MaximumProcesses || l.LockCount != LockSlots || l.ScratchCount != LockScratchSlots ||
+                l.PrimaryPid is 0 or > int.MaxValue || l.PrimaryPid != s->PrimaryOwner.Pid) return false;
+        }
+        else if (l.Processes != null || l.Locks != null || l.Scratch != null || l.ProcessCount != 0 || l.LockCount != 0 ||
+            l.ScratchCount != 0 || l.PrimaryPid != 0 || !Same(s->PrimaryOwner, default)) return false;
+        ulong* starts = stackalloc ulong[7] { (ulong)s, (ulong)a.Descriptors, (ulong)a.Descriptions, (ulong)a.Input,
+            (ulong)l.Processes, (ulong)l.Locks, (ulong)l.Scratch };
+        ulong* sizes = stackalloc ulong[7] { (ulong)sizeof(State), a.DescriptorCount * (ulong)sizeof(Descriptor),
+            a.DescriptionCount * (ulong)sizeof(Description), IoBytes, l.ProcessCount * (ulong)sizeof(ProcessSlot),
+            l.LockCount * (ulong)sizeof(RangeLock), l.ScratchCount * (ulong)sizeof(RangeLock) };
+        uint count = s->Locking ? 7U : 4U;
+        for (uint i = 0; i < count; i++)
+        {
+            if (!Ordinary(starts[i], sizes[i], i == 3 ? 1UL : 8UL) ||
+                !C.CanBorrowStorage(a.Engine, expectedEpoch, starts[i], sizes[i]) || Overlap(address, bytes, starts[i], sizes[i])) return false;
+            for (uint j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
+        }
+        if (s->Locking && !ProcessCurrent(s, s->PrimaryOwner)) return false;
+        return C.CanBorrowStorage(a.Engine, expectedEpoch, address, bytes) && C.CanAdmitStorage(a.Engine, expectedEpoch);
+    }
+
     /// <summary>Enable fixed process-associated lock tables while no handle or
     /// request is active. Existing APIs subsequently use this exact primary
     /// generation. Caller PIDs are copied values only. No table is allocated.</summary>

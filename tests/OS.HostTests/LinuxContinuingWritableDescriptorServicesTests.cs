@@ -916,6 +916,153 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         }
     }
 
+    [HostTest("continuing structural borrow rejects every complete partial and covering provider engine block DMA and MMIO alias without effects")]
+    private static void BorrowAliases()
+    {
+        using var f = new Owner(locks: true); byte external = 0xa5; ulong address = (ulong)&external;
+        HostCheck.True(Borrow(f, address, 1)); uint calls = f.Device->Calls, notifies = f.Device->Notifies;
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray();
+        foreach (var span in ProtectedStorage(f))
+        {
+            HostCheck.True(!Borrow(f, span.Start, span.Bytes));
+            HostCheck.True(!Borrow(f, span.Start, 1) && !Borrow(f, span.Start + span.Bytes - 1, 1));
+            HostCheck.True(!Borrow(f, span.Start - 1, 2) && !Borrow(f, span.Start + span.Bytes - 1, 2));
+            HostCheck.True(!Borrow(f, span.Start - 8, span.Bytes + 16));
+        }
+        HostCheck.True(external == 0xa5 && state.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()) &&
+            f.Device->Calls == calls && f.Device->Notifies == notifies);
+    }
+
+    [HostTest("continuing structural borrow checks range arithmetic self epoch and original primary process generation before admission")]
+    private static void BorrowIdentity()
+    {
+        using var f = new Owner(locks: true); byte external = 0x5a; ulong address = (ulong)&external;
+        HostCheck.True(!D.CanBorrowStorage(null, f.Input.Epoch, address, 1));
+        HostCheck.True(!D.CanBorrowStorage((D.State*)ulong.MaxValue, f.Input.Epoch, address, 1));
+        HostCheck.True(!D.CanBorrowStorage(f.State, 0, address, 1) && !D.CanBorrowStorage(f.State, f.Input.Epoch + 1, address, 1));
+        foreach (var range in new (ulong Start, ulong Bytes)[] { (0, 1), (4095, 1), (address, 0), (ulong.MaxValue - 3, 8),
+            (0x0000800000000000, 1), (0x00007fffffffffff, 2), (4096, ulong.MaxValue) }) HostCheck.True(!Borrow(f, range.Start, range.Bytes));
+        D.State* copy = (D.State*)NativeMemory.AllocZeroed((nuint)sizeof(D.State));
+        try { *copy = *f.State; HostCheck.True(!D.CanBorrowStorage(copy, f.Input.Epoch, address, 1)); }
+        finally { NativeMemory.Free(copy); }
+        var primary = D.PrimaryProcess(f.State); HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value);
+        HostCheck.True(!Borrow(f, address, 1)); var replacement = D.RegisterProcess(f.State, primary.Pid).Process;
+        HostCheck.True(replacement.Generation != primary.Generation && !Borrow(f, address, 1) && external == 0x5a);
+    }
+
+    [HostTest("continuing structural borrow rejects invalid provider shapes internal aliases and overflowed retained extents without mutation")]
+    private static void BorrowMetadata()
+    {
+        using var f = new Owner(locks: true); byte external = 0x77; ulong address = (ulong)&external;
+        D.Admission* retained = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); D.Admission original = *retained;
+        foreach (int defect in Enumerable.Range(0, 6))
+        {
+            *retained = original;
+            switch (defect)
+            {
+                case 0: retained->DescriptorCount = uint.MaxValue; break;
+                case 1: retained->InputBytes--; break;
+                case 2: retained->Descriptions = (D.Description*)retained->Descriptors; break;
+                case 3: retained->Input = f.Storage.Input.Before; break;
+                case 4: retained->Descriptors = (D.Descriptor*)0x00007ffffffffff8; break;
+                case 5: retained->ExclusiveOwnerValidated = false; break;
+            }
+            byte[] before = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray();
+            HostCheck.True(!Borrow(f, address, 1) && before.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
+        }
+        *retained = original;
+        D.LockAdmission* locks = (D.LockAdmission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "LockInput")); var oldLocks = *locks;
+        locks->Scratch = locks->Locks; HostCheck.True(!Borrow(f, address, 1)); *locks = oldLocks;
+        locks->ProcessCount = 0; HostCheck.True(!Borrow(f, address, 1)); *locks = oldLocks;
+        locks->PrimaryPid++; HostCheck.True(!Borrow(f, address, 1)); *locks = oldLocks;
+        ulong* revision = (ulong*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "KnownRevision")); ulong oldRevision = *revision;
+        (*revision)++; HostCheck.True(!Borrow(f, address, 1) && !f.State->Quarantined); *revision = oldRevision;
+        HostCheck.True(Borrow(f, address, 1) && external == 0x77);
+    }
+
+    [HostTest("continuing structural borrow rejects stale block and DMA epochs generations and ownership with no hidden device access")]
+    private static void BorrowDeviceIdentity()
+    {
+        using var f = new Owner(); byte external = 0x33; ulong address = (ulong)&external; uint calls = f.Device->Calls;
+        B.Admission* block = (B.Admission*)((byte*)f.Storage.Device.State + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.State, "Input")); var original = *block;
+        block->Epoch++; HostCheck.True(!Borrow(f, address, 1)); *block = original;
+        ulong* poolEpoch = (ulong*)((byte*)f.Storage.Device.Pool + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.Pool, "Epoch")); ulong epoch = *poolEpoch;
+        (*poolEpoch)++; HostCheck.True(!Borrow(f, address, 1)); *poolEpoch = epoch;
+        ulong* generation = (ulong*)((byte*)f.Storage.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.Slot, "Generation")); ulong oldGeneration = *generation;
+        (*generation)++; HostCheck.True(!Borrow(f, address, 1)); *generation = oldGeneration;
+        var owner = (OS.Drivers.DmaBufferOwnership*)((byte*)f.Storage.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.Slot, "Owner")); var oldOwner = *owner;
+        *owner = OS.Drivers.DmaBufferOwnership.Cpu; HostCheck.True(!Borrow(f, address, 1)); *owner = oldOwner;
+        HostCheck.True(Borrow(f, address, 1) && f.Device->Calls == calls && external == 0x33);
+    }
+
+    [HostTest("continuing structural borrow admits clean pending and held reads but keeps dirty recovery backing unadmitted")]
+    private static void BorrowProgress()
+    {
+        using (var f = new Owner())
+        {
+            byte external = 1; ulong address = (ulong)&external; var file = f.Open(); var request = D.BeginRead(f.State, file, 8);
+            HostCheck.True(Borrow(f, address, 1)); D.Pump(f.State); HostCheck.True(f.Device->Pending && Borrow(f, address, 1));
+            f.CompleteHardware(); f.Wait(request); HostCheck.True(Borrow(f, address, 1));
+            HostCheck.Equal(8L, D.CopyRead(f.State, request.Request, new byte[8]).Value); HostCheck.True(Borrow(f, address, 1));
+        }
+        using (var f = new Owner())
+        {
+            byte external = 1; ulong address = (ulong)&external; var file = f.Open(flags: 2); var request = D.BeginWrite(f.State, file, new byte[37]);
+            for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+            HostCheck.True(f.Storage.State->Dirty && !Borrow(f, address, 1));
+            HostCheck.Equal(D.Progress.RecoveryRequired, D.Cancel(f.State, request.Request).Phase);
+            HostCheck.True(!Borrow(f, address, 1)); HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+            HostCheck.True(!Borrow(f, address, 1)); HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+        }
+    }
+
+    [HostTest("continuing structural borrow retirement fails closed while separate structural teardown remains available after device stop")]
+    private static void BorrowRetirement()
+    {
+        using (var f = new Owner())
+        {
+            byte external = 1; ulong address = (ulong)&external; HostCheck.True(Borrow(f, address, 1));
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.True(!Borrow(f, address, 1));
+            HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); HostCheck.True(!Borrow(f, address, 1));
+        }
+        using (var f = new Owner())
+        {
+            byte external = 1; ulong address = (ulong)&external; HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase);
+            D.Admission* retained = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *retained;
+            retained->Engine = (C.State*)ulong.MaxValue; HostCheck.True(!Borrow(f, address, 1)); *retained = original;
+            HostCheck.Equal(C.Status.Success, C.Stop(f.Storage.State)); HostCheck.True(!Borrow(f, address, 1));
+        }
+    }
+
+    [HostTest("continuing structural borrow performs no managed allocation callback state publication or I O")]
+    private static void BorrowAllocation()
+    {
+        using var f = new Owner(locks: true); byte external = 0x91; ulong address = (ulong)&external;
+        HostCheck.True(Borrow(f, address, 1)); uint calls = f.Device->Calls, notifies = f.Device->Notifies;
+        byte[] before = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray(); long allocated = GC.GetAllocatedBytesForCurrentThread(); bool valid = true;
+        for (int i = 0; i < 64; i++) valid &= Borrow(f, address, 1) && !Borrow(f, (ulong)f.InputBytes, 1);
+        HostCheck.True(valid && GC.GetAllocatedBytesForCurrentThread() == allocated && f.Device->Calls == calls && f.Device->Notifies == notifies && external == 0x91);
+        HostCheck.True(before.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
+    }
+
+    private static bool Borrow(Owner f, ulong address, ulong bytes) => D.CanBorrowStorage(f.State, f.Input.Epoch, address, bytes);
+    private static (ulong Start, ulong Bytes)[] ProtectedStorage(Owner f)
+    {
+        var a = f.Storage.Input; var block = f.Storage.Device.Input;
+        return [((ulong)f.State, (ulong)sizeof(D.State)), ((ulong)f.Slots, 32UL * (ulong)sizeof(D.Descriptor)),
+            ((ulong)f.Descriptions, 32UL * (ulong)sizeof(D.Description)), ((ulong)f.InputBytes, 8192),
+            ((ulong)f.Processes, 4UL * (ulong)sizeof(D.ProcessSlot)), ((ulong)f.Locks, 32UL * (ulong)sizeof(D.RangeLock)),
+            ((ulong)f.Scratch, 65UL * (ulong)sizeof(D.RangeLock)), ((ulong)f.Storage.State, (ulong)sizeof(C.State)),
+            ((ulong)a.Changes, C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)), ((ulong)a.Before, C.JournalChanges * 512UL),
+            ((ulong)a.After, C.JournalChanges * 512UL), ((ulong)a.DirectoryMap, C.MaximumClusters * 4UL), ((ulong)a.FileMap, C.MaximumClusters * 4UL),
+            ((ulong)a.WalkMap, C.MaximumClusters * 4UL), ((ulong)a.Sector, 512), ((ulong)a.Fat0, 512), ((ulong)a.Fat1, 512),
+            ((ulong)a.Input, C.WriteBytes), ((ulong)a.Name, C.NameWords * 2UL), ((ulong)a.LongName, C.VfatWords * 2UL),
+            ((ulong)a.EncodedEntries, C.EncodedEntryBytes), ((ulong)f.Storage.Device.State, (ulong)sizeof(B.State)),
+            ((ulong)f.Storage.Device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
+            ((ulong)f.Storage.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)), ((ulong)f.Storage.Device.Data, 4096),
+            (block.Common.VirtualStart, block.Common.Bytes), (block.Notify.VirtualStart, block.Notify.Bytes), (block.Device.VirtualStart, block.Device.Bytes)];
+    }
+
     private static D.LockResult L(Owner f, D.ProcessToken process, D.DescriptorToken file, uint command, short type, long start, long length) =>
         D.FcntlLockForProcess(f.State, process, file, command, new(type, 0, start, length));
 
