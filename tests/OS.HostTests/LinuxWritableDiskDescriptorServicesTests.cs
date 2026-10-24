@@ -21,6 +21,120 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
+    [HostTest("writable fstat uses real continuing metadata and complete x64 layout with allocated clusters and independent read write cursors")]
+    private static void FreshStatWire()
+    {
+        foreach (byte sectors in new byte[] { 1, 2, 4, 8 })
+        {
+            using var f = new Owner(sectorsPerCluster: sectors);
+            PutTime(f.DataEntry, 2024, 2, 29, 23, 59, 58); uint first = f.Open(), second = f.Open(flags: 1 | W.NoControllingTerminal);
+            HostCheck.Equal(7L, f.Run(f.Call(8, first, 7, 0))); HostCheck.Equal(29L, f.Run(f.Call(8, second, 29, 0)));
+            ulong inode = 0;
+            foreach (uint fd in new[] { first, second })
+            {
+                int trace = f.Trace.Count; var call = f.Call(5, fd, Output); var begun = f.Begin(call);
+                HostCheck.Equal(F.WritableDiskProgress.Pending, begun.Progress); HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress);
+                new Span<byte>(f.Thread.At(Output), 145).Fill(0xa5);
+                HostCheck.Equal(0L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call, 144).Value);
+                byte[] actual = f.Bytes(144), expected = new byte[144]; ulong physicalInode = (f.Storage.Input.PartitionFirst + 32 + 2 * 512) * 16 + 2;
+                BitConverter.GetBytes(physicalInode).CopyTo(expected, 8); BitConverter.GetBytes(1UL).CopyTo(expected, 16);
+                BitConverter.GetBytes(0x8180U).CopyTo(expected, 24); BitConverter.GetBytes(900UL).CopyTo(expected, 48);
+                BitConverter.GetBytes((ulong)sectors * 512).CopyTo(expected, 56);
+                BitConverter.GetBytes((ulong)(sectors == 1 ? 2 : sectors)).CopyTo(expected, 64);
+                BitConverter.GetBytes(new DateTimeOffset(2024, 2, 29, 23, 59, 58, TimeSpan.Zero).ToUnixTimeSeconds()).CopyTo(expected, 88);
+                HostCheck.True(actual.SequenceEqual(expected) && f.Thread.At(Output)[144] == 0xa5);
+                HostCheck.True(inode == 0 || inode == BitConverter.ToUInt64(actual, 8)); inode = BitConverter.ToUInt64(actual, 8);
+                HostCheck.True(f.Trace.Skip(trace).Any(row => row.Type == 0) && !f.Trace.Skip(trace).Any(row => row.Type != 0));
+            }
+            HostCheck.Equal(7L, f.Run(f.Call(8, first, 0, 1))); HostCheck.Equal(29L, f.Run(f.Call(8, second, 0, 1)));
+            HostCheck.True(F.Audit(f.Files.State));
+        }
+    }
+
+    [HostTest("writable fstat sees authenticated empty create and actual growth with finite readonly mode and explicit directory rejection")]
+    private static void StatMutationAndMode()
+    {
+        using var f = new Owner(); uint fd = f.Open("/data/stat-new.bin", 2 | W.Create | W.Exclusive);
+        HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output))); HostCheck.True(BitConverter.ToUInt64(f.Bytes(144), 48) == 0 && BitConverter.ToUInt64(f.Bytes(144), 64) == 0);
+        HostCheck.Equal(1032L, f.Run(f.WriteCall(fd, Enumerable.Range(0, 1032).Select(Value).ToArray(), 4094)));
+        HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output))); byte[] facts = f.Bytes(144);
+        HostCheck.True(BitConverter.ToUInt64(facts, 48) == 5126 && BitConverter.ToUInt64(facts, 64) == 11 && BitConverter.ToUInt32(facts, 24) == 0x8180);
+        uint directory = f.Open("/data", W.DirectoryOnly); uint writes = f.Thread.Writes;
+        HostCheck.Equal(-95L, f.Run(f.Call(5, directory, Output))); HostCheck.Equal(writes, f.Thread.Writes);
+        f.DataEntry[11] = 0x21; uint readOnly = f.Open(); HostCheck.Equal(0L, f.Run(f.Call(5, readOnly, Output)));
+        HostCheck.Equal(0x8100U, BitConverter.ToUInt32(f.Bytes(144), 24));
+        HostCheck.Equal(-38L, f.Core(73, readOnly, 1)); HostCheck.Equal(-38L, f.Core(138, readOnly, Output));
+    }
+
+    [HostTest("writable fstat enforces exact captured output prefix and user copy failures without moving cursors or writing a short prefix")]
+    private static void StatCopyCeiling()
+    {
+        using var f = new Owner(); uint fd = f.Open(); HostCheck.Equal(17L, f.Run(f.Call(8, fd, 17, 0)));
+        new Span<byte>(f.Thread.At(Output), 145).Fill(0xa5); var call = f.Call(5, fd, Output); var begun = f.Begin(call); f.Ready(begun.Token);
+        uint writes = f.Thread.Writes; HostCheck.Equal(-14L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call, 143).Value);
+        HostCheck.True(f.Thread.Writes == writes && f.Bytes(145).All(value => value == 0xa5) && !f.Provider->RequestActive);
+        f.Thread.FailWrite(Output); HostCheck.Equal(-14L, f.Run(call)); HostCheck.True(f.Bytes(145).All(value => value == 0xa5));
+        f.Thread.FailWrite(0); HostCheck.Equal(0L, f.Run(call)); HostCheck.True(f.Thread.At(Output)[144] == 0xa5);
+        HostCheck.Equal(17L, f.Run(f.Call(8, fd, 0, 1)));
+    }
+
+    [HostTest("writable pending and held stat close revoke copy and wake only original live error waiter after fd reuse")]
+    private static void StatCloseAndReuse()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Owner(); uint fd = f.Open(); var call = f.Call(5, fd, Output); var begun = f.Begin(call);
+            if (held) f.Ready(begun.Token); else { f.Pump(); HostCheck.True(f.Hardware->Pending); }
+            HostCheck.True(F.Capture(f.Files.State, fd, out var old)); HostCheck.Equal(0L, f.Core(3, fd));
+            f.PutPath("/app/fixture.data"); HostCheck.Equal((long)fd, f.Core(2, Path, 0x88100));
+            new Span<byte>(f.Thread.At(Output), 144).Fill(0xa5); uint writes = f.Thread.Writes;
+            var ready = f.Ready(begun.Token); HostCheck.True(ready.Worker.Value == f.Worker.Value && ready.Value == -9);
+            HostCheck.Equal(-9L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+            HostCheck.True(f.Thread.Writes == writes && f.Bytes(144).All(value => value == 0xa5) && !F.IsCurrent(f.Files.State, old) && F.Audit(f.Files.State));
+        }
+    }
+
+    [HostTest("writable stat cancellation revokes both pending and known ready readonly facts without converting them to mutation result authority")]
+    private static void StatCancellation()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Owner(); uint fd = f.Open(); var call = f.Call(5, fd, Output); var begun = f.Begin(call);
+            if (held) f.Ready(begun.Token); else { f.Pump(); HostCheck.True(f.Hardware->Pending); }
+            uint writes = f.Thread.Writes; var cancelled = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, false);
+            HostCheck.True(!cancelled.Worker.IsValid && cancelled.Progress == F.WritableDiskProgress.Draining);
+            f.Drain(); HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+            HostCheck.True(f.Thread.Writes == writes && !f.Provider->RequestActive); HostCheck.Equal(0L, f.Run(f.Call(8, fd, 0, 1)));
+        }
+    }
+
+    [HostTest("writable fstat rejects invalid FAT civil timestamps explicitly and preserves zero unknown and Gregorian leap boundaries")]
+    private static void StatTimeValidation()
+    {
+        foreach (var date in new[] { (1980, 1, 1, 0, 0, 0, true), (2000, 2, 29, 23, 59, 58, true), (2100, 2, 29, 0, 0, 0, false),
+            (2024, 0, 1, 0, 0, 0, false), (2024, 1, 0, 0, 0, 0, false), (2024, 1, 1, 24, 0, 0, false),
+            (2024, 1, 1, 0, 60, 0, false), (2024, 1, 1, 0, 0, 60, false), (1980, 0, 0, 0, 0, 2, false) })
+        {
+            using var f = new Owner(); PutTime(f.DataEntry, date.Item1, date.Item2, date.Item3, date.Item4, date.Item5, date.Item6); uint fd = f.Open();
+            new Span<byte>(f.Thread.At(Output), 144).Fill(0xa5); uint writes = f.Thread.Writes;
+            var call = f.Call(5, fd, Output); var begun = f.Begin(call); f.Ready(begun.Token);
+            var result = F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call);
+            HostCheck.Equal(date.Item7 ? 0L : -5L, result.Value);
+            if (date.Item7) HostCheck.Equal(new DateTimeOffset(date.Item1, date.Item2, date.Item3, date.Item4, date.Item5, date.Item6, TimeSpan.Zero).ToUnixTimeSeconds(), BitConverter.ToInt64(f.Bytes(144), 88));
+            else HostCheck.True(result.Failure == C.Status.CorruptDirectory && f.Thread.Writes == writes && f.Bytes(144).All(value => value == 0xa5));
+        }
+        using (var f = new Owner())
+        {
+            uint fd = f.Open(); HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output))); HostCheck.Equal(0L, BitConverter.ToInt64(f.Bytes(144), 88));
+        }
+    }
+
+    private static void PutTime(Span<byte> entry, int year, int month, int day, int hour, int minute, int second)
+    {
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(entry[22..], (ushort)((hour << 11) | (minute << 5) | second / 2));
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt16LittleEndian(entry[24..], (ushort)(((year - 1980) << 9) | (month << 5) | day));
+    }
+
     [HostTest("writable canonical mechanical descriptor calls execute their exact copied wire values and checked read bytes over the actual shared media")]
     private static void MechanicalDescriptorCalls()
     {
@@ -449,10 +563,11 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         internal WritableBlockSessionTests.Hardware* Hardware => Storage.Device.Hardware;
         internal F.WritableDiskAdmission Admission => new() { Provider = Provider, Process = W.PrimaryProcess(Provider), Bindings = Bindings,
             BindingCount = Files.Admission.DescriptionCount, Epoch = ProviderAdmission.Epoch, Search = new(2, 64, 256), FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true, bool observe = false, uint descriptors = 32, uint descriptions = 32)
+        internal Owner(bool attach = true, bool observe = false, uint descriptors = 32, uint descriptions = 32, byte sectorsPerCluster = 1)
         {
             Files = new(descriptors, descriptions); Bindings = (F.WritableDiskBinding*)NativeMemory.AllocZeroed(descriptions, (nuint)sizeof(F.WritableDiskBinding));
-            Storage = new(observe: observe); Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff;
+            Storage = new(sectorsPerCluster, observe: observe); if (sectorsPerCluster != 1) Storage.Fat(4, 0x0fffffff);
+            Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff;
             Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; Storage.Mount();
             ProviderAdmission = new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = Slots, Descriptions = Descriptions,
                 DescriptorCount = 32, DescriptionCount = 32, Input = ProviderInput, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true };
@@ -467,6 +582,7 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         internal LinuxSyscallFrame Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0)
         { var call = Thread.CurrentImage()->Frame; call.Number = number; call.Argument0 = a0; call.Argument1 = a1; call.Argument2 = a2; call.Argument3 = a3; call.Argument4 = a4; call.Argument5 = a5; return call; }
         internal void PutPath(string path) { byte[] value = Encoding.ASCII.GetBytes(path + '\0'); value.CopyTo(new Span<byte>(Thread.At(Path), value.Length)); }
+        internal Span<byte> DataEntry => Storage.Volatile.Slice((int)((Storage.Input.PartitionFirst + 32 + 2 * 512) * 512 + 32), 32);
         internal LinuxSyscallFrame WriteCall(uint fd, byte[] payload, ulong offset)
         {
             payload.CopyTo(new Span<byte>(Thread.At(Payload), payload.Length));

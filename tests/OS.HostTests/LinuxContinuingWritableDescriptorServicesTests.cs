@@ -13,6 +13,123 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
 
+    [HostTest("continuing fresh stat walks actual FAT geometry for read only and write only handles without moving independent cursors")]
+    private static void FreshStatGeometry()
+    {
+        foreach (byte sectors in new byte[] { 1, 2, 4, 8 })
+        {
+            using var f = new Owner(sectorsPerCluster: sectors); var first = f.Open(); var second = f.Open(flags: 1);
+            HostCheck.Equal(7L, D.Seek(f.State, first, 7, 0).Value); HostCheck.Equal(29L, D.Seek(f.State, second, 29, 0).Value);
+            foreach (var file in new[] { first, second })
+            {
+                int trace = f.Trace.Count; var facts = f.Stat(file).Facts;
+                HostCheck.True(facts.File.Owner == (ulong)f.Storage.State && facts.File.Epoch == f.Input.Epoch && facts.File.Length == 900);
+                HostCheck.Equal((uint)sectors * 512U, facts.ClusterBytes);
+                HostCheck.Equal(sectors == 1 ? 2U : 1U, facts.AllocatedClusters);
+                HostCheck.Equal((ulong)facts.AllocatedClusters * sectors, facts.Allocated512Blocks);
+                HostCheck.True(f.Trace.Skip(trace).Any(row => row.Type == 0) && !f.Trace.Skip(trace).Any(row => row.Type != 0));
+            }
+            HostCheck.Equal(7UL, f.Cursor(first)); HostCheck.Equal(29UL, f.Cursor(second));
+        }
+    }
+
+    [HostTest("continuing stat output rejects short oversized overflowing and retained full or partial aliases without consuming fresh facts")]
+    private static void StatOutputBounds()
+    {
+        using var f = new Owner(locks: true, observe: true); var file = f.Open(); var request = D.BeginStat(f.State, file);
+        HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase);
+        D.StatMetadata facts = default;
+        foreach (uint bytes in new uint[] { 0, (uint)sizeof(D.StatMetadata) - 1, (uint)sizeof(D.StatMetadata) + 1 })
+            HostCheck.Equal(-14L, D.CopyStat(f.State, request.Request, &facts, bytes).Value);
+        foreach (var extent in ProtectedStorage(f))
+        {
+            // The inventory includes deliberately unmapped fake MMIO ranges.
+            // Audit their numeric aliases without dereferencing those addresses.
+            byte[] before = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray();
+            foreach (ulong pointer in new[] { extent.Start, (extent.Start + extent.Bytes - 8) & ~7UL })
+                HostCheck.Equal(-14L, D.CopyStat(f.State, request.Request, (D.StatMetadata*)pointer, (uint)sizeof(D.StatMetadata)).Value);
+            HostCheck.True(before.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
+        }
+        HostCheck.Equal(-14L, D.CopyStat(f.State, request.Request, (D.StatMetadata*)(ulong.MaxValue - 7), (uint)sizeof(D.StatMetadata)).Value);
+        HostCheck.True(f.State->RequestActive && f.Cursor(file) == 0);
+        HostCheck.Equal(0L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+        HostCheck.True(facts.Facts.File.Length == 900 && !f.State->RequestActive);
+    }
+
+    [HostTest("continuing stat pending cancellation drains actual IN and held cancellation cannot publish cached facts")]
+    private static void StatCancellation()
+    {
+        using var f = new Owner(); var file = f.Open(); D.StatMetadata facts = default;
+        var request = D.BeginStat(f.State, file); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+        HostCheck.Equal(D.Progress.Pending, D.Cancel(f.State, request.Request).Phase); f.CompleteHardware();
+        HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        HostCheck.Equal(-4L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+        HostCheck.True(facts.Facts.File.Owner == 0 && !f.Storage.State->RequestActive && !f.State->RequestActive);
+        request = D.BeginStat(f.State, file); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        HostCheck.Equal(D.Progress.Ready, D.Cancel(f.State, request.Request).Phase);
+        HostCheck.Equal(-4L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+        HostCheck.Equal(0UL, f.Cursor(file));
+    }
+
+    [HostTest("continuing stat original fd generation process ownership and exit reject late facts after close or PID reuse")]
+    private static void StatFdAndProcessLifetime()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 202).Process;
+        var first = f.Open(); HostCheck.Equal(-9L, D.BeginStatForProcess(f.State, other, first).Value);
+        var request = D.BeginStat(f.State, first); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+        HostCheck.Equal(0L, D.Close(f.State, first)); f.CompleteHardware(); f.Drain();
+        var replacement = f.Open(); HostCheck.True(first.Number == replacement.Number && first.Generation != replacement.Generation);
+        D.StatMetadata facts = default; HostCheck.Equal(D.Progress.Rejected, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Phase);
+        var second = f.OpenFor(other); HostCheck.Equal(-9L, D.BeginStat(f.State, second).Value);
+        request = D.BeginStatForProcess(f.State, other, second); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        HostCheck.Equal(0L, D.ExitProcess(f.State, other).Value); var reused = D.RegisterProcess(f.State, other.Pid).Process;
+        HostCheck.True(other.Generation != reused.Generation && D.BeginStatForProcess(f.State, other, replacement).Value == -9);
+        HostCheck.Equal(D.Progress.Rejected, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Phase);
+        HostCheck.True(facts.Facts.File.Owner == 0 && D.BeginStatForProcess(f.State, other, replacement).Value == -9);
+        HostCheck.True(f.Stat(replacement).Facts.File.Length == 900 && D.PrimaryProcess(f.State).Generation == primary.Generation);
+    }
+
+    [HostTest("continuing stat refresh rejects externally changed same entry fingerprint rather than binding a new file")]
+    private static void StatStalePhysicalFacts()
+    {
+        using var f = new Owner(); var file = f.Open();
+        f.Storage.Volatile[(int)(f.DataLba * 512 + 32 + 28)] = 0x83; // 899 instead of original 900
+        var request = D.BeginStat(f.State, file); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        D.StatMetadata facts = default; var result = D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata));
+        HostCheck.True(result.Value == -116 && result.Failure == C.Status.StaleToken && facts.Facts.File.Owner == 0 && !f.State->RequestActive);
+    }
+
+    [HostTest("continuing stat authenticates known own growth shrink and empty allocation without confusing unrelated descriptions")]
+    private static void StatOwnMutationLineage()
+    {
+        using var f = new Owner(growth: true); var first = f.Open(flags: 2); var second = f.Open();
+        HostCheck.Equal(0L, f.Run(D.BeginGrow(f.State, first, 1200, new uint[] { 8 })).Value);
+        var grown = f.Stat(second).Facts; HostCheck.True(grown.File.Length == 1200 && grown.AllocatedClusters == 3 && grown.Allocated512Blocks == 3);
+        HostCheck.Equal(0L, f.Run(D.BeginTruncate(f.State, first, 0)).Value);
+        var empty = f.Stat(second).Facts; HostCheck.True(empty.File.Length == 0 && empty.File.FirstCluster == 0 && empty.AllocatedClusters == 0 && empty.Allocated512Blocks == 0);
+        HostCheck.True(grown.File.EntryOffset == empty.File.EntryOffset && grown.File.Revision < empty.File.Revision && f.Cursor(first) == 0 && f.Cursor(second) == 0);
+        var directory = f.Open("/data", D.DirectoryOnly); HostCheck.Equal(-95L, D.BeginStat(f.State, directory).Value);
+    }
+
+    [HostTest("continuing stat reports actual device read failure without facts and rejects device retirement after readiness")]
+    private static void StatDeviceLifetime()
+    {
+        using (var f = new Owner())
+        {
+            var file = f.Open(); f.FailureType = 0; var request = D.BeginStat(f.State, file);
+            HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); D.StatMetadata facts = default;
+            var failed = D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata));
+            HostCheck.True(failed.Value == -5 && failed.Failure == C.Status.BlockFailure && facts.Facts.File.Owner == 0 && !f.State->RequestActive);
+        }
+        using (var f = new Owner())
+        {
+            var file = f.Open(); var request = D.BeginStat(f.State, file); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); D.StatMetadata facts = default;
+            HostCheck.Equal(-5L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+            HostCheck.True(facts.Facts.File.Owner == 0 && f.State->RequestActive); D.Cancel(f.State, request.Request); D.Complete(f.State, request.Request);
+        }
+    }
+
     [HostTest("continuing writable descriptors retain bounded POD without image snapshot or managed references")]
     private static void Pod()
     {
@@ -1325,9 +1442,10 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         internal WritableBlockSessionTests.Hardware* Device => Storage.Device.Hardware;
         internal List<(uint Type, ulong Sector)> Trace => Storage.Trace;
         internal ulong DataLba => Storage.Input.PartitionFirst + 32 + 2 * 512;
-        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false, bool observe = false)
+        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false, bool observe = false, byte sectorsPerCluster = 1)
         {
-            Storage = new(observe: observe);
+            Storage = new(sectorsPerCluster, observe: observe);
+            if (sectorsPerCluster != 1) Storage.Fat(4, 0x0fffffff);
             Slots = (D.Descriptor*)NativeMemory.AllocZeroed(fdCount, (nuint)sizeof(D.Descriptor));
             Descriptions = (D.Description*)NativeMemory.AllocZeroed(descriptionCount, (nuint)sizeof(D.Description));
             // Explicitly unknown FSInfo is supported by the pinned engine;
@@ -1371,6 +1489,11 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         { var result = Run(D.Open(State, Encoding.ASCII.GetBytes(path), flags)); HostCheck.True(result.Phase == D.Progress.Immediate && result.Value >= 3); return result.Descriptor; }
         internal D.DescriptorToken OpenFor(D.ProcessToken process, string path = "/data/DATA.BIN", uint flags = 0)
         { var result = Run(D.OpenForProcess(State, process, Encoding.ASCII.GetBytes(path), flags)); HostCheck.True(result.Phase == D.Progress.Immediate && result.Value >= 3); return result.Descriptor; }
+        internal D.StatMetadata Stat(D.DescriptorToken file)
+        {
+            var request = D.BeginStat(State, file); HostCheck.Equal(D.Progress.Ready, Wait(request).Phase); D.StatMetadata facts = default;
+            HostCheck.Equal(0L, D.CopyStat(State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value); return facts;
+        }
         internal byte[] Read(D.DescriptorToken file, uint bytes, ulong offset = 0, bool positioned = false)
         {
             var begun = D.BeginRead(State, file, bytes, offset, positioned); HostCheck.Equal(D.Progress.Ready, Wait(begun).Phase);

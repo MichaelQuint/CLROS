@@ -22,7 +22,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         FdFull = -24, NoSpace = -28, Unsupported = -95, Overflow = -75, Stale = -116, Interrupted = -4,
         Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29, NoLocks = -37, NoSys = -38, Busy = -16;
     public enum Progress : byte { Rejected, Immediate, Pending, Ready, RecoveryRequired, Retired }
-    internal enum Operation : byte { Open, Read, Write, Sync, Grow, Truncate, Unlink }
+    internal enum Operation : byte { Open, Read, Write, Sync, Grow, Truncate, Unlink, Stat }
     internal enum Step : byte { Lookup, Create, CreatedLookup, Authenticate, Read, Write, Flush, Done, Grow, Truncate, DeleteLookup, Delete, FindFree }
 
     /// <summary>Copied limits for one optional forward candidate search.
@@ -125,12 +125,23 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         public readonly bool Valid, Directory;
         internal Metadata(Description* d) { EntryOffset = d->File.EntryOffset; Length = d->File.Length; DescriptionGeneration = d->Generation; Directory = d->Directory; Valid = true; }
     }
+    /// <summary>Fresh copied regular-file facts from a completed physical
+    /// lookup and full FAT-chain walk. The original descriptor generation and
+    /// process are checked again by CopyStat. No user-copy or later volume
+    /// authority follows from retaining this value.</summary>
+    public readonly struct StatMetadata
+    {
+        public readonly C.OpenFacts Facts;
+        public readonly ulong DescriptionGeneration;
+        internal StatMetadata(C.OpenFacts facts, ulong generation) { Facts = facts; DescriptionGeneration = generation; }
+    }
     internal struct Pending
     {
         internal ulong Generation, DescriptionGeneration, Offset;
         internal DescriptorToken Original;
         internal C.RequestToken EngineRequest;
         internal C.FileToken File;
+        internal C.OpenFacts StatFacts;
         internal ProcessToken Process;
         internal FreeSearch Search;
         internal Operation Kind;
@@ -573,6 +584,21 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         return BeginBorrow(s, token, description, Operation.Read, positioned ? offset : d->Position, bytes, positioned);
     }
 
+    /// <summary>Begin a fresh regular-file metadata lookup using the configured
+    /// primary process. This may yield for real directory/FAT reads. It neither
+    /// uses historical InspectCopied facts nor changes any file cursor.</summary>
+    public static Result BeginStat(State* s, DescriptorToken token) => BeginStatForProcess(s, PrimaryProcess(s), token);
+
+    /// <summary>Process-scoped form of BeginStat. Only the description's exact
+    /// registered process token may borrow it. Directory stat is unsupported.</summary>
+    public static Result BeginStatForProcess(State* s, ProcessToken process, DescriptorToken token)
+    {
+        if (!Current(s, token, out uint description) || !Owned(s, process, description) || s->Retiring) return Immediate(BadFd);
+        if (!Revision(s)) return Immediate(Io);
+        if (s->Input.Descriptions[description].Directory) return Immediate(Unsupported);
+        return BeginBorrow(s, token, description, Operation.Stat, 0, 0, true);
+    }
+
     /// <summary>Issue an actual engine volume FLUSH for a file or root fd.
     /// File fdatasync uses the same stronger barrier; directory fdatasync rejects.
     /// This supplies no filesystem crash or power-loss durability assertion.</summary>
@@ -602,6 +628,22 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Pending* p = &s->Work;
         if (p->Step is Step.Lookup or Step.CreatedLookup or Step.Authenticate or Step.DeleteLookup)
         {
+            if (p->Kind == Operation.Stat && !p->Cancelled)
+            {
+                C.OpenFacts facts = default;
+                status = C.CopyOpenFacts(s->Input.Engine, p->EngineRequest, &facts, (uint)sizeof(C.OpenFacts));
+                if (status == C.Status.Success)
+                {
+                    if (!Physical(s->Input.Descriptions[p->Description].File, facts.File))
+                    { Finish(s, Stale, C.Status.StaleToken); return AfterFinish(s); }
+                    s->Input.Descriptions[p->Description].File = facts.File; p->StatFacts = facts;
+                    Finish(s, 0, status); return AfterFinish(s);
+                }
+                // CopyOpenFacts deliberately preserves unsuccessful Ready
+                // requests. Consume that original lookup through its old API.
+                C.FileToken ignored = default; C.CopyOpen(s->Input.Engine, p->EngineRequest, &ignored);
+                Finish(s, Map(status), status); return AfterFinish(s);
+            }
             C.FileToken file = default; status = C.CopyOpen(s->Input.Engine, p->EngineRequest, &file);
             if (p->Cancelled) { Finish(s, Interrupted, status); return AfterFinish(s); }
             if (p->Step == Step.Lookup && status == C.Status.NotFound && (p->Flags & Create) != 0)
@@ -695,13 +737,13 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>Consume one ready open/write/barrier/error. Only this step
     /// publishes the reserved fd or commits a successful sequential write
-    /// cursor. Successful positive reads require CopyRead instead.</summary>
+    /// cursor. Successful reads/stat require CopyRead/CopyStat instead.</summary>
     public static Result Complete(State* s, RequestToken request)
     {
         if (!Matches(s, request)) return new(Progress.Rejected);
         Pending* p = &s->Work; if (!p->Ready) return Observe(s);
         if (s->Input.Engine->Dirty || s->KnownRevision != s->Input.Engine->VolumeRevision || s->Poisoned && p->Value >= 0) return Recovery(s);
-        if (p->Kind == Operation.Read && p->Step == Step.Read) return new(Progress.Rejected);
+        if (p->Kind == Operation.Read && p->Step == Step.Read || p->Kind == Operation.Stat && p->Value >= 0) return new(Progress.Rejected);
         if (!ProcessCurrent(s, p->Process)) { Drop(s); return Immediate(BadFd); }
         if (p->Borrowed && !Current(s, p->Original, out _)) { p->Discard = true; Drop(s); return Immediate(BadFd); }
         long value = p->Value; DescriptorToken descriptor = default; var failure = p->Failure;
@@ -744,6 +786,28 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Drop(s); return new(Progress.Immediate, value, failure: failure);
     }
 
+    /// <summary>Copy exactly one fresh StatMetadata to disjoint synchronous
+    /// supervisor storage. Validate the full size, provider/device lifetime,
+    /// process and original fd generation before any write. Bad output keeps
+    /// successful Ready held for retry; errors leave output untouched. No cursor
+    /// is changed. The syscall owner separately validates its user mapping.</summary>
+    public static Result CopyStat(State* s, RequestToken request, StatMetadata* metadata, uint metadataBytes)
+    {
+        if (!Matches(s, request) || s->Work.Kind != Operation.Stat) return new(Progress.Rejected);
+        Pending* p = &s->Work; if (!p->Ready) return Observe(s);
+        if (s->Input.Engine->Dirty || s->KnownRevision != s->Input.Engine->VolumeRevision || s->Poisoned && p->Value >= 0) return Recovery(s);
+        if (p->Value < 0) return Complete(s, request);
+        if (!ProcessCurrent(s, p->Process) || !Current(s, p->Original, out uint description) ||
+            description != p->Description || s->Input.Descriptions[description].Generation != p->DescriptionGeneration || p->Discard)
+        { p->Discard = true; Drop(s); return Immediate(BadFd); }
+        if (metadataBytes != sizeof(StatMetadata) || !Ordinary((ulong)metadata, (ulong)sizeof(StatMetadata), 8) ||
+            !External(s, new ReadOnlySpan<byte>(metadata, sizeof(StatMetadata)))) return Immediate(Fault);
+        if (!CanBorrowStorage(s, s->Input.Epoch, (ulong)metadata, (ulong)sizeof(StatMetadata)))
+            return new(Progress.Immediate, Io, failure: C.Status.InvalidState);
+        *metadata = new(p->StatFacts, p->DescriptionGeneration);
+        Drop(s); return Immediate(0);
+    }
+
     /// <summary>Revoke pending read/open continuation, or honor an already
     /// completed write/barrier. Close/retirement additionally discard every
     /// result. Issued dirty cancellation retains recovery, never fake rollback.</summary>
@@ -753,7 +817,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Pending* p = &s->Work;
         if (p->Ready && p->Step != Step.Read)
         {
-            if (p->Kind is Operation.Open or Operation.Read) { p->Cancelled = true; p->Step = Step.Done; Finish(s, Interrupted, C.Status.Cancelled); }
+            if (p->Kind is Operation.Open or Operation.Read or Operation.Stat) { p->Cancelled = true; p->Step = Step.Done; Finish(s, Interrupted, C.Status.Cancelled); }
             if (p->Discard) Drop(s); return p->Active ? Observe(s) : Immediate(0);
         }
         p->Cancelled = true;

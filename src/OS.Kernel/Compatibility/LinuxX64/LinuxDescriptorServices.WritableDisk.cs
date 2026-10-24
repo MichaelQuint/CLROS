@@ -10,7 +10,7 @@ public static unsafe partial class LinuxDescriptorServices
 {
     private const long WritableUnsupported = -95, WritableAgain = -11;
     private const byte WritablePending = 1, WritableReady = 2, WritableDraining = 3, WritableRecovery = 4;
-    private const byte WritableOpen = 1, WritableRead = 2, WritableWrite = 3, WritableSync = 4, WritableUnlink = 5;
+    private const byte WritableOpen = 1, WritableRead = 2, WritableWrite = 3, WritableSync = 4, WritableUnlink = 5, WritableStat = 6;
     public enum WritableDiskProgress : byte { Rejected, NotHandled, Immediate, Pending, Ready, Draining, RecoveryRequired }
 
     /// <summary>Copied attachment/request generation, not a user fd, mapping
@@ -183,7 +183,7 @@ public static unsafe partial class LinuxDescriptorServices
             }
             return WritableStarted(state, begun);
         }
-        if (call.Number is not (0 or 8 or 17 or 72 or 74 or 75 or 328)) return new(WritableDiskProgress.NotHandled);
+        if (call.Number is not (0 or 5 or 8 or 17 or 72 or 74 or 75 or 328)) return new(WritableDiskProgress.NotHandled);
         Description* opened = Find(state, unchecked((uint)call.Argument0));
         if (opened == null || (Kind)opened->Type != Kind.WritableDisk) return new(WritableDiskProgress.NotHandled);
         if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
@@ -194,6 +194,14 @@ public static unsafe partial class LinuxDescriptorServices
         if (call.Number == 8) return WritableSeek(state, opened, unchecked((long)call.Argument1), call.Argument2);
         if (call.Number == 72) return WritableLock(state, opened, call);
         if (call.Number == 328) return WritablePwrite(state, worker, opened, call);
+        if (call.Number == 5)
+        {
+            long statStarted = WritableStart(state, worker, call.Number, WritableStat);
+            if (statStarted != 0) return new(WritableDiskProgress.Immediate, statStarted);
+            WritableBorrow(state, (uint)call.Argument0, opened);
+            d->Request.Requested = d->Request.Wanted = 144;
+            return WritableStarted(state, W.BeginStatForProcess(d->Provider, d->Process, d->Bindings[d->Request.Description].File));
+        }
         if (call.Number is 74 or 75)
         {
             long syncStarted = WritableStart(state, worker, call.Number, WritableSync);
@@ -283,6 +291,18 @@ public static unsafe partial class LinuxDescriptorServices
             return CompleteWritableMutation(state);
         }
         if (r->Operation == WritableSync) return CompleteWritableMutation(state);
+        if (r->Operation == WritableStat)
+        {
+            W.StatMetadata metadata = default;
+            W.Result observed = W.CopyStat(d->Provider, r->ProviderRequest, &metadata, (uint)sizeof(W.StatMetadata));
+            if (observed.Phase != W.Progress.Immediate) return AbandonWritable(state, Io);
+            if (d->Provider->RequestActive) return AbandonWritable(state, observed.Value < 0 ? observed.Value : Io);
+            r->ProviderRequest = default;
+            if (observed.Value < 0) return FinishWritable(state, observed.Value, observed.Failure);
+            long statValue = WritableStatOutput(state, metadata, originalCall.Argument1, outputBytes, out C.Status failure);
+            if (statValue == 0) state->Owner.Descriptions[r->Description].Bytes = metadata.Facts.File.Length;
+            return FinishWritable(state, statValue, failure);
+        }
         if (originalCall.Argument2 != r->Requested || r->Positioned && originalCall.Argument3 != r->Offset) return new(WritableDiskProgress.Rejected);
         W.Result read = W.CopyRead(d->Provider, r->ProviderRequest, new Span<byte>(state->Owner.Scratch, (int)W.IoBytes));
         if (read.Phase != W.Progress.Immediate)
@@ -303,7 +323,7 @@ public static unsafe partial class LinuxDescriptorServices
     {
         if (!Attached(state, owner) || !WritableRequestFor(state, token)) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
-        if (!abandoning && r->Operation != WritableRead && r->Phase == WritableReady) return ObserveWritable(d);
+        if (!abandoning && r->Operation is not (WritableRead or WritableStat) && r->Phase == WritableReady) return ObserveWritable(d);
         r->CopyRevoked = true; r->Orphan = true; r->Worker = default; r->Value = -4;
         return CancelWritableProvider(state);
     }
@@ -392,6 +412,27 @@ public static unsafe partial class LinuxDescriptorServices
                 }
         return FinishWritable(state, done.Value, done.Failure);
     }
+    // Linux x64 stat is exactly 144 bytes. FAT modification fields are treated
+    // as UTC under this finite fixture policy; unavailable times stay zero.
+    // Invalid civil fields are corrupt metadata (EIO), never normalized dates.
+    private static long WritableStatOutput(State* state, W.StatMetadata metadata, ulong address, uint outputBytes, out C.Status failure)
+    {
+        failure = C.Status.Success;
+        C.OpenFacts facts = metadata.Facts; C.FileToken file = facts.File;
+        ushort time = (ushort)(file.Fingerprint2 >> 48), date = (ushort)file.Fingerprint3;
+        long modified = 0;
+        if ((time != 0 || date != 0) && !OS.Std.Time.GregorianUtc.TryUnixSeconds((uint)(1980 + (date >> 9)),
+            (uint)((date >> 5) & 15), (uint)(date & 31), (uint)(time >> 11), (uint)((time >> 5) & 63), (uint)((time & 31) * 2), out modified))
+        { failure = C.Status.CorruptDirectory; return Io; }
+        if (outputBytes < 144) return Fault;
+        byte* wire = stackalloc byte[144]; Clear(wire, 144);
+        *(ulong*)(wire + 8) = file.EntryOffset / 32 + 1; *(ulong*)(wire + 16) = 1;
+        *(uint*)(wire + 24) = ((file.Fingerprint1 >> 24) & 1) != 0 ? 0x8100U : 0x8180U; // regular 0400 or 0600
+        *(ulong*)(wire + 48) = file.Length; *(ulong*)(wire + 56) = facts.ClusterBytes;
+        *(ulong*)(wire + 64) = facts.Allocated512Blocks; *(long*)(wire + 88) = modified;
+        return Output(state, address, wire, 144) ? 0 : Fault;
+    }
+
     // Copy32-byte x64 flock with explicit field offsets; padding is preserved
     // for GETLK, and a no-conflict result changes only l_type. l_pid is data,
     // never process authority. No blocking/OFD/other whence support.
@@ -536,7 +577,7 @@ public static unsafe partial class LinuxDescriptorServices
         if (r->Self != (ulong)r || r->Phase > WritableRecovery) return false;
         if (r->Phase == 0)
         { if (r->Generation != 0 || r->Reserved || r->Borrowed || r->Worker.IsValid || r->ProviderRequest.Owner != 0 || r->TemporaryOpened.Owner != 0 || d->Provider->RequestActive) return false; }
-        else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritableUnlink ||
+        else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritableStat ||
             r->Orphan != !r->Worker.IsValid || r->Orphan && !r->CopyRevoked ||
             r->ProviderRequest.Owner != 0 && (r->ProviderRequest.Owner != (ulong)d->Provider || r->ProviderRequest.Epoch != d->Epoch || r->ProviderRequest.Generation == 0)) return false;
         if (r->Reserved && (!WritableReservationCurrent(s) || r->Operation != WritableOpen)) return false;
