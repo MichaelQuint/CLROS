@@ -1,5 +1,7 @@
 # Storage
 
+[Step1592](../done/step1592.md) Step1592 adds MaximumLoadedDirectorySteps=16 for internal mount/open name lookup over an already loaded512B sector. Unchanged LookupOne performs every physical-entry budget, VFAT, exact/folded/short-alias collision check. Continue only actual Work+1/Entry+1 under unchanged mount/op/device ownership, same component/sector and unchanged I/O counters; stop at16, boundary, waiting, pending metadata, completion/error, cancellation or no progress. Public DirectoryStep/Entry/OutputFull behavior is unchanged. A retained2-handle2,009,369B/3925fragmented-cluster host control reads246ranges in each direction:7850data-sector submissions/completions/copies,15700Drive polls, zero repeated FAT/directory reads. Cold stat-like open still validates the complete chain; this change is bounded scheduling, not a cache-authority shortcut or guest performance claim.
+
 [Step1591](../done/step1591.md) Step1591 implements source5 on the isolated writable host branch with genuine Park/Wake/Complete/Interrupt/exit paths. The complete provider tree is excluded from retained scheduler metadata/context/stack extents through an authenticated copied query. User read prefixes are pinned while waiting and revalidated before copy; clean pending interruption returns EINTR without mutation restart, known-ready results retain precedence, and dirty recovery returns EIO while retaining backing through drain.13 source5 controls and87 regressions pass; global19/image20/FAT70 controls pass. No EFI/native writable activation, physical flush or reboot durability is established. Full read r04 failed after83 responses at the unchanged1700-second matrix bound; expert analysis attributes the largest delay to one loaded directory entry per turn.
 
 [Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes complete original joins:8calls, pending next data sector,0committed data-sector copies, real reset retirement, submitted48/completed47/copied47 frozen through release, final memory restoration and fresh cleanup-end clock. This finite cancellation scope does not qualify other race variants, full Blazor, writes or durability. New #809 log/upload work starts with actual BCL contract measurement; FileStream best-effort lock or ignored sync errno never grants storage authority.
@@ -279,6 +281,8 @@ external HTTP results. Writable files and the later `OSHost_*` PAL export path
 remain separate.
 
 ### Planned FAT-sector cache and resumable traversal
+
+Development through step1592 implements this caller-owned cache and cursor contract on the feature branch; merged acceptance still requires the original batch gates. Cached open-chain turns are bounded64 visits; internal directory lookup turns examine at most16 physical entries from one loaded sector, retaining every entry budget/VFAT/collision check. Device submission/completion/copy remains separate. Public enumeration still exposes one retained entry, including OutputFull retry. Each independent open validates the whole bounded file chain, while retained offset reads use its checked map without repeated FAT walks.
 
 [M16-024/#771](http://192.168.4.35:3000/admin/CLROS/issues/771) owns the
 bounded cache and internal directory cursors within the read-only webroot

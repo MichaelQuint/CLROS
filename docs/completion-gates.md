@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1592](../done/step1592.md) Step1592 adds bounded loaded-directory parsing and focused collision/entry-budget/sector/LFN/cancellation controls. These host controls and the consolidated writable branch do not qualify fresh native or full disk/browser acceptance. Full r04 remains failed; three complete source-matched A/B/browser originals, affected race guests, stable unfiltered full/native/ancestor checks and reviewed merge remain outstanding.
+
 [Step1591](../done/step1591.md) Step1591 records guarded source5 implementation and focused host passes only; the existing accepted EFI profiles retain their links and layouts. Full DiskA r04 atc3dbab92 failed its1700-second matrix after83 responses, despite a successful2,009,369-byte CoreLib GET. No complete first-batch/read/Blazor, writable, sync/reboot, SQLite or larger gate advances. The passing finite ExitPending r03 keeps its original scope.
 
 [Step1590](../done/step1590.md) One fresh original ExitPending r03 atc3dbab92 passes its strict complete wrapper, including the independent cleanup clock. This finite race result does not close M16-025 or the read/Blazor batch. Full r04 remains pending; three complete A/B/browser originals and stable source-matched full/native/ancestor checks remain required. New log/upload issue #809 and source5 claims advance no gate.

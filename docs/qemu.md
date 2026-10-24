@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1592](../done/step1592.md) Step1592 prepares bounded loaded-directory lookup for the next full read original. Keep r04 original97-file receipt unchanged; no budget, timeout, serial cap or HTTP requirement is relaxed. Source-matched producer/native/image/package/serial/packet/external HTTP/browser/cleanup joins remain mandatory. The parallel log/upload Linux reference lease is serialized before the next guest.
+
 [Step1591](../done/step1591.md) Step1591 retains full r04 failed original runner/image/native/serial/packet/HTTP artifacts under readonly-disk-waits. The runner joined after matrix cancellation with termination confirmed;83 completed responses do not establish the full protocol/browser/cleanup result. No timeout or byte bound is raised. Next read repair requires a fresh source-matched original after focused coverage and native review; the Linux reference lease remains exclusive.
 
 [Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes qemu.smoke.disk-exit-pending calls=8 copiedDataSectors=0 outstanding=1 resetRetired=true and all original source/native/image/package/parent/process joins. Submitted48/completed47/copied47 stays frozen; final cleanup uses its own HPET clock. r01/r02 originals remain failed/unaccepted. Full r04 is separate and pending; copied leaf tests or this finite race cannot replace full A/B/browser evidence.

@@ -1,5 +1,7 @@
 # App Model
 
+[Step1592](../done/step1592.md) Step1592 reduces cooperative scheduling overhead during internal file-name lookup while preserving complete map validation on each independent open. Retained file handles read large fragmented assets without rebuilding metadata; close/reopen still validates current ownership and the whole bounded map. Public enumeration semantics and source4/source5 user-copy/offset rules are unchanged. Actual full Blazor and persistent application qualification still require fresh original evidence.
+
 [Step1591](../done/step1591.md) Step1591 integrates host-only genuine writable continuations and exact cursor-after-copy behavior; no automatic mutation restart is added. The actual BCL log/upload candidate passes7 controls, including Windows managed separate-process byte verification; Linux NativeAOT measurement is dispatched through linux log-upload-reference using an exclusive builder lease. No Linux result or guest persistence is claimed here. Full read r04 has83 successful responses but failed the matrix before browser/cleanup acceptance.
 
 [Step1590](../done/step1590.md) Fresh original ExitPending r03 passes its complete8-call process/image/device/cleanup wrapper. Separately M10-027/#809 adds a finite actual FileStream log/upload candidate using pre-existing empty LOG.TXT/UPLOAD.BIN, strict separate-process byte verification and pinned .NET11/C#14. Native trace, real MinimalApi upload/log integration, independent extraction/reboot and synchronization remain acceptance work. SQLite-only M10-020/#791 stays separate.

@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1592](../done/step1592.md) Step1592 adds a bounded internal LookupStep wrapper and unchanged single-entry LookupOne helper without allocation, recursion or new stack buffers. The reviewed normalized filesystem source is85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b. Existing2048native catalog bound remains unchanged; emitted native ABI/stack/catalog review and fresh original guests are still required. Guarded writable host imports do not activate new EFI links.
+
 [Step1591](../done/step1591.md) Step1591 adds source5 and retained-extent APIs only behind !NOSTDLIB_EFI or M16_027_PROBE guards. Existing025 native links/layouts remain unchanged; writable bootstrap, source5 activation, native ABI/stack review and actual write guests are unfinished. Focused host success and a CLI reference entry point are not EFI publication evidence.
 
 [Step1590](../done/step1590.md) Passing original ExitPending r03 atc3dbab92 uses EFI SHA2566dfaa7c7f4b8f18b195f0274b4d60a9c17ace1c4e3d94d9923ef35673e290b14, no imports,2010runtime records/1590distinct unwind below unchanged2048 limit. Original map/response/serializer/source/image/package joins pass in the complete wrapper. This does not supply full-profile or writable native stack/ABI acceptance; full r04 is a separate producer.

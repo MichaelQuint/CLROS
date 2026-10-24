@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1592](done/step1592.md) Step1592 consolidates the guarded writable host foundation with the bounded read lookup repair. Root owns shared/native/docs/tracker; exactly two agents continue filesystem/media controls and native BCL reference work. Batch internal loaded-sector lookups only; public pending directory entries remain retained. Do not raise original budgets, reclassify failed r04 or run a competing native producer while the Linux reference lease is owned.
+
 [Step1591](done/step1591.md) Step1591 supersedes the earlier source5-unimplemented status for the isolated host branch only. Root owns genuine source5 waits, retained scheduler extent exclusion and all native activation; both agents retain their exact scopes. Native/guest writable links remain absent. Full r04 is now a preserved failed original; next read work batches internal loaded-directory entries without changing public enumeration or device boundaries. Keep native publication serialized and preserve all earlier original failures.
 
 [Step1590](done/step1590.md) Fresh original ExitPending r03 atc3dbab92 passes the complete original process/device/image/parent/cleanup consumer. This finite8-call exit race is separate from full disk/Blazor acceptance; full r04 is pending and all earlier failed originals retain their scopes. M10-027/#809 owns four isolated log/upload app/tool/test paths. M16-027 now also claims KernelThreadTable.cs and EfiContracts.Sources.cs for root-only retained-extent/source review; preserve both agent owners and serialize native work.

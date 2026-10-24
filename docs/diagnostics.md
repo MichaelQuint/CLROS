@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1592](../done/step1592.md) Step1592 retains expert r04 analysis as copied timing values:239 metadata waits868.224s,499 pread waits483.109s;2658 directory-copy-to-next-submit intervals736.525s versus578FAT intervals15.699s. This motivates bounded loaded-sector entry processing. It is not an original-run pass, UART benchmark or promised speedup. New actual poll/sector counts must be retained after repair; earlier failed originals remain unchanged.
+
 [Step1591](../done/step1591.md) Step1591 preserves the failed full r04 original and97 artifact identities, including83 HTTP bodies, exact failure083 and joined runner cancellation. HEAD dotnet.js was cancelled3.844538 seconds after start by the matrix token; the earlier CoreLib GET succeeded347.6176668 seconds after start. Do not confuse the240-second header bound with a body deadline, or host source5 controls with native event evidence.
 
 [Step1590](../done/step1590.md) The fresh original ExitPending r03 publishes all eight genuine teardown stages plus M16_025_EXIT_CLEANUP_END and passes exact full/leaf owner/epoch/index/phase joins. Its terminal clock1374779300 is sampled after final restoration; retained active-end1084928500 keeps its original earlier meaning. Original r02 lacks this witness and remains wrapper-failed. Only explicit ExitPending requires the new row.

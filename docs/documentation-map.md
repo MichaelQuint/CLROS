@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1592](../done/step1592.md) Step1592 owns read LookupStep16 source/reviewed pin,33 filesystem controls, fragmented-large-file measurements, writable/read branch consolidation and the next fresh original boundary. Storage defines batching and retained handles; QEMU/diagnostics retain failed r04 and native provenance; step1591 owns source5 implementation and its exact Gitea evidence comment readbacks.
+
 [Step1591](../done/step1591.md) Step1591 owns isolated source5 integration, copied scheduler extent admission, actual mapping/cancellation controls, log/upload CLI dispatch and failed r04 identities. Storage/PAL own retained backing and prefix/cursor rules; application docs own reference versus persistence boundaries; QEMU/diagnostics retain original cancellation evidence. Next read repair and its focused controls are recorded separately in step1592.
 
 [Step1590](../done/step1590.md) Step1590 owns passing original ExitPending r03 identities and the missing log/upload M10-027/#809 scope. Storage/diagnostics/QEMU retain the finite exit/reset clock contract; application docs retain BCL measurement versus HTTP/persistence boundaries. Root source5 scheduler backing and reviewed-source claims are explicit in M16-027. The new child is nonrequired for the historical parent gate and its planning checklist is reconciled.

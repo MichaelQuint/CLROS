@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1592](../done/step1592.md) Step1592 keeps M16-024/M10-018 open while recording internal loaded-sector parsing, large-file host controls and preserved failed r04. Step1591 evidence comments800/24360,809/24361,774/24362,799/24363 read back exact/open. Initial integer indexing of an ordered PowerShell map failed before any comment mutation; corrected string-keyed posting retained a separate receipt. Reconcile only current explicit manifest versions and read back zero drift.
+
 [Step1591](../done/step1591.md) Step1591 claims ToolCommand.cs on M10-027 before its CLI edit: fresh preview1/apply1/readback9unchanged. Source5 host integration, native-reference preparation and the newly failed full r04 are evidence updates only; all issue states/dependencies remain open and unchanged. Use the current explicit manifest across checkouts; preserve both agent owners and human addenda.
 
 [Step1590](../done/step1590.md) Step1590 reviews204open LAN issues and creates the missing M10-027/#809 log/upload scope with four exact agent paths. Fresh preview1create/apply1/readback9unchanged precedes source edits. Parent M10-EPIC and M16-027 scheduler claim have preview2/apply2/readback15unchanged; a separate source-pin claim has preview1/apply1/readback9unchanged. All remain open; no finite guest result closes a larger issue.
