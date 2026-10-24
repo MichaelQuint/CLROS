@@ -21,6 +21,11 @@ public static unsafe class ReadOnlyWebRootFileSystem
     /// Each visit may scan at most4096 prior clusters. Stop at the first real
     /// I/O transition; this never polls a newly submitted device request.</summary>
     public const uint MaximumCachedChainSteps = 64;
+    /// <summary>Maximum physical entries examined by one internal lookup turn
+    /// within an already loaded512-byte directory sector. Every entry still
+    /// consumes the cumulative traversal budget and VFAT/collision validation.
+    /// Public directory enumeration retains its single pending entry contract.</summary>
+    public const uint MaximumLoadedDirectorySteps = 16;
     private const ulong AddressLimit = 0x0000800000000000UL;
     private const byte Free = 0, Working = 1, ReadyPhase = 2, Failed = 3, Cancelling = 4;
     private const byte Mounting = 1, Mounted = 2, Stopping = 3, Retired = 4, Faulted = 5;
@@ -212,8 +217,9 @@ public static unsafe class ReadOnlyWebRootFileSystem
         return Status.Pending;
     }
 
-    /// <summary>Advance at most one real sector completion or one parser/chain
-    /// step. Return Ready only after BPB and both root components are validated.</summary>
+    /// <summary>Advance at most one real sector completion or a bounded parser
+    /// turn over one loaded sector. Return Ready only after BPB and both root
+    /// components are validated; never complete and parse I/O in the same call.</summary>
     public static Status PumpMount(Mount* m)
     {
         if (!Bound(m)) return Status.InvalidState;
@@ -610,6 +616,35 @@ public static unsafe class ReadOnlyWebRootFileSystem
     }
 
     private static Status LookupStep(Mount* m, Operation* o)
+    {
+        Block.State* device = m->Input.Device;
+        ulong epoch = m->Input.Epoch, generation = o->Generation;
+        ulong submitted = device->Submitted, completed = device->Completed, copied = device->Copied, cancelled = device->Cancelled;
+        uint operationIndex = o->Index, component = o->Component, componentLength = o->ComponentLength;
+        uint cluster = o->Cursor.Cluster, sector = o->Cursor.SectorInCluster;
+        byte mountPhase = m->Phase, kind = o->Kind;
+        bool batch = !m->IoActive && o->Waiting == 0 && o->Cursor.Visited && o->Cursor.SectorReady &&
+            !o->Cursor.HasPending && !o->Cursor.Ended && o->Cursor.EntryInSector < 16;
+        for (uint step = 0; ; step++)
+        {
+            uint work = o->Work, entry = o->Cursor.EntryInSector;
+            Status status = LookupOne(m, o);
+            if (status != Status.Pending || !batch || step + 1 == MaximumLoadedDirectorySteps ||
+                o->Work != work + 1 || o->Cursor.EntryInSector != entry + 1 || o->Cursor.EntryInSector >= 16 ||
+                o->Waiting != 0 || m->IoActive || o->LookupDone || o->Cursor.HasPending || o->Cursor.Ended ||
+                !o->Cursor.Visited || !o->Cursor.SectorReady || o->Cursor.Cluster != cluster || o->Cursor.SectorInCluster != sector ||
+                o->Component != component || o->ComponentLength != componentLength ||
+                device->Submitted != submitted || device->Completed != completed || device->Copied != copied || device->Cancelled != cancelled ||
+                m->Input.Device != device || !Bound(m) || m->Phase != mountPhase || !DeviceBound(m) || !device->Running || m->Input.Epoch != epoch ||
+                o->Self != (ulong)o || o->Epoch != epoch || o->Generation != generation || o->Phase != Working || o->Kind != kind ||
+                o->Index != operationIndex || m->Input.Operations + operationIndex != o)
+                return status;
+        }
+    }
+
+    // Preserve every single-entry VFAT, name/alias collision and work-budget
+    // check. Only internal lookups consume entries here; public scans do not.
+    private static Status LookupOne(Mount* m, Operation* o)
     {
         Status step = DirectoryStep(m, o);
         if (step == Status.Entry)

@@ -10,7 +10,7 @@ public static partial class EfiContracts
             {
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "fc6edeabd1903691d78f968ccbd21f5f1cd7a93e4179a1ddbf5544e7b24d735c",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "0e88030c95c0cb1b4e8cd47933c1b8faaaffdc614760fee2530ccd29b75b07b6",
-                [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "d889c3a548000dc48c086bac865e7a16df4342a71a4a2ea0ccc943587e7ab26c",
+                [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "bb09afc107d9405af85ef70520e36d566c1ea27fc38e8d2a7709deff48d6762b",
                 [@"Boot\EfiEntry.DiskEvidence.cs"] = "ea6eb50dde22da537489cb6d8fb9c001f6f36d761405a6dac1f6c4c738d1525b",
                 [@"Boot\EfiEntry.DiskBootstrap.cs"] = "89e8acf5685b78d48f1078deba8f8177cf7ca2efa570e1e66a8be9a13f79ec8d",
