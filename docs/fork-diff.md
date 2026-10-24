@@ -576,3 +576,10 @@ git diff --check
 
 All listed `Test-Path` results must be `True`. They prove only that the
 inspectable local files exist.
+
+
+## October23 pinned reference comparison
+
+[The complete reference disposition](reference-map.md#canonical-upstream-and-backlog-reconciliation-2026-10-23) incorporates the 40-directory upstream scan and selected source review. Existing snapshots remain unchanged and outside build inputs. Distinguish same-path source changes from added/removed paths and encoding-only changes: DiscUtils has 63 BOM/CRLF-only differences; the pinned upstream comparison has five commits, eight modified and six added files, chiefly UDF/ISO/SquashFS, with no new FAT fix. The documented SingNext baseline could not be resolved by upstream comparison, so only current source-byte comparisons are claimed. PatienceOS upstream was unavailable, not verified unchanged.
+
+SharpOS step208 writer code supplies negative tests for suppressed flush failure, early dirty-state clearing and optimistic FSInfo publication; no writer or runtime patcher is imported. Cosmos and uACPI additions are compared against existing CLROS tests before scheduling missing cases. Nativeaot-patcher's current f9103822 tip is already covered by the October6 review. The optional SharpLibm #801 assessment retains its own upstream licenses and compiler/ISA contract; SharpOS CC0 does not cover dependencies.

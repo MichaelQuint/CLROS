@@ -54,6 +54,12 @@ public static class BacklogSelfTest
         Require(rejected, "duplicate_hidden_key");
         output.WriteLine("SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-020 markers=1 wouldCreate=0 duplicateMarkersRejected=true");
         TestStatePolicy(); output.WriteLine("SYNC_SELF_TEST_STATE_POLICY_PASS");
+        TestOptionalChildPolicy(); output.WriteLine("SYNC_SELF_TEST_OPTIONAL_CHILD_POLICY_PASS");
+        var invalid = manifest.Source.DeepClone().AsObject();
+        invalid["issues"]![0]!["requiredForParent"] = "false";
+        rejected = false;
+        try { _ = BacklogManifest.Validate(invalid); } catch (InvalidDataException) { rejected = true; }
+        Require(rejected, "optional_boolean_type");
         foreach (var test in MilestoneCases)
         {
             foreach (bool apply in new[] { false, true }) TestMilestone(test, apply);
@@ -155,6 +161,32 @@ public static class BacklogSelfTest
         Require(BacklogPolicy.AgentLabel(reopen, reopenMap, reopenRemote) == "agent:ready", "reopen not ready");
         ancestor["ownedPaths"] = dependent["ownedPaths"]!.DeepClone(); remote.Issues["ROOT"]["state"] = "open"; remote.Issues["ROOT"]["labels"] = new JsonArray(new JsonObject { ["name"] = "agent:claimed" });
         dependent["dependencyKeys"] = new JsonArray(); Require(BacklogPolicy.AgentLabel(dependent, map, remote) == "agent:blocked", "claimed overlap not blocked");
+    }
+    private static void TestOptionalChildPolicy()
+    {
+        var epic = Issue("M08-EPIC", epic: true);
+        var required = Issue("M08-001", parent: "M08-EPIC");
+        var optional = Issue("M08-020", "open", "M08-EPIC"); optional["requiredForParent"] = false;
+        var map = new Dictionary<string, JsonObject> { ["M08-EPIC"] = epic, ["M08-001"] = required, ["M08-020"] = optional };
+        BacklogRemoteState remote = new();
+        int number = 0;
+        foreach (var (key, item) in map)
+        {
+            var live = Remote(++number, state: Text(item, "desiredState")); live["body"] = "<!-- clros-issue-key:" + key + " -->";
+            remote.Issues[key] = live; remote.AllIssues.Add(live);
+            if (Text(item, "desiredState") == "closed") remote.ReviewedClosures.Add(key);
+        }
+        JsonObject milestone = new() { ["key"] = "M08" }, container = new() { ["id"] = 7 };
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is null, "optional child blocked epic");
+        Require(BacklogPolicy.MilestoneClosureFailure(milestone, container, map, remote) is null, "optional child blocked milestone");
+        optional["requiredForParent"] = true;
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is not null, "required child bypassed");
+        optional["requiredForParent"] = false; epic["dependencyKeys"] = new JsonArray("M08-020");
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is not null, "explicit optional dependency bypassed");
+        epic["dependencyKeys"] = new JsonArray(); remote.ReviewedClosures.Remove("M08-001");
+        Require(BacklogPolicy.ClosureFailure("M08-EPIC", map, remote) is not null, "unreviewed required child bypassed");
+        remote.ReviewedClosures.Add("M08-001"); remote.AllIssues.Add(Remote(4, state: "open"));
+        Require(BacklogPolicy.MilestoneClosureFailure(milestone, container, map, remote) is not null, "unknown supplemental member bypassed");
     }
     private static void Require(bool value, string reason) { if (!value) throw new InvalidOperationException("Backlog self-test: " + reason); }
 }

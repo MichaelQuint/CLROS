@@ -52,7 +52,7 @@ public static class BacklogPolicy
                 foreach (var child in children)
                 {
                     string childKey = Text(child, "key");
-                    string optional = new[] { "M08-020", "M12-017", "M13-017", "M15-010", "M15-011", "M15-012", "M15-013" }.Contains(childKey, StringComparer.Ordinal) ? " [OPTIONAL]" : "";
+                    string optional = RequiredForParent(child) ? "" : " [OPTIONAL]";
                     int number = NumberFor(childKey);
                     Line("- [ ] " + (number > 0 ? "#" + number + " (key " + childKey + ")" : childKey) + optional + " - " + Text(child, "summary") + (number > 0 ? "" : " (will resolve after creation)"));
                 }
@@ -96,9 +96,12 @@ public static class BacklogPolicy
             if (ClosureFailure(prerequisite, manifest, remote, pending) is string failure) throw new InvalidDataException("Refusing to close '" + key + "': " + failure + ".");
     }
 
+    /// <summary>Whether a child implicitly gates its parent; explicit dependency edges always remain required.</summary>
+    public static bool RequiredForParent(JsonObject issue) => issue["requiredForParent"]?.GetValue<bool>() ?? true;
+
     private static IEnumerable<string> Prerequisites(JsonObject issue, IReadOnlyDictionary<string, JsonObject> manifest) =>
         Strings(issue, "dependencyKeys").Concat(Strings(issue, "labels").Contains("type:epic", StringComparer.Ordinal)
-            ? manifest.Values.Where(x => Text(x, "parentKey") == Text(issue, "key")).Select(x => Text(x, "key")) : []);
+            ? manifest.Values.Where(x => Text(x, "parentKey") == Text(issue, "key") && RequiredForParent(x)).Select(x => Text(x, "key")) : []);
 
     public static IReadOnlyList<JsonObject> UpdateOrder(IReadOnlyList<JsonObject> issues)
     {
@@ -176,7 +179,12 @@ public static class BacklogPolicy
         if (!Strings(epic, "labels").Contains("type:epic", StringComparer.Ordinal)) return "expected canonical epic '" + epicKey + "' lacks exact type:epic label";
         if (ClosureFailure(epicKey, manifest, remote) is string failure) return failure;
         foreach (var issue in remote.AllIssues)
-            if (issue["pull_request"] is null && Number(issue["milestone"], "id") == id && Text(issue, "state") != "closed") return "actual milestone member '#" + Number(issue, "number") + "' is not closed";
+        {
+            if (issue["pull_request"] is not null || Number(issue["milestone"], "id") != id || Text(issue, "state") == "closed") continue;
+            string memberKey = HiddenKey(Text(issue, "body"));
+            if (manifest.TryGetValue(memberKey, out var member) && Text(member, "parentKey") == epicKey && !RequiredForParent(member)) continue;
+            return "actual milestone member '#" + Number(issue, "number") + "' is not closed";
+        }
         return null;
     }
 }

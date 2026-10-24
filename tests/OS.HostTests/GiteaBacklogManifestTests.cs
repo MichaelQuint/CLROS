@@ -210,11 +210,16 @@ internal static class GiteaBacklogManifestTests
             HostCheck.Result(DependenciesEqual(issueByKey["M09-001"], "M16-003")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M10-001"], "M16-001")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M14-001"], "M10-014")) &&
-            HostCheck.Result(DependenciesEqual(issueByKey["M12-001"], "M14-016")) &&
-            HostCheck.Result(DependenciesEqual(issueByKey["M13-001"], "M14-016")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M12-001"], "M14-016", "M11-018")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M13-001"], "M14-016", "M11-018")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M12-018"], "M12-016")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M13-018"], "M13-016")) &&
-            HostCheck.Result(DependenciesEqual(issueByKey["M15-014"], "M15-009"));
+            HostCheck.Result(DependenciesEqual(issueByKey["M15-014"], "M15-009", "M14-017", "M14-018")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M06-020"], "M10-019", "M10-020")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M06-021"], "M06-020")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M16-027"], "M06-021")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M10-021"], "M10-020", "M10-018", "M16-027")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M10-026"], "M10-023", "M10-024", "M10-025", "M10-014"));
     }
 
     private static bool TestM01InstructionPublicationManifest(string manifestPath)
