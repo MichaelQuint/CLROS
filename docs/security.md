@@ -1,5 +1,15 @@
 # Security
 
+The production appliance profile has no guest interactive shell, terminal, SSH,
+general command interpreter or command-execution administration endpoint.
+Management uses the deployment environment's lifecycle/configuration boundary;
+this is a design requirement, not a claim of implemented provider integration.
+Host tooling and bounded diagnostic output do not authorize an interactive guest
+console. Application endpoints still need their own authentication and input
+validation. Both Linux and future custom PE adapters must enforce the same core
+capability, user-memory, ownership, quota and cleanup rules; format selection
+must not bypass protection. See the [core/adapter contract](architecture.md#core-services-and-application-adapters).
+
 The [October19 review](repo-audit.md#october-19-whole-project-review) adds
 [#778](http://192.168.4.35:3000/admin/CLROS/issues/778) for peer-controlled unread
 data retaining fd-less bulk TCP capacity, and
