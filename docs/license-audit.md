@@ -426,3 +426,10 @@ git diff --check
    before distributing binaries containing third-party material.
 3. Treat every future reference update as a new immutable snapshot requiring a
    renewed source, license, and behavioral-diff review.
+
+
+## October23 reference-only intake
+
+SharpLibm is a separate MIT project pinned at `dd70337b36b3280677c397a3b56b5915476d9b07`, with MIT/CORE-MATH/musl, BSD/Go/go2cs/Cosmos and Sun/fdlibm notices in its `THIRD-PARTY-NOTICES.md`. Optional #801 must preserve exact selected-file notices and pin all oracle inputs before any reuse. Its separate test repository is pinned at `b98279395bd6a3e65d2e153eb0ba3231caae939f`; upstream numerical coverage was not rerun, and NaN-normalizing comparisons do not establish payload semantics. GPL/LGPL oracle sources remain isolated outside first-party source.
+
+Current Brovan `87a4197c241f14f1f72c55fd8f73d1bc3f079576` root license is GPL version2; SingNext `5731fb0206b22cc50c7187309a512dd0fcc72873` is AGPL3. Their additions supply concepts and independently authored tests only. Cosmos current source is BSD3, SharpMetal/uACPI are MIT, and Inu still lacks a verified project-wide root license. No code, dependency, binary, font/media or native source was imported by this review; the detailed [reference map](reference-map.md#canonical-upstream-and-backlog-reconciliation-2026-10-23) preserves per-project dispositions.

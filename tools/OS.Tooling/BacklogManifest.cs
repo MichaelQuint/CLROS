@@ -70,6 +70,9 @@ public sealed class BacklogManifest
             if (!key.StartsWith(milestone + "-", StringComparison.Ordinal)) Fail("Issue '" + key + "' does not belong to its declared milestone.");
             foreach (string label in Strings(issue, "labels")) if (!labelByName.ContainsKey(label)) Fail("Issue '" + key + "' references unknown label '" + label + "'.");
             if (Text(issue, "desiredState") is not ("open" or "closed" or "reopen")) Fail("Issue '" + key + "' has invalid desiredState.");
+            if (issue.TryGetPropertyValue("requiredForParent", out var required) &&
+                (required is not JsonValue value || !value.TryGetValue<bool>(out _)))
+                Fail("Issue '" + key + "' requiredForParent must be a boolean when present.");
             if (Strings(issue, "acceptanceCriteria").Length == 0 || Strings(issue, "requiredCommands").Length == 0 || string.IsNullOrWhiteSpace(Text(issue, "evidenceBoundary")))
                 Fail("Issue '" + key + "' does not contain implementation-ready acceptance, commands, and evidence boundary.");
             HashSet<string> owned = new(StringComparer.Ordinal);

@@ -23,9 +23,7 @@ reproduces a lost concurrent unmanaged note in compiled apply. Until repaired,
 preview is safe; existing-body updates need fresh GET, preserved unmanaged text
 and labels, current `content_version`, conflict handling and exact readback.
 This review used compiled creation for five new issues, versioned API writes
-for five existing records, then a zero-change scoped preview. The current
-manifest has 394 issues (17 epics, 377 children); auxiliary keyed live issues are
-separate. Historical inventory counts below retain their original dates.
+for five existing records, then a zero-change scoped preview. The current manifest has 407 managed issues (17 epics, 390 children) plus 11 canonical supplemental descriptions. The supplemental issues retain their original unkeyed identities and milestones. Historical inventory counts below retain their original dates.
 
 Selection limits issue writes while retaining the complete dependency and
 ownership graph; relevant label/milestone definitions are reconciled too.
@@ -42,7 +40,7 @@ entropy, logging, packet-corpus, Kestrel lifecycle/churn, budget, termination,
 crash-isolation and sustained-load issues and their parent checklists.
 [The workload roadmap](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
 explains their order. Step1380 qualifies M10-004 and M07-027/M07-028; the
-remaining review plans stay open. Preserve the current #737 application owner
+remaining review plans stay open. Preserve the current #768-#774 integration owner
 and human addenda. Use current `content_version` values for body writes and require scoped
 readback/convergence; a label alone does not grant shared-lane ownership.
 
@@ -214,7 +212,7 @@ skip, or failure action. None of these administrative inventory changes
 advances a capability or completion gate.
 
 
-The synchronizer is a .NET 10 C# service. `BacklogContracts.Children` is the
+The synchronizer is a .NET 11 / C#14 service. `BacklogContracts.Children` is the
 single reviewed child inventory; the validator and tests derive epic, child,
 issue and managed-object totals from it and the manifest. Update that inventory
 when accepting a new slice. Existing historical evidence counts remain frozen.
@@ -223,8 +221,7 @@ The self-test exercises managed-body preservation, closure ordering and all
 milestone policy cases against an injected API. Preview never writes; apply
 re-reads the tracker and verifies convergence after updates. HTTP redirects are
 refused and credentials are read only from the existing runtime environment or
-the matching local-gitea tea entry. Endpoint restrictions remain loopback-only;
-this port does not authorize using this destination host's different Gitea.
+the matching local-gitea tea entry. Endpoint restrictions require the verified LAN repository; loopback on this host is unrelated.
 ## Implemented Behavior
 
 - Agent state: `agent:ready`, `agent:claimed`, `agent:blocked`,
@@ -428,3 +425,12 @@ tracker comments and synchronizer logs prove which steps completed.
    and all 429 managed objects unchanged/skipped with zero proposed writes.
 5. Claim M02-003 only after that convergence; its privileged In8/Out8 evidence
    must remain distinct from M02-017's safe offset-zero cookie tuple.
+
+
+## October23 canonical review reconciliation
+
+The 193 open-issue review is incorporated into canonical descriptions, not merely comments. `.gitea/backlog/clros-issues.json` contains managed records and `supplementalIssues` for the 11 existing unkeyed optional/research descriptions. Ordinary managed sync deliberately ignores supplemental bodies; update them through a fresh versioned API write with exact readback and preserve their labels, milestone, ownership and human addenda. Existing review comments remain immutable audit context.
+
+The optional boolean `requiredForParent` defaults to true. False excludes only implicit epic/milestone closure; explicit dependency edges remain mandatory. Checklists use the same value. Unknown supplemental milestone members still block closure. The offline self-test covers optional versus required children, explicit optional dependencies, missing reviewed evidence, invalid field types and unknown members. This policy change does not close or reopen any issue/milestone.
+
+The #780 concurrent-update repair remains open. This reconciliation uses guarded fresh `content_version` writes and exact body/title/label readback instead of the known unsafe bulk apply path. New #798-#801 are bounded planned successors; #791-#797 were adopted under M10-020 through M10-026 without duplicates. Refresh the developer's dirty primary manifest field by field from the resulting master commit after its source freeze; do not overwrite its implementation or new evidence.

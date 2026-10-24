@@ -731,3 +731,14 @@ thread prerequisites, live TCP listener behavior, Kestrel bind, external HTTP
 probe, and serial evidence. `MultiMinimalApi` should remain blocked until
 process, address-space isolation, scheduler, supervisor, and per-app security
 issues are represented and tested.
+
+
+## Canonical successor issue keys (2026-10-23)
+
+Finish the current #780/#781/#782/#768-#774 batch without changing its owner or accepted receipts. Direct `Microsoft.Data.Sqlite` requirement measurement is M10-020/#791. Sustained read-only service #775 precedes writable block/flush M06-020/#798, FAT mutation/recovery M06-021/#799 and confined writable descriptor/locking M16-027/#800; #798 also requires measured #791. M10-021/#792 then qualifies rollback-journal transactions/recovery. #468 remains bounded preallocated overwrite and cannot substitute for these prerequisites. EF Core's separate NativeAOT requirements do not describe SQLite-engine compatibility.
+
+General NativeAOT hosting follows #774: M10-022/#793 contract -> M10-023/#794 generic publication/admission -> M10-024/#795 generic launch/stop -> M10-025/#796 semantic conformance -> M10-026/#797 independent-app/rebuild gate. #797 also requires #227. Normal compatible apps and changed rebuilds use unchanged kernel/EFI and deployment tools, with no app-name/hash allow-list patch or manual disassembly/reference-VM session. Unsupported features remain explicit; advertised disk/SQLite capabilities require their own qualification. #755 specialization is optional and cannot replace this general path.
+
+These successor children use `requiredForParent=false`: their addition does not redefine the historical first-web/closed storage foundation scope. Their own dependencies and acceptance remain mandatory before claiming the successor capability. The same policy keeps optional DOOM, IMDS, WireServer and hosted Roslyn/PowerShell outside core epic closure. Explicit dependency edges always override that optional-parent status. #248/#267 explicitly require #246 and #301; #318 requires both #302 and #303 for the both-provider release. No gate has advanced through this administrative correction.
+
+M04-025/#801 is optional demand-gated SharpLibm research after #774, not a Kestrel prerequisite. Require a concrete shared/kernel caller before selecting a minimal primitive; retain the upstream NativeAOT/musl application's math path. Current reference-derived test work is mapped in [reference map](reference-map.md#canonical-upstream-and-backlog-reconciliation-2026-10-23).
