@@ -6,6 +6,12 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["linux", "sqlite-reference", var sqliteRecipe, var sqliteSource, var sqliteOutput])
+                return NativeAotSqliteContract.RunLinuxReferenceAsync(Repository.FindRoot(), sqliteRecipe,
+                    sqliteSource, sqliteOutput, Console.Out).GetAwaiter().GetResult();
+            if (args is ["linux", "sqlite-recovery-reference", var recoveryRecipe, var recoverySource, var recoveryOutput])
+                return NativeAotSqliteContract.RunLinuxRecoveryReferenceAsync(Repository.FindRoot(), recoveryRecipe,
+                    recoverySource, recoveryOutput, Console.Out).GetAwaiter().GetResult();
             if (args is ["linux", "log-upload-reference", var logUploadRecipe, var logUploadOutput])
             {
                 using var reference = NativeAotLogUploadContract.RunLinuxReferenceAsync(
@@ -390,6 +396,7 @@ public static class ToolCommand
             if (args.Length == 0 || args is ["--help"])
             {
                 Console.WriteLine("linux log-upload-reference <original-socket-recipe-root> <fresh-artifacts-output> (Linux NativeAOT reference only; requires an exclusive builder lease)");
+                Console.WriteLine("linux sqlite-reference|sqlite-recovery-reference <original-socket-recipe-root> <pinned-source-zip> <fresh-artifacts-output> (Linux NativeAOT reference only; requires an exclusive builder lease)");
                 Console.WriteLine("nativeaot static-files package --recipe-root <original-candidate-root> --evidence <original-reference> --output <fresh-artifacts-package> --staged|--disk");
                 Console.WriteLine("nativeaot static-files index <original-ELF> <llvm-disassembly> | program <package> <llvm-disassembly> --staged|--disk");
                 Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");

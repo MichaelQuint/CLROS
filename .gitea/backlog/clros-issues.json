@@ -37087,7 +37087,8 @@
         "apps/NativeAotSqliteContract/NativeAotSqliteContract.csproj",
         "tools/OS.Tooling/NativeAotSqliteContract.cs",
         "tests/OS.HostTests/NativeAotSqliteContractTests.cs",
-        "docs/cstorage.md"
+        "docs/cstorage.md",
+        "tools/OS.Tooling/ToolCommand.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
