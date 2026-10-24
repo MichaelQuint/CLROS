@@ -736,6 +736,71 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.Equal(0L, D.FcntlLockForProcess(f.State, replacement, file, 5, new(1, 0, 0, 0)).Value);
     }
 
+    [HostTest("continuing process exit and PID reuse at mutation phases revoke original authority and preserve other owner lineage")]
+    private static void MutationProcessPhases()
+    {
+        // Metadata IN, first issued OUT and final clean engine Ready are
+        // distinct ownership boundaries. The final case holds the original
+        // authenticated engine result before the provider consumes it.
+        foreach (int operation in new[] { 0, 1, 2 }) foreach (int phase in new[] { 0, 1, 2 })
+        {
+            using var f = new Owner(growth: true, locks: true); var originalOwner = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+            var original = f.Open(flags: 2); string retainedPath = operation == 2 ? "/data/KEEP.TXT" : "/data/DATA.BIN";
+            var retained = f.OpenFor(other, retainedPath, 2); C.FileToken originalRetained = f.CopiedFile(retained);
+            HostCheck.Equal(0L, L(f, other, retained, 6, 1, 1073741825, 1).Value);
+            if (operation == 2) D.Close(f.State, original);
+            var request = operation == 0 ? D.BeginWriteWithGrowth(f.State, original, new byte[600], new uint[] { 8 }, 899, true) : operation == 1 ?
+                D.BeginTruncate(f.State, original, 300) : D.BeginUnlink(f.State, "/data/DATA.BIN"u8);
+            if (phase == 0) { D.Pump(f.State); HostCheck.True(f.Device->Pending && f.Device->Type == 0); }
+            else if (phase == 1)
+            {
+                for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+                HostCheck.True(f.Storage.State->Dirty);
+            }
+            else f.HoldMutationReady();
+            var exited = D.ExitProcess(f.State, originalOwner);
+            HostCheck.Equal(phase == 1 ? D.Progress.RecoveryRequired : D.Progress.Pending, exited.Phase);
+            var replacement = D.RegisterProcess(f.State, 11).Process;
+            HostCheck.True(replacement.Index == originalOwner.Index && replacement.Generation != originalOwner.Generation);
+            HostCheck.Equal(-9L, D.CloseForProcess(f.State, originalOwner, original));
+            HostCheck.Equal(-9L, D.FcntlLockForProcess(f.State, originalOwner, retained, 5, new(1, 0, 0, 1)).Value);
+            if (phase == 1)
+            {
+                HostCheck.True(f.State->RequestActive && !f.State->Retired && f.Storage.State->Dirty);
+                HostCheck.Equal(-5L, D.OpenForProcess(f.State, replacement, "/data"u8, 0).Value);
+                byte[] journal = new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).ToArray();
+                HostCheck.Equal(D.Progress.RecoveryRequired, D.Complete(f.State, request.Request).Phase);
+                HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+                HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+                HostCheck.True(new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).SequenceEqual(journal));
+                continue;
+            }
+            var reused = f.OpenFor(replacement, "/data"); HostCheck.True(reused.Number == original.Number && reused.Generation != original.Generation);
+            f.CompleteHardware(); f.Drain(); HostCheck.True(!f.State->RequestActive && !f.State->Quarantined);
+            HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase);
+            var queryFile = f.OpenFor(replacement, retainedPath); var conflict = L(f, replacement, queryFile, 5, 1, 1073741825, 1);
+            HostCheck.True(conflict.Lock.Pid == 22 && conflict.Process.Generation == other.Generation);
+            C.FileToken current = f.CopiedFile(retained);
+            HostCheck.True(current.Owner == originalRetained.Owner && current.EntryOffset == originalRetained.EntryOffset && f.Cursor(retained) == 0);
+            if (phase == 0)
+            {
+                HostCheck.True(current.Length == originalRetained.Length && f.Storage.Device.State->SubmittedBytes == 0);
+                f.Independent("DATA.BIN", Enumerable.Range(0, 900).Select(Value).ToArray());
+            }
+            else if (operation == 2)
+            {
+                HostCheck.True(current.Length == originalRetained.Length && current.Fingerprint0 == originalRetained.Fingerprint0);
+                HostCheck.Equal(-2L, f.Run(D.OpenForProcess(f.State, replacement, "/data/DATA.BIN"u8, 0)).Value);
+            }
+            else
+            {
+                uint length = operation == 0 ? 1499U : 300U; HostCheck.Equal(length, current.Length);
+                byte[] expected = new byte[length]; Enumerable.Range(0, operation == 0 ? 900 : 300).Select(Value).ToArray().CopyTo(expected, 0);
+                f.Independent("DATA.BIN", expected);
+            }
+        }
+    }
+
     private static D.LockResult L(Owner f, D.ProcessToken process, D.DescriptorToken file, uint command, short type, long start, long length) =>
         D.FcntlLockForProcess(f.State, process, file, command, new(type, 0, start, length));
 
@@ -840,6 +905,11 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         {
             uint description = *(uint*)((byte*)(Slots + file.Number) + WritableBlockSessionTests.ManagedOffset(Slots + file.Number, "Description"));
             return *(ulong*)((byte*)(Descriptions + description - 1) + WritableBlockSessionTests.ManagedOffset(Descriptions + description - 1, "Position"));
+        }
+        internal C.FileToken CopiedFile(D.DescriptorToken file)
+        {
+            uint description = *(uint*)((byte*)(Slots + file.Number) + WritableBlockSessionTests.ManagedOffset(Slots + file.Number, "Description"));
+            return *(C.FileToken*)((byte*)(Descriptions + description - 1) + WritableBlockSessionTests.ManagedOffset(Descriptions + description - 1, "File"));
         }
         public void Dispose()
         {
