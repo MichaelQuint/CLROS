@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1589](../done/step1589.md) retains the exact full r03 request-timeout and ExitPending r02 strict-wrapper failures. Focused synthetic/host checks qualify only bounded traversal and terminal parsing. Native publication, guest producer and package provenance remain serialized; independent writable host work uses a separate checkout. No request/runtime timeout was raised.
+
 [Step1588](../done/step1588.md) adds one isolated writable integration checkout using the same pinned .NET11/C#14 tools. Its corrected complete graph passes with0 warnings/errors and192 distinct host controls. Host compilation does not select these new files into EFI or establish native fit, synchronization durability or SQLite acceptance.
 
 [Step1587](../done/step1587.md) preserves failed original ExitPending r01 and exact artifact hashes. Its root source repair has only focused host/admission support until fresh native/guest qualification. Full DiskA r03 runs independently at91cd04cd; toolchain pins and the finite full128MiB serial/3060s callback policies remain unchanged.

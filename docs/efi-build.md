@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1589](../done/step1589.md) changes the reviewed filesystem, DiskEvidence and LinuxThreadRun sources. New publication must rejoin committed raw/normalized source, native image, stack/ABI and original guest evidence. The cached-chain64-step wrapper adds no stack buffer; cleanup uses a retained scalar start time after the control is scrubbed. Actual emitted bounds remain to be measured; prior2042/2048 runtime catalog counts are not current qualification.
+
 [Step1588](../done/step1588.md) imports writable host sources into a separate integration branch without adding EFI links or a writable probe. Host build/192 focused controls establish no native ABI, stack fit or guest authority. Native publication remains serialized behind the current original read qualification.
 
 [Step1587](../done/step1587.md) changes the reviewed native syscall-entry order: validated exit_group enters genuine shutdown before opportunistic polling. Other calls retain their pump. Exact source pins and focused admission checks accompany failure-only pending-exit diagnostics; native ABI/stack and a fresh original are still required. Full r03 continues independently at91cd04cd and must not inherit edits during its owned run.

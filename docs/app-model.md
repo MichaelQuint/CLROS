@@ -1,5 +1,7 @@
 # App Model
 
+[Step1589](../done/step1589.md) keeps the failed full CoreLib request and original ExitPending wrapper failure separate from host preparation. Cached metadata traversal is bounded64 visits without batching device completions. Final process cleanup now has its own fresh retained-HPET witness; the copied consumer checks original request owner/epoch and stage-specific boundaries. No actual Blazor, persistent application or writable source5 acceptance follows.
+
 [Step1588](../done/step1588.md) assembles the writable block/FAT/provider host foundation in writable-thread-waits and claims seven root thread/gateway/test paths. The provider descriptor namespace still needs the agent global-fd slice and root genuine source5 continuations.192 distinct focused host controls pass; no application write/log/upload/SQLite acceptance is established.
 
 [Step1587](../done/step1587.md) gives validated process-wide exit precedence over opportunistic device progress; real Shutdown, CommitExit, cancellation, reset and release retain authority. The original pending-exit r01 failed before stage1, so the repaired order still needs a new original. M16-027 claims a bounded global writable descriptor implementation slice with reservation-before-create and cursor-after-copy rules; source5/native/SQLite acceptance is pending.

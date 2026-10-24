@@ -22,6 +22,8 @@ internal static class LinuxDiskCaptureTests
             HostCheck.Equal(copied,report.CopiedDataSectors.Count);
             HostCheck.Equal(c.Receipt.FinalSha256,report.ImageSha256);
             HostCheck.True(report.Pending.Stages.Records[7].Values["clock"]>Field(rows[Index(rows,"M16_008_BUDGET_END ")],"nanos"));
+            HostCheck.True(report.Pending.Stages.Records[7].Values["clock"]>Field(rows[Index(rows,"M16_011_END ")],"end") &&
+                report.Leaf.ExitCleanupEnd!.Value.Values["clock"]>=report.Pending.Stages.Records[7].Values["clock"]);
             ulong retained=report.Pending.Stages.Records[0].Values["inode"];Array.Fill(rows,"changed");Array.Clear(package);
             HostCheck.Equal(retained,report.Pending.Stages.Records[0].Values["inode"]);
         }
@@ -74,6 +76,7 @@ internal static class LinuxDiskCaptureTests
         startup[4]="M16_004_READBACK old=1048576 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
         int startupAt=shell.IndexOf("TEST_START m16-004");shell.RemoveRange(startupAt,7);shell.InsertRange(startupAt,startup);
         ulong generation=37;List<string> leaf=[];
+        Replace("M16_011_END ",Set(shell.Single(r=>r.StartsWith("M16_011_END ",StringComparison.Ordinal)),"end",20_009_000));
         foreach(string original in LinuxDiskRaceTranscriptTests.ExitPendingStagedLeaf())
         {
             string row=Regex.Replace(original,@"\b(clock|nanos|started)=([0-9]+)",m=>m.Groups[1].Value+"="+(10_000_000UL+ulong.Parse(m.Groups[2].Value,CultureInfo.InvariantCulture)*1000).ToString(CultureInfo.InvariantCulture));
@@ -89,8 +92,11 @@ internal static class LinuxDiskCaptureTests
             {
                 foreach(string field in new[]{"blockGeneration","submitted","available","ioGeneration"})row=Set(row,field,generation);
                 foreach(string field in new[]{"completed","consumed","copied"})row=Set(row,field,generation-1);
-                row=Set(Set(Set(Set(row,"inode",file.Inode),"sector",sectors[copied].Lba),"ioSector",sectors[copied].Lba),"clock",20_000_000+Field(row,"stage")*1000);
+                ulong stage=Field(row,"stage"),clock=stage<4?20_000_000+stage*1000:stage<8?20_001_000+stage*1000:20_010_000;
+                row=Set(Set(Set(Set(row,"inode",file.Inode),"sector",sectors[copied].Lba),"ioSector",sectors[copied].Lba),"clock",clock);
             }
+            if(row.StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal))row=Set(row,"nanos",20_004_000);
+            if(row.StartsWith("M16_025_EXIT_CLEANUP_END ",StringComparison.Ordinal))row=Set(row,"clock",20_011_000);
             leaf.Add(row);
         }
         HostCheck.Equal(40UL+(ulong)copied,generation);shell.InsertRange(first,leaf);

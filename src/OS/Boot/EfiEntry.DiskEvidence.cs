@@ -23,7 +23,7 @@ public static unsafe partial class EfiEntry
             internal ulong FsOwner, FsEpoch, FsGeneration, BlockOwner, BlockEpoch, BlockGeneration, Sector;
             internal ulong Submitted, Completed, Copied, Cancelled, StopCompleted, StopCancelled;
             internal ulong CancelSubmitted, CancelCopied, Cursor;
-            internal ulong RequestWorker;
+            internal ulong RequestWorker, LastClock;
             internal uint RequestIndex, Fd, FdGeneration, Binding, Description, FsIndex, FileIndex, OutputBytes;
             internal uint SlotBytes;
             internal byte Phase, RequestPhase;
@@ -256,12 +256,32 @@ public static unsafe partial class EfiEntry
             }
         }
 
+        // The socket drain clock predates memory/pool restoration. Sample a
+        // separate terminal boundary from the still-owned HPET after all final
+        // cleanup checks. Never dereference the released, scrubbed control.
+        private static bool ObserveNativeDiskExitCleanupEnd(Storage* state, ulong started)
+        {
+            fixed (NativeDiskOwner* o = &s_nativeDisk)
+            {
+                var e = &o->ExitObservation;
+                if (e->Phase == 0) return true;
+                if (e->Phase != 8 || o->Boot != state || o->Phase != 9 || !o->Device.Retired || !o->Mount.IsRetired ||
+                    o->Pool.AllocatedMask != 0 || o->Device.Copied != e->Copied || state->CooperativePhase != 6 ||
+                    state->LinuxSyscallPhase != 6 || state->LinuxMemoryPhase != 6 || state->LinuxDescriptorPhase != 6 ||
+                    !ReadNetworkTime(state, out ulong now) || now < e->LastClock || now < started ||
+                    now - started >= LinuxThreadExecutionBudget.RuntimeNanoseconds) return false;
+                return LinuxText(state, "M16_025_EXIT_CLEANUP_END owner=") && LinuxNumber(state, e->RequestOwner) &&
+                    LinuxText(state, " epoch=") && LinuxNumber(state, e->RequestEpoch) &&
+                    LinuxText(state, " clock=") && LinuxNumber(state, now) && LinuxText(state, "\r\n");
+            }
+        }
+
         private static bool WriteNativeDiskExitObservation(NativeDiskOwner* o)
         {
             // Request/slot/cursor fields retain the last stage1..3 snapshot;
             // backend and mount fields are read afresh at each actual stage.
             var e = &o->ExitObservation; var state = o->Boot; var receipt = o->Device.Receipt;
-            return ReadNetworkTime(state, out ulong now) && LinuxText(state, "M16_025_EXIT_PENDING stage=") && LinuxNumber(state, e->Phase) &&
+            bool written = ReadNetworkTime(state, out ulong now) && LinuxText(state, "M16_025_EXIT_PENDING stage=") && LinuxNumber(state, e->Phase) &&
                 LinuxText(state, " main=") && LinuxNumber(state, e->Main) && LinuxText(state, " child=") && LinuxNumber(state, e->Child) &&
                 LinuxText(state, " ordinal=") && LinuxNumber(state, e->Ordinal) && LinuxText(state, " rip=") && LinuxNumber(state, e->Rip) &&
                 LinuxText(state, " sequence=") && LinuxNumber(state, e->WaitSequence) &&
@@ -303,6 +323,8 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " cursor=") && LinuxNumber(state, e->Cursor) &&
                 LinuxText(state, " clock=") && LinuxNumber(state, now) &&
                 LinuxText(state, "\r\n");
+            if (written) e->LastClock = now;
+            return written;
         }
 
         // One bounded pump can complete/copy and submit its next request. Keep

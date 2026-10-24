@@ -51,13 +51,15 @@ internal static class LinuxDiskRaceProofFixtureTests
             "ObserveNativeDiskExitStopped(o, stopped)", "Fs.Stop(&o->Mount)");
         Ordered(Read("EfiEntry.LinuxThreadRun.cs"), "RetireNativeDiskAttachment(state, c)", "ObserveNativeDiskExitSentinel(state, c)",
             "LinuxNativeRelease(c, LinuxNativeRsp(c))", "ObserveNativeDiskExitReleased(state, c)",
-            "LinuxNativeClearUserMemory(state)", "ObserveNativeDiskExitMemoryRestored(state)");
+            "LinuxNativeClearUserMemory(state)", "ObserveNativeDiskExitMemoryRestored(state)",
+            "ClearLinuxRandom(state)", "ObserveNativeDiskExitCleanupEnd(state, diskStarted)", "M16_008_BUDGET_END");
         string evidence = Read("EfiEntry.DiskEvidence.cs");
         HostCheck.True(evidence.Contains("!o->Device.ReadPending || !o->Mount.IoActive", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("CopyLinuxAlias(state, 0x404000UL + offset, chunk, 128, false)", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("offset < 8192; offset += 128", StringComparison.Ordinal));
         HostCheck.True(!evidence.Contains("CompletedCount++", StringComparison.Ordinal) && !evidence.Contains("Block.Poll(", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("M16_025_EXIT_REJECT reason=", StringComparison.Ordinal));
+        HostCheck.True(evidence.Contains("now - started >= LinuxThreadExecutionBudget.RuntimeNanoseconds", StringComparison.Ordinal));
     }
 
     [HostTest("disk race packages are canonical deterministic two-worker cooperative children")]
@@ -235,7 +237,9 @@ internal static class LinuxDiskRaceProofFixtureTests
             HostCheck.True(NativeAotDiskSelection.Selected(plan.Flags) && !NativeAotDiskSelection.StaticSelected(plan.Flags) &&
                 !plan.IsEnabled("EnableM10017Probe") && options.TimeoutSeconds == 180 &&
                 plan.Flags.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(originalPlan.Flags.OrderBy(p => p.Key, StringComparer.Ordinal)) &&
-                plan.Required.SequenceEqual(originalPlan.Required));
+                plan.Required.Where(m=>m!="M16_025_EXIT_CLEANUP_END").SequenceEqual(originalPlan.Required));
+            HostCheck.Equal(variant=="ExitPending",plan.Required.Contains("M16_025_EXIT_CLEANUP_END"));
+            HostCheck.Equal(variant=="ExitPending",plan.Unique.Contains("M16_025_EXIT_CLEANUP_END"));
         }
         string[] staticArguments = ["-BuildEfi", "-EnableM10018Probe", "-LinuxElfPackage", "artifacts/static.pkg",
             "-LinuxThreadingDisassembly", "artifacts/static.dump", "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/webroot"];

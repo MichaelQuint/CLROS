@@ -17,6 +17,10 @@ public static unsafe class ReadOnlyWebRootFileSystem
 {
     public const uint PathBytes = 256, MaximumRangeBytes = 65536, MaximumClusters = 4096;
     public const uint MaximumSlots = 8, MaximumCacheSlots = 8;
+    /// <summary>Maximum cached cluster visits in one selected open-chain turn.
+    /// Each visit may scan at most4096 prior clusters. Stop at the first real
+    /// I/O transition; this never polls a newly submitted device request.</summary>
+    public const uint MaximumCachedChainSteps = 64;
     private const ulong AddressLimit = 0x0000800000000000UL;
     private const byte Free = 0, Working = 1, ReadyPhase = 2, Failed = 3, Cancelling = 4;
     private const byte Mounting = 1, Mounted = 2, Stopping = 3, Retired = 4, Faulted = 5;
@@ -494,6 +498,32 @@ public static unsafe class ReadOnlyWebRootFileSystem
     }
 
     private static Status FileChainStep(Mount* m, Operation* o)
+    {
+        FileHandle* f = m->Input.Files + o->FileIndex;
+        Block.State* device = m->Input.Device;
+        ulong epoch = m->Input.Epoch, generation = o->Generation, fileGeneration = f->Generation;
+        ulong submitted = device->Submitted, completed = device->Completed, copied = device->Copied, cancelled = device->Cancelled;
+        uint fileIndex = o->FileIndex, operationIndex = o->Index;
+        bool batch = !m->IoActive && o->Waiting == 0;
+        for (uint step = 0; ; step++)
+        {
+            uint previous = f->ClusterCount;
+            Status status = FileChainOne(m, o);
+            if (status != Status.Pending || !batch || step + 1 == MaximumCachedChainSteps ||
+                o->Waiting != 0 || m->IoActive || f->ClusterCount <= previous ||
+                device->Submitted != submitted || device->Completed != completed || device->Copied != copied || device->Cancelled != cancelled ||
+                m->Input.Device != device || !Live(m) || m->Input.Epoch != epoch ||
+                o->Self != (ulong)o || o->Epoch != epoch || o->Generation != generation || o->Phase != Working || o->Kind != OpenKind ||
+                o->Index != operationIndex || m->Input.Operations + operationIndex != o || !o->LookupDone ||
+                o->FileIndex != fileIndex || m->Input.Files + fileIndex != f ||
+                f->Self != (ulong)f || f->Epoch != epoch || f->Generation != fileGeneration || f->Phase != Working)
+                return status;
+        }
+    }
+
+    // Preserve the original single-step validation and all failure results.
+    // The caller batches only genuine cached cluster progress on this owner.
+    private static Status FileChainOne(Mount* m, Operation* o)
     {
         FileHandle* f = m->Input.Files + o->FileIndex;
         if (!o->HaveCandidate)

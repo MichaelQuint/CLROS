@@ -8,6 +8,108 @@ using Fs = OS.Storage.ReadOnlyWebRootFileSystem;
 
 internal static unsafe class ReadOnlyWebRootFileSystemTests
 {
+    [HostTest("webroot.fs cached long chains advance a bounded selected batch without device progress")]
+    private static void CachedChainBatch()
+    {
+        using var f = new Fixture(cacheSlots: 8, slots: 4);
+        LongIndex(f, 200); f.MountReady();
+        var warm = f.Open("/app/wwwroot/index.html");
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, warm.File));
+        var a = ChainLookup(f); var b = ChainLookup(f);
+        var operation = OperationFor(f, a); var other = OperationFor(f, b);
+        uint before = ClusterCount(f, operation), otherBefore = ClusterCount(f, other);
+        ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied, cancelled = f.Device->Cancelled;
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, a));
+        uint advanced = ClusterCount(f, operation) - before;
+        HostCheck.True(advanced > 1 && advanced <= 64); HostCheck.Equal(64U, Fs.MaximumCachedChainSteps);
+        HostCheck.Equal(otherBefore, ClusterCount(f, other));
+        HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed);
+        HostCheck.Equal(copied, f.Device->Copied); HostCheck.Equal(cancelled, f.Device->Cancelled);
+        HostCheck.True(!Field<Fs.Mount, bool>(*f.Mount, "IoActive") && Field<Fs.Operation, byte>(*operation, "Waiting") == 0);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, b));
+        HostCheck.True(ClusterCount(f, other) - otherBefore is > 1 and <= 64);
+        HostCheck.Equal(before + advanced, ClusterCount(f, operation));
+        HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed);
+        HostCheck.Equal(copied, f.Device->Copied); HostCheck.Equal(cancelled, f.Device->Cancelled);
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, a));
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, b));
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(f.Mount, a));
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(f.Mount, b));
+    }
+
+    [HostTest("webroot.fs cached chain batch stops at one submit and preserves separate completion turns")]
+    private static void ChainBatchIoBoundary()
+    {
+        using var f = new Fixture(cacheSlots: 8); LongIndex(f, 200); f.MountReady();
+        var token = ChainLookup(f); var operation = OperationFor(f, token);
+        ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        uint count = ClusterCount(f, operation);
+        HostCheck.True(Field<Fs.Mount, bool>(*f.Mount, "IoActive") && Field<Fs.Operation, byte>(*operation, "Waiting") != 0 && f.Device->ReadPending);
+        HostCheck.Equal(submitted + 1, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed); HostCheck.Equal(copied, f.Device->Copied);
+        f.Tick(); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        HostCheck.Equal(submitted + 1, f.Device->Submitted); HostCheck.Equal(completed + 1, f.Device->Completed);
+        HostCheck.Equal(copied + 1, f.Device->Copied); HostCheck.Equal(count, ClusterCount(f, operation));
+        HostCheck.True(!Field<Fs.Mount, bool>(*f.Mount, "IoActive") && Field<Fs.Operation, byte>(*operation, "Waiting") == 0);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        HostCheck.Equal(submitted + 2, f.Device->Submitted); HostCheck.Equal(completed + 1, f.Device->Completed);
+        HostCheck.Equal(copied + 1, f.Device->Copied); HostCheck.Equal(count, ClusterCount(f, operation));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(f.Mount, token));
+        HostCheck.Equal(Fs.Status.Cancelled, f.Drive(token)); HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(f.Mount, token));
+    }
+
+    [HostTest("webroot.fs another pending IO keeps cached chains to one step until actual copy completes")]
+    private static void ChainBatchOtherOwner()
+    {
+        using var f = new Fixture(cacheSlots: 8, slots: 4); LongIndex(f, 200); f.MountReady();
+        var file = f.Open("/app/wwwroot/index.html"); var chain = ChainLookup(f);
+        var operation = OperationFor(f, chain); Fs.OperationToken read = default;
+        HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, file.File, 0, 1, &read));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, read));
+        ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        uint before = ClusterCount(f, operation);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, chain));
+        HostCheck.Equal(before + 1, ClusterCount(f, operation));
+        HostCheck.True(Field<Fs.Mount, bool>(*f.Mount, "IoActive") && Field<Fs.Mount, uint>(*f.Mount, "IoIndex") == Field<Fs.OperationToken, uint>(read, "Index"));
+        HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed); HostCheck.Equal(copied, f.Device->Copied);
+        f.Tick(); HostCheck.Equal(Fs.Status.Ready, Fs.Poll(f.Mount, read));
+        Span<byte> output = stackalloc byte[1]; uint bytes = 0;
+        HostCheck.Equal(Fs.Status.Success, Fs.CopyRead(f.Mount, read, output, &bytes)); HostCheck.Equal(1U, bytes);
+        before = ClusterCount(f, operation);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, chain));
+        HostCheck.True(ClusterCount(f, operation) - before is > 1 and <= 64);
+        HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed + 1, f.Device->Completed); HostCheck.Equal(copied + 1, f.Device->Copied);
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, chain)); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+    }
+
+    private static void LongIndex(Fixture f, uint clusters)
+    {
+        byte[] directory = f.Disk.Sector(f.Disk.Data(4));
+        HostCheck.Equal(700U, BinaryPrimitives.ReadUInt32LittleEndian(directory.AsSpan(60)));
+        BinaryPrimitives.WriteUInt32LittleEndian(directory.AsSpan(60), clusters * 512);
+        f.Disk.SetFat(10, 1024);
+        for (uint i = 0; i < clusters - 1; i++) f.Disk.SetFat(1024 + i, i == clusters - 2 ? 0x0fffffffU : 1025 + i);
+    }
+
+    private static Fs.OperationToken ChainLookup(Fixture f)
+    {
+        Fs.OperationToken token = default;
+        HostCheck.Equal(Fs.Status.Pending, Fs.BeginOpen(f.Mount, "/app/wwwroot/index.html"u8, &token));
+        for (int i = 0; i < 4096 && !Field<Fs.Operation, bool>(*OperationFor(f, token), "LookupDone"); i++)
+        { f.Tick(); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); }
+        HostCheck.True(Field<Fs.Operation, bool>(*OperationFor(f, token), "LookupDone") && !Field<Fs.Operation, bool>(*OperationFor(f, token), "HaveCandidate"));
+        return token;
+    }
+
+    // Host-only copied scalar observations for bounded-progress assertions.
+    // Never write private slots, forge a token or expose a kernel test API.
+    private static TValue Field<T, TValue>(T value, string name) where T : unmanaged =>
+        (TValue)typeof(T).GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(value)!;
+    private static Fs.Operation* OperationFor(Fixture f, Fs.OperationToken token) =>
+        f.Operations + Field<Fs.OperationToken, uint>(token, "Index");
+    private static uint ClusterCount(Fixture f, Fs.Operation* operation) =>
+        Field<Fs.FileHandle, uint>(f.Files[Field<Fs.Operation, uint>(*operation, "FileIndex")], "ClusterCount");
+
     [HostTest("webroot.fs mount metadata demand ranges and exact EOF", HostLane.Fast, 0)]
     private static bool DemandRanges()
     {

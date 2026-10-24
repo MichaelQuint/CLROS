@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1589](../done/step1589.md) owns original full r03 and ExitPending r02 failure identities, bounded cached-chain validation and the new fresh cleanup-terminal producer/consumer. Storage owns64-visit/one-I/O-turn limits; diagnostics/QEMU own exact terminal fields and phase clocks; Kestrel owns the remaining full A/B/browser qualification. Historical originals remain immutable.
+
 [Step1588](../done/step1588.md) owns the isolated combined writable foundation import, corrected missing-planner dependency,192 distinct host controls and seven-path root source5 claim. Storage owns the contract limits; application docs own provider/global-fd separation; issue workflow owns explicit-manifest preview/apply/readback. Read native producers remain separate.
 
 [Step1587](../done/step1587.md) owns original ExitPending r01 failure identities, validated exit_group-before-poll repair and failure-only diagnostics. Storage owns pending/reset semantics, diagnostics owns reasons1-5, and QEMU owns original-run provenance. M16-027 records the four-path writable descriptor claim; gateway/source5/native integration remains root-owned and unqualified.

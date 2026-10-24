@@ -17,6 +17,11 @@ internal static class LinuxDiskRaceTranscriptTests
             report.MainReadCompletionIndex == -1 && rows.SequenceEqual(before));
         HostCheck.True(report.Auxiliary.Count(a => a.Text.StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal)) == 8 &&
             report.ExitPendingStages!.Records.All(s => rows[s.RecordIndex].StartsWith("M16_025_EXIT_PENDING ", StringComparison.Ordinal)));
+        HostCheck.True(report.ExitCleanupEnd is not null && report.ExitCleanupEnd.Value.Values["clock"] >= report.ExitPendingStages!.Records[7].Values["clock"]);
+        bool immutable=false;
+        try { ((IDictionary<string,ulong>)report.ExitCleanupEnd!.Value.Values)["clock"]=0; }
+        catch(NotSupportedException) { immutable=true; }
+        HostCheck.True(immutable);
         var stage = report.ExitPendingStages!.Records; var abandoned = report.Abandoned[0];
         HostCheck.True(abandoned.CallRecordIndex < stage[0].RecordIndex && stage[0].RecordIndex < abandoned.GroupExitRecordIndex &&
             abandoned.GroupExitRecordIndex < stage[1].RecordIndex && stage[1].RecordIndex + 1 == stage[2].RecordIndex);
@@ -68,6 +73,14 @@ internal static class LinuxDiskRaceTranscriptTests
         int mainReadPoll = Array.FindIndex(rows, r => r.StartsWith("M16_012_POLL ", StringComparison.Ordinal) && Field(r, "ready") == 1);
         Deny([..rows[..mainReadPoll], "M16_008_TICK epoch=1 nanos=100 ready=2", ..rows[mainReadPoll..]]);
         Deny(Change(rows, mainReadPoll, "ready", 0)); Deny(SyntheticLifecycle("ExitPending"));
+        int terminal=Index(rows,"M16_025_EXIT_CLEANUP_END ");
+        Deny(rows.Where((_,i)=>i!=terminal).ToArray());
+        Deny([..rows[..terminal],rows[terminal],..rows[terminal..]]);
+        Deny(Change(rows,terminal,"owner",Field(rows[terminal],"owner")+8));
+        Deny(Change(rows,terminal,"epoch",Field(rows[terminal],"epoch")+1));
+        Deny(Change(rows,terminal,"clock",Field(rows[Index(rows,"M16_025_EXIT_PENDING stage=8 ")],"clock")-1));
+        Deny(Change(rows,terminal,"clock",Field(rows[Index(rows,"M16_008_BUDGET ")],"started")+LinuxThreadExecutionBudget.RuntimeNanoseconds));
+        Deny([..rows[..(terminal-1)],rows[terminal],rows[terminal-1],..rows[(terminal+1)..]]);
     }
 
     internal static string[] ExitPendingStagedLeaf()
@@ -76,12 +89,19 @@ internal static class LinuxDiskRaceTranscriptTests
         int clone = leaf.Calls.Single(c => c.Spec.Role == "prep.clone").RecordIndex;
         int childExit = leaf.Calls.Single(c => c.Spec.Role == "child.group-exit").RecordIndex;
         string[] stages = ExitPendingStages(false); List<string> rows = [];
+        ulong activeEnd=Field(original[Index(original,"M16_008_BUDGET_END ")],"nanos");
+        ulong exitClock=Field(original[childExit],"clock");
+        for(int i=0;i<8;i++)stages=Change(stages,i,"clock",i<3?exitClock+(ulong)i:activeEnd+(ulong)i-2);
         for (int i = 0; i < original.Length; i++)
         {
             if (i == childExit) rows.Add(stages[0]);
             if (original[i].StartsWith("M16_008_EXIT identity=" + F.MainIdentity, StringComparison.Ordinal)) rows.AddRange(stages[1..3]);
             if (original[i].StartsWith("M16_011_CLOSE fd=0 ", StringComparison.Ordinal)) rows.AddRange(stages[3..7]);
-            if (original[i].StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal)) rows.Add(stages[7]);
+            if (original[i].StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal))
+            {
+                rows.Add(stages[7]);
+                rows.Add($"M16_025_EXIT_CLEANUP_END owner={Field(stages[0],"owner")} epoch={Field(stages[0],"epoch")} clock={activeEnd+6}");
+            }
             string row = original[i];
             if (i > clone && i < leaf.MainReadCallIndex && row.StartsWith("M16_012_POLL ", StringComparison.Ordinal))
                 row = Change([row], 0, "ready", 1)[0];
