@@ -9,9 +9,10 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// tables, buffers, package views and callbacks are borrowed, supervisor-only,
 /// exclusive and retained until End. Optional LinuxSocketServices shares the
 /// same fd/description lifetime. End retains faulted/closing TCP ownership until
-/// explicit closed reap. No allocation, firmware, blocking wait,
-/// signal delivery, writable filesystem, directory handles or process creation
-/// is supplied. Negative Linux errno reports rejection. File cursors and pipe
+/// explicit closed reap. An explicit bounded writable-disk attachment supplies
+/// its separate continuing file/directory operations. No allocation, firmware,
+/// blocking wait, signal delivery or process creation is supplied here.
+/// Negative Linux errno reports rejection. File cursors and pipe
 /// reads commit only after complete copy-out; sinks must accept an entire copy.
 /// Linux fd integers may be reused. Internal tokens additionally bind the owner
 /// and generation, without changing Linux's integer descriptor semantics.
@@ -30,6 +31,9 @@ public static unsafe partial class LinuxDescriptorServices
     internal enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite, Socket, Epoll
 #if !NOSTDLIB_EFI || M16_025_PROBE
         , Disk
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        , WritableDisk
 #endif
     }
 
@@ -114,6 +118,9 @@ public static unsafe partial class LinuxDescriptorServices
         internal LinuxSocketServices.State* Sockets;
         internal LinuxEpollServices.State* Epoll;
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        internal WritableDiskState* WritableDisk;
+#endif
         public readonly uint ActiveDescriptors => Initialized == 1 ? Active : 0;
         /// <summary>Retained kernel I/O borrows, including closed fds. This is
         /// diagnostic accounting, not a pin or release grant.</summary>
@@ -138,6 +145,9 @@ public static unsafe partial class LinuxDescriptorServices
             return false;
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (state->Disk != null) return false;
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (state->WritableDisk != null) return false;
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (state->Sockets != null || state->Epoll != null) return false;
@@ -243,6 +253,9 @@ public static unsafe partial class LinuxDescriptorServices
     public static bool End(State* state)
     {
         if (!Audit(state) || state->ThreadOwner != 0) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!CanEndWritableDisk(state)) return false;
+#endif
         for (uint i = 0; i < state->Owner.DescriptionCount; i++) if (state->Owner.Descriptions[i].Borrowers != 0) return false;
         for (uint i = 0; i < state->Owner.DescriptorCount; i++)
             if (state->Owner.Slots[i].Description != 0 && Close(state, i) != 0) return false;
@@ -252,6 +265,9 @@ public static unsafe partial class LinuxDescriptorServices
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (state->Disk != null && !DetachDisk(state)) return false;
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (state->WritableDisk != null && !DetachWritableDisk(state)) return false;
 #endif
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
         Clear(state->Owner.Snapshots, state->Owner.DescriptionCount * SnapshotBytes);
@@ -289,10 +305,18 @@ public static unsafe partial class LinuxDescriptorServices
             borrowedKind |= (Kind)d.Type == Kind.Disk;
             maximumKind = (uint)Kind.Disk;
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            borrowedKind |= (Kind)d.Type == Kind.WritableDisk;
+            maximumKind = (uint)Kind.WritableDisk;
+#endif
             if (d.Borrowers > MaximumDescriptors || d.Borrowers != 0 && (!borrowedKind || state->ThreadOwner == 0)) return false;
             if (d.Type == 0 || d.Type > maximumKind || d.Inode == 0 ||
                 (d.Flags & ~(NonBlock | LargeFile | NoFollow | 3U)) != 0 || d.Position > long.MaxValue ||
-                ((Kind)d.Type is Kind.Socket or Kind.Epoll ? (d.Flags & 3) != 2 : (d.Flags & 2) != 0)) return false;
+                ((Kind)d.Type is Kind.Socket or Kind.Epoll ? (d.Flags & 3) != 2 :
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                (Kind)d.Type == Kind.WritableDisk ? (d.Flags & 3) == 3 :
+#endif
+                (d.Flags & 2) != 0)) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             if ((Kind)d.Type == Kind.Socket && state->Sockets == null) return false;
             if ((Kind)d.Type == Kind.Epoll && state->Epoll == null) return false;
@@ -301,6 +325,9 @@ public static unsafe partial class LinuxDescriptorServices
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
             if ((Kind)d.Type == Kind.Disk && state->Disk == null) return false;
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if ((Kind)d.Type == Kind.WritableDisk && state->WritableDisk == null) return false;
 #endif
             if ((Kind)d.Type == Kind.Package || (Kind)d.Type == Kind.Snapshot)
             {
@@ -333,6 +360,9 @@ public static unsafe partial class LinuxDescriptorServices
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (!AuditDisk(state)) return false;
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!AuditWritableDisk(state)) return false;
+#endif
         return true;
     }
 
@@ -342,6 +372,9 @@ public static unsafe partial class LinuxDescriptorServices
         if (d == null || (d->Flags & 1) != 0) return BadDescriptor;
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if ((Kind)d->Type == Kind.Disk) return Unsupported; // Requires an owned disk continuation.
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk) return WritableUnsupported;
 #endif
         if ((Kind)d->Type == Kind.Epoll) return Invalid;
         if (positioned && (Kind)d->Type != Kind.Package && (Kind)d->Type != Kind.Snapshot) return NotSeekable;
@@ -374,6 +407,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null || (d->Flags & 3) == 0) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk) return WritableUnsupported;
+#endif
         if (requested > MaximumIo) return Invalid;
         if (requested == 0) return 0;
         long policy = WritePolicy(state, d);
@@ -389,6 +425,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null || (d->Flags & 3) == 0) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk) return WritableUnsupported;
+#endif
         if (count > MaximumVectors) return Invalid;
         if (count == 0) return 0;
         var a = state->Owner;
@@ -493,6 +532,10 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk)
+        { long closed = CloseWritableDiskFd(state, fd); if (closed != 0) return closed; }
+#endif
         var a = state->Owner; uint index = a.Slots[fd].Description - 1;
         if (!DropDescription(state, index, false)) return Io;
         a.Slots[fd].Description = 0; a.Slots[fd].Flags = 0; state->Active--;
@@ -504,6 +547,9 @@ public static unsafe partial class LinuxDescriptorServices
         var a = state->Owner; Description* d = a.Descriptions + index;
         if (borrow ? d->Borrowers == 0 : d->References == 0) return false;
         bool last = borrow ? d->Borrowers == 1 && d->References == 0 : d->References == 1 && d->Borrowers == 0;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (last && (Kind)d->Type == Kind.WritableDisk && !RetireWritableBinding(state, index)) return false;
+#endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (last && (Kind)d->Type == Kind.Disk && !CloseDiskDescription(state, index)) return false;
 #endif
@@ -531,6 +577,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk && command is not (1 or 2 or 3)) return WritableUnsupported;
+#endif
         var a = state->Owner;
         switch (command)
         {
@@ -560,6 +609,9 @@ public static unsafe partial class LinuxDescriptorServices
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if ((Kind)d->Type == Kind.Disk) return Unsupported;
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk) return WritableUnsupported;
+#endif
         if ((Kind)d->Type != Kind.Package && (Kind)d->Type != Kind.Snapshot) return NotSeekable;
         if (whence > 2) return Invalid;
         ulong origin = whence == 0 ? 0 : whence == 1 ? d->Position : d->Bytes, next;
@@ -583,6 +635,9 @@ public static unsafe partial class LinuxDescriptorServices
         if (d == null) return BadDescriptor;
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if ((Kind)d->Type == Kind.Disk) return Unsupported;
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if ((Kind)d->Type == Kind.WritableDisk) return WritableUnsupported;
 #endif
         byte* wire = stackalloc byte[144]; Clear(wire, 144);
         *(ulong*)(wire + 8) = d->Inode; *(ulong*)(wire + 16) = 1;
@@ -697,13 +752,25 @@ public static unsafe partial class LinuxDescriptorServices
     private static uint FreeSlot(State* state, uint start, uint exclude)
     {
         for (uint i = start; i < state->Owner.DescriptorCount; i++)
-            if (i != exclude && state->Owner.Slots[i].Description == 0 && state->Owner.Slots[i].Generation != uint.MaxValue) return i;
+            if (i != exclude && state->Owner.Slots[i].Description == 0 && state->Owner.Slots[i].Generation != uint.MaxValue)
+            {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                if (WritableSlotReserved(state, i)) continue;
+#endif
+                return i;
+            }
         return state->Owner.DescriptorCount;
     }
     private static uint FreeDescription(State* state, uint exclude)
     {
         for (uint i = 0; i < state->Owner.DescriptionCount; i++)
-            if (i != exclude && state->Owner.Descriptions[i].References == 0 && state->Owner.Descriptions[i].Borrowers == 0) return i;
+            if (i != exclude && state->Owner.Descriptions[i].References == 0 && state->Owner.Descriptions[i].Borrowers == 0)
+            {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                if (WritableDescriptionReserved(state, i)) continue;
+#endif
+                return i;
+            }
         return state->Owner.DescriptionCount;
     }
     private static void Assign(State* state, uint fd, uint description, uint flags)
@@ -764,6 +831,11 @@ public static unsafe partial class LinuxDescriptorServices
     internal static bool SocketOutside(State* state, void* pointer, ulong bytes)
     {
         if (!Extent(pointer, bytes)) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        // The first mechanical writable attachment excludes simultaneous disk
+        // or transport services. Their complete coexistence proof is separate.
+        if (state->WritableDisk != null) return false;
+#endif
         var a = state->Owner; ulong start = (ulong)pointer;
         ulong* extents = stackalloc ulong[24]
         {

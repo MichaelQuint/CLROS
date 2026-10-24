@@ -6,6 +6,14 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["linux", "log-upload-reference", var logUploadRecipe, var logUploadOutput])
+            {
+                using var reference = NativeAotLogUploadContract.RunLinuxReferenceAsync(
+                    Repository.FindRoot(), logUploadRecipe, logUploadOutput, Console.Out).GetAwaiter().GetResult();
+                reference.VerifyUnchanged();
+                Console.WriteLine($"TEST_PASS linux.log-upload.reference artifacts={reference.Artifacts.Count} completeTraceProjection={reference.CompleteTraceProjection} guest_lock_flush_and_persistence_authority=false");
+                return 0;
+            }
             if (args is ["qemu", "inspect-disk-static-values", var staticDiskPackage, var staticDiskImage, var staticDiskIndex, var staticDiskSerial])
             {
                 string root=Repository.FindRoot();
@@ -381,6 +389,7 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
+                Console.WriteLine("linux log-upload-reference <original-socket-recipe-root> <fresh-artifacts-output> (Linux NativeAOT reference only; requires an exclusive builder lease)");
                 Console.WriteLine("nativeaot static-files package --recipe-root <original-candidate-root> --evidence <original-reference> --output <fresh-artifacts-package> --staged|--disk");
                 Console.WriteLine("nativeaot static-files index <original-ELF> <llvm-disassembly> | program <package> <llvm-disassembly> --staged|--disk");
                 Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");

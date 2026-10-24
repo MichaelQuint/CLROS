@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1591](../done/step1591.md) Step1591 keeps pinned .NET11/C#14 and introduces linux log-upload-reference <original-socket-recipe-root> <fresh-artifacts-output>. The runner requires Linux and an exclusive builder lease, uses existing bounded owned publisher/session APIs, preserves failed outputs and retains original source/producer/recipe/native identities. Build portable tooling on the Windows host before export; the Linux reference is not CLROS persistence qualification.
+
 [Step1590](../done/step1590.md) Step1590 retains the committed c3dbab92 normal graph19.39s0warnings/errors, exact same-source MinimalApiSmoke/generator originals and copied producers, plus17fresh affected source checks. Fresh ExitPending r03 passes its complete original guest wrapper. Full r04 runs independently; host-only writable and FileStream preparation use separate checkouts and leave the native lease with root.
 
 [Step1589](../done/step1589.md) retains the exact full r03 request-timeout and ExitPending r02 strict-wrapper failures. Focused synthetic/host checks qualify only bounded traversal and terminal parsing. Native publication, guest producer and package provenance remain serialized; independent writable host work uses a separate checkout. No request/runtime timeout was raised.

@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1591](../done/step1591.md) Step1591 records guarded source5 implementation and focused host passes only; the existing accepted EFI profiles retain their links and layouts. Full DiskA r04 atc3dbab92 failed its1700-second matrix after83 responses, despite a successful2,009,369-byte CoreLib GET. No complete first-batch/read/Blazor, writable, sync/reboot, SQLite or larger gate advances. The passing finite ExitPending r03 keeps its original scope.
+
 [Step1590](../done/step1590.md) One fresh original ExitPending r03 atc3dbab92 passes its strict complete wrapper, including the independent cleanup clock. This finite race result does not close M16-025 or the read/Blazor batch. Full r04 remains pending; three complete A/B/browser originals and stable source-matched full/native/ancestor checks remain required. New log/upload issue #809 and source5 claims advance no gate.
 
 [Step1589](../done/step1589.md) does not advance a gate. Full DiskA r03 fails after64 responses at the unchanged240-second CoreLib header timeout; no browser or cleanup acceptance. ExitPending r02 reaches all eight guest stages but its original wrapper fails disk_exit_capture_stage_lifetime. New bounded traversal and fresh cleanup-terminal source need new original native/guest qualification. The frozen6516-check full retains its older source scope.

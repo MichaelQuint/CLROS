@@ -44,6 +44,10 @@ public unsafe partial struct LinuxThreadServices
         internal LinuxDescriptorServices.DiskToken DiskOperation;
         internal uint DiskOutputBytes;
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        internal LinuxDescriptorServices.WritableDiskToken WritableDiskOperation;
+        internal uint WritableDiskOutputBytes;
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         internal LinuxEpollServices.Operation EpollOperation;
 #endif
@@ -83,7 +87,8 @@ public unsafe partial struct LinuxThreadServices
         public readonly ulong ClearTid, BlockedSignals;
         public readonly LinuxSyscallFrame Frame;
         public readonly KernelThreadWait Wait;
-        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe, 3 epoll.
+        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe, 3 epoll,
+        /// 4 read-only disk, 5 writable disk.
         /// Deadline is absolute monotonic nanoseconds, or zero for an untimed
         /// wait. Both are zero without a valid Wait. Completion may be ready
         /// while the wait and its backing remain retained until consumption.</summary>
@@ -236,6 +241,9 @@ public unsafe partial struct LinuxThreadServices
         {
             case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 8: case 16: case 17:
             case 20: case 22: case 72: case 79: case 89: case 257: case 293:
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            case 74: case 75: case 87: case 328:
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             case 41: case 42: case 43: case 44: case 45: case 46: case 47: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
             case 213: case 232: case 233: case 281: case 291:
@@ -372,6 +380,9 @@ public unsafe partial struct LinuxThreadServices
 #if !NOSTDLIB_EFI || M16_025_PROBE
         dropped = dropped && DropDiskOperation(s);
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        dropped = dropped && DropWritableDiskOperation(flags, s);
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         dropped = dropped && DropEpollOperation(s);
 #endif
@@ -419,6 +430,9 @@ public unsafe partial struct LinuxThreadServices
     private static bool HasDescriptorOperation(Slot* slot) => slot->PipeOperation.IsActive
 #if !NOSTDLIB_EFI || M16_025_PROBE
         || slot->DiskOperation.IsActive
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        || slot->WritableDiskOperation.IsActive
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         || slot->EpollOperation.IsActive

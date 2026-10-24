@@ -338,14 +338,20 @@ public static unsafe partial class LinuxSyscallGateway
         f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
     private static bool BlockingCall(ulong number) => number is 0 or 1 or 202 or 219
-#if !NOSTDLIB_EFI || M16_025_PROBE
+#if !NOSTDLIB_EFI || M16_025_PROBE || M16_027_PROBE
         or 2 or 4 or 6 or 8 or 17 or 257
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        or 74 or 75 or 87 or 328
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         or 232 or 281
 #endif
         ;
     private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 4 or 5 or 6 or 8 or 16 or 17 or 20 or 22 or 72 or 79 or 89 or 257 or 293
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        or 74 or 75 or 87 or 328
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         or 41 or 42 or 43 or 44 or 45 or 46 or 47 or 48 or 49 or 50 or 51 or 52 or 54 or 55 or 213 or 232 or 233 or 281 or 288 or 291
 #endif

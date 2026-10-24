@@ -79,6 +79,45 @@ public unsafe struct KernelThreadTable
     public readonly OSHostHandle Current => _current;
     public readonly bool HandoffPending => _handoff.IsValid;
 
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    /// <summary>Bounded copied retained-storage inventory for an authenticated
+    /// IRQ-off lifetime owner. Includes metadata, queue buffers, context arena,
+    /// switch code/stack, supervisor context/stack and every retained worker
+    /// context/stack. Empty slots report zero extents. These scalar observations
+    /// grant no mapping, copy, transfer, release or new borrowing authority.
+    /// Keep the same serialized transaction through the outer alias checks.</summary>
+    public Status InspectRetainedExtent(ulong key, ulong flags, uint index, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
+        Status status = Access(key, flags); if (status != Status.Ok) return status;
+        if (index >= 9 + 2 * _capacity) return Status.InvalidStorage;
+        switch (index)
+        {
+            case 0: start = _self; bytes = (uint)sizeof(KernelThreadTable); break;
+            case 1: start = (ulong)_slots; bytes = _slotBytes; break;
+            case 2: start = (ulong)_readyStorage; bytes = _readyBytes; break;
+            case 3: start = (ulong)_deadlineStorage; bytes = _deadlineBytes; break;
+            case 4: start = _switchOwner.ContextArena; bytes = _switchOwner.ContextArenaBytes; break;
+            case 5: start = _switchOwner.CodeStart; bytes = _switchOwner.CodeBytes; break;
+            case 6: start = _switchOwner.SwitchStackGuardStart; bytes = _switchOwner.SwitchStackBytes; break;
+            case 7: start = (ulong)_supervisor.Context; bytes = _supervisor.ContextBytes; break;
+            case 8: start = _supervisor.StackGuardStart; bytes = _supervisor.StackBytes; break;
+            default:
+                var slot = _slots[(index - 9) / 2];
+                if (slot.State is State.Empty or State.Retired) break;
+                if ((index & 1) != 0) { start = (ulong)slot.Context.Context; bytes = slot.Context.ContextBytes; }
+                else { start = slot.Context.StackGuardStart; bytes = slot.Context.StackBytes; }
+                break;
+        }
+        return Status.Ok;
+    }
+
+    /// <summary>Read the current bounded inventory length under original key,
+    /// address and IRQ-off ownership. At most137 extents; zero denotes invalid
+    /// ownership. The count supplies no lifetime pin or access authority.</summary>
+    public uint RetainedExtentCount(ulong key, ulong flags) => Access(key, flags) == Status.Ok ? 9 + 2 * _capacity : 0;
+#endif
+
     /// <summary>
     /// Borrow disjoint mapped metadata/buffers and a retained admitted supervisor.
     /// Its slot identity must be outside worker slots 1..capacity. Initial seeds

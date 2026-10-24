@@ -80,6 +80,9 @@ public unsafe partial struct LinuxThreadServices
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (!MayChangeDiskOutput(address, bytes)) return false;
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!MayChangeWritableDiskOutput(address, bytes)) return false;
+#endif
         if (_futexEnabled) for (uint i = 0; i < _futex.Capacity; i++)
             if (_futex.Cells[i].References != 0 && Overlap(address, bytes, _futex.Cells[i].Address, 4)) return false;
         return true;
