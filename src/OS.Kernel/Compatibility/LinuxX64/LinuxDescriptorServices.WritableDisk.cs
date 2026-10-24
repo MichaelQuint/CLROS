@@ -187,6 +187,10 @@ public static unsafe partial class LinuxDescriptorServices
         Description* opened = Find(state, unchecked((uint)call.Argument0));
         if (opened == null || (Kind)opened->Type != Kind.WritableDisk) return new(WritableDiskProgress.NotHandled);
         if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
+        // Retained backing is sufficient for close/orphan cleanup, never new
+        // I/O, a cursor change or a copied lock query from a stopped device.
+        if (!W.CanBorrowStorage(d->Provider, d->Epoch, (ulong)d, (ulong)sizeof(WritableDiskState)))
+            return new(WritableDiskProgress.Immediate, Io);
         if (call.Number == 8) return WritableSeek(state, opened, unchecked((long)call.Argument1), call.Argument2);
         if (call.Number == 72) return WritableLock(state, opened, call);
         if (call.Number == 328) return WritablePwrite(state, worker, opened, call);

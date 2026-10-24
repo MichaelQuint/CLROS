@@ -327,7 +327,7 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
     [HostTest("writable attachment full tree query excludes adapter provider DMA and observer backing and survives original block stop without copy authority")]
     private static void TreeAliases()
     {
-        using var f = new Owner(observe: true); byte external = 0x93; ulong address = (ulong)&external;
+        using var f = new Owner(observe: true); uint fd = f.Open(flags: 2); byte external = 0x93; ulong address = (ulong)&external;
         HostCheck.True(Tree(f.Files.State, address, 1)); uint calls = f.Hardware->Calls;
         var a = f.Storage.Input; var b = f.Storage.Device.Input;
         foreach (var extent in new (ulong Start, ulong Bytes)[] {
@@ -346,6 +346,10 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         HostCheck.True(!Tree(f.Files.State, ulong.MaxValue - 1, 8) && f.Hardware->Calls == calls && external == 0x93);
         HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
         HostCheck.True(Tree(f.Files.State, address, 1) && !W.CanBorrowStorage(f.Provider, f.ProviderAdmission.Epoch, address, 1));
+        f.PutLock(1, 0, 1); uint writes = f.Thread.Writes;
+        HostCheck.Equal(-5L, f.Run(f.Call(72, fd, 5, Flock))); HostCheck.Equal(writes, f.Thread.Writes);
+        HostCheck.Equal(-5L, f.Run(f.Call(72, fd, 6, Flock))); HostCheck.True(!f.HasLocks());
+        HostCheck.Equal(-5L, f.Run(f.Call(8, fd, 0, 0)));
     }
 
     [HostTest("writable global attachment validates original epoch primary and disjoint metadata before changing any caller storage")]
