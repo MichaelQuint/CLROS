@@ -1,5 +1,7 @@
 # App Model
 
+[Step1588](../done/step1588.md) assembles the writable block/FAT/provider host foundation in writable-thread-waits and claims seven root thread/gateway/test paths. The provider descriptor namespace still needs the agent global-fd slice and root genuine source5 continuations.192 distinct focused host controls pass; no application write/log/upload/SQLite acceptance is established.
+
 [Step1587](../done/step1587.md) gives validated process-wide exit precedence over opportunistic device progress; real Shutdown, CommitExit, cancellation, reset and release retain authority. The original pending-exit r01 failed before stage1, so the repaired order still needs a new original. M16-027 claims a bounded global writable descriptor implementation slice with reservation-before-create and cursor-after-copy rules; source5/native/SQLite acceptance is pending.
 
 [Step1586](../done/step1586.md) preserves full DiskA r02 as failed after35 HTTP responses, beyond the repaired UTC boundary but without browser or cleanup. The runner full-only serial cap now agrees with its128MiB consumer; actual full callback timeout remains3060s. A connected exact ExitPending consumer is preparation pending fresh guest evidence. Retained writable storage/descriptor/observer work remains isolated and does not qualify logs/uploads, durability or SQLite recovery.
