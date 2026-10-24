@@ -351,8 +351,9 @@ public static class NativeAotSqliteContract
                 {
                     "fsync" or "fdatasync" or "syncfs"=>"M06-020/#798",
                     "truncate" or "ftruncate" or "unlink" or "unlinkat" or "rename" or "renameat" or "renameat2" or "mkdir" or "mkdirat"=>"M06-021/#799",
-                    "open" or "openat" or "close" or "stat" or "fstat" or "newfstatat" or "statx" or "access" or "faccessat" or
-                    "read" or "pread64" or "write" or "pwrite64" or "lseek" or "fcntl" or "flock"=>"M16-027/#800",
+                    "open" or "openat" or "close" or "stat" or "fstat" or "lstat" or "newfstatat" or "statx" or "access" or "faccessat" or "fchown" or
+                    "read" or "pread64" or "readv" or "preadv" or "preadv2" or "write" or "pwrite64" or "writev" or "pwritev" or "pwritev2" or
+                    "lseek" or "fcntl" or "flock"=>"M16-027/#800",
                     _=>""
                 };
                 string arguments=match.Groups[2].Value;

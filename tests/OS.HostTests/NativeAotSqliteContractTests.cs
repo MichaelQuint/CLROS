@@ -132,6 +132,33 @@ internal static class NativeAotSqliteContractTests
         Reject(()=>NativeAotSqliteContract.InspectTraceValues(files,"../contract.db"),"trace_input");
     }
 
+    [HostTest("sqlite trace classifies measured musl vectored writes ownership and lstat without inventing signal pipe completion")]
+    private static void MuslTraceValues()
+    {
+        // Original r03 uses pwritev2/RWF_NOAPPEND beneath libc pwrite. These
+        // supplied rows test projection only; they do not replay its authority.
+        var files=new Dictionary<string,string>{["trace.5255"]="""
+            1792836276.967378 pwritev2(6</app/data/contract.db-journal>, [{iov_base="bytes", iov_len=5}], 1, 4096, RWF_NOAPPEND) = 5
+            1792836276.959929 fchown(6</app/data/contract.db-journal>, 0, 0) = 0
+            1792836278.530675 lstat("/app/data/contract.db-journal", 0x1234) = -1 ENOENT (No such file or directory)
+            1792836278.536145 exit_group(0) = ?
+            1792836278.540566 +++ exited with 0 +++
+            """,["trace.5257"]="""
+            1792836276.792870 read(3<pipe:[6103]> <unfinished ...>) = ?
+            1792836278.537834 +++ exited with 0 +++
+            """};
+        var value=NativeAotSqliteContract.InspectTraceValues(files,"/app/data/contract.db");
+        HostCheck.True(value.UnjoinedLines==1 && value.Calls.Count==4 && value.Calls.Take(3).All(c=>c.Successor=="M16-027/#800" && c.MentionsDatabase) &&
+            value.Calls[0].Arguments.EndsWith("1, 4096, RWF_NOAPPEND",StringComparison.Ordinal) && value.Calls[0].Result=="5" &&
+            value.Calls[2].Result.StartsWith("-1 ENOENT",StringComparison.Ordinal) && value.Calls.All(c=>!c.Arguments.Contains("pipe:",StringComparison.Ordinal)) &&
+            !value.GrantsCompleteTraceOrExecutionAuthority);
+        foreach(string syscall in new[]{"readv","writev","preadv","pwritev","preadv2","pwritev2"})
+        {
+            var mapped=NativeAotSqliteContract.InspectTraceValues(new Dictionary<string,string>{["trace.1"]="1.000001 "+syscall+"(3, [], 0, 0, 0) = 0\n"},"/app/data/contract.db");
+            HostCheck.Equal("M16-027/#800",mapped.Calls.Single().Successor);
+        }
+    }
+
     [HostTest("sqlite contract owned managed fixture creates commits rolls back reopens and preserves exact inputs",HostLane.Native)]
     private static async Task ManagedReference()
     {
