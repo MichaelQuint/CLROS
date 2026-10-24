@@ -207,7 +207,9 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         HostCheck.Equal(8L, f.Run(f.Call(0, second, Output, 8))); HostCheck.True(f.Bytes(8).SequenceEqual(Enumerable.Range(0, 8).Select(Value)));
         HostCheck.Equal(8L, f.Run(f.Call(8, second, 0, 1)));
         HostCheck.Equal(-95L, f.Core(72, first, 0, 0)); HostCheck.Equal(-95L, f.Core(72, first, 1030, 0));
-        uint writes = f.Thread.Writes; HostCheck.Equal(-95L, f.Core(0, first, Output, 8)); HostCheck.Equal(writes, f.Thread.Writes);
+        HostCheck.Equal(8L, f.Run(f.Call(0, first, Output, 8))); HostCheck.True(f.Bytes(8).SequenceEqual(Enumerable.Range(16, 8).Select(Value)));
+        HostCheck.Equal(24L, f.Run(f.Call(8, first, 0, 1)));
+        HostCheck.Equal(8L, f.Run(f.Call(8, second, 0, 1)));
         var privateHandle = W.Capture(f.Provider, 3).Descriptor;
         HostCheck.Equal(0L, W.Seek(f.Provider, privateHandle, 0, 1).Value);
     }
