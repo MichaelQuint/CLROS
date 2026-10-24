@@ -159,6 +159,110 @@ internal static class NativeAotSqliteContractTests
         }
     }
 
+    private static Dictionary<string,string> StorageRows(string? rows=null)=>new()
+    {
+        ["trace.17"]=rows??"""
+        1.000001 open("/app/data/contract.db", O_RDWR|O_CREAT|O_LARGEFILE|O_NOFOLLOW|O_CLOEXEC, 0644) = 5</app/data/contract.db>
+        1.000002 fcntl(5</app/data/contract.db>, F_SETFD, FD_CLOEXEC) = 0
+        1.000003 pread64(5</app/data/contract.db>, "", 100, 0) = 0
+        1.000004 fcntl(5</app/data/contract.db>, F_SETLK, {l_type=F_WRLCK, l_whence=SEEK_SET, l_start=1073741825, l_len=1}) = 0
+        1.000005 open("/app/data/contract.db-journal", O_RDWR|O_CREAT|O_LARGEFILE|O_NOFOLLOW|O_CLOEXEC, 0600) = 6</app/data/contract.db-journal>
+        1.000006 fchown(6</app/data/contract.db-journal>, 0, 0) = 0
+        1.000007 pwritev2(6</app/data/contract.db-journal>, [{iov_base="a, }], escaped\"", iov_len=512}], 1, 0, RWF_NOAPPEND) = 512
+        1.000008 fsync(6</app/data/contract.db-journal>) = 0
+        1.000009 open("/app/data", O_RDONLY|O_LARGEFILE|O_CLOEXEC) = 7</app/data>
+        1.000010 fcntl(7</app/data>, F_SETFD, FD_CLOEXEC) = 0
+        1.000011 fsync(7</app/data>) = 0
+        1.000012 close(7</app/data>) = 0
+        1.000013 pwritev2(6</app/data/contract.db-journal>, [{iov_base="header", iov_len=12}], 1, 0, RWF_NOAPPEND) = 12
+        1.000014 fsync(6</app/data/contract.db-journal>) = 0
+        1.000015 pwritev2(5</app/data/contract.db>, [{iov_base="page"..., iov_len=4096}], 1, 4096, RWF_NOAPPEND) = 4096
+        1.000016 fsync(5</app/data/contract.db>) = 0
+        1.000017 close(6</app/data/contract.db-journal>) = 0
+        1.000018 unlink("/app/data/contract.db-journal") = 0
+        1.000019 open("/app/data/contract.db", O_RDWR|O_LARGEFILE|O_NOFOLLOW|O_CLOEXEC) = 7</app/data/contract.db>
+        1.000020 fcntl(7</app/data/contract.db>, F_SETLK, {l_type=F_WRLCK, l_whence=SEEK_SET, l_start=1073741825, l_len=1}) = -1 EAGAIN (Resource temporarily unavailable)
+        1.000021 close(7</app/data/contract.db>) = 0
+        1.000022 close(5</app/data/contract.db>) = 0
+        1.000023 lstat("/app/data/contract.db-journal", 0x1234) = -1 ENOENT (No such file or directory)
+        1.000024 +++ exited with 0 +++
+        """,
+        ["trace.18"]="1.000001 read(3<pipe:[6103]> <unfinished ...>) = ?\n1.000025 +++ exited with 0 +++\n"
+    };
+
+    [HostTest("sqlite storage trace follows descriptor generations and exact positioned lock sync values without upgrading projection")]
+    private static void StorageTraceValues()
+    {
+        var input=StorageRows();var value=NativeAotSqliteContract.InspectStorageTraceValues(input,"/app/data/contract.db");input.Clear();
+        HostCheck.True(value.Source=="trace.17" && value.UnjoinedLines==1 && !value.GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority &&
+            value.Lifetimes.Count==4 && value.Lifetimes.All(l=>l.CloseLine.HasValue) &&
+            value.Lifetimes.Where(l=>l.Descriptor==7).Select(l=>l.Kind).SequenceEqual(new[]{"directory","database"}) &&
+            value.Lifetimes[0].OpenFlags.Contains("O_NOFOLLOW",StringComparison.Ordinal) && value.Lifetimes[0].Mode=="0644" && value.Lifetimes[1].Mode=="0600");
+        var write=value.Events.Single(e=>e.Kind=="database" && e.Call.Syscall=="pwritev2");
+        HostCheck.True(write.Offset==4096 && write.Count==4096 && write.Returned==4096 && write.Flags=="RWF_NOAPPEND" &&
+            value.Events.Single(e=>e.Call.Syscall=="pread64").Returned==0);
+        var busy=value.Events.Single(e=>e.Returned<0 && e.Lock is not null);
+        HostCheck.True(busy.LifetimeId==4 && busy.Lock==new NativeAotSqliteContract.StorageLock("F_WRLCK","SEEK_SET",1073741825,1) &&
+            busy.Call.Result.StartsWith("-1 EAGAIN",StringComparison.Ordinal));
+        var order=value.Journals.Single();
+        HostCheck.True(order.DatabaseWrites==1 && order.CompleteSyncOrder && order.ClosedBeforeUnlink &&
+            order.FirstJournalSync<order.ParentSync && order.ParentSync<order.HeaderWrite && order.HeaderWrite<order.LastJournalSync &&
+            order.LastJournalSync<order.DatabaseSync && order.DatabaseSync<order.Unlink);
+        bool immutable=false;try{((IList<NativeAotSqliteContract.StorageLifetime>)value.Lifetimes).Clear();}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
+    }
+
+    [HostTest("sqlite storage trace rejects stale descriptor attribution ambiguous owners and malformed measured operations")]
+    private static void StorageTraceRejections()
+    {
+        string original=StorageRows()["trace.17"];
+        foreach(var change in new[]{
+            ("1.000022 close(5</app/data/contract.db>) = 0", "1.000022 close(5</app/data/contract.db>) = 0\n1.000023 fsync(5</app/data/contract.db>) = 0", "stale_descriptor"),
+            ("5</app/data/contract.db>, F_SETFD", "5</app/data/contract.db-journal>, F_SETFD", "annotation"),
+            ("1.000012 close(7</app/data>) = 0", "", "descriptor_reused"),
+            ("}], 1, 4096, RWF_NOAPPEND", "}, {iov_base=\"extra\", iov_len=1}], 2, 4096, RWF_NOAPPEND", "iovec"),
+            ("4096, RWF_NOAPPEND) = 4096", "4096, RWF_NOAPPEND) = 4097", "io_result"),
+            ("4096, RWF_NOAPPEND) = 4096", "-1, RWF_NOAPPEND) = 4096", "number"),
+            ("l_whence=SEEK_SET", "l_whence=SEEK_CUR", "lock"),
+            ("1.000016 fsync(5</app/data/contract.db>) = 0", "1.000016 ioctl(5</app/data/contract.db>, 0, 0) = 0", "operation_unsupported"),
+            ("1.000016 fsync(5</app/data/contract.db>) = 0", "1.000016 mmap(NULL, 4096, PROT_READ, MAP_PRIVATE, 5</app/data/contract.db>, 0) = 0x1234", "path_operation"),
+            ("1.000022 close(5</app/data/contract.db>) = 0", "", "lifetime_unclosed")})
+            Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(original.Replace(change.Item1,change.Item2,StringComparison.Ordinal)),"/app/data/contract.db"),"storage_"+change.Item3);
+        var ambiguous=StorageRows();ambiguous["trace.18"]+="1.000026 lstat(\"/app/data/contract.db\", 0x1234) = 0\n";
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(ambiguous,"/app/data/contract.db"),"storage_single_owner");
+        var unfinished=StorageRows();unfinished["trace.17"]+="1.000026 read(3<pipe:[7]> <unfinished ...>) = ?\n";
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(unfinished,"/app/data/contract.db"),"storage_owner_unjoined");
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(),"/app/../contract.db"),"storage_path");
+    }
+
+    [HostTest("sqlite storage trace distinguishes ordered commit sync from failed missing reordered and rollback journal observations")]
+    private static void StorageTraceOrdering()
+    {
+        string original=StorageRows()["trace.17"];
+        foreach(var change in new[]{
+            ("1.000011 fsync(7</app/data>) = 0",""),
+            ("1.000011 fsync(7</app/data>) = 0","1.000011 fsync(7</app/data>) = -1 EIO (I/O error)"),
+            ("1.000014 fsync(6</app/data/contract.db-journal>) = 0","1.000014 fdatasync(6</app/data/contract.db-journal>) = 0"),
+            ("1.000015 pwritev2(5</app/data/contract.db>, [{iov_base=\"page\"..., iov_len=4096}], 1, 4096, RWF_NOAPPEND) = 4096",""),
+            ("1.000016 fsync(5</app/data/contract.db>) = 0","1.000016 fsync(5</app/data/contract.db>) = -1 EIO (I/O error)"),
+            ("1.000017 close(6</app/data/contract.db-journal>) = 0\n1.000018 unlink(\"/app/data/contract.db-journal\") = 0",
+             "1.000017 unlink(\"/app/data/contract.db-journal\") = 0\n1.000018 close(6</app/data/contract.db-journal>) = 0")})
+        {
+            var value=NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(original.Replace(change.Item1,change.Item2,StringComparison.Ordinal)),"/app/data/contract.db");
+            HostCheck.True(!value.Journals.Single().CompleteSyncOrder);
+        }
+        // A later journal generation must not borrow a prior transaction's
+        // flushes or database writes, even when the numeric fd is reused.
+        string suffix="""
+        1.000025 open("/app/data/contract.db-journal", O_RDWR|O_CREAT, 0600) = 6</app/data/contract.db-journal>
+        1.000026 pwritev2(6</app/data/contract.db-journal>, [{iov_base="rollback", iov_len=512}], 1, 0, RWF_NOAPPEND) = 512
+        1.000027 close(6</app/data/contract.db-journal>) = 0
+        1.000028 unlink("/app/data/contract.db-journal") = 0
+        """;
+        var separate=NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(original.Replace("1.000024 +++ exited with 0 +++","",StringComparison.Ordinal)+"\n"+suffix),"/app/data/contract.db");
+        HostCheck.True(separate.Journals.Count==2 && separate.Journals[0].CompleteSyncOrder && separate.Journals[1].DatabaseWrites==0 &&
+            separate.Journals[1].ClosedBeforeUnlink && !separate.Journals[1].CompleteSyncOrder && separate.Journals[1].ParentSync is null);
+    }
+
     [HostTest("sqlite contract owned managed fixture creates commits rolls back reopens and preserves exact inputs",HostLane.Native)]
     private static async Task ManagedReference()
     {

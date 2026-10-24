@@ -82,6 +82,14 @@ public static class NativeAotSqliteContract
     public sealed record TraceCall(string Source,int Line,string Syscall,string Arguments,string Result,string Successor,bool MentionsDatabase);
     public sealed record Trace(IReadOnlyList<TraceCall> Calls,int UnjoinedLines,IReadOnlyList<string> Successors)
     {public bool GrantsCompleteTraceOrExecutionAuthority=>false;}
+    public sealed record StorageLifetime(int Id,int Descriptor,string Kind,string Path,string OpenFlags,string Mode,int OpenLine,int? CloseLine);
+    public sealed record StorageLock(string Type,string Whence,long Start,long Length);
+    public sealed record StorageEvent(TraceCall Call,int LifetimeId,int Descriptor,string Kind,long? Count,long? Offset,long Returned,string Flags,StorageLock? Lock);
+    public sealed record JournalOrder(int LifetimeId,int DatabaseWrites,int? FirstJournalSync,int? ParentSync,int? HeaderWrite,
+        int? LastJournalSync,int? DatabaseSync,int? Unlink,bool ClosedBeforeUnlink,bool CompleteSyncOrder);
+    public sealed record StorageTrace(string Source,IReadOnlyList<StorageLifetime> Lifetimes,IReadOnlyList<StorageEvent> Events,
+        IReadOnlyList<JournalOrder> Journals,int UnjoinedLines)
+    {public bool GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority=>false;}
     public sealed class ManagedReference
     {
         internal ManagedReference(string directory,Transcript transcript,string databaseHash){Directory=directory;Values=transcript;DatabaseSha256=databaseHash;}
@@ -375,6 +383,155 @@ public static class NativeAotSqliteContract
         }
         Need(calls.Count>0,"trace_empty");return new(Array.AsReadOnly(calls.ToArray()),unjoined,
             Array.AsReadOnly(calls.Where(c=>c.Successor.Length!=0).Select(c=>c.Successor).Distinct().Order(StringComparer.Ordinal).ToArray()));
+    }
+
+    /// <summary>Copy measured storage values from bounded strace -ff/-ttt/-yy
+    /// text. Require one storage-owning trace file, explicit descriptor opens,
+    /// matching path annotations and closed lifetimes; cross-thread storage,
+    /// unfinished owner calls, descriptor duplication and unmeasured operation
+    /// shapes are unsupported. Preserve unrelated unfinished rows as incomplete
+    /// projection. Journal ordering describes successful observed syscalls only;
+    /// truncated strace buffers do not prove payload bytes, physical flushes,
+    /// native/guest execution, crash recovery or transactional durability.</summary>
+    public static StorageTrace InspectStorageTraceValues(IReadOnlyDictionary<string,string> files,string databasePath)
+    {
+        var trace=InspectTraceValues(files,databasePath);
+        Need(databasePath.Length<=240 && !databasePath.Any(c=>c is '\\' or '<' or '>' || char.IsControl(c)) &&
+            databasePath.Split('/').Skip(1).All(s=>s.Length>0 && s is not "." and not ".."),"storage_path");
+        string parent=databasePath[..databasePath.LastIndexOf('/')],journal=databasePath+"-journal";
+        Need(parent.Length>0,"storage_path");
+        string Kind(string path)=>path==databasePath?"database":path==journal?"journal":path==parent?"directory":"";
+        static string[] Parts(string text)
+        {
+            List<string> parts=[];int begin=0,depth=0;bool quoted=false,escaped=false;
+            for(int at=0;at<text.Length;at++)
+            {
+                char c=text[at];if(quoted){if(escaped)escaped=false;else if(c=='\\')escaped=true;else if(c=='"')quoted=false;continue;}
+                if(c=='"'){quoted=true;continue;}if(c is '[' or '{' or '(')depth++;
+                if(c is ']' or '}' or ')'){depth--;Need(depth>=0,"storage_arguments");}
+                if(c==',' && depth==0){parts.Add(text[begin..at].Trim());begin=at+1;}
+            }
+            Need(!quoted && depth==0,"storage_arguments");parts.Add(text[begin..].Trim());return parts.ToArray();
+        }
+        string PathValue(string value)=>value.Length>=2 && value[0]=='"' && value[^1]=='"' &&
+            !value[1..^1].Contains('\\')?value[1..^1]:"";
+        long Number(string value)
+        {Need(long.TryParse(value,NumberStyles.None,CultureInfo.InvariantCulture,out long number),"storage_number");return number;}
+        long Result(TraceCall call)
+        {
+            var result=Regex.Match(call.Result,@"^(-?\d+)(?:<.*>)?(?: .*)?$",RegexOptions.CultureInvariant);
+            Need(result.Success && long.TryParse(result.Groups[1].Value,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out long number) &&
+                number>=-1,"storage_result");return long.Parse(result.Groups[1].Value,CultureInfo.InvariantCulture);
+        }
+        string OpenPath(TraceCall call,string[] parts)=>call.Syscall=="open"?PathValue(parts[0]):
+            call.Syscall=="openat" && parts.Length>=2 && parts[0]=="AT_FDCWD"?PathValue(parts[1]):"";
+        string AnnotatedPath(string descriptor)
+        {
+            var match=Regex.Match(descriptor,@"^\d+<([^>]*)>$",RegexOptions.CultureInvariant);return match.Success?match.Groups[1].Value:"";
+        }
+        string CallKind(TraceCall call)
+        {
+            string[] parts=Parts(call.Arguments);
+            if(call.Syscall is "open" or "openat")return Kind(OpenPath(call,parts));
+            return Kind(PathValue(parts[0])) is {Length:>0} kind?kind:parts.Select(AnnotatedPath).Select(Kind).FirstOrDefault(k=>k.Length!=0)??"";
+        }
+        string[] owners=trace.Calls.Where(c=>CallKind(c).Length!=0).Select(c=>c.Source).Distinct(StringComparer.Ordinal).ToArray();
+        Need(owners.Length==1,"storage_single_owner");string owner=owners[0];
+        Need(!files[owner].Contains("<unfinished ...>",StringComparison.Ordinal) && !files[owner].Contains(" resumed>",StringComparison.Ordinal),"storage_owner_unjoined");
+        List<StorageLifetime> lifetimes=[];List<StorageEvent> events=[];Dictionary<int,int> active=[];
+        foreach(var call in trace.Calls.Where(c=>c.Source==owner))
+        {
+            string[] args=Parts(call.Arguments);string kind=CallKind(call);
+            if(call.Syscall is "open" or "openat")
+            {
+                long returned=Result(call);int first=call.Syscall=="open"?0:1;
+                if(returned>=0)Need(returned<=int.MaxValue && !active.ContainsKey((int)returned),"storage_descriptor_reused");
+                if(kind.Length==0)continue;
+                Need(args.Length==first+2 || args.Length==first+3,"storage_open");string path=OpenPath(call,args),flags=args[first+1],mode=args.Length==first+3?args[first+2]:"";
+                Need(Regex.IsMatch(flags,@"^O_[A-Z0-9_]+(?:\|O_[A-Z0-9_]+)*$",RegexOptions.CultureInvariant) &&
+                    (mode.Length==0 || Regex.IsMatch(mode,@"^0[0-7]{3}$",RegexOptions.CultureInvariant)),"storage_open");
+                int id=0;
+                if(returned>=0)
+                {
+                    Need(AnnotatedPath(call.Result)==path,"storage_annotation");id=lifetimes.Count+1;Need(id<=4096,"storage_capacity");
+                    lifetimes.Add(new(id,(int)returned,kind,path,flags,mode,call.Line,null));active.Add((int)returned,id);
+                }
+                events.Add(new(call,id,(int)returned,kind,null,null,returned,flags,null));continue;
+            }
+            var descriptor=Regex.Match(args[0],@"^(\d+)(?:<.*>)?$",RegexOptions.CultureInvariant);
+            if(descriptor.Success)
+            {
+                Need(int.TryParse(descriptor.Groups[1].Value,NumberStyles.None,CultureInfo.InvariantCulture,out int fd),"storage_descriptor");
+                if(!active.TryGetValue(fd,out int id)){Need(kind.Length==0,"storage_stale_descriptor");continue;}
+                var lifetime=lifetimes[id-1];Need(AnnotatedPath(args[0])==lifetime.Path,"storage_annotation");kind=lifetime.Kind;
+                long returned=Result(call);long? count=null,offset=null;string flags="";StorageLock? region=null;
+                switch(call.Syscall)
+                {
+                    case "close":
+                        Need(args.Length==1 && returned==0,"storage_close");lifetimes[id-1]=lifetime with{CloseLine=call.Line};active.Remove(fd);break;
+                    case "pread64":case "pwrite64":
+                        Need(args.Length==4,"storage_io");count=Number(args[2]);offset=Number(args[3]);break;
+                    case "pwritev2":
+                        Need(args.Length==5 && args[1].StartsWith('[') && args[1].EndsWith(']') && Number(args[2])==1,"storage_iovec");
+                        string[] vectors=Parts(args[1][1..^1]);Need(vectors.Length==1 && vectors[0].StartsWith('{') && vectors[0].EndsWith('}'),"storage_iovec");
+                        string[] fields=Parts(vectors[0][1..^1]);Need(fields.Length==2 && fields[0].StartsWith("iov_base=",StringComparison.Ordinal) &&
+                            fields[1].StartsWith("iov_len=",StringComparison.Ordinal),"storage_iovec");
+                        count=Number(fields[1][8..]);offset=Number(args[3]);flags=args[4];
+                        Need(Regex.IsMatch(flags,@"^(?:0|RWF_[A-Z0-9_]+(?:\|RWF_[A-Z0-9_]+)*)$",RegexOptions.CultureInvariant),"storage_io_flags");break;
+                    case "fcntl":
+                        Need(args.Length==3,"storage_fcntl");flags=args[1];
+                        if(flags=="F_SETFD")Need(args[2]=="FD_CLOEXEC" && returned==0,"storage_fcntl");
+                        else
+                        {
+                            Need(flags=="F_SETLK","storage_fcntl");
+                            var match=Regex.Match(args[2],@"^\{l_type=(F_RDLCK|F_WRLCK|F_UNLCK), l_whence=(SEEK_SET), l_start=(\d+), l_len=(\d+)\}$",RegexOptions.CultureInvariant);
+                            Need(match.Success,"storage_lock");region=new(match.Groups[1].Value,match.Groups[2].Value,Number(match.Groups[3].Value),Number(match.Groups[4].Value));
+                            Need(region.Start<=long.MaxValue-region.Length,"storage_lock");
+                        }
+                        break;
+                    case "fsync":case "fdatasync":Need(args.Length==1,"storage_sync");break;
+                    case "fstat":Need(args.Length==2,"storage_metadata");break;
+                    case "fchown":Need(args.Length==3,"storage_metadata");Number(args[1]);Number(args[2]);break;
+                    default:throw new ToolFailure("sqlite_contract_storage_operation_unsupported_"+call.Syscall);
+                }
+                if(count.HasValue)Need(count<=16*1024*1024 && offset<=long.MaxValue-count && returned<=count,"storage_io_result");
+                events.Add(new(call,id,fd,kind,count,offset,returned,flags,region));
+            }
+            else if(kind.Length!=0)
+            {
+                Need(call.Syscall is "stat" or "lstat" or "access" or "unlink","storage_path_operation");
+                Need(args.Length==(call.Syscall=="unlink"?1:2),"storage_path_operation");
+                events.Add(new(call,0,-1,kind,null,null,Result(call),"",null));
+            }
+            Need(events.Count<=200000,"storage_capacity");
+        }
+        Need(active.Count==0,"storage_lifetime_unclosed");List<JournalOrder> journals=[];
+        foreach(var lifetime in lifetimes.Where(l=>l.Kind=="journal"))
+        {
+            int end=lifetimes.Where(l=>l.Kind=="journal" && l.OpenLine>lifetime.OpenLine).Select(l=>l.OpenLine).DefaultIfEmpty(int.MaxValue).Min();
+            var unlink=events.FirstOrDefault(e=>e.Kind=="journal" && e.Call.Syscall=="unlink" && e.Returned==0 && e.Call.Line>lifetime.OpenLine && e.Call.Line<end);
+            int until=unlink?.Call.Line??end;
+            var own=events.Where(e=>e.LifetimeId==lifetime.Id).ToArray();
+            var writes=events.Where(e=>e.Kind=="database" && e.Count.HasValue && e.Call.Syscall is "pwrite64" or "pwritev2" &&
+                e.Returned>0 && e.Call.Line>lifetime.OpenLine && e.Call.Line<until).ToArray();
+            var syncs=own.Where(e=>e.Call.Syscall=="fsync" && e.Returned==0).ToArray();
+            var first=syncs.FirstOrDefault();var last=syncs.LastOrDefault();
+            var header=own.LastOrDefault(e=>e.Call.Syscall is "pwrite64" or "pwritev2" && e.Count==12 && e.Offset==0 && e.Returned==12);
+            var parentSync=events.FirstOrDefault(e=>e.Kind=="directory" && e.Call.Syscall=="fsync" && e.Returned==0 &&
+                e.Call.Line>first?.Call.Line && e.Call.Line<header?.Call.Line);
+            var databaseSync=events.FirstOrDefault(e=>e.Kind=="database" && e.Call.Syscall=="fsync" && e.Returned==0 &&
+                writes.Length>0 && e.LifetimeId==writes[0].LifetimeId && e.Call.Line>writes[^1].Call.Line && e.Call.Line<until);
+            bool closed=unlink is not null && lifetime.CloseLine<unlink.Call.Line;
+            bool ordered=writes.Length>0 && writes.Select(e=>e.LifetimeId).Distinct().Count()==1 && syncs.Length>=2 &&
+                writes.All(e=>e.Returned==e.Count) && own.Where(e=>e.Count.HasValue && e.Call.Syscall is "pwrite64" or "pwritev2").All(e=>e.Returned==e.Count) &&
+                own.Any(e=>e.Count.HasValue && e.Returned>0 && e.Call.Line<first?.Call.Line) &&
+                parentSync is not null && lifetimes[parentSync.LifetimeId-1].CloseLine<header?.Call.Line &&
+                header?.Call.Line<last?.Call.Line && own.Where(e=>e.Count.HasValue && e.Returned>0).All(e=>e.Call.Line<last?.Call.Line) &&
+                last?.Call.Line<writes[0].Call.Line && databaseSync is not null && databaseSync.Call.Line<lifetime.CloseLine && closed;
+            journals.Add(new(lifetime.Id,writes.Length,first?.Call.Line,parentSync?.Call.Line,header?.Call.Line,last?.Call.Line,
+                databaseSync?.Call.Line,unlink?.Call.Line,closed,ordered));
+        }
+        return new(owner,Array.AsReadOnly(lifetimes.ToArray()),Array.AsReadOnly(events.ToArray()),Array.AsReadOnly(journals.ToArray()),trace.UnjoinedLines);
     }
 
     /// <summary>Own a fresh artifacts directory and serialized managed restore,
