@@ -1072,6 +1072,11 @@ public static unsafe class ContinuingFat32Mutation
     // follows from this predicate. Provider retirement precedes engine Stop.
     internal static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
         Live(s) && s->Mounted && s->Input.Epoch == expectedEpoch && Caller(s, address, bytes);
+    // Retained provider cleanup additionally authenticates its original block
+    // lifetime. Dirty/fault/stopped backing remains owned; a restarted owner at
+    // the same address cannot authorize cleanup. No live-I/O/copy authority.
+    internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
+        CanBorrowStorage(s, expectedEpoch, address, bytes) && DeviceIdentity(s);
     // Stronger live provider admission, separate from retained teardown extents.
     // Clean pending/held reads are allowed. This checks RAM ownership only;
     // hardware/configuration and final copy are checked by the actual operation.

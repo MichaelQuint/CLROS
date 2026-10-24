@@ -697,6 +697,64 @@ internal static unsafe class ContinuingFat32MutationTests
     }
 
     private delegate bool BorrowCheck(C.State* state, ulong epoch, ulong address, ulong bytes);
+    private static BorrowCheck RetainPredicate() => typeof(C).GetMethod("CanRetainStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+
+    [HostTest("continuing FAT retained original ownership permits clean pending and stopped DMA without I O or allocation")]
+    private static void RetainedOriginalOwnership()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); var file = File(f); var retain = RetainPredicate();
+        HostCheck.True(retain(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !retain(f.State, f.Input.Epoch + 1, (ulong)f.Output, 8) &&
+            !retain(f.State, f.Input.Epoch, (ulong)f.State, 8));
+        Read(f, file, 0, 8, out var request); HostCheck.Equal(C.Status.Pending, C.Pump(f.State)); HostCheck.True(f.Device.State->ReadPending);
+        uint calls = f.Device.Hardware->Calls; long allocated = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 32; i++) good &= retain(f.State, f.Input.Epoch, (ulong)f.Output, 8);
+        HostCheck.True(good && calls == f.Device.Hardware->Calls && allocated == GC.GetAllocatedBytesForCurrentThread());
+        f.Device.Complete(); HostCheck.Equal(C.Status.Pending, C.Pump(f.State)); HostCheck.Equal(C.Status.Ready, f.Run());
+        HostCheck.True(retain(f.State, f.Input.Epoch, (ulong)f.Output, 8)); C.Result result = default;
+        HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, new byte[8], &result));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State)); HostCheck.True(f.Device.State->Retired && f.Device.Pool->AllocatedMask == 0 && retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        HostCheck.Equal(C.Status.Success, C.Stop(f.State)); HostCheck.True(!retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+    }
+
+    [HostTest("continuing FAT retained original ownership preserves dirty fault journal after actual device retirement")]
+    private static void RetainedDirtyOwnership()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); var file = File(f); var retain = RetainPredicate();
+        f.FailPublication = 1; Overwrite(f, file, 0, new byte[] { 81 }, out _); HostCheck.Equal(C.Status.RecoveryRequired, f.Run());
+        byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 512).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 512).ToArray();
+        uint calls = f.Device.Hardware->Calls; HostCheck.True(f.State->Dirty && retain(f.State, f.Input.Epoch, (ulong)f.Output, 8) && calls == f.Device.Hardware->Calls);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State)); calls = f.Device.Hardware->Calls;
+        HostCheck.True(retain(f.State, f.Input.Epoch, (ulong)f.Output, 8) && calls == f.Device.Hardware->Calls &&
+            new ReadOnlySpan<byte>(f.Input.Before, 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 512).SequenceEqual(after));
+        HostCheck.Equal(C.Status.RecoveryRequired, C.Stop(f.State)); HostCheck.True(retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+    }
+
+    [HostTest("continuing FAT retained original ownership rejects block epoch pool epoch self and real same address restart ABA")]
+    private static void RetainedOriginalAba()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); var retain = RetainPredicate();
+        var borrow = typeof(C).GetMethod("CanBorrowStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+        B.Admission* input = (B.Admission*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "Input"));
+        ulong epoch = input->Epoch; uint calls = f.Device.Hardware->Calls;
+        try { input->Epoch++; HostCheck.True(borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !retain(f.State, f.Input.Epoch, (ulong)f.Output, 8)); }
+        finally { input->Epoch = epoch; }
+        foreach (string field in new[] { "PoolEpoch", "Self" })
+        {
+            ulong* value = (ulong*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, field)); ulong prior = *value;
+            try { *value = prior + 8; HostCheck.True(!retain(f.State, f.Input.Epoch, (ulong)f.Output, 8)); }
+            finally { *value = prior; }
+        }
+        HostCheck.True(calls == f.Device.Hardware->Calls && retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
+        new Span<byte>(f.Device.State, sizeof(B.State)).Clear(); f.Device.Negotiate(); var next = f.Device.Input; next.Epoch = epoch + 1;
+        HostCheck.Equal(B.Status.Success, B.Start(f.Device.State, next));
+        HostCheck.True(borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        HostCheck.Equal(C.Status.InvalidState, C.Stop(f.State)); HostCheck.True(f.State->IsMounted);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State)); HostCheck.True(!retain(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        // The old engine cannot adopt the replacement lifetime. The simulated
+        // machine ends after both actual device lifetimes were quiesced.
+    }
+
     [HostTest("continuing FAT retained observer full partial and crossing aliases into every engine extent reject external admission")]
     private static void ProviderObserverRetainedAliases()
     {
