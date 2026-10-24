@@ -28,6 +28,8 @@ internal static unsafe class ContinuingFat32MutationTests
     { C.RequestToken value = default; var status = C.BeginCreateEmpty(f.State, name, alias, &value); request = value; return status; }
     private static C.Status Grow(Fixture f, C.FileToken file, uint length, ReadOnlySpan<uint> candidates, out C.RequestToken request)
     { C.RequestToken value = default; var status = C.BeginGrow(f.State, file, length, candidates, &value); request = value; return status; }
+    private static C.Status Read(Fixture f, C.FileToken file, ulong offset, uint bytes, out C.RequestToken request)
+    { C.RequestToken value = default; var status = C.BeginRead(f.State, file, offset, bytes, &value); request = value; return status; }
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
@@ -523,6 +525,137 @@ internal static unsafe class ContinuingFat32MutationTests
         }
     }
 
+    [HostTest("continuing FAT bounded demand reads follow fragmented sectors retain copied prefixes and preserve EOF output tails")]
+    private static void ReadRange()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f); int first = f.Trace.Count;
+        HostCheck.Equal(C.Status.Pending, Read(f, file, 500, 8192, out var request)); HostCheck.Equal(C.Status.Ready, f.Run());
+        HostCheck.True(f.State->IsReady && f.State->LastFailure == C.Status.Success && f.Device.State->SubmittedBytes == 0 && f.State->ChangeCount == 0);
+        HostCheck.True(f.Trace.Skip(first).Where(row => row.Sector == Data + 2 || row.Sector == Data + 4).Select(row => row.Sector).SequenceEqual(new ulong[] { Data + 2, Data + 4 }));
+        // Retained CPU bytes represent the completed reads, not a later device
+        // lookup or borrowed caller memory.
+        f.Volatile.Slice((Data + 4) * 512, 388).Clear(); byte[] target = Enumerable.Repeat((byte)0xc1, 8192).ToArray(); C.Result result = default;
+        HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, target, &result)); HostCheck.Equal(400U, result.Bytes);
+        for (int i = 0; i < 400; i++) HostCheck.Equal(Value(i + 500), target[i]); HostCheck.True(target.AsSpan(400).IndexOfAnyExcept((byte)0xc1) < 0);
+        HostCheck.True(new ReadOnlySpan<byte>(f.Input.Input, 400).IndexOfAnyExcept((byte)0) < 0);
+        uint before = f.Device.Hardware->Notifies;
+        foreach (ulong offset in new[] { 900UL, ulong.MaxValue })
+        { HostCheck.Equal(C.Status.Ready, Read(f, file, offset, 1, out request)); HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, [], &result)); HostCheck.Equal(0U, result.Bytes); }
+        HostCheck.Equal(C.Status.Ready, Read(f, file, 1, 0, out request)); HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, [], &result));
+        HostCheck.Equal(C.Status.CapacityExceeded, Read(f, file, 0, 8193, out _)); HostCheck.Equal(before, f.Device.Hardware->Notifies); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT held read blocks other work and cancellation revokes Ready or drains partially accumulated IN")]
+    private static void ReadCancellation()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f);
+        Read(f, file, 500, 400, out var request); HostCheck.Equal(C.Status.Ready, f.Run());
+        HostCheck.Equal(C.Status.Busy, Open(f, "DATA.BIN", out _)); HostCheck.Equal(C.Status.Busy, Overwrite(f, file, 0, new byte[] { 1 }, out _));
+        HostCheck.Equal(C.Status.Busy, Grow(f, file, 1300, new uint[] { 8 }, out _)); HostCheck.Equal(C.Status.Busy, Create(f, "NEW.TXT", "NEW     TXT"u8, out _));
+        C.RequestToken barrier = default; HostCheck.Equal(C.Status.Busy, C.BeginFlush(f.State, &barrier));
+        HostCheck.Equal(C.Status.Cancelled, C.Cancel(f.State, request)); HostCheck.True(!f.State->IsReady && f.State->LastFailure == C.Status.Cancelled);
+        byte[] target = Enumerable.Repeat((byte)0xc2, 400).ToArray(); C.Result result = default;
+        HostCheck.Equal(C.Status.StaleToken, C.CopyRead(f.State, request, target, &result)); HostCheck.True(target.AsSpan().IndexOfAnyExcept((byte)0xc2) < 0);
+        HostCheck.True(new ReadOnlySpan<byte>(f.Input.Input, 400).IndexOfAnyExcept((byte)0) < 0);
+        Read(f, file, 500, 400, out var next); HostCheck.True(next.Generation != request.Generation);
+        HostCheck.Equal(C.Status.StaleToken, C.Cancel(f.State, request));
+        while (!f.Trace.Skip(f.Trace.FindLastIndex(row => row.Sector == Data + 4) + 1).Any(row => row.Sector == Data + 2)) HostCheck.Equal(C.Status.Pending, f.Turn());
+        HostCheck.Equal(C.Status.Pending, f.Turn()); // Copy first range fragment.
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State)); HostCheck.True(f.Device.Hardware->Pending);
+        HostCheck.Equal(C.Status.Pending, C.Cancel(f.State, next)); f.Device.Complete(); HostCheck.Equal(C.Status.Ready, f.Run());
+        HostCheck.Equal(C.Status.Cancelled, C.CopyRead(f.State, next, [], &result)); HostCheck.Equal(0U, result.Bytes);
+        HostCheck.True(!f.State->Dirty && new ReadOnlySpan<byte>(f.Input.Input, 400).IndexOfAnyExcept((byte)0) < 0 && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT read result and byte aliases preserve held data state DMA ownership and caller outputs")]
+    private static void ReadAliases()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f); Read(f, file, 5, 37, out var request); f.Run();
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray(), input = new ReadOnlySpan<byte>(f.Input.Input, 37).ToArray();
+        byte[] target = Enumerable.Repeat((byte)0xd1, 37).ToArray(); new Span<byte>(f.Output, 128).Fill(0xd2);
+        foreach (ulong pointer in new[] { 0UL, 8UL, 0x0000800000000000UL, (ulong)f.State, (ulong)f.Input.Before, (ulong)f.Device.Data, (ulong)f.Device.Pool })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyRead(f.State, request, target, (C.Result*)pointer));
+        foreach (ulong pointer in new[] { 8UL, (ulong)f.State, (ulong)f.Input.Input, (ulong)f.Input.Before, (ulong)f.Device.Data })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyRead(f.State, request, new Span<byte>((void*)pointer, 37), (C.Result*)f.Output));
+        HostCheck.Equal(C.Status.InvalidStorage, C.CopyRead(f.State, request, new Span<byte>(f.Output, 37), (C.Result*)(f.Output + 8)));
+        HostCheck.Equal(C.Status.InvalidStorage, C.CopyRead(f.State, request, target.AsSpan(0, 36), (C.Result*)f.Output));
+        HostCheck.True(new ReadOnlySpan<byte>(f.Output, 128).IndexOfAnyExcept((byte)0xd2) < 0 && target.AsSpan().IndexOfAnyExcept((byte)0xd1) < 0);
+        HostCheck.True(new ReadOnlySpan<byte>(f.State, sizeof(C.State)).SequenceEqual(state) && new ReadOnlySpan<byte>(f.Input.Input, 37).SequenceEqual(input));
+        C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, target, &result)); HostCheck.Equal(37U, result.Bytes); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT every range IN failure publishes no partial bytes and exact original device retirement precedes cleanup")]
+    private static void ReadFailuresAndReset()
+    {
+        int reads;
+        using (var f = new Fixture()) { f.Mount(); var file = File(f); int before = f.Trace.Count; Read(f, file, 500, 400, out var request); f.Run(); reads = f.Trace.Count - before; C.Result result = default; C.CopyRead(f.State, request, new byte[400], &result); C.Stop(f.State); }
+        for (int at = 1; at <= reads; at++)
+        {
+            using var f = new Fixture(); f.Mount(); var file = File(f); f.FailAt = f.Device.Hardware->Notifies + (uint)at;
+            Read(f, file, 500, 400, out var request); HostCheck.Equal(C.Status.BlockFailure, f.Run());
+            byte[] target = Enumerable.Repeat((byte)0xe1, 400).ToArray(); C.Result result = default;
+            HostCheck.Equal(C.Status.BlockFailure, C.CopyRead(f.State, request, target, &result)); HostCheck.True(result.Bytes == 0 && target.AsSpan().IndexOfAnyExcept((byte)0xe1) < 0 && !f.State->Dirty);
+            HostCheck.Equal(C.Status.Busy, C.Stop(f.State)); B.Stop(f.Device.State); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); var file = File(f); Read(f, file, 5, 37, out var request); f.Run(); B.Stop(f.Device.State);
+            byte[] target = Enumerable.Repeat((byte)0xe2, 37).ToArray(); C.Result result = default;
+            HostCheck.Equal(C.Status.BlockFailure, C.CopyRead(f.State, request, target, &result)); HostCheck.True(result.Bytes == 0 && target.AsSpan().IndexOfAnyExcept((byte)0xe2) < 0);
+            HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+    }
+
+    [HostTest("continuing FAT read completion does not acquire a new clock dependency and repeated ranges allocate no managed buffers")]
+    private static void ReadAllocation()
+    {
+        using var f = new Fixture(); f.Record = false; f.Mount(); var file = File(f); byte[] target = new byte[37];
+        Read(f, file, 5, 37, out var request); f.Run(); C.Result result = default;
+        f.Device.Hardware->ClockFailure = true; uint callbacks = f.Device.Hardware->Calls;
+        HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, target, &result)); HostCheck.Equal(callbacks, f.Device.Hardware->Calls); f.Device.Hardware->ClockFailure = false;
+        long start = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 8; i++)
+        { C.RequestToken read = default; good &= C.BeginRead(f.State, file, (uint)i, 37, &read) == C.Status.Pending && f.Run() == C.Status.Ready && C.CopyRead(f.State, read, target, &result) == C.Status.Success && result.Bytes == 37; }
+        HostCheck.True(good && GC.GetAllocatedBytesForCurrentThread() == start); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT dirty recovery journal cannot be borrowed as read scratch or overwritten by a new read")]
+    private static void DirtyRead()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f); f.FailPublication = 1;
+        Overwrite(f, file, 0, new byte[] { 71 }, out _); HostCheck.Equal(C.Status.RecoveryRequired, f.Run());
+        byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 512).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 512).ToArray(); uint calls = f.Device.Hardware->Notifies;
+        HostCheck.Equal(C.Status.RecoveryRequired, Read(f, file, 0, 1, out _));
+        HostCheck.True(f.Device.Hardware->Notifies == calls && new ReadOnlySpan<byte>(f.Input.Before, 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 512).SequenceEqual(after));
+    }
+
+    private delegate bool BorrowCheck(C.State* state, ulong epoch, ulong address, ulong bytes);
+    [HostTest("continuing FAT structural provider borrow rejects all owned extents and retired APIs never dereference released backing")]
+    private static void BorrowAndRetired()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f);
+        var borrow = typeof(C).GetMethod("CanBorrowStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+        HostCheck.True(borrow(f.State, f.Input.Epoch, (ulong)f.Output, 128)); HostCheck.True(!borrow(f.State, f.Input.Epoch + 1, (ulong)f.Output, 128));
+        foreach (ulong address in new[] { 8UL, (ulong)f.State, (ulong)f.Input.Changes, (ulong)f.Input.Before, (ulong)f.Input.After, (ulong)f.Input.DirectoryMap, (ulong)f.Input.FileMap,
+            (ulong)f.Input.WalkMap, (ulong)f.Input.Sector, (ulong)f.Input.Fat0, (ulong)f.Input.Fat1, (ulong)f.Input.Input, (ulong)f.Input.Name, (ulong)f.Input.LongName, (ulong)f.Input.EncodedEntries,
+            (ulong)f.Device.State, (ulong)f.Device.Pool, (ulong)f.Device.Slot, (ulong)f.Device.Data, 0x400000UL, 0x402000UL, 0x403000UL })
+            HostCheck.True(!borrow(f.State, f.Input.Epoch, address, 8));
+        int offset = WritableBlockSessionTests.ManagedOffset(f.State, "Input"); C.Admission* input = (C.Admission*)((byte*)f.State + offset);
+        var before = input->Before; input->Before = (byte*)8;
+        HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 128)); HostCheck.Equal(C.Status.InvalidStorage, C.Stop(f.State)); HostCheck.True(f.State->IsMounted);
+        input->Before = before;
+        int epochOffset = WritableBlockSessionTests.ManagedOffset(f.Device.Pool, "Epoch"); ulong* poolEpoch = (ulong*)((byte*)f.Device.Pool + epochOffset); ulong originalEpoch = *poolEpoch;
+        (*poolEpoch)++; HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 128)); *poolEpoch = originalEpoch;
+        HostCheck.Equal(C.Status.Success, C.Stop(f.State)); HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 128));
+        var device = input->Device; input->Device = (B.State*)8;
+        C.RequestToken request = default; C.Result result = default; C.FileToken copied = default;
+        HostCheck.Equal(C.Status.InvalidState, C.BeginRead(f.State, file, 0, 1, &request)); HostCheck.Equal(C.Status.InvalidState, C.CopyRead(f.State, request, [], &result));
+        HostCheck.Equal(C.Status.InvalidState, C.BeginOpenRoot(f.State, "DATA.BIN", &request)); HostCheck.Equal(C.Status.InvalidState, C.CopyOpen(f.State, request, &copied));
+        HostCheck.Equal(C.Status.InvalidState, C.BeginOverwrite(f.State, file, 0, [], &request)); HostCheck.Equal(C.Status.InvalidState, C.BeginGrow(f.State, file, 1300, new uint[] { 8 }, &request));
+        HostCheck.Equal(C.Status.InvalidState, C.BeginCreateEmpty(f.State, "A.TXT", "A       TXT"u8, &request)); HostCheck.Equal(C.Status.InvalidState, C.BeginFlush(f.State, &request));
+        HostCheck.Equal(C.Status.InvalidState, C.CopyResult(f.State, request, &result)); HostCheck.Equal(C.Status.InvalidState, C.Pump(f.State)); HostCheck.Equal(C.Status.Success, C.Stop(f.State)); input->Device = device;
+    }
+
     private static void PrepareGrowth(Fixture f)
     {
         Put16(f.Volatile, First * 512 + 48, 1); Put16(f.Volatile, First * 512 + 50, 6);
@@ -553,7 +686,7 @@ internal static unsafe class ContinuingFat32MutationTests
             new ReadOnlySpan<byte>(bytes + first * 512, checked((int)count * 512)).CopyTo(target); return BlockReadResult.Success(count, count * 512UL);
         }
     }
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal readonly WritableBlockSessionTests.Fixture Device;
         internal readonly C.State* State = (C.State*)NativeMemory.AllocZeroed((nuint)sizeof(C.State));

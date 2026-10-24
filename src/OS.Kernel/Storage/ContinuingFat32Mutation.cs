@@ -10,7 +10,7 @@ namespace OS.Storage;
 /// sector IN/OUT/FLUSH. One serialized supervisor owns caller-provided POD state
 /// and backing; no snapshot, retained Span/ref struct, allocation, user pointer,
 /// synchronous disk spin or native activation is supplied. This first slice
-/// opens regular root files, creates empty root files, overwrites within their
+/// opens and demand-reads regular root files, creates empty root files, overwrites within their
 /// existing length, grows files using explicit free clusters and sends actual
 /// barriers. Nested directories, truncate/rename/delete and
 /// persistent crash recovery remain unsupported. Any issued-write failure keeps
@@ -29,9 +29,9 @@ public static unsafe class ContinuingFat32Mutation
         BlockFailure, RecoveryRequired, AlreadyExists, InvalidAllocation
     }
     internal enum Life : byte { Mounting = 1, Idle, Working, Ready, Faulted, Retired }
-    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow }
-    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo }
-    internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit }
+    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read }
+    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo, ReadData }
+    internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit, FileData }
     internal enum Transform : byte { Zero, Fat, Directory, FsInfo }
     private const byte LookupName = 1, LookupToken = 2, ValidateRoot = 3, CreateRoot = 4;
 
@@ -138,7 +138,7 @@ public static unsafe class ContinuingFat32Mutation
     /// or output metadata pointer is retained. Invalid aliases write nothing.</summary>
     public static Status BeginOpenRoot(State* s, ReadOnlySpan<char> name, RequestToken* request)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         fixed (char* source = name)
         {
             if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken)) ||
@@ -160,7 +160,7 @@ public static unsafe class ContinuingFat32Mutation
     /// Directory metadata/timestamps remain unchanged in this initial slice.</summary>
     public static Status BeginOverwrite(State* s, FileToken file, ulong offset, ReadOnlySpan<byte> bytes, RequestToken* request)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         fixed (byte* source = bytes)
         {
             if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken)) || bytes.Length != 0 &&
@@ -187,7 +187,7 @@ public static unsafe class ContinuingFat32Mutation
     /// caller input pointer is retained; partial publication requires recovery.</summary>
     public static Status BeginCreateEmpty(State* s, ReadOnlySpan<char> name, ReadOnlySpan<byte> alias, RequestToken* request)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         fixed (char* letters = name)
         fixed (byte* shortName = alias)
         {
@@ -222,7 +222,7 @@ public static unsafe class ContinuingFat32Mutation
     /// increase in logical length; old file tokens are revoked on first OUT.</summary>
     public static Status BeginGrow(State* s, FileToken file, uint newLength, ReadOnlySpan<uint> candidates, RequestToken* request)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         fixed (uint* source = candidates)
         {
             if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken)) || candidates.Length != 0 &&
@@ -248,11 +248,60 @@ public static unsafe class ContinuingFat32Mutation
         }
     }
 
+    /// <summary>Demand-read at most8192 bytes through the same exclusive queue.
+    /// Copy the request and validate the token/physical entry/full file map;
+    /// stage only this range in the exclusive input buffer, never journal
+    /// Before/After. No caller output pointer or whole-file preload is retained.
+    /// EOF/zero bytes become Ready0. Other requests stay Busy until CopyRead or
+    /// cancellation consumes the held result. The descriptor owner separately
+    /// revalidates its original fd generation and memory mapping before copy.</summary>
+    public static Status BeginRead(State* s, FileToken file, ulong offset, uint requestedBytes, RequestToken* request)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken))) return Status.InvalidStorage;
+        *request = default;
+        if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
+        if (!FileMatches(s, file)) return Status.StaleToken;
+        if (requestedBytes > WriteBytes) return Status.CapacityExceeded;
+        if (s->RequestGeneration == ulong.MaxValue) return Status.GenerationExhausted;
+        Begin(s, Kind.Read); s->File = file; s->Offset = offset;
+        ulong remaining = offset >= file.Length ? 0 : file.Length - offset;
+        s->Wanted = remaining < requestedBytes ? (uint)remaining : requestedBytes;
+        if (s->Wanted == 0) Finish(s, Status.Success); else BeginRootChain(s, LookupToken);
+        *request = new(s); return s->Phase == Life.Ready ? Status.Ready : Status.Pending;
+    }
+
+    /// <summary>Publish a held range into exclusive ordinary RAM, with exact
+    /// returned Bytes=min(requested,length-offset). Destination may be larger
+    /// than that prefix but at most8192 bytes; unused bytes stay unchanged.
+    /// Validate destination/result bounds and aliases before any output write;
+    /// invalid storage preserves Ready for retry. Revalidate the original block
+    /// lifetime before publication, then perform no fallible callback. Pending,
+    /// stale, cancelled or faulted requests never publish file bytes. Metadata
+    /// failure results are default/Bytes0. Consumption scrubs copied input.</summary>
+    public static Status CopyRead(State* s, RequestToken request, Span<byte> destination, Result* result)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        fixed (byte* output = destination)
+        {
+            if (!Output(s, (ulong)result, (ulong)sizeof(Result)) || destination.Length > WriteBytes || destination.Length != 0 &&
+                (!Caller(s, (ulong)output, (ulong)destination.Length) || Overlap((ulong)output, (ulong)destination.Length, (ulong)result, (ulong)sizeof(Result)))) return Status.InvalidStorage;
+            if (!Matches(s, request) || s->Kind != Kind.Read) { *result = default; return Status.StaleToken; }
+            if (s->Phase != Life.Ready) { *result = default; return s->Phase == Life.Faulted ? s->Failure : Status.Pending; }
+            Status status = s->Failure;
+            if (status == Status.Success && (uint)destination.Length < s->Wanted) return Status.InvalidStorage;
+            if (status == Status.Success && (!DeviceCurrent(s) || s->Input.Device->RequestPending)) { *result = default; return DeviceFailure(s, Block.Status.InvalidState); }
+            uint bytes = status == Status.Success ? s->Wanted : 0;
+            for (uint i = 0; i < bytes; i++) output[i] = s->Input.Input[i];
+            *result = new(status, bytes); ScrubRead(s); EndRequest(s); return status;
+        }
+    }
+
     /// <summary>Request a real volume FLUSH, even when no data is dirty. This
     /// is a block barrier; no regular-file or directory durability is fabricated.</summary>
     public static Status BeginFlush(State* s, RequestToken* request)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken))) return Status.InvalidStorage;
         *request = default; if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
         if (s->RequestGeneration == ulong.MaxValue) return Status.GenerationExhausted;
@@ -279,6 +328,7 @@ public static unsafe class ContinuingFat32Mutation
             case Step.RootChain: case Step.TargetChain: case Step.OtherChain: return Walk(s);
             case Step.Scan: return Scan(s);
             case Step.Plan: return Plan(s);
+            case Step.ReadData: return ReadFileData(s);
             case Step.GrowCandidates: return CheckGrowthCandidates(s);
             case Step.GrowData: return PlanGrowthData(s);
             case Step.GrowFat: return PlanGrowthFat(s);
@@ -299,7 +349,7 @@ public static unsafe class ContinuingFat32Mutation
     /// copied or preloaded.</summary>
     public static Status CopyOpen(State* s, RequestToken request, FileToken* file)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         if (!Output(s, (ulong)file, (ulong)sizeof(FileToken))) return Status.InvalidStorage;
         *file = default; if (!Matches(s, request) || s->Kind != Kind.Open) return Status.StaleToken;
         if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
@@ -312,20 +362,25 @@ public static unsafe class ContinuingFat32Mutation
     /// successful consumable result and continue owning their journals.</summary>
     public static Status CopyResult(State* s, RequestToken request, Result* result)
     {
-        if (!Bound(s)) return Status.InvalidState;
+        if (!Live(s)) return Status.InvalidState;
         if (!Output(s, (ulong)result, (ulong)sizeof(Result))) return Status.InvalidStorage;
         *result = default; if (!Matches(s, request) || s->Kind is not (Kind.Overwrite or Kind.Barrier or Kind.Create or Kind.Grow)) return Status.StaleToken;
         if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
         Status status = s->Failure; *result = new(status, status == Status.Success ? s->Wanted : 0); EndRequest(s); return status;
     }
 
-    /// <summary>Ready completion wins. Otherwise revoke continuation and drain
+    /// <summary>Write/barrier Ready completion wins. A held read Ready is
+    /// revoked/scrubbed immediately. Otherwise revoke continuation and drain
     /// the actual token without retracting DMA. Before first write the plan may
     /// be discarded after reads drain; later cancellation retains recovery.</summary>
     public static Status Cancel(State* s, RequestToken request)
     {
         if (!Bound(s) || !Matches(s, request)) return Status.StaleToken;
-        if (s->Phase == Life.Ready) return Status.Ready;
+        if (s->Phase == Life.Ready)
+        {
+            if (s->Kind != Kind.Read) return Status.Ready;
+            ScrubRead(s); s->Failure = Status.Cancelled; EndRequest(s); return Status.Cancelled;
+        }
         if (s->Phase == Life.Faulted) return s->Failure;
         s->Cancelled = true;
         if (s->IoActive)
@@ -355,6 +410,11 @@ public static unsafe class ContinuingFat32Mutation
         }
         if (!s->Input.Device->Retired && s->Input.Device->RequestPending) return Status.Busy;
         Extent* all = stackalloc Extent[14]; Extents(s, s->Input, all);
+        for (int i = 0; i < 14; i++)
+        {
+            if (!Storage(all[i].Start, all[i].Bytes, 8) || !OutsideDevice(s->Input.Device, all[i].Start, all[i].Bytes)) return Status.InvalidStorage;
+            for (int j = 0; j < i; j++) if (Overlap(all[i].Start, all[i].Bytes, all[j].Start, all[j].Bytes)) return Status.InvalidStorage;
+        }
         for (int i = 1; i < 14; i++) for (ulong j = 0; j < all[i].Bytes; j++) ((byte*)all[i].Start)[j] = 0;
         s->IoActive = false; s->Mounted = false; s->Phase = Life.Retired; return Status.Success;
     }
@@ -396,6 +456,7 @@ public static unsafe class ContinuingFat32Mutation
         if (s->Step == Step.TargetChain)
         {
             s->TargetCount = s->WalkCount; if (s->Kind == Kind.Open) return Finish(s, Status.Success);
+            if (s->Kind == Kind.Read) { s->Step = Step.ReadData; return Status.Pending; }
             s->ScanReason = ValidateRoot; ResetScan(s);
         }
         else s->Step = Step.Scan;
@@ -522,6 +583,15 @@ public static unsafe class ContinuingFat32Mutation
         uint cluster = s->Kind == Kind.Create ? s->Input.DirectoryMap[map] : s->Input.FileMap[map];
         ulong lba = s->Volume.FirstDataLba + (ulong)(cluster - 2) * s->Volume.SectorsPerCluster + (position % clusterBytes) / 512;
         return Read(s, lba, s->Input.Before + s->Changes * 512, Purpose.Original);
+    }
+    private static Status ReadFileData(State* s)
+    {
+        if (s->PlannedBytes == s->Wanted) return Finish(s, Status.Success);
+        ulong position = s->Offset + s->PlannedBytes, clusterBytes = s->Volume.SectorsPerCluster * 512UL;
+        uint map = (uint)(position / clusterBytes); if (map >= s->TargetCount) return Finish(s, Status.CorruptChain);
+        ulong lba = s->Volume.FirstDataLba + (ulong)(s->Input.FileMap[map] - 2) * s->Volume.SectorsPerCluster + position % clusterBytes / 512;
+        s->EditOffset = (uint)(position % 512); s->EditBytes = System.Math.Min(512 - s->EditOffset, s->Wanted - s->PlannedBytes);
+        return Read(s, lba, s->Input.Sector, Purpose.FileData);
     }
     private static Status CheckGrowthCandidates(State* s)
     {
@@ -673,6 +743,9 @@ public static unsafe class ContinuingFat32Mutation
             case Purpose.GrowthEdit:
                 new ReadOnlySpan<byte>(s->Input.Before + s->EditIndex * 512, 512).CopyTo(new Span<byte>(s->Input.After + s->EditIndex * 512, 512));
                 s->Input.Changes[s->EditIndex] = new() { Sector = s->IoLba, Phase = s->EditStage }; s->Changes++; return ApplyEdit(s);
+            case Purpose.FileData:
+                new ReadOnlySpan<byte>(s->Input.Sector + s->EditOffset, (int)s->EditBytes).CopyTo(new Span<byte>(s->Input.Input + s->PlannedBytes, (int)s->EditBytes));
+                s->PlannedBytes += s->EditBytes; break;
         }
         return Status.Pending;
     }
@@ -683,11 +756,18 @@ public static unsafe class ContinuingFat32Mutation
     private static Status Finish(State* s, Status status)
     { s->Failure = status; s->Phase = s->Kind == Kind.Mount ? Life.Faulted : Life.Ready; return Status.Ready; }
     private static void EndRequest(State* s) { s->Phase = Life.Idle; s->IoActive = false; s->Cancelled = false; }
+    private static void ScrubRead(State* s) { for (uint i = 0; i < s->Wanted; i++) s->Input.Input[i] = 0; }
     private static bool FileMatches(State* s, FileToken file) => file.Owner == (ulong)s && file.Epoch == s->Input.Epoch && file.Revision == s->Revision &&
         file.EntryOffset >= s->Volume.FirstDataLba * 512 && file.EntryOffset / 512 < s->Volume.PartitionFirstLba + s->Volume.TotalSectors && (file.EntryOffset & 31) == 0;
     private static bool Fingerprint(FileToken file, ReadOnlySpan<byte> raw) => U64(raw, 0) == file.Fingerprint0 && U64(raw, 8) == file.Fingerprint1 && U64(raw, 16) == file.Fingerprint2 && U64(raw, 24) == file.Fingerprint3;
     private static bool Matches(State* s, RequestToken request) => request.Owner == (ulong)s && request.Epoch == s->Input.Epoch && request.Generation != 0 && request.Generation == s->RequestGeneration && s->Phase is Life.Working or Life.Ready or Life.Faulted;
     private static bool Bound(State* s) => Storage((ulong)s, (ulong)sizeof(State), 8) && s->Self == (ulong)s && s->Phase is >= Life.Mounting and <= Life.Retired;
+    private static bool Live(State* s) => Bound(s) && s->Phase != Life.Retired;
+    // Structural provider admission only. A mounted owner retains these
+    // extents even after a device fault; neither live I/O nor native authority
+    // follows from this predicate. Provider retirement precedes engine Stop.
+    internal static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
+        Live(s) && s->Mounted && s->Input.Epoch == expectedEpoch && Caller(s, address, bytes);
     private static bool DeviceIdentity(State* s) => Storage((ulong)s->Input.Device, (ulong)sizeof(Block.State), 8) && s->Input.Device->Self == (ulong)s->Input.Device &&
         s->Input.Device->Input.Epoch == s->DeviceEpoch && s->Input.Device->PoolEpoch == s->PoolEpoch;
     private static bool DeviceCurrent(State* s) => DeviceIdentity(s) && s->Input.Device->Running;
@@ -738,14 +818,17 @@ public static unsafe class ContinuingFat32Mutation
     {
         if (!Storage(address, bytes, 1)) return false;
         Extent* all = stackalloc Extent[14]; Extents(s, s->Input, all);
-        for (int i = 0; i < 14; i++) if (Overlap(address, bytes, all[i].Start, all[i].Bytes)) return false;
+        for (int i = 0; i < 14; i++) if (!Storage(all[i].Start, all[i].Bytes, 8) || Overlap(address, bytes, all[i].Start, all[i].Bytes)) return false;
         return OutsideDevice(s->Input.Device, address, bytes);
     }
     private static bool OutsideDevice(Block.State* d, ulong address, ulong bytes)
     {
         if (!Storage((ulong)d, (ulong)sizeof(Block.State), 8) || d->Self != (ulong)d) return false;
         var a = d->Input; DmaBufferPool* p = a.Pool;
-        if (!Storage((ulong)p, (ulong)sizeof(DmaBufferPool), 8) || p->Count is < 1 or > 64 || !Storage((ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot), 8)) return false;
+        if (!Storage((ulong)p, (ulong)sizeof(DmaBufferPool), 8) || p->Self != (ulong)p || p->Epoch != d->PoolEpoch || p->Count is < 1 or > 64 ||
+            !Storage((ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot), 8) || !p->Window.IsInitialized || p->Window.ByteLength != p->Count * 4096UL ||
+            !Storage(p->Window.CpuVirtualBase, p->Window.ByteLength, 1) || !a.Common.IsValid || !a.Notify.IsValid || !a.Device.IsValid ||
+            !Storage(a.Common.VirtualStart, a.Common.Bytes, 1) || !Storage(a.Notify.VirtualStart, a.Notify.Bytes, 1) || !Storage(a.Device.VirtualStart, a.Device.Bytes, 1)) return false;
         return !Overlap(address, bytes, (ulong)d, (ulong)sizeof(Block.State)) && !Overlap(address, bytes, (ulong)p, (ulong)sizeof(DmaBufferPool)) &&
             !Overlap(address, bytes, (ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot)) && !Overlap(address, bytes, p->Window.CpuVirtualBase, p->Window.ByteLength) &&
             !Overlap(address, bytes, a.Common.VirtualStart, a.Common.Bytes) && !Overlap(address, bytes, a.Notify.VirtualStart, a.Notify.Bytes) && !Overlap(address, bytes, a.Device.VirtualStart, a.Device.Bytes);
