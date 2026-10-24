@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Text;
+using Block = OS.Storage.WritableBlockSession;
 
 namespace OS.Tooling;
 
@@ -59,6 +60,183 @@ public static class LinuxWritableDiskProofFixture
     /// throws; success supplies no native execution or persistence authority.</summary>
     public static void RequirePackage(ReadOnlySpan<byte> package)
     { if (!package.SequenceEqual(CreatePackage())) throw new ToolFailure("writable_disk_package_identity"); }
+
+    public const int MaximumBlockObservationSamples = 65536;
+
+    /// <summary>Copied counter boundary supplied by the caller. Owner and epoch
+    /// are compared as values, never dereferenced or treated as device authority.
+    /// FlushAcknowledgedBytes describes protocol acknowledgements only.</summary>
+    public readonly record struct BlockBoundary(ulong Owner, ulong Epoch, ulong SectorCount,
+        ulong Submitted, ulong Completed, ulong SubmittedBytes, ulong CompletedBytes, ulong FlushAcknowledgedBytes);
+
+    /// <summary>Immutable copied facts for one published generation. Original
+    /// sample indexes permit later independent joins; -1 means not observed.
+    /// A device error or unresolved publication never authorizes DMA release,
+    /// retry, reset, file visibility, execution or physical persistence.</summary>
+    public sealed class BlockRequestFacts
+    {
+        private readonly byte[] payload;
+        internal BlockRequestFacts(Block.Observation value, int first, int completion, int copy, int last, byte[] data)
+        {
+            Request = value.Request; Kind = value.Kind; Sector = value.Sector; Flags = value.Flags;
+            Cancelled = value.Cancelled; DeviceResult = value.DeviceResult; CompletionBytes = value.CompletionBytes;
+            FirstSampleIndex = first; CompletionSampleIndex = completion; ReadCopySampleIndex = copy; LastSampleIndex = last;
+            AvailableIndex = value.AvailableIndex; ConsumedIndex = value.ConsumedIndex;
+            SubmittedCount = value.SubmittedCount; CompletedCount = value.CompletedCount;
+            SubmittedBytes = value.SubmittedBytes; CompletedBytes = value.CompletedBytes;
+            FlushTargetBytes = value.FlushTargetBytes; FlushAcknowledgedBytes = value.FlushAcknowledgedBytes; payload = data;
+        }
+        public Block.RequestToken Request { get; }
+        public Block.Operation Kind { get; }
+        public ulong Sector { get; }
+        public Block.ObservationFlags Flags { get; }
+        public bool Cancelled { get; }
+        public Block.Status DeviceResult { get; }
+        public uint CompletionBytes { get; }
+        public int FirstSampleIndex { get; }
+        public int CompletionSampleIndex { get; }
+        public int ReadCopySampleIndex { get; }
+        public int LastSampleIndex { get; }
+        public ushort AvailableIndex { get; }
+        public ushort ConsumedIndex { get; }
+        public ulong SubmittedCount { get; }
+        public ulong CompletedCount { get; }
+        public ulong SubmittedBytes { get; }
+        public ulong CompletedBytes { get; }
+        public ulong FlushTargetBytes { get; }
+        public ulong FlushAcknowledgedBytes { get; }
+        public bool CompletionValidated => CompletionSampleIndex >= 0;
+        public bool ReadCopied => ReadCopySampleIndex >= 0;
+        public bool HasHeldRead => Kind == Block.Operation.Read && CompletionValidated && DeviceResult == Block.Status.Success && !ReadCopied && !Cancelled;
+        public int PayloadBytes => payload.Length;
+        public byte[] CopyPayload() => (byte[])payload.Clone();
+    }
+
+    /// <summary>Copied protocol inspection only. Boundaries and sample contents
+    /// are caller-supplied values; success grants no original-image, process,
+    /// source, device, reset/retry, cleanup or persistence authority.</summary>
+    public sealed class BlockObservationInspection
+    {
+        internal BlockObservationInspection(BlockBoundary before, BlockBoundary after, int count, BlockRequestFacts[] requests)
+        { Before = before; After = after; SampleCount = count; Requests = Array.AsReadOnly(requests); }
+        public BlockBoundary Before { get; }
+        public BlockBoundary After { get; }
+        public int SampleCount { get; }
+        public IReadOnlyList<BlockRequestFacts> Requests { get; }
+        public bool HasUncompletedPublication => Requests.Count != 0 && !Requests[^1].CompletionValidated;
+        public bool HasHeldRead => Requests.Count != 0 && Requests[^1].HasHeldRead;
+        public bool HasDeviceError => Requests.Any(r => r.CompletionValidated && r.DeviceResult != Block.Status.Success);
+        public bool Dirty => After.SubmittedBytes != After.FlushAcknowledgedBytes;
+        public bool ObservedProtocolDrained => !HasUncompletedPublication && !HasHeldRead;
+        public bool GrantsDeviceOrPersistenceAuthority => false;
+    }
+
+    /// <summary>Synchronously borrow bounded copied observation values, never
+    /// live MMIO/state/DMA or pointers retained from their owner. The caller must
+    /// prevent concurrent input mutation. Include each Published generation and
+    /// its later completion/copy/cancel changes; unchanged repeats are allowed.
+    /// One pump may combine completion and IN copy in one sample. Default empty
+    /// observer slots are not selected rows. The initial boundary is drained
+    /// and has no uncompleted write bytes, but may contain unflushed writes.
+    /// Final unresolved/held/error requests remain explicit; Stop/timeout facts
+    /// absent from these values are never inferred. Throws on malformed input,
+    /// missing publication/completion/copy, conflicting accumulation, gaps,
+    /// impossible counters/frontiers or capacity. All returned bytes are copied.
+    /// No ELF/package bytes or original execution authority are involved.</summary>
+    public static unsafe BlockObservationInspection InspectBlockObservationValues(ReadOnlySpan<Block.Observation> samples,
+        BlockBoundary before, BlockBoundary after)
+    {
+        if (samples.Length > MaximumBlockObservationSamples) throw new ToolFailure("writable_observation_capacity");
+        RequireBoundary(before); RequireBoundary(after);
+        if (before.Owner != after.Owner || before.Epoch != after.Epoch || before.SectorCount != after.SectorCount ||
+            before.Submitted != before.Completed || before.SubmittedBytes != before.CompletedBytes)
+            throw new ToolFailure("writable_observation_boundary");
+        List<BlockRequestFacts> requests = []; BlockBoundary baseline = before;
+        Block.Observation previous = default; byte[] payload = []; int first = -1, completion = -1, copy = -1;
+        for (int index = 0; index < samples.Length; index++)
+        {
+            Block.Observation current = samples[index];
+            bool next = first < 0 || current.Request.Generation != previous.Request.Generation;
+            if (next)
+            {
+                if (first >= 0)
+                {
+                    if (!Resolved(previous) || previous.DeviceResult != Block.Status.Success)
+                        throw new ToolFailure("writable_observation_unresolved");
+                    requests.Add(new(previous, first, completion, copy, index - 1, payload)); baseline = Boundary(previous, before);
+                }
+                if (current.Flags != Block.ObservationFlags.Published || current.Cancelled)
+                    throw new ToolFailure("writable_observation_publication");
+                first = index; completion = copy = -1; payload = [];
+            }
+            else
+            {
+                if (current.Request.Owner != previous.Request.Owner || current.Request.Epoch != previous.Request.Epoch ||
+                    current.Kind != previous.Kind || current.Sector != previous.Sector ||
+                    (current.Flags & previous.Flags) != previous.Flags || previous.Cancelled && !current.Cancelled ||
+                    Completed(previous) && current.DeviceResult != previous.DeviceResult ||
+                    !previous.Cancelled && current.Cancelled && (Copied(previous) || Completed(previous) &&
+                        (previous.Kind != Block.Operation.Read || previous.DeviceResult != Block.Status.Success)))
+                    throw new ToolFailure("writable_observation_accumulation");
+            }
+            RequireSnapshot(current, baseline);
+            ReadOnlySpan<byte> data = new(current.Data, 512);
+            if (current.PayloadBytes == 0)
+            {
+                if (data.IndexOfAnyExcept((byte)0) >= 0) throw new ToolFailure("writable_observation_payload");
+            }
+            else if (payload.Length == 0) payload = data.ToArray();
+            else if (!data.SequenceEqual(payload)) throw new ToolFailure("writable_observation_payload");
+            if (completion < 0 && Completed(current)) completion = index;
+            if (copy < 0 && Copied(current)) copy = index;
+            previous = current;
+        }
+        if (first >= 0) requests.Add(new(previous, first, completion, copy, samples.Length - 1, payload));
+        if ((first < 0 ? before : Boundary(previous, before)) != after) throw new ToolFailure("writable_observation_final_boundary");
+        return new(before, after, samples.Length, requests.ToArray());
+    }
+
+    private static void RequireBoundary(BlockBoundary value)
+    {
+        if (value.Owner == 0 || value.Epoch == 0 || value.SectorCount is 0 or > ulong.MaxValue / 512 ||
+            value.Completed > value.Submitted || value.Submitted - value.Completed > 1 ||
+            value.SubmittedBytes % 512 != 0 || value.CompletedBytes % 512 != 0 || value.FlushAcknowledgedBytes % 512 != 0 ||
+            value.CompletedBytes > value.SubmittedBytes || value.FlushAcknowledgedBytes > value.CompletedBytes ||
+            value.SubmittedBytes / 512 > value.Submitted || value.CompletedBytes / 512 > value.Completed)
+            throw new ToolFailure("writable_observation_boundary");
+    }
+    private static void RequireSnapshot(Block.Observation value, BlockBoundary before)
+    {
+        bool complete = Completed(value), copied = Copied(value);
+        if (before.Submitted == ulong.MaxValue || value.Kind is not (Block.Operation.Write or Block.Operation.Flush or Block.Operation.Read) ||
+            (value.Flags & ~(Block.ObservationFlags.Published | Block.ObservationFlags.CompletionValidated | Block.ObservationFlags.ReadCopied)) != 0 ||
+            (value.Flags & Block.ObservationFlags.Published) == 0 || value.Request.Owner != before.Owner || value.Request.Epoch != before.Epoch ||
+            value.Request.Generation != before.Submitted + 1 || value.SubmittedCount != before.Submitted + 1 ||
+            (value.Kind == Block.Operation.Flush ? value.Sector != 0 : value.Sector >= before.SectorCount) ||
+            (complete ? value.DeviceResult is not (Block.Status.Success or Block.Status.DeviceIoError or Block.Status.UnsupportedRequest) : value.DeviceResult != Block.Status.Uninitialized) ||
+            copied && (value.Kind != Block.Operation.Read || !complete || value.DeviceResult != Block.Status.Success || value.Cancelled))
+            throw new ToolFailure("writable_observation_request");
+        bool success = complete && value.DeviceResult == Block.Status.Success;
+        if (value.Kind == Block.Operation.Write && before.SubmittedBytes > ulong.MaxValue - 512)
+            throw new ToolFailure("writable_observation_overflow");
+        ulong submittedBytes = before.SubmittedBytes + (value.Kind == Block.Operation.Write ? 512UL : 0);
+        ulong completedBytes = before.CompletedBytes + (success && value.Kind == Block.Operation.Write ? 512UL : 0);
+        ulong completed = before.Completed + (complete ? 1UL : 0);
+        uint completionBytes = success && value.Kind != Block.Operation.Flush ? 512U : 0;
+        uint payloadBytes = value.Kind == Block.Operation.Write || copied ? 512U : 0;
+        ulong target = value.Kind == Block.Operation.Flush ? before.CompletedBytes : 0;
+        ulong acknowledged = success && value.Kind == Block.Operation.Flush ? target : before.FlushAcknowledgedBytes;
+        if (value.CompletedCount != completed || value.SubmittedBytes != submittedBytes || value.CompletedBytes != completedBytes ||
+            value.AvailableIndex != unchecked((ushort)value.SubmittedCount) || value.ConsumedIndex != unchecked((ushort)completed) ||
+            value.CompletionBytes != completionBytes || value.PayloadBytes != payloadBytes || value.FlushTargetBytes != target || value.FlushAcknowledgedBytes != acknowledged)
+            throw new ToolFailure("writable_observation_frontier");
+    }
+    private static bool Completed(Block.Observation value) => (value.Flags & Block.ObservationFlags.CompletionValidated) != 0;
+    private static bool Copied(Block.Observation value) => (value.Flags & Block.ObservationFlags.ReadCopied) != 0;
+    private static bool Resolved(Block.Observation value) => Completed(value) &&
+        (value.Kind != Block.Operation.Read || value.DeviceResult != Block.Status.Success || value.Cancelled || Copied(value));
+    private static BlockBoundary Boundary(Block.Observation value, BlockBoundary owner) => new(owner.Owner, owner.Epoch, owner.SectorCount,
+        value.SubmittedCount, value.CompletedCount, value.SubmittedBytes, value.CompletedBytes, value.FlushAcknowledgedBytes);
 
     private sealed record Built(byte[] Elf, CallSpec[] Calls, ulong[] Instructions, ulong MainEnd);
     private static Built Build()

@@ -4,6 +4,8 @@ using OS.Kernel.Compatibility.LinuxX64;
 using OS.Manifest;
 using OS.Tooling;
 using F = OS.Tooling.LinuxWritableDiskProofFixture;
+using Block = OS.Storage.WritableBlockSession;
+using C = OS.Storage.ContinuingFat32Mutation;
 
 internal static unsafe class LinuxWritableDiskProofFixtureTests
 {
@@ -132,6 +134,264 @@ internal static unsafe class LinuxWritableDiskProofFixtureTests
         HostCheck.True(calls.SequenceEqual(F.Calls()) && rips.SequenceEqual(F.InstructionRips()) && returns.SequenceEqual(F.ExpectedReturnRips()));
         HostCheck.True(!ReferenceEquals(calls, F.Calls()) && !ReferenceEquals(rips, F.InstructionRips()) && !ReferenceEquals(returns, F.ExpectedReturnRips()));
         HostCheck.True(F.ExpectedPayload().Any(v => v != 0) && F.CreateElf()[0] == 0x7f);
+    }
+
+    [HostTest("writable observation values join actual OUT FLUSH and held IN copies without granting execution authority")]
+    private static void ObservedValues()
+    {
+        var recorded = RecordedChain(); var report = Inspect(recorded);
+        HostCheck.True(report.Requests.Count == 4 && report.SampleCount == recorded.Rows.Length && report.ObservedProtocolDrained &&
+            !report.Dirty && !report.HasDeviceError && !report.GrantsDeviceOrPersistenceAuthority && report.After == recorded.After);
+        HostCheck.True(report.Requests.Select(r => r.Kind).SequenceEqual(new[] { Block.Operation.Write, Block.Operation.Flush, Block.Operation.Read, Block.Operation.Flush }));
+        HostCheck.True(report.Requests[0].CopyPayload().AsSpan().SequenceEqual(SectorPayload()) && report.Requests[2].CopyPayload().AsSpan().SequenceEqual(SectorPayload()));
+        HostCheck.True(report.Requests[1].PayloadBytes == 0 && report.Requests[1].FlushTargetBytes == 512 && report.Requests[1].FlushAcknowledgedBytes == 512 &&
+            report.Requests[3].FlushTargetBytes == 512 && report.Requests[3].FlushAcknowledgedBytes == 512);
+        foreach (var request in report.Requests)
+        {
+            HostCheck.True(request.Request.Generation == request.SubmittedCount && request.CompletionValidated && request.CompletionSampleIndex > request.FirstSampleIndex &&
+                request.LastSampleIndex >= request.CompletionSampleIndex && request.AvailableIndex == unchecked((ushort)request.SubmittedCount) &&
+                request.ConsumedIndex == unchecked((ushort)request.CompletedCount));
+            HostCheck.True(request.ReadCopySampleIndex == (request.Kind == Block.Operation.Read ? request.LastSampleIndex : -1));
+        }
+        var empty = F.InspectBlockObservationValues([], recorded.Before, recorded.Before);
+        HostCheck.True(empty.Requests.Count == 0 && empty.ObservedProtocolDrained && !empty.Dirty);
+    }
+
+    [HostTest("writable observation values inspect actual single engine Pump combined IN completion copy and real write flush facts")]
+    private static void ObservedEnginePump()
+    {
+        using var f = new ContinuingFat32MutationTests.Fixture(observe: true); f.Record = false;
+        var before = Boundary(f.Device); List<Block.Observation> rows = []; Dictionary<ulong, byte[]> copied = [];
+        HostCheck.Equal(C.Status.Pending, C.Start(f.State, f.Input)); HostCheck.Equal(C.Status.Ready, Drive());
+        C.RequestToken token = default; C.FileToken file = default;
+        HostCheck.Equal(C.Status.Pending, C.BeginOpenRoot(f.State, "DATA.BIN", &token)); HostCheck.Equal(C.Status.Ready, Drive());
+        HostCheck.Equal(C.Status.Success, C.CopyOpen(f.State, token, &file));
+        HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.State, file, 500, "actual protocol receipt across two sectors"u8, &token));
+        HostCheck.Equal(C.Status.Ready, Drive()); C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.State, token, &result));
+        var report = F.InspectBlockObservationValues(rows.ToArray(), before, Boundary(f.Device));
+        HostCheck.True(report.ObservedProtocolDrained && !report.Dirty && report.Requests.Count == (int)f.Device.State->Submitted &&
+            report.Requests.Any(r => r.Kind == Block.Operation.Write) && report.Requests.Any(r => r.Kind == Block.Operation.Flush) && copied.Count != 0);
+        foreach (var request in report.Requests.Where(r => r.Kind == Block.Operation.Read))
+            HostCheck.True(request.ReadCopySampleIndex == request.CompletionSampleIndex && request.CopyPayload().AsSpan().SequenceEqual(copied[request.Request.Generation]));
+        C.Stop(f.State);
+        C.Status Drive()
+        {
+            for (int i = 0; i < 100000; i++)
+            {
+                var status = f.Turn(); Block.Observation value = *f.Device.Observation;
+                if (value.Flags != Block.ObservationFlags.None)
+                {
+                    rows.Add(value);
+                    if ((value.Flags & Block.ObservationFlags.ReadCopied) != 0 && !copied.ContainsKey(value.Request.Generation))
+                    {
+                        byte[] bytes = new ReadOnlySpan<byte>(value.Data, 512).ToArray();
+                        HostCheck.True(bytes.AsSpan().SequenceEqual(f.Volatile.Slice(checked((int)value.Sector * 512), 512))); copied.Add(value.Request.Generation, bytes);
+                    }
+                }
+                if (status != C.Status.Pending) return status;
+            }
+            throw new InvalidOperationException("engine observation did not terminate");
+        }
+    }
+
+    [HostTest("writable observation values retain pending publication failures without inventing completion reset retry or flush")]
+    private static void ObservedPartialPublication()
+    {
+        uint calls;
+        using (var good = new BlockSeries()) { uint first = good.Device.Hardware->Calls; good.Write(SectorPayload()); calls = good.Device.Hardware->Calls - first; }
+        int unpublished = 0, published = 0;
+        for (uint at = 1; at <= calls; at++) foreach (bool after in new[] { false, true })
+        {
+            using var series = new BlockSeries(); series.Device.Hardware->FailCall = series.Device.Hardware->Calls + at; series.Device.Hardware->FailAfterWrite = after;
+            Block.RequestToken token = default;
+            HostCheck.True(Block.SubmitWrite(series.Device.State, 3, SectorPayload(), &token) != Block.Status.Success); series.Sample();
+            var report = series.Inspect();
+            if (series.Device.State->Submitted == 0) { unpublished++; HostCheck.True(report.Requests.Count == 0 && !report.Dirty); }
+            else
+            {
+                published++; HostCheck.True(report.Requests.Count == 1 && report.HasUncompletedPublication && !report.ObservedProtocolDrained && report.Dirty &&
+                    !report.HasDeviceError && report.Requests[0].DeviceResult == Block.Status.Uninitialized && report.Requests[0].CopyPayload().AsSpan().SequenceEqual(SectorPayload()));
+            }
+            HostCheck.True(report.After.Completed == 0 && report.After.CompletedBytes == 0 && report.After.FlushAcknowledgedBytes == 0 && !report.GrantsDeviceOrPersistenceAuthority);
+        }
+        HostCheck.True(unpublished != 0 && published != 0);
+    }
+
+    [HostTest("writable observation values preserve cancelled successful flush wire errors and dirty submitted bytes independently")]
+    private static void ObservedErrorsAndCancellation()
+    {
+        foreach (byte status in new byte[] { 1, 2 })
+        {
+            using var series = new BlockSeries(); series.Write(SectorPayload()); series.Device.Complete(status: status);
+            series.Poll(status == 1 ? Block.Status.DeviceIoError : Block.Status.UnsupportedRequest); var report = series.Inspect();
+            HostCheck.True(report.HasDeviceError && report.Dirty && report.Requests[0].CompletionValidated && report.Requests[0].CompletionBytes == 0 &&
+                report.Requests[0].PayloadBytes == 512 && report.After.SubmittedBytes == 512 && report.After.CompletedBytes == 0 && report.After.FlushAcknowledgedBytes == 0);
+        }
+        foreach (bool fail in new[] { false, true })
+        {
+            using var series = new BlockSeries(); series.Write(SectorPayload()); series.Device.Complete(); series.Poll(Block.Status.Success);
+            var token = series.Flush(); HostCheck.Equal(Block.Status.Success, Block.Cancel(series.Device.State, token)); series.Sample();
+            series.Device.Complete(status: fail ? (byte)1 : (byte)0); series.Poll(fail ? Block.Status.DeviceIoError : Block.Status.Cancelled);
+            var report = series.Inspect(); var flush = report.Requests[^1];
+            HostCheck.True(flush.Cancelled && flush.CompletionValidated && flush.PayloadBytes == 0 && flush.CompletionBytes == 0 && flush.FlushTargetBytes == 512 &&
+                flush.FlushAcknowledgedBytes == (fail ? 0UL : 512UL) && report.Dirty == fail && report.HasDeviceError == fail);
+        }
+    }
+
+    [HostTest("writable observation values distinguish cancelled pending and held IN from copied bytes and later requests")]
+    private static void ObservedReadCancellation()
+    {
+        foreach (bool ready in new[] { false, true })
+        {
+            using var series = new BlockSeries(); var read = series.Read();
+            if (ready) { series.Device.Complete(); series.Poll(Block.Status.Ready); HostCheck.True(series.Inspect().HasHeldRead); }
+            HostCheck.Equal(Block.Status.Success, Block.Cancel(series.Device.State, read)); series.Sample();
+            if (!ready) { series.Device.Complete(); series.Poll(Block.Status.Cancelled); }
+            series.Flush(); series.Device.Complete(); series.Poll(Block.Status.Success);
+            var report = series.Inspect(); var request = report.Requests[0];
+            HostCheck.True(report.ObservedProtocolDrained && !report.HasHeldRead && request.Cancelled && request.CompletionValidated && !request.ReadCopied &&
+                request.DeviceResult == Block.Status.Success && request.CompletionBytes == 512 && request.PayloadBytes == 0);
+            byte[] output = Enumerable.Repeat((byte)0xa5, 512).ToArray();
+            HostCheck.Equal(Block.Status.StaleToken, Block.CopyRead(series.Device.State, read, output)); HostCheck.True(output.All(b => b == 0xa5));
+        }
+    }
+
+    [HostTest("writable observation values reject missing conflicting reused or late stages and forged payload status counts")]
+    private static void ObservationMutations()
+    {
+        var recorded = RecordedChain(); int writeComplete = Array.FindIndex(recorded.Rows, r => r.Kind == Block.Operation.Write && (r.Flags & Block.ObservationFlags.CompletionValidated) != 0);
+        int readBegin = Array.FindIndex(recorded.Rows, r => r.Kind == Block.Operation.Read), readComplete = readBegin + 1, readCopy = readBegin + 2;
+        int flushBegin = Array.FindIndex(recorded.Rows, r => r.Kind == Block.Operation.Flush);
+        Mutate(0, (ref Block.Observation row) => row.Request = TokenField(row.Request, 0, row.Request.Owner + 8));
+        Mutate(0, (ref Block.Observation row) => row.Request = TokenField(row.Request, 1, row.Request.Epoch + 1));
+        Mutate(0, (ref Block.Observation row) => row.Request = TokenField(row.Request, 2, row.Request.Generation + 1));
+        Mutate(0, (ref Block.Observation row) => row.AvailableIndex++);
+        Mutate(writeComplete, (ref Block.Observation row) => row.ConsumedIndex++);
+        Mutate(writeComplete, (ref Block.Observation row) => row.CompletedCount++);
+        Mutate(0, (ref Block.Observation row) => row.PayloadBytes = 511);
+        Mutate(writeComplete, (ref Block.Observation row) => DataByte(ref row, 511, (byte)(SectorPayload()[511] ^ 1)));
+        Mutate(writeComplete, (ref Block.Observation row) => row.DeviceResult = Block.Status.Timeout);
+        Mutate(writeComplete, (ref Block.Observation row) => row.FlushAcknowledgedBytes = 512);
+        Mutate(flushBegin, (ref Block.Observation row) => row.Sector = 1);
+        Mutate(flushBegin, (ref Block.Observation row) => row.FlushTargetBytes = 0);
+        Mutate(flushBegin, (ref Block.Observation row) => row.FlushAcknowledgedBytes = 512);
+        Mutate(readBegin, (ref Block.Observation row) => row.Sector = recorded.Before.SectorCount);
+        Mutate(readBegin, (ref Block.Observation row) => row.Flags |= Block.ObservationFlags.ReadCopied);
+        Mutate(readComplete, (ref Block.Observation row) => row.PayloadBytes = 512);
+        Mutate(readCopy, (ref Block.Observation row) => row.Cancelled = true);
+        Mutate(readCopy, (ref Block.Observation row) => { row.Flags = Block.ObservationFlags.Published; row.CompletionBytes = 0; row.DeviceResult = Block.Status.Uninitialized; row.PayloadBytes = 0; ClearData(ref row); });
+        HostCheck.Equal(4, F.InspectBlockObservationValues(recorded.Rows.Skip(1).ToArray(), recorded.Before, recorded.After).Requests.Count); // Removing an unchanged repeat loses no value fact.
+        Reject(recorded.Rows.Where(row => row.Kind != Block.Operation.Write || row.Flags != Block.ObservationFlags.Published).ToArray(), recorded.Before, recorded.After);
+        Reject(recorded.Rows.Where((_, i) => i != writeComplete).ToArray(), recorded.Before, recorded.After);
+        Reject(recorded.Rows.Where((_, i) => i != readCopy).ToArray(), recorded.Before, recorded.After); // A later request cannot replace held IN.
+        Reject(recorded.Rows, recorded.Before with { Epoch = recorded.Before.Epoch + 1 }, recorded.After);
+        Reject(recorded.Rows, recorded.Before, recorded.After with { Submitted = recorded.After.Submitted + 1 });
+        Reject(recorded.Rows, recorded.Before, recorded.After with { FlushAcknowledgedBytes = 0 });
+        void Mutate(int index, ChangeObservation change, [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(change))] string vector = "")
+        { var rows = (Block.Observation[])recorded.Rows.Clone(); change(ref rows[index]); Reject(rows, recorded.Before, recorded.After, vector); }
+    }
+
+    [HostTest("writable observation values reject invented postcompletion cancellation and changed wire errors")]
+    private static void ObservationTerminalMutation()
+    {
+        using (var series = new BlockSeries())
+        {
+            series.Write(SectorPayload()); series.Device.Complete(); series.Poll(Block.Status.Success);
+            Block.Observation row = series.Rows[^1]; row.Cancelled = true; series.Rows.Add(row); Reject(series.Rows.ToArray(), series.Before, series.After);
+        }
+        using (var series = new BlockSeries())
+        {
+            series.Write(SectorPayload()); series.Device.Complete(status: 1); series.Poll(Block.Status.DeviceIoError);
+            Block.Observation row = series.Rows[^1]; row.DeviceResult = Block.Status.UnsupportedRequest; series.Rows.Add(row); Reject(series.Rows.ToArray(), series.Before, series.After);
+        }
+    }
+
+    [HostTest("writable observation values bound samples handle ushort wrap and fail checked counter overflow")]
+    private static void ObservationBoundsAndWrap()
+    {
+        var original = RecordedChain(); const ulong shift = 65535; var rows = (Block.Observation[])original.Rows.Clone();
+        for (int i = 0; i < rows.Length; i++)
+        {
+            rows[i].SubmittedCount += shift; rows[i].CompletedCount += shift;
+            rows[i].Request = TokenField(rows[i].Request, 2, rows[i].Request.Generation + shift);
+            rows[i].AvailableIndex = unchecked((ushort)rows[i].SubmittedCount); rows[i].ConsumedIndex = unchecked((ushort)rows[i].CompletedCount);
+        }
+        // Copied counter rebasing is a value vector, not execution of65535
+        // requests. Prior clean FLUSHes can supply this drained baseline.
+        var before = original.Before with { Submitted = shift, Completed = shift };
+        var after = original.After with { Submitted = shift + original.After.Submitted, Completed = shift + original.After.Completed };
+        var report = F.InspectBlockObservationValues(rows, before, after);
+        HostCheck.True(report.Requests[0].AvailableIndex == 0 && rows[0].ConsumedIndex == ushort.MaxValue && report.Requests[^1].Request.Generation == shift + 4);
+        var full = new Block.Observation[F.MaximumBlockObservationSamples]; original.Rows.CopyTo(full, 0); Array.Fill(full, original.Rows[^1], original.Rows.Length, full.Length - original.Rows.Length);
+        HostCheck.Equal(F.MaximumBlockObservationSamples, F.InspectBlockObservationValues(full, original.Before, original.After).SampleCount);
+        Reject(new Block.Observation[F.MaximumBlockObservationSamples + 1], original.Before, original.After);
+        Reject(original.Rows, original.Before with { Submitted = ulong.MaxValue, Completed = ulong.MaxValue }, original.After);
+        ulong bytes = ulong.MaxValue & ~511UL, count = bytes / 512;
+        var near = original.Before with { Submitted = count, Completed = count, SubmittedBytes = bytes, CompletedBytes = bytes };
+        Block.Observation overflow = original.Rows[0]; overflow.Request = TokenField(overflow.Request, 2, count + 1); overflow.SubmittedCount = count + 1;
+        Reject([overflow], near, near with { Submitted = count + 1 });
+    }
+
+    [HostTest("writable observation values copy payload and scalar ownership without retaining mutable caller aliases")]
+    private static void ObservationCopiedOwnership()
+    {
+        var recorded = RecordedChain(); var report = Inspect(recorded); byte[] expected = report.Requests[0].CopyPayload();
+        Block.Observation changed = recorded.Rows[0]; DataByte(ref changed, 0, (byte)(expected[0] ^ 1)); recorded.Rows[0] = changed;
+        Array.Clear(recorded.Rows); byte[] published = report.Requests[0].CopyPayload(); Array.Clear(published);
+        HostCheck.True(report.Requests[0].CopyPayload().AsSpan().SequenceEqual(expected) && report.Requests[0].Request.Owner == recorded.Before.Owner && report.SampleCount != 0);
+        bool readOnly = false;
+        try { ((IList<F.BlockRequestFacts>)report.Requests)[0] = report.Requests[1]; } catch (NotSupportedException) { readOnly = true; }
+        HostCheck.True(readOnly && report.Requests.Count == 4 && !report.GrantsDeviceOrPersistenceAuthority);
+    }
+
+    private delegate void ChangeObservation(ref Block.Observation value);
+    private sealed record RecordedBlock(Block.Observation[] Rows, F.BlockBoundary Before, F.BlockBoundary After);
+    private static byte[] SectorPayload() => Enumerable.Range(0, 512).Select(i => unchecked((byte)(i * 19 ^ (i >> 3) ^ 0x5a))).ToArray();
+    private static F.BlockObservationInspection Inspect(RecordedBlock recorded) => F.InspectBlockObservationValues(recorded.Rows, recorded.Before, recorded.After);
+    private static RecordedBlock RecordedChain()
+    {
+        using var series = new BlockSeries(); byte[] bytes = SectorPayload(); series.Write(bytes); Array.Clear(bytes);
+        series.Poll(Block.Status.Pending); series.Device.Complete(); series.Poll(Block.Status.Success);
+        series.Flush(); series.Device.Complete(); series.Poll(Block.Status.Success);
+        var read = series.Read(); series.Device.Complete(); series.Poll(Block.Status.Ready);
+        byte[] output = new byte[512]; HostCheck.Equal(Block.Status.Success, Block.CopyRead(series.Device.State, read, output)); series.Sample(); HostCheck.True(output.AsSpan().SequenceEqual(SectorPayload()));
+        series.Flush(); series.Device.Complete(); series.Poll(Block.Status.Success);
+        return new(series.Rows.ToArray(), series.Before, series.After);
+    }
+    private static void Reject(ReadOnlySpan<Block.Observation> values, F.BlockBoundary before, F.BlockBoundary after,
+        [System.Runtime.CompilerServices.CallerArgumentExpression(nameof(values))] string vector = "")
+    {
+        bool rejected = false;
+        try { F.InspectBlockObservationValues(values, before, after); }
+        catch (ToolFailure failure) when (failure.Reason.StartsWith("writable_observation_", StringComparison.Ordinal)) { rejected = true; }
+        HostCheck.True(rejected, "copied observation vector was admitted: " + vector);
+    }
+    private static Block.RequestToken TokenField(Block.RequestToken token, int field, ulong value)
+    { HostCheck.Equal(24, sizeof(Block.RequestToken)); ((ulong*)&token)[field] = value; return token; }
+    private static void DataByte(ref Block.Observation value, int offset, byte replacement)
+    { fixed (byte* data = value.Data) data[offset] = replacement; }
+    private static void ClearData(ref Block.Observation value)
+    { fixed (byte* data = value.Data) new Span<byte>(data, 512).Clear(); }
+    private static F.BlockBoundary Boundary(WritableBlockSessionTests.Fixture device) => new((ulong)device.State, device.Input.Epoch, device.State->SectorCount,
+        device.State->Submitted, device.State->Completed, device.State->SubmittedBytes, device.State->CompletedBytes, device.State->DurableBytes);
+    private sealed class BlockSeries : IDisposable
+    {
+        internal readonly WritableBlockSessionTests.Fixture Device = new(observe: true);
+        internal readonly List<Block.Observation> Rows = [];
+        internal readonly F.BlockBoundary Before;
+        internal F.BlockBoundary After => Boundary(Device);
+        internal BlockSeries() { HostCheck.Equal(Block.Status.Success, Device.Start()); Before = Boundary(Device); }
+        internal Block.RequestToken Write(byte[] bytes)
+        { Block.RequestToken token = default; HostCheck.Equal(Block.Status.Success, Block.SubmitWrite(Device.State, 3, bytes, &token)); Sample(); return token; }
+        internal Block.RequestToken Read()
+        { Block.RequestToken token = default; HostCheck.Equal(Block.Status.Success, Block.SubmitRead(Device.State, 3, &token)); Sample(); return token; }
+        internal Block.RequestToken Flush()
+        { Block.RequestToken token = default; HostCheck.Equal(Block.Status.Success, Block.SubmitFlush(Device.State, &token)); Sample(); return token; }
+        internal void Poll(Block.Status expected)
+        { Block.Completion value = default; HostCheck.Equal(expected, Block.Poll(Device.State, &value)); Sample(); }
+        internal void Sample() { if (Device.Observation->Flags != Block.ObservationFlags.None) Rows.Add(*Device.Observation); }
+        internal F.BlockObservationInspection Inspect() => F.InspectBlockObservationValues(Rows.ToArray(), Before, After);
+        public void Dispose() => Device.Dispose();
     }
 
     private readonly record struct Call(ulong Rip, ulong Number, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, ulong A5);
