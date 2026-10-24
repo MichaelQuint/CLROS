@@ -19,6 +19,13 @@ requires quiescent workers, flushed observations and confirmed block/filesystem
 retirement before descriptor and outer network release. This profile still
 requires native and guest qualification; ordinary boot is unchanged.
 
+[Step1566](../done/step1566.md) preserves the first disk guest's pre-exit
+`preparation=30/0` rejection. Its 54 retained declarations exceeded the old
+48-range image/table admission. M16-025 now admits exactly that 54-range bound;
+earlier profiles retain 48. Page, table, permission and overlap bounds remain.
+The normal source-profile test now checks this combined profile explicitly.
+Fresh guest qualification of the repair remains pending.
+
 M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,
 maps code RX and data RW/NX, and omits data page 3 as the kernel stack guard.

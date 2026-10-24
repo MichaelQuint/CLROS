@@ -16,6 +16,12 @@ checks cover this development. C# compilation of the EFI source is not native
 publication or guest proof. The mechanical disk runner deliberately rejects
 qualification until the complete parent, syscall, wait, sector, NIC and cleanup
 consumer is connected. No disk issue closes from its terminal markers alone.
+[Step1566](../done/step1566.md) records original disk publication, the failed
+pre-exit guest and its host-tested conditional capacity repair. Three fresh
+staged guests pass complete consumers at `5ceeb0c2`; the batch still needs a
+fresh stable unfiltered full. None of those staged receipts qualifies FAT32
+serving. The value-only mechanical disk leaf does not supply its outstanding
+native, parent, sector/image, NIC or IRQ instruction joins.
 
 
 ## Current acceptance (October 23, 2026)

@@ -1,5 +1,17 @@
 # EFI Build
 
+## Disk profile development publication
+
+[Step1565](../done/step1565.md) admits the reviewed conditional disk source
+closure. [Step1566](../done/step1566.md) records original ILC/link/artifact
+verification at `dbf04a61`, retaining EFI digest
+`7c463dd72f855cb2db209e6129e140f547dc370baa63fd4c082e78834f154cc9`.
+The actual guest then rejects before firmware exit because its declared
+54-range capacity exceeded the old image/table bound of 48. The conditional
+repair has focused source-profile coverage; it needs fresh native publication,
+ABI/stack review and owned guest evidence. A publication pass does not override
+that failed guest or qualify disk-to-HTTP service.
+
 ## Latest qualified inputs
 
 [Step1556](../done/step1556.md), merged by PR790, is the latest finite

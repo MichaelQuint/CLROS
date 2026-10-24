@@ -97,6 +97,11 @@ sector bytes; it still requires native review and complete guest qualification.
 Continuing guest disk reads and disk-backed HTTP are
 not qualified yet. The branch keeps accepted step1556 evidence unchanged.
 The isolated read-service checkpoint is recorded in [step1564](done/step1564.md).
+[Step1566](done/step1566.md) records the first verified disk EFI publication,
+the failed pre-exit guest and its conditional retained-range repair. Three fresh
+staged-file guests pass their complete consumers at `5ceeb0c2`; those files are
+served from the staged package. A fresh unfiltered full and actual disk-backed
+guest qualification remain required. The earlier failed full remains failed.
 
 SQLite follow-ups [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) and
 [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) use direct

@@ -27,6 +27,11 @@ for a copy candidate, one 512-byte payload synchronously. It cannot reenter any
 block mutator; rejection faults the owner and retains uncertain DMA. Native
 serial records are buffered outside callbacks and published after actual copy
 commit. These contracts still require combined guest device qualification.
+[Step1566](../done/step1566.md) adds a strict value-only mechanical file-call
+consumer, including source4 wait/request/completion/copy-ceiling associations
+and exit/reap/restore records. Indexed sector/NIC/timing/IRQ observations still
+require independent joins. The first original disk EFI verifies, but its guest
+rejects before exit; a conditional range-bound repair awaits a fresh guest.
 
 Continuing guest reads, application file descriptors and disk-backed HTTP remain
 #770 -> #771 -> #773 -> #774; writable files remain the following ladder.

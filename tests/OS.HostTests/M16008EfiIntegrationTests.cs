@@ -68,7 +68,7 @@ internal static unsafe class M16008EfiIntegrationTests
                 "m16_013_explicit_false_prerequisite");
             foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM16025Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
@@ -172,7 +172,7 @@ internal static unsafe class M16008EfiIntegrationTests
         HostCheck.Equal("state->CooperativePool+((NativeProgram.Entries+index*NativeProgram.WorkerStride)&~(Page-1))",
             string.Concat(lookup.ArgumentList.Arguments[1].Expression.DescendantTokens().Select(token => token.Text)));
 
-        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe","EnableM10017Probe"})
+        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe","EnableM10017Probe","EnableM16025Probe"})
         {
             var socketProfile=EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{[leaf]=true});
             symbols=socketProfile.Flags.Where(p=>p.Value).Select(p=>EfiContracts.ProbeSymbols[p.Key]).ToArray();
@@ -180,8 +180,14 @@ internal static unsafe class M16008EfiIntegrationTests
                 .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="FirstExitRetainedMappings");
             var capacity=socketRetained.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
                 .Single(n=>n.Identifier.Text=="MaximumRanges").Initializer!.Value;
-            ulong ranges=Sum(capacity);HostCheck.Equal(47UL,ranges);
-            HostCheck.True(ranges<=SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges,
+            bool disk=leaf=="EnableM16025Probe";
+            ulong ranges=Sum(capacity);HostCheck.Equal(disk?54UL:47UL,ranges);
+            var tableAdmission=Parse("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs").DescendantNodes()
+                .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="SeparateDisabledDefaultPageFaultPageTables");
+            var tableCapacity=tableAdmission.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
+                .Single(n=>n.Identifier.Text=="MaximumRetainedRanges").Initializer!.Value;
+            HostCheck.Equal(disk?54UL:48UL,Sum(tableCapacity));
+            HostCheck.True(ranges<=Sum(tableCapacity),
                 "the live NIC and Linux runtime union must fit actual image and table-builder admission");
             var bar=socketRetained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
                 .Single(n=>n.Right.ToString()=="references.VirtioBarStart");
@@ -195,7 +201,7 @@ internal static unsafe class M16008EfiIntegrationTests
             var socketEntry=Parse("src/OS/Boot/EfiEntry.cs");
             var ledger=socketEntry.DescendantNodes().OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
                 .Single(n=>n.Identifier.Text=="LinuxLedgerCapacity").Initializer!.Value;
-            ulong ledgerCapacity=Sum(ledger);HostCheck.Equal(18UL,ledgerCapacity);
+            ulong ledgerCapacity=Sum(ledger);HostCheck.Equal(disk?19UL:18UL,ledgerCapacity);
             var seal=socketEntry.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(n=>n.Identifier.Text=="SealLinuxLedger");
             HostCheck.Equal(ledgerCapacity,5UL+(ulong)seal.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(n=>n.Expression.ToString()=="LinuxReservation"));
         }

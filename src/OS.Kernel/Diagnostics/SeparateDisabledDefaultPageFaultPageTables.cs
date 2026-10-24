@@ -173,7 +173,13 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
     // Original retained image plus Linux thread/startup, APIC and the live
     // polling NIC socket union (47 declarations, rounded to a bound of 48).
     // Writable UC ranges remain one page each; table/per-range caps are unchanged.
+#if M16_025_PROBE
+    // The disk child adds seven declarations to the existing 47: one arena,
+    // four BAR pages and two additional rows for the second ECAM split.
+    public const ulong MaximumRetainedRanges = 54;
+#else
     public const ulong MaximumRetainedRanges = 48;
+#endif
     public const ulong MaximumRetainedRangePages = 4096;
 #if M10_004_PROBE
     // The original 8.7MB web package and its image/stack join the existing 32MiB

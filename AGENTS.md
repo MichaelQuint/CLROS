@@ -57,6 +57,9 @@ served from FAT32, then persistent logs/uploads and SQLite. The first batch is
 #780, #781 -> #782 and #768-#774. Use exactly one storage subagent; the primary
 agent owns shared integration, documentation, tracker and serialized builds.
 [Steps1558](done/step1558.md)/[1559](done/step1559.md) record current development.
+[Step1566](done/step1566.md) retains the failed disk guest and the conditional
+54-range repair; earlier profiles keep 48. Complete disk consumption and fresh
+guest qualification remain required, despite staged-file and host passes.
 The isolated read-service integration adds a combined M16-025 mechanical disk
 profile with M16-023/024 parents and source4 thread waits. Preserve its separate
 PCI0:7 disk and PCI0:6 NIC ownership. Serialize native publication and guest
