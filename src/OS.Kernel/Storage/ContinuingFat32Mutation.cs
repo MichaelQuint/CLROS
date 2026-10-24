@@ -77,6 +77,21 @@ public static unsafe class ContinuingFat32Mutation
         public readonly uint Bytes;
         internal Result(Status status, uint bytes) { Status = status; Bytes = bytes; }
     }
+    /// <summary>Copied lineage for an admitted grow/shrink/delete request.
+    /// Only Success authenticates NewFile or Deleted, after every planned OUT
+    /// and the observed final real FLUSH. Equal-length truncate needs no I/O.
+    /// OriginalFile is the admitted physical identity, not a name-reopen guess.
+    /// This is not a persistent journal or power-loss recovery receipt.</summary>
+    public readonly struct MutationResult
+    {
+        public readonly Status Status;
+        public readonly uint Bytes;
+        public readonly RequestToken Request;
+        public readonly FileToken OriginalFile, NewFile;
+        public readonly bool Deleted;
+        internal MutationResult(Status status, uint bytes, RequestToken request, FileToken original, FileToken next, bool deleted)
+        { Status = status; Bytes = bytes; Request = request; OriginalFile = original; NewFile = next; Deleted = deleted; }
+    }
     /// <summary>Zeroed retained unmanaged owner; it contains only POD values
     /// and pointers into Admission. Copying/moving an active owner is forbidden.
     /// Inspect copied properties after failure; never free dirty journals merely
@@ -403,6 +418,82 @@ public static unsafe class ContinuingFat32Mutation
         *result = default; if (!Matches(s, request) || s->Kind is not (Kind.Overwrite or Kind.Barrier or Kind.Create or Kind.Grow or Kind.Truncate or Kind.Delete)) return Status.StaleToken;
         if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
         Status status = s->Failure; *result = new(status, status == Status.Success ? s->Wanted : 0); EndRequest(s); return status;
+    }
+
+    /// <summary>Consume only the matching retained grow/truncate/delete Ready
+    /// result into exclusive ordinary RAM. Bounds/aliases authenticate before
+    /// any output write. Stale/pending/faulted results are default; a clean
+    /// failed/cancelled Ready result carries no new-file/deletion authority.
+    /// Success derives the new full physical fingerprint from the exact unique
+    /// staged short entry after the actual final FLUSH. Invalid retained lineage
+    /// fails closed without consuming Ready; old CopyResult remains available
+    /// unchanged. No output pointer is retained, and no fallible work follows
+    /// publication. Outer descriptor owners must still validate their fd/inode
+    /// generations, including a close while this result was held.</summary>
+    public static Status CopyMutationResult(State* s, RequestToken request, MutationResult* result)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (!Output(s, (ulong)result, (ulong)sizeof(MutationResult))) return Status.InvalidStorage;
+        *result = default;
+        if (!Matches(s, request) || s->Kind is not (Kind.Grow or Kind.Truncate or Kind.Delete)) return Status.StaleToken;
+        if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
+        Status status = s->Failure;
+        FileToken next = default; bool deleted = false;
+        if (status == Status.Success && !MutationLineage(s, ref next, ref deleted)) return Status.InvalidState;
+        *result = new(status, status == Status.Success ? s->Wanted : 0, request, s->File, next, deleted);
+        EndRequest(s); return status;
+    }
+
+    private static bool MutationLineage(State* s, ref FileToken next, ref bool deleted)
+    {
+        if (s->IoActive || s->DirtyValue || !s->Mounted) return false;
+        if (s->Kind == Kind.Truncate && s->NewLength == s->File.Length)
+        {
+            if (s->Changes != 0 || s->Issued != 0 || s->FlushedThrough != 0 || s->Wanted != 0 || !FileMatches(s, s->File)) return false;
+            next = s->File; return true;
+        }
+        FileToken original = s->File;
+        if (s->Changes is 0 or > JournalChanges || s->Issued != s->Changes || s->FlushedThrough != s->Changes ||
+            original.Owner != (ulong)s || original.Epoch != s->Input.Epoch || original.Revision == ulong.MaxValue ||
+            original.Revision == 0 || s->Revision != original.Revision + 1 || (original.EntryOffset & 31) != 0 ||
+            original.EntryOffset < s->Volume.FirstDataLba * 512 || original.EntryOffset / 512 >= s->Volume.PartitionFirstLba + s->Volume.TotalSectors) return false;
+        uint found = uint.MaxValue;
+        var stage = s->Kind == Kind.Delete ? Fat32Mutation.Stage.RetireDirectory : Fat32Mutation.Stage.PublishDirectory;
+        for (uint i = 0; i < s->Changes; i++)
+        {
+            if (s->Input.Changes[i].Sector != original.EntryOffset / 512 || s->Input.Changes[i].Phase != stage) continue;
+            if (found != uint.MaxValue) return false;
+            found = i;
+        }
+        if (found == uint.MaxValue) return false;
+        ReadOnlySpan<byte> raw = new(s->Input.After + found * 512 + original.EntryOffset % 512, 32);
+        if (s->Kind == Kind.Delete)
+        {
+            if (s->Wanted != 0 || raw[0] != 0xe5) return false;
+            for (int i = 1; i < 32; i++) if (raw[i] != 0) return false;
+            deleted = true; return true;
+        }
+        Span<byte> before = stackalloc byte[32];
+        EndianPrimitives.WriteUInt64LittleEndian(before, original.Fingerprint0);
+        EndianPrimitives.WriteUInt64LittleEndian(before[8..], original.Fingerprint1);
+        EndianPrimitives.WriteUInt64LittleEndian(before[16..], original.Fingerprint2);
+        EndianPrimitives.WriteUInt64LittleEndian(before[24..], original.Fingerprint3);
+        if (!raw[..20].SequenceEqual(before[..20]) || !raw.Slice(22, 4).SequenceEqual(before.Slice(22, 4))) return false;
+        uint expectedFirst;
+        if (s->Kind == Kind.Grow)
+        {
+            if (s->NewLength <= original.Length || s->Wanted != s->NewLength - original.Length) return false;
+            if (original.FirstCluster == 0 && s->GrowthCount is 0 or > MaximumGrowthClusters) return false;
+            expectedFirst = original.FirstCluster == 0 ? s->Growth[0] : original.FirstCluster;
+        }
+        else
+        {
+            if (s->NewLength >= original.Length || s->Wanted != original.Length - s->NewLength) return false;
+            expectedFirst = s->NewLength == 0 ? 0 : original.FirstCluster;
+        }
+        uint first = ((uint)EndianPrimitives.ReadUInt16LittleEndian(raw[20..]) << 16) | EndianPrimitives.ReadUInt16LittleEndian(raw[26..]);
+        if (first != expectedFirst || EndianPrimitives.ReadUInt32LittleEndian(raw[28..]) != s->NewLength) return false;
+        next = new(s, original.EntryOffset, first, s->NewLength, raw); return true;
     }
 
     /// <summary>Write/barrier Ready completion wins. A held read Ready is

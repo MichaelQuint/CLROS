@@ -798,6 +798,167 @@ internal static unsafe class ContinuingFat32MutationTests
         }
     }
 
+    [HostTest("continuing FAT copied growth lineage waits for actual final FLUSH and binds request original target and new full fingerprint")]
+    private static void MutationGrowthReceipt()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var original = File(f);
+        Grow(f, original, 1300, new uint[] { 8 }, out var request); C.MutationResult receipt = default;
+        while (f.Trace.Count(row => row.Type == 4) != 4)
+        {
+            HostCheck.Equal(C.Status.Pending, C.CopyMutationResult(f.State, request, &receipt));
+            HostCheck.True(receipt.Status == C.Status.Uninitialized && receipt.NewFile.Owner == 0 && !receipt.Deleted);
+            HostCheck.Equal(C.Status.Pending, f.Turn());
+        }
+        HostCheck.Equal(C.Status.Pending, C.CopyMutationResult(f.State, request, &receipt));
+        HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(C.Status.Ready, C.Cancel(f.State, request));
+        HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt));
+        HostCheck.True(receipt.Status == C.Status.Success && receipt.Bytes == 400 && !receipt.Deleted &&
+            SameRequest(receipt.Request, request) && SameFile(original, receipt.OriginalFile) &&
+            receipt.NewFile.Revision == original.Revision + 1 && receipt.NewFile.Length == 1300 && receipt.NewFile.FirstCluster == 4 &&
+            receipt.NewFile.EntryOffset == original.EntryOffset && f.Device.State->CompletedBytes == f.Device.State->DurableBytes);
+        PhysicalFingerprint(receipt.NewFile, f.Persistent.Slice((int)original.EntryOffset, 32));
+        HostCheck.Equal(C.Status.StaleToken, Read(f, original, 0, 1, out _));
+        Read(f, receipt.NewFile, 0, 37, out var read); f.Run(); byte[] bytes = new byte[37]; C.Result readResult = default;
+        HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, read, bytes, &readResult));
+        HostCheck.True(bytes.SequenceEqual(Enumerable.Range(0, 37).Select(Value)) && SameFile(receipt.NewFile, File(f)));
+        HostCheck.Equal(C.Status.StaleToken, C.CopyMutationResult(f.State, request, &receipt)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT copied empty growth and shrink lineage preserve exact first cluster length and physical bytes")]
+    private static void MutationShapeReceipt()
+    {
+        foreach (uint length in new uint[] { 300, 0 })
+        {
+            using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var original = File(f);
+            Truncate(f, original, length, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); C.MutationResult receipt = default;
+            HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt));
+            HostCheck.True(SameFile(original, receipt.OriginalFile) && receipt.Bytes == 900 - length && !receipt.Deleted &&
+                receipt.NewFile.Length == length && receipt.NewFile.FirstCluster == (length == 0 ? 0 : 4) && receipt.NewFile.Revision == original.Revision + 1);
+            PhysicalFingerprint(receipt.NewFile, f.Persistent.Slice((int)original.EntryOffset, 32));
+            HostCheck.True(SameFile(receipt.NewFile, File(f))); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); Put16(f.Volatile, Data * 512 + 32 + 26, 0); Put32(f.Volatile, Data * 512 + 32 + 28, 0);
+            f.Mount(); var original = File(f); Grow(f, original, 5126, Enumerable.Range(20, 11).Select(x => (uint)x).ToArray(), out var request); f.Run();
+            C.MutationResult receipt = default; HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt));
+            HostCheck.True(receipt.Bytes == 5126 && receipt.NewFile.Length == 5126 && receipt.NewFile.FirstCluster == 20 &&
+                SameFile(receipt.OriginalFile, original) && SameFile(receipt.NewFile, File(f))); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT copied deletion retires admitted lineage before a reused physical directory slot can acquire a new name")]
+    private static void MutationDeleteReceipt()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var original = File(f);
+        Delete(f, original, out var request); f.Run(); C.MutationResult receipt = default;
+        HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt));
+        HostCheck.True(receipt.Deleted && receipt.Bytes == 0 && receipt.NewFile.Owner == 0 && SameFile(receipt.OriginalFile, original) && SameRequest(receipt.Request, request));
+        HostCheck.True(f.Persistent[(int)original.EntryOffset] == 0xe5 && f.Persistent.Slice((int)original.EntryOffset + 1, 31).IndexOfAnyExcept((byte)0) < 0);
+        Create(f, "REUSE.BIN", "REUSE   BIN"u8, out var create); f.Run(); Result(f, create);
+        var replacement = File(f, "REUSE.BIN"); HostCheck.True(replacement.EntryOffset == original.EntryOffset && replacement.Revision > original.Revision &&
+            replacement.Fingerprint0 != original.Fingerprint0 && SameFile(receipt.OriginalFile, original));
+        HostCheck.Equal(C.Status.StaleToken, Delete(f, original, out _));
+        C.MutationResult stale = default; HostCheck.Equal(C.Status.StaleToken, C.CopyMutationResult(f.State, request, &stale)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT equal truncate copied lineage has no new revision I/O callbacks or allocation and retired outputs reject safely")]
+    private static void MutationNoChangeReceipt()
+    {
+        using var f = new Fixture(); f.Record = false; f.Mount(); var original = File(f); C.MutationResult receipt = default;
+        uint callbacks = f.Device.Hardware->Calls; ulong revision = f.State->VolumeRevision; bool good = true;
+        long allocation = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 16; i++)
+        {
+            C.RequestToken request = default;
+            good &= C.BeginTruncate(f.State, original, original.Length, &request) == C.Status.Ready &&
+                C.CopyMutationResult(f.State, request, &receipt) == C.Status.Success && SameRequest(receipt.Request, request) &&
+                SameFile(receipt.OriginalFile, original) && SameFile(receipt.NewFile, original) && receipt.Bytes == 0 && !receipt.Deleted;
+        }
+        HostCheck.True(good && f.Device.Hardware->Calls == callbacks && f.State->VolumeRevision == revision && GC.GetAllocatedBytesForCurrentThread() == allocation);
+        HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        int offset = WritableBlockSessionTests.ManagedOffset(f.State, "Input"); C.Admission* input = (C.Admission*)((byte*)f.State + offset);
+        var device = input->Device; input->Device = (B.State*)8;
+        HostCheck.Equal(C.Status.InvalidState, C.CopyMutationResult(f.State, default, &receipt)); input->Device = device;
+    }
+
+    [HostTest("continuing FAT mutation receipt aliases reject before state DMA lease or journal publication")]
+    private static void MutationReceiptAliases()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); Truncate(f, file, 300, out var request); f.Run();
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray(), device = new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).ToArray();
+        byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 65536).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 65536).ToArray(), dma = new ReadOnlySpan<byte>(f.Device.Data, 512).ToArray();
+        foreach (ulong pointer in new[] { 0UL, 8UL, 0x0000800000000000UL, (ulong)f.Output + 1, (ulong)f.State, (ulong)f.Input.Before, (ulong)f.Input.After,
+            (ulong)f.Input.Changes, (ulong)f.Input.DirectoryMap, (ulong)f.Input.Input, (ulong)f.Device.State, (ulong)f.Device.Data, (ulong)f.Device.Pool, 0x400000UL, 0x402000UL, 0x403000UL })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyMutationResult(f.State, request, (C.MutationResult*)pointer));
+        HostCheck.True(new ReadOnlySpan<byte>(f.State, sizeof(C.State)).SequenceEqual(state) && new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).SequenceEqual(device) &&
+            new ReadOnlySpan<byte>(f.Input.Before, 65536).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 65536).SequenceEqual(after) && new ReadOnlySpan<byte>(f.Device.Data, 512).SequenceEqual(dma));
+        C.MutationResult receipt = default; HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT mutation receipt rejects stale request and wrong kinds without changing legacy result consumption")]
+    private static void MutationReceiptKinds()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); Open(f, "DATA.BIN", out var open); f.Run(); C.MutationResult receipt = default;
+        HostCheck.Equal(C.Status.StaleToken, C.CopyMutationResult(f.State, open, &receipt)); C.FileToken file = default;
+        HostCheck.Equal(C.Status.Success, C.CopyOpen(f.State, open, &file));
+        Grow(f, file, 1300, new uint[] { 8 }, out var request); f.Run(); var wrong = request; ((ulong*)&wrong)[2]++;
+        HostCheck.Equal(C.Status.StaleToken, C.CopyMutationResult(f.State, wrong, &receipt));
+        HostCheck.True(receipt.NewFile.Owner == 0 && f.State->IsReady); HostCheck.Equal(400U, Result(f, request).Bytes);
+        HostCheck.Equal(C.Status.StaleToken, C.CopyMutationResult(f.State, request, &receipt));
+        C.RequestToken barrier = default; C.BeginFlush(f.State, &barrier); f.Run();
+        HostCheck.Equal(C.Status.StaleToken, C.CopyMutationResult(f.State, barrier, &receipt)); Result(f, barrier); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT cancelled readonly device and dirty failures cannot publish successful new mutation lineage")]
+    private static void MutationReceiptFailures()
+    {
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); Delete(f, file, out var request); C.Pump(f.State); C.Cancel(f.State, request); f.Device.Complete(); f.Run();
+            C.MutationResult receipt = default; HostCheck.Equal(C.Status.Cancelled, C.CopyMutationResult(f.State, request, &receipt));
+            HostCheck.True(receipt.Status == C.Status.Cancelled && receipt.Bytes == 0 && receipt.NewFile.Owner == 0 && !receipt.Deleted && SameFile(receipt.OriginalFile, file)); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Volatile[Data * 512 + 32 + 11] |= 1; f.Mount(); var file = File(f); Truncate(f, file, 0, out var request); f.Run();
+            C.MutationResult receipt = default; HostCheck.Equal(C.Status.ReadOnly, C.CopyMutationResult(f.State, request, &receipt));
+            HostCheck.True(receipt.Status == C.Status.ReadOnly && receipt.NewFile.Owner == 0 && !receipt.Deleted && SameFile(receipt.OriginalFile, file)); C.Stop(f.State);
+        }
+        foreach (bool dirty in new[] { false, true })
+        {
+            using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f);
+            if (dirty) f.FailPublication = 8; else f.FailAt = f.Device.Hardware->Notifies + 1;
+            Truncate(f, file, 300, out var request); C.Status expected = dirty ? C.Status.RecoveryRequired : C.Status.BlockFailure;
+            HostCheck.Equal(expected, f.Run()); C.MutationResult receipt = default; HostCheck.Equal(expected, C.CopyMutationResult(f.State, request, &receipt));
+            HostCheck.True(receipt.Status == C.Status.Uninitialized && receipt.NewFile.Owner == 0 && !receipt.Deleted && f.State->Dirty == dirty);
+            B.Stop(f.Device.State); HostCheck.Equal(dirty ? C.Status.RecoveryRequired : C.Status.Success, C.Stop(f.State));
+        }
+    }
+
+    [HostTest("continuing FAT mutation receipt authenticates exact staged directory fingerprint without consuming malformed Ready")]
+    private static void MutationReceiptStagedBytes()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); Truncate(f, file, 300, out var request); f.Run();
+        uint index = 0; while (f.Input.Changes[index].Sector != file.EntryOffset / 512) index++;
+        byte* entry = f.Input.After + index * 512 + file.EntryOffset % 512; byte original = entry[0]; entry[0] ^= 1;
+        C.MutationResult receipt = default; HostCheck.Equal(C.Status.InvalidState, C.CopyMutationResult(f.State, request, &receipt));
+        HostCheck.True(f.State->IsReady && receipt.NewFile.Owner == 0); entry[0] = original;
+        byte length = entry[28]; entry[28] ^= 1; HostCheck.Equal(C.Status.InvalidState, C.CopyMutationResult(f.State, request, &receipt));
+        entry[28] = length; HostCheck.Equal(C.Status.Success, C.CopyMutationResult(f.State, request, &receipt)); C.Stop(f.State);
+    }
+
+    private static bool SameRequest(C.RequestToken a, C.RequestToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation;
+    private static bool SameFile(C.FileToken a, C.FileToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Revision == b.Revision && a.EntryOffset == b.EntryOffset &&
+        a.FirstCluster == b.FirstCluster && a.Length == b.Length && a.Fingerprint0 == b.Fingerprint0 && a.Fingerprint1 == b.Fingerprint1 && a.Fingerprint2 == b.Fingerprint2 && a.Fingerprint3 == b.Fingerprint3;
+    private static void PhysicalFingerprint(C.FileToken file, ReadOnlySpan<byte> raw)
+    {
+        HostCheck.True(file.Fingerprint0 == System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(raw) &&
+            file.Fingerprint1 == System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(raw[8..]) &&
+            file.Fingerprint2 == System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(raw[16..]) &&
+            file.Fingerprint3 == System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(raw[24..]));
+    }
+
     private static void PrepareGrowth(Fixture f)
     {
         Put16(f.Volatile, First * 512 + 48, 1); Put16(f.Volatile, First * 512 + 50, 6);
