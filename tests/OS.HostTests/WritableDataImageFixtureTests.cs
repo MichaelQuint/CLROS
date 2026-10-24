@@ -294,6 +294,133 @@ internal static unsafe class WritableDataImageFixtureTests
         Console.WriteLine($"WRITABLE_NAMED_MEDIA logBytes={logBytes.Length} uploadBytes={expectedUpload.Length} changedSectors={transition.Changes.Count} outs={media.Outs} flushes={media.Flushes} submittedWriteBytes={media.Device.State->SubmittedBytes} completedWriteBytes={media.Device.State->CompletedBytes} flushAcknowledgedBytes={media.Device.State->DurableBytes} logSha256={transition.After.Find("LOG.TXT")!.Sha256} uploadSha256={transition.After.Find("UPLOAD.BIN")!.Sha256} afterRawSha256={transition.After.RawSha256}");
     });
 
+    [HostTest("writable data copied SQLite journal ordering preserves live DB cursors LFN removal guards and actual fake flush frontiers", HostLane.Native)]
+    private static void CopiedSqliteJournalOrdering() => WithImage((_, _, _, seed, before) =>
+    {
+        // Copied protocol arguments/order: original sqlite-trace.5255 lines
+        // 288-315, storage-values SHA256 436B4FE9109019F175ED2D62D332CB444C1C8410BB0B80B1F7B68EA817E8DCB0.
+        // The paths translate to this fixture, fd numbers are newly allocated,
+        // payloads below are test-authored, and W.Open has no POSIX mode input.
+        // This executes no SQLite code and asserts neither valid journal/DB
+        // format nor recovery, guest, reboot or physical-durability behavior.
+        const string journalName = "SQLITE.DB-journal", journalPath = "/data/SQLITE.DB-journal";
+        const uint openFlags = 2 | W.Create | W.LargeFile | W.NoFollow | W.CloseOnExec;
+        const uint directoryFlags = W.LargeFile | W.CloseOnExec;
+        HostCheck.True(openFlags == 0xa8042 && directoryFlags == 0x88000 && W.RwfNoAppend == 0x20 && seed.Image.Find(journalName) is null);
+        using var media = new MutationMedia(before); using var files = new DescriptorMedia(media);
+        var db = files.Open("/data/SQLITE.DB", openFlags); var reader = files.Open("/data/SQLITE.DB");
+        HostCheck.True(files.Read(reader, 1, expectedBytes: 0).Length == 0); // Actual initial EOF, not fabricated zero data.
+        var journal = files.Open(journalPath, openFlags);
+        var search = new W.FreeSearch(2, 128, 16);
+        byte[] journalBytes = Enumerable.Range(0, 512).Select(i => unchecked((byte)(i * 29 + 7))).ToArray();
+        byte[] header = Enumerable.Range(0, 12).Select(i => unchecked((byte)(0xe1 - i * 3))).ToArray();
+        byte[] firstPage = Enumerable.Range(0, 4096).Select(i => unchecked((byte)(i * 37 + 11))).ToArray();
+        byte[] secondPage = Enumerable.Range(0, 4096).Select(i => unchecked((byte)(i * 43 + 17))).ToArray();
+        byte[] dbBytes = firstPage.Concat(secondPage).ToArray();
+        var boundaries = new List<(string Stage, uint Outs, uint Flushes, ulong Acknowledged)>();
+        void Boundary(string stage)
+        {
+            HostCheck.True(!media.Device.State->Dirty && !media.Device.State->RequestPending &&
+                media.Device.State->Submitted == media.Device.State->Completed && media.Device.State->SubmittedBytes == media.Outs * 512UL &&
+                media.Device.State->CompletedBytes == media.Outs * 512UL && media.Device.State->DurableBytes == media.Outs * 512UL);
+            boundaries.Add((stage, media.Outs, media.Flushes, media.Device.State->DurableBytes));
+        }
+        void Positioned(W.DescriptorToken file, byte[] bytes, ulong offset)
+        {
+            HostCheck.Equal((long)bytes.Length, files.Run(W.Pwritev2SingleWithFreeSearch(files.State, file, bytes, offset, 0x20, search)).Value);
+            HostCheck.Equal(0L, W.Seek(files.State, file, 0, 1).Value); // Positioned writes never move the description cursor.
+        }
+        Positioned(journal, journalBytes, 0); files.Sync(journal); Boundary("journal512-fsync");
+        var directory = files.Open("/data", directoryFlags); files.Sync(directory); Boundary("parent-fsync");
+        HostCheck.Equal(0L, W.Close(files.State, directory));
+        byte[] journalCheckpoint = media.Snapshot(); var created = Image.InspectTransition(before, journalCheckpoint);
+        var entry = created.After.Find(journalName) ?? throw new InvalidOperationException("copied journal LFN missing");
+        HostCheck.True(entry.Name == journalName && entry.ShortAlias != journalName && entry.Bytes == 512 &&
+            entry.CopyBytes().AsSpan().SequenceEqual(journalBytes) && created.After.Find("SQLITE.DB")!.Bytes == 0 &&
+            created.After.Files.Count == seed.Image.Files.Count + 1 && entry.Inode == entry.ShortEntryOffset / 32 + 256);
+        // The independent parser authenticated the full LFN. Check its actual
+        // two physical slots, short-entry checksum and original deleted holes.
+        ulong journalStart = entry.ShortEntryOffset - 64;
+        int at = checked((int)journalStart); byte checksum = 0;
+        for (int i = 0; i < 11; i++) checksum = unchecked((byte)(((checksum & 1) << 7) + (checksum >> 1) + journalCheckpoint[(int)entry.ShortEntryOffset + i]));
+        HostCheck.True(journalCheckpoint[at] == 0x42 && journalCheckpoint[at + 32] == 1 &&
+            journalCheckpoint[at + 11] == 0x0f && journalCheckpoint[at + 43] == 0x0f &&
+            journalCheckpoint[at + 13] == checksum && journalCheckpoint[at + 45] == checksum);
+        CheckChanges(before, journalCheckpoint, created);
+        Positioned(journal, header, 0); header.CopyTo(journalBytes, 0); files.Sync(journal); Boundary("journal12-fsync");
+        byte[] headerCheckpoint = media.Snapshot(); var headerChange = Image.InspectTransition(journalCheckpoint, headerCheckpoint);
+        HostCheck.True(headerChange.After.Find(journalName) is { } headerEntry && headerEntry.Inode == entry.Inode &&
+            headerEntry.ShortEntryOffset == entry.ShortEntryOffset && headerEntry.Clusters.SequenceEqual(entry.Clusters) &&
+            headerEntry.CopyBytes().AsSpan().SequenceEqual(journalBytes) && headerChange.After.Find("SQLITE.DB")!.Bytes == 0);
+        CheckChanges(journalCheckpoint, headerCheckpoint, headerChange);
+        Positioned(db, firstPage, 0); Positioned(db, secondPage, 4096); files.Sync(db); Boundary("db8192-fsync");
+        HostCheck.True(files.Read(reader, 31).AsSpan().SequenceEqual(dbBytes.AsSpan(0, 31)) &&
+            files.Read(reader, 4096, 4096, true).AsSpan().SequenceEqual(secondPage) && W.Seek(files.State, reader, 0, 1).Value == 31 &&
+            W.Seek(files.State, db, 0, 1).Value == 0);
+        byte[] databaseCheckpoint = media.Snapshot(); var databaseChange = Image.InspectTransition(headerCheckpoint, databaseCheckpoint);
+        HostCheck.True(databaseChange.After.Find("SQLITE.DB") is { } dbEntry && dbEntry.CopyBytes().AsSpan().SequenceEqual(dbBytes) &&
+            dbEntry.ShortEntryOffset == seed.Image.Find("SQLITE.DB")!.ShortEntryOffset &&
+            databaseChange.After.Find(journalName) is { } retained && retained.Inode == entry.Inode && retained.CopyBytes().AsSpan().SequenceEqual(journalBytes));
+        CheckChanges(headerCheckpoint, databaseCheckpoint, databaseChange);
+        uint outs = media.Outs, flushes = media.Flushes;
+        HostCheck.Equal(0L, W.Close(files.State, journal));
+        HostCheck.True(media.Outs == outs && media.Flushes == flushes); // close supplies no pretend sync.
+        HostCheck.Equal(0L, files.Run(W.BeginUnlink(files.State, Encoding.ASCII.GetBytes(journalPath))).Value); Boundary("closed-journal-unlink");
+        // The measured interval ends after unlink. This additional requested
+        // parent barrier is host policy coverage, not an observed SQLite call.
+        directory = files.Open("/data", directoryFlags); files.Sync(directory); Boundary("additional-parent-fsync");
+        HostCheck.Equal(0L, W.Close(files.State, directory));
+        byte[] deleted = media.Snapshot(); var deletion = Image.InspectTransition(databaseCheckpoint, deleted);
+        HostCheck.True(deletion.After.Find(journalName) is null && deletion.After.Find(entry.ShortAlias) is null &&
+            deletion.After.Files.Count == seed.Image.Files.Count && deletion.After.Find("SQLITE.DB")!.CopyBytes().AsSpan().SequenceEqual(dbBytes) &&
+            deletion.After.FreeClusters == seed.Image.FreeClusters - 16);
+        for (int slot = 0; slot < 3; slot++)
+        {
+            HostCheck.Equal((byte)0xe5, deleted[at + slot * 32]);
+            HostCheck.True(deleted.AsSpan(at + slot * 32 + 1, 31).IndexOfAnyExcept((byte)0) < 0); // No stale LFN fragment survives.
+        }
+        foreach (uint cluster in entry.Clusters)
+        {
+            HostCheck.True(U32(deleted, 2080 * 512 + (int)cluster * 4) == 0 && U32(deleted, (2080 + 993) * 512 + (int)cluster * 4) == 0);
+            HostCheck.True(databaseCheckpoint.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(deleted.AsSpan(ClusterOffset(cluster), 512)));
+        }
+        CheckChanges(databaseCheckpoint, deleted, deletion);
+        foreach (byte[] checkpoint in new[] { journalCheckpoint, headerCheckpoint, databaseCheckpoint, deleted })
+        {
+            var inspected = Image.Inspect(checkpoint);
+            foreach (var untouched in seed.Image.Files.Where(x => x.Name != "SQLITE.DB"))
+            {
+                HostCheck.True(inspected.Find(untouched.Name) is { } same && same.Sha256 == untouched.Sha256 && same.Clusters.SequenceEqual(untouched.Clusters) &&
+                    before.AsSpan((int)untouched.ShortEntryOffset, 32).SequenceEqual(checkpoint.AsSpan((int)untouched.ShortEntryOffset, 32)));
+                foreach (uint cluster in untouched.Clusters)
+                    HostCheck.True(before.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(checkpoint.AsSpan(ClusterOffset(cluster), 512)));
+            }
+            foreach (uint cluster in seed.Image.RootClusters)
+                for (int i = 0; i < 512; i++)
+                {
+                    int address = ClusterOffset(cluster) + i; ulong position = (ulong)address, dbAt = seed.Image.Find("SQLITE.DB")!.ShortEntryOffset;
+                    if (!(position >= dbAt && position - dbAt < 32) && !(position >= journalStart && position - journalStart < 96))
+                        HostCheck.Equal(before[address], checkpoint[address]);
+                }
+        }
+        // A live DB description survives journal create/delete revisions with
+        // its independent cursor intact. A reused numeric fd cannot rescue the
+        // old closed journal token, even for a later actual volume barrier.
+        HostCheck.True(files.Read(reader, 8192, 0, true).AsSpan().SequenceEqual(dbBytes) && W.Seek(files.State, reader, 0, 1).Value == 31 &&
+            W.Seek(files.State, db, 0, 1).Value == 0);
+        var reopened = files.Open("/data/SQLITE.DB");
+        HostCheck.True(reopened.Number == journal.Number && reopened.Generation > journal.Generation && W.Seek(files.State, reopened, 0, 1).Value == 0);
+        outs = media.Outs; flushes = media.Flushes;
+        HostCheck.Equal(-9L, W.BeginSync(files.State, journal).Value); HostCheck.True(media.Outs == outs && media.Flushes == flushes);
+        HostCheck.True(boundaries.Count == 6 && boundaries[1].Outs == boundaries[0].Outs && boundaries[1].Flushes == boundaries[0].Flushes + 1 &&
+            boundaries[2].Outs > boundaries[1].Outs && boundaries[3].Outs > boundaries[2].Outs && boundaries[4].Outs > boundaries[3].Outs &&
+            boundaries[5].Outs == boundaries[4].Outs && boundaries[5].Flushes == boundaries[4].Flushes + 1);
+        for (int i = 1; i < boundaries.Count; i++)
+            HostCheck.True(boundaries[i].Outs >= boundaries[i - 1].Outs && boundaries[i].Flushes > boundaries[i - 1].Flushes && boundaries[i].Acknowledged >= boundaries[i - 1].Acknowledged);
+        foreach (var file in new[] { db, reader, reopened }) HostCheck.Equal(0L, W.Close(files.State, file));
+        Console.WriteLine($"WRITABLE_COPIED_SQLITE source=sqlite-trace.5255:288-315 copiedWrites=4 writeFlags=32 testPayloads=true extraPostUnlinkBarrier=true dbBytes={dbBytes.Length} journalBytes={journalBytes.Length} journalInode={entry.Inode} outs={media.Outs} flushes={media.Flushes} flushAcknowledgedBytes={media.Device.State->DurableBytes} dbSha256={Hash(dbBytes)} afterRawSha256={deletion.After.RawSha256} boundaries={string.Join(',', boundaries.Select(x => $"{x.Stage}:{x.Outs}:{x.Flushes}:{x.Acknowledged}"))}");
+    });
+
     [HostTest("writable data transition rejects changes outside partition GPT padding BPB and reserved FSInfo bytes", HostLane.Native)]
     private static void TransitionIdentity() => WithImage((_, _, _, _, before) =>
     {
@@ -417,11 +544,11 @@ internal static unsafe class WritableDataImageFixtureTests
             HostCheck.Equal(W.Progress.Immediate, result.Phase); HostCheck.True(result.Value >= 0); return result;
         }
         internal W.DescriptorToken Open(string path, uint flags = 0) => Run(W.Open(State, Encoding.ASCII.GetBytes(path), flags)).Descriptor;
-        internal byte[] Read(W.DescriptorToken file, uint count, ulong offset = 0, bool positioned = false)
+        internal byte[] Read(W.DescriptorToken file, uint count, ulong offset = 0, bool positioned = false, uint? expectedBytes = null)
         {
             var begun = W.BeginRead(State, file, count, offset, positioned); HostCheck.Equal(W.Progress.Ready, Wait(begun).Phase);
             byte[] output = new byte[count]; var copied = W.CopyRead(State, begun.Request, output);
-            HostCheck.True(copied.Phase == W.Progress.Immediate && copied.Value == count); return output;
+            HostCheck.True(copied.Phase == W.Progress.Immediate && copied.Value == (expectedBytes ?? count)); return output[..checked((int)copied.Value)];
         }
         internal void Sync(W.DescriptorToken file)
         {
