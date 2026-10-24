@@ -326,6 +326,63 @@ internal static class NativeAotSqliteContractTests
         Console.WriteLine("SQLITE_MANAGED_RECOVERY "+output);
     }
 
+    [HostTest("sqlite Linux recovery argv keeps direct modes and distinct bounded Linux paths without execution")]
+    private static void LinuxRecoveryPlan()
+    {
+        var plan=NativeAotSqliteContract.LinuxRecoveryTraceArguments("/fresh/sqlite", "/fresh/recovery.db","spill","/fresh/spill-trace");
+        HostCheck.True(plan[^3]=="/fresh/sqlite" && plan[^2]=="--recovery-spill" && plan[^1]=="/fresh/recovery.db" &&
+            plan[Array.IndexOf(plan.ToArray(),"-o")+1]=="/fresh/spill-trace" && !plan.Any(p=>p is "sh" or "-c" or "--database"));
+        foreach(string mode in new[]{"seed","verify"})HostCheck.Equal("--recovery-"+mode,NativeAotSqliteContract.LinuxRecoveryTraceArguments("/fresh/sqlite","/fresh/db",mode,"/fresh/trace")[^2]);
+        foreach(string path in new[]{"relative","/fresh/../old","/fresh//db","/fresh/db\n","/fresh/sqlite"})
+            Reject(()=>NativeAotSqliteContract.LinuxRecoveryTraceArguments("/fresh/sqlite",path,"spill","/fresh/trace"),"recovery_linux_path");
+        Reject(()=>NativeAotSqliteContract.LinuxRecoveryTraceArguments("/fresh/sqlite","/fresh/db","ordinary","/fresh/trace"),"recovery_mode");
+        bool immutable=false;try{((IList<string>)plan).Clear();}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
+        if(!OperatingSystem.IsLinux())Reject(()=>NativeAotSqliteContract.RunLinuxRecoveryReferenceAsync("missing-root","missing-recipe","missing-source","missing-output",TextWriter.Null).GetAwaiter().GetResult(),"linux_recovery_platform");
+    }
+
+    [HostTest("sqlite Linux recovery copied proc selectors require the sole live traced child and exact start identities")]
+    private static void LinuxRecoveryIdentity()
+    {
+        string Stat(int pid,int parent,int group,int session,ulong start,string state="S")
+        {
+            string[] fields=Enumerable.Repeat("0",24).ToArray();fields[0]=state;fields[1]=parent.ToString(CultureInfo.InvariantCulture);
+            fields[2]=group.ToString(CultureInfo.InvariantCulture);fields[3]=session.ToString(CultureInfo.InvariantCulture);fields[19]=start.ToString(CultureInfo.InvariantCulture);
+            return pid.ToString(CultureInfo.InvariantCulture)+" (SQLite (main)) "+string.Join(' ',fields);
+        }
+        string tracer=Stat(100,1,100,100,10),writer=Stat(201,100,100,100,20),status="Name:\tsqlite\nTgid:\t201\nTracerPid:\t100\n";
+        var value=NativeAotSqliteContract.InspectLinuxRecoveryIdentityValues(100,tracer,"201\n",writer,status,"/fresh/sqlite","/fresh/sqlite");
+        HostCheck.True(value.Tracer==100 && value.Writer==201 && value.TracerStart==10 && value.WriterStart==20 && !value.GrantsProcessOrSignalAuthority);
+        HostCheck.True(!NativeAotSqliteContract.InspectRecoveryPidfdPollValues(0,0) && NativeAotSqliteContract.InspectRecoveryPidfdPollValues(1,1) &&
+            NativeAotSqliteContract.InspectRecoveryPidfdPollValues(1,16) && NativeAotSqliteContract.InspectRecoveryPidfdPollValues(1,17));
+        Reject(()=>NativeAotSqliteContract.InspectRecoveryPidfdPollValues(1,32),"recovery_pidfd_poll");
+        Reject(()=>NativeAotSqliteContract.InspectRecoveryPidfdPollValues(0,1),"recovery_pidfd_poll");
+        foreach(string mode in new[]{"children","parent","session","dead","tracer","executable","start","duplicated"})
+        {
+            string child=mode=="children"?"201 202":"201",actual=mode=="executable"?"/old/sqlite":"/fresh/sqlite";
+            string supplied=mode switch{"parent"=>Stat(201,101,100,100,20),"session"=>Stat(201,100,100,99,20),"dead"=>Stat(201,100,100,100,20,"Z"),"start"=>Stat(201,100,100,100,0),_=>writer};
+            string suppliedStatus=mode=="tracer"?status.Replace("TracerPid:\t100","TracerPid:\t0",StringComparison.Ordinal):mode=="duplicated"?status+"Tgid:\t201\n":status;
+            Reject(()=>NativeAotSqliteContract.InspectLinuxRecoveryIdentityValues(100,tracer,child,supplied,suppliedStatus,actual,"/fresh/sqlite"),"recovery_proc_");
+        }
+    }
+
+    [HostTest("sqlite killed trace preserves live descriptors and runtime waits without inventing closes or per page flush proof")]
+    private static void LinuxRecoveryKilledTrace()
+    {
+        string prefix=StorageRows()["trace.17"].Split("1.000017",StringSplitOptions.None)[0];
+        // Upstream syncJournal(newHdr=1) may write an empty next-segment header
+        // after syncing the preceding valid records, then spill a DB page.
+        prefix=prefix.Replace("1.000015 pwritev2", "1.0000145 pwritev2(6</app/data/contract.db-journal>, [{iov_base=\"empty next header\", iov_len=512}], 1, 5120, RWF_NOAPPEND) = 512\n1.000015 pwritev2",StringComparison.Ordinal);
+        string text=prefix+"1.000017 futex(0x1234, FUTEX_WAIT_PRIVATE, 2, NULL <unfinished ...>) = ?\n1.000018 +++ killed by SIGKILL +++\n";
+        var value=NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text),"/app/data/contract.db");
+        HostCheck.True(value.DatabaseWrites==1 && value.WritesAfterJournalAndParentSync==1 && value.JournalSyncs==2 && value.ParentSyncs==1 &&
+            value.Storage.Lifetimes.Count(l=>l.CloseLine is null)==2 && value.Storage.UnjoinedLines==2 &&
+            !value.Storage.Journals.Single().ClosedBeforeUnlink && !value.GrantsOriginalTraceOrDurabilityAuthority);
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(text),"/app/data/contract.db"),"storage_owner_unjoined");
+        foreach(string missing in new[]{"1.000011 fsync(7</app/data>) = 0","1.000014 fsync(6</app/data/contract.db-journal>) = 0"})
+            Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text.Replace(missing,"",StringComparison.Ordinal)),"/app/data/contract.db"),"recovery_trace_sync_order");
+        Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text.Replace("futex(0x1234, FUTEX_WAIT_PRIVATE, 2, NULL", "pread64(5</app/data/contract.db>, 0x1234, 4096, 0",StringComparison.Ordinal)),"/app/data/contract.db"),"storage_owner_unjoined");
+    }
+
     [HostTest("sqlite contract source and provider admission reject altered inputs before native compilation")]
     private static void UpstreamAdmission()
     {

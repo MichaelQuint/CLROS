@@ -1,13 +1,16 @@
 using System.Buffers.Binary;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Reflection;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Win32.SafeHandles;
 
 namespace OS.Tooling;
 
@@ -90,6 +93,48 @@ public static class NativeAotSqliteContract
     public sealed record StorageTrace(string Source,IReadOnlyList<StorageLifetime> Lifetimes,IReadOnlyList<StorageEvent> Events,
         IReadOnlyList<JournalOrder> Journals,int UnjoinedLines)
     {public bool GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority=>false;}
+    public sealed record RecoveryTrace(StorageTrace Storage,int DatabaseWrites,int WritesAfterJournalAndParentSync,int JournalSyncs,int ParentSyncs)
+    {public bool GrantsOriginalTraceOrDurabilityAuthority=>false;}
+    public sealed record LinuxRecoveryIdentity(int Tracer,int Writer,int Parent,int Group,int Session,ulong TracerStart,ulong WriterStart)
+    {public bool GrantsProcessOrSignalAuthority=>false;}
+
+    /// <summary>Inspect copied Linux x64 proc selectors only. Require one live
+    /// traced child with the expected executable, parent and owned session.
+    /// Actual proc handles, repeated start identities and a live pidfd must bind
+    /// these values inside the original owner before any signal is issued.</summary>
+    public static LinuxRecoveryIdentity InspectLinuxRecoveryIdentityValues(int tracer,string tracerStat,string children,string writerStat,string status,string executable,string expected)
+    {
+        Need(tracer>0 && new[]{tracerStat,children,writerStat,status,executable,expected}.All(s=>s.Length is >0 and <=65536),"recovery_proc_input");
+        (int Pid,int Parent,int Group,int Session,ulong Start) Stat(string text)
+        {
+            int first=text.IndexOf('('),last=text.LastIndexOf(')');Need(first>1 && last>first,"recovery_proc_stat");
+            string[] fields=text[(last+1)..].Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries);
+            Need(fields.Length>=20 && fields[0] is "R" or "S" or "D" or "T" or "t" &&
+                int.TryParse(text[..first].Trim(),NumberStyles.None,CultureInfo.InvariantCulture,out _) &&
+                fields.Skip(1).Take(3).All(f=>int.TryParse(f,NumberStyles.None,CultureInfo.InvariantCulture,out _)) &&
+                ulong.TryParse(fields[19],NumberStyles.None,CultureInfo.InvariantCulture,out ulong start) && start>0,"recovery_proc_stat");
+            return(int.Parse(text[..first].Trim(),CultureInfo.InvariantCulture),int.Parse(fields[1],CultureInfo.InvariantCulture),
+                int.Parse(fields[2],CultureInfo.InvariantCulture),int.Parse(fields[3],CultureInfo.InvariantCulture),ulong.Parse(fields[19],CultureInfo.InvariantCulture));
+        }
+        var parent=Stat(tracerStat);var writer=Stat(writerStat);string[] ids=children.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries);
+        var tgids=Regex.Matches(status,@"(?m)^Tgid:[ \t]*(\d+)[ \t]*\r?$",RegexOptions.CultureInvariant);
+        var tracers=Regex.Matches(status,@"(?m)^TracerPid:[ \t]*(\d+)[ \t]*\r?$",RegexOptions.CultureInvariant);
+        Need(parent.Pid==tracer && parent.Group==tracer && parent.Session==tracer && ids.Length==1 && ids[0]==writer.Pid.ToString(CultureInfo.InvariantCulture) &&
+            writer.Pid!=tracer && writer.Parent==tracer && writer.Group==tracer && writer.Session==tracer &&
+            tgids.Count==1 && tgids[0].Groups[1].Value==writer.Pid.ToString(CultureInfo.InvariantCulture) &&
+            tracers.Count==1 && tracers[0].Groups[1].Value==tracer.ToString(CultureInfo.InvariantCulture) &&
+            expected.StartsWith('/') && executable==expected,"recovery_proc_owner");
+        return new(tracer,writer.Pid,writer.Parent,writer.Group,writer.Session,parent.Start,writer.Start);
+    }
+
+    /// <summary>Interpret copied poll event values only. POLLIN identifies an
+    /// exited process and POLLHUP a reaped process. This does not bind a pidfd
+    /// or prove the death of any original owned process.</summary>
+    public static bool InspectRecoveryPidfdPollValues(int count,short returned)
+    {
+        Need(count is 0 or 1 && (returned&~(1|16))==0 && (count==0)==(returned==0),"recovery_pidfd_poll");
+        return count==1 && (returned&(1|16))!=0;
+    }
     public sealed class ManagedReference
     {
         internal ManagedReference(string directory,Transcript transcript,string databaseHash){Directory=directory;Values=transcript;DatabaseSha256=databaseHash;}
@@ -437,6 +482,9 @@ public static class NativeAotSqliteContract
     /// truncated strace buffers do not prove payload bytes, physical flushes,
     /// native/guest execution, crash recovery or transactional durability.</summary>
     public static StorageTrace InspectStorageTraceValues(IReadOnlyDictionary<string,string> files,string databasePath)
+        =>InspectStorageTraceValuesCore(files,databasePath,killed:false);
+
+    private static StorageTrace InspectStorageTraceValuesCore(IReadOnlyDictionary<string,string> files,string databasePath,bool killed)
     {
         var trace=InspectTraceValues(files,databasePath);
         Need(databasePath.Length<=240 && !databasePath.Any(c=>c is '\\' or '<' or '>' || char.IsControl(c)) &&
@@ -480,7 +528,8 @@ public static class NativeAotSqliteContract
         }
         string[] owners=trace.Calls.Where(c=>CallKind(c).Length!=0).Select(c=>c.Source).Distinct(StringComparer.Ordinal).ToArray();
         Need(owners.Length==1,"storage_single_owner");string owner=owners[0];
-        Need(!files[owner].Contains("<unfinished ...>",StringComparison.Ordinal) && !files[owner].Contains(" resumed>",StringComparison.Ordinal),"storage_owner_unjoined");
+        foreach(string line in files[owner].Replace("\r\n","\n",StringComparison.Ordinal).Split('\n').Where(l=>l.Contains("<unfinished ...>",StringComparison.Ordinal) || l.Contains(" resumed>",StringComparison.Ordinal)))
+            Need(killed && Regex.IsMatch(line,@"^\d+\.\d+ (?:(?:futex|futex_time64|clock_nanosleep|nanosleep)\(|<\.\.\. (?:futex|futex_time64|clock_nanosleep|nanosleep) resumed>)",RegexOptions.CultureInvariant),"storage_owner_unjoined");
         List<StorageLifetime> lifetimes=[];List<StorageEvent> events=[];Dictionary<int,int> active=[];
         foreach(var call in trace.Calls.Where(c=>c.Source==owner))
         {
@@ -548,7 +597,7 @@ public static class NativeAotSqliteContract
             }
             Need(events.Count<=200000,"storage_capacity");
         }
-        Need(active.Count==0,"storage_lifetime_unclosed");List<JournalOrder> journals=[];
+        Need(killed || active.Count==0,"storage_lifetime_unclosed");List<JournalOrder> journals=[];
         foreach(var lifetime in lifetimes.Where(l=>l.Kind=="journal"))
         {
             int end=lifetimes.Where(l=>l.Kind=="journal" && l.OpenLine>lifetime.OpenLine).Select(l=>l.OpenLine).DefaultIfEmpty(int.MaxValue).Min();
@@ -575,6 +624,31 @@ public static class NativeAotSqliteContract
                 databaseSync?.Call.Line,unlink?.Call.Line,closed,ordered));
         }
         return new(owner,Array.AsReadOnly(lifetimes.ToArray()),Array.AsReadOnly(events.ToArray()),Array.AsReadOnly(journals.ToArray()),trace.UnjoinedLines);
+    }
+
+    /// <summary>Inspect copied storage before a separately proven SIGKILL. Keep
+    /// open lifetimes and unfinished pure runtime waits; never invent closes or
+    /// completed waits. Count database writes preceded by a journal-header
+    /// update, successful journal sync and parent sync. Empty next-segment
+    /// headers may legitimately follow a sync. This is not a per-page journal
+    /// or flush proof, original-process authority or recovery execution.</summary>
+    public static RecoveryTrace InspectKilledRecoveryTraceValues(IReadOnlyDictionary<string,string> files,string databasePath)
+    {
+        var storage=InspectStorageTraceValuesCore(files,databasePath,killed:true);var events=storage.Events;
+        var live=storage.Lifetimes.Where(l=>l.CloseLine is null).ToArray();
+        Need(live.Count(l=>l.Kind=="database")==1 && live.Count(l=>l.Kind=="journal")==1 && live.Length==2,"recovery_trace_live_files");
+        var writes=events.Where(e=>e.Kind=="database" && e.Call.Syscall is "pwrite64" or "pwritev2" && e.Returned>0).ToArray();
+        var journalSyncs=events.Where(e=>e.Kind=="journal" && e.Call.Syscall=="fsync" && e.Returned==0).ToArray();
+        var parentSyncs=events.Where(e=>e.Kind=="directory" && e.Call.Syscall=="fsync" && e.Returned==0).ToArray();int protectedWrites=0;
+        foreach(var write in writes)
+        {
+            var journals=storage.Lifetimes.Where(l=>l.Kind=="journal" && l.OpenLine<write.Call.Line && (l.CloseLine is null || l.CloseLine>write.Call.Line)).ToArray();
+            Need(journals.Length==1 && write.Returned==write.Count,"recovery_trace_write");int id=journals[0].Id;
+            var headers=events.Where(e=>e.LifetimeId==id && e.Count==12 && e.Returned==12 && e.Call.Line<write.Call.Line);
+            Need(headers.Any(header=>journalSyncs.Any(e=>e.LifetimeId==id && e.Call.Line>header.Call.Line && e.Call.Line<write.Call.Line)) &&
+                parentSyncs.Any(e=>e.Call.Line>journals[0].OpenLine && e.Call.Line<write.Call.Line),"recovery_trace_sync_order");protectedWrites++;
+        }
+        Need(writes.Length>0,"recovery_trace_no_spill");return new(storage,writes.Length,protectedWrites,journalSyncs.Length,parentSyncs.Length);
     }
 
     /// <summary>Own a fresh artifacts directory and serialized managed restore,
@@ -781,6 +855,212 @@ public static class NativeAotSqliteContract
         }
         return new(destination,barrier!,writer!,recoveredHash);
     }
+
+    /// <summary>Return copied direct-exec argv for one bounded recovery mode.
+    /// Paths must be absolute Linux values without traversal or control bytes.
+    /// No shell, publication, process ownership or execution is authorized here.</summary>
+    public static IReadOnlyList<string> LinuxRecoveryTraceArguments(string executable,string database,string mode,string trace)
+    {
+        Need(mode is "seed" or "spill" or "verify","recovery_mode");
+        foreach(string path in new[]{executable,database,trace})Need(path.Length is >1 and <=4096 && path.StartsWith('/') &&
+            !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p=>p.Length>0 && p is not "." and not ".."),"recovery_linux_path");
+        Need(executable!=database && executable!=trace && database!=trace,"recovery_linux_path");
+        return Array.AsReadOnly(new[]{"-ff","-yy","-ttt","-s","256","-o",trace,executable,"--recovery-"+mode,database});
+    }
+
+    /// <summary>Fresh Linux x64 recovery-reference preparation. Reuse the pinned
+    /// publisher in a new child namespace, never an old ordinary executable.
+    /// Hold that publication's exact inputs/outputs; retain seed/spill/verify
+    /// traces and crash bytes. Bind the actual sole tracer child to a pidfd,
+    /// SIGKILL that writer, drain/reap strace and join its owned session before
+    /// probing RESERVED-byte locks and reopening. This method must only be run
+    /// under the caller's serialized native-builder lease. It supplies no guest
+    /// or power-loss authority and does not alter original f616/r03 receipts.</summary>
+    public static async Task<int> RunLinuxRecoveryReferenceAsync(string root,string recipeRoot,string sourceArchive,string destination,TextWriter output)
+    {
+        const string marker="nativeaot.sqlite-recovery-reference";output.WriteLine("TEST_START "+marker);
+        Need(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture==Architecture.X64,"linux_recovery_platform");
+        root=Path.GetFullPath(root);recipeRoot=Path.GetFullPath(recipeRoot);destination=Path.GetFullPath(destination,root);
+        Need(root!=recipeRoot && destination.StartsWith(Path.Combine(root,"artifacts")+"/",StringComparison.Ordinal) && !Path.Exists(destination),"linux_recovery_fresh_output");
+        AuthorityFiles.RequirePlainPath(root,Path.GetDirectoryName(destination)!,"sqlite_recovery_parent");Directory.CreateDirectory(destination);
+        using var ownership=new FileStream(Path.Combine(destination,"ownership.lock"),FileMode.CreateNew,FileAccess.Write,FileShare.None);
+        using AuthorityFiles held=new();
+        string publication=Path.Combine(destination,"publication"),database=Path.Combine(destination,"recovery.db"),publicationHash="";
+        List<object> commands=[];Dictionary<string,string> traceHashes=new(StringComparer.Ordinal);bool succeeded=false;string failure="",recoveredHash="";
+        RecoveryJournal? barrier=null;RecoveryTrace? writerTrace=null;LinuxRecoveryIdentity? identity=null;bool pidfdDead=false,sessionJoined=false,lockClear=false;
+        string engine="SQLITE_RECOVERY_ENGINE version=3.53.4 sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(SourceId));
+        string[] Lines(string text)=>text.Replace("\r\n","\n",StringComparison.Ordinal).TrimEnd('\n').Split('\n');
+        byte[] ReadBytes(string path,int maximum)
+        {
+            using var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
+            Need(file.Length>0 && file.Length<=maximum,"recovery_file_capacity");byte[] bytes=new byte[(int)file.Length];file.ReadExactly(bytes);Need(file.ReadByte()==-1,"recovery_file_changed");return bytes;
+        }
+        async Task<Dictionary<string,string>> Traces(string mode,int? killedPid=null)
+        {
+            string[] paths=Directory.GetFiles(destination,mode+"-trace.*");Need(paths.Length is >0 and <=64,"recovery_trace_inventory");
+            Dictionary<string,string> values=new(StringComparer.Ordinal);int total=0;
+            foreach(string path in paths.Order(StringComparer.Ordinal))
+            {
+                var originalTrace=held.Open(root,path,"original recovery trace","sqlite_recovery_trace",4*1024*1024,singleLink:true);
+                byte[] bytes=originalTrace.ReadBytes(4*1024*1024,"sqlite_recovery_trace");Need((total+=bytes.Length)<=16*1024*1024,"recovery_trace_capacity");
+                string text=new UTF8Encoding(false,true).GetString(bytes),name=Path.GetFileName(path),suffix=name[(name.LastIndexOf('.')+1)..];
+                Need(int.TryParse(suffix,NumberStyles.None,CultureInfo.InvariantCulture,out int pid) && pid>0,"recovery_trace_pid");
+                bool killed=text.TrimEnd('\r','\n').EndsWith("+++ killed by SIGKILL +++",StringComparison.Ordinal);
+                Need(killedPid==pid?killed:text.TrimEnd('\r','\n').EndsWith("+++ exited with 0 +++",StringComparison.Ordinal) || killedPid.HasValue && killed,"recovery_trace_terminal");
+                values.Add(name,text);traceHashes.Add(name,Convert.ToHexString(SHA256.HashData(bytes)));
+            }
+            Need(!killedPid.HasValue || values.ContainsKey(mode+"-trace."+killedPid.Value.ToString(CultureInfo.InvariantCulture)),"recovery_trace_main");
+            var projection=InspectTraceValues(values,database);await File.WriteAllTextAsync(Path.Combine(destination,mode+"-trace-values.json"),JsonSerializer.Serialize(projection));return values;
+        }
+        try
+        {
+            Need(await RunLinuxReferenceAsync(root,recipeRoot,sourceArchive,publication,output)==0,"recovery_publication_failed");
+            using var lease=NativeAotPayload.OpenQualificationLease(root);
+            var producer=held.Open(root,Path.Combine(publication,"receipt.json"),"fresh recovery publication","sqlite_recovery_publication",4*1024*1024,singleLink:true);
+            publicationHash=producer.Sha256;using(var receipt=JsonDocument.Parse(producer.ReadBytes(4*1024*1024,"sqlite_recovery_publication")))
+            {
+                Need(receipt.RootElement.GetProperty("Succeeded").GetBoolean(),"recovery_publication_failed");
+                foreach(var entry in receipt.RootElement.GetProperty("Sources").EnumerateObject().Concat(receipt.RootElement.GetProperty("Outputs").EnumerateObject()))
+                {
+                    string path=Path.IsPathFullyQualified(entry.Name)?entry.Name:Path.Combine(publication,entry.Name);
+                    Need(path.StartsWith(root+"/",StringComparison.Ordinal),"recovery_publication_path");
+                    var file=held.Open(root,path,"recovery publication input/output","sqlite_recovery_publication_file",64*1024*1024,allowEmpty:true,singleLink:true);
+                    Need(file.Sha256.Equals(entry.Value.GetString(),StringComparison.OrdinalIgnoreCase),"recovery_publication_changed");
+                }
+            }
+            string executable=Path.Combine(publication,Application,Application);
+            async Task<string> Run(string mode)
+            {
+                string[] arguments=LinuxRecoveryTraceArguments(executable,database,mode,Path.Combine(destination,mode+"-trace")).ToArray();
+                commands.Add(new{Executable="setsid",Arguments=new[]{"strace"}.Concat(arguments),WorkingDirectory=root});
+                await NativeAotWebPayload.ExecuteAsync("strace",arguments,root,Path.Combine(destination,mode),TimeSpan.FromMinutes(2));
+                await Traces(mode);var stdout=held.Open(root,Path.Combine(destination,mode+".stdout.log"),"original recovery console","sqlite_recovery_console",65536,singleLink:true);
+                var stderr=held.Open(root,Path.Combine(destination,mode+".stderr.log"),"original recovery stderr","sqlite_recovery_console",65536,allowEmpty:true,singleLink:true);
+                Need(stderr.ReadBytes(65536,"sqlite_recovery_console").Length==0,"recovery_console");
+                return new UTF8Encoding(false,true).GetString(stdout.ReadBytes(65536,"sqlite_recovery_console"));
+            }
+            Need(Lines(await Run("seed")).SequenceEqual(new[]{"TEST_START m10.020.recovery.seed",engine,
+                "SQLITE_RECOVERY_SEED rows=64 pageSize=4096","TEST_PASS m10.020.recovery.seed"}),"recovery_seed_transcript");
+            byte[] baseline=ReadBytes(database,2*1024*1024);await File.WriteAllBytesAsync(Path.Combine(destination,"baseline.db"),baseline);
+            var baselineFile=held.Open(root,Path.Combine(destination,"baseline.db"),"recovery baseline","sqlite_recovery_baseline",2*1024*1024,singleLink:true);
+            Need(baselineFile.Sha256.Equals(Convert.ToHexString(SHA256.HashData(baseline)),StringComparison.OrdinalIgnoreCase),"recovery_baseline_changed");
+            string[] spill=LinuxRecoveryTraceArguments(executable,database,"spill",Path.Combine(destination,"spill-trace")).ToArray();
+            commands.Add(new{Executable="setsid",Arguments=new[]{"strace"}.Concat(spill),WorkingDirectory=root});
+            using(var process=NativeAotWebPayload.Start("strace",spill,root,expectedBody:null))
+            using(var deadline=new CancellationTokenSource(TimeSpan.FromMinutes(2)))
+            {
+                var ready=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                async Task Capture(StreamReader reader,string path,bool stdout)
+                {
+                    try
+                    {
+                        await using FileStream log=new(path,FileMode.CreateNew,FileAccess.Write,FileShare.Read);char[] buffer=new char[4096];StringBuilder text=new();
+                        while(true)
+                        {
+                            int count=await reader.ReadAsync(buffer);if(count==0)break;text.Append(buffer,0,count);
+                            byte[] bytes=Encoding.UTF8.GetBytes(buffer.AsSpan(0,count).ToString());Need(log.Length+bytes.Length<=65536,"recovery_console_capacity");
+                            await log.WriteAsync(bytes);await log.FlushAsync();
+                            if(stdout && text.ToString().Split('\n').SkipLast(1).Any(l=>l.StartsWith("SQLITE_RECOVERY_SPILL ",StringComparison.Ordinal)))ready.TrySetResult();
+                        }
+                    }
+                    catch{deadline.Cancel();throw;}
+                }
+                Task stdout=Capture(process.StandardOutput,Path.Combine(destination,"spill.stdout.log"),true),stderr=Capture(process.StandardError,Path.Combine(destination,"spill.stderr.log"),false);
+                Exception? runFailure=null;
+                try
+                {
+                    Need(await Task.WhenAny(process.WaitForExitAsync(),ready.Task).WaitAsync(deadline.Token)==ready.Task && !process.HasExited,"recovery_spill_barrier_not_reached");
+                    LinuxRecoveryIdentity Observe()
+                    {
+                        string children=ReadRecoveryProc($"/proc/{process.Id}/task/{process.Id}/children");string[] ids=children.Split((char[]?)null,StringSplitOptions.RemoveEmptyEntries);
+                        Need(ids.Length==1 && int.TryParse(ids[0],NumberStyles.None,CultureInfo.InvariantCulture,out _),"recovery_proc_children");
+                        string child=ids[0];return InspectLinuxRecoveryIdentityValues(process.Id,ReadRecoveryProc($"/proc/{process.Id}/stat"),children,
+                            ReadRecoveryProc($"/proc/{child}/stat"),ReadRecoveryProc($"/proc/{child}/status"),File.ResolveLinkTarget($"/proc/{child}/exe",true)?.FullName??"",executable);
+                    }
+                    identity=Observe();nint opened=RecoveryPidfdOpen(434,identity.Writer,0);Need(opened>=0 && opened<=int.MaxValue,"recovery_pidfd_open");
+                    using var pidfd=new SafeFileHandle(opened,true);Need(!pidfd.IsInvalid && Observe()==identity && !RecoveryPidfdDead(pidfd),"recovery_pidfd_identity");
+                    byte[] changed=ReadBytes(database,2*1024*1024),journal=ReadBytes(database+"-journal",8*1024*1024);
+                    await File.WriteAllBytesAsync(Path.Combine(destination,"before-kill.db"),changed);await File.WriteAllBytesAsync(Path.Combine(destination,"before-kill.journal"),journal);
+                    barrier=InspectRecoveryJournalValues(baseline,changed,journal);held.VerifyUnchanged();
+                    Need(Observe()==identity && !RecoveryPidfdDead(pidfd) && RecoveryPidfdSignal(424,pidfd,9,0,0)==0,"recovery_pidfd_signal");
+                    await process.WaitForExitAsync(deadline.Token);await Task.WhenAll(stdout,stderr).WaitAsync(deadline.Token);
+                    Need(process.ExitCode==137 && RecoveryPidfdDead(pidfd),"recovery_writer_death");pidfdDead=true;
+                    var originalOut=held.Open(root,Path.Combine(destination,"spill.stdout.log"),"original spill console","sqlite_recovery_console",65536,singleLink:true);
+                    var originalError=held.Open(root,Path.Combine(destination,"spill.stderr.log"),"original spill stderr","sqlite_recovery_console",65536,allowEmpty:true,singleLink:true);
+                    Need(Lines(new UTF8Encoding(false,true).GetString(originalOut.ReadBytes(65536,"sqlite_recovery_console"))).SequenceEqual(new[]{"TEST_START m10.020.recovery.spill",engine,
+                        "SQLITE_RECOVERY_SPILL rows=64 journalBytes="+journal.Length+" headerBase64="+Convert.ToBase64String(journal.AsSpan(0,28))}) &&
+                        originalError.ReadBytes(65536,"sqlite_recovery_console").Length==0,"recovery_spill_transcript");
+                }
+                catch(Exception error){runFailure=error;throw;}
+                finally
+                {
+                    Exception? cleanup=null;try{await NativeAotWebPayload.StopSessionAsync(process);sessionJoined=true;}catch(Exception error){cleanup=error;}
+                    try{await Task.WhenAll(stdout,stderr).WaitAsync(TimeSpan.FromSeconds(10));}catch(Exception error){cleanup=cleanup is null?error:new AggregateException(cleanup,error);}
+                    await File.WriteAllTextAsync(Path.Combine(destination,"writer-owner.json"),JsonSerializer.Serialize(new{Identity=identity,PidfdDeathObserved=pidfdDead,SessionJoined=sessionJoined,Signal=9,TracerExit=process.HasExited?process.ExitCode:(int?)null}));
+                    if(cleanup is not null)throw runFailure is null?cleanup:new AggregateException(runFailure,cleanup);
+                }
+            }
+            Need(identity is not null && pidfdDead && sessionJoined,"recovery_owner_incomplete");
+            var selected=identity!;writerTrace=InspectKilledRecoveryTraceValues(await Traces("spill",selected.Writer),database);
+            Need(writerTrace.Storage.Source=="spill-trace."+selected.Writer.ToString(CultureInfo.InvariantCulture),"recovery_trace_storage_owner");
+            using(var db=new FileStream(database,FileMode.Open,FileAccess.Read,FileShare.None))
+            {
+                RecoveryFlock region=new(){Type=1,Whence=0,Start=1073741825,Length=1};
+                Need(RecoveryGetLock(db.SafeFileHandle,5,ref region)==0 && region.Type==2,"recovery_reserved_lock_remains");lockClear=true;
+                await File.WriteAllTextAsync(Path.Combine(destination,"reserved-lock.json"),JsonSerializer.Serialize(new{Command="F_GETLK",RequestedType="F_WRLCK",Start=1073741825,Length=1,ReturnedType=region.Type,region.Pid,ReservedLockAbsent=true}));
+                Need(db.Length is >0 and <=2*1024*1024,"recovery_file_capacity");byte[] bytes=new byte[(int)db.Length];db.ReadExactly(bytes);
+                byte[] journal=ReadBytes(database+"-journal",8*1024*1024);
+                Need(InspectRecoveryJournalValues(baseline,bytes,journal)==barrier,"recovery_postkill_changed");
+                await File.WriteAllBytesAsync(Path.Combine(destination,"before-reopen.db"),bytes);await File.WriteAllBytesAsync(Path.Combine(destination,"before-reopen.journal"),journal);
+            }
+            foreach(string name in new[]{"before-kill.db","before-kill.journal","before-reopen.db","before-reopen.journal"})
+            {
+                var snapshot=held.Open(root,Path.Combine(destination,name),"original recovery bytes","sqlite_recovery_bytes",8*1024*1024,singleLink:true);
+                Need(snapshot.Sha256.Equals(name.EndsWith(".journal",StringComparison.Ordinal)?barrier!.JournalSha256:barrier!.ChangedDatabaseSha256,StringComparison.OrdinalIgnoreCase),"recovery_snapshot_changed");
+            }
+            Need(Lines(await Run("verify")).SequenceEqual(new[]{"TEST_START m10.020.recovery.verify",engine,
+                "SQLITE_RECOVERY_VERIFY rows=64 generation=0 integrity=ok","TEST_PASS m10.020.recovery.verify"}),"recovery_verify_transcript");
+            byte[] recovered=ReadBytes(database,2*1024*1024);Need(recovered.AsSpan().SequenceEqual(baseline),"recovery_baseline_not_restored");
+            recoveredHash=Convert.ToHexString(SHA256.HashData(recovered));Need(!Path.Exists(database+"-journal") && !Path.Exists(database+"-wal") && !Path.Exists(database+"-shm"),"recovery_sidecars_remaining");
+            var finalDatabase=held.Open(root,database,"recovered database","sqlite_recovery_database",2*1024*1024,singleLink:true);
+            Need(finalDatabase.Sha256.Equals(recoveredHash,StringComparison.OrdinalIgnoreCase),"recovery_database_changed");
+            held.VerifyUnchanged();Need(ToolingBuildInputs.Validate(root).Count==0,"tooling_inputs_changed");succeeded=true;
+        }
+        catch(Exception error){failure=error is ToolFailure tool?tool.Reason:error.Message.ReplaceLineEndings(" ");output.WriteLine("TEST_FAIL "+marker+" "+failure);throw;}
+        finally
+        {
+            await File.WriteAllTextAsync(Path.Combine(destination,"commands.json"),JsonSerializer.Serialize(commands));
+            var files=Directory.GetFiles(destination,"*",SearchOption.AllDirectories).Where(p=>Path.GetFileName(p) is not "ownership.lock" and not "qualification.lock" && p!=Path.Combine(destination,"receipt.json")).Order(StringComparer.Ordinal);
+            await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
+            {Schema="clros-sqlite-linux-process-kill-recovery-v1",Succeeded=succeeded,Failure=failure,FreshPublicationReceiptSha256=publicationHash,Journal=barrier,
+                WriterTrace=writerTrace,Identity=identity,PidfdDeathObserved=pidfdDead,SessionJoined=sessionJoined,ReservedLockAbsent=lockClear,RecoveredDatabaseSha256=recoveredHash,
+                TraceSha256=traceHashes,Outputs=files.ToDictionary(p=>Path.GetRelativePath(destination,p),NativeAotWebPayload.HashFile),
+                CompleteWriterTraceProjection=false,OriginalLinuxProducerSource="f61648c223e9aad99e0bbb48a4be5ee19a0c1bce",FreshPublicationRequired=true,
+                GuestQualified=false,PowerLossQualified=false,DurabilityQualified=false}));
+        }
+        output.WriteLine("TEST_PASS "+marker);return 0;
+    }
+
+    private static string ReadRecoveryProc(string path)
+    {
+        using var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);byte[] bytes=new byte[65537];int count=0,read;
+        while(count<bytes.Length && (read=file.Read(bytes.AsSpan(count)))>0)count+=read;Need(count<bytes.Length,"recovery_proc_capacity");return new UTF8Encoding(false,true).GetString(bytes,0,count);
+    }
+    private static bool RecoveryPidfdDead(SafeFileHandle pidfd)
+    {
+        RecoveryPoll poll=new(){Descriptor=checked((int)pidfd.DangerousGetHandle()),Events=1};int count=RecoveryPollCall(ref poll,1,0);
+        return InspectRecoveryPidfdPollValues(count,poll.Returned);
+    }
+    [StructLayout(LayoutKind.Sequential)]private struct RecoveryPoll{internal int Descriptor;internal short Events,Returned;}
+    [StructLayout(LayoutKind.Explicit,Size=32)]private struct RecoveryFlock
+    {
+        [FieldOffset(0)]internal short Type;[FieldOffset(2)]internal short Whence;[FieldOffset(8)]internal long Start;
+        [FieldOffset(16)]internal long Length;[FieldOffset(24)]internal int Pid;
+    }
+    [DllImport("libc",EntryPoint="syscall",SetLastError=true)]private static extern nint RecoveryPidfdOpen(nint number,nint pid,nint flags);
+    [DllImport("libc",EntryPoint="syscall",SetLastError=true)]private static extern nint RecoveryPidfdSignal(nint number,SafeFileHandle pidfd,nint signal,nint info,nint flags);
+    [DllImport("libc",EntryPoint="poll",SetLastError=true)]private static extern int RecoveryPollCall(ref RecoveryPoll descriptor,nuint count,int timeout);
+    [DllImport("libc",EntryPoint="fcntl",SetLastError=true)]private static extern int RecoveryGetLock(SafeFileHandle descriptor,int command,ref RecoveryFlock region);
 
     /// <summary>Own one fresh Linux source/cache namespace, original recipe
     /// lease, pinned upstream object/archive build, static NativeAOT publication
