@@ -1,5 +1,11 @@
 # Diagnostics
 
+[Step1569](../done/step1569.md) retains r07's first actual disk descriptor call:
+nr4 reports source4/sequence1 but action2/status3, then exit99. The gate rejected
+a valid Blocked result before park/pump; no application disk I/O or completion
+row appears. The six-call admission repair has real gateway/thread controls.
+This failed original remains failed; it does not qualify application file reads.
+
 [Step1567](../done/step1567.md) records a second genuine disk diagnostic failure,
 at memory-startup after exit/NIC markers. The 135-entry M16-025 construction
 inventory preserves its existing dynamic/table quotas. The mechanical fixture

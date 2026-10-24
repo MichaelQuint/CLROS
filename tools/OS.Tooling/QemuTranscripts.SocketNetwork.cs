@@ -214,13 +214,14 @@ public static partial class QemuTranscripts
         var result=SocketNetworkEnvelope(rows,true,staticFiles:true).Proof.Lifetimes;
         return new(result.Count,result.Count(v=>v.Retired!=0),result.Count(v=>v.Waits!=0),result.Max(v=>v.MaximumDeadline));
     }
-    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false)
+    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false)
     {
         int parentsEnd=QemuContracts.M03OwnedSubsystemMarkers.Count+7+M16LinuxStartupMarkers.Count+M16ServiceLoopMarkers.Count;
         int apicEnd=parentsEnd+QemuContracts.M05ApicSetupMarkers.Count-QemuContracts.M03OwnedSubsystemMarkers.Count;
         int networkStart=apicEnd+QemuContracts.M07ArpReceiveMarkers.Count-QemuContracts.M05PciEnumerationMarkers.Count;
         Need(lines.Length>networkStart+12 && !(containment&&asynchronous) && (!vectors || asynchronous && !containment) &&
-            (!mechanical||asynchronous&&!containment&&!vectors) && (!staticFiles||asynchronous&&!containment&&!vectors&&!mechanical),"socket_parent_extent");
+            (!mechanical||asynchronous&&!containment&&!vectors) && (!staticFiles||asynchronous&&!containment&&!vectors&&!mechanical) &&
+            (!diskFiles||mechanical&&!staticFiles),"socket_parent_extent");
         int cursor=networkStart;
         void Exact(string expected){Need(cursor<lines.Length&&lines[cursor++]==expected,"socket_parent_order_"+expected);}
         Exact("TEST_START m07-026");var dma=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");
@@ -240,6 +241,11 @@ public static partial class QemuTranscripts
         var end=ReadRecord(endLine[..^cleanup.Length],"M16_011_END","polls:dec","received:dec","copied:dec","fresh:dec","retired:dec","start:dec","end:dec","maxDeadline:dec");
         Dictionary<string,ulong> Row(uint stage){var value=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");Need(value["stage"]==stage,"socket_network_stage");return value;}
         var stop=Row(4);var pool=Row(5);var allocator=Row(6);
+        if(diskFiles)
+        {
+            Need(cursor<lines.Length,"disk_parent_end_missing"); _=ReadDiskFileEnd(lines[cursor++]);
+            foreach(string marker in DiskFileEndMarkers)Exact(marker);
+        }
         if(staticFiles)
         {
             Exact("M10_017_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained");

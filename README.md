@@ -110,6 +110,11 @@ profile's construction inventory now preserves room for those mappings and all
 directory entries have all-zero timestamps. The read contract now treats that
 exact pair as unspecified metadata; malformed nonzero timestamps still reject.
 Fresh guest qualification and the complete disk consumer remain pending.
+[Step1569](done/step1569.md) records r07 mounting and attaching the disk, then
+failing its first deferred stat because the syscall gate rejected that call's
+Blocked result. Six disk calls now have profile-specific blocking admission,
+with real gateway/thread integration controls. Disk-specific startup/network/
+runner value checks are in development; fresh execution and complete joins remain.
 
 SQLite follow-ups [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) and
 [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) use direct

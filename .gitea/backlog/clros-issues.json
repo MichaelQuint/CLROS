@@ -36097,7 +36097,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1567 records exact mechanical instruction metadata and41 focused source/parser checks; step1568 adds51 focused FS/descriptor/thread/profile checks (overlapping scopes, not additive batch acceptance). Source4 retained output, request generations and complete syscall/return/lifecycle value inspection are implemented. Original native EFI verification passes, but r03/r04/r05/r06 guests retain their respective range/memory/mount failures. Conditional54/135 range bounds preserve older profiles and quotas; the all-zero timestamp repair now awaits fresh original guest qualification. Complete native/parent/sector/image/NIC/packet/timing/IRQ/runner joins remain required; no live disk issue closes.",
+      "currentEvidence": "Step1569 retains original r07 at704cb0b3: mount and disk descriptor attachment pass with37 bootstrap copies; first stat is rejected by the gateway blocking allowlist, followed by genuine exit99 before application disk reads. Exactly six disk calls now admit Blocked under M16-025; actual gateway/thread controls prove host parking/pump/wake/completion and unchanged byte accounting. Fifty-five focused checks pass unchanged/zero reuse; the expanded five-case disk-parent fixture also passes. Exact65 canonical startup, disk/NIC cleanup and runner value accounting are implemented, but complete native/parent/sector/image/NIC/packet/timing/IRQ/original-runner consumption is still required. All failed originals remain failed; no issue closes.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36188,7 +36188,14 @@
         "src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs",
         "tests/OS.HostTests/M16008EfiIntegrationTests.cs",
         "tests/OS.HostTests/LinuxDiskFileTranscriptTests.cs",
-        "src/OS.Kernel/Memory/X64UserAddressSpace.cs"
+        "src/OS.Kernel/Memory/X64UserAddressSpace.cs",
+        "tests/OS.HostTests/LinuxSyscallGatewayTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxDiskParent.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxElfStartup.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "tests/OS.HostTests/LinuxDiskParentTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

@@ -9,8 +9,9 @@ public static partial class QemuTranscripts
     public static IReadOnlyList<string> M16LinuxStartupMarkers { get; } = Array.AsReadOnly<string>(
         ["TEST_START m16-004", "M16_004_IMAGE", "M16_004_STACK", "M16_004_TABLES", "M16_004_READBACK", "CLROS_M16_004_READY", "TEST_PASS m16-004"]);
 
-    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package)
+    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false)
     {
+        if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
         Need(lines.Length == QemuContracts.M03OwnedSubsystemMarkers.Count + 14, "m16_004_record_count");
         string[] tail = lines[^7..];
         Need(tail[0] == "TEST_START m16-004" && tail[5] == "CLROS_M16_004_READY" && tail[6] == "TEST_PASS m16-004", "m16_004_tail_identity");
@@ -52,7 +53,8 @@ public static partial class QemuTranscripts
             loadPages += (((address + memory + 4095) & ~4095UL) - (address & ~4095UL)) / 4096;
         }
         Need(tables["root"] is >= 4096 and < 0x100000000 && tables["root"] % 4096 == 0 &&
-            tables["used"] is >= 4 and <= 128 && tables["ranges"] >= image.LoadCount + 2 && tables["ranges"] <= 64 &&
+            tables["used"] is >= 4 and <= 128 && tables["ranges"] >= image.LoadCount + 2 &&
+            (diskFiles ? tables["ranges"] == 65 : tables["ranges"] <= 64) &&
             tables["leaves"] >= loadPages + view.Manifest.StackBytes / 4096 + 128 && tables["leaves"] <= 32768 &&
             image.ImageBytes + view.Manifest.StackBytes <= 4096 * 4096,
             "m16_004_table_geometry");

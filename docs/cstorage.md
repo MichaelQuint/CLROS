@@ -2,6 +2,16 @@
 
 ## Current development batch (2026-10-23)
 
+[Step1569](../done/step1569.md) retains fresh r07 after the timestamp repair:
+mount and descriptor attachment pass (37 bootstrap sector copies), but the first
+stat's source4 Blocked result was rejected by the syscall gate. Disk profile
+admission now allows exactly open/stat/lstat/lseek/pread/openat to block, in
+addition to existing calls. Actual gateway/thread controls exercise parking,
+pumping, wake and one completion without replay; read/metadata results do not
+inflate output-byte accounting. New disk envelope checks require the exact
+65-map canonical startup and retired disk/NIC tail. They remain value checks;
+the complete runner consumer is still disabled and another fresh guest is needed.
+
 [Step1568](../done/step1568.md) adds an explicit timestamp compatibility policy:
 an all-zero FAT write date/time yields `ModifiedSeconds=0` (unspecified).
 Every other pair must decode as valid Gregorian UTC under the existing fixture

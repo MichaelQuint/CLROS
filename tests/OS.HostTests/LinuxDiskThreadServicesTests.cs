@@ -105,6 +105,64 @@ internal static unsafe class LinuxDiskThreadServicesTests
         }
     }
 
+    [HostTest("linux.disk-thread gateway carries stat open lstat seek pread and openat through real waits")]
+    private static void GatewayDiskWaits()
+    {
+        using Owner o = new(); o.PutPath("/app/wwwroot/index.html");
+        byte* scratch = stackalloc byte[64]; LinuxSyscallGateState gate = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = 0x200000, MaximumCalls = 64, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64,
+            FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true
+        }, o.Thread.GatewayAccess));
+
+        HostCheck.Equal(0L, GatewayDiskRun(o, ref gate, 4, Path, Output));
+        HostCheck.Equal(700UL, o.Thread.Read64(Output + 48));
+        uint fd = (uint)GatewayDiskRun(o, ref gate, 2, Path); HostCheck.Equal(3U, fd);
+        HostCheck.Equal(0L, GatewayDiskRun(o, ref gate, 6, Path, Output));
+        HostCheck.Equal(700UL, o.Thread.Read64(Output + 48));
+        HostCheck.Equal(11L, GatewayDiskRun(o, ref gate, 8, fd, 11));
+        HostCheck.Equal(5L, GatewayDiskRun(o, ref gate, 17, fd, Output, 5, 2));
+        for (int i = 0; i < 5; i++)
+            HostCheck.Equal(unchecked((byte)((i + 2) * 31 ^ ((i + 2) >> 8) ^ 0x5a)), o.Thread.At(Output)[i]);
+        HostCheck.Equal(4L, GatewayDiskRun(o, ref gate, 257, 0xffffff9c, Path));
+        HostCheck.Equal(11L, GatewayDiskRun(o, ref gate, 8, fd, 0, 1)); // pread did not advance the shared cursor.
+        HostCheck.True(gate.Calls == 7 && gate.TotalCalls == 7 && gate.BytesWritten == 0 && gate.TotalBytesWritten == 0);
+
+        // Ordinary stdout still accounts only its actual successful prefix.
+        var image = o.Thread.CurrentImage(); var frame = image->Frame;
+        frame.Number = 1; frame.Argument0 = 1; frame.Argument1 = Output; frame.Argument2 = 5;
+        frame.Argument3 = frame.Argument4 = frame.Argument5 = 0; image->Frame = frame;
+        var write = LinuxSyscallGateway.Dispatch(ref gate, ref frame);
+        HostCheck.True(write.Action == LinuxSyscallAction.Return && write.Value == 5 && gate.Calls == 8 && gate.TotalCalls == 8);
+        HostCheck.True(gate.BytesWritten == 5 && gate.TotalBytesWritten == 5 && Fds.Audit(o.Files.State));
+    }
+
+    private static long GatewayDiskRun(Owner o, ref LinuxSyscallGateState gate, ulong number,
+        ulong a0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0)
+    {
+        var image = o.Thread.CurrentImage(); var frame = image->Frame;
+        frame.Number = number; frame.Argument0 = a0; frame.Argument1 = a1; frame.Argument2 = a2;
+        frame.Argument3 = a3; frame.Argument4 = frame.Argument5 = 0;
+        image->Frame = frame; ulong calls = gate.TotalCalls;
+        HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref gate, ref frame).Action);
+        HostCheck.True(gate.Status == LinuxSyscallGateStatus.Blocked && gate.TotalCalls == calls + 1);
+        var staged = o.Thread.View(o.Main);
+        HostCheck.True(staged.WaitSource == 4 && staged.Wait.Sequence != 0 &&
+            o.Thread.Kernel.Inspect(o.Main).State == KernelThreadTable.State.Parking);
+        HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.Dispatch(ref gate, ref frame).Action);
+        o.Park(); o.Ready();
+        if (!o.Thread.Kernel.Table->Current.IsValid) HostCheck.Equal(o.Main.Value, o.Thread.Kernel.Dispatch().Value);
+        var completion = o.Thread.Service->CompleteDiskWait(Key, 2);
+        HostCheck.Equal(LinuxSyscallAction.Return, completion.Action);
+        var returned = LinuxSyscallGateway.CompleteBlocked(ref gate, completion);
+        HostCheck.True(returned.Action == LinuxSyscallAction.Return && returned.Value == completion.Value &&
+            gate.Status == LinuxSyscallGateStatus.Active && gate.TotalCalls == calls + 1);
+        HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.CompleteBlocked(ref gate, completion).Action);
+        HostCheck.True(gate.TotalCalls == calls + 1 && o.Thread.View(o.Main).WaitSource == 0);
+        return returned.Value;
+    }
+
     [HostTest("linux.disk-thread pins each supported deferred output and leaves copied paths and disjoint bytes mutable")]
     private static void OutputKinds()
     {

@@ -2,6 +2,11 @@
 
 ## Current boot scope
 
+[Step1569](../done/step1569.md) records original r07 reaching the mounted disk
+and first CPL3 stat, then failing because its valid deferred result was outside
+gateway blocking admission. The conditional six-call repair preserves older
+native profiles. Focused controls pass; complete original guest joins remain.
+
 Ordinary `VerifiedExit` performs owned post-firmware checks and halts. Explicit
 default-off Linux profiles progress through package staging, CPL3, scheduler,
 upstream runtime and sockets to finite Kestrel service. Steps1307/1351/1419 and

@@ -2,6 +2,13 @@
 
 ## Disk profile development publication
 
+[Step1569](../done/step1569.md) retains verified r07 EFI
+`05B0B93654CB41200F722F494EAAEA7B60448CACD3450A99EFC1DBF6AD7AB192`
+at committed `704cb0b3`. The mount succeeds before gateway admission rejects
+the first deferred stat. The reviewed gateway identity now includes only the
+conditional six-call blocking addition. Host controls pass; new original
+publication/execution and complete native/guest consumption are still required.
+
 [Step1565](../done/step1565.md) admits the reviewed conditional disk source
 closure. [Step1566](../done/step1566.md) records original ILC/link/artifact
 verification at `dbf04a61`, retaining EFI digest

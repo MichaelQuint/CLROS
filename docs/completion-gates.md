@@ -2,6 +2,12 @@
 
 ## Current static-file implementation boundary (2026-10-23)
 
+[Step1569](../done/step1569.md) records r07 mounting/attaching after the zero-time
+repair, followed by first-stat gateway rejection and genuine exit99. Conditional
+blocking admission and exact disk startup/network/runner value checks now have
+focused host coverage. The complete consumer still rejects qualification; no
+storage/application gate or issue closes from this development checkpoint.
+
 [Step1558](../done/step1558.md) records host FAT/tracker repairs, reproducible
 webroot tooling and a published Standalone Blazor candidate. No completion gate
 advances from this development checkpoint. [Step1559](../done/step1559.md) adds

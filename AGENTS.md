@@ -2,6 +2,12 @@
 
 ## Start here
 
+[Step1569](done/step1569.md) records the current isolated disk checkpoint:
+r07 mounts/attaches but fails the first stat at gateway admission. The six-call
+blocking repair and explicit disk parent/runner value checks pass focused host
+controls. The complete consumer remains disabled; fresh original guests and
+independent native/sector/packet/cleanup joins are required before acceptance.
+
 Read [README.md](README.md), [documentation map](docs/documentation-map.md),
 [workload profiles](docs/workload-profiles.md) and
 [completion gates](docs/completion-gates.md) for current status and exact scope.
