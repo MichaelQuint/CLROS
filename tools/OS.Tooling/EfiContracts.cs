@@ -52,7 +52,7 @@ public static partial class EfiContracts
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
     public const string ProjectSourceSha256 = "86eed22d6fa55da7fff289b3b9d00ac87cc571818e6276e90acf1bb33441cc23";
-    public const string CanonicalProjectSha256 = "3810f31328c437b1c087b82979c6ba0548c9d97a70eeb08a7314fb5b9ade376e";
+    public const string CanonicalProjectSha256 = "7c12a3809d0aa7a503d6da2569c63318a97e6232520876cbb38f8e39574ce99a";
     // Current normalized source authority for fresh M02/M04 builds (step1555).
     // Reviewed M16-only changes leave those selected paths unchanged; historical
     // artifact receipts retain their original source hashes.
