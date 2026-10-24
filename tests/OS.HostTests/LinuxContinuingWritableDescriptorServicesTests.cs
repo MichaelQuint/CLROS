@@ -531,6 +531,211 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.True(valid && GC.GetAllocatedBytesForCurrentThread() == before && f.Device->Notifies == notifies);
     }
 
+    [HostTest("continuing explicit copied allocation grows the mechanical file with a zero hole and independently extracted payload")]
+    private static void MechanicalGrowth()
+    {
+        using var f = new Owner(growth: true); var file = f.Open("/data/m16-write.bin", 2 | D.Create | D.Exclusive);
+        uint[] candidates = Enumerable.Range(10, 11).Select(i => (uint)i).ToArray();
+        byte[] payload = Enumerable.Range(0, 1032).Select(Value).ToArray(); byte[] expected = new byte[5126]; payload.CopyTo(expected, 4094);
+        int start = f.Trace.Count; var write = D.Pwritev2SingleWithGrowth(f.State, file, payload, 4094, D.RwfNoAppend, candidates);
+        payload.AsSpan().Clear(); candidates.AsSpan().Fill(4);
+        HostCheck.Equal(1032L, f.Run(write).Value); HostCheck.Equal(0L, D.Seek(f.State, file, 0, 1).Value);
+        HostCheck.True(D.InspectCopied(f.State, file) is { Valid: true, Length: 5126 });
+        HostCheck.True(f.Read(file, 5126, 0, true).SequenceEqual(expected)); f.Independent("m16-write.bin", expected);
+        HostCheck.True(f.Trace.Skip(start).Any(row => row.Type == 1) && f.Trace.Skip(start).Count(row => row.Type == 4) >= 3);
+        HostCheck.Equal(0L, D.Close(f.State, file)); HostCheck.Equal(0L, f.Run(D.BeginUnlink(f.State, "/data/m16-write.bin"u8)).Value);
+        HostCheck.Equal(-2L, f.Run(D.Open(f.State, "/data/m16-write.bin"u8, 0)).Value);
+        var root = f.Open("/data"); HostCheck.Equal(0L, f.Run(D.BeginSync(f.State, root)).Value);
+    }
+
+    [HostTest("continuing growth truncation and regrowth retain all inode handles locks and independent cursor values")]
+    private static void GrowthLineage()
+    {
+        using var f = new Owner(locks: true, growth: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var writer = f.Open(flags: 2); var independent = f.Open(); var duplicate = D.Dup(f.State, writer).Descriptor; var remote = f.OpenFor(other);
+        HostCheck.Equal(0L, L(f, primary, writer, 6, 1, 1073741825, 1).Value);
+        HostCheck.Equal(800L, D.Seek(f.State, writer, 800, 0).Value); HostCheck.Equal(17L, D.Seek(f.State, independent, 17, 0).Value);
+        HostCheck.Equal(0L, f.Run(D.BeginGrow(f.State, writer, 2500, new uint[] { 8, 12, 10 })).Value);
+        HostCheck.True(D.InspectCopied(f.State, duplicate).Length == 2500 && D.InspectCopied(f.State, independent).Length == 2500);
+        HostCheck.Equal(11, L(f, other, remote, 5, 1, 1073741825, 1).Lock.Pid);
+        byte[] expected = new byte[2500]; Enumerable.Range(0, 900).Select(Value).ToArray().CopyTo(expected, 0);
+        HostCheck.True(f.Read(independent, 2500, 0, true).SequenceEqual(expected)); f.Independent("DATA.BIN", expected);
+        HostCheck.Equal(0L, f.Run(D.BeginTruncate(f.State, writer, 700)).Value);
+        HostCheck.Equal(800L, D.Seek(f.State, duplicate, 0, 1).Value); HostCheck.Equal(17L, D.Seek(f.State, independent, 0, 1).Value);
+        HostCheck.Equal(0, f.Read(duplicate, 1).Length); HostCheck.Equal(11, L(f, other, remote, 5, 1, 1073741825, 1).Lock.Pid);
+        HostCheck.Equal(0L, f.Run(D.BeginGrow(f.State, writer, 900, Array.Empty<uint>())).Value);
+        expected = new byte[900]; Enumerable.Range(0, 700).Select(Value).ToArray().CopyTo(expected, 0);
+        HostCheck.True(f.Read(independent, 900, 0, true).SequenceEqual(expected)); f.Independent("DATA.BIN", expected);
+        HostCheck.Equal(0L, f.Run(D.BeginTruncate(f.State, writer, 0)).Value);
+        HostCheck.True(D.InspectCopied(f.State, independent).Length == 0); HostCheck.Equal(800L, D.Seek(f.State, writer, 0, 1).Value);
+        HostCheck.Equal(11, L(f, other, remote, 5, 1, 1073741825, 1).Lock.Pid);
+        HostCheck.Equal(0L, f.Run(D.BeginGrow(f.State, writer, 512, new uint[] { 8 })).Value);
+        HostCheck.True(f.Read(independent, 512, 0, true).All(value => value == 0)); f.Independent("DATA.BIN", new byte[512]);
+    }
+
+    [HostTest("continuing explicit allocation validates candidate bounds aliases real FAT occupancy and exact count before writes")]
+    private static void AllocationCandidates()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2); uint before = f.Device->Notifies;
+        HostCheck.Equal(-22L, D.BeginGrow(f.State, file, 2500, new uint[17]).Value);
+        HostCheck.Equal(-14L, D.BeginGrow(f.State, file, 2500, new ReadOnlySpan<uint>(f.InputBytes, 3)).Value);
+        HostCheck.Equal(-14L, D.BeginGrow(f.State, file, 2500, new ReadOnlySpan<uint>(f.Storage.Input.FileMap, 3)).Value);
+        HostCheck.Equal(-22L, D.BeginGrow(f.State, file, 900, Array.Empty<uint>()).Value);
+        HostCheck.Equal(-95L, D.BeginTruncate(f.State, file, 901).Value);
+        HostCheck.Equal(-22L, D.BeginWriteWithGrowth(f.State, file, new byte[1], new uint[] { 8 }, 0, true).Value);
+        HostCheck.Equal(-75L, D.BeginWriteWithGrowth(f.State, file, new byte[1], Array.Empty<uint>(), uint.MaxValue, true).Value);
+        HostCheck.Equal(before, f.Device->Notifies);
+        foreach (uint[] candidates in new[] { new uint[] { 4, 8, 10 }, new uint[] { 8, 8, 10 }, new uint[] { 8 }, new uint[] { 0, 8, 10 } })
+        {
+            HostCheck.Equal(-22L, f.Run(D.BeginGrow(f.State, file, 2500, candidates)).Value);
+            HostCheck.True(!f.State->Quarantined && D.InspectCopied(f.State, file).Length == 900);
+        }
+        HostCheck.Equal(0UL, f.Storage.Device.State->SubmittedBytes);
+        int start = f.Trace.Count; HostCheck.Equal(0L, f.Run(D.BeginTruncate(f.State, file, 900)).Value);
+        HostCheck.True(f.Trace.Skip(start).All(row => row.Type == 0) && f.Storage.State->VolumeRevision == 1);
+    }
+
+    [HostTest("continuing unlink refuses every open alias and closed reuse never grants stale fd authority")]
+    private static void ClosedUnlink()
+    {
+        using var f = new Owner(growth: true, locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var file = f.Open("/data/a-long-empty-file.txt", 2 | D.Create | D.Exclusive); ulong entry = D.InspectCopied(f.State, file).EntryOffset;
+        var alias = f.OpenFor(other, "/data/F0000001.DAT"); var duplicate = D.Dup(f.State, file).Descriptor;
+        L(f, primary, file, 6, 1, 10, 1); ulong writes = f.Storage.Device.State->SubmittedBytes;
+        HostCheck.Equal(-16L, f.Run(D.BeginUnlink(f.State, "/data/a-long-empty-file.txt"u8)).Value);
+        HostCheck.Equal(0L, D.Close(f.State, file)); HostCheck.Equal(0L, D.Close(f.State, duplicate));
+        HostCheck.Equal(-16L, f.Run(D.BeginUnlink(f.State, "/data/F0000001.DAT"u8)).Value);
+        HostCheck.Equal(writes, f.Storage.Device.State->SubmittedBytes); HostCheck.Equal(0L, D.CloseForProcess(f.State, other, alias));
+        HostCheck.Equal(0L, f.Run(D.BeginUnlink(f.State, "/data/F0000001.DAT"u8)).Value);
+        HostCheck.Equal(-2L, f.Run(D.Open(f.State, "/data/a-long-empty-file.txt"u8, 0)).Value);
+        var replacement = f.Open("/data/a-long-empty-file.txt", 2 | D.Create | D.Exclusive);
+        HostCheck.True(D.InspectCopied(f.State, replacement).EntryOffset == entry && replacement.Generation != file.Generation);
+        uint io = f.Device->Notifies; HostCheck.Equal(-9L, D.BeginSync(f.State, file).Value);
+        HostCheck.Equal(-9L, D.BeginTruncate(f.State, file, 0).Value); HostCheck.Equal(-9L, D.Close(f.State, file));
+        HostCheck.Equal(io, f.Device->Notifies); HostCheck.Equal(0UL, D.InspectCopied(f.State, replacement).Length);
+        HostCheck.Equal(-21L, D.BeginUnlink(f.State, "/data"u8).Value);
+        HostCheck.Equal(-13L, D.BeginUnlink(f.State, "/data/../private/sentinel"u8).Value);
+    }
+
+    [HostTest("continuing closed unlink revalidates physical metadata before any mutation and preserves read only entries")]
+    private static void UnlinkMetadata()
+    {
+        using var f = new Owner(growth: true); f.Storage.Volatile[(int)(f.DataLba * 512 + 32 + 11)] |= 1;
+        HostCheck.Equal(-13L, f.Run(D.BeginUnlink(f.State, "/data/DATA.BIN"u8)).Value);
+        HostCheck.Equal(-2L, f.Run(D.BeginUnlink(f.State, "/data/missing.bin"u8)).Value);
+        HostCheck.True(!f.State->Quarantined && f.Storage.Device.State->SubmittedBytes == 0);
+    }
+
+    [HostTest("continuing growth cancellation drains copied metadata without allocations or late fd reuse effects")]
+    private static void GrowthCancel()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2); var duplicate = D.Dup(f.State, file).Descriptor;
+        var request = D.BeginGrow(f.State, file, 2500, new uint[] { 8, 12, 10 }); D.Pump(f.State);
+        HostCheck.True(f.Device->Pending && f.Device->Type == 0); HostCheck.Equal(0L, D.Close(f.State, file)); var root = f.Open("/data");
+        HostCheck.True(root.Number == file.Number && root.Generation != file.Generation);
+        f.CompleteHardware(); f.Drain(); HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase);
+        HostCheck.True(D.InspectCopied(f.State, duplicate).Length == 900 && f.Storage.Device.State->SubmittedBytes == 0);
+        HostCheck.Equal(0L, D.Seek(f.State, duplicate, 0, 1).Value);
+    }
+
+    [HostTest("continuing successful engine mutation receipt updates surviving handles before closed request is discarded")]
+    private static void MutationReadyClose()
+    {
+        foreach (bool truncate in new[] { false, true })
+        {
+            using var f = new Owner(growth: true, locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+            var file = f.Open(flags: 2); var survivor = f.Open(); var remote = f.OpenFor(other);
+            L(f, primary, file, 6, 1, 1073741825, 1);
+            // Any close on the inode intentionally releases this process's
+            // locks, while the receipt must still refresh surviving handles.
+            var request = truncate ? D.BeginTruncate(f.State, file, 700) : D.BeginGrow(f.State, file, 2500, new uint[] { 8, 12, 10 });
+            f.HoldMutationReady(); HostCheck.True(f.Storage.State->IsReady && !f.Storage.State->Dirty);
+            HostCheck.Equal(0L, D.Close(f.State, file)); var root = f.Open("/data");
+            HostCheck.True(root.Number == file.Number && root.Generation != file.Generation); f.Drain();
+            HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase);
+            HostCheck.Equal(truncate ? 700UL : 2500UL, D.InspectCopied(f.State, survivor).Length);
+            HostCheck.Equal((short)2, L(f, other, remote, 5, 1, 1073741825, 1).Lock.Type);
+            HostCheck.Equal(0L, D.Seek(f.State, survivor, 0, 1).Value); HostCheck.True(f.Read(survivor, 8).SequenceEqual(Enumerable.Range(0, 8).Select(Value)));
+        }
+    }
+
+    [HostTest("continuing issued growth truncate and unlink failures retain original provider engine and recovery journals")]
+    private static void MutationFailure()
+    {
+        foreach (int operation in new[] { 0, 1, 2 }) foreach (uint failure in new uint[] { 1, 4 })
+        {
+            using var f = new Owner(growth: true); var file = f.Open(flags: 2); if (operation == 2) D.Close(f.State, file);
+            f.FailureType = failure;
+            var request = operation == 0 ? D.BeginGrow(f.State, file, 2500, new uint[] { 8, 12, 10 }) : operation == 1 ?
+                D.BeginTruncate(f.State, file, 300) : D.BeginUnlink(f.State, "/data/DATA.BIN"u8);
+            HostCheck.Equal(D.Progress.RecoveryRequired, f.Wait(request).Phase);
+            HostCheck.True(f.Storage.State->Dirty && f.State->RequestActive && !f.State->Retired);
+            HostCheck.Equal(D.Progress.RecoveryRequired, D.Cancel(f.State, request.Request).Phase);
+            byte[] journal = new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).ToArray();
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+            HostCheck.True(new ReadOnlySpan<byte>(f.Storage.Input.Before, 1024).SequenceEqual(journal));
+        }
+    }
+
+    [HostTest("continuing growing sequential writes commit the shared cursor only after final authenticated payload completion")]
+    private static void GrowingWriteCursor()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2); var duplicate = D.Dup(f.State, file).Descriptor; var independent = f.Open();
+        D.Seek(f.State, file, 899, 0); D.Seek(f.State, independent, 17, 0);
+        byte[] payload = Enumerable.Repeat((byte)0xc1, 600).ToArray(); var request = D.BeginWriteWithGrowth(f.State, file, payload, new uint[] { 8 });
+        HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        HostCheck.Equal(899UL, f.Cursor(file)); HostCheck.Equal(-11L, D.Seek(f.State, duplicate, 0, 1).Value);
+        HostCheck.Equal(D.Progress.Ready, D.Cancel(f.State, request.Request).Phase); HostCheck.Equal(600L, D.Complete(f.State, request.Request).Value);
+        HostCheck.Equal(1499L, D.Seek(f.State, duplicate, 0, 1).Value); HostCheck.Equal(17L, D.Seek(f.State, independent, 0, 1).Value);
+        byte[] expected = new byte[1499]; Enumerable.Range(0, 899).Select(Value).ToArray().CopyTo(expected, 0); payload.CopyTo(expected, 899);
+        HostCheck.True(f.Read(independent, 1499, 0, true).SequenceEqual(expected)); f.Independent("DATA.BIN", expected);
+    }
+
+    [HostTest("continuing closed growing write retains the completed zero extension and discards payload and old cursor")]
+    private static void GrowingWriteClose()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2); var survivor = f.Open(); var duplicate = D.Dup(f.State, file).Descriptor;
+        var request = D.BeginWriteWithGrowth(f.State, file, Enumerable.Repeat((byte)0xcc, 600).ToArray(), new uint[] { 8 }, 899, true);
+        f.HoldMutationReady(); HostCheck.Equal(0L, D.Close(f.State, file)); var root = f.Open("/data");
+        HostCheck.True(root.Number == file.Number && root.Generation != file.Generation); f.Drain();
+        HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase); HostCheck.Equal(0L, D.Seek(f.State, duplicate, 0, 1).Value);
+        byte[] expected = new byte[1499]; Enumerable.Range(0, 900).Select(Value).ToArray().CopyTo(expected, 0);
+        HostCheck.True(D.InspectCopied(f.State, survivor).Length == 1499 && f.Read(survivor, 1499, 0, true).SequenceEqual(expected));
+        f.Independent("DATA.BIN", expected);
+    }
+
+    [HostTest("continuing unconsumable authenticated lineage retains original request and backing after clean physical flush")]
+    private static void CorruptHeldLineage()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2); ulong entry = D.InspectCopied(f.State, file).EntryOffset;
+        var request = D.BeginGrow(f.State, file, 2500, new uint[] { 8, 12, 10 }); f.HoldMutationReady();
+        uint selected = uint.MaxValue;
+        for (uint i = 0; i < f.Storage.State->ChangeCount; i++)
+            if (f.Storage.Input.Changes[i].Sector == entry / 512 && f.Storage.Input.Changes[i].Phase == Fat32Mutation.Stage.PublishDirectory)
+            { HostCheck.Equal(uint.MaxValue, selected); selected = i; }
+        HostCheck.True(selected != uint.MaxValue); f.Storage.Input.After[selected * 512 + entry % 512] ^= 1;
+        byte[] retained = new ReadOnlySpan<byte>(f.Storage.Input.After + selected * 512, 512).ToArray();
+        var result = D.Pump(f.State); f.AllowCleanRetainedFailure = true;
+        HostCheck.True(result.Phase == D.Progress.RecoveryRequired && result.Failure == C.Status.InvalidState &&
+            f.State->Quarantined && f.State->RequestActive && f.Storage.State->RequestActive && !f.Storage.State->Dirty);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase); HostCheck.True(!f.State->Retired);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase);
+        HostCheck.True(new ReadOnlySpan<byte>(f.Storage.Input.After + selected * 512, 512).SequenceEqual(retained));
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Poll(f.State, request.Request).Phase);
+    }
+
+    [HostTest("continuing path mutation process exit cancels and joins before copied PID reuse without description access")]
+    private static void UnlinkExit()
+    {
+        using var f = new Owner(growth: true, locks: true); var primary = D.PrimaryProcess(f.State);
+        var request = D.BeginUnlink(f.State, "/data/DATA.BIN"u8); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+        HostCheck.Equal(D.Progress.Pending, D.ExitProcess(f.State, primary).Phase);
+        var replacement = D.RegisterProcess(f.State, 11).Process; HostCheck.True(replacement.Generation != primary.Generation);
+        f.CompleteHardware(); f.Drain(); HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase);
+        HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0); var file = f.OpenFor(replacement);
+        HostCheck.Equal(0L, D.FcntlLockForProcess(f.State, replacement, file, 5, new(1, 0, 0, 0)).Value);
+    }
+
     private static D.LockResult L(Owner f, D.ProcessToken process, D.DescriptorToken file, uint command, short type, long start, long length) =>
         D.FcntlLockForProcess(f.State, process, file, command, new(type, 0, start, length));
 
@@ -547,16 +752,20 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         internal D.Admission Input;
         internal bool Attached;
         internal bool Record = true;
+        internal bool AllowCleanRetainedFailure;
         internal uint? FailureType;
         internal ulong? FailureSector;
         internal uint AtAttach;
         internal WritableBlockSessionTests.Hardware* Device => Storage.Device.Hardware;
         internal List<(uint Type, ulong Sector)> Trace => Storage.Trace;
         internal ulong DataLba => Storage.Input.PartitionFirst + 32 + 2 * 512;
-        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false)
+        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false)
         {
             Slots = (D.Descriptor*)NativeMemory.AllocZeroed(fdCount, (nuint)sizeof(D.Descriptor));
             Descriptions = (D.Description*)NativeMemory.AllocZeroed(descriptionCount, (nuint)sizeof(D.Description));
+            // Explicitly unknown FSInfo is supported by the pinned engine;
+            // allocation still validates every supplied cluster in both FATs.
+            if (growth) { Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff; Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; }
             Storage.Mount(); AtAttach = Device->Notifies;
             Input = new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = Slots, Descriptions = Descriptions,
                 DescriptorCount = fdCount, DescriptionCount = descriptionCount, Input = InputBytes, InputBytes = 8192, ExclusiveOwnerValidated = true };
@@ -606,6 +815,32 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
             for (int i = 0; i < 100000 && State->RequestActive; i++)
             { var result = Tick(); if (result.Phase == D.Progress.RecoveryRequired) break; }
         }
+        internal void HoldMutationReady()
+        {
+            // Pump the original provider until it has accepted the mutation's
+            // issued revision. Then finish only that retained engine request,
+            // leaving its authenticated result unconsumed at the handoff.
+            for (int i = 0; i < 100000 && !Storage.State->Dirty; i++) Tick();
+            HostCheck.True(Storage.State->Dirty);
+            for (int i = 0; i < 100000; i++)
+            {
+                var status = C.Pump(Storage.State); CompleteHardware();
+                if (status == C.Status.Ready) return;
+                HostCheck.Equal(C.Status.Pending, status);
+            }
+            throw new InvalidOperationException("retained engine mutation did not become ready");
+        }
+        internal void Independent(string name, byte[] expected)
+        {
+            var device = new PersistentDevice(Device); byte[] actual = new byte[expected.Length];
+            var result = Fat32Parser.ReadRootFile(device, Storage.Input.PartitionFirst, name, actual);
+            HostCheck.True(result.Succeeded && result.BytesRead == (ulong)expected.Length && actual.SequenceEqual(expected));
+        }
+        internal ulong Cursor(D.DescriptorToken file)
+        {
+            uint description = *(uint*)((byte*)(Slots + file.Number) + WritableBlockSessionTests.ManagedOffset(Slots + file.Number, "Description"));
+            return *(ulong*)((byte*)(Descriptions + description - 1) + WritableBlockSessionTests.ManagedOffset(Descriptions + description - 1, "Position"));
+        }
         public void Dispose()
         {
             // Fault cases end this simulated machine only after actual block
@@ -614,10 +849,23 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
             {
                 var result = D.Detach(State);
                 if (result.Phase == D.Progress.Pending) { Drain(); result = D.Detach(State); }
-                HostCheck.True(result.Phase == D.Progress.Retired || result.Phase == D.Progress.RecoveryRequired && Storage.State->Dirty);
+                HostCheck.True(result.Phase == D.Progress.Retired || result.Phase == D.Progress.RecoveryRequired &&
+                    (Storage.State->Dirty || AllowCleanRetainedFailure && State->Quarantined && State->RequestActive));
             }
             Storage.Dispose(); NativeMemory.Free(Scratch); NativeMemory.Free(Locks); NativeMemory.Free(Processes);
             NativeMemory.Free(InputBytes); NativeMemory.Free(Descriptions); NativeMemory.Free(Slots); NativeMemory.Free(State);
+        }
+    }
+
+    private sealed class PersistentDevice(WritableBlockSessionTests.Hardware* hardware) : IReadOnlyBlockDevice
+    {
+        public BlockDeviceInfo Info => BlockDeviceInfo.Create(512, hardware->MediumSectors).Info;
+        public BlockReadResult ReadBlocks(ulong first, uint count, Span<byte> target)
+        {
+            if (first >= hardware->MediumSectors || count > hardware->MediumSectors - first || target.Length != count * 512)
+                return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockRange);
+            new ReadOnlySpan<byte>(hardware->Persistent + first * 512, checked((int)count * 512)).CopyTo(target);
+            return BlockReadResult.Success(count, count * 512UL);
         }
     }
 }

@@ -7,8 +7,9 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// and disjoint until Detach succeeds, BEFORE stopping/freeing the engine or
 /// device backing. No whole-image snapshot, ref struct, user pointer, scheduler
 /// or syscall gateway is retained. Root files and empty creation are confined
-/// to /data; writes remain within existing length. Nested paths, growth,
-/// deletion/truncation and POSIX unlink retention are not supplied. Optional
+/// to /data. Growth requires explicit copied candidate clusters; no allocator
+/// or free-space receipt is trusted. Unlink requires a closed file. Nested
+/// paths and POSIX open-unlink retention are not supplied. Optional
 /// process locks use copied caller PIDs, not kernel process authority. The one
 /// supervisor handle table is NOT a per-process Linux fd namespace.</summary>
 public static unsafe class LinuxContinuingWritableDescriptorServices
@@ -19,10 +20,10 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         DirectoryOnly = 0x10000, LargeFile = 0x8000, RwfNoAppend = 0x20;
     private const long BadFd = -9, Again = -11, Fault = -14, Exists = -17, Invalid = -22, TableFull = -23,
         FdFull = -24, NoSpace = -28, Unsupported = -95, Overflow = -75, Stale = -116, Interrupted = -4,
-        Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29, NoLocks = -37, NoSys = -38;
+        Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29, NoLocks = -37, NoSys = -38, Busy = -16;
     public enum Progress : byte { Rejected, Immediate, Pending, Ready, RecoveryRequired, Retired }
-    internal enum Operation : byte { Open, Read, Write, Sync }
-    internal enum Step : byte { Lookup, Create, CreatedLookup, Authenticate, Read, Write, Flush, Done }
+    internal enum Operation : byte { Open, Read, Write, Sync, Grow, Truncate, Unlink }
+    internal enum Step : byte { Lookup, Create, CreatedLookup, Authenticate, Read, Write, Flush, Done, Grow, Truncate, DeleteLookup, Delete }
 
     /// <summary>Zeroed caller-owned fd/description arrays. FD0..2 are reserved.
     /// A description survives its last close while a pending request borrows it;
@@ -123,14 +124,16 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         internal DescriptorToken Original;
         internal C.RequestToken EngineRequest;
         internal C.FileToken File;
+        internal ProcessToken Process;
         internal Operation Kind;
         internal Step Step;
-        internal uint Description, Number, Flags, Bytes, Expected, AliasAttempts;
+        internal uint Description, Number, Flags, Bytes, Expected, AliasAttempts, NewLength, GrowthCount;
         internal ushort NameLength;
-        internal bool Active, Ready, Cancelled, Discard, Positioned, Borrowed, RevisionAccepted;
+        internal bool Active, Ready, Cancelled, Discard, Positioned, Borrowed, RevisionAccepted, GrowAllowed;
         internal long Value;
         internal C.Status Failure;
         internal fixed byte Name[(int)PathBytes];
+        internal fixed uint Growth[C.MaximumGrowthClusters];
     }
     /// <summary>Noncopyable-by-contract retained owner. Contains only POD and
     /// borrowed pointers, never Span or managed references. Dirty/recovery
@@ -217,16 +220,16 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     public static Result ExitProcess(State* s, ProcessToken process)
     {
         if (!Bound(s) || !s->Locking || !ProcessCurrent(s, process)) return Immediate(BadFd);
-        bool ownedPending = s->Work.Active && Same(s->Input.Descriptions[s->Work.Description].Process, process);
+        bool ownedPending = s->Work.Active && Same(s->Work.Process, process);
         s->LockInput.Processes[process.Index].Exiting = true;
         ReleaseProcessLocks(s, process);
         for (uint fd = 3; fd < s->Input.DescriptorCount; fd++)
             if (Find(s, fd, out uint description) && Same(s->Input.Descriptions[description].Process, process)) CloseCore(s, process, new(s, fd), true);
-        if (s->Work.Active && Same(s->Input.Descriptions[s->Work.Description].Process, process))
+        if (s->Work.Active && Same(s->Work.Process, process))
         { s->Work.Discard = true; Cancel(s, new(s)); }
         s->LockInput.Processes[process.Index].Active = false;
         if (ownedPending && s->Input.Engine->Dirty) return Recovery(s);
-        return s->Work.Active && Same(s->Input.Descriptions[s->Work.Description].Process, process) ? Observe(s) : Immediate(0);
+        return s->Work.Active && Same(s->Work.Process, process) ? Observe(s) : Immediate(0);
     }
 
     /// <summary>Finite POSIX process locks: GETLK5/SETLK6, SEEK_SET and
@@ -324,7 +327,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
             return new(Progress.Immediate, fd, descriptor: new(s, (uint)fd));
         }
         s->Work = new() { Active = true, Generation = ++s->NextGeneration, Kind = Operation.Open, Step = Step.Lookup,
-            Description = (uint)description, DescriptionGeneration = d->Generation, Number = (uint)fd, Flags = flags, NameLength = (ushort)(path.Length - 6) };
+            Description = (uint)description, DescriptionGeneration = d->Generation, Number = (uint)fd, Flags = flags, Process = process, NameLength = (ushort)(path.Length - 6) };
         for (int i = 6; i < path.Length; i++) s->Work.Name[i - 6] = path[i];
         var status = Lookup(s); if (status != C.Status.Pending) Finish(s, Map(status), status);
         return Observe(s);
@@ -377,8 +380,19 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>Copy at most8192 write bytes before return. The physical entry
     /// is reopened/authenticated before the engine receives the copied bytes.
-    /// Growth and append are deliberately unsupported in this initial port.</summary>
-    public static Result BeginWrite(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes, ulong offset = 0, bool positioned = false)
+    /// This entry rejects growth; its explicit-candidate variant supplies it.
+    /// Append mode remains unsupported.</summary>
+    public static Result BeginWrite(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes, ulong offset = 0, bool positioned = false) =>
+        BeginWriteCore(s, token, bytes, offset, positioned, false, default);
+    /// <summary>Explicit allocation variant. Copy at most16 candidate clusters
+    /// before yield; the engine independently checks both FATs and exact count.
+    /// Grow/zero/flush finishes before the payload write starts. Cancellation
+    /// can leave a successfully grown zero tail; this is not an atomic write.</summary>
+    public static Result BeginWriteWithGrowth(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes,
+        ReadOnlySpan<uint> candidates, ulong offset = 0, bool positioned = false) =>
+        BeginWriteCore(s, token, bytes, offset, positioned, true, candidates);
+    private static Result BeginWriteCore(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes, ulong offset,
+        bool positioned, bool grow, ReadOnlySpan<uint> candidates)
     {
         if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
@@ -388,16 +402,72 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (bytes.Length > IoBytes) return Immediate(Invalid);
         ulong position = positioned ? offset : d->Position;
         if (position > long.MaxValue) return Immediate(Invalid);
-        if (position > d->File.Length || (ulong)bytes.Length > d->File.Length - position) return Immediate(Unsupported);
+        if (position > uint.MaxValue || (ulong)bytes.Length > uint.MaxValue - position) return Immediate(Overflow);
+        uint length = (uint)(position + (ulong)bytes.Length);
+        if (length > d->File.Length && !grow) return Immediate(Unsupported);
+        long allocation = CandidateInput(s, candidates); if (allocation != 0) return Immediate(allocation);
+        if (length <= d->File.Length && candidates.Length != 0) return Immediate(Invalid);
         if (bytes.Length == 0) return Immediate(0);
         var started = BeginBorrow(s, token, description, Operation.Write, position, (uint)bytes.Length, positioned);
         if (started.Phase != Progress.Pending) return started;
-        bytes.CopyTo(new Span<byte>(s->Input.Input, bytes.Length)); return started;
+        bytes.CopyTo(new Span<byte>(s->Input.Input, bytes.Length));
+        s->Work.NewLength = length; s->Work.GrowAllowed = grow;
+        CopyCandidates(s, candidates); return started;
     }
     /// <summary>Copied single-iovec leaf for the measured explicit-offset wire.
     /// The future syscall adapter owns iovec/user-memory validation separately.</summary>
     public static Result Pwritev2Single(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes, ulong offset, uint flags) =>
         flags == RwfNoAppend ? BeginWrite(s, token, bytes, offset, true) : Immediate(Unsupported);
+    public static Result Pwritev2SingleWithGrowth(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes,
+        ulong offset, uint flags, ReadOnlySpan<uint> candidates) => flags == RwfNoAppend ?
+        BeginWriteWithGrowth(s, token, bytes, candidates, offset, true) : Immediate(Unsupported);
+
+    /// <summary>Grow/zero through explicitly copied allocation candidates, or
+    /// shrink through the separate truncate API. Neither operation moves the
+    /// cursor; authenticated mutation receipts update every retained lineage.</summary>
+    public static Result BeginGrow(State* s, DescriptorToken token, uint newLength, ReadOnlySpan<uint> candidates)
+    {
+        if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!Revision(s)) return Immediate(Io);
+        Description* d = s->Input.Descriptions + description;
+        if (d->Directory) return Immediate(IsDirectory); if ((d->Flags & 3) == 0) return Immediate(BadFd);
+        if (newLength <= d->File.Length) return Immediate(Invalid);
+        long allocation = CandidateInput(s, candidates); if (allocation != 0) return Immediate(allocation);
+        var started = BeginBorrow(s, token, description, Operation.Grow, 0, 0, true);
+        if (started.Phase == Progress.Pending) { s->Work.NewLength = newLength; CopyCandidates(s, candidates); }
+        return started;
+    }
+    public static Result BeginTruncate(State* s, DescriptorToken token, uint newLength)
+    {
+        if (!CurrentPrimary(s, token, out uint description) || s->Retiring) return Immediate(BadFd);
+        if (!Revision(s)) return Immediate(Io);
+        Description* d = s->Input.Descriptions + description;
+        if (d->Directory) return Immediate(IsDirectory); if ((d->Flags & 3) == 0) return Immediate(BadFd);
+        if (newLength > d->File.Length) return Immediate(Unsupported);
+        var started = BeginBorrow(s, token, description, Operation.Truncate, 0, 0, true);
+        if (started.Phase == Progress.Pending) s->Work.NewLength = newLength;
+        return started;
+    }
+
+    /// <summary>Unlink by copied root path only when NO live/borrowed regular
+    /// description refers to its physical entry. Open-unlink retention is
+    /// deliberately refused. A stale closed fd cannot act on slot/name reuse.</summary>
+    public static Result BeginUnlink(State* s, ReadOnlySpan<byte> path) => BeginUnlinkForProcess(s, PrimaryProcess(s), path);
+    public static Result BeginUnlinkForProcess(State* s, ProcessToken process, ReadOnlySpan<byte> path)
+    {
+        if (!Bound(s) || s->Retiring || !ProcessCurrent(s, process)) return Immediate(BadFd);
+        if (!Revision(s)) return Immediate(Io);
+        if (!External(s, path)) return Immediate(Fault);
+        if (path.SequenceEqual("/data"u8) || path.SequenceEqual("/data/"u8)) return Immediate(IsDirectory);
+        long policy = Path(path); if (policy != 0) return Immediate(policy);
+        if (s->Work.Active || s->Input.Engine->RequestActive) return Immediate(Again);
+        if (s->NextGeneration == ulong.MaxValue) return Immediate(Overflow);
+        s->Work = new() { Active = true, Generation = ++s->NextGeneration, Kind = Operation.Unlink, Step = Step.DeleteLookup,
+            Description = uint.MaxValue, Process = process, NameLength = (ushort)(path.Length - 6) };
+        for (int i = 6; i < path.Length; i++) s->Work.Name[i - 6] = path[i];
+        var status = Lookup(s); if (status != C.Status.Pending) Finish(s, Map(status), status);
+        return Observe(s);
+    }
 
     /// <summary>Begin a held bounded read. The final copy is a separate call
     /// after original fd/description generation checks; no destination is kept.</summary>
@@ -439,13 +509,21 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (status is not C.Status.Ready)
         { s->Poisoned = true; Finish(s, Io, status); return AfterFinish(s); }
         Pending* p = &s->Work;
-        if (p->Step is Step.Lookup or Step.CreatedLookup or Step.Authenticate)
+        if (p->Step is Step.Lookup or Step.CreatedLookup or Step.Authenticate or Step.DeleteLookup)
         {
             C.FileToken file = default; status = C.CopyOpen(s->Input.Engine, p->EngineRequest, &file);
             if (p->Cancelled) { Finish(s, Interrupted, status); return AfterFinish(s); }
             if (p->Step == Step.Lookup && status == C.Status.NotFound && (p->Flags & Create) != 0)
             { p->Step = Step.Create; status = CreateEmpty(s); if (status != C.Status.Pending) Finish(s, Map(status), status); return AfterFinish(s); }
             if (status != C.Status.Success) { Finish(s, Map(status), status); return AfterFinish(s); }
+            if (p->Step == Step.DeleteLookup)
+            {
+                if (OpenPhysicalEntry(s, file)) { Finish(s, Busy, C.Status.Busy); return AfterFinish(s); }
+                p->File = file; p->Step = Step.Delete; p->RevisionAccepted = false;
+                C.RequestToken request = default; status = C.BeginDelete(s->Input.Engine, file, &request); p->EngineRequest = request;
+                if (status is not (C.Status.Pending or C.Status.Ready)) Finish(s, Map(status), status);
+                return AfterFinish(s);
+            }
             if (p->Step == Step.Authenticate)
             {
                 if (!Physical(s->Input.Descriptions[p->Description].File, file)) { Finish(s, Stale, C.Status.StaleToken); return AfterFinish(s); }
@@ -464,6 +542,31 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
             if (p->Cancelled)
             { DrainRead(s); return AfterFinish(s); }
             Finish(s, failure == C.Status.Success ? p->Expected : Map(failure), failure); return AfterFinish(s);
+        }
+        if (p->Step is Step.Grow or Step.Truncate or Step.Delete)
+        {
+            C.MutationResult mutation = default;
+            status = C.CopyMutationResult(s->Input.Engine, p->EngineRequest, &mutation);
+            if (status is C.Status.InvalidState or C.Status.InvalidStorage or C.Status.StaleToken)
+            { p->Failure = status; return Recovery(s); }
+            if (status == C.Status.Success)
+            {
+                uint expected = p->Step == Step.Delete ? 0 : p->Step == Step.Grow ? p->NewLength - p->File.Length : p->File.Length - p->NewLength;
+                if (mutation.Status != status || mutation.Bytes != expected || !Same(mutation.Request, p->EngineRequest) ||
+                    mutation.Deleted != (p->Step == Step.Delete) || !RebindLineage(s, mutation.OriginalFile, mutation.NewFile, mutation.Deleted))
+                { p->Failure = C.Status.InvalidState; return Recovery(s); }
+                // Physical success belongs to the inode even if the original
+                // fd/process was closed while the final FLUSH completed. The
+                // receipt updates other descriptions before any result drop.
+                if (!p->Cancelled && p->Kind == Operation.Write)
+                {
+                    status = BeginData(s);
+                    if (status is not (C.Status.Pending or C.Status.Ready)) Finish(s, Map(status), status);
+                    return AfterFinish(s);
+                }
+            }
+            Finish(s, p->Cancelled ? Interrupted : Map(status), status);
+            return AfterFinish(s);
         }
         C.Result result = default; status = C.CopyResult(s->Input.Engine, p->EngineRequest, &result);
         if (p->Step == Step.Create && status == C.Status.AlreadyExists && !p->Cancelled)
@@ -488,6 +591,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Pending* p = &s->Work; if (!p->Ready) return Observe(s);
         if (s->Input.Engine->Dirty || s->KnownRevision != s->Input.Engine->VolumeRevision || s->Poisoned && p->Value >= 0) return Recovery(s);
         if (p->Kind == Operation.Read && p->Step == Step.Read) return new(Progress.Rejected);
+        if (!ProcessCurrent(s, p->Process)) { Drop(s); return Immediate(BadFd); }
         if (p->Borrowed && !Current(s, p->Original, out _)) { p->Discard = true; Drop(s); return Immediate(BadFd); }
         long value = p->Value; DescriptorToken descriptor = default; var failure = p->Failure;
         if (p->Kind == Operation.Open && value >= 0)
@@ -559,6 +663,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         s->Retiring = true;
         for (uint fd = 3; fd < s->Input.DescriptorCount; fd++) if (Find(s, fd, out uint description))
             CloseCore(s, s->Input.Descriptions[description].Process, new(s, fd), true);
+        if (s->Poisoned && s->Work.Active && !s->Work.Ready) return Recovery(s);
         if (s->Input.Engine->Dirty) return Recovery(s);
         if (s->Work.Active)
         {
@@ -584,7 +689,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Description* d = s->Input.Descriptions + description;
         s->Work = new() { Active = true, Generation = ++s->NextGeneration, Kind = kind, Step = kind == Operation.Sync ? Step.Flush : Step.Authenticate,
             Original = token, Description = description, DescriptionGeneration = d->Generation, Offset = offset, Bytes = bytes,
-            Positioned = positioned, Borrowed = true, NameLength = d->NameLength };
+            Positioned = positioned, Borrowed = true, NameLength = d->NameLength, Process = d->Process };
         d->Borrowers++; for (uint i = 0; i < d->NameLength; i++) s->Work.Name[i] = d->Name[i];
         C.RequestToken request = default;
         var status = kind == Operation.Sync ? C.BeginFlush(s->Input.Engine, &request) : Lookup(s);
@@ -612,7 +717,12 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     private static C.Status BeginData(State* s)
     {
         Pending* p = &s->Work; C.RequestToken request = default; C.Status status;
-        if (p->Kind == Operation.Write)
+        p->RevisionAccepted = false;
+        if (p->Kind == Operation.Grow || p->Kind == Operation.Write && p->GrowAllowed && p->NewLength > p->File.Length)
+        { p->Step = Step.Grow; status = C.BeginGrow(s->Input.Engine, p->File, p->NewLength, new ReadOnlySpan<uint>(p->Growth, (int)p->GrowthCount), &request); }
+        else if (p->Kind == Operation.Truncate)
+        { p->Step = Step.Truncate; status = C.BeginTruncate(s->Input.Engine, p->File, p->NewLength, &request); }
+        else if (p->Kind == Operation.Write)
         { p->Step = Step.Write; status = C.BeginOverwrite(s->Input.Engine, p->File, p->Offset, new ReadOnlySpan<byte>(s->Input.Input, (int)p->Bytes), &request); }
         else
         {
@@ -632,10 +742,12 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     { s->Work.Ready = true; s->Work.Value = value; s->Work.Failure = failure; }
     private static Result AfterFinish(State* s)
     { if (s->Work.Ready && s->Work.Discard && !s->Input.Engine->Dirty) { Drop(s); return Immediate(0); } return Observe(s); }
-    private static Result Observe(State* s) => new(s->Input.Engine->Dirty && s->Input.Engine->LastFailure == C.Status.RecoveryRequired ? Progress.RecoveryRequired :
+    private static Result Observe(State* s) => new(s->Poisoned && !s->Work.Ready ||
+        s->Input.Engine->Dirty && s->Input.Engine->LastFailure == C.Status.RecoveryRequired ? Progress.RecoveryRequired :
         s->Work.Ready ? Progress.Ready : Progress.Pending, s->Work.Ready ? s->Work.Value : 0, new(s), failure: s->Work.Failure);
     private static Result Recovery(State* s)
-    { s->Poisoned = true; return new(Progress.RecoveryRequired, Io, s->Work.Active ? new(s) : default, failure: s->Input.Engine->LastFailure); }
+    { s->Poisoned = true; return new(Progress.RecoveryRequired, Io, s->Work.Active ? new(s) : default,
+        failure: s->Work.Failure == C.Status.Success ? s->Input.Engine->LastFailure : s->Work.Failure); }
     private static Result Immediate(long value) => new(Progress.Immediate, value);
     private static bool Revision(State* s)
     {
@@ -647,15 +759,67 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         ulong current = s->Input.Engine->VolumeRevision;
         if (s->KnownRevision == current) return true;
-        if (!s->Work.RevisionAccepted && s->Work.Step is Step.Write or Step.Create &&
+        if (!s->Work.RevisionAccepted && s->Work.Step is Step.Write or Step.Create or Step.Grow or Step.Truncate or Step.Delete &&
             s->KnownRevision != ulong.MaxValue && current == s->KnownRevision + 1)
         { s->KnownRevision = current; s->Work.RevisionAccepted = true; return true; }
         s->Poisoned = true; return false;
+    }
+    private static long CandidateInput(State* s, ReadOnlySpan<uint> candidates)
+    {
+        if (candidates.Length > C.MaximumGrowthClusters) return Invalid;
+        if (candidates.Length == 0) return 0;
+        fixed (uint* p = candidates) return External(s, new ReadOnlySpan<byte>(p, candidates.Length * 4)) ? 0 : Fault;
+    }
+    private static void CopyCandidates(State* s, ReadOnlySpan<uint> candidates)
+    { s->Work.GrowthCount = (uint)candidates.Length; for (int i = 0; i < candidates.Length; i++) s->Work.Growth[i] = candidates[i]; }
+    private static bool OpenPhysicalEntry(State* s, C.FileToken file)
+    {
+        for (uint i = 0; i < s->Input.DescriptionCount; i++)
+        {
+            Description* d = s->Input.Descriptions + i;
+            if (d->Active && !d->Reserved && !d->Directory && (d->References != 0 || d->Borrowers != 0) &&
+                d->File.Owner == file.Owner && d->File.Epoch == file.Epoch && d->File.EntryOffset == file.EntryOffset) return true;
+        }
+        return false;
+    }
+    private static bool RebindLineage(State* s, C.FileToken before, C.FileToken after, bool deleted)
+    {
+        Pending* p = &s->Work;
+        if (!Physical(before, p->File) || before.Revision != p->File.Revision) return false;
+        if (deleted)
+        {
+            if (p->Kind != Operation.Unlink || !p->RevisionAccepted || before.Revision == ulong.MaxValue || s->KnownRevision != before.Revision + 1 ||
+                OpenPhysicalEntry(s, before) || after.Owner != 0 || after.Epoch != 0 || after.Revision != 0 ||
+                after.EntryOffset != 0 || after.FirstCluster != 0 || after.Length != 0 || (after.Fingerprint0 | after.Fingerprint1 | after.Fingerprint2 | after.Fingerprint3) != 0) return false;
+        }
+        else
+        {
+            uint encoded = (((uint)(after.Fingerprint2 >> 32) & 0xffff) << 16) | ((uint)(after.Fingerprint3 >> 16) & 0xffff);
+            bool changed = before.Length != p->NewLength;
+            if (changed && (!p->RevisionAccepted || before.Revision == ulong.MaxValue || after.Revision != before.Revision + 1) ||
+                !changed && after.Revision != before.Revision || after.Owner != before.Owner || after.Epoch != before.Epoch ||
+                after.Revision != s->KnownRevision || after.EntryOffset != before.EntryOffset ||
+                after.Fingerprint0 != before.Fingerprint0 || after.Fingerprint1 != before.Fingerprint1 ||
+                (after.Fingerprint2 & ~(0xffffUL << 32)) != (before.Fingerprint2 & ~(0xffffUL << 32)) ||
+                (after.Fingerprint3 & 0xffff) != (before.Fingerprint3 & 0xffff) ||
+                after.Length != p->NewLength || (uint)(after.Fingerprint3 >> 32) != after.Length || encoded != after.FirstCluster ||
+                after.Length == 0 && after.FirstCluster != 0 || after.Length != 0 && after.FirstCluster < 2) return false;
+        }
+        for (uint i = 0; i < s->Input.DescriptionCount; i++)
+        {
+            Description* d = s->Input.Descriptions + i;
+            if (d->Active && !d->Directory && Physical(d->File, before)) d->File = after;
+        }
+        if (s->Locking) for (uint i = 0; i < LockSlots; i++)
+            if (s->LockInput.Locks[i].Active && Physical(s->LockInput.Locks[i].File, before))
+            { if (deleted) s->LockInput.Locks[i] = default; else s->LockInput.Locks[i].File = after; }
+        p->File = after; return true;
     }
     private static bool Physical(C.FileToken a, C.FileToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.EntryOffset == b.EntryOffset &&
         a.FirstCluster == b.FirstCluster && a.Length == b.Length && a.Fingerprint0 == b.Fingerprint0 && a.Fingerprint1 == b.Fingerprint1 &&
         a.Fingerprint2 == b.Fingerprint2 && a.Fingerprint3 == b.Fingerprint3;
     private static bool Same(DescriptorToken a, DescriptorToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation && a.Number == b.Number;
+    private static bool Same(C.RequestToken a, C.RequestToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation;
     private static bool Same(ProcessToken a, ProcessToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation && a.Index == b.Index && a.Pid == b.Pid;
     private static bool ProcessMatches(State* s, ProcessToken process, bool exiting = false)
     {
@@ -712,9 +876,13 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Pending p = s->Work;
         if (p.Kind == Operation.Open && s->Input.Descriptors[p.Number].Reserved)
         { s->Input.Descriptors[p.Number].Description = s->Input.Descriptors[p.Number].Flags = 0; s->Input.Descriptors[p.Number].Reserved = false; }
-        Description* d = s->Input.Descriptions + p.Description;
-        if (p.Borrowed && d->Active && d->Generation == p.DescriptionGeneration && d->Borrowers != 0) d->Borrowers--;
-        RetireDescription(s, p.Description); new Span<byte>(s->Input.Input, (int)IoBytes).Clear(); s->Work = default;
+        if (p.Description < s->Input.DescriptionCount)
+        {
+            Description* d = s->Input.Descriptions + p.Description;
+            if (p.Borrowed && d->Active && d->Generation == p.DescriptionGeneration && d->Borrowers != 0) d->Borrowers--;
+            RetireDescription(s, p.Description);
+        }
+        new Span<byte>(s->Input.Input, (int)IoBytes).Clear(); s->Work = default;
     }
     private static long Path(ReadOnlySpan<byte> path)
     {
@@ -753,7 +921,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     private static long Map(C.Status status) => status switch
     {
         C.Status.Success => 0, C.Status.NotFound => Missing, C.Status.AlreadyExists => Exists,
-        C.Status.InvalidName => Invalid, C.Status.NotFile => IsDirectory, C.Status.ReadOnly => Access,
+        C.Status.InvalidName or C.Status.InvalidAllocation => Invalid, C.Status.NotFile => IsDirectory, C.Status.ReadOnly => Access,
         C.Status.Unsupported => Unsupported, C.Status.StaleToken => Stale, C.Status.Busy => Again,
         C.Status.CapacityExceeded => NoSpace, C.Status.GenerationExhausted or C.Status.BudgetExceeded => Overflow,
         C.Status.Cancelled => Interrupted, C.Status.InvalidStorage => Fault, _ => Io
