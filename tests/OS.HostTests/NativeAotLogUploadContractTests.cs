@@ -68,6 +68,88 @@ internal static class NativeAotLogUploadContractTests
         HostCheck.True(rejected);
     }
 
+    [HostTest("log upload Linux trace plan keeps literal native arguments independent phases and complete unfiltered syscall capture")]
+    private static void LinuxTracePlan()
+    {
+        const string executable = "/work/published app/NativeAotLogUploadContract", data = "/work/reference data", prefix = "/work/write-trace";
+        string[] write = F.LinuxTraceArguments(executable, data, prefix, "write");
+        string[] verify = F.LinuxTraceArguments(executable, data, "/work/verify-trace", "verify");
+        HostCheck.True(write[0] == "-ff" && write.Contains("-yy") && write.Contains("-ttt") &&
+            write[Array.IndexOf(write, "-o") + 1] == prefix && write[Array.IndexOf(write, "--root") + 1] == data &&
+            write.Contains(executable) && write.Contains("--write") && !write.Contains("--verify") &&
+            verify.Contains("--verify") && !verify.Contains("--write") && !write.Any(value => value.StartsWith("-e", StringComparison.Ordinal)));
+        HostCheck.True(write.Count(value => value == executable) == 1 && write.Count(value => value == data) == 1 &&
+            write.Length == verify.Length && !write.Any(value => value.Contains("sh -c", StringComparison.Ordinal)));
+        foreach (string bad in new[] { "relative", "/work/../data", "/work/./data", "/work//data", "/work/data/", "/work/data\n", @"C:\work\data", "/work\\data" })
+            Reject(() => F.LinuxTraceArguments(executable, bad, prefix, "write"), "linux_path");
+        Reject(() => F.LinuxTraceArguments(executable, executable, prefix, "write"), "linux_path");
+        Reject(() => F.LinuxTraceArguments(executable, data, prefix, "recovery"), "phase");
+    }
+
+    [HostTest("log upload copied Linux trace preserves signal pipe unfinished resumed exiting error and unknown rows without inferred returns")]
+    private static void LinuxTraceRows()
+    {
+        const string main = """
+            1792836276.000001 execve("/work/app", ["/work/app", "--write"], 0x1234 /* 4 vars */) = 0
+            1792836276.000002 openat(AT_FDCWD, "/work/data/LOG.TXT", O_WRONLY|O_CREAT|O_CLOEXEC, 0600) = 3</work/data/LOG.TXT>
+            1792836276.000003 fstatfs(3</work/data/LOG.TXT>, {f_type=EXT4_SUPER_MAGIC}) = 0
+            1792836276.000004 flock(3</work/data/LOG.TXT>, LOCK_SH|LOCK_NB) = -1 ENOSYS (Function not implemented)
+            1792836276.000005 pwritev2(3</work/data/LOG.TXT>, [{iov_base="CLROS", iov_len=5}], 1, 0, RWF_NOAPPEND) = 5
+            1792836276.000006 fsync(3</work/data/LOG.TXT>) = -1 EROFS (Read-only file system)
+            1792836276.000007 close(3</work/data/LOG.TXT>) = 0
+            1792836276.000008 exit_group(0) = ?
+            1792836276.000009 +++ exited with 0 +++
+            """;
+        const string signalPipe = """
+            1792836276.000001 read(3<pipe:[6103]>, <unfinished ...>
+            1792836276.000002 <... read resumed>"x", 1) = 1
+            1792836276.000003 read(3<pipe:[6103]> <unfinished ...>) = ?
+            1792836276.000004 --- SIGRTMIN {si_signo=SIGRTMIN, si_code=SI_TKILL, si_pid=17, si_uid=0} ---
+            1792836276.000005 unsupported original row
+            1792836276.000009 +++ exited with 0 +++
+            """;
+        var files = new Dictionary<string, string> { ["write-trace.17"] = main + "\n", ["write-trace.18"] = signalPipe + "\n" };
+        var value = F.InspectTraceValues(files, "write");
+        HostCheck.True(value.Files == 2 && value.ExitedFiles == 2 && value.UnjoinedRows == 3 && value.UnreturnedRows == 1 &&
+            value.UnclassifiedRows == 1 && !value.CompleteTraceProjection && !value.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
+        HostCheck.Equal(main.Split('\n').Length + signalPipe.Split('\n').Length, value.Rows.Count);
+        HostCheck.True(value.Rows.Where(row => row.Source == "write-trace.17").Select(row => row.Raw).SequenceEqual(main.Split('\n')) &&
+            value.Rows.Where(row => row.Source == "write-trace.18").Select(row => row.Raw).SequenceEqual(signalPipe.Split('\n')));
+        HostCheck.True(value.Rows.Single(row => row.Syscall == "flock").Result.StartsWith("-1 ENOSYS", StringComparison.Ordinal) &&
+            value.Rows.Single(row => row.Syscall == "fsync").Result.StartsWith("-1 EROFS", StringComparison.Ordinal) &&
+            value.Rows.Single(row => row.Syscall == "exit_group").Kind == F.TraceKind.UnreturnedCall &&
+            value.Rows.Any(row => row.Kind == F.TraceKind.UnfinishedCall && row.Raw.Contains("6103", StringComparison.Ordinal)) &&
+            value.Rows.Any(row => row.Kind == F.TraceKind.ResumedCall) && value.Rows.Any(row => row.Kind == F.TraceKind.Signal));
+        string complete = "1.000001 close(3</work/data/UPLOAD.BIN>) = 0\n1.000002 +++ exited with 0 +++\n";
+        var copied = F.InspectTraceValues(new Dictionary<string, string> { ["verify-trace.44"] = complete }, "verify");
+        HostCheck.True(copied.CompleteTraceProjection && !copied.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
+        var killed = F.InspectTraceValues(new Dictionary<string, string> { ["verify-trace.44"] = complete.Replace("exited with 0", "killed by SIGKILL", StringComparison.Ordinal) }, "verify");
+        HostCheck.True(killed.ExitedFiles == 0 && !killed.CompleteTraceProjection && killed.Rows[^1].Kind == F.TraceKind.ProcessExit);
+    }
+
+    [HostTest("log upload trace bounds reject partial bytes foreign phase PID aliases and capacity before Linux execution")]
+    private static async Task LinuxTraceBounds()
+    {
+        const string valid = "1.000001 close(3) = 0\n1.000002 +++ exited with 0 +++\n";
+        Dictionary<string, string> One(string name, string text) => new() { [name] = text };
+        foreach (string name in new[] { "write-trace.0", "write-trace.01", "write-trace.-1", "write-trace.2147483648", "write-trace.", "../write-trace.1", "verify-trace.1" })
+            Reject(() => F.InspectTraceValues(One(name, valid), "write"), "trace_identity");
+        Reject(() => F.InspectTraceValues(One("write-trace.1", valid[..^1]), "write"), "trace_truncated");
+        Reject(() => F.InspectTraceValues(One("write-trace.1", "1.000001 read(3, \0, 0) = 0\n"), "write"), "trace_line");
+        Reject(() => F.InspectTraceValues(One("write-trace.1", new string('x', 8193) + "\n"), "write"), "trace_line");
+        Reject(() => F.InspectTraceValues(One("write-trace.1", new string('é', 2 * 1024 * 1024) + "\n"), "write"), "trace_capacity");
+        Reject(() => F.InspectTraceValues(Enumerable.Range(1, 65).ToDictionary(i => "write-trace." + i, _ => valid), "write"), "trace_inventory");
+        Reject(() => F.InspectTraceValues(new Dictionary<string, string>(), "write"), "trace_inventory");
+        if (!OperatingSystem.IsLinux())
+        {
+            string root = HostToolProcess.FindRepositoryRoot(), destination = Path.Combine(root, "artifacts", "log-upload-linux-forbidden-" + Guid.NewGuid().ToString("N"));
+            bool rejected = false;
+            try { using var reference = await F.RunLinuxReferenceAsync(root, root, destination, TextWriter.Null); }
+            catch (ToolFailure failure) when (failure.Reason == "log_upload_linux_builder_required") { rejected = true; }
+            HostCheck.True(rejected && !Path.Exists(destination));
+        }
+    }
+
     [HostTest("log upload owned Windows managed processes write reopen verify and retain exact files while preserving nonempty rejection", HostLane.Native)]
     private static async Task ManagedReference()
     {
