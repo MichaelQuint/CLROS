@@ -919,7 +919,21 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     [HostTest("continuing structural borrow rejects every complete partial and covering provider engine block DMA and MMIO alias without effects")]
     private static void BorrowAliases()
     {
-        using var f = new Owner(locks: true); byte external = 0xa5; ulong address = (ulong)&external;
+        using var f = new Owner(locks: true); HostCheck.True(f.Storage.Device.Observation == null); CheckBorrowAliases(f);
+    }
+
+    [HostTest("continuing observed provider borrow excludes the full optional receipt with partial and covering overlaps without modifying past facts")]
+    private static void BorrowObservationAliases()
+    {
+        using var f = new Owner(locks: true, observe: true); HostCheck.True(f.Storage.Device.Observation != null);
+        byte[] observed = new ReadOnlySpan<byte>(f.Storage.Device.Observation, sizeof(B.Observation)).ToArray();
+        CheckBorrowAliases(f);
+        HostCheck.True(observed.SequenceEqual(new ReadOnlySpan<byte>(f.Storage.Device.Observation, sizeof(B.Observation)).ToArray()));
+    }
+
+    private static void CheckBorrowAliases(Owner f)
+    {
+        byte external = 0xa5; ulong address = (ulong)&external;
         HostCheck.True(Borrow(f, address, 1)); uint calls = f.Device->Calls, notifies = f.Device->Notifies;
         byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray();
         foreach (var span in ProtectedStorage(f))
@@ -1037,7 +1051,13 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     [HostTest("continuing structural borrow performs no managed allocation callback state publication or I O")]
     private static void BorrowAllocation()
     {
-        using var f = new Owner(locks: true); byte external = 0x91; ulong address = (ulong)&external;
+        using (var f = new Owner(locks: true)) CheckBorrowAllocation(f);
+        using (var f = new Owner(locks: true, observe: true)) CheckBorrowAllocation(f);
+    }
+
+    private static void CheckBorrowAllocation(Owner f)
+    {
+        byte external = 0x91; ulong address = (ulong)&external;
         HostCheck.True(Borrow(f, address, 1)); uint calls = f.Device->Calls, notifies = f.Device->Notifies;
         byte[] before = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray(); long allocated = GC.GetAllocatedBytesForCurrentThread(); bool valid = true;
         for (int i = 0; i < 64; i++) valid &= Borrow(f, address, 1) && !Borrow(f, (ulong)f.InputBytes, 1);
@@ -1045,11 +1065,86 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.True(before.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
     }
 
+    [HostTest("continuing observed provider rejects receipt backed input descriptor and lock tables before writing any retained metadata")]
+    private static void BorrowObservationAdmission()
+    {
+        using var f = new Owner(attach: false, observe: true); var observed = f.Storage.Device.Observation;
+        byte[] receipt = new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray();
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray();
+        foreach (int shape in Enumerable.Range(0, 3))
+        {
+            var a = f.Input;
+            if (shape == 0) a.Input = (byte*)observed;
+            else if (shape == 1) a.Descriptors = (D.Descriptor*)observed;
+            else a.Descriptions = (D.Description*)observed;
+            HostCheck.True(!D.Start(f.State, a) && state.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
+        }
+        HostCheck.True(D.Start(f.State, f.Input)); f.Attached = true; f.PrepareLocks();
+        state = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray();
+        foreach (int shape in Enumerable.Range(0, 3))
+        {
+            var a = f.LockInput;
+            if (shape == 0) a.Processes = (D.ProcessSlot*)observed;
+            else if (shape == 1) a.Locks = (D.RangeLock*)observed;
+            else a.Scratch = (D.RangeLock*)observed;
+            HostCheck.True(!D.EnableLocks(f.State, a) && state.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()));
+        }
+        HostCheck.True(receipt.SequenceEqual(new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray()));
+        HostCheck.True(D.EnableLocks(f.State, f.LockInput)); byte external = 1; HostCheck.True(Borrow(f, (ulong)&external, 1));
+    }
+
+    [HostTest("continuing observed pending and held reads retain valid locks and input while receipt output aliases cannot commit bytes or cursor")]
+    private static void BorrowObservationProgress()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x71; ulong address = (ulong)&external;
+        var file = f.Open(); var process = D.PrimaryProcess(f.State); HostCheck.Equal(0L, L(f, process, file, 6, 0, 0, 1).Value);
+        byte[] locks = f.LockBytes(), input = new ReadOnlySpan<byte>(f.InputBytes, 8192).ToArray();
+        var request = D.BeginRead(f.State, file, 8); HostCheck.True(Borrow(f, address, 1));
+        D.Pump(f.State); HostCheck.True(f.Device->Pending && Borrow(f, address, 1));
+        f.CompleteHardware(); f.Wait(request); HostCheck.True(Borrow(f, address, 1));
+        var observed = f.Storage.Device.Observation;
+        HostCheck.True(observed->Request.Owner == (ulong)f.Storage.Device.State && observed->Kind == B.Operation.Read &&
+            (observed->Flags & B.ObservationFlags.ReadCopied) != 0);
+        byte[] receipt = new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray(); uint calls = f.Device->Calls;
+        HostCheck.Equal(-14L, D.CopyRead(f.State, request.Request, new Span<byte>(observed, 8)).Value);
+        HostCheck.True(f.State->RequestActive && f.Cursor(file) == 0 && Borrow(f, address, 1) &&
+            receipt.SequenceEqual(new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray()));
+        HostCheck.True(locks.SequenceEqual(f.LockBytes()) && input.SequenceEqual(new ReadOnlySpan<byte>(f.InputBytes, 8192).ToArray()) && f.Device->Calls == calls);
+        byte[] output = new byte[8]; HostCheck.Equal(8L, D.CopyRead(f.State, request.Request, output).Value);
+        HostCheck.True(output.SequenceEqual(Enumerable.Range(0, 8).Select(Value)) && f.Cursor(file) == 8 && Borrow(f, address, 1) && external == 0x71);
+    }
+
+    [HostTest("continuing observed borrow rejects invalid receipt extents and stale DMA ownership while preserving past receipt through retirement")]
+    private static void BorrowObservationLifetime()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x6c; ulong address = (ulong)&external;
+        var observed = f.Storage.Device.Observation; ulong observedAddress = (ulong)observed;
+        B.Admission* block = (B.Admission*)((byte*)f.Storage.Device.State + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.State, "Input"));
+        byte[] receipt = new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray();
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray(); uint calls = f.Device->Calls;
+        try
+        {
+            foreach (ulong invalid in new ulong[] { (ulong)observed + 1, 0x00007ffffffffff8 }
+                .Concat(ProtectedStorage(f).Where(extent => extent.Start != observedAddress).Select(extent => extent.Start)))
+            { block->Observation = (B.Observation*)invalid; HostCheck.True(!Borrow(f, address, 1), "observer aliases retained extent " + invalid.ToString("x")); }
+        }
+        finally { block->Observation = observed; }
+        ulong* generation = (ulong*)((byte*)f.Storage.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.Slot, "Generation")); ulong original = *generation;
+        try { (*generation)++; HostCheck.True(!Borrow(f, address, 1)); }
+        finally { *generation = original; }
+        HostCheck.True(Borrow(f, address, 1) && !f.State->Quarantined && f.Device->Calls == calls && external == 0x6c &&
+            state.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State)).ToArray()) &&
+            receipt.SequenceEqual(new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray()));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.True(!Borrow(f, address, 1));
+        HostCheck.True(receipt.SequenceEqual(new ReadOnlySpan<byte>(observed, sizeof(B.Observation)).ToArray()));
+        HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase);
+    }
+
     private static bool Borrow(Owner f, ulong address, ulong bytes) => D.CanBorrowStorage(f.State, f.Input.Epoch, address, bytes);
     private static (ulong Start, ulong Bytes)[] ProtectedStorage(Owner f)
     {
         var a = f.Storage.Input; var block = f.Storage.Device.Input;
-        return [((ulong)f.State, (ulong)sizeof(D.State)), ((ulong)f.Slots, 32UL * (ulong)sizeof(D.Descriptor)),
+        var extents = new List<(ulong Start, ulong Bytes)> { ((ulong)f.State, (ulong)sizeof(D.State)), ((ulong)f.Slots, 32UL * (ulong)sizeof(D.Descriptor)),
             ((ulong)f.Descriptions, 32UL * (ulong)sizeof(D.Description)), ((ulong)f.InputBytes, 8192),
             ((ulong)f.Processes, 4UL * (ulong)sizeof(D.ProcessSlot)), ((ulong)f.Locks, 32UL * (ulong)sizeof(D.RangeLock)),
             ((ulong)f.Scratch, 65UL * (ulong)sizeof(D.RangeLock)), ((ulong)f.Storage.State, (ulong)sizeof(C.State)),
@@ -1060,7 +1155,9 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
             ((ulong)a.EncodedEntries, C.EncodedEntryBytes), ((ulong)f.Storage.Device.State, (ulong)sizeof(B.State)),
             ((ulong)f.Storage.Device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
             ((ulong)f.Storage.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)), ((ulong)f.Storage.Device.Data, 4096),
-            (block.Common.VirtualStart, block.Common.Bytes), (block.Notify.VirtualStart, block.Notify.Bytes), (block.Device.VirtualStart, block.Device.Bytes)];
+            (block.Common.VirtualStart, block.Common.Bytes), (block.Notify.VirtualStart, block.Notify.Bytes), (block.Device.VirtualStart, block.Device.Bytes) };
+        if (block.Observation != null) extents.Add(((ulong)block.Observation, (ulong)sizeof(B.Observation)));
+        return extents.ToArray();
     }
 
     private static D.LockResult L(Owner f, D.ProcessToken process, D.DescriptorToken file, uint command, short type, long start, long length) =>
@@ -1068,7 +1165,7 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
 
     private sealed class Owner : IDisposable
     {
-        internal readonly ContinuingFat32MutationTests.Fixture Storage = new();
+        internal readonly ContinuingFat32MutationTests.Fixture Storage;
         internal readonly D.State* State = (D.State*)NativeMemory.AllocZeroed((nuint)sizeof(D.State));
         internal readonly D.Descriptor* Slots;
         internal readonly D.Description* Descriptions;
@@ -1086,8 +1183,9 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         internal WritableBlockSessionTests.Hardware* Device => Storage.Device.Hardware;
         internal List<(uint Type, ulong Sector)> Trace => Storage.Trace;
         internal ulong DataLba => Storage.Input.PartitionFirst + 32 + 2 * 512;
-        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false)
+        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false, bool observe = false)
         {
+            Storage = new(observe: observe);
             Slots = (D.Descriptor*)NativeMemory.AllocZeroed(fdCount, (nuint)sizeof(D.Descriptor));
             Descriptions = (D.Description*)NativeMemory.AllocZeroed(descriptionCount, (nuint)sizeof(D.Description));
             // Explicitly unknown FSInfo is supported by the pinned engine;

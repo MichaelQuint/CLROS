@@ -185,7 +185,8 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// extent, including future wire metadata or output scratch. The same
     /// serialized owner retains all mappings during this call. Validate exact
     /// provider/mount epoch, current clean device/DMA ownership and every own
-    /// extent before accepting a nonempty disjoint byte range. Clean pending
+    /// extent, including optional device observation storage, before accepting
+    /// a nonempty disjoint byte range. Clean pending
     /// reads may pass; dirty, retiring, faulted or stale owners cannot. This
     /// performs no callbacks, I/O, allocation or output writes and grants no
     /// user mapping, copy, operation-completion or native execution authority.
