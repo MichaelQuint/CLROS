@@ -146,6 +146,11 @@ public static class NativeAotSqliteContract
     public sealed record RecoveryJournal(int FirstSegmentRecords,int ChangedProtectedPages,int OriginalPages,int SectorBytes,
         string BaselineSha256,string ChangedDatabaseSha256,string JournalSha256)
     {public bool GrantsLockFlushHotJournalOrDurabilityAuthority=>false;}
+    public sealed record RollbackPage(int Offset,uint Number,string OriginalSha256,bool DiffersInDatabase);
+    public sealed record RollbackSegment(int HeaderOffset,uint Nonce,IReadOnlyList<RollbackPage> Pages);
+    public sealed record RollbackSegments(int OriginalPages,int SectorBytes,IReadOnlyList<RollbackSegment> ValidSegments,
+        RollbackSegment? UncommittedTail,int ChangedDatabasePages,string BaselineSha256,string ChangedDatabaseSha256,string JournalSha256)
+    {public bool GrantsOriginalCapturePlaybackFlushOrDurabilityAuthority=>false;}
     public sealed class ManagedRecovery
     {
         internal ManagedRecovery(string directory,RecoveryJournal journal,ProcessResult writer,string recoveredHash)
@@ -185,6 +190,75 @@ public static class NativeAotSqliteContract
         }
         Need(dirty>0,"recovery_spill_not_observed");return new((int)records,dirty,(int)pages,(int)sector,
             Convert.ToHexString(SHA256.HashData(baseline)),Convert.ToHexString(SHA256.HashData(changed)),Convert.ToHexString(SHA256.HashData(journal)));
+    }
+
+    /// <summary>Independently walk copied modern 3.53.4 DELETE/FULL journal
+    /// segments for this no-ATTACH, 4096-byte-page, fixed-size UPDATE fixture.
+    /// Require finite positive valid-header counts, consistent header fields,
+    /// sector alignment, complete checksummed original pages and no duplicates.
+    /// A final full zero-magic/zero-count header may have complete original-page
+    /// records; report that shape separately without playback eligibility.
+    /// Bounds: 2 MiB database, 8 MiB journal, 512 pages/segments. Reject partial
+    /// structures, legacy/no-sync/SAFE_APPEND counts, super-journal trailers,
+    /// growth, WAL and conflicting originals. A structurally valid shorter
+    /// journal needs original capture hashes to detect whole-segment deletion.
+    /// Borrowed bytes grant no origin, lock, sync, ordering or recovery proof.</summary>
+    public static RollbackSegments InspectRollbackJournalSegmentValues(ReadOnlySpan<byte> baseline,ReadOnlySpan<byte> changed,ReadOnlySpan<byte> journal)
+    {
+        Need(baseline.Length is >=4096 and <=2*1024*1024 && baseline.Length%4096==0 && changed.Length==baseline.Length &&
+            baseline[..16].SequenceEqual("SQLite format 3\0"u8) && changed[..16].SequenceEqual("SQLite format 3\0"u8) &&
+            BinaryPrimitives.ReadUInt16BigEndian(baseline[16..])==4096 && BinaryPrimitives.ReadUInt16BigEndian(changed[16..])==4096 &&
+            baseline[18]==1 && baseline[19]==1 && changed[18]==1 && changed[19]==1,"segments_database");
+        Need(journal.Length is >512 and <=8*1024*1024,"segments_capacity");int pages=baseline.Length/4096;
+        Need(BinaryPrimitives.ReadUInt32BigEndian(baseline[28..])==pages,"segments_database_pages");
+        ReadOnlySpan<byte> magic=[0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7];
+        List<RollbackSegment> valid=[];RollbackSegment? tail=null;Dictionary<uint,int> seen=[];int at=0,sector=0;
+        while(at<journal.Length)
+        {
+            Need(valid.Count<512 && journal.Length-at>=28,"segments_header_truncated");ReadOnlySpan<byte> header=journal.Slice(at,28);
+            uint records=BinaryPrimitives.ReadUInt32BigEndian(header[8..]),nonce=BinaryPrimitives.ReadUInt32BigEndian(header[12..]),
+                original=BinaryPrimitives.ReadUInt32BigEndian(header[16..]),headerSector=BinaryPrimitives.ReadUInt32BigEndian(header[20..]),size=BinaryPrimitives.ReadUInt32BigEndian(header[24..]);
+            Need(original==pages && size==4096 && headerSector is >=512 and <=65536 && (headerSector&(headerSector-1))==0 &&
+                (sector==0 || headerSector==sector),"segments_header_consistency");
+            sector=(int)headerSector;Need(journal.Length-at>=sector,"segments_header_truncated");
+            bool initializedTail=header[..12].IndexOfAnyExcept((byte)0)<0;
+            Need(header[..8].SequenceEqual(magic) || initializedTail,"segments_header_magic");
+            int count;
+            if(initializedTail)
+            {
+                Need(valid.Count>0,"segments_initial_tail");int remaining=journal.Length-at-sector;
+                Need(remaining%4104==0,"segments_tail_truncated");count=remaining/4104;
+            }
+            else
+            {
+                Need(records is >0 and <=512 && records<=pages,"segments_record_count");count=(int)records;
+                Need((long)at+sector+(long)count*4104<=journal.Length,"segments_records_truncated");
+            }
+            Need(count<=pages && seen.Count+count<=512,"segments_record_capacity");List<RollbackPage> values=[];
+            for(int record=0;record<count;record++)
+            {
+                int offset=at+sector+record*4104;uint page=BinaryPrimitives.ReadUInt32BigEndian(journal[offset..]);
+                Need(page>0 && page<=pages,"segments_page_number");ReadOnlySpan<byte> data=journal.Slice(offset+4,4096);
+                uint checksum=nonce;for(int index=4096-200;index>0;index-=200)checksum=unchecked(checksum+data[index]);
+                Need(checksum==BinaryPrimitives.ReadUInt32BigEndian(journal[(offset+4100)..]),"segments_checksum");
+                if(seen.TryGetValue(page,out int earlier))
+                {
+                    Need(data.SequenceEqual(journal.Slice(earlier+4,4096)),"segments_duplicate_conflict");
+                    throw new ToolFailure("sqlite_contract_segments_duplicate_page");
+                }
+                int databaseAt=checked(((int)page-1)*4096);Need(data.SequenceEqual(baseline.Slice(databaseAt,4096)),"segments_original_page");
+                seen.Add(page,offset);values.Add(new(offset,page,Convert.ToHexString(SHA256.HashData(data)),!data.SequenceEqual(changed.Slice(databaseAt,4096))));
+            }
+            var segment=new RollbackSegment(at,nonce,Array.AsReadOnly(values.ToArray()));
+            if(initializedTail){tail=segment;at=journal.Length;break;}
+            valid.Add(segment);int end=at+sector+count*4104;if(end==journal.Length){at=end;break;}
+            int next=checked((end+sector-1)/sector*sector);Need(next<=journal.Length,"segments_alignment_truncated");
+            Need(journal.Slice(end,next-end).IndexOfAnyExcept((byte)0)<0,"segments_alignment_padding");at=next;
+        }
+        Need(valid.Count>0,"segments_empty");int changes=0;
+        for(int page=0;page<pages;page++)if(!baseline.Slice(page*4096,4096).SequenceEqual(changed.Slice(page*4096,4096)))changes++;
+        return new(pages,sector,Array.AsReadOnly(valid.ToArray()),tail,changes,Convert.ToHexString(SHA256.HashData(baseline)),
+            Convert.ToHexString(SHA256.HashData(changed)),Convert.ToHexString(SHA256.HashData(journal)));
     }
 
     /// <summary>Borrow the exact official release ZIP. Require its independently

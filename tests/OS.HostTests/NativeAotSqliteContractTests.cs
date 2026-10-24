@@ -308,6 +308,87 @@ internal static class NativeAotSqliteContractTests
         }
     }
 
+    private static (byte[] Baseline,byte[] Changed,byte[] Journal) JournalSegments()
+    {
+        byte[] baseline=new byte[5*4096];"SQLite format 3\0"u8.CopyTo(baseline);
+        BinaryPrimitives.WriteUInt16BigEndian(baseline.AsSpan(16),4096);baseline[18]=baseline[19]=1;BinaryPrimitives.WriteUInt32BigEndian(baseline.AsSpan(28),5);
+        for(int page=2;page<=5;page++)baseline.AsSpan((page-1)*4096,4096).Fill((byte)(0x3f+page));
+        byte[] changed=baseline.ToArray();changed.AsSpan(4096,8192).Fill(0x5a);byte[] journal=new byte[10240+512+4104];
+        uint[] nonces=[0x10203040,0x11223344,0x33445566];
+        for(int part=0;part<3;part++)
+        {
+            int at=part*5120,record=at+512;uint page=(uint)(part+2),nonce=nonces[part];
+            if(part<2)new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}.CopyTo(journal,at);
+            foreach(var field in new[]{(8,part<2?1u:0u),(12,nonce),(16,5u),(20,512u),(24,4096u)})
+                BinaryPrimitives.WriteUInt32BigEndian(journal.AsSpan(at+field.Item1),field.Item2);
+            BinaryPrimitives.WriteUInt32BigEndian(journal.AsSpan(record),page);baseline.AsSpan(((int)page-1)*4096,4096).CopyTo(journal.AsSpan(record+4));
+            // Each constant page has twenty sampled bytes; expected checksums
+            // are independent of the consumer's page-walk implementation.
+            BinaryPrimitives.WriteUInt32BigEndian(journal.AsSpan(record+4100),nonce+20*(0x3f+page));
+        }
+        return(baseline,changed,journal);
+    }
+
+    [HostTest("sqlite copied rollback segments walk aligned headers and separately retain the unsynced zero header tail shape")]
+    private static void RollbackSegmentValues()
+    {
+        var input=JournalSegments();var value=NativeAotSqliteContract.InspectRollbackJournalSegmentValues(input.Baseline,input.Changed,input.Journal);
+        HostCheck.True(value.OriginalPages==5 && value.SectorBytes==512 && value.ChangedDatabasePages==2 && value.ValidSegments.Count==2 &&
+            value.ValidSegments.Select(s=>s.HeaderOffset).SequenceEqual(new[]{0,5120}) && value.ValidSegments.SelectMany(s=>s.Pages).Select(p=>p.Number).SequenceEqual(new uint[]{2,3}) &&
+            value.ValidSegments.SelectMany(s=>s.Pages).All(p=>p.DiffersInDatabase) && value.UncommittedTail is{HeaderOffset:10240} &&
+            value.UncommittedTail.Pages.Single() is{Number:4,DiffersInDatabase:false} && !value.GrantsOriginalCapturePlaybackFlushOrDurabilityAuthority &&
+            value.JournalSha256==Convert.ToHexString(SHA256.HashData(input.Journal)));
+        string original=value.ValidSegments[1].Pages.Single().OriginalSha256;input.Journal.AsSpan().Clear();
+        HostCheck.True(value.ValidSegments[1].Pages.Single().OriginalSha256==original);
+        bool immutable=false;try{((IList<NativeAotSqliteContract.RollbackPage>)value.UncommittedTail!.Pages).Clear();}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
+    }
+
+    [HostTest("sqlite copied rollback segments reject partial inconsistent checksummed conflicting and duplicate page structures")]
+    private static void RollbackSegmentRejections()
+    {
+        var input=JournalSegments();
+        foreach(string mode in new[]{"tail_record","record_count","second_header","sector","original_pages","page_size","magic","tail_count", "count_zero",
+            "no_sync","checksum","original_page","nonce","duplicate_conflict","duplicate_same","gap","tail_header","tail_extra","tail_checksum","tail_identity"})
+        {
+            byte[] journal=input.Journal.ToArray();string reason;
+            void Put(int at,uint value)=>BinaryPrimitives.WriteUInt32BigEndian(journal.AsSpan(at),value);
+            switch(mode)
+            {
+                case "tail_record":journal=journal[..^1];reason="tail_truncated";break;
+                case "record_count":Put(8,4);reason="records_truncated";break;
+                case "second_header":journal=journal[..(5120+27)];reason="header_truncated";break;
+                case "sector":Put(5120+20,1024);reason="header_consistency";break;
+                case "original_pages":Put(5120+16,6);reason="header_consistency";break;
+                case "page_size":Put(5120+24,2048);reason="header_consistency";break;
+                case "magic":journal[5120]^=1;reason="header_magic";break;
+                case "tail_count":Put(10240+8,1);reason="header_magic";break;
+                case "count_zero":Put(8,0);reason="record_count";break;
+                case "no_sync":Put(8,uint.MaxValue);reason="record_count";break;
+                case "checksum":journal[5120+512+4100]^=1;reason="checksum";break;
+                case "original_page":journal[5120+512+4+100]^=1;reason="original_page";break;
+                case "nonce":journal[5120+12]^=1;reason="checksum";break;
+                case "duplicate_conflict":Put(5120+512,2);reason="duplicate_conflict";break;
+                case "duplicate_same":Put(5120+512,2);input.Baseline.AsSpan(4096,4096).CopyTo(journal.AsSpan(5120+512+4));Put(5120+512+4100,0x11223858);reason="duplicate_page";break;
+                case "gap":journal[512+4104]=1;reason="alignment_padding";break;
+                case "tail_header":journal=journal[..(10240+28)];reason="header_truncated";break;
+                case "tail_extra":journal=[..journal,1];reason="tail_truncated";break;
+                case "tail_checksum":journal[^1]^=1;reason="checksum";break;
+                default:journal[10240+512+4+100]^=1;reason="original_page";break;
+            }
+            Reject(()=>NativeAotSqliteContract.InspectRollbackJournalSegmentValues(input.Baseline,input.Changed,journal),"segments_"+reason);
+        }
+    }
+
+    [HostTest("sqlite copied rollback segments expose valid shorter prefixes without claiming capture identity or flush history")]
+    private static void RollbackSegmentBoundaryValues()
+    {
+        var input=JournalSegments();var whole=NativeAotSqliteContract.InspectRollbackJournalSegmentValues(input.Baseline,input.Changed,input.Journal);
+        var prefix=NativeAotSqliteContract.InspectRollbackJournalSegmentValues(input.Baseline,input.Changed,input.Journal.AsSpan(0,512+4104));
+        HostCheck.True(prefix.ValidSegments.Count==1 && prefix.UncommittedTail is null && prefix.JournalSha256!=whole.JournalSha256 &&
+            prefix.ChangedDatabasePages==2 && prefix.ValidSegments.SelectMany(s=>s.Pages).Count(p=>p.DiffersInDatabase)==1 &&
+            !prefix.GrantsOriginalCapturePlaybackFlushOrDurabilityAuthority);
+    }
+
     [HostTest("sqlite managed process kill leaves original hot journal and independently reopens to committed bytes",HostLane.Native)]
     private static async Task ManagedRecoveryReference()
     {
