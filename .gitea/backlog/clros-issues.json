@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1581 connects explicit default-off DiskStaticFullV1: finite32768calls/1800s request/120s grace/2100s runtime, selected native196608device records and bounded full serial/packet/streams; independent114-request asset matrix plus4API and2concurrent requests, consecutive read-before-queued-body-prefix joins and fresh original Chromium CDP/process/network/DOM/screenshot owner. Phase boundaries are resolved through serial queued sends, preserving same-phase ambiguity rejection. Focused host checks and static source admission pass; original full guest/browser, three DiskA/B full boots, actual races/errors and stable full/native/ancestor gates remain pending. Step1580 original018r05 at592b6303 remains five-response-development, blazor_qualified=false; every failed original remains failed. Exactly two isolated implementation agents continue #800 writable fd host preparation and #791 measured SQLite Linux reference; no write/durability or CLROS SQLite qualification. Existing accepted service defaults, dependencies and ownership are preserved.",
+      "currentEvidence": "Step1582 preserves failed unfiltered full at e3382132:5412checks/14failures/zeroReuse, native withheld. Independent policy/backlog/boot guards repaired with121focused checks unchanged. Full modifier now participates explicitly in both complete project boot-policy inventories; indirect disk-to-epoll/web exclusions retain exact prerequisite checks, entry pin reviews only three existing M10-018 guards, seven OPS notes and existing M10-026 dependency are reconciled. New committed full/native/ancestor and three original full DiskA/B browser guests remain pending. Step1580 five-response original remains accepted only in that scope; full source candidate is step1581, no original full/browser has passed. All first-batch issues stay open; failed originals remain failed.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36364,7 +36364,16 @@
         "tests/OS.HostTests/EfiCompileInventoryTests.cs",
         "tools/OS.Tooling/EfiContracts.Admission.cs",
         "tools/OS.Tooling/EfiContracts.Sources.cs",
-        "tests/OS.HostTests/M16008EfiIntegrationTests.cs"
+        "tests/OS.HostTests/M16008EfiIntegrationTests.cs",
+        "tests/OS.HostTests/BootSequencePlanTests.cs",
+        "tests/OS.HostTests/EfiProfileTestControls.cs",
+        "tests/OS.HostTests/M03FirmwareEntropySeedEfiIntegrationTests.cs",
+        "tests/OS.HostTests/M03TypedExitBootServicesCallEfiIntegrationTests.cs",
+        "tests/OS.HostTests/M07026EfiIntegrationTests.cs",
+        "tests/OS.HostTests/M09004EfiIntegrationTests.cs",
+        "tests/OS.HostTests/M16009EfiIntegrationTests.cs",
+        "tests/OS.HostTests/SocketContainmentProfileTests.cs",
+        "tests/OS.HostTests/GiteaBacklogManifestTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37084,7 +37093,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "User-authorized preparatory implementation in isolated codex/sqlite-contract while the primary qualifies the read batch. Existing dependencies remain open; no writable activation or acceptance is granted. Shared integration/documentation/tracker remain primary-owned.",
-      "currentEvidence": "2026-10-24: fresh LAN readback confirms this issue open/unassigned before isolated preparatory ownership for asset_matrix at C:/Users/AI/.codex/worktrees/sqlite-contract/CLROS, branch codex/sqlite-contract, base6bbdcad23975156cd5f6d1f333cccca8602889a8. User explicitly requested both implementation subagents stay busy on successor work during current-batch testing. Implement only the declared new source/test files; no shared boot/native/docs/tracker changes. Dependency gates and blocked label remain, no native/guest/durability acceptance. Root serializes native publication/QEMU and owns evidence reconciliation.",
+      "currentEvidence": "Isolated original Linux native reference at frozenf61648c2 passes static upstream archive reproducibility/link,45retained SQLite imports from144unique metadata imports, final static ELF and finite direct-provider transaction fixture. Receipt77B2A06C28E919CDE82383839AA37CDC3A9AB3FC131FD781CA26559B07C4D21B and85output hashes retained; CompleteTraceProjection=false due one unfinished exiting signal-pipe read. Current consumer checkpoint5c7b8093dd76566b898aae6cbf519c581807c22b is separate from that producer. Independent retained storage derivation reports10fd lifetimes/4journals/2sync-order sequences,36pwritev2(RWF_NOAPPEND32),66pread64,64locks,8fsync including2parent-directory and4fchown; all journal unlinks follow close. Managed hot-journal recovery candidate preparation is separately scoped. Native index753461instructions/193syscalls is value-only; no CLROS, durability or recovery acceptance and existing dependencies stay blocked.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -37704,7 +37713,11 @@
       "ownedPaths": [
         "src/OS.Kernel/Storage/Fat32Mutation.cs",
         "tests/OS.HostTests/Fat32MutationTests.cs",
-        "docs/cstorage.md"
+        "docs/cstorage.md",
+        "src/OS.Kernel/Storage/WritableBlockSession.cs",
+        "tests/OS.HostTests/WritableBlockSessionTests.cs",
+        "src/OS.Kernel/Storage/ContinuingFat32Mutation.cs",
+        "tests/OS.HostTests/ContinuingFat32MutationTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37713,7 +37726,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Qualify bounded FAT32 mutation and crash-recovery ordering",
-      "currentEvidence": "User-authorized isolated preparation during primary read qualification. Fresh LAN readback2026-10-24: #799 open/unassigned/content_version1, no competing owner. storage_review continues in codex/writable-block after committed host-only #798 milestone089e7bed (41focused checks, unchanged/zero reuse; normal nonincremental build/repo/contracts/diff pass). Agent owns only Fat32Mutation.cs and Fat32MutationTests.cs; primary owns docs/backlog/evidence. #798 dependency stays open; no native/guest activation, FAT durability or issue closure is authorized by this preparatory milestone.",
+      "currentEvidence": "Isolated host checkpoint170e8bac50d3c728aed17a6493d6195932892a29 remains unintegrated/unmerged: snapshot-based create/grow/overwrite/truncate/rename/delete and actual OUT/FLUSH ordered journal controls,90reported focused checks. Actual guest activation is blocked by retained ref-struct spans,64MiB whole-image snapshot,1MiB arena cap and16MiB per-range/64MiB mapped caps. Continuing sector-backed POD admission is the selected next preparation; do not expand readonly limits or preload the whole volume. Volatile journal is not reboot recovery. Deleted-LFN parser defect remains separately retained. No writable guest or durability acceptance. Root now delegates storage_review in the same isolated codex/writable-block checkout to the declared four read/write-block and ContinuingFat32Mutation source/test paths after e09ee0ba. Add genuine IN to the same exclusive writable queue owner, then retained POD mount/root-open/in-place sector RMW plus actual FLUSH, initially128journal change slots/about200KiB. Existing OUT/FLUSH semantics, dependencies and readonly profiles remain preserved. New source edits start only after fresh scoped ownership apply/readback; no native activation or shared integration.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -37804,7 +37817,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Qualify confined writable Linux descriptors, locking and synchronization",
-      "currentEvidence": "User-authorized isolated successor preparation while primary qualifies read batch. Fresh LAN2026-10-24 #800 open/unassigned/content_version1, no competing owner. storage_review owns only LinuxWritableDescriptorServices.cs and LinuxWritableDescriptorServicesTests.cs in codex/writable-block after host-only commits089e7bed/170e8bac. Primary owns shared integration/docs/backlog/evidence/native serialization. Whole-image mutation admission, global generation refresh, actual continuing storage, durable rollback-journal integration and original guest/SQLite qualification remain unaccepted. Existing M06-021 dependency stays blocked; no activation or closure.",
+      "currentEvidence": "Isolated e09ee0ba121554d667ac3e66998adab2c08510cc (parent170e8bac), only declared writable descriptor source/tests, clean and not pushed/integrated/merged. Agent reports committed nonincremental graph0warnings/errors and106focused checks unchanged/zeroReuse (23new,18mutation,14block,15legacyfd,14diskfd,22readonlyFS), repo/contracts/diff pass. Includes inode alias/locking identity, actual directory FLUSH with cancellation/retirement failure, and copied single-iovec positioned RWF_NOAPPEND32 seam. Raw Linux wire, uid/gid/fchown/create-mode/F_SETFD/pathstat and continuing sector POD backing remain open. Native/guest/SQLite/durability activation remains blocked.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -37986,6 +37999,7 @@
       "summary": "Define a strict JSON image recipe for one supported NativeAOT app, with a bounded generated guest manifest and separate host deployment settings.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
@@ -38078,6 +38092,7 @@
       "summary": "Produce a complete deterministic host-to-guest content plan before image mutation, with explicit copy semantics and a bounded importer.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
@@ -38165,6 +38180,7 @@
       "summary": "Join generic NativeAOT packaging and deterministic content planning into one reusable image-build workflow with immutable output receipts.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
@@ -38258,6 +38274,7 @@
       "summary": "Provide host-side explicit creation and optional seeding of a separate bounded FAT32 data volume, preserving its lifetime independently of the boot image.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
@@ -38347,6 +38364,7 @@
       "summary": "Launch and stop an already-built immutable application image through explicit local deployment settings and the existing QEMU owner.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
@@ -38434,6 +38452,7 @@
       "summary": "Expose a shell-free host inspect/verify workflow for image layout, guest paths, package identity and effective supported configuration.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",
@@ -38524,6 +38543,7 @@
       "summary": "Connect a declared logical volume to one explicitly selected VM disk and guest mount, with enforced read-only/root policy and verified persistent data lifetime.",
       "currentEvidence": "OPS research and current CLROS host builders establish design inputs only. CLROS has bounded package/image and app profiles; this general recipe feature is planned and unqualified. No new guest, storage, security or provider claim is made.",
       "implementationNotes": [
+        "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Implement after the current #780/#781/#782/#768-#774 batch and the explicit dependencies below. This issue does not claim the active integration lane or add a prerequisite to first-web/Gate14. requiredForParent=false preserves historical epic scope; it does not waive this capability's own dependencies.",
         "Keep one C#14/.NET11 host tool surface over OS.Tooling, OS.ManifestTool and OS.ImageBuilder. New helper/fixture paths below are proposed, not implemented. Reuse concrete production APIs; avoid a plugin framework, a second filesystem, or per-app kernel/tool patches. Shared command registration is serialized with lane:nativeaot-integration.",
         "Read AGENTS.md, docs/documentation-map.md, docs/architecture.md#core-services-and-application-adapters, docs/workload-profiles.md and the listed subsystem docs. Linux ABI details stay in that adapter; core storage/resource ownership must remain reusable by the future PE path. No general Linux/Windows compatibility or PE runtime port is required here.",

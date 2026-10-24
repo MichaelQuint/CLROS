@@ -624,7 +624,7 @@
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
 			'$(EnableM16014Probe)' == 'true' or
-			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM10018Probe)' == 'true' or
+			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM10018Probe)' == 'true' or '$(EnableM10018FullProbe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
 			'$(EnableM16019InvalidProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -1087,7 +1087,7 @@
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
 			'$(EnableM16014Probe)' == 'true' or
-			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM10018Probe)' == 'true' or
+			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true' or '$(EnableM16025Probe)' == 'true' or '$(EnableM10018Probe)' == 'true' or '$(EnableM10018FullProbe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
 			'$(EnableM16019InvalidProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or

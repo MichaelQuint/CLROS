@@ -1,5 +1,12 @@
 # Workload Profiles ADR
 
+[Step1582](../done/step1582.md) preserves the failed unfiltered full run at
+`e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
+The complete diagnostic-policy declarations, independent descendant/conflict
+checks, reviewed entry-source pin and backlog contracts are repaired;121 focused
+checks pass unchanged. A fresh committed-source unfiltered full/native run is
+still required before guest qualification. First-batch issues remain open.
+
 [Step1581](../done/step1581.md) adds the explicitly selected, default-off
 `-EnableM10018FullProbe` candidate. Its finite policy, full asset HTTP peer,
 consecutive-read/send checks and original external Chromium capture are now

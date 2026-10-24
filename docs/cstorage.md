@@ -1,5 +1,20 @@
 # Storage
 
+[Step1582](../done/step1582.md) retains isolated host writable descriptor
+checkpoint e09ee0ba and the pinned Linux SQLite contract experiment separately
+from guest acceptance. Actual SQLite writes use single-iovec `pwritev2` with
+`RWF_NOAPPEND`32 and include parent-directory fsync. The host fd leaf performs
+real block FLUSH for directory descriptions; Linux wire/guest activation is open.
+
+Guest activation will use a continuing sector-backed POD owner. The snapshot
+prototype retains ref-struct spans and cannot live in `NativeDiskOwner`; its
+64MiB snapshot also exceeds the1MiB disk-arena cap and16MiB retained-range cap,
+and alone fills the64MiB mapped-page cap before existing owners. The measured
+retained buffers total about68.163MiB before allocator padding. A writable device
+must negotiate real OUT/FLUSH without RO and own its queue exclusively; preserve
+the original readonly PCI0:7 asset disk. No cap expansion, whole-volume preload,
+volatile-journal durability or CLROS SQLite acceptance follows from host tests.
+
 [Step1581](../done/step1581.md) connects the full finite read candidate to the
 original disk/sector, syscall, HTTP and browser owners. Each positive HTTP body
 requires one uniquely identified fd generation's contiguous reads; every queued

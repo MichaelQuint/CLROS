@@ -276,6 +276,17 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected, bool ordinarySmoke = false)
     {
+        if(selected.Contains("EnableM10018FullProbe"))selected=[..selected,"EnableM10018Probe"];
+        if(selected.Contains("EnableM10018Probe"))selected=[..selected,"EnableM16025Probe","EnableM10004Probe"];
+        bool disk=selected.Contains("EnableM16025Probe");
+        if(disk)
+        {
+            string[] conflicts=["EnableM10017Probe","EnableM16014Probe","EnableM16013Probe","EnableM07027Probe","EnableM07028Probe",
+                "EnableM09011Probe","EnableM09012Probe","EnableM16010Probe","EnableM16019UnavailableProbe","EnableM16019InvalidProbe"];
+            if(conflicts.Any(selected.Contains))return "disk_read_profile_conflict";
+            selected=[..selected,"EnableM16023Probe","EnableM16024Probe","EnableM16012Probe"];
+        }
+        else if(selected.Contains("EnableM16023Probe") || selected.Contains("EnableM16024Probe"))return "disk_read_requires_combined_profile";
         bool unavailable = selected.Contains("EnableM16019UnavailableProbe");
         bool invalidUtc = selected.Contains("EnableM16019InvalidProbe");
         bool service = selected.Contains("EnableM16014Probe");
@@ -299,7 +310,7 @@ internal static class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name)))) return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
             if (sockets) return null;
@@ -476,7 +487,7 @@ internal static class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]
@@ -500,6 +511,7 @@ internal static class EfiProfileTestControls
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
                 HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
                     conflict switch { "EnableM07026Probe" => "m07_026_profile_conflict",
+                        "EnableM16023Probe" or "EnableM16024Probe" => "disk_read_requires_combined_profile",
                         "EnableM09010Probe" => "m09_010_profile_conflict",
                         "EnableM09009Probe" => "m09_009_profile_conflict", "EnableM09006Probe" => "m09_006_profile_conflict",
                         "EnableM09004Probe" => "m09_004_profile_conflict",

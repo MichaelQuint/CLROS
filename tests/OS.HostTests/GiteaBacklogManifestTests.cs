@@ -219,7 +219,7 @@ internal static class GiteaBacklogManifestTests
             HostCheck.Result(DependenciesEqual(issueByKey["M06-021"], "M06-020")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M16-027"], "M06-021")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M10-021"], "M10-020", "M10-018", "M16-027")) &&
-            HostCheck.Result(DependenciesEqual(issueByKey["M10-026"], "M10-023", "M10-024", "M10-025", "M10-014"));
+            HostCheck.Result(DependenciesEqual(issueByKey["M10-026"], "M10-023", "M10-024", "M10-025", "M10-014", "M11-031"));
     }
 
     private static bool TestM01InstructionPublicationManifest(string manifestPath)

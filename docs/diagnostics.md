@@ -1,5 +1,11 @@
 # Diagnostics
 
+[Step1582](../done/step1582.md) completes the full modifier's explicit project
+Diagnostic/default and VerifiedExit conflict inventories. Independent boot/probe
+surface whitelists and descendant/indirect-exclusion checks retain exact guards;
+standalone block/filesystem leaves still reject without their combined owner.
+No default probe or accepted guest profile is enabled by this repair.
+
 [Step1581](../done/step1581.md) adds catalog entry76,
 `app.nativeaot-disk-static-full-v1` / `EnableM10018FullProbe`. It defaults false
 and requires the existing disk/static parent. The exact `M10_018_POLICY`

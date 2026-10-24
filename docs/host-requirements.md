@@ -1,5 +1,12 @@
 # Host Requirements
 
+[Step1582](../done/step1582.md) preserves the failed unfiltered full run at
+`e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
+The complete diagnostic-policy declarations, independent descendant/conflict
+checks, reviewed entry-source pin and backlog contracts are repaired;121 focused
+checks pass unchanged. A fresh committed-source unfiltered full/native run is
+still required before guest qualification. First-batch issues remain open.
+
 [Step1581](../done/step1581.md) adds an original external browser capture for the
 full disk/static candidate. It requires installed Microsoft Edge or Google
 Chrome on Windows, started in an owned job with a fresh ignored profile and

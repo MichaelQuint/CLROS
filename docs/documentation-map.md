@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1582](../done/step1582.md) owns the failed full-host result and bounded
+profile/backlog contract repairs. Host requirements and completion gates retain
+its failed/native-withheld boundary; EFI/diagnostics explain the complete policy
+inventories. Issue labels record additive canonical ownership-note reconciliation.
+
 [Step1581](../done/step1581.md) records the full finite disk/static candidate.
 `qemu.md` owns its command and selected capture limits; `kestrel.md` owns the
 HTTP/browser phases; `efi-build.md` and `diagnostics.md` own the default-off

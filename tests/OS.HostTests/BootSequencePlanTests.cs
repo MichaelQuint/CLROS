@@ -766,6 +766,8 @@ internal static class BootSequencePlanTests
              "public const bool EnableM16024Probe = false;",
              "public const bool EnableM16025Probe = true;",
              "public const bool EnableM16025Probe = false;",
+             "public const bool EnableM10018FullProbe = true;",
+             "public const bool EnableM10018FullProbe = false;",
              "public const bool EnableM10018Probe = true;",
              "public const bool EnableM10018Probe = false;",
              "public const bool EnableM10017Probe = true;",

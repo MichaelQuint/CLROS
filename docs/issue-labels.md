@@ -1,5 +1,11 @@
 # Issue Labels
 
+[Step1582](../done/step1582.md) adds the existing required ownership-note contract
+to the seven OPS successors M11-027..033 without changing their owners, paths,
+dependencies or states. Fresh scoped preview7/apply7/readback16 unchanged confirms
+zero drift. The independent M10-026 test now includes its existing M11-031 image
+inspection prerequisite. No OPS implementation or gate is accepted by metadata.
+
 ## Current NativeAOT-first workflow
 
 Canonical target is now `http://192.168.4.35:3000/admin/CLROS`, repository ID9.

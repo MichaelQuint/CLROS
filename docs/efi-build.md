@@ -1,5 +1,13 @@
 # EFI Build
 
+[Step1582](../done/step1582.md) adds the full modifier to both complete project
+boot-policy inventories, retaining explicit parent/conflict rejection. Independent
+checks follow the disk-to-epoll/web parent graph and verify each bridge before
+using indirect exclusions. Reviewed entry-source identity now includes the three
+existing M10-018 descriptor-layout/output-observation preprocessor guards from
+472c70b3; String runtime behavior is unchanged. The failed full at e3382132 remains
+failed. Focused repairs pass; fresh unfiltered full/native verification is pending.
+
 [Step1581](../done/step1581.md) adds default-off `EnableM10018FullProbe` and
 `M10_018_FULL_PROBE`, requiring the existing disk/static parent. It uses that
 same authoritative boot phase and preserves all existing profile defaults.
