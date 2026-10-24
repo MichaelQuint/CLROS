@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Runtime.InteropServices;
 using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
@@ -39,6 +40,53 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         HostCheck.True(f.Thread.Service->CommitWritableDiskWait(Key, 2, f.Thread.Kernel.Capture(f.Main), out bool handoff) && !handoff);
         HostCheck.Equal(16L, f.Consume()); HostCheck.True(f.May(Output, 16));
         HostCheck.Equal(0L, f.Run(8, fd, 0, 1));
+    }
+
+    [HostTest("writable source5 fresh fstat pins its exact cross page wire through early readiness without advancing the file cursor")]
+    private static void StatEarlyReady()
+    {
+        using var f = new Fixture(); uint fd = f.Open("/data/stat5.bin", W.Create | W.Exclusive | 2);
+        f.PutWrite(new byte[1000]); HostCheck.Equal(1000L, f.Run(328, fd, Vector, 1, 7, 0, W.RwfNoAppend));
+        HostCheck.Equal(23L, f.Run(8, fd, 23));
+        const ulong address = Output + 4096 - 80;
+        var bytes = new Span<byte>(f.Thread.At(address - 1), 146); bytes.Fill(0xa5); uint copies = f.Thread.Writes;
+        f.Begin(5, fd, address);
+        HostCheck.True(!f.May(address, 144) && !f.May(address + 80, 1) &&
+            f.May(address - 1, 1) && f.May(address + 144, 1));
+        f.Ready(); HostCheck.Equal(KernelThreadTable.State.Parking, f.Thread.Kernel.Inspect(f.Main).State);
+        HostCheck.Equal(copies, f.Thread.Writes); HostCheck.True(bytes.IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.True(f.Thread.Service->CommitWritableDiskWait(Key, 2, f.Thread.Kernel.Capture(f.Main), out bool handoff) && !handoff);
+        HostCheck.Equal(0L, f.Consume()); HostCheck.True(f.May(address, 144));
+        var wire = bytes.Slice(1, 144);
+        HostCheck.True(BinaryPrimitives.ReadUInt64LittleEndian(wire[8..]) != 0);
+        HostCheck.Equal(0x8000U, BinaryPrimitives.ReadUInt32LittleEndian(wire[24..]) & 0xf000U);
+        HostCheck.Equal(1007L, BinaryPrimitives.ReadInt64LittleEndian(wire[48..]));
+        // This original fixture has one512B sector per allocated cluster.
+        HostCheck.Equal(2L, BinaryPrimitives.ReadInt64LittleEndian(wire[64..]));
+        HostCheck.True(bytes[0] == 0xa5 && bytes[145] == 0xa5 && f.Thread.Writes == copies + 1);
+        HostCheck.Equal(23L, f.Run(8, fd, 0, 1));
+    }
+
+    [HostTest("writable source5 fstat cancellation and fd reuse revoke metadata output without late copy or cursor changes")]
+    private static void StatCancellationAndReuse()
+    {
+        foreach (bool reuse in new[] { false, true })
+        {
+            using var f = new Fixture(); uint fd = f.Open(); var bytes = new Span<byte>(f.Thread.At(Output), 144); bytes.Fill(0xa5);
+            OSHostHandle child = reuse ? f.Thread.Clone() : default; uint copies = f.Thread.Writes;
+            f.Begin(5, fd, Output); f.Park(); HostCheck.True(!f.May(Output, 144));
+            if (reuse)
+            {
+                HostCheck.Equal(child.Value, f.Thread.Kernel.Dispatch().Value); HostCheck.Equal(0L, f.Run(3, fd));
+                f.PutPath("/app/fixture.data"); HostCheck.Equal((long)fd, f.Run(2, Path, 0x88100));
+                f.Ready(); f.Thread.Yield(child);
+            }
+            else HostCheck.True(f.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, f.Thread.View(f.Main).Wait).Succeeded);
+            HostCheck.Equal(reuse ? -9L : -4L, f.Consume()); HostCheck.True(f.May(Output, 144)); f.Drain();
+            HostCheck.True(f.Thread.Writes == copies && bytes.IndexOfAnyExcept((byte)0xa5) < 0);
+            HostCheck.True(f.Thread.Service->CurrentImage(Key, 2, out _));
+            if (!reuse) HostCheck.Equal(0L, f.Run(8, fd, 0, 1));
+        }
     }
 
     [HostTest("writable source5 interrupted pending read revokes original output without restart or late copy and drains independently")]

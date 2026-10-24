@@ -106,7 +106,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "161c8e3f1e0cfe392d79dad69f1206dfdba9753e8525e81bbb2fcb2df8074e9e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "9385dc93440dc77e1ba3ed727da3a4605ad182803497a67b980f7a8c7f1b4d7c",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.ExitTail.cs"] = "d52d61854c5fc1d31aa99d811f68bcd16185221ef8ad6b9676c67f8435167237",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "26e62e26b1e38b75a0d844abc29d484735ce793a80f46300068f2ad4b35d1395",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "cca538b1575e27c44731d7c52c3409c17f3ef47d88d3971e1528acf4cb345fba",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "f3504d459bac6c8038427736471758794e69d9734f34545aa2cbc0ea99f7c931",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",

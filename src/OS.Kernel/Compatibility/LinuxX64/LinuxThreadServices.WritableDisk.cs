@@ -5,6 +5,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    private const uint WritableDiskStatBytes = 144;
     /// <summary>Advance one serialized writable request, including an orphan,
     /// then inspect at most16 original worker generations. Only the original
     /// source5 wait with no prior winner is woken. No user copy occurs here.
@@ -146,7 +147,8 @@ public unsafe partial struct LinuxThreadServices
 
     private uint CaptureWritableDiskOutputPrefix(LinuxSyscallFrame call)
     {
-        uint maximum = call.Number is 0 or 17 ? (uint)(call.Argument2 < 8192 ? call.Argument2 : 8192) : 0;
+        uint maximum = call.Number == 5 ? WritableDiskStatBytes :
+            call.Number is 0 or 17 ? (uint)(call.Argument2 < 8192 ? call.Argument2 : 8192) : 0;
         ulong address = call.Argument1; uint admitted = 0;
         while (admitted < maximum)
         {
@@ -165,8 +167,9 @@ public unsafe partial struct LinuxThreadServices
         {
             Slot* slot = _owner.Slots + i;
             if (!slot->WritableDiskOperation.IsActive) continue;
-            if (slot->WritableDiskOutputBytes > 8192 || slot->WritableDiskOutputBytes != 0 &&
-                (slot->WaitCall.Number is not (0 or 17) || !UserExtent(slot->WaitCall.Argument1, slot->WritableDiskOutputBytes) ||
+            uint maximum = slot->WaitCall.Number == 5 ? WritableDiskStatBytes : 8192U;
+            if (slot->WritableDiskOutputBytes > maximum || slot->WritableDiskOutputBytes != 0 &&
+                (slot->WaitCall.Number is not (0 or 5 or 17) || !UserExtent(slot->WaitCall.Argument1, slot->WritableDiskOutputBytes) ||
                  Overlap(address, bytes, slot->WaitCall.Argument1, slot->WritableDiskOutputBytes))) return false;
         }
         return true;

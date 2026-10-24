@@ -342,7 +342,7 @@ public static unsafe partial class LinuxSyscallGateway
         or 2 or 4 or 6 or 8 or 17 or 257
 #endif
 #if !NOSTDLIB_EFI || M16_027_PROBE
-        or 74 or 75 or 87 or 328
+        or 5 or 74 or 75 or 87 or 328
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         or 232 or 281
