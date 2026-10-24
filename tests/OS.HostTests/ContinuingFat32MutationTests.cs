@@ -26,6 +26,8 @@ internal static unsafe class ContinuingFat32MutationTests
     { C.RequestToken value = default; var status = C.BeginOverwrite(f.State, file, offset, bytes, &value); request = value; return status; }
     private static C.Status Create(Fixture f, string name, ReadOnlySpan<byte> alias, out C.RequestToken request)
     { C.RequestToken value = default; var status = C.BeginCreateEmpty(f.State, name, alias, &value); request = value; return status; }
+    private static C.Status Grow(Fixture f, C.FileToken file, uint length, ReadOnlySpan<uint> candidates, out C.RequestToken request)
+    { C.RequestToken value = default; var status = C.BeginGrow(f.State, file, length, candidates, &value); request = value; return status; }
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
@@ -369,6 +371,166 @@ internal static unsafe class ContinuingFat32MutationTests
         input->Epoch = epoch; HostCheck.Equal(C.Status.Success, C.Stop(f.State));
     }
 
+    [HostTest("continuing FAT explicit fragmented growth zeroes old tail and new clusters then flushes data both FATs directory and FSInfo in order")]
+    private static void GrowFragmented()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); uint[] candidates = [8, 12, 10];
+        int first = f.Trace.Count; HostCheck.Equal(C.Status.Pending, Grow(f, file, 2500, candidates, out var request)); candidates.AsSpan().Clear(); int flushes = 0;
+        while (true)
+        {
+            int before = f.Trace.Count; var status = f.Turn();
+            if (f.Trace.Count != before && f.Trace[^1].Type == 4)
+            {
+                flushes++; uint visible = U32(f.Persistent, Data * 512 + 32 + 28), link = U32(f.Persistent, (First + Reserved) * 512 + 6 * 4) & 0x0fffffff;
+                HostCheck.True(f.State->Dirty && !f.State->IsReady);
+                HostCheck.Equal(flushes < 3 ? 900U : 2500U, visible); HostCheck.Equal(flushes < 2 ? 0x0fffffffU : 8U, link);
+                HostCheck.Equal(flushes < 4 ? 123U : uint.MaxValue, U32(f.Persistent, (First + 1) * 512 + 488));
+            }
+            if (status == C.Status.Ready) break; HostCheck.Equal(C.Status.Pending, status);
+        }
+        HostCheck.True(flushes == 4 && f.State->ChangeCount == 9 && !f.State->Dirty); HostCheck.Equal(1600U, Result(f, request).Bytes);
+        HostCheck.True(f.Persistent.Slice((First + Reserved) * 512, FatSectors * 512).SequenceEqual(f.Persistent.Slice((First + Reserved + FatSectors) * 512, FatSectors * 512)));
+        HostCheck.True(U32(f.Persistent, (First + Reserved) * 512 + 6 * 4) == 0xb0000008 && U32(f.Persistent, (First + Reserved) * 512 + 8 * 4) == 0xa000000c);
+        HostCheck.Equal(uint.MaxValue, U32(f.Persistent, (First + 7) * 512 + 492));
+        byte[] expected = new byte[2500]; for (int i = 0; i < 900; i++) expected[i] = Value(i); Independent(f, expected);
+        foreach (int cluster in new[] { 8, 12, 10 }) HostCheck.True(f.Persistent.Slice((Data + cluster - 2) * 512, 512).IndexOfAnyExcept((byte)0) < 0);
+        var writes = f.Trace.Skip(first).Where(row => row.Type != 0).ToArray(); HostCheck.True(writes.Length == 13 && f.Device.State->DurableBytes == 9 * 512);
+        HostCheck.Equal(C.Status.StaleToken, Grow(f, file, 3000, new uint[] { 14 }, out _)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT empty-file growth admits eleven copied clusters for5126bytes and reopens before a positioned overwrite")]
+    private static void GrowEmpty()
+    {
+        using var f = new Fixture(); PrepareGrowth(f); Put16(f.Volatile, Data * 512 + 32 + 26, 0); Put32(f.Volatile, Data * 512 + 32 + 28, 0);
+        f.Mount(); var file = File(f); uint[] candidates = Enumerable.Range(20, 11).Select(i => (uint)i).ToArray();
+        for (int i = 20; i <= 30; i++) f.Volatile.Slice((Data + i - 2) * 512, 512).Fill(0xd9);
+        HostCheck.Equal(C.Status.Pending, Grow(f, file, 5126, candidates, out var request)); HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(5126U, Result(f, request).Bytes);
+        HostCheck.Equal(16U, f.State->ChangeCount); Independent(f, new byte[5126]);
+        var reopened = File(f); HostCheck.True(reopened.FirstCluster == 20 && reopened.Length == 5126);
+        Overwrite(f, reopened, 5121, "proof"u8, out request); HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(5U, Result(f, request).Bytes);
+        byte[] expected = new byte[5126]; "proof"u8.CopyTo(expected.AsSpan(5121)); Independent(f, expected); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT growth within an existing tail has no FAT or FSInfo write and exposes exactly the zeroed new bytes")]
+    private static void GrowTail()
+    {
+        using var f = new Fixture(); f.Volatile.Slice((Data + 4) * 512 + 388, 124).Fill(0xc3); f.Mount(); var file = File(f); int first = f.Trace.Count;
+        HostCheck.Equal(C.Status.Pending, Grow(f, file, 950, [], out var request)); HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(50U, Result(f, request).Bytes);
+        HostCheck.True(f.Trace.Skip(first).Where(row => row.Type != 0).SequenceEqual(new (uint, ulong)[] { (1, Data + 4), (4, 0), (1, Data), (4, 0) }));
+        byte[] expected = new byte[950]; for (int i = 0; i < 900; i++) expected[i] = Value(i); Independent(f, expected);
+        HostCheck.True(f.Persistent.Slice((Data + 4) * 512 + 438, 74).IndexOfAnyExcept((byte)0xc3) < 0); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT growth rejects malformed candidates aliases readonly stale chains mirrors and FSInfo before any OUT")]
+    private static void GrowAdmission()
+    {
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); uint before = f.Device.Hardware->Notifies;
+            foreach (var entry in new (uint Length, uint[] Candidates, C.Status Status)[]
+            {
+                (1300, [], C.Status.InvalidAllocation), (1300, [1], C.Status.InvalidAllocation), (1300, [Clusters + 2], C.Status.InvalidAllocation),
+                (1700, [8, 8], C.Status.InvalidAllocation), (19 * 512, Enumerable.Range(8, 17).Select(i => (uint)i).ToArray(), C.Status.CapacityExceeded),
+                (900, [], C.Status.Unsupported), (899, [], C.Status.Unsupported)
+            }) HostCheck.Equal(entry.Status, Grow(f, file, entry.Length, entry.Candidates, out _));
+            C.RequestToken request = default;
+            HostCheck.Equal(C.Status.InvalidStorage, C.BeginGrow(f.State, file, 1300, new ReadOnlySpan<uint>(f.Input.Before, 1), &request));
+            HostCheck.Equal(C.Status.InvalidStorage, C.BeginGrow(f.State, file, 1300, new uint[] { 8 }, (C.RequestToken*)f.State));
+            HostCheck.Equal(before, f.Device.Hardware->Notifies); C.Stop(f.State);
+        }
+        for (int mode = 0; mode < 9; mode++)
+        {
+            using var f = new Fixture(); PrepareGrowth(f);
+            if (mode == 3) f.Volatile[Data * 512 + 32 + 11] |= 1;
+            if (mode == 5) Put16(f.Volatile, First * 512 + 48, 0);
+            if (mode == 6) Put16(f.Volatile, First * 512 + 50, 31);
+            f.Mount(); var file = File(f); uint[] candidates = [8];
+            if (mode == 0) candidates[0] = 4;
+            if (mode == 1) Put32(f.Volatile, (First + Reserved + FatSectors) * 512 + 8 * 4, 2);
+            if (mode == 2) f.Volatile[Data * 512 + 32 + 12] ^= 8;
+            if (mode == 4) Put32(f.Volatile, (First + 1) * 512 + 484, 0);
+            if (mode == 7) { f.Fat(6, 7); f.Fat(7, 0xfffffff); }
+            if (mode == 8) Put16(f.Volatile, Data * 512 + 26, 8); // Referenced-but-free is never allocated.
+            HostCheck.Equal(C.Status.Pending, Grow(f, file, 1300, candidates, out var request)); HostCheck.Equal(C.Status.Ready, f.Run());
+            C.Status expected = mode switch { 0 => C.Status.InvalidAllocation, 1 => C.Status.MirrorMismatch, 2 => C.Status.StaleToken, 3 => C.Status.ReadOnly, 4 or 5 or 6 => C.Status.InvalidVolume, _ => C.Status.CorruptChain };
+            Result(f, request, expected); HostCheck.True(!f.State->Dirty && f.Device.State->SubmittedBytes == 0 && f.State->VolumeRevision == 1); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT every growth preflight read failure changes no medium and requires actual faulted device retirement")]
+    private static void GrowReadFailures()
+    {
+        int reads;
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); int first = f.Trace.Count;
+            Grow(f, file, 2500, new uint[] { 8, 12, 10 }, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request);
+            reads = f.Trace.Skip(first).Count(row => row.Type == 0); HostCheck.True(reads >= 12); C.Stop(f.State);
+        }
+        for (int at = 1; at <= reads; at++)
+        {
+            using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); byte[] before = f.Volatile.ToArray();
+            f.FailAt = f.Device.Hardware->Notifies + (uint)at; Grow(f, file, 2500, new uint[] { 8, 12, 10 }, out _);
+            HostCheck.Equal(C.Status.BlockFailure, f.Run()); HostCheck.True(!f.State->Dirty && f.Device.State->SubmittedBytes == 0 && f.Volatile.SequenceEqual(before));
+            HostCheck.Equal(C.Status.Busy, C.Stop(f.State)); B.Stop(f.Device.State); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+    }
+
+    [HostTest("continuing FAT every growth OUT and stage FLUSH failure retains all before after bytes despite durable intermediate frontiers")]
+    private static void GrowIssuedFailures()
+    {
+        for (int failure = 1; failure <= 13; failure++)
+        {
+            using var f = new Fixture(); PrepareGrowth(f); f.Mount(); var file = File(f); f.FailPublication = failure;
+            Grow(f, file, 2500, new uint[] { 8, 12, 10 }, out var request); HostCheck.Equal(C.Status.RecoveryRequired, f.Run());
+            HostCheck.True(f.State->Dirty && f.State->VolumeRevision == 2 && f.State->ChangeCount == 9);
+            HostCheck.True(f.Device.State->DurableBytes <= f.Device.State->CompletedBytes && f.Device.State->CompletedBytes <= f.Device.State->SubmittedBytes);
+            if (failure >= 6) HostCheck.True(f.Device.State->DurableBytes != 0);
+            byte[] before = new ReadOnlySpan<byte>(f.Input.Before, 9 * 512).ToArray(), after = new ReadOnlySpan<byte>(f.Input.After, 9 * 512).ToArray();
+            HostCheck.Equal(C.Status.RecoveryRequired, C.CopyResult(f.State, request, (C.Result*)f.Output)); B.Stop(f.Device.State);
+            HostCheck.Equal(C.Status.RecoveryRequired, C.Stop(f.State));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Input.Before, 9 * 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 9 * 512).SequenceEqual(after));
+        }
+    }
+
+    [HostTest("continuing FAT large-cluster growth exhausts128-change journal before OUT without admitting a whole-volume snapshot")]
+    private static void GrowJournalCapacity()
+    {
+        // The fake retains only a small prefix of a nearly4GiB logical medium. All
+        // planned sectors are in that prefix; any out-of-prefix OUT is rejected.
+        using var f = new Fixture(128); Put16(f.Volatile, First * 512 + 48, 0xffff);
+        Put16(f.Volatile, Data * 512 + 32 + 26, 0); Put32(f.Volatile, Data * 512 + 32 + 28, 0);
+        f.Mount(); var file = File(f); HostCheck.True(f.Device.State->SectorCount * 512 > 3UL * 1024 * 1024 * 1024);
+        Grow(f, file, 1, new uint[] { 7 }, out var request); HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request, C.Status.CapacityExceeded);
+        HostCheck.True(f.State->ChangeCount == 128 && !f.State->Dirty && f.State->VolumeRevision == 1 && f.Device.State->SubmittedBytes == 0 && f.Trace.All(row => row.Type == 0)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT growth cancellation before publication drains reads and after a data barrier retains recovery ownership")]
+    private static void GrowCancellation()
+    {
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); Grow(f, file, 1300, new uint[] { 8 }, out var request);
+            C.Pump(f.State); HostCheck.True(f.Device.Hardware->Pending); HostCheck.Equal(C.Status.Pending, C.Cancel(f.State, request)); f.Device.Complete();
+            HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request, C.Status.Cancelled); HostCheck.True(!f.State->Dirty && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            PrepareGrowth(f); f.Mount(); var file = File(f); Grow(f, file, 2500, new uint[] { 8, 12, 10 }, out var request);
+            while (!f.Trace.Any(row => row.Type == 4)) HostCheck.Equal(C.Status.Pending, f.Turn());
+            HostCheck.Equal(C.Status.Pending, C.Cancel(f.State, request)); HostCheck.Equal(C.Status.RecoveryRequired, f.Run());
+            HostCheck.True(f.State->Dirty && f.Device.State->DurableBytes == 4 * 512 && U32(f.Persistent, Data * 512 + 32 + 28) == 900); C.Stop(f.State);
+        }
+    }
+
+    private static void PrepareGrowth(Fixture f)
+    {
+        Put16(f.Volatile, First * 512 + 48, 1); Put16(f.Volatile, First * 512 + 50, 6);
+        foreach (int sector in new[] { First + 1, First + 7 })
+        { var raw = f.Volatile.Slice(sector * 512, 512); Put32(raw, 0, 0x41615252); Put32(raw, 484, 0x61417272); Put32(raw, 488, 123); Put32(raw, 492, 8); Put32(raw, 508, 0xaa550000); }
+        f.Fat(6, 0xbfffffff); foreach (uint cluster in new uint[] { 8, 12, 10 }) { f.Fat(cluster, 0xa0000000); f.Volatile.Slice((Data + (int)cluster - 2) * 512, 512).Fill(0xd7); }
+    }
+
     private static void PrepareLongRoot(Fixture f)
     {
         f.Fat(2, 5); f.Fat(5, 7); f.Fat(7, 0xfffffff);
@@ -393,7 +555,7 @@ internal static unsafe class ContinuingFat32MutationTests
     }
     private sealed class Fixture : IDisposable
     {
-        internal readonly WritableBlockSessionTests.Fixture Device = new(Sectors);
+        internal readonly WritableBlockSessionTests.Fixture Device;
         internal readonly C.State* State = (C.State*)NativeMemory.AllocZeroed((nuint)sizeof(C.State));
         private readonly byte* arena = (byte*)NativeMemory.AlignedAlloc(208896, 4096);
         internal readonly byte* Output = (byte*)NativeMemory.AllocZeroed(128);
@@ -406,22 +568,23 @@ internal static unsafe class ContinuingFat32MutationTests
         private int publication;
         internal Span<byte> Volatile => new(Device.Hardware->Medium, Sectors * 512);
         internal Span<byte> Persistent => new(Device.Hardware->Persistent, Sectors * 512);
-        internal Fixture()
+        internal Fixture(byte sectorsPerCluster = 1)
         {
+            ulong capacity = (ulong)Data + Clusters * (ulong)sectorsPerCluster; Device = new(capacity);
             new Span<byte>(arena, 208896).Fill(0xa7); byte[] image = new byte[Sectors * 512];
-            Span<byte> boot = image.AsSpan(First * 512, 512); Put16(boot, 11, 512); boot[13] = 1; Put16(boot, 14, Reserved); boot[16] = 2;
-            Put32(boot, 32, Sectors - First); Put32(boot, 36, FatSectors); Put32(boot, 44, 2); boot[510] = 0x55; boot[511] = 0xaa;
+            Span<byte> boot = image.AsSpan(First * 512, 512); Put16(boot, 11, 512); boot[13] = sectorsPerCluster; Put16(boot, 14, Reserved); boot[16] = 2;
+            Put32(boot, 32, (uint)(capacity - First)); Put32(boot, 36, FatSectors); Put32(boot, 44, 2); boot[510] = 0x55; boot[511] = 0xaa;
             foreach (int lba in new[] { First + Reserved, First + Reserved + FatSectors })
             { Put32(image, lba * 512, 0xffffff8); Put32(image, lba * 512 + 4, 0xfffffff); Put32(image, lba * 512 + 8, 0xfffffff); Put32(image, lba * 512 + 12, 0xfffffff); Put32(image, lba * 512 + 16, 6); Put32(image, lba * 512 + 24, 0xfffffff); }
             var keep = image.AsSpan(Data * 512, 32); "KEEP    TXT"u8.CopyTo(keep); keep[11] = 0x20; Put16(keep, 26, 3); Put32(keep, 28, 3);
             var file = image.AsSpan(Data * 512 + 32, 32); "DATA    BIN"u8.CopyTo(file); file[11] = 0x20; Put16(file, 26, 4); Put32(file, 28, 900);
             for (int i = 0; i < 900; i++) image[(i < 512 ? Data + 2 : Data + 4) * 512 + i % 512] = Value(i);
-            Device.UseMedium(image); HostCheck.Equal(B.Status.Success, Device.Start());
+            Device.UseMedium(image, sectorsPerCluster != 1); HostCheck.Equal(B.Status.Success, Device.Start());
             ulong cursor = (ulong)arena + 4096;
             void* Take(ulong bytes) { cursor = (cursor + 15) & ~15UL; ulong value = cursor; cursor += bytes; return (void*)value; }
             Input = new()
             {
-                Device = Device.State, Owner = 111, Epoch = 321, PartitionFirst = First, PartitionLast = Sectors - 1,
+                Device = Device.State, Owner = 111, Epoch = 321, PartitionFirst = First, PartitionLast = capacity - 1,
                 ChangeCapacity = C.JournalChanges, ChainCapacity = C.MaximumClusters, InputCapacity = C.WriteBytes, WorkBudget = 100000,
                 Changes = (Fat32Mutation.Change*)Take(C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)),
                 Before = (byte*)Take(C.JournalChanges * 512UL), After = (byte*)Take(C.JournalChanges * 512UL),

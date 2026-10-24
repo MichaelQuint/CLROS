@@ -11,26 +11,28 @@ namespace OS.Storage;
 /// and backing; no snapshot, retained Span/ref struct, allocation, user pointer,
 /// synchronous disk spin or native activation is supplied. This first slice
 /// opens regular root files, creates empty root files, overwrites within their
-/// existing length and sends actual barriers. Nested directories, growth,
-/// truncate/rename/delete and
+/// existing length, grows files using explicit free clusters and sends actual
+/// barriers. Nested directories, truncate/rename/delete and
 /// persistent crash recovery remain unsupported. Any issued-write failure keeps
 /// dirty before/after buffers owned; device reset never authorizes their loss.</summary>
 public static unsafe class ContinuingFat32Mutation
 {
     public const uint JournalChanges = 128, MaximumClusters = 4096, WriteBytes = 8192, NameWords = 256, VfatWords = 260;
     public const uint SectorBytes = 512, EncodedEntryBytes = 672;
+    public const int MaximumGrowthClusters = 16;
     public enum Status : byte
     {
         Uninitialized, Success, Pending, Ready, Idle, InvalidStorage, InvalidState,
         InvalidVolume, InvalidName, NotFound, NotFile, ReadOnly, Unsupported,
         CorruptDirectory, CorruptChain, MirrorMismatch, BudgetExceeded,
         CapacityExceeded, StaleToken, Busy, Cancelled, GenerationExhausted,
-        BlockFailure, RecoveryRequired, AlreadyExists
+        BlockFailure, RecoveryRequired, AlreadyExists, InvalidAllocation
     }
     internal enum Life : byte { Mounting = 1, Idle, Working, Ready, Faulted, Retired }
-    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create }
-    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush }
-    internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush }
+    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow }
+    internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo }
+    internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit }
+    internal enum Transform : byte { Zero, Fat, Directory, FsInfo }
     private const byte LookupName = 1, LookupToken = 2, ValidateRoot = 3, CreateRoot = 4;
 
     /// <summary>Exact initial bounded backing:128 changes, two64KiB journal
@@ -97,6 +99,12 @@ public static unsafe class ContinuingFat32Mutation
         internal uint RootCount, TargetCount, WalkCount, WalkNext, OtherLength;
         internal uint DirectorySector, DirectorySlot, NameLength, Wanted, PlannedBytes, Changes, Issued, Work;
         internal uint CreateSlots, CreateStart, CreateFree;
+        internal fixed uint Growth[MaximumGrowthClusters];
+        internal uint GrowthCount, NewLength, GrowthCursor, FatCursor, FsCursor, FsInfoSector, BackupBootSector, FlushedThrough;
+        internal uint EditIndex, EditOffset, EditBytes, EditValue;
+        internal ulong ZeroPosition, ZeroEnd;
+        internal Fat32Mutation.Stage EditStage;
+        internal Transform EditKind;
         internal LiveVfatState Vfat;
         internal Status Failure;
         internal Block.Status DriverFailure;
@@ -203,6 +211,43 @@ public static unsafe class ContinuingFat32Mutation
         }
     }
 
+    /// <summary>Copy at most16 explicit candidate clusters and grow a root
+    /// file; no allocation search or payload write is supplied. Candidates must
+    /// exactly cover the additional length and be distinct free clusters in
+    /// both FATs. Preserve old data, zero the visible tail and entire new
+    /// clusters, then FLUSH data, both FATs, directory and advisory FSInfo in
+    /// order. Plan every change before first OUT;128 entries remain the separate
+    /// ceiling. FSInfo unknowns remain unknown, never guessed. Growth does not
+    /// provide power-loss atomicity or recovery. Copied result Bytes is the
+    /// increase in logical length; old file tokens are revoked on first OUT.</summary>
+    public static Status BeginGrow(State* s, FileToken file, uint newLength, ReadOnlySpan<uint> candidates, RequestToken* request)
+    {
+        if (!Bound(s)) return Status.InvalidState;
+        fixed (uint* source = candidates)
+        {
+            if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken)) || candidates.Length != 0 &&
+                (!Caller(s, (ulong)source, (ulong)candidates.Length * 4) || Overlap((ulong)source, (ulong)candidates.Length * 4, (ulong)request, (ulong)sizeof(RequestToken)))) return Status.InvalidStorage;
+            *request = default;
+            if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
+            if (!FileMatches(s, file)) return Status.StaleToken;
+            if (newLength <= file.Length) return Status.Unsupported;
+            ulong clusterBytes = s->Volume.SectorsPerCluster * 512UL;
+            uint oldCount = (uint)(((ulong)file.Length + clusterBytes - 1) / clusterBytes), newCount = (uint)(((ulong)newLength + clusterBytes - 1) / clusterBytes);
+            if (newCount > MaximumClusters || newCount - oldCount > MaximumGrowthClusters || candidates.Length > MaximumGrowthClusters) return Status.CapacityExceeded;
+            if ((uint)candidates.Length != newCount - oldCount) return Status.InvalidAllocation;
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                if (source[i] < 2 || source[i] - 2 >= s->Volume.ClusterCount) return Status.InvalidAllocation;
+                for (int j = 0; j < i; j++) if (source[j] == source[i]) return Status.InvalidAllocation;
+            }
+            if (s->RequestGeneration == ulong.MaxValue || s->Revision == ulong.MaxValue) return Status.GenerationExhausted;
+            Begin(s, Kind.Grow); s->File = file; s->NewLength = newLength; s->Wanted = newLength - file.Length; s->GrowthCount = (uint)candidates.Length;
+            for (int i = 0; i < candidates.Length; i++) s->Growth[i] = source[i];
+            s->ZeroPosition = file.Length; s->ZeroEnd = candidates.Length == 0 ? newLength : newCount * clusterBytes;
+            BeginRootChain(s, LookupToken); *request = new(s); return Status.Pending;
+        }
+    }
+
     /// <summary>Request a real volume FLUSH, even when no data is dirty. This
     /// is a block barrier; no regular-file or directory durability is fabricated.</summary>
     public static Status BeginFlush(State* s, RequestToken* request)
@@ -234,8 +279,14 @@ public static unsafe class ContinuingFat32Mutation
             case Step.RootChain: case Step.TargetChain: case Step.OtherChain: return Walk(s);
             case Step.Scan: return Scan(s);
             case Step.Plan: return Plan(s);
+            case Step.GrowCandidates: return CheckGrowthCandidates(s);
+            case Step.GrowData: return PlanGrowthData(s);
+            case Step.GrowFat: return PlanGrowthFat(s);
+            case Step.GrowDirectory: return Edit(s, s->File.EntryOffset / 512, Fat32Mutation.Stage.PublishDirectory, Transform.Directory, (uint)(s->File.EntryOffset % 512), 32, 0);
+            case Step.GrowFsInfo: return PlanGrowthFsInfo(s);
             case Step.Issue:
-                if (s->Issued == s->Changes) { s->Step = Step.Flush; return Status.Pending; }
+                if (s->Issued == s->Changes || s->Issued != s->FlushedThrough && s->Input.Changes[s->Issued].Phase != s->Input.Changes[s->Issued - 1].Phase)
+                { s->Step = Step.Flush; return Status.Pending; }
                 return Write(s);
             case Step.Flush: return Flush(s);
             default: return Fail(s, Status.InvalidState, true);
@@ -263,7 +314,7 @@ public static unsafe class ContinuingFat32Mutation
     {
         if (!Bound(s)) return Status.InvalidState;
         if (!Output(s, (ulong)result, (ulong)sizeof(Result))) return Status.InvalidStorage;
-        *result = default; if (!Matches(s, request) || s->Kind is not (Kind.Overwrite or Kind.Barrier or Kind.Create)) return Status.StaleToken;
+        *result = default; if (!Matches(s, request) || s->Kind is not (Kind.Overwrite or Kind.Barrier or Kind.Create or Kind.Grow)) return Status.StaleToken;
         if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
         Status status = s->Failure; *result = new(status, status == Status.Success ? s->Wanted : 0); EndRequest(s); return status;
     }
@@ -313,6 +364,7 @@ public static unsafe class ContinuingFat32Mutation
         s->Kind = kind; s->RequestGeneration++; s->Phase = Life.Working; s->Failure = Status.Success; s->DriverFailure = Block.Status.Success;
         s->Cancelled = s->DeviceFault = false; s->Changes = s->Issued = s->Wanted = s->PlannedBytes = s->Work = 0; s->FatPart = 0;
         s->CreateHasRun = s->CreateEnd = false; s->CreateSlots = s->CreateStart = s->CreateFree = 0;
+        s->GrowthCount = s->GrowthCursor = s->FatCursor = s->FsCursor = s->FlushedThrough = 0;
     }
     private static void BeginRootChain(State* s, byte reason)
     { s->RootCount = s->WalkCount = 0; s->WalkNext = s->Volume.RootCluster; s->ScanReason = reason; s->Step = Step.RootChain; }
@@ -351,14 +403,20 @@ public static unsafe class ContinuingFat32Mutation
     }
     private static Status Fat(State* s, uint cluster, out uint next, out bool end)
     {
-        next = 0; end = false; ulong lba = s->Volume.FirstFatLba + cluster / 128;
-        if (s->FatPart == 0 || s->FatLba != lba) { s->FatLba = lba; s->FatPart = 0; return Read(s, lba, s->Input.Fat0, Purpose.Fat0); }
-        if (s->FatPart == 1) return Read(s, lba + s->Volume.FatSectors, s->Input.Fat1, Purpose.Fat1);
-        if (!new ReadOnlySpan<byte>(s->Input.Fat0, 512).SequenceEqual(new ReadOnlySpan<byte>(s->Input.Fat1, 512))) return Finish(s, Status.MirrorMismatch);
-        uint value = 0; var status = Chain.ReadFatEntry(s->Volume, cluster, lba, new Span<byte>(s->Input.Fat0, 512), BlockReadResult.Success(1, 512), ref value);
+        next = 0; end = false; Status ready = RawFat(s, cluster, out _); if (ready != Status.Success) return ready;
+        uint value = 0; var status = Chain.ReadFatEntry(s->Volume, cluster, s->FatLba, new Span<byte>(s->Input.Fat0, 512), BlockReadResult.Success(1, 512), ref value);
         if (status == LiveFat32Status.EndOfChain) { end = true; return Status.Success; }
         if (status != LiveFat32Status.Success) return Finish(s, Status.CorruptChain);
         next = value; return Status.Success;
+    }
+    private static Status RawFat(State* s, uint cluster, out uint value)
+    {
+        value = 0; ulong lba = s->Volume.FirstFatLba + cluster / 128;
+        if (s->FatPart == 0 || s->FatLba != lba) { s->FatLba = lba; s->FatPart = 0; return Read(s, lba, s->Input.Fat0, Purpose.Fat0); }
+        if (s->FatPart == 1) return Read(s, lba + s->Volume.FatSectors, s->Input.Fat1, Purpose.Fat1);
+        if (!new ReadOnlySpan<byte>(s->Input.Fat0, 512).SequenceEqual(new ReadOnlySpan<byte>(s->Input.Fat1, 512))) return Finish(s, Status.MirrorMismatch);
+        value = EndianPrimitives.ReadUInt32LittleEndian(new ReadOnlySpan<byte>(s->Input.Fat0 + (cluster % 128) * 4, 4)) & 0x0fffffff;
+        return Status.Success;
     }
     private static void ResetScan(State* s)
     { s->DirectorySector = s->DirectorySlot = 0; s->Vfat = default; s->LoadedDirectoryLba = ulong.MaxValue; s->Step = Step.Scan; }
@@ -415,10 +473,14 @@ public static unsafe class ContinuingFat32Mutation
         bool match = s->ScanReason == LookupToken ? physical == s->File.EntryOffset : NameMatches(s, raw, parsed.NameLength);
         if (!match) return Status.Pending;
         if (s->ScanReason == LookupToken && (!Fingerprint(s->File, raw) || parsed.FirstCluster != s->File.FirstCluster || parsed.ByteCount != s->File.Length)) return Finish(s, Status.StaleToken);
-        if (s->Kind == Kind.Overwrite && (parsed.Attributes & 1) != 0) return Finish(s, Status.ReadOnly);
+        if (s->Kind is Kind.Overwrite or Kind.Grow && (parsed.Attributes & 1) != 0) return Finish(s, Status.ReadOnly);
         s->File = new(s, physical, parsed.FirstCluster, parsed.ByteCount, raw); s->TargetCount = s->WalkCount = 0;
         if (parsed.ByteCount == 0)
-            return parsed.FirstCluster == 0 ? Finish(s, Status.Success) : Finish(s, Status.CorruptChain);
+        {
+            if (parsed.FirstCluster != 0) return Finish(s, Status.CorruptChain);
+            if (s->Kind != Kind.Grow) return Finish(s, Status.Success);
+            s->ScanReason = ValidateRoot; ResetScan(s); return Status.Pending;
+        }
         s->WalkNext = parsed.FirstCluster; s->Step = Step.TargetChain; return Status.Pending;
     }
     private static Status ScanEnd(State* s)
@@ -426,7 +488,7 @@ public static unsafe class ContinuingFat32Mutation
         if (Vfat.Finish(s->Vfat) != LiveDirectoryStatus.End) return Finish(s, Status.CorruptDirectory);
         if (s->Kind == Kind.Create) { if (!s->CreateHasRun) return Finish(s, Status.CapacityExceeded); }
         else if (s->ScanReason != ValidateRoot) return Finish(s, s->ScanReason == LookupToken ? Status.StaleToken : Status.NotFound);
-        s->Step = Step.Plan; return Status.Pending;
+        s->Step = s->Kind == Kind.Grow ? Step.GrowCandidates : Step.Plan; return Status.Pending;
     }
     private static bool NameMatches(State* s, ReadOnlySpan<byte> raw, ushort longLength)
     {
@@ -460,6 +522,85 @@ public static unsafe class ContinuingFat32Mutation
         uint cluster = s->Kind == Kind.Create ? s->Input.DirectoryMap[map] : s->Input.FileMap[map];
         ulong lba = s->Volume.FirstDataLba + (ulong)(cluster - 2) * s->Volume.SectorsPerCluster + (position % clusterBytes) / 512;
         return Read(s, lba, s->Input.Before + s->Changes * 512, Purpose.Original);
+    }
+    private static Status CheckGrowthCandidates(State* s)
+    {
+        if (s->GrowthCursor == s->GrowthCount) { s->Step = Step.GrowData; return Status.Pending; }
+        Status status = RawFat(s, s->Growth[s->GrowthCursor], out uint value); if (status != Status.Success) return status;
+        if (!Spend(s)) return Finish(s, Status.BudgetExceeded);
+        if (value != 0) return Finish(s, Status.InvalidAllocation);
+        s->GrowthCursor++; return Status.Pending;
+    }
+    private static Status PlanGrowthData(State* s)
+    {
+        if (s->ZeroPosition == s->ZeroEnd) { s->Step = Step.GrowFat; return Status.Pending; }
+        ulong clusterBytes = s->Volume.SectorsPerCluster * 512UL; uint logical = (uint)(s->ZeroPosition / clusterBytes);
+        uint cluster = logical < s->TargetCount ? s->Input.FileMap[logical] : s->Growth[logical - s->TargetCount];
+        ulong lba = s->Volume.FirstDataLba + (ulong)(cluster - 2) * s->Volume.SectorsPerCluster + s->ZeroPosition % clusterBytes / 512;
+        uint offset = (uint)(s->ZeroPosition % 512); ulong remaining = s->ZeroEnd - s->ZeroPosition;
+        uint bytes = remaining < 512 - offset ? (uint)remaining : 512 - offset;
+        return Edit(s, lba, Fat32Mutation.Stage.Data, Transform.Zero, offset, bytes, 0);
+    }
+    private static Status PlanGrowthFat(State* s)
+    {
+        uint links = s->GrowthCount == 0 ? 0 : s->GrowthCount + (s->TargetCount == 0 ? 0U : 1U);
+        if (s->FatCursor == links * 2) { s->Step = Step.GrowDirectory; return Status.Pending; }
+        uint edge = s->FatCursor / 2, cluster, value;
+        if (s->TargetCount != 0 && edge == 0) { cluster = s->Input.FileMap[s->TargetCount - 1]; value = s->Growth[0]; }
+        else
+        {
+            uint at = edge - (s->TargetCount == 0 ? 0U : 1U); cluster = s->Growth[at];
+            value = at + 1 == s->GrowthCount ? 0x0fffffff : s->Growth[at + 1];
+        }
+        ulong lba = s->Volume.FirstFatLba + cluster / 128 + (s->FatCursor % 2) * s->Volume.FatSectors;
+        return Edit(s, lba, Fat32Mutation.Stage.AllocateFat, Transform.Fat, cluster % 128 * 4, 4, value);
+    }
+    private static Status PlanGrowthFsInfo(State* s)
+    {
+        if (s->GrowthCount == 0 || s->FsInfoSector == 0xffff || s->FsCursor == 2 || s->FsCursor == 1 && s->BackupBootSector is 0 or 0xffff)
+        { s->Step = Step.Issue; return Status.Pending; }
+        if (s->FsInfoSector == 0 || s->FsInfoSector >= s->Volume.ReservedSectors || s->FsCursor == 1 &&
+            (s->BackupBootSector >= s->Volume.ReservedSectors || s->FsInfoSector >= s->Volume.ReservedSectors - s->BackupBootSector)) return Finish(s, Status.InvalidVolume);
+        ulong lba = s->Input.PartitionFirst + s->FsInfoSector + (s->FsCursor == 0 ? 0 : s->BackupBootSector);
+        return Edit(s, lba, Fat32Mutation.Stage.FsInfo, Transform.FsInfo, 0, 512, 0);
+    }
+    // Coalesce only within a stage. Before remains the original actual read;
+    // After accumulates every link in that FAT sector without losing edits.
+    private static Status Edit(State* s, ulong lba, Fat32Mutation.Stage stage, Transform kind, uint offset, uint bytes, uint value)
+    {
+        s->EditStage = stage; s->EditKind = kind; s->EditOffset = offset; s->EditBytes = bytes; s->EditValue = value;
+        for (uint i = 0; i < s->Changes; i++)
+        {
+            if (!Spend(s)) return Finish(s, Status.BudgetExceeded);
+            if (s->Input.Changes[i].Sector == lba && s->Input.Changes[i].Phase == stage) { s->EditIndex = i; return ApplyEdit(s); }
+        }
+        if (s->Changes == JournalChanges) return Finish(s, Status.CapacityExceeded);
+        s->EditIndex = s->Changes; return Read(s, lba, s->Input.Before + s->Changes * 512, Purpose.GrowthEdit);
+    }
+    private static Status ApplyEdit(State* s)
+    {
+        Span<byte> after = new(s->Input.After + s->EditIndex * 512, 512);
+        switch (s->EditKind)
+        {
+            case Transform.Zero:
+                after.Slice((int)s->EditOffset, (int)s->EditBytes).Clear(); s->ZeroPosition += s->EditBytes; break;
+            case Transform.Fat:
+                uint original = EndianPrimitives.ReadUInt32LittleEndian(after[(int)s->EditOffset..]);
+                EndianPrimitives.WriteUInt32LittleEndian(after[(int)s->EditOffset..], (original & 0xf0000000) | s->EditValue); s->FatCursor++; break;
+            case Transform.Directory:
+                Span<byte> raw = after.Slice((int)s->EditOffset, 32);
+                if (!Fingerprint(s->File, raw)) return Finish(s, Status.StaleToken);
+                uint first = s->TargetCount == 0 ? s->Growth[0] : s->File.FirstCluster;
+                EndianPrimitives.WriteUInt16LittleEndian(raw[20..], (ushort)(first >> 16)); EndianPrimitives.WriteUInt16LittleEndian(raw[26..], (ushort)first);
+                EndianPrimitives.WriteUInt32LittleEndian(raw[28..], s->NewLength); s->Step = Step.GrowFsInfo; break;
+            case Transform.FsInfo:
+                if (EndianPrimitives.ReadUInt32LittleEndian(after) != 0x41615252 || EndianPrimitives.ReadUInt32LittleEndian(after[484..]) != 0x61417272 ||
+                    EndianPrimitives.ReadUInt32LittleEndian(after[508..]) != 0xaa550000) return Finish(s, Status.InvalidVolume);
+                // Both are advisory. Preserve unknowns and invalidate old hints
+                // rather than inventing a free-count or a verified next slot.
+                EndianPrimitives.WriteUInt32LittleEndian(after[488..], uint.MaxValue); EndianPrimitives.WriteUInt32LittleEndian(after[492..], uint.MaxValue); s->FsCursor++; break;
+        }
+        return Status.Pending;
     }
     private static Status Read(State* s, ulong lba, byte* target, Purpose purpose)
     {
@@ -510,6 +651,8 @@ public static unsafe class ContinuingFat32Mutation
                 var parsed = Chain.ParseBpb(new Span<byte>(s->Input.Sector, 512), s->Input.Device->SectorCount, s->Input.PartitionFirst, s->Input.PartitionLast,
                     BlockReadResult.Success(1, 512), ref s->Volume);
                 if (parsed != LiveFat32Status.Success) return Fail(s, Status.InvalidVolume, true);
+                s->FsInfoSector = EndianPrimitives.ReadUInt16LittleEndian(new ReadOnlySpan<byte>(s->Input.Sector + 48, 2));
+                s->BackupBootSector = EndianPrimitives.ReadUInt16LittleEndian(new ReadOnlySpan<byte>(s->Input.Sector + 50, 2));
                 BeginRootChain(s, 0); break;
             case Purpose.Fat0: s->FatPart = 1; break;
             case Purpose.Fat1: s->FatPart = 2; break;
@@ -523,7 +666,13 @@ public static unsafe class ContinuingFat32Mutation
                     s->PlannedBytes + i < s->CreateSlots * 32 ? s->Input.EncodedEntries[s->PlannedBytes + i] : (byte)0 : s->Input.Input[s->PlannedBytes + i];
                 s->Input.Changes[index] = new() { Sector = s->IoLba, Phase = create ? Fat32Mutation.Stage.PublishDirectory : Fat32Mutation.Stage.Data }; s->Changes++; s->PlannedBytes += take; break;
             case Purpose.Write: s->Issued++; break;
-            case Purpose.Flush: s->DirtyValue = false; return Finish(s, Status.Success);
+            case Purpose.Flush:
+                s->FlushedThrough = s->Issued;
+                if (s->Issued < s->Changes) { s->Step = Step.Issue; return Status.Pending; }
+                s->DirtyValue = false; return Finish(s, Status.Success);
+            case Purpose.GrowthEdit:
+                new ReadOnlySpan<byte>(s->Input.Before + s->EditIndex * 512, 512).CopyTo(new Span<byte>(s->Input.After + s->EditIndex * 512, 512));
+                s->Input.Changes[s->EditIndex] = new() { Sector = s->IoLba, Phase = s->EditStage }; s->Changes++; return ApplyEdit(s);
         }
         return Status.Pending;
     }
