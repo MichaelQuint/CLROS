@@ -10,6 +10,7 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if(args is ["--recovery-seed" or "--recovery-spill" or "--recovery-verify",_])return Recovery(args[0][11..],args[1]);
         Console.WriteLine("TEST_START m10.020");
         try
         {
@@ -70,6 +71,65 @@ internal static class Program
         catch(Exception error)
         {Console.WriteLine("TEST_FAIL m10.020 "+error.GetType().Name+" "+error.Message.ReplaceLineEndings(" "));return 1;}
     }
+
+    // Separate process-kill contract candidate. The ordinary mode above keeps
+    // its graceful transaction contract. This changed app needs a new native
+    // publication before its recovery route can supply Linux/CLROS evidence.
+    private static int Recovery(string mode,string supplied)
+    {
+        string marker="m10.020.recovery."+mode;Console.WriteLine("TEST_START "+marker);
+        try
+        {
+            string database=Path.GetFullPath(supplied);
+            Require(Path.IsPathFullyQualified(supplied) && Directory.Exists(Path.GetDirectoryName(database)) &&
+                !Path.Exists(database+"-wal") && !Path.Exists(database+"-shm"),"recovery_path");
+            Require(mode=="seed"?!Path.Exists(database) && !Path.Exists(database+"-journal"):File.Exists(database),"recovery_database");
+            if(mode=="verify")Require(File.Exists(database+"-journal") && new FileInfo(database+"-journal").Length>512,"recovery_journal_required");
+            using(var connection=new SqliteConnection(new SqliteConnectionStringBuilder
+                {DataSource=database,Mode=mode=="seed"?SqliteOpenMode.ReadWriteCreate:SqliteOpenMode.ReadWrite,
+                    Cache=SqliteCacheMode.Private,Pooling=false,DefaultTimeout=1}.ToString()))
+            {
+                connection.Open();Require(Scalar(connection,"SELECT sqlite_version()" )=="3.53.4","engine_pin");
+                Console.WriteLine("SQLITE_RECOVERY_ENGINE version=3.53.4 sourceBase64="+
+                    Convert.ToBase64String(Encoding.UTF8.GetBytes(Scalar(connection,"SELECT sqlite_source_id()"))));
+                Require(Scalar(connection,"PRAGMA journal_mode=DELETE")=="delete","recovery_journal_policy");
+                Execute(connection,"PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY; PRAGMA page_size=4096; PRAGMA cache_size=8; PRAGMA cache_spill=ON;");
+                Require(Scalar(connection,"PRAGMA synchronous")=="2" && Scalar(connection,"PRAGMA page_size")=="4096" &&
+                    Scalar(connection,"PRAGMA cache_size")=="8" && int.Parse(Scalar(connection,"PRAGMA cache_spill"),System.Globalization.CultureInfo.InvariantCulture)>0 &&
+                    Scalar(connection,"SELECT count(*) FROM pragma_database_list WHERE name<>'main'")=="0","recovery_policy");
+                if(mode=="seed")Execute(connection,"CREATE TABLE recovery (id INTEGER PRIMARY KEY, generation INTEGER NOT NULL, value BLOB NOT NULL)");
+                if(mode is "seed" or "spill")
+                {
+                    using var transaction=connection.BeginTransaction(deferred:false);using var command=connection.CreateCommand();command.Transaction=transaction;
+                    command.CommandText=mode=="seed"?"INSERT INTO recovery VALUES ($id,0,$value)":"UPDATE recovery SET generation=1,value=$value WHERE id=$id";
+                    var id=command.Parameters.Add("$id",SqliteType.Integer);var data=command.Parameters.Add("$value",SqliteType.Blob);
+                    for(int row=1;row<=64;row++){id.Value=row;data.Value=RecoveryPayload(row,mode=="spill");Require(command.ExecuteNonQuery()==1,"recovery_write");}
+                    if(mode=="seed")transaction.Commit();
+                    else
+                    {
+                        using var journal=new FileStream(database+"-journal",FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
+                        byte[] header=new byte[28];journal.ReadExactly(header);
+                        Require(journal.Length is >512 and <=8*1024*1024 && header.AsSpan(0,8).SequenceEqual(new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}),"recovery_spill_header");
+                        Console.WriteLine("SQLITE_RECOVERY_SPILL rows=64 journalBytes="+journal.Length+" headerBase64="+Convert.ToBase64String(header));
+                        Console.Out.Flush();Thread.Sleep(TimeSpan.FromSeconds(60));throw new InvalidOperationException("recovery_owned_kill_required");
+                    }
+                }
+                using var read=connection.CreateCommand();read.CommandText="SELECT id,generation,value FROM recovery ORDER BY id";
+                using(var rows=read.ExecuteReader())
+                {
+                    int count=0;while(rows.Read()){int id=++count;Require(rows.GetInt32(0)==id && rows.GetInt32(1)==0 &&
+                        ((byte[])rows.GetValue(2)).AsSpan().SequenceEqual(RecoveryPayload(id,false)),"recovery_original_rows");}Require(count==64,"recovery_rows");
+                }
+                Require(Scalar(connection,"PRAGMA integrity_check")=="ok","recovery_integrity");
+                Console.WriteLine(mode=="seed"?"SQLITE_RECOVERY_SEED rows=64 pageSize=4096":"SQLITE_RECOVERY_VERIFY rows=64 generation=0 integrity=ok");
+            }
+            Require(!Path.Exists(database+"-journal") && !Path.Exists(database+"-wal") && !Path.Exists(database+"-shm"),"recovery_closed_files");
+            Console.WriteLine("TEST_PASS "+marker);return 0;
+        }
+        catch(Exception error){Console.WriteLine("TEST_FAIL "+marker+" "+error.GetType().Name+" "+error.Message.ReplaceLineEndings(" "));return 1;}
+    }
+
+    private static byte[] RecoveryPayload(int id,bool changed)=>Enumerable.Range(0,4096).Select(i=>(byte)((id*13+i*17+(i>>8))^(changed?0x5a:0))).ToArray();
 
     private static void Insert(SqliteConnection connection,SqliteTransaction transaction,int id)
     {

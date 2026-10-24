@@ -98,6 +98,49 @@ public static class NativeAotSqliteContract
         public string DatabaseSha256 {get;}
         public bool GrantsLinuxNativeAotGuestOrDurabilityAuthority=>false;
     }
+    public sealed record RecoveryJournal(int FirstSegmentRecords,int ChangedProtectedPages,int OriginalPages,int SectorBytes,
+        string BaselineSha256,string ChangedDatabaseSha256,string JournalSha256)
+    {public bool GrantsLockFlushHotJournalOrDurabilityAuthority=>false;}
+    public sealed class ManagedRecovery
+    {
+        internal ManagedRecovery(string directory,RecoveryJournal journal,ProcessResult writer,string recoveredHash)
+        {Directory=directory;Journal=journal;Writer=writer;RecoveredDatabaseSha256=recoveredHash;}
+        public string Directory {get;}
+        public RecoveryJournal Journal {get;}
+        public ProcessResult Writer {get;}
+        public string RecoveredDatabaseSha256 {get;}
+        public bool GrantsLinuxNativeAotGuestOrPowerLossDurabilityAuthority=>false;
+    }
+
+    /// <summary>Copy bounded journal-header and first-segment record values.
+    /// Check SQLite's big-endian page numbers and sparse checksums against an
+    /// independently retained committed baseline, and require a protected page
+    /// already changed in the database. Later journal segments are not parsed.
+    /// Borrowed bytes cannot establish an absent RESERVED lock, xSync calls,
+    /// a hot journal, recovery execution or persistence after power loss.</summary>
+    public static RecoveryJournal InspectRecoveryJournalValues(ReadOnlySpan<byte> baseline,ReadOnlySpan<byte> changed,ReadOnlySpan<byte> journal)
+    {
+        Need(baseline.Length is >=4096 and <=2*1024*1024 && baseline.Length%4096==0 && changed.Length==baseline.Length &&
+            baseline[..16].SequenceEqual("SQLite format 3\0"u8) && changed[..16].SequenceEqual("SQLite format 3\0"u8) &&
+            BinaryPrimitives.ReadUInt16BigEndian(baseline[16..])==4096,"recovery_database_bytes");
+        Need(journal.Length is >512 and <=8*1024*1024 && journal[..8].SequenceEqual(new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}),"recovery_journal_header");
+        uint records=BinaryPrimitives.ReadUInt32BigEndian(journal[8..]),nonce=BinaryPrimitives.ReadUInt32BigEndian(journal[12..]),
+            pages=BinaryPrimitives.ReadUInt32BigEndian(journal[16..]),sector=BinaryPrimitives.ReadUInt32BigEndian(journal[20..]),size=BinaryPrimitives.ReadUInt32BigEndian(journal[24..]);
+        Need(size==4096 && pages==baseline.Length/4096 && records is >0 and <=512 && records<=pages &&
+            sector is >=512 and <=65536 && (sector&(sector-1))==0 && (ulong)sector+(ulong)records*4104<=(ulong)journal.Length,"recovery_journal_segment");
+        HashSet<uint> seen=[];int dirty=0;
+        for(int index=0;index<records;index++)
+        {
+            int at=checked((int)sector+index*4104);uint page=BinaryPrimitives.ReadUInt32BigEndian(journal[at..]);
+            Need(page>0 && page<=pages && seen.Add(page),"recovery_journal_page");ReadOnlySpan<byte> data=journal.Slice(at+4,4096);
+            uint checksum=nonce;for(int offset=3896;offset>=0;offset-=200)checksum=unchecked(checksum+data[offset]);
+            Need(checksum==BinaryPrimitives.ReadUInt32BigEndian(journal[(at+4100)..]),"recovery_journal_checksum");
+            int databaseAt=checked(((int)page-1)*4096);Need(data.SequenceEqual(baseline.Slice(databaseAt,4096)),"recovery_journal_baseline");
+            if(!data.SequenceEqual(changed.Slice(databaseAt,4096)))dirty++;
+        }
+        Need(dirty>0,"recovery_spill_not_observed");return new((int)records,dirty,(int)pages,(int)sector,
+            Convert.ToHexString(SHA256.HashData(baseline)),Convert.ToHexString(SHA256.HashData(changed)),Convert.ToHexString(SHA256.HashData(journal)));
+    }
 
     /// <summary>Borrow the exact official release ZIP. Require its independently
     /// downloaded SHA256 and SQLite-published SHA3-256, then exact C/header
@@ -612,6 +655,131 @@ public static class NativeAotSqliteContract
                 LinuxNativeAotQualified=false,GuestQualified=false,DurabilityQualified=false}),CancellationToken.None);
         }
         return new(destination,transcript!,databaseHash);
+    }
+
+    /// <summary>Own fresh Windows managed seed/spill/reopen processes after a
+    /// source-matched ordinary fixture build. Pause the writer at an actual
+    /// journal/header and changed-page barrier, kill its entire owned job, then
+    /// take exclusive file handles before independent recovery. Retain baseline,
+    /// pre-kill and pre-reopen bytes, process results, pinned inputs and failures.
+    /// No synthetic journal or host flush is used. FULL is configured policy,
+    /// not an observed xSync/FlushFileBuffers trace; this process-kill candidate
+    /// grants no Linux NativeAOT, guest, power-loss or durable-storage acceptance.</summary>
+    public static async Task<ManagedRecovery> RunManagedRecoveryReferenceAsync(string root,string destination,CancellationToken cancellation=default)
+    {
+        Need(OperatingSystem.IsWindows(),"recovery_owned_windows_required");root=Path.GetFullPath(root);destination=Path.GetFullPath(destination,root);
+        Need(destination.StartsWith(Path.Combine(root,"artifacts")+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase) && !Path.Exists(destination),"fresh_output_required");
+        AuthorityFiles.RequirePlainPath(root,Path.GetDirectoryName(destination)!,"sqlite_recovery_parent");Directory.CreateDirectory(destination);
+        using var ownership=new FileStream(Path.Combine(destination,"ownership.lock"),FileMode.CreateNew,FileAccess.Write,FileShare.None);
+        string database=Path.Combine(destination,"recovery.db"),baselinePath=Path.Combine(destination,"baseline.db");
+        bool succeeded=false;string failure="",writerFailure="",recoveredHash="";RecoveryJournal? barrier=null;ProcessResult? writer=null;
+        List<object> commands=[];
+        void SaveProcess(string name,ProcessResult result)
+        {
+            File.WriteAllText(Path.Combine(destination,name+".stdout.log"),result.StandardOutput);File.WriteAllText(Path.Combine(destination,name+".stderr.log"),result.StandardError);
+            File.WriteAllText(Path.Combine(destination,name+".process.json"),JsonSerializer.Serialize(result));
+        }
+        string[] Lines(string text)=>text.Replace("\r\n","\n",StringComparison.Ordinal).TrimEnd('\n').Split('\n');
+        string engine="SQLITE_RECOVERY_ENGINE version=3.53.4 sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(SourceId));
+        byte[] ReadDatabaseFile(string path,FileShare share)
+        {
+            using var file=new FileStream(path,FileMode.Open,FileAccess.Read,share);
+            Need(file.Length is >0 and <=8*1024*1024,"recovery_file_capacity");byte[] bytes=new byte[(int)file.Length];file.ReadExactly(bytes);
+            Need(file.ReadByte()==-1,"recovery_file_changed");return bytes;
+        }
+        try
+        {
+            string ordinary=Path.Combine(destination,"ordinary");await RunManagedReferenceAsync(root,ordinary,cancellation);
+            using var lease=NativeAotPayload.OpenQualificationLease(root);using AuthorityFiles held=new();
+            var inventory=held.Open(root,Path.Combine(ordinary,"inputs.json"),"recovery build inputs","sqlite_recovery_inputs",1024*1024,singleLink:true);
+            using(var inputs=JsonDocument.Parse(inventory.ReadBytes(1024*1024,"sqlite_recovery_inputs")))
+            {
+                var entries=inputs.RootElement.EnumerateObject().ToArray();Need(entries.Length is >5 and <=512,"recovery_input_inventory");
+                foreach(var entry in entries)
+                {
+                    string path=Path.GetFullPath(entry.Name,root);Need(path.StartsWith(root+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase),"recovery_input_path");
+                    var input=held.Open(root,path,"recovery exact build input","sqlite_recovery_input",64*1024*1024,allowEmpty:true,singleLink:true);
+                    Need(input.Sha256.Equals(entry.Value.GetString(),StringComparison.OrdinalIgnoreCase),"recovery_input_changed");
+                }
+            }
+            foreach(var pin in PackagePins)
+            {
+                var package=held.Open(root,Path.Combine(ordinary,"packages",pin.Key.ToLowerInvariant()+"."+pin.Value+".nupkg"),
+                    "recovery pinned package","sqlite_recovery_package",64*1024*1024,singleLink:true);
+                Need(package.Sha256.Equals(PackageArchiveSha256[pin.Key],StringComparison.OrdinalIgnoreCase),"recovery_package_changed");
+            }
+            string app=Path.Combine(root,"apps",Application,"bin/Debug/net11.0",Application+".dll");
+            async Task<ProcessResult> Run(string mode)
+            {
+                string[] arguments=[app,"--recovery-"+mode,database];commands.Add(new{Executable="dotnet",Arguments=arguments,WorkingDirectory=root});
+                var result=await ProcessRunner.RunAsync(new("dotnet",arguments,root){Timeout=TimeSpan.FromMinutes(1),OutputCharacterLimit=64*1024},cancellation);
+                SaveProcess(mode,result);QemuTranscripts.RequireCompleteProcess(result,"sqlite_recovery_"+mode+"_cleanup");
+                Need(result.Succeeded && result.StandardError.Length==0,"recovery_"+mode+"_process");return result;
+            }
+            var seed=await Run("seed");Need(Lines(seed.StandardOutput).SequenceEqual(new[]{"TEST_START m10.020.recovery.seed",engine,
+                "SQLITE_RECOVERY_SEED rows=64 pageSize=4096","TEST_PASS m10.020.recovery.seed"}),"recovery_seed_transcript");
+            byte[] baseline=ReadDatabaseFile(database,FileShare.None);await File.WriteAllBytesAsync(baselinePath,baseline,cancellation);
+            held.Open(root,baselinePath,"recovery committed baseline","sqlite_recovery_baseline",2*1024*1024,singleLink:true);
+            using(var kill=CancellationTokenSource.CreateLinkedTokenSource(cancellation))
+            using(var deadline=CancellationTokenSource.CreateLinkedTokenSource(cancellation))
+            {
+                deadline.CancelAfter(TimeSpan.FromSeconds(45));var ready=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);StringBuilder output=new();
+                string[] arguments=[app,"--recovery-spill",database];commands.Add(new{Executable="dotnet",Arguments=arguments,WorkingDirectory=root});
+                var running=ProcessRunner.RunAsync(new("dotnet",arguments,root)
+                {
+                    Timeout=TimeSpan.FromMinutes(1),OutputCharacterLimit=64*1024,OutputReceived=(text,error)=>
+                    {
+                        if(error)return;output.Append(text);if(output.Length>64*1024)throw new ToolFailure("sqlite_contract_recovery_output_capacity");
+                        if(output.ToString().Split('\n').SkipLast(1).Any(line=>line.StartsWith("SQLITE_RECOVERY_SPILL ",StringComparison.Ordinal)))ready.TrySetResult();
+                    }
+                },kill.Token);
+                byte[]? changed=null,journal=null;
+                try
+                {
+                    Need(await Task.WhenAny(running,ready.Task).WaitAsync(deadline.Token)==ready.Task && !running.IsCompleted,"recovery_spill_barrier_not_reached");
+                    changed=ReadDatabaseFile(database,FileShare.ReadWrite);journal=ReadDatabaseFile(database+"-journal",FileShare.ReadWrite);
+                    await File.WriteAllBytesAsync(Path.Combine(destination,"before-kill.db"),changed,cancellation);
+                    await File.WriteAllBytesAsync(Path.Combine(destination,"before-kill.journal"),journal,cancellation);
+                    barrier=InspectRecoveryJournalValues(baseline,changed,journal);held.VerifyUnchanged();
+                    Need(!running.IsCompleted,"recovery_writer_exited_before_kill");
+                }
+                catch(Exception error){writerFailure=error is ToolFailure tool?tool.Reason:error.GetType().Name;throw;}
+                finally{kill.Cancel();writer=await running;SaveProcess("spill",writer);}
+                Need(writer.Cancelled && !writer.TimedOut && !writer.OutputLimitExceeded && writer.TerminationConfirmed && writer.FailureReason.Length==0 && writer.StandardError.Length==0,"recovery_writer_owned_kill");
+                Need(Lines(writer.StandardOutput).SequenceEqual(new[]{"TEST_START m10.020.recovery.spill",engine,
+                    "SQLITE_RECOVERY_SPILL rows=64 journalBytes="+journal!.Length+" headerBase64="+Convert.ToBase64String(journal.AsSpan(0,28))}),"recovery_spill_transcript");
+                // Exclusive handles after joined job termination provide the
+                // actual host absence-of-writer/lock barrier before reopen.
+                using(var db=new FileStream(database,FileMode.Open,FileAccess.Read,FileShare.None))
+                using(var log=new FileStream(database+"-journal",FileMode.Open,FileAccess.Read,FileShare.None))
+                {
+                    Need(db.Length==changed!.Length && log.Length==journal.Length,"recovery_postkill_size");
+                    byte[] dbBytes=new byte[changed.Length],logBytes=new byte[journal.Length];db.ReadExactly(dbBytes);log.ReadExactly(logBytes);
+                    Need(dbBytes.AsSpan().SequenceEqual(changed) && logBytes.AsSpan().SequenceEqual(journal),"recovery_postkill_changed");
+                    await File.WriteAllBytesAsync(Path.Combine(destination,"before-reopen.db"),dbBytes,cancellation);
+                    await File.WriteAllBytesAsync(Path.Combine(destination,"before-reopen.journal"),logBytes,cancellation);
+                }
+            }
+            foreach(string name in new[]{"before-kill.db","before-kill.journal","before-reopen.db","before-reopen.journal"})
+                held.Open(root,Path.Combine(destination,name),"recovery retained crash bytes","sqlite_recovery_crash",8*1024*1024,singleLink:true);
+            var verify=await Run("verify");Need(Lines(verify.StandardOutput).SequenceEqual(new[]{"TEST_START m10.020.recovery.verify",engine,
+                "SQLITE_RECOVERY_VERIFY rows=64 generation=0 integrity=ok","TEST_PASS m10.020.recovery.verify"}),"recovery_verify_transcript");
+            byte[] recovered=ReadDatabaseFile(database,FileShare.None);Need(recovered.AsSpan().SequenceEqual(baseline),"recovery_baseline_not_restored");
+            recoveredHash=Convert.ToHexString(SHA256.HashData(recovered));
+            Need(!Path.Exists(database+"-journal") && !Path.Exists(database+"-wal") && !Path.Exists(database+"-shm"),"recovery_sidecars_remaining");
+            held.VerifyUnchanged();Need(ToolingBuildInputs.Validate(root).Count==0,"tooling_inputs_changed");succeeded=true;
+        }
+        catch(Exception error){failure=error is ToolFailure tool?tool.Reason:error.GetType().Name+" "+error.Message.ReplaceLineEndings(" ");throw;}
+        finally
+        {
+            await File.WriteAllTextAsync(Path.Combine(destination,"commands.json"),JsonSerializer.Serialize(commands),CancellationToken.None);
+            await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
+            {Schema="clros-sqlite-managed-process-kill-recovery-v1",Succeeded=succeeded,Failure=failure,WriterFailure=writerFailure,Journal=barrier,Writer=writer,
+                RecoveredDatabaseSha256=recoveredHash,FullPolicyConfigured=true,SqliteFlushCallsObserved=false,HostAssistedFlush=false,
+                OriginalLinuxProducerSource="f61648c223e9aad99e0bbb48a4be5ee19a0c1bce",RequiresDistinctLinuxPublication=true,
+                LinuxNativeAotQualified=false,GuestQualified=false,PowerLossQualified=false,DurabilityQualified=false}),CancellationToken.None);
+        }
+        return new(destination,barrier!,writer!,recoveredHash);
     }
 
     /// <summary>Own one fresh Linux source/cache namespace, original recipe

@@ -278,6 +278,54 @@ internal static class NativeAotSqliteContractTests
         HostCheck.True(rejected);Console.WriteLine("SQLITE_MANAGED_REFERENCE "+output);
     }
 
+    [HostTest("sqlite recovery journal bytes require original checksummed pages and an actual protected database change")]
+    private static void RecoveryJournalValues()
+    {
+        byte[] baseline=new byte[8192];"SQLite format 3\0"u8.CopyTo(baseline);BinaryPrimitives.WriteUInt16BigEndian(baseline.AsSpan(16),4096);
+        baseline.AsSpan(4096).Fill(0x41);byte[] changed=baseline.ToArray();changed.AsSpan(4096).Fill(0x5a);
+        byte[] journal=new byte[512+4104];new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}.CopyTo(journal,0);
+        foreach(var pair in new[]{(8,1u),(12,0x10203040u),(16,2u),(20,512u),(24,4096u),(512,2u),(512+4100,0x10203554u)})
+            BinaryPrimitives.WriteUInt32BigEndian(journal.AsSpan(pair.Item1),pair.Item2);
+        baseline.AsSpan(4096).CopyTo(journal.AsSpan(516));var value=NativeAotSqliteContract.InspectRecoveryJournalValues(baseline,changed,journal);
+        HostCheck.True(value.FirstSegmentRecords==1 && value.ChangedProtectedPages==1 && value.OriginalPages==2 && value.SectorBytes==512 &&
+            value.BaselineSha256==Convert.ToHexString(SHA256.HashData(baseline)) && value.JournalSha256==Convert.ToHexString(SHA256.HashData(journal)) &&
+            !value.GrantsLockFlushHotJournalOrDurabilityAuthority);
+        foreach(string mode in new[]{"zero","count","unbounded","truncated","page","checksum","baseline","unchanged"})
+        {
+            byte[] candidate=journal.ToArray(),after=changed.ToArray();string reason;
+            switch(mode)
+            {
+                case "zero":candidate.AsSpan(0,8).Clear();reason="journal_header";break;
+                case "count":candidate.AsSpan(8,4).Clear();reason="journal_segment";break;
+                case "unbounded":candidate.AsSpan(8,4).Fill(255);reason="journal_segment";break;
+                case "truncated":candidate=candidate[..^1];reason="journal_segment";break;
+                case "page":BinaryPrimitives.WriteUInt32BigEndian(candidate.AsSpan(512),3);reason="journal_page";break;
+                case "checksum":candidate[^1]^=1;reason="journal_checksum";break;
+                case "baseline":candidate[516+100]^=1;reason="journal_baseline";break;
+                default:after=baseline.ToArray();reason="spill_not_observed";break;
+            }
+            Reject(()=>NativeAotSqliteContract.InspectRecoveryJournalValues(baseline,after,candidate),"recovery_"+reason);
+        }
+    }
+
+    [HostTest("sqlite managed process kill leaves original hot journal and independently reopens to committed bytes",HostLane.Native)]
+    private static async Task ManagedRecoveryReference()
+    {
+        string root=HostToolProcess.FindRepositoryRoot(),parent=Path.Combine(root,"artifacts/sqlite-recovery-host-tests");Directory.CreateDirectory(parent);
+        string output=Path.Combine(parent,Guid.NewGuid().ToString("N"));var value=await NativeAotSqliteContract.RunManagedRecoveryReferenceAsync(root,output);
+        HostCheck.True(!value.GrantsLinuxNativeAotGuestOrPowerLossDurabilityAuthority && value.Writer.Cancelled && value.Writer.TerminationConfirmed &&
+            !value.Writer.Succeeded && value.Journal.ChangedProtectedPages>0 && value.RecoveredDatabaseSha256==value.Journal.BaselineSha256);
+        byte[] baseline=File.ReadAllBytes(Path.Combine(output,"baseline.db")),before=File.ReadAllBytes(Path.Combine(output,"before-reopen.db")),
+            journal=File.ReadAllBytes(Path.Combine(output,"before-reopen.journal"));
+        HostCheck.True(!baseline.AsSpan().SequenceEqual(before) && baseline.AsSpan().SequenceEqual(File.ReadAllBytes(Path.Combine(output,"recovery.db"))) &&
+            NativeAotSqliteContract.InspectRecoveryJournalValues(baseline,before,journal)==value.Journal && !File.Exists(Path.Combine(output,"recovery.db-journal")));
+        var receipt=JsonNode.Parse(File.ReadAllBytes(Path.Combine(output,"receipt.json")))!;
+        HostCheck.True(receipt["Succeeded"]!.GetValue<bool>() && !receipt["SqliteFlushCallsObserved"]!.GetValue<bool>() &&
+            !receipt["HostAssistedFlush"]!.GetValue<bool>() && receipt["RequiresDistinctLinuxPublication"]!.GetValue<bool>() &&
+            !receipt["PowerLossQualified"]!.GetValue<bool>() && !receipt["GuestQualified"]!.GetValue<bool>());
+        Console.WriteLine("SQLITE_MANAGED_RECOVERY "+output);
+    }
+
     [HostTest("sqlite contract source and provider admission reject altered inputs before native compilation")]
     private static void UpstreamAdmission()
     {
