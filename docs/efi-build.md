@@ -11,6 +11,10 @@ The actual guest then rejects before firmware exit because its declared
 repair has focused source-profile coverage; it needs fresh native publication,
 ABI/stack review and owned guest evidence. A publication pass does not override
 that failed guest or qualify disk-to-HTTP service.
+[Step1567](../done/step1567.md) records the subsequent fresh publication/guest:
+the retained-map check passes, followed by memory-startup rejection. Its
+profile-specific construction-capacity repair and exact mechanical instruction
+metadata pass focused checks; another original publication/guest is required.
 
 ## Latest qualified inputs
 

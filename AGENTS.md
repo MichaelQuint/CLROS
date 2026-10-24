@@ -60,6 +60,9 @@ agent owns shared integration, documentation, tracker and serialized builds.
 [Step1566](done/step1566.md) retains the failed disk guest and the conditional
 54-range repair; earlier profiles keep 48. Complete disk consumption and fresh
 guest qualification remain required, despite staged-file and host passes.
+[Step1567](done/step1567.md) retains the next memory-admission failure and the
+disk-only 135-entry construction repair. Keep all 64 mutable regions, 128 table
+pages and historical ordinary/web limits; new metadata grants no guest authority.
 The isolated read-service integration adds a combined M16-025 mechanical disk
 profile with M16-023/024 parents and source4 thread waits. Preserve its separate
 PCI0:7 disk and PCI0:6 NIC ownership. Serialize native publication and guest

@@ -1,9 +1,11 @@
 # NativeAOT NoStdLib Limits
 
-The isolated continuing-disk profile has compiled as EFI C# with explicit
-conditional source links. This is an IL compilation check only. Original ILC
-publication, native ABI/stack bounds, retained image/arena extents and real guest
-device progress still require review. Its fixed observation records contain
+The isolated continuing-disk profile has original ILC/link/artifact verification
+and two retained failed diagnostic guests in steps1566/1567. The second reaches
+exit/startup/NIC records before memory admission rejects its 65 static mappings.
+The profile-specific range repairs need fresh native/guest qualification; full
+ABI/stack, retained image/arena and real device progress remain unaccepted.
+Its fixed observation records contain
 copied POD/sector bytes; callbacks allocate no storage and cannot reenter a
 block mutator. Accepted older profiles retain their exact source/native scopes.
 

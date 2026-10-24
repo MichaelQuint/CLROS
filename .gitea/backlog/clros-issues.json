@@ -36186,7 +36186,8 @@
         "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
         "src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs",
         "tests/OS.HostTests/M16008EfiIntegrationTests.cs",
-        "tests/OS.HostTests/LinuxDiskFileTranscriptTests.cs"
+        "tests/OS.HostTests/LinuxDiskFileTranscriptTests.cs",
+        "src/OS.Kernel/Memory/X64UserAddressSpace.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

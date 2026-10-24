@@ -24,7 +24,12 @@ requires native and guest qualification; ordinary boot is unchanged.
 48-range image/table admission. M16-025 now admits exactly that 54-range bound;
 earlier profiles retain 48. Page, table, permission and overlap bounds remain.
 The normal source-profile test now checks this combined profile explicitly.
-Fresh guest qualification of the repair remains pending.
+The next diagnostic moves past this check and records real exit/startup/NIC
+markers, then rejects memory admission. [Step1567](../done/step1567.md) retains
+that failure and its 65 static mappings. M16-025 now has 135 construction entries
+(128 plus seven); its 64 mutable-region quota and 128 table-page cap remain.
+Ordinary128 and web384 construction limits are unchanged. Complete guest
+qualification of both repairs remains pending.
 
 M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,

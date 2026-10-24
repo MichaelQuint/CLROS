@@ -22,6 +22,9 @@ staged guests pass complete consumers at `5ceeb0c2`; the batch still needs a
 fresh stable unfiltered full. None of those staged receipts qualifies FAT32
 serving. The value-only mechanical disk leaf does not supply its outstanding
 native, parent, sector/image, NIC or IRQ instruction joins.
+[Step1567](../done/step1567.md) retains the next failed guest and its conditional
+memory-construction repair. Its 41 focused checks and unchanged mechanical
+ELF/package do not advance disk or whole-batch acceptance.
 
 
 ## Current acceptance (October 23, 2026)

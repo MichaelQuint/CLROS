@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1567](../done/step1567.md) records a second genuine disk diagnostic failure,
+at memory-startup after exit/NIC markers. The 135-entry M16-025 construction
+inventory preserves its existing dynamic/table quotas. The mechanical fixture
+now exposes 481 exact main instruction starts, independently decoded and joined
+to retained LLVM22.1.3 bytes without changing its ELF/package. These facts still
+need the complete native/IRQ/parent/sector/packet/runner consumer and fresh guests.
+
 The isolated M16-025 development profile records continuing read evidence as
 `M16_023_IO` rows: original owner/epoch/generation, LBA, cumulative sequence,
 ring indexes and clock. Copy rows contain exact 512-byte payloads only after

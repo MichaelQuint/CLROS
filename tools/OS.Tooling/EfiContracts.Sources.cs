@@ -112,7 +112,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs"] = "a8ae3f3bb4cb5f4b7e442ba95e8c43717abeb982f7a640a65c01a79a4ac5a15d",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs"] = "7f8453247506d53c3de0808fa301b8e5b7adad440a1333ea6713904d14a6bdab",
-                [@"..\OS.Kernel\Memory\X64UserAddressSpace.cs"] = "91fd0c06e21961228b5612f589cf0f4ee4a8a99d8b5d996ab0d991ccc1e0a736",
+                [@"..\OS.Kernel\Memory\X64UserAddressSpace.cs"] = "c961eee56eb0800afc212715f34a6222d7a7b98fc6d1e9354632f72b493052f8",
                 [@"..\OS.Kernel\Memory\BootReservedRange.cs"] = "364f1916a8a76d52ad180e67fe7dc4cbba534c97201cacdfe58bc29459816718",
                 [@"..\OS.Kernel\Boot\WorkloadServiceLoop.cs"] = "231060bd0c1cac4dbf589997eaed900fd6bab5e3844ef6c553b41303f79bfc46",
                 [@"..\..\std\no-runtime\shared\Hash\Sha256.cs"] = "c0aa917440eb88aff634c5a4d593294c1d264d807e9d62868df9bb360b5d7f2a",

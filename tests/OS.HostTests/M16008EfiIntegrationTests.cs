@@ -189,6 +189,15 @@ internal static unsafe class M16008EfiIntegrationTests
             HostCheck.Equal(disk?54UL:48UL,Sum(tableCapacity));
             HostCheck.True(ranges<=Sum(tableCapacity),
                 "the live NIC and Linux runtime union must fit actual image and table-builder admission");
+            var userTables=Parse("src/OS.Kernel/Memory/X64UserAddressSpace.cs").DescendantNodes()
+                .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="X64UserAddressSpace");
+            ExpressionSyntax UserCapacity(string name)=>userTables.Members.OfType<FieldDeclarationSyntax>()
+                .SelectMany(n=>n.Declaration.Variables).Single(n=>n.Identifier.Text==name).Initializer!.Value;
+            ulong userRanges=Sum(UserCapacity("MaximumRanges"));
+            HostCheck.Equal(leaf=="EnableM10017Probe"?384UL:disk?135UL:128UL,userRanges);
+            HostCheck.Equal(128UL,Sum(UserCapacity("MaximumTables")));
+            if(disk)HostCheck.True(65UL+64<userRanges,
+                "the measured disk static inventory must retain all64 mutable regions and candidate slack");
             var bar=socketRetained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
                 .Single(n=>n.Right.ToString()=="references.VirtioBarStart");
             HostCheck.Equal("starts[allocations]",bar.Left.ToString());

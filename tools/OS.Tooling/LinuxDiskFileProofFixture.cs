@@ -21,6 +21,11 @@ public static class LinuxDiskFileProofFixture
         userInterrupts: true, socketListener: true);
     public static byte[] CreateElf() => Build().Elf;
     public static IReadOnlyList<ulong> ExpectedReturnRips() => Array.AsReadOnly(Build().Rips);
+    /// <summary>Exact sorted instruction starts emitted for the active main
+    /// path, including the jump after its exit syscall. Failure-handler and
+    /// padding bytes are excluded. This copied readonly inventory supplies only
+    /// byte boundaries; native/source/IRQ execution require independent joins.</summary>
+    public static IReadOnlyList<ulong> MainInstructionRips() => Array.AsReadOnly(Build().Instructions);
     public static uint ExpectedCalls => (uint)Build().Rips.Length;
     public static ulong SuccessRip => Build().Rips[^1];
     public static ulong FailureExitRip => ImageBase + FailureOffset + 23;
@@ -48,7 +53,7 @@ public static class LinuxDiskFileProofFixture
         authority.VerifyUnchanged();
     }
 
-    private static (byte[] Elf, ulong[] Rips) Build()
+    private static (byte[] Elf, ulong[] Rips, ulong[] Instructions) Build()
     {
         byte[] elf = new byte[ElfBytes]; elf.AsSpan(EntryOffset, 4096 - EntryOffset).Fill(0xcc);
         "\u007fELF"u8.CopyTo(elf); elf[4] = 2; elf[5] = 1; elf[6] = 1;
@@ -70,7 +75,7 @@ public static class LinuxDiskFileProofFixture
         Text(DirectoryOffset, "/app/wwwroot/fixture/nested\0");
         elf.AsSpan(OutputOffset, 3 * 4096).Fill(0xa5);
         Writer w = new(elf, EntryOffset);
-        w.Op(0xc031, 2); w.Op(0xc88c66, 3); w.CompareRax(0x3b);
+        w.Instruction(0xc031, 2); w.Instruction(0xc88c66, 3); w.CompareRax(0x3b);
         w.Immediate(10, 0); w.Immediate(8, 0); w.Immediate(9, 0);
         const uint length = WebRootImageFixture.FragmentedFixtureBytes;
         ulong path = ImageBase + PathOffset, stat = ImageBase + StatOffset;
@@ -111,10 +116,11 @@ public static class LinuxDiskFileProofFixture
         w.Call(1, 1, ImageBase + WitnessOffset, (uint)Witness.Length, Witness.Length);
         w.Syscall(231, 42, 0, 0); w.JumpFailure();
         ulong[] rips = w.Rips.ToArray();
+        ulong[] instructions = w.Instructions.ToArray();
         if (w.Position >= FailureOffset || rips.Length > 128) throw new ToolFailure("m16_025_fixture_code_capacity");
-        w.Position = FailureOffset; w.Op(0xfc, 1); w.Syscall(231, 99, 0, 0); w.Op(0xf4, 1);
+        w.Position = FailureOffset; w.Instruction(0xfc, 1); w.Syscall(231, 99, 0, 0); w.Instruction(0xf4, 1);
         if (w.Rips[^1] != FailureExitRip) throw new ToolFailure("m16_025_fixture_failure_rip");
-        return (elf, rips);
+        return (elf, rips, instructions);
 
         void PatternByte(int output, uint offset) => w.MemoryByte(OutputOffset + output, Pattern(offset));
     }
@@ -124,27 +130,30 @@ public static class LinuxDiskFileProofFixture
     {
         public int Position = position;
         public readonly List<ulong> Rips = [];
+        public readonly List<ulong> Instructions = [];
+        private void Start() => Instructions.Add(ImageBase + (uint)Position);
+        public void Instruction(ulong opcode, int count) { Start(); Op(opcode, count); }
         public void Op(ulong value, int count) { for (int i = 0; i < count; i++) bytes[Position++] = (byte)(value >> (i * 8)); }
         public void Immediate(uint register, uint value)
-        { if (register >= 8) Op(0x41, 1); Op(0xb8 + (register & 7), 1); Op(value, 4); }
-        public void Rip(ulong opcode, int count, int target) { Op(opcode, count); Op(unchecked((uint)(target - (Position + 4))), 4); }
-        public void JumpFailure() { Op(0xe9, 1); Op(unchecked((uint)(FailureOffset - (Position + 4))), 4); }
-        public void BranchFailure(byte condition) { Op(0x0f, 1); Op(condition, 1); Op(unchecked((uint)(FailureOffset - (Position + 4))), 4); }
-        public void CompareRax(long expected) { Op(0x3d48, 2); Op(unchecked((uint)expected), 4); BranchFailure(0x85); }
-        public void PositiveRax() { Op(0xc08548, 3); BranchFailure(0x8e); }
+        { Start(); if (register >= 8) Op(0x41, 1); Op(0xb8 + (register & 7), 1); Op(value, 4); }
+        public void Rip(ulong opcode, int count, int target) { Start(); Op(opcode, count); Op(unchecked((uint)(target - (Position + 4))), 4); }
+        public void JumpFailure() { Start(); Op(0xe9, 1); Op(unchecked((uint)(FailureOffset - (Position + 4))), 4); }
+        public void BranchFailure(byte condition) { Start(); Op(0x0f, 1); Op(condition, 1); Op(unchecked((uint)(FailureOffset - (Position + 4))), 4); }
+        public void CompareRax(long expected) { Start(); Op(0x3d48, 2); Op(unchecked((uint)expected), 4); BranchFailure(0x85); }
+        public void PositiveRax() { Instruction(0xc08548, 3); BranchFailure(0x8e); }
         public void MemoryByte(int at, byte value) { Rip(0x05b60f, 3, at); CompareRax(value); }
         public void MemoryDword(int at, uint value) { Rip(0x058b, 2, at); CompareRax(value); }
         public void MemoryQword(int at, ulong value)
-        { Rip(0x058b48, 3, at); Op(0xba48, 2); Op(value, 8); Op(0xd03948, 3); BranchFailure(0x85); }
+        { Rip(0x058b48, 3, at); Start(); Op(0xba48, 2); Op(value, 8); Instruction(0xd03948, 3); BranchFailure(0x85); }
         public void CompareBytes(ulong destination, ulong source, uint count)
-        { Immediate(7, checked((uint)destination)); Immediate(6, checked((uint)source)); Immediate(1, count); Op(0xfc, 1); Op(0xa6f3, 2); BranchFailure(0x85); }
+        { Immediate(7, checked((uint)destination)); Immediate(6, checked((uint)source)); Immediate(1, count); Instruction(0xfc, 1); Instruction(0xa6f3, 2); BranchFailure(0x85); }
         public void Call(uint number, ulong a0, ulong a1, ulong a2, long expected)
         { Syscall(number, a0, a1, a2); CompareRax(expected); }
         public void Syscall(uint number, ulong a0, ulong a1, ulong a2, ulong? a3 = null)
         {
             Immediate(0, number); Immediate(7, checked((uint)a0)); Immediate(6, checked((uint)a1)); Immediate(2, checked((uint)a2));
             if (a3.HasValue) Immediate(10, checked((uint)a3.Value));
-            Op(0x050f, 2); Rips.Add(ImageBase + (uint)Position);
+            Instruction(0x050f, 2); Rips.Add(ImageBase + (uint)Position);
             if (a3.HasValue) Immediate(10, 0);
         }
     }

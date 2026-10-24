@@ -102,6 +102,10 @@ the failed pre-exit guest and its conditional retained-range repair. Three fresh
 staged-file guests pass their complete consumers at `5ceeb0c2`; those files are
 served from the staged package. A fresh unfiltered full and actual disk-backed
 guest qualification remain required. The earlier failed full remains failed.
+[Step1567](done/step1567.md) retains a later guest that reaches firmware exit
+and the NIC before memory admission rejects its 65 static mappings. The disk
+profile's construction inventory now preserves room for those mappings and all
+64 mutable regions. Focused checks pass; fresh disk execution remains pending.
 
 SQLite follow-ups [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) and
 [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) use direct

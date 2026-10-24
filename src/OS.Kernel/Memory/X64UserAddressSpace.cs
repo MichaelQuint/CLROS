@@ -35,13 +35,17 @@ public struct X64UserAddressSpaceResult
 public static unsafe class X64UserAddressSpace
 {
     // Retained supervisor mappings and mutable user regions share this bounded
-    // construction inventory. The memory service reserves half for its existing
-    // 64-region quota instead of consuming that quota with retained mappings.
+    // construction inventory. Retained mappings have separate room from the
+    // memory service's mutable-region quota.
     public const uint MaximumTables = 128;
 #if M10_004_PROBE
     // The web profile retains 60 supervisor/image rows and reserves 256 mutable
     // intervals. This inventory grows independently of the unchanged table cap.
     public const uint MaximumRanges = 384;
+#elif M16_025_PROBE
+    // Seven additional retained disk declarations preserve the ordinary
+    // 64-region mutation quota and the unchanged 128-page table bound.
+    public const uint MaximumRanges = 135;
 #else
     public const uint MaximumRanges = 128;
 #endif

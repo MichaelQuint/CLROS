@@ -115,6 +115,28 @@ internal static class LinuxDiskFileTranscriptTests
         bool bound = false; try { QemuTranscripts.InspectLinuxDiskFileLeafForTests(new Oversize(), F.CreatePackage(), 0x200000, 0x100000); } catch (ToolFailure) { bound = true; } HostCheck.True(bound);
     }
 
+    [HostTest("disk file leaf retains bootstrap starts and bounded binding at the actual post-arm position")]
+    private static void Bootstrap()
+    {
+        string[] rows = Synthetic(); var report = Inspect(rows);
+        int armed = Indexes(rows, "M16_005_ARMED ")[0], bound = Indexes(rows, "M16_023_BOUND ")[0];
+        HostCheck.Equal(armed + 4, bound);
+        for (int at = armed + 1; at <= bound; at++)
+        {
+            HostCheck.True(report.Auxiliary.Any(v => v.RecordIndex == at && v.Text == rows[at]));
+            Reject(rows.Where((_, i) => i != at).ToArray()); Reject([.. rows[..at], rows[at], .. rows[at..]]);
+        }
+        string[] moved = (string[])rows.Clone(); (moved[armed], moved[armed + 1]) = (moved[armed + 1], moved[armed]); Reject(moved);
+        foreach (string name in new[] { "owner", "epoch", "arena", "pages", "bar", "capacity", "bootstrapCompleted" }) Reject(Change(rows, bound, name, 0));
+        Reject(Change(rows, bound, "owner", 0x0000800000000000)); Reject(Change(rows, bound, "owner", 4097));
+        Reject(Change(rows, bound, "pages", 257)); Reject(Change(rows, bound, "arena", 0xfffff000));
+        Reject(Change(rows, bound, "bar", 0x100001)); Reject(Change(rows, bound, "capacity", ulong.MaxValue));
+        Reject(Change(rows, bound, "bootstrapCopied", 41)); Reject(Change(rows, bound, "clock", ulong.MaxValue));
+        Reject(Replace(rows, bound, rows[bound].Replace("pci=0:7:0", "pci=0:6:0", StringComparison.Ordinal)));
+        Reject(Replace(rows, bound, rows[bound] + " extra=1"));
+        Reject(Replace(rows, bound, rows[bound].Replace("owner=8388608", "owner=18446744073709551616", StringComparison.Ordinal)));
+    }
+
     // Expected arguments and outcomes are independently decoded from the
     // canonical mechanical machine-code calls, not the inspector's plan.
     private static unsafe string[] Synthetic(bool auxiliary = false)
@@ -131,6 +153,8 @@ internal static class LinuxDiskFileTranscriptTests
             "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
             "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live",
             "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=3145728 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
+            "TEST_START m16.023", "TEST_START m16.024", "TEST_START m16.025",
+            "M16_023_BOUND owner=8388608 epoch=1 arena=9437184 pages=96 bar=4026531840 capacity=131072 bootstrapCompleted=40 bootstrapCopied=40 clock=1 pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained",
             $"M16_008_BOUND root=1048576 pool=4194304 workers=2 code={LinuxThreadProgram.Bytes} metadata={LinuxThreadProgram.MetadataPages * 4096} userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack",
             "M16_008_BUDGET started=1 epochs=8192 steps=16384 nanos=300000000000"];
         void Poll(ulong id) { rows.Add(FormattableString.Invariant($"M16_012_POLL identity={id} clock={clock++} ready={(id == 0 ? 1 : 0)} idle=0")); }
