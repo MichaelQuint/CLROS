@@ -12,9 +12,16 @@ range, ETag and Last-Modified behavior remains independently checked.
 
 The real Standalone Blazor client publishes with the pinned .NET11 SDK. This
 is development evidence, not CLROS static-file acceptance. #768 now retains the
-final separate-app Linux NativeAOT per-thread traces and HTTP matrix; #772 qualifies staged file
+final separate-app Linux NativeAOT per-thread traces and HTTP matrix; #772 owns staged file
 APIs, and #773/#774 add live disk descriptors and an external browser witness.
 #775 remains the later sustained service and clean-shutdown milestone.
+
+Isolated read-service integration now includes confined FAT handles, disk
+descriptors, source4 thread waits and a separate retained block adapter. The
+mechanical M16-025 profile has focused managed controls and EFI C# compilation;
+its full native/guest consumer remains unfinished. M10-018 still rejects
+selection. Complete post-readiness disk/HTTP joins and a real external Blazor
+boot with network evidence and screenshot remain required for #774.
 
 PR790 merged at `82656076` on October 23, 2026. Live tracker readback confirms
 #748, #225 and the finite #737 integration closed, following the step1481

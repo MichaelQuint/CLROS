@@ -7,6 +7,15 @@ quota/churn profiles. Ordinary `VerifiedExit` remains terminal and application
 probes remain default off. The ordered source in `BootSequence.cs` is the
 authority; complete Gate14 and general app scheduling remain open.
 
+In the isolated M16-025 development profile, `PrepareOwnedReadOnlyDisk` reserves
+the separate disk backing before final firmware-map capture. After exit and
+ordinary network setup, the bounded outer bootstrap interleaves NIC/timer work
+with block/GPT/FAT mount progress. Descriptor attachment precedes native thread
+admission and worker entry. Quiescent retirement flushes buffered evidence,
+confirms block/filesystem shutdown and drains descriptor metadata before outer
+NIC/DMA teardown. Existing accepted profile order is preserved; this added path
+still requires original native and guest qualification.
+
 The earlier wiring checkpoints below were subsequently qualified in step1307.
 
 `BootSequence.RunOwnedLinuxSignals` selects the M16-009 child through

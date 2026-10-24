@@ -20,6 +20,13 @@ qualified by step1481 and are closed. #780 remains open as of October23; protect
 tracker writes with fresh versioned reads and readback. Step1556 adds finite
 quota termination/churn, not general isolation or production security.
 
+The isolated immutable `/app/wwwroot` service confines path traversal and uses
+generation-bound descriptors. A pending read pins only its originally admitted
+writable output prefix; mapping changes that overlap it reject until consume
+or cancellation revokes the copy. Observer rejection or uncertain device reset
+retains DMA. Host controls cover these contracts; guest disk, write, locking,
+durability and isolation acceptance remain separate.
+
 [Step1437](../done/step1437.md) qualifies the bounded DRBG/TCP-key ownership
 contracts defined in [step1424](../done/step1424.md).
 The construction follows [RFC9293 section3.4.1](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.4.1)

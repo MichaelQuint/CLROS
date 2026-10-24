@@ -6,6 +6,12 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["linux", "disk-files-package", var diskFilePackage])
+            {
+                LinuxDiskFileProofFixture.WritePackage(Repository.FindRoot(), diskFilePackage);
+                Console.WriteLine("TEST_PASS linux.disk-files.package fixture_only=true");
+                return 0;
+            }
             if (args is ["nativeaot", "static-files", "index", var staticElf, var staticDump])
             {
                 using AuthorityFiles files = new();

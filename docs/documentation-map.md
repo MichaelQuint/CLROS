@@ -8,6 +8,13 @@ service recipes; the [workload roadmap](workload-profiles.md) owns remaining
 dependencies. Dated development paragraphs and immutable steps retain their
 original failures and limits; they are not current ownership instructions.
 
+[Step1564](../done/step1564.md) records isolated read-service ownership, pending
+disk waits, sector observation controls, deterministic real-candidate image
+results and EFI C# compilation. Storage/boot/order/diagnostics own the added
+contracts; QEMU owns current combined-profile selection. Native and guest disk
+qualification remain required. Step1562 owns the reusable core/adapter decision;
+step1563 owns the later image-packaging roadmap.
+
 The NativeAOT-first architecture and ordered issue roadmap are canonical in
 `docs/workload-profiles.md`; `.gitea/backlog/clros-issues.json` owns exact
 dependencies and ticket acceptance. Existing app-model, PAL, manifest,

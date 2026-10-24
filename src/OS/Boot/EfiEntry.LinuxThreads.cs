@@ -316,13 +316,36 @@ public static unsafe partial class EfiEntry
             bool completed = c->Gates[index].Status == LinuxSyscallGateStatus.Blocked;
             if (completed)
             {
+#if M16_025_PROBE
+                var diskWait = view.WaitSource == 4 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
+                var diskOperation = c->Slots[index].DiskOperation;
+                uint diskOutputBytes = c->Slots[index].DiskOutputBytes;
+#endif
 #if CLROS_LINUX_SOCKETS
                 var epollWait = view.WaitSource == 3 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
                 if (view.WaitSource == 3) completion = c->Process.CompleteEpollWait(c->Key, 2);
                 else
 #endif
-                completion = view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
+                completion =
+#if M16_025_PROBE
+                view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
+#endif
+                view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
+#if M16_025_PROBE
+                if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Return &&
+                    (!diskWait.Succeeded ||
+                    diskWait.Wait.Sequence != view.Wait.Sequence || diskWait.Completion == KernelThreadTable.Completion.None ||
+                    !diskOperation.IsActive ||
+                    !LinuxText(c->State, "M16_025_COMPLETE identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                    !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                    !LinuxText(c->State, " request=") || !LinuxNumber(c->State, diskOperation.Generation) ||
+                    !LinuxText(c->State, " outputBytes=") || !LinuxNumber(c->State, diskOutputBytes) ||
+                    !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)diskWait.Completion) ||
+                    !LinuxText(c->State, " valueBits=") || !LinuxNumber(c->State, unchecked((ulong)completion.Value)) ||
+                    !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")))
+                    return LinuxNativeAbort(c, index);
+#endif
 #if CLROS_LINUX_SOCKETS
                 if (view.WaitSource == 3 && completion.Action == LinuxSyscallAction.Return &&
                     (!epollWait.Succeeded || epollWait.Wait.Sequence != view.Wait.Sequence ||
@@ -699,6 +722,9 @@ public static unsafe partial class EfiEntry
                 {
                     bool handoff;
                     bool committed =
+#if M16_025_PROBE
+                        c->Slots[index].WaitSource == 4 ? c->Process.CommitDiskWait(c->Key, 2, worker, out handoff) :
+#endif
 #if CLROS_LINUX_SOCKETS
                         c->Slots[index].WaitSource == 3 ? c->Process.CommitEpollWait(c->Key, 2, worker, out handoff) :
 #endif
@@ -772,7 +798,7 @@ public static unsafe partial class EfiEntry
             c->GuardAttached = 1; c->Phase = 2;
             ulong now = 0;
             delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
-            bool application = LinuxUsesApplicationLimits(c->State);
+            bool application = LinuxUsesApplicationLimits(c->State) || OS.Kernel.Diagnostics.Probes.EnableM16025Probe;
             return (!application || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now, application,
                 continuingWeb: OS.Kernel.Diagnostics.Probes.EnableM10004Probe,
                 continuingService: OS.Kernel.Diagnostics.Probes.EnableM16014Probe);

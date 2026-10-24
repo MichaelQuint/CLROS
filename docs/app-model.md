@@ -8,7 +8,7 @@ isolates the candidate in `apps/MinimalApiStaticFiles`. It selects
 `CLROS_STATIC_FILES_PROFILE=v1`, a physical `/app/wwwroot`, and source-generated
 object responses at `/api/status` and `/api/items`. The original `MinimalApiSmoke` source inventory, publisher inputs, ELF and
 instruction admission retain their exact accepted identities. The new Standalone Blazor
-fixture runs in the external browser and fetches both JSON routes and the disk
+fixture is intended to boot in an external browser and fetch both JSON routes and the disk
 variant nonce; its WebAssembly assets are ordinary files served by the future
 guest NativeAOT server.
 
@@ -16,6 +16,14 @@ The pinned Windows client publication succeeds. Linux-reference file ABI,
 staged guest middleware and actual post-readiness disk HTTP remain separate
 qualification steps. The complete Blazor tree is not staged in the ELF/package:
 #772 keeps the small staged fixture; #774 must prove the real disk/browser path.
+
+The isolated M16-025 mechanical package exercises a confined fragmented file,
+independent opens, shared duplicate offsets, positioned reads, metadata, EOF,
+read-only flags and stale/invalid outputs through the new disk descriptors.
+Pending work parks in owned source4 thread continuations and retains its
+original output ceiling through completion/cancellation. Its current managed
+and C# compilation results do not establish a real disk app or browser boot.
+The full upstream Blazor child remains the subsequent M10-018 boundary.
 
 ## Current application boundary (October 23, 2026)
 

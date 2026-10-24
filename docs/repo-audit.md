@@ -4,6 +4,13 @@
 retained Linux-reference observations and14-check block service host leaf.
 These development results do not advance guest storage or completion gates.
 
+The isolated read-service review adds source4 output-lifetime protection,
+bounded observation callbacks and native disk preparation/retirement paths.
+It found a cancelled completion could remain buffered after stopping; retirement
+now flushes that evidence before ordinary teardown. Dedicated disk call readers
+admit source4 while historical consumers keep their original rules. Native
+publication, stack/ABI review and complete fresh disk guests remain required.
+
 ## Current acceptance (October 23, 2026)
 
 [PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) merged at

@@ -2,6 +2,26 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_023_PROBE
+    public const bool EnableM16023Probe = true;
+#else
+    public const bool EnableM16023Probe = false;
+#endif
+#if M16_024_PROBE
+    public const bool EnableM16024Probe = true;
+#else
+    public const bool EnableM16024Probe = false;
+#endif
+#if M16_025_PROBE
+    public const bool EnableM16025Probe = true;
+#else
+    public const bool EnableM16025Probe = false;
+#endif
+#if M10_018_PROBE
+    public const bool EnableM10018Probe = true;
+#else
+    public const bool EnableM10018Probe = false;
+#endif
 #if M10_017_PROBE
     public const bool EnableM10017Probe = true;
 #else
@@ -357,7 +377,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 71;
+    public const int ProbeCatalogCount = 75;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -653,6 +673,22 @@ public static partial class Probes
     public static ProbeDefinition GetM10004Probe() =>
         new("app.nativeaot-web", nameof(EnableM10004Probe), EnableM10004Probe,
             ProbeRisk.Destructive, "Continuing original Minimal API with selected configuration and live socket owners; external HTTP proof required.");
+
+    public static ProbeDefinition GetM16023Probe() =>
+        new("storage.continuing-readonly-block", nameof(EnableM16023Probe), EnableM16023Probe,
+            ProbeRisk.Destructive, "Serialized retained block reads with bounded progress and explicit retirement; live device evidence required.");
+
+    public static ProbeDefinition GetM16024Probe() =>
+        new("storage.readonly-webroot", nameof(EnableM16024Probe), EnableM16024Probe,
+            ProbeRisk.Destructive, "Confined read-only FAT webroot with bounded cache and cursors; live file evidence required.");
+
+    public static ProbeDefinition GetM16025Probe() =>
+        new("app.linux-diskfiles", nameof(EnableM16025Probe), EnableM16025Probe,
+            ProbeRisk.Destructive, "Mechanical Linux disk descriptors with owned I/O waits and cleanup; native and guest evidence required.");
+
+    public static ProbeDefinition GetM10018Probe() =>
+        new("app.nativeaot-disk-static-files", nameof(EnableM10018Probe), EnableM10018Probe,
+            ProbeRisk.Destructive, "Finite physical-disk static-file application; independent disk, HTTP and browser evidence required.");
 
     public static ProbeDefinition GetM10017Probe() =>
         new("app.nativeaot-static-files", nameof(EnableM10017Probe), EnableM10017Probe,
@@ -1061,6 +1097,18 @@ public static partial class Probes
                 return true;
             case 70:
                 definition = GetM10017Probe();
+                return true;
+            case 71:
+                definition = GetM16023Probe();
+                return true;
+            case 72:
+                definition = GetM16024Probe();
+                return true;
+            case 73:
+                definition = GetM16025Probe();
+                return true;
+            case 74:
+                definition = GetM10018Probe();
                 return true;
             default:
                 definition = default;

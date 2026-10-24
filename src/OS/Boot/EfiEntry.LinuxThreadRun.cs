@@ -29,6 +29,13 @@ public static unsafe partial class EfiEntry
                 !state->LinuxSyscallPlan.ResumeUser || state->LinuxView.Manifest.Threads == 0 ||
                 state->LinuxView.Manifest.Threads > LinuxNativeWorkers || !CooperativeAuditOriginalMappings(state) ||
                 !CooperativeAuditPool(state, false)) return false;
+#if M16_025_PROBE
+            if (!RunNativeDiskBootstrap(state))
+            {
+                _ = RetireNativeDisk(state);
+                return false; // Failed retirement keeps the outer owners retained.
+            }
+#endif
             ulong* originals = stackalloc ulong[(int)CooperativePoolPages];
             for (uint i = 0; i < CooperativePoolPages; i++) originals[i] = 0;
             LinuxNativeControl* c = null;
@@ -112,6 +119,9 @@ public static unsafe partial class EfiEntry
             var staticApp = c == null ? default : c->StaticApp;
             bool staticCompleted = staticApp.GracefulExit && state->LinuxSyscallExitCode == 0;
 #endif
+#if M16_025_PROBE
+            if (!RetireNativeDiskAttachment(state, c)) return LinuxNativeCleanupRejected(state, 13);
+#endif
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
             if (published && !LinuxNativeBeginTeardown(state, c)) return LinuxNativeCleanupRejected(state, 3);
             if (state->LinuxDescriptorPhase == 4)
@@ -146,6 +156,9 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " userBacked=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
                 LinuxText(state, " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
             bool success = ran && logged && !failed && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0;
+#if M16_025_PROBE && !M10_018_PROBE
+            success &= state->LinuxSyscallExitCode == 42;
+#endif
 #if M10_017_PROBE
             success &= staticCompleted;
             if (!LinuxText(state, "M10_017_OWNER_END main=") || !LinuxNumber(state, staticApp.MainGeneration) ||

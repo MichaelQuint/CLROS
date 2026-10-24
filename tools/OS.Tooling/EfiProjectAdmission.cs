@@ -162,6 +162,13 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.DiskNative.cs|" or
+            @"Boot\EfiEntry.DiskBootstrap.cs|" or
+            @"Boot\EfiEntry.DiskEvidence.cs|" or
+            @"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs|Storage\ContinuingReadOnlyBlockService.cs" or
+            @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs|Storage\ReadOnlyWebRootFileSystem.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs|Compatibility\LinuxX64\LinuxThreadServices.Disk.cs" => profile.IsEnabled("EnableM16025Probe"),
             @"Boot\EfiEntry.StaticFiles.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs" => profile.IsEnabled("EnableM10017Probe"),
             @"Boot\EfiEntry.LinuxWeb.cs|" or

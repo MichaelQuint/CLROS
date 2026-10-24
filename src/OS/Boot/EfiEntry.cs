@@ -83,7 +83,9 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
-#if M16_011_PROBE
+#if M16_025_PROBE
+            19;
+#elif M16_011_PROBE
             18;
 #elif M07_026_PROBE
             11;
@@ -494,6 +496,16 @@ public static unsafe partial class EfiEntry
             if (!BootSequence.PrepareLinuxDescriptors(state->Phase == 2, state, &PrepareLinuxDescriptors)) return false;
             references.LinuxDescriptorStart = state->LinuxDescriptorArena;
             references.LinuxDescriptorPages = LinuxDescriptorPages;
+#endif
+#if M16_025_PROBE
+            if (!BootSequence.PrepareOwnedReadOnlyDisk(state->Phase == 2, state, &PrepareNativeDiskBacking)) return false;
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->Boot != state || disk->Phase != 1) return false;
+                references.NativeDiskBarStart = disk->Bar;
+                references.NativeDiskArenaStart = disk->Arena;
+                references.NativeDiskArenaPages = disk->ArenaPages;
+            }
 #endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
@@ -1109,6 +1121,10 @@ public static unsafe partial class EfiEntry
                 !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger, ref count)) return false;
 #if M07_026_PROBE
             if (!LinuxReservation(BootReservationKind.DiagnosticState, state->NetworkArena, 8, ledger, ref count)) return false;
+#endif
+#if M16_025_PROBE
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+                if (disk->Boot != state || !LinuxReservation(BootReservationKind.DiagnosticState, disk->Arena, disk->ArenaPages, ledger, ref count)) return false;
 #endif
 #if M16_004_PROBE
             if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger, ref count) ||

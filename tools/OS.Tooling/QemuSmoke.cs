@@ -50,9 +50,13 @@ public static class QemuSmoke
         AuthorityFiles? webInputs=null;
         AuthorityFile? webPackageInput=null,webDisassemblyInput=null,webImageInput=null,webEfiInput=null;
         EfiVerification? webNative=null;
+        AuthorityFiles? diskInputs = null;
+        EfiVerification? diskNative = null;
+        WebRootImageFixture.Receipt? diskImageReceipt = null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
             bool signalEpoll=LinuxSignalEpollSelection.Bind(options,plan.Flags);
             bool sockets=!signalEpoll&&NativeAotSocketSelection.Application(plan.Flags).Length!=0;
             bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
@@ -142,6 +146,12 @@ public static class QemuSmoke
                         helloProgram = NativeAotHelloProgram.Read(root, Path.GetFullPath(options.LinuxElfPackage, root),
                             disassembly);
                     }
+                    else if (diskFiles)
+                    {
+                        if (linuxInput.Length > 65536) throw new ToolFailure("disk_mechanical_package_size");
+                        byte[] bytes = new byte[(int)linuxInput.Length]; linuxInput.ReadExactly(bytes);
+                        LinuxDiskFileProofFixture.RequirePackage(bytes); linuxInput.Position = 0;
+                    }
                     else if(signalEpoll)LinuxSignalEpollSelection.RequirePackage(linuxInput);
                     else LinuxSignalProofFixture.RequirePackage(linuxInput);
                 }
@@ -187,8 +197,21 @@ public static class QemuSmoke
                 if (!options.SkipImageBuild)
                 {
                     string[] package = plan.IsEnabled("EnableM16002Probe") ? ["--package", options.LinuxElfPackage] : [];
-                    var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", options.Image, .. package]);
+                    string imageOutput = diskFiles ? options.Image + ".base.raw" : options.Image;
+                    if (diskFiles && (Path.Exists(Path.GetFullPath(imageOutput, root)) || Path.Exists(Path.GetFullPath(options.Image, root))))
+                        throw new ToolFailure("disk_image_output_not_fresh");
+                    var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", imageOutput, .. package]);
                     if (image.ExitCode != 0) return image.ExitCode;
+                    if (diskFiles)
+                    {
+                        string assets = Path.GetFullPath(options.WebRootAssets, root);
+                        var inventory = WebRootImageFixture.SnapshotPublishedRoot(assets);
+                        diskImageReceipt = WebRootImageFixture.Apply(root, Path.GetFullPath(imageOutput, root), assets, inventory,
+                            Path.GetFullPath(options.Image, root), options.WebRootFixture);
+                        WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt);
+                        using var receipt = new FileStream(Path.GetFullPath(options.Image, root) + ".webroot.json", FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                        System.Text.Json.JsonSerializer.Serialize(receipt, diskImageReceipt);
+                    }
                 }
                 if (plan.IsEnabled("EnableM06FatReadProbe"))
                 {
@@ -217,6 +240,23 @@ public static class QemuSmoke
                 }
                 int preflight = ValidateImage(Path.GetFullPath(options.Image, root), options.DiskFormat, output, options.Image);
                 if (preflight != 0) return preflight;
+                if (diskFiles)
+                {
+                    if (diskImageReceipt is null) throw new ToolFailure("disk_generated_image_receipt_required");
+                    diskNative = new(EfiOptions.Parse(["--root", root, "--boot-policy", plan.BootPolicy, "--efi-artifact", options.EfiArtifact,
+                        ..plan.Flags.Where(p => p.Value).Select(p => "-" + p.Key)], false), output.WriteLine);
+                    diskNative.Verify(); diskInputs = new();
+                    var image = diskInputs.Open(root, Path.GetFullPath(options.Image, root), "disk image", "disk_image", WebRootImageFixture.MaximumImageBytes, singleLink: true);
+                    var efi = diskInputs.Open(root, Path.GetFullPath(options.EfiArtifact, root), "disk EFI", "disk_efi", 16 * 1024 * 1024, singleLink: true);
+                    var package = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", 65536, singleLink: true);
+                    AuthorityFiles.RequireDistinct(image, efi, package);
+                    byte[] packageBytes = package.ReadBytes(65536, "disk_package");
+                    LinuxDiskFileProofFixture.RequirePackage(packageBytes);
+                    var locations = LinuxElfImageFixture.Inspect(image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"),
+                        efi.ReadBytes(16 * 1024 * 1024, "disk_efi"), packageBytes);
+                    diskInputs.VerifyUnchanged();
+                    output.WriteLine($"DISK_IMAGE_JOIN efiOffset={locations.EfiStart} packageOffset={locations.PackageStart} imageSha256={image.Sha256} efiSha256={efi.Sha256} packageSha256={package.Sha256}");
+                }
                 if(web||staticFiles)
                 {
                     webNative=new(EfiOptions.Parse(["--root",root,"--boot-policy",plan.BootPolicy,"--efi-artifact",options.EfiArtifact,
@@ -275,7 +315,8 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
             if(containment)arguments.Add("--socket-containment-peer");
-            else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web&&!staticFiles) arguments.Add("--continuing-network-peer");
+            else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web&&!staticFiles&&!diskFiles) arguments.Add("--continuing-network-peer");
+            if (diskFiles) arguments.Add("--readonly-webroot-disk");
             if(staticFiles)arguments.Add("--finite-static-files");
             if(service)arguments.Add("--continuing-service");
             if(service&&serviceContract==NativeAotServiceContract.QuotaFailure)arguments.Add("--service-quota-failure");
@@ -304,7 +345,7 @@ public static class QemuSmoke
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            if(signalEpoll||service||sockets||containment||vectors||web||staticFiles)
+            if(signalEpoll||service||sockets||containment||vectors||web||staticFiles||diskFiles)
             {
                 // Preserve required insertion order while sending each ordered
                 // marker only once. The combined profile otherwise exceeds the
@@ -403,6 +444,14 @@ public static class QemuSmoke
                 QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
             }
             if (options.DryRun) return runner.ExitCode;
+            if (diskFiles)
+            {
+                diskInputs!.VerifyUnchanged(); diskNative!.VerifyHeldInputs();
+                WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
+                // Development captures remain failures until the complete
+                // disk/syscall/continuation/parent/NIC consumer joins them.
+                throw new ToolFailure("disk_files_complete_consumer_required", "runnerExit=" + runner.ExitCode);
+            }
             if(serviceQuotaPeer is not null)
             {
                 // Expected runner22 is only the private owner's capture
@@ -489,7 +538,7 @@ public static class QemuSmoke
         {output.WriteLine("TEST_FAIL qemu.smoke socket_orchestration_timeout");return 1;}
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); serviceInputs?.Dispose(); serviceNative?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); serviceInputs?.Dispose(); serviceNative?.Dispose(); diskInputs?.Dispose(); diskNative?.Dispose(); }
     }
 
     public static string? ResolveExecutable(string? requested)

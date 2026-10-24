@@ -35715,7 +35715,8 @@
         "Record selected request/chunk/queue limits and measured latency/CPU cost. A retained owner is required; deleting _attempted or silently rebuilding device state inside every IRQ-off syscall is insufficient.",
         "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
         "Retain monotonic bounded device progress with IRQ/NIC/runtime witnesses and original DMA generations. A timeout is not proof DMA stopped; the reference queue submission pattern does not replace virtio reset/quarantine semantics.",
-        "Compare teardown ordering: stop acquisition, consumers, interrupts, deferred work/threads, detach, then reverse-acquisition memory release. A worker missing its stop deadline keeps referenced memory quarantined. This allocating/exception-based reference is conceptual; no driver-framework rewrite or expanded claimed read-only scope."
+        "Compare teardown ordering: stop acquisition, consumers, interrupts, deferred work/threads, detach, then reverse-acquisition memory release. A worker missing its stop deadline keeps referenced memory quarantined. This allocating/exception-based reference is conceptual; no driver-framework rewrite or expanded claimed read-only scope.",
+        "Current isolated development uses one combined M16-025 mechanical capture with M16-023/024 parents, separate PCI0:7 disk and PCI0:6 NIC, source4 thread waits and exact sector-byte observations. Standalone M16-023/024 selectors reject. Use a fresh canonical mechanical package and prepared real webroot; the runner deliberately rejects disk_files_complete_consumer_required until the complete parent/syscall/wait/image/NIC/cleanup consumer is joined. Focused host and EFI C# compilation results do not qualify guest disk service or close this issue."
       ],
       "referenceInfluences": [
         {
@@ -35779,7 +35780,8 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16023Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m16.023\""
+        "dotnet run --project tools/OS.Tooling -- linux disk-files-package <fresh-canonical-disk-files.pkg>",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16025Probe -LinuxElfPackage <fresh-canonical-disk-files.pkg> -WebRootFixture DiskA -WebRootAssets <prepared-wwwroot> -Image <fresh-raw-image> -EfiArtifact <fresh-efi> -SerialLog <fresh-serial> -SummaryLog <fresh-summary> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180"
       ],
       "documentationPaths": [
         "docs/cstorage.md",
@@ -35830,7 +35832,8 @@
         "Distinguish directory completion/file EOF, output-buffer exhaustion, traversal-budget exhaustion, corrupt metadata, stale ownership and device failure in status results. A failed read must not become EOF, a cache hit or a published entry. Preserve already committed cursor progress without skipping or duplicating entries. Source guidance is algorithmic only; preserve CLROS ownership, status and no-allocation contracts. M11-025/#782 remains the earlier host scratch repair before #769; this reference does not expand its acceptance criteria.",
         "Mount/device identity must remain stable while handles exist. A corrupt file or failed device must produce a clear status without leaking partial unvalidated data or hanging unrelated requests. Symlinks, directory browsing, writable storage and general POSIX mounts remain outside scope.",
         "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
-        "The existing cache/cursor criteria correctly avoid global state and EOF-on-error. Add explicit regression inputs from the inspected FatNext failure collapse; maintain read-count budgets across retries and interleaved cursors, with mount/reset invalidation."
+        "The existing cache/cursor criteria correctly avoid global state and EOF-on-error. Add explicit regression inputs from the inspected FatNext failure collapse; maintain read-count budgets across retries and interleaved cursors, with mount/reset invalidation.",
+        "Current isolated development uses one combined M16-025 mechanical capture with M16-023/024 parents, separate PCI0:7 disk and PCI0:6 NIC, source4 thread waits and exact sector-byte observations. Standalone M16-023/024 selectors reject. Use a fresh canonical mechanical package and prepared real webroot; the runner deliberately rejects disk_files_complete_consumer_required until the complete parent/syscall/wait/image/NIC/cleanup consumer is joined. Focused host and EFI C# compilation results do not qualify guest disk service or close this issue."
       ],
       "referenceInfluences": [
         {
@@ -35897,7 +35900,8 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16024Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m16.024\""
+        "dotnet run --project tools/OS.Tooling -- linux disk-files-package <fresh-canonical-disk-files.pkg>",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16025Probe -LinuxElfPackage <fresh-canonical-disk-files.pkg> -WebRootFixture DiskA -WebRootAssets <prepared-wwwroot> -Image <fresh-raw-image> -EfiArtifact <fresh-efi> -SerialLog <fresh-serial> -SummaryLog <fresh-summary> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180"
       ],
       "documentationPaths": [
         "docs/cstorage.md",
@@ -36108,7 +36112,8 @@
         "The final required command below is a proposed interface to implement in this issue; it does not work on the planning baseline. Register it in the compiled tooling, document exact required inputs/profile closure, and retain a complete successful invocation at acceptance.",
         "The contract table must state exact errno for absent paths (ENOENT), non-directory components (ENOTDIR), reading directories (EISDIR), write/mutation requests (EROFS or the measured access error), invalid seek/overflow, unsupported syscalls and device failures (EIO). Test both raw syscall and .NET exception/HTTP behavior.",
         "Approved 2026-10-23: the primary integrator owns thread-service pending disk-operation wiring and its lifecycle/signal checks under this shared lane. Reuse owned blocking continuations and include disk operations in revoke/reap and signal eligibility checks; do not poll storage inside IRQ-off descriptor callbacks.",
-        "Read failure must map to EIO rather than successful EOF. Revalidate original fd/open-description/mapping generations after deferred I/O and drain/quarantine cancellation before reuse; preserve healthy-peer progress while storage is delayed."
+        "Read failure must map to EIO rather than successful EOF. Revalidate original fd/open-description/mapping generations after deferred I/O and drain/quarantine cancellation before reuse; preserve healthy-peer progress while storage is delayed.",
+        "Current isolated development uses one combined M16-025 mechanical capture with M16-023/024 parents, separate PCI0:7 disk and PCI0:6 NIC, source4 thread waits and exact sector-byte observations. Standalone M16-023/024 selectors reject. Use a fresh canonical mechanical package and prepared real webroot; the runner deliberately rejects disk_files_complete_consumer_required until the complete parent/syscall/wait/image/NIC/cleanup consumer is joined. Focused host and EFI C# compilation results do not qualify guest disk service or close this issue."
       ],
       "referenceInfluences": [
         {
@@ -36151,7 +36156,31 @@
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Pipes.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Disk.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Signals.cs",
-        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Pipes.cs"
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Pipes.cs",
+        "src/OS/Boot/EfiEntry.DiskNative.cs",
+        "src/OS/Boot/EfiEntry.DiskBootstrap.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreads.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadRun.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "src/OS/Boot/EfiEntry.NetworkService.cs",
+        "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Futex.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Interrupts.cs",
+        "tests/OS.HostTests/LinuxDiskThreadServicesTests.cs",
+        "tests/OS.HostTests/LinuxStartupServicesTests.cs",
+        "tests/OS.HostTests/LinuxDiskFileProofFixtureTests.cs",
+        "tools/OS.Tooling/EfiProjectAdmission.cs",
+        "tools/OS.Tooling/NativeAotWebSelection.cs",
+        "tools/OS.Tooling/NativeAotDiskSelection.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tools/OS.QemuRunner/Program.cs",
+        "src/OS/Boot/EfiEntry.DiskEvidence.cs",
+        "tests/OS.HostTests/ReadOnlyDiskProfileTests.cs",
+        "tools/OS.Tooling/NativeAotSocketSelection.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxCalls.cs",
+        "tests/OS.HostTests/LinuxCallOrdinalTests.cs",
+        "tools/OS.Tooling/NativeDiskReadObservations.cs",
+        "tests/OS.HostTests/NativeDiskReadObservationTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -36176,7 +36205,8 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16025Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture DiskA -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m16.025\""
+        "dotnet run --project tools/OS.Tooling -- linux disk-files-package <fresh-canonical-disk-files.pkg>",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16025Probe -LinuxElfPackage <fresh-canonical-disk-files.pkg> -WebRootFixture DiskA -WebRootAssets <prepared-wwwroot> -Image <fresh-raw-image> -EfiArtifact <fresh-efi> -SerialLog <fresh-serial> -SummaryLog <fresh-summary> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180"
       ],
       "documentationPaths": [
         "docs/app-model.md",

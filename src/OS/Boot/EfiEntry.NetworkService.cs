@@ -89,6 +89,9 @@ public static unsafe partial class EfiEntry
             }
 #endif
             state->NetworkPhase = 3;
+#if M16_025_PROBE
+            if (!WriteNativeDiskCompletion(state)) return false;
+#endif
 #if M10_017_PROBE
             if (!LinuxText(state, "M10_017_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M10_017_READY\r\nTEST_PASS m10.017\r\n")) return false;
 #endif
@@ -173,6 +176,12 @@ public static unsafe partial class EfiEntry
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
                 return LinuxWebRetainFailure(state, null, success ? 5U : 6U);
 #else
+#if M16_025_PROBE
+                // No NIC/DMA teardown may follow an uncertain disk stop. Disk
+                // backing and callbacks outlive pre-user bootstrap, including
+                // failed Linux metadata publication and rejected preparation.
+                if (!NativeDiskAllowsOuterTeardown(state)) return false;
+#endif
                 bool safe = !device->RequiresCleanup || NetDevice.Stop(device) == NetDevice.Status.Success;
                 safe &= device->Retired && pool->AllocatedMask == 0;
                 if (safe) for (uint i = 0; i < ContinuingVirtioNet.BackingBytes; i++) if (((byte*)page)[i] != 0) safe = false;

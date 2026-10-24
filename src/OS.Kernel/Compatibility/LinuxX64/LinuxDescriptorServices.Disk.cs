@@ -620,7 +620,7 @@ public static unsafe partial class LinuxDescriptorServices
     }
     private static bool DiskPath(byte* path, uint bytes)
     {
-        ReadOnlySpan<byte> root = "/app/wwwroot"u8;
+        const string root = "/app/wwwroot";
         if (bytes < 12 || bytes > 12 && path[12] != '/') return false;
         for (uint i = 0; i < 12; i++) if (path[i] != root[(int)i]) return false;
         return true;

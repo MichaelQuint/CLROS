@@ -201,8 +201,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
         { a.Operations[i].Self = (ulong)(a.Operations + i); a.Operations[i].Epoch = a.Epoch; a.Operations[i].Index = i; }
         for (uint i = 0; i < a.FileCount; i++) { a.Files[i].Self = (ulong)(a.Files + i); a.Files[i].Epoch = a.Epoch; }
         Operation* o = a.Operations; Begin(o, MountKind); o->PathLength = 12;
-        ReadOnlySpan<byte> root = "/app/wwwroot"u8;
-        for (uint i = 0; i < 12; i++) o->Storage.Path[i] = root[(int)i];
+        const string root = "/app/wwwroot";
+        for (uint i = 0; i < 12; i++) o->Storage.Path[i] = (byte)root[(int)i];
         return Status.Pending;
     }
 
@@ -694,7 +694,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
     private static Status PathPolicy(ReadOnlySpan<byte> path)
     {
         if (path.Length is < 12 or >= 256) return Status.InvalidPath;
-        ReadOnlySpan<byte> root = "/app/wwwroot"u8;
+        const string root = "/app/wwwroot";
         for (int i = 0; i < 12; i++) if (path[i] != root[i]) return Status.OutsideRoot;
         if (path.Length == 12) return Status.Success;
         if (path[12] != '/') return Status.OutsideRoot;

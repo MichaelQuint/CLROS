@@ -79,8 +79,25 @@ public static partial class QemuTranscripts
         return Array.AsReadOnly(returns);
     }
 
+    /// <summary>Read the finite disk child's complete call suffixes, including
+    /// source4 parked disk operations and source3 epoll. Values are copied and
+    /// canonical; separate consumers must authenticate the original fd, memory,
+    /// device and wait-completion lifetimes. Historical readers remain strict.</summary>
+    public static (IReadOnlyList<LinuxCallWaitObservation> Waits, IReadOnlyList<LinuxCallReturnObservation> Returns)
+        ReadLinuxDiskCallObservations(string[] tail)
+    {
+        _ = ParseLinuxCalls(tail, 2, out var waits, out var returns, allowEpoll: true, allowDisk: true);
+        return (Array.AsReadOnly(waits), Array.AsReadOnly(returns));
+    }
+
+    /// <summary>Strip only the reviewed finite disk child's complete current
+    /// suffixes after validating them. The returned array is independent; this
+    /// grants no instruction, scheduler, native or execution authority.</summary>
+    public static string[] ValidateLinuxDiskCallOrdinals(string[] tail) =>
+        ParseLinuxCalls(tail, 2, out _, out _, allowEpoll: true, allowDisk: true);
+
     private static string[] ParseLinuxCalls(string[] tail, int required, out LinuxCallWaitObservation[] waits,
-        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false)
+        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false, bool allowDisk = false)
     {
         Need(tail is not null,"linux_call_ordinal_input");
         string[] result=tail!.ToArray(); Dictionary<ulong,ulong> counts=[];
@@ -90,7 +107,7 @@ public static partial class QemuTranscripts
         {
             string line=result[i]; if(!line.StartsWith("M16_008_CALL ",StringComparison.Ordinal)) continue;
             const string n="(0|[1-9][0-9]*)";
-            var match=Regex.Match(line,@"\AM16_008_CALL identity=([1-9][0-9]*) .* ordinal=([1-9][0-9]*)(?: waitSource=("+(allowEpoll?"[0123]":"[012]")+") waitDeadline="+n+
+            var match=Regex.Match(line,@"\AM16_008_CALL identity=([1-9][0-9]*) .* ordinal=([1-9][0-9]*)(?: waitSource=("+(allowDisk?"[01234]":allowEpoll?"[0123]":"[012]")+") waitDeadline="+n+
                 " waitSequence="+n+"(?: signalDepth=([0-4]) signalFrame="+n+" blockedSignals="+n+" returnRip="+n+" returnRsp="+n+
                 " returnFlags="+n+" returnFs="+n+" returnGs="+n+" returnValueBits="+n+@")?)?\z",RegexOptions.CultureInvariant);
             Need(match.Success && ulong.TryParse(match.Groups[1].Value,NumberStyles.None,CultureInfo.InvariantCulture,out _) &&

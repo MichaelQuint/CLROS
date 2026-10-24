@@ -95,4 +95,49 @@ internal static class LinuxCallOrdinalTests
     }
     private static void Reject(string[] rows)
     { bool rejected=false; try{QemuTranscripts.ValidateLinuxCallOrdinals(rows);}catch(ToolFailure){rejected=true;} HostCheck.True(rejected); }
+
+    private const string DiskPrefix = "M16_008_CALL identity=4294967297 nr=17 ordinal=1 waitSource=4 waitDeadline=0 waitSequence=9";
+    private const string DiskReturn = " signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=1879048176 returnFlags=514 returnFs=0 returnGs=0 returnValueBits=0";
+
+    [HostTest("disk call observations require explicit mode and copy complete source4 generation witnesses")]
+    private static void DiskObservations()
+    {
+        string[] rows = ["header", DiskPrefix + DiskReturn];
+        var parsed = QemuTranscripts.ReadLinuxDiskCallObservations(rows);
+        HostCheck.Equal(new QemuTranscripts.LinuxCallWaitObservation(1, 4294967297, 1, 4, 0, 9), parsed.Waits[0]);
+        HostCheck.True(parsed.Returns.Count == 1 && parsed.Returns[0].Rip == 4194818 && parsed.Returns[0].RecordIndex == 1);
+        HostCheck.Equal("M16_008_CALL identity=4294967297 nr=17", QemuTranscripts.ValidateLinuxDiskCallOrdinals(rows)[1]);
+        Reject(rows); RejectWait(rows);
+        foreach (Action historical in new Action[] {
+            () => QemuTranscripts.ValidateLinuxCallOrdinals(rows, allowEpoll: true),
+            () => QemuTranscripts.ReadLinuxCallReturns(rows, allowEpoll: true),
+            () => QemuTranscripts.ReadLinuxServiceCallWaits(rows),
+            () => QemuTranscripts.ReadLinuxServiceCallReturns(rows) })
+            RejectAction(historical);
+        rows[1] = "changed";
+        HostCheck.True(parsed.Waits[0].Sequence == 9 && parsed.Returns[0].Rsp == 1879048176 &&
+            parsed.Waits is not QemuTranscripts.LinuxCallWaitObservation[] && parsed.Returns is not QemuTranscripts.LinuxCallReturnObservation[]);
+        if (parsed.Waits is IList<QemuTranscripts.LinuxCallWaitObservation> list)
+        { bool denied = false; try { list[0] = default; } catch (NotSupportedException) { denied = true; } HostCheck.True(denied); }
+    }
+
+    [HostTest("disk call observations reject deadlines missing returns unknown sources and lost ordinals")]
+    private static void DiskFailures()
+    {
+        foreach (string changed in new[] { DiskPrefix, (DiskPrefix + DiskReturn).Replace("waitDeadline=0", "waitDeadline=1", StringComparison.Ordinal),
+            (DiskPrefix + DiskReturn).Replace("waitSequence=9", "waitSequence=0", StringComparison.Ordinal),
+            (DiskPrefix + DiskReturn).Replace("waitSource=4", "waitSource=5", StringComparison.Ordinal),
+            (DiskPrefix + DiskReturn).Replace("ordinal=1", "ordinal=2", StringComparison.Ordinal),
+            (DiskPrefix + DiskReturn).Replace("waitSequence=9", "waitSequence=18446744073709551616", StringComparison.Ordinal) })
+        {
+            RejectAction(() => QemuTranscripts.ReadLinuxDiskCallObservations([changed]));
+            RejectAction(() => QemuTranscripts.ValidateLinuxDiskCallOrdinals([changed]));
+        }
+        RejectAction(() => QemuTranscripts.ReadLinuxDiskCallObservations([DiskPrefix + DiskReturn, DiskPrefix + DiskReturn]));
+        string epoll = (DiskPrefix + DiskReturn).Replace("waitSource=4 waitDeadline=0", "waitSource=3 waitDeadline=100", StringComparison.Ordinal);
+        HostCheck.Equal(3U, QemuTranscripts.ReadLinuxDiskCallObservations([epoll]).Waits[0].Source);
+    }
+
+    private static void RejectAction(Action action)
+    { bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
 }

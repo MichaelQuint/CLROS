@@ -2497,6 +2497,7 @@ sealed class RunnerOptions
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
     public bool FiniteStaticFiles { get; private set; }
+    public bool ReadOnlyWebRootDisk { get; private set; }
     public StaticFileProcessEvidence? StaticEvidence { get; private set; }
     public string? WebRacePipe { get; private set; }
     public bool WebEventOwnedSignalRace { get; private set; }
@@ -2504,7 +2505,7 @@ sealed class RunnerOptions
     public bool ServiceQuotaFailure { get; private set; }
     public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
     public ServiceEvidence? ServiceEvidence { get; private set; }
-    public string SuccessTerminalMarker => ServiceQuotaFailure ? ServiceQuotaCapture.Terminal : FiniteStaticFiles ? "TEST_PASS m16-012" : ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
+    public string SuccessTerminalMarker => ServiceQuotaFailure ? ServiceQuotaCapture.Terminal : FiniteStaticFiles || ReadOnlyWebRootDisk ? "TEST_PASS m16-012" : ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
     public HttpProbeOptions? WebConfigProbe { get; private set; }
     public HttpProbeOptions? WebLogProbe { get; private set; }
     public HttpProbeOptions? WebLogRepeatProbe { get; private set; }
@@ -2652,6 +2653,10 @@ sealed class RunnerOptions
                     if (options.FiniteStaticFiles) throw new ArgumentException("--finite-static-files may be specified only once.");
                     options.FiniteStaticFiles = true;
                     break;
+                case "--readonly-webroot-disk":
+                    if (options.ReadOnlyWebRootDisk) throw new ArgumentException("--readonly-webroot-disk may be specified only once.");
+                    options.ReadOnlyWebRootDisk = true;
+                    break;
                 case "--web-race-pipe":
                     if(options.WebRacePipe is not null)throw new ArgumentException("--web-race-pipe may be specified only once.");
                     options.WebRacePipe=ReadValue(args,ref i,arg);
@@ -2746,6 +2751,12 @@ sealed class RunnerOptions
         if (options.VirtioBlockBootImagePath is not null && (!options.VirtioBlockQueueDevice || options.DiskFormat != "raw"))
             throw new ArgumentException("--virtio-block-boot-image requires the dedicated raw Virtio block fixture.");
         options.FinishParsing();
+        if (options.ReadOnlyWebRootDisk && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.DiskFormat != "raw" ||
+            options.VirtioBlockQueueDevice || options.VirtioBlockBootImagePath is not null || options.PciBarTestDevice ||
+            options.ContinuingNetworkPeer || options.SocketContainmentPeer || options.ContinuingWeb || options.ContinuingService ||
+            options.FiniteStaticFiles || options.HttpProbe is not null || options.TimeoutSeconds is < 120 or > 295 ||
+            !options.defaultRequiredMarkersReplaced || string.IsNullOrWhiteSpace(options.SummaryLogPath)))
+            throw new ArgumentException("--readonly-webroot-disk requires the finite captured raw disk/network child without another fixture.");
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
             throw new ArgumentException("Dedicated PCI test devices cannot share slot 6.");
         if (options.EthernetCapturePath is not null && !options.VirtioNegotiationDevice)

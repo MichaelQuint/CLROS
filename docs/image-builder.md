@@ -19,6 +19,15 @@ The image command emits `<image>.webroot.json` with measured assets, preserved
 files and physical extents. Six final focused host checks pass; #769 still needs
 exact qualified candidate binding. A host image receipt is not guest disk/HTTP proof.
 
+The retained real-candidate fixture run now uses all 45 published Blazor assets
+(5,922,507 bytes), the separate static server package and reviewed staged EFI.
+Repeated base/DiskA/DiskB images and receipts are byte-identical; independent
+numeric readback reconstructs 54 files including preserved inputs, boundary
+controls and the outside-root sentinel. The two 64 MiB variants differ at one
+nonce byte, offset17871883. The 131,109-byte fragmented control has257 extents.
+These are actual host image results; the original inputs remain retained and
+no guest disk or browser qualification follows from extraction.
+
 ## Planned manifest-driven packaging (2026-10-23)
 
 The OPS research is now tracked as a successor workflow; these commands and

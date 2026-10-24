@@ -240,6 +240,21 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM10017Probe && OS.Kernel.Diagnostics.Probes.EnableM10004Probe &&
         RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
 
+    /// <summary>Reserve combined read-only disk backing before firmware exit.
+    /// The callback retains all successful allocations, including rejected ones;
+    /// this gate establishes neither device readiness nor guest I/O.</summary>
+    public static unsafe bool PrepareOwnedReadOnlyDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16023Probe && OS.Kernel.Diagnostics.Probes.EnableM16024Probe &&
+        OS.Kernel.Diagnostics.Probes.EnableM16025Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Enter the disk application through the original socket and
+    /// firmware order. Prepared backing must belong to this boot; the callback
+    /// must complete its cooperative mount before starting any user worker.</summary>
+    public static unsafe bool RunOwnedDiskStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, bool networkReady, bool diskPrepared, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM10018Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe && diskPrepared &&
+        RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
+
     /// <summary>Run startup only after package verification and firmware revocation.</summary>
     public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
         void* context, delegate*<void*, bool> run) =>

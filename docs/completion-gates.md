@@ -10,6 +10,13 @@ separate static app needs final publication and live integration. The accepted f
 step1556 is preserved. #226/#227, disk-to-HTTP/browser qualification, sustained
 static service, writable FAT32 and SQLite remain open acceptance boundaries.
 
+Isolated read-service work adds confined FAT files, pending descriptor/thread
+ownership and a separate PCI0:7 disk adapter. Managed builds and focused host
+checks cover this development. C# compilation of the EFI source is not native
+publication or guest proof. The mechanical disk runner deliberately rejects
+qualification until the complete parent, syscall, wait, sector, NIC and cleanup
+consumer is connected. No disk issue closes from its terminal markers alone.
+
 
 ## Current acceptance (October 23, 2026)
 

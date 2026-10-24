@@ -57,6 +57,11 @@ served from FAT32, then persistent logs/uploads and SQLite. The first batch is
 #780, #781 -> #782 and #768-#774. Use exactly one storage subagent; the primary
 agent owns shared integration, documentation, tracker and serialized builds.
 [Steps1558](done/step1558.md)/[1559](done/step1559.md) record current development.
+The isolated read-service integration adds a combined M16-025 mechanical disk
+profile with M16-023/024 parents and source4 thread waits. Preserve its separate
+PCI0:7 disk and PCI0:6 NIC ownership. Serialize native publication and guest
+qualification with the staged M10-017 lane; compiling EFI C# is not native or
+guest acceptance. M10-018 remains denied until its complete consumer is ready.
 The new server is `apps/MinimalApiStaticFiles`; preserve exact original smoke
 app and `NativeAotPayload`/`NativeAotWebPayload` bytes. Publish through the fixed
 static-file wrapper and immutable original socket recipe. #224/#225/#737 are

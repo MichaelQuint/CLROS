@@ -1,5 +1,15 @@
 # Diagnostics
 
+The isolated M16-025 development profile records continuing read evidence as
+`M16_023_IO` rows: original owner/epoch/generation, LBA, cumulative sequence,
+ring indexes and clock. Copy rows contain exact 512-byte payloads only after
+the block owner's committed-copy counter agrees. `M16_025_COMPLETE` binds a
+resumed source4 wait to its original sequence, request generation and admitted
+output ceiling. The optional callback only copies into bounded retained records;
+serial output occurs after the pump returns and at quiescent retirement.
+These rows require independent image/native/parent/scheduler joins and confer
+no guest acceptance by themselves. Earlier consumers keep their wait-source rules.
+
 [Step1307](../done/step1307.md) completes the stable bounded thread/runtime batch:
 5,202 full-host checks, 44 strict batch captures across 32 profiles, three retained
 strict GC repetitions and 24 fresh ancestors. Exact original native joins,

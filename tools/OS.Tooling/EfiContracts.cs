@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "86eed22d6fa55da7fff289b3b9d00ac87cc571818e6276e90acf1bb33441cc23";
-    public const string CanonicalProjectSha256 = "7c12a3809d0aa7a503d6da2569c63318a97e6232520876cbb38f8e39574ce99a";
+    public const string ProjectSourceSha256 = "9c73bfa4287fa3c79e16105a99765984c8edae3c81d49697f10d808a852a1ce4";
+    public const string CanonicalProjectSha256 = "607f251015e722f5230df754150041e0a051096c76f4bbbe1660fb2f13df12f5";
     // Current normalized source authority for fresh M02/M04 builds (step1555).
     // Reviewed M16-only changes leave those selected paths unchanged; historical
     // artifact receipts retain their original source hashes.
@@ -379,6 +379,13 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadRun.cs|",
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",
         @"Boot\EfiEntry.LinuxSockets.cs|",
+        @"Boot\EfiEntry.DiskNative.cs|",
+        @"Boot\EfiEntry.DiskBootstrap.cs|",
+        @"Boot\EfiEntry.DiskEvidence.cs|",
+        @"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs|Storage\ContinuingReadOnlyBlockService.cs",
+        @"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs|Storage\ReadOnlyWebRootFileSystem.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs|Compatibility\LinuxX64\LinuxThreadServices.Disk.cs",
         @"Boot\EfiEntry.StaticFiles.cs|",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs|Compatibility\LinuxX64\LinuxStaticFileObservation.cs",
         @"Boot\EfiEntry.LinuxWeb.cs|",
@@ -479,7 +486,7 @@ public static partial class EfiContracts
         "EnableM07VirtioNetProbe",
         "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe",
         "EnableM09011Probe", "EnableM09012Probe",
-        "EnableM10004Probe", "EnableM10017Probe",
+        "EnableM10004Probe", "EnableM10017Probe", "EnableM10018Probe",
         "EnableM16002Probe",
         "EnableM16003Probe",
         "EnableM16004Probe",
@@ -492,6 +499,7 @@ public static partial class EfiContracts
         "EnableM16011Probe",
         "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe",
         "EnableM16019InvalidProbe", "EnableM16019UnavailableProbe",
+        "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

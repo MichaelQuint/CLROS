@@ -10,6 +10,15 @@ termination/cleanup and async churn. This does not add a default app launcher
 or complete local Gate14. Preserve the `BootSequence` phase order and original
 profile prerequisites. Older receipts below describe their original scope.
 
+The isolated M16-025 read-service integration adds an explicit
+`BootSequence.PrepareOwnedReadOnlyDisk` firmware preparation callback. It
+retains a separate PCI0:7 block owner; the NIC remains PCI0:6. After firmware
+exit and NIC initialization, bounded outer turns interleave network/timer
+progress with block and mount work before any Linux worker starts. Teardown
+requires quiescent workers, flushed observations and confirmed block/filesystem
+retirement before descriptor and outer network release. This profile still
+requires native and guest qualification; ordinary boot is unchanged.
+
 M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,
 maps code RX and data RW/NX, and omits data page 3 as the kernel stack guard.

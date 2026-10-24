@@ -8,6 +8,18 @@ at `28a79996` passes 6,258 checks/847 fixtures; original guest inputs retain
 their separate heads. #779/#784 and the #225/#748/#737 integration are closed.
 Complete local Gate14 remains open under #226/#227.
 
+The isolated read-only disk development selector is `-EnableM16025Probe`, with
+`-BuildEfi -LinuxElfPackage <canonical-disk-files.pkg> -WebRootFixture DiskA`
+or `DiskB`, and `-WebRootAssets <prepared-wwwroot>`. Generate its fresh mechanical
+package with `linux disk-files-package <fresh-artifacts-output>` through
+OS.Tooling. It uses the original AHCI boot image with snapshot writes and a
+second read-only view at PCI0:7; the NIC stays at PCI0:6. Timeout is 180 seconds
+by default, bounded 120..285. Source gates remain default off. M16-023/024 are
+parents of this combined profile; they have no separate capture selector.
+M10-018 remains rejected until its complete disk/static consumer is implemented.
+Dry run checks argument/device policy only; real development captures still
+fail `disk_files_complete_consumer_required` until the full consumer is joined.
+
 Use the [Kestrel ledger](kestrel.md) for the current owned service/race/quota
 recipes and admission requirements. A low-level example or successful replay
 does not replace an original owned consumer result. Earlier development recipes

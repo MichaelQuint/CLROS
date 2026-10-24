@@ -17,6 +17,8 @@ public sealed class QemuSmokeOptions
     public string WorkloadProfile { get; set; } = "SingleMinimalApi";
     public string GptImageVariant { get; set; } = "Intact";
     public string PackageImageVariant { get; set; } = "Intact";
+    public string WebRootFixture { get; set; } = "";
+    public string WebRootAssets { get; set; } = "";
     public string LinuxElfPackage { get; set; } = "artifacts/packages/linux-elf.pkg";
     public string LinuxElfImageVariant { get; set; } = "Intact";
     public string LinuxHelloDisassembly { get; set; } = "";
@@ -74,6 +76,7 @@ public sealed class QemuSmokeOptions
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["memorymib"] = "MemoryMiB", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
+            ["webrootfixture"] = "WebRootFixture", ["webrootassets"] = "WebRootAssets",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["webeventownedsignalrace"] = "WebEventOwnedSignalRace", ["requiremarker"] = "RequireMarker",
@@ -110,6 +113,8 @@ public sealed class QemuSmokeOptions
                 case "WorkloadProfile": result.WorkloadProfile = value; break;
                 case "GptImageVariant": result.GptImageVariant = value; break;
                 case "PackageImageVariant": result.PackageImageVariant = value; break;
+                case "WebRootFixture": result.WebRootFixture = value; break;
+                case "WebRootAssets": result.WebRootAssets = value; break;
                 case "LinuxElfPackage": result.LinuxElfPackage = value; break;
                 case "LinuxElfImageVariant": result.LinuxElfImageVariant = value; break;
                 case "LinuxHelloDisassembly": result.LinuxHelloDisassembly = value; break;

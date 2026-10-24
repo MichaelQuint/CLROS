@@ -1,5 +1,12 @@
 # NativeAOT NoStdLib Limits
 
+The isolated continuing-disk profile has compiled as EFI C# with explicit
+conditional source links. This is an IL compilation check only. Original ILC
+publication, native ABI/stack bounds, retained image/arena extents and real guest
+device progress still require review. Its fixed observation records contain
+copied POD/sector bytes; callbacks allocate no storage and cannot reenter a
+block mutator. Accepted older profiles retain their exact source/native scopes.
+
 The user-selected .NET 11 migration is tracked in
 [#727](http://192.168.4.35:3000/admin/CLROS/issues/727). The active compiler
 source is dotnet/dotnet `820230c386db5b0106c5430b3e5aee92a7826bf5`.

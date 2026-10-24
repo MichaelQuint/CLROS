@@ -19,6 +19,15 @@ real candidate binding remains pending. These are host results.
 token revocation/cancellation and reset quarantine. It does not yet bind a live
 combined device. Block/NIC must use separate BDF/BAR ownership with the active
 Linux timer; the one-shot private-IDT MSI-X profile is not the service owner.
+The isolated integration now has host-tested confined FAT files, descriptor
+requests and source4 scheduler waits. Pending output retains its original
+writable prefix until consume/cancel, and completion revalidates fd ownership
+before copying. The optional block observer borrows one POD observation and,
+for a copy candidate, one 512-byte payload synchronously. It cannot reenter any
+block mutator; rejection faults the owner and retains uncertain DMA. Native
+serial records are buffered outside callbacks and published after actual copy
+commit. These contracts still require combined guest device qualification.
+
 Continuing guest reads, application file descriptors and disk-backed HTTP remain
 #770 -> #771 -> #773 -> #774; writable files remain the following ladder.
 
@@ -26,7 +35,7 @@ Current master has bounded post-exit block/GPT/FAT/package diagnostics through
 step1162, not continuing disk-to-Kestrel file service. As of October 23,
 #781 -> #782 host FAT fixes remain open and precede #769 disk fixtures; active
 development is not merged acceptance. The later #770/#771/#773 read-only service
-ladder remains planned. Finite Kestrel/quota acceptance in step1556 does not
+ladder is under isolated implementation. Finite Kestrel/quota acceptance in step1556 does not
 extend storage capabilities.
 
 ## October 19 host parser findings
@@ -48,7 +57,7 @@ do not invalidate its narrow accepted profile or prove a guest storage failure.
 [M16-025/#773](http://192.168.4.35:3000/admin/CLROS/issues/773) will connect
 continuing read-only block I/O, confined FAT32 ranges and Linux application
 descriptors. The [roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
-owns ordering behind current service qualification. This is new planned work;
+owns ordering behind current service qualification. This work is not yet qualified;
 the bounded M06 qualifications below remain accepted within their original scope.
 
 Today `LiveDeviceExistingIReadOnlyBlockDeviceContract` permits one attempted
