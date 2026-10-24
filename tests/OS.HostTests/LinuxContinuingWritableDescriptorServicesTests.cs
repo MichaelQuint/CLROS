@@ -801,6 +801,121 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         }
     }
 
+    [HostTest("continuing bounded discovery serves the full mechanical growing write from actual mirrored FAT candidates")]
+    private static void DiscoveredMechanicalWrite()
+    {
+        using var f = new Owner(growth: true, locks: true); var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var file = f.Open("/data/m16-write.bin", 2 | D.Create | D.Exclusive); var retained = f.Open(); var remote = f.OpenFor(other, "/data/F0000001.DAT");
+        L(f, primary, file, 6, 1, 1073741825, 1); byte[] bytes = Enumerable.Range(0, 1032).Select(Value).ToArray();
+        byte[] expected = new byte[5126]; bytes.CopyTo(expected, 4094);
+        var request = D.Pwritev2SingleWithFreeSearch(f.State, file, bytes, 4094, D.RwfNoAppend, new(2, 64, 4)); bytes.AsSpan().Clear();
+        HostCheck.Equal(1032L, f.Run(request).Value); HostCheck.Equal(0L, D.Seek(f.State, file, 0, 1).Value);
+        HostCheck.True(D.InspectCopied(f.State, file).Length == 5126 && f.CopiedFile(remote).Length == 5126);
+        HostCheck.Equal(11, L(f, other, remote, 5, 1, 1073741825, 1).Lock.Pid);
+        HostCheck.True(f.Read(file, 5126, 0, true).SequenceEqual(expected)); f.Independent("m16-write.bin", expected);
+        HostCheck.True(f.Read(retained, 8).SequenceEqual(Enumerable.Range(0, 8).Select(Value)));
+    }
+
+    [HostTest("continuing discovery budgets and physical range end are distinct retryable facts with no allocation")]
+    private static void DiscoveryBudgets()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2);
+        foreach (D.FreeSearch policy in new D.FreeSearch[] { new(2, 0, 0), new(2, 64, 1), new(2, 5, 2) })
+        {
+            var result = f.Run(D.BeginGrowWithFreeSearch(f.State, file, 2500, policy));
+            HostCheck.True(result.Value == -11 && result.Failure == C.Status.SearchBudgetExceeded);
+            HostCheck.True(D.InspectCopied(f.State, file).Length == 900 && !f.State->Quarantined && !f.State->RequestActive);
+        }
+        uint end = (uint)(f.Storage.Input.PartitionLast - f.DataLba + 3);
+        var ended = f.Run(D.BeginGrowWithFreeSearch(f.State, file, 2500, new(end, 64, 4)));
+        HostCheck.True(ended.Value == -11 && ended.Failure == C.Status.EndOfScan);
+        HostCheck.Equal(-22L, f.Run(D.BeginGrowWithFreeSearch(f.State, file, 2500, new(1, 64, 4))).Value);
+        HostCheck.Equal(-28L, f.Run(D.BeginGrowWithFreeSearch(f.State, file, 2500, new(2, 100001, 4))).Value);
+        HostCheck.Equal(0UL, f.Storage.Device.State->SubmittedBytes);
+        HostCheck.Equal(0L, f.Run(D.BeginGrowWithFreeSearch(f.State, file, 2500, new(2, 64, 4))).Value);
+        HostCheck.True(D.InspectCopied(f.State, file).Length == 2500 && !f.State->Quarantined);
+    }
+
+    [HostTest("continuing no-growth and tail-only updates bypass candidate search without assuming cluster bytes")]
+    private static void DiscoveryBypass()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2);
+        HostCheck.Equal(1L, f.Run(D.BeginWriteWithFreeSearch(f.State, file, new byte[] { 9 }, default, 5, true)).Value);
+        HostCheck.Equal(0L, f.Run(D.BeginGrowWithFreeSearch(f.State, file, 1000, default)).Value);
+        byte[] expected = new byte[1000]; Enumerable.Range(0, 900).Select(Value).ToArray().CopyTo(expected, 0); expected[5] = 9;
+        HostCheck.True(f.Read(file, 1000, 0, true).SequenceEqual(expected)); f.Independent("DATA.BIN", expected);
+        HostCheck.Equal(-95L, D.Pwritev2SingleWithFreeSearch(f.State, file, new byte[1], 0, 0, new(2, 64, 4)).Value);
+    }
+
+    [HostTest("continuing candidate search crosses FAT sectors only within actual independent read bounds")]
+    private static void DiscoverySectorBoundary()
+    {
+        using var f = new Owner(growth: true); var file = f.Open("/data/edge.bin", 2 | D.Create | D.Exclusive);
+        var result = f.Run(D.BeginGrowWithFreeSearch(f.State, file, 5126, new(126, 11, 3)));
+        HostCheck.True(result.Value == -11 && result.Failure == C.Status.SearchBudgetExceeded && D.InspectCopied(f.State, file).Length == 0);
+        HostCheck.Equal(0L, f.Run(D.BeginGrowWithFreeSearch(f.State, file, 5126, new(126, 11, 4))).Value);
+        HostCheck.True(f.CopiedFile(file).FirstCluster == 126 && f.Read(file, 5126, 0, true).All(value => value == 0));
+        f.Independent("edge.bin", new byte[5126]);
+    }
+
+    [HostTest("continuing selected clusters remain unreserved and actual growth rejects newly occupied mirrored FAT entries")]
+    private static void DiscoveryNotReservation()
+    {
+        using var f = new Owner(growth: true); var file = f.Open(flags: 2);
+        var request = D.BeginGrowWithFreeSearch(f.State, file, 2500, new(2, 64, 4)); f.HoldSearchReady();
+        // Cluster5 is independently free in this fixture's FAT: root2,
+        // KEEP3 and DATA4->6 are allocated. Change both physical copies after
+        // discovery completed; its copied fact cannot authorize allocation.
+        f.Storage.Fat(5, 0x0fffffff);
+        HostCheck.Equal(-22L, f.Run(request).Value);
+        HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && D.InspectCopied(f.State, file).Length == 900 && !f.State->Quarantined);
+    }
+
+    [HostTest("continuing search mirror errors reject before writes and held copy rejects a retired original block owner")]
+    private static void DiscoveryErrors()
+    {
+        using (var f = new Owner(growth: true))
+        {
+            var file = f.Open(flags: 2); var request = D.BeginGrowWithFreeSearch(f.State, file, 2500, new(2, 64, 4)); f.HoldSearchStart();
+            int entry = (int)((f.Storage.Input.PartitionFirst + 32 + 512) * 512 + 5 * 4);
+            System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(f.Storage.Volatile[entry..], 0x0fffffff);
+            var result = f.Run(request); HostCheck.True(result.Value == -5 && result.Failure == C.Status.MirrorMismatch);
+            HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && D.InspectCopied(f.State, file).Length == 900);
+        }
+        using (var f = new Owner(growth: true))
+        {
+            var file = f.Open(flags: 2); var request = D.BeginGrowWithFreeSearch(f.State, file, 2500, new(2, 64, 4)); f.HoldSearchReady();
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+            var result = f.Run(request); HostCheck.True(result.Value == -5 && f.State->Quarantined && f.CopiedFile(file).Length == 900);
+            HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && f.Cursor(file) == 0);
+            HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase);
+        }
+    }
+
+    [HostTest("continuing pending and held candidate search close drains without late growth payload or cursor effects")]
+    private static void DiscoveryCancellation()
+    {
+        foreach (bool held in new[] { false, true }) foreach (bool close in new[] { false, true })
+        {
+            using var f = new Owner(growth: true); var file = f.Open(flags: 2); var duplicate = D.Dup(f.State, file).Descriptor;
+            var request = D.BeginWriteWithFreeSearch(f.State, file, new byte[600], new(2, 64, 4), 899, true);
+            if (held) f.HoldSearchReady(); else { f.HoldSearchStart(); D.Pump(f.State); HostCheck.True(f.Device->Pending); }
+            if (close)
+            {
+                HostCheck.Equal(0L, D.Close(f.State, file)); var replacement = f.Open("/data");
+                HostCheck.True(replacement.Number == file.Number && replacement.Generation != file.Generation);
+                f.CompleteHardware(); f.Drain(); HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase);
+            }
+            else
+            {
+                HostCheck.Equal(held ? D.Progress.Ready : D.Progress.Pending, D.Cancel(f.State, request.Request).Phase);
+                f.CompleteHardware(); HostCheck.Equal(-4L, f.Run(request).Value);
+            }
+            HostCheck.True(!f.State->RequestActive && !f.State->Quarantined && D.InspectCopied(f.State, duplicate).Length == 900);
+            HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && D.Seek(f.State, duplicate, 0, 1).Value == 0);
+        }
+    }
+
     private static D.LockResult L(Owner f, D.ProcessToken process, D.DescriptorToken file, uint command, short type, long start, long length) =>
         D.FcntlLockForProcess(f.State, process, file, command, new(type, 0, start, length));
 
@@ -894,6 +1009,28 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
                 HostCheck.Equal(C.Status.Pending, status);
             }
             throw new InvalidOperationException("retained engine mutation did not become ready");
+        }
+        internal void HoldSearchStart()
+        {
+            for (int i = 0; i < 100000; i++)
+            {
+                object pending = typeof(D.State).GetField("Work", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(*State)!;
+                if (pending.GetType().GetField("Step", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.GetValue(pending)!.ToString() == "FindFree")
+                { HostCheck.True(Storage.State->RequestActive && !Device->Pending && !Storage.State->Dirty); return; }
+                HostCheck.Equal(D.Progress.Pending, Tick().Phase);
+            }
+            throw new InvalidOperationException("provider did not begin bounded free search");
+        }
+        internal void HoldSearchReady()
+        {
+            HoldSearchStart();
+            for (int i = 0; i < 100000; i++)
+            {
+                var status = C.Pump(Storage.State); CompleteHardware();
+                if (status == C.Status.Ready) return;
+                HostCheck.Equal(C.Status.Pending, status);
+            }
+            throw new InvalidOperationException("retained free search did not become ready");
         }
         internal void Independent(string name, byte[] expected)
         {

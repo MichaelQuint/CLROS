@@ -23,7 +23,14 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Missing = -2, IsDirectory = -21, Access = -13, NotDirectory = -20, Io = -5, IllegalSeek = -29, NoLocks = -37, NoSys = -38, Busy = -16;
     public enum Progress : byte { Rejected, Immediate, Pending, Ready, RecoveryRequired, Retired }
     internal enum Operation : byte { Open, Read, Write, Sync, Grow, Truncate, Unlink }
-    internal enum Step : byte { Lookup, Create, CreatedLookup, Authenticate, Read, Write, Flush, Done, Grow, Truncate, DeleteLookup, Delete }
+    internal enum Step : byte { Lookup, Create, CreatedLookup, Authenticate, Read, Write, Flush, Done, Grow, Truncate, DeleteLookup, Delete, FindFree }
+
+    /// <summary>Copied limits for one optional forward candidate search.
+    /// No wrap, automatic continuation or reservation follows. A budget/end
+    /// result returns EAGAIN with its distinct backend failure; it never proves
+    /// whole-volume ENOSPC. Actual growth still checks both FAT copies again.</summary>
+    public readonly struct FreeSearch(uint firstCluster, uint clusterBudget, uint sectorReadBudget)
+    { public readonly uint FirstCluster = firstCluster, ClusterBudget = clusterBudget, SectorReadBudget = sectorReadBudget; }
 
     /// <summary>Zeroed caller-owned fd/description arrays. FD0..2 are reserved.
     /// A description survives its last close while a pending request borrows it;
@@ -125,11 +132,12 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         internal C.RequestToken EngineRequest;
         internal C.FileToken File;
         internal ProcessToken Process;
+        internal FreeSearch Search;
         internal Operation Kind;
         internal Step Step;
         internal uint Description, Number, Flags, Bytes, Expected, AliasAttempts, NewLength, GrowthCount;
         internal ushort NameLength;
-        internal bool Active, Ready, Cancelled, Discard, Positioned, Borrowed, RevisionAccepted, GrowAllowed;
+        internal bool Active, Ready, Cancelled, Discard, Positioned, Borrowed, RevisionAccepted, GrowAllowed, SearchRequested, SearchComplete;
         internal long Value;
         internal C.Status Failure;
         internal fixed byte Name[(int)PathBytes];
@@ -391,6 +399,17 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     public static Result BeginWriteWithGrowth(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes,
         ReadOnlySpan<uint> candidates, ulong offset = 0, bool positioned = false) =>
         BeginWriteCore(s, token, bytes, offset, positioned, true, candidates);
+    /// <summary>Opt in to one explicitly bounded mirrored-FAT search before
+    /// the existing grow/write sequence. Copy bytes/policy before yield. Exact
+    /// cluster count comes from the mounted engine, never guessed geometry.
+    /// In-place writes and tail-only growth need no candidate search.</summary>
+    public static Result BeginWriteWithFreeSearch(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes,
+        FreeSearch search, ulong offset = 0, bool positioned = false)
+    {
+        var result = BeginWriteCore(s, token, bytes, offset, positioned, true, default);
+        if (result.Phase == Progress.Pending) { s->Work.SearchRequested = true; s->Work.Search = search; }
+        return result;
+    }
     private static Result BeginWriteCore(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes, ulong offset,
         bool positioned, bool grow, ReadOnlySpan<uint> candidates)
     {
@@ -421,6 +440,9 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     public static Result Pwritev2SingleWithGrowth(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes,
         ulong offset, uint flags, ReadOnlySpan<uint> candidates) => flags == RwfNoAppend ?
         BeginWriteWithGrowth(s, token, bytes, candidates, offset, true) : Immediate(Unsupported);
+    public static Result Pwritev2SingleWithFreeSearch(State* s, DescriptorToken token, ReadOnlySpan<byte> bytes,
+        ulong offset, uint flags, FreeSearch search) => flags == RwfNoAppend ?
+        BeginWriteWithFreeSearch(s, token, bytes, search, offset, true) : Immediate(Unsupported);
 
     /// <summary>Grow/zero through explicitly copied allocation candidates, or
     /// shrink through the separate truncate API. Neither operation moves the
@@ -447,6 +469,15 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         var started = BeginBorrow(s, token, description, Operation.Truncate, 0, 0, true);
         if (started.Phase == Progress.Pending) s->Work.NewLength = newLength;
         return started;
+    }
+    /// <summary>Grow/zero without a payload through one copied bounded search.
+    /// This is an opt-in host contract, not an allocator or reservation. The
+    /// normal authenticated result path preserves handles and process locks.</summary>
+    public static Result BeginGrowWithFreeSearch(State* s, DescriptorToken token, uint newLength, FreeSearch search)
+    {
+        var result = BeginGrow(s, token, newLength, default);
+        if (result.Phase == Progress.Pending) { s->Work.SearchRequested = true; s->Work.Search = search; }
+        return result;
     }
 
     /// <summary>Unlink by copied root path only when NO live/borrowed regular
@@ -542,6 +573,26 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
             if (p->Cancelled)
             { DrainRead(s); return AfterFinish(s); }
             Finish(s, failure == C.Status.Success ? p->Expected : Map(failure), failure); return AfterFinish(s);
+        }
+        if (p->Step == Step.FindFree)
+        {
+            if (!p->Cancelled && (!Current(s, p->Original, out uint description) || description != p->Description ||
+                s->Input.Descriptions[description].Generation != p->DescriptionGeneration || !ProcessCurrent(s, p->Process)))
+            { p->Discard = true; return Cancel(s, new(s)); }
+            C.FreeResult selected = default;
+            status = C.CopyFree(s->Input.Engine, p->EngineRequest, new Span<uint>(p->Growth, C.MaximumGrowthClusters), &selected);
+            if (status is C.Status.InvalidState or C.Status.InvalidStorage or C.Status.StaleToken)
+            { p->Failure = status; return Recovery(s); }
+            if (status == C.Status.BlockFailure) s->Poisoned = true;
+            if (!p->Cancelled && status == C.Status.Success)
+            {
+                if (!SelectionMatches(s, selected)) { p->Failure = C.Status.InvalidState; return Recovery(s); }
+                p->SearchComplete = true;
+                status = BeginData(s);
+                if (status is not (C.Status.Pending or C.Status.Ready)) Finish(s, Map(status), status);
+                return AfterFinish(s);
+            }
+            Finish(s, p->Cancelled ? Interrupted : Map(status), status); return AfterFinish(s);
         }
         if (p->Step is Step.Grow or Step.Truncate or Step.Delete)
         {
@@ -719,7 +770,24 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         Pending* p = &s->Work; C.RequestToken request = default; C.Status status;
         p->RevisionAccepted = false;
         if (p->Kind == Operation.Grow || p->Kind == Operation.Write && p->GrowAllowed && p->NewLength > p->File.Length)
-        { p->Step = Step.Grow; status = C.BeginGrow(s->Input.Engine, p->File, p->NewLength, new ReadOnlySpan<uint>(p->Growth, (int)p->GrowthCount), &request); }
+        {
+            if (p->SearchRequested && !p->SearchComplete)
+            {
+                uint count = 0; status = C.GrowthCandidatesRequired(s->Input.Engine, p->File, p->NewLength, &count);
+                if (status != C.Status.Success) return status;
+                p->GrowthCount = count;
+                if (count != 0)
+                {
+                    C.FreeCursor cursor = default; status = C.CreateFreeCursor(s->Input.Engine, p->Search.FirstCluster, &cursor);
+                    if (status != C.Status.Success) return status;
+                    p->Step = Step.FindFree;
+                    status = C.BeginFindFree(s->Input.Engine, cursor, count, p->Search.ClusterBudget, p->Search.SectorReadBudget, &request);
+                    p->EngineRequest = request; return status;
+                }
+                p->SearchComplete = true;
+            }
+            p->Step = Step.Grow; status = C.BeginGrow(s->Input.Engine, p->File, p->NewLength, new ReadOnlySpan<uint>(p->Growth, (int)p->GrowthCount), &request);
+        }
         else if (p->Kind == Operation.Truncate)
         { p->Step = Step.Truncate; status = C.BeginTruncate(s->Input.Engine, p->File, p->NewLength, &request); }
         else if (p->Kind == Operation.Write)
@@ -814,6 +882,18 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
             if (s->LockInput.Locks[i].Active && Physical(s->LockInput.Locks[i].File, before))
             { if (deleted) s->LockInput.Locks[i] = default; else s->LockInput.Locks[i].File = after; }
         p->File = after; return true;
+    }
+    private static bool SelectionMatches(State* s, C.FreeResult result)
+    {
+        Pending* p = &s->Work;
+        if (result.Status != C.Status.Success || !Same(result.Request, p->EngineRequest) || result.Count != p->GrowthCount ||
+            result.Count is 0 or > C.MaximumGrowthClusters || result.Count > result.Scanned || result.Scanned > p->Search.ClusterBudget ||
+            result.SectorReads > p->Search.SectorReadBudget || result.NextCursor.Owner != p->File.Owner || result.NextCursor.Epoch != p->File.Epoch ||
+            result.NextCursor.Revision != s->KnownRevision || result.NextCursor.Generation != p->EngineRequest.Generation ||
+            result.NextCursor.NextCluster < p->Search.FirstCluster || (ulong)result.NextCursor.NextCluster - p->Search.FirstCluster != result.Scanned) return false;
+        for (uint i = 0; i < result.Count; i++)
+            if (p->Growth[i] < p->Search.FirstCluster || p->Growth[i] >= result.NextCursor.NextCluster || i != 0 && p->Growth[i] <= p->Growth[i - 1]) return false;
+        return true;
     }
     private static bool Physical(C.FileToken a, C.FileToken b) => a.Owner == b.Owner && a.Epoch == b.Epoch && a.EntryOffset == b.EntryOffset &&
         a.FirstCluster == b.FirstCluster && a.Length == b.Length && a.Fingerprint0 == b.Fingerprint0 && a.Fingerprint1 == b.Fingerprint1 &&
@@ -921,6 +1001,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     private static long Map(C.Status status) => status switch
     {
         C.Status.Success => 0, C.Status.NotFound => Missing, C.Status.AlreadyExists => Exists,
+        C.Status.SearchBudgetExceeded or C.Status.EndOfScan => Again,
         C.Status.InvalidName or C.Status.InvalidAllocation => Invalid, C.Status.NotFile => IsDirectory, C.Status.ReadOnly => Access,
         C.Status.Unsupported => Unsupported, C.Status.StaleToken => Stale, C.Status.Busy => Again,
         C.Status.CapacityExceeded => NoSpace, C.Status.GenerationExhausted or C.Status.BudgetExceeded => Overflow,
