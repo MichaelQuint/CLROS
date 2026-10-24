@@ -46,7 +46,7 @@ public static class ToolCommand
                 var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,imageBytes,
                     new(report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,Counter(1),Counter(2),Counter(3)));
                 files.VerifyUnchanged();
-                Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {report.Static,report.Reads,report.Operations,
+                Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {report.Static,report.Reads,report.Operations,report.SocketWrites,
                     report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,report.ReadinessRecordIndex,
                     sectors.Device.Counters,Assigned=sectors.Data.Assigned.Select(c=>new{c.Path,c.Sector,c.Copy.CopyRecordIndex,c.Window.RequestGeneration}),sectors.Metadata,
                     sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));

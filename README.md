@@ -130,6 +130,12 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1578](done/step1578.md) connects a complete original consumer candidate
+for five development responses, including disk bytes, HTTP/TCP and read-before-
+send joins. Host controls cover cancellation and memory/clock ownership. A fresh
+source-matched guest remains required; the full Blazor asset/browser matrix,
+storage race guests, stable batch gates and write/SQLite ladder are unfinished.
+
 [Step1577](done/step1577.md) adds complete value-only disk/static scheduler,
 file and sector replay. All2973 original diagnostic calls,13 reaps,11 disk
 operations and12 sectors match. The original018r03 command remains failed;

@@ -1,5 +1,16 @@
 # QEMU
 
+[Step1578](../done/step1578.md) replaces the018 placeholder with a separate
+original five-response consumer candidate. The peer uses one pooled connection
+and records bounded failure receipts even after external cancellation. The owner
+holds original captures and all five bodies through final source/native callbacks,
+checks the original child lifetime and stopped endpoint, replays the full leaf,
+and joins physical sectors, TCP streams, metadata and cold-read-before-send order.
+Live roots/worker/NIC/disk extents must be disjoint; IO clocks stay within the
+original device lifetime. Success is explicitly `five-response-development`,
+with `blazor_qualified=false`. Fresh original execution is still required. The
+value-only CLI additionally reports per-description queued-send byte intervals.
+
 [Step1577](../done/step1577.md) adds a report-only full disk/static value CLI:
 
     dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu inspect-disk-static-values <disk-package> <raw-image> <complete-instruction-index> <serial>

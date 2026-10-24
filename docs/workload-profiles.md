@@ -1,5 +1,12 @@
 # Workload Profiles ADR
 
+[Step1578](../done/step1578.md) adds an original five-response disk/static
+consumer candidate and host lifecycle controls. Fresh original execution still
+precedes even that limited development boundary. Continue the full Blazor/browser,
+both-variant and actual race qualification before closing the first ten issues;
+then proceed to the approved write/flush/log/upload/locking/SQLite ladder. No
+issue, complete Kestrel/Gate14, durability or production scope advances here.
+
 [Step1577](../done/step1577.md) adds complete copied disk/static scheduler/file
 and sector joins. Original018r03 remains a failed diagnostic; complete original
 HTTP/native/process/packet ownership and the full Blazor/browser witness still

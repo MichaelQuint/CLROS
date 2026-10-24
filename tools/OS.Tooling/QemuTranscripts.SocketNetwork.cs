@@ -34,9 +34,10 @@ public static partial class QemuTranscripts
     {
         var result=SocketLifetimes(rows,continuingWeb);return new(result.Count,result.Count(x=>x.Retired!=0),result.Count(x=>x.Waits!=0),result.Max(x=>x.MaximumDeadline));
     }
-    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5,WebSocketControls.Report? controls=null,bool signalRace=false,bool finiteStatic=false)
+    private static List<SocketLifetime> SocketLifetimes(string[] rows,bool continuingWeb=false,int webConnections=5,WebSocketControls.Report? controls=null,bool signalRace=false,bool finiteStatic=false,int finiteConnections=3)
     {
         Need(!finiteStatic || !continuingWeb && controls is null && !signalRace,"static_transport_selection");
+        Need(finiteStatic ? finiteConnections is >0 and <=512 : finiteConnections==3,"static_transport_connection_bound");
         Need(controls is null || continuingWeb && webConnections is 7 or 8,"web_transport_selection");
         Need(!signalRace || continuingWeb && controls is not null && webConnections==8,"web_transport_race_selection");
         Need(!continuingWeb || controls is not null || !rows.Any(IsWebControlEvent),"web_transport_unexpected_controls");
@@ -94,7 +95,7 @@ public static partial class QemuTranscripts
                 lifetime!.MaximumDeadline=r["deadline"];lifetime.Waits++;lifetime.Drain=r["drain"]==1;
             }
         }
-        Need(finiteStatic?all.Count==3 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Select(v=>v.RemotePort).Distinct().Count()==3:
+        Need(finiteStatic?all.Count==finiteConnections && active.Count==0 && all.All(v=>v.Retired!=0) && all.Select(v=>v.RemotePort).Distinct().Count()==finiteConnections:
             continuingWeb?(controls is null?webConnections is 5 or 6:webConnections is 7 or 8) &&
             (signalRace?all.Count>=webConnections && all.Count<=512:all.Count==webConnections) && active.Count>0 && all.Select(v=>v.RemotePort).Distinct().Count()==all.Count:
             all.Count==4 && active.Count==0 && all.All(v=>v.Retired!=0) && all.Any(v=>v.Waits!=0),"socket_transport_complete");
@@ -214,14 +215,15 @@ public static partial class QemuTranscripts
         var result=SocketNetworkEnvelope(rows,true,staticFiles:true).Proof.Lifetimes;
         return new(result.Count,result.Count(v=>v.Retired!=0),result.Count(v=>v.Waits!=0),result.Max(v=>v.MaximumDeadline));
     }
-    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false)
+    private static (int ParentsEnd,string[] Apic,SocketNetworkProof Proof) SocketNetworkEnvelope(string[] lines,bool asynchronous,bool containment=false,bool vectors=false,bool mechanical=false,bool staticFiles=false,bool diskFiles=false,bool diskStatic=false,int diskStaticConnections=1)
     {
         int parentsEnd=QemuContracts.M03OwnedSubsystemMarkers.Count+7+M16LinuxStartupMarkers.Count+M16ServiceLoopMarkers.Count;
         int apicEnd=parentsEnd+QemuContracts.M05ApicSetupMarkers.Count-QemuContracts.M03OwnedSubsystemMarkers.Count;
         int networkStart=apicEnd+QemuContracts.M07ArpReceiveMarkers.Count-QemuContracts.M05PciEnumerationMarkers.Count;
         Need(lines.Length>networkStart+12 && !(containment&&asynchronous) && (!vectors || asynchronous && !containment) &&
             (!mechanical||asynchronous&&!containment&&!vectors) && (!staticFiles||asynchronous&&!containment&&!vectors&&!mechanical) &&
-            (!diskFiles||mechanical&&!staticFiles),"socket_parent_extent");
+            (!diskFiles||mechanical&&!staticFiles || diskStatic && staticFiles && !mechanical) &&
+            (!diskStatic || diskFiles && staticFiles && diskStaticConnections is >0 and <=512),"socket_parent_extent");
         int cursor=networkStart;
         void Exact(string expected){Need(cursor<lines.Length&&lines[cursor++]==expected,"socket_parent_order_"+expected);}
         Exact("TEST_START m07-026");var dma=ReadRecord(lines[cursor++],"M07_026_ROW","stage:dec","a:dec","b:dec","c:dec","d:dec");
@@ -233,7 +235,7 @@ public static partial class QemuTranscripts
         int leafEnd=Array.IndexOf(lines,"TEST_PASS m16-009",leafStart)+1;Need(leafEnd>leafStart,"socket_parent_leaf_end");
         if(mechanical)Need(!lines[leafStart..leafEnd].Any(row=>IsSocketTransport(row)||row.StartsWith("M16_011_IO ",StringComparison.Ordinal)||
             row.StartsWith("M07_027_",StringComparison.Ordinal)||row.StartsWith("M07_028_",StringComparison.Ordinal)),"signal_epoll_no_tcp_lifetimes");
-        List<SocketLifetime> lifetimes=containment||mechanical?[]:SocketLifetimes(lines[leafStart..leafEnd],finiteStatic:staticFiles);
+        List<SocketLifetime> lifetimes=containment||mechanical?[]:SocketLifetimes(lines[leafStart..leafEnd],finiteStatic:staticFiles,finiteConnections:diskStatic?diskStaticConnections:3);
         var control=containment?ReadSocketContainmentTransport(lines[leafStart..leafEnd]):null;cursor=leafEnd;
         var wire=ReadRecord(lines[cursor++],"M16_011_WIRE","received:dec","arp:dec","accepted:dec","ignored:dec","capacity:dec","arpCopied:dec","tcpCopied:dec");
         const string cleanup=" retained=0 buffers=scrubbed descriptors=closed workers=reaped";string endLine=lines[cursor++];
@@ -248,8 +250,9 @@ public static partial class QemuTranscripts
         }
         if(staticFiles)
         {
-            Exact("M10_017_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained");
-            Exact("CLROS_M10_017_READY");Exact("TEST_PASS m10.017");
+            string tag=diskStatic?"018":"017";
+            Exact("M10_"+tag+"_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained");
+            Exact("CLROS_M10_"+tag+"_READY");Exact("TEST_PASS m10."+tag);
         }
         Exact("CLROS_M07_026_READY");Exact("TEST_PASS m07-026");Exact("CLROS_M16_011_READY");Exact("TEST_PASS m16-011");
         if(asynchronous){Exact("CLROS_M16_012_READY");Exact("TEST_PASS m16-012");}
@@ -263,7 +266,7 @@ public static partial class QemuTranscripts
         Need(peer["mac"]==arp.PeerMac && peer["sent"]==1 && peer["received"]>=1 && peer["start"]>=end["start"] &&
             peer["end"]>=peer["start"] && peer["end"]<=(mechanical?end["end"]:containment?control!.Lifetimes.Min(v=>v.Created):lifetimes.Min(v=>v.First["clock"])),"socket_peer_parent");
         ulong maxDeadline=containment||mechanical?0:lifetimes.Max(v=>v.MaximumDeadline);
-        Need(end["fresh"]==(mechanical?0UL:containment||staticFiles?3UL:4UL) && end["retired"]==end["fresh"] && end["polls"]>0 && end["received"]==wire["received"] &&
+        Need(end["fresh"]==(mechanical?0UL:diskStatic?(ulong)diskStaticConnections:containment||staticFiles?3UL:4UL) && end["retired"]==end["fresh"] && end["polls"]>0 && end["received"]==wire["received"] &&
             end["copied"]==wire["tcpCopied"] && wire["received"]==wire["arp"]+wire["accepted"]+wire["ignored"]+wire["capacity"] &&
             wire["capacity"]==0 && end["maxDeadline"]==maxDeadline && end["end"]>=end["maxDeadline"] &&
             end["end"]>=(mechanical?peer["end"]:containment?control!.Lifetimes.Max(v=>v.Retired):lifetimes.Max(v=>v.Retired)),"socket_network_accounting");

@@ -10,7 +10,8 @@ public static partial class QemuTranscripts
     /// or guest authority; a later inspection cannot rescue a failed original.</summary>
     public sealed record DiskStaticReplayReport(StaticFileReplayReport Static,
         IReadOnlyList<NativeDiskStaticReadWindows.ReadWindow> Reads,
-        IReadOnlyList<DiskStaticOperation> Operations, IReadOnlyList<LinuxDiskAuxiliary> DeviceRows, ulong Owner, ulong Epoch,
+        IReadOnlyList<DiskStaticOperation> Operations, IReadOnlyList<DiskStaticSocketWrite> SocketWrites,
+        IReadOnlyList<LinuxDiskAuxiliary> DeviceRows, ulong Owner, ulong Epoch,
         ulong BootstrapCompleted, ulong BootstrapCopied, int ReadinessRecordIndex)
     {
         public bool CheckedDeviceBytesOrHttp => false;
@@ -22,6 +23,11 @@ public static partial class QemuTranscripts
     /// no unique request attribution. Values do not reconstruct the FS cache.</summary>
     public readonly record struct DiskStaticOperation(ulong Identity,ulong Ordinal,ulong Number,ulong Request,
         int BeginRecordIndex,int WakeRecordIndex,int CompleteRecordIndex,uint OutputPrefix,long Value);
+
+    /// <summary>Successfully queued bytes in one original accepted socket's
+    /// response stream. Offsets are per open description, never a reused fd;
+    /// independent wire reconstruction still authenticates transmitted bytes.</summary>
+    public readonly record struct DiskStaticSocketWrite(int Connection,int CallRecordIndex,ulong Before,ulong After);
 
     public sealed record DiskStaticSectorValues(NativeDiskReadObservations.Inspection Device,
         NativeDiskStaticReadWindows.Inspection Data,IReadOnlyList<WebRootDiskInventory.MetadataSector> Metadata)
@@ -114,6 +120,7 @@ public static partial class QemuTranscripts
         private readonly List<LinuxDiskAuxiliary> diskIo=[];
         private readonly List<NativeDiskStaticReadWindows.ReadWindow> diskReadWindows=[];
         private readonly List<DiskStaticOperation> diskOperations=[];
+        private readonly List<DiskStaticSocketWrite> diskSocketWrites=[];
         private readonly HashSet<ulong> diskRequests=[];
         private DiskStaticPending? diskCompleting;
         private ulong diskOwner,diskEpoch,diskBootstrapCompleted,diskBootstrapCopied;
@@ -131,8 +138,18 @@ public static partial class QemuTranscripts
             Need(diskReadyIndex>=0 && diskIo.Count>0 && diskReadWindows.Count>0 && history.All(t=>t.Disk is null) &&
                 diskRequests.Count==diskOperations.Count,
                 "disk_static_complete_observations");
-            return new(StaticReport(protocol),Array.AsReadOnly(diskReadWindows.ToArray()),Array.AsReadOnly(diskOperations.ToArray()),Array.AsReadOnly(diskIo.ToArray()),
+            return new(StaticReport(protocol),Array.AsReadOnly(diskReadWindows.ToArray()),Array.AsReadOnly(diskOperations.ToArray()),
+                Array.AsReadOnly(diskSocketWrites.ToArray()),Array.AsReadOnly(diskIo.ToArray()),
                 diskOwner,diskEpoch,diskBootstrapCompleted,diskBootstrapCopied,diskReadyIndex);
+        }
+
+        private void DiskStaticSocketQueued(Dictionary<string,ulong> call,int index)
+        {
+            if(diskInventory is null || call["nr"] is not (44 or 46) || unchecked((long)call["valueBits"])<=0)return;
+            Need(call["a0"]<(ulong)descriptorCapacity && socketDescriptors.TryGetValue((int)call["a0"],out var descriptor) &&
+                !descriptor.Port && descriptor.Phase==3 && descriptor.Sent>=call["valueBits"],"disk_static_socket_write_owner");
+            var value=socketDescriptors[(int)call["a0"]];
+            diskSocketWrites.Add(new(value.Connection,index,value.Sent-call["valueBits"],value.Sent));
         }
 
         private void DiskStaticBegin()

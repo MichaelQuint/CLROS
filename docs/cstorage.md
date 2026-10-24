@@ -1,5 +1,14 @@
 # Storage
 
+[Step1578](../done/step1578.md) adds original-owner candidates joining disk
+lifetimes and physical reads to five HTTP bodies. Host mutation controls reject
+live disk/NIC/root/pool aliases and out-of-lifetime IO clocks. New two-worker
+fixture/leaf controls encode an interrupted16-sector read, a zero-I/O EOF winner
+and exit with a pending read. These are host/byte contracts only. EOF is not a
+backend completion race; the exit sentinel is observed before death. Original
+race guests, post-quiescence sentinel/drain evidence and full read/browser batch
+qualification remain required. Writes, flush, persistence and SQLite are unchanged.
+
 [Step1577](../done/step1577.md) adds copied physical directory/FAT classification,
 unique positive file-sector assignment and complete disk/static wait replay.
 Original018r03 value inspection matches11 disk operations,2 file windows and

@@ -10,7 +10,7 @@ internal static class LinuxDiskRaceTranscriptTests
     [HostTest("disk race leaf joins two exact workers overlapping requests and close reuse without granting auxiliary authority")]
     private static void Positive()
     {
-        foreach (string variant in F.Variants)
+        foreach (string variant in F.OriginalVariants)
         {
             string[] rows = Synthetic(variant), before = (string[])rows.Clone(); byte[] package = F.CreatePackage(variant), saved = (byte[])package.Clone();
             var report = Inspect(rows, package);
@@ -45,7 +45,7 @@ internal static class LinuxDiskRaceTranscriptTests
     [HostTest("disk race leaf rejects mutated arguments clone generations exact continuations and return envelopes")]
     private static void Calls()
     {
-        foreach (string variant in F.Variants)
+        foreach (string variant in F.OriginalVariants)
         {
             string[] rows = Synthetic(variant); var report = Inspect(rows);
             foreach (int at in report.Calls.Where(c => c.Spec.Role is "prep.clone" or "main.read" or "child.pin" or "child.tid" or "main.exit").Select(c => c.RecordIndex))
@@ -63,7 +63,7 @@ internal static class LinuxDiskRaceTranscriptTests
     [HostTest("disk race waits bind original worker sequences global requests copy ceilings and exact resumes")]
     private static void Waits()
     {
-        foreach (string variant in F.Variants)
+        foreach (string variant in F.OriginalVariants)
         {
             string[] rows = Synthetic(variant); var report = Inspect(rows);
             foreach (var window in report.Windows)
@@ -109,7 +109,7 @@ internal static class LinuxDiskRaceTranscriptTests
     [HostTest("disk race lifecycle rejects missing extra reordered exits scrubs and inconsistent owner counters")]
     private static void Lifecycle()
     {
-        foreach (string variant in F.Variants)
+        foreach (string variant in F.OriginalVariants)
         {
             string[] rows = Synthetic(variant);
             foreach (string prefix in new[] { "M16_008_SUPERVISOR ", "M16_008_EXIT ", "M16_008_REAP ", "M16_005_WRITE ", "M16_008_OWNER_END ", "M16_009_RESTORE ", "M16_011_CLOSE " })
@@ -142,6 +142,136 @@ internal static class LinuxDiskRaceTranscriptTests
         bool refused = false; try { QemuTranscripts.InspectLinuxDiskRaceLeaf(new Oversized(), F.CreatePackage("Progress"), 0x200000, 0x100000); } catch (ToolFailure) { refused = true; }
         HostCheck.True(refused);
         refused = false; try { Inspect(rows, F.CreatePackage("CloseReuse")); } catch (ToolFailure) { refused = true; } HostCheck.True(refused);
+    }
+
+    [HostTest("disk signal race leaves distinguish interrupted read and zero-I/O EOF winner through real handler return envelopes")]
+    private static void SignalLifetimes()
+    {
+        foreach (string variant in new[] { "InterruptWins", "CompletionWins" })
+        {
+            var rows = SyntheticLifecycle(variant); var report = Inspect(rows, F.CreatePackage(variant));
+            var read = report.Windows.Single(w => w.CallRecordIndex == report.MainReadCallIndex);
+            HostCheck.True(report.ChildSignalIndex > read.CallRecordIndex && report.ChildSignalIndex < read.CompletionRecordIndex &&
+                read.Completion == (variant == "InterruptWins" ? 5U : 1U) && read.Value == (variant == "InterruptWins" ? -4 : 0));
+            HostCheck.True(report.CheckedSignalReturnEnvelopes && !report.CheckedPostDeathSentinelOrOrphanDrain &&
+                !report.CompletionWinnerProvesBackendDataRace && report.Abandoned.Count == 0);
+            HostCheck.Equal(F.Calls(variant).Count + F.Calls(variant, true).Count + F.HandlerCalls(variant).Count, report.Calls.Count);
+            HostCheck.True(report.Calls.Where(c => c.Spec.Role.StartsWith("handler.", StringComparison.Ordinal)).Select(c => c.Spec).SequenceEqual(F.HandlerCalls(variant)));
+            HostCheck.True(report.Calls.Single(c => c.Spec.Role == "main.drain-probe").RecordIndex > report.MainReadCompletionIndex);
+        }
+    }
+
+    [HostTest("disk signal races reject wrong winner target prefix pending result and forged sigreturn frame mask or restoration")]
+    private static void SignalMutations()
+    {
+        foreach (string variant in new[] { "InterruptWins", "CompletionWins" })
+        {
+            string[] rows = SyntheticLifecycle(variant); var report = Inspect(rows, F.CreatePackage(variant));
+            int complete = report.MainReadCompletionIndex, signal = report.ChildSignalIndex;
+            foreach (string field in new[] { "completion", "sequence", "request", "outputBytes", "valueBits", "identity" })
+                Reject(Change(rows, complete, field, Field(rows[complete], field) + 1), variant);
+            foreach (string field in new[] { "a0", "a1", "a2" }) Reject(Change(rows, signal, field, Field(rows[signal], field) + 1), variant);
+            foreach (var call in report.Calls.Where(c => c.Spec.Role.StartsWith("handler.", StringComparison.Ordinal)))
+                foreach (string field in new[] { "rsp", "signalDepth", "signalFrame", "blockedSignals", "returnRip", "returnRsp", "returnValueBits", "action" })
+                    Reject(Change(rows, call.RecordIndex, field, Field(rows[call.RecordIndex], field) + 1), variant);
+            var restored = report.Calls.Single(c => c.Spec.Role == "handler.return");
+            Reject(rows.Where((_, i) => i != restored.RecordIndex).ToArray(), variant);
+            Reject(Replace(rows, signal, rows[signal].Replace("nr=234", "nr=200", StringComparison.Ordinal)), variant);
+            Reject(MovePair(rows, complete, signal), variant);
+        }
+    }
+
+    [HostTest("disk pending process exit has one abandoned wait and no invented completion return or post-death sentinel authority")]
+    private static void PendingExit()
+    {
+        const string variant = "ExitPending"; var rows = SyntheticLifecycle(variant); var report = Inspect(rows, F.CreatePackage(variant));
+        HostCheck.True(report.MainReadCompletionIndex == -1 && report.Abandoned.Count == 1 && !report.CheckedPostDeathSentinelOrOrphanDrain &&
+            report.Windows.All(w => w.CallRecordIndex != report.MainReadCallIndex));
+        var pending = report.Abandoned[0]; HostCheck.True(pending.CallRecordIndex == report.MainReadCallIndex && pending.OutputBytes == 8192 &&
+            pending.Identity == F.MainIdentity && pending.GroupExitRecordIndex > pending.CallRecordIndex);
+        HostCheck.True(report.Calls.Single(c => c.Spec.Role == "child.group-exit").RecordIndex == pending.GroupExitRecordIndex);
+        foreach (string field in new[] { "a0", "identity", "nr", "action", "valueBits" })
+            Reject(Change(rows, pending.GroupExitRecordIndex, field, Field(rows[pending.GroupExitRecordIndex], field) + 1), variant);
+        string completion = $"M16_025_COMPLETE identity={F.MainIdentity} sequence={pending.Sequence} request={pending.RequestGeneration} outputBytes=8192 completion=1 valueBits=8192 clock=999";
+        Reject([.. rows[..pending.GroupExitRecordIndex], completion, $"M16_008_RESUME identity={F.MainIdentity} valueBits=8192 status=1", .. rows[pending.GroupExitRecordIndex..]], variant);
+        int reap = Array.FindIndex(rows, r => r.StartsWith("M16_008_REAP old=" + F.MainIdentity, StringComparison.Ordinal));
+        Reject(rows.Where((_, i) => i != reap).ToArray(), variant);
+        int close = Array.FindIndex(rows, r => r == "M16_011_CLOSE fd=7 valueBits=0");
+        Reject(rows.Where((_, i) => i != close).ToArray(), variant);
+        bool immutable = false;
+        try { ((IList<QemuTranscripts.LinuxDiskRaceAbandoned>)report.Abandoned)[0] = default; } catch (NotSupportedException) { immutable = true; }
+        HostCheck.True(immutable);
+    }
+
+    private static unsafe string[] SyntheticLifecycle(string variant)
+    {
+        byte[] package = F.CreatePackage(variant); var view = LinuxElfPackage.Validate(package);
+        byte* memory = (byte*)NativeMemory.AlignedAlloc(view.Manifest.StackBytes, 4096); byte* seed = stackalloc byte[32]; new Span<byte>(seed, 32).Fill(1);
+        ulong stack;
+        try { fixed (byte* p = package) { HostCheck.Equal(LinuxElfStartupStatus.Ready, LinuxElfStartup.Build(p + view.ManifestOffset, view.ManifestBytes,
+            p + view.PayloadOffset, view.PayloadBytes, seed, 32, memory, view.Manifest.StackBytes, 0x70000000UL - view.Manifest.StackBytes, 0, out var initial)); stack = initial.StackPointer; } }
+        finally { NativeMemory.AlignedFree(memory); }
+        var plans = new[] { F.Calls(variant), F.Calls(variant, true) }; var handler = F.HandlerCalls(variant);
+        int[] ordinal = [0, 0], next = [0, 0]; ulong[] sequences = [0, 0]; Pending?[] pending = new Pending?[2];
+        int active = 1, transfers = 0; ulong clock = 100, request = 0, epochs = 0;
+        ulong fp = (stack - 128 - LinuxSignalServices.FpBytes) & ~63UL, frame = ((fp - LinuxSignalServices.FrameBytes) & ~15UL) - 8;
+        List<string> rows = Synthetic("Progress").TakeWhile(r => !r.StartsWith("M16_012_POLL ", StringComparison.Ordinal)).ToList();
+        ulong Identity(int w) => w == 0 ? F.MainIdentity : F.ChildIdentity;
+        ulong Stack(int w) => w == 0 ? stack : F.ChildStackTop;
+        void Call(int w, F.CallSpec e, bool handlerCall = false)
+        {
+            bool block = e.Wait == F.WaitPolicy.Disk;
+            uint source = block ? 4U : 0;
+            if (block) pending[w] = new(e, ++sequences[w], ++request, source);
+            ulong value = unchecked((ulong)(block ? 0 : e.Wait == F.WaitPolicy.Join ? -11 : e.Result));
+            bool restored = handlerCall && e.Number == 15;
+            uint action = block ? 3U : restored ? 5U : e.Number == 231 ? 2U : e.Number == 60 ? 4U : 1U;
+            ulong inputStack = handlerCall ? frame + (restored ? 8UL : 0UL) : Stack(w);
+            rows.Add($"M16_012_POLL identity={Identity(w)} clock={clock++} ready=0 idle=0");
+            if (e.Role is "main.witness" or "child.witness") rows.Add($"M16_005_WRITE fd=1 bytes={F.Witness(variant).Length} data={F.Witness(variant)}");
+            rows.Add(FormattableString.Invariant($"M16_008_CALL identity={Identity(w)} nr={e.Number} a0={e.A0} a1={e.A1} a2={e.A2} a3={e.A3} a4={e.A4} a5={e.A5} rip={e.ReturnRip} rsp={inputStack} flags=70 fs={(w == 0 ? 0UL : F.ChildTls)} gs=0 clock={clock - 1} valueBits={value} action={action} status={(block ? 9 : action is 2 or 4 ? 2 : 1)} ordinal={++ordinal[w]} waitSource={source} waitDeadline=0 waitSequence={(block ? sequences[w] : 0)} signalDepth={(handlerCall && !restored ? 1 : 0)} signalFrame={(handlerCall && !restored ? frame : 0)} blockedSignals={(handlerCall && !restored ? 512 : 0)} returnRip={(restored ? plans[0].Single(c => c.Role == "main.read").ReturnRip : e.ReturnRip)} returnRsp={(restored ? stack : inputStack)} returnFlags=70 returnFs={(w == 0 ? 0UL : F.ChildTls)} returnGs=0 returnValueBits={value}"));
+            if (e.Role == "prep.clone") active = 2;
+        }
+        void Planned(int w)
+        { var e = plans[w][next[w]++]; Call(w, e); }
+        void Supervisor(int w, uint action, uint ready)
+            => rows.Add($"M16_008_SUPERVISOR identity={Identity(w)} action={action} transfers={transfers += 2} ready={ready} active={active}");
+        void Drain(int w) => rows.Add($"M16_009_DRAIN identity={Identity(w)} epoch={++epochs} nanos={clock++}");
+        void Complete(int w)
+        {
+            var p = pending[w]!; uint winner = variant == "InterruptWins" && p.Spec.Role == "main.read" ? 5U : 1U;
+            rows.Add($"M16_025_COMPLETE identity={Identity(w)} sequence={p.Sequence} request={p.Request} outputBytes={p.Spec.OutputBytes} completion={winner} valueBits={unchecked((ulong)p.Spec.Result)} clock={clock++}");
+            rows.Add($"M16_008_RESUME identity={Identity(w)} valueBits={unchecked((ulong)p.Spec.Result)} status=1"); pending[w] = null;
+        }
+        void Reap(int w)
+        { rows.Add($"M16_008_REAP old={Identity(w)} next={Identity(w) + (1UL << 32)} context=zero stack=zero slot=zero"); active--; }
+        while (plans[0][next[0]].Role != "main.read")
+        {
+            Planned(0); if (pending[0] is not null) { Drain(0); Supervisor(0, 3, 0); Complete(0); }
+        }
+        Planned(0); Drain(0); Supervisor(0, 3, 1);
+        if (variant == "ExitPending")
+        {
+            Planned(1); Planned(1); Drain(1); rows.Add($"M16_008_EXIT identity={F.ChildIdentity} clearTidResult=0"); Supervisor(1, 2, 1); Reap(1);
+            pending[0] = null; rows.Add($"M16_008_EXIT identity={F.MainIdentity} clearTidResult=0"); Supervisor(0, 4, 0); Reap(0);
+        }
+        else
+        {
+            Planned(1); Planned(1); Drain(1); rows.Add($"M16_008_EXIT identity={F.ChildIdentity} clearTidResult=0"); Supervisor(1, 4, 1); Reap(1);
+            Complete(0); foreach (var e in handler) Call(0, e, handlerCall: true);
+            while (next[0] < plans[0].Count)
+            {
+                var e = plans[0][next[0]]; Planned(0);
+                if (pending[0] is not null) { Drain(0); Supervisor(0, 3, 0); Complete(0); }
+                if (e.Number == 231) { Drain(0); rows.Add($"M16_008_EXIT identity={F.MainIdentity} clearTidResult=0"); Supervisor(0, 2, 0); Reap(0); }
+            }
+        }
+        for (uint fd = 0; fd < (variant == "ExitPending" ? 8U : 3U); fd++) rows.Add($"M16_011_CLOSE fd={fd} valueBits=0");
+        rows.Add($"M16_008_BUDGET_END nanos={clock}");
+        rows.Add($"M16_008_OWNER_END reaped=2 transfers={transfers} irqs={epochs} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
+        rows.AddRange(["M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true", "CLROS_M16_009_READY", "TEST_PASS m16-009"]);
+        HostCheck.True(next[0] == plans[0].Count && next[1] == plans[1].Count);
+        return rows.ToArray();
     }
 
     internal static unsafe string[] Synthetic(string variant, bool auxiliary = false)

@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+[Step1578](../done/step1578.md) wires an original five-response disk/static
+consumer candidate and host failure/ownership controls. It has no fresh guest
+acceptance yet. Its explicit development scope cannot qualify the full Blazor
+browser or ten-issue batch. New interrupt/EOF/pending-exit fixtures also remain
+host-only. Original failures, issue states and all numbered gates are preserved.
+
 [Step1577](../done/step1577.md) validates copied full disk/static scheduler/file
 and sector values from original018r03. Its original outer command remains
 failed; retrospective value inspection cannot grant original execution or

@@ -35,6 +35,7 @@ public static class QemuSmoke
         NativeAotWebProgram? webProgram=null;
         NativeAotStaticFileProgram? staticProgram=null;
         NativeAotStagedStaticPeer.Completion? staticPeer=null;
+        NativeAotDiskStaticPeer.Completion? diskStaticPeer=null;
         NativeAotWebRacePeer.Completion? webRacePeer=null;
         NativeAotServiceProgram? serviceProgram=null;
         NativeAotServicePeer.Completion? servicePeer=null;
@@ -51,7 +52,7 @@ public static class QemuSmoke
         AuthorityFile? webPackageInput=null,webDisassemblyInput=null,webImageInput=null,webEfiInput=null;
         EfiVerification? webNative=null;
         AuthorityFiles? diskInputs = null;
-        AuthorityFile? diskImageInput = null, diskEfiInput = null, diskPackageInput = null;
+        AuthorityFile? diskImageInput = null, diskEfiInput = null, diskPackageInput = null, diskReceiptInput=null;
         EfiVerification? diskNative = null;
         WebRootImageFixture.Receipt? diskImageReceipt = null;
         try
@@ -252,6 +253,13 @@ public static class QemuSmoke
                     var efi = diskEfiInput = diskInputs.Open(root, Path.GetFullPath(options.EfiArtifact, root), "disk EFI", "disk_efi", 16 * 1024 * 1024, singleLink: true);
                     var package = diskPackageInput = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, singleLink: true);
                     AuthorityFiles.RequireDistinct(image, efi, package);
+                    if(diskStatic)
+                    {
+                        diskReceiptInput=diskInputs.Open(root,Path.GetFullPath(options.Image+".webroot.json",root),"disk image receipt","disk_image_receipt",16*1024*1024,singleLink:true);
+                        AuthorityFiles.RequireDistinct(image,efi,package,diskReceiptInput);
+                        if(diskReceiptInput.ReadUtf8(16*1024*1024,"disk_image_receipt")!=System.Text.Json.JsonSerializer.Serialize(diskImageReceipt))
+                            throw new ToolFailure("disk_image_receipt_identity");
+                    }
                     byte[] packageBytes = package.ReadBytes(diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, "disk_package");
                     if (diskStatic) NativeAotStaticFileProgram.RequirePackage(packageBytes, false);
                     else LinuxDiskFileProofFixture.RequirePackage(packageBytes);
@@ -383,8 +391,8 @@ public static class QemuSmoke
             {
                 if (diskStatic)
                 {
-                    var diskPeer = await NativeAotDiskStaticPeer.RunDiagnosticAsync(root, options.SerialLog, RunSocketRunner, cancellation);
-                    runner = diskPeer.Runner;
+                    diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
+                    runner = diskStaticPeer.Runner;
                 }
                 else
                 {
@@ -460,7 +468,19 @@ public static class QemuSmoke
                 diskInputs!.VerifyUnchanged(); diskNative!.VerifyHeldInputs();
                 WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
                 if (runner.ExitCode != 0) return runner.ExitCode;
-                if (diskStatic) throw new ToolFailure("disk_static_complete_consumer_required runnerExit=0");
+                if (diskStatic)
+                {
+                    if(diskStaticPeer is null || staticProgram is null || diskReceiptInput is null)throw new ToolFailure("disk_static_original_owner_required");
+                    var original=QemuTranscripts.InspectDiskStaticRun(root,options,plan,runner,staticProgram,diskStaticPeer,
+                        diskImageInput!,diskEfiInput!,diskPackageInput!,diskReceiptInput,diskImageReceipt!,new(webForwardPort,qemu,ovmf,webStarted,webCompleted),()=>
+                        {
+                            if(capture is not null){capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");}
+                            diskInputs.VerifyUnchanged();diskNative.VerifyHeldInputs();webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
+                            cancellation.ThrowIfCancellationRequested();
+                        });
+                    output.WriteLine($"TEST_PASS qemu.smoke.disk-static scope={DiskStaticHttpContract.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} blazor_qualified=false");
+                    return 0;
+                }
                 var report = QemuTranscripts.InspectLinuxDiskFileRun(root, options, plan, runner,
                     diskImageInput!, diskEfiInput!, diskPackageInput!, diskImageReceipt!, qemu, ovmf,
                     () =>

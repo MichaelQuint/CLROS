@@ -11,7 +11,9 @@ public static partial class QemuTranscripts
 {
     public readonly record struct LinuxDiskRaceCall(int RecordIndex, ulong Identity, ulong Ordinal, Race.CallSpec Spec);
     public readonly record struct LinuxDiskRaceWindow(int CallRecordIndex, int CompletionRecordIndex,
-        ulong Identity, ulong Ordinal, ulong Sequence, ulong RequestGeneration, uint Source, long Value, uint OutputBytes);
+        ulong Identity, ulong Ordinal, ulong Sequence, ulong RequestGeneration, uint Source, long Value, uint OutputBytes, uint Completion = 1);
+    public readonly record struct LinuxDiskRaceAbandoned(int CallRecordIndex, int GroupExitRecordIndex,
+        ulong Identity, ulong Ordinal, ulong Sequence, ulong RequestGeneration, uint OutputBytes);
 
     /// <summary>Copied scalar checks of the exact two-worker mechanical leaf.
     /// Pending windows and all known auxiliary rows retain original indexes for
@@ -29,20 +31,27 @@ public static partial class QemuTranscripts
         public bool CheckedCrossWorkerOrdering => true;
         public bool CheckedSchedulerReplay => false;
         public bool CheckedUserMemoryOrAuxiliaryJoins => false;
+        public bool CheckedSignalReturnEnvelopes => Variant is "InterruptWins" or "CompletionWins";
+        public bool CheckedPostDeathSentinelOrOrphanDrain => false;
+        public bool CompletionWinnerProvesBackendDataRace => false;
         public IReadOnlyList<LinuxDiskRaceCall> Calls { get; }
         public IReadOnlyList<LinuxDiskRaceWindow> Windows { get; }
         public IReadOnlyList<LinuxDiskAuxiliary> Auxiliary { get; }
+        public IReadOnlyList<LinuxDiskRaceAbandoned> Abandoned { get; }
         public Race.MemoryLayout Memory => Race.Memory;
         public int MainReadCallIndex { get; }
         public int MainReadCompletionIndex { get; }
         public int ChildCloseIndex { get; }
+        public int ChildSignalIndex { get; }
         internal LinuxDiskRaceLeafReport(string variant, int transfers, ulong epochs, List<LinuxDiskRaceCall> calls,
-            List<LinuxDiskRaceWindow> windows, List<LinuxDiskAuxiliary> auxiliary, int read, int complete, int close)
+            List<LinuxDiskRaceWindow> windows, List<LinuxDiskAuxiliary> auxiliary, int read, int complete, int close,
+            List<LinuxDiskRaceAbandoned> abandoned, int signal)
         {
             Variant = variant; Transfers = transfers; Epochs = epochs;
             Calls = Array.AsReadOnly(calls.ToArray()); Windows = Array.AsReadOnly(windows.ToArray());
             Auxiliary = Array.AsReadOnly(auxiliary.ToArray()); MainReadCallIndex = read;
             MainReadCompletionIndex = complete; ChildCloseIndex = close;
+            Abandoned = Array.AsReadOnly(abandoned.ToArray()); ChildSignalIndex = signal;
         }
     }
 
@@ -64,6 +73,7 @@ public static partial class QemuTranscripts
             input[i] = row;
         }
         string variant = Race.PackageVariant(package!); bool close = variant == "CloseReuse";
+        bool signalRace = variant is "InterruptWins" or "CompletionWins", exitPending = variant == "ExitPending";
         var manifest = LinuxElfPackage.Validate(package!).Manifest;
         var observations = ReadLinuxDiskCallObservations(input);
         var waits = observations.Waits.ToDictionary(v => v.RecordIndex);
@@ -78,8 +88,12 @@ public static partial class QemuTranscripts
         uint action = 0; bool exitMarker = false, witness = false;
         ulong clock = 0, epoch = 0, request = 0;
         int mainRead = -1, mainComplete = -1, childClose = -1, childDuplicate = -1, notify = -1;
+        int childSignal = -1; bool groupExit = false;
+        var handler = Race.HandlerCalls(variant); int handlerCalls = 0; bool inHandler = false, handlerReturned = false;
+        ulong signalFrame = 0, interruptedFlags = 0;
         HashSet<string> progress = [];
         List<LinuxDiskRaceCall> calls = []; List<LinuxDiskRaceWindow> windows = []; List<LinuxDiskAuxiliary> auxiliary = [];
+        List<LinuxDiskRaceAbandoned> abandoned = [];
         string Take() { Need(at < rows.Length, "disk_race_truncated"); return rows[at++]; }
         void Exact(string value) => Need(Take() == value, "disk_race_order_" + value);
         Dictionary<string, ulong> Row(string name, params string[] fields) => ReadRecord(Take(), name, fields);
@@ -93,12 +107,20 @@ public static partial class QemuTranscripts
                 (selected < 0 || selected == index), "disk_race_selection"); selected = index;
         }
         bool MainPending() => workers[0].Pending is { } p && p.Spec.Role == "main.read";
-        void Finish(int w, int index, long value, uint output)
+        void Finish(int w, int index, long value, uint output, uint completion = 1)
         {
             var pending = workers[w].Pending!;
             if (pending.Spec.Role == "main.read")
             {
-                Need(progress.SetEquals(new[] { "child.pin", "child.disjoint-readonly", "child.disjoint-writable" }) &&
+                if (signalRace)
+                {
+                    Need(childSignal > mainRead && childSignal < index && workers[1].Exited && !inHandler && !handlerReturned,
+                        "disk_race_signal_overlap");
+                    inHandler = true;
+                    ulong fp = (workers[0].Stack - 128 - LinuxSignalServices.FpBytes) & ~63UL;
+                    signalFrame = ((fp - LinuxSignalServices.FrameBytes) & ~15UL) - 8;
+                }
+                else Need(!exitPending && progress.SetEquals(new[] { "child.pin", "child.disjoint-readonly", "child.disjoint-writable" }) &&
                     (close ? childClose > mainRead : notify > mainRead && childDuplicate > mainRead), "disk_race_overlap_missing");
                 mainComplete = index;
             }
@@ -106,7 +128,7 @@ public static partial class QemuTranscripts
             if (pending.Spec.Wait == Race.WaitPolicy.PipeRead) Need(notify >= 0 && notify < index, "disk_race_pipe_wake");
             if (pending.Spec.Wait == Race.WaitPolicy.Join) Need(workers[1].Exited, "disk_race_join_exit");
             windows.Add(new(pending.Index, index, workers[w].Identity, pending.Ordinal, pending.Sequence,
-                pending.Request, pending.Source, value, output)); workers[w].Pending = null;
+                pending.Request, pending.Source, value, output, completion)); workers[w].Pending = null;
         }
 
         Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take());
@@ -165,8 +187,9 @@ public static partial class QemuTranscripts
             }
             if (line.StartsWith("M16_005_WRITE ", StringComparison.Ordinal))
             {
-                Select(0); Need(!witness && workers[0].Pending is null && workers[1].Reaped &&
-                    workers[0].Calls < workers[0].Plan.Count && workers[0].Plan[workers[0].Calls].Role == "main.witness", "disk_race_witness_order");
+                int w = exitPending ? 1 : 0; Select(w);
+                Need(!witness && (exitPending ? MainPending() : workers[0].Pending is null && workers[1].Reaped) &&
+                    workers[w].Calls < workers[w].Plan.Count && workers[w].Plan[workers[w].Calls].Role == (exitPending ? "child.witness" : "main.witness"), "disk_race_witness_order");
                 Exact("M16_005_WRITE fd=1 bytes=" + Race.Witness(variant).Length + " data=" + Race.Witness(variant)); witness = true; continue;
             }
             if (line.StartsWith("M16_008_CALL ", StringComparison.Ordinal))
@@ -174,15 +197,24 @@ public static partial class QemuTranscripts
                 var c = Row("M16_008_CALL", "identity:dec", "nr:dec", "a0:dec", "a1:dec", "a2:dec", "a3:dec", "a4:dec", "a5:dec",
                     "rip:dec", "rsp:dec", "flags:dec", "fs:dec", "gs:dec", "clock:dec", "valueBits:dec", "action:dec", "status:dec");
                 int w = Worker(c["identity"]); Select(w); RaceWorker owner = workers[w];
-                Need(owner.Pending is null && owner.Calls < owner.Plan.Count, "disk_race_call_order"); var e = owner.Plan[owner.Calls];
+                bool handlerCall = w == 0 && inHandler;
+                Need(owner.Pending is null && (handlerCall ? handlerCalls < handler.Count : owner.Calls < owner.Plan.Count), "disk_race_call_order");
+                var e = handlerCall ? handler[handlerCalls] : owner.Plan[owner.Calls];
+                bool signalReturn = handlerCall && e.Number == 15;
+                ulong stack = handlerCall ? signalFrame + (signalReturn ? 8UL : 0UL) : owner.Stack;
                 Need(c["nr"] == e.Number && c["a0"] == e.A0 && c["a1"] == e.A1 && c["a2"] == e.A2 && c["a3"] == e.A3 &&
-                    c["a4"] == e.A4 && c["a5"] == e.A5 && c["rip"] == e.ReturnRip && c["rsp"] == owner.Stack && c["fs"] == owner.Fs && c["gs"] == 0 &&
+                    c["a4"] == e.A4 && c["a5"] == e.A5 && c["rip"] == e.ReturnRip && c["rsp"] == stack && c["fs"] == owner.Fs && c["gs"] == 0 &&
                     LinuxSyscallGateway.ValidateUserFlags(c["flags"], false) && (c["flags"] & 0x400) == 0, "disk_race_call_binding");
-                Clock(c["clock"]); var wait = waits[index]; var ret = returns[index]; owner.Calls++;
-                Need(wait.Identity == owner.Identity && wait.Ordinal == (ulong)owner.Calls && wait.Deadline == 0 && ret.Identity == owner.Identity && ret.Ordinal == wait.Ordinal &&
-                    ret.SignalDepth == 0 && ret.SignalFrame == 0 && ret.BlockedSignals == 0 && ret.Rip == c["rip"] && ret.Rsp == owner.Stack && ret.Flags == c["flags"] &&
+                Clock(c["clock"]); var wait = waits[index]; var ret = returns[index]; owner.Ordinal++;
+                if (handlerCall) handlerCalls++; else owner.Calls++;
+                Need(wait.Identity == owner.Identity && wait.Ordinal == (ulong)owner.Ordinal && wait.Deadline == 0 && ret.Identity == owner.Identity && ret.Ordinal == wait.Ordinal &&
+                    ret.SignalDepth == (handlerCall && !signalReturn ? 1UL : 0UL) && ret.SignalFrame == (handlerCall && !signalReturn ? signalFrame : 0) &&
+                    ret.BlockedSignals == (handlerCall && !signalReturn ? 0x200UL : 0) &&
+                    ret.Rip == (signalReturn ? owner.Plan.Single(p => p.Role == "main.read").ReturnRip : c["rip"]) &&
+                    ret.Rsp == (signalReturn ? owner.Stack : stack) && ret.Flags == (signalReturn ? interruptedFlags : c["flags"]) &&
                     ret.Fs == owner.Fs && ret.Gs == 0 && ret.ValueBits == c["valueBits"], "disk_race_return");
-                calls.Add(new(index, owner.Identity, (ulong)owner.Calls, e));
+                calls.Add(new(index, owner.Identity, (ulong)owner.Ordinal, e));
+                if (e.Role == "child.signal") { Need(signalRace && MainPending() && owner.Calls == 1, "disk_race_signal_owner"); childSignal = index; }
                 if (e.Role == "prep.clone") { Need(!workers[1].Created, "disk_race_duplicate_clone"); workers[1].Created = true; }
                 if (w == 1 && e.Role is "child.pin" or "child.disjoint-readonly" or "child.disjoint-writable")
                 { Need(MainPending(), "disk_race_progress_outside_read"); progress.Add(e.Role); }
@@ -200,8 +232,8 @@ public static partial class QemuTranscripts
                     if (e.Wait == Race.WaitPolicy.Join) Need(!workers[1].Exited, "disk_race_join_after_exit");
                     if (e.Wait == Race.WaitPolicy.PipeRead) Need(notify < 0, "disk_race_pipe_already_buffered");
                     if (e.Wait == Race.WaitPolicy.Disk) request++;
-                    owner.Pending = new(e, index, (ulong)owner.Calls, owner.Sequence, e.Wait == Race.WaitPolicy.Disk ? request : 0, source);
-                    if (e.Role == "main.read") mainRead = index;
+                    owner.Pending = new(e, index, (ulong)owner.Ordinal, owner.Sequence, e.Wait == Race.WaitPolicy.Disk ? request : 0, source);
+                    if (e.Role == "main.read") { mainRead = index; interruptedFlags = c["flags"]; }
                     awaiting = w; action = (uint)LinuxSyscallAction.Blocked;
                 }
                 else
@@ -209,11 +241,22 @@ public static partial class QemuTranscripts
                     bool exit = e.Number is 60 or 231;
                     long value = e.Wait == Race.WaitPolicy.Join ? -11 : e.Result;
                     Need(wait.Source == 0 && wait.Sequence == 0 && c["valueBits"] == unchecked((ulong)value) &&
-                        c["action"] == (exit ? e.Number == 60 ? 4UL : 2UL : 1UL) && c["status"] == (exit ? 2UL : 1UL), "disk_race_outcome");
+                        c["action"] == (signalReturn ? 5UL : exit ? e.Number == 60 ? 4UL : 2UL : 1UL) && c["status"] == (exit ? 2UL : 1UL), "disk_race_outcome");
+                    if (signalReturn) { Need(handlerCalls == handler.Count, "disk_race_signal_return_count"); inHandler = false; handlerReturned = true; }
                     if (e.Wait == Race.WaitPolicy.Join) Need(workers[1].Exited, "disk_race_join_early_eagain");
                     if (e.Wait == Race.WaitPolicy.PipeRead) Need(notify >= 0, "disk_race_pipe_empty_return");
                     if (exit)
-                    { Need(w == 1 || workers[1].Reaped && witness, "disk_race_exit_order"); awaiting = w; action = (uint)c["action"]; exitMarker = false; }
+                    {
+                        if (exitPending)
+                        {
+                            Need(w == 1 && e.Role == "child.group-exit" && MainPending() && witness && !groupExit, "disk_race_pending_group_exit");
+                            var p = workers[0].Pending!;
+                            abandoned.Add(new(p.Index, index, workers[0].Identity, p.Ordinal, p.Sequence, p.Request, p.Spec.OutputBytes));
+                            workers[0].Pending = null; groupExit = true;
+                        }
+                        else Need(w == 1 || workers[1].Reaped && witness && (!signalRace || handlerReturned), "disk_race_exit_order");
+                        awaiting = w; action = (uint)c["action"]; exitMarker = false;
+                    }
                 }
                 continue;
             }
@@ -222,11 +265,12 @@ public static partial class QemuTranscripts
                 var c = Row("M16_025_COMPLETE", "identity:dec", "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
                 int w = Worker(c["identity"]); Select(w); var p = workers[w].Pending;
                 Need(p is not null && p.Source == 4 && c["sequence"] == p.Sequence && c["request"] == p.Request && c["outputBytes"] == p.Spec.OutputBytes &&
-                    c["completion"] == (ulong)KernelThreadTable.Completion.Woken && c["valueBits"] == unchecked((ulong)p.Spec.Result), "disk_race_completion");
+                    c["completion"] == (ulong)(p.Spec.Role == "main.read" && variant == "InterruptWins" ? KernelThreadTable.Completion.Interrupted : KernelThreadTable.Completion.Woken) &&
+                    c["valueBits"] == unchecked((ulong)p.Spec.Result), "disk_race_completion");
                 Clock(c["clock"]); long value = p!.Spec.Result; uint output = p.Spec.OutputBytes;
                 var resumed = Row("M16_008_RESUME", "identity:dec", "valueBits:dec", "status:dec");
                 Need(resumed["identity"] == c["identity"] && resumed["valueBits"] == c["valueBits"] && resumed["status"] == 1, "disk_race_resume");
-                Finish(w, index, value, output); continue;
+                Finish(w, index, value, output, (uint)c["completion"]); continue;
             }
             if (line.StartsWith("M16_008_RESUME ", StringComparison.Ordinal))
             {
@@ -237,6 +281,8 @@ public static partial class QemuTranscripts
             if (line.StartsWith("M16_008_EXIT ", StringComparison.Ordinal))
             {
                 var e = Row("M16_008_EXIT", "identity:dec", "clearTidResult:dec"); int w = Worker(e["identity"]);
+                if (exitPending && groupExit && w == 0 && awaiting < 0 && selected < 0)
+                { awaiting = 0; action = 4; exitMarker = false; }
                 Need(awaiting == w && action is 2 or 4 && !exitMarker && !workers[w].Exited && e["clearTidResult"] == 0, "disk_race_exit");
                 exitMarker = true; workers[w].Exited = true; continue;
             }
@@ -261,7 +307,7 @@ public static partial class QemuTranscripts
             }
             throw new ToolFailure("disk_race_unknown_record", "index=" + index);
         }
-        for (uint fd = 0; fd < 3; fd++) { int index = at; Exact("M16_011_CLOSE fd=" + fd + " valueBits=0"); Aux(index); }
+        for (uint fd = 0; fd < (exitPending ? 8U : 3U); fd++) { int index = at; Exact("M16_011_CLOSE fd=" + fd + " valueBits=0"); Aux(index); }
         var finished = Row("M16_008_BUDGET_END", "nanos:dec");
         Need(finished["nanos"] >= clock && finished["nanos"] >= budget["started"] && finished["nanos"] <= long.MaxValue &&
             finished["nanos"] - budget["started"] < LinuxThreadExecutionBudget.RuntimeNanoseconds, "disk_race_budget_end");
@@ -270,9 +316,12 @@ public static partial class QemuTranscripts
         var end = ReadRecord(ownerEnd[..^cleanup.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
         Need(end["reaped"] == 2 && end["transfers"] == (ulong)transfers && end["irqs"] == epoch && end["exit"] == 42, "disk_race_owner_end");
         Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true"); Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009");
-        Need(at == rows.Length && waits.Count == calls.Count && returns.Count == calls.Count && witness && mainRead >= 0 && mainComplete > mainRead &&
-            (close ? childClose > mainRead && childClose < mainComplete : childDuplicate > mainRead && childDuplicate < mainComplete), "disk_race_terminal");
-        return new(variant, transfers, epoch, calls, windows, auxiliary, mainRead, mainComplete, childClose);
+        Need(at == rows.Length && waits.Count == calls.Count && returns.Count == calls.Count && witness && mainRead >= 0 &&
+            (exitPending ? mainComplete == -1 && groupExit && abandoned.Count == 1 : mainComplete > mainRead &&
+                (close ? childClose > mainRead && childClose < mainComplete : signalRace ? childSignal > mainRead && childSignal < mainComplete && handlerReturned :
+                 childDuplicate > mainRead && childDuplicate < mainComplete)),
+            "disk_race_terminal");
+        return new(variant, transfers, epoch, calls, windows, auxiliary, mainRead, mainComplete, childClose, abandoned, childSignal);
     }
 
     private sealed record RacePending(Race.CallSpec Spec, int Index, ulong Ordinal, ulong Sequence, ulong Request, uint Source);
@@ -281,7 +330,7 @@ public static partial class QemuTranscripts
         internal readonly IReadOnlyList<Race.CallSpec> Plan = plan;
         internal readonly ulong Identity = identity, Stack = stack, Fs = fs;
         internal bool Created, Exited, Reaped;
-        internal int Calls;
+        internal int Calls, Ordinal;
         internal ulong Sequence;
         internal RacePending? Pending;
     }

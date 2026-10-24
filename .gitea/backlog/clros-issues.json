@@ -36097,7 +36097,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1571 records three fresh complete original mechanical captures r09/r10/r11 at c66befd53f38f3dfa92e1e11d1deb66670993b32, spanning DiskA/DiskB/DiskA. Each owned consumer passes59 calls,35 disk completions,62 post-bootstrap sector copies, seven positive read windows,74 transfers,37 IRQ epochs and actual exit42/cleanup, with full original native/source/image/package/serial/summary/packet joins and zero reused rows. Repeated A images match; B differs at exactly one nonce byte. Original r01-r08 failures remain failed. Actual cancel/error/concurrent controls, complete disk HTTP/Blazor, stable full/native/ancestor and whole-batch qualification remain pending. No issue closes.",
+      "currentEvidence": "Step1578 extends the separate two-worker C# race fixture and bounded leaf consumer with InterruptWins, zero-I/O EOF CompletionWins, and ExitPending; original Progress/CloseReuse byte paths remain unchanged. Fourteen focused normal-harness fixture/transcript checks pass unchanged with zero reuse. These are host/byte controls only: no native/guest race is qualified, EOF does not prove backend completion timing, and the pending-exit sentinel precedes death. Actual admission/runner integration, drain-before-reset and post-quiescence sentinel controls remain required. Earlier three positive canonical025 guests retain their separate step1571 scope. No issue closure or writable/storage durability acceptance.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1577 adds complete value-only disk/static scheduler/file replay, unique physical data-sector joins and confined metadata classification. Original018r03 values match2973 calls/13reaps/929epochs,11source4 operations,2positive read windows and36IO rows/12copied sectors:2assetdata+10verified directory/FAT, allinside actual pending-to-final-Woken intervals. Original output prefixes, descriptor/request/wait generations and deferred PATH/FILE witnesses are checked; source4 paths outside diskroot and immediate-only admissions reject. Five new replay controls, seven read-window controls and ten inventory controls pass focused normal harness; existing017/socket/threading regressions pass separately. Original outer r03 remains FAILED complete_consumer_required; retrospective inspection cannot rescue it or grant native/process/HTTP/packet acceptance. Full45-asset framework/browser, original complete owner, bothvariants, actual negative/concurrent controls and stable batch gates remain pending. No issue closure or gate advances.",
+      "currentEvidence": "Step1578 adds an original five-response disk/static consumer candidate: held original source/native/image/process/captures, complete scheduler/file replay, physical sectors and metadata, per-description send offsets and independent TCP/HTTP entities; original cold reads must precede the associated actual queued bodies. Scope is five-response-development, explicitly not full Blazor/browser. Host controls cover real peer success/failure/cancellation joins, fresh paths and live memory/IO-clock mutation. No fresh original guest has qualified the new owner yet. Original018r03 remains FAILED and cannot be rescued. Full45asset framework/browser, both variants, conditional/range/concurrent disk requests, actual negative race guests and stable full/native/ancestor batch gates remain pending. No issue closure or gate advances.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36335,7 +36335,15 @@
         "tests/OS.HostTests/NativeAotDiskStaticReplayTests.cs",
         "tools/OS.Tooling/NativeDiskStaticReadWindows.cs",
         "tests/OS.HostTests/NativeDiskStaticReadWindowsTests.cs",
-        "tools/OS.Tooling/NativeAotSocketGuest.cs"
+        "tools/OS.Tooling/NativeAotSocketGuest.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotWeb.Parent.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.DiskRunner.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.DiskHttp.cs",
+        "tools/OS.Tooling/DiskStaticHttpContract.cs",
+        "tests/OS.HostTests/NativeAotDiskStaticHttpTests.cs",
+        "tests/OS.HostTests/NativeAotDiskStaticCaptureTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

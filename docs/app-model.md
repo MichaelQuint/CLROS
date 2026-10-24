@@ -1,5 +1,12 @@
 # App Model
 
+[Step1578](../done/step1578.md) adds an original-owner candidate for five
+disk/static responses with complete source/native/process/capture and copied
+scheduler/sector/TCP joins. Cold host-page/nonce reads must precede their actual
+queued response bodies. No fresh original guest qualifies this candidate yet.
+The complete Blazor framework/browser, disk concurrency/race matrix, persistent
+logs/uploads and direct SQLite transaction/recovery qualification remain pending.
+
 [Step1577](../done/step1577.md) joins the diagnostic disk/static leaf to copied
 physical inventory and all observed sector bytes. Generation-bound file/FIFO/
 source4 replay passes value checks; original018r03 remains failed. The actual

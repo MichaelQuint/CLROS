@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1578](../done/step1578.md) changes host consumer/peer code and separate
+C# mechanical lifecycle fixtures. It changes no live EFI body, arena or ABI.
+Fresh original native publication and guest consumption remain required. New
+interrupt/EOF/pending-exit byte vectors are not native or guest race acceptance.
+
 [Step1577](../done/step1577.md) adds host-only complete disk/static value
 replay; it changes no EFI producer body, arena or ABI. Original018r03 native
 and failed-command identities remain those recorded in step1576. No fresh

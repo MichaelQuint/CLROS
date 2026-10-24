@@ -358,6 +358,7 @@ public static partial class QemuTranscripts
                             Need(r["nr"]==60,"threading_exit_tail_syscall");
                         }
                         Call(t,r,waits[index],output);
+                        DiskStaticSocketQueued(r,index);
                         if(staticFiles)StaticAfterCall(t,r,waits[index],output);
                         ObserveWebSignalRaceCall(t,r,waits[index]);
                         if(serviceQuotaFailure)QuotaSocketObservation(r,returns[index]);

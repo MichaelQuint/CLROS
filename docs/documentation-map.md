@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1578](../done/step1578.md) owns the original five-response disk consumer
+candidate and host-only lifecycle controls. QEMU documents original ownership,
+receipt/packet/process joins and the limited success scope; storage documents
+race limits and live extents. App/Kestrel retain the full Blazor/browser boundary.
+No fresh guest or whole-batch acceptance is recorded by this checkpoint.
+
 [Step1577](../done/step1577.md) records full value-only disk/static replay.
 Storage owns physical inventory/data/metadata interval contracts; QEMU owns the
 report-only CLI and still-pending complete original execution consumer. App and

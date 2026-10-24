@@ -139,9 +139,11 @@ public static partial class QemuTranscripts
         bool entropy = plan.IsEnabled("EnableM03FirmwareEntropySeedProbe") || plan.IsEnabled("EnableM16004Probe");
         bool staticFiles=staticProgram is not null;
         bool diskFiles=NativeAotDiskSelection.Selected(plan.Flags);
+        bool diskStatic=NativeAotDiskSelection.StaticSelected(plan.Flags);
+        Need(!diskStatic || staticFiles,"disk_static_runner_program_required");
         Need(!diskFiles || helloProgram is null && threadingProgram is null && runtimeProgram is null &&
-            socketProgram is null && containmentProgram is null && vectorsProgram is null && !staticFiles,"disk_runner_program_selection");
-        Need(!staticFiles || plan.IsEnabled("EnableM10017Probe") && staticProgram!.Staged && staticChildRows is {Count:12} &&
+            socketProgram is null && containmentProgram is null && vectorsProgram is null && (!staticFiles || diskStatic && !staticProgram!.Staged),"disk_runner_program_selection");
+        Need(!staticFiles || (diskStatic ? plan.IsEnabled("EnableM10018Probe") && !staticProgram!.Staged : plan.IsEnabled("EnableM10017Probe") && staticProgram!.Staged) && staticChildRows is {Count:12} &&
             helloProgram is null && threadingProgram is null && runtimeProgram is null && socketProgram is null &&
             containmentProgram is null && vectorsProgram is null,"static_runner_program_selection");
         Need(vectorsProgram is null || socketProgram is null&&containmentProgram is null&&helloProgram is null&&threadingProgram is null&&runtimeProgram is null,"socket_vectors_runner_program_conflict");

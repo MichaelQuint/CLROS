@@ -57,7 +57,7 @@ internal static class LinuxDiskRaceProofFixtureTests
                     HostCheck.True(a.Number == b.Number && a.A0 == b.A0 && a.A1 == b.A1 && a.A2 == b.A2 &&
                         a.A3 == b.A3 && a.A4 == b.A4 && a.A5 == b.A5 && a.ReturnRip == b.Rip);
                     HostCheck.True(F.InstructionRips(variant, isChild).Contains(a.ReturnRip));
-                    if (a.Number is not (56 or 60 or 202 or 231))
+                    if (a.Number is not (56 or 60 or 202 or 231) && !(variant == "ExitPending" && a.Role == "main.read"))
                     {
                         int at = (int)(a.ReturnRip - F.ImageBase);
                         HostCheck.True(elf[at] == 0x48 && elf[at + 1] == 0x3d);
@@ -79,7 +79,7 @@ internal static class LinuxDiskRaceProofFixtureTests
         HostCheck.Equal(0x404000UL, F.Memory.ParentBuffer); HostCheck.Equal(8192U, F.Memory.ParentBytes);
         HostCheck.Equal(0x406000UL, F.Memory.ChildBuffer); HostCheck.Equal(4096U, F.Memory.ChildBytes);
         HostCheck.True(F.Memory.ChildStack <= F.Memory.ParentBuffer && F.ChildTls + 4096 <= F.Memory.ChildStack - 4096);
-        foreach (string variant in F.Variants)
+        foreach (string variant in F.OriginalVariants)
         {
             byte[] elf = F.CreateElf(variant);
             HostCheck.True(elf.AsSpan((int)(F.ParentOutput - F.ImageBase), 8192).IndexOfAnyExcept((byte)0xa5) < 0 &&
@@ -106,6 +106,43 @@ internal static class LinuxDiskRaceProofFixtureTests
                 HostCheck.True(child.Single(c => c.Role == "child.pread") is { Number: 17, A3: 65535, Result: 512 });
                 HostCheck.Equal(8200L, main.Single(c => c.Role == "main.cursor").Result);
             }
+        }
+    }
+
+    [HostTest("disk lifecycle fixtures encode exact signal handlers EOF winner and nonreturning pending exit without timing loops")]
+    private static void LifecycleVariants()
+    {
+        foreach (string variant in F.LifecycleVariants)
+        {
+            byte[] elf = F.CreateElf(variant); var main = F.Calls(variant); var child = F.Calls(variant, true);
+            var read = main.Single(c => c.Role == "main.read");
+            HostCheck.True(read.Number == 0 && read.A1 == F.ParentOutput && read.A2 == 8192 && read.OutputBytes == 8192 && read.Wait == F.WaitPolicy.Disk);
+            if (variant == "ExitPending")
+            {
+                HostCheck.True(main[^1].Role == "main.read" && child[^1] is { Role: "child.group-exit", Number: 231, A0: 42 });
+                HostCheck.True(F.HandlerCalls(variant).Count == 0 && F.HandlerInstructionRips(variant).Count == 0);
+                HostCheck.Equal((byte)0xe9, elf[(int)(read.ReturnRip - F.ImageBase)]);
+                continue;
+            }
+            HostCheck.True(child[0] is { Role: "child.signal", Number: 234, A0: 1, A1: 1, A2: 10 } && child.Count == 2 && child[^1].Number == 60);
+            HostCheck.True(main.Single(c => c.Role == "prep.signal") is { Number: 13, A0: 10, A1: F.SignalAction, A3: 8 });
+            HostCheck.Equal(0x04000004UL, BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan((int)(F.SignalAction - F.ImageBase + 8))));
+            HostCheck.Equal(F.ImageBase + F.HandlerOffset, BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan((int)(F.SignalAction - F.ImageBase))));
+            HostCheck.Equal(F.ImageBase + F.RestorerOffset, BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan((int)(F.SignalAction - F.ImageBase + 16))));
+            HostCheck.True(main.Single(c => c.Role == "main.drain-probe") is { Number: 17, A0: 3, A1: F.ChildOutput, A2: 1, A3: 0, Result: 1 });
+            HostCheck.True(read.Result == (variant == "InterruptWins" ? -4 : 0) && read.A0 == (variant == "InterruptWins" ? 3UL : 4UL));
+            HostCheck.Equal(variant == "CompletionWins" ? F.EmptyPath : F.Path, main.Single(c => c.Role == "prep.independent").A0);
+            var h = Decode(elf, F.HandlerOffset, (int)(F.HandlerEndRip(variant) - F.ImageBase));
+            var r = Decode(elf, F.RestorerOffset, (int)(F.RestorerEndRip(variant) - F.ImageBase));
+            HostCheck.True(F.HandlerInstructionRips(variant).SequenceEqual(h.Starts.Concat(r.Starts)));
+            var expected = F.HandlerCalls(variant); var decoded = h.Calls.Concat(r.Calls).ToArray(); HostCheck.Equal(3, expected.Count);
+            HostCheck.True(expected.Select(c => c.Role).SequenceEqual(new[] { "handler.tid", "handler.mask", "handler.return" }));
+            for (int i = 0; i < expected.Count; i++) HostCheck.True(expected[i].Number == decoded[i].Number && expected[i].ReturnRip == decoded[i].Rip &&
+                expected[i].A0 == decoded[i].A0 && expected[i].A1 == decoded[i].A1 && expected[i].A2 == decoded[i].A2 && expected[i].A3 == decoded[i].A3);
+            HostCheck.True(expected[^1].Result == read.Result && expected[^1].Number == 15);
+            bool denied = false;
+            try { ((IList<F.CallSpec>)expected)[0] = default; } catch (NotSupportedException) { denied = true; }
+            HostCheck.True(denied);
         }
     }
 
@@ -151,11 +188,22 @@ internal static class LinuxDiskRaceProofFixtureTests
             else if (code.StartsWith(new byte[] { 0x0f, 0xb6, 5 })) bytes = 7;
             else if (code.StartsWith(new byte[] { 0x8b, 5 })) bytes = 6;
             else if (code.StartsWith(new byte[] { 0x48, 0x8b, 5 })) bytes = 7;
+            else if (code.StartsWith(new byte[] { 0xc7, 5 }))
+            {
+                bytes = 10; int target = at + bytes + BinaryPrimitives.ReadInt32LittleEndian(code[2..]);
+                HostCheck.Equal((int)(F.SignalCount - F.ImageBase), target); HostCheck.Equal(1U, BinaryPrimitives.ReadUInt32LittleEndian(code[6..]));
+            }
+            else if (code.StartsWith(new byte[] { 0x48, 0x89, 0xf8 }) || code.StartsWith(new byte[] { 0x48, 0x8b, 2 }) || code.StartsWith(new byte[] { 0x8b, 0x46, 0x10 })) bytes = 3;
+            else if (code.StartsWith(new byte[] { 0x8b, 6 })) bytes = 2;
+            else if (code.StartsWith(new byte[] { 0x48, 0x63, 0x46, 8 })) bytes = 4;
+            else if (code.StartsWith(new byte[] { 0x48, 0x8b, 0x82 })) bytes = 7;
             else if (code[0] == 0x0f && code[1] is 0x84 or 0x85)
             { bytes = 6; int target = at + 6 + BinaryPrimitives.ReadInt32LittleEndian(code[2..]); HostCheck.True(target == F.FailureOffset || target == F.ChildOffset || target > at && target < F.ChildOffset); }
             else if (code[0] == 0xe9)
             { bytes = 5; HostCheck.Equal(F.FailureOffset, at + 5 + BinaryPrimitives.ReadInt32LittleEndian(code[1..])); HostCheck.Equal(end, at + 5); }
             else if (code[0] == 0xfc) bytes = 1;
+            else if (code[0] == 0xc3) bytes = 1;
+            else if (code.StartsWith(new byte[] { 0x0f, 0x0b })) bytes = 2;
             else if (code.StartsWith(new byte[] { 0xf3, 0xae })) bytes = 2;
             else throw new InvalidOperationException("unsupported disk race opcode " + at.ToString("x"));
             HostCheck.True(bytes > 0 && at + bytes <= end); at += bytes;

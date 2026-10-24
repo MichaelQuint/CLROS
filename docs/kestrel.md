@@ -1,5 +1,14 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1578](../done/step1578.md) adds a separate original five-response disk
+consumer candidate: health, status/items JSON, the independently extracted host
+page and nonce. HTTP receipts/headers/entities must match one complete TCP flow;
+actual per-description queued sends follow the uniquely joined cold file reads.
+The original source/native/image/process owner remains mandatory. This small
+development contract does not qualify the complete framework/browser matrix,
+conditional/range/concurrent disk requests or the read milestone. Fresh original
+guests and all remaining batch gates precede closure.
+
 [Step1577](../done/step1577.md) adds complete value replay for the diagnostic
 disk/static leaf, including actual source4 FIFO wakes, retained file identity,
 original output ceilings and deferred completions. All original018r03 calls,

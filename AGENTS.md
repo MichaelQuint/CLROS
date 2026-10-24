@@ -2,6 +2,14 @@
 
 ## Start here
 
+[Step1578](done/step1578.md) adds an original five-response disk/static
+consumer candidate joining held image/native/source/process, full scheduler,
+physical sectors, TCP entities and read-before-send order. Its scope is explicitly
+`five-response-development`; no fresh guest has qualified it yet. Host controls
+cover cancellation receipts and ownership/clock substitution. Separate lifecycle
+fixtures add interrupt, EOF winner and pending-exit controls; actual race guests
+remain required. Full Blazor/browser, stable batch and all writes/SQLite stay open.
+
 [Step1577](done/step1577.md) adds the complete value-only disk/static scheduler
 replay and sector joins. Original018r03 values match2973 calls,13 reaps,11 disk
 operations and all12 copied sectors (2 data,10 directory/FAT). Every positive
