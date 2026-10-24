@@ -1,5 +1,10 @@
 # QEMU
 
+[Step1575](../done/step1575.md) records018r02: native verification and mount
+pass, but fixed metadata allocation refuses before any app thread. The original
+failed runner has no final summary. Removing redundant wait frames fits the
+measured arena; no HTTP or complete cleanup result is inferred.
+
 [Step1574](../done/step1574.md) preserves the first018 native compile followed
 by original artifact-verifier failure before any guest. Explicit018 native
 bindings and actual source4 WAKE/REPARK observations are repaired; the complete

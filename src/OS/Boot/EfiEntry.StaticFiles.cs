@@ -14,7 +14,6 @@ public static unsafe partial class EfiEntry
         private struct LinuxStaticPending
         {
             internal LinuxStaticFileBefore Before;
-            internal LinuxSyscallFrame Call;
             internal ulong Identity, Ordinal;
         }
 #else
@@ -205,13 +204,13 @@ public static unsafe partial class EfiEntry
             pending->Before.File.Position = current.Position; return true;
         }
 
-        private static bool LinuxStaticCompleteFile(LinuxNativeControl* c, uint index, LinuxSyscallResult result)
+        private static bool LinuxStaticCompleteFile(LinuxNativeControl* c, uint index, LinuxSyscallFrame call, LinuxSyscallResult result)
         {
             if (index >= c->Capacity || c->StaticPending == null) return false;
             LinuxStaticPending* pending = c->StaticPending + index;
             if (!LinuxThreadKernelRange(c, (byte*)pending, (uint)sizeof(LinuxStaticPending), false) ||
                 pending->Identity != c->Threads.Current.Value || pending->Ordinal == 0) return false;
-            bool observed = LinuxStaticObserveFile(c, index, pending->Call, result, &pending->Before, pending->Ordinal);
+            bool observed = LinuxStaticObserveFile(c, index, call, result, &pending->Before, pending->Ordinal);
             *pending = default; return observed;
         }
 #endif
@@ -225,7 +224,7 @@ public static unsafe partial class EfiEntry
             if (!LinuxThreadKernelRange(c, (byte*)pending, (uint)sizeof(LinuxStaticPending), false) || pending->Identity != 0) return false;
             if (result.Action == LinuxSyscallAction.Blocked && c->Slots[index].WaitSource == 4)
             {
-                *pending = new() { Before = *before, Call = call, Identity = c->Threads.Current.Value,
+                *pending = new() { Before = *before, Identity = c->Threads.Current.Value,
                     Ordinal = LinuxNativeCallOrdinal(c, index) };
                 return pending->Identity != 0 && pending->Ordinal != 0;
             }

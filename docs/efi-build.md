@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1575](../done/step1575.md) records original018r02's verified2031-record
+image and exact native allocation arithmetic. The final metadata request exceeds
+the28-page arena by1120 bytes; reusing Slot.WaitCall removes1536 duplicate bytes
+without changing pool geometry. Fresh publication/guest evidence is still needed.
+
 [Step1574](../done/step1574.md) retains original018 r01 native compilation
 followed by artifact-verifier rejection of absent legacy web callbacks. The
 new policy requires static lifecycle plus018 cursor/completion/arming bodies

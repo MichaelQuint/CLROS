@@ -1,5 +1,10 @@
 # Storage
 
+[Step1575](../done/step1575.md) retains018r02's mounted-disk/pre-thread failure.
+Actual emitted allocations exceed the fixed metadata arena by1120 bytes. The
+observer now reuses the actual retained WaitCall instead of duplicating16 frames;
+no arena grows. Fresh native/app qualification and full cleanup remain pending.
+
 [Step1574](../done/step1574.md) adds018-only actual source4 WAKE/REPARK rows,
 including request generations, instead of inferring FIFO wake order from late
 completion. The first018 compile passed but native verification failed before

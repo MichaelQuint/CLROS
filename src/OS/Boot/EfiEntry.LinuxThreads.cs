@@ -334,6 +334,11 @@ public static unsafe partial class EfiEntry
                 var diskOperation = c->Slots[index].DiskOperation;
                 uint diskOutputBytes = c->Slots[index].DiskOutputBytes;
 #if M10_018_PROBE
+                // The actual thread owner already retains the authenticated
+                // frame. Copy it only on this selected worker's stack before
+                // completion clears the wait record; do not duplicate it in
+                // sixteen long-lived observation records.
+                LinuxSyscallFrame diskCall = c->Slots[index].WaitCall;
                 if (view.WaitSource == 4 && !LinuxStaticRefreshFile(c, index)) return LinuxNativeAbort(c, index);
 #endif
 #endif
@@ -350,7 +355,7 @@ public static unsafe partial class EfiEntry
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
 #if M10_018_PROBE
                 if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Return &&
-                    !LinuxStaticCompleteFile(c, index, completion)) return LinuxNativeAbort(c, index);
+                    !LinuxStaticCompleteFile(c, index, diskCall, completion)) return LinuxNativeAbort(c, index);
 #endif
 #if M16_025_PROBE
                 if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Return &&
