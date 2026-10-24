@@ -294,6 +294,109 @@ internal static unsafe class WritableDataImageFixtureTests
         Console.WriteLine($"WRITABLE_NAMED_MEDIA logBytes={logBytes.Length} uploadBytes={expectedUpload.Length} changedSectors={transition.Changes.Count} outs={media.Outs} flushes={media.Flushes} submittedWriteBytes={media.Device.State->SubmittedBytes} completedWriteBytes={media.Device.State->CompletedBytes} flushAcknowledgedBytes={media.Device.State->DurableBytes} logSha256={transition.After.Find("LOG.TXT")!.Sha256} uploadSha256={transition.After.Find("UPLOAD.BIN")!.Sha256} afterRawSha256={transition.After.RawSha256}");
     });
 
+    [HostTest("writable data exact FileStream candidate bytes survive copied append upload close reopen and independent media extraction", HostLane.Native)]
+    private static void LogUploadCandidateBytes() => WithImage((_, _, _, seed, before) =>
+    {
+        // Expected values and grouping come from the unchanged #809 candidate.
+        // This drives W/C/B host APIs, not FileStream or its syscall/metadata/
+        // advisory-lock implementation. No native, reboot or durability proof.
+        byte[] expectedLog = NativeAotLogUploadContract.ExpectedLog(), expectedUpload = NativeAotLogUploadContract.ExpectedUpload();
+        var expectedValues = NativeAotLogUploadContract.InspectFileValues(expectedLog, expectedUpload);
+        HostCheck.True(expectedLog.Length == 660 && expectedUpload.Length == 5126 && !expectedValues.GrantsPersistenceOrGuestAuthority &&
+            expectedLog.Count(x => x == (byte)'\n') == 12 && expectedLog.Length / 12 == 55);
+        using var media = new MutationMedia(before); using var files = new DescriptorMedia(media);
+        var initialLog = files.Open("/data/LOG.TXT"); var initialUpload = files.Open("/data/UPLOAD.BIN");
+        HostCheck.True(seed.Image.Find("LOG.TXT") is { Bytes: 0 } && seed.Image.Find("UPLOAD.BIN") is { Bytes: 0 } &&
+            files.Read(initialLog, 1, expectedBytes: 0).Length == 0 && files.Read(initialUpload, 1, expectedBytes: 0).Length == 0 && media.Device.State->SubmittedBytes == 0);
+        HostCheck.Equal(0L, W.Close(files.State, initialLog)); HostCheck.Equal(0L, W.Close(files.State, initialUpload));
+        var search = new W.FreeSearch(2, 128, 16); W.DescriptorToken previousLogWriter = default, reader = default;
+        byte[] firstCheckpoint = [];
+        for (int group = 0; group < 2; group++)
+        {
+            var writer = files.Open("/data/LOG.TXT", 1 | W.Create);
+            if (group != 0)
+            {
+                ulong submitted = media.Device.State->SubmittedBytes;
+                HostCheck.Equal(-9L, W.BeginWrite(files.State, previousLogWriter, expectedLog.AsSpan(0, 55)).Value);
+                HostCheck.Equal(submitted, media.Device.State->SubmittedBytes);
+            }
+            // The pinned BCL Append policy uses its observed initial length.
+            // Explicit seek-to-EOF models that position; O_APPEND is not added.
+            HostCheck.Equal(group * 330L, W.Seek(files.State, writer, 0, 2).Value);
+            for (int row = group * 6; row < group * 6 + 6; row++)
+            {
+                ReadOnlySpan<byte> record = expectedLog.AsSpan(row * 55, 55); HostCheck.Equal((byte)'\n', record[^1]);
+                HostCheck.Equal(55L, files.Run(W.BeginWriteWithFreeSearch(files.State, writer, record, search)).Value);
+            }
+            files.Sync(writer); HostCheck.Equal((group + 1) * 330L, W.Seek(files.State, writer, 0, 1).Value);
+            HostCheck.Equal(0L, W.Close(files.State, writer)); previousLogWriter = writer;
+            if (group == 0)
+            {
+                firstCheckpoint = media.Snapshot(); var first = Image.InspectTransition(before, firstCheckpoint);
+                HostCheck.True(first.After.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(expectedLog.AsSpan(0, 330)) && first.After.Find("UPLOAD.BIN")!.Bytes == 0);
+                CheckChanges(before, firstCheckpoint, first); CheckNeighbors(firstCheckpoint, first.After);
+                reader = files.Open("/data/LOG.TXT"); HostCheck.True(reader.Number == writer.Number && reader.Generation > writer.Generation &&
+                    files.Read(reader, 330).AsSpan().SequenceEqual(expectedLog.AsSpan(0, 330)));
+            }
+        }
+        HostCheck.True(files.Read(reader, 330).AsSpan().SequenceEqual(expectedLog.AsSpan(330)) && W.Seek(files.State, reader, 0, 1).Value == 660);
+        HostCheck.True(files.Read(reader, 1, expectedBytes: 0).Length == 0); HostCheck.Equal(0L, W.Close(files.State, reader));
+        var upload = files.Open("/data/UPLOAD.BIN", 1);
+        HostCheck.Equal(4094L, files.Run(W.BeginWriteWithFreeSearch(files.State, upload, expectedUpload.AsSpan(0, 4094), search)).Value);
+        HostCheck.Equal(4094L, W.Seek(files.State, upload, 0, 1).Value);
+        HostCheck.Equal(1032L, files.Run(W.BeginWriteWithFreeSearch(files.State, upload, expectedUpload.AsSpan(4094), search)).Value);
+        files.Sync(upload); HostCheck.Equal(5126L, W.Seek(files.State, upload, 0, 1).Value); HostCheck.Equal(0L, W.Close(files.State, upload));
+        ulong written = media.Device.State->SubmittedBytes; uint flushes = media.Flushes;
+        HostCheck.Equal(-9L, W.BeginSync(files.State, previousLogWriter).Value);
+        HostCheck.True(media.Device.State->SubmittedBytes == written && media.Flushes == flushes);
+        byte[] actualLog = ReopenAndRead("/data/LOG.TXT", expectedLog), actualUpload = ReopenAndRead("/data/UPLOAD.BIN", expectedUpload);
+        HostCheck.Equal(expectedValues, NativeAotLogUploadContract.InspectFileValues(actualLog, actualUpload));
+        byte[] after = media.Snapshot(); var transition = Image.InspectTransition(before, after);
+        var logEntry = transition.After.Find("LOG.TXT")!; var uploadEntry = transition.After.Find("UPLOAD.BIN")!;
+        HostCheck.Equal(expectedValues, NativeAotLogUploadContract.InspectFileValues(logEntry.CopyBytes(), uploadEntry.CopyBytes()));
+        HostCheck.True(logEntry.Clusters.Count == 2 && uploadEntry.Clusters.Count == 11 && transition.After.FreeClusters == seed.Image.FreeClusters - 13 &&
+            transition.After.Files.Count == seed.Image.Files.Count && transition.After.Find(Image.ExclusiveCreateName) is null && firstCheckpoint.Length == Image.ImageBytes);
+        foreach (var file in new[] { logEntry, uploadEntry })
+        {
+            int used = file.Bytes % 512;
+            HostCheck.True(after.AsSpan(ClusterOffset(file.Clusters[^1]) + used, 512 - used).IndexOfAnyExcept((byte)0) < 0);
+        }
+        CheckNeighbors(after, transition.After); CheckChanges(before, after, transition);
+        HostCheck.True(!media.Device.State->Dirty && media.Device.State->Submitted == media.Device.State->Completed &&
+            media.Device.State->SubmittedBytes == media.Outs * 512UL && media.Device.State->CompletedBytes == media.Outs * 512UL && media.Device.State->DurableBytes == media.Outs * 512UL);
+        Console.WriteLine($"WRITABLE_LOG_UPLOAD_CANDIDATE copiedByteContract=true bclExecuted=false logBytes={expectedValues.LogBytes} logSha256={expectedValues.LogSha256} uploadBytes={expectedValues.UploadBytes} uploadSha256={expectedValues.UploadSha256} rows=12 appendGroups=2 uploadChunks=4094,1032 verifierChunk=521 changedSectors={transition.Changes.Count} outs={media.Outs} flushes={media.Flushes} flushAcknowledgedBytes={media.Device.State->DurableBytes} afterRawSha256={transition.After.RawSha256}");
+
+        byte[] ReopenAndRead(string path, byte[] expected)
+        {
+            var file = files.Open(path); HostCheck.Equal(0L, W.Seek(files.State, file, 0, 1).Value); byte[] copied = new byte[expected.Length];
+            for (int offset = 0; offset < expected.Length; offset += 521)
+            {
+                uint count = (uint)Math.Min(521, expected.Length - offset); byte[] part = files.Read(file, count);
+                HostCheck.True(part.AsSpan().SequenceEqual(expected.AsSpan(offset, (int)count))); part.CopyTo(copied, offset);
+            }
+            HostCheck.True(files.Read(file, 1, expectedBytes: 0).Length == 0); HostCheck.Equal(0L, W.Close(files.State, file)); return copied;
+        }
+        void CheckNeighbors(byte[] changed, Image.Inspection inspection)
+        {
+            ulong logAt = seed.Image.Find("LOG.TXT")!.ShortEntryOffset, uploadAt = seed.Image.Find("UPLOAD.BIN")!.ShortEntryOffset;
+            HostCheck.True(inspection.Find("LOG.TXT")!.ShortEntryOffset == logAt && inspection.Find("UPLOAD.BIN")!.ShortEntryOffset == uploadAt);
+            foreach (var file in seed.Image.Files.Where(file => file.Name is not ("LOG.TXT" or "UPLOAD.BIN")))
+            {
+                HostCheck.True(inspection.Find(file.Name) is { } untouched && untouched.Sha256 == file.Sha256 && untouched.Clusters.SequenceEqual(file.Clusters) &&
+                    before.AsSpan((int)file.ShortEntryOffset, 32).SequenceEqual(changed.AsSpan((int)file.ShortEntryOffset, 32)));
+                foreach (uint cluster in file.Clusters) HostCheck.True(before.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(changed.AsSpan(ClusterOffset(cluster), 512)));
+            }
+            HostCheck.True(inspection.RootClusters.SequenceEqual(seed.Image.RootClusters));
+            foreach (uint cluster in seed.Image.RootClusters)
+                for (int i = 0; i < 512; i++)
+                {
+                    int address = ClusterOffset(cluster) + i; ulong position = (ulong)address;
+                    if (!(position >= logAt && position - logAt < 32) && !(position >= uploadAt && position - uploadAt < 32))
+                        HostCheck.Equal(before[address], changed[address]);
+                }
+        }
+    });
+
     [HostTest("writable data copied SQLite journal ordering preserves live DB cursors LFN removal guards and actual fake flush frontiers", HostLane.Native)]
     private static void CopiedSqliteJournalOrdering() => WithImage((_, _, _, seed, before) =>
     {
