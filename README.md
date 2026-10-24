@@ -46,7 +46,7 @@ proves continuous cancelled churn with the directed-signal/readiness race.
 The **36 MiB dynamic pool is shared**; the 16 MiB GC limit and declared 20 MiB
 native headroom are not independently enforced partitions.
 
-Only numbered Gate 2 passes. [Completion gates](docs/completion-gates.md)
+Only Gate 2 passes. [Completion gates](docs/completion-gates.md)
 and the [Kestrel ledger](docs/kestrel.md) define the exact accepted boundaries.
 Historical .NET 10 receipts retain their original toolchains; the pinned .NET 11
 migration is recorded in [step1225](done/step1225.md).
