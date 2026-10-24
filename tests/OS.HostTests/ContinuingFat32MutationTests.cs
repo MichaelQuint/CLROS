@@ -639,6 +639,63 @@ internal static unsafe class ContinuingFat32MutationTests
         HostCheck.True(f.Device.Hardware->Notifies == calls && new ReadOnlySpan<byte>(f.Input.Before, 512).SequenceEqual(before) && new ReadOnlySpan<byte>(f.Input.After, 512).SequenceEqual(after));
     }
 
+    private delegate bool AdmissionCheck(C.State* state, ulong epoch);
+    private static AdmissionCheck AdmissionPredicate() => typeof(C).GetMethod("CanAdmitStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<AdmissionCheck>();
+
+    [HostTest("continuing FAT live provider admission allows clean pending and held reads without callbacks or allocations")]
+    private static void ProviderAdmission()
+    {
+        using var f = new Fixture(); var admit = AdmissionPredicate();
+        HostCheck.True(!admit(f.State, f.Input.Epoch)); f.Mount(); var file = File(f);
+        HostCheck.True(admit(f.State, f.Input.Epoch) && !admit(f.State, 0) && !admit(f.State, f.Input.Epoch + 1));
+        HostCheck.True(!admit(null, f.Input.Epoch) && !admit((C.State*)8, f.Input.Epoch) && !admit((C.State*)0x0000800000000000UL, f.Input.Epoch));
+        HostCheck.Equal(C.Status.Pending, Read(f, file, 0, 8, out var request));
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State)); HostCheck.True(f.Device.State->ReadPending && admit(f.State, f.Input.Epoch));
+        f.Device.Complete(); HostCheck.Equal(C.Status.Pending, C.Pump(f.State)); HostCheck.True(admit(f.State, f.Input.Epoch));
+        HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.True(admit(f.State, f.Input.Epoch));
+        uint calls = f.Device.Hardware->Calls; long allocated = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 32; i++) good &= admit(f.State, f.Input.Epoch);
+        HostCheck.True(good && f.Device.Hardware->Calls == calls && allocated == GC.GetAllocatedBytesForCurrentThread());
+        C.Result result = default; byte[] bytes = new byte[8]; HostCheck.Equal(C.Status.Success, C.CopyRead(f.State, request, bytes, &result));
+        HostCheck.Equal(C.Status.Success, C.Stop(f.State)); HostCheck.True(!admit(f.State, f.Input.Epoch));
+    }
+
+    [HostTest("continuing FAT live provider admission rejects exact stale DMA lease while retained teardown remains possible")]
+    private static void ProviderAdmissionLease()
+    {
+        using var f = new Fixture(); f.Mount(); var admit = AdmissionPredicate();
+        var borrow = typeof(C).GetMethod("CanBorrowStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+        ulong* generation = (ulong*)((byte*)f.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Device.Slot, "Generation")); ulong original = *generation;
+        uint calls = f.Device.Hardware->Calls; (*generation)++;
+        HostCheck.True(!admit(f.State, f.Input.Epoch) && borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        *generation = original; HostCheck.True(admit(f.State, f.Input.Epoch) && calls == f.Device.Hardware->Calls);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
+        HostCheck.True(!admit(f.State, f.Input.Epoch) && borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+    }
+
+    [HostTest("continuing FAT live provider admission rejects issued dirty and faulted state without weakening structural cleanup")]
+    private static void ProviderAdmissionDirtyFault()
+    {
+        using (var f = new Fixture())
+        {
+            f.Mount(); var admit = AdmissionPredicate(); var file = File(f);
+            Overwrite(f, file, 0, new byte[] { 71 }, out var request);
+            while (f.State->IssuedChanges == 0) HostCheck.Equal(C.Status.Pending, f.Turn());
+            HostCheck.True(f.State->Dirty && !admit(f.State, f.Input.Epoch));
+            HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.True(admit(f.State, f.Input.Epoch)); Result(f, request); C.Stop(f.State);
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); var admit = AdmissionPredicate(); var file = File(f); f.FailAt = f.Device.Hardware->Notifies + 1;
+            Read(f, file, 0, 1, out _); HostCheck.Equal(C.Status.BlockFailure, f.Run());
+            HostCheck.True(!admit(f.State, f.Input.Epoch));
+            var borrow = typeof(C).GetMethod("CanBorrowStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+            HostCheck.True(borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State)); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+    }
+
     private delegate bool BorrowCheck(C.State* state, ulong epoch, ulong address, ulong bytes);
     [HostTest("continuing FAT structural provider borrow rejects all owned extents and retired APIs never dereference released backing")]
     private static void BorrowAndRetired()

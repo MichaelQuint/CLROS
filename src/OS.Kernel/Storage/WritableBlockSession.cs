@@ -450,6 +450,10 @@ public static unsafe class WritableBlockSession
         s->Input.Pool->Epoch == s->PoolEpoch && s->Input.Pool->Count is > 0 and <= 64 &&
         Storage((ulong)s->Input.Pool->Slots, s->Input.Pool->Count * (ulong)sizeof(DmaBufferSlot))));
     private static bool Running(State* s) => Bound(s) && s->Running;
+    // Read-only admission fact for retained providers. No clock/MMIO check or
+    // I/O permission follows; each actual operation still revalidates hardware.
+    internal static bool CanAdmitStorage(State* s, ulong expectedEpoch) =>
+        Running(s) && s->Input.Epoch == expectedEpoch && !s->Dirty && DmaBound(s);
     private static bool DmaBound(State* s, DmaBufferOwnership ownership = DmaBufferOwnership.Device)
     {
         var p = s->Input.Pool; var t = s->Allocation.Token;

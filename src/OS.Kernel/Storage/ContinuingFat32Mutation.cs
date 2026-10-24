@@ -1072,6 +1072,13 @@ public static unsafe class ContinuingFat32Mutation
     // follows from this predicate. Provider retirement precedes engine Stop.
     internal static bool CanBorrowStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
         Live(s) && s->Mounted && s->Input.Epoch == expectedEpoch && Caller(s, address, bytes);
+    // Stronger live provider admission, separate from retained teardown extents.
+    // Clean pending/held reads are allowed. This checks RAM ownership only;
+    // hardware/configuration and final copy are checked by the actual operation.
+    internal static bool CanAdmitStorage(State* s, ulong expectedEpoch) =>
+        Bound(s) && s->Mounted && s->Input.Epoch == expectedEpoch && !s->DirtyValue && !s->DeviceFault &&
+        s->Phase is Life.Idle or Life.Working or Life.Ready && DeviceCurrent(s) &&
+        Block.CanAdmitStorage(s->Input.Device, s->DeviceEpoch);
     private static bool DeviceIdentity(State* s) => Storage((ulong)s->Input.Device, (ulong)sizeof(Block.State), 8) && s->Input.Device->Self == (ulong)s->Input.Device &&
         s->Input.Device->Input.Epoch == s->DeviceEpoch && s->Input.Device->PoolEpoch == s->PoolEpoch;
     private static bool DeviceCurrent(State* s) => DeviceIdentity(s) && s->Input.Device->Running;
