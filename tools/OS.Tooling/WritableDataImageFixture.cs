@@ -20,6 +20,7 @@ public static class WritableDataImageFixture
         FirstDataLba = 4066, ClusterCount = 126973;
     public const int MaximumFiles = 64, MaximumFileBytes = 4096 * 512,
         MaximumExtractedBytes = 8 * 1024 * 1024;
+    public const int MaximumTransitionSectors = 128;
     public const string MountPath = "/data", ExclusiveCreateName = "m16-write.bin";
     public const string TimestampPolicy = "1980-01-01T00:00:00Z (declared FAT UTC)";
     public static readonly Guid PartitionType = new("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7");
@@ -94,6 +95,45 @@ public static class WritableDataImageFixture
         public byte[] CopyJson() => (byte[])json.Clone();
     }
 
+    /// <summary>Physical ownership decoded independently in the before/after
+    /// images. FileData includes allocated cluster slack; a classification does
+    /// not authorize modifying any particular file or directory entry.</summary>
+    public enum SectorKind { Fat0, Fat1, FsInfo, RootDirectory, FileData }
+
+    public sealed record SectorChange(ulong Lba, SectorKind Kind, string OldSha256, string NewSha256);
+
+    /// <summary>Copied, immutable final-image comparison for a small mechanical
+    /// mutation. Both extractions remain available, including logical file bytes.
+    /// This does not validate intermediate images, an operation's permitted
+    /// targets, flush/sync, recovery, persistence, process or guest execution.</summary>
+    public sealed class TransitionReceipt
+    {
+        private readonly byte[] json;
+        internal TransitionReceipt(Inspection before, Inspection after, SectorChange[] changes)
+        {
+            Before = before; After = after; Changes = Array.AsReadOnly(changes);
+            using var stream = new MemoryStream();
+            using (var writer = new Utf8JsonWriter(stream))
+            {
+                writer.WriteStartObject(); writer.WriteString("schema", "CLROS_WRITABLE_DATA_TRANSITION_V1");
+                writer.WritePropertyName("before"); writer.WriteRawValue(Serialize(before));
+                writer.WritePropertyName("after"); writer.WriteRawValue(Serialize(after));
+                writer.WriteStartArray("changes");
+                foreach (var change in changes)
+                {
+                    writer.WriteStartObject(); writer.WriteNumber("lba", change.Lba); writer.WriteString("kind", change.Kind.ToString());
+                    writer.WriteString("oldSha256", change.OldSha256); writer.WriteString("newSha256", change.NewSha256); writer.WriteEndObject();
+                }
+                writer.WriteEndArray(); writer.WriteEndObject();
+            }
+            json = stream.ToArray();
+        }
+        public Inspection Before { get; }
+        public Inspection After { get; }
+        public ReadOnlyCollection<SectorChange> Changes { get; }
+        public byte[] CopyJson() => (byte[])json.Clone();
+    }
+
     /// <summary>Create a new image below repository artifacts. Existing paths
     /// and reparse ancestors reject before staging. No EFI/package inputs are
     /// accepted. Prospective and on-disk independent inspection precede the
@@ -153,6 +193,63 @@ public static class WritableDataImageFixture
         Inspection actual = Inspect(imagePath);
         Need(actual.RawSha256 == expected.Image.RawSha256 && Serialize(actual).AsSpan().SequenceEqual(expected.CopyJson()), "receipt_identity");
         return actual;
+    }
+
+    /// <summary>Synchronously borrow two stable exact64MiB snapshots and strictly
+    /// inspect both, then copy at most1..128 changed-sector facts. Outside the
+    /// partition, boot/reserved bytes, FAT padding/reserved entries/high bits and
+    /// unallocated data must remain identical. Changed FAT entries must belong
+    /// to a decoded root/file chain in either snapshot. Allocated data includes
+    /// slack and freed/new chains, so callers must separately assert permitted
+    /// operation targets. Throws ToolFailure without a partial receipt. No input
+    /// spans are retained, no files are written and no execution/flush/durability
+    /// authority is granted; intermediate dirty images are unsupported.</summary>
+    public static TransitionReceipt InspectTransition(ReadOnlySpan<byte> before, ReadOnlySpan<byte> after,
+        int maximumChangedSectors = MaximumTransitionSectors)
+    {
+        Need(maximumChangedSectors is >= 1 and <= MaximumTransitionSectors, "transition_limit");
+        Inspection oldImage = Inspect(before), newImage = Inspect(after);
+        int start = checked((int)PartitionFirstLba * SectorBytes), end = checked(((int)PartitionLastLba + 1) * SectorBytes);
+        Need(before[..start].SequenceEqual(after[..start]) && before[end..].SequenceEqual(after[end..]), "transition_outside_partition");
+        HashSet<uint> roots = oldImage.RootClusters.Concat(newImage.RootClusters).ToHashSet();
+        HashSet<uint> data = oldImage.Files.Concat(newImage.Files).SelectMany(x => x.Clusters).ToHashSet();
+        var owned = roots.Concat(data).ToHashSet();
+        List<SectorChange> changes = [];
+        for (uint lba = PartitionFirstLba; lba <= PartitionLastLba; lba++)
+        {
+            int offset = checked((int)lba * SectorBytes);
+            var oldSector = before.Slice(offset, SectorBytes); var newSector = after.Slice(offset, SectorBytes);
+            if (oldSector.SequenceEqual(newSector)) continue;
+            Need(changes.Count < maximumChangedSectors, "transition_capacity");
+            SectorKind kind;
+            if (lba is PartitionFirstLba + 1 or PartitionFirstLba + 7)
+            {
+                Need(oldSector[..488].SequenceEqual(newSector[..488]) && oldSector[496..].SequenceEqual(newSector[496..]), "transition_fsinfo_reserved");
+                kind = SectorKind.FsInfo;
+            }
+            else if (lba >= FirstFatLba && lba < FirstDataLba)
+            {
+                kind = lba < FirstFatLba + FatSectors ? SectorKind.Fat0 : SectorKind.Fat1;
+                uint baseCluster = (lba - (kind == SectorKind.Fat0 ? FirstFatLba : FirstFatLba + FatSectors)) * 128;
+                for (int slot = 0; slot < 128; slot++)
+                {
+                    uint oldValue = U32(oldSector, slot * 4), newValue = U32(newSector, slot * 4);
+                    if (oldValue == newValue) continue;
+                    uint cluster = baseCluster + (uint)slot;
+                    Need(cluster >= 2 && cluster - 2 < ClusterCount && owned.Contains(cluster) &&
+                        (oldValue & 0xf0000000) == (newValue & 0xf0000000), "transition_fat_ownership");
+                }
+            }
+            else if (lba >= FirstDataLba)
+            {
+                uint cluster = lba - FirstDataLba + 2;
+                if (roots.Contains(cluster)) kind = SectorKind.RootDirectory;
+                else { Need(data.Contains(cluster), "transition_unallocated_data"); kind = SectorKind.FileData; }
+            }
+            else { Need(false, "transition_reserved"); kind = default; }
+            changes.Add(new(lba, kind, Hash(oldSector), Hash(newSector)));
+        }
+        return new(oldImage, newImage, changes.ToArray());
     }
 
     private static byte[] Build()

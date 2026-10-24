@@ -2,12 +2,16 @@ using System.Buffers.Binary;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Runtime.InteropServices;
 using OS.Std.Hash;
+using OS.Storage;
 using OS.Tooling;
 using Image = OS.Tooling.WritableDataImageFixture;
+using B = OS.Storage.WritableBlockSession;
+using C = OS.Storage.ContinuingFat32Mutation;
 
 // Host image/extraction controls only. No native/device/guest persistence claim.
-internal static class WritableDataImageFixtureTests
+internal static unsafe class WritableDataImageFixtureTests
 {
     [HostTest("writable data image two fresh outputs and canonical extraction receipts are byte identical", HostLane.Native)]
     private static void Deterministic() => WithImage((root, folder, path, receipt, disk) =>
@@ -181,6 +185,178 @@ internal static class WritableDataImageFixtureTests
         string path = Path.Combine(folder, "substituted.raw"); File.WriteAllBytes(path, disk);
         Reject(() => Image.Verify(path, receipt), "receipt_identity");
     });
+
+    [HostTest("writable data transition independently extracts actual continuing create grow overwrite shrink delete after real fake OUT FLUSH", HostLane.Native)]
+    private static void ActualMutationTransition() => WithImage((_, _, _, seed, before) =>
+    {
+        using var media = new MutationMedia(before);
+        C.RequestToken request = default; C.Result result = default;
+        HostCheck.Equal(C.Status.Pending, C.BeginCreateEmpty(media.State, Image.ExclusiveCreateName, "M16WRI~1BIN"u8, &request));
+        media.Run(); HostCheck.Equal(C.Status.Success, C.CopyResult(media.State, request, &result));
+        C.FileToken file = media.Open(Image.ExclusiveCreateName);
+        uint[] candidates = seed.Image.FreeCandidates.Take(11).ToArray();
+        HostCheck.Equal(C.Status.Pending, C.BeginGrow(media.State, file, 5126, candidates, &request)); media.Run();
+        C.MutationResult mutation = default; HostCheck.Equal(C.Status.Success, C.CopyMutationResult(media.State, request, &mutation)); file = mutation.NewFile;
+        byte[] payload = Enumerable.Range(0, 1032).Select(i => unchecked((byte)(i * 61 + 9))).ToArray();
+        HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(media.State, file, 4094, payload, &request)); media.Run();
+        HostCheck.Equal(C.Status.Success, C.CopyResult(media.State, request, &result));
+        byte[] grown = media.Snapshot(); var receipt = Image.InspectTransition(before, grown);
+        byte[] expected = new byte[5126]; payload.CopyTo(expected, 4094);
+        HostCheck.True(receipt.Before.Find(Image.ExclusiveCreateName) is null && receipt.After.Find(Image.ExclusiveCreateName) is { } created &&
+            created.CopyBytes().AsSpan().SequenceEqual(expected) && created.Clusters.SequenceEqual(candidates));
+        HostCheck.True(receipt.Changes.Count is > 0 and <= 128 && receipt.Changes.Select(x => x.Kind).Distinct().Order().SequenceEqual(
+            new[] { Image.SectorKind.Fat0, Image.SectorKind.Fat1, Image.SectorKind.FsInfo, Image.SectorKind.RootDirectory, Image.SectorKind.FileData }.Order()));
+        CheckChanges(before, grown, receipt);
+        HostCheck.True(receipt.After.Find("GUARD.TXT")!.Sha256 == seed.Image.Find("GUARD.TXT")!.Sha256 &&
+            receipt.After.Find("FRAG.BIN")!.Sha256 == seed.Image.Find("FRAG.BIN")!.Sha256 && media.Outs > 0 && media.Flushes >= 6);
+        file = media.Open(Image.ExclusiveCreateName);
+        HostCheck.Equal(C.Status.Pending, C.BeginTruncate(media.State, file, 513, &request)); media.Run();
+        HostCheck.Equal(C.Status.Success, C.CopyMutationResult(media.State, request, &mutation)); file = mutation.NewFile;
+        byte[] shrunk = media.Snapshot(); var shrink = Image.InspectTransition(grown, shrunk);
+        HostCheck.True(shrink.After.Find(Image.ExclusiveCreateName)!.CopyBytes().AsSpan().SequenceEqual(expected.AsSpan(0, 513)) &&
+            shrink.After.FreeClusters == receipt.After.FreeClusters + 9); CheckChanges(grown, shrunk, shrink);
+        HostCheck.Equal(C.Status.Pending, C.BeginDelete(media.State, file, &request)); media.Run();
+        HostCheck.Equal(C.Status.Success, C.CopyMutationResult(media.State, request, &mutation));
+        byte[] deleted = media.Snapshot(); var deletion = Image.InspectTransition(shrunk, deleted);
+        HostCheck.True(mutation.Deleted && deletion.After.Find(Image.ExclusiveCreateName) is null && deletion.After.FreeClusters == seed.Image.FreeClusters);
+        CheckChanges(shrunk, deleted, deletion);
+        Console.WriteLine($"WRITABLE_TRANSITION actualCreateGrowWrite={receipt.Changes.Count} shrink={shrink.Changes.Count} delete={deletion.Changes.Count} outs={media.Outs} flushes={media.Flushes}");
+    });
+
+    [HostTest("writable data transition rejects changes outside partition GPT padding BPB and reserved FSInfo bytes", HostLane.Native)]
+    private static void TransitionIdentity() => WithImage((_, _, _, _, before) =>
+    {
+        TransitionMutant(before, x => x[100 * 512] ^= 1, "transition_outside_partition");
+        TransitionMutant(before, x => x[512 + 128] ^= 1, "transition_outside_partition");
+        TransitionMutant(before, x => x[^1] ^= 1, "transition_outside_partition");
+        TransitionMutant(before, x => { x[2048 * 512 + 3] ^= 1; x[(2048 + 6) * 512 + 3] ^= 1; }, "transition_reserved");
+        TransitionMutant(before, x => { x[(2048 + 1) * 512 + 200] = 3; x[(2048 + 7) * 512 + 200] = 3; }, "transition_fsinfo_reserved");
+    });
+
+    [HostTest("writable data transition rejects covering owned and free sectors while declaring allocated slack and guardfile changes without authorizing them", HostLane.Native)]
+    private static void TransitionCoverage() => WithImage((_, _, _, _, before) =>
+    {
+        byte[] after = (byte[])before.Clone(); after[ClusterOffset(11) + 511] = 91;
+        var slack = Image.InspectTransition(before, after, 1);
+        HostCheck.True(slack.Changes.Count == 1 && slack.Changes[0].Kind == Image.SectorKind.FileData &&
+            slack.Before.Find("GUARD.TXT")!.Sha256 == slack.After.Find("GUARD.TXT")!.Sha256);
+        after[ClusterOffset(11)] ^= 1; var guard = Image.InspectTransition(before, after, 1);
+        HostCheck.True(guard.After.Find("GUARD.TXT")!.Sha256 != guard.Before.Find("GUARD.TXT")!.Sha256);
+        after[ClusterOffset(12)] = 91;
+        // Both images remain structurally valid; a containing allocated sector
+        // must not authorize the next free sector or an entire data interval.
+        HostCheck.True(Image.Inspect(after).FreeClusters == Image.Inspect(before).FreeClusters);
+        Reject(() => Image.InspectTransition(before, after), "transition_unallocated_data");
+        TransitionMutant(before, x => x[ClusterOffset(Image.ClusterCount + 1) + 511] = 1, "transition_unallocated_data");
+    });
+
+    [HostTest("writable data transition rejects FAT padding unowned entries high bits and intermediate mirror damage", HostLane.Native)]
+    private static void TransitionFatOwnership() => WithImage((_, _, _, _, before) =>
+    {
+        TransitionMutant(before, x => Fat(x, Image.ClusterCount + 2, 1), "transition_fat_ownership");
+        TransitionMutant(before, x => Fat(x, 100, 0xa0000000), "transition_fat_ownership");
+        TransitionMutant(before, x => Fat(x, 11, 0xafffffff), "transition_fat_ownership");
+        TransitionMutant(before, x => x[(2080 + 993) * 512 + 5 * 4] ^= 1, "fat_mirror");
+        byte[] invalidBefore = (byte[])before.Clone(); Fat(invalidBefore, 41, 0);
+        Reject(() => Image.InspectTransition(invalidBefore, before), "chain");
+    });
+
+    [HostTest("writable data transition hard capacity rejects valid oversized mutations and invalid caller bounds without partial receipts", HostLane.Native)]
+    private static void TransitionCapacity() => WithImage((_, _, _, seed, before) =>
+    {
+        byte[] after = (byte[])before.Clone(); int entry = ClusterOffset(2);
+        W16(after, entry + 26, 1000); W32(after, entry + 28, 129 * 512);
+        for (uint cluster = 1000; cluster < 1129; cluster++)
+        { Fat(after, cluster, cluster == 1128 ? 0x0fffffff : cluster + 1); after.AsSpan(ClusterOffset(cluster), 512).Fill(0x7d); }
+        Info(after, 488, seed.Image.FreeClusters - 129);
+        HostCheck.True(Image.Inspect(after).Find("LOG.TXT")!.Bytes == 129 * 512);
+        Reject(() => Image.InspectTransition(before, after), "transition_capacity");
+        byte[] small = (byte[])before.Clone(); small[ClusterOffset(5)] ^= 1; small[ClusterOffset(41)] ^= 1;
+        Reject(() => Image.InspectTransition(before, small, 1), "transition_capacity");
+        foreach (int limit in new[] { int.MinValue, 0, 129, int.MaxValue })
+            Reject(() => Image.InspectTransition([], [], limit), "transition_limit");
+        Reject(() => Image.InspectTransition(before.AsSpan(0, before.Length - 1), before), "size");
+    });
+
+    [HostTest("writable data transition copied extractions hashes sector ordering and canonical JSON have no mutable input aliases", HostLane.Native)]
+    private static void TransitionCopiedValues() => WithImage((_, folder, _, _, before) =>
+    {
+        byte[] after = (byte[])before.Clone(); after[ClusterOffset(5)] ^= 1;
+        var receipt = Image.InspectTransition(before, after, 1);
+        byte oldFirst = receipt.Before.Find("FRAG.BIN")!.CopyBytes()[0], newFirst = receipt.After.Find("FRAG.BIN")!.CopyBytes()[0];
+        var repeated = Image.InspectTransition(before, after, 1); HostCheck.True(receipt.CopyJson().AsSpan().SequenceEqual(repeated.CopyJson()));
+        CheckChanges(before, after, receipt);
+        byte[] json = receipt.CopyJson(), file = receipt.After.Find("FRAG.BIN")!.CopyBytes(); file.AsSpan().Clear(); json.AsSpan().Clear();
+        before.AsSpan().Clear(); after.AsSpan().Clear();
+        HostCheck.True(oldFirst != newFirst && receipt.Before.Find("FRAG.BIN")!.CopyBytes()[0] == oldFirst && receipt.After.Find("FRAG.BIN")!.CopyBytes()[0] == newFirst);
+        using var parsed = JsonDocument.Parse(receipt.CopyJson());
+        HostCheck.True(parsed.RootElement.GetProperty("schema").GetString() == "CLROS_WRITABLE_DATA_TRANSITION_V1" &&
+            parsed.RootElement.GetProperty("changes").GetArrayLength() == 1 && !Encoding.UTF8.GetString(receipt.CopyJson()).Contains(folder, StringComparison.Ordinal));
+        bool readOnly = false;
+        try { ((IList<Image.SectorChange>)receipt.Changes)[0] = new(0, Image.SectorKind.FileData, "bad", "bad"); } catch (NotSupportedException) { readOnly = true; }
+        HostCheck.True(readOnly);
+    });
+
+    [HostTest("writable data transition admits identical independently valid snapshots without inventing mutation facts", HostLane.Native)]
+    private static void TransitionNoChanges() => WithImage((_, _, _, _, before) =>
+    {
+        var receipt = Image.InspectTransition(before, before);
+        HostCheck.True(receipt.Changes.Count == 0 && receipt.Before.RawSha256 == receipt.After.RawSha256 && receipt.Before.Find("FRAG.BIN")!.CopyBytes().AsSpan().SequenceEqual(receipt.After.Find("FRAG.BIN")!.CopyBytes()));
+    });
+
+    private static void CheckChanges(byte[] before, byte[] after, Image.TransitionReceipt receipt)
+    {
+        var expected = Enumerable.Range(0, before.Length / 512).Where(lba => !before.AsSpan(lba * 512, 512).SequenceEqual(after.AsSpan(lba * 512, 512))).Select(x => (ulong)x).ToArray();
+        HostCheck.True(receipt.Changes.Select(x => x.Lba).SequenceEqual(expected));
+        foreach (var change in receipt.Changes)
+        { HostCheck.Equal(Hash(before.AsSpan(checked((int)change.Lba * 512), 512).ToArray()), change.OldSha256); HostCheck.Equal(Hash(after.AsSpan(checked((int)change.Lba * 512), 512).ToArray()), change.NewSha256); }
+    }
+    private static void TransitionMutant(byte[] before, Action<byte[]> mutate, string reason)
+    { byte[] after = (byte[])before.Clone(); mutate(after); Reject(() => Image.InspectTransition(before, after), reason); }
+
+    private sealed class MutationMedia : IDisposable
+    {
+        internal readonly WritableBlockSessionTests.Fixture Device;
+        internal readonly C.State* State = (C.State*)NativeMemory.AllocZeroed((nuint)sizeof(C.State));
+        private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(48 * 4096, 4096);
+        internal uint Outs, Flushes;
+        internal MutationMedia(byte[] image)
+        {
+            Device = new((ulong)Image.ImageBytes / 512); Device.UseMedium(image); HostCheck.Equal(B.Status.Success, Device.Start());
+            ulong cursor = (ulong)backing;
+            ulong Take(ulong count) { ulong address = (cursor + 15) & ~15UL; cursor = address + count; return address; }
+            C.Admission input = new() { Device = Device.State, Owner = 701, Epoch = 702, PartitionFirst = Image.PartitionFirstLba, PartitionLast = Image.PartitionLastLba,
+                ChangeCapacity = C.JournalChanges, ChainCapacity = C.MaximumClusters, InputCapacity = C.WriteBytes, WorkBudget = 100000,
+                Changes = (Fat32Mutation.Change*)Take(C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)), Before = (byte*)Take(C.JournalChanges * 512UL), After = (byte*)Take(C.JournalChanges * 512UL),
+                DirectoryMap = (uint*)Take(C.MaximumClusters * 4UL), FileMap = (uint*)Take(C.MaximumClusters * 4UL), WalkMap = (uint*)Take(C.MaximumClusters * 4UL),
+                Sector = (byte*)Take(512), Fat0 = (byte*)Take(512), Fat1 = (byte*)Take(512), Input = (byte*)Take(C.WriteBytes),
+                Name = (ushort*)Take(C.NameWords * 2UL), LongName = (ushort*)Take(C.VfatWords * 2UL), EncodedEntries = (byte*)Take(C.EncodedEntryBytes) };
+            HostCheck.True(cursor - (ulong)backing <= 48 * 4096UL); new Span<byte>(backing, 48 * 4096).Clear();
+            HostCheck.Equal(C.Status.Pending, C.Start(State, input)); Run();
+        }
+        internal void Run()
+        {
+            for (int i = 0; i < 100000; i++)
+            {
+                var status = C.Pump(State);
+                if (Device.Hardware->Pending)
+                { if (Device.Hardware->Type == 1) Outs++; if (Device.Hardware->Type == 4) Flushes++; Device.Complete(); }
+                if (status != C.Status.Pending) { HostCheck.Equal(C.Status.Ready, status); return; }
+            }
+            throw new InvalidOperationException("transition shared-media mutation did not terminate");
+        }
+        internal C.FileToken Open(string name)
+        {
+            C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginOpenRoot(State, name, &request)); Run();
+            C.FileToken file = default; HostCheck.Equal(C.Status.Success, C.CopyOpen(State, request, &file)); return file;
+        }
+        internal byte[] Snapshot() => new ReadOnlySpan<byte>(Device.Hardware->Persistent, Image.ImageBytes).ToArray();
+        public void Dispose()
+        {
+            HostCheck.Equal(B.Status.Success, B.Stop(Device.State)); HostCheck.Equal(C.Status.Success, C.Stop(State));
+            Device.Dispose(); NativeMemory.AlignedFree(backing); NativeMemory.Free(State);
+        }
+    }
 
     private static void WithImage(Action<string, string, string, Image.Receipt, byte[]> action)
     {
