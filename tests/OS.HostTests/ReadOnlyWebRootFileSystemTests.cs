@@ -97,7 +97,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
     [HostTest("webroot.fs batched lookup rejects late exact case and short alias collisions after complete directory validation")]
     private static void LookupLateCollisions()
     {
-        Span<byte> entry = stackalloc byte[32]; Span<byte> encoded = stackalloc byte[672];
+        Span<byte> entry = stackalloc byte[32];
         foreach (int variant in new[] { 0, 1, 2 })
         {
             using var f = new Fixture(); string name = variant == 0 ? "far.bin" : variant == 1 ? "FAR.BIN" : "elsewhere.bin";
@@ -105,9 +105,10 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             (variant == 2 ? "FAR     BIN"u8 : "ZZZZZZZZBIN"u8).CopyTo(entry); entry[11] = 0x21;
             BinaryPrimitives.WriteUInt16LittleEndian(entry[24..], 33); BinaryPrimitives.WriteUInt16LittleEndian(entry[26..], 13);
             BinaryPrimitives.WriteUInt32LittleEndian(entry[28..], 3);
-            HostCheck.Equal(Fat32Mutation.Status.Success, Fat32Mutation.EncodeEntryRun(name, entry, encoded, out int entries));
+            List<byte[]> entries = Disk.Entries(name, entry);
             byte[] late = f.Disk.Sector(f.Disk.Data(8)); int slot = 0; while (slot < 16 && late[slot * 32] != 0) slot++;
-            HostCheck.True(slot + entries < 16); encoded[..(entries * 32)].CopyTo(late.AsSpan(slot * 32));
+            HostCheck.True(slot + entries.Count < 16);
+            foreach (byte[] encoded in entries) { encoded.CopyTo(late, slot * 32); slot++; }
             f.MountReady(); var token = BeginLookup(f, "/app/wwwroot/far.bin");
             HostCheck.Equal(Fs.Status.Ambiguous, f.Drive(token)); Fs.OpenResult result = new() { Info = new() { Length = 77 } };
             HostCheck.Equal(Fs.Status.Ambiguous, Fs.CopyOpen(f.Mount, token, &result)); HostCheck.Equal(77U, result.Info.Length);
@@ -947,7 +948,11 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         {
             string shortName = "F" + (++alias).ToString("0000000") + "DAT"; byte[] shortEntry = new byte[32]; Encoding.ASCII.GetBytes(shortName).CopyTo(shortEntry, 0);
             shortEntry[11] = directory ? (byte)0x10 : (byte)0x21; W16(shortEntry, 24, 0x21); W16(shortEntry, 20, (ushort)(cluster >> 16)); W16(shortEntry, 26, (ushort)cluster); W32(shortEntry, 28, bytes);
-            byte checksum = 0; foreach (byte b in shortEntry.AsSpan(0, 11)) checksum = unchecked((byte)(((checksum & 1) << 7) + (checksum >> 1) + b));
+            return Entries(name, shortEntry);
+        }
+        internal static List<byte[]> Entries(string name, ReadOnlySpan<byte> shortEntry)
+        {
+            byte checksum = 0; foreach (byte b in shortEntry[..11]) checksum = unchecked((byte)(((checksum & 1) << 7) + (checksum >> 1) + b));
             int count = (name.Length + 12) / 13; List<byte[]> entries = [];
             int[] positions = [1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30];
             for (int ordinal = count; ordinal > 0; ordinal--)
@@ -956,7 +961,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
                 for (int i = 0; i < 13; i++) { int at = (ordinal - 1) * 13 + i; W16(entry, positions[i], at < name.Length ? name[at] : at == name.Length ? (ushort)0 : ushort.MaxValue); }
                 entries.Add(entry);
             }
-            entries.Add(shortEntry); return entries;
+            entries.Add(shortEntry.ToArray()); return entries;
         }
         private void WriteDirectory(uint[] clusters, List<byte[]> entries)
         { for (int i = 0; i < entries.Count; i++) entries[i].CopyTo(Sector(Data(clusters[i / 16])), i % 16 * 32); }
