@@ -1,5 +1,14 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1579](../done/step1579.md) adds a114-exchange asset plan for the current
+45 published files plus five fixtures. Bounds are128 published files,2MiB/file,
+8MiB published and16MiB expected entities, at most320 requests. Read-completion
+counts are lower bounds from the retained8KiB prefix, not actual chunking proof.
+The five-response peer/consumer stays separate. Full capture/body/stream bounds,
+actual contiguous multi-read/body joins and browser integration remain unfinished.
+Fresh018r04 still fails its original receipt comparison after real responses;
+the comparison is repaired but fresh complete qualification remains required.
+
 [Step1578](../done/step1578.md) adds a separate original five-response disk
 consumer candidate: health, status/items JSON, the independently extracted host
 page and nonce. HTTP receipts/headers/entities must match one complete TCP flow;

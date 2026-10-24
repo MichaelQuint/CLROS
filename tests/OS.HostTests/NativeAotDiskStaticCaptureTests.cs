@@ -15,6 +15,24 @@ using OS.Tooling;
 // readiness and runner values grant no CLROS, native, disk or guest authority.
 internal static class NativeAotDiskStaticCaptureTests
 {
+    [HostTest("disk static startup admits its four loads plus63 retained ranges without widening historical profiles")]
+    private static void StartupRanges()
+    {
+        QemuTranscripts.InspectLinuxStartupRangeValues(67,4,diskStatic:true);
+        QemuTranscripts.InspectLinuxStartupRangeValues(65,2,diskFiles:true);
+        QemuTranscripts.InspectLinuxStartupRangeValues(64,4);
+        void Reject(Action action)
+        {bool rejected=false;try{action();}catch(Exception e) when(e is ToolFailure or InvalidDataException){rejected=true;}HostCheck.True(rejected);}
+        foreach(ulong count in new ulong[]{64,65,66,68,135})
+            Reject(()=>QemuTranscripts.InspectLinuxStartupRangeValues(count,4,diskStatic:true));
+        Reject(()=>QemuTranscripts.InspectLinuxStartupRangeValues(67,3,diskStatic:true));
+        Reject(()=>QemuTranscripts.InspectLinuxStartupRangeValues(65,4));
+        Reject(()=>QemuTranscripts.InspectLinuxStartupRangeValues(67,4,diskFiles:true));
+        Reject(()=>QemuTranscripts.InspectLinuxStartupRangeValues(67,4,diskFiles:true,diskStatic:true));
+        // Selecting the public mode never bypasses canonical package admission.
+        Reject(()=>QemuTranscripts.ValidateLinuxStartupTail([],LinuxDiskFileProofFixture.CreatePackage(),diskStatic:true));
+    }
+
     [HostTest("disk static peer completes five real host middleware and API responses and stops its endpoint")]
     private static async Task Healthy() => await Run(Mode.Healthy);
 
@@ -117,6 +135,23 @@ internal static class NativeAotDiskStaticCaptureTests
         {
             HostCheck.True(completion is not null && completion.Runner.Succeeded && completion.Port == host.Port &&
                 completion.Directory == host.Destination && completion.ReceiptSha256 == Convert.ToHexString(SHA256.HashData(receiptBytes)));
+            using AuthorityFiles held=new();
+            var actual=held.Open(host.Root,Path.Combine(host.Destination,"http.json"),"host peer receipt","disk_http_host_receipt",65536,singleLink:true);
+            // Exercise the actual held-file lower-case digest against the
+            // producer's upper-case digest, as the original consumer does.
+            QemuTranscripts.InspectDiskStaticReceiptIdentityValues(actual.Sha256,completion!.ReceiptSha256,"{}","{}");
+            void RejectReceipt(string hash,string image,string reason)
+            {
+                bool rejected=false;
+                try{QemuTranscripts.InspectDiskStaticReceiptIdentityValues(actual.Sha256,hash,image,"{}");}
+                catch(ToolFailure failure) when(failure.Reason==reason){rejected=true;}
+                HostCheck.True(rejected);
+            }
+            string changed=(completion.ReceiptSha256[0]=='0'?"1":"0")+completion.ReceiptSha256[1..];
+            RejectReceipt(changed,"{}","disk_static_http_receipt_identity");
+            RejectReceipt(new string('G',64),"{}","disk_static_http_receipt_identity");
+            RejectReceipt(completion.ReceiptSha256,"{}\n","disk_static_image_receipt_identity");
+            held.VerifyUnchanged();
             using var stopped = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination, "stopped.json")));
             HostCheck.True(stopped.RootElement.GetProperty("Port").GetInt32() == host.Port &&
                 stopped.RootElement.GetProperty("EndpointRefused").GetBoolean() && stopped.RootElement.GetProperty("RunnerExit").GetInt32() == 0);

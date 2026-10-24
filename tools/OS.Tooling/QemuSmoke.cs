@@ -58,6 +58,10 @@ public static class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            // Parsing/publication can precede the complete original race
+            // owner. Never run the old59-call package under a requested race.
+            if(options.HasDiskRaceSelection && !options.DryRun)
+                throw new ToolFailure("disk_race_complete_consumer_required");
             bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
             bool diskStatic = NativeAotDiskSelection.StaticSelected(plan.Flags);
             bool signalEpoll=LinuxSignalEpollSelection.Bind(options,plan.Flags);

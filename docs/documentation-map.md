@@ -1,5 +1,11 @@
 # Documentation Map
 
+[Step1579](../done/step1579.md) retains failed original018r04, repairs receipt
+identity/startup admission, and adds preparatory asset/race plans. QEMU owns exact
+original failure and selector limits; app/Kestrel own the unfinished full matrix/
+browser boundary. Storage owns isolated writable/SQLite dependency limits. The
+updated guide requires two implementation subagents with disjoint checkouts.
+
 [Step1578](../done/step1578.md) owns the original five-response disk consumer
 candidate and host-only lifecycle controls. QEMU documents original ownership,
 receipt/packet/process joins and the limited success scope; storage documents

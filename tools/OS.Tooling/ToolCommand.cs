@@ -28,6 +28,9 @@ public static class ToolCommand
                 byte[] imageBytes=image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_static_values_image");
                 var inventory=WebRootDiskInventory.Inspect(staticDiskImage,imageBytes,receipt);
                 byte[] raw=serial.ReadBytes(8*1024*1024,"disk_static_values_serial");
+                int parentEnd=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);
+                if(parentEnd<0)throw new ToolFailure("disk_static_values_parent_missing");
+                var parent=QemuTranscripts.InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,parentEnd),diskStatic:true);
                 byte[] begin="TEST_START m16-009\r\n"u8.ToArray(),end="TEST_PASS m16-009\r\n"u8.ToArray();
                 int at=raw.AsSpan().IndexOf(begin),last=at<0?-1:raw.AsSpan(at).IndexOf(end);
                 if(at<0 || last<0)throw new ToolFailure("disk_static_values_leaf_missing");
@@ -46,7 +49,7 @@ public static class ToolCommand
                 var sectors=QemuTranscripts.InspectNativeAotDiskStaticSectorValues(report,inventory,imageBytes,
                     new(report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,Counter(1),Counter(2),Counter(3)));
                 files.VerifyUnchanged();
-                Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {report.Static,report.Reads,report.Operations,report.SocketWrites,
+                Console.WriteLine("DISK_STATIC_REPLAY_VALUES "+System.Text.Json.JsonSerializer.Serialize(new {Parent=parent,report.Static,report.Reads,report.Operations,report.SocketWrites,
                     report.Owner,report.Epoch,report.BootstrapCompleted,report.BootstrapCopied,report.ReadinessRecordIndex,
                     sectors.Device.Counters,Assigned=sectors.Data.Assigned.Select(c=>new{c.Path,c.Sector,c.Copy.CopyRecordIndex,c.Window.RequestGeneration}),sectors.Metadata,
                     sectors.ReconstructsFileSystemCache,sectors.GrantsOriginalNativeProcessOrHttpAuthority}));
@@ -110,6 +113,12 @@ public static class ToolCommand
             {
                 LinuxDiskFileProofFixture.WritePackage(Repository.FindRoot(), diskFilePackage);
                 Console.WriteLine("TEST_PASS linux.disk-files.package fixture_only=true");
+                return 0;
+            }
+            if (args is ["linux", "disk-race-package", var diskRaceVariant, var diskRacePackage])
+            {
+                WriteDiskRacePackage(Repository.FindRoot(), diskRaceVariant, diskRacePackage);
+                Console.WriteLine("TEST_PASS linux.disk-race.package variant=" + diskRaceVariant + " fixture_only=true");
                 return 0;
             }
             if (args is ["nativeaot", "static-files", "index", var staticElf, var staticDump])
@@ -378,6 +387,7 @@ public static class ToolCommand
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("qemu inspect-webroot-inventory <original-raw-image> requires its .webroot.json receipt; reports copied physical metadata only, without native/process/device/HTTP authority.");
                 Console.WriteLine("qemu inspect-disk-static-values <package> <raw-image> <complete-instruction-index> <serial> reports scheduler/file values only; failed originals stay failed.");
+                Console.WriteLine("linux disk-race-package Progress|CloseReuse|InterruptWins|CompletionWins|ExitPending <fresh-artifacts-package>\nqemu smoke -DryRun -EnableM16025Probe -LinuxDiskRaceVariant <variant> [original disk options]; original race execution awaits its complete consumer. Absent variant retains the canonical59-call fixture.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");
                 Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
                 Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|SignalPipeStolen|SignalEpollStolen|NestedAlternateStack|AlternateStackExhaustion]\nqemu inspect-disk-leaf <mechanical-package> <original-serial> (report only)\nqemu inspect-disk-values <mechanical-package> <raw-image> <original-serial> (report only)\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
@@ -427,5 +437,27 @@ public static class ToolCommand
             Console.Error.WriteLine("TEST_FAIL " + (args.FirstOrDefault() == "done" ? "done.step.allocate" : "tooling") + " " + error.Message.ReplaceLineEndings(" "));
             return 1;
         }
+    }
+
+    /// <summary>Publish exact canonical race-package bytes to one fresh path
+    /// below the supplied repository's artifacts directory. Validate the variant
+    /// before filesystem changes, reject existing/redirected paths, and retain
+    /// the readback through complete-byte identity verification. Relative output
+    /// paths resolve against repositoryRoot. Failure never replaces an existing
+    /// file; generated output supplies no native, device or guest authority.</summary>
+    public static void WriteDiskRacePackage(string repositoryRoot, string variant, string outputPath)
+    {
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage(variant);
+        string root = Path.GetFullPath(repositoryRoot), output = Path.GetFullPath(outputPath, root);
+        string artifacts = Path.Combine(root, "artifacts") + Path.DirectorySeparatorChar;
+        if (!output.StartsWith(artifacts, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new ToolFailure("disk_race_package_artifacts_required");
+        EfiBuildFiles.InitializeDirectory(Path.GetDirectoryName(output)!, "disk_race_package_output");
+        EfiBuildFiles.WriteCreateNew(root, output, package);
+        using AuthorityFiles authority = new();
+        var held = authority.Open(root, output, "disk race package", "disk_race_package_output", package.Length, singleLink: true);
+        if (LinuxDiskRaceProofFixture.PackageVariant(held.ReadBytes(package.Length, "disk_race_package_output")) != variant)
+            throw new ToolFailure("disk_race_package_identity");
+        authority.VerifyUnchanged();
     }
 }

@@ -1,5 +1,21 @@
 # QEMU
 
+[Step1579](../done/step1579.md) retains fresh018r04 at `6bbdcad2`. Its original
+runner exits0 with five HTTP200s and cleanup, but the outer owner fails
+`disk_static_receipt_identity`: held digests use lowercase and the peer uses
+uppercase. Hex-case-insensitive digest comparison now preserves strict identity;
+image receipt text still matches exactly. Explicit disk/static parent validation
+requires the canonical disk package and its four-load/67-range layout. Ordinary
+web keeps64 and canonical mechanical disk keeps65. The report-only CLI now checks
+that parent before full copied replay; r04 matches2946 calls and12 copied sectors.
+It remains a failed original, with fresh complete execution still required.
+
+The new `linux disk-race-package <variant> <fresh-artifacts-output>` command
+publishes exact canonical Progress/CloseReuse/InterruptWins/CompletionWins/
+ExitPending bytes. `-LinuxDiskRaceVariant` is an explicit mechanical025-only
+selection. Actual race execution refuses before child launch until its original
+consumer exists; `-DryRun` selection and publication are not execution evidence.
+
 [Step1578](../done/step1578.md) replaces the018 placeholder with a separate
 original five-response consumer candidate. The peer uses one pooled connection
 and records bounded failure receipts even after external cancellation. The owner

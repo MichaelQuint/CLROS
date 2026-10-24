@@ -1,5 +1,12 @@
 # Workload Profiles ADR
 
+[Step1579](../done/step1579.md) retains the failed original018r04 and its
+receipt/startup repairs. Current read acceptance still needs fresh originals,
+full Blazor/browser, both variants and actual races. At the user request, two
+implementation subagents may prepare isolated #798/#791 host contracts while the
+primary tests the current batch. Their blocked dependency gates stay intact; no
+write activation, native/guest claim or batch merge follows from preparation.
+
 [Step1578](../done/step1578.md) adds an original five-response disk/static
 consumer candidate and host lifecycle controls. Fresh original execution still
 precedes even that limited development boundary. Continue the full Blazor/browser,
@@ -185,10 +192,11 @@ analysis, documentation or a longer diagnostic timeout cannot close a guest
 issue. See [review evidence](repo-audit.md#october-16-architecture-review) and
 [completion gates](completion-gates.md#architecture-review-acceptance-boundaries).
 
-## Approved implementation continuation (2026-10-23)
+## Approved implementation continuation (2026-10-24)
 
-The user approved ten related issues: #780, #781 -> #782, and #768-#774, with
-one storage subagent and one primary integrator. #224/#225/#737 are closed on
+The user approved ten related issues: #780, #781 -> #782, and #768-#774. The
+updated goal requires exactly two implementation subagents with disjoint file
+ownership and one primary integrator. #224/#225/#737 are closed on
 LAN master at82656076; #226/#227 remain open. The historical roadmap below
 retains its original planning context; its first service prerequisite is now
 satisfied within step1556's finite boundary. Preserve original owners/evidence,

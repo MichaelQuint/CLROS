@@ -1,5 +1,14 @@
 # Storage
 
+[Step1579](../done/step1579.md) adds safe exact race-package publication and
+explicit mechanical selection; the original race consumer is still absent, so
+execution refuses before launching a child. No new race or durability acceptance.
+Fresh018r04 serves the host page/nonce and shuts down, but its outer receipt
+identity check fails; the original remains failed after the hash-case repair.
+The two isolated successor branches prepare #798 writable block/flush and #791
+direct SQLite requirements while read qualification continues. Dependencies stay
+open; preparatory host code cannot activate writes or qualify durability.
+
 [Step1578](../done/step1578.md) adds original-owner candidates joining disk
 lifetimes and physical reads to five HTTP bodies. Host mutation controls reject
 live disk/NIC/root/pool aliases and out-of-lifetime IO clocks. New two-worker

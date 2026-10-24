@@ -36097,7 +36097,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1578 extends the separate two-worker C# race fixture and bounded leaf consumer with InterruptWins, zero-I/O EOF CompletionWins, and ExitPending; original Progress/CloseReuse byte paths remain unchanged. Fourteen focused normal-harness fixture/transcript checks pass unchanged with zero reuse. These are host/byte controls only: no native/guest race is qualified, EOF does not prove backend completion timing, and the pending-exit sentinel precedes death. Actual admission/runner integration, drain-before-reset and post-quiescence sentinel controls remain required. Earlier three positive canonical025 guests retain their separate step1571 scope. No issue closure or writable/storage durability acceptance.",
+      "currentEvidence": "Step1579 adds exact5variant LinuxDiskRaceVariant parsing/selection and safe linux disk-race-package publication. Host controls prove conflicts, canonical byte identity, no overwrite/outside-root side effects, and fail-closed original execution before any child launch. Default canonical59 and018 remain separate. Existing nine-case fixture and preserved five-case mechanical parent controls pass; lifecycle9transcript controls retain step1578 scope. Actual race native admission/observations/complete runner/drain-before-reset/post-quiescence sentinel remain unfinished. No real race, write or durability scope is accepted.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1578 adds an original five-response disk/static consumer candidate: held original source/native/image/process/captures, complete scheduler/file replay, physical sectors and metadata, per-description send offsets and independent TCP/HTTP entities; original cold reads must precede the associated actual queued bodies. Scope is five-response-development, explicitly not full Blazor/browser. Host controls cover real peer success/failure/cancellation joins, fresh paths and live memory/IO-clock mutation. No fresh original guest has qualified the new owner yet. Original018r03 remains FAILED and cannot be rescued. Full45asset framework/browser, both variants, conditional/range/concurrent disk requests, actual negative race guests and stable full/native/ancestor batch gates remain pending. No issue closure or gate advances.",
+      "currentEvidence": "Step1579 retains fresh original018r04 at6bbdcad2: native2031/1604 verification,5HTTP200 responses and actual exit0/13reaps/disk+NIC cleanup, but original outer command FAILED disk_static_receipt_identity due held lowercase vs peer uppercase SHA text. Hex-case comparison is repaired with actual held-file mutation controls; image receipt text remains exact. Review additionally found ordinary64-range startup rejects actual67; explicit canonical disk/static4load+63retained mode preserves ordinary64/mechanical65. Retrospective parent235rows/full replay2946calls/936epochs/11diskops/12copies passes and grants no original authority. Host request plan adds114asset exchanges over45published+5fixtures, explicit128files/2MiBfile/8MiBpublished/16MiBentities/320requests bounds; no full peer/browser integration yet. Focused controls pass at their named scopes; all failed runs remain failed. Fresh complete originals, full45asset/browser, both variants, actual races and stable full/native/ancestor gates still precede closure. Exactly two isolated implementation agents now prepare blocked writable/SQLite successor host work under updated user goal.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36343,7 +36343,8 @@
         "tools/OS.Tooling/DiskStaticHttpContract.cs",
         "tests/OS.HostTests/NativeAotDiskStaticHttpTests.cs",
         "tests/OS.HostTests/NativeAotDiskStaticCaptureTests.cs",
-        "tools/OS.Tooling/QemuTranscripts.Run.cs"
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxElfStartup.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37062,8 +37063,8 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Implement the SQLite portion of the approved successor for measured NativeAOT write/log/upload/SQLite contracts in `docs/workload-profiles.md`. Coordinate under #213 after the read milestone #774. This issue is planned and blocked, with no implementation ownership claimed.",
-      "currentEvidence": "Planning and static source review only; no implementation or guest acceptance. Preserve current active owners and all original/failed receipts.",
+      "summary": "User-authorized preparatory implementation in isolated codex/sqlite-contract while the primary qualifies the read batch. Existing dependencies remain open; no writable activation or acceptance is granted. Shared integration/documentation/tracker remain primary-owned.",
+      "currentEvidence": "2026-10-24: fresh LAN readback confirms this issue open/unassigned before isolated preparatory ownership for asset_matrix at C:/Users/AI/.codex/worktrees/sqlite-contract/CLROS, branch codex/sqlite-contract, base6bbdcad23975156cd5f6d1f333cccca8602889a8. User explicitly requested both implementation subagents stay busy on successor work during current-batch testing. Implement only the declared new source/test files; no shared boot/native/docs/tracker changes. Dependency gates and blocked label remain, no native/guest/durability acceptance. Root serializes native publication/QEMU and owns evidence reconciliation.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
@@ -37613,8 +37614,8 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Qualify writable block I/O and explicit flush failure semantics",
-      "currentEvidence": "Planning and static source review only; no implementation or guest acceptance. Preserve current active owners and all original/failed receipts.",
+      "summary": "User-authorized preparatory implementation in isolated codex/writable-block while the primary qualifies the read batch. Existing dependencies remain open; no writable activation or acceptance is granted. Shared integration/documentation/tracker remain primary-owned.",
+      "currentEvidence": "2026-10-24: fresh LAN readback confirms this issue open/unassigned before isolated preparatory ownership for storage_review at C:/Users/AI/.codex/worktrees/writable-block/CLROS, branch codex/writable-block, base6bbdcad23975156cd5f6d1f333cccca8602889a8. User explicitly requested both implementation subagents stay busy on successor work during current-batch testing. Implement only the declared new source/test files; no shared boot/native/docs/tracker changes. Dependency gates and blocked label remain, no native/guest/durability acceptance. Root serializes native publication/QEMU and owns evidence reconciliation.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",

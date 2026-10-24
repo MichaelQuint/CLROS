@@ -51,8 +51,10 @@ public static partial class QemuTranscripts
     /// <summary>Inspect value-only parent observations for focused controls.
     /// Exact raw firmware framing and supplied package geometry are checked;
     /// caller bytes grant no sealed-program or execution authority. Inputs are
-    /// synchronous borrows. Invalid or unsupported observations throw.</summary>
-    public static WebParentReport InspectNativeAotWebParentForTests(byte[] package,ReadOnlySpan<byte> raw)
+    /// synchronous borrows. Explicit diskStatic requires the canonical unstaged
+    /// package and its separate67-range startup. Default callers keep64 ranges.
+    /// Invalid or unsupported observations throw.</summary>
+    public static WebParentReport InspectNativeAotWebParentForTests(byte[] package,ReadOnlySpan<byte> raw,bool diskStatic=false)
     {
         Need(raw.Length is >FirmwarePrefixBytes and <=1024*1024 &&
             Convert.ToHexString(SHA256.HashData(raw[..FirmwarePrefixBytes]))==FirmwarePrefixSha256,"web_parent_firmware_prefix");
@@ -66,7 +68,7 @@ public static partial class QemuTranscripts
         int networkEnd=apicEnd+QemuContracts.M07ArpReceiveMarkers.Count-QemuContracts.M05PciEnumerationMarkers.Count;
         Need(lines.Length==networkEnd+3 && lines[networkEnd]=="TEST_START m07-026","web_parent_record_count");
         string[] original=ValidateServiceLoopTail(lines[..parentsEnd],true);
-        original=ValidateLinuxStartupTail(original,package);original=ValidateLinuxElfTail(original,package);
+        original=ValidateLinuxStartupTail(original,package,diskStatic:diskStatic);original=ValidateLinuxElfTail(original,package);
         string[] apic=[..original,..lines[parentsEnd..apicEnd]];
         int[] varying=[3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,
             ..QemuContracts.M05ApicSetupMarkers.Select((s,i)=>(s,i)).Where(x=>x.s.StartsWith("M05_APIC ",StringComparison.Ordinal)).Select(x=>x.i)];

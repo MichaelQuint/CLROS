@@ -9,9 +9,11 @@ public static partial class QemuTranscripts
     public static IReadOnlyList<string> M16LinuxStartupMarkers { get; } = Array.AsReadOnly<string>(
         ["TEST_START m16-004", "M16_004_IMAGE", "M16_004_STACK", "M16_004_TABLES", "M16_004_READBACK", "CLROS_M16_004_READY", "TEST_PASS m16-004"]);
 
-    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false)
+    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false)
     {
+        Need(!diskFiles || !diskStatic,"m16_004_disk_selection");
         if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
+        if (diskStatic) NativeAotStaticFileProgram.RequirePackage(package,false);
         Need(lines.Length == QemuContracts.M03OwnedSubsystemMarkers.Count + 14, "m16_004_record_count");
         string[] tail = lines[^7..];
         Need(tail[0] == "TEST_START m16-004" && tail[5] == "CLROS_M16_004_READY" && tail[6] == "TEST_PASS m16-004", "m16_004_tail_identity");
@@ -52,9 +54,9 @@ public static partial class QemuTranscripts
             uint row = i * 5; ulong address = image.Loads[row], memory = image.Loads[row + 3];
             loadPages += (((address + memory + 4095) & ~4095UL) - (address & ~4095UL)) / 4096;
         }
+        InspectLinuxStartupRangeValues(tables["ranges"],image.LoadCount,diskFiles,diskStatic);
         Need(tables["root"] is >= 4096 and < 0x100000000 && tables["root"] % 4096 == 0 &&
             tables["used"] is >= 4 and <= 128 && tables["ranges"] >= image.LoadCount + 2 &&
-            (diskFiles ? tables["ranges"] == 65 : tables["ranges"] <= 64) &&
             tables["leaves"] >= loadPages + view.Manifest.StackBytes / 4096 + 128 && tables["leaves"] <= 32768 &&
             image.ImageBytes + view.Manifest.StackBytes <= 4096 * 4096,
             "m16_004_table_geometry");
@@ -63,5 +65,15 @@ public static partial class QemuTranscripts
         var proof = ReadRecord(tail[4][..^proofSuffix.Length], "M16_004_READBACK", "old:dec");
         Need(proof["old"] is >= 4096 and < 0x100000000 && proof["old"] % 4096 == 0 && proof["old"] != tables["root"], "m16_004_restored_root");
         return lines[..^7];
+    }
+
+    /// <summary>Check copied initial range counts only. The explicit disk-static
+    /// geometry has four ELF loads plus63 retained ranges; mechanical disk keeps
+    /// its exact65 and ordinary callers keep64. Original package admission and
+    /// all other parent/table/native checks remain the enclosing owner's duty.</summary>
+    public static void InspectLinuxStartupRangeValues(ulong ranges,uint loads,bool diskFiles=false,bool diskStatic=false)
+    {
+        Need(!diskFiles || !diskStatic,"m16_004_disk_selection");
+        Need(diskStatic?loads==4 && ranges==63UL+loads:diskFiles?ranges==65:ranges<=64,"m16_004_table_geometry");
     }
 }

@@ -1,5 +1,13 @@
 # App Model
 
+[Step1579](../done/step1579.md) adds an immutable bounded asset request plan
+from independent physical inventory: GET/HEAD assets, root alias, ranges,
+ETag/mtime/If-Range and rejection controls. The current45-file publication plus
+five fixtures gives114 exchanges. Planning retains no response buffers or
+execution/browser authority; the actual owner, API/concurrency/fault controls and
+external Blazor boot remain required. Original018r04 remains failed after five
+responses because its original outer receipt check failed.
+
 [Step1578](../done/step1578.md) adds an original-owner candidate for five
 disk/static responses with complete source/native/process/capture and copied
 scheduler/sector/TCP joins. Cold host-page/nonce reads must precede their actual

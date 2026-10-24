@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+[Step1579](../done/step1579.md) retains original018r04 FAILED at receipt
+identity after five responses/cleanup. Host repairs, the explicit67-range parent
+and retrospective full replay do not rescue it. The114-exchange asset plan and
+race package/selection controls grant no guest/browser/durability authority. No
+issue, first-batch, Gate14, write or SQLite acceptance advances.
+
 [Step1578](../done/step1578.md) wires an original five-response disk/static
 consumer candidate and host failure/ownership controls. It has no fresh guest
 acceptance yet. Its explicit development scope cannot qualify the full Blazor

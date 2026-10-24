@@ -14,6 +14,10 @@ public static class NativeAotDiskSelection
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
         bool disk = Selected(flags);
+        bool race = options.HasDiskRaceSelection;
+        if (race && !LinuxDiskRaceProofFixture.Variants.Contains(options.LinuxDiskRaceVariant, StringComparer.Ordinal))
+            throw new ToolFailure("disk_race_variant");
+        if (race && !disk) throw new ToolFailure("disk_race_requires_mechanical_disk_profile");
         if (!disk)
         {
             if (options.WebRootFixture.Length != 0 || options.WebRootAssets.Length != 0)
@@ -21,6 +25,12 @@ public static class NativeAotDiskSelection
             return false;
         }
         bool web = StaticSelected(flags);
+        if (race && (web || options.SignalEpollRace || options.HasThreadingSelection ||
+            options.Explicit.Contains("LinuxHelloDisassembly") || options.HasWebSignalRace ||
+            options.ServiceLifecycle || options.ServiceQuotaFailure))
+            throw new ToolFailure("disk_race_selection_conflict");
+        if (race && (options.GptImageVariant != "Intact" || options.PackageImageVariant != "Intact"))
+            throw new ToolFailure("disk_race_original_image_required");
         if ((!web && options.HasThreadingSelection) || options.LinuxHelloDisassembly.Length != 0 || options.HasWebSignalRace ||
             options.ServiceLifecycle || options.ServiceQuotaFailure)
             throw new ToolFailure("disk_mechanical_selection_conflict");

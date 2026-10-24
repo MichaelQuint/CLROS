@@ -1,5 +1,11 @@
 # EFI Build
 
+[Step1579](../done/step1579.md) records fresh018r04 native verification at
+`6bbdcad2`:2031 runtime records/1604 unwind records, same exact EFI bytes as r03.
+Five disk/static responses and owned shutdown follow, but original outer receipt
+validation fails. The host hash-case/67-range repairs change no EFI body or arena.
+Fresh original consumption and full native/stack/batch gates remain required.
+
 [Step1578](../done/step1578.md) changes host consumer/peer code and separate
 C# mechanical lifecycle fixtures. It changes no live EFI body, arena or ABI.
 Fresh original native publication and guest consumption remain required. New

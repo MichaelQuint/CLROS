@@ -164,6 +164,110 @@ internal static class LinuxDiskRaceProofFixtureTests
         }
     }
 
+    private static string[] SelectionArguments => ["-BuildEfi", "-EnableM16025Probe", "-LinuxElfPackage", "artifacts/disk-race.pkg",
+        "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/published-webroot"];
+
+    [HostTest("disk race selection explicitly binds exact variants while preserving canonical and disk static defaults")]
+    private static void Selection()
+    {
+        var original = QemuSmokeOptions.Parse(SelectionArguments); var originalPlan = QemuProfiles.Create(original);
+        HostCheck.Equal("", original.LinuxDiskRaceVariant);
+        HostCheck.Equal(59U, LinuxDiskFileProofFixture.ExpectedCalls);
+        foreach (string variant in F.Variants)
+        {
+            var options = QemuSmokeOptions.Parse([..SelectionArguments, "-LinuxDiskRaceVariant", variant]);
+            var plan = QemuProfiles.Create(options);
+            HostCheck.Equal(variant, options.LinuxDiskRaceVariant);
+            HostCheck.True(NativeAotDiskSelection.Selected(plan.Flags) && !NativeAotDiskSelection.StaticSelected(plan.Flags) &&
+                !plan.IsEnabled("EnableM10017Probe") && options.TimeoutSeconds == 180 &&
+                plan.Flags.OrderBy(p => p.Key, StringComparer.Ordinal).SequenceEqual(originalPlan.Flags.OrderBy(p => p.Key, StringComparer.Ordinal)) &&
+                plan.Required.SequenceEqual(originalPlan.Required));
+        }
+        string[] staticArguments = ["-BuildEfi", "-EnableM10018Probe", "-LinuxElfPackage", "artifacts/static.pkg",
+            "-LinuxThreadingDisassembly", "artifacts/static.dump", "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/webroot"];
+        var diskStatic = QemuSmokeOptions.Parse(staticArguments); var staticPlan = QemuProfiles.Create(diskStatic);
+        HostCheck.True(diskStatic.LinuxDiskRaceVariant == "" && NativeAotDiskSelection.StaticSelected(staticPlan.Flags) && diskStatic.TimeoutSeconds == 825);
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([..staticArguments, "-LinuxDiskRaceVariant", "Progress"])));
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["-BuildEfi", "-LinuxDiskRaceVariant", "Progress"])));
+        foreach (string[] collision in new[]
+        {
+            new[] { "-LinuxThreadingApplication", "NativeAotSocketSmoke" }, new[] { "-LinuxThreadingApplication", "" },
+            new[] { "-LinuxThreadingDisassembly", "other.dump" }, new[] { "-LinuxThreadingDisassembly", "" },
+            new[] { "-LinuxHelloDisassembly", "other.dump" }, new[] { "-LinuxHelloDisassembly", "" },
+            new[] { "-SignalEpollRace" }, new[] { "-WebSignalRace" }, new[] { "-WebEventOwnedSignalRace" },
+            new[] { "-ServiceLifecycle" }, new[] { "-ServiceQuotaFailure" }, new[] { "-EnableM10017Probe" },
+            new[] { "-EnableM10018Probe" }, new[] { "-EnableM16013Probe" }, new[] { "-EnableM16014Probe" },
+            new[] { "-GptImageVariant", "PrimaryHeaderCrcFault" }, new[] { "-PackageImageVariant", "DigestFault" },
+            new[] { "-LinuxElfImageVariant", "Oversized" }, new[] { "-DiskFormat", "qcow2" },
+            new[] { "-EnableM16025Probe:false" }
+        }) Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([..SelectionArguments, "-LinuxDiskRaceVariant", "Progress", ..collision])));
+        var changed = QemuSmokeOptions.Parse(SelectionArguments); changed.LinuxDiskRaceVariant = "unknown";
+        Reject(() => QemuProfiles.Create(changed));
+        var empty = QemuSmokeOptions.Parse(SelectionArguments); empty.Explicit.Add("LinuxDiskRaceVariant");
+        Reject(() => QemuProfiles.Create(empty));
+    }
+
+    [HostTest("disk race option parsing rejects unknown empty missing duplicate and misspelled selections")]
+    private static void Options()
+    {
+        void Invalid(params string[] arguments)
+        { bool rejected = false; try { QemuSmokeOptions.Parse(arguments); } catch (ArgumentException) { rejected = true; } HostCheck.True(rejected); }
+        foreach (string variant in F.Variants)
+            HostCheck.Equal(variant, QemuSmokeOptions.Parse("--linux-disk-race-variant=" + variant).LinuxDiskRaceVariant);
+        foreach (string value in new[] { "", "progress", "Progress ", " Progress", "Unknown", "DiskFiles", "Progress,CloseReuse" })
+            Invalid("-LinuxDiskRaceVariant=" + value);
+        Invalid("-LinuxDiskRaceVariant");
+        Invalid("-LinuxDiskRaceVariants", "Progress");
+        Invalid("-LinuxDiskRaceVariant", "Progress", "--linux-disk-race-variant=CloseReuse");
+        Invalid("-LinuxDiskRaceVariant=Progress", "-LinuxDiskRaceVariant:Progress");
+    }
+
+    [HostTest("disk race execution cannot substitute the canonical fixture before an original race owner exists")]
+    private static async Task OriginalOwnerRequired()
+    {
+        foreach(string variant in F.Variants)
+        {
+            bool launched=false;using StringWriter output=new();
+            var options=QemuSmokeOptions.Parse([..SelectionArguments,"-LinuxDiskRaceVariant",variant]);
+            int exit=await QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(),options,output,(_,_)=>
+            {launched=true;throw new InvalidOperationException("race owner must refuse before a child launches");});
+            HostCheck.True(exit==1 && !launched && output.ToString().Contains(
+                "TEST_FAIL qemu.smoke disk_race_complete_consumer_required",StringComparison.Ordinal));
+        }
+    }
+
+    [HostTest("disk race package command publishes exact fresh artifact bytes and preserves rejected destinations")]
+    private static void Publication()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string directory = Path.Combine(root, "artifacts", "disk-race-package-host-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        foreach (string variant in F.Variants)
+        {
+            string path = Path.Combine(directory, variant + ".pkg");
+            if (variant == "Progress")
+            {
+                var original=Console.Out;using StringWriter command=new();int exit;
+                try{Console.SetOut(command);exit=ToolCommand.Run(["linux","disk-race-package",variant,path]);}
+                finally{Console.SetOut(original);}
+                HostCheck.Equal(0,exit);
+                HostCheck.True(command.ToString().Contains("TEST_PASS linux.disk-race.package variant=Progress fixture_only=true",StringComparison.Ordinal));
+            }
+            else ToolCommand.WriteDiskRacePackage(root, variant, Path.GetRelativePath(root, path));
+            byte[] bytes = File.ReadAllBytes(path);
+            HostCheck.True(bytes.SequenceEqual(F.CreatePackage(variant)) && F.PackageVariant(bytes) == variant);
+            bool rejected = false;
+            try { ToolCommand.WriteDiskRacePackage(root, "CloseReuse", path); } catch (IOException) { rejected = true; }
+            HostCheck.True(rejected && File.ReadAllBytes(path).SequenceEqual(bytes));
+        }
+        string outside = Path.Combine(root, "artifacts", "..", "disk-race-outside-" + Guid.NewGuid().ToString("N") + ".pkg");
+        Reject(() => ToolCommand.WriteDiskRacePackage(root, "Progress", outside));
+        HostCheck.True(!Path.Exists(Path.GetFullPath(outside)));
+        string invalidParent = Path.Combine(directory, "invalid-variant"), invalidOutput = Path.Combine(invalidParent, "bad.pkg");
+        Reject(() => ToolCommand.WriteDiskRacePackage(root, "progress", invalidOutput));
+        HostCheck.True(!Path.Exists(invalidParent));
+    }
+
     internal readonly record struct DecodedCall(ulong Rip, ulong Number, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, ulong A5);
     internal static DecodedCall[] Calls(string variant, bool child = false)
     {

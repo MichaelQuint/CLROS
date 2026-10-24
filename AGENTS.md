@@ -2,6 +2,15 @@
 
 ## Start here
 
+[Step1579](done/step1579.md) retains original018r04 FAILED at receipt identity,
+after five real responses and owned exit0. SHA text case comparison is repaired;
+explicit canonical disk/static startup admits exactly67 ranges while historical
+ordinary64/mechanical65 limits stay separate. Focused controls and retrospective
+parent/full replay pass; fresh original complete execution is still required.
+Use exactly two implementation subagents in isolated checkouts for successor
+preparation while primary inputs are frozen. Primary owns shared integration,
+documentation/tracker and native/guest serialization. Preserve every failed run.
+
 [Step1578](done/step1578.md) adds an original five-response disk/static
 consumer candidate joining held image/native/source/process, full scheduler,
 physical sectors, TCP entities and read-before-send order. Its scope is explicitly
@@ -81,12 +90,13 @@ remains linked from `std/no-runtime/shared`; do not duplicate types or casually
 move EFI inputs. Use pinned .NET 11 and C# 14 as specified below and in
 [host requirements](docs/host-requirements.md).
 
-## Current approved batch (2026-10-23)
+## Current approved batch (2026-10-24)
 
 The durable goal covers NativeAOT MinimalApi, an actual Standalone Blazor client
 served from FAT32, then persistent logs/uploads and SQLite. The first batch is
-#780, #781 -> #782 and #768-#774. Use exactly one storage subagent; the primary
-agent owns shared integration, documentation, tracker and serialized builds.
+#780, #781 -> #782 and #768-#774. The updated user goal requires exactly two
+implementation subagents with disjoint file ownership. The primary owns shared
+integration, documentation, tracker and serialized builds/native/guest work.
 [Steps1558](done/step1558.md)/[1559](done/step1559.md) record current development.
 [Step1568](done/step1568.md) retains the failed disk guests, conditional54/135
 range repairs, exact mechanical instruction metadata and zero-timestamp policy.

@@ -36,8 +36,8 @@ public static partial class QemuTranscripts
         var stopped=Hold(Path.Combine(peer.Directory,"stopped.json"),4096);
         var bodyFiles=Enumerable.Range(0,5).Select(i=>Hold(Path.Combine(peer.Directory,i.ToString("D3",CultureInfo.InvariantCulture)+".body"),65536,true)).ToArray();
         AuthorityFiles.RequireDistinct([image,efi,package,imageReceipt,serial,summary,pcap,http,stopped,..bodyFiles]);
-        Need(http.Sha256==peer.ReceiptSha256 && imageReceipt.ReadUtf8(16*1024*1024,"disk_static_image_receipt")==JsonSerializer.Serialize(receipt),
-            "disk_static_receipt_identity");
+        InspectDiskStaticReceiptIdentityValues(http.Sha256,peer.ReceiptSha256,
+            imageReceipt.ReadUtf8(16*1024*1024,"disk_static_image_receipt"),JsonSerializer.Serialize(receipt));
         byte[] raw=serial.ReadBytes(8*1024*1024,"disk_static_serial"),packageBytes=package.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"disk_static_package"),
             imageBytes=image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_static_image");
         var packageView=NativeAotStaticFileProgram.RequirePackage(packageBytes,false);
@@ -54,7 +54,7 @@ public static partial class QemuTranscripts
             stdout[1]==$"OVMF_DISCOVERY result={context.Ovmf} checked={context.Ovmf}","disk_static_runner_discovery");
         AssertStandardRunnerResult(root,options,plan,stdout,staticProgram:program,staticForwardPort:peer.Port,staticChildRows:child);
         int at=raw.AsSpan().IndexOf("TEST_START m16-011\r\n"u8);Need(at>FirmwarePrefixBytes,"disk_static_parent_start");
-        var parent=InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,at));
+        var parent=InspectNativeAotWebParentForTests(packageBytes,raw.AsSpan(0,at),diskStatic:true);
         string text=NormalizeStaticFileWrites(DecodeUtf8(raw[FirmwarePrefixBytes..]));
         Need(text.EndsWith("\r\n",StringComparison.Ordinal),"disk_static_serial_terminal");
         string[] rows=text[..^2].Split("\r\n",StringSplitOptions.None);
@@ -117,5 +117,19 @@ public static partial class QemuTranscripts
             (priorNicDma,8192),(nicBar,16384),(arena,pages*4096),(diskBar,16384),(owner,(ulong)sizeof(Block.State))],"disk_static_live_extents");
         Need(boundClock>=parent.PeerEnd && endClock>=boundClock && io.Count>0 &&
             io.All(row=>row.Clock>=boundClock && row.Clock<=endClock),"disk_static_io_lifetime");
+    }
+
+    /// <summary>Compare borrowed receipt identities synchronously. SHA256 text
+    /// may use either hexadecimal case; image receipt text must match exactly.
+    /// Malformed, oversized or divergent values throw. No file, process, native
+    /// or original-run authority is granted by these supplied strings.</summary>
+    public static void InspectDiskStaticReceiptIdentityValues(string heldHttpHash,string peerHttpHash,
+        string heldImageReceipt,string originalImageReceipt)
+    {
+        static bool Digest(string value)=>value is {Length:64} && value.All(c=>c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F');
+        Need(Digest(heldHttpHash) && Digest(peerHttpHash) &&
+            string.Equals(heldHttpHash,peerHttpHash,StringComparison.OrdinalIgnoreCase),"disk_static_http_receipt_identity");
+        Need(heldImageReceipt is {Length:>0 and <=16*1024*1024} &&
+            string.Equals(heldImageReceipt,originalImageReceipt,StringComparison.Ordinal),"disk_static_image_receipt_identity");
     }
 }

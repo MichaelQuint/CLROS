@@ -130,6 +130,15 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1579](done/step1579.md) retains fresh018r04 at `6bbdcad2`: native
+verification, five HTTP200 bodies and owned shutdown succeed, but the original
+outer consumer fails its case-sensitive receipt hash comparison. The repaired
+comparison and explicit67-range disk/static parent pass focused/value checks;
+fresh complete execution remains required. A bounded114-exchange asset plan and
+mechanical race publication/selection are preparatory. Both implementation
+subagents now develop isolated writable-block/SQLite successors during primary
+read testing; dependency gates and all write/durability claims remain unchanged.
+
 [Step1578](done/step1578.md) connects a complete original consumer candidate
 for five development responses, including disk bytes, HTTP/TCP and read-before-
 send joins. Host controls cover cancellation and memory/clock ownership. A fresh

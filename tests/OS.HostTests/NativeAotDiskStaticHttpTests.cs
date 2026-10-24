@@ -129,4 +129,128 @@ internal static class NativeAotDiskStaticHttpTests
             Reject(f with{Replay=f.Replay with{Reads=reads,SocketWrites=writes}});
         }
     });
+
+    private static void WithAssetInventory(Action<WebRootDiskInventory.Inspection,WebRootImageFixture.Receipt,
+        WebRootImageFixture.Snapshot> action,Action<string>? prepare=null)=>WebRootImageFixtureTests.WithImage((root,dir,image,source)=>
+    {
+        prepare?.Invoke(source);var snapshot=WebRootImageFixture.SnapshotPublishedRoot(source);
+        string path=Path.Combine(dir,"asset-matrix.raw");var receipt=WebRootImageFixture.Apply(root,image,source,snapshot,path);
+        action(WebRootDiskInventory.Inspect(path,File.ReadAllBytes(path),receipt),receipt,snapshot);
+    });
+
+    [HostTest("disk HTTP asset plan matches independent complete published inventory and confined escaped routes",HostLane.Native)]
+    private static void AssetInventory()=>WithAssetInventory((inventory,receipt,snapshot)=>
+    {
+        var plan=DiskStaticHttpContract.CreateAssetPlan(inventory);
+        HostCheck.True(plan.ImageSha256==inventory.ImageSha256 && plan.PublishedInventorySha256==snapshot.Sha256 &&
+            plan.PublishedInventorySha256==receipt.PublishedInventorySha256 && plan.PublishedFiles==snapshot.Files.Length &&
+            plan.PublishedBytes==snapshot.TotalBytes && !plan.GrantsOriginalNativeProcessOrBrowserAuthority);
+        var expected=inventory.Entries.Where(e=>!e.IsDirectory).ToArray();
+        HostCheck.True(plan.Assets.Select(a=>a.Path).SequenceEqual(expected.Select(e=>e.Path)) &&
+            plan.Assets.Where(a=>a.Published).Select(a=>a.Path).SequenceEqual(snapshot.Files.Select(f=>"/app/wwwroot/"+f.Path)) &&
+            plan.Requests.Select(r=>r.Ordinal).SequenceEqual(Enumerable.Range(0,plan.Requests.Count)));
+        foreach(var asset in plan.Assets)
+        {
+            var physical=inventory.Find(asset.Path)!;
+            HostCheck.True(asset.Bytes==physical.Bytes && asset.Sha256==physical.Sha256 && asset.Inode==physical.Inode &&
+                asset.Path.StartsWith("/app/wwwroot/",StringComparison.Ordinal) && !physical.IsDirectory);
+            HostCheck.True(plan.Requests.Count(r=>r.Method=="GET" && r.Target==asset.Target && r.Status==200 && r.Headers.Count==0)==1 &&
+                plan.Requests.Count(r=>r.Method=="HEAD" && r.Target==asset.Target && r.ContentLength==asset.Bytes && r.BodyBytes==0)==1);
+        }
+        HostCheck.True(plan.Assets.Single(a=>a.Path.EndsWith("/hash#tag%.txt",StringComparison.Ordinal)).Target=="/hash%23tag%25.txt" &&
+            plan.Assets.Single(a=>a.Path.EndsWith("/extra.mjs",StringComparison.Ordinal)).MediaType=="text/javascript" &&
+            plan.Assets.Single(a=>a.Path.EndsWith("/extra.json",StringComparison.Ordinal)).MediaType=="application/json" &&
+            plan.Assets.Single(a=>a.Path.EndsWith("/extra.dat",StringComparison.Ordinal)).MediaType=="application/octet-stream");
+        HostCheck.True(!plan.Assets.Any(a=>a.Path.Contains("/EFI/",StringComparison.Ordinal) || a.Path.Contains("/OS/",StringComparison.Ordinal) ||
+            a.Path.Contains("/private/",StringComparison.Ordinal)) && plan.Requests.Where(r=>r.Status==404).All(r=>r.Asset is null));
+        bool assets=false,requests=false,headers=false;
+        try{((IList<DiskStaticHttpContract.Asset>)plan.Assets).RemoveAt(0);}catch(NotSupportedException){assets=true;}
+        try{((IList<DiskStaticHttpContract.Request>)plan.Requests).RemoveAt(0);}catch(NotSupportedException){requests=true;}
+        try{((IList<DiskStaticHttpContract.Header>)plan.Requests.First(r=>r.Headers.Count!=0).Headers).Clear();}catch(NotSupportedException){headers=true;}
+        HostCheck.True(assets && requests && headers && DiskStaticHttpContract.Paths.Count==5 &&
+            DiskStaticHttpContract.Scope=="five-response-development");
+    },source=>
+    {
+        File.WriteAllText(Path.Combine(source,"hash#tag%.txt"),"escaped route");
+        File.WriteAllText(Path.Combine(source,"extra.mjs"),"export const value=1;");
+        File.WriteAllText(Path.Combine(source,"extra.json"),"{}");File.WriteAllBytes(Path.Combine(source,"extra.dat"),[1,2,3]);
+    });
+
+    [HostTest("disk HTTP asset plan defines exact range conditional HEAD and fallback body semantics",HostLane.Native)]
+    private static void AssetSemantics()=>WithAssetInventory((inventory,_,snapshot)=>
+    {
+        var plan=DiskStaticHttpContract.CreateAssetPlan(inventory);
+        var largest=snapshot.Files.OrderByDescending(f=>f.Bytes).ThenBy(f=>f.Path,StringComparer.Ordinal).First();
+        string path="/app/wwwroot/"+largest.Path;byte[] bytes=inventory.Find(path)!.CopyBytes();
+        var rows=plan.Requests.Where(r=>r.Asset?.Path==path).ToArray();
+        string Header(DiskStaticHttpContract.Request row,string name)=>row.Headers.Single(h=>h.Name==name).Value;
+        var cross=rows.Single(r=>r.Status==206 && r.Headers.Count==1 && Header(r,"Range")=="bytes=510-1031");
+        HostCheck.True(cross.BodyOffset==510 && cross.BodyBytes==522 && cross.ContentLength==522 &&
+            cross.ContentRange=="bytes 510-1031/"+bytes.Length &&
+            cross.BodySha256==Convert.ToHexString(SHA256.HashData(bytes.AsSpan(510,522))));
+        var suffix=rows.Single(r=>r.Status==206 && r.Headers.Count==1 && Header(r,"Range")=="bytes=-513");
+        HostCheck.True(suffix.BodyOffset==bytes.Length-513 && suffix.BodyBytes==513 &&
+            suffix.BodySha256==Convert.ToHexString(SHA256.HashData(bytes.AsSpan(bytes.Length-513))));
+        var tail=rows.Single(r=>r.Status==206 && r.Headers.Count==1 && Header(r,"Range").EndsWith("-",StringComparison.Ordinal));
+        HostCheck.True(tail.BodyOffset==bytes.Length-32 && tail.BodyBytes==32 && tail.ContentRange==$"bytes {bytes.Length-32}-{bytes.Length-1}/{bytes.Length}");
+        var unsatisfied=rows.Single(r=>r.Status==416);
+        HostCheck.True(unsatisfied.BodyBytes==0 && unsatisfied.ContentLength==0 && unsatisfied.ContentRange=="bytes */"+bytes.Length &&
+            Header(unsatisfied,"Range")=="bytes="+bytes.Length+"-");
+        var etag=rows.Single(r=>r.Headers.Any(h=>h.Name=="If-None-Match"));
+        var modified=rows.Single(r=>r.Headers.Any(h=>h.Name=="If-Modified-Since"));
+        HostCheck.True(etag.Status==304 && modified.Status==304 && etag.BodyBytes==0 && modified.BodyBytes==0 &&
+            etag.ContentLength is null && modified.ContentLength is null && Header(etag,"If-None-Match")==etag.Asset!.ETag &&
+            Header(modified,"If-Modified-Since")=="Tue, 01 Jan 1980 00:00:00 GMT");
+        var ifRange=rows.Single(r=>r.Status==206 && r.Headers.Any(h=>h.Name=="If-Range"));
+        var fallback=rows.Single(r=>r.Status==200 && r.Headers.Any(h=>h.Name=="If-Range"));
+        HostCheck.True(Header(ifRange,"If-Range")==ifRange.Asset!.ETag && ifRange.BodyBytes==522 && fallback.BodyOffset==0 &&
+            fallback.BodyBytes==bytes.Length && fallback.BodySha256==largest.Sha256 && Header(fallback,"If-Range")!=fallback.Asset!.ETag);
+        HostCheck.True(plan.Requests.Single(r=>r.Target=="/" && r.Method=="GET").Asset!.Path=="/app/wwwroot/index.html" &&
+            plan.Requests.Single(r=>r.Method=="POST").Status==404 && plan.Requests.Where(r=>r.Method=="HEAD").All(r=>r.MinimumReadCompletions==0));
+    });
+
+    [HostTest("disk HTTP asset plan bounds complete large wasm bodies while requiring multiple read completions",HostLane.Native)]
+    private static void AssetCoverage()=>WithAssetInventory((inventory,_,snapshot)=>
+    {
+        var plan=DiskStaticHttpContract.CreateAssetPlan(inventory);
+        var wasm=plan.Assets.Single(a=>a.Path.EndsWith("/maximum.wasm",StringComparison.Ordinal));
+        HostCheck.True(wasm.Bytes==2*1024*1024 && wasm.MediaType=="application/wasm" && snapshot.MaximumFileBytes==wasm.Bytes);
+        long observed=0;int lowerBound=0;
+        foreach(var row in plan.Requests)
+        {
+            observed+=row.BodyBytes;
+            if(row.Asset is null || row.BodyBytes==0){HostCheck.True(row.MinimumReadCompletions==0);continue;}
+            var file=inventory.Find(row.Asset.Path)!;byte[] data=file.CopyBytes();
+            HostCheck.True(row.BodyOffset+row.BodyBytes<=data.Length &&
+                row.BodySha256==Convert.ToHexString(SHA256.HashData(data.AsSpan((int)row.BodyOffset,(int)row.BodyBytes))));
+            int completions=0;uint remaining=row.BodyBytes;
+            while(remaining!=0){remaining-=Math.Min(remaining,8192U);completions++;}
+            HostCheck.True(row.MinimumReadCompletions==completions);lowerBound+=completions;
+        }
+        var full=plan.Requests.Single(r=>r.Asset==wasm && r.Method=="GET" && r.Headers.Count==0);
+        var fragmented=plan.Requests.Single(r=>r.Target=="/fixture/fragmented.bin" && r.Method=="GET");
+        HostCheck.True(full.MinimumReadCompletions==256 && fragmented.MinimumReadCompletions>16 &&
+            inventory.Find(fragmented.Asset!.Path)!.Extents.Count>2 && observed==plan.ExpectedBodyBytes && lowerBound==plan.MinimumReadCompletions &&
+            observed>snapshot.TotalBytes && observed<=DiskStaticHttpContract.MaximumExpectedBodyBytes && plan.Requests.Count<=DiskStaticHttpContract.MaximumAssetRequests);
+    },source=>File.WriteAllBytes(Path.Combine(source,"_framework/maximum.wasm"),
+        Enumerable.Range(0,2*1024*1024).Select(i=>(byte)(i^(i>>9))).ToArray()));
+
+    [HostTest("disk HTTP asset plan rejects unadmitted media route collisions and exhausted inventory capacities",HostLane.Native)]
+    private static void AssetRejections()
+    {
+        foreach(string mode in new[]{"media","count","total","collision"})
+            WithAssetInventory((inventory,_,_)=>
+            {
+                string? reason=null;try{DiskStaticHttpContract.CreateAssetPlan(inventory);}catch(ToolFailure failure){reason=failure.Reason;}
+                HostCheck.True(reason is not null && reason.StartsWith("disk_http_plan_",StringComparison.Ordinal) &&
+                    (mode!="media" || reason=="disk_http_plan_media") && (mode!="collision" || reason=="disk_http_plan_control_collision"),mode+": "+reason);
+            },source=>
+            {
+                if(mode=="media")File.WriteAllBytes(Path.Combine(source,"debug.pdb"),[1]);
+                if(mode=="count")for(int i=0;i<100;i++)File.WriteAllText(Path.Combine(source,$"extra-{i:D3}.txt"),"x");
+                if(mode=="total")for(int i=0;i<5;i++)File.WriteAllBytes(Path.Combine(source,$"large-{i}.wasm"),new byte[2*1024*1024]);
+                if(mode=="collision")
+                {Directory.CreateDirectory(Path.Combine(source,"private"));File.WriteAllText(Path.Combine(source,"private/sentinel.txt"),"conflicting served route");}
+            });
+    }
 }
