@@ -7,6 +7,60 @@ internal static class NativeDiskReadObservationTests
 {
     private sealed record Fixture(byte[] Image, List<string> Rows, Reads.Boundary Boundary);
 
+    [HostTest("disk reset retirement keeps the exact last pending submit without inventing completion or copied bytes")]
+    private static void PendingReset()
+    {
+        foreach (ulong bootstrap in new[] { 9UL, 65534UL, ulong.MaxValue - 3 })
+        {
+            var full = Vector(bootstrap, bootstrap, false, true, false);
+            var boundary = full.Boundary with { Completed = full.Boundary.Completed - 1, Copied = full.Boundary.Copied - 1 };
+            string[] rows = full.Rows.Take(full.Rows.Count - 2).ToArray();
+            var reset = ResetFor(boundary, 3, 1);
+            var actual = Reads.InspectResetRetired(rows, full.Image, boundary, reset);
+            HostCheck.Equal(boundary, actual.Counters); HostCheck.Equal(1UL, actual.Cancelled);
+            HostCheck.True(actual.ResetRetirement == reset && actual.Rows.Count == rows.Length &&
+                actual.Rows[^1].Kind == Reads.Kind.Submitted && actual.Rows[^1].Generation == boundary.Submitted &&
+                actual.Rows[^1].DataHex == "" && actual.Rows.Count(r => r.Kind == Reads.Kind.CompletionValidated) == 2);
+            Reject(full, rows, boundary: boundary); // The ordinary consumer remains drained-only.
+            string retained = actual.Rows[2].DataHex; Array.Fill(rows, "changed"); Array.Clear(full.Image);
+            HostCheck.Equal(retained, actual.Rows[2].DataHex);
+        }
+        HostCheck.True(Inspect(Vector()).ResetRetirement is null);
+    }
+
+    [HostTest("disk reset retirement rejects stale generations sectors incomplete quiescence changed counters and ready data")]
+    private static void PendingResetRejections()
+    {
+        var full = Vector(9, 9, false, true, false);
+        var boundary = full.Boundary with { Completed = full.Boundary.Completed - 1, Copied = full.Boundary.Copied - 1 };
+        string[] rows = full.Rows.Take(full.Rows.Count - 2).ToArray(); var reset = ResetFor(boundary, 3, 1);
+        void Deny(Reads.PendingResetRetirement changed, IReadOnlyList<string>? selected = null, Reads.Boundary? counters = null)
+        {
+            bool rejected = false;
+            try { _ = Reads.InspectResetRetired(selected ?? rows, full.Image, counters ?? boundary, changed); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        foreach (var changed in new[]
+        {
+            reset with { Owner = reset.Owner + 8 }, reset with { Epoch = reset.Epoch + 1 }, reset with { Generation = reset.Generation - 1 },
+            reset with { Sector = reset.Sector + 1 }, reset with { SubmittedBeforeStop = reset.SubmittedBeforeStop - 1 },
+            reset with { CompletedBeforeStop = reset.CompletedBeforeStop + 1 }, reset with { CopiedBeforeStop = reset.CopiedBeforeStop + 1 },
+            reset with { CancelledBeforeStop = 0 }, reset with { StopStatus = OS.Storage.ContinuingReadOnlyBlockService.Status.ResetFailed },
+            reset with { ResetReads = 0 }, reset with { ResetReads = 2049 }, reset with { ResetComplete = false },
+            reset with { BusMasterDisabled = false }, reset with { DmaReleased = false }, reset with { PoolMask = 1 }
+        }) Deny(changed);
+        Deny(reset, rows[..^1]); Deny(reset, full.Rows); Deny(reset, full.Rows.Take(full.Rows.Count - 1).ToArray());
+        Deny(reset, [..rows, rows[^1]]); Deny(reset, counters: boundary with { Submitted = boundary.Submitted + 1 });
+        Deny(reset, counters: boundary with { Completed = boundary.Completed + 1 });
+        Deny(reset, counters: boundary with { BootstrapCopied = boundary.BootstrapCopied - 1 });
+        Deny(reset, Replace(rows, 0, Set(rows[0], "sector", "2")));
+    }
+
+    private static Reads.PendingResetRetirement ResetFor(Reads.Boundary boundary, ulong sector, ulong cancelled) =>
+        new(boundary.Owner, boundary.Epoch, boundary.Submitted, sector, boundary.Submitted, boundary.Completed, boundary.Copied, cancelled,
+            OS.Storage.ContinuingReadOnlyBlockService.Status.Success, 1, true, true, true, 0);
+
     [HostTest("disk observation joins ordered copied sectors and cancellation to exact image bytes")]
     private static void Complete()
     {

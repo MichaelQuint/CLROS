@@ -14,10 +14,20 @@ public static class NativeDiskReadObservations
 
     /// <summary>Separately authenticated owner/counter boundaries. Bootstrap is
     /// drained: its submitted and completed counts are BootstrapCompleted, with
-    /// BootstrapCopied successful copies. Final Submitted must equal Completed.
-    /// Counts include bootstrap; they are not deltas or execution authority.</summary>
+    /// BootstrapCopied successful copies. Ordinary final Submitted must equal
+    /// Completed; the separate reset-retirement inspector admits one pending
+    /// submit with its exact reset receipt. Counts include bootstrap; they are
+    /// not deltas or execution authority.</summary>
     public readonly record struct Boundary(ulong Owner, ulong Epoch, ulong BootstrapCompleted,
         ulong BootstrapCopied, ulong Submitted, ulong Completed, ulong Copied);
+
+    /// <summary>Copied values from a separately authenticated actual Stop
+    /// receipt. Only one last submitted, uncompleted request may be retired by
+    /// reset. These values confer no device, source, process or guest authority.</summary>
+    public readonly record struct PendingResetRetirement(ulong Owner, ulong Epoch, ulong Generation, ulong Sector,
+        ulong SubmittedBeforeStop, ulong CompletedBeforeStop, ulong CopiedBeforeStop, ulong CancelledBeforeStop,
+        OS.Storage.ContinuingReadOnlyBlockService.Status StopStatus, uint ResetReads,
+        bool ResetComplete, bool BusMasterDisabled, bool DmaReleased, ulong PoolMask);
 
     /// <summary>Copied immutable facts. DataHex contains exactly512 bytes only
     /// for Copied, whose native candidate was committed before serialization.
@@ -31,11 +41,12 @@ public static class NativeDiskReadObservations
     /// No caller array, image alias or complete serial record is retained.</summary>
     public sealed class Inspection
     {
-        internal Inspection(Boundary boundary, ulong cancelled, Observation[] rows)
-        { Counters = boundary; Cancelled = cancelled; Rows = Array.AsReadOnly(rows); }
+        internal Inspection(Boundary boundary, ulong cancelled, Observation[] rows, PendingResetRetirement? reset = null)
+        { Counters = boundary; Cancelled = cancelled; Rows = Array.AsReadOnly(rows); ResetRetirement = reset; }
         public Boundary Counters { get; }
         public ulong Cancelled { get; }
         public IReadOnlyList<Observation> Rows { get; }
+        public PendingResetRetirement? ResetRetirement { get; }
     }
 
     /// <summary>Synchronously borrow unchanged selected rows and sector-aligned
@@ -50,15 +61,34 @@ public static class NativeDiskReadObservations
     /// Return bounded immutable copies; malformed, incomplete, extra or divergent
     /// observations throw ToolFailure. No I/O or owner lifetime is introduced.</summary>
     public static Inspection Inspect(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage, Boundary boundary, bool diskStaticFull = false)
+        => InspectCore(selectedRows, rawImage, boundary, diskStaticFull, null);
+
+    /// <summary>Inspect the separate pending-reset terminal shape. Preserve all
+    /// preceding real submit/completion/copy/image joins from a fully copied
+    /// bootstrap; the last observation
+    /// must be the exact outstanding submit named by the supplied Stop receipt.
+    /// Stop's software counters must be unchanged, with reset/readback,
+    /// bus-master disable, DMA release and zero pool mask reported successful.
+    /// No completion or bytes are synthesized. The ordinary/full readers retain
+    /// their drained-only contract. Invalid or divergent values throw ToolFailure;
+    /// original native/runner/receipt authentication remains the caller's duty.</summary>
+    public static Inspection InspectResetRetired(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage,
+        Boundary boundary, PendingResetRetirement retirement) => InspectCore(selectedRows, rawImage, boundary, false, retirement);
+
+    private static Inspection InspectCore(IReadOnlyList<string> selectedRows, ReadOnlySpan<byte> rawImage,
+        Boundary boundary, bool diskStaticFull, PendingResetRetirement? reset)
     {
         int rowCount = selectedRows?.Count ?? 0;
         Need(rowCount>0 && rowCount<=(diskStaticFull?DiskStaticCapturePolicy.DeviceRows:MaximumRows) && rawImage.Length >= 512 &&
             rawImage.Length <= WebRootImageFixture.MaximumImageBytes && rawImage.Length % 512 == 0, "input");
         Need(boundary.Owner != 0 && boundary.Epoch != 0 && boundary.BootstrapCopied <= boundary.BootstrapCompleted &&
-            boundary.Submitted > boundary.BootstrapCompleted && boundary.Completed == boundary.Submitted &&
+            boundary.Submitted > boundary.BootstrapCompleted &&
+            (reset is null ? boundary.Completed == boundary.Submitted : boundary.Completed < ulong.MaxValue && boundary.Submitted == boundary.Completed + 1) &&
+            boundary.Completed >= boundary.BootstrapCompleted &&
             boundary.Copied >= boundary.BootstrapCopied && boundary.Copied <= boundary.Completed &&
             boundary.Copied - boundary.BootstrapCopied <= boundary.Completed - boundary.BootstrapCompleted &&
             boundary.Submitted - boundary.BootstrapCompleted <= (ulong)rowCount, "boundary");
+        Need(reset is null || boundary.BootstrapCopied == boundary.BootstrapCompleted, "reset_bootstrap");
         List<Observation> result = new(rowCount);
         ulong submitted = boundary.BootstrapCompleted, completed = boundary.BootstrapCompleted,
             copied = boundary.BootstrapCopied, cancelled = 0, generation = 0, sector = 0, clock = 0;
@@ -125,9 +155,19 @@ public static class NativeDiskReadObservations
             result.Add(new((Kind)kind, owner, epoch, currentGeneration, currentSector, sequence,
                 (uint)length, (ushort)currentAvailable, (ushort)currentConsumed, now, data));
         }
-        Need(stage == 0 && submitted == boundary.Submitted && completed == boundary.Completed && copied == boundary.Copied,
-            "terminal");
-        return new(boundary, cancelled, result.ToArray());
+        Need(submitted == boundary.Submitted && completed == boundary.Completed && copied == boundary.Copied, "terminal");
+        if (reset is { } retired)
+        {
+            Need(stage == 1 && retired.Owner == boundary.Owner && retired.Epoch == boundary.Epoch &&
+                retired.Generation == generation && generation == submitted && retired.Sector == sector &&
+                retired.SubmittedBeforeStop == submitted && retired.CompletedBeforeStop == completed &&
+                retired.CopiedBeforeStop == copied && retired.CancelledBeforeStop == cancelled &&
+                retired.StopStatus == OS.Storage.ContinuingReadOnlyBlockService.Status.Success && retired.ResetReads is > 0 and <= 2048 &&
+                retired.ResetComplete && retired.BusMasterDisabled && retired.DmaReleased && retired.PoolMask == 0,
+                "reset_retirement");
+        }
+        else Need(stage == 0, "terminal");
+        return new(boundary, cancelled, result.ToArray(), reset);
     }
 
     private static ulong Number(ref ReadOnlySpan<char> text, ReadOnlySpan<char> prefix)

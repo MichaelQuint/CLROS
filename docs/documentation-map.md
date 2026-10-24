@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1584](../done/step1584.md) owns copied pending-reset device/sector joins.
+Storage documents exact counters and byte associations; diagnostics/EFI preserve
+unchanged launch/native boundaries, and completion gates retain the open scope.
+Issue labels record the separately reconciled POD descriptor-provider ownership.
+
 [Step1583](../done/step1583.md) records pending-exit observation preparation and
 the separate SQLite recovery checkpoints. Storage owns their lifetime/byte
 contracts; EFI/diagnostics own conditional source and marker boundaries;

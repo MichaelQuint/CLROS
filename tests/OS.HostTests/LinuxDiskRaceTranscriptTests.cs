@@ -7,6 +7,71 @@ using F = OS.Tooling.LinuxDiskRaceProofFixture;
 
 internal static class LinuxDiskRaceTranscriptTests
 {
+    [HostTest("exit pending device joins every real sector and the last submit to reset retirement")]
+    private static void ExitPendingDevice()
+    {
+        var (rows, image) = ExitPendingDeviceFixture(); string[] before = rows.ToArray();
+        byte[] package = F.CreatePackage("ExitPending");
+        var result = QemuTranscripts.InspectLinuxDiskExitPendingDeviceValues(rows, package, image);
+        HostCheck.True(!result.CheckedOriginalExecution && !result.CheckedNativeStopOrUserMemory &&
+            result.BindingRecordIndex == 0 && result.IoRecordIndices.SequenceEqual(Enumerable.Range(1, 7)) && rows.SequenceEqual(before));
+        HostCheck.True(result.Device.Counters.Submitted == 40 && result.Device.Counters.Completed == 39 &&
+            result.Device.Counters.Copied == 39 && result.Device.Cancelled == 0 && result.Device.ResetRetirement is not null &&
+            result.Device.Rows[^1].Kind == NativeDiskReadObservations.Kind.Submitted && result.Device.Rows[^1].Sector == 1000 &&
+            result.Device.Rows.Count(r => r.Kind == NativeDiskReadObservations.Kind.Copied) == 2);
+        string retained = result.Device.Rows[2].DataHex; Array.Fill(rows, "changed"); Array.Clear(image); Array.Clear(package);
+        HostCheck.Equal(retained, result.Device.Rows[2].DataHex);
+        bool denied = false; try { ((IList<int>)result.IoRecordIndices)[0] = 0; } catch (NotSupportedException) { denied = true; }
+        HostCheck.True(denied);
+    }
+
+    [HostTest("exit pending device rejects unjoined bindings missing bytes post-death pumps and invented completions")]
+    private static void ExitPendingDeviceRejections()
+    {
+        var (rows, image) = ExitPendingDeviceFixture();
+        void Deny(string[] changed, byte[]? bytes = null)
+        {
+            bool rejected = false;
+            try { _ = QemuTranscripts.InspectLinuxDiskExitPendingDeviceValues(changed, F.CreatePackage("ExitPending"), bytes ?? image); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        foreach (string key in new[] { "owner", "epoch", "capacity", "bootstrapCompleted", "bootstrapCopied" })
+            Deny(Change(rows, 0, key, Field(rows[0], key) + 1));
+        Deny(Change(rows, 0, "clock", 101)); Deny(Change(rows, 1, "clock", 0)); Deny(Change(rows, 7, "clock", 101));
+        for (int i = 0; i <= 7; i++) Deny(rows.Where((_, n) => n != i).ToArray());
+        Deny([rows[1], rows[0], ..rows[2..]]); Deny([rows[0], rows[0], ..rows[1..]]);
+        Deny([..rows, rows[7]]); // Even a copied-valid last submit may not appear after stage1.
+        Deny([..rows[..7], ..rows[8..], rows[7]]);
+        Deny(Change(rows, 7, "generation", 39)); Deny(Change(rows, 7, "sector", 999));
+        Deny([..rows[..7], rows[7], rows[7].Replace("kind=0", "kind=1", StringComparison.Ordinal), ..rows[8..]]);
+        Deny(rows, image[..^512]); byte[] wrong = image.ToArray(); wrong[3 * 512] ^= 1; Deny(rows, wrong);
+        // A changed terminal generation and sector across every stage still must
+        // match the actual last observed request, rather than self-consistency.
+        string[] stagesChanged = rows.ToArray();
+        for (int i = 8; i < rows.Length; i++)
+        { stagesChanged = Change(stagesChanged, i, "sector", 999); stagesChanged = Change(stagesChanged, i, "ioSector", 999); }
+        Deny(stagesChanged);
+    }
+
+    private static (string[] Rows, byte[] Image) ExitPendingDeviceFixture()
+    {
+        byte[] image = new byte[1001 * 512];
+        for (int i = 0; i < image.Length; i++) image[i] = unchecked((byte)(i * 13 + (i >> 9)));
+        const ulong owner = 0x120000, epoch = 0x4d31365f30323301;
+        List<string> rows = [$"M16_023_BOUND owner={owner} epoch={epoch} arena=9437184 pages=90 bar=4026531840 capacity=1001 bootstrapCompleted=37 bootstrapCopied=37 clock=1 pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained"];
+        ulong clock = 10;
+        for (ulong generation = 38; generation <= 40; generation++)
+        {
+            ulong sector = generation == 40 ? 1000 : generation - 35;
+            rows.Add($"M16_023_IO kind=0 owner={owner} epoch={epoch} generation={generation} sector={sector} sequence={generation} bytes=512 available={generation} consumed={generation - 1} clock={clock++}");
+            if (generation == 40) break;
+            rows.Add($"M16_023_IO kind=1 owner={owner} epoch={epoch} generation={generation} sector={sector} sequence={generation} bytes=512 available={generation} consumed={generation} clock={clock++}");
+            rows.Add($"M16_023_IO kind=2 owner={owner} epoch={epoch} generation={generation} sector={sector} sequence={generation} bytes=512 available={generation} consumed={generation} clock={clock++} copied=committed data={Convert.ToHexString(image.AsSpan((int)sector * 512, 512)).ToLowerInvariant()}");
+        }
+        rows.AddRange(ExitPendingStages(false)); return (rows.ToArray(), image);
+    }
+
     [HostTest("exit pending copied stages preserve reset-aborted counters without granting guest authority")]
     private static void ExitPendingCopiedStages()
     {

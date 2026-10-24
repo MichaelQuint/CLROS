@@ -1,5 +1,10 @@
 # Workload Profiles ADR
 
+[Step1584](../done/step1584.md) adds the separate copied pending-reset device
+consumer without enabling original race execution. The primary5dd6e6c0 full
+run remains frozen; two isolated implementation agents continue bounded FAT32
+and writable-descriptor work. Full read/write/Blazor/SQLite gates remain open.
+
 [Step1583](../done/step1583.md) prepares canonical pending-exit observation
 stages without enabling original race execution. Complete disk/HTTP/Blazor and
 write/SQLite gates stay open. Two isolated agents continue bounded writable

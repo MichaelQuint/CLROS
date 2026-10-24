@@ -1,5 +1,12 @@
 # CLROS AI Agent Guide
 
+[Step1584](done/step1584.md) adds a separate copied pending-reset device join.
+Require every original IO position, exact binding/counters, copied sector bytes
+and the last uncompleted generation/LBA. Preserve the ordinary drained reader.
+This supplies no original/native/reset/user-memory authority; race launch stays
+refused until the whole original consumer exists. Keep primary5dd6e6c0 frozen
+while its unfiltered full/native owner runs; isolated agents remain active.
+
 [Step1583](done/step1583.md) prepares canonical ExitPending native observations
 and strict copied stages. Keep the original FS/descriptor/wait identity separate
 from current backend state; exit_group suppresses later supervisor pumping in

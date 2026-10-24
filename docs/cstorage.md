@@ -1,5 +1,15 @@
 # Storage
 
+[Step1584](../done/step1584.md) joins all copied pending-exit IO observations to
+the unique block binding, raw-image capacity, every committed512-byte sector
+and the exact last outstanding generation/LBA. A separate reset-retirement API
+requires unchanged software counters, reset/readback, bus-master disable, DMA
+release and zero pool mask; it never synthesizes completion or copied data.
+The ordinary/full positive readers remain drained-only. Every IO row precedes
+stage1 in this selected source; missing, late, reordered and divergent rows fail.
+Seventy-four focused controls pass. Original firmware/source/native, scheduler,
+image receipt, user-memory, packet and process-owner joins still precede execution.
+
 [Step1583](../done/step1583.md) prepares canonical ExitPending observations.
 They authenticate the entire package and retain scalar worker/wait, fd/description/
 file, FS and actual pending block identities. Before/after the parent's genuine

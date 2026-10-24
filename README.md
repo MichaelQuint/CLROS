@@ -130,6 +130,11 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1584](done/step1584.md) joins all copied pending-exit device observations
+to their exact binding, image-sector bytes and final reset-aborted request.
+The ordinary drained reader is unchanged. Seventy-four focused controls pass;
+original race execution and full disk/Blazor qualification remain pending.
+
 [Step1583](done/step1583.md) prepares observations for the canonical pending-exit
 disk race: real exit/cancellation, reset retirement, and the entire mapped8KiB
 sentinel before process release. Sixty focused host checks pass; the copied

@@ -1,5 +1,10 @@
 # Diagnostics
 
+[Step1584](../done/step1584.md) adds the copied device/stage association with
+original row indexes. No marker, native path, probe default or launch policy
+changes. All IO must precede the selected pending-exit snapshot; a reset receipt
+does not count as a device completion. Original race execution remains refused.
+
 [Step1583](../done/step1583.md) adds observation-only pending-exit stages selected
 by the complete canonical package digest. Existing profiles/probe defaults are
 unchanged. Ordered cancellation/reset/sentinel/release records are preparatory;

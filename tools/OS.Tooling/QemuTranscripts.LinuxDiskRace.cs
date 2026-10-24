@@ -25,6 +25,75 @@ public static partial class QemuTranscripts
         { Records = Array.AsReadOnly(records); ResetAbortedRequest = resetAborted; }
     }
 
+    /// <summary>Copied stage/device association only. Every IO row retains its
+    /// original position and every committed sector is compared with the supplied
+    /// image. Firmware framing, image receipts, native/source provenance, thread
+    /// replay, packets and the original process owner remain separate obligations.</summary>
+    public sealed class LinuxDiskExitPendingDeviceValues
+    {
+        public LinuxDiskExitPendingValues Stages { get; }
+        public NativeDiskReadObservations.Inspection Device { get; }
+        public int BindingRecordIndex { get; }
+        public IReadOnlyList<int> IoRecordIndices { get; }
+        public bool CheckedOriginalExecution => false;
+        public bool CheckedNativeStopOrUserMemory => false;
+        internal LinuxDiskExitPendingDeviceValues(LinuxDiskExitPendingValues stages,
+            NativeDiskReadObservations.Inspection device, int binding, int[] indexes)
+        { Stages = stages; Device = device; BindingRecordIndex = binding; IoRecordIndices = Array.AsReadOnly(indexes); }
+    }
+
+    /// <summary>Synchronously borrow bounded unchanged rows, the canonical
+    /// ExitPending package and sector-aligned raw image. Join the unique binding,
+    /// every ordered IO observation and the eight copied exit stages. The current
+    /// source performs no software pump after stage1: the last real submit must
+    /// precede it and remain uncompleted through actual reset. Reject extra,
+    /// missing, reordered or divergent observations with ToolFailure. No input
+    /// arrays or image aliases are retained and no qualification authority is
+    /// granted by this copied-value inspection.</summary>
+    public static LinuxDiskExitPendingDeviceValues InspectLinuxDiskExitPendingDeviceValues(
+        IReadOnlyList<string> supplied, byte[] package, ReadOnlySpan<byte> rawImage)
+    {
+        var stages = InspectLinuxDiskExitPendingValues(supplied, package);
+        int binding = -1; Dictionary<string, ulong>? bound = null;
+        List<int> indexes = []; List<string> io = [];
+        const string suffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+        for (int i = 0; i < supplied.Count; i++)
+        {
+            string row = supplied[i];
+            if (row.StartsWith("M16_023_BOUND ", StringComparison.Ordinal))
+            {
+                Need(binding < 0 && i < stages.Records[0].RecordIndex, "disk_exit_pending_device_binding");
+                RaceDiskBound(row); binding = i;
+                bound = ReadRecord(row[..^suffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec",
+                    "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
+            }
+            else if (row.StartsWith("M16_023_IO ", StringComparison.Ordinal))
+            {
+                Need(binding >= 0 && i > binding && i < stages.Records[0].RecordIndex, "disk_exit_pending_device_io_order");
+                indexes.Add(i); io.Add(row);
+            }
+        }
+        Need(bound is not null && indexes.Count > 0 && rawImage.Length % 512 == 0 &&
+            bound["capacity"] == (ulong)rawImage.Length / 512, "disk_exit_pending_device_image");
+        var first = stages.Records[0].Values;
+        var beforeStop = stages.Records[3].Values; var stopped = stages.Records[4].Values;
+        Need(bound!["owner"] == first["blockOwner"] && bound["epoch"] == first["blockEpoch"] &&
+            bound["clock"] <= first["clock"], "disk_exit_pending_device_owner");
+        var boundary = new NativeDiskReadObservations.Boundary(bound["owner"], bound["epoch"],
+            bound["bootstrapCompleted"], bound["bootstrapCopied"], beforeStop["submitted"], beforeStop["completed"], beforeStop["copied"]);
+        var reset = new NativeDiskReadObservations.PendingResetRetirement(bound["owner"], bound["epoch"],
+            first["blockGeneration"], first["sector"], beforeStop["submitted"], beforeStop["completed"], beforeStop["copied"],
+            beforeStop["cancelled"], OS.Storage.ContinuingReadOnlyBlockService.Status.Success,
+            checked((uint)stopped["resetReads"]), stopped["reset"] == 1, stopped["busMasterOff"] == 1,
+            stopped["dmaReleased"] == 1, stopped["poolMask"]);
+        var device = NativeDiskReadObservations.InspectResetRetired(io, rawImage, boundary, reset);
+        foreach (var observation in device.Rows)
+            Need(observation.Clock >= bound["clock"] && observation.Clock <= first["clock"], "disk_exit_pending_device_clock");
+        Need(device.Rows[^1].Generation == first["blockGeneration"] && device.Rows[^1].Sector == first["sector"],
+            "disk_exit_pending_device_pending_request");
+        return new(stages, device, binding, indexes.ToArray());
+    }
+
     private static readonly string[] DiskExitPendingFields =
     [ "stage", "main", "child", "ordinal", "rip", "sequence", "owner", "epoch", "generation", "index", "fd", "fdGeneration",
       "binding", "bindingGeneration", "description", "position", "fileGeneration", "fileIndex", "inode", "fsOwner", "fsEpoch",

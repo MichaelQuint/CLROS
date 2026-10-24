@@ -1,5 +1,10 @@
 # CLROS Completion Gates
 
+[Step1584](../done/step1584.md) adds74 passing focused copied-contract and
+regression checks. Exact sector/reset joins grant no firmware/native/process,
+scheduler or user-memory authority. Full original disk/Blazor, actual races,
+writes, synchronization and SQLite acceptance remain open; no issue closes.
+
 [Step1583](../done/step1583.md) is pending-exit observation/copy-contract
 preparation only. Sixty focused checks and repo/contracts pass. No selected
 native publication or original race execution follows; launch remains refused.

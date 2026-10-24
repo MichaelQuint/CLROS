@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1584](../done/step1584.md) changes copied host consumers only, joining
+pending-exit stages to real-observation-shaped sectors and reset values. No
+additional EFI input or source pin changes. Managed focused success does not
+compile or qualify step1583's pending native observation methods.
+
 [Step1583](../done/step1583.md) changes four reviewed M16-025 conditional inputs
 for canonical pending-exit observations, with matching source pins and focused
 host admission checks. No kernel control layout, profile default or compile item

@@ -1,5 +1,12 @@
 # Issue Labels
 
+[Step1584](../done/step1584.md) separately reconciles M16-027's two new POD
+descriptor-provider paths: preview1/apply1/readback9 unchanged, zero drift.
+This extends isolated implementation ownership; it changes no state, dependency,
+label, native activation or guest acceptance. M16-025's copied reset/sector
+evidence remains preparatory and its original launch guard stays in force.
+Its status summary has separate preview1/apply1/readback9 unchanged, zero drift.
+
 [Step1583](../done/step1583.md) reconciles three preparatory evidence summaries
 with fresh versions and readback: preview3/apply3/readback18 unchanged, zero
 drift. Recovery ownership now explicitly reuses the four existing contract paths.
