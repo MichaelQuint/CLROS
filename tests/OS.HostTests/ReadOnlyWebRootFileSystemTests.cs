@@ -5,9 +5,192 @@ using OS.Drivers;
 using OS.Kernel.Platform;
 using Block = OS.Storage.ContinuingReadOnlyBlockService;
 using Fs = OS.Storage.ReadOnlyWebRootFileSystem;
+using OS.Storage;
 
 internal static unsafe class ReadOnlyWebRootFileSystemTests
 {
+    [HostTest("webroot.fs internal lookup selects at most16 loaded physical entries without IO or another operation progress")]
+    private static void LoadedLookupBound()
+    {
+        using var f = new Fixture(); f.MountReady();
+        var a = BeginLookup(f, "/app/wwwroot/missing-a.bin"); var b = BeginLookup(f, "/app/wwwroot/missing-b.bin");
+        LoadedLookup(f, a); LoadedLookup(f, b); var left = OperationFor(f, a); var right = OperationFor(f, b);
+        ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        HostCheck.Equal(16U, Fs.MaximumLoadedDirectorySteps); HostCheck.Equal(0U, Field<Fs.Operation, uint>(*left, "Work"));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, a));
+        HostCheck.True(Field<Fs.Operation, uint>(*left, "Work") == 16 && Cursor(left).EntryInSectorForTests() == 16);
+        HostCheck.True(Field<Fs.Operation, uint>(*right, "Work") == 0 && Cursor(right).EntryInSectorForTests() == 0);
+        NoIo(f, submitted, completed, copied);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, b));
+        HostCheck.True(Field<Fs.Operation, uint>(*right, "Work") == 16 && Field<Fs.Operation, uint>(*left, "Work") == 16);
+        NoIo(f, submitted, completed, copied);
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, a)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, b));
+        a = BeginLookup(f, "/app/wwwroot/missing-a.bin"); b = BeginLookup(f, "/app/wwwroot/missing-b.bin");
+        LoadedLookup(f, a); LoadedLookup(f, b); right = OperationFor(f, b);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, a)); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, a));
+        HostCheck.True(f.Device->ReadPending); submitted = f.Device->Submitted; completed = f.Device->Completed; copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, b));
+        HostCheck.True(Field<Fs.Operation, uint>(*right, "Work") == 1 && Cursor(right).EntryInSectorForTests() == 1);
+        NoIo(f, submitted, completed, copied); // Another IO owner preserves the old single-step behavior.
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, b)); HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(f.Mount, a));
+        HostCheck.Equal(Fs.Status.Cancelled, f.Drive(a));
+    }
+
+    [HostTest("webroot.fs mount lookup batches a loaded sector but stops at component and IO boundaries")]
+    private static void MountLookupBound()
+    {
+        using var f = new Fixture(); byte[] app = f.Disk.Sector(f.Disk.Data(2)).AsSpan(0, 64).ToArray();
+        byte[] first = f.Disk.Sector(f.Disk.Data(2)); first.AsSpan().Clear();
+        for (int i = 0; i < 16; i++) first[i * 32] = 0xe5;
+        app.CopyTo(f.Disk.Sector(f.Disk.Data(20)), 0); f.Disk.SetFat(2, 20); f.Disk.SetFat(20, 0x0fffffff);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Start(f.Mount, f.Input)); var operation = f.Operations;
+        MountLoaded(2); ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.Pending, Fs.PumpMount(f.Mount));
+        HostCheck.True(Field<Fs.Operation, uint>(*operation, "Work") == 16 && Cursor(operation).EntryInSectorForTests() == 16);
+        NoIo(f, submitted, completed, copied);
+        MountLoaded(20); submitted = f.Device->Submitted; completed = f.Device->Completed; copied = f.Device->Copied;
+        uint work = Field<Fs.Operation, uint>(*operation, "Work"), component = Field<Fs.Operation, uint>(*operation, "Component");
+        HostCheck.Equal(Fs.Status.Pending, Fs.PumpMount(f.Mount));
+        HostCheck.True(Field<Fs.Operation, uint>(*operation, "Work") == work + 3 && Field<Fs.Operation, uint>(*operation, "Component") != component &&
+            Field<Fs.DirectoryCursor, uint>(Cursor(operation), "Cluster") == 3 && !Field<Fs.DirectoryCursor, bool>(Cursor(operation), "SectorReady"));
+        NoIo(f, submitted, completed, copied);
+        Fs.Status status = Fs.Status.Pending;
+        for (int i = 0; i < 1000 && status == Fs.Status.Pending; i++) { f.Tick(); status = Fs.PumpMount(f.Mount); }
+        HostCheck.Equal(Fs.Status.Ready, status); HostCheck.True(f.Mount->Ready);
+        void MountLoaded(uint cluster)
+        {
+            for (int i = 0; i < 1000; i++)
+            {
+                var cursor = Cursor(operation);
+                if (Field<Fs.DirectoryCursor, uint>(cursor, "Cluster") == cluster && Loaded(operation)) return;
+                f.Tick(); HostCheck.Equal(Fs.Status.Pending, Fs.PumpMount(f.Mount));
+            }
+            throw new InvalidOperationException("mount lookup did not reach loaded sector");
+        }
+    }
+
+    [HostTest("webroot.fs lookup preserves split LFN across loaded sector boundary and never combines new IO with completion")]
+    private static void LookupSplitName()
+    {
+        using var f = new Fixture(); f.MountReady(); var token = BeginLookup(f, "/app/wwwroot/" + Disk.LongName); LoadedLookup(f, token);
+        var operation = OperationFor(f, token); ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        var cursor = Cursor(operation); var vfat = Field<Fs.DirectoryCursor, LiveVfatState>(cursor, "Vfat");
+        HostCheck.True(cursor.EntryInSectorForTests() == 16 && vfat.Slots == (Disk.LongName.Length + 12) / 13 && vfat.Remaining == vfat.Slots - 1);
+        NoIo(f, submitted, completed, copied); uint work = Field<Fs.Operation, uint>(*operation, "Work");
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); HostCheck.Equal(work, Field<Fs.Operation, uint>(*operation, "Work"));
+        Fs.Status status = Fs.Status.Pending;
+        for (int i = 0; i < 4096 && status is Fs.Status.Pending or Fs.Status.Busy; i++)
+        {
+            submitted = f.Device->Submitted; completed = f.Device->Completed; copied = f.Device->Copied;
+            f.Tick(); status = Fs.Poll(f.Mount, token);
+            HostCheck.True(f.Device->Submitted - submitted <= 1 && f.Device->Completed - completed <= 1 && f.Device->Copied - copied <= 1);
+            if (f.Device->Completed != completed) HostCheck.Equal(submitted, f.Device->Submitted);
+        }
+        HostCheck.Equal(Fs.Status.Ready, status); Fs.OpenResult result = default;
+        HostCheck.Equal(Fs.Status.Success, Fs.CopyOpen(f.Mount, token, &result)); HostCheck.Equal(3U, result.Info.Length);
+        HostCheck.Equal(1U, f.Disk.Reads[f.Disk.Data(6)]); HostCheck.Equal(0U, f.Disk.Reads[f.Disk.Data(13)]);
+        Span<byte> output = stackalloc byte[3]; f.Read(result.File, 0, 3, output, 3); HostCheck.True(output.SequenceEqual("ABC"u8));
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, result.File));
+    }
+
+    [HostTest("webroot.fs batched lookup rejects late exact case and short alias collisions after complete directory validation")]
+    private static void LookupLateCollisions()
+    {
+        Span<byte> entry = stackalloc byte[32]; Span<byte> encoded = stackalloc byte[672];
+        foreach (int variant in new[] { 0, 1, 2 })
+        {
+            using var f = new Fixture(); string name = variant == 0 ? "far.bin" : variant == 1 ? "FAR.BIN" : "elsewhere.bin";
+            entry.Clear();
+            (variant == 2 ? "FAR     BIN"u8 : "ZZZZZZZZBIN"u8).CopyTo(entry); entry[11] = 0x21;
+            BinaryPrimitives.WriteUInt16LittleEndian(entry[24..], 33); BinaryPrimitives.WriteUInt16LittleEndian(entry[26..], 13);
+            BinaryPrimitives.WriteUInt32LittleEndian(entry[28..], 3);
+            HostCheck.Equal(Fat32Mutation.Status.Success, Fat32Mutation.EncodeEntryRun(name, entry, encoded, out int entries));
+            byte[] late = f.Disk.Sector(f.Disk.Data(8)); int slot = 0; while (slot < 16 && late[slot * 32] != 0) slot++;
+            HostCheck.True(slot + entries < 16); encoded[..(entries * 32)].CopyTo(late.AsSpan(slot * 32));
+            f.MountReady(); var token = BeginLookup(f, "/app/wwwroot/far.bin");
+            HostCheck.Equal(Fs.Status.Ambiguous, f.Drive(token)); Fs.OpenResult result = new() { Info = new() { Length = 77 } };
+            HostCheck.Equal(Fs.Status.Ambiguous, Fs.CopyOpen(f.Mount, token, &result)); HostCheck.Equal(77U, result.Info.Length);
+            HostCheck.True(f.Disk.Reads[f.Disk.Data(8)] == 1 && f.Disk.Reads[f.Disk.Data(13)] == 0 && f.Disk.Reads[f.Disk.Data(200)] == 0);
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+        }
+    }
+
+    [HostTest("webroot.fs loaded lookup consumes exact entry budget even after an early exact match")]
+    private static void LookupBatchBudget()
+    {
+        using var f = new Fixture(workBudget: 7); f.MountReady(); var token = BeginLookup(f, "/app/wwwroot/index.html"); LoadedLookup(f, token);
+        var operation = OperationFor(f, token); ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.TraversalBudgetExceeded, Fs.Poll(f.Mount, token));
+        HostCheck.True(Field<Fs.Operation, uint>(*operation, "Work") == 7 && Cursor(operation).EntryInSectorForTests() == 7);
+        Fs.OpenResult result = new() { Info = new() { Length = 77 } };
+        HostCheck.Equal(Fs.Status.TraversalBudgetExceeded, Fs.CopyOpen(f.Mount, token, &result)); HostCheck.Equal(77U, result.Info.Length);
+        NoIo(f, submitted, completed, copied); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+    }
+
+    [HostTest("webroot.fs public directory entries stay retained and single step outside internal lookup batching")]
+    private static void PublicEntryUnbatched()
+    {
+        using var f = new Fixture(); f.MountReady(); var directory = f.Open("/app/wwwroot"); Fs.OperationToken token = default;
+        HostCheck.Equal(Fs.Status.Pending, Fs.BeginDirectory(f.Mount, directory.File, &token)); HostCheck.Equal(Fs.Status.Entry, f.Drive(token));
+        var operation = OperationFor(f, token); uint work = Field<Fs.Operation, uint>(*operation, "Work");
+        ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied; Fs.Metadata metadata = new() { Length = 77 };
+        for (int i = 0; i < 3; i++) HostCheck.Equal(Fs.Status.Entry, Fs.Poll(f.Mount, token));
+        HostCheck.Equal(Fs.Status.OutputFull, Fs.CopyEntry(f.Mount, token, &metadata, [])); HostCheck.Equal(77U, metadata.Length);
+        HostCheck.Equal(work, Field<Fs.Operation, uint>(*operation, "Work")); NoIo(f, submitted, completed, copied);
+        Span<byte> name = stackalloc byte[256]; HostCheck.Equal(Fs.Status.Success, Fs.CopyEntry(f.Mount, token, &metadata, name));
+        HostCheck.True(name[..metadata.NameBytes].SequenceEqual("index.html"u8));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); HostCheck.Equal(work + 1, Field<Fs.Operation, uint>(*operation, "Work"));
+        NoIo(f, submitted, completed, copied); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, directory.File));
+    }
+
+    [HostTest("webroot.fs batched lookup cancellation generation reuse and reset revoke loaded cursor progress")]
+    private static void LookupBatchLifetime()
+    {
+        using var f = new Fixture(); f.MountReady(); var old = BeginLookup(f, "/app/wwwroot/missing.bin"); LoadedLookup(f, old);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, old)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, old));
+        var fresh = BeginLookup(f, "/app/wwwroot/empty.bin"); LoadedLookup(f, fresh); var operation = OperationFor(f, fresh);
+        HostCheck.True(Field<Fs.OperationToken, uint>(fresh, "Index") == Field<Fs.OperationToken, uint>(old, "Index") &&
+            Field<Fs.OperationToken, ulong>(fresh, "Generation") > Field<Fs.OperationToken, ulong>(old, "Generation"));
+        byte[] state = new ReadOnlySpan<byte>(operation, sizeof(Fs.Operation)).ToArray();
+        ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(f.Mount, old)); HostCheck.Equal(Fs.Status.StaleToken, Fs.Cancel(f.Mount, old));
+        HostCheck.True(new ReadOnlySpan<byte>(operation, sizeof(Fs.Operation)).SequenceEqual(state)); NoIo(f, submitted, completed, copied);
+        HostCheck.Equal(Fs.Status.Ready, f.Drive(fresh)); Fs.OpenResult result = default;
+        HostCheck.Equal(Fs.Status.Success, Fs.CopyOpen(f.Mount, fresh, &result)); HostCheck.Equal(0U, result.Info.Length);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, result.File));
+        fresh = BeginLookup(f, "/app/wwwroot/index.html"); LoadedLookup(f, fresh); operation = OperationFor(f, fresh);
+        uint work = Field<Fs.Operation, uint>(*operation, "Work"); HostCheck.Equal(Block.Status.Success, Block.Stop(f.Device));
+        submitted = f.Device->Submitted; completed = f.Device->Completed; copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Poll(f.Mount, fresh)); HostCheck.Equal(work, Field<Fs.Operation, uint>(*operation, "Work"));
+        NoIo(f, submitted, completed, copied); HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount));
+    }
+
+    private static Fs.DirectoryCursor Cursor(Fs.Operation* operation) => Field<Fs.Operation, Fs.DirectoryCursor>(*operation, "Cursor");
+    private static uint EntryInSectorForTests(this Fs.DirectoryCursor cursor) => Field<Fs.DirectoryCursor, uint>(cursor, "EntryInSector");
+    private static bool Loaded(Fs.Operation* operation)
+    {
+        var cursor = Cursor(operation);
+        return Field<Fs.DirectoryCursor, bool>(cursor, "Visited") && Field<Fs.DirectoryCursor, bool>(cursor, "SectorReady") && cursor.EntryInSectorForTests() == 0 &&
+            !Field<Fs.DirectoryCursor, bool>(cursor, "HasPending") && !Field<Fs.Operation, bool>(*operation, "LookupDone") && Field<Fs.Operation, byte>(*operation, "Waiting") == 0;
+    }
+    private static Fs.OperationToken BeginLookup(Fixture f, string path)
+    {
+        Fs.OperationToken token = default; HostCheck.Equal(Fs.Status.Pending, Fs.BeginOpen(f.Mount, Encoding.ASCII.GetBytes(path), &token)); return token;
+    }
+    private static void LoadedLookup(Fixture f, Fs.OperationToken token)
+    {
+        for (int i = 0; i < 4096; i++)
+        {
+            if (Loaded(OperationFor(f, token))) return;
+            f.Tick(); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        }
+        throw new InvalidOperationException("lookup did not reach loaded sector");
+    }
+    private static void NoIo(Fixture f, ulong submitted, ulong completed, ulong copied)
+    { HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed); HostCheck.Equal(copied, f.Device->Copied); HostCheck.Equal(0UL, f.Device->Cancelled); }
+
     [HostTest("webroot.fs CoreLib sized fragmented maps isolate metadata walks from retained independent 8KiB reads")]
     private static void LargeFragmentedReadWork()
     {
