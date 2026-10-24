@@ -9,6 +9,102 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
+    /// <summary>Copied joins for the exact ExitPending package. Parent, image,
+    /// physical bounds, FIFO/stages, metadata and abandoned data-prefix checks
+    /// are combined from one row snapshot. This retains no live owner or input
+    /// aliases and supplies no firmware/native/original-process/packet authority.</summary>
+    public sealed class LinuxDiskExitPendingCaptureInspection
+    {
+        public WebParentReport Parent { get; }
+        public LinuxDiskRaceLeafReport Leaf { get; }
+        public LinuxDiskExitPendingDeviceValues Pending { get; }
+        public string ImageSha256 { get; }
+        public int LeafStartIndex { get; }
+        public IReadOnlyList<ulong> CopiedDataSectors { get; }
+        public bool CheckedOriginalExecution => false;
+        internal LinuxDiskExitPendingCaptureInspection(WebParentReport parent, LinuxDiskRaceLeafReport leaf,
+            LinuxDiskExitPendingDeviceValues pending, string hash, int first, ulong[] sectors)
+        { Parent=parent;Leaf=leaf;Pending=pending;ImageSha256=hash;LeafStartIndex=first;CopiedDataSectors=Array.AsReadOnly(sectors); }
+    }
+
+    /// <summary>Synchronously borrow unchanged bounded rows, complete canonical
+    /// ExitPending package, immutable raw image and verified fixture receipt.
+    /// Caller holds originalImagePath unchanged through final acceptance. Every
+    /// IO row must belong to an exact prep-open or abandoned main-read window;
+    /// metadata LBAs and the ordered data prefix come from independent image
+    /// extraction. The sole uncompleted submit must be the next data sector.
+    /// Invalid or divergent joins throw ToolFailure. Original firmware framing,
+    /// emitted native/source, packets and process ownership remain caller duties.</summary>
+    public static LinuxDiskExitPendingCaptureInspection InspectLinuxDiskExitPendingCaptureValues(
+        IReadOnlyList<string> supplied, byte[] package, byte[] rawImage,
+        WebRootImageFixture.Receipt receipt, string originalImagePath)
+    {
+        int count=supplied?.Count??0;
+        Need(count is >0 and <=32768 && package is not null && rawImage is not null && receipt is not null,"disk_exit_capture_input");
+        string[] rows=new string[count];
+        for(int i=0;i<count;i++)
+        {
+            string? row=supplied![i];Need(row is {Length:>0 and <=1536} && row.All(c=>c is >= ' ' and <= '~'),"disk_exit_capture_row");
+            rows[i]=row!;
+        }
+        Need(Race.PackageVariant(package!)=="ExitPending","disk_exit_capture_package");
+        var image=ValidateLinuxDiskCaptureImage(rawImage!,receipt!,originalImagePath);
+        var inventory=WebRootDiskInventory.Inspect(originalImagePath,rawImage!,receipt!);
+        var pending=InspectLinuxDiskExitPendingDeviceValues(rows,package!,rawImage!);
+        var parents=ValidateLinuxDiskCaptureParents(rows,package!,pending);
+        var binding=ValidateLinuxDiskCaptureBinding(rows,parents,rawImage!.Length,pending);
+        int first=Array.IndexOf(rows,"TEST_START m16-009"),last=Array.IndexOf(rows,"TEST_PASS m16-009");
+        Need(first>=0 && last>first && Array.LastIndexOf(rows,"TEST_START m16-009")==first &&
+            Array.LastIndexOf(rows,"TEST_PASS m16-009")==last,"disk_exit_capture_leaf_extent");
+        var leaf=InspectLinuxDiskExitPendingLeaf(rows[first..(last+1)],package!,parents.Parent.UserRoot,parents.Parent.KernelRoot);
+        var stages=leaf.ExitPendingStages!;
+        for(int i=0;i<8;i++)
+            Need(first+stages.Records[i].RecordIndex==pending.Stages.Records[i].RecordIndex &&
+                DiskExitPendingFields.All(k=>stages.Records[i].Values[k]==pending.Stages.Records[i].Values[k]),"disk_exit_capture_stage_identity");
+        Need(leaf.Auxiliary.Where(a=>a.Text.StartsWith("M16_023_IO ",StringComparison.Ordinal)).Select(a=>first+a.RecordIndex)
+            .SequenceEqual(pending.IoRecordIndices),"disk_exit_capture_io_inventory");
+        Need(first+leaf.Auxiliary.Single(a=>a.Text.StartsWith("M16_023_BOUND ",StringComparison.Ordinal)).RecordIndex==pending.BindingRecordIndex,
+            "disk_exit_capture_binding_identity");
+        var file=inventory.Find("/app/wwwroot/fixture/fragmented.bin");
+        Need(file is not null && !file.IsDirectory && file.Bytes==WebRootImageFixture.FragmentedFixtureBytes,"disk_exit_capture_fragmented");
+        var stage=pending.Stages.Records[0];
+        Need(stage.Values["inode"]==file!.Inode && stage.Values["position"]==0,"disk_exit_capture_inode");
+        var abandoned=leaf.Abandoned.Single();
+        Need(first+abandoned.CallRecordIndex<stage.RecordIndex && first+abandoned.GroupExitRecordIndex>stage.RecordIndex,
+            "disk_exit_capture_abandoned_window");
+        var opens=leaf.Windows.Where(w=>w.Source==4).ToArray();
+        Need(opens.Length==2 && opens.All(w=>leaf.Calls.Single(c=>c.RecordIndex==w.CallRecordIndex).Spec.Role is "prep.original" or "prep.independent"),
+            "disk_exit_capture_open_windows");
+        List<ulong> metadata=[],copied=[];
+        for(int i=0;i<pending.Device.Rows.Count;i++)
+        {
+            var io=pending.Device.Rows[i];int index=pending.IoRecordIndices[i];
+            Need(io.Clock>=binding.Disk["clock"] && io.Clock<=parents.Network.End["end"] &&
+                io.Sector>=image.PartitionFirstLba && io.Sector<=image.PartitionLastLba,"disk_exit_capture_io_lifetime");
+            int openCount=opens.Count(w=>first+w.CallRecordIndex<index && index<first+w.CompletionRecordIndex);
+            bool reading=first+abandoned.CallRecordIndex<index && index<stage.RecordIndex;
+            Need(openCount+(reading?1:0)==1,"disk_exit_capture_io_window");
+            if(openCount==1)metadata.Add(io.Sector);
+            else if(io.Kind==NativeDiskReadObservations.Kind.Copied)copied.Add(io.Sector);
+        }
+        _=WebRootDiskInventory.ClassifyMetadata(inventory,rawImage!,metadata);
+        var expected=file.Cover(0,Race.ParentOutputBytes).Select(s=>s.Lba).ToArray();
+        Need(expected.Length==16 && copied.Count<expected.Length && copied.SequenceEqual(expected.Take(copied.Count)) &&
+            pending.Device.Rows[^1].Sector==expected[copied.Count] && pending.Device.Rows[^1].Kind==NativeDiskReadObservations.Kind.Submitted,
+            "disk_exit_capture_data_prefix");
+        foreach(var s in pending.Stages.Records)
+            Need(s.Values["clock"]>=binding.Disk["clock"] && s.Values["clock"]<=parents.Network.End["end"],"disk_exit_capture_stage_lifetime");
+        foreach(var a in leaf.Auxiliary)
+        {
+            if(!a.Text.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal))continue;
+            var t=ReadRecord(a.Text,"M16_008_SYSCALL_TIME","identity:dec","ordinal:dec","nr:dec","entered:dec","admitted:dec","dispatched:dec","prepared:dec","periodFs:dec");
+            decimal Nanos(ulong ticks)=>decimal.Floor((decimal)ticks*parents.Clock["period"]/1_000_000);
+            Need(t["periodFs"]==parents.Clock["period"] && Nanos(t["entered"])>=binding.Budget["started"] &&
+                Nanos(t["prepared"])<=parents.Network.End["end"],"disk_exit_capture_syscall_timing");
+        }
+        return new(parents.Parent,leaf,pending,image.Sha256,first,copied.ToArray());
+    }
+
     public readonly record struct LinuxDiskExitPendingRecord(int RecordIndex, IReadOnlyDictionary<string, ulong> Values);
 
     /// <summary>Immutable copied stage values only. ResetAbortedRequest means
@@ -401,6 +497,7 @@ public static partial class QemuTranscripts
             }
             if (line.StartsWith("M16_008_TIMING ", StringComparison.Ordinal))
             {
+                Need(fifo is null, "disk_exit_fifo_unexpected_irq_timing");
                 Need(index > 0 && rows[index - 1].StartsWith("M16_008_SUPERVISOR ", StringComparison.Ordinal), "disk_race_timing_order");
                 var s = ReadRecord(rows[index - 1], "M16_008_SUPERVISOR", "identity:dec", "action:dec", "transfers:dec", "ready:dec", "active:dec");
                 LinuxTiming(Take(), s["identity"], epoch); Aux(index); continue;

@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1586](done/step1586.md) connects the exact ExitPending original consumer; other race variants remain refused. Fresh original qualification is pending. Full DiskA r02 at a692a4f4 reaches35 HTTP responses beyond600s, then fails without cleanup. Its serial size16MiB+2740 matches an active runner cap missed by full policy. Full-only live/final serial now shares128MiB; actual full callback already has3060s and is unchanged. Keep both failed full originals; no read/Blazor closure. Two agents continue retained writable admission/observation work.
+
 [Step1585](done/step1585.md) preserves the5dd6e6c0 full6516-check/882-fixture pass and failed full DiskA r01 after31 HTTP responses. Do not relabel either result. Pending-exit FIFO now retains the cancelled parent disk capability until actual CommitExit and enforces exact ready counts; typed parent reset accounting preserves ordinary drained readers. Original race launch stays refused. Native lease remains primary-owned; two isolated agents continue writable preparations.
 
 [Step1584](done/step1584.md) adds a separate copied pending-reset device join.

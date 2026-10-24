@@ -4,6 +4,27 @@ using OS.Tooling;
 
 internal static unsafe class DiskStaticExecutionPolicyTests
 {
+    [HostTest("disk full live serial shares finite policy while ordinary and service bounds remain")]
+    private static void LiveCapturePolicy()
+    {
+        HostCheck.Equal(128*1024*1024,DiskStaticExecutionPolicy.MaximumSerialBytes);
+        HostCheck.Equal(DiskStaticExecutionPolicy.MaximumSerialBytes,DiskStaticCapturePolicy.SerialBytes);
+        string source=File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(),"tools/OS.QemuRunner/Program.cs"));
+        string normalized=string.Concat(source.Where(c=>!char.IsWhiteSpace(c)));
+        HostCheck.True(normalized.Contains("SerialByteCapacity=>FullDiskStaticFiles?OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumSerialBytes:ContinuingService?SerialMarkerStateMachine.ContinuingServiceByteCapacity:SerialMarkerStateMachine.DefaultByteCapacity;",StringComparison.Ordinal));
+        var full=new OS.Tools.QemuRunner.SerialMarkerStateMachine([],[],byteCapacity:DiskStaticCapturePolicy.SerialBytes);
+        var ordinary=new OS.Tools.QemuRunner.SerialMarkerStateMachine([],[]);
+        byte[] chunk=new byte[4096];Array.Fill(chunk,(byte)'x');chunk[^1]=(byte)'\n';
+        for(long bytes=0;bytes<DiskStaticCapturePolicy.SerialBytes;bytes+=chunk.Length)
+        {
+            HostCheck.True(full.Feed(chunk).Succeeded);
+            if(bytes<OS.Tools.QemuRunner.SerialMarkerStateMachine.DefaultByteCapacity)HostCheck.True(ordinary.Feed(chunk).Succeeded);
+        }
+        HostCheck.Equal(OS.Tools.QemuRunner.SerialMarkerFeedStatus.TotalCapacityExceeded,ordinary.Feed("x"u8).Status);
+        HostCheck.Equal(OS.Tools.QemuRunner.SerialMarkerFeedStatus.TotalCapacityExceeded,full.Feed("x"u8).Status);
+        HostCheck.Equal(64L*1024*1024,OS.Tools.QemuRunner.SerialMarkerStateMachine.ContinuingServiceByteCapacity);
+    }
+
     [HostTest("disk full UTC admission uses a finite preentry anchor allowance without changing ordinary or continuing clocks")]
     private static void RealtimeAdmission()
     {

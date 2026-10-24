@@ -9,10 +9,12 @@ public static partial class QemuTranscripts
     public static IReadOnlyList<string> M16LinuxStartupMarkers { get; } = Array.AsReadOnly<string>(
         ["TEST_START m16-004", "M16_004_IMAGE", "M16_004_STACK", "M16_004_TABLES", "M16_004_READBACK", "CLROS_M16_004_READY", "TEST_PASS m16-004"]);
 
-    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false)
+    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false,
+        bool diskExitPending=false)
     {
-        Need(!diskFiles || !diskStatic,"m16_004_disk_selection");
-        if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
+        Need((!diskFiles || !diskStatic) && (!diskExitPending || diskFiles && !diskStatic),"m16_004_disk_selection");
+        if (diskExitPending) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="ExitPending","m16_004_disk_exit_package");
+        else if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
         if (diskStatic) NativeAotStaticFileProgram.RequirePackage(package,false);
         Need(lines.Length == QemuContracts.M03OwnedSubsystemMarkers.Count + 14, "m16_004_record_count");
         string[] tail = lines[^7..];

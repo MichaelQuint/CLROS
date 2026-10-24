@@ -130,6 +130,8 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1586](done/step1586.md) connects ExitPending firmware/parent/image/metadata/data-prefix/FIFO/reset and original-run ownership checks; a fresh guest is still required. Full DiskA r02 captures35 HTTP responses then fails at16MiB+2740 of serial, without browser or cleanup. The full runner now selects the same finite128MiB cap as its consumer, and HTTP failures retain bounded first-error/joined-runner diagnostics. Ordinary/service caps and the actual3060s full callback deadline remain unchanged. No first-batch issue closes.
+
 [Step1585](done/step1585.md) records the frozen5dd6e6c0 unfiltered full pass:6516 checks across882 fixture results, unchanged/zero reuse. First full DiskA execution then fails after31 captured HTTP responses at about600s; no browser boots. The full-only UTC allowance is now3600s, retaining the finite2100s execution budget, ordinary600s and continuing-service clock rules. The repair and pending-exit FIFO/reset controls pass116 focused checks; fresh native/guest qualification and original race integration remain pending.
 
 [Step1584](done/step1584.md) joins all copied pending-exit device observations

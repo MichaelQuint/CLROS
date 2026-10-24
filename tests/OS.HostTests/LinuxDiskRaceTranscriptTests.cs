@@ -45,6 +45,7 @@ internal static class LinuxDiskRaceTranscriptTests
         }
         int childSupervisor = Array.FindIndex(rows, r => r.StartsWith("M16_008_SUPERVISOR identity=" + F.ChildIdentity, StringComparison.Ordinal));
         Deny(Change(rows, childSupervisor, "ready", 0));
+        Deny([..rows[..(childSupervisor+1)],"M16_008_TIMING identity="+F.ChildIdentity+" epoch=1 start=1 arm=2 capture=3 ready=4 periodFs=10000000",..rows[(childSupervisor+1)..]]);
         var io = ExitPendingDeviceFixture().Rows[7];
         Deny([..rows[..childSupervisor], io, ..rows[childSupervisor..]]);
         string[] old = SyntheticLifecycle("ExitPending");
@@ -69,7 +70,7 @@ internal static class LinuxDiskRaceTranscriptTests
         Deny(Change(rows, mainReadPoll, "ready", 0)); Deny(SyntheticLifecycle("ExitPending"));
     }
 
-    private static string[] ExitPendingStagedLeaf()
+    internal static string[] ExitPendingStagedLeaf()
     {
         string[] original = SyntheticLifecycle("ExitPending"); var leaf = Inspect(original, F.CreatePackage("ExitPending"));
         int clone = leaf.Calls.Single(c => c.Spec.Role == "prep.clone").RecordIndex;

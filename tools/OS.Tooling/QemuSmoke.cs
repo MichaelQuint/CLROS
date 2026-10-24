@@ -59,9 +59,9 @@ public static class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
-            // Parsing/publication can precede the complete original race
-            // owner. Never run the old59-call package under a requested race.
-            if(options.HasDiskRaceSelection && !options.DryRun)
+            // Only ExitPending has a complete original race consumer. Never
+            // run the positive59-call package under a requested race.
+            if(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant!="ExitPending" && !options.DryRun)
                 throw new ToolFailure("disk_race_complete_consumer_required");
             bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
             bool diskStatic = NativeAotDiskSelection.StaticSelected(plan.Flags);
@@ -158,7 +158,7 @@ public static class QemuSmoke
                     {
                         if (linuxInput.Length > 65536) throw new ToolFailure("disk_mechanical_package_size");
                         byte[] bytes = new byte[(int)linuxInput.Length]; linuxInput.ReadExactly(bytes);
-                        LinuxDiskFileProofFixture.RequirePackage(bytes); linuxInput.Position = 0;
+                        NativeAotDiskSelection.RequireMechanicalPackage(bytes,options.LinuxDiskRaceVariant); linuxInput.Position = 0;
                     }
                     else if(signalEpoll)LinuxSignalEpollSelection.RequirePackage(linuxInput);
                     else LinuxSignalProofFixture.RequirePackage(linuxInput);
@@ -267,7 +267,7 @@ public static class QemuSmoke
                     }
                     byte[] packageBytes = package.ReadBytes(diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, "disk_package");
                     if (diskStatic) NativeAotStaticFileProgram.RequirePackage(packageBytes, false);
-                    else LinuxDiskFileProofFixture.RequirePackage(packageBytes);
+                    else NativeAotDiskSelection.RequireMechanicalPackage(packageBytes,options.LinuxDiskRaceVariant);
                     var locations = LinuxElfImageFixture.Inspect(image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"),
                         efi.ReadBytes(16 * 1024 * 1024, "disk_efi"), packageBytes);
                     diskInputs.VerifyUnchanged();
@@ -507,14 +507,21 @@ public static class QemuSmoke
                     output.WriteLine($"TEST_PASS qemu.smoke.disk-static scope={original.Http.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} {(diskBrowser is null?"blazor_qualified=false":"blazor_booted=true")}");
                     return 0;
                 }
+                void VerifyDiskInputs()
+                {
+                    if (capture is not null)
+                    { capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations"); }
+                    diskInputs.VerifyUnchanged(); diskNative.VerifyHeldInputs(); cancellation.ThrowIfCancellationRequested();
+                }
+                if(options.HasDiskRaceSelection)
+                {
+                    var pending=QemuTranscripts.InspectLinuxDiskExitPendingRun(root,options,plan,runner,
+                        diskImageInput!,diskEfiInput!,diskPackageInput!,diskImageReceipt!,qemu,ovmf,VerifyDiskInputs);
+                    output.WriteLine($"TEST_PASS qemu.smoke.disk-exit-pending calls={pending.Leaf.Calls.Count} copiedDataSectors={pending.CopiedDataSectors.Count} outstanding=1 resetRetired=true");
+                    return 0;
+                }
                 var report = QemuTranscripts.InspectLinuxDiskFileRun(root, options, plan, runner,
-                    diskImageInput!, diskEfiInput!, diskPackageInput!, diskImageReceipt!, qemu, ovmf,
-                    () =>
-                    {
-                        if (capture is not null)
-                        { capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations"); }
-                        diskInputs.VerifyUnchanged(); diskNative.VerifyHeldInputs(); cancellation.ThrowIfCancellationRequested();
-                    });
+                    diskImageInput!, diskEfiInput!, diskPackageInput!, diskImageReceipt!, qemu, ovmf,VerifyDiskInputs);
                 output.WriteLine($"TEST_PASS qemu.smoke.disk-files calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied-report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs}");
                 return 0;
             }

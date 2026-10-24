@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1586](../done/step1586.md) gives full disk capture one finite128MiB bound shared by live runner ingestion and final reads; ordinary16MiB and continuing-service64MiB remain. The actual original full callback deadline was already3060s and is unchanged. The frozen5dd6e6c0 full6516-check result retains its exact scope; current focused controls and failed a692a4f4 full r02 cannot promote it into a successful browser/demo result.
+
 [Step1585](../done/step1585.md) preserves the original5dd6e6c0 unfiltered full run:6516 checks,882 fixture results, zero failures/reuse,5823.320s wall/5778.093s worker. Full log SHA C0AAC4117ED5D31C7DFF247E1191FD6F04700A9A8DB87D11B7F23BD88C3216CE. The later first full guest fails independently; no browser execution or complete read-batch acceptance follows from host/native success.
 
 [Step1582](../done/step1582.md) preserves the failed unfiltered full run at

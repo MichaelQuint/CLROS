@@ -14,6 +14,17 @@ public static class NativeAotDiskSelection
     public static bool FullStaticSelected(IReadOnlyDictionary<string, bool> flags) =>
         StaticSelected(flags) && flags.TryGetValue("EnableM10018FullProbe", out bool value) && value;
 
+    /// <summary>Require complete canonical bytes for one explicitly selected
+    /// mechanical original consumer. Empty selection preserves the positive
+    /// fixture; only ExitPending has the separate pending-reset consumer.
+    /// No package, image, process or native authority is granted here.</summary>
+    public static void RequireMechanicalPackage(byte[] package,string raceVariant)
+    {
+        if(raceVariant.Length==0){LinuxDiskFileProofFixture.RequirePackage(package);return;}
+        if(raceVariant!="ExitPending")throw new ToolFailure("disk_race_complete_consumer_required");
+        if(LinuxDiskRaceProofFixture.PackageVariant(package)!="ExitPending")throw new ToolFailure("disk_race_selected_package");
+    }
+
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
         bool disk = Selected(flags);

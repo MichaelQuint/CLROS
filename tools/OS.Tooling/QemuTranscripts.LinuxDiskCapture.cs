@@ -61,90 +61,19 @@ public static partial class QemuTranscripts
         for (int i = 0; i < count; i++)
         { string? row = supplied![i]; Need(row is { Length: >0 and <=1536 } && row.All(c => c is >= ' ' and <= '~'), "disk_capture_row"); rows[i] = row!; }
         LinuxDiskFileProofFixture.RequirePackage(package!);
-        Need(rawImage.Length is >=34*1024*1024 and <=WebRootImageFixture.MaximumImageBytes && rawImage.Length % 512 == 0, "disk_capture_image_bound");
-        string imageHash = Convert.ToHexString(SHA256.HashData(rawImage));
-        var image = WebRootImageFixture.ReadBack(originalImagePath); // Caller already holds this exact plain file.
-        Need(image.Sha256 == imageHash && imageHash == receipt.FinalSha256 &&
-            image.PartitionFirstLba == receipt.PartitionFirstLba && image.PartitionLastLba == receipt.PartitionLastLba &&
-            receipt.Variant is "DiskA" or "DiskB", "disk_capture_image_identity");
-        var expectedFiles = receipt.PreservedFiles.Concat(receipt.WebRootFiles).Append(receipt.Sentinel).ToArray();
-        Need(expectedFiles.Length == image.Files.Length && expectedFiles.Length is >0 and <=4096 &&
-            expectedFiles.Select(f => f.Path).Distinct(StringComparer.Ordinal).Count() == expectedFiles.Length, "disk_capture_image_inventory");
-        foreach (var f in expectedFiles)
-        {
-            var actual = image.Files.SingleOrDefault(x => x.Path == f.Path);
-            Need(actual is not null && actual.Bytes == f.Bytes && actual.Sha256 == f.Sha256 && actual.Attributes == f.Attributes &&
-                actual.FatDate == f.FatDate && actual.FatTime == f.FatTime && actual.Extents.SequenceEqual(f.Extents), "disk_capture_image_file");
-        }
-        int bpb = checked((int)(image.PartitionFirstLba * 512));
-        Need(bpb <= rawImage.Length - 512 && BinaryPrimitives.ReadUInt16LittleEndian(rawImage.Slice(bpb + 11, 2)) == 512 &&
-            rawImage[bpb + 13] == 1, "disk_capture_fixture_sector_clusters"); // Exact fixture geometry, not a general FS restriction.
+        var image = ValidateLinuxDiskCaptureImage(rawImage, receipt, originalImagePath);
+        string imageHash = image.Sha256;
         var fragmented = image.Files.Single(f => f.Path == "/app/wwwroot/fixture/fragmented.bin");
-        Need(fragmented.Bytes == WebRootImageFixture.FragmentedFixtureBytes && fragmented.Extents.Length >=2 &&
-            image.Files.Single(f => f.Path == "/app/wwwroot/fixture/empty.bin").Bytes == 0 &&
-            image.Files.Any(f => f.Path == "/app/wwwroot/fixture/nested/info.txt"), "disk_capture_fixture_assets");
-        var fragmentSectors = DiskCaptureFileSectors(fragmented, rawImage.Length);
-        for (uint offset = 0; offset < fragmented.Bytes; offset++)
-        {
-            ulong sector = fragmentSectors[(int)(offset / 512)];
-            byte actual = rawImage[checked((int)(sector * 512 + offset % 512))];
-            byte wanted = unchecked((byte)((offset * 73 + 19) ^ (offset >> 9) ^ (offset >> 17)));
-            Need(actual == wanted, "disk_capture_fragmented_pattern");
-        }
-
-        var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true);
-        int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
-        int parentsEnd = owned + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
-        int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - owned;
-        int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
-        string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
-        original = ValidateLinuxStartupTail(original, package!, diskFiles: true);
-        original = ValidateLinuxElfTail(original, package!);
-        string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
-        int[] varying = [3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,
-            ..QemuContracts.M05ApicSetupMarkers.Select((s,i)=>(s,i)).Where(x=>x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x=>x.i)];
-        ExactInventory(apic, QemuContracts.M05ApicSetupMarkers, varying); ValidateAllocator(apic);
-        AssertM03OwnedSubsystemRecords(original, AssertCopiedAcpiRecords(original));
-        AssertM05PciEnumerationRecords(apic[..QemuContracts.M05PciEnumerationMarkers.Count]); AssertM05ApicSetupRecords(apic);
-        string[] nic = [..apic[..QemuContracts.M05PciEnumerationMarkers.Count], ..rows[apicEnd..networkStart]];
-        var arp = AssertM07ArpReceiveRecords(nic);
-        var tables = ReadRecord(rows[owned + 10], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
-        const string restored = " restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
-        var kernel = ReadRecord(rows[owned + 11][..^restored.Length], "M16_004_READBACK", "old:dec");
-        const string clockSuffix = " source=owned-hpet";
-        var clock = ReadRecord(rows[owned + 15][..^clockSuffix.Length], "M16_003_CLOCK", "frequency:dec", "period:dec", "recoveries:dec");
-        const string stopSuffix = " firmware=revoked providers=1 shutdown=owned-controller";
-        var service = ReadRecord(rows[parentsEnd - 3][..^stopSuffix.Length], "M16_003_STOP", "iterations:dec", "reads:dec", "first:dec", "last:dec", "interval:dec");
-        Need(network.Proof.Peer["start"] >= decimal.Floor((decimal)service["last"] * clock["period"] / 1_000_000), "disk_capture_service_peer_clock");
-        ulong[] anchor = PrefixRow(nic, "M07_NET D", 4), oldPages = PrefixRow(nic, "M07_ARP 2", 4), nicBinding = PrefixRow(nic, "M07_ARP 0", 4);
-        Need(anchor[0] <= uint.MaxValue, "disk_capture_anchor");
-        var liveDma = ReadRecord(rows[networkStart + 1], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
-        var parent = new WebParentReport(networkStart + 3, tables["root"], kernel["old"], clock["frequency"], clock["period"],
-            liveDma["a"], network.Proof.Peer["start"], network.Proof.Peer["end"], (uint)anchor[0], arp);
-
+        var prepared = ValidateLinuxDiskCaptureParents(rows, package!);
+        var parent = prepared.Parent; var clock = prepared.Clock;
+        var network = prepared.Network;
         int first = Array.IndexOf(rows, "TEST_START m16-009"), last = Array.IndexOf(rows, "TEST_PASS m16-009");
         Need(first >= 0 && last > first && rows.Count(r=>r == "TEST_START m16-009") == 1 && rows.Count(r=>r == "TEST_PASS m16-009") == 1, "disk_capture_leaf_extent");
         string[] leafRows = rows[first..(last + 1)];
         var leaf = InspectLinuxDiskCaptureLeafForTests(rows, package!);
         var auxiliary = leaf.Auxiliary.Select(a=>new LinuxDiskAuxiliary(first + a.RecordIndex, a.Text)).ToArray();
-        string Unique(string prefix) { var found = rows.Where(r=>r.StartsWith(prefix, StringComparison.Ordinal)).ToArray(); Need(found.Length == 1, "disk_capture_unique_" + prefix); return found[0]; }
-        const string diskSuffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
-        string diskLine = Unique("M16_023_BOUND ");
-        var disk = ReadRecord(diskLine[..^diskSuffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
-        var end = ReadDiskFileEnd(Unique("M16_025_END "));
-        Need(disk["epoch"] == 0x4d31365f30323301 && disk["capacity"] == (ulong)rawImage.Length / 512 &&
-            disk["bootstrapCompleted"] == 37 && disk["bootstrapCopied"] == 37 &&
-            end["bootstrapCompleted"] == disk["bootstrapCompleted"] && end["bootstrapCopied"] == disk["bootstrapCopied"], "disk_capture_binding_counters");
-        Need(disk["pages"] == 90 && disk["owner"] <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_capture_measured_layout");
-        const string threadSuffix = " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
-        string threadLine = Unique("M16_008_BOUND ");
-        var thread = ReadRecord(threadLine[..^threadSuffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
-        var budget = ReadRecord(Unique("M16_008_BUDGET "), "M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");
-        var budgetEnd = ReadRecord(Unique("M16_008_BUDGET_END "), "M16_008_BUDGET_END", "nanos:dec");
-        Need(disk["clock"] >= parent.PeerEnd && budget["started"] >= disk["clock"] && budgetEnd["nanos"] <= network.Proof.End["end"], "disk_capture_lifetime");
-        DistinctExtents([(parent.UserRoot,4096),(parent.KernelRoot,4096),(parent.Dma,32768),
-            (thread["pool"],LinuxThreadProgram.SignalPoolPages*4096UL),(oldPages[0],8192),(nicBinding[3],16384),
-            (disk["arena"],disk["pages"]*4096),(disk["bar"],16384),(disk["owner"],(ulong)sizeof(Block.State))], "disk_capture_live_extents");
+        var binding = ValidateLinuxDiskCaptureBinding(rows, prepared, rawImage.Length);
+        var disk = binding.Disk; var budget = binding.Budget; var end = binding.End;
 
         var ioRows = auxiliary.Where(a=>a.Text.StartsWith("M16_023_IO ", StringComparison.Ordinal)).ToArray();
         var device = NativeDiskReadObservations.Inspect(ioRows.Select(a=>a.Text).ToArray(), rawImage,
@@ -153,7 +82,7 @@ public static partial class QemuTranscripts
         var completions = leaf.Completions.ToDictionary(c=>c.Ordinal);
         for (int i = 0; i < ioRows.Length; i++)
         {
-            Need(device.Rows[i].Clock >= disk["clock"] && device.Rows[i].Clock <= network.Proof.End["end"], "disk_capture_io_lifetime");
+            Need(device.Rows[i].Clock >= disk["clock"] && device.Rows[i].Clock <= network.End["end"], "disk_capture_io_lifetime");
             Need(device.Rows[i].Sector >= image.PartitionFirstLba && device.Rows[i].Sector <= image.PartitionLastLba, "disk_capture_io_partition");
             Need(leaf.Completions.Count(c=>first+c.CallRecordIndex < ioRows[i].RecordIndex && ioRows[i].RecordIndex < first+c.CompletionRecordIndex) == 1, "disk_capture_io_owned_window");
         }
@@ -166,13 +95,13 @@ public static partial class QemuTranscripts
             {
                 var t = ReadRecord(a.Text,"M16_008_SYSCALL_TIME","identity:dec","ordinal:dec","nr:dec","entered:dec","admitted:dec","dispatched:dec","prepared:dec","periodFs:dec");
                 Need(t["periodFs"] == clock["period"] && Nanos(t["entered"]) >= budget["started"] &&
-                    Nanos(t["prepared"]) <= network.Proof.End["end"], "disk_capture_syscall_timing_lifetime");
+                    Nanos(t["prepared"]) <= network.End["end"], "disk_capture_syscall_timing_lifetime");
             }
             else if (a.Text.StartsWith("M16_008_TIMING ",StringComparison.Ordinal))
             {
                 var t = ReadRecord(a.Text,"M16_008_TIMING","identity:dec","epoch:dec","start:dec","arm:dec","capture:dec","ready:dec","periodFs:dec");
                 Need(t["periodFs"] == clock["period"] && Nanos(t["start"]) >= budget["started"] &&
-                    Nanos(t["ready"]) <= network.Proof.End["end"], "disk_capture_irq_timing_lifetime");
+                    Nanos(t["ready"]) <= network.End["end"], "disk_capture_irq_timing_lifetime");
                 var irqRows = auxiliary.Where(v=>v.RecordIndex < a.RecordIndex && v.Text.StartsWith("M16_009_IRQ ",StringComparison.Ordinal)).ToArray();
                 Need(irqRows.Length != 0,"disk_capture_timing_irq_missing");
                 var irq = ReadRecord(irqRows[^1].Text,"M16_009_IRQ","identity:dec","epoch:dec","nanos:dec","rip:dec","rsp:dec","flags:dec","fs:dec","gs:dec","valueBits:dec");
@@ -242,6 +171,115 @@ public static partial class QemuTranscripts
         }
         Need(callCount == expected.Length && leaf.Epochs >= (ulong)irqs, "disk_capture_irq_inventory");
         return new(parent,leaf,device,imageHash,first,auxiliary,ioRows.Select(a=>a.RecordIndex).ToArray(),windows.ToArray(),irqs);
+    }
+
+    // Shared strict image/parent checks. Optional pending values originate only
+    // from the exact same canonical ExitPending rows/image. No call projection,
+    // record filtering or fabricated drained terminal is used for that branch.
+    private static WebRootImageFixture.ImageInventory ValidateLinuxDiskCaptureImage(
+        ReadOnlySpan<byte> rawImage, WebRootImageFixture.Receipt receipt, string originalImagePath)
+    {
+        Need(rawImage.Length is >=34*1024*1024 and <=WebRootImageFixture.MaximumImageBytes && rawImage.Length % 512 == 0, "disk_capture_image_bound");
+        string imageHash = Convert.ToHexString(SHA256.HashData(rawImage));
+        var image = WebRootImageFixture.ReadBack(originalImagePath); // Caller already holds this exact plain file.
+        Need(image.Sha256 == imageHash && imageHash == receipt.FinalSha256 &&
+            image.PartitionFirstLba == receipt.PartitionFirstLba && image.PartitionLastLba == receipt.PartitionLastLba &&
+            receipt.Variant is "DiskA" or "DiskB", "disk_capture_image_identity");
+        var expectedFiles = receipt.PreservedFiles.Concat(receipt.WebRootFiles).Append(receipt.Sentinel).ToArray();
+        Need(expectedFiles.Length == image.Files.Length && expectedFiles.Length is >0 and <=4096 &&
+            expectedFiles.Select(f => f.Path).Distinct(StringComparer.Ordinal).Count() == expectedFiles.Length, "disk_capture_image_inventory");
+        foreach (var f in expectedFiles)
+        {
+            var actual = image.Files.SingleOrDefault(x => x.Path == f.Path);
+            Need(actual is not null && actual.Bytes == f.Bytes && actual.Sha256 == f.Sha256 && actual.Attributes == f.Attributes &&
+                actual.FatDate == f.FatDate && actual.FatTime == f.FatTime && actual.Extents.SequenceEqual(f.Extents), "disk_capture_image_file");
+        }
+        int bpb = checked((int)(image.PartitionFirstLba * 512));
+        Need(bpb <= rawImage.Length - 512 && BinaryPrimitives.ReadUInt16LittleEndian(rawImage.Slice(bpb + 11, 2)) == 512 &&
+            rawImage[bpb + 13] == 1, "disk_capture_fixture_sector_clusters"); // Exact fixture geometry, not a general FS restriction.
+        var fragmented = image.Files.Single(f => f.Path == "/app/wwwroot/fixture/fragmented.bin");
+        Need(fragmented.Bytes == WebRootImageFixture.FragmentedFixtureBytes && fragmented.Extents.Length >=2 &&
+            image.Files.Single(f => f.Path == "/app/wwwroot/fixture/empty.bin").Bytes == 0 &&
+            image.Files.Any(f => f.Path == "/app/wwwroot/fixture/nested/info.txt"), "disk_capture_fixture_assets");
+        var fragmentSectors = DiskCaptureFileSectors(fragmented, rawImage.Length);
+        for (uint offset = 0; offset < fragmented.Bytes; offset++)
+        {
+            ulong sector = fragmentSectors[(int)(offset / 512)];
+            byte actual = rawImage[checked((int)(sector * 512 + offset % 512))];
+            byte wanted = unchecked((byte)((offset * 73 + 19) ^ (offset >> 9) ^ (offset >> 17)));
+            Need(actual == wanted, "disk_capture_fragmented_pattern");
+        }
+
+        return image;
+    }
+
+    private sealed record DiskCaptureParents(WebParentReport Parent, SocketNetworkProof Network,
+        Dictionary<string,ulong> Clock, ulong[] OldPages, ulong[] NicBinding);
+
+    private static DiskCaptureParents ValidateLinuxDiskCaptureParents(string[] rows, byte[] package,
+        LinuxDiskExitPendingDeviceValues? pending = null)
+    {
+        var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending);
+        int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
+        int parentsEnd = owned + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
+        int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - owned;
+        int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
+        string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
+        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null);
+        original = ValidateLinuxElfTail(original, package!);
+        string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
+        int[] varying = [3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,
+            ..QemuContracts.M05ApicSetupMarkers.Select((s,i)=>(s,i)).Where(x=>x.s.StartsWith("M05_APIC ", StringComparison.Ordinal)).Select(x=>x.i)];
+        ExactInventory(apic, QemuContracts.M05ApicSetupMarkers, varying); ValidateAllocator(apic);
+        AssertM03OwnedSubsystemRecords(original, AssertCopiedAcpiRecords(original));
+        AssertM05PciEnumerationRecords(apic[..QemuContracts.M05PciEnumerationMarkers.Count]); AssertM05ApicSetupRecords(apic);
+        string[] nic = [..apic[..QemuContracts.M05PciEnumerationMarkers.Count], ..rows[apicEnd..networkStart]];
+        var arp = AssertM07ArpReceiveRecords(nic);
+        var tables = ReadRecord(rows[owned + 10], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
+        const string restored = " restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
+        var kernel = ReadRecord(rows[owned + 11][..^restored.Length], "M16_004_READBACK", "old:dec");
+        const string clockSuffix = " source=owned-hpet";
+        var clock = ReadRecord(rows[owned + 15][..^clockSuffix.Length], "M16_003_CLOCK", "frequency:dec", "period:dec", "recoveries:dec");
+        const string stopSuffix = " firmware=revoked providers=1 shutdown=owned-controller";
+        var service = ReadRecord(rows[parentsEnd - 3][..^stopSuffix.Length], "M16_003_STOP", "iterations:dec", "reads:dec", "first:dec", "last:dec", "interval:dec");
+        Need(network.Proof.Peer["start"] >= decimal.Floor((decimal)service["last"] * clock["period"] / 1_000_000), "disk_capture_service_peer_clock");
+        ulong[] anchor = PrefixRow(nic, "M07_NET D", 4), oldPages = PrefixRow(nic, "M07_ARP 2", 4), nicBinding = PrefixRow(nic, "M07_ARP 0", 4);
+        Need(anchor[0] <= uint.MaxValue, "disk_capture_anchor");
+        var liveDma = ReadRecord(rows[networkStart + 1], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec");
+        var parent = new WebParentReport(networkStart + 3, tables["root"], kernel["old"], clock["frequency"], clock["period"],
+            liveDma["a"], network.Proof.Peer["start"], network.Proof.Peer["end"], (uint)anchor[0], arp);
+
+        return new(parent, network.Proof, clock, oldPages, nicBinding);
+    }
+
+    private sealed record DiskCaptureBinding(Dictionary<string,ulong> Disk, Dictionary<string,ulong> Budget,
+        Dictionary<string,ulong> BudgetEnd, Dictionary<string,ulong> End);
+
+    private static unsafe DiskCaptureBinding ValidateLinuxDiskCaptureBinding(string[] rows,
+        DiskCaptureParents prepared, int imageBytes, LinuxDiskExitPendingDeviceValues? pending = null)
+    {
+        var parent=prepared.Parent; var network=prepared.Network;
+        var oldPages=prepared.OldPages; var nicBinding=prepared.NicBinding;
+        string Unique(string prefix) { var found = rows.Where(r=>r.StartsWith(prefix, StringComparison.Ordinal)).ToArray(); Need(found.Length == 1, "disk_capture_unique_" + prefix); return found[0]; }
+        const string diskSuffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+        string diskLine = Unique("M16_023_BOUND ");
+        var disk = ReadRecord(diskLine[..^diskSuffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
+        var end = ReadDiskFileEnd(Unique("M16_025_END "), pending);
+        Need(disk["epoch"] == 0x4d31365f30323301 && disk["capacity"] == (ulong)imageBytes / 512 &&
+            disk["bootstrapCompleted"] == 37 && disk["bootstrapCopied"] == 37 &&
+            end["bootstrapCompleted"] == disk["bootstrapCompleted"] && end["bootstrapCopied"] == disk["bootstrapCopied"], "disk_capture_binding_counters");
+        Need(disk["pages"] == 90 && disk["owner"] <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_capture_measured_layout");
+        string threadSuffix = pending is null ? " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack" : " timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
+        string threadLine = Unique("M16_008_BOUND ");
+        var thread = ReadRecord(threadLine[..^threadSuffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
+        var budget = ReadRecord(Unique("M16_008_BUDGET "), "M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");
+        var budgetEnd = ReadRecord(Unique("M16_008_BUDGET_END "), "M16_008_BUDGET_END", "nanos:dec");
+        Need(disk["clock"] >= parent.PeerEnd && budget["started"] >= disk["clock"] && budgetEnd["nanos"] <= network.End["end"], "disk_capture_lifetime");
+        DistinctExtents([(parent.UserRoot,4096),(parent.KernelRoot,4096),(parent.Dma,32768),
+            (thread["pool"],LinuxThreadProgram.SignalPoolPages*4096UL),(oldPages[0],8192),(nicBinding[3],16384),
+            (disk["arena"],disk["pages"]*4096),(disk["bar"],16384),(disk["owner"],(ulong)sizeof(Block.State))], "disk_capture_live_extents");
+
+        return new(disk,budget,budgetEnd,end);
     }
 
     private sealed class DiskCaptureDescription(WebRootImageFixture.DiskFile file)

@@ -2505,7 +2505,8 @@ sealed class RunnerOptions
     public bool WebEventOwnedSignalRace { get; private set; }
     public bool ContinuingService { get; private set; }
     public bool ServiceQuotaFailure { get; private set; }
-    public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
+    public long SerialByteCapacity => FullDiskStaticFiles ? OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumSerialBytes :
+        ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
     public ServiceEvidence? ServiceEvidence { get; private set; }
     public string SuccessTerminalMarker => ServiceQuotaFailure ? ServiceQuotaCapture.Terminal : FiniteStaticFiles || ReadOnlyWebRootDisk ? "TEST_PASS m16-012" : ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
     public HttpProbeOptions? WebConfigProbe { get; private set; }

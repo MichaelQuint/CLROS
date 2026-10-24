@@ -9,8 +9,35 @@ public static partial class QemuTranscripts
         QemuSmokePlan plan, ProcessResult runner, AuthorityFile image, AuthorityFile efi, AuthorityFile package,
         WebRootImageFixture.Receipt receipt, string qemu, string ovmf, Action verifyOwnedInputs)
     {
+        Need(!options.HasDiskRaceSelection,"disk_runner_positive_selection");
+        return InspectOriginalLinuxDiskRun(root,options,plan,runner,image,efi,package,qemu,ovmf,verifyOwnedInputs,rows=>
+        {
+            var report=InspectLinuxDiskCaptureValues(rows,package.ReadBytes(65536,"disk_package"),
+                image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_image"),receipt,image.Path);
+            return(report,SocketNetworkEnvelope(rows,true,mechanical:true,diskFiles:true).Proof);
+        });
+    }
+
+    internal static LinuxDiskExitPendingCaptureInspection InspectLinuxDiskExitPendingRun(string root,QemuSmokeOptions options,
+        QemuSmokePlan plan,ProcessResult runner,AuthorityFile image,AuthorityFile efi,AuthorityFile package,
+        WebRootImageFixture.Receipt receipt,string qemu,string ovmf,Action verifyOwnedInputs)
+    {
+        Need(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant=="ExitPending","disk_runner_exit_selection");
+        return InspectOriginalLinuxDiskRun(root,options,plan,runner,image,efi,package,qemu,ovmf,verifyOwnedInputs,rows=>
+        {
+            var report=InspectLinuxDiskExitPendingCaptureValues(rows,package.ReadBytes(65536,"disk_package"),
+                image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_image"),receipt,image.Path);
+            return(report,SocketNetworkEnvelope(rows,true,mechanical:true,diskFiles:true,diskExitPending:report.Pending).Proof);
+        });
+    }
+
+    private static T InspectOriginalLinuxDiskRun<T>(string root,QemuSmokeOptions options,QemuSmokePlan plan,
+        ProcessResult runner,AuthorityFile image,AuthorityFile efi,AuthorityFile package,string qemu,string ovmf,
+        Action verifyOwnedInputs,Func<string[],(T Report,SocketNetworkProof Network)> inspect)
+    {
         RequireCompleteProcess(runner, "disk_runner_incomplete");
         Need(runner.Succeeded && runner.StandardError.Length == 0 && NativeAotDiskSelection.Selected(plan.Flags) &&
+            !NativeAotDiskSelection.StaticSelected(plan.Flags) &&
             options.WorkloadProfile == "SingleMinimalApi" && options.FirmwareRngSource == "virtio" &&
             options.LinuxElfImageVariant == "Intact" && !options.SkipImageBuild && plan.BuildEfi, "disk_runner_selection");
         using AuthorityFiles captured = new();
@@ -26,12 +53,11 @@ public static partial class QemuTranscripts
             stdout[1] == $"OVMF_DISCOVERY result={ovmf} checked={ovmf}", "disk_runner_discovery");
         AssertStandardRunnerResult(root, options, plan, stdout);
         string[] rows = FirmwareProtocol(serial.Path, "TEST_PASS m16-012\r\n", true, false, "disk_capture", linuxThreads: true);
-        var report = InspectLinuxDiskCaptureValues(rows, package.ReadBytes(65536, "disk_package"),
-            image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"), receipt, image.Path);
-        AssertSocketCapture(packets.Path, SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true).Proof, mechanical: true);
+        var result=inspect(rows);
+        AssertSocketCapture(packets.Path,result.Network,mechanical:true);
         ValidateUnselectedRecords(serial.ReadUtf8(8 * 1024 * 1024, "disk_serial"), plan);
         captured.VerifyUnchanged(); verifyOwnedInputs(); captured.VerifyUnchanged();
-        return report;
+        return result.Report;
     }
 
     /// <summary>Inspect the exact finite leaf in a supplied complete row array.

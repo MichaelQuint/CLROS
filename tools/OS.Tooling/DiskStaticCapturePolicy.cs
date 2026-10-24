@@ -5,7 +5,7 @@ namespace OS.Tooling;
 /// Selecting them supplies no source/native/process/browser authority.</summary>
 public static class DiskStaticCapturePolicy
 {
-    public const int SerialBytes = 128 * 1024 * 1024;
+    public const int SerialBytes = OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumSerialBytes;
     public const int SummaryBytes = 256 * 1024 * 1024;
     public const int PacketBytes = 64 * 1024 * 1024;
     public const int StreamBytes = 24 * 1024 * 1024;

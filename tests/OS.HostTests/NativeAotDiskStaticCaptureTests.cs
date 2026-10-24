@@ -39,6 +39,25 @@ internal static class NativeAotDiskStaticCaptureTests
     [HostTest("disk static peer preserves a valid incomplete wrong-status receipt and joins its cancelled host")]
     private static async Task WrongStatus() => await Run(Mode.WrongStatus);
 
+    [HostTest("disk static peer preserves header transport error before owner cancellation and joins its runner")]
+    private static async Task ResetHeaders()
+    {
+        var host=new Host(Mode.ResetHeaders);bool failed=false;
+        using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try{_=await NativeAotDiskStaticPeer.RunAsync(host.Root,host.Serial,host.RunAsync,deadline.Token);}
+        catch(HttpRequestException){failed=true;}
+        HostCheck.True(failed && host.Joined && host.Launches==1);await RequireStopped(host.Port);
+        using var failure=JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination,"failure-000.json")));
+        var value=failure.RootElement;
+        HostCheck.Equal("headers",value.GetProperty("Stage").GetString());
+        HostCheck.True(!value.GetProperty("OwnerCancelled").GetBoolean() && !value.GetProperty("CallerCancelled").GetBoolean());
+        HostCheck.True(value.GetProperty("Exceptions")[0].GetProperty("HttpRequestError").GetString() is {Length:>0});
+        using var joined=JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination,"runner.json")));
+        HostCheck.True(joined.RootElement.GetProperty("Joined").GetBoolean());
+        using var receipt=JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination,"http.json")));
+        HostCheck.True(!receipt.RootElement.GetProperty("Complete").GetBoolean() && receipt.RootElement.GetProperty("Responses").GetArrayLength()==0);
+    }
+
     [HostTest("disk static peer external cancellation during a response body preserves its receipt and joins its host")]
     private static async Task CancelBody() => await Run(Mode.CancelBody);
 
@@ -88,6 +107,23 @@ internal static class NativeAotDiskStaticCaptureTests
             try { await operation; } catch { }
         }
         HostCheck.True(host.Launches == 1 && host.Joined);
+        using(var joined=JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination,"runner.json"))))
+        {
+            HostCheck.Equal("clros-disk-http-runner-v1",joined.RootElement.GetProperty("Schema").GetString());
+            HostCheck.True(joined.RootElement.GetProperty("Joined").GetBoolean());
+        }
+        if(mode!=Mode.Healthy)
+        {
+            int failedOrdinal=mode==Mode.WrongStatus?0:3;
+            using var failure=JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(host.Destination,"failure-"+failedOrdinal.ToString("D3",CultureInfo.InvariantCulture)+".json")));
+            var failed=failure.RootElement;
+            HostCheck.Equal("clros-disk-http-failure-v1",failed.GetProperty("Schema").GetString());
+            HostCheck.Equal(failedOrdinal,failed.GetProperty("Ordinal").GetInt32());
+            HostCheck.Equal(mode==Mode.WrongStatus?"validate":"body",failed.GetProperty("Stage").GetString());
+            HostCheck.True(failed.GetProperty("Exceptions").GetArrayLength()>0);
+            HostCheck.True(failed.GetProperty("CallerCancelled").GetBoolean()==(mode==Mode.CancelBody));
+            if(mode==Mode.WrongStatus)HostCheck.True(!failed.GetProperty("OwnerCancelled").GetBoolean());
+        }
         await RequireStopped(host.Port);
         byte[] receiptBytes = await File.ReadAllBytesAsync(Path.Combine(host.Destination, "http.json"));
         using var receipt = JsonDocument.Parse(receiptBytes);
@@ -174,7 +210,7 @@ internal static class NativeAotDiskStaticCaptureTests
         HostCheck.True(refused);
     }
 
-    private enum Mode { Healthy, WrongStatus, CancelBody }
+    private enum Mode { Healthy, WrongStatus, CancelBody, ResetHeaders }
 
     private sealed class Host
     {
@@ -211,6 +247,7 @@ internal static class NativeAotDiskStaticCaptureTests
             app.Use(async (context, next) =>
             {
                 Requests.Enqueue(context.Request.Path.Value!);
+                if(mode==Mode.ResetHeaders){context.Abort();return;}
                 if (mode == Mode.WrongStatus && context.Request.Path == "/healthz")
                 {
                     context.Response.StatusCode = 503;

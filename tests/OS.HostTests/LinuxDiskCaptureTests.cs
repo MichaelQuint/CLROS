@@ -10,6 +10,102 @@ using F = OS.Tooling.LinuxDiskFileProofFixture;
 
 internal static class LinuxDiskCaptureTests
 {
+    [HostTest("exit pending capture joins full parents independent inode metadata and exact abandoned data prefix",HostLane.Native)]
+    private static void ExitPendingCapture()=>WithCapture(c=>
+    {
+        foreach(int copied in new[]{0,2,15})
+        {
+            string[] rows=BuildExitRows(c,copied),before=rows.ToArray();
+            byte[] package=LinuxDiskRaceProofFixture.CreatePackage("ExitPending");
+            var report=QemuTranscripts.InspectLinuxDiskExitPendingCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+            HostCheck.True(!report.CheckedOriginalExecution && report.Leaf.CheckedSchedulerReplay && rows.SequenceEqual(before));
+            HostCheck.Equal(copied,report.CopiedDataSectors.Count);
+            HostCheck.Equal(c.Receipt.FinalSha256,report.ImageSha256);
+            HostCheck.True(report.Pending.Stages.Records[7].Values["clock"]>Field(rows[Index(rows,"M16_008_BUDGET_END ")],"nanos"));
+            ulong retained=report.Pending.Stages.Records[0].Values["inode"];Array.Fill(rows,"changed");Array.Clear(package);
+            HostCheck.Equal(retained,report.Pending.Stages.Records[0].Values["inode"]);
+        }
+    });
+
+    [HostTest("exit pending capture rejects coherent wrong inode later sector metadata substitution and detached original rows",HostLane.Native)]
+    private static void ExitPendingCaptureRejections()=>WithCapture(c=>
+    {
+        byte[] package=LinuxDiskRaceProofFixture.CreatePackage("ExitPending");string[] rows=BuildExitRows(c,2);
+        QemuTranscripts.InspectLinuxDiskExitPendingCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+        void Deny(string[] changed,string reason)
+        {
+            string? actual=null;try{_=QemuTranscripts.InspectLinuxDiskExitPendingCaptureValues(changed,package,c.Image,c.Receipt,c.Path);}
+            catch(ToolFailure error){actual=error.Reason;}HostCheck.True(actual?.Contains(reason,StringComparison.Ordinal)==true,reason+" actual="+actual);
+        }
+        Deny(rows.Select(r=>r.StartsWith("M16_025_EXIT_PENDING ",StringComparison.Ordinal)?Set(r,"inode",Field(r,"inode")+1):r).ToArray(),"disk_exit_capture_inode");
+        var inventory=WebRootDiskInventory.Inspect(c.Path,c.Image,c.Receipt);
+        var data=inventory.Find("/app/wwwroot/fixture/fragmented.bin")!.Cover(0,8192);
+        ulong lastGeneration=Field(rows[Index(rows,"M16_025_EXIT_PENDING stage=1 ")],"blockGeneration");
+        string[] later=rows.Select(r=>r.StartsWith("M16_025_EXIT_PENDING ",StringComparison.Ordinal)?Set(Set(r,"sector",data[3].Lba),"ioSector",data[3].Lba):
+            r.StartsWith("M16_023_IO ",StringComparison.Ordinal)&&Field(r,"generation")==lastGeneration?Set(r,"sector",data[3].Lba):r).ToArray();
+        QemuTranscripts.InspectLinuxDiskExitPendingDeviceValues(later,package,c.Image);Deny(later,"disk_exit_capture_data_prefix");
+        string[] metadata=rows.Select(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)&&Field(r,"generation")==38?IoSector(r,data[0].Lba,c.Image):r).ToArray();
+        QemuTranscripts.InspectLinuxDiskExitPendingDeviceValues(metadata,package,c.Image);Deny(metadata,"metadata_asset");
+        int bound=Index(rows,"M16_023_BOUND ");Deny(Change(rows,bound,"pages",89),"disk_capture_measured_layout");
+        int supervisor=Index(rows,"M16_008_SUPERVISOR ");
+        Deny([..rows[..(supervisor+1)],"M16_008_TIMING identity=4294967297 epoch=1 start=1 arm=2 capture=3 ready=4 periodFs=1000000000",..rows[(supervisor+1)..]],"unexpected_irq_timing");
+        int io=Index(rows,"M16_023_IO ");Deny([..rows[..io],..rows[(io+1)..]],"request_identity");
+        Deny([..rows,rows[io]],"io_order");
+    });
+
+    private static string IoSector(string row,ulong sector,byte[] image)
+    {
+        row=Set(row,"sector",sector);int data=row.IndexOf(" data=",StringComparison.Ordinal);
+        return data<0?row:row[..(data+6)]+Convert.ToHexString(image.AsSpan(checked((int)sector*512),512)).ToLowerInvariant();
+    }
+
+    private static string[] BuildExitRows(Capture c,int copied)
+    {
+        var inventory=WebRootDiskInventory.Inspect(c.Path,c.Image,c.Receipt);
+        var file=inventory.Find("/app/wwwroot/fixture/fragmented.bin")!;var sectors=file.Cover(0,8192);
+        byte[] package=LinuxDiskRaceProofFixture.CreatePackage("ExitPending");var view=LinuxElfPackage.Validate(package);
+        var shell=c.Rows.ToList();int first=shell.IndexOf("TEST_START m16-009"),last=shell.IndexOf("TEST_PASS m16-009");shell.RemoveRange(first,last-first+1);
+        void Replace(string prefix,string value)=>shell[shell.FindIndex(r=>r.StartsWith(prefix,StringComparison.Ordinal))]=value;
+        Replace("M16_002_STAGED ",$"M16_002_STAGED bytes={package.Length} payload={view.PayloadBytes} pages={(package.Length+4095)/4096} handlesClosed=2 reads=1");
+        Replace("M16_002_DIGEST ","M16_002_DIGEST "+Convert.ToHexString(SHA256.HashData(package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes))).ToLowerInvariant());
+        Replace("M16_002_PACKAGE_DIGEST ","M16_002_PACKAGE_DIGEST "+Convert.ToHexString(SHA256.HashData(package)).ToLowerInvariant());
+        string[] startup=LinuxDiskParentTests.StartupRows(package)[^7..];
+        startup[3]="M16_004_TABLES root=2097152 used=17 leaves=1737 ranges=65";
+        startup[4]="M16_004_READBACK old=1048576 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
+        int startupAt=shell.IndexOf("TEST_START m16-004");shell.RemoveRange(startupAt,7);shell.InsertRange(startupAt,startup);
+        ulong generation=37;List<string> leaf=[];
+        foreach(string original in LinuxDiskRaceTranscriptTests.ExitPendingStagedLeaf())
+        {
+            string row=Regex.Replace(original,@"\b(clock|nanos|started)=([0-9]+)",m=>m.Groups[1].Value+"="+(10_000_000UL+ulong.Parse(m.Groups[2].Value,CultureInfo.InvariantCulture)*1000).ToString(CultureInfo.InvariantCulture));
+            if(original.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal))row=Set(row,"nanos",Field(original,"nanos"));
+            if(row.StartsWith("M16_023_BOUND ",StringComparison.Ordinal))row=$"M16_023_BOUND owner=1179648 epoch=5562286797237662465 arena=9437184 pages=90 bar=4026531840 capacity={c.Image.Length/512} bootstrapCompleted=37 bootstrapCopied=37 clock=10001000 pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+            if(row.StartsWith("M16_025_COMPLETE ",StringComparison.Ordinal))Emit(inventory.DirectorySectors[0].Lba,Field(row,"clock")-3,true);
+            if(row.StartsWith("M16_025_EXIT_PENDING stage=1 ",StringComparison.Ordinal))
+            {
+                for(int i=0;i<copied;i++)Emit(sectors[i].Lba,19_000_000UL+(ulong)i*3,true);
+                Emit(sectors[copied].Lba,19_001_000,false);
+            }
+            if(row.StartsWith("M16_025_EXIT_PENDING ",StringComparison.Ordinal))
+            {
+                foreach(string field in new[]{"blockGeneration","submitted","available","ioGeneration"})row=Set(row,field,generation);
+                foreach(string field in new[]{"completed","consumed","copied"})row=Set(row,field,generation-1);
+                row=Set(Set(Set(Set(row,"inode",file.Inode),"sector",sectors[copied].Lba),"ioSector",sectors[copied].Lba),"clock",20_000_000+Field(row,"stage")*1000);
+            }
+            leaf.Add(row);
+        }
+        HostCheck.Equal(40UL+(ulong)copied,generation);shell.InsertRange(first,leaf);
+        Replace("M16_025_END ",$"M16_025_END submitted={generation} completed={generation-1} copied={generation-1} bootstrapCompleted=37 bootstrapCopied=37 fsReads={generation-34} cacheHits=20 cacheMisses=1 device=retired fs=retired dma=zero descriptors=closed reservation=retained");
+        return shell.ToArray();
+        void Emit(ulong sector,ulong clock,bool complete)
+        {
+            generation++;string common=$"owner=1179648 epoch=5562286797237662465 generation={generation} sector={sector} sequence={generation} bytes=512 available={generation}";
+            leaf.Add($"M16_023_IO kind=0 {common} consumed={generation-1} clock={clock}");
+            if(!complete)return;
+            leaf.Add($"M16_023_IO kind=1 {common} consumed={generation} clock={clock+1}");
+            leaf.Add($"M16_023_IO kind=2 {common} consumed={generation} clock={clock+2} copied=committed data={Convert.ToHexString(c.Image.AsSpan(checked((int)sector*512),512)).ToLowerInvariant()}");
+        }
+    }
+
     [HostTest("disk capture joins portable real image sectors indexed waits timing and IRQ boundaries", HostLane.Native)]
     private static void PortablePositive() => WithCapture(c =>
     {
@@ -118,14 +214,15 @@ internal static class LinuxDiskCaptureTests
 
     private sealed class Capture(string[] rows, byte[] image, string path, WebRootImageFixture.Receipt receipt)
     {
+        internal readonly string Path=path;
         internal readonly string[] Rows = rows;
         internal readonly byte[] Package = F.CreatePackage(), Image = image;
         internal readonly WebRootImageFixture.Receipt Receipt = receipt;
-        internal QemuTranscripts.LinuxDiskCaptureInspection Inspect() => QemuTranscripts.InspectLinuxDiskCaptureValues(Rows, Package, Image, Receipt, path);
+        internal QemuTranscripts.LinuxDiskCaptureInspection Inspect() => QemuTranscripts.InspectLinuxDiskCaptureValues(Rows, Package, Image, Receipt, Path);
         internal void Reject(string[] candidate, string reason, byte[]? image = null, WebRootImageFixture.Receipt? receipt = null)
         {
             string? actual = null;
-            try { _ = QemuTranscripts.InspectLinuxDiskCaptureValues(candidate, Package, image ?? Image, receipt ?? Receipt, path); }
+            try { _ = QemuTranscripts.InspectLinuxDiskCaptureValues(candidate, Package, image ?? Image, receipt ?? Receipt, Path); }
             catch (ToolFailure error) { actual = error.Reason; }
             HostCheck.True(actual?.Contains(reason, StringComparison.Ordinal) == true, reason + " actual=" + actual);
         }

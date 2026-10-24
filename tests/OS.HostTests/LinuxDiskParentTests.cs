@@ -100,10 +100,43 @@ internal static class LinuxDiskParentTests
         Reject([.. Envelope(), "unknown"], "socket_parent_extra_record");
     }
 
-    [HostTest("disk startup accepts exactly65 ranges only for the canonical mechanical package")]
-    private static unsafe void StartupRanges()
+    [HostTest("disk startup admits exact ExitPending bytes only through its explicit mechanical branch")]
+    private static void ExitPendingStartup()
     {
-        byte[] package = LinuxDiskFileProofFixture.CreatePackage(); var view = LinuxElfPackage.Validate(package);
+        byte[] package=LinuxDiskRaceProofFixture.CreatePackage("ExitPending");
+        string[] rows=StartupRows(package),before=rows.ToArray();
+        HostCheck.Equal(rows.Length-7,QemuTranscripts.ValidateLinuxStartupTail(rows,package,diskFiles:true,diskExitPending:true).Length);
+        HostCheck.True(rows.SequenceEqual(before));
+        void Deny(byte[] candidate,bool disk=true,bool web=false,bool pending=true,string[]? input=null)
+        {
+            bool denied=false;try{_=QemuTranscripts.ValidateLinuxStartupTail(input??rows,candidate,disk,web,pending);}
+            catch(ToolFailure){denied=true;}HostCheck.True(denied);
+        }
+        Deny(package,pending:false);Deny(package,disk:false);Deny(package,web:true);
+        Deny(LinuxDiskFileProofFixture.CreatePackage());
+        foreach(string variant in LinuxDiskRaceProofFixture.Variants.Where(v=>v!="ExitPending"))Deny(LinuxDiskRaceProofFixture.CreatePackage(variant));
+        byte[] corrupt=package.ToArray();corrupt[^1]^=1;Deny(corrupt);
+        foreach(int ranges in new[]{64,66,135})Deny(package,input:rows.Select(r=>r.Replace("ranges=65","ranges="+ranges,StringComparison.Ordinal)).ToArray());
+    }
+
+    [HostTest("disk startup accepts exactly65 ranges only for the canonical mechanical package")]
+    private static void StartupRanges()
+    {
+        byte[] package=LinuxDiskFileProofFixture.CreatePackage();string[] rows=StartupRows(package);
+        HostCheck.Equal(rows.Length-7,QemuTranscripts.ValidateLinuxStartupTail(rows,package,diskFiles:true).Length);
+        void Denied(string[] input,byte[] candidate,bool disk)
+        {
+            bool rejected=false;try{_=QemuTranscripts.ValidateLinuxStartupTail(input,candidate,diskFiles:disk);}catch(ToolFailure){rejected=true;}
+            HostCheck.True(rejected);
+        }
+        Denied(rows,package,false);
+        foreach(int count in new[]{64,66,135})Denied(rows.Select(r=>r.Replace("ranges=65","ranges="+count,StringComparison.Ordinal)).ToArray(),package,true);
+        Denied(rows,LinuxThreadProofFixture.CreatePackage("Threads"),true);
+    }
+
+    internal static unsafe string[] StartupRows(byte[] package)
+    {
+        var view = LinuxElfPackage.Validate(package);
         byte* seed = stackalloc byte[32]; new Span<byte>(seed, 32).Fill(1);
         byte* stack = (byte*)NativeMemory.AlignedAlloc(view.Manifest.StackBytes, 4096);
         try
@@ -115,22 +148,11 @@ internal static class LinuxDiskParentTests
                     0x70000000UL - view.Manifest.StackBytes, 0, out startup));
             string stackRow = string.Create(CultureInfo.InvariantCulture,
                 $"M16_004_STACK start={startup.StackStart} bytes={startup.StackBytes} sp={startup.StackPointer} argc={startup.ArgumentCount} envc={startup.EnvironmentCount} random={startup.RandomAddress} entropyBytes=32 seedCleared=32");
-            string[] rows = [.. Enumerable.Repeat("parents checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7),
+            return [.. Enumerable.Repeat("parents checked separately", QemuContracts.M03OwnedSubsystemMarkers.Count + 7),
                 "TEST_START m16-004", "M16_004_IMAGE base=4194304 bytes=28672 loads=2 entry=4194816 phdr=4194368 tlsFile=0 tlsMemory=0",
                 stackRow, "M16_004_TABLES root=16777216 used=17 leaves=1737 ranges=65",
                 "M16_004_READBACK old=33554432 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false",
                 "CLROS_M16_004_READY", "TEST_PASS m16-004"];
-            HostCheck.Equal(rows.Length - 7, QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskFiles: true).Length);
-            void Denied(string[] input, byte[] candidate, bool disk)
-            {
-                bool rejected = false;
-                try { _ = QemuTranscripts.ValidateLinuxStartupTail(input, candidate, diskFiles: disk); } catch (ToolFailure) { rejected = true; }
-                HostCheck.True(rejected);
-            }
-            Denied(rows, package, false);
-            foreach (int count in new[] { 64, 66, 135 })
-                Denied(rows.Select(row => row.Replace("ranges=65", "ranges=" + count, StringComparison.Ordinal)).ToArray(), package, true);
-            Denied(rows, LinuxThreadProofFixture.CreatePackage("Threads"), true);
         }
         finally { NativeMemory.AlignedFree(stack); }
     }

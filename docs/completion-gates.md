@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1586](../done/step1586.md) keeps full DiskA r02 failed:35 HTTP responses, no browser, abrupt last observation629502029300ns and no cleanup terminal. Active16MiB runner capacity and exact16MiB+2740 log size explain a strong source/evidence match; the initiating runner error was lost. Full-only capacity is repaired to128MiB with first-error diagnostics. Connected ExitPending original ownership still needs fresh execution. No complete read/Blazor, writable guest, persistence, SQLite synchronization/recovery, Gate7/Gate14 or readiness acceptance.
+
 [Step1585](../done/step1585.md) records unfiltered full6516 checks across882 fixture results at5dd6e6c0, unchanged/zero reuse. Original full DiskA r01 then fails after31 HTTP responses at about600s, before requested shutdown/browser. These distinct results do not close the read batch. Copied finite FIFO/reset accounting, writable POD/data-image and process-lock tests grant no original race, full Blazor, writes/synchronization, reboot recovery or CLROS SQLite acceptance.
 
 [Step1584](../done/step1584.md) adds74 passing focused copied-contract and

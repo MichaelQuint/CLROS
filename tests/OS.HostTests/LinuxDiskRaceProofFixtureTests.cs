@@ -272,10 +272,10 @@ internal static class LinuxDiskRaceProofFixtureTests
         Invalid("-LinuxDiskRaceVariant=Progress", "-LinuxDiskRaceVariant:Progress");
     }
 
-    [HostTest("disk race execution cannot substitute the canonical fixture before an original race owner exists")]
+    [HostTest("unconnected disk race variants refuse original execution before any child launches")]
     private static async Task OriginalOwnerRequired()
     {
-        foreach(string variant in F.Variants)
+        foreach(string variant in F.Variants.Where(v=>v!="ExitPending"))
         {
             bool launched=false;using StringWriter output=new();
             var options=QemuSmokeOptions.Parse([..SelectionArguments,"-LinuxDiskRaceVariant",variant]);
@@ -284,6 +284,24 @@ internal static class LinuxDiskRaceProofFixtureTests
             HostCheck.True(exit==1 && !launched && output.ToString().Contains(
                 "TEST_FAIL qemu.smoke disk_race_complete_consumer_required",StringComparison.Ordinal));
         }
+    }
+
+    [HostTest("disk mechanical package selection requires exact canonical bytes for its separate original consumer")]
+    private static void OriginalPackageSelection()
+    {
+        byte[] ordinary=LinuxDiskFileProofFixture.CreatePackage(),pending=F.CreatePackage("ExitPending");
+        NativeAotDiskSelection.RequireMechanicalPackage(ordinary,"");
+        NativeAotDiskSelection.RequireMechanicalPackage(pending,"ExitPending");
+        void Deny(byte[] package,string variant)
+        {
+            bool denied=false;try{NativeAotDiskSelection.RequireMechanicalPackage(package,variant);}catch(ToolFailure){denied=true;}
+            HostCheck.True(denied);
+        }
+        Deny(ordinary,"ExitPending");Deny(pending,"");
+        foreach(string variant in F.Variants.Where(v=>v!="ExitPending"))
+        {Deny(F.CreatePackage(variant),variant);Deny(F.CreatePackage(variant),"ExitPending");}
+        byte[] altered=pending.ToArray();altered[^1]^=1;Deny(altered,"ExitPending");
+        Deny(pending,"Unknown");
     }
 
     [HostTest("disk race package command publishes exact fresh artifact bytes and preserves rejected destinations")]
