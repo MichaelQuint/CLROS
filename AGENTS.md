@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1589](done/step1589.md) preserves failed full DiskA r03 and guest-success/wrapper-failed ExitPending r02. The bounded64-visit cached-chain repair and fresh HPET cleanup terminal are development changes requiring new source-matched originals. Do not enlarge request/runtime budgets, reinterpret the earlier network-end clock as final cleanup, or synthesize the new witness into retained captures. The isolated writable integration remains host-only; exactly two agents continue bootstrap and descriptor/application preparation.
+
 [Step1588](done/step1588.md) records isolated writable-thread-waits host integration and the seven root source5 path claims, verified before edits. Keep read qualification on its frozen producer checkout and serialize native work. The combined writable foundation passes192 distinct host controls; source5/global integration and native/guest durability are still unfinished. Exactly two implementation agents remain active.
 
 [Step1587](done/step1587.md) preserves original ExitPending r01 at91cd04cd as FAILED. Do not weaken its strict pending owner or infer active hardware DMA from a software-pending request. Validated exit_group now dispatches genuine shutdown before opportunistic device polling; the new failure-only reasons and ordering need a fresh original. Full DiskA r03 remains owned at91cd04cd: keep that checkout frozen until its runner joins. M16-027 adds four explicitly claimed descriptor partial/test paths; root retains gateway/source5/threads/boot/native/docs/tracker.

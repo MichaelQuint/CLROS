@@ -92,8 +92,21 @@ public static partial class QemuTranscripts
         Need(expected.Length==16 && copied.Count<expected.Length && copied.SequenceEqual(expected.Take(copied.Count)) &&
             pending.Device.Rows[^1].Sector==expected[copied.Count] && pending.Device.Rows[^1].Kind==NativeDiskReadObservations.Kind.Submitted,
             "disk_exit_capture_data_prefix");
-        foreach(var s in pending.Stages.Records)
-            Need(s.Values["clock"]>=binding.Disk["clock"] && s.Values["clock"]<=parents.Network.End["end"],"disk_exit_capture_stage_lifetime");
+        var terminal=leaf.ExitCleanupEnd!.Value;
+        var terminals=rows.Select((row,index)=>(row,index)).Where(x=>x.row.StartsWith("M16_025_EXIT_CLEANUP_END ",StringComparison.Ordinal)).ToArray();
+        Need(terminals.Length==1 && terminals[0].index==first+terminal.RecordIndex,"disk_exit_capture_cleanup_identity");
+        var fullTerminal=ReadRecord(terminals[0].row,"M16_025_EXIT_CLEANUP_END","owner:dec","epoch:dec","clock:dec");
+        Need(fullTerminal.All(v=>terminal.Values[v.Key]==v.Value),"disk_exit_capture_cleanup_identity");
+        var budgetEnds=rows.Where(r=>r.StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal)).ToArray();
+        Need(budgetEnds.Length==1,"disk_exit_capture_budget_end");
+        ulong activeEnd=ReadRecord(budgetEnds[0],"M16_008_BUDGET_END","nanos:dec")["nanos"];
+        for(int i=0;i<8;i++)
+        {
+            ulong value=pending.Stages.Records[i].Values["clock"];
+            ulong lower=i<3?binding.Disk["clock"]:i<7?activeEnd:parents.Network.End["end"];
+            ulong upper=i<3?activeEnd:i<7?parents.Network.End["end"]:terminal.Values["clock"];
+            Need(value>=lower && value<=upper,"disk_exit_capture_stage_lifetime");
+        }
         foreach(var a in leaf.Auxiliary)
         {
             if(!a.Text.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal))continue;
@@ -290,6 +303,7 @@ public static partial class QemuTranscripts
         public bool CheckedCrossWorkerOrdering => true;
         public bool CheckedSchedulerReplay => ExitPendingStages is not null;
         public LinuxDiskExitPendingValues? ExitPendingStages { get; }
+        public LinuxDiskExitPendingRecord? ExitCleanupEnd { get; }
         public bool CheckedUserMemoryOrAuxiliaryJoins => false;
         public bool CheckedSignalReturnEnvelopes => Variant is "InterruptWins" or "CompletionWins";
         public bool CheckedPostDeathSentinelOrOrphanDrain => false;
@@ -305,7 +319,8 @@ public static partial class QemuTranscripts
         public int ChildSignalIndex { get; }
         internal LinuxDiskRaceLeafReport(string variant, int transfers, ulong epochs, List<LinuxDiskRaceCall> calls,
             List<LinuxDiskRaceWindow> windows, List<LinuxDiskAuxiliary> auxiliary, int read, int complete, int close,
-            List<LinuxDiskRaceAbandoned> abandoned, int signal, LinuxDiskExitPendingValues? stages = null)
+            List<LinuxDiskRaceAbandoned> abandoned, int signal, LinuxDiskExitPendingValues? stages = null,
+            LinuxDiskExitPendingRecord? cleanupEnd = null)
         {
             Variant = variant; Transfers = transfers; Epochs = epochs;
             Calls = Array.AsReadOnly(calls.ToArray()); Windows = Array.AsReadOnly(windows.ToArray());
@@ -313,6 +328,7 @@ public static partial class QemuTranscripts
             MainReadCompletionIndex = complete; ChildCloseIndex = close;
             Abandoned = Array.AsReadOnly(abandoned.ToArray()); ChildSignalIndex = signal;
             ExitPendingStages = stages;
+            ExitCleanupEnd = cleanupEnd;
         }
     }
 
@@ -645,9 +661,23 @@ public static partial class QemuTranscripts
         }
         for (uint fd = 0; fd < (exitPending ? 8U : 3U); fd++) { int index = at; Exact("M16_011_CLOSE fd=" + fd + " valueBits=0"); Aux(index); }
         if (stages is not null) ExitTailStage(8);
+        LinuxDiskExitPendingRecord? cleanupEnd=null;
+        if(stages is not null)
+        {
+            int index=at;
+            var terminal=Row("M16_025_EXIT_CLEANUP_END","owner:dec","epoch:dec","clock:dec");
+            Need(terminal["owner"]==stages.Records[0].Values["owner"] && terminal["epoch"]==stages.Records[0].Values["epoch"] &&
+                terminal["clock"]>=stages.Records[7].Values["clock"] && terminal["clock"]>=budget["started"] &&
+                terminal["clock"]<=long.MaxValue && terminal["clock"]-budget["started"]<LinuxThreadExecutionBudget.RuntimeNanoseconds,
+                "disk_exit_cleanup_terminal");
+            cleanupEnd=new(index,new System.Collections.ObjectModel.ReadOnlyDictionary<string,ulong>(terminal)); Aux(index);
+        }
         var finished = Row("M16_008_BUDGET_END", "nanos:dec");
         Need(finished["nanos"] >= clock && finished["nanos"] >= budget["started"] && finished["nanos"] <= long.MaxValue &&
             finished["nanos"] - budget["started"] < LinuxThreadExecutionBudget.RuntimeNanoseconds, "disk_race_budget_end");
+        if(stages is not null)
+            Need(stages.Records.Take(3).All(s=>s.Values["clock"]<=finished["nanos"]) &&
+                stages.Records.Skip(3).Take(4).All(s=>s.Values["clock"]>=finished["nanos"]),"disk_exit_active_cleanup_boundary");
         const string cleanup = " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
         string ownerEnd = Take(); Need(ownerEnd.EndsWith(cleanup, StringComparison.Ordinal), "disk_race_cleanup");
         var end = ReadRecord(ownerEnd[..^cleanup.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
@@ -658,7 +688,7 @@ public static partial class QemuTranscripts
                 (close ? childClose > mainRead && childClose < mainComplete : signalRace ? childSignal > mainRead && childSignal < mainComplete && handlerReturned :
                  childDuplicate > mainRead && childDuplicate < mainComplete)),
             "disk_race_terminal");
-        return new(variant, transfers, epoch, calls, windows, auxiliary, mainRead, mainComplete, childClose, abandoned, childSignal, stages);
+        return new(variant, transfers, epoch, calls, windows, auxiliary, mainRead, mainComplete, childClose, abandoned, childSignal, stages, cleanupEnd);
     }
 
     // Deliberately finite: the two preparation waits complete before clone,

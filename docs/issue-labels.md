@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1589](../done/step1589.md) keeps M16-024/M16-025/M10-018 open while recording original failures and unqualified repairs. Reconcile fresh content versions with the explicit current manifest, read back every change and preserve the newer M16-027 seven-path source5 claim. A guest terminal without a passing complete original wrapper does not close an issue.
+
 [Step1588](../done/step1588.md) claims seven root source5 integration paths on M16-027. The compiled tool resolves its own repository root; cross-checkout reconciliation therefore used an explicit absolute --manifestpath, then preview1/apply1/readback9 unchanged before source edits. Initial implicit-path zero-action previews inspected the earlier read checkout and did not claim the new scope. Preserve both receipts; no issue closes.
 
 [Step1587](../done/step1587.md) extends M16-027 ownership by the global descriptor core/Pipes/new WritableDisk partial/new test paths. Fresh scoped preview1/apply1/readback9unchanged verifies zero drift before agent source edits. Gateway, source5 threads and native integration stay root-owned. Preserve the failed original ExitPending and pending full r03 boundaries; no issue closes from this ownership preparation.

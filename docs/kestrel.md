@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1589](../done/step1589.md) preserves full DiskA r03 at91cd04cd as failed:64 responses/1,176,061 bytes, then CoreLib headers time out at240.005 seconds. Three repeated metadata calls consume214.996 seconds before open remains pending. The repair batches at most64 cached chain visits without changing request budgets or I/O turns. ExitPending r02 atfeb757b5 has guest success but failed original wrapper; the new cleanup clock requires another original. Three full source-matched A/B/browser captures remain pending.
+
 [Step1588](../done/step1588.md) assembles isolated host-only writable block/FAT/provider prerequisites.192 distinct controls pass, while genuine global-fd/source5/native log/upload/SQLite integration remains unfinished. This changes no full Blazor, Kestrel/Gate14 or persistence acceptance.
 
 [Step1587](../done/step1587.md) records a failed original mechanical ExitPending capture and its unqualified exit-before-poll repair. Separate full DiskA r03 at91cd04cd remains pending; full r01/r02 remain failed and no external Blazor demonstration is accepted. Writable descriptor preparation does not establish persistence, SQLite transactions or general Kestrel acceptance.

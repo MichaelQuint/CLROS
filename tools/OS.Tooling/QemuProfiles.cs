@@ -229,6 +229,11 @@ public static class QemuProfiles
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M16_002_STAGE_REJECTED", "M16_008_STOP "], true,
                 records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
             ordered = Merge(prefix, tail);
+            if(options.LinuxDiskRaceVariant=="ExitPending")
+            {
+                required=Merge(required,["M16_025_EXIT_CLEANUP_END "]);
+                unique=Merge(unique,["M16_025_EXIT_CLEANUP_END "]);
+            }
         }
         else if(diskStatic)
         {

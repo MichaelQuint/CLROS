@@ -128,6 +128,7 @@ public static unsafe partial class EfiEntry
             bool staticCompleted = staticApp.GracefulExit && state->LinuxSyscallExitCode == 0;
 #endif
 #if M16_025_PROBE
+            ulong diskStarted = c == null ? 0 : c->Budget.StartedNanoseconds;
             if (!RetireNativeDiskAttachment(state, c) || !ObserveNativeDiskExitSentinel(state, c)) return LinuxNativeCleanupRejected(state, 13);
 #endif
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
@@ -155,6 +156,9 @@ public static unsafe partial class EfiEntry
             if (!ClearLinuxRandom(state)) return LinuxNativeCleanupRejected(state, 9);
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return LinuxNativeCleanupRejected(state, 10);
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
+#if M16_025_PROBE
+            if (!ObserveNativeDiskExitCleanupEnd(state, diskStarted)) return LinuxNativeCleanupRejected(state, 13);
+#endif
 #if M16_014_PROBE
             if (serviceGcConfigured && (!LinuxText(state, "M16_016_MEMORY poolPages=") ||
                 !LinuxNumber(state, LinuxMemoryPoolPages(state)) ||
