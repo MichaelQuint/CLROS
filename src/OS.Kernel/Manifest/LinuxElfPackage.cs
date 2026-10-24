@@ -111,7 +111,11 @@ public static unsafe class LinuxElfPackage
                 DataRecordHeaderBytes + (ulong)pathBytes + dataBytes != record || record > length - at)
                 return LinuxElfStatus.InvalidLength;
             byte* path = bytes + at + DataRecordHeaderBytes;
-            if (!SafePath(path, pathBytes) || pathBytes < 5 || !Equal(path, 5, "apps/") ||
+            // V2 has two explicit immutable namespaces beneath /app. The
+            // webroot records are staged controls, never demand-disk evidence.
+            bool appData = pathBytes >= 5 && Equal(path, 5, "apps/");
+            bool webData = pathBytes >= 8 && Equal(path, 8, "wwwroot/");
+            if (!SafePath(path, pathBytes) || !(appData || webData) ||
                 BytesEqual(path, pathBytes, bytes + view.ManifestOffset + view.Manifest.Path.Offset, view.Manifest.Path.Length))
                 return LinuxElfStatus.InvalidPath;
             uint previous = view.DataTableOffset;

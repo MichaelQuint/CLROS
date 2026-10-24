@@ -104,6 +104,7 @@
 		<EnableM16012Probe Condition="'$(EnableM16012Probe)' == ''">false</EnableM16012Probe>
 		<EnableM16013Probe Condition="'$(EnableM16013Probe)' == ''">false</EnableM16013Probe>
 		<EnableM16014Probe Condition="'$(EnableM16014Probe)' == ''">false</EnableM16014Probe>
+		<EnableM10017Probe Condition="'$(EnableM10017Probe)' == ''">false</EnableM10017Probe>
 		<EnableM10004Probe Condition="'$(EnableM10004Probe)' == ''">false</EnableM10004Probe>
 		<EnableM16019UnavailableProbe Condition="'$(EnableM16019UnavailableProbe)' == ''">false</EnableM16019UnavailableProbe>
 		<EnableM16019InvalidProbe Condition="'$(EnableM16019InvalidProbe)' == ''">false</EnableM16019InvalidProbe>
@@ -417,6 +418,9 @@
 	<PropertyGroup Condition="'$(EnableM16014Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M16_014_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM10017Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M10_017_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM10004Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M10_004_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -600,7 +604,7 @@
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
 			'$(EnableM16014Probe)' == 'true' or
-			'$(EnableM10004Probe)' == 'true' or
+			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
 			'$(EnableM16019InvalidProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -961,6 +965,8 @@
 		<Compile Include="Boot\EfiEntry.LinuxThreadRun.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreadTimer.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxSockets.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
+		<Compile Include="Boot\EfiEntry.StaticFiles.cs" Condition="'$(EnableM10017Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs" Link="Compatibility\LinuxX64\LinuxStaticFileObservation.cs" Condition="'$(EnableM10017Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxWeb.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.Realtime.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxAppLogBudget.cs" Link="Compatibility\LinuxX64\LinuxAppLogBudget.cs" Condition="'$(EnableM10004Probe)' == 'true'" />
@@ -1053,7 +1059,7 @@
 			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM16013Probe)' == 'true' or
 			'$(EnableM16014Probe)' == 'true' or
-			'$(EnableM10004Probe)' == 'true' or
+			'$(EnableM10004Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or
 			'$(EnableM16019UnavailableProbe)' == 'true' or
 			'$(EnableM16019InvalidProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -2219,6 +2225,9 @@
 		<Error Condition="'$(EnableM16013Probe)' == 'true' and '$(EnableM16012Probe)' != 'true'" Text="m16_013_requires_epoll_parent" />
 		<Error Condition="'$(EnableM16013Probe)' == 'true' and ('$(EnableM07027Probe)' == 'true' or '$(EnableM07028Probe)' == 'true' or '$(EnableM10004Probe)' == 'true' or '$(EnableM09011Probe)' == 'true' or '$(EnableM09012Probe)' == 'true' or '$(EnableM16010Probe)' == 'true')" Text="socket_vectors_profile_conflict" />
 		<Error Condition="'$(EnableM16012Probe)' != 'true' and '$(EnableM16012Probe)' != 'false'" Text="m16_012_switch_invalid" />
+		<Error Condition="'$(EnableM10017Probe)' != 'true' and '$(EnableM10017Probe)' != 'false'" Text="static_files_switch_invalid" />
+		<Error Condition="'$(EnableM10017Probe)' == 'true' and '$(EnableM10004Probe)' != 'true'" Text="static_files_requires_web_parent" />
+		<Error Condition="'$(EnableM10017Probe)' == 'true' and ('$(EnableM16014Probe)' == 'true' or '$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true')" Text="static_files_profile_conflict" />
 		<Error Condition="'$(EnableM10004Probe)' != 'true' and '$(EnableM10004Probe)' != 'false'" Text="m10_004_switch_invalid" />
 		<Error Condition="'$(EnableM10004Probe)' == 'true' and '$(EnableM16012Probe)' != 'true'" Text="m10_004_requires_socket_parent" />
 		<Error Condition="'$(EnableM16012Probe)' == 'true' and '$(EnableM16011Probe)' != 'true'" Text="m16_012_requires_socket_parent" />

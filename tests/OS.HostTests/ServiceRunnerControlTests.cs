@@ -4,6 +4,23 @@ using OS.Tools.QemuRunner;
 
 internal static class ServiceRunnerControlTests
 {
+    [HostTest("finite static runner keeps the held base immutable and declares UTC before guest entry")]
+    private static void StaticImageOwnership()
+    {
+        string[] args = Fixture("675"); args[Array.IndexOf(args, "--continuing-service")] = "--finite-static-files";
+        var result = Run(args); HostCheck.Equal(0, result.ExitCode); HostCheck.Equal("", result.Error);
+        HostCheck.True(result.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=", StringComparison.Ordinal));
+        HostCheck.True(result.Output.Contains("-rtc base=utc,clock=host", StringComparison.Ordinal));
+        HostCheck.True(result.Output.Contains("CLROS_M10_017_READY", StringComparison.Ordinal));
+        HostCheck.True(result.Output.Contains("TEST_PASS m16-012", StringComparison.Ordinal));
+        HostCheck.True(!result.Output.Contains("filter-redirector", StringComparison.Ordinal));
+        foreach (string flag in new[] { "--image", "--serial-log", "--summary-log", "--ethernet-capture" })
+            HostCheck.True(!File.Exists(args[Array.IndexOf(args, flag) + 1]));
+        Reject([..args, "--continuing-web"]); Reject([..args, "--continuing-service"]);
+        Reject(Replace((string[])args.Clone(), "--timeout", "599"));
+        Reject(Replace((string[])args.Clone(), "--timeout", "901"));
+    }
+
     [HostTest("service runner CLI admits bounded modern captured service dry run without creating owners", HostLane.Fast, 0)]
     private static void Selection()
     {

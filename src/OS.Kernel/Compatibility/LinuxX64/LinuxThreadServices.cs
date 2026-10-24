@@ -400,6 +400,10 @@ public unsafe partial struct LinuxThreadServices
     public bool Release(ulong key, ulong flags)
     {
         if (!Access(key, flags) || _active != 0 || _owner.Threads->Current.IsValid || _owner.Threads->HandoffPending) return false;
+        // A pending disk lookup has no description borrow yet. Reject it before
+        // consuming the independent futex owner, so the original owner can drain
+        // cancellation and retry Release. Futex teardown cannot change fd state.
+        if (_descriptors != null && !LinuxDescriptorServices.CanDetachThreads(_descriptors, _self)) return false;
         if (!ReleaseFutex(flags)) return false;
         if (_descriptors != null && !LinuxDescriptorServices.DetachThreads(_descriptors, _self)) return false;
         if (_signals != null && !LinuxSignalServices.Detach(_signals, _self)) return false;

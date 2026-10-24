@@ -6,6 +6,28 @@ public static class ToolCommand
     {
         try
         {
+            if (args is ["nativeaot", "static-files", "index", var staticElf, var staticDump])
+            {
+                using AuthorityFiles files = new();
+                staticElf = Path.GetFullPath(staticElf); staticDump = Path.GetFullPath(staticDump);
+                var elf = files.Open(Path.GetDirectoryName(staticElf)!, staticElf, "static ELF", "static_index_elf", 16 * 1024 * 1024, singleLink: true);
+                var dump = files.Open(Path.GetDirectoryName(staticDump)!, staticDump, "static disassembly", "static_index_dump", NativeAotStaticFileProgram.MaximumDisassemblyBytes, singleLink: true);
+                AuthorityFiles.RequireDistinct(elf, dump);
+                var report = NativeAotStaticFileProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "static_index_elf"), dump.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes, "static_index_dump"));
+                files.VerifyUnchanged(); Console.WriteLine("TEST_PASS nativeaot.static-files.index report_only=true " + report); return 0;
+            }
+            if (args is ["nativeaot", "static-files", "program", var staticPackage, var staticProgramDump, var staticProgramMode] && staticProgramMode is "--staged" or "--disk")
+            {
+                var program = NativeAotStaticFileProgram.Read(Repository.FindRoot(), staticPackage, staticProgramDump, staticProgramMode == "--staged");
+                Console.WriteLine("TEST_PASS nativeaot.static-files.program " + program.Metadata); return 0;
+            }
+            if (args is ["nativeaot", "static-files", "package", "--recipe-root", var staticRecipe, "--evidence", var staticEvidence,
+                "--output", var staticOutput, var staticMode] && staticMode is "--staged" or "--disk")
+            {
+                string hash = NativeAotStaticFilePackage.Write(Repository.FindRoot(), staticRecipe, staticEvidence, staticOutput, staticMode == "--staged");
+                Console.WriteLine("TEST_PASS nativeaot.static-files.package mode=" + staticMode + " sha256=" + hash);
+                return 0;
+            }
             if (args is ["nativeaot", "static-files", "image", var baseImage, var assetsRoot, var diskOutput, var diskVariant])
             {
                 string repository = Repository.FindRoot();
@@ -244,6 +266,8 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
+                Console.WriteLine("nativeaot static-files package --recipe-root <original-candidate-root> --evidence <original-reference> --output <fresh-artifacts-package> --staged|--disk");
+                Console.WriteLine("nativeaot static-files index <original-ELF> <llvm-disassembly> | program <package> <llvm-disassembly> --staged|--disk");
                 Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("linux socket-vectors-package <original-publication-directory> <fresh-artifacts-package>\nlinux socket-vectors-program <package> <complete-original-llvm-disassembly>");

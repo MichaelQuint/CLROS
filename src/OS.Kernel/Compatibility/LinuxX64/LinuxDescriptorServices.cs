@@ -27,7 +27,11 @@ public static unsafe partial class LinuxDescriptorServices
     private const long Invalid = -22, FileTableFull = -23, DescriptorTableFull = -24;
     private const long NotDirectory = -20, NotTerminal = -25, NotSeekable = -29, ReadOnly = -30;
     private const long NameTooLong = -36, Unsupported = -38, Overflow = -75, NoMemory = -12;
-    internal enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite, Socket, Epoll }
+    internal enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite, Socket, Epoll
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        , Disk
+#endif
+    }
 
     /// <summary>Retained immutable package data, with an exact absolute ASCII
     /// path below /app/ and a nonzero owner-assigned inode at least 256. Paths
@@ -103,6 +107,9 @@ public static unsafe partial class LinuxDescriptorServices
         internal Admission Owner;
         internal uint Initialized, Active, NextInode;
         internal ulong ThreadOwner;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        internal DiskState* Disk;
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         internal LinuxSocketServices.State* Sockets;
         internal LinuxEpollServices.State* Epoll;
@@ -129,6 +136,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         if (!Storage(state, admission) || state->Initialized != 0 || state->Active != 0 || state->NextInode != 0 || state->ThreadOwner != 0)
             return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (state->Disk != null) return false;
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (state->Sockets != null || state->Epoll != null) return false;
 #endif
@@ -215,6 +225,18 @@ public static unsafe partial class LinuxDescriptorServices
     public static bool IsCurrent(State* state, Token token) => Audit(state) && token.Owner == state &&
         Find(state, token.Number) != null && state->Owner.Slots[token.Number].Generation == token.Generation;
 
+    /// <summary>Observe whether closing this exact live fd would drop its
+    /// description's final reference, including pending kernel borrows. The
+    /// serialized owner must keep the observation adjacent to its actual close;
+    /// it grants no mutation, endpoint retirement or resource-release authority.
+    /// Stale/foreign tokens, duplicates and retained I/O borrows return false.</summary>
+    public static bool IsLastReference(State* state, Token token)
+    {
+        if (!IsCurrent(state, token)) return false;
+        Description* description = Find(state, token.Number);
+        return description->References == 1 && description->Borrowers == 0;
+    }
+
     /// <summary>Release all live endpoints and scrub mutable buffers after
     /// user termination. A consumed/invalid owner fails; no process exit, signal
     /// delivery or deallocation is performed here.</summary>
@@ -227,6 +249,9 @@ public static unsafe partial class LinuxDescriptorServices
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (state->Sockets != null && !LinuxSocketServices.Finish(state->Sockets)) return false;
         if (state->Epoll != null && !LinuxEpollServices.Finish(state->Epoll)) return false;
+#endif
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (state->Disk != null && !DetachDisk(state)) return false;
 #endif
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
         Clear(state->Owner.Snapshots, state->Owner.DescriptionCount * SnapshotBytes);
@@ -258,9 +283,14 @@ public static unsafe partial class LinuxDescriptorServices
             for (uint j = 0; j < a.DescriptorCount; j++) if (a.Slots[j].Description == i + 1) references++;
             if (d.References != references) return false;
             if (references == 0 && d.Borrowers == 0) { if (d.Type != 0) return false; continue; }
-            if (d.Borrowers > MaximumDescriptors || d.Borrowers != 0 &&
-                ((Kind)d.Type is not (Kind.PipeRead or Kind.PipeWrite or Kind.Epoll) || state->ThreadOwner == 0)) return false;
-            if (d.Type == 0 || d.Type > (uint)Kind.Epoll || d.Inode == 0 ||
+            bool borrowedKind = (Kind)d.Type is Kind.PipeRead or Kind.PipeWrite or Kind.Epoll;
+            uint maximumKind = (uint)Kind.Epoll;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+            borrowedKind |= (Kind)d.Type == Kind.Disk;
+            maximumKind = (uint)Kind.Disk;
+#endif
+            if (d.Borrowers > MaximumDescriptors || d.Borrowers != 0 && (!borrowedKind || state->ThreadOwner == 0)) return false;
+            if (d.Type == 0 || d.Type > maximumKind || d.Inode == 0 ||
                 (d.Flags & ~(NonBlock | LargeFile | NoFollow | 3U)) != 0 || d.Position > long.MaxValue ||
                 ((Kind)d.Type is Kind.Socket or Kind.Epoll ? (d.Flags & 3) != 2 : (d.Flags & 2) != 0)) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
@@ -268,6 +298,9 @@ public static unsafe partial class LinuxDescriptorServices
             if ((Kind)d.Type == Kind.Epoll && state->Epoll == null) return false;
 #else
             if ((Kind)d.Type is Kind.Socket or Kind.Epoll) return false;
+#endif
+#if !NOSTDLIB_EFI || M16_025_PROBE
+            if ((Kind)d.Type == Kind.Disk && state->Disk == null) return false;
 #endif
             if ((Kind)d.Type == Kind.Package || (Kind)d.Type == Kind.Snapshot)
             {
@@ -297,6 +330,9 @@ public static unsafe partial class LinuxDescriptorServices
         if (state->Sockets != null && !LinuxSocketServices.Audit(state->Sockets, state)) return false;
         if (state->Epoll != null && !LinuxEpollServices.Audit(state->Epoll, state)) return false;
 #endif
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (!AuditDisk(state)) return false;
+#endif
         return true;
     }
 
@@ -304,6 +340,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null || (d->Flags & 1) != 0) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if ((Kind)d->Type == Kind.Disk) return Unsupported; // Requires an owned disk continuation.
+#endif
         if ((Kind)d->Type == Kind.Epoll) return Invalid;
         if (positioned && (Kind)d->Type != Kind.Package && (Kind)d->Type != Kind.Snapshot) return NotSeekable;
         if (requested > MaximumIo || (positioned && offset > long.MaxValue)) return Invalid;
@@ -465,6 +504,9 @@ public static unsafe partial class LinuxDescriptorServices
         var a = state->Owner; Description* d = a.Descriptions + index;
         if (borrow ? d->Borrowers == 0 : d->References == 0) return false;
         bool last = borrow ? d->Borrowers == 1 && d->References == 0 : d->References == 1 && d->Borrowers == 0;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (last && (Kind)d->Type == Kind.Disk && !CloseDiskDescription(state, index)) return false;
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (last && (Kind)d->Type == Kind.Socket && !LinuxSocketServices.Close(state->Sockets, d->Pipe)) return false;
         if (last && state->Epoll != null) LinuxEpollServices.DropDescription(state->Epoll, index, d->Inode, (Kind)d->Type == Kind.Epoll, d->Pipe);
@@ -515,6 +557,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if ((Kind)d->Type == Kind.Disk) return Unsupported;
+#endif
         if ((Kind)d->Type != Kind.Package && (Kind)d->Type != Kind.Snapshot) return NotSeekable;
         if (whence > 2) return Invalid;
         ulong origin = whence == 0 ? 0 : whence == 1 ? d->Position : d->Bytes, next;
@@ -536,6 +581,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null) return BadDescriptor;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if ((Kind)d->Type == Kind.Disk) return Unsupported;
+#endif
         byte* wire = stackalloc byte[144]; Clear(wire, 144);
         *(ulong*)(wire + 8) = d->Inode; *(ulong*)(wire + 16) = 1;
         Kind kind = (Kind)d->Type;
@@ -732,6 +780,14 @@ public static unsafe partial class LinuxDescriptorServices
         if (Overlap(start, bytes, (ulong)a.Views, a.ViewCount * (ulong)sizeof(View))) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (LinuxSocketServices.StorageOverlap(state->Sockets, start, bytes) || LinuxEpollServices.StorageOverlap(state->Epoll, start, bytes)) return false;
+#endif
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (state->Disk != null)
+            for (uint i = 0; i < DiskExtentCount; i++)
+            {
+                DiskExtentAt(state, i, out ulong held, out ulong heldBytes);
+                if (heldBytes != 0 && Overlap(start, bytes, held, heldBytes)) return false;
+            }
 #endif
         for (uint i = 0; i < a.ViewCount; i++)
             if (Overlap(start, bytes, (ulong)a.Views[i].Path, a.Views[i].PathBytes) ||

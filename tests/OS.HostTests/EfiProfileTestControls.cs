@@ -279,11 +279,13 @@ internal static class EfiProfileTestControls
         bool unavailable = selected.Contains("EnableM16019UnavailableProbe");
         bool invalidUtc = selected.Contains("EnableM16019InvalidProbe");
         bool service = selected.Contains("EnableM16014Probe");
+        bool staticFiles = selected.Contains("EnableM10017Probe");
+        if(staticFiles && (service || unavailable || invalidUtc)) return "static_files_profile_conflict";
         if (service && (unavailable || invalidUtc)) return "continuing_service_profile_conflict";
         if ((unavailable || invalidUtc) && ordinarySmoke) return "realtime_rejection_requires_separate_capture";
         if (unavailable && invalidUtc) return "realtime_rejection_controls_conflict";
         // Either fault leaf selects the web parent before ordinary profile guards.
-        if (service || unavailable || invalidUtc) selected = [.. selected, "EnableM10004Probe"];
+        if (service || unavailable || invalidUtc || staticFiles) selected = [.. selected, "EnableM10004Probe"];
         if(selected.Contains("EnableM16013Probe") && new[]{"EnableM07027Probe","EnableM07028Probe","EnableM10004Probe",
             "EnableM09011Probe","EnableM09012Probe","EnableM16010Probe"}.Any(selected.Contains))return "socket_vectors_profile_conflict";
         bool containment = selected.Contains("EnableM07027Probe") || selected.Contains("EnableM07028Probe");
@@ -297,7 +299,7 @@ internal static class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name)))) return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
             if (sockets) return null;
@@ -474,7 +476,7 @@ internal static class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]

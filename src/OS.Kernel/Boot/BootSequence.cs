@@ -231,6 +231,15 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM10004Probe && firmwareAvailable &&
         context != null && prepare != null && prepare(context);
 
+    /// <summary>Enter only the separately admitted finite static-file profile
+    /// through its existing socket/thread/firmware ordering. The caller retains
+    /// every owner until real app exit, off-stack reap and explicit cleanup;
+    /// this gate establishes no HTTP, disk or lifecycle evidence.</summary>
+    public static unsafe bool RunOwnedStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, bool networkReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM10017Probe && OS.Kernel.Diagnostics.Probes.EnableM10004Probe &&
+        RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
+
     /// <summary>Run startup only after package verification and firmware revocation.</summary>
     public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
         void* context, delegate*<void*, bool> run) =>

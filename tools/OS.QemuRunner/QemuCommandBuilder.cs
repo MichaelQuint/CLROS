@@ -25,7 +25,7 @@ internal static class QemuCommandBuilder
         // The finite web fixture may resolve EFI_UNSPECIFIED_TIMEZONE only
         // under this declared UTC RTC contract. Retain these arguments in the
         // runner receipt; arbitrary firmware/local-time configurations differ.
-        if (options.ContinuingWeb) arguments.AddRange(["-rtc", "base=utc,clock=host"]);
+        if (options.ContinuingWeb || options.FiniteStaticFiles) arguments.AddRange(["-rtc", "base=utc,clock=host"]);
 
         if (!string.IsNullOrWhiteSpace(ovmfCodePath))
         {
@@ -43,7 +43,7 @@ internal static class QemuCommandBuilder
             "-drive",
             // The web verifier holds the exact image read-only. AHCI needs a
             // writable disk, so keep its writes in QEMU's temporary overlay.
-            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
+            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService || options.FiniteStaticFiles ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
             "-device",
             options.VirtioBlockQueueDevice && !separateBoot ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,

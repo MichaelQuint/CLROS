@@ -34501,7 +34501,7 @@
       "dependencyKeys": [
         "M10-011"
       ],
-      "currentEvidence": "Steps1558/1559 retain the initial a34f0ce3 Linux static-file research run:60 HTTP observations,45 raw Blazor assets/5922507 bytes, actual metadata/open/pread64 plus ranges/conditional/concurrent reads and graceful shutdown. Original native/source/output joins replay on its owned builder; receipt archive5CC32E98... retained. The final candidate is now self-contained apps/MinimalApiStaticFiles with a fixed-app wrapper over the immutable socket recipe, preserving original smoke/publisher bytes. Ten focused candidate tests and six original web admission plus three service-publisher tests pass. Fresh separate-app Linux publication and exact candidate index/package admission remain pending; no guest disk/browser claim.",
+      "currentEvidence": "Frozen1f8ee218 separate MinimalApiStaticFiles publication passes Linux reference and replay: ELF9AA36AF947CD3E319D42B39A3367B9ADD276D30040EDF0A81F71D44D45BAA848, 8641616bytes,61 HTTP observations over45 actual Blazor assets/5922507bytes, graceful Linux SIGTERM/exit0/refusal. LLVM22.1.3 complete index independently covers4445627bytes in5 executable sections,1389175instructions/198syscalls, domain4395C08AE044C0CAA09A7B96737B21CDE37E6CCDCFBECEC955306BD5E9383A4C. No CLROS guest/disk/browser authority; current native integration remains development.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Live #737/#766/#224 are closed within their accepted finite scopes; preserve that evidence before this roadmap. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -34689,7 +34689,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -34738,7 +34738,12 @@
         "docs/drivers.md",
         "docs/efi-build.md",
         "docs/workload-profiles.md",
-        "tools/OS.Tooling/ToolCommand.cs"
+        "tools/OS.Tooling/ToolCommand.cs",
+        "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs",
+        "src/OS.Kernel/Boot/FirstExitRetainedMappings.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tools/OS.QemuRunner/Program.cs",
+        "tools/OS.Tooling/QemuSmoke.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34783,7 +34788,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -34798,7 +34803,7 @@
         "M06-013",
         "M06-014"
       ],
-      "currentEvidence": "Accepted FAT code checks bounded chains and VFAT metadata for a fixed file; general pathname traversal/case policy and persistent range-read handles remain unimplemented. Fat32Parser host helpers do not establish the live native service.",
+      "currentEvidence": "All19 focused filesystem controls pass, including the device-reset Ready/Entry repair and the new alias-checked FileInspection seam. All14 disk descriptor leaf controls also pass against this FS backing. Original failed runs remain recorded. Native block/mount/descriptor integration and fresh demand-read guests remain pending.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -34890,7 +34895,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -34902,7 +34907,7 @@
         "M10-015",
         "M10-016"
       ],
-      "currentEvidence": "Step1556 qualifies the earlier finite service/quota/churn at original Smoke32c14ccd and quota/V220e665ad, with #224/#225/#737 closed. Steps1558/1559 develop the separate static app, Linux reference observations, host FAT fixtures and retained-block leaf. This issue still needs its exact staged/disk/browser guest acceptance. No new guest static-file, filesystem write or SQLite scope is accepted.",
+      "currentEvidence": "Original Linux static publication and canonical staged/disk packages pass sealed exact ELF/index admission. Native r05 and scoped ABI/arena review pass. Owned staged diagnostic dev-r03 completes26 external HTTP responses in82.874s, actual main SIGTERM15/exit_group0,14off-stack reaps and process/NIC/DMA cleanup; independent packet report joins all26 to533TCP records. Complete tooling intentionally fails until mandatory full scheduler/file/packet/runner joins exist. Added actual bounded pre-dispatch paths, current fd/view/cursor witnesses and post-request tableClock compile/publish inr06; dev-r04 preserves a90s client-matrix timeout after24responses, before termination. Retry uses110s client matrix within unchanged120s owned termination policy. Earlier image-sharing and pre-EBS descriptor-limit failures remain failed. Focused static controls33 and native-binding2 pass; unfiltered full/native-complete/fresh accepted guests remain pending. No disk-read/write/SQLite or full Kestrel promotion.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -34918,8 +34923,6 @@
       ],
       "referenceInfluences": [],
       "ownedPaths": [
-        "apps/MinimalApiSmoke/Program.cs",
-        "tools/OS.Tooling/NativeAotWebPackage.cs",
         "tools/OS.Tooling/NativeAotWebSelection.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Paths.cs",
@@ -34944,7 +34947,50 @@
         "docs/app-model.md",
         "docs/efi-build.md",
         "docs/workload-profiles.md",
-        "tools/OS.Tooling/ToolCommand.cs"
+        "tools/OS.Tooling/ToolCommand.cs",
+        "apps/MinimalApiStaticFiles",
+        "tools/OS.Tooling/NativeAotStaticFilePackage.cs",
+        "tools/OS.Tooling/NativeAotStaticFileProgram.cs",
+        "tools/OS.Tooling/NativeAotStaticFileSelection.cs",
+        "tests/OS.HostTests/NativeAotStaticFileProgramTests.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalServices.Pending.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Signals.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Termination.cs",
+        "tests/OS.HostTests/LinuxOwnerTerminationTests.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreads.cs",
+        "src/OS/Boot/EfiEntry.LinuxThreadRun.cs",
+        "src/OS/Boot/EfiEntry.LinuxWeb.cs",
+        "src/OS/Boot/EfiEntry.NetworkService.cs",
+        "tools/OS.Tooling/QemuSmoke.cs",
+        "src/OS.Kernel/Manifest/LinuxElfPackage.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxStaticFileObservation.cs",
+        "tests/OS.HostTests/LinuxStaticFileObservationTests.cs",
+        "tests/OS.HostTests/NativeAotStaticFileProfileTests.cs",
+        "tools/OS.Tooling/NativeAotStagedStaticPeer.cs",
+        "src/OS/Boot/EfiEntry.LinuxSockets.cs",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tests/OS.HostTests/NativeAotStagedStaticPeerTests.cs",
+        "tools/OS.Tooling/EfiVerify.Native.cs",
+        "tests/OS.HostTests/EfiServiceBindingTests.cs",
+        "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs",
+        "tests/OS.HostTests/M16008EfiIntegrationTests.cs",
+        "tools/OS.QemuRunner/QemuCommandBuilder.cs",
+        "tests/OS.HostTests/ServiceRunnerControlTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.Http.cs",
+        "tests/OS.HostTests/NativeAotStaticFileHttpPacketTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.Calls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotSocket.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.Replay.cs",
+        "tests/OS.HostTests/NativeAotStaticFileReplayTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.SocketNetwork.cs",
+        "tests/OS.HostTests/NativeAotStaticFileNetworkTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.StaticFiles.Runner.cs",
+        "tests/OS.HostTests/NativeAotStaticFileRunnerTests.cs",
+        "tools/OS.QemuRunner/StaticFileProcessEvidence.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -34969,7 +35015,7 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM10017Probe -LinuxElfPackage <qualified-candidate-package> -WebRootFixture Staged -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 180 -RequireMarker \"TEST_PASS m10.017\""
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM10017Probe -LinuxElfPackage <qualified-candidate-package> -LinuxThreadingDisassembly <original-llvm22-disassembly> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 600 "
       ],
       "documentationPaths": [
         "docs/kestrel.md",
@@ -34989,7 +35035,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -35001,7 +35047,7 @@
         "M16-024",
         "M10-017"
       ],
-      "currentEvidence": "Step1556 qualifies the earlier finite service/quota/churn at original Smoke32c14ccd and quota/V220e665ad, with #224/#225/#737 closed. Steps1558/1559 develop the separate static app, Linux reference observations, host FAT fixtures and retained-block leaf. This issue still needs its exact staged/disk/browser guest acceptance. No new guest static-file, filesystem write or SQLite scope is accepted.",
+      "currentEvidence": "All14 focused disk descriptor leaf controls pass after repairing structural attachment/borrow validation and nonmutating release preflight. Two original fatal corruption-test runs remain failed: the first used incorrect marshalled field offsets; the second exposed missing canonical-pointer bounds. Managed-layout test addressing and disk-only numeric guards now pass. The open/stat cancellation regression also exposed and repaired partial futex release before descriptor rejection. No pending disk thread/native integration or real disk-to-application qualification yet.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Finish the currently claimed service foundations under #737, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -35025,7 +35071,7 @@
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Package.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Disk.cs",
-        "tests/OS.HostTests/LinuxDiskDescriptorTests.cs",
+        "tests/OS.HostTests/LinuxDiskDescriptorServicesTests.cs",
         "tools/OS.Tooling/LinuxDiskFileProofFixture.cs",
         "tools/OS.Tooling/QemuTranscripts.LinuxDiskFiles.cs",
         "src/OS/Boot/EfiEntry.StaticFiles.cs",
@@ -35047,7 +35093,8 @@
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Pipes.cs",
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Disk.cs",
-        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Signals.cs"
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Signals.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.Pipes.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -35067,7 +35114,7 @@
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo -m:1",
-        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxDiskDescriptorTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter LinuxDiskDescriptorServicesTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",

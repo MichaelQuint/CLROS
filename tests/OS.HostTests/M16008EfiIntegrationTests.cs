@@ -68,7 +68,7 @@ internal static unsafe class M16008EfiIntegrationTests
                 "m16_013_explicit_false_prerequisite");
             foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
@@ -172,7 +172,7 @@ internal static unsafe class M16008EfiIntegrationTests
         HostCheck.Equal("state->CooperativePool+((NativeProgram.Entries+index*NativeProgram.WorkerStride)&~(Page-1))",
             string.Concat(lookup.ArgumentList.Arguments[1].Expression.DescendantTokens().Select(token => token.Text)));
 
-        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe"})
+        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe","EnableM10017Probe"})
         {
             var socketProfile=EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{[leaf]=true});
             symbols=socketProfile.Flags.Where(p=>p.Value).Select(p=>EfiContracts.ProbeSymbols[p.Key]).ToArray();
@@ -183,6 +183,15 @@ internal static unsafe class M16008EfiIntegrationTests
             ulong ranges=Sum(capacity);HostCheck.Equal(47UL,ranges);
             HostCheck.True(ranges<=SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges,
                 "the live NIC and Linux runtime union must fit actual image and table-builder admission");
+            var bar=socketRetained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
+                .Single(n=>n.Right.ToString()=="references.VirtioBarStart");
+            HostCheck.Equal("starts[allocations]",bar.Left.ToString());
+            HostCheck.True(!socketRetained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
+                .Any(n=>n.Left.ToString()=="allocations" && n.Right.ToString()=="8"),
+                "device ownership must not discard package, image/table, clock or ECAM extents");
+            var descriptorLimit=socketRetained.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
+                .Single(n=>n.Identifier.Text=="MaximumDescriptorPages").Initializer!.Value;
+            HostCheck.Equal(leaf=="EnableM10017Probe"?70UL:64UL,Sum(descriptorLimit));
             var socketEntry=Parse("src/OS/Boot/EfiEntry.cs");
             var ledger=socketEntry.DescendantNodes().OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
                 .Single(n=>n.Identifier.Text=="LinuxLedgerCapacity").Initializer!.Value;

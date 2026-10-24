@@ -82,9 +82,16 @@ and SQLite follow the read milestone. [Step1558](done/step1558.md) records curre
 host-only development: tracker/FAT repairs, reproducible disk fixtures and the
 published Blazor candidate. [Step1559](done/step1559.md) separates the static
 server from accepted smoke inputs, retains the Linux research trace and adds a
-14-check host-tested continuing block owner. Native integration and fresh final
-candidate publication remain pending. Continuing guest disk reads and disk-backed HTTP are
+14-check host-tested continuing block owner. The final separate-app Linux
+reference now passes61 HTTP observations over45 real Blazor assets and actual
+SIGTERM/exit0 cleanup. The confined FAT reader is under focused host validation;
+native integration remains pending. Continuing guest disk reads and disk-backed HTTP are
 not qualified yet. The branch keeps accepted step1556 evidence unchanged.
+
+SQLite follow-ups [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) and
+[#792](http://192.168.4.35:3000/admin/CLROS/issues/792) use direct
+`Microsoft.Data.Sqlite`. EF Core's separate NativeAOT constraints are outside
+that engine/provider qualification.
 
 ## Next implementation
 

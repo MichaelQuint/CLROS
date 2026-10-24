@@ -3,6 +3,8 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.StaticFiles.cs"] = "reviewed_finite_static_file_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs"] = "reviewed_finite_static_file_observation_source_identity",
         [@"Boot\EfiEntry.Realtime.cs"] = "reviewed_m16_owned_realtime_pre_entry_source_identity",
         [@"..\OS.Kernel\Platform\OwnedRealtimeClock.cs"] = "reviewed_m16_finite_owned_realtime_source_identity",
         [@"..\..\std\no-runtime\shared\Time\GregorianUtc.cs"] = "reviewed_finite_gregorian_utc_source_identity",

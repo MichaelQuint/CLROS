@@ -68,10 +68,18 @@ public static unsafe partial class EfiEntry
         private const uint CooperativePoolPages = Cooperative.PoolPages, CooperativeCodePages = 2;
 #endif
 #if M16_007_PROBE
+#if M10_017_PROBE
+        private const uint LinuxDescriptorPages = 70, LinuxDescriptorSlots = 32;
+        private const uint LinuxDescriptorDescriptions = 0x200, LinuxDescriptorPipeMetadata = 0xc00;
+        private const uint LinuxDescriptorViews = 0xcc0, LinuxDescriptorPaths = 0xe00;
+        private const uint LinuxDescriptorSnapshots = 0x2000, LinuxDescriptorPipes = 0x42000, LinuxDescriptorScratch = 0x44000;
+#else
         private const uint LinuxDescriptorPages = 37;
         private const uint LinuxDescriptorSlots = 16;
         private const uint LinuxDescriptorSnapshots = 0x1000, LinuxDescriptorPipes = 0x21000, LinuxDescriptorScratch = 0x23000;
         private const uint LinuxDescriptorViews = 0x6c0, LinuxDescriptorPaths = 0x800;
+        private const uint LinuxDescriptorDescriptions = 0x100, LinuxDescriptorPipeMetadata = 0x600;
+#endif
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
@@ -1901,9 +1909,9 @@ public static unsafe partial class EfiEntry
                 !LinuxMemoryFacts(state, out ulong physical, out ulong available)) return false;
             // Retained package metadata stays below the first snapshot page;
             // views and their copied paths outlive every borrowed descriptor.
-            if (sizeof(LinuxDescriptorServices.Slot) * LinuxDescriptorSlots > 0x100 ||
-                sizeof(LinuxDescriptorServices.Description) * LinuxDescriptorSlots > 0x500 ||
-                sizeof(LinuxPipe) * 2 > LinuxDescriptorViews - 0x600 ||
+            if (sizeof(LinuxDescriptorServices.Slot) * LinuxDescriptorSlots > LinuxDescriptorDescriptions ||
+                sizeof(LinuxDescriptorServices.Description) * LinuxDescriptorSlots > LinuxDescriptorPipeMetadata - LinuxDescriptorDescriptions ||
+                sizeof(LinuxPipe) * 2 > LinuxDescriptorViews - LinuxDescriptorPipeMetadata ||
                 sizeof(LinuxDescriptorServices.View) * LinuxDescriptorServices.MaximumViews > LinuxDescriptorPaths - LinuxDescriptorViews ||
                 LinuxDescriptorPaths + LinuxDescriptorServices.MaximumViews * LinuxDescriptorServices.MaximumPath > LinuxDescriptorSnapshots) return false;
             byte* arena = (byte*)state->LinuxDescriptorArena;
@@ -1913,8 +1921,8 @@ public static unsafe partial class EfiEntry
                 LinuxDescriptorServices.MaximumViews * LinuxDescriptorServices.MaximumPath, out uint viewCount)) return false;
             LinuxDescriptorServices.Admission owner = new()
             {
-                Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + 0x100),
-                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = viewCount, PackageProcessId = 1,
+                Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + LinuxDescriptorDescriptions),
+                Pipes = (LinuxPipe*)(arena + LinuxDescriptorPipeMetadata), Views = view, ViewCount = viewCount, PackageProcessId = 1,
                 Snapshots = arena + LinuxDescriptorSnapshots, PipeBuffers = arena + LinuxDescriptorPipes,
                 Scratch = arena + LinuxDescriptorScratch, ScratchBytes = 8192,
                 DescriptorCount = LinuxDescriptorSlots, DescriptionCount = LinuxDescriptorSlots, PipeCount = 2, PipeCapacity = 4096,
@@ -1941,7 +1949,12 @@ public static unsafe partial class EfiEntry
 #endif
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
-            return LinuxText(state, "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+            return LinuxText(state,
+#if M10_017_PROBE
+                "M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+#else
+                "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+#endif
                 LinuxNumber(state, view->Bytes) && LinuxText(state,
 #if M16_008_PROBE
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler\r\n");
@@ -2014,7 +2027,9 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
             if (!LinuxText(state, "\r\n")) return 0;
             state->LinuxSyscallWrites++;
-#if M10_004_PROBE
+#if M10_017_PROBE
+            return LinuxStaticObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;
+#elif M10_004_PROBE
             return LinuxWebObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;
 #else
             return 1;

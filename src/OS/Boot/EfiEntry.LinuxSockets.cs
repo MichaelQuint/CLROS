@@ -228,7 +228,7 @@ public static unsafe partial class EfiEntry
                     !ReadNetworkTime(state, out o->Started)) return false;
                 o->Boot = state; o->Device = device; o->Phase = 1;
                 if (!ResolveLinuxSocketPeer(o)) return false;
-#if M10_004_PROBE && !M16_014_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
                 if (!LinuxText(state, "TEST_START m10.004\r\n")) return LinuxWebRetainFailure(state, null, 2);
                 bool ran = BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
@@ -246,7 +246,12 @@ public static unsafe partial class EfiEntry
 #if M07_027_PROBE && M07_028_PROBE
                 if (!LinuxText(state, "TEST_START m07.027\r\nTEST_START m07.028\r\n")) return false;
 #endif
-                bool ran = CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
+                bool ran = CompleteLinuxRandomLifetime(state,
+#if M10_017_PROBE
+                    BootSequence.RunOwnedStaticFileApplication(state->LinuxStartupPhase == 6,
+#else
+                    BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
+#endif
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
                     state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
                     state->ApicPhase == 2, device->Running, state, &RunOwnedLinuxSyscalls));

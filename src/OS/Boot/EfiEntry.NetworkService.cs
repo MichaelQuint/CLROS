@@ -73,7 +73,7 @@ public static unsafe partial class EfiEntry
                 !RunNetworkScheduledService(state))
 #endif
             { _ = LinuxText(state, "TEST_FAIL m07-026 service\r\n"); return false; }
-#if M10_004_PROBE && !M16_014_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
             return LinuxWebRetainFailure(state, null, 7);
 #else
 #if M16_014_PROBE
@@ -89,6 +89,9 @@ public static unsafe partial class EfiEntry
             }
 #endif
             state->NetworkPhase = 3;
+#if M10_017_PROBE
+            if (!LinuxText(state, "M10_017_CLEANUP process=drained cpu=restored nic=retired dma=zero allocator=unchanged pci=restored canaries=valid reservation=retained\r\nCLROS_M10_017_READY\r\nTEST_PASS m10.017\r\n")) return false;
+#endif
             return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n")
 #if CLROS_LINUX_SOCKETS
                 && LinuxText(state, "CLROS_M16_011_READY\r\nTEST_PASS m16-011\r\n")
@@ -167,7 +170,7 @@ public static unsafe partial class EfiEntry
                 bool success = NetDevice.Start(device, admission) == NetDevice.Status.Success;
                 success = success && WriteNetworkRow(state, 0, page, ContinuingVirtioNet.BackingBytes, negotiated.Selected, 8) &&
                     RunNetworkExchanges(state, device);
-#if M10_004_PROBE && !M16_014_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE
                 return LinuxWebRetainFailure(state, null, success ? 5U : 6U);
 #else
                 bool safe = !device->RequiresCleanup || NetDevice.Stop(device) == NetDevice.Status.Success;

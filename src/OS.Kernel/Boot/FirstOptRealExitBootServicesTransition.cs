@@ -336,6 +336,13 @@ public static unsafe class FirstExitRetainedMappings
         + 1
 #endif
         ;
+    // The static fixture owns32 descriptions, including bounded proc snapshots.
+    // Earlier profiles retain their original64-page admission ceiling.
+#if M10_017_PROBE
+    private const ulong MaximumDescriptorPages = 70;
+#else
+    private const ulong MaximumDescriptorPages = 64;
+#endif
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
     private const PageProtection Code = PageProtection.Read | PageProtection.Execute;
@@ -439,7 +446,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
             references.VirtioBarStart >= LowEnd - 0x4000) return false;
-        starts[7] = references.VirtioBarStart; lengths[7] = 0x4000; allocations = 8;
+        // Append after package, user tables, HPET and ECAM. A fixed index here
+        // overwrote earlier owners and omitted them from the overlap audit.
+        starts[allocations] = references.VirtioBarStart; lengths[allocations++] = 0x4000;
 #endif
 #if M05_APIC_SETUP_PROBE
         if (references.LocalApicPage < 0x100000 || references.LocalApicPage > 0xfffff000 || (references.LocalApicPage & 4095) != 0 ||
@@ -471,7 +480,7 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.LinuxMemoryCandidateStart; lengths[allocations++] = X64UserAddressSpace.MaximumTables * 4096UL;
 #endif
 #if M16_007_PROBE
-        if (references.LinuxDescriptorPages == 0 || references.LinuxDescriptorPages > 64 ||
+        if (references.LinuxDescriptorPages == 0 || references.LinuxDescriptorPages > MaximumDescriptorPages ||
             references.LinuxDescriptorStart < 4096 || (references.LinuxDescriptorStart & 4095) != 0 ||
             references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
         starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;

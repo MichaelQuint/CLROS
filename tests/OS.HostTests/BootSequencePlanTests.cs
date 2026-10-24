@@ -691,6 +691,7 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool PrepareOwnedRealtime(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool RunOwnedStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
@@ -757,6 +758,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM10017Probe = true;",
+             "public const bool EnableM10017Probe = false;",
              "public const bool EnableM16019UnavailableProbe = true;",
              "public const bool EnableM16019UnavailableProbe = false;",
              "public const bool EnableM16019InvalidProbe = true;",

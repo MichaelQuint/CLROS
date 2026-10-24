@@ -11,7 +11,7 @@ public static class NativeAotWebSelection
     public static string Application(IReadOnlyDictionary<string, bool> flags, string? selected = null)
     {
         bool On(string key) => flags.TryGetValue("Enable" + key + "Probe", out bool value) && value;
-        if (!On("M10004") || On("M16014")) return "";
+        if (!On("M10004") || On("M16014") || On("M10017")) return "";
         if (On("M09011") || On("M09012") || On("M16010")) throw new ToolFailure("web_runtime_conflict");
         if (selected is not null && selected != "MinimalApiSmoke") throw new ToolFailure("web_profile_application");
         return "MinimalApiSmoke";

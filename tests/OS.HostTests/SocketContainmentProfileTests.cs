@@ -95,7 +95,7 @@ internal static class SocketContainmentProfileTests
         HostCheck.Equal("'$(EnableM16014Probe)' == 'true' and '$(EnableM10004Probe)' != 'true'",
             Error(project,"m16_014_requires_web_parent"));
         var forbidden = EfiContracts.DiagnosticProbes.Where(x => !expected.Contains(x))
-            .Select(x=>x=="EnableM16014Probe"?"EnableM10004Probe":x).ToHashSet(StringComparer.Ordinal);
+            .Select(x=>x is "EnableM16014Probe" or "EnableM10017Probe"?"EnableM10004Probe":x).ToHashSet(StringComparer.Ordinal);
         HostCheck.True(forbidden.SetEquals(forbiddenNames.Skip(Leaves.Length)) &&
             forbiddenNames.Length == forbidden.Count + Leaves.Length && forbidden.Contains("EnableM16012Probe"));
     }

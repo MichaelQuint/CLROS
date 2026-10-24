@@ -17,6 +17,8 @@ public static partial class QemuTranscripts
                 // The literal Posix SIGUSR2 registration defers its own signal.
                 // Scalar rows still do not disclose action or siginfo bytes.
                 if(selected==12)Need((value.BlockedSignals&(1UL<<11))!=0,"web_signal12_handler_mask");
+                if(selected==15){Need(staticFiles && staticObservation.Requested && t.Identity==0x100000001 &&
+                    (value.BlockedSignals&(1UL<<14))!=0,"static_signal15_handler_mask");staticSignalEntered++;}
                 ulong frame=r["nr"]==15?r["rsp"]-8:value.SignalFrame;
                 ulong interrupted=t.DeliveryRsp??t.SavedRsp;
                 Need(interrupted>=1100,"threading_signal_redzone");
@@ -34,6 +36,7 @@ public static partial class QemuTranscripts
                 var frame=t.Frames.Pop(); Need(r["rsp"]==frame.Frame+8 && value.Rsp==frame.Rsp && instruction(value.Rip),"threading_sigreturn_context");
                 Envelope(t,value.Rip,value.Rsp,value.Flags,value.Fs,value.Gs,15); t.Returned++; signalReturns++;
                 ObserveWebSignalRaceFrame(t,frame.Signal,frame.Frame,value.RecordIndex,returned:true);
+                if(frame.Signal==15){Need(staticFiles,"static_signal15_return");staticSignalReturned++;}
                 if(frame.Proof is not null)phases!.Collected(frame.Proof);
                 t.TimedRestart=null; // rt_sigreturn invalidates the restart callback.
             }
@@ -53,11 +56,11 @@ public static partial class QemuTranscripts
             t.WaitOrder=++waitOrder;t.AddressOrder=++addressOrder;t.Parking=true;
             InterruptPendingWait(t);
         }
-        private int LowestFd(int excluded=-1)=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite && fd!=excluded,-1);
-        private readonly uint[] descriptorGenerations=new uint[16];
+        private int LowestFd(int excluded=-1)=>Enumerable.Range(3,descriptorCapacity-3).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite && fd!=excluded,-1);
+        private readonly uint[] descriptorGenerations;
         private void InstallDescriptorGeneration(int fd)
         {
-            Need(fd is >=3 and <16 && descriptorGenerations[fd]!=uint.MaxValue,"threading_descriptor_generation");
+            Need(fd>=3 && fd<descriptorCapacity && descriptorGenerations[fd]!=uint.MaxValue,"threading_descriptor_generation");
             descriptorGenerations[fd]++;
         }
         private void Call(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,bool output)
@@ -77,7 +80,8 @@ public static partial class QemuTranscripts
             ulong action=1,status=1;
             if(WebAlternateStackCall(r)) { }
             else if(WebProbePipeCall(r)) { }
-            else if(web && WebFileCall(r,witness)) { }
+            else if(staticFiles && StaticFileCall(r,witness)) { }
+            else if(web && !staticFiles && WebFileCall(r,witness)) { }
             else if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
             else switch(nr)
             {
@@ -213,7 +217,7 @@ public static partial class QemuTranscripts
                     Need(memory.Covered(nr==2?a:b,1,1) && (nr!=257 || a==Bits(-100)) && ((nr==2?b:c)&~(web?0x98100UL:0x98000UL))==0,"threading_open");
                     if(v!=Bits(-2))
                     {
-                        Need(v==(ulong)LowestFd() && v is >=3 and <16,"threading_open_fd");files.Add((int)v);InstallDescriptorGeneration((int)v);
+                        Need(v==(ulong)LowestFd() && v>=3 && v<(ulong)descriptorCapacity,"threading_open_fd");files.Add((int)v);InstallDescriptorGeneration((int)v);
                         if(web)webFileGenerations.Add((int)v,++webFileGeneration);
                     }break;
                 case 3:
@@ -274,7 +278,8 @@ public static partial class QemuTranscripts
                     Need(a==0 && v==0,"threading_thread_exit");t.Exiting=t.NormalExit=true;normalExits++;action=4;status=2;break;
                 case 231:
                     Need(!serviceQuotaFailure,"service_quota_user_group_exit");
-                    Need(!web || service,"web_replay_unexpected_group_exit");
+                    Need(!web || service || staticFiles,"web_replay_unexpected_group_exit");
+                    if(staticFiles)StaticGroupExit(t,r);
                     if(service)Need(serviceReady && budget.RequestCancellation(),"service_owned_shutdown");
                     Need(a==0 && v==0 && writes==writeLengths.Count,"threading_group_exit");stopping=true;action=2;status=2;
                     foreach(var other in slots.Where(x=>x is not null).Select(x=>x!))

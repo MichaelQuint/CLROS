@@ -2,6 +2,11 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M10_017_PROBE
+    public const bool EnableM10017Probe = true;
+#else
+    public const bool EnableM10017Probe = false;
+#endif
 #if M16_019_UNAVAILABLE_PROBE
     public const bool EnableM16019UnavailableProbe = true;
 #else
@@ -352,7 +357,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 70;
+    public const int ProbeCatalogCount = 71;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -648,6 +653,10 @@ public static partial class Probes
     public static ProbeDefinition GetM10004Probe() =>
         new("app.nativeaot-web", nameof(EnableM10004Probe), EnableM10004Probe,
             ProbeRisk.Destructive, "Continuing original Minimal API with selected configuration and live socket owners; external HTTP proof required.");
+
+    public static ProbeDefinition GetM10017Probe() =>
+        new("app.nativeaot-static-files", nameof(EnableM10017Probe), EnableM10017Probe,
+            ProbeRisk.Destructive, "Finite separate static-file Minimal API with owned SIGTERM request and real exit cleanup; external HTTP proof required.");
 
     public static ProbeDefinition GetM16019UnavailableProbe() =>
         new("app.realtime-unavailable", nameof(EnableM16019UnavailableProbe), EnableM16019UnavailableProbe,
@@ -1049,6 +1058,9 @@ public static partial class Probes
                 return true;
             case 69:
                 definition = GetM16014Probe();
+                return true;
+            case 70:
+                definition = GetM10017Probe();
                 return true;
             default:
                 definition = default;

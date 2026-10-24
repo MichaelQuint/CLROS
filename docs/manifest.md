@@ -87,7 +87,12 @@ manifest version1, followed by the ELF and a bounded immutable-data table:
   offsets0/4/8/12, then32 raw SHA256 digest bytes, path bytes and data bytes.
 - Record bytes equal48 +path bytes +data bytes. Each nonempty data file is at
   most65,536 bytes; paths contain at most128 bytes, use canonical relative ASCII rules, start
-  `apps/`, and cannot duplicate another file or the executable path.
+  `apps/`, and cannot duplicate another file or the executable path. The current
+  static-file development adds the explicit immutable `wwwroot/` prefix for its
+  seven small staged controls; other roots, case aliases and traversal reject.
+  This maps through package views to `/app/wwwroot`. It carries no demand-disk,
+  writable-file or guest qualification; original accepted envelopes keep their
+  bytes and acceptance scopes.
 
 Validation hashes every data file before publication. `Copy` revalidates the
 complete staged bytes. `GetDataFile` returns borrowed offsets; `ReadFile` copies

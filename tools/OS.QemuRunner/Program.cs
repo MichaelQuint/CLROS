@@ -169,6 +169,16 @@ try
         return 20;
     }
     if (options.WebEvidence is not null) options.WebEvidence.PreLaunchAvailable = true;
+    if (options.StaticEvidence is not null)
+    {
+        if (!CheckWebPortAvailable(options.SocketForwardPort!.Value))
+        {
+            options.StaticEvidence.Failure = "endpoint_occupied_before_launch";
+            WriteSummaryLogBestEffort(options, "fail", [], options.RequiredMarkers, [], "static_endpoint_occupied_before_launch");
+            Console.Error.WriteLine("TEST_FAIL qemu.smoke static_endpoint_occupied_before_launch"); return 23;
+        }
+        options.StaticEvidence.PreLaunchAvailable = true;
+    }
     if (options.ServiceEvidence is not null)
     {
         if (!CheckWebPortAvailable(options.SocketForwardPort!.Value))
@@ -183,6 +193,11 @@ try
     {
     process.Start();
     processStarted = true;
+    if (options.StaticEvidence is not null)
+    {
+        options.StaticEvidence.ProcessId = process.Id;
+        options.StaticEvidence.StartUtc = process.StartTime.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+    }
     if (options.WebEvidence is not null)
     {
         options.WebEvidence.ProcessId = process.Id;
@@ -504,6 +519,25 @@ try
         }
     }
 
+    if (options.StaticEvidence is not null)
+    {
+        var receipt = options.StaticEvidence;
+        receipt.TerminationRequested = processTerminationRequested;
+        receipt.DeathConfirmed = process.HasExited;
+        receipt.SpontaneousExit = qemuExitedSpontaneously;
+        receipt.CleanupFailed = processCleanupFailed;
+        receipt.ExitCode = qemuExitCode;
+        if (receipt.DeathConfirmed)
+        {
+            receipt.EndUtc = process.ExitTime.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+            receipt.LifetimeMilliseconds = (long)(process.ExitTime-process.StartTime).TotalMilliseconds;
+            receipt.StoppedEndpointRefused = CheckWebEndpointRefused(options.SocketForwardPort!.Value);
+        }
+        if (receipt.CleanupFailed) receipt.Failure = "child_cleanup_failed";
+        else if (receipt.SpontaneousExit) receipt.Failure = "premature_exit";
+        else if (!receipt.DeathConfirmed || !receipt.TerminationRequested) receipt.Failure = "termination_unconfirmed";
+        else if (receipt.StoppedEndpointRefused != true) receipt.Failure = "endpoint_live_after_stop";
+    }
     if (options.WebEvidence is not null)
     {
         ContinuingWebEvidence web = options.WebEvidence;
@@ -781,6 +815,12 @@ try
         WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers, forbiddenMarkers,
             "service_" + serviceFailure, httpProbeResult, summary.AppExitResults, summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
         Console.Error.WriteLine("TEST_FAIL qemu.smoke service_" + serviceFailure); return 21;
+    }
+    if (options.StaticEvidence?.Failure is string staticFailure)
+    {
+        WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers, forbiddenMarkers,
+            "static_" + staticFailure, httpProbeResult, summary.AppExitResults, summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke static_" + staticFailure); return 23;
     }
 
     if (qemuExitedSpontaneously && qemuExitCode is not null and not 0)
@@ -1678,6 +1718,8 @@ static bool WriteSummaryLogBestEffort(
             AppendSerialTailSummary(builder, string.Empty);
         }
         if (options.ServiceEvidence is not null) AppendServiceEvidence(builder, options.ServiceEvidence);
+        if (options.StaticEvidence is not null)
+            foreach (string row in options.StaticEvidence.Summary()) builder.AppendLine(row);
 
         File.WriteAllText(options.SummaryLogPath, builder.ToString(), Encoding.UTF8);
         Console.WriteLine("SUMMARY_LOG " + options.SummaryLogPath);
@@ -2454,13 +2496,15 @@ sealed class RunnerOptions
     public bool SocketContainmentPeer { get; private set; }
     public int? SocketForwardPort { get; private set; }
     public bool ContinuingWeb { get; private set; }
+    public bool FiniteStaticFiles { get; private set; }
+    public StaticFileProcessEvidence? StaticEvidence { get; private set; }
     public string? WebRacePipe { get; private set; }
     public bool WebEventOwnedSignalRace { get; private set; }
     public bool ContinuingService { get; private set; }
     public bool ServiceQuotaFailure { get; private set; }
     public long SerialByteCapacity => ContinuingService ? SerialMarkerStateMachine.ContinuingServiceByteCapacity : SerialMarkerStateMachine.DefaultByteCapacity;
     public ServiceEvidence? ServiceEvidence { get; private set; }
-    public string SuccessTerminalMarker => ServiceQuotaFailure ? ServiceQuotaCapture.Terminal : ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
+    public string SuccessTerminalMarker => ServiceQuotaFailure ? ServiceQuotaCapture.Terminal : FiniteStaticFiles ? "TEST_PASS m16-012" : ContinuingService ? "TEST_PASS m16-012" : ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
     public HttpProbeOptions? WebConfigProbe { get; private set; }
     public HttpProbeOptions? WebLogProbe { get; private set; }
     public HttpProbeOptions? WebLogRepeatProbe { get; private set; }
@@ -2604,6 +2648,10 @@ sealed class RunnerOptions
                     if (options.ContinuingWeb) throw new ArgumentException("--continuing-web may be specified only once.");
                     options.ContinuingWeb = true;
                     break;
+                case "--finite-static-files":
+                    if (options.FiniteStaticFiles) throw new ArgumentException("--finite-static-files may be specified only once.");
+                    options.FiniteStaticFiles = true;
+                    break;
                 case "--web-race-pipe":
                     if(options.WebRacePipe is not null)throw new ArgumentException("--web-race-pipe may be specified only once.");
                     options.WebRacePipe=ReadValue(args,ref i,arg);
@@ -2715,12 +2763,19 @@ sealed class RunnerOptions
             throw new ArgumentException("--socket-forward-port requires the captured dedicated modern ARP network fixture and ordinary diagnostic exit path, without --continuing-network-peer or HTTP probing.");
         options.ValidateContinuingWeb();
         options.ValidateContinuingService();
+        if (options.FiniteStaticFiles && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.EthernetCapturePath is null ||
+            options.SocketForwardPort is null || string.IsNullOrWhiteSpace(options.SummaryLogPath) || options.WorkloadProfile != "SingleMinimalApi" ||
+            options.TimeoutSeconds is <600 or >900 || !options.defaultRequiredMarkersReplaced || options.MarkerPresets.Count != 0 ||
+            options.ContinuingWeb || options.ContinuingService || options.ContinuingNetworkPeer || options.SocketContainmentPeer ||
+            options.HttpProbe is not null || options.ServiceQuotaFailure))
+            throw new ArgumentException("--finite-static-files requires captured forwarded modern networking, SingleMinimalApi, a600..900-second deadline and explicit finite markers without another application peer.");
         return options;
     }
 
     public static void PrintHelp()
     {
         Console.WriteLine("--socket-containment-peer selects the finite three-socket timeout/VLAN raw Ethernet peer; requires captured modern ARP networking and a120..295-second timeout. Peer completion does not establish guest acceptance.");
+        Console.WriteLine("--finite-static-files captures the finite static-file profile through guest shutdown, transport drain and final parent cleanup; external HTTP checks belong to the owning tooling peer.");
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
         Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409, the normal-case binary vector response and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");
@@ -2866,6 +2921,13 @@ sealed class RunnerOptions
             AddRequiredMarker(ServiceQuotaCapture.Terminal); AddUniqueMarker(ServiceQuotaCapture.Terminal);
         }
         else if (ContinuingService) AddRequiredMarker("TEST_PASS m16-012");
+        if (FiniteStaticFiles)
+        {
+            StaticEvidence = new();
+            AddRequiredMarker("CLROS_M10_017_READY"); AddUniqueMarker("CLROS_M10_017_READY");
+            AddRequiredMarker("TEST_PASS m10.017"); AddUniqueMarker("TEST_PASS m10.017");
+            AddRequiredMarker("TEST_PASS m16-012");
+        }
         if (ContinuingWeb)
         {
             AddRequiredMarker("CLROS_M10_004_READY");

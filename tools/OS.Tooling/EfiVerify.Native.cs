@@ -101,9 +101,12 @@ internal sealed partial class EfiVerification
     internal static void VerifyWebServiceBindings(EfiProfile profile,string map,EfiPeImage image)
     {
         const string prefix="OS_OS_Boot_EfiEntry_M03FirstExitAdapter__";
-        bool service=profile.IsEnabled("M16014"),web=profile.IsEnabled("M10004");
-        BindProfile(image,map,web,"m10_web",new[]{"LinuxWebObserveCall","LinuxWebObserveOutput","LinuxWebPublishLive"}.Select(name=>prefix+name).ToArray());
-        BindProfile(image,map,web&&!service,"m10_web_retention",prefix+"LinuxWebRetainFailure");
+        bool service=profile.IsEnabled("M16014"),web=profile.IsEnabled("M10004"),staticFiles=profile.IsEnabled("M10017");
+        BindProfile(image,map,web&&!staticFiles,"m10_web",new[]{"LinuxWebObserveCall","LinuxWebObserveOutput","LinuxWebPublishLive"}.Select(name=>prefix+name).ToArray());
+        BindProfile(image,map,web&&!service&&!staticFiles,"m10_web_retention",prefix+"LinuxWebRetainFailure");
+        BindProfile(image,map,staticFiles,"m10_static_files",new[]{"LinuxStaticObserveCall","LinuxStaticObserveOutput","LinuxStaticSupervisor","LinuxStaticObserveFile"}
+            .Select(name=>prefix+name).Concat(new[]{"OS_OS_Kernel_Compatibility_LinuxX64_LinuxThreadServices__RequestTermination",
+                "OS_OS_Kernel_Compatibility_LinuxX64_LinuxSignalServices__RequestTermination"}).ToArray());
         BindProfile(image,map,service,"m16_service_lifetime",new[]{"CaptureLinuxServiceSeed","PrepareLinuxServiceRandom","ClearLinuxServiceRandom",
             "LinuxServiceObserveCall","LinuxServiceObserveWorkers"}.Select(name=>prefix+name).ToArray());
     }

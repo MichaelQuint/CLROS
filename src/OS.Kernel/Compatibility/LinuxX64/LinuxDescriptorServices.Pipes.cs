@@ -24,10 +24,20 @@ public static unsafe partial class LinuxDescriptorServices
         if (!Audit(state) || state->ThreadOwner != 0 || owner == 0 || (owner & 7) != 0) return false;
         state->ThreadOwner = owner; return true;
     }
-    internal static bool DetachThreads(State* state, ulong owner)
+    internal static bool CanDetachThreads(State* state, ulong owner)
     {
         if (!Attached(state, owner)) return false;
         for (uint i = 0; i < state->Owner.DescriptionCount; i++) if (state->Owner.Descriptions[i].Borrowers != 0) return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (state->Disk != null)
+            for (uint i = 0; i < DiskSlots; i++)
+                if (state->Disk->Requests[i].Phase != 0) return false;
+#endif
+        return true;
+    }
+    internal static bool DetachThreads(State* state, ulong owner)
+    {
+        if (!CanDetachThreads(state, owner)) return false;
         state->ThreadOwner = 0; return true;
     }
     internal static bool Attached(State* state, ulong owner) => Audit(state) && owner != 0 && state->ThreadOwner == owner;

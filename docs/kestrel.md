@@ -11,7 +11,7 @@ served. The qualification profile sends `Cache-Control: no-store`; upstream
 range, ETag and Last-Modified behavior remains independently checked.
 
 The real Standalone Blazor client publishes with the pinned .NET11 SDK. This
-is development evidence, not CLROS static-file acceptance. #768 must retain the
+is development evidence, not CLROS static-file acceptance. #768 now retains the
 final separate-app Linux NativeAOT per-thread traces and HTTP matrix; #772 qualifies staged file
 APIs, and #773/#774 add live disk descriptors and an external browser witness.
 #775 remains the later sustained service and clean-shutdown milestone.
@@ -24,26 +24,34 @@ is the summary; the recipes and retained receipts here keep their exact scope.
 
 The frozen a34f0ce3 research run passes60 Linux HTTP observations over45 raw
 Blazor assets (5,922,507 bytes), including overlap, ranges and graceful shutdown.
-It retains its original app/source scope. The separate candidate needs a fresh
-publication; [step1559](../done/step1559.md) records the split and baseline gates.
+It retains its original app/source scope. The separate candidate's fresh
+publication at frozen1f8ee218 passes61 observations over the same45 asset bytes.
+The 8,641,616-byte ELF is
+`9AA36AF947CD3E319D42B39A3367B9ADD276D30040EDF0A81F71D44D45BAA848`.
+Independent LLVM22.1.3 section coverage confirms4,445,627 executable bytes,
+1,389,175 instructions and198 syscall continuations; no load padding gains
+instruction authority. [Step1559](../done/step1559.md) retains the earlier split.
 
 ### Measured file ABI research boundary
 
-The a34 research reference uses the pinned .NET11 RC2 musl server and real
-published client bytes. Its file observations below guide implementation; the
-separate final app must rerun them. Traces are retained under
-`artifacts/nativeaot-fat32-web-r01/reference-a34-r01/artifacts/static-reference-r01`.
+The final separate-app reference uses the pinned .NET11 RC2 musl server and real
+published client bytes. Its file observations below guide implementation;
+they do not qualify the CLROS syscall closure. Traces are retained under
+`artifacts/nativeaot-fat32-web-r01/reference-r03/artifacts/static-reference-r03`.
 The archive SHA256 is
-`5CC32E982DCD9D8E784511CCDEE72A16BB1A714DC2CD69D757557050BE3EAC2E`.
+`927014F2432CEA56474EF99CB5755A8A2BF5EE77410669AAD7F01C93E5DB21C4`.
+Original sources, native compiler/runtime/package referents and the original
+tooling remain retained on the owned Linux builder for replay validation. The
+earlier a34 archive and failed attempts remain unchanged.
 
 | Linux x64 operation | Observed webroot contract | Existing adapter / next requirement |
 | --- | --- | --- |
 | `stat(4)`, `lstat(6)`, `fstat(5)` | Directory/file kind, length and modification time; path metadata precedes conditional/range decisions | Package144-byte stat wire exists; disk metadata and confined generation-bound handles remain pending |
 | `open(2)`, `fcntl(72)`, `close(3)` | `O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC`, then `F_SETFD(FD_CLOEXEC)` | Package flags are admitted; disk ownership and last-close cleanup remain pending |
-| `pread64(17)` |630 retained webroot calls; explicit offsets and requests up to16KiB, including510..1031 range | Package offset reads exist; disk waits must yield through owned continuations and revalidate before copy-out |
-| `flock(73)` | Shared/nonblocking advisory acquisition and unlock,98 calls | Unsupported today. Upstream treats this as best effort except contention; no writable locking or SQLite claim follows |
-| `fadvise64(221)` |49 sequential hints with offset0/length0 | Unsupported today; pinned upstream explicitly permits an unsupported hint. Verify the selected errno/fallback in the final profile |
-| `geteuid(107)` |106 calls while reference files were mode0644 | Not a user subsystem. Final reference uses uniformly read-only0444 files/0555 directories matching the intended mount; remeasure before adding identity behavior |
+| `pread64(17)` |631 retained webroot calls; explicit offsets and16KiB requests, including510..1031 range | Package offset reads exist; disk waits must yield through owned continuations and revalidate before copy-out |
+| `flock(73)` | Shared/nonblocking advisory acquisition and unlock,100 calls | Unsupported today. Upstream treats this as best effort except contention; no writable locking or SQLite claim follows |
+| `fadvise64(221)` |50 sequential hints with offset0/length0 | Unsupported today; pinned upstream explicitly permits an unsupported hint. Verify the selected errno/fallback in the guest profile |
+| `geteuid(107)` | Zero calls with uniform0444 files/0555 directories | The earlier0644 research run made106 calls. The final immutable mount contract avoids that path; this does not add a user subsystem |
 | `getdents64(217)`, `statfs(137)` | NUMA/cgroup startup observations outside the webroot; no webroot directory enumeration | Keep existing startup rejection/fallback scope separate from file service |
 | `sendfile(40)`, file-backed `mmap(9)`, watchers | No webroot use observed in this finite matrix | No success shim or general support is introduced; absence is not an exhaustive closure proof |
 
@@ -57,6 +65,15 @@ asynchronous file path. FileStream's Unix sharing lock and sequential advice
 have distinct fallback policies. Neither is evidence of durable write/locking
 semantics. The actual final native package inventory, traces and controlled
 guest behavior take precedence over a source-only inference.
+
+The new finite guest profile uses an explicit owner-only SIGTERM request to
+the retained initial generation after actual listener readiness and a bounded
+monotonic delay. The request is a kernel-origin signal, distinct from the Linux
+publisher's external `SI_USER` kill. It must preserve real wait completions,
+signal masks, handler/return and application shutdown continuations. Only actual
+APP_END/exit_group0 followed by off-stack reaps and native cleanup can pass;
+the timer does not establish completion of any HTTP/browser test. #775 retains
+its subsequent sustained-service scope.
 
 ## Current finite boundary
 

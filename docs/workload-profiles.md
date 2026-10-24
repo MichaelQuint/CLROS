@@ -179,12 +179,25 @@ from FAT32 and renders `/api/status`, `/api/items` and a disk-only nonce. Keep
 #772's staged fixture small; disk mode must not embed/stage the complete assets.
 [Step1558](../done/step1558.md) records development only.
 
+The separate server now passes its frozen1f8ee218 Linux reference:61 HTTP
+observations over45 published Blazor assets, with actual SIGTERM/exit0 and
+endpoint refusal. Its exact ELF/index and source admission remain separate from
+the accepted smoke application. This is Linux-reference evidence; guest staged,
+live-disk and browser qualifications remain pending.
+
 After this read milestone, #226/#227/#775 accompany six bounded successor
 issues: measured write/SQLite contracts; continuing writable block plus flush;
 FAT create/grow/overwrite/truncate/delete; confined writable Linux descriptors
 and locking; log/upload restart persistence; and pinned SQLite rollback-journal
 transactions/recovery. #468's preallocated in-place overwrite remains a separate
 limited scope. No successful sector write alone establishes durable commits.
+Reuse [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) for the measured
+SQLite contract and [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) for
+transaction/recovery qualification. Both require direct `Microsoft.Data.Sqlite`,
+with a pinned native SQLite dependency and measured file/locking/flush behavior.
+`Microsoft.EntityFrameworkCore.Sqlite` adds EF Core model/query generation and
+separate NativeAOT constraints; those limitations do not establish SQLite engine
+incompatibility. EF Core is outside this local SQLite acceptance scope.
 After each batch audit README, all first-party docs/guides and Gitea, update
 every affected statement, retain a new immutable done receipt, merge only
 verified work, reconcile/read back the tracker, and continue the durable goal.

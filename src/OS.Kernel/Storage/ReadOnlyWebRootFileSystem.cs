@@ -1,0 +1,863 @@
+using OS.Drivers;
+using OS.Std.Binary;
+using OS.Std.Time;
+using Block = OS.Storage.ContinuingReadOnlyBlockService;
+using Chain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
+using Vfat = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
+
+namespace OS.Storage;
+
+/// <summary>Confined immutable FAT32 namespace over an exclusively borrowed
+/// continuing block owner. One serialized supervisor caller pumps bounded steps;
+/// no method spins for disk I/O or retains a user destination. All mount, slot,
+/// cache and scratch storage is caller-owned, mapped ordinary RAM without hidden
+/// aliases, and remains exclusive/stable until Stop succeeds. This supplies no
+/// Linux descriptors, public directory browsing, writes or device mapping proof.</summary>
+public static unsafe class ReadOnlyWebRootFileSystem
+{
+    public const uint PathBytes = 256, MaximumRangeBytes = 65536, MaximumClusters = 4096;
+    public const uint MaximumSlots = 8, MaximumCacheSlots = 8;
+    private const ulong AddressLimit = 0x0000800000000000UL;
+    private const byte Free = 0, Working = 1, ReadyPhase = 2, Failed = 3, Cancelling = 4;
+    private const byte Mounting = 1, Mounted = 2, Stopping = 3, Retired = 4, Faulted = 5;
+    private const byte MountKind = 1, OpenKind = 2, ReadKind = 3, ScanKind = 4;
+    private const byte BpbIo = 1, DirectoryIo = 2, Fat0Io = 3, Fat1Io = 4, DataIo = 5;
+
+    public enum Status : byte
+    {
+        Uninitialized, Success, Pending, Ready, Entry, EndOfDirectory, EndOfFile,
+        Busy, Full, InvalidAccess, InvalidState, InvalidStorage, InvalidPath,
+        OutsideRoot, UnsupportedEncoding, UnsupportedGeometry, StaleToken,
+        GenerationExhausted, NotFound, NotDirectory, IsDirectory, Ambiguous,
+        InvalidOffset, ShortBuffer, OutputFull, TraversalBudgetExceeded,
+        CorruptDirectory, CorruptFile, ChainLoop, Truncated, Overlong, BadCluster,
+        FreeCluster, ReservedCluster, InvalidCluster, InvalidBpb, MirrorMismatch, DeviceFailed, Cancelled
+    }
+
+    /// <summary>Fixed backing for one reusable operation. Path/sector/name need
+    /// 256/512/260*2 bytes. History has1..4096 uints; range has1..65536 bytes.
+    /// Buffers never alias each other, any slot, cache, or the block owner.</summary>
+    public struct Scratch
+    {
+        public byte* Path, Sector, Range;
+        public ushort* Name;
+        public uint* History;
+        public uint HistoryCapacity, RangeCapacity;
+    }
+
+    /// <summary>One paired FAT-sector cache entry. Data is512 bytes. A slot is
+    /// invalid while filling and becomes valid only after both FAT copies match.
+    /// The epoch and both absolute LBAs identify its complete validation scope.</summary>
+    public struct CacheSlot
+    {
+        public byte* Data;
+        internal ulong Epoch, Lba0, Lba1, OperationGeneration;
+        internal uint OperationIndex;
+        internal byte Phase;
+    }
+
+    /// <summary>Caller-owned handle slot and immutable checked cluster map.
+    /// Supply1..4096 uints before Start; all other fields start zero. An active
+    /// handle's map is private until Close. Directory handles need no data map.</summary>
+    public struct FileHandle
+    {
+        public uint* Clusters;
+        public uint ClusterCapacity;
+        internal ulong Self, Epoch, Generation;
+        internal Metadata Info;
+        internal uint ClusterCount, References;
+        internal byte Phase;
+    }
+
+    /// <summary>Resumable physical directory position and VFAT sequence. Only
+    /// the enclosing operation owns its scratch/history. Pending metadata/name
+    /// stays unpublished across OutputFull; work and visits never reset on retry.</summary>
+    public struct DirectoryCursor
+    {
+        internal uint Cluster, SectorInCluster, EntryInSector, Visits;
+        internal LiveVfatState Vfat;
+        internal Metadata Pending;
+        internal ushort NameLength;
+        internal bool Visited, SectorReady, HasPending, Ended;
+    }
+
+    /// <summary>Reusable noncopyable operation slot. Supply Scratch before
+    /// Start, leave every other field zero, and never change it while mounted.
+    /// Failed operations remain owned until Cancel; successful copy consumes
+    /// open/read results. A directory operation ends or is explicitly cancelled.</summary>
+    public struct Operation
+    {
+        public Scratch Storage;
+        internal ulong Self, Epoch, Generation;
+        internal DirectoryCursor Cursor;
+        internal Metadata Candidate;
+        internal ulong Offset;
+        internal uint Index, FileIndex, Component, ComponentLength, PathLength, Work;
+        internal uint Wanted, Filled, FatCluster, FatSlot, RequiredClusters, MatchCount;
+        internal byte Phase, Kind, Waiting, FatStage;
+        internal bool CandidateExact, HaveCandidate, LookupDone;
+        internal Status Failure;
+    }
+
+    /// <summary>Borrowed immutable admission. The block owner is already idle
+    /// and running; GPT authority supplies the ESP bounds. Epoch is unique for
+    /// this mount. Supply2..8 operation and handle slots,1..8 cache slots, and a
+    /// positive cumulative physical-directory-entry budget per operation.
+    /// Scratch capacities remain independent of advertised volume size.</summary>
+    public struct Admission
+    {
+        public Block.State* Device;
+        public ulong Epoch, PartitionFirst, PartitionLast;
+        public Operation* Operations;
+        public FileHandle* Files;
+        public CacheSlot* Cache;
+        public uint OperationCount, FileCount, CacheCount, DirectoryEntryBudget;
+    }
+
+    /// <summary>Stable noncopyable owner. Failed block activity revokes cache
+    /// publication and all new work. Preserve admission/backing until Stop
+    /// succeeds; failed device cleanup remains the platform owner's duty.</summary>
+    public struct Mount
+    {
+        internal ulong Self, DeviceEpoch, PoolEpoch;
+        internal Admission Input;
+        internal LiveFat32Volume Volume;
+        internal Metadata Root;
+        internal Block.ReadToken IoToken;
+        internal ulong IoGeneration;
+        internal uint IoIndex, NextVictim;
+        internal byte Phase;
+        internal bool IoActive;
+        internal Status Failure;
+        internal ulong Reads, Hits, Misses;
+        public readonly bool Ready => Phase == Mounted;
+        public readonly bool IsRetired => Phase == Retired;
+        public readonly bool RequiresCleanup => Self != 0 && Phase != Retired;
+        public readonly Status LastFailure => Failure;
+        public readonly ulong SectorReads => Reads;
+        public readonly ulong CacheHits => Hits;
+        public readonly ulong CacheMisses => Misses;
+    }
+
+    public readonly struct OperationToken
+    {
+        internal readonly ulong Owner, Epoch, Generation;
+        internal readonly uint Index;
+        internal OperationToken(ulong owner, ulong epoch, ulong generation, uint index)
+        { Owner = owner; Epoch = epoch; Generation = generation; Index = index; }
+        public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
+    }
+    public readonly struct FileToken
+    {
+        internal readonly ulong Owner, Epoch, Generation;
+        internal readonly uint Index;
+        internal FileToken(ulong owner, ulong epoch, ulong generation, uint index)
+        { Owner = owner; Epoch = epoch; Generation = generation; Index = index; }
+        public bool IsInitialized => Owner != 0 && Epoch != 0 && Generation != 0;
+    }
+
+    /// <summary>Stable physical short-entry identity and declared FAT UTC time.
+    /// The fixture's UTC policy is an admission assumption, not a timezone guess.
+    /// Attributes distinguish regular files/directories; length is bytes.</summary>
+    public struct Metadata
+    {
+        public ulong Inode;
+        public long ModifiedSeconds;
+        public uint FirstCluster, Length;
+        public ushort NameBytes;
+        public byte Attributes;
+        public readonly bool IsDirectory => (Attributes & 0x10) != 0;
+    }
+    public struct OpenResult { public FileToken File; public Metadata Info; }
+    /// <summary>Live handle metadata. Regular allocation is the fully checked
+    /// cluster map multiplied by sectors per cluster. Directory allocation is
+    /// unknown because opening a directory does not preload its complete chain.</summary>
+    public struct FileInspection { public Metadata Info; public ulong AllocatedBlocks; public bool AllocationKnown; }
+
+    /// <summary>Borrow a fresh metadata snapshot without I/O. Authenticate the
+    /// exact live mount/device and file generation before writing the disjoint,
+    /// aligned caller-owned output. Reset/stale/alias failures change nothing.</summary>
+    public static Status Inspect(Mount* m, FileToken file, FileInspection* result)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)result, (ulong)sizeof(FileInspection), 8)) return Status.InvalidStorage;
+        if (!File(m, file, out FileHandle* f)) return Status.StaleToken;
+        *result = new() { Info = f->Info, AllocationKnown = !f->Info.IsDirectory,
+            AllocatedBlocks = f->Info.IsDirectory ? 0 : (ulong)f->ClusterCount * m->Volume.SectorsPerCluster };
+        return Status.Success;
+    }
+
+    /// <summary>Admit all storage before mutation, then start asynchronous BPB
+    /// and /app/wwwroot resolution using operation0. Pending requires PumpMount.
+    /// No supplied buffer is device DMA; block Copy borrows sector scratch only
+    /// through a pump call. Invalid admission has no effects.</summary>
+    public static Status Start(Mount* m, in Admission input)
+    {
+        Admission a = input;
+        if (!Admit(m, a)) return Status.InvalidAccess;
+        m->Self = (ulong)m; m->Input = a; m->DeviceEpoch = a.Device->Input.Epoch;
+        m->PoolEpoch = a.Device->PoolEpoch; m->Phase = Mounting; m->Failure = Status.Success;
+        for (uint i = 0; i < a.OperationCount; i++)
+        { a.Operations[i].Self = (ulong)(a.Operations + i); a.Operations[i].Epoch = a.Epoch; a.Operations[i].Index = i; }
+        for (uint i = 0; i < a.FileCount; i++) { a.Files[i].Self = (ulong)(a.Files + i); a.Files[i].Epoch = a.Epoch; }
+        Operation* o = a.Operations; Begin(o, MountKind); o->PathLength = 12;
+        ReadOnlySpan<byte> root = "/app/wwwroot"u8;
+        for (uint i = 0; i < 12; i++) o->Storage.Path[i] = root[(int)i];
+        return Status.Pending;
+    }
+
+    /// <summary>Advance at most one real sector completion or one parser/chain
+    /// step. Return Ready only after BPB and both root components are validated.</summary>
+    public static Status PumpMount(Mount* m)
+    {
+        if (!Bound(m)) return Status.InvalidState;
+        if (m->Phase == Mounted) return Status.Ready;
+        if (m->Phase != Mounting) return Status.InvalidState;
+        return Pump(m, m->Input.Operations);
+    }
+
+    /// <summary>Copy one absolute ASCII path below the exact admitted root and
+    /// reserve independent operation/handle slots. Output is borrowed mapped,
+    /// aligned exclusive ordinary RAM; reject aliases before any output write.
+    /// Invalid path/storage publishes nothing. Poll then CopyOpen consumes success.</summary>
+    public static Status BeginOpen(Mount* m, ReadOnlySpan<byte> path, OperationToken* token)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)token, (ulong)sizeof(OperationToken), 8)) return Status.InvalidStorage;
+        if (path.Length == 0) return Status.InvalidPath;
+        fixed (byte* p = path)
+            if (!External(m, (ulong)p, (ulong)path.Length, 1) || Overlap((ulong)p, (ulong)path.Length, (ulong)token, (ulong)sizeof(OperationToken))) return Status.InvalidStorage;
+        Status valid = PathPolicy(path); if (valid != Status.Success) return valid;
+        Status reserved = ReserveOperation(m, OpenKind, out Operation* o); if (reserved != Status.Success) return reserved;
+        uint file = 0;
+        for (; file < m->Input.FileCount; file++) if (m->Input.Files[file].Phase == Free && m->Input.Files[file].Generation != ~0UL) break;
+        if (file == m->Input.FileCount)
+        {
+            bool exhausted = false; for (uint i = 0; i < m->Input.FileCount; i++) if (m->Input.Files[i].Phase == Free) exhausted = true;
+            Release(m, o); return exhausted ? Status.GenerationExhausted : Status.Full;
+        }
+        FileHandle* f = m->Input.Files + file; f->Generation++; f->Phase = Working; f->ClusterCount = 0;
+        o->FileIndex = file; o->PathLength = (uint)path.Length;
+        for (int i = 0; i < path.Length; i++) o->Storage.Path[i] = path[i];
+        if (path.Length == 12) { o->Candidate = m->Root; o->LookupDone = true; }
+        else { o->Component = 13; InitCursor(o, m->Root.FirstCluster); Component(o); }
+        *token = OpToken(m, o); return Status.Pending;
+    }
+
+    /// <summary>Start a bounded offset read. Only this requested range, capped
+    /// by the operation's <=64KiB scratch and EOF, is staged for atomic output.
+    /// Handle cluster metadata is already validated; data is read on demand.
+    /// No destination pointer is retained. Offset greater than EOF is rejected.</summary>
+    public static Status BeginRead(Mount* m, FileToken file, ulong offset, uint bytes, OperationToken* token)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)token, (ulong)sizeof(OperationToken), 8)) return Status.InvalidStorage;
+        if (!File(m, file, out FileHandle* f)) return Status.StaleToken;
+        if (f->Info.IsDirectory) return Status.IsDirectory;
+        if (offset > f->Info.Length || bytes > MaximumRangeBytes || offset > ~0UL - bytes) return Status.InvalidOffset;
+        Status reserved = ReserveOperation(m, ReadKind, out Operation* o); if (reserved != Status.Success) return reserved;
+        uint wanted = (uint)((ulong)bytes < f->Info.Length - offset ? bytes : f->Info.Length - offset);
+        if (wanted > o->Storage.RangeCapacity) { Release(m, o); return Status.ShortBuffer; }
+        o->FileIndex = file.Index; o->Offset = offset; o->Wanted = wanted; f->References++;
+        if (wanted == 0) o->Phase = ReadyPhase;
+        *token = OpToken(m, o); return Status.Pending;
+    }
+
+    /// <summary>Internal resumable directory scan, not a public filesystem
+    /// listing capability. Each operation owns separate position/VFAT/history.
+    /// Entry output is explicitly consumed with CopyEntry; short output does
+    /// not consume an entry or reset work. Cancel or EndOfDirectory releases it.</summary>
+    public static Status BeginDirectory(Mount* m, FileToken directory, OperationToken* token)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)token, (ulong)sizeof(OperationToken), 8)) return Status.InvalidStorage;
+        if (!File(m, directory, out FileHandle* f)) return Status.StaleToken;
+        if (!f->Info.IsDirectory) return Status.NotDirectory;
+        Status reserved = ReserveOperation(m, ScanKind, out Operation* o); if (reserved != Status.Success) return reserved;
+        o->FileIndex = directory.Index; f->References++; InitCursor(o, f->Info.FirstCluster);
+        *token = OpToken(m, o); return Status.Pending;
+    }
+
+    /// <summary>One cooperative bounded step. Busy means another operation owns
+    /// the single block lease. Ready/Entry are retained, not copies. Errors remain
+    /// owned until Cancel, so callers can distinguish corruption, budget and I/O
+    /// failure from EOF. No syscall thread or global IRQ-off disk spin is supplied.</summary>
+    public static Status Poll(Mount* m, OperationToken token)
+    {
+        if (!Bound(m)) return Status.InvalidState;
+        if (m->Phase is not (Mounted or Stopping)) return Status.InvalidState;
+        if (!Op(m, token, out Operation* o)) return Status.StaleToken;
+        return Pump(m, o);
+    }
+
+    /// <summary>Publish a fully validated open result and consume its operation.
+    /// Output must be aligned, mapped exclusive ordinary RAM outside all retained
+    /// storage. Failure leaves output untouched and preserves a ready result.</summary>
+    public static Status CopyOpen(Mount* m, OperationToken token, OpenResult* result)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)result, (ulong)sizeof(OpenResult), 8)) return Status.InvalidStorage;
+        if (!Op(m, token, out Operation* o)) return Status.StaleToken;
+        if (o->Kind != OpenKind || o->Phase != ReadyPhase) return o->Phase == Failed ? o->Failure : Status.Pending;
+        FileHandle* f = m->Input.Files + o->FileIndex; f->Phase = ReadyPhase;
+        *result = new() { File = new((ulong)m, m->Input.Epoch, f->Generation, o->FileIndex), Info = f->Info };
+        o->FileIndex = ~0U; Release(m, o); return Status.Success;
+    }
+
+    /// <summary>Copy only a complete validated requested range, then consume
+    /// the operation. Short output preserves Ready. The byte-count pointer and
+    /// destination are separate mapped ordinary RAM and alias-checked before
+    /// any write. Failed I/O publishes no partial range and never becomes EOF.</summary>
+    public static Status CopyRead(Mount* m, OperationToken token, Span<byte> destination, uint* bytes)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)bytes, 4, 4)) return Status.InvalidStorage;
+        if (!Op(m, token, out Operation* o)) return Status.StaleToken;
+        if (o->Kind != ReadKind || o->Phase != ReadyPhase) return o->Phase == Failed ? o->Failure : Status.Pending;
+        if (destination.Length < o->Wanted) return Status.ShortBuffer;
+        fixed (byte* p = destination)
+        {
+            if (o->Wanted != 0 && (!External(m, (ulong)p, o->Wanted, 1) || Overlap((ulong)p, o->Wanted, (ulong)bytes, 4))) return Status.InvalidStorage;
+            for (uint i = 0; i < o->Wanted; i++) p[i] = o->Storage.Range[i];
+        }
+        *bytes = o->Wanted; bool eof = o->Wanted == 0 && o->Offset == m->Input.Files[o->FileIndex].Info.Length;
+        Release(m, o); return eof ? Status.EndOfFile : Status.Success;
+    }
+
+    /// <summary>Publish the pending ASCII canonical name (including a trailing
+    /// NUL) and metadata, then advance. OutputFull preserves the pending entry,
+    /// name, physical position and cumulative budgets for a later caller batch.</summary>
+    public static Status CopyEntry(Mount* m, OperationToken token, Metadata* result, Span<byte> name)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!External(m, (ulong)result, (ulong)sizeof(Metadata), 8)) return Status.InvalidStorage;
+        if (!Op(m, token, out Operation* o)) return Status.StaleToken;
+        if (o->Kind != ScanKind || !o->Cursor.HasPending) return o->Phase == Failed ? o->Failure : Status.Pending;
+        uint count = (uint)o->Cursor.NameLength + 1;
+        if (name.Length < count) return Status.OutputFull;
+        fixed (byte* p = name)
+        {
+            if (!External(m, (ulong)p, count, 1) || Overlap((ulong)p, count, (ulong)result, (ulong)sizeof(Metadata))) return Status.InvalidStorage;
+            for (uint i = 0; i + 1 < count; i++) p[i] = (byte)o->Storage.Name[i];
+            p[count - 1] = 0;
+        }
+        *result = o->Cursor.Pending; o->Cursor.HasPending = false; return Status.Success;
+    }
+
+    /// <summary>Revoke an operation's publication permission immediately.
+    /// Outstanding block work must still drain through Poll; Pending retains
+    /// scratch. An operation without DMA releases immediately and becomes stale.</summary>
+    public static Status Cancel(Mount* m, OperationToken token)
+    {
+        if (!Bound(m) || m->Phase == Retired) return Status.InvalidState;
+        if (!Op(m, token, out Operation* o)) return Status.StaleToken;
+        o->Phase = Cancelling;
+        if (m->IoActive && m->IoIndex == o->Index && m->IoGeneration == o->Generation)
+        {
+            bool ready = m->Input.Device->ReadReady;
+            if (Block.Cancel(m->Input.Device, m->IoToken) != Block.Status.Success) return DeviceFault(m);
+            if (ready) { m->IoActive = false; o->Waiting = 0; Release(m, o); return Status.Cancelled; }
+            return Status.Pending;
+        }
+        Release(m, o); return Status.Cancelled;
+    }
+
+    /// <summary>Close an independent handle. Active operations keep it Busy;
+    /// stale/copied tokens cannot close a reused slot. No device I/O occurs.</summary>
+    public static Status Close(Mount* m, FileToken token)
+    {
+        if (!Live(m)) return Status.InvalidState;
+        if (!File(m, token, out FileHandle* f)) return Status.StaleToken;
+        if (f->References != 0) return Status.Busy;
+        f->Phase = Free; f->ClusterCount = 0; return Status.Success;
+    }
+
+    /// <summary>Revoke all cache/handle publication and drain at most one block
+    /// observation per call. This owner never resets a borrowed device. If it
+    /// faults, preserve backing until the platform has actually stopped it;
+    /// only its retired receipt permits final local release. Retired is idempotent.</summary>
+    public static Status Stop(Mount* m)
+    {
+        if (!Bound(m)) return Status.InvalidState;
+        if (m->Phase == Retired) return Status.Success;
+        m->Phase = Stopping; InvalidateCache(m);
+        if (!DeviceBound(m) || (!m->Input.Device->Running && !m->Input.Device->Retired)) return Status.DeviceFailed;
+        if (m->IoActive)
+        {
+            if (!DeviceBound(m)) return Status.DeviceFailed;
+            if (m->Input.Device->Retired) m->IoActive = false;
+            else
+            {
+                Operation* o = m->Input.Operations + m->IoIndex; o->Phase = Cancelling;
+                bool ready = m->Input.Device->ReadReady;
+                if (Block.Cancel(m->Input.Device, m->IoToken) != Block.Status.Success) return Status.DeviceFailed;
+                if (ready) { m->IoActive = false; o->Waiting = 0; Release(m, o); }
+                else { Status progress = CompleteIo(m, o); if (progress is not (Status.Cancelled or Status.Success)) return progress; }
+            }
+        }
+        for (uint i = 0; i < m->Input.OperationCount; i++) if (m->Input.Operations[i].Phase != Free) Release(m, m->Input.Operations + i);
+        for (uint i = 0; i < m->Input.FileCount; i++) { m->Input.Files[i].Phase = Free; m->Input.Files[i].ClusterCount = 0; }
+        m->Phase = Retired; return Status.Success;
+    }
+
+    private static Status Pump(Mount* m, Operation* o)
+    {
+        if (o->Phase == Failed) return o->Failure;
+        if (!DeviceBound(m) || !m->Input.Device->Running) return Fail(m, o, DeviceFault(m));
+        if (o->Phase == ReadyPhase) return Status.Ready;
+        if (o->Cursor.HasPending && o->Kind == ScanKind) return Status.Entry;
+        if (o->Waiting != 0) return CompleteIo(m, o);
+        if (o->Phase == Cancelling) { Release(m, o); return Status.Cancelled; }
+        if (o->Kind == MountKind && !m->Volume.Succeeded) return ReadSector(m, o, m->Input.PartitionFirst, BpbIo);
+        if (o->Kind is MountKind or OpenKind)
+        {
+            if (!o->LookupDone) return LookupStep(m, o);
+            if (o->Kind == MountKind)
+            {
+                if (!o->Candidate.IsDirectory) return Fail(m, o, Status.NotDirectory);
+                m->Root = o->Candidate; m->Phase = Mounted; Release(m, o); return Status.Ready;
+            }
+            return FileChainStep(m, o);
+        }
+        if (o->Kind == ReadKind) return ReadStep(m, o);
+        Status entry = DirectoryStep(m, o);
+        if (entry == Status.EndOfDirectory) Release(m, o);
+        return entry;
+    }
+
+    private static Status ReadSector(Mount* m, Operation* o, ulong lba, byte action)
+    {
+        if (lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast) return Fail(m, o, Status.CorruptFile);
+        if (m->IoActive) return Status.Busy;
+        Block.ReadToken token = default;
+        var status = Block.Submit(m->Input.Device, lba, &token);
+        if (status == Block.Status.Busy) return Status.Busy;
+        if (status != Block.Status.Success) return Fail(m, o, DeviceFault(m));
+        m->IoToken = token; m->IoIndex = o->Index; m->IoGeneration = o->Generation; m->IoActive = true;
+        o->Waiting = action; m->Reads++; return Status.Pending;
+    }
+
+    private static Status CompleteIo(Mount* m, Operation* o)
+    {
+        if (!m->IoActive || m->IoIndex != o->Index || m->IoGeneration != o->Generation) return Fail(m, o, Status.InvalidState);
+        Block.Completion completion = default;
+        var status = Block.Poll(m->Input.Device, &completion);
+        if (status == Block.Status.Pending) return Status.Pending;
+        if (status == Block.Status.Cancelled && o->Phase == Cancelling)
+        { m->IoActive = false; o->Waiting = 0; Release(m, o); return Status.Cancelled; }
+        if (status != Block.Status.Ready) return Fail(m, o, DeviceFault(m));
+        if (Block.Copy(m->Input.Device, m->IoToken, new Span<byte>(o->Storage.Sector, 512)) != Block.Status.Success)
+            return Fail(m, o, DeviceFault(m));
+        m->IoActive = false; byte action = o->Waiting; o->Waiting = 0;
+        if (o->Phase == Cancelling) { Release(m, o); return Status.Cancelled; }
+        if (action == BpbIo)
+        {
+            var result = Chain.ParseBpb(new Span<byte>(o->Storage.Sector, 512), m->Input.Device->SectorCount,
+                m->Input.PartitionFirst, m->Input.PartitionLast, BlockReadResult.Success(1, 512), ref m->Volume);
+            if (result != LiveFat32Status.Success) return Fail(m, o, Map(result));
+            o->Component = 1; Component(o); InitCursor(o, m->Volume.RootCluster); return Status.Pending;
+        }
+        if (action == DirectoryIo) { o->Cursor.SectorReady = true; o->Cursor.EntryInSector = 0; return Status.Pending; }
+        if (action == Fat0Io)
+        {
+            CacheSlot* slot = m->Input.Cache + o->FatSlot;
+            for (uint i = 0; i < 512; i++) slot->Data[i] = o->Storage.Sector[i];
+            o->FatStage = 2; return Status.Pending;
+        }
+        if (action == Fat1Io)
+        {
+            CacheSlot* slot = m->Input.Cache + o->FatSlot;
+            for (uint i = 0; i < 512; i++) if (slot->Data[i] != o->Storage.Sector[i]) { slot->Phase = Free; return Fail(m, o, Status.MirrorMismatch); }
+            // Keep the verified slot pinned until this operation consumes the
+            // entry. Another operation must not evict it between pump calls.
+            o->FatStage = 3; return Status.Pending;
+        }
+        if (action != DataIo) return Fail(m, o, Status.InvalidState);
+        uint skip = (uint)((o->Offset + o->Filled) & 511);
+        uint count = 512 - skip; if (count > o->Wanted - o->Filled) count = o->Wanted - o->Filled;
+        for (uint i = 0; i < count; i++) o->Storage.Range[o->Filled + i] = o->Storage.Sector[skip + i];
+        o->Filled += count; if (o->Filled == o->Wanted) { o->Phase = ReadyPhase; return Status.Ready; }
+        return Status.Pending;
+    }
+
+    private static Status ReadStep(Mount* m, Operation* o)
+    {
+        if (o->Filled == o->Wanted) { o->Phase = ReadyPhase; return Status.Ready; }
+        FileHandle* f = m->Input.Files + o->FileIndex;
+        ulong position = o->Offset + o->Filled, clusterBytes = (ulong)m->Volume.SectorsPerCluster * 512;
+        uint map = (uint)(position / clusterBytes); if (map >= f->ClusterCount) return Fail(m, o, Status.CorruptFile);
+        ulong lba = 0;
+        if (Chain.ClusterFirstLba(m->Volume, f->Clusters[map], ref lba) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptFile);
+        return ReadSector(m, o, lba + (position % clusterBytes) / 512, DataIo);
+    }
+
+    private static Status FileChainStep(Mount* m, Operation* o)
+    {
+        FileHandle* f = m->Input.Files + o->FileIndex;
+        if (!o->HaveCandidate)
+        {
+            f->Info = o->Candidate; o->HaveCandidate = true;
+            if (f->Info.IsDirectory || f->Info.Length == 0)
+            {
+                if (!f->Info.IsDirectory && f->Info.FirstCluster != 0) return Fail(m, o, Status.CorruptFile);
+                o->Phase = ReadyPhase; return Status.Ready;
+            }
+            ulong clusterBytes = (ulong)m->Volume.SectorsPerCluster * 512;
+            o->RequiredClusters = (uint)(((ulong)f->Info.Length + clusterBytes - 1) / clusterBytes);
+            if (o->RequiredClusters > f->ClusterCapacity) return Fail(m, o, Status.TraversalBudgetExceeded);
+            var visit = Chain.Visit(m->Volume, f->Info.FirstCluster, new Span<uint>(f->Clusters, (int)f->ClusterCapacity), ref f->ClusterCount);
+            if (visit != LiveFat32Status.Success) return Fail(m, o, Map(visit));
+            return Status.Pending;
+        }
+        Status status = Fat(m, o, f->Clusters[f->ClusterCount - 1], out uint next, out bool end);
+        if (status != Status.Success) return status;
+        if (end)
+        {
+            var length = Chain.CheckLength(f->ClusterCount, o->RequiredClusters);
+            if (length != LiveFat32Status.Success) return Fail(m, o, Map(length));
+            o->Phase = ReadyPhase; return Status.Ready;
+        }
+        if (f->ClusterCount == o->RequiredClusters)
+        {
+            for (uint i = 0; i < f->ClusterCount; i++) if (f->Clusters[i] == next) return Fail(m, o, Status.ChainLoop);
+            return Fail(m, o, Status.Overlong);
+        }
+        var result = Chain.Visit(m->Volume, next, new Span<uint>(f->Clusters, (int)f->ClusterCapacity), ref f->ClusterCount);
+        if (result != LiveFat32Status.Success) return Fail(m, o, Map(result));
+        return f->ClusterCount > o->RequiredClusters ? Fail(m, o, Status.CorruptFile) : Status.Pending;
+    }
+
+    private static Status Fat(Mount* m, Operation* o, uint cluster, out uint next, out bool end)
+    {
+        next = 0; end = false;
+        ulong check = 0;
+        if (Chain.ClusterFirstLba(m->Volume, cluster, ref check) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptFile);
+        ulong lba0 = m->Volume.FirstFatLba + cluster / 128, lba1 = lba0 + m->Volume.FatSectors;
+        CacheSlot* slot = null;
+        if (o->FatStage != 0)
+        {
+            slot = m->Input.Cache + o->FatSlot;
+            if (o->FatCluster != cluster || slot->Epoch != m->Input.Epoch || slot->Lba0 != lba0 || slot->Lba1 != lba1) return Fail(m, o, Status.InvalidState);
+            if (o->FatStage == 1) return ReadSector(m, o, lba0, Fat0Io);
+            if (o->FatStage == 2) return ReadSector(m, o, lba1, Fat1Io);
+            if (slot->Phase != Working || slot->OperationIndex != o->Index || slot->OperationGeneration != o->Generation) return Fail(m, o, Status.InvalidState);
+        }
+        else
+        {
+            for (uint i = 0; i < m->Input.CacheCount; i++)
+            {
+                CacheSlot* candidate = m->Input.Cache + i;
+                if (candidate->Phase == Free || candidate->Epoch != m->Input.Epoch || candidate->Lba0 != lba0 || candidate->Lba1 != lba1) continue;
+                if (candidate->Phase != ReadyPhase) return Status.Busy;
+                slot = candidate; m->Hits++; break;
+            }
+            if (slot == null)
+            {
+                uint index = m->NextVictim;
+                for (uint n = 0; n < m->Input.CacheCount; n++)
+                {
+                    uint at = (index + n) % m->Input.CacheCount;
+                    if (m->Input.Cache[at].Phase == Working) continue;
+                    slot = m->Input.Cache + at; o->FatSlot = at; m->NextVictim = (at + 1) % m->Input.CacheCount; break;
+                }
+                if (slot == null) return Status.Busy;
+                slot->Phase = Working; slot->Epoch = m->Input.Epoch; slot->Lba0 = lba0; slot->Lba1 = lba1;
+                slot->OperationIndex = o->Index; slot->OperationGeneration = o->Generation;
+                o->FatCluster = cluster; o->FatStage = 1; m->Misses++;
+                return ReadSector(m, o, lba0, Fat0Io);
+            }
+        }
+        uint value = 0;
+        var parsed = Chain.ReadFatEntry(m->Volume, cluster, lba0, new Span<byte>(slot->Data, 512), BlockReadResult.Success(1, 512), ref value);
+        o->FatStage = 0;
+        if (parsed is not (LiveFat32Status.Success or LiveFat32Status.EndOfChain))
+        { slot->Phase = Free; return Fail(m, o, Map(parsed)); }
+        slot->Phase = ReadyPhase;
+        if (parsed == LiveFat32Status.EndOfChain) { end = true; return Status.Success; }
+        next = value; return Status.Success;
+    }
+
+    private static Status LookupStep(Mount* m, Operation* o)
+    {
+        Status step = DirectoryStep(m, o);
+        if (step == Status.Entry)
+        {
+            bool exact = NameEquals(o, false), folded = NameEquals(o, true), alias = AliasEquals(o);
+            if (folded || alias)
+            {
+                o->MatchCount++;
+                if (exact) { o->Candidate = o->Cursor.Pending; o->CandidateExact = true; }
+            }
+            o->Cursor.HasPending = false; return Status.Pending;
+        }
+        if (step != Status.EndOfDirectory) return step;
+        if (o->MatchCount > 1) return Fail(m, o, Status.Ambiguous);
+        if (!o->CandidateExact) return Fail(m, o, Status.NotFound);
+        uint after = o->Component + o->ComponentLength;
+        if (after == o->PathLength)
+        {
+            if (o->Kind == OpenKind && o->Candidate.IsDirectory)
+            {
+                uint depth = 1; for (uint i = 13; i < o->PathLength; i++) if (o->Storage.Path[i] == '/') depth++;
+                if (depth > 8) return Fail(m, o, Status.InvalidPath);
+            }
+            o->LookupDone = true; return Status.Pending;
+        }
+        if (!o->Candidate.IsDirectory) return Fail(m, o, Status.NotDirectory);
+        o->Component = after + 1; Component(o); uint directory = o->Candidate.FirstCluster;
+        o->CandidateExact = false; o->MatchCount = 0; InitCursor(o, directory); return Status.Pending;
+    }
+
+    private static Status DirectoryStep(Mount* m, Operation* o)
+    {
+        if (o->Cursor.HasPending) return Status.Entry;
+        if (o->Cursor.Ended) return Status.EndOfDirectory;
+        if (!o->Cursor.Visited)
+        {
+            var visit = Chain.Visit(m->Volume, o->Cursor.Cluster, new Span<uint>(o->Storage.History, (int)o->Storage.HistoryCapacity), ref o->Cursor.Visits);
+            if (visit != LiveFat32Status.Success) return Fail(m, o, Map(visit));
+            o->Cursor.Visited = true;
+        }
+        if (!o->Cursor.SectorReady)
+        {
+            ulong lba = 0;
+            if (Chain.ClusterFirstLba(m->Volume, o->Cursor.Cluster, ref lba) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptDirectory);
+            return ReadSector(m, o, lba + o->Cursor.SectorInCluster, DirectoryIo);
+        }
+        if (o->Cursor.EntryInSector == 16)
+        {
+            o->Cursor.SectorReady = false;
+            if (o->Cursor.SectorInCluster + 1 < m->Volume.SectorsPerCluster) { o->Cursor.SectorInCluster++; return Status.Pending; }
+            o->Cursor.SectorInCluster = m->Volume.SectorsPerCluster;
+            // Preserve the exhausted sector until both FAT-copy reads finish.
+            o->Cursor.SectorReady = true;
+            Status fat = Fat(m, o, o->Cursor.Cluster, out uint next, out bool end);
+            if (fat != Status.Success) return fat;
+            if (end)
+            {
+                if (Vfat.Finish(o->Cursor.Vfat) != LiveDirectoryStatus.End) return Fail(m, o, Status.CorruptDirectory);
+                o->Cursor.Ended = true; return Status.EndOfDirectory;
+            }
+            o->Cursor.Cluster = next; o->Cursor.SectorInCluster = 0; o->Cursor.Visited = false; o->Cursor.SectorReady = false;
+            return Status.Pending;
+        }
+        if (o->Work == m->Input.DirectoryEntryBudget) return Fail(m, o, Status.TraversalBudgetExceeded);
+        o->Work++;
+        byte* raw = o->Storage.Sector + o->Cursor.EntryInSector * 32; uint physicalEntry = o->Cursor.EntryInSector++;
+        var parsed = Vfat.Consume(new Span<byte>(raw, 32), ref o->Cursor.Vfat, new Span<ushort>(o->Storage.Name, 260), out var entry);
+        if (parsed is LiveDirectoryStatus.Skipped or LiveDirectoryStatus.LongName) return Status.Pending;
+        if (parsed == LiveDirectoryStatus.End) { o->Cursor.Ended = true; return Status.EndOfDirectory; }
+        if (parsed != LiveDirectoryStatus.Entry) return Fail(m, o, Status.CorruptDirectory);
+        ushort length = entry.NameLength;
+        if (length == 0)
+        {
+            for (uint i = 0; i < 8 && raw[i] != ' '; i++) o->Storage.Name[length++] = raw[i];
+            if (raw[8] != ' ') { o->Storage.Name[length++] = '.'; for (uint i = 8; i < 11 && raw[i] != ' '; i++) o->Storage.Name[length++] = raw[i]; }
+        }
+        for (uint i = 0; i < length; i++) if (o->Storage.Name[i] is < 33 or > 126) return Fail(m, o, Status.UnsupportedEncoding);
+        ushort date = EndianPrimitives.ReadUInt16LittleEndian(raw + 24), time = EndianPrimitives.ReadUInt16LittleEndian(raw + 22);
+        if (!GregorianUtc.TryUnixSeconds((uint)(1980 + (date >> 9)), (uint)((date >> 5) & 15), (uint)(date & 31),
+            (uint)(time >> 11), (uint)((time >> 5) & 63), (uint)((time & 31) * 2), out long seconds)) return Fail(m, o, Status.CorruptDirectory);
+        ulong sector = 0;
+        if (Chain.ClusterFirstLba(m->Volume, o->Cursor.Cluster, ref sector) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptDirectory);
+        o->Cursor.Pending = new() { FirstCluster = entry.FirstCluster, Length = entry.ByteCount, Attributes = entry.Attributes,
+            NameBytes = length, ModifiedSeconds = seconds, Inode = (sector + o->Cursor.SectorInCluster) * 16 + physicalEntry + 256 };
+        o->Cursor.NameLength = length; o->Cursor.HasPending = true; return Status.Entry;
+    }
+
+    private static bool NameEquals(Operation* o, bool fold)
+    {
+        if (o->Cursor.NameLength != o->ComponentLength) return false;
+        for (uint i = 0; i < o->ComponentLength; i++)
+        {
+            byte a = (byte)o->Storage.Name[i], b = o->Storage.Path[o->Component + i];
+            if (fold) { a = Fold(a); b = Fold(b); }
+            if (a != b) return false;
+        }
+        return true;
+    }
+    private static bool AliasEquals(Operation* o)
+    {
+        byte* raw = o->Storage.Sector + (o->Cursor.EntryInSector - 1) * 32;
+        byte* name = stackalloc byte[12]; uint length = 0;
+        for (uint i = 0; i < 8 && raw[i] != ' '; i++) name[length++] = raw[i];
+        if (raw[8] != ' ') { name[length++] = (byte)'.'; for (uint i = 8; i < 11 && raw[i] != ' '; i++) name[length++] = raw[i]; }
+        if (length != o->ComponentLength) return false;
+        for (uint i = 0; i < length; i++) if (Fold(name[i]) != Fold(o->Storage.Path[o->Component + i])) return false;
+        return true;
+    }
+    private static byte Fold(byte value) => value is >= (byte)'a' and <= (byte)'z' ? (byte)(value - 32) : value;
+    private static void InitCursor(Operation* o, uint cluster) { o->Cursor = default; o->Cursor.Cluster = cluster; o->FatStage = 0; }
+    private static void Component(Operation* o)
+    { o->ComponentLength = 0; while (o->Component + o->ComponentLength < o->PathLength && o->Storage.Path[o->Component + o->ComponentLength] != '/') o->ComponentLength++; }
+
+    private static Status PathPolicy(ReadOnlySpan<byte> path)
+    {
+        if (path.Length is < 12 or >= 256) return Status.InvalidPath;
+        ReadOnlySpan<byte> root = "/app/wwwroot"u8;
+        for (int i = 0; i < 12; i++) if (path[i] != root[i]) return Status.OutsideRoot;
+        if (path.Length == 12) return Status.Success;
+        if (path[12] != '/') return Status.OutsideRoot;
+        uint components = 0; int start = 13;
+        for (int i = start; i <= path.Length; i++)
+        {
+            if (i != path.Length && path[i] != '/')
+            {
+                byte c = path[i]; if (c is < 33 or > 126) return Status.UnsupportedEncoding;
+                if (c is (byte)'\\' or (byte)':' or (byte)'*' or (byte)'?' or (byte)'"' or (byte)'<' or (byte)'>' or (byte)'|') return Status.InvalidPath;
+                continue;
+            }
+            int length = i - start;
+            if (length == 0 || path[i - 1] is (byte)'.' or (byte)' ' ||
+                (length == 1 && path[start] == '.') || (length == 2 && path[start] == '.' && path[start + 1] == '.')) return Status.InvalidPath;
+            if (++components > 9) return Status.InvalidPath;
+            start = i + 1;
+        }
+        return Status.Success;
+    }
+
+    private static Status ReserveOperation(Mount* m, byte kind, out Operation* result)
+    {
+        result = null; bool exhausted = false;
+        for (uint i = 0; i < m->Input.OperationCount; i++)
+        {
+            Operation* o = m->Input.Operations + i;
+            if (o->Phase != Free) continue;
+            if (o->Generation == ~0UL) { exhausted = true; continue; }
+            Begin(o, kind); result = o; return Status.Success;
+        }
+        return exhausted ? Status.GenerationExhausted : Status.Full;
+    }
+    private static void Begin(Operation* o, byte kind)
+    {
+        Scratch scratch = o->Storage; ulong self = o->Self, epoch = o->Epoch, generation = o->Generation; uint index = o->Index;
+        *o = default; o->Storage = scratch; o->Self = self; o->Epoch = epoch; o->Generation = generation + 1; o->Index = index;
+        o->Kind = kind; o->Phase = Working; o->FileIndex = ~0U; o->Failure = Status.Success;
+    }
+    private static void Release(Mount* m, Operation* o)
+    {
+        for (uint i = 0; i < m->Input.CacheCount; i++)
+        {
+            CacheSlot* c = m->Input.Cache + i;
+            if (c->Phase == Working && c->OperationIndex == o->Index && c->OperationGeneration == o->Generation) c->Phase = Free;
+        }
+        if (o->FileIndex < m->Input.FileCount)
+        {
+            FileHandle* f = m->Input.Files + o->FileIndex;
+            if (o->Kind == OpenKind && f->Phase == Working) { f->Phase = Free; f->ClusterCount = 0; }
+            if (o->Kind is ReadKind or ScanKind && f->References != 0) f->References--;
+        }
+        o->Phase = Free; o->Waiting = 0; o->Cursor.HasPending = false;
+    }
+    private static Status Fail(Mount* m, Operation* o, Status status)
+    { o->Phase = Failed; o->Failure = status; if (o->Kind == MountKind) { m->Phase = Faulted; m->Failure = status; } return status; }
+    private static Status DeviceFault(Mount* m) { InvalidateCache(m); m->Phase = Faulted; m->Failure = Status.DeviceFailed; return Status.DeviceFailed; }
+    private static void InvalidateCache(Mount* m) { for (uint i = 0; i < m->Input.CacheCount; i++) m->Input.Cache[i].Phase = Free; }
+    private static Status Map(LiveFat32Status status) => status switch
+    {
+        LiveFat32Status.UnsupportedGeometry => Status.UnsupportedGeometry,
+        LiveFat32Status.ScratchLimit => Status.TraversalBudgetExceeded,
+        LiveFat32Status.ReadFailed => Status.DeviceFailed,
+        LiveFat32Status.Loop => Status.ChainLoop,
+        LiveFat32Status.Truncated => Status.Truncated,
+        LiveFat32Status.Overlong => Status.Overlong,
+        LiveFat32Status.BadCluster => Status.BadCluster,
+        LiveFat32Status.FreeCluster => Status.FreeCluster,
+        LiveFat32Status.ReservedCluster => Status.ReservedCluster,
+        LiveFat32Status.InvalidCluster => Status.InvalidCluster,
+        LiveFat32Status.InvalidBpb => Status.InvalidBpb,
+        _ => Status.CorruptFile
+    };
+    private static OperationToken OpToken(Mount* m, Operation* o) => new((ulong)m, m->Input.Epoch, o->Generation, o->Index);
+    private static bool Op(Mount* m, OperationToken token, out Operation* o)
+    {
+        o = null;
+        if (!token.IsInitialized || token.Owner != (ulong)m || token.Epoch != m->Input.Epoch || token.Index >= m->Input.OperationCount) return false;
+        Operation* found = m->Input.Operations + token.Index;
+        if (found->Self != (ulong)found || found->Epoch != m->Input.Epoch || found->Generation != token.Generation || found->Phase == Free) return false;
+        o = found; return true;
+    }
+    private static bool File(Mount* m, FileToken token, out FileHandle* f)
+    {
+        f = null;
+        if (!token.IsInitialized || token.Owner != (ulong)m || token.Epoch != m->Input.Epoch || token.Index >= m->Input.FileCount) return false;
+        FileHandle* found = m->Input.Files + token.Index;
+        if (found->Self != (ulong)found || found->Epoch != m->Input.Epoch || found->Generation != token.Generation || found->Phase != ReadyPhase) return false;
+        f = found; return true;
+    }
+    private static bool Bound(Mount* m) => Storage((ulong)m, (ulong)sizeof(Mount), 8) && m->Self == (ulong)m && m->Phase is >= Mounting and <= Faulted;
+    private static bool DeviceBound(Mount* m) => m->Input.Device->Self == (ulong)m->Input.Device &&
+        m->Input.Device->Input.Epoch == m->DeviceEpoch && m->Input.Device->PoolEpoch == m->PoolEpoch;
+    private static bool Live(Mount* m) => Bound(m) && m->Phase == Mounted && DeviceBound(m) && m->Input.Device->Running;
+
+    // Admission and every external output use one complete retained extent
+    // inventory. Numeric checks do not establish mapping or physical alias proof.
+    private struct Extent { internal ulong Start, Bytes; }
+    private static uint Extents(Mount* m, in Admission a, Extent* all)
+    {
+        uint n = 0;
+        all[n++] = new() { Start = (ulong)m, Bytes = (ulong)sizeof(Mount) };
+        all[n++] = new() { Start = (ulong)a.Operations, Bytes = a.OperationCount * (ulong)sizeof(Operation) };
+        all[n++] = new() { Start = (ulong)a.Files, Bytes = a.FileCount * (ulong)sizeof(FileHandle) };
+        all[n++] = new() { Start = (ulong)a.Cache, Bytes = a.CacheCount * (ulong)sizeof(CacheSlot) };
+        for (uint i = 0; i < a.OperationCount; i++)
+        {
+            Scratch s = a.Operations[i].Storage;
+            all[n++] = new() { Start = (ulong)s.Path, Bytes = 256 }; all[n++] = new() { Start = (ulong)s.Sector, Bytes = 512 };
+            all[n++] = new() { Start = (ulong)s.Name, Bytes = 520 }; all[n++] = new() { Start = (ulong)s.History, Bytes = s.HistoryCapacity * 4UL };
+            all[n++] = new() { Start = (ulong)s.Range, Bytes = s.RangeCapacity };
+        }
+        for (uint i = 0; i < a.FileCount; i++) all[n++] = new() { Start = (ulong)a.Files[i].Clusters, Bytes = a.Files[i].ClusterCapacity * 4UL };
+        for (uint i = 0; i < a.CacheCount; i++) all[n++] = new() { Start = (ulong)a.Cache[i].Data, Bytes = 512 };
+        return n;
+    }
+    private static bool Admit(Mount* m, in Admission a)
+    {
+        if (!Storage((ulong)m, (ulong)sizeof(Mount), 8) || !Storage((ulong)a.Device, (ulong)sizeof(Block.State), 8) ||
+            a.Device->Self != (ulong)a.Device || !a.Device->Running || a.Device->ReadPending || a.Device->ReadReady ||
+            a.Epoch == 0 || a.PartitionFirst == 0 || a.PartitionFirst > a.PartitionLast || a.PartitionLast >= a.Device->SectorCount ||
+            a.OperationCount is < 2 or > MaximumSlots || a.FileCount is < 2 or > MaximumSlots || a.CacheCount is 0 or > MaximumCacheSlots ||
+            a.DirectoryEntryBudget is 0 or > 1048576 ||
+            !Storage((ulong)a.Operations, a.OperationCount * (ulong)sizeof(Operation), 8) ||
+            !Storage((ulong)a.Files, a.FileCount * (ulong)sizeof(FileHandle), 8) ||
+            !Storage((ulong)a.Cache, a.CacheCount * (ulong)sizeof(CacheSlot), 8)) return false;
+        for (uint i = 0; i < (uint)sizeof(Mount); i++) if (((byte*)m)[i] != 0) return false;
+        for (uint i = 0; i < a.OperationCount; i++)
+        {
+            Operation* o = a.Operations + i;
+            if (o->Self != 0 || o->Epoch != 0 || o->Generation != 0 || o->Phase != 0 || o->Kind != 0 ||
+                o->Storage.HistoryCapacity is 0 or > MaximumClusters || o->Storage.RangeCapacity is 0 or > MaximumRangeBytes) return false;
+        }
+        for (uint i = 0; i < a.FileCount; i++)
+            if (a.Files[i].Self != 0 || a.Files[i].Epoch != 0 || a.Files[i].Generation != 0 || a.Files[i].Phase != 0 || a.Files[i].References != 0 ||
+                a.Files[i].ClusterCount != 0 || a.Files[i].ClusterCapacity is 0 or > MaximumClusters) return false;
+        for (uint i = 0; i < a.CacheCount; i++) if (a.Cache[i].Epoch != 0 || a.Cache[i].Phase != 0) return false;
+        Extent* all = stackalloc Extent[68]; uint count = Extents(m, a, all);
+        for (uint i = 0; i < count; i++)
+        {
+            if (!Storage(all[i].Start, all[i].Bytes, 8) || !OutsideDevice(a.Device, all[i].Start, all[i].Bytes)) return false;
+            for (uint j = 0; j < i; j++) if (Overlap(all[i].Start, all[i].Bytes, all[j].Start, all[j].Bytes)) return false;
+        }
+        return true;
+    }
+    private static bool External(Mount* m, ulong start, ulong bytes, ulong alignment)
+    {
+        if (!Storage(start, bytes, alignment) || !OutsideDevice(m->Input.Device, start, bytes)) return false;
+        Extent* all = stackalloc Extent[68]; uint count = Extents(m, m->Input, all);
+        for (uint i = 0; i < count; i++) if (Overlap(start, bytes, all[i].Start, all[i].Bytes)) return false;
+        return true;
+    }
+    private static bool OutsideDevice(Block.State* d, ulong start, ulong bytes)
+    {
+        var a = d->Input; DmaBufferPool* p = a.Pool;
+        return !Overlap(start, bytes, (ulong)d, (ulong)sizeof(Block.State)) &&
+            !Overlap(start, bytes, (ulong)p, (ulong)sizeof(DmaBufferPool)) &&
+            !Overlap(start, bytes, (ulong)p->Slots, p->Count * (ulong)sizeof(DmaBufferSlot)) &&
+            !Overlap(start, bytes, p->Window.CpuVirtualBase, p->Window.ByteLength) &&
+            !Overlap(start, bytes, a.Common.VirtualStart, a.Common.Bytes) && !Overlap(start, bytes, a.Notify.VirtualStart, a.Notify.Bytes) &&
+            !Overlap(start, bytes, a.Device.VirtualStart, a.Device.Bytes);
+    }
+    private static bool Storage(ulong start, ulong bytes, ulong alignment) => start >= 4096 && start < AddressLimit &&
+        bytes != 0 && bytes <= AddressLimit - start && (start & (alignment - 1)) == 0;
+    private static bool Overlap(ulong a, ulong n, ulong b, ulong m) => a < b + m && b < a + n;
+}

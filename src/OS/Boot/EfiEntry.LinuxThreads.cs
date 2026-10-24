@@ -36,6 +36,11 @@ public static unsafe partial class EfiEntry
             internal Storage* State;
             internal ulong Key, AliasSerial;
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
+#if M10_017_PROBE
+            internal LinuxStaticFileObservation StaticApp;
+            internal OSHostHandle StaticMain;
+            internal LinuxDescriptorServices.Token StaticListener;
+#endif
 #if M16_014_PROBE
             internal ulong QuotaStackAcquired, QuotaStackLastReturned, QuotaStackPeakBytes, QuotaContextPeakBytes;
             internal uint QuotaStackPeakLive, QuotaStackStarted, QuotaStackEnded;
@@ -434,11 +439,21 @@ public static unsafe partial class EfiEntry
             if (!PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
 #endif
             LinuxSyscallFrame call = *frame;
+#if M10_017_PROBE
+            LinuxStaticFileBefore staticFileBefore = default;
+            if (!LinuxStaticCaptureBefore(c, call, &staticFileBefore)) return LinuxNativeAbort(c, index);
+            bool staticListenerClosing = call.Number == 3 && LinuxDescriptorServices.IsCurrent(&state->LinuxDescriptors, c->StaticListener) &&
+                unchecked((uint)call.Argument0) == c->StaticListener.Number;
+            bool staticListenerLast = staticListenerClosing && LinuxDescriptorServices.IsLastReference(&state->LinuxDescriptors, c->StaticListener);
+#endif
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
-#if M10_004_PROBE
+#if M10_017_PROBE
+            if (!LinuxStaticObserveFile(c, index, call, result, &staticFileBefore) ||
+                !LinuxStaticObserveCall(c, call, result, staticListenerClosing, staticListenerLast)) return LinuxNativeAbort(c, index);
+#elif M10_004_PROBE
             if (!LinuxWebObserveCall(c, call, result)) return LinuxNativeAbort(c, index);
 #endif
 #if M16_014_PROBE
