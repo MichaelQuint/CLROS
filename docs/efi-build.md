@@ -1,5 +1,16 @@
 # EFI Build
 
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
 [Step1579](../done/step1579.md) records fresh018r04 native verification at
 `6bbdcad2`:2031 runtime records/1604 unwind records, same exact EFI bytes as r03.
 Five disk/static responses and owned shutdown follow, but original outer receipt

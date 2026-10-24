@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1579 retains fresh original018r04 at6bbdcad2: native2031/1604 verification,5HTTP200 responses and actual exit0/13reaps/disk+NIC cleanup, but original outer command FAILED disk_static_receipt_identity due held lowercase vs peer uppercase SHA text. Hex-case comparison is repaired with actual held-file mutation controls; image receipt text remains exact. Review additionally found ordinary64-range startup rejects actual67; explicit canonical disk/static4load+63retained mode preserves ordinary64/mechanical65. Retrospective parent235rows/full replay2946calls/936epochs/11diskops/12copies passes and grants no original authority. Host request plan adds114asset exchanges over45published+5fixtures, explicit128files/2MiBfile/8MiBpublished/16MiBentities/320requests bounds; no full peer/browser integration yet. Focused controls pass at their named scopes; all failed runs remain failed. Fresh complete originals, full45asset/browser, both variants, actual races and stable full/native/ancestor gates still precede closure. Exactly two isolated implementation agents now prepare blocked writable/SQLite successor host work under updated user goal.",
+      "currentEvidence": "Step1580: fresh original018r05 at592b63035a89600534bc5c0908046eb0513166ae, DiskB, exits0 from its complete original owner: native2031runtime/1604unwind, exact held source/package/image/receipt, full parent/scheduler replay2985calls/13clones/14reaps/994epochs/2006transfers,12post-readiness sector copies (2data+10metadata),5HTTP200 bodies, actual exit0 and storage/NIC cleanup. Scope is strictly five-response-development, blazor_qualified=false. Failed originals remain failed. Full45asset/browser, three full boots across bothvariants, actual races/errors/concurrency and stable full/native/ancestor gates remain pending. Expert review requires explicit DiskStaticFullV1 finite policy; no continuing-service reuse or shared default cap increase. New policy/capture/budget paths are primary-owned before edits. Exactly two isolated implementation agents continue blocked write/SQLite successors.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36344,7 +36344,15 @@
         "tests/OS.HostTests/NativeAotDiskStaticHttpTests.cs",
         "tests/OS.HostTests/NativeAotDiskStaticCaptureTests.cs",
         "tools/OS.Tooling/QemuTranscripts.Run.cs",
-        "tools/OS.Tooling/QemuTranscripts.LinuxElfStartup.cs"
+        "tools/OS.Tooling/QemuTranscripts.LinuxElfStartup.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/DiskStaticExecutionPolicy.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadExecutionBudget.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "tests/OS.HostTests/DiskStaticExecutionPolicyTests.cs",
+        "tools/OS.Tooling/DiskStaticCapturePolicy.cs",
+        "tools/OS.Tooling/NativeAotThreadingOutput.cs",
+        "tools/OS.Tooling/NativeDiskReadObservations.cs",
+        "tools/OS.Tooling/QemuEthernetCapture.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -37693,7 +37701,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Qualify bounded FAT32 mutation and crash-recovery ordering",
-      "currentEvidence": "Planning and static source review only; no implementation or guest acceptance. Preserve current active owners and all original/failed receipts.",
+      "currentEvidence": "User-authorized isolated preparation during primary read qualification. Fresh LAN readback2026-10-24: #799 open/unassigned/content_version1, no competing owner. storage_review continues in codex/writable-block after committed host-only #798 milestone089e7bed (41focused checks, unchanged/zero reuse; normal nonincremental build/repo/contracts/diff pass). Agent owns only Fat32Mutation.cs and Fat32MutationTests.cs; primary owns docs/backlog/evidence. #798 dependency stays open; no native/guest activation, FAT durability or issue closure is authorized by this preparatory milestone.",
       "implementationNotes": [
         "Use pinned .NET11/C#14. New helper/fixture paths are proposed; declare shared integration handoff before edits. Do not import reference projects or native source.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
