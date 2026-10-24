@@ -1,5 +1,7 @@
 # App Model
 
+[Step1591](../done/step1591.md) Step1591 integrates host-only genuine writable continuations and exact cursor-after-copy behavior; no automatic mutation restart is added. The actual BCL log/upload candidate passes7 controls, including Windows managed separate-process byte verification; Linux NativeAOT measurement is dispatched through linux log-upload-reference using an exclusive builder lease. No Linux result or guest persistence is claimed here. Full read r04 has83 successful responses but failed the matrix before browser/cleanup acceptance.
+
 [Step1590](../done/step1590.md) Fresh original ExitPending r03 passes its complete8-call process/image/device/cleanup wrapper. Separately M10-027/#809 adds a finite actual FileStream log/upload candidate using pre-existing empty LOG.TXT/UPLOAD.BIN, strict separate-process byte verification and pinned .NET11/C#14. Native trace, real MinimalApi upload/log integration, independent extraction/reboot and synchronization remain acceptance work. SQLite-only M10-020/#791 stays separate.
 
 [Step1589](../done/step1589.md) keeps the failed full CoreLib request and original ExitPending wrapper failure separate from host preparation. Cached metadata traversal is bounded64 visits without batching device completions. Final process cleanup now has its own fresh retained-HPET witness; the copied consumer checks original request owner/epoch and stage-specific boundaries. No actual Blazor, persistent application or writable source5 acceptance follows.

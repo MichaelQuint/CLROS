@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1591](../done/step1591.md) Step1591 owns isolated source5 integration, copied scheduler extent admission, actual mapping/cancellation controls, log/upload CLI dispatch and failed r04 identities. Storage/PAL own retained backing and prefix/cursor rules; application docs own reference versus persistence boundaries; QEMU/diagnostics retain original cancellation evidence. Next read repair and its focused controls are recorded separately in step1592.
+
 [Step1590](../done/step1590.md) Step1590 owns passing original ExitPending r03 identities and the missing log/upload M10-027/#809 scope. Storage/diagnostics/QEMU retain the finite exit/reset clock contract; application docs retain BCL measurement versus HTTP/persistence boundaries. Root source5 scheduler backing and reviewed-source claims are explicit in M16-027. The new child is nonrequired for the historical parent gate and its planning checklist is reconciled.
 
 [Step1589](../done/step1589.md) owns original full r03 and ExitPending r02 failure identities, bounded cached-chain validation and the new fresh cleanup-terminal producer/consumer. Storage owns64-visit/one-I/O-turn limits; diagnostics/QEMU own exact terminal fields and phase clocks; Kestrel owns the remaining full A/B/browser qualification. Historical originals remain immutable.

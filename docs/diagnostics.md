@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1591](../done/step1591.md) Step1591 preserves the failed full r04 original and97 artifact identities, including83 HTTP bodies, exact failure083 and joined runner cancellation. HEAD dotnet.js was cancelled3.844538 seconds after start by the matrix token; the earlier CoreLib GET succeeded347.6176668 seconds after start. Do not confuse the240-second header bound with a body deadline, or host source5 controls with native event evidence.
+
 [Step1590](../done/step1590.md) The fresh original ExitPending r03 publishes all eight genuine teardown stages plus M16_025_EXIT_CLEANUP_END and passes exact full/leaf owner/epoch/index/phase joins. Its terminal clock1374779300 is sampled after final restoration; retained active-end1084928500 keeps its original earlier meaning. Original r02 lacks this witness and remains wrapper-failed. Only explicit ExitPending requires the new row.
 
 [Step1589](../done/step1589.md) adds M16_025_EXIT_CLEANUP_END owner=<original-request-owner> epoch=<original-request-epoch> clock=<fresh-HPET-nanoseconds> only to explicit ExitPending. It follows final stage8, pool/memory/canary checks and phase6 publication, before the retained BUDGET_END row. Its clock is fresh and within the existing300-second lifetime. The earlier network-end clock still describes network drain; r02 lacks this new witness and remains unaccepted.

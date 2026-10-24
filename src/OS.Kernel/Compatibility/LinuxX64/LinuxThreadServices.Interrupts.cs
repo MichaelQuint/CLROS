@@ -31,6 +31,9 @@ public unsafe partial struct LinuxThreadServices
 #if !NOSTDLIB_EFI || M16_025_PROBE
         or 4
 #endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        or 5
+#endif
         ;
     private bool InterruptWait(ulong flags, Slot* slot)
     {

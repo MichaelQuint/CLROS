@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1591](../done/step1591.md) Step1591 implements guarded writable source5 host continuations and copied scheduler storage exclusion;13 controls and87 regressions pass alongside app7/global19/image20/FAT70 controls. First-ten issues remain unfinished: full r04 failed after83 responses and no browser. Continue internal loaded-directory parser repair while the second implementation agent measures the original Linux NativeAOT log/upload contract. Native writable activation, persistence and SQLite remain subsequent dependency-bound work.
+
 [Step1590](../done/step1590.md) Step1590 adds one passing fresh original8-call ExitPending race atc3dbab92; the complete read/Blazor batch remains unfinished while full DiskA r04 runs. Add missing nonrequired M10-027/#809 log/upload persistence scope after M10-018 and M16-027, with four isolated preparatory app/tool/test paths. Root owns scheduler extent and source-pin integration; both implementation agents stay active without competing native publications.
 
 [Step1589](../done/step1589.md) advances implementation only: bounded64-visit cached FAT metadata walks and an independent fresh final-cleanup clock for ExitPending. Full DiskA r03 and original ExitPending r02 wrapper remain failed. The three complete read/Blazor A/B/browser originals, stable source-matched full/native/ancestor checks and write/log/upload/SQLite gates remain unfinished. Exactly two agents continue dependency-compatible host work.

@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1591](../done/step1591.md) Step1591 retains full r04 failed original runner/image/native/serial/packet/HTTP artifacts under readonly-disk-waits. The runner joined after matrix cancellation with termination confirmed;83 completed responses do not establish the full protocol/browser/cleanup result. No timeout or byte bound is raised. Next read repair requires a fresh source-matched original after focused coverage and native review; the Linux reference lease remains exclusive.
+
 [Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes qemu.smoke.disk-exit-pending calls=8 copiedDataSectors=0 outstanding=1 resetRetired=true and all original source/native/image/package/parent/process joins. Submitted48/completed47/copied47 stays frozen; final cleanup uses its own HPET clock. r01/r02 originals remain failed/unaccepted. Full r04 is separate and pending; copied leaf tests or this finite race cannot replace full A/B/browser evidence.
 
 [Step1589](../done/step1589.md) preserves full DiskA r03 timeout and ExitPending r02 wrapper failure with exact original serial/summary/packet/native/image identities. Explicit ExitPending now requires one fresh M16_025_EXIT_CLEANUP_END row after stage8 and before BUDGET_END. Stages1-3 precede active-end;4-7 lie between active-end and network-end;8 lies between network-end and fresh cleanup-end. Missing/duplicate/foreign/backwards/moved/out-of-budget witnesses reject. Old captures are not augmented or requalified.

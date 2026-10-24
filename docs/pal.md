@@ -1,5 +1,7 @@
 # PAL
 
+[Step1591](../done/step1591.md) Step1591 adds guarded source5 writable waits using actual owned kernel continuations. Pending clean cancellation revokes output, dirty recovery retains provider/backing, known-ready results win interruption, and read copy-out revalidates fd/generation/pinned prefix before advancing cursor. KernelThreadTable exposes a bounded authenticated copied retained-extent inventory without table layout or transfer changes.13 controls pass; native writable activation, Linux lock/flush closure and persistence are unfinished.
+
 ## Linux adapter and PAL distinction
 
 The current .NET 11 route uses pinned static `linux-musl-x64` applications and

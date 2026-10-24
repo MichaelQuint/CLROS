@@ -32,6 +32,9 @@ public unsafe partial struct LinuxThreadServices
                 if (Overlap(start, bytes, (ulong)d.Context, d.ContextBytes) || Overlap(start, bytes, d.StackGuardStart, d.StackBytes)) return false;
             }
         }
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!WritableDiskStorageOutsideProcess(descriptors, flags)) return false;
+#endif
         if (!LinuxDescriptorServices.AttachThreads(descriptors, _self)) return false;
         _descriptors = descriptors; return true;
     }
@@ -54,6 +57,9 @@ public unsafe partial struct LinuxThreadServices
             if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
             if (_descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
         }
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (TryBeginWritableDisk(flags, slot, frame, out var writableResult)) return writableResult;
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (TryBeginDisk(flags, slot, frame, out var diskResult)) return diskResult;
@@ -195,6 +201,9 @@ public unsafe partial struct LinuxThreadServices
     private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!LinuxDescriptorServices.WritableDiskCanRetainStorage(_descriptors, start, bytes, includeUserBacking)) return true;
+#endif
         for (uint i = 0; i < DescriptorExtentCount; i++)
         {
             // Validated futex words may use application backing; service metadata may not.
