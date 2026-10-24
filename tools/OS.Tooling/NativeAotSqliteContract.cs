@@ -137,9 +137,11 @@ public static class NativeAotSqliteContract
     }
     public sealed class ManagedReference
     {
-        internal ManagedReference(string directory,Transcript transcript,string databaseHash){Directory=directory;Values=transcript;DatabaseSha256=databaseHash;}
+        internal ManagedReference(string directory,Transcript transcript,Transcript verification,string databaseHash)
+        {Directory=directory;Values=transcript;Verification=verification;DatabaseSha256=databaseHash;}
         public string Directory {get;}
         public Transcript Values {get;}
+        public Transcript Verification {get;}
         public string DatabaseSha256 {get;}
         public bool GrantsLinuxNativeAotGuestOrDurabilityAuthority=>false;
     }
@@ -499,15 +501,29 @@ public static class NativeAotSqliteContract
         Need(lines[1].StartsWith(prefix,StringComparison.Ordinal) && lines[1].Length-prefix.Length<=172 &&
             Convert.TryFromBase64String(lines[1][prefix.Length..],source,out int sourceBytes) &&
             source.AsSpan(0,sourceBytes).SequenceEqual(Encoding.UTF8.GetBytes(SourceId)),"transcript_engine");
-        string sourceHash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SourceId)));
-        string text=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("CLROS SQLite — café"))),
-            blob=Convert.ToHexString(SHA256.HashData(Enumerable.Range(0,34003).Select(i=>(byte)(i^(i>>9))).ToArray()));
         string[] expected=["SQLITE_POLICY journal=delete synchronous=2 locking=normal pageSize=4096",
             "SQLITE_COMMIT rows=1 textBytes=22 blobBytes=34003 journal=true","SQLITE_ROLLBACK rows=1 journal=true",
             "SQLITE_LOCK busy=5 rows=1","SQLITE_REOPEN rows=1 integrity=ok","SQLITE_FAILURE readonly=8 missingParent=14",
             "SQLITE_CLEANUP journal=false wal=false shm=false"];
-        Need(lines.Skip(2).Take(7).SequenceEqual(expected),"transcript_contract");return new(EngineVersion,sourceHash,text,blob);
+        Need(lines.Skip(2).Take(7).SequenceEqual(expected),"transcript_contract");return ExpectedTranscriptValues();
     }
+
+    /// <summary>Strict value-only protocol for the separate real read-only
+    /// provider process. Expected payload hashes are computed here in the host,
+    /// never by the native app. This supplies no process/flush/guest authority.</summary>
+    public static Transcript InspectVerificationTranscriptValues(string output)
+    {
+        Need(output.Length is >0 and <=65536,"verify_transcript_size");
+        string[] lines=output.Replace("\r\n","\n",StringComparison.Ordinal).TrimEnd('\n').Split('\n');
+        string[] expected=["TEST_START m10.020.verify","SQLITE_VERIFY_ENGINE version="+EngineVersion+" sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(SourceId)),
+            "SQLITE_VERIFY rows=1 textBytes=22 blobBytes=34003 integrity=ok readonly=true",
+            "SQLITE_VERIFY_CLEANUP journal=false wal=false shm=false","TEST_PASS m10.020.verify"];
+        Need(lines.SequenceEqual(expected),"verify_transcript_contract");return ExpectedTranscriptValues();
+    }
+
+    private static Transcript ExpectedTranscriptValues()=>new(EngineVersion,Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SourceId))),
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("CLROS SQLite — café"))),
+        Convert.ToHexString(SHA256.HashData(Enumerable.Range(0,34003).Select(i=>(byte)(i^(i>>9))).ToArray())));
 
     /// <summary>Copy bounded complete strace -ff/-ttt rows, retaining original
     /// argument/result text and mapping observed storage operations to existing
@@ -744,7 +760,8 @@ public static class NativeAotSqliteContract
         Need(ToolingBuildInputs.Validate(root).Count==0,"tooling_inputs_changed");Directory.CreateDirectory(destination);
         AuthorityFiles.RequirePlainPath(root,destination,"sqlite_output_path");
         using var ownership=new FileStream(Path.Combine(destination,"ownership.lock"),FileMode.CreateNew,FileAccess.Write,FileShare.None);
-        bool succeeded=false;string failure="";var commands=new List<object>();Transcript? transcript=null;string databaseHash="";
+        bool succeeded=false;string failure="";var commands=new List<object>();Transcript? transcript=null,verification=null;string databaseHash="";
+        ProcessResult? writer=null,verifier=null;
         async Task<ProcessResult> Run(string name,string[] arguments)
         {
             commands.Add(new{executable="dotnet",arguments,workingDirectory=root});
@@ -773,10 +790,13 @@ public static class NativeAotSqliteContract
             string bin=Path.Combine(app,"bin/Debug/net11.0");var built=System.IO.Directory.GetFiles(bin,"*",SearchOption.AllDirectories);
             Need(built.Length is >0 and <=256,"built_count");
             var outputs=built.Select(path=>held.Open(root,path,"sqlite built output","sqlite_built",64*1024*1024,allowEmpty:true,singleLink:true)).ToArray();
-            var result=await Run("fixture",[Path.Combine(bin,Application+".dll"),"--database",Path.Combine(destination,"contract.db")]);
-            Need(result.StandardError.Length==0,"fixture_stderr");transcript=InspectTranscriptValues(result.StandardOutput);
+            writer=await Run("fixture",[Path.Combine(bin,Application+".dll"),"--database",Path.Combine(destination,"contract.db")]);
+            Need(writer.StandardError.Length==0,"fixture_stderr");transcript=InspectTranscriptValues(writer.StandardOutput);
             var database=held.Open(root,Path.Combine(destination,"contract.db"),"sqlite database","sqlite_database",1024*1024,singleLink:true);
-            databaseHash=database.Sha256;held.VerifyUnchanged();Need(ToolingBuildInputs.Validate(root).Count==0,"tooling_inputs_changed");
+            databaseHash=database.Sha256;
+            verifier=await Run("verify",[Path.Combine(bin,Application+".dll"),"--verify-database",database.Path]);
+            Need(verifier.StandardError.Length==0,"verify_stderr");verification=InspectVerificationTranscriptValues(verifier.StandardOutput);
+            held.VerifyUnchanged();Need(ToolingBuildInputs.Validate(root).Count==0,"tooling_inputs_changed");
             await File.WriteAllTextAsync(Path.Combine(destination,"dependencies.json"),JsonSerializer.Serialize(dependencies),CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination,"inputs.json"),JsonSerializer.Serialize(sources.Concat(outputs).Append(assets)
                 .ToDictionary(f=>Path.GetRelativePath(root,f.Path).Replace('\\','/'),f=>f.Sha256)),CancellationToken.None);
@@ -799,10 +819,10 @@ public static class NativeAotSqliteContract
         {
             await File.WriteAllTextAsync(Path.Combine(destination,"commands.json"),JsonSerializer.Serialize(commands),CancellationToken.None);
             await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
-            {Schema="clros-sqlite-managed-reference-v2",Succeeded=succeeded,Failure=failure,Transcript=transcript,DatabaseSha256=databaseHash,
+            {Schema="clros-sqlite-managed-reference-v3",Succeeded=succeeded,Failure=failure,Transcript=transcript,Verification=verification,Writer=writer,Verifier=verifier,DatabaseSha256=databaseHash,
                 LinuxNativeAotQualified=false,GuestQualified=false,DurabilityQualified=false}),CancellationToken.None);
         }
-        return new(destination,transcript!,databaseHash);
+        return new(destination,transcript!,verification!,databaseHash);
     }
 
     /// <summary>Own fresh Windows managed seed/spill/reopen processes after a
@@ -940,6 +960,16 @@ public static class NativeAotSqliteContract
             !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p=>p.Length>0 && p is not "." and not ".."),"recovery_linux_path");
         Need(executable!=database && executable!=trace && database!=trace,"recovery_linux_path");
         return Array.AsReadOnly(new[]{"-ff","-yy","-ttt","-s","256","-o",trace,executable,"--recovery-"+mode,database});
+    }
+
+    /// <summary>Copied bounded strace argv for one distinct ordinary writer or
+    /// read-only verifier. Planning performs no execution or path admission.</summary>
+    public static IReadOnlyList<string> LinuxReferenceTraceArguments(string executable,string database,bool verify,string trace)
+    {
+        foreach(string path in new[]{executable,database,trace})Need(path.Length is >1 and <=4096 && path.StartsWith('/') &&
+            !path.Any(char.IsControl) && path.Split('/').Skip(1).All(p=>p.Length>0 && p is not "." and not ".."),"reference_linux_path");
+        Need(executable!=database && executable!=trace && database!=trace,"reference_linux_path");
+        return Array.AsReadOnly(new[]{"-ff","-yy","-ttt","-s","256","-o",trace,executable,verify?"--verify-database":"--database",database});
     }
 
     /// <summary>Fresh Linux x64 recovery-reference preparation. Reuse the pinned
@@ -1165,7 +1195,7 @@ public static class NativeAotSqliteContract
         Directory.CreateDirectory(destination);AuthorityFiles.RequirePlainPath(root,destination,"sqlite_native_output");
         using var ownership=new FileStream(Path.Combine(destination,"qualification.lock"),FileMode.CreateNew,FileAccess.Write,FileShare.None);
         List<object> commands=[];Dictionary<string,string> native=new(StringComparer.Ordinal);bool succeeded=false;string failure="";
-        NativeAotPayload.Inspection? image=null;Archive? archive=null;Transcript? transcript=null;Trace? trace=null;
+        NativeAotPayload.Inspection? image=null;Archive? archive=null;Transcript? transcript=null,verification=null;Trace? trace=null,verificationTrace=null;
         IReadOnlyList<string>? imports=null,retainedImports=null;string[] metadataWithoutArchive=[];IReadOnlyList<WeakUndefined>? weakUndefined=null;
         async Task<string> Run(string name,string executable,IReadOnlyList<string> arguments,TimeSpan? timeout=null)
         {
@@ -1249,7 +1279,7 @@ public static class NativeAotSqliteContract
             string map=Path.Combine(intermediate,"native",Application+".map.xml");Need(File.Exists(map),"ilc_map_missing");Native(map);
             File.Copy(map,Path.Combine(destination,"originals",Application+".map.xml"));
             string database=Path.Combine(destination,"contract.db");
-            string result=await Run("reference","strace",["-ff","-yy","-ttt","-s","256","-o",Path.Combine(destination,"sqlite-trace"),executable,"--database",database],TimeSpan.FromMinutes(2));
+            string result=await Run("reference","strace",LinuxReferenceTraceArguments(executable,database,false,Path.Combine(destination,"sqlite-trace")),TimeSpan.FromMinutes(2));
             transcript=InspectTranscriptValues(result);
             Need(transcript.SourceSha256==Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(SourceId))),"engine_source_id");
             string[] traces=Directory.GetFiles(destination,"sqlite-trace.*");Need(traces.Length is >0 and <=64,"trace_inventory");
@@ -1264,10 +1294,29 @@ public static class NativeAotSqliteContract
             Need(trace.Calls.Any(c=>c.Syscall=="execve") && trace.Calls.Any(c=>c.Syscall=="exit_group") &&
                 trace.Calls.Any(c=>c.MentionsDatabase && c.Syscall is "fsync" or "fdatasync") &&
                 trace.Calls.Any(c=>c.MentionsDatabase && c.Syscall=="fcntl") && trace.Calls.Any(c=>c.MentionsDatabase && c.Syscall is "unlink" or "unlinkat"),"trace_storage_closure");
-            Native(database);Need(SourcePaths().SequenceEqual(sources.Keys) && sources.All(p=>NativeAotWebPayload.HashFile(p.Key)==p.Value) &&
+            Native(database);
+            var actualDatabase=held.Open(root,database,"committed database across independent verify","sqlite_verify_database",1024*1024,singleLink:true);
+            result=await Run("verify","strace",LinuxReferenceTraceArguments(executable,database,true,Path.Combine(destination,"sqlite-verify-trace")),TimeSpan.FromMinutes(2));
+            verification=InspectVerificationTranscriptValues(result);
+            string[] verifyTraces=Directory.GetFiles(destination,"sqlite-verify-trace.*");Need(verifyTraces.Length is >0 and <=64,"verify_trace_inventory");
+            Dictionary<string,string> verifyTraceValues=new(StringComparer.Ordinal);
+            var writerPids=traces.Select(file=>file[(file.LastIndexOf('.')+1)..]).ToHashSet(StringComparer.Ordinal);
+            foreach(string file in verifyTraces)
+            {
+                string suffix=file[(file.LastIndexOf('.')+1)..];Need(int.TryParse(suffix,out int pid) && pid>0 && !writerPids.Contains(suffix) &&
+                    new FileInfo(file).Length is >0 and <=4*1024*1024,"verify_trace_identity");
+                string text=await File.ReadAllTextAsync(file);Need(text.TrimEnd('\n','\r').EndsWith("+++ exited with 0 +++",StringComparison.Ordinal) &&
+                    !text.Contains("+++ killed by",StringComparison.Ordinal),"verify_trace_process_exit");verifyTraceValues.Add(Path.GetFileName(file),text);Native(file);
+            }
+            verificationTrace=InspectTraceValues(verifyTraceValues,database);
+            Need(verificationTrace.Calls.Any(c=>c.Syscall=="execve") && verificationTrace.Calls.Any(c=>c.Syscall=="exit_group") &&
+                verificationTrace.Calls.Any(c=>c.MentionsDatabase && c.Syscall=="pread64"),"verify_trace_read_closure");
+            actualDatabase.VerifyUnchanged();
+            Need(SourcePaths().SequenceEqual(sources.Keys) && sources.All(p=>NativeAotWebPayload.HashFile(p.Key)==p.Value) &&
                 native.All(p=>NativeAotWebPayload.HashFile(p.Key)==p.Value) && ToolingBuildInputs.Validate(root).Count==0,"linux_inputs_changed");held.VerifyUnchanged();
             await File.WriteAllTextAsync(Path.Combine(destination,"dependencies.json"),JsonSerializer.Serialize(dependencies));
-            await File.WriteAllTextAsync(Path.Combine(destination,"trace-values.json"),JsonSerializer.Serialize(trace));succeeded=true;
+            await File.WriteAllTextAsync(Path.Combine(destination,"trace-values.json"),JsonSerializer.Serialize(trace));
+            await File.WriteAllTextAsync(Path.Combine(destination,"verify-trace-values.json"),JsonSerializer.Serialize(verificationTrace));succeeded=true;
         }
         catch(Exception error)
         {failure=error is ToolFailure tool?tool.Reason:error.Message.ReplaceLineEndings(" ");output.WriteLine("TEST_FAIL "+marker+" "+failure);throw;}
@@ -1279,9 +1328,9 @@ public static class NativeAotSqliteContract
             var files=Directory.GetFiles(destination,"*",SearchOption.AllDirectories).Where(p=>Path.GetFileName(p)!="qualification.lock").Order(StringComparer.Ordinal)
                 .ToDictionary(p=>Path.GetRelativePath(destination,p),NativeAotWebPayload.HashFile);
             await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
-            {Schema="clros-sqlite-linux-reference-v1",Succeeded=succeeded,Failure=failure,Archive=archive,Imports=imports,RetainedImports=retainedImports,MetadataWithoutArchive=metadataWithoutArchive,WeakUndefined=weakUndefined,Image=image,Transcript=transcript,
-                TraceUnjoinedLines=trace?.UnjoinedLines,SourceArchiveSha256,SourceArchiveSha3,SourceId,Sources=sources,Native=native,Outputs=files,
-                GuestQualified=false,DurabilityQualified=false,RecoveryQualified=false,CompleteTraceProjection=trace?.UnjoinedLines==0}));
+            {Schema="clros-sqlite-linux-reference-v2",Succeeded=succeeded,Failure=failure,Archive=archive,Imports=imports,RetainedImports=retainedImports,MetadataWithoutArchive=metadataWithoutArchive,WeakUndefined=weakUndefined,Image=image,Transcript=transcript,Verification=verification,
+                TraceUnjoinedLines=trace?.UnjoinedLines,VerificationTraceUnjoinedLines=verificationTrace?.UnjoinedLines,SourceArchiveSha256,SourceArchiveSha3,SourceId,Sources=sources,Native=native,Outputs=files,
+                GuestQualified=false,DurabilityQualified=false,RecoveryQualified=false,CompleteTraceProjection=trace?.UnjoinedLines==0 && verificationTrace?.UnjoinedLines==0}));
         }
         output.WriteLine("TEST_PASS "+marker);return 0;
     }

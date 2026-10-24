@@ -6,11 +6,13 @@ using Microsoft.Data.Sqlite;
 internal static class Program
 {
     private const string Text="CLROS SQLite — café";
+    private const string EngineSourceId="2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc";
     private static readonly byte[] Blob=Enumerable.Range(0,34003).Select(i=>(byte)(i^(i>>9))).ToArray();
 
     private static int Main(string[] args)
     {
         if(args is ["--recovery-seed" or "--recovery-spill" or "--recovery-verify",_])return Recovery(args[0][11..],args[1]);
+        if(args is ["--verify-database",var existing])return VerifyDatabase(existing);
         Console.WriteLine("TEST_START m10.020");
         try
         {
@@ -25,7 +27,7 @@ internal static class Program
             {
                 connection.Open();
                 string version=Scalar(connection,"SELECT sqlite_version()"),source=Scalar(connection,"SELECT sqlite_source_id()");
-                Require(version=="3.53.4","engine_pin");
+                Require(version=="3.53.4" && source==EngineSourceId,"engine_pin");
                 Console.WriteLine("SQLITE_ENGINE version="+version+" sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(source)));
                 Require(Scalar(connection,"PRAGMA journal_mode=DELETE")=="delete","journal_policy");
                 Execute(connection,"PRAGMA synchronous=FULL; PRAGMA temp_store=MEMORY; PRAGMA page_size=4096;");
@@ -72,6 +74,34 @@ internal static class Program
         {Console.WriteLine("TEST_FAIL m10.020 "+error.GetType().Name+" "+error.Message.ReplaceLineEndings(" "));return 1;}
     }
 
+    // Distinct read-only process after the ordinary writer has exited. Exact
+    // reads and integrity verification use the real pinned provider. No crypto,
+    // mutation, synthetic journal or durability assertion is supplied here.
+    private static int VerifyDatabase(string supplied)
+    {
+        Console.WriteLine("TEST_START m10.020.verify");
+        try
+        {
+            string database=Path.GetFullPath(supplied);
+            Require(Path.IsPathFullyQualified(supplied) && File.Exists(database) &&
+                !Path.Exists(database+"-journal") && !Path.Exists(database+"-wal") && !Path.Exists(database+"-shm"),"verify_database_required");
+            using(var connection=new SqliteConnection(new SqliteConnectionStringBuilder
+                {DataSource=database,Mode=SqliteOpenMode.ReadOnly,Cache=SqliteCacheMode.Private,Pooling=false,DefaultTimeout=1}.ToString()))
+            {
+                connection.Open();string version=Scalar(connection,"SELECT sqlite_version()"),source=Scalar(connection,"SELECT sqlite_source_id()");
+                Require(version=="3.53.4" && source==EngineSourceId,"engine_pin");
+                Console.WriteLine("SQLITE_VERIFY_ENGINE version="+version+" sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(source)));
+                Require(Scalar(connection,"PRAGMA journal_mode")=="delete" && Scalar(connection,"PRAGMA page_size")=="4096","verify_policy");
+                VerifyRow(connection,null);
+                Require(Scalar(connection,"SELECT count(*) FROM sample")=="1" && Scalar(connection,"PRAGMA integrity_check")=="ok","verify_integrity");
+            }
+            Console.WriteLine("SQLITE_VERIFY rows=1 textBytes="+Encoding.UTF8.GetByteCount(Text)+" blobBytes="+Blob.Length+" integrity=ok readonly=true");
+            Require(!Path.Exists(database+"-journal") && !Path.Exists(database+"-wal") && !Path.Exists(database+"-shm"),"verify_closed_files");
+            Console.WriteLine("SQLITE_VERIFY_CLEANUP journal=false wal=false shm=false");Console.WriteLine("TEST_PASS m10.020.verify");return 0;
+        }
+        catch(Exception error){Console.WriteLine("TEST_FAIL m10.020.verify "+error.GetType().Name+" "+error.Message.ReplaceLineEndings(" "));return 1;}
+    }
+
     // Separate process-kill contract candidate. The ordinary mode above keeps
     // its graceful transaction contract. This changed app needs a new native
     // publication before its recovery route can supply Linux/CLROS evidence.
@@ -89,7 +119,7 @@ internal static class Program
                 {DataSource=database,Mode=mode=="seed"?SqliteOpenMode.ReadWriteCreate:SqliteOpenMode.ReadWrite,
                     Cache=SqliteCacheMode.Private,Pooling=false,DefaultTimeout=1}.ToString()))
             {
-                connection.Open();Require(Scalar(connection,"SELECT sqlite_version()" )=="3.53.4","engine_pin");
+                connection.Open();Require(Scalar(connection,"SELECT sqlite_version()" )=="3.53.4" && Scalar(connection,"SELECT sqlite_source_id()")==EngineSourceId,"engine_pin");
                 Console.WriteLine("SQLITE_RECOVERY_ENGINE version=3.53.4 sourceBase64="+
                     Convert.ToBase64String(Encoding.UTF8.GetBytes(Scalar(connection,"SELECT sqlite_source_id()"))));
                 Require(Scalar(connection,"PRAGMA journal_mode=DELETE")=="delete","recovery_journal_policy");

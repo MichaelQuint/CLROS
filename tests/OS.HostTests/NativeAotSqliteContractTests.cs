@@ -110,6 +110,36 @@ internal static class NativeAotSqliteContractTests
         Reject(()=>NativeAotSqliteContract.InspectTranscriptValues(original+"TEST_PASS m10.020\n"),"transcript_inventory");
     }
 
+    [HostTest("sqlite independent readonly verifier protocol requires exact source row blob integrity and closed sidecars")]
+    private static void VerificationTranscriptValues()
+    {
+        string original="TEST_START m10.020.verify\nSQLITE_VERIFY_ENGINE version=3.53.4 sourceBase64="+
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(NativeAotSqliteContract.SourceId))+"\n"+
+            "SQLITE_VERIFY rows=1 textBytes=22 blobBytes=34003 integrity=ok readonly=true\n"+
+            "SQLITE_VERIFY_CLEANUP journal=false wal=false shm=false\nTEST_PASS m10.020.verify\n";
+        var result=NativeAotSqliteContract.InspectVerificationTranscriptValues(original);
+        HostCheck.True(result==NativeAotSqliteContract.InspectTranscriptValues(Transcript()) && !result.GrantsNativeAotGuestOrDurabilityAuthority);
+        foreach(var mutation in new[]{("version=3.53.4","version=3.53.3"),("rows=1","rows=2"),("blobBytes=34003","blobBytes=34002"),
+            ("integrity=ok","integrity=failed"),("readonly=true","readonly=false"),("journal=false","journal=true"),("SQLITE_VERIFY_CLEANUP","SQLITE_CLEANUP")})
+            Reject(()=>NativeAotSqliteContract.InspectVerificationTranscriptValues(original.Replace(mutation.Item1,mutation.Item2,StringComparison.Ordinal)),"verify_transcript_");
+        foreach(string malformed in new[]{Transcript(),original+"TEST_PASS m10.020.verify\n",original.Replace("TEST_PASS m10.020.verify\n","",StringComparison.Ordinal),
+            original.Replace("SQLITE_VERIFY_ENGINE","SQLITE_VERIFY_ENGINE extra=untrusted",StringComparison.Ordinal)})
+            Reject(()=>NativeAotSqliteContract.InspectVerificationTranscriptValues(malformed),"verify_transcript_");
+    }
+
+    [HostTest("sqlite ordinary reference plans distinct writer and readonly verifier arguments without executing Linux")]
+    private static void LinuxReferencePlan()
+    {
+        string[] expected=["-ff","-yy","-ttt","-s","256","-o","/fresh/verify-trace","/fresh/sqlite","--verify-database","/fresh/contract.db"];
+        var verify=NativeAotSqliteContract.LinuxReferenceTraceArguments("/fresh/sqlite","/fresh/contract.db",true,"/fresh/verify-trace");
+        HostCheck.True(verify.SequenceEqual(expected));
+        var writer=NativeAotSqliteContract.LinuxReferenceTraceArguments("/fresh/sqlite","/fresh/contract.db",false,"/fresh/write-trace");
+        HostCheck.True(writer[^2]=="--database" && writer[6]!="/fresh/verify-trace" && writer[^1]==verify[^1]);
+        foreach(string path in new[]{"relative","/fresh/../db","/fresh/./db","/fresh//db","/fresh/db\n","/fresh/db\0","/"})
+            Reject(()=>NativeAotSqliteContract.LinuxReferenceTraceArguments("/fresh/sqlite",path,true,"/fresh/trace"),"reference_linux_path");
+        Reject(()=>NativeAotSqliteContract.LinuxReferenceTraceArguments("/fresh/sqlite","/fresh/sqlite",true,"/fresh/trace"),"reference_linux_path");
+    }
+
     [HostTest("sqlite contract trace values preserve arguments errno and unjoined calls while naming storage successors")]
     private static void TraceValues()
     {
@@ -270,10 +300,42 @@ internal static class NativeAotSqliteContractTests
         string output=Path.Combine(parent,Guid.NewGuid().ToString("N"));
         var reference=await NativeAotSqliteContract.RunManagedReferenceAsync(root,output);
         HostCheck.True(!reference.GrantsLinuxNativeAotGuestOrDurabilityAuthority && reference.Values.Engine=="3.53.4" &&
+            reference.Verification==reference.Values &&
             Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(output,"contract.db")))).Equals(reference.DatabaseSha256,StringComparison.OrdinalIgnoreCase) &&
             File.ReadAllBytes(Path.Combine(output,"contract.db")).AsSpan(0,16).SequenceEqual("SQLite format 3\0"u8));
         HostCheck.True(File.Exists(Path.Combine(output,"assets.json")) && File.Exists(Path.Combine(output,"inputs.json")) &&
-            !File.Exists(Path.Combine(output,"contract.db-journal")) && !File.Exists(Path.Combine(output,"contract.db-wal")));
+            File.Exists(Path.Combine(output,"verify.stdout.log")) && !File.Exists(Path.Combine(output,"contract.db-journal")) && !File.Exists(Path.Combine(output,"contract.db-wal")));
+        NativeAotSqliteContract.InspectVerificationTranscriptValues(File.ReadAllText(Path.Combine(output,"verify.stdout.log")));
+        var receipt=JsonNode.Parse(File.ReadAllText(Path.Combine(output,"receipt.json")))!;
+        HostCheck.True(receipt["Schema"]!.GetValue<string>()=="clros-sqlite-managed-reference-v3" && receipt["Writer"]!["ExitCode"]!.GetValue<int>()==0 &&
+            receipt["Verifier"]!["ExitCode"]!.GetValue<int>()==0 && receipt["Writer"]!["TerminationConfirmed"]!.GetValue<bool>() && receipt["Verifier"]!["TerminationConfirmed"]!.GetValue<bool>());
+        byte[] originalDatabase=File.ReadAllBytes(Path.Combine(output,"contract.db"));
+        string negatives=Path.Combine(parent,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(negatives);
+        string app=Path.Combine(root,"apps/NativeAotSqliteContract/bin/Debug/net11.0/NativeAotSqliteContract.dll");
+        foreach(string control in new[]{"missing","changed","sidecar"})
+        {
+            string target=Path.Combine(negatives,control+".db");
+            if(control!="missing")
+            {
+                byte[] bytes=originalDatabase.ToArray();
+                if(control=="changed")
+                {
+                    byte[] text=Encoding.UTF8.GetBytes("CLROS SQLite — café");int at=bytes.AsSpan().IndexOf(text);
+                    HostCheck.True(at>=0 && bytes.AsSpan(at+text.Length).IndexOf(text)<0);bytes[at]=(byte)'Z';
+                }
+                await File.WriteAllBytesAsync(target,bytes);
+                if(control=="sidecar")await File.WriteAllBytesAsync(target+"-journal",new byte[]{1});
+            }
+            var rejectedProcess=await ProcessRunner.RunAsync(new("dotnet",new[]{app,"--verify-database",target},root)
+                {Timeout=TimeSpan.FromSeconds(30),OutputCharacterLimit=65536});
+            await File.WriteAllTextAsync(Path.Combine(negatives,control+".stdout.log"),rejectedProcess.StandardOutput);
+            await File.WriteAllTextAsync(Path.Combine(negatives,control+".stderr.log"),rejectedProcess.StandardError);
+            QemuTranscripts.RequireCompleteProcess(rejectedProcess,"sqlite_verify_negative_incomplete");
+            HostCheck.True(rejectedProcess.ExitCode==1 && rejectedProcess.StandardError.Length==0 && rejectedProcess.StandardOutput.Contains("TEST_FAIL m10.020.verify",StringComparison.Ordinal) &&
+                !rejectedProcess.StandardOutput.Contains("TEST_PASS m10.020.verify",StringComparison.Ordinal));
+            if(control=="missing")HostCheck.True(!File.Exists(target));
+        }
+        HostCheck.True(File.ReadAllBytes(Path.Combine(output,"contract.db")).SequenceEqual(originalDatabase));
         bool rejected=false;try{await NativeAotSqliteContract.RunManagedReferenceAsync(root,output);}catch(ToolFailure failure){rejected=failure.Reason=="sqlite_contract_fresh_output_required";}
         HostCheck.True(rejected);Console.WriteLine("SQLITE_MANAGED_REFERENCE "+output);
     }
