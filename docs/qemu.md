@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1593](../done/step1593.md) Step1593 holds the exclusive native/guest lease after the failed Linux log/upload original is joined with no owned child processes remaining. Persistent builder/seed services remain intact. Next full read original uses new filenames, committed scoped read source and matching original/copied producers; all existing budgets and mandatory HTTP/browser/cleanup joins stay unchanged.
+
 [Step1592](../done/step1592.md) Step1592 prepares bounded loaded-directory lookup for the next full read original. Keep r04 original97-file receipt unchanged; no budget, timeout, serial cap or HTTP requirement is relaxed. Source-matched producer/native/image/package/serial/packet/external HTTP/browser/cleanup joins remain mandatory. The parallel log/upload Linux reference lease is serialized before the next guest.
 
 [Step1591](../done/step1591.md) Step1591 retains full r04 failed original runner/image/native/serial/packet/HTTP artifacts under readonly-disk-waits. The runner joined after matrix cancellation with termination confirmed;83 completed responses do not establish the full protocol/browser/cleanup result. No timeout or byte bound is raised. Next read repair requires a fresh source-matched original after focused coverage and native review; the Linux reference lease remains exclusive.

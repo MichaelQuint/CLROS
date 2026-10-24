@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1593](../done/step1593.md) Step1593 preserves scoped-build failure2CS0103 (test accidentally referenced writable Fat32Mutation), then the corrected independent encoder and60focused passes. Linux log/upload r01 writev reports missing libssl then SIGABRT/exit134; actual file I/O occurred before reporting failure. Keep that ordering, failed receipt and verifier-not-launched; corrected transcripts require fresh original identity.
+
 [Step1592](../done/step1592.md) Step1592 retains expert r04 analysis as copied timing values:239 metadata waits868.224s,499 pread waits483.109s;2658 directory-copy-to-next-submit intervals736.525s versus578FAT intervals15.699s. This motivates bounded loaded-sector entry processing. It is not an original-run pass, UART benchmark or promised speedup. New actual poll/sector counts must be retained after repair; earlier failed originals remain unchanged.
 
 [Step1591](../done/step1591.md) Step1591 preserves the failed full r04 original and97 artifact identities, including83 HTTP bodies, exact failure083 and joined runner cancellation. HEAD dotnet.js was cancelled3.844538 seconds after start by the matrix token; the earlier CoreLib GET succeeded347.6176668 seconds after start. Do not confuse the240-second header bound with a body deadline, or host source5 controls with native event evidence.

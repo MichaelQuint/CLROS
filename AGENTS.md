@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1593](done/step1593.md) Step1593 keeps readonly tests independent of successor writable code. Scope the next original read producer to the read repair and its documentation; guarded writable implementation remains separate. Exactly two agents continue media/observation controls and strict crypto-free BCL fixture preparation. Root owns the native/guest lease until the next read run joins; do not start a competing publisher.
+
 [Step1592](done/step1592.md) Step1592 consolidates the guarded writable host foundation with the bounded read lookup repair. Root owns shared/native/docs/tracker; exactly two agents continue filesystem/media controls and native BCL reference work. Batch internal loaded-sector lookups only; public pending directory entries remain retained. Do not raise original budgets, reclassify failed r04 or run a competing native producer while the Linux reference lease is owned.
 
 [Step1591](done/step1591.md) Step1591 supersedes the earlier source5-unimplemented status for the isolated host branch only. Root owns genuine source5 waits, retained scheduler extent exclusion and all native activation; both agents retain their exact scopes. Native/guest writable links remain absent. Full r04 is now a preserved failed original; next read work batches internal loaded-directory entries without changing public enumeration or device boundaries. Keep native publication serialized and preserve all earlier original failures.

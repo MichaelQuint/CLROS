@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1593](../done/step1593.md) Step1593 owns scoped readonly test-dependency repair,60focused passes and failed native log/upload identity/crypto-reporting decision. Application docs own exact writer/readback/report ordering; storage owns actual versus expected bytes; EFI/QEMU retain committed producer and exclusive lease requirements. Step1591/1592 history remains unchanged.
+
 [Step1592](../done/step1592.md) Step1592 owns read LookupStep16 source/reviewed pin,33 filesystem controls, fragmented-large-file measurements, writable/read branch consolidation and the next fresh original boundary. Storage defines batching and retained handles; QEMU/diagnostics retain failed r04 and native provenance; step1591 owns source5 implementation and its exact Gitea evidence comment readbacks.
 
 [Step1591](../done/step1591.md) Step1591 owns isolated source5 integration, copied scheduler extent admission, actual mapping/cancellation controls, log/upload CLI dispatch and failed r04 identities. Storage/PAL own retained backing and prefix/cursor rules; application docs own reference versus persistence boundaries; QEMU/diagnostics retain original cancellation evidence. Next read repair and its focused controls are recorded separately in step1592.

@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1593](../done/step1593.md) Step1593 preserves failed native M10-027 r01 and records test-only readonly dependency repair without closing issues. Source-based diagnosis and correct extracted bytes do not relabel the failed original or invent a distinct verifier. Current LAN masterab60bddd is already an ancestor of the feature branches; the accepted finite82656076 boundary remains historical. Fresh scoped preview/apply/readback is still required.
+
 [Step1592](../done/step1592.md) Step1592 keeps M16-024/M10-018 open while recording internal loaded-sector parsing, large-file host controls and preserved failed r04. Step1591 evidence comments800/24360,809/24361,774/24362,799/24363 read back exact/open. Initial integer indexing of an ordered PowerShell map failed before any comment mutation; corrected string-keyed posting retained a separate receipt. Reconcile only current explicit manifest versions and read back zero drift.
 
 [Step1591](../done/step1591.md) Step1591 claims ToolCommand.cs on M10-027 before its CLI edit: fresh preview1/apply1/readback9unchanged. Source5 host integration, native-reference preparation and the newly failed full r04 are evidence updates only; all issue states/dependencies remain open and unchanged. Use the current explicit manifest across checkouts; preserve both agent owners and human addenda.

@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1593](../done/step1593.md) Step1593 keeps read and next writable batch sources separate for native qualification. Scoped read controls pass after removing a test-only writable dependency. Failed Linux log/upload r01 supplies observed BCL requirements but no complete acceptance; the second agent revises strict crypto-free reporting while storage implements actual-candidate media/observation controls. Root continues the current read original under its native lease.
+
 [Step1592](../done/step1592.md) Step1592 combines the guarded writable host foundation with internal loaded-sector lookup16 and33filesystem controls. Both implementation agents remain busy: storage matches actual candidate bytes on fake media while the other agent measures Linux NativeAOT BCL requirements. Complete the original first-ten read/Blazor batch before its reviewed merge; writable activation/log-upload/reboot and qualified SQLite remain the following dependency chain.
 
 [Step1591](../done/step1591.md) Step1591 implements guarded writable source5 host continuations and copied scheduler storage exclusion;13 controls and87 regressions pass alongside app7/global19/image20/FAT70 controls. First-ten issues remain unfinished: full r04 failed after83 responses and no browser. Continue internal loaded-directory parser repair while the second implementation agent measures the original Linux NativeAOT log/upload contract. Native writable activation, persistence and SQLite remain subsequent dependency-bound work.

@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1593](../done/step1593.md) Step1593 scopes the next readonly native producer independently of guarded writable preparation. The first native BCL log/upload original failed after file I/O in incidental SHA reporting; MinimalApi logging/upload HTTP and persistence remain unqualified. Full r04 stays failed, and the loaded-directory repair still needs a fresh complete read/browser original.
+
 [Step1592](../done/step1592.md) Step1592 batches internal loaded-directory lookup at16 physical entries per selected turn, preserving case/alias ambiguity and full per-open chain validation. Host large-file ranges demonstrate no repeated metadata for retained handles; guest r04 timings remain failed-original diagnosis. No complete Blazor browser, dynamic log/upload HTTP, persistence or SQLite result follows until fresh original qualification.
 
 [Step1591](../done/step1591.md) Step1591 preserves full DiskA r04 atc3dbab92 as FAILED:83 responses/3,946,410 body bytes before1700-second matrix cancellation on HEAD dotnet.js. CoreLib GET succeeded2,009,369 bytes in347.6176668 seconds; no browser or complete cleanup follows. Source5 host implementation and native log/upload reference preparation do not qualify MinimalApi writes or full Blazor. The next measured read repair batches loaded directory parsing, retaining device boundaries and collision checks.

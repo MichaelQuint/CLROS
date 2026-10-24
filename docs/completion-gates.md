@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1593](../done/step1593.md) Step1593 records60focused scoped-read passes and preserves failed native log/upload r01. Successful publication, correct extracted bytes and in-process writer readback do not replace a complete passing original with a distinct verifier. No read/browser, write/persistence, SQLite or larger gate advances; a fresh unchanged-budget read original is next.
+
 [Step1592](../done/step1592.md) Step1592 adds bounded loaded-directory parsing and focused collision/entry-budget/sector/LFN/cancellation controls. These host controls and the consolidated writable branch do not qualify fresh native or full disk/browser acceptance. Full r04 remains failed; three complete source-matched A/B/browser originals, affected race guests, stable unfiltered full/native/ancestor checks and reviewed merge remain outstanding.
 
 [Step1591](../done/step1591.md) Step1591 records guarded source5 implementation and focused host passes only; the existing accepted EFI profiles retain their links and layouts. Full DiskA r04 atc3dbab92 failed its1700-second matrix after83 responses, despite a successful2,009,369-byte CoreLib GET. No complete first-batch/read/Blazor, writable, sync/reboot, SQLite or larger gate advances. The passing finite ExitPending r03 keeps its original scope.
