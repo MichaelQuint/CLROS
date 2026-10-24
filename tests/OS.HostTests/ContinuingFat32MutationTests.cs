@@ -697,6 +697,60 @@ internal static unsafe class ContinuingFat32MutationTests
     }
 
     private delegate bool BorrowCheck(C.State* state, ulong epoch, ulong address, ulong bytes);
+    [HostTest("continuing FAT retained observer full partial and crossing aliases into every engine extent reject external admission")]
+    private static void ProviderObserverRetainedAliases()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); var admit = AdmissionPredicate();
+        var borrow = typeof(C).GetMethod("CanBorrowStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+        B.Admission* blockInput = (B.Admission*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "Input"));
+        var original = blockInput->Observation;
+        (ulong Start, ulong Bytes)[] owned =
+        [
+            ((ulong)f.State, (ulong)sizeof(C.State)), ((ulong)f.Input.Changes, C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)),
+            ((ulong)f.Input.Before, C.JournalChanges * 512UL), ((ulong)f.Input.After, C.JournalChanges * 512UL),
+            ((ulong)f.Input.DirectoryMap, C.MaximumClusters * 4UL), ((ulong)f.Input.FileMap, C.MaximumClusters * 4UL), ((ulong)f.Input.WalkMap, C.MaximumClusters * 4UL),
+            ((ulong)f.Input.Sector, 512UL), ((ulong)f.Input.Fat0, 512UL), ((ulong)f.Input.Fat1, 512UL), ((ulong)f.Input.Input, C.WriteBytes),
+            ((ulong)f.Input.Name, C.NameWords * 2UL), ((ulong)f.Input.LongName, C.VfatWords * 2UL), ((ulong)f.Input.EncodedEntries, C.EncodedEntryBytes)
+        ];
+        byte[] state = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray(), before = new ReadOnlySpan<byte>(f.Input.Before, (int)C.JournalChanges * 512).ToArray();
+        byte[] receipt = new ReadOnlySpan<byte>(original, sizeof(B.Observation)).ToArray(); uint calls = f.Device.Hardware->Calls;
+        try
+        {
+            foreach (var extent in owned) foreach (ulong address in new[] { extent.Start, extent.Start + 8, extent.Start + extent.Bytes - 8 })
+            {
+                blockInput->Observation = (B.Observation*)address;
+                HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8), $"borrow accepted observer={address:x}");
+                HostCheck.True(!admit(f.State, f.Input.Epoch), $"live admission accepted observer={address:x}");
+            }
+        }
+        finally { blockInput->Observation = original; }
+        HostCheck.True(calls == f.Device.Hardware->Calls && new ReadOnlySpan<byte>(f.State, sizeof(C.State)).SequenceEqual(state) &&
+            new ReadOnlySpan<byte>(f.Input.Before, (int)C.JournalChanges * 512).SequenceEqual(before) && new ReadOnlySpan<byte>(original, sizeof(B.Observation)).SequenceEqual(receipt));
+        HostCheck.True(admit(f.State, f.Input.Epoch) && borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        B.Stop(f.Device.State); HostCheck.True(!admit(f.State, f.Input.Epoch) && borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT retained backing substitutions reject new borrows while valid fault cleanup remains structural")]
+    private static void ProviderBackingRetainedAliases()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); var admit = AdmissionPredicate();
+        var borrow = typeof(C).GetMethod("CanBorrowStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
+        C.Admission* input = (C.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input"));
+        byte* before = input->Before; uint calls = f.Device.Hardware->Calls;
+        try
+        {
+            input->Before = input->After;
+            HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !admit(f.State, f.Input.Epoch));
+            input->Before = (byte*)f.Device.Observation;
+            HostCheck.True(!borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8) && !admit(f.State, f.Input.Epoch));
+        }
+        finally { input->Before = before; }
+        HostCheck.True(calls == f.Device.Hardware->Calls && admit(f.State, f.Input.Epoch));
+        var file = File(f); f.FailAt = f.Device.Hardware->Notifies + 1; Read(f, file, 0, 1, out _);
+        HostCheck.Equal(C.Status.BlockFailure, f.Run()); HostCheck.True(!admit(f.State, f.Input.Epoch) && borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8));
+        B.Stop(f.Device.State); HostCheck.True(borrow(f.State, f.Input.Epoch, (ulong)f.Output, 8)); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+    }
+
     [HostTest("continuing FAT structural provider borrow rejects all owned extents and retired APIs never dereference released backing")]
     private static void BorrowAndRetired()
     {

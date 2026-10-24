@@ -1075,10 +1075,13 @@ public static unsafe class ContinuingFat32Mutation
     // Stronger live provider admission, separate from retained teardown extents.
     // Clean pending/held reads are allowed. This checks RAM ownership only;
     // hardware/configuration and final copy are checked by the actual operation.
-    internal static bool CanAdmitStorage(State* s, ulong expectedEpoch) =>
-        Bound(s) && s->Mounted && s->Input.Epoch == expectedEpoch && !s->DirtyValue && !s->DeviceFault &&
-        s->Phase is Life.Idle or Life.Working or Life.Ready && DeviceCurrent(s) &&
-        Block.CanAdmitStorage(s->Input.Device, s->DeviceEpoch);
+    internal static bool CanAdmitStorage(State* s, ulong expectedEpoch)
+    {
+        if (!Bound(s) || !s->Mounted || s->Input.Epoch != expectedEpoch || s->DirtyValue || s->DeviceFault ||
+            s->Phase is not (Life.Idle or Life.Working or Life.Ready) || !DeviceCurrent(s) ||
+            !Block.CanAdmitStorage(s->Input.Device, s->DeviceEpoch)) return false;
+        Extent* all = stackalloc Extent[14]; return RetainedStorage(s, all);
+    }
     private static bool DeviceIdentity(State* s) => Storage((ulong)s->Input.Device, (ulong)sizeof(Block.State), 8) && s->Input.Device->Self == (ulong)s->Input.Device &&
         s->Input.Device->Input.Epoch == s->DeviceEpoch && s->Input.Device->PoolEpoch == s->PoolEpoch;
     private static bool DeviceCurrent(State* s) => DeviceIdentity(s) && s->Input.Device->Running;
@@ -1128,9 +1131,23 @@ public static unsafe class ContinuingFat32Mutation
     private static bool Caller(State* s, ulong address, ulong bytes)
     {
         if (!Storage(address, bytes, 1)) return false;
-        Extent* all = stackalloc Extent[14]; Extents(s, s->Input, all);
-        for (int i = 0; i < 14; i++) if (!Storage(all[i].Start, all[i].Bytes, 8) || Overlap(address, bytes, all[i].Start, all[i].Bytes)) return false;
+        Extent* all = stackalloc Extent[14];
+        if (!RetainedStorage(s, all)) return false;
+        for (int i = 0; i < 14; i++) if (Overlap(address, bytes, all[i].Start, all[i].Bytes)) return false;
         return OutsideDevice(s->Input.Device, address, bytes);
+    }
+    // Revalidate retained inputs, not only the proposed external interval.
+    // An observer changed into engine backing must reject all new borrows.
+    // No running-device predicate: fault/retired cleanup still retains extents.
+    private static bool RetainedStorage(State* s, Extent* all)
+    {
+        Extents(s, s->Input, all);
+        for (int i = 0; i < 14; i++)
+        {
+            if (!Storage(all[i].Start, all[i].Bytes, 8) || !OutsideDevice(s->Input.Device, all[i].Start, all[i].Bytes)) return false;
+            for (int j = 0; j < i; j++) if (Overlap(all[i].Start, all[i].Bytes, all[j].Start, all[j].Bytes)) return false;
+        }
+        return true;
     }
     private static bool OutsideDevice(Block.State* d, ulong address, ulong bytes)
     {
