@@ -2,6 +2,16 @@
 
 ## Current development batch (2026-10-24)
 
+[Step1571](../done/step1571.md) records original r09/r10/r11 at `c66befd5`:
+DiskA/DiskB/DiskA each passes the complete owned mechanical consumer with
+59 calls, 35 disk completions, 62 post-bootstrap sector copies, seven positive
+read windows, one instruction IRQ and exit42/cleanup. All three retain exact
+native/source, original image/package, serial/summary and independent packet
+joins. Repeated DiskA images match; DiskB changes only the measured nonce byte.
+The disk contains the complete published client assets, but this probe reads
+the mechanical fixture. Full disk HTTP/Blazor, actual cancellation/device-error/
+concurrent progress and stable native/full/ancestor batch qualification remain.
+
 [Step1570](../done/step1570.md) retains original r08 at `38ba4446`: the gateway
 repair reaches 59 calls, 35 disk completions, seven positive file-read windows
 and exit42/cleanup markers. The original outer command still fails because its

@@ -19,8 +19,10 @@ parents of this combined profile; they have no separate capture selector.
 M10-018 remains rejected until its complete disk/static consumer is implemented.
 Dry run checks argument/device policy only. Step1570 connects the candidate
 mechanical consumer after r08's original `disk_files_complete_consumer_required`
-failure; 30 focused controls pass unchanged, while fresh owned execution
-remains required.
+failure. [Step1571](../done/step1571.md) records three fresh complete owned
+passes across DiskA/DiskB/DiskA at `c66befd5`, each with59 calls,62 demand
+sectors and seven positive read windows. Error/concurrency controls and full
+disk HTTP/Blazor/batch acceptance remain outstanding.
 
 For diagnostic value inspection through compiled OS.Tooling:
 

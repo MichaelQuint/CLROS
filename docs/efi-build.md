@@ -2,6 +2,13 @@
 
 ## Disk profile development publication
 
+[Step1571](../done/step1571.md) retains three fresh complete owned mechanical
+captures at `c66befd5`. Each new publication verifies and emits identical EFI
+`492BE99AD2AA76DE38321ABC9B5B1C317B50BDA1FF47437FB9C20DF9B89AA453`;
+original native/source/image and runtime consumer joins pass. Step1570's native
+inventory therefore describes the same exact bytes. Complete callback/stack,
+error/concurrency, affected ancestors and whole-batch review remain outstanding.
+
 [Step1570](../done/step1570.md) retains original r08 at `38ba4446`, EFI
 `492BE99AD2AA76DE38321ABC9B5B1C317B50BDA1FF47437FB9C20DF9B89AA453`.
 Its mechanical calls reach exit42, but the outer command still failed. Retained

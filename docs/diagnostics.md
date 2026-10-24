@@ -1,5 +1,11 @@
 # Diagnostics
 
+[Step1571](../done/step1571.md) records fresh r09/r10/r11 complete mechanical
+passes at `c66befd5`, each joining59 calls,35 waits,62 post-bootstrap sectors,
+seven file windows,74 transfers and37 IRQ epochs (36 drains, one instruction
+IRQ). Original capture/native/source/packet joins pass; earlier failures remain.
+Error/concurrency and disk HTTP/Blazor controls retain their pending scope.
+
 [Step1570](../done/step1570.md) preserves original r08: 59 file calls, 35 source4
 completions, 62 post-bootstrap sector copies, 74 transfers, 36 drained IRQs and
 one instruction IRQ reach exit42. The original outer command remains failed.

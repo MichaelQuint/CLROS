@@ -130,6 +130,12 @@ that engine/provider qualification.
 
 ## Next implementation
 
+[Step1571](done/step1571.md) records three fresh complete mechanical disk
+captures at `c66befd5`, spanning DiskA/DiskB/DiskA. Each passes the owned native,
+source, image, file-window, runner and packet joins for 59 calls and 62 demand
+sector copies. Cancellation/error controls, full disk HTTP/Blazor and stable
+batch acceptance remain unfinished.
+
 1. Complete [#226](http://192.168.4.35:3000/admin/CLROS/issues/226) evidence
    packaging, then [#227](http://192.168.4.35:3000/admin/CLROS/issues/227) local
    Gate 14 acceptance. The finite #737 integration is closed; preserve its

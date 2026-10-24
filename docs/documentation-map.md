@@ -1,5 +1,10 @@
 # Documentation Map
 
+[Step1571](../done/step1571.md) records three fresh complete original mechanical
+disk captures. Storage and QEMU own that positive read boundary; Kestrel/app
+model own the still-pending disk HTTP/Blazor demonstration. Earlier failed
+originals and the outstanding batch/native/error/concurrency limits remain.
+
 For the October 23 accepted state, start with [README](../README.md),
 [current completion status](completion-gates.md#current-acceptance-october-23-2026)
 and [step1556](../done/step1556.md). The live merge/tracker readback is documented

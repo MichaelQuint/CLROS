@@ -10,6 +10,11 @@ validation. Both Linux and future custom PE adapters must enforce the same core
 capability, user-memory, ownership, quota and cleanup rules; format selection
 must not bypass protection. See the [core/adapter contract](architecture.md#core-services-and-application-adapters).
 
+[Step1571](../done/step1571.md) records three complete owned positive mechanical
+file captures across both disk variants. Error/cancellation/concurrent progress,
+full disk HTTP and all writable/durability/isolation controls remain outstanding;
+these finite positive witnesses grant no broader security acceptance.
+
 The [October19 review](repo-audit.md#october-19-whole-project-review) adds
 [#778](http://192.168.4.35:3000/admin/CLROS/issues/778) for peer-controlled unread
 data retaining fd-less bulk TCP capacity, and

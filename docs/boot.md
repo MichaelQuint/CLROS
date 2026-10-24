@@ -2,6 +2,11 @@
 
 ## Current boot scope
 
+[Step1571](../done/step1571.md) records three original M16-025 mechanical
+captures passing the complete owned consumer across both disk variants. Each
+reaches59 calls,62 demand sectors, exit42 and confirmed owned cleanup. This
+finite opt-in child does not add a default launcher or full disk HTTP support.
+
 [Step1570](../done/step1570.md) retains r08's first complete mechanical file
 sequence through exit42 and disk/NIC cleanup markers. Its outer command remains
 failed; candidate full consumption requires a fresh original capture. Firmware,

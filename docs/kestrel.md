@@ -25,6 +25,9 @@ capture remains required.
 M10-018 still rejects
 selection. Complete post-readiness disk/HTTP joins and a real external Blazor
 boot with network evidence and screenshot remain required for #774.
+[Step1571](../done/step1571.md) subsequently records three fresh complete
+mechanical consumer passes at `c66befd5` across both disk variants. Those59-call
+probes precede upstream HTTP and browser integration; #774 remains open.
 
 PR790 merged at `82656076` on October 23, 2026. Live tracker readback confirms
 #748, #225 and the finite #737 integration closed, following the step1481

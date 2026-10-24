@@ -2,12 +2,11 @@
 
 ## Start here
 
-[Step1570](done/step1570.md) records the current isolated disk checkpoint.
-Original r08 at `38ba4446` reaches 59 calls and exit42, but its outer command
-remains failed. Complete value joins pass on that original; the newly connected
-owned runner/native/packet consumer has 30 focused checks passing unchanged;
-a fresh capture remains required.
-Keep disk HTTP/Blazor, error/cancellation guests and whole-batch gates open.
+[Step1571](done/step1571.md) records three fresh complete mechanical disk
+captures at `c66befd5`, spanning DiskA/DiskB/DiskA. Each joins 59 calls and 62
+demand sector copies to original native/source/image/runner/packet inputs.
+Earlier failed originals remain failed. Keep disk HTTP/Blazor, error/cancellation
+and concurrent-progress guests, full native review and whole-batch gates open.
 
 Read [README.md](README.md), [documentation map](docs/documentation-map.md),
 [workload profiles](docs/workload-profiles.md) and

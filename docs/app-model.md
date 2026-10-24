@@ -26,7 +26,10 @@ and development results do not establish a general disk app or browser boot.
 [Step1570](../done/step1570.md) records r08 reaching the exact mechanical59-call
 sequence and exit42; its outer command remains failed. The new original-runner
 consumer candidate requires fresh validation. This is not upstream disk HTTP.
-The full upstream Blazor child remains the subsequent M10-018 boundary.
+[Step1571](../done/step1571.md) adds three fresh complete original mechanical
+consumer passes at `c66befd5`; each verifies59 calls and62 demand sector copies
+across both disk variants. Error/concurrency controls and the full upstream
+Blazor child remain subsequent boundaries. No general app/disk gate closes.
 
 ## Current application boundary (October 23, 2026)
 

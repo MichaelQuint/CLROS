@@ -2,6 +2,14 @@
 
 ## Current static-file implementation boundary (2026-10-24)
 
+[Step1571](../done/step1571.md) records three fresh original complete mechanical
+consumer passes at `c66befd5` across both disk variants. Each joins59 calls,
+62 demand sectors and seven read windows to held original native/source/image/
+runner/packet inputs. This advances the positive mechanical development witness;
+actual error/cancellation/concurrency controls, full native review, unfiltered
+full/ancestors and the disk HTTP/Blazor demonstration remain outstanding. No
+issue, whole-batch, write/SQLite or numbered gate closes from these captures.
+
 [Step1570](../done/step1570.md) preserves r08's successful mechanical guest
 markers and genuine failed outer command. New complete value joins accept its
 original 59 calls, 62 sector copies, seven read windows and one instruction IRQ.
