@@ -224,4 +224,27 @@ internal static class NativeAotSqliteContractTests
         Reject(()=>NativeAotSqliteContract.InspectFinalUndefinedValues("sqlite3_key w\n"),"final_undefined_sqlite");
         Reject(()=>NativeAotSqliteContract.InspectFinalUndefinedValues("malloc U\n"),"final_undefined_strong");
     }
+
+    [HostTest("sqlite instruction values bind executable bytes in a separate domain without granting prepared program authority")]
+    private static void InstructionValues()
+    {
+        byte[] elf=LinuxThreadProofFixture.CreateElf("Threads");
+        new byte[]{0xb8,0x0f,0x05,0,0,0x0f,0x05,0xc3}.CopyTo(elf,512);
+        const string dump="400200: b8 0f 05 00 00\tmovl $0x50f, %eax\n400205: 0f 05\tsyscall\n400207: c3\tretq\n";
+        var actual=NativeAotSqliteContract.InspectInstructionValues(elf,dump);
+        using MemoryStream bytes=new();bytes.Write(Encoding.ASCII.GetBytes("CLROS_SQLITE_INSTRUCTIONS_V1\n"));
+        using(var writer=new BinaryWriter(bytes,Encoding.ASCII,true))
+        {
+            writer.Write(0x400200UL);writer.Write((byte)5);writer.Write(new byte[]{0xb8,0x0f,0x05,0,0});writer.Write((byte)0);
+            writer.Write(0x400205UL);writer.Write((byte)2);writer.Write(new byte[]{0x0f,0x05});writer.Write((byte)1);
+            writer.Write(0x400207UL);writer.Write((byte)1);writer.Write((byte)0xc3);writer.Write((byte)0);
+        }
+        HostCheck.True(actual.InstructionCount==3 && actual.SyscallCount==1 && actual.SyscallContinuationsValid &&
+            actual.Sha256==Convert.ToHexString(SHA256.HashData(bytes.ToArray())) && !actual.GrantsPreparedProgramOrExecutionAuthority &&
+            actual.Sha256!=NativeAotHelloProgram.Inspect(elf,dump).Sha256);
+        var partial=NativeAotSqliteContract.InspectInstructionValues(elf,"400205: 0f 05\tsyscall\n");
+        HostCheck.True(partial.InstructionCount==1 && !partial.SyscallContinuationsValid && partial.Sha256!=actual.Sha256 && !partial.GrantsPreparedProgramOrExecutionAuthority);
+        bool rejected=false;try{NativeAotSqliteContract.InspectInstructionValues(elf,dump.Replace("0f 05\tsyscall","90 90\tnop",StringComparison.Ordinal));}
+        catch(InvalidDataException error){rejected=error.Message=="sqlite_instruction_backing";}HostCheck.True(rejected);
+    }
 }

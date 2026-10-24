@@ -52,6 +52,19 @@ public static class NativeAotSqliteContract
     public sealed record Archive(string Sha256,int Bytes,int ObjectFiles,IReadOnlyList<string> DefinedSqliteSymbols)
     {public bool GrantsCompleteNativeLinkageAuthority=>false;}
     public readonly record struct WeakUndefined(string Name,char Binding);
+    public readonly record struct InstructionValues(int InstructionCount,int SyscallCount,string Sha256,bool SyscallContinuationsValid)
+    {public bool GrantsPreparedProgramOrExecutionAuthority=>false;}
+
+    /// <summary>Parse borrowed executable-byte rows with the existing complete-
+    /// index decoder and a separate SQLite domain. This report may describe a
+    /// partial instruction set and grants no lookup, package or guest authority.
+    /// Independent executable-section coverage and a reviewed exact digest are
+    /// required before a later prepared-program factory can admit this ELF.</summary>
+    public static InstructionValues InspectInstructionValues(ReadOnlySpan<byte> elf,string disassembly)
+    {
+        var index=NativeAotInstructionIndex.Parse(elf,disassembly,"sqlite_instruction_","CLROS_SQLITE_INSTRUCTIONS_V1\n",2_000_000,128*1024*1024);
+        return new(index.Report.InstructionCount,index.Report.SyscallCount,index.Report.Sha256,index.SyscallContinuationsValid);
+    }
     public sealed class UpstreamSource
     {
         private readonly byte[] source,header;
