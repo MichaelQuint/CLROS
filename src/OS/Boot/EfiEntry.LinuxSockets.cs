@@ -691,7 +691,7 @@ public static unsafe partial class EfiEntry
                 return o->Boot == c->State && RecordLinuxSocketWaits(o, c);
         }
 
-        // Observe only retained source3 waits after the real clock/readiness
+        // Observe retained waits after the real clock/readiness
         // mutation. This neither completes a wait nor changes scheduler state.
         private static bool RecordLinuxSocketWaits(LinuxSocketStorage* o, LinuxNativeControl* c)
         {
@@ -699,15 +699,28 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < c->Capacity; i++)
             {
                 var slot = c->Slots + i;
+#if M10_018_PROBE
+                bool disk = slot->WaitSource == 4;
+                if (slot->WaitSource != 3 && !disk || !slot->Wait.IsValid) continue;
+                if (disk && !slot->DiskOperation.IsActive) return false;
+#else
                 if (slot->WaitSource != 3 || !slot->Wait.IsValid) continue;
+#endif
                 if (!c->Process.Inspect(c->Key, 2, slot->Kernel, out var view)) return false;
                 if (view.Exiting) continue;
                 var observed = c->Threads.Inspect(c->Key, 2, view.Kernel);
                 if (!observed.Succeeded || !observed.Wait.IsValid || observed.Wait.Sequence != view.Wait.Sequence) return false;
                 if (observed.Completion == ThreadTable.Completion.None ||
                     o->WakeIdentities[i] == view.Kernel.Value && o->WakeSequences[i] == view.Wait.Sequence) continue;
-                if (!LinuxText(c->State, "M16_012_WAKE identity=") || !LinuxNumber(c->State, view.Kernel.Value) ||
+                if (!LinuxText(c->State,
+#if M10_018_PROBE
+                    disk ? "M16_025_WAKE identity=" :
+#endif
+                    "M16_012_WAKE identity=") || !LinuxNumber(c->State, view.Kernel.Value) ||
                     !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+#if M10_018_PROBE
+                    disk && (!LinuxText(c->State, " request=") || !LinuxNumber(c->State, slot->DiskOperation.Generation)) ||
+#endif
                     !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)observed.Completion) ||
                     !LinuxText(c->State, " state=") || !LinuxNumber(c->State, (uint)observed.State) ||
                     !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")) return false;

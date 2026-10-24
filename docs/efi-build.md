@@ -1,5 +1,10 @@
 # EFI Build
 
+[Step1574](../done/step1574.md) retains original018 r01 native compilation
+followed by artifact-verifier rejection of absent legacy web callbacks. The
+new policy requires static lifecycle plus018 cursor/completion/arming bodies
+with the same exact ownership/executable checks. No failed artifact is rescued.
+
 [Step1572](../done/step1572.md) adds explicit018 compilation of the existing
 static lifecycle leaf, a distinct disk gate and completion-time file records.
 Reviewed conditional source and project pins change; native/guest qualification

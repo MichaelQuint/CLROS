@@ -36262,7 +36262,7 @@
         "M10-016",
         "M10-017"
       ],
-      "currentEvidence": "Step1572 adds development-only full018 diagnostic selection for the exact original indexed server disk envelope, existing disk BootSequence gate, 32 descriptors, distinct finite lifecycle markers and completion-time file observations retained across source4 waits. Sector observations arm at actual successful listen with original prior counters. New3 profile controls and existing5 disk/2 staged/11 diskthread focused checks pass in separate unchanged zero-reuse scopes. The five-response HTTP owner is diagnostic only: even runner exit0 still rejects until the complete disk/static consumer exists. First original native018 boot, full HTTP/Blazor/browser, negative/concurrent guests and stable batch gates remain pending. Step1571 mechanical positives do not qualify this app. No issue closes.",
+      "currentEvidence": "Step1574 retains original018 r01 at4ca3e3af: native compilation passes, then original artifact verification rejects absent legacy web callbacks before image creation/guest launch. It remains failed. Explicit018 native bindings now require the actual static lifecycle/cursor/completion/arming methods. Actual source4 WAKE and REPARK observations retain original worker/wait/request/winner/clock rather than inferring FIFO from late completion. Normal19 focused profile/thread controls pass in separate unchanged zero-reuse scopes. First original018 guest, complete original disk/static joins, full Blazor/browser and stable batch gates remain pending. The five-response owner stays diagnostic and complete-command success is deliberately withheld. Step1571 mechanical positives keep their own scope; no issue closes.",
       "implementationNotes": [
         "Read AGENTS.md, docs/documentation-map.md, docs/workload-profiles.md, docs/cstorage.md, docs/kestrel.md, docs/host-requirements.md and applicable directory guides. Use C#14/.NET11; preserve accepted payloads and immutable done receipts.",
         "Reuse the accepted finite service foundations from step1556; finish the current #768-#774 batch, including M16-022/#766, and M10-011/#224 before this roadmap starts. Refresh live evidence and obtain the existing integration owner's handoff before shared edits. Dependencies authorize ordering, not concurrent ownership.",
@@ -36323,7 +36323,8 @@
         "tools/OS.Tooling/NativeAotDiskStaticPeer.cs",
         "tools/OS.QemuRunner/QemuCommandBuilder.cs",
         "tests/OS.HostTests/ReadOnlyDiskProfileTests.cs",
-        "tests/OS.HostTests/NativeAotDiskStaticProfileTests.cs"
+        "tests/OS.HostTests/NativeAotDiskStaticProfileTests.cs",
+        "tools/OS.Tooling/EfiVerify.Native.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

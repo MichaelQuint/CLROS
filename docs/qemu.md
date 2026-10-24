@@ -1,5 +1,10 @@
 # QEMU
 
+[Step1574](../done/step1574.md) preserves the first018 native compile followed
+by original artifact-verifier failure before any guest. Explicit018 native
+bindings and actual source4 WAKE/REPARK observations are repaired; the complete
+disk/static consumer and original guest qualification remain outstanding.
+
 [Step1573](../done/step1573.md) repairs the018 diagnostic's deferred cursor
 observation before first publication. Existing host cursor/cancellation checks
 pass; the full disk/static consumer and original guest qualification remain.

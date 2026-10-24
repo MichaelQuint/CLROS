@@ -1,5 +1,10 @@
 # Storage
 
+[Step1574](../done/step1574.md) adds018-only actual source4 WAKE/REPARK rows,
+including request generations, instead of inferring FIFO wake order from late
+completion. The first018 compile passed but native verification failed before
+boot; the repaired native policy and producer still need original qualification.
+
 ## Current development batch (2026-10-24)
 
 [Step1573](../done/step1573.md) refreshes018's authenticated original cursor

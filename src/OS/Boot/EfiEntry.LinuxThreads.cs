@@ -387,6 +387,22 @@ public static unsafe partial class EfiEntry
                         !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n"))
                         return LinuxNativeAbort(c, index);
                 }
+#if M10_018_PROBE
+                if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Blocked)
+                {
+                    if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var again) || again.WaitSource != 4 ||
+                        !again.Wait.IsValid || again.Wait.Sequence <= view.Wait.Sequence || again.WaitDeadline != 0 ||
+                        !c->Slots[index].DiskOperation.IsActive || c->Slots[index].DiskOperation.Generation != diskOperation.Generation ||
+                        c->Slots[index].DiskOutputBytes != diskOutputBytes ||
+                        !LinuxText(c->State, "M16_025_REPARK identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                        !LinuxText(c->State, " previous=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                        !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, again.Wait.Sequence) ||
+                        !LinuxText(c->State, " request=") || !LinuxNumber(c->State, diskOperation.Generation) ||
+                        !LinuxText(c->State, " outputBytes=") || !LinuxNumber(c->State, diskOutputBytes) ||
+                        !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n"))
+                        return LinuxNativeAbort(c, index);
+                }
+#endif
                 if (!ObserveLinuxSocketWaits(c)) return LinuxNativeAbort(c, index);
 #endif
                 if (completion.Action != LinuxSyscallAction.Return)
