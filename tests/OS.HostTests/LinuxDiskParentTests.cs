@@ -3,9 +3,129 @@ using OS.Manifest;
 using OS.Kernel.Compatibility.LinuxX64;
 using System.Runtime.InteropServices;
 using System.Globalization;
+using System.Buffers.Binary;
+using System.Reflection;
+using System.Security.Cryptography;
 
 internal static class LinuxDiskParentTests
 {
+    private delegate byte[] BclPackageBuilder(ReadOnlySpan<byte> elf,string phase,string digest);
+    private delegate NativeAotLogUploadContract.ClrosPackageValues BclPackageInspector(ReadOnlySpan<byte> package,string phase,string digest);
+    private delegate string[] StartupValueConsumer(string[] lines,byte[] package,bool diskFiles,bool diskStatic,bool exitPending,bool writable,bool logUpload,NativeAotLogUploadContract.ClrosPackageValues? values);
+    private static readonly BclPackageBuilder BuildBclPackage=typeof(NativeAotLogUploadContract).GetMethod("CreateClrosPackageCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<BclPackageBuilder>();
+    private static readonly BclPackageInspector InspectBclPackage=typeof(NativeAotLogUploadContract).GetMethod("InspectClrosPackageCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<BclPackageInspector>();
+    private static readonly StartupValueConsumer InspectStartupValues=typeof(QemuTranscripts).GetMethod("ValidateLinuxStartupTailCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<StartupValueConsumer>();
+
+    [HostTest("disk startup copied BCL write and verify geometry requires four loads TLS and67 ranges without preparing a program")]
+    private static void BclStartupValues()
+    {
+        foreach(string phase in new[]{"write","verify"})
+        {
+            var (package,values)=CopiedBclPackage(phase);string[] rows=MappedStartupRows(package,67),before=rows.ToArray();byte[] original=package.ToArray();
+            string[] parent=InspectStartupValues(rows,package,true,false,false,true,true,values);
+            HostCheck.True(parent.SequenceEqual(rows[..^7]) && rows.SequenceEqual(before) && package.AsSpan().SequenceEqual(original) &&
+                values.Phase==phase && values.Image.Loads.Count==4 && values.Image.Tls is {FileSize:24,MemorySize:264} &&
+                !values.InstructionIndexAdmitted && !values.ExecutionAuthority && !values.GrantsOriginalPublicationGuestOrPersistenceAuthority);
+            DenyStartup(()=>QemuTranscripts.ValidateLinuxStartupTail(rows,package,diskFiles:true,writableDisk:true,logUpload:true));
+            DenyStartup(()=>QemuTranscripts.InspectLinuxStartupRangeValues(67,4,diskFiles:true,writableDisk:true));
+        }
+    }
+
+    [HostTest("disk startup BCL copied admission rejects wrong selections phase package and mutated bytes before consuming rows")]
+    private static void BclStartupAdmission()
+    {
+        var (package,values)=CopiedBclPackage("write");var (verify,verification)=CopiedBclPackage("verify");string[] rows=MappedStartupRows(package,67);
+        foreach(var flags in new (bool Disk,bool Static,bool Exit,bool Writable,bool Log)[]{(false,false,false,true,true),
+            (true,true,false,true,true),(true,false,true,true,true),(true,false,false,false,true),(true,false,false,true,false)})
+            DenyStartup(()=>InspectStartupValues(rows,package,flags.Disk,flags.Static,flags.Exit,flags.Writable,flags.Log,values),"m16_004_disk_selection");
+        DenyStartup(()=>InspectStartupValues(rows,package,true,false,false,true,true,verification),"m16_004_log_upload_package");
+        DenyStartup(()=>InspectStartupValues(MappedStartupRows(verify,67),verify,true,false,false,true,true,values),"m16_004_log_upload_package");
+        byte[] changed=package.ToArray();changed[^1]^=1;
+        DenyStartup(()=>InspectStartupValues(rows,changed,true,false,false,true,true,values),"m16_004_log_upload_package");
+        byte[] mechanical=LinuxWritableDiskProofFixture.CreatePackage();
+        DenyStartup(()=>InspectStartupValues(MappedStartupRows(mechanical,65),mechanical,true,false,false,true,true,values),"m16_004_log_upload_package");
+    }
+
+    [HostTest("disk startup BCL binds actual TLS image and stack records and rejects neighbouring retained range counts")]
+    private static void BclStartupRecordRejection()
+    {
+        var (package,values)=CopiedBclPackage("write");string[] rows=MappedStartupRows(package,67);
+        foreach(int count in new[]{0,64,65,66,68,135})
+            DenyStartup(()=>InspectStartupValues(rows.Select(r=>r.Replace("ranges=67","ranges="+count,StringComparison.Ordinal)).ToArray(),package,true,false,false,true,true,values),"m16_004_table_geometry");
+        foreach(var change in new[]{("loads=4","loads=2"),("tlsFile=24","tlsFile=0"),("tlsMemory=264","tlsMemory=0"),
+            ("entry=4231031","entry=4231032"),("argc=4","argc=3"),("envc=0","envc=1"),
+            ("seedCleared=32","seedCleared=0"),("restored=true","restored=false"),("entry=false","entry=true")})
+        {
+            HostCheck.True(rows.Any(r=>r.Contains(change.Item1,StringComparison.Ordinal)),"mutation must change its intended row");
+            DenyStartup(()=>InspectStartupValues(rows.Select(r=>r.Replace(change.Item1,change.Item2,StringComparison.Ordinal)).ToArray(),package,true,false,false,true,true,values));
+        }
+        HostCheck.True(rows.Length==QemuContracts.M03OwnedSubsystemMarkers.Count+14);
+    }
+
+    [HostTest("disk startup null prepared program preserves exact mechanical30 and logupload40 two-load65 selection")]
+    private static void WritableStartupLegacy()
+    {
+        foreach(bool log in new[]{false,true})
+        {
+            byte[] package=log?LinuxWritableDiskProofFixture.CreateLogUploadPackage():LinuxWritableDiskProofFixture.CreatePackage();
+            string[] rows=MappedStartupRows(package,65);
+            HostCheck.Equal(rows.Length-7,QemuTranscripts.ValidateLinuxStartupTail(rows,package,diskFiles:true,writableDisk:true,logUpload:log).Length);
+            foreach(int count in new[]{64,66,67,135})
+                DenyStartup(()=>QemuTranscripts.ValidateLinuxStartupTail(MappedStartupRows(package,(ulong)count),package,diskFiles:true,writableDisk:true,logUpload:log));
+            DenyStartup(()=>QemuTranscripts.ValidateLinuxStartupTail(rows,package,diskFiles:true,writableDisk:true,logUpload:!log));
+        }
+    }
+
+    // These synthetic bytes exercise only the copied-value consumer. They
+    // cannot pass the public fixed-ELF/prepared-program factory.
+    private static (byte[] Package,NativeAotLogUploadContract.ClrosPackageValues Values) CopiedBclPackage(string phase)
+    {
+        byte[] elf=new byte[NativeAotLogUploadContract.ClrosElfBytes];new byte[]{0x7f,69,76,70,2,1,1}.CopyTo(elf,0);
+        void W16(int at,ushort v)=>BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(at),v);
+        void W32(int at,uint v)=>BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(at),v);
+        void W64(int at,ulong v)=>BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(at),v);
+        W16(16,2);W16(18,62);W32(20,1);W64(24,4231031);W64(32,64);W16(52,64);W16(54,56);W16(56,11);
+        void Segment(int at,uint type,uint flags,ulong offset,ulong address,ulong file,ulong memory,ulong alignment)
+        {W32(at,type);W32(at+4,flags);W64(at+8,offset);W64(at+16,address);W64(at+32,file);W64(at+40,memory);W64(at+48,alignment);}
+        Segment(64,1,4,0,4194304,748,748,4096);Segment(120,1,5,4096,4198400,893584,893584,4096);
+        Segment(176,1,4,901120,5095424,442088,442088,4096);Segment(232,1,6,1345320,5539624,9616,189328,4096);
+        Segment(288,7,4,1345320,5539624,24,264,8);
+        string digest=Convert.ToHexString(SHA256.HashData(elf));HostCheck.True(digest!=NativeAotLogUploadContract.ClrosElfSha256);
+        byte[] package=BuildBclPackage(elf,phase,digest);return(package,InspectBclPackage(package,phase,digest));
+    }
+
+    internal static unsafe string[] MappedStartupRows(byte[] package,ulong ranges)
+    {
+        var view=LinuxElfPackage.Validate(package);HostCheck.True(view.Succeeded);
+        byte* entropy=stackalloc byte[32];new Span<byte>(entropy,32).Fill(1);
+        byte* stack=(byte*)NativeMemory.AlignedAlloc(view.Manifest.StackBytes,4096);
+        try
+        {
+            LinuxElfStartupPlan startup;LinuxElfLoadPlan image;
+            fixed(byte* p=package)
+            {
+                HostCheck.Equal(LinuxElfLoadStatus.Ready,LinuxElfLoader.Validate(p+view.PayloadOffset,view.PayloadBytes,view.Manifest.MemoryBytes,view.Manifest.StackBytes,out image));
+                HostCheck.Equal(LinuxElfStartupStatus.Ready,LinuxElfStartup.Build(p+view.ManifestOffset,view.ManifestBytes,p+view.PayloadOffset,view.PayloadBytes,
+                    entropy,32,stack,view.Manifest.StackBytes,0x70000000UL-view.Manifest.StackBytes,0,out startup));
+            }
+            ulong loadPages=0;for(uint i=0;i<image.LoadCount;i++){uint n=i*5;loadPages+=(((image.Loads[n]+image.Loads[n+3]+4095)&~4095UL)-(image.Loads[n]&~4095UL))/4096;}
+            return [..Enumerable.Repeat("parents checked separately",QemuContracts.M03OwnedSubsystemMarkers.Count+7),"TEST_START m16-004",
+                FormattableString.Invariant($"M16_004_IMAGE base={image.ImageStart} bytes={image.ImageBytes} loads={image.LoadCount} entry={image.Entry} phdr={image.ProgramHeaders} tlsFile={image.TlsFileBytes} tlsMemory={image.TlsMemoryBytes}"),
+                FormattableString.Invariant($"M16_004_STACK start={startup.StackStart} bytes={startup.StackBytes} sp={startup.StackPointer} argc={startup.ArgumentCount} envc={startup.EnvironmentCount} random={startup.RandomAddress} entropyBytes=32 seedCleared=32"),
+                FormattableString.Invariant($"M16_004_TABLES root=16777216 used=17 leaves={loadPages+view.Manifest.StackBytes/4096+128} ranges={ranges}"),
+                "M16_004_READBACK old=33554432 restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false",
+                "CLROS_M16_004_READY","TEST_PASS m16-004"];
+        }
+        finally{NativeMemory.AlignedFree(stack);}
+    }
+
+    private static void DenyStartup(Action action,string? reason=null)
+    {
+        string? failure=null;
+        try{action();}catch(Exception error)when(error is ToolFailure or InvalidDataException or ArgumentException){failure=error.Message;}
+        HostCheck.True(failure is not null && (reason is null || failure.Contains(reason,StringComparison.Ordinal)),"startup must reject: "+reason+" actual="+failure);
+    }
+
     [HostTest("disk parent admits only the exact typed pending-reset terminal and preserves ordinary drained rejection")]
     private static void PendingReset()
     {

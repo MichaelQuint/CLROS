@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using OS.Manifest;
 using OS.Kernel.Compatibility.LinuxX64;
 
@@ -9,12 +10,32 @@ public static partial class QemuTranscripts
     public static IReadOnlyList<string> M16LinuxStartupMarkers { get; } = Array.AsReadOnly<string>(
         ["TEST_START m16-004", "M16_004_IMAGE", "M16_004_STACK", "M16_004_TABLES", "M16_004_READBACK", "CLROS_M16_004_READY", "TEST_PASS m16-004"]);
 
-    public static unsafe string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false,
-        bool diskExitPending=false,bool writableDisk=false,bool logUpload=false)
+    /// <summary>Inspect copied startup rows against the exact input package.
+    /// A prepared log/upload program explicitly selects its pinned BCL phase;
+    /// four loads alone never select it. Inputs remain caller-owned synchronous
+    /// borrows, and the returned parent rows carry no source/process/device,
+    /// execution, original-capture or persistence authority.</summary>
+    public static string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false,
+        bool diskExitPending=false,bool writableDisk=false,bool logUpload=false,NativeAotLogUploadProgram? logUploadProgram=null)
+    {
+        Need(logUploadProgram is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending,"m16_004_disk_selection");
+        var preparedPackage=logUploadProgram is null?null:NativeAotLogUploadContract.InspectClrosPackage(package,logUploadProgram.Phase);
+        return ValidateLinuxStartupTailCore(lines,package,diskFiles,diskStatic,diskExitPending,writableDisk,logUpload,preparedPackage);
+    }
+
+    // Copied-value core permits portable package/geometry controls without
+    // constructing a prepared public program. Only the public wrapper selects
+    // a BCL phase through an actual prepared lookup and fixed package identity.
+    internal static unsafe string[] ValidateLinuxStartupTailCore(string[] lines,byte[] package,bool diskFiles,bool diskStatic,
+        bool diskExitPending,bool writableDisk,bool logUpload,NativeAotLogUploadContract.ClrosPackageValues? bclPackage)
     {
         Need((!diskFiles || !diskStatic) && (!diskExitPending || diskFiles && !diskStatic) &&
-            (!writableDisk || diskFiles && !diskStatic && !diskExitPending) && (!logUpload || writableDisk),"m16_004_disk_selection");
-        if(writableDisk) { if(logUpload)LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);else LinuxWritableDiskProofFixture.RequirePackage(package); }
+            (!writableDisk || diskFiles && !diskStatic && !diskExitPending) && (!logUpload || writableDisk) &&
+            (bclPackage is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending),"m16_004_disk_selection");
+        if(bclPackage is not null)
+            Need(bclPackage.Phase is "write" or "verify" && bclPackage.PackageBytes==package.Length &&
+                bclPackage.PackageSha256==Convert.ToHexString(SHA256.HashData(package)),"m16_004_log_upload_package");
+        else if(writableDisk) { if(logUpload)LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);else LinuxWritableDiskProofFixture.RequirePackage(package); }
         else if (diskExitPending) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="ExitPending","m16_004_disk_exit_package");
         else if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
         if (diskStatic) NativeAotStaticFileProgram.RequirePackage(package,false);
@@ -58,7 +79,9 @@ public static partial class QemuTranscripts
             uint row = i * 5; ulong address = image.Loads[row], memory = image.Loads[row + 3];
             loadPages += (((address + memory + 4095) & ~4095UL) - (address & ~4095UL)) / 4096;
         }
-        InspectLinuxStartupRangeValues(tables["ranges"],image.LoadCount,diskFiles,diskStatic,writableDisk);
+        if(bclPackage is not null)
+            Need(image.LoadCount==4 && image.TlsFileBytes==24 && image.TlsMemoryBytes==264 && tables["ranges"]==67,"m16_004_table_geometry");
+        else InspectLinuxStartupRangeValues(tables["ranges"],image.LoadCount,diskFiles,diskStatic,writableDisk);
         Need(tables["root"] is >= 4096 and < 0x100000000 && tables["root"] % 4096 == 0 &&
             tables["used"] is >= 4 and <= 128 && tables["ranges"] >= image.LoadCount + 2 &&
             tables["leaves"] >= loadPages + view.Manifest.StackBytes / 4096 + 128 && tables["leaves"] <= 32768 &&
