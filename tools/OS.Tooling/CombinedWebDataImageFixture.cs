@@ -90,6 +90,9 @@ public static class CombinedWebDataImageFixture
         internal Receipt(string webHash, string dataHash, Inspection image)
         { OriginalWebSha256 = webHash; OriginalDataSha256 = dataHash; Image = image; json = Serialize(webHash, dataHash, image); }
         public string OriginalWebSha256 { get; }
+        /// <summary>Whole held data-source file hash: the64MiB seed for Create,
+        /// or the128MiB prior combined image for CreateWithRetainedData. It does
+        /// not authenticate that source's creator, process join or durability.</summary>
         public string OriginalDataSha256 { get; }
         public Inspection Image { get; }
         public byte[] CopyJson() => (byte[])json.Clone();
@@ -270,6 +273,78 @@ public static class CombinedWebDataImageFixture
             File.Move(stage, output, overwrite: false); return receipt;
         }
         finally { if (File.Exists(stage)) File.Delete(stage); }
+    }
+
+    /// <summary>Publish a fresh combined candidate with the new64MiB web image's
+    /// complete ESP and disk GUID, and a prior128MiB combined image's complete
+    /// DATA partition body and GPT entry. Both sources remain immutable plain,
+    /// distinct single-link held files through independent output readback.
+    /// The expected prior full-image hash binds copied values, never a creator,
+    /// joined process, successful guest, reboot or durability. The caller must
+    /// separately own that evidence and exclude concurrent writers. No DATA
+    /// BPB relocation or empty-seed requirement applies. CreateNew output is
+    /// reheld against its created identity/length/hash; a failed created file
+    /// remains for inspection. These boundary checks are not atomic execution
+    /// authority; all input/output handles are released before returning.</summary>
+    public static Receipt CreateWithRetainedData(string repositoryRoot, string newWebImagePath,
+        string retainedCombinedImagePath, Inspection expectedRetained, string outputPath)
+    {
+        ArgumentNullException.ThrowIfNull(expectedRetained);
+        string root = Path.GetFullPath(repositoryRoot), output = Path.GetFullPath(outputPath);
+        ValidateOutput(root, output);
+        using AuthorityFiles inputs = new();
+        var webFile = inputs.Open(root, newWebImagePath, "new web image", "combined_web_input", InputImageBytes, singleLink: true);
+        var priorFile = inputs.Open(root, retainedCombinedImagePath, "retained combined data source", "combined_retained_input", ImageBytes, singleLink: true);
+        AuthorityFiles.RequireDistinct(webFile, priorFile);
+        Need(webFile.Length == InputImageBytes && priorFile.Length == ImageBytes &&
+            priorFile.Sha256.Equals(expectedRetained.RawSha256, StringComparison.OrdinalIgnoreCase), "retained_identity");
+        byte[] web = webFile.ReadBytes(InputImageBytes, "combined_web_input"), prior = priorFile.ReadBytes(ImageBytes, "combined_retained_input");
+        var originalWeb = WebRootImageFixture.ReadBack(webFile.Path); var old = Inspect(priorFile.Path);
+        Need(originalWeb.Sha256 == Hash(web) && old.RawSha256 == Hash(prior) &&
+            old.RawSha256 == expectedRetained.RawSha256 && originalWeb.Files.Any(x =>
+                x.Path.StartsWith(WebRootImageFixture.GuestRoot + "/", StringComparison.Ordinal)), "retained_readback");
+        var webLayout = ReadGpt(web, 1); var priorLayout = ReadGpt(prior, 2);
+        var newEsp = webLayout.Parts[0]; var oldData = priorLayout.Parts[1];
+        Need(newEsp.EntryIndex == 0 && newEsp.PartitionTypeGuid == EfiPartitionType && newEsp.FirstLba == WebFirstLba &&
+            newEsp.LastLba == WebLastLba && newEsp.Attributes == 0 && newEsp.UniquePartitionGuid != oldData.UniquePartitionGuid, "input_partition");
+        byte[] combined = new byte[ImageBytes]; web.CopyTo(combined, 0);
+        Partition(prior, DataFirstLba, DataLastLba).CopyTo(Partition(combined, DataFirstLba, DataLastLba));
+        Span<byte> entries = combined.AsSpan(1024, Gpt.ArrayBytes);
+        prior.AsSpan(1024 + Gpt.EntrySize, Gpt.EntrySize).CopyTo(entries[Gpt.EntrySize..]);
+        entries.CopyTo(combined.AsSpan(ImageBytes - 33 * 512, Gpt.ArrayBytes));
+        uint crc = Crc32.Compute(entries); W32(combined, 458, Sectors - 1);
+        Header(combined.AsSpan(512, 512), 1, Sectors - 1, 2, crc);
+        web.AsSpan(InputImageBytes - 512, 512).CopyTo(combined.AsSpan(ImageBytes - 512, 512));
+        Header(combined.AsSpan(ImageBytes - 512, 512), Sectors - 1, 1, Sectors - 33, crc);
+        Need(Partition(web, WebFirstLba, WebLastLba).SequenceEqual(Partition(combined, WebFirstLba, WebLastLba)) &&
+            Partition(prior, DataFirstLba, DataLastLba).SequenceEqual(Partition(combined, DataFirstLba, DataLastLba)) &&
+            prior.AsSpan(1024 + Gpt.EntrySize, Gpt.EntrySize).SequenceEqual(entries.Slice(Gpt.EntrySize, Gpt.EntrySize)), "retained_preservation");
+        inputs.VerifyUnchanged();
+        EfiBuildFiles.InitializeDirectory(Path.GetDirectoryName(output)!, "combined_output_path"); ValidateOutput(root, output);
+        FileIdentity created;
+        using (FileStream stream = new(output, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+        {
+            created = NativeFile.GetIdentity(stream.SafeFileHandle);
+            Need(created.Length == 0 && created.LinkCount == 1 && created.Key != webFile.InitialIdentity.Key &&
+                created.Key != priorFile.InitialIdentity.Key, "retained_output_identity");
+            stream.Write(combined); stream.Flush(true);
+            var written = NativeFile.GetIdentity(stream.SafeFileHandle);
+            Need(written.Key == created.Key && written.Length == ImageBytes && written.LinkCount == 1, "retained_output_identity");
+        }
+        using AuthorityFiles outputs = new();
+        var published = outputs.Open(root, output, "retained data candidate", "combined_retained_output", ImageBytes, singleLink: true);
+        Need(published.InitialIdentity.Key == created.Key && published.Length == ImageBytes &&
+            published.Sha256.Equals(Hash(combined), StringComparison.OrdinalIgnoreCase), "retained_output_identity");
+        AuthorityFiles.RequireDistinct(webFile, priorFile, published);
+        byte[] readback = published.ReadBytes(ImageBytes, "combined_retained_output"); Inspection actual = Inspect(published.Path);
+        Need(actual.DiskGuid == webLayout.Disk && actual.WebPartitionGuid == newEsp.UniquePartitionGuid &&
+            actual.DataPartitionGuid == old.DataPartitionGuid && actual.DataPartitionSha256 == old.DataPartitionSha256 &&
+            actual.WebFiles.Count == originalWeb.Files.Length && originalWeb.Files.All(file => actual.WebFiles.Any(now => Same(file, now))) &&
+            Partition(readback, WebFirstLba, WebLastLba).SequenceEqual(Partition(web, WebFirstLba, WebLastLba)) &&
+            Partition(readback, DataFirstLba, DataLastLba).SequenceEqual(Partition(prior, DataFirstLba, DataLastLba)) &&
+            readback.AsSpan(1024 + Gpt.EntrySize, Gpt.EntrySize).SequenceEqual(prior.AsSpan(1024 + Gpt.EntrySize, Gpt.EntrySize)), "retained_output_readback");
+        inputs.VerifyUnchanged(); outputs.VerifyUnchanged();
+        return new Receipt(Hash(web), Hash(prior), actual);
     }
 
     /// <summary>Hold a plain exact128MiB file through all copied extraction.

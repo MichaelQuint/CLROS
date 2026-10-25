@@ -14,6 +14,188 @@ using K = OS.Storage.ContinuingFat32Bootstrap;
 // Pure host image and fake-media controls; no native/guest/persistence authority.
 internal static unsafe class CombinedWebDataImageFixtureTests
 {
+    [HostTest("combined retained DATA preserves grown synthetic files slack FATs and partition identity beside a different complete new ESP", HostLane.Fast)]
+    private static void RetainedDataPreservation() => WithRetainedImage((root, folder, web, prior, expected) =>
+    {
+        string output = Path.Combine(folder, "retained-result.raw");
+        var receipt = Image.CreateWithRetainedData(root, web, prior, expected, output);
+        byte[] source = File.ReadAllBytes(prior), result = File.ReadAllBytes(output), newWeb = File.ReadAllBytes(web);
+        int dataStart = checked((int)Image.DataFirstLba * 512), dataBytes = checked((int)(Image.DataLastLba - Image.DataFirstLba + 1) * 512);
+        int webStart = checked((int)Image.WebFirstLba * 512), webBytes = checked((int)(Image.WebLastLba - Image.WebFirstLba + 1) * 512);
+        HostCheck.True(source.AsSpan(dataStart, dataBytes).SequenceEqual(result.AsSpan(dataStart, dataBytes)) &&
+            newWeb.AsSpan(webStart, webBytes).SequenceEqual(result.AsSpan(webStart, webBytes)) &&
+            source.AsSpan(1152, 128).SequenceEqual(result.AsSpan(1152, 128)) && newWeb.AsSpan(1024, 128).SequenceEqual(result.AsSpan(1024, 128)));
+        HostCheck.True(receipt.Image.DiskGuid == new Guid(newWeb.AsSpan(568, 16)) && receipt.Image.DiskGuid != expected.DiskGuid &&
+            receipt.Image.WebPartitionGuid != expected.WebPartitionGuid && receipt.Image.DataPartitionGuid == expected.DataPartitionGuid &&
+            receipt.Image.DataPartitionSha256 == expected.DataPartitionSha256 && receipt.Image.WebPartitionSha256 != expected.WebPartitionSha256);
+        foreach (string path in new[] { "/EFI/BOOT/BOOTX64.EFI", "/OS/APP.PKG", "/app/wwwroot/index.html" })
+            HostCheck.True(receipt.Image.WebFiles.Single(x => x.Path == path).Sha256 != expected.WebFiles.Single(x => x.Path == path).Sha256);
+        HostCheck.True(receipt.Image.Data.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(SizedBytes(660, 0x61)) &&
+            receipt.Image.Data.Find("UPLOAD.BIN")!.CopyBytes().AsSpan().SequenceEqual(SizedBytes(5126, 0xb7)) &&
+            receipt.Image.Data.Find("LOG.TXT")!.Clusters.Count == 2 && receipt.Image.Data.Find("UPLOAD.BIN")!.Clusters.Count == 11);
+        HostCheck.True(receipt.OriginalWebSha256 == FileHash(web) && receipt.OriginalDataSha256 == FileHash(prior) &&
+            result.AsSpan(1024, 16384).SequenceEqual(result.AsSpan(result.Length - 33 * 512, 16384)));
+        Image.Verify(output, receipt);
+        Console.WriteLine($"COMBINED_RETAINED_DATA syntheticInput=true sourceSha256={receipt.OriginalDataSha256} candidateSha256={receipt.Image.RawSha256} dataSha256={receipt.Image.DataPartitionSha256} creatorQualified=false guestJoinQualified=false rebootQualified=false durabilityQualified=false");
+    });
+
+    [HostTest("combined retained DATA candidates and canonical receipts repeat deterministically and independently verify a cold copy", HostLane.Fast)]
+    private static void RetainedDataColdCopy() => WithRetainedImage((root, folder, web, prior, expected) =>
+    {
+        string first = Path.Combine(folder, "retained-a.raw"), second = Path.Combine(folder, "retained-b.raw"), cold = Path.Combine(folder, "retained-cold.raw");
+        var a = Image.CreateWithRetainedData(root, web, prior, expected, first); var b = Image.CreateWithRetainedData(root, web, prior, expected, second);
+        HostCheck.True(FileHash(first) == FileHash(second) && a.CopyJson().AsSpan().SequenceEqual(b.CopyJson()));
+        File.Copy(first, cold); byte[] json = a.CopyJson(), copied = a.Image.Data.Find("LOG.TXT")!.CopyBytes(); json.AsSpan().Clear(); copied.AsSpan().Clear();
+        var inspected = Image.Verify(cold, a);
+        HostCheck.True(inspected.RawSha256 == a.Image.RawSha256 && inspected.DataPartitionSha256 == expected.DataPartitionSha256 &&
+            a.CopyJson()[0] == (byte)'{' && a.Image.Data.Find("LOG.TXT")!.CopyBytes().AsSpan().SequenceEqual(SizedBytes(660, 0x61)));
+        using var parsed = JsonDocument.Parse(a.CopyJson());
+        HostCheck.True(parsed.RootElement.GetProperty("schema").GetString() == "CLROS_COMBINED_WEB_DATA_IMAGE_V1" &&
+            parsed.RootElement.GetProperty("originalDataSha256").GetString() == expected.RawSha256 &&
+            !System.Text.Encoding.UTF8.GetString(a.CopyJson()).Contains(folder, StringComparison.Ordinal));
+        byte[] raw = File.ReadAllBytes(cold); var log = inspected.Data.Find("LOG.TXT")!;
+        raw[checked((int)log.Extents[0].FirstLba * 512)] ^= 1; File.WriteAllBytes(cold, raw);
+        HostCheck.True(Image.Inspect(cold).Data.Find("LOG.TXT")!.Sha256 != log.Sha256);
+        Reject(() => Image.Verify(cold, a), "combined_image_receipt_identity");
+        Image.Verify(first, a); Image.Verify(second, b);
+    });
+
+    [HostTest("combined retained DATA rejects mismatched expected identity sizes and malformed actual source formats before publication", HostLane.Fast)]
+    private static void RetainedDataInputRejection() => WithRetainedImage((root, folder, web, prior, expected) =>
+    {
+        string output = Path.Combine(folder, "retained-never.raw"), seed = Path.Combine(folder, "combined.raw");
+        Reject(() => Image.CreateWithRetainedData(root, web, prior, Image.Inspect(seed), output), "combined_image_retained_identity");
+        string shortPrior = Path.Combine(folder, "short-prior.raw"), shortWeb = Path.Combine(folder, "short-web.raw");
+        File.WriteAllBytes(shortPrior, [1]); File.WriteAllBytes(shortWeb, [1]);
+        Reject(() => Image.CreateWithRetainedData(root, web, shortPrior, expected, output), "combined_image_retained_identity");
+        Reject(() => Image.CreateWithRetainedData(root, shortWeb, prior, expected, output), "combined_image_retained_identity");
+        byte[] invalid = File.ReadAllBytes(web); invalid[512 + 16] ^= 1;
+        string badWeb = Path.Combine(folder, "bad-web.raw"); File.WriteAllBytes(badWeb, invalid);
+        Reject(() => Image.CreateWithRetainedData(root, badWeb, prior, expected, output), "webroot_image_gpt_header");
+        invalid = File.ReadAllBytes(web); var webEntry = expected.WebFiles.Single(x => x.Path == "/app/wwwroot/index.html");
+        uint first = webEntry.Extents[0].FirstCluster;
+        // Read the BPB's16-bit reserved count independently, not the entry's FAT plan.
+        uint fatSector = Image.WebFirstLba + BinaryPrimitives.ReadUInt16LittleEndian(invalid.AsSpan(checked((int)Image.WebFirstLba * 512 + 14), 2));
+        invalid[checked((int)fatSector * 512 + (int)first * 4)] ^= 1; File.WriteAllBytes(badWeb, invalid);
+        Reject(() => Image.CreateWithRetainedData(root, badWeb, prior, expected, output), "webroot_image_fat_mirror");
+        string badPrior = Path.Combine(folder, "bad-prior.raw"); invalid = File.ReadAllBytes(prior);
+        W64(invalid, 1152 + 40, Image.DataLastLba - 1); ArraysCrc(invalid); File.WriteAllBytes(badPrior, invalid);
+        Reject(() => Image.Inspect(badPrior), "combined_image_partitions");
+        Reject(() => Image.CreateWithRetainedData(root, web, badPrior, expected, output), "combined_image_retained_identity");
+        invalid = File.ReadAllBytes(web); expected.DataPartitionGuid.TryWriteBytes(invalid.AsSpan(1040, 16)); ArraysCrc(invalid); File.WriteAllBytes(badWeb, invalid);
+        Reject(() => Image.CreateWithRetainedData(root, badWeb, prior, expected, output), "combined_image_input_partition");
+        HostCheck.True(!File.Exists(output) && FileHash(prior) == expected.RawSha256 && !Directory.GetFiles(folder, "*.tmp-*").Any());
+    });
+
+    [HostTest("combined retained DATA refuses existing aliases hardlinked inputs and redirected paths without modifying sources", HostLane.Fast)]
+    private static void RetainedDataPathRejection() => WithRetainedImage((root, folder, web, prior, expected) =>
+    {
+        string output = Path.Combine(folder, "retained-never.raw"), webHash = FileHash(web);
+        foreach (string existing in new[] { web, prior, folder })
+            Reject(() => Image.CreateWithRetainedData(root, web, prior, expected, existing), "combined_image_output_path");
+        Reject(() => Image.CreateWithRetainedData(root, web, web, expected, output), "authority_output_file_alias");
+        Reject(() => Image.CreateWithRetainedData(root, web, prior, expected, Path.Combine(root, "outside-artifacts.raw")), "combined_image_output_path");
+        string target = Path.Combine(folder, "retained-target"), redirect = Path.Combine(folder, "retained-redirect"); Directory.CreateDirectory(target);
+        if (OperatingSystem.IsWindows()) TestJunction.Create(redirect, target); else Directory.CreateSymbolicLink(redirect, target);
+        try
+        {
+            Reject(() => Image.CreateWithRetainedData(root, web, prior, expected, Path.Combine(redirect, "never.raw")), "combined_output_path");
+            File.Copy(web, Path.Combine(target, "web.raw"));
+            Reject(() => Image.CreateWithRetainedData(root, Path.Combine(redirect, "web.raw"), prior, expected, output), "combined_web_input_reparse_point");
+        }
+        finally { Directory.Delete(redirect); }
+        if (OperatingSystem.IsWindows())
+        {
+            string alias = Path.Combine(folder, "prior-hardlink.raw");
+            if (!RetainedCreateHardLink(alias, prior, IntPtr.Zero)) throw new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error());
+            try { Reject(() => Image.CreateWithRetainedData(root, web, alias, expected, output), "authority_output_hardlink_invalid"); }
+            finally { File.Delete(alias); }
+        }
+        HostCheck.True(!File.Exists(output) && !File.Exists(Path.Combine(target, "never.raw")) && FileHash(web) == webHash && FileHash(prior) == expected.RawSha256);
+    });
+
+    [HostTest("combined retained DATA candidate joins its new EFI package and receipt through the existing held working clone", HostLane.Fast)]
+    private static void RetainedDataWorkingClone() => WithRetainedImage((root, folder, web, prior, expected) =>
+    {
+        string output = Path.Combine(folder, "retained-result.raw"), proof = Path.Combine(folder, "retained.json"), efi = Path.Combine(folder, "new.efi"), package = Path.Combine(folder, "new.pkg");
+        var receipt = Image.CreateWithRetainedData(root, web, prior, expected, output); File.WriteAllBytes(proof, receipt.CopyJson());
+        File.WriteAllBytes(efi, receipt.Image.WebFiles.Single(x => x.Path == "/EFI/BOOT/BOOTX64.EFI").CopyBytes());
+        File.WriteAllBytes(package, receipt.Image.WebFiles.Single(x => x.Path == "/OS/APP.PKG").CopyBytes());
+        Reject(() => Image.CloneForWrite(root, output, proof, receipt, Path.Combine(folder, "BOOTX64.EFI"), package, Path.Combine(folder, "wrong-clone.raw")), "combined_image_clone_preserved_inputs");
+        string workingPath = Path.Combine(folder, "new-working.raw");
+        using (var working = Image.CloneForWrite(root, output, proof, receipt, efi, package, workingPath))
+        {
+            HostCheck.True(working.InitialSha256 == receipt.Image.RawSha256 && working.IdentityKey != FileIdentityKey(output));
+            working.VerifyOriginalsAndWorkingIdentity();
+            if (OperatingSystem.IsWindows()) foreach (string held in new[] { output, proof, efi, package })
+            {
+                bool denied = false;
+                try { using var forbidden = new FileStream(held, FileMode.Open, FileAccess.Write, FileShare.ReadWrite); }
+                catch (IOException) { denied = true; }
+                HostCheck.True(denied, "new clone inputs must remain immutable while held");
+            }
+        }
+        Image.Verify(workingPath, receipt);
+        HostCheck.True(!File.Exists(Path.Combine(folder, "wrong-clone.raw")) && FileHash(prior) == expected.RawSha256);
+        static string FileIdentityKey(string path) { using var file = File.OpenRead(path); return NativeFile.GetIdentity(file.SafeFileHandle).Key; }
+    });
+
+    [HostTest("combined retained DATA leaves the original empty seed admission and deterministic creation receipt unchanged", HostLane.Fast)]
+    private static void RetainedDataLegacyBoundary() => WithImage((root, folder, web, data, original, seed) =>
+    {
+        string repeated = Path.Combine(folder, "seed-repeat.raw"), retained = Path.Combine(folder, "retained-empty.raw");
+        var first = Image.CreateWithRetainedData(root, web, original, seed.Image, retained); var again = Image.Create(root, web, data, repeated);
+        HostCheck.True(first.Image.RawSha256 == seed.Image.RawSha256 && first.OriginalDataSha256 == seed.Image.RawSha256 &&
+            again.CopyJson().AsSpan().SequenceEqual(seed.CopyJson()) && FileHash(repeated) == FileHash(original));
+        byte[] written = File.ReadAllBytes(data); WriteSyntheticData(written, Data.Inspect(written));
+        string writtenSeed = Path.Combine(folder, "nonempty-seed.raw"), never = Path.Combine(folder, "legacy-never.raw"); File.WriteAllBytes(writtenSeed, written);
+        HostCheck.True(Data.Inspect(writtenSeed).Find("LOG.TXT")!.Bytes == 660);
+        Reject(() => Image.Create(root, web, writtenSeed, never), "combined_image_data_seed");
+        HostCheck.True(!File.Exists(never) && FileHash(web) == seed.OriginalWebSha256 && FileHash(data) == seed.OriginalDataSha256);
+    });
+
+    // These are independent file-format vectors, not device, BCL or guest writes.
+    private static void WithRetainedImage(Action<string, string, string, string, Image.Inspection> action) => WithImage((root, folder, web, _, original, seed) =>
+    {
+        byte[] prior = File.ReadAllBytes(original); WriteSyntheticData(prior, seed.Image.Data);
+        new Guid("622422AB-45F5-46A5-9901-000000000011").TryWriteBytes(prior.AsSpan(1152 + 16, 16));
+        System.Text.Encoding.Unicode.GetBytes("retained-data").CopyTo(prior, 1152 + 56); ArraysCrc(prior);
+        string retained = Path.Combine(folder, "synthetic-written.raw"); File.WriteAllBytes(retained, prior); var inspected = Image.Inspect(retained);
+        byte[] next = File.ReadAllBytes(web);
+        foreach (string path in new[] { "/EFI/BOOT/BOOTX64.EFI", "/OS/APP.PKG", "/app/wwwroot/index.html" })
+            next[checked((int)seed.Image.WebFiles.Single(x => x.Path == path).Extents[0].FirstLba * 512)] ^= 0x5a;
+        new Guid("622422AB-45F5-46A5-9901-000000000021").TryWriteBytes(next.AsSpan(568, 16));
+        next.AsSpan(568, 16).CopyTo(next.AsSpan(next.Length - 512 + 56, 16));
+        new Guid("622422AB-45F5-46A5-9901-000000000022").TryWriteBytes(next.AsSpan(1024 + 16, 16)); ArraysCrc(next);
+        string newWeb = Path.Combine(folder, "new-web.raw"); File.WriteAllBytes(newWeb, next);
+        action(root, folder, newWeb, retained, inspected);
+    });
+
+    private static void WriteSyntheticData(byte[] raw, Data.Inspection before)
+    {
+        uint[] clusters = before.FreeCandidates.Take(13).ToArray(); HostCheck.Equal(13, clusters.Length); int used = 0;
+        foreach (var item in new[] { (Name: "LOG.TXT", Bytes: SizedBytes(660, 0x61)), (Name: "UPLOAD.BIN", Bytes: SizedBytes(5126, 0xb7)) })
+        {
+            var entry = before.Find(item.Name)!; HostCheck.Equal(0, entry.Bytes); int count = (item.Bytes.Length + 511) / 512;
+            int at = checked((int)entry.ShortEntryOffset); BinaryPrimitives.WriteUInt16LittleEndian(raw.AsSpan(at + 20, 2), 0);
+            BinaryPrimitives.WriteUInt16LittleEndian(raw.AsSpan(at + 26, 2), checked((ushort)clusters[used])); W32(raw, at + 28, (uint)item.Bytes.Length);
+            for (int i = 0; i < count; i++)
+            {
+                uint cluster = clusters[used + i], next = i + 1 < count ? clusters[used + i + 1] : 0x0fffffff;
+                for (int copy = 0; copy < 2; copy++) W32(raw, checked((int)(before.FirstFatSector + copy * Data.FatSectors) * 512 + (int)cluster * 4), next);
+                int offset = checked((int)(before.FirstDataSector + cluster - 2) * 512); raw.AsSpan(offset, 512).Fill(0xd7);
+                item.Bytes.AsSpan(i * 512, Math.Min(512, item.Bytes.Length - i * 512)).CopyTo(raw.AsSpan(offset));
+            }
+            used += count;
+        }
+        foreach (uint sector in new[] { before.FirstLba + 1, before.FirstLba + 7 })
+        { W32(raw, checked((int)sector * 512 + 488), before.FreeClusters - (uint)used); W32(raw, checked((int)sector * 512 + 492), before.FreeCandidates[used]); }
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool RetainedCreateHardLink(string fileName, string existingFileName, IntPtr securityAttributes);
+
     [HostTest("combined mutable working clone holds all original bytes while permitting separate writable image opens", HostLane.Fast)]
     private static void MutableWorkingClone() => WithImage((root, folder, _, _, original, receipt) =>
     {
