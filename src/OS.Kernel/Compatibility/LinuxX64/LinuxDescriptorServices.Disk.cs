@@ -638,9 +638,9 @@ public static unsafe partial class LinuxDescriptorServices
     /// <summary>Check a bounded, flat start/byte-count inventory against the
     /// original paired read/write descriptor tree. The original serialized
     /// supervisor keeps all backing and this input mapped through return.
-    /// Whole-tree admission runs once; each nonempty range still enters the
-    /// existing provider backend query and every exclusion. The filesystem
-    /// checks the same candidate inventory in one synchronous retained audit.
+    /// Whole-tree admission runs once; each nonempty range retains the complete
+    /// provider engine/filesystem port queries and every exclusion. Provider
+    /// and filesystem inventories each share one synchronous retained audit.
     /// Empty extents are skipped as in process inventory. Invalid/stale pairs
     /// fail closed. No callback, mutation, allocation, I/O, output, retained
     /// input or escaping validation token is introduced; no later authority
@@ -659,12 +659,14 @@ public static unsafe partial class LinuxDescriptorServices
             ulong start = ranges[i], bytes = ranges[i + 1];
             if (bytes == 0) continue;
             if (!DiskStorage((void*)start, bytes, 1) || !WritableBaseOutside(state, start, bytes) ||
-                !PairedDiskExternal(state, start, bytes)) return false;
+                !PairedDiskLocalOutside(state, start, bytes)) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             if (!TransportOutsideRange(state, start, bytes)) return false;
 #endif
         }
-        return Fs.CanRetainStorageRanges(d->Mount, d->Epoch, ranges);
+        WritableDiskState* w = state->WritableDisk;
+        return W.CanRetainStorageRanges(w->Provider, w->Epoch, ranges) &&
+            Fs.CanRetainStorageRanges(d->Mount, d->Epoch, ranges);
     }
 #endif
 
@@ -728,9 +730,17 @@ public static unsafe partial class LinuxDescriptorServices
     {
         if (s->Disk == null || s->WritableDisk == null) return true;
         WritableDiskState* w = s->WritableDisk;
+        return W.CanRetainStorage(w->Provider, w->Epoch, address, bytes) && PairedDiskLocalOutside(s, address, bytes);
+    }
+
+    // Only the same callback-free paired traversal may use this leaf after
+    // auditing its retained owners. The checked scalar entry above retains
+    // its provider query; the batch checks every candidate through W once.
+    private static bool PairedDiskLocalOutside(State* s, ulong address, ulong bytes)
+    {
+        WritableDiskState* w = s->WritableDisk;
         if (Overlap(address, bytes, (ulong)w, (ulong)sizeof(WritableDiskState)) ||
-            Overlap(address, bytes, (ulong)w->Bindings, w->BindingCount * (ulong)sizeof(WritableDiskBinding)) ||
-            !W.CanRetainStorage(w->Provider, w->Epoch, address, bytes)) return false;
+            Overlap(address, bytes, (ulong)w->Bindings, w->BindingCount * (ulong)sizeof(WritableDiskBinding))) return false;
         for (uint i = 0; i < DiskExtentCount; i++)
         {
             DiskLocalExtent(s->Disk, i, out ulong start, out ulong count);
