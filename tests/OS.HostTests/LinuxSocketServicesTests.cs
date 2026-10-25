@@ -1,4 +1,6 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Reflection;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Kernel.Compatibility.LinuxX64;
@@ -12,6 +14,55 @@ using Wire = TcpReceiveWindowTests;
 internal static unsafe class LinuxSocketServicesTests
 {
     private const ulong User = 0x100000000, Output = User + 24576;
+    private const ulong MessageHeader = User + 4096, MessageVectors = User + 8192;
+    private struct MessageTrace
+    {
+        internal ulong Number, Header, Table, FirstAddress, FirstBytes, OpaqueChild;
+        internal uint Calls, Fd, Count, Total;
+        internal byte Reject;
+    }
+    private struct MessageFrameCarrier
+    {
+        internal MessageTrace Trace;
+        internal fixed byte Padding[1514];
+    }
+    private delegate bool InspectSocket(Sockets.State* sockets, Fds.State* descriptors);
+    private delegate bool RetainSocket(Fds.State* descriptors, ulong start, ulong bytes);
+    private static readonly InspectSocket Inspect = typeof(Sockets).GetMethod("InspectRetainedStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<InspectSocket>();
+    private static readonly RetainSocket Retain = typeof(Fds).GetMethod("SocketCanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainSocket>();
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "MessageContext")] private static extern ref void* MessageContext(ref Sockets.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "MessageContextBytes")] private static extern ref uint MessageContextBytes(ref Sockets.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Entries")] private static extern ref TcpConnectionTableEntry* TableEntries(ref TcpConnectionTable.Owner state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Generations")] private static extern ref ulong* TableGenerations(ref TcpConnectionTable.Owner state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ObserveMessage")]
+    private static extern ref delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> MessageObserver(ref Sockets.State state);
+    [UnmanagedCallersOnly]
+    private static byte ObserveMessage(void* context, ulong number, uint fd, ulong header, ulong flags,
+        ulong table, ulong* vectors, uint count, uint total)
+    {
+        MessageTrace* trace = (MessageTrace*)context;
+        trace->Calls++; trace->Number = number; trace->Fd = fd; trace->Header = header;
+        trace->Table = table; trace->Count = count; trace->Total = total;
+        if (count != 0) { trace->FirstAddress = vectors[0]; trace->FirstBytes = vectors[1]; }
+        return trace->Reject == 0 ? (byte)1 : (byte)0;
+    }
+    [UnmanagedCallersOnly]
+    private static byte OtherObserver(void* context, ulong number, uint fd, ulong header, ulong flags,
+        ulong table, ulong* vectors, uint count, uint total) => 1;
+    private static void Message(Model model, ulong address, ulong bytes)
+    {
+        new Span<byte>(model.Files.Memory.At(MessageHeader), 56).Clear();
+        ulong* header = (ulong*)model.Files.Memory.At(MessageHeader);
+        header[2] = MessageVectors; header[3] = 1;
+        ulong* vector = (ulong*)model.Files.Memory.At(MessageVectors); vector[0] = address; vector[1] = bytes;
+    }
+    private static uint AcceptBounded(Model model, TcpSendWindowTests.Fixture connection)
+    {
+        uint listener = model.Listen(); HostCheck.True(Fds.Capture(model.Files.State, listener, out var token));
+        HostCheck.True(Sockets.EnqueueAccepted(model.State, token, listener, connection.Receiver, connection.Owner,
+            (uint)sizeof(TcpSendWindowTests.Hardware)));
+        long fd = model.Call(288, listener, 0, 0, Fds.NonBlock); HostCheck.True(fd >= 0); return (uint)fd;
+    }
     internal sealed class Model : IDisposable
     {
         internal readonly LinuxDescriptorServicesTests.Owner Files;
@@ -77,6 +128,210 @@ internal static unsafe class LinuxSocketServicesTests
         ((byte*)slots)[0] = 1;
         HostCheck.True(!Sockets.Begin(&state, files.State, slots, 4, new(10, 0, 2, 15), 8080));
         HostCheck.True(Fds.End(files.State));
+    }
+
+    [HostTest("bounded message observer rejects invalid and descriptor-owned extents without publication or callbacks")]
+    private static void BoundedObserverAdmission()
+    {
+        using var m = new Model(); MessageTrace trace = default;
+        byte[] state = new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).ToArray();
+        var a = m.Files.Admission;
+        foreach ((ulong start, uint bytes) in new[] {
+            (0UL, 8U), (1UL, 8U), ((ulong)&trace, 0U), ((ulong)&trace, 7U),
+            ((ulong)&trace, Sockets.MaximumSharedContextBytes + 1), ((ulong)&trace + 1, 8U),
+            (0x00007ffffffffff8UL, 16U), (ulong.MaxValue - 7, 16U),
+            ((ulong)m.State, (uint)sizeof(Sockets.State)), ((ulong)m.Endpoints, 8U),
+            ((ulong)m.Files.State, 8U), ((ulong)a.Slots, 8U), ((ulong)a.Descriptions, 8U),
+            ((ulong)a.Scratch, 8U), ((ulong)m.Files.Memory.Memory.Pool, 8U),
+            ((ulong)m.Files.Memory.Memory.Tables, 8U), ((ulong)a.Views, 8U) })
+        {
+            HostCheck.True(!Sockets.AttachMessageObserver(m.State, (void*)start, bytes, &ObserveMessage));
+            HostCheck.True(new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).SequenceEqual(state));
+            HostCheck.True(Fds.Audit(m.Files.State) && Inspect(m.State, m.Files.State));
+            HostCheck.Equal(0U, trace.Calls);
+        }
+        HostCheck.True(!Sockets.AttachMessageObserver(m.State, &trace, (uint)sizeof(MessageTrace), null));
+        HostCheck.True(Sockets.AttachMessageObserver(m.State, &trace, (uint)sizeof(MessageTrace), &ObserveMessage));
+        HostCheck.True(!Sockets.AttachMessageObserver(m.State, &trace, (uint)sizeof(MessageTrace), &ObserveMessage));
+        HostCheck.Equal(0U, trace.Calls); m.End(); HostCheck.True(!m.State->HasMessageObserver);
+    }
+
+    [HostTest("bounded message observer rejects exact containing and crossing actual transport extents")]
+    private static void BoundedObserverTransportAliases()
+    {
+        using var m = new Model(); using var f = Connection(); uint fd = AcceptBounded(m, f);
+        var extents = new[] {
+            ((ulong)f.Receiver, (uint)sizeof(Rx.Owner)), ((ulong)f.Owner, (uint)sizeof(Tx.Owner)),
+            ((ulong)f.ReceiveBuffer, 8U), ((ulong)f.Buffer, 8U),
+            ((ulong)f.Table, (uint)sizeof(TcpConnectionTable.Owner)),
+            ((ulong)TableEntries(ref *f.Table), (uint)sizeof(TcpConnectionTableEntry)),
+            ((ulong)TableGenerations(ref *f.Table), 8U), ((ulong)f.Hardware, (uint)sizeof(TcpSendWindowTests.Hardware)) };
+        byte[] state = new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).ToArray();
+        byte[] transport = new ReadOnlySpan<byte>(f.Owner, sizeof(Tx.Owner)).ToArray(); uint sends = f.Hardware->Calls;
+        foreach ((ulong start, uint bytes) in extents)
+            foreach ((ulong address, uint count) in new[] { (start, bytes), (start - 8, bytes + 16), (start - 8, 16U), (start + bytes - 8, 16U) })
+            {
+                HostCheck.True(!Sockets.AttachMessageObserver(m.State, (void*)address, count, &ObserveMessage));
+                HostCheck.True(state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State))));
+                HostCheck.True(transport.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Owner, sizeof(Tx.Owner))));
+                HostCheck.Equal(sends, f.Hardware->Calls); HostCheck.True(Inspect(m.State, m.Files.State));
+            }
+        HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
+    }
+
+    [HostTest("bounded message observer retains whole carrier until finish and refuses before send or receive mutation")]
+    private static void BoundedObserverMessages()
+    {
+        using var m = new Model(); using var f = Connection(); uint fd = AcceptBounded(m, f);
+        byte* allocation = (byte*)NativeMemory.AlignedAlloc(256, 16);
+        try
+        {
+            new Span<byte>(allocation, 256).Clear(); MessageTrace* trace = (MessageTrace*)(allocation + 64);
+            trace->OpaqueChild = (ulong)(allocation + 224); allocation[224] = 0x7d;
+            HostCheck.True(Sockets.AttachMessageObserver(m.State, trace, (uint)sizeof(MessageTrace), &ObserveMessage));
+            HostCheck.True(Inspect(m.State, m.Files.State));
+            HostCheck.True(!Retain(m.Files.State, (ulong)trace, (ulong)sizeof(MessageTrace)) &&
+                !Retain(m.Files.State, (ulong)trace - 8, (ulong)sizeof(MessageTrace) + 16) &&
+                !Retain(m.Files.State, (ulong)trace - 8, 16) &&
+                !Retain(m.Files.State, (ulong)trace + (ulong)sizeof(MessageTrace) - 8, 16));
+            HostCheck.True(Retain(m.Files.State, (ulong)trace - 8, 8) &&
+                Retain(m.Files.State, (ulong)trace + (ulong)sizeof(MessageTrace), 8));
+            // No transitive authority is invented for an opaque pointer value.
+            HostCheck.True(Retain(m.Files.State, trace->OpaqueChild, 8));
+            m.Files.Text(User, "abc"); Message(m, User, 3); trace->Reject = 1;
+            HostCheck.Equal(-5L, m.Call(46, fd, MessageHeader)); HostCheck.Equal(0, f.Owner->BufferedBytes);
+            trace->Reject = 0; HostCheck.Equal(3L, m.Call(46, fd, MessageHeader));
+            HostCheck.Equal(46UL, trace->Number); HostCheck.Equal(fd, trace->Fd);
+            HostCheck.Equal(MessageHeader, trace->Header); HostCheck.Equal(MessageVectors, trace->Table);
+            HostCheck.Equal(User, trace->FirstAddress); HostCheck.Equal(3UL, trace->FirstBytes);
+            HostCheck.Equal(Tx.Status.Success, Tx.ReceiveFrame(f.Owner, Wire.Packet(100, "xyz"u8, ack: 700, flags: 0x18), out _));
+            Message(m, Output, 3); trace->Reject = 1;
+            HostCheck.Equal(-5L, m.Call(47, fd, MessageHeader)); HostCheck.Equal(3, f.Receiver->UnreadBytes);
+            trace->Reject = 0; HostCheck.Equal(3L, m.Call(47, fd, MessageHeader));
+            HostCheck.Equal(0, f.Receiver->UnreadBytes); HostCheck.Equal(4U, trace->Calls);
+            HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 3).SequenceEqual("xyz"u8));
+            HostCheck.Equal((byte)0x7d, allocation[224]); HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f);
+            HostCheck.True(!Retain(m.Files.State, (ulong)trace, (ulong)sizeof(MessageTrace)));
+            m.End(); HostCheck.True(!m.State->HasMessageObserver);
+            HostCheck.Equal(0U, MessageContextBytes(ref *m.State));
+        }
+        finally { NativeMemory.AlignedFree(allocation); }
+    }
+
+    [HostTest("bounded message observer rejects changed pointer callback size and aliases with no effects after restoration")]
+    private static void BoundedObserverLifetime()
+    {
+        using var m = new Model(); using var f = Connection(); uint fd = AcceptBounded(m, f);
+        MessageTrace trace = default, other = default;
+        HostCheck.True(Sockets.AttachMessageObserver(m.State, &trace, (uint)sizeof(MessageTrace), &ObserveMessage));
+        byte[] owner = new ReadOnlySpan<byte>(f.Owner, sizeof(Tx.Owner)).ToArray();
+        byte[] data = new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 16).ToArray();
+        for (int changed = 0; changed < 5; changed++)
+        {
+            void* context = MessageContext(ref *m.State); uint bytes = MessageContextBytes(ref *m.State);
+            var observer = MessageObserver(ref *m.State);
+            try
+            {
+                if (changed == 0) MessageContext(ref *m.State) = &other;
+                else if (changed == 1) MessageObserver(ref *m.State) = &OtherObserver;
+                else if (changed == 2) MessageContextBytes(ref *m.State) = 0;
+                else if (changed == 3) MessageContextBytes(ref *m.State) = Sockets.MaximumSharedContextBytes + 1;
+                else MessageContext(ref *m.State) = f.Buffer;
+                HostCheck.True(!Fds.Audit(m.Files.State) && !Inspect(m.State, m.Files.State));
+                HostCheck.True(!Retain(m.Files.State, (ulong)&other, (ulong)sizeof(MessageTrace)));
+                HostCheck.True(owner.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Owner, sizeof(Tx.Owner))));
+                HostCheck.True(data.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 16)));
+                HostCheck.True(trace.Calls == 0 && other.Calls == 0);
+            }
+            finally
+            {
+                MessageContext(ref *m.State) = context; MessageContextBytes(ref *m.State) = bytes;
+                MessageObserver(ref *m.State) = observer;
+            }
+            HostCheck.True(Fds.Audit(m.Files.State) && Inspect(m.State, m.Files.State));
+        }
+        m.Files.Text(User, "ok"); Message(m, User, 2); HostCheck.Equal(2L, m.Call(46, fd, MessageHeader));
+        HostCheck.Equal(1U, trace.Calls); HostCheck.Equal(0L, m.Call(3, fd)); AbortAndReap(m, f); m.End();
+    }
+
+    [HostTest("bounded message observer follows genuine network admission and excludes all its retained extents")]
+    private static void BoundedObserverNetwork()
+    {
+        using var m = new Model(); LinuxEpollServices.State epoll = default;
+        LinuxEpollServices.Port* ports = stackalloc LinuxEpollServices.Port[2];
+        LinuxEpollServices.Registration* registrations = stackalloc LinuxEpollServices.Registration[16];
+        new Span<byte>(ports, 2 * sizeof(LinuxEpollServices.Port)).Clear();
+        new Span<byte>(registrations, 16 * sizeof(LinuxEpollServices.Registration)).Clear();
+        HostCheck.True(LinuxEpollServices.Begin(&epoll, m.Files.State, ports, 2, registrations, 16));
+        using var network = new LinuxSocketNetworkTests.PacketCarrier(m.State); HostCheck.True(network.Start());
+        MessageFrameCarrier carrier = default; MessageTrace* trace = &carrier.Trace;
+        byte[] state = new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State)).ToArray();
+        foreach ((ulong start, ulong bytes) in network.Extents().Concat(new[] {
+            ((ulong)&epoll, (ulong)sizeof(LinuxEpollServices.State)),
+            ((ulong)ports, 2UL * (ulong)sizeof(LinuxEpollServices.Port)),
+            ((ulong)registrations, 16UL * (ulong)sizeof(LinuxEpollServices.Registration)) }))
+        {
+            HostCheck.True(!Sockets.AttachMessageObserver(m.State, (void*)start, (uint)bytes, &ObserveMessage));
+            HostCheck.True(state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.State, sizeof(Sockets.State))));
+            HostCheck.True(network.Sends == 0 && network.Clocks == 0 && trace->Calls == 0);
+        }
+        HostCheck.True(Sockets.AttachMessageObserver(m.State, &carrier, (uint)sizeof(MessageFrameCarrier), &ObserveMessage));
+        byte[] before = new ReadOnlySpan<byte>(&carrier, sizeof(MessageFrameCarrier)).ToArray(), frame = new byte[1514];
+        HostCheck.Equal(LinuxSocketNetwork.Status.InvalidStorage, LinuxSocketNetwork.Receive(network.State,
+            new ReadOnlySpan<byte>(&carrier, 8), frame));
+        HostCheck.Equal(LinuxSocketNetwork.Status.InvalidStorage, LinuxSocketNetwork.Receive(network.State,
+            ReadOnlySpan<byte>.Empty, new Span<byte>(&carrier, 1514)));
+        HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(&carrier, sizeof(MessageFrameCarrier))));
+        HostCheck.True(network.Sends == 0 && network.Clocks == 0 && trace->Calls == 0);
+        uint listener = m.Listen(), sequence = network.Connect(), fd = (uint)m.Call(288, listener, 0, 0, Fds.NonBlock);
+        HostCheck.True(fd < 12 && Inspect(m.State, m.Files.State));
+        m.Files.Text(User, "ab"); Message(m, User, 2); HostCheck.Equal(2L, m.Call(46, fd, MessageHeader));
+        HostCheck.Equal(OS.Kernel.Compatibility.LinuxX64.LinuxSocketNetwork.Status.Success,
+            network.Receive(Wire.Packet(100, "cd"u8, sequence, flags: 0x18)));
+        Message(m, Output, 2); HostCheck.Equal(2L, m.Call(47, fd, MessageHeader));
+        HostCheck.Equal(2U, trace->Calls); HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 2).SequenceEqual("cd"u8));
+        HostCheck.Equal(0L, m.Call(3, fd)); HostCheck.Equal(0L, m.Call(3, listener));
+        for (uint remaining = 0; remaining < m.Files.Admission.DescriptorCount; remaining++)
+            if (Fds.Capture(m.Files.State, remaining, out _)) HostCheck.Equal(0L, m.Call(3, remaining));
+        network.Retire();
+        HostCheck.True(!Retain(m.Files.State, (ulong)&carrier, (ulong)sizeof(MessageFrameCarrier))); m.End();
+    }
+
+    [HostTest("bounded message observer preserves legacy unbounded mode and the network-first ordering boundary")]
+    private static void BoundedObserverCompatibility()
+    {
+        using (var m = new Model())
+        {
+            MessageTrace trace = default;
+            HostCheck.True(Sockets.AttachMessageObserver(m.State, &trace, &ObserveMessage));
+            HostCheck.True(Fds.Audit(m.Files.State) && !Inspect(m.State, m.Files.State));
+            HostCheck.True(!Sockets.AttachMessageObserver(m.State, &trace, (uint)sizeof(MessageTrace), &ObserveMessage));
+            HostCheck.Equal(0U, trace.Calls); m.End();
+        }
+        using (var m = new Model())
+        {
+            LinuxEpollServices.State epoll = default;
+            LinuxEpollServices.Port* ports = stackalloc LinuxEpollServices.Port[2];
+            LinuxEpollServices.Registration* registrations = stackalloc LinuxEpollServices.Registration[16];
+            new Span<byte>(ports, 2 * sizeof(LinuxEpollServices.Port)).Clear();
+            new Span<byte>(registrations, 16 * sizeof(LinuxEpollServices.Registration)).Clear();
+            HostCheck.True(LinuxEpollServices.Begin(&epoll, m.Files.State, ports, 2, registrations, 16));
+            using var network = new LinuxSocketNetworkTests.PacketCarrier(m.State); MessageTrace trace = default;
+            HostCheck.True(Sockets.AttachMessageObserver(m.State, &trace, (uint)sizeof(MessageTrace), &ObserveMessage));
+            HostCheck.True(!network.Start()); HostCheck.True(network.Sends == 0 && network.Clocks == 0);
+            HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.RetireOwned(network.Table)); m.End();
+        }
+        string root = HostToolProcess.FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(root, "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs"));
+        foreach (bool guarded in new[] { false, true })
+        {
+            var syntax = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols:
+                guarded ? ["NOSTDLIB_EFI", "CLROS_LINUX_SOCKETS", "M16_027_PROBE"] : ["NOSTDLIB_EFI", "CLROS_LINUX_SOCKETS"])).GetRoot();
+            string[] fields = syntax.DescendantNodes().OfType<FieldDeclarationSyntax>().SelectMany(f => f.Declaration.Variables.Select(v => v.Identifier.ValueText)).ToArray();
+            HostCheck.Equal(guarded, fields.Contains("OriginalMessageContext")); HostCheck.Equal(guarded, fields.Contains("MessageContextBytes"));
+            HostCheck.Equal(guarded, fields.Contains("OriginalObserveMessage"));
+            HostCheck.Equal(guarded ? 2 : 1, syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Count(m => m.Identifier.ValueText == "AttachMessageObserver"));
+        }
     }
 
     [HostTest("m16-011 family probes distinguish unsupported socket type and preserve fd accounting", HostLane.Fast, 1)]

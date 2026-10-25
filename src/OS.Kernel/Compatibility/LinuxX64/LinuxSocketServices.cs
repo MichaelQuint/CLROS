@@ -26,7 +26,7 @@ public static unsafe class LinuxSocketServices
     /// <summary>Finite direct-TCP callback carrier bound. The trusted caller
     /// supplies the actual whole allocation size; this is not mapping proof.</summary>
     public const uint MaximumSharedContextBytes = 65536;
-    private const uint SocketRetainedExtentCount = 2 + MaximumSockets * 8;
+    private const uint SocketRetainedExtentCount = 3 + MaximumSockets * 8;
     internal const uint RetainedExtentCount = SocketRetainedExtentCount + LinuxSocketNetwork.RetainedExtentCount;
 #endif
     private const long Fault = -14, Invalid = -22, Again = -11, Unsupported = -38;
@@ -70,6 +70,11 @@ public static unsafe class LinuxSocketServices
         // Context outlives Finish. A failed observation queues/consumes no bytes.
         internal void* MessageContext;
         internal delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> ObserveMessage;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        internal void* OriginalMessageContext;
+        internal uint MessageContextBytes;
+        internal delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> OriginalObserveMessage;
+#endif
         /// <summary>Whether the serialized owner attached message diagnostics.
         /// This reports configuration only, not transport or execution evidence.</summary>
         public readonly bool HasMessageObserver => MessageContext != null && ObserveMessage != null;
@@ -120,6 +125,29 @@ public static unsafe class LinuxSocketServices
         state->MessageContext = context; state->ObserveMessage = observer; return true;
     }
 
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    /// <summary>Declare the actual whole separate message-observer carrier,
+    /// 8..65536 bytes, before attaching threads. Attach a finite network owner
+    /// first if one is needed; its existing admission rejects an earlier observer.
+    /// The trusted caller retains the carrier and callback through Finish and
+    /// authenticates mapping, callback code and every pointed-to child separately.
+    /// This byte extent grants no authority for opaque referents. Rejection
+    /// changes no ownership or carrier bytes and invokes no callback.</summary>
+    public static bool AttachMessageObserver(State* state, void* context, uint contextBytes,
+        delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> observer)
+    {
+        if (!MessageContextShape(context, contextBytes) || observer == null || !Current(state) ||
+            state->Descriptors->ThreadOwner != 0 || state->ObserveMessage != null ||
+            !InspectRetainedStorage(state, state->Descriptors) ||
+            !LinuxDescriptorServices.SocketOutside(state->Descriptors, context, contextBytes) ||
+            !LinuxThreadServices.CanPublishDescriptorStorage(state->Descriptors, (ulong)context, contextBytes) ||
+            !MessageContextOutsideInventory(state, context, contextBytes)) return false;
+        state->MessageContext = context; state->ObserveMessage = observer;
+        state->OriginalMessageContext = context; state->MessageContextBytes = contextBytes;
+        state->OriginalObserveMessage = observer; return true;
+    }
+#endif
+
     /// <summary>Verify the shared description/endpoint accounting. Caller owns
     /// the entire serialized lifetime; this does not establish page provenance.</summary>
     public static bool Audit(State* state, LinuxDescriptorServices.State* descriptors)
@@ -162,6 +190,10 @@ public static unsafe class LinuxSocketServices
         // index is corrupted beyond this fixed slot inventory.
         for (uint i = 0; i < descriptors->Owner.DescriptorCount; i++)
             if (LinuxDescriptorServices.SocketDescription(descriptors, i, out uint endpoint, out _) && endpoint >= state->Count) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!MessageObserverCurrent(state) || state->MessageContextBytes != 0 &&
+            !MessageContextOutsideInventory(state, state->MessageContext, state->MessageContextBytes)) return false;
+#endif
         return true;
     }
 
@@ -358,19 +390,26 @@ public static unsafe class LinuxSocketServices
         if (state->Network != null) return false;
         for (uint i = 0; i < state->Count; i++) if (state->Slots[i].Phase != 0) return false;
         state->MessageContext = null; state->ObserveMessage = null;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        state->OriginalMessageContext = null; state->MessageContextBytes = 0; state->OriginalObserveMessage = null;
+#endif
         state->Descriptors->Sockets = null; state->Initialized = 2; return true;
     }
 
     internal static bool StorageOverlap(State* state, ulong start, ulong bytes) => state != null &&
         (Overlap(start, bytes, (ulong)state, (ulong)sizeof(State)) ||
-         Overlap(start, bytes, (ulong)state->Slots, state->Count * (ulong)sizeof(Endpoint)));
+         Overlap(start, bytes, (ulong)state->Slots, state->Count * (ulong)sizeof(Endpoint))
+#if !NOSTDLIB_EFI || M16_027_PROBE
+         || !MessageObserverCurrent(state) || Overlap(start, bytes, (ulong)state->OriginalMessageContext, state->MessageContextBytes)
+#endif
+        );
 
 #if !NOSTDLIB_EFI || M16_027_PROBE
     // Separate from generic enqueue admission: TCP lifetimes may share their
     // original table. Storage owners need the complete retained inventory.
     internal static bool InspectRetainedStorage(State* state, LinuxDescriptorServices.State* descriptors)
     {
-        if (!Audit(state, descriptors) || state->MessageContext != null || state->Network != null &&
+        if (!Audit(state, descriptors) || state->MessageContext != null && state->MessageContextBytes == 0 || state->Network != null &&
             !LinuxSocketNetwork.InspectRetainedStorage(state->Network, state)) return false;
         for (uint i = 0; i < state->Count; i++)
             if (state->Slots[i].Phase >= Pending && !SharedContextCurrent(state->Slots + i)) return false;
@@ -386,7 +425,8 @@ public static unsafe class LinuxSocketServices
         { LinuxSocketNetwork.RetainedExtentAt(state->Network, index - SocketRetainedExtentCount, out start, out bytes); return; }
         if (index == 0) { start = (ulong)state; bytes = (ulong)sizeof(State); return; }
         if (index == 1) { start = (ulong)state->Slots; bytes = state->Count * (ulong)sizeof(Endpoint); return; }
-        uint slot = (index - 2) / 8, part = (index - 2) % 8;
+        if (index == 2) { start = (ulong)state->OriginalMessageContext; bytes = state->MessageContextBytes; return; }
+        uint slot = (index - 3) / 8, part = (index - 3) % 8;
         if (slot >= state->Count || state->Slots[slot].Phase < Pending) return;
         Endpoint* e = state->Slots + slot;
         if (part == 0) { start = (ulong)e->Receiver; bytes = (ulong)sizeof(TcpReceiveWindow.Owner); }
@@ -397,6 +437,35 @@ public static unsafe class LinuxSocketServices
         else if (part == 5) { start = (ulong)e->Sender->Table->Entries; bytes = e->Sender->Table->CapacityValue * (ulong)sizeof(TcpConnectionTableEntry); }
         else if (part == 6) { start = (ulong)e->Sender->Table->Generations; bytes = (ulong)e->Sender->Table->CapacityValue * 8; }
         else { start = (ulong)e->SharedContext; bytes = e->SharedContextBytes; }
+    }
+
+    private static bool MessageContextShape(void* context, uint bytes) =>
+        bytes is >= 8 and <= MaximumSharedContextBytes && (ulong)context >= 4096 &&
+        (ulong)context < 0x0000800000000000UL && ((ulong)context & 7) == 0 &&
+        bytes <= 0x0000800000000000UL - (ulong)context;
+
+    private static bool MessageObserverCurrent(State* state) => state->MessageContextBytes == 0 ?
+        state->OriginalMessageContext == null && state->OriginalObserveMessage == null :
+        MessageContextShape(state->OriginalMessageContext, state->MessageContextBytes) &&
+        state->OriginalObserveMessage != null && state->MessageContext == state->OriginalMessageContext &&
+        (ulong)state->ObserveMessage == (ulong)state->OriginalObserveMessage;
+
+    // Endpoint/table shape was checked by Audit, and the serialized caller
+    // retains it throughout this pure inventory walk. Never call global Audit
+    // here: this leaf is also reached from that graph's structural checks.
+    private static bool MessageContextOutsideInventory(State* state, void* context, uint bytes)
+    {
+        var descriptors = state->Descriptors;
+        if (descriptors->Epoll != null && (!LinuxEpollServices.Audit(descriptors->Epoll, descriptors) ||
+            LinuxEpollServices.StorageOverlap(descriptors->Epoll, (ulong)context, bytes)) ||
+            state->Network != null && !LinuxSocketNetwork.InspectRetainedStorage(state->Network, state)) return false;
+        for (uint i = 0; i < RetainedExtentCount; i++)
+        {
+            if (i == 2) continue; // The observer's own copied extent.
+            RetainedExtentAt(state, i, out ulong start, out ulong count);
+            if (Overlap((ulong)context, bytes, start, count)) return false;
+        }
+        return true;
     }
 
     private static bool SharedContextCurrent(Endpoint* e) =>
