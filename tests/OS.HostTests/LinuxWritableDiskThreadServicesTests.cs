@@ -303,6 +303,103 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         }
     }
 
+    [HostTest("writable source5 BCL framing keeps paired readonly handles fresh stat shared locks and521byte positioned reads through exact EOF and cleanup")]
+    private static void BclReadonlyFraming()
+    {
+        // Copied framing from original write-trace.7625:229-242,283-310 and
+        // verify-trace.7632:230-257 (successful Linux log/upload r02). Real
+        // host services/fake media run below, not FileStream, ELF or a guest.
+        // Advisory fstatfs138 stays unsupported; no host EXT2 facts are copied.
+        using var f = new Fixture(); f.Trace = [];
+        byte[] log = OS.Tooling.NativeAotLogUploadContract.ExpectedLog(), upload = OS.Tooling.NativeAotLogUploadContract.ExpectedUpload();
+        HostCheck.True(log.Length == 660 && upload.Length == 5126);
+        var media = new PersistentDevice(f.Storage.Device.Hardware);
+        foreach (var item in new[] { (Name: "LOG.TXT", Bytes: log), (Name: "UPLOAD.BIN", Bytes: upload) })
+        {
+            HostCheck.Equal(Fat32Status.MissingFile, Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, item.Name).Status);
+            uint seed = f.Open("/data/" + item.Name, 2 | W.Create | W.Exclusive);
+            f.PutWrite(item.Bytes); HostCheck.Equal((long)item.Bytes.Length, f.Run(328, seed, Vector, 1, 0, 0, W.RwfNoAppend));
+            HostCheck.Equal(0L, f.Run(74, seed)); HostCheck.Equal(0L, f.Run(3, seed));
+            Independent(item.Name, item.Bytes);
+        }
+        byte[] before = SHA256.HashData(f.Storage.Persistent), volatileBefore = SHA256.HashData(f.Storage.Volatile);
+        ulong submittedBytes = f.Storage.Device.State->SubmittedBytes, flushedBytes = f.Storage.Device.State->DurableBytes;
+        uint startingParks = f.Parked, startingCopies = f.Thread.Writes; int traceStart = f.Trace.Count, stats = 0, chunks = 0;
+        const uint readFlags = W.NoControllingTerminal | W.LargeFile | W.CloseOnExec;
+        uint first = f.Open("/data/LOG.TXT", readFlags); HostCheck.True(F.Capture(f.Files.State, first, out var logToken));
+        Stat(first, log.Length); Lock(first, 5);
+        uint second = f.Open("/data/UPLOAD.BIN", readFlags); HostCheck.True(F.Capture(f.Files.State, second, out var uploadToken));
+        HostCheck.True(first != second && f.Files.State->ActiveDescriptors == 5);
+        Stat(second, upload.Length); Lock(second, 5);
+        // FileStream.Length obtains fresh facts while both original readonly
+        // descriptions and their independent open-description locks survive.
+        Stat(first, log.Length); Stat(second, upload.Length);
+        Read(first, log); HostCheck.True(F.IsCurrent(f.Files.State, logToken) && F.IsCurrent(f.Files.State, uploadToken));
+        Lock(first, 8); HostCheck.Equal(0L, f.Run(3, first));
+        HostCheck.True(!F.IsCurrent(f.Files.State, logToken) && F.IsCurrent(f.Files.State, uploadToken));
+        Read(second, upload); Lock(second, 8); HostCheck.Equal(0L, f.Run(3, second));
+        HostCheck.True(!F.IsCurrent(f.Files.State, uploadToken) && stats == 4 && chunks == 12 && f.Parked - startingParks == 20 &&
+            f.Thread.Writes - startingCopies == 16 && f.Files.State->ActiveDescriptors == 3 && F.Audit(f.Files.State) && !f.HasLocks() &&
+            f.Trace.Skip(traceStart).Any() && f.Trace.Skip(traceStart).All(row => row.Type == 0) &&
+            f.Storage.Device.State->SubmittedBytes == submittedBytes && f.Storage.Device.State->DurableBytes == flushedBytes &&
+            SHA256.HashData(f.Storage.Persistent).AsSpan().SequenceEqual(before) && SHA256.HashData(f.Storage.Volatile).AsSpan().SequenceEqual(volatileBefore));
+        Idle(); Independent("LOG.TXT", log); Independent("UPLOAD.BIN", upload); f.Storage.Device.CheckGuards();
+
+        void Idle() => HostCheck.True(!f.Thread.View(f.Main).Wait.IsValid && f.Thread.View(f.Main).WaitSource == 0 &&
+            !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !f.Storage.State->Dirty &&
+            !f.Storage.Device.State->RequestPending && f.May(Output, 8192));
+        void Lock(uint fd, uint operation)
+        {
+            uint parks = f.Parked, copies = f.Thread.Writes; ulong io = f.Storage.Device.State->Submitted;
+            HostCheck.Equal(0L, f.Run(73, fd, operation));
+            HostCheck.True(parks == f.Parked && copies == f.Thread.Writes && io == f.Storage.Device.State->Submitted);
+            HostCheck.Equal(0L, f.Run(8, fd, 0, 1)); Idle();
+        }
+        void Stat(uint fd, int bytes)
+        {
+            QueuedCopy(5, fd, 144, 0, 0, 144); stats++;
+            var wire = UserRange(f, Output, 144);
+            HostCheck.True(BinaryPrimitives.ReadUInt32LittleEndian(wire[24..]) == 0x8180 &&
+                BinaryPrimitives.ReadUInt64LittleEndian(wire[48..]) == (ulong)bytes &&
+                BinaryPrimitives.ReadUInt64LittleEndian(wire[56..]) == 512 &&
+                BinaryPrimitives.ReadUInt64LittleEndian(wire[64..]) == (ulong)(bytes + 511) / 512);
+        }
+        void Read(uint fd, byte[] expected)
+        {
+            for (int offset = 0; offset < expected.Length;)
+            {
+                int count = Math.Min(521, expected.Length - offset);
+                QueuedCopy(17, fd, (uint)count, (ulong)offset, count, (uint)count);
+                HostCheck.True(UserRange(f, Output, (uint)count).SequenceEqual(expected.AsSpan(offset, count)));
+                offset += count; chunks++;
+            }
+            QueuedCopy(17, fd, 1, (ulong)expected.Length, 0, 0);
+        }
+        void QueuedCopy(ulong number, uint fd, uint count, ulong offset, long value, uint copiedBytes)
+        {
+            UserRange(f, Output, 8192).Fill(0xa5); uint copied = f.Thread.Writes, parks = f.Parked;
+            HostCheck.True(F.Capture(f.Files.State, fd, out var token));
+            f.Begin(number, fd, Output, number == 5 ? 0 : count, offset);
+            HostCheck.True(f.Thread.View(f.Main).WaitSource == 5 && !f.May(Output, 1));
+            f.Park(); f.Ready();
+            HostCheck.True(f.Thread.Writes == copied && UserRange(f, Output, 8192).IndexOfAnyExcept((byte)0xa5) < 0 &&
+                F.IsCurrent(f.Files.State, token) && !f.May(Output, 1));
+            HostCheck.Equal(value, f.Consume());
+            HostCheck.True(f.Parked == parks + 1 && f.Thread.Writes == copied + (copiedBytes == 0 ? 0U : 1U) &&
+                UserRange(f, Output + copiedBytes, 8192 - copiedBytes).IndexOfAnyExcept((byte)0xa5) < 0);
+            HostCheck.Equal(0L, f.Run(8, fd, 0, 1)); Idle();
+            byte[] after = UserRange(f, Output, 8192).ToArray(); uint copies = f.Thread.Writes;
+            HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2));
+            HostCheck.Equal(LinuxSyscallAction.Rejected, f.Thread.Service->CompleteWritableDiskWait(Key, 2).Action);
+            HostCheck.True(f.Thread.Writes == copies && UserRange(f, Output, 8192).SequenceEqual(after));
+        }
+        void Independent(string name, byte[] expected)
+        {
+            byte[] actual = new byte[expected.Length]; var result = Fat32Parser.ReadRootFile(media, f.Storage.Input.PartitionFirst, name, actual);
+            HostCheck.True(result.Succeeded && result.BytesRead == (ulong)expected.Length && actual.AsSpan().SequenceEqual(expected));
+        }
+    }
+
     [HostTest("writable source5 copied SQLite journal lifecycle keeps exact waits locks metadata and independent bytes across actual file and parent barriers")]
     private static void SqliteJournalLifecycle() => SqliteJournalFlow(failHeaderFlush: false);
 
