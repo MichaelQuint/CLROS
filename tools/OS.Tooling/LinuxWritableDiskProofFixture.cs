@@ -41,7 +41,7 @@ public static class LinuxWritableDiskProofFixture
     /// existing mechanical package envelope. The envelope permits two threads;
     /// this instruction stream never clones or requests user timer interrupts.</summary>
     public static byte[] CreatePackage() => LinuxThreadProofFixture.CreateMechanicalPackage(
-        CreateElf(), Variant, AppPath, userInterrupts: false, socketListener: true);
+        CreateElf(), Variant, AppPath, userInterrupts: false, socketListener: true, descriptorCount: 32);
     public static byte[] CreateElf() => Build().Elf;
     public static IReadOnlyList<CallSpec> Calls() => Array.AsReadOnly(Build().Calls);
     public static IReadOnlyList<ulong> InstructionRips() => Array.AsReadOnly(Build().Instructions);
@@ -73,7 +73,7 @@ public static class LinuxWritableDiskProofFixture
     /// sync return values, close/reopen and EOF. No BCL execution, append mode,
     /// original I/O, process, persistence or native admission is established.</summary>
     public static byte[] CreateLogUploadPackage() => LinuxThreadProofFixture.CreateMechanicalPackage(
-        CreateLogUploadElf(), LogUploadVariant, LogUploadAppPath, userInterrupts: false, socketListener: true);
+        CreateLogUploadElf(), LogUploadVariant, LogUploadAppPath, userInterrupts: false, socketListener: true, descriptorCount: 32);
     public static byte[] CreateLogUploadElf() => BuildLogUpload().Elf;
     public static IReadOnlyList<CallSpec> LogUploadCalls() => Array.AsReadOnly(BuildLogUpload().Calls);
     public static IReadOnlyList<ulong> LogUploadInstructionRips() => Array.AsReadOnly(BuildLogUpload().Instructions);

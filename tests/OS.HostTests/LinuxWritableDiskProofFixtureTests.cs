@@ -10,11 +10,19 @@ using C = OS.Storage.ContinuingFat32Mutation;
 
 internal static unsafe class LinuxWritableDiskProofFixtureTests
 {
-    [HostTest("writable additive log upload construction preserves original thirty call ELF package and strict identity")]
+    [HostTest("writable packages admit thirty two descriptors while preserving thirty call ELF and legacy envelopes")]
     private static void CanonicalBytes()
     {
         HostCheck.Equal("BF52DF564589F7E04930C25268484C49C11866C6B384E729C5FF33F0F3624FA7", Convert.ToHexString(SHA256.HashData(F.CreateElf())));
-        HostCheck.Equal("3BE41FA9959FA2FE1C48F4DE1AF5774DD64BAFD22E02B8EA424B07279D79C808", Convert.ToHexString(SHA256.HashData(F.CreatePackage())));
+        byte[] package = F.CreatePackage(); var view = LinuxElfPackage.Validate(package);
+        HostCheck.True(view.Succeeded && view.Manifest.Descriptors == 32 && package.AsSpan((int)view.PayloadOffset).SequenceEqual(F.CreateElf()));
+        string oldManifest = Encoding.ASCII.GetString(package, (int)view.ManifestOffset, (int)view.ManifestBytes)
+            .Replace("\ndescriptors=32\n", "\ndescriptors=16\n", StringComparison.Ordinal);
+        byte[] oldPackage = (byte[])package.Clone(); Encoding.ASCII.GetBytes(oldManifest).CopyTo(oldPackage, (int)view.ManifestOffset);
+        HostCheck.Equal("3BE41FA9959FA2FE1C48F4DE1AF5774DD64BAFD22E02B8EA424B07279D79C808", Convert.ToHexString(SHA256.HashData(oldPackage)));
+        Reject(oldPackage, logUpload: false);
+        foreach (string variant in LinuxThreadProofFixture.Variants)
+            HostCheck.Equal(16u, LinuxElfPackage.Validate(LinuxThreadProofFixture.CreatePackage(variant)).Manifest.Descriptors);
         HostCheck.True(F.ExpectedCalls == 30 && F.InstructionRips().Count == 339 && F.SuccessRip == 4196538 && F.MainEndRip == 4196543);
         Reject(F.CreateLogUploadPackage(), logUpload: false); Reject(F.CreatePackage(), logUpload: true);
     }
@@ -23,7 +31,7 @@ internal static unsafe class LinuxWritableDiskProofFixtureTests
     private static void LogUploadPackage()
     {
         byte[] elf = F.CreateLogUploadElf(), package = F.CreateLogUploadPackage(); var view = LinuxElfPackage.Validate(package);
-        HostCheck.True(view.Succeeded && view.DataFileCount == 0 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16 &&
+        HostCheck.True(view.Succeeded && view.DataFileCount == 0 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 32 &&
             package.AsSpan((int)view.PayloadOffset).SequenceEqual(elf));
         string manifest = Encoding.ASCII.GetString(package, (int)view.ManifestOffset, (int)view.ManifestBytes);
         HostCheck.True(manifest.Contains("app.path=apps/m16logupload.elf\nargs=WritableLogUpload\n", StringComparison.Ordinal) && !manifest.Contains("CLROS_USER_IRQS", StringComparison.Ordinal));
@@ -123,7 +131,7 @@ internal static unsafe class LinuxWritableDiskProofFixtureTests
     private static void Package()
     {
         byte[] package = F.CreatePackage(), elf = F.CreateElf(); var view = LinuxElfPackage.Validate(package);
-        HostCheck.True(view.Succeeded && view.DataFileCount == 0 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16);
+        HostCheck.True(view.Succeeded && view.DataFileCount == 0 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 32);
         HostCheck.True(package.SequenceEqual(F.CreatePackage()) && package.AsSpan((int)view.PayloadOffset).SequenceEqual(elf));
         string manifest = Encoding.ASCII.GetString(package, (int)view.ManifestOffset, (int)view.ManifestBytes);
         HostCheck.True(manifest.Contains("app.path=apps/m16writabledisk.elf\nargs=WritableDisk\n", StringComparison.Ordinal));
