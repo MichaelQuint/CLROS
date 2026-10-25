@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Security.Cryptography;
@@ -14,12 +15,111 @@ public static class NativeAotLogUploadContract
 {
     public const string Application = "NativeAotLogUploadContract", LogName = "LOG.TXT", UploadName = "UPLOAD.BIN";
     public const int MaximumTranscriptBytes = 8192, UploadBytes = 5126;
+    public const int ClrosElfBytes = 1_356_944;
+    public const string ClrosElfSha256 = "B8E4D4B7521AD98755E98BE699A64D40A1C5C4744EE0F2864DBA55B209607444";
+    public const string ClrosApplicationPath = "apps/NativeAotLogUploadContract";
+    public const uint ClrosMemoryBytes = 67_108_864, ClrosStackBytes = 1_572_864, ClrosThreads = 16, ClrosDescriptors = 32;
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "log-upload", [
         ("NativeAotLogUploadContract.csproj", "5CB57DC7E6323F04E7CAE3DADF64FB827BE3CCEE8EB81C97A450C6678CBD5F17"),
         ("Program.cs", "701446082EC9C6DB152123BD9CC3B7F918827FFAED5DD915823DA5E82E3DBAA3")]);
 
     public readonly record struct FileValues(int LogBytes, string LogSha256, int UploadBytes, string UploadSha256)
     { public bool GrantsPersistenceOrGuestAuthority => false; }
+
+    /// <summary>Immutable copied package/ELF geometry, never a prepared program.
+    /// The caller supplies stable bytes for one synchronous inspection; no input
+    /// buffer, file, source or process lease is retained. Exact identity does not
+    /// admit instructions, execution, original publication or persistence.</summary>
+    public sealed class ClrosPackageValues
+    {
+        internal ClrosPackageValues(string phase, string manifest, int bytes, string hash, NativeAotPayload.Inspection image)
+        {
+            Phase = phase; Manifest = manifest; PackageBytes = bytes; PackageSha256 = hash; Image = image;
+            Arguments = Array.AsReadOnly(new[] { "--" + phase, "--root", "/data" });
+        }
+        public string Phase { get; }
+        public string Manifest { get; }
+        public int PackageBytes { get; }
+        public string PackageSha256 { get; }
+        public NativeAotPayload.Inspection Image { get; }
+        /// <summary>The three manifest arguments, excluding argv0.</summary>
+        public ReadOnlyCollection<string> Arguments { get; }
+        public bool InstructionIndexAdmitted => false;
+        public bool ExecutionAuthority => false;
+        public bool GrantsOriginalPublicationGuestOrPersistenceAuthority => false;
+    }
+
+    /// <summary>Build a new caller-owned V1 package from only the exact pinned
+    /// ordinary Linux log/upload ELF. Phase is explicitly write or verify;
+    /// argv uses /data, 16 threads, 32 fds and a 1.5MiB stack without user IRQ
+    /// opt-in. Borrowed bytes must stay stable during this synchronous call.
+    /// Invalid phase, identity or geometry throws before output is returned.
+    /// No input is executed, read from disk or retained; no selector is enabled.</summary>
+    public static byte[] CreateClrosPackage(ReadOnlySpan<byte> elf, string phase) =>
+        CreateClrosPackageCore(elf, phase, ClrosElfSha256);
+
+    /// <summary>Inspect exact phase/package bytes and the pinned four-load/TLS
+    /// ELF. Input is borrowed synchronously and metadata is copied. Unknown or
+    /// altered manifests, headers, payloads and phases throw. Original source,
+    /// native inputs and a complete instruction index remain separate duties.</summary>
+    public static ClrosPackageValues InspectClrosPackage(ReadOnlySpan<byte> package, string phase) =>
+        InspectClrosPackageCore(package, phase, ClrosElfSha256);
+
+    // Shared pure-value core permits portable tests to supply their independently
+    // authored ELF's digest. Public entrypoints always pass the fixed pin above;
+    // this internal parameter grants no original/native/execution authority.
+    internal static byte[] CreateClrosPackageCore(ReadOnlySpan<byte> elf, string phase, string expectedElfSha256)
+    {
+        RequireClrosPhase(phase);
+        _ = InspectClrosElf(elf, expectedElfSha256);
+        byte[] manifest = Encoding.ASCII.GetBytes(ClrosManifest(phase, expectedElfSha256));
+        byte[] package = new byte[64 + manifest.Length + elf.Length];
+        ClrosHeader(manifest.Length).CopyTo(package, 0); manifest.CopyTo(package, 64);
+        elf.CopyTo(package.AsSpan(64 + manifest.Length)); return package;
+    }
+
+    internal static ClrosPackageValues InspectClrosPackageCore(ReadOnlySpan<byte> package, string phase, string expectedElfSha256)
+    {
+        RequireClrosPhase(phase);
+        string text = ClrosManifest(phase, expectedElfSha256); byte[] manifest = Encoding.ASCII.GetBytes(text);
+        Need(package.Length == 64 + manifest.Length + ClrosElfBytes &&
+            package[..64].SequenceEqual(ClrosHeader(manifest.Length)) && package.Slice(64, manifest.Length).SequenceEqual(manifest), "clros_package");
+        var image = InspectClrosElf(package[(64 + manifest.Length)..], expectedElfSha256);
+        var view = OS.Manifest.LinuxElfPackage.Validate(package);
+        Need(view.Succeeded && view.DataFileCount == 0 && view.PayloadBytes == ClrosElfBytes, "clros_package");
+        return new(phase, text, package.Length, Hash(package), image);
+    }
+
+    private static NativeAotPayload.Inspection InspectClrosElf(ReadOnlySpan<byte> elf, string expectedElfSha256)
+    {
+        Need(elf.Length == ClrosElfBytes, "clros_elf_length");
+        NativeAotPayload.Inspection image;
+        try { image = NativeAotPayload.Inspect(elf); }
+        catch (InvalidDataException) { throw new ToolFailure("log_upload_clros_elf_geometry"); }
+        NativeAotPayload.Segment[] loads = [
+            new(1, 4, 0, 4_194_304, 748, 748, 4096),
+            new(1, 5, 4096, 4_198_400, 893_584, 893_584, 4096),
+            new(1, 4, 901_120, 5_095_424, 442_088, 442_088, 4096),
+            new(1, 6, 1_345_320, 5_539_624, 9616, 189_328, 4096)];
+        Need(image.Entry == 4_231_031 && image.ProgramHeaderCount == 11 && image.Loads.SequenceEqual(loads) &&
+            image.Tls == new NativeAotPayload.Segment(7, 4, 1_345_320, 5_539_624, 24, 264, 8), "clros_elf_geometry");
+        Need(image.Sha256 == expectedElfSha256, "clros_elf_identity"); return image;
+    }
+    private static void RequireClrosPhase(string phase) => Need(phase is "write" or "verify", "phase");
+    private static string ClrosManifest(string phase, string digest)
+    {
+        Need(digest is { Length: 64 } && digest.All(char.IsAsciiHexDigit), "clros_elf_identity");
+        return "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\napp.path=" + ClrosApplicationPath +
+            "\nargs=--" + phase + " --root /data\ndigest=" + digest.ToLowerInvariant() +
+            "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=32\nlisten=0.0.0.0:8080\n";
+    }
+    private static byte[] ClrosHeader(int manifestBytes)
+    {
+        byte[] bytes = new byte[64]; BinaryPrimitives.WriteUInt64LittleEndian(bytes, OS.Manifest.LinuxElfPackage.Magic);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(8), 1); BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(12), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(16), 64); BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(20), (uint)manifestBytes);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(24), ClrosElfBytes); return bytes;
+    }
     /// <summary>Expected bytes/digests computed by this host inspector, not
     /// cryptographic reports from the native app. Actual files are inspected
     /// independently by each original reference owner.</summary>

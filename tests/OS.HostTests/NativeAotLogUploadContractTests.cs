@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,6 +8,178 @@ using F = OS.Tooling.NativeAotLogUploadContract;
 
 internal static class NativeAotLogUploadContractTests
 {
+    private delegate byte[] PackageBuilder(ReadOnlySpan<byte> elf, string phase, string digest);
+    private delegate F.ClrosPackageValues PackageInspector(ReadOnlySpan<byte> package, string phase, string digest);
+    // Exact typed bindings keep the synthetic identity seam internal to tooling.
+    private static readonly PackageBuilder CreateCopiedPackage = typeof(F).GetMethod("CreateClrosPackageCore", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<PackageBuilder>();
+    private static readonly PackageInspector InspectCopiedPackage = typeof(F).GetMethod("InspectClrosPackageCore", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<PackageInspector>();
+
+    [HostTest("log upload copied CLROS packages bind explicit write verify arguments four loads TLS and runtime policy without admitting instructions")]
+    private static void ClrosPackagePhases()
+    {
+        byte[] elf = SyntheticClrosElf(), before = elf.ToArray(); string digest = Sha(elf);
+        foreach (string phase in new[] { "write", "verify" })
+        {
+            byte[] package = CreateCopiedPackage(elf, phase, digest);
+            var value = InspectCopiedPackage(package, phase, digest);
+            string manifest = "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" +
+                "app.path=apps/NativeAotLogUploadContract\nargs=--" + phase + " --root /data\ndigest=" + digest.ToLowerInvariant() +
+                "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=32\nlisten=0.0.0.0:8080\n";
+            var parsed = OS.Manifest.LinuxElfPackage.Validate(package);
+            HostCheck.True(parsed.Succeeded && parsed.DataFileCount == 0 && parsed.Manifest.MemoryBytes == 67_108_864 &&
+                parsed.Manifest.StackBytes == 1_572_864 && parsed.Manifest.Threads == 16 && parsed.Manifest.Descriptors == 32 &&
+                value.Phase == phase && value.Manifest == manifest && value.PackageSha256 == Sha(package) && value.PackageBytes == package.Length &&
+                value.Arguments.SequenceEqual(new[] { "--" + phase, "--root", "/data" }) && value.Image.Entry == 4_231_031 &&
+                value.Image.ProgramHeaderCount == 11 && value.Image.Loads.Count == 4 && value.Image.Tls is { FileSize: 24, MemorySize: 264, Alignment: 8 } &&
+                !value.Manifest.Contains("CLROS_USER_IRQS", StringComparison.Ordinal) && !value.InstructionIndexAdmitted &&
+                !value.ExecutionAuthority && !value.GrantsOriginalPublicationGuestOrPersistenceAuthority);
+            HostCheck.True(package.AsSpan((int)parsed.PayloadOffset).SequenceEqual(elf) && elf.AsSpan().SequenceEqual(before) &&
+                TestPackage(elf, manifest).AsSpan().SequenceEqual(package));
+            Reject(() => InspectCopiedPackage(package, phase == "write" ? "verify" : "write", digest), "clros_package");
+        }
+    }
+
+    [HostTest("log upload public CLROS package admission never accepts synthetic identities default unknown or differently cased phases")]
+    private static void ClrosPackagePublicIdentity()
+    {
+        byte[] elf = SyntheticClrosElf(); string digest = Sha(elf);
+        HostCheck.True(digest != F.ClrosElfSha256);
+        byte[] synthetic = CreateCopiedPackage(elf, "write", digest);
+        Reject(() => F.CreateClrosPackage(elf, "write"), "clros_elf_identity");
+        Reject(() => F.InspectClrosPackage(synthetic, "write"), "clros_package");
+        foreach (string phase in new[] { "", "Write", "Verify", "default", "recovery", "write\n", "verify\0", null! })
+        {
+            Reject(() => F.CreateClrosPackage(elf, phase), "phase");
+            Reject(() => F.InspectClrosPackage(synthetic, phase), "phase");
+        }
+        Reject(() => F.CreateClrosPackage([], "write"), "clros_elf_length");
+        Reject(() => F.InspectClrosPackage([], "verify"), "clros_package");
+        // Matching a caller-supplied synthetic digest is explicitly only the
+        // internal pure-value test seam. Public identity remains the B8E4 pin.
+        elf[4096] ^= 1;
+        Reject(() => CreateCopiedPackage(elf, "write", digest), "clros_elf_identity");
+        Reject(() => F.CreateClrosPackage(elf, "verify"), "clros_elf_identity");
+    }
+
+    [HostTest("log upload copied CLROS geometry rejects altered valid loads TLS entry and program headers even with matching synthetic digest")]
+    private static void ClrosPackageGeometry()
+    {
+        foreach (Action<byte[]> mutate in new Action<byte[]>[]
+        {
+            bytes => BinaryPrimitives.WriteUInt16LittleEndian(bytes.AsSpan(56), 10),
+            bytes => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(24), 0),
+            bytes => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(64 + 56 + 4), 7),
+            bytes => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(64 + 2 * 56 + 16), 4_198_400),
+            bytes => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(64 + 3 * 56 + 40), 189_329),
+            bytes => BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(64 + 4 * 56 + 32), 25),
+            bytes => BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(64 + 4 * 56), 0)
+        })
+        {
+            byte[] elf = SyntheticClrosElf(); mutate(elf);
+            Reject(() => CreateCopiedPackage(elf, "write", Sha(elf)), "clros_elf_geometry");
+        }
+        byte[] valid = SyntheticClrosElf();
+        Reject(() => CreateCopiedPackage(valid.AsSpan(1), "write", Sha(valid)), "clros_elf_length");
+        Reject(() => CreateCopiedPackage([.. valid, 0], "verify", Sha(valid)), "clros_elf_length");
+    }
+
+    [HostTest("log upload copied CLROS manifests reject alternate roots permissions counts IRQ optin app paths duplicate keys and phase widening")]
+    private static void ClrosPackagePolicy()
+    {
+        byte[] elf = SyntheticClrosElf(); string digest = Sha(elf);
+        byte[] package = CreateCopiedPackage(elf, "write", digest);
+        string manifest = InspectCopiedPackage(package, "write", digest).Manifest;
+        foreach (string altered in new[]
+        {
+            manifest.Replace("--root /data", "--root /data/", StringComparison.Ordinal),
+            manifest.Replace("--write --root", "--verify --root", StringComparison.Ordinal),
+            manifest.Replace("--write --root", "--write --extra --root", StringComparison.Ordinal),
+            manifest.Replace("apps/NativeAotLogUploadContract", "apps/m16logupload.elf", StringComparison.Ordinal),
+            manifest.Replace("stack=1572864", "stack=65536", StringComparison.Ordinal),
+            manifest.Replace("threads=16", "threads=2", StringComparison.Ordinal),
+            manifest.Replace("descriptors=32", "descriptors=16", StringComparison.Ordinal),
+            manifest.Replace("memory=67108864", "memory=134217728", StringComparison.Ordinal),
+            manifest.Replace("listen=0.0.0.0:8080", "listen=127.0.0.1:8080", StringComparison.Ordinal),
+            manifest + "env.CLROS_USER_IRQS=1\n",
+            manifest + "args=--write --root /data\n",
+            manifest.Replace("\n", "\r\n", StringComparison.Ordinal)
+        })
+            Reject(() => InspectCopiedPackage(TestPackage(elf, altered), "write", digest), "clros_package");
+    }
+
+    [HostTest("log upload copied CLROS package header payload bounds and bytes reject truncation extra data and foreign pins")]
+    private static void ClrosPackageTamper()
+    {
+        byte[] elf = SyntheticClrosElf(); string digest = Sha(elf);
+        byte[] package = CreateCopiedPackage(elf, "verify", digest);
+        foreach (int offset in new[] { 0, 8, 12, 16, 20, 24, 32, 40, 63, 64 })
+        {
+            byte[] altered = package.ToArray(); altered[offset] ^= 1;
+            Reject(() => InspectCopiedPackage(altered, "verify", digest), "clros_package");
+        }
+        Reject(() => InspectCopiedPackage(package.AsSpan(0, package.Length - 1), "verify", digest), "clros_package");
+        Reject(() => InspectCopiedPackage([.. package, 0], "verify", digest), "clros_package");
+        int payload = (int)BinaryPrimitives.ReadUInt32LittleEndian(package.AsSpan(20)) + 64;
+        foreach (int offset in new[] { 4096, 8192, F.ClrosElfBytes - 1 })
+        {
+            byte[] altered = package.ToArray(); altered[payload + offset] ^= 1;
+            Reject(() => InspectCopiedPackage(altered, "verify", digest), "clros_elf_identity");
+        }
+        Reject(() => InspectCopiedPackage(package, "verify", F.ClrosElfSha256), "clros_package");
+    }
+
+    [HostTest("log upload copied CLROS reports and packages own immutable metadata without retaining or changing borrowed buffers")]
+    private static void ClrosPackageCopiedValues()
+    {
+        byte[] elf = SyntheticClrosElf(); string digest = Sha(elf);
+        byte[] package = CreateCopiedPackage(elf, "write", digest), before = package.ToArray();
+        var value = InspectCopiedPackage(package, "write", digest);
+        HostCheck.True(package.AsSpan().SequenceEqual(before)); elf[8192] ^= 1;
+        HostCheck.True(package.AsSpan().SequenceEqual(before));
+        package.AsSpan().Clear();
+        HostCheck.True(value.PackageSha256 == Sha(before) && value.Image.Sha256 == digest && value.Image.Loads[1].FileSize == 893_584 &&
+            value.Image.Tls!.MemorySize == 264 && value.Arguments.SequenceEqual(new[] { "--write", "--root", "/data" }));
+        bool argumentsReadonly = false, loadsReadonly = false;
+        try { ((IList<string>)value.Arguments)[0] = "--verify"; } catch (NotSupportedException) { argumentsReadonly = true; }
+        try { ((IList<NativeAotPayload.Segment>)value.Image.Loads).Clear(); } catch (NotSupportedException) { loadsReadonly = true; }
+        HostCheck.True(argumentsReadonly && loadsReadonly && !value.InstructionIndexAdmitted && !value.ExecutionAuthority);
+    }
+
+    // Independent ELF framing only: its four PT_LOAD/TLS numeric extents match
+    // the retained footprint, but it is not a NativeAOT program or native input.
+    private static byte[] SyntheticClrosElf()
+    {
+        byte[] elf = new byte[F.ClrosElfBytes]; elf[0] = 0x7f; elf[1] = (byte)'E'; elf[2] = (byte)'L'; elf[3] = (byte)'F';
+        elf[4] = 2; elf[5] = 1; elf[6] = 1;
+        BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(16), 2); BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(18), 62);
+        BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(20), 1); BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(24), 4_231_031);
+        BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(32), 64); BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(52), 64);
+        BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(54), 56); BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(56), 11);
+        Segment(0, 1, 4, 0, 4_194_304, 748, 748, 4096);
+        Segment(1, 1, 5, 4096, 4_198_400, 893_584, 893_584, 4096);
+        Segment(2, 1, 4, 901_120, 5_095_424, 442_088, 442_088, 4096);
+        Segment(3, 1, 6, 1_345_320, 5_539_624, 9616, 189_328, 4096);
+        Segment(4, 7, 4, 1_345_320, 5_539_624, 24, 264, 8); elf[4096] = 0xc3;
+        return elf;
+        void Segment(int index, uint type, uint flags, ulong offset, ulong address, ulong file, ulong memory, ulong alignment)
+        {
+            Span<byte> row = elf.AsSpan(64 + index * 56, 56);
+            BinaryPrimitives.WriteUInt32LittleEndian(row, type); BinaryPrimitives.WriteUInt32LittleEndian(row[4..], flags);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[8..], offset); BinaryPrimitives.WriteUInt64LittleEndian(row[16..], address);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[32..], file); BinaryPrimitives.WriteUInt64LittleEndian(row[40..], memory);
+            BinaryPrimitives.WriteUInt64LittleEndian(row[48..], alignment);
+        }
+    }
+    private static byte[] TestPackage(byte[] elf, string text)
+    {
+        byte[] manifest = Encoding.ASCII.GetBytes(text), package = new byte[64 + manifest.Length + elf.Length];
+        BinaryPrimitives.WriteUInt64LittleEndian(package, 0x3130464c45524c43); // Independent CLRELF01 header.
+        BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(8), 1); BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(12), 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(16), 64); BinaryPrimitives.WriteUInt32LittleEndian(package.AsSpan(20), (uint)manifest.Length);
+        BinaryPrimitives.WriteUInt64LittleEndian(package.AsSpan(24), (ulong)elf.Length); manifest.CopyTo(package, 64); elf.CopyTo(package, 64 + manifest.Length); return package;
+    }
+    private static string Sha(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
+
     [HostTest("log upload copied file contract checks exact UTF8 records sector boundaries upload chunks and EOF without granting persistence")]
     private static void FileValues()
     {
