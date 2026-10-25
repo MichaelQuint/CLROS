@@ -279,16 +279,16 @@ public static unsafe class ContinuingFat32Mutation
             *request = default;
             if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
             if (!NameValid(name) || alias.Length != 11) return Status.InvalidName;
-            Span<byte> entry = stackalloc byte[32]; entry.Clear(); alias.CopyTo(entry); entry[11] = 0x20;
+            Span<byte> entry = stackalloc byte[32]; entry.Clear(); OS.Std.Memory.BufferOperations.MemoryCopy(alias, entry); entry[11] = 0x20;
             Span<ushort> words = stackalloc ushort[260]; LiveVfatState vfat = default;
             if (alias[0] == '.' || Vfat.Consume(entry, ref vfat, words, out _) != LiveDirectoryStatus.Entry) return Status.InvalidName;
             Span<byte> encoded = stackalloc byte[(int)EncodedEntryBytes]; int slots = 1;
-            if (ShortEquals(entry, name, false)) entry.CopyTo(encoded);
+            if (ShortEquals(entry, name, false)) OS.Std.Memory.BufferOperations.MemoryCopy(entry, encoded);
             else if (Fat32Mutation.EncodeEntryRun(name, entry, encoded, out slots) != Fat32Mutation.Status.Success) return Status.InvalidName;
             if (s->RequestGeneration == ulong.MaxValue || s->Revision == ulong.MaxValue) return Status.GenerationExhausted;
             Begin(s, Kind.Create); s->NameLength = (uint)name.Length;
             for (int i = 0; i < name.Length; i++) s->Input.Name[i] = name[i];
-            encoded[..(slots * 32)].CopyTo(new Span<byte>(s->Input.EncodedEntries, slots * 32)); s->CreateSlots = (uint)slots;
+            OS.Std.Memory.BufferOperations.MemoryCopy(encoded.Slice(0, slots * 32), new Span<byte>(s->Input.EncodedEntries, slots * 32)); s->CreateSlots = (uint)slots;
             s->TargetCount = 0; BeginRootChain(s, CreateRoot); *request = new(s); return Status.Pending;
         }
     }
@@ -696,10 +696,10 @@ public static unsafe class ContinuingFat32Mutation
         }
         Span<byte> before = stackalloc byte[32];
         EndianPrimitives.WriteUInt64LittleEndian(before, original.Fingerprint0);
-        EndianPrimitives.WriteUInt64LittleEndian(before[8..], original.Fingerprint1);
-        EndianPrimitives.WriteUInt64LittleEndian(before[16..], original.Fingerprint2);
-        EndianPrimitives.WriteUInt64LittleEndian(before[24..], original.Fingerprint3);
-        if (!raw[..20].SequenceEqual(before[..20]) || !raw.Slice(22, 4).SequenceEqual(before.Slice(22, 4))) return false;
+        EndianPrimitives.WriteUInt64LittleEndian(before.Slice(8), original.Fingerprint1);
+        EndianPrimitives.WriteUInt64LittleEndian(before.Slice(16), original.Fingerprint2);
+        EndianPrimitives.WriteUInt64LittleEndian(before.Slice(24), original.Fingerprint3);
+        if (!BytesEqual(raw.Slice(0, 20), before.Slice(0, 20)) || !BytesEqual(raw.Slice(22, 4), before.Slice(22, 4))) return false;
         uint expectedFirst;
         if (s->Kind == Kind.Grow)
         {
@@ -712,8 +712,8 @@ public static unsafe class ContinuingFat32Mutation
             if (s->NewLength >= original.Length || s->Wanted != original.Length - s->NewLength) return false;
             expectedFirst = s->NewLength == 0 ? 0 : original.FirstCluster;
         }
-        uint first = ((uint)EndianPrimitives.ReadUInt16LittleEndian(raw[20..]) << 16) | EndianPrimitives.ReadUInt16LittleEndian(raw[26..]);
-        if (first != expectedFirst || EndianPrimitives.ReadUInt32LittleEndian(raw[28..]) != s->NewLength) return false;
+        uint first = ((uint)EndianPrimitives.ReadUInt16LittleEndian(raw.Slice(20)) << 16) | EndianPrimitives.ReadUInt16LittleEndian(raw.Slice(26));
+        if (first != expectedFirst || EndianPrimitives.ReadUInt32LittleEndian(raw.Slice(28)) != s->NewLength) return false;
         next = new(s, original.EntryOffset, first, s->NewLength, raw); return true;
     }
 
@@ -828,7 +828,7 @@ public static unsafe class ContinuingFat32Mutation
         value = 0; ulong lba = s->Volume.FirstFatLba + cluster / 128;
         if (s->FatPart == 0 || s->FatLba != lba) { s->FatLba = lba; s->FatPart = 0; return Read(s, lba, s->Input.Fat0, Purpose.Fat0); }
         if (s->FatPart == 1) return Read(s, lba + s->Volume.FatSectors, s->Input.Fat1, Purpose.Fat1);
-        if (!new ReadOnlySpan<byte>(s->Input.Fat0, 512).SequenceEqual(new ReadOnlySpan<byte>(s->Input.Fat1, 512))) return Finish(s, Status.MirrorMismatch);
+        if (!BytesEqual(new ReadOnlySpan<byte>(s->Input.Fat0, 512), new ReadOnlySpan<byte>(s->Input.Fat1, 512))) return Finish(s, Status.MirrorMismatch);
         value = EndianPrimitives.ReadUInt32LittleEndian(new ReadOnlySpan<byte>(s->Input.Fat0 + (cluster % 128) * 4, 4)) & 0x0fffffff;
         return Status.Success;
     }
@@ -970,7 +970,7 @@ public static unsafe class ContinuingFat32Mutation
         ulong position = s->Offset + s->PlannedBytes, clusterBytes = s->Volume.SectorsPerCluster * 512UL;
         uint map = (uint)(position / clusterBytes); if (map >= s->TargetCount) return Finish(s, Status.CorruptChain);
         ulong lba = s->Volume.FirstDataLba + (ulong)(s->Input.FileMap[map] - 2) * s->Volume.SectorsPerCluster + position % clusterBytes / 512;
-        s->EditOffset = (uint)(position % 512); s->EditBytes = System.Math.Min(512 - s->EditOffset, s->Wanted - s->PlannedBytes);
+        s->EditOffset = (uint)(position % 512); s->EditBytes = Min(512 - s->EditOffset, s->Wanted - s->PlannedBytes);
         return Read(s, lba, s->Input.Sector, Purpose.FileData);
     }
     private static Status CheckGrowthCandidates(State* s)
@@ -1019,7 +1019,7 @@ public static unsafe class ContinuingFat32Mutation
         if (s->PlannedBytes == s->RunSlots * 32) { s->Step = Step.ReleaseFat; return Status.Pending; }
         ulong position = s->RunStart * 32UL + s->PlannedBytes, clusterBytes = s->Volume.SectorsPerCluster * 512UL;
         uint map = (uint)(position / clusterBytes); if (map >= s->RootCount) return Finish(s, Status.CorruptDirectory);
-        uint offset = (uint)(position % 512), bytes = System.Math.Min(512 - offset, s->RunSlots * 32 - s->PlannedBytes);
+        uint offset = (uint)(position % 512), bytes = Min(512 - offset, s->RunSlots * 32 - s->PlannedBytes);
         ulong lba = s->Volume.FirstDataLba + (ulong)(s->Input.DirectoryMap[map] - 2) * s->Volume.SectorsPerCluster + position % clusterBytes / 512;
         return Edit(s, lba, Fat32Mutation.Stage.RetireDirectory, Transform.Tombstone, offset, bytes, 0);
     }
@@ -1054,25 +1054,25 @@ public static unsafe class ContinuingFat32Mutation
             case Transform.Zero:
                 after.Slice((int)s->EditOffset, (int)s->EditBytes).Clear(); s->ZeroPosition += s->EditBytes; break;
             case Transform.Fat:
-                uint original = EndianPrimitives.ReadUInt32LittleEndian(after[(int)s->EditOffset..]);
-                EndianPrimitives.WriteUInt32LittleEndian(after[(int)s->EditOffset..], (original & 0xf0000000) | s->EditValue); s->FatCursor++; break;
+                uint original = EndianPrimitives.ReadUInt32LittleEndian(after.Slice((int)s->EditOffset));
+                EndianPrimitives.WriteUInt32LittleEndian(after.Slice((int)s->EditOffset), (original & 0xf0000000) | s->EditValue); s->FatCursor++; break;
             case Transform.Directory:
             case Transform.ShrinkDirectory:
                 Span<byte> raw = after.Slice((int)s->EditOffset, 32);
                 if (!Fingerprint(s->File, raw)) return Finish(s, Status.StaleToken);
                 uint first = s->EditKind == Transform.ShrinkDirectory ? s->NewLength == 0 ? 0 : s->File.FirstCluster : s->TargetCount == 0 ? s->Growth[0] : s->File.FirstCluster;
-                EndianPrimitives.WriteUInt16LittleEndian(raw[20..], (ushort)(first >> 16)); EndianPrimitives.WriteUInt16LittleEndian(raw[26..], (ushort)first);
-                EndianPrimitives.WriteUInt32LittleEndian(raw[28..], s->NewLength); s->Step = s->EditKind == Transform.ShrinkDirectory ? Step.ReleaseFat : Step.GrowFsInfo; break;
+                EndianPrimitives.WriteUInt16LittleEndian(raw.Slice(20), (ushort)(first >> 16)); EndianPrimitives.WriteUInt16LittleEndian(raw.Slice(26), (ushort)first);
+                EndianPrimitives.WriteUInt32LittleEndian(raw.Slice(28), s->NewLength); s->Step = s->EditKind == Transform.ShrinkDirectory ? Step.ReleaseFat : Step.GrowFsInfo; break;
             case Transform.Tombstone:
                 if (s->Input.Changes[s->EditIndex].Sector == s->File.EntryOffset / 512 && !Fingerprint(s->File, after.Slice((int)(s->File.EntryOffset % 512), 32))) return Finish(s, Status.StaleToken);
                 for (uint i = 0; i < s->EditBytes; i += 32) { var entry = after.Slice((int)(s->EditOffset + i), 32); entry.Clear(); entry[0] = 0xe5; }
                 s->PlannedBytes += s->EditBytes; break;
             case Transform.FsInfo:
-                if (EndianPrimitives.ReadUInt32LittleEndian(after) != 0x41615252 || EndianPrimitives.ReadUInt32LittleEndian(after[484..]) != 0x61417272 ||
-                    EndianPrimitives.ReadUInt32LittleEndian(after[508..]) != 0xaa550000) return Finish(s, Status.InvalidVolume);
+                if (EndianPrimitives.ReadUInt32LittleEndian(after) != 0x41615252 || EndianPrimitives.ReadUInt32LittleEndian(after.Slice(484)) != 0x61417272 ||
+                    EndianPrimitives.ReadUInt32LittleEndian(after.Slice(508)) != 0xaa550000) return Finish(s, Status.InvalidVolume);
                 // Both are advisory. Preserve unknowns and invalidate old hints
                 // rather than inventing a free-count or a verified next slot.
-                EndianPrimitives.WriteUInt32LittleEndian(after[488..], uint.MaxValue); EndianPrimitives.WriteUInt32LittleEndian(after[492..], uint.MaxValue); s->FsCursor++; break;
+                EndianPrimitives.WriteUInt32LittleEndian(after.Slice(488), uint.MaxValue); EndianPrimitives.WriteUInt32LittleEndian(after.Slice(492), uint.MaxValue); s->FsCursor++; break;
         }
         return Status.Pending;
     }
@@ -1134,8 +1134,8 @@ public static unsafe class ContinuingFat32Mutation
             case Purpose.Original:
                 bool create = s->Kind == Kind.Create;
                 uint goal = create ? (s->CreateSlots + (s->CreateEnd ? 1U : 0U)) * 32 : s->Wanted;
-                uint index = s->Changes, skip = (uint)(((create ? s->CreateStart * 32UL : s->Offset) + s->PlannedBytes) % 512), take = System.Math.Min(512 - skip, goal - s->PlannedBytes);
-                new ReadOnlySpan<byte>(s->Input.Before + index * 512, 512).CopyTo(new Span<byte>(s->Input.After + index * 512, 512));
+                uint index = s->Changes, skip = (uint)(((create ? s->CreateStart * 32UL : s->Offset) + s->PlannedBytes) % 512), take = Min(512 - skip, goal - s->PlannedBytes);
+                OS.Std.Memory.BufferOperations.MemoryCopy(new ReadOnlySpan<byte>(s->Input.Before + index * 512, 512), new Span<byte>(s->Input.After + index * 512, 512));
                 for (uint i = 0; i < take; i++) s->Input.After[index * 512 + skip + i] = create ?
                     s->PlannedBytes + i < s->CreateSlots * 32 ? s->Input.EncodedEntries[s->PlannedBytes + i] : (byte)0 : s->Input.Input[s->PlannedBytes + i];
                 s->Input.Changes[index] = new() { Sector = s->IoLba, Phase = create ? Fat32Mutation.Stage.PublishDirectory : Fat32Mutation.Stage.Data }; s->Changes++; s->PlannedBytes += take; break;
@@ -1145,10 +1145,10 @@ public static unsafe class ContinuingFat32Mutation
                 if (s->Issued < s->Changes) { s->Step = Step.Issue; return Status.Pending; }
                 s->DirtyValue = false; return Finish(s, Status.Success);
             case Purpose.GrowthEdit:
-                new ReadOnlySpan<byte>(s->Input.Before + s->EditIndex * 512, 512).CopyTo(new Span<byte>(s->Input.After + s->EditIndex * 512, 512));
+                OS.Std.Memory.BufferOperations.MemoryCopy(new ReadOnlySpan<byte>(s->Input.Before + s->EditIndex * 512, 512), new Span<byte>(s->Input.After + s->EditIndex * 512, 512));
                 s->Input.Changes[s->EditIndex] = new() { Sector = s->IoLba, Phase = s->EditStage }; s->Changes++; return ApplyEdit(s);
             case Purpose.FileData:
-                new ReadOnlySpan<byte>(s->Input.Sector + s->EditOffset, (int)s->EditBytes).CopyTo(new Span<byte>(s->Input.Input + s->PlannedBytes, (int)s->EditBytes));
+                OS.Std.Memory.BufferOperations.MemoryCopy(new ReadOnlySpan<byte>(s->Input.Sector + s->EditOffset, (int)s->EditBytes), new Span<byte>(s->Input.Input + s->PlannedBytes, (int)s->EditBytes));
                 s->PlannedBytes += s->EditBytes; break;
         }
         return Status.Pending;
@@ -1215,10 +1215,17 @@ public static unsafe class ContinuingFat32Mutation
     private static bool DeviceCurrent(State* s) => DeviceIdentity(s) && s->Input.Device->Running;
     private static bool Available(State* s) => s->Phase == Life.Idle && s->Mounted && !s->DirtyValue && DeviceCurrent(s) && !s->Input.Device->RequestPending;
     private static ushort Fold(ushort value) => value is >= 'a' and <= 'z' ? (ushort)(value - 32) : value;
-    private static ulong U64(ReadOnlySpan<byte> raw, int offset) => EndianPrimitives.ReadUInt64LittleEndian(raw[offset..]);
+    private static uint Min(uint a, uint b) => a < b ? a : b;
+    private static bool BytesEqual(ReadOnlySpan<byte> a, ReadOnlySpan<byte> b)
+    {
+        if (a.Length != b.Length) return false;
+        for (int i = 0; i < a.Length; i++) if (a[i] != b[i]) return false;
+        return true;
+    }
+    private static ulong U64(ReadOnlySpan<byte> raw, int offset) => EndianPrimitives.ReadUInt64LittleEndian(raw.Slice(offset));
     private static bool NameValid(ReadOnlySpan<char> name)
     {
-        if (name.Length is < 1 or > 255 || name[^1] is '.' or ' ' || name.SequenceEqual(".") || name.SequenceEqual("..")) return false;
+        if (name.Length is < 1 or > 255 || name[name.Length - 1] is '.' or ' ') return false;
         bool high = false;
         for (int i = 0; i < name.Length; i++)
         {

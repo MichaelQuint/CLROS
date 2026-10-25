@@ -56,7 +56,7 @@ public static unsafe partial class Fat32Mutation
                 Put16(entry, offset, value);
             }
         }
-        shortEntry.CopyTo(destination.Slice(slots * 32, 32));
+        OS.Std.Memory.BufferOperations.MemoryCopy(shortEntry, destination.Slice(slots * 32, 32));
         Span<ushort> words = stackalloc ushort[260]; LiveVfatState state = default;
         for (int i = 0; i < entries; i++)
         {
@@ -69,7 +69,7 @@ public static unsafe partial class Fat32Mutation
 
     private static bool Name(ReadOnlySpan<char> name)
     {
-        if (name.Length is < 1 or > 255 || name[^1] is '.' or ' ') return false;
+        if (name.Length is < 1 or > 255 || name[name.Length - 1] is '.' or ' ') return false;
         bool high = false;
         for (int i = 0; i < name.Length; i++)
         {
@@ -80,7 +80,7 @@ public static unsafe partial class Fat32Mutation
         }
         return !high;
     }
-    private static void Put16(Span<byte> bytes, int offset, ushort value) => EndianPrimitives.WriteUInt16LittleEndian(bytes[offset..], value);
+    private static void Put16(Span<byte> bytes, int offset, ushort value) => EndianPrimitives.WriteUInt16LittleEndian(bytes.Slice(offset), value);
     private static bool Overlaps(ReadOnlySpan<char> a, Span<byte> b)
     { fixed (char* x = a) fixed (byte* y = b) return Range((ulong)x, (ulong)a.Length * 2, (ulong)y, (ulong)b.Length); }
     private static bool Overlaps(ReadOnlySpan<byte> a, Span<byte> b)

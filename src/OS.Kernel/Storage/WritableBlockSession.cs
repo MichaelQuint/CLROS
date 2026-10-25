@@ -24,7 +24,9 @@ public static unsafe class WritableBlockSession
     }
     public enum Operation : byte { Write, Flush, Read }
 
+#if !NOSTDLIB_EFI
     [System.Flags]
+#endif
     public enum ObservationFlags : byte { None, Published = 1, CompletionValidated = 2, ReadCopied = 4 }
 
     /// <summary>Optional accumulating receipt for the latest actual request.
