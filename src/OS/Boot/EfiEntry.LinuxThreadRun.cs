@@ -196,7 +196,9 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " userBacked=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
                 LinuxText(state, " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
             bool success = ran && logged && !failed && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0;
-#if M16_025_PROBE && !M10_018_PROBE
+#if M16_027_PROBE
+            success &= NativeWritableApplicationExitAccepted(state);
+#elif M16_025_PROBE && !M10_018_PROBE
             success &= state->LinuxSyscallExitCode == 42;
 #endif
 #if M16_027_PROBE

@@ -120,13 +120,46 @@ public static unsafe partial class EfiEntry
             }
         }
 
+        // The original package hash is captured during staging and checked
+        // again before entry; its backing stays supervisor read-only/NX.
+        // Only these two complete B8 phase packages select exit0. A name,
+        // four-load image, declared thread count or CLI switch cannot select it.
+        // This cleanup predicate grants no execution or persistence authority.
+        private static bool NativeWritableApplicationExitAccepted(Storage* state)
+        {
+            fixed (Storage* original = &s_storage) if (state != original) return false;
+            if (state->LinuxPackage == 0 || state->LinuxOwnedPhase != 2 || !state->LinuxView.Succeeded ||
+                state->LinuxView.ByteCount != state->LinuxBytes) return false;
+            bool bcl = state->LinuxBytes == 1357289 && NativeWritablePackageHash(state,
+                "e55c9f90accc41baaba3ee9b057dbeba1fb43fb2b16f584061e2baaa7f604fd1") ||
+                state->LinuxBytes == 1357290 && NativeWritablePackageHash(state,
+                "10b557989c1accfd0e810a2b66419e2173339e67869e080b2f9dbf6ef0830ac9");
+            return state->LinuxSyscallExitCode == (bcl ? 0u : 42u);
+        }
+
+        // The lowercase hexadecimal input is an image-resident constant; no
+        // caller text, allocation, new hash pass or retained permission follows.
+        private static bool NativeWritablePackageHash(Storage* state, string digest)
+        {
+            if (digest.Length != 64) return false;
+            uint different = 0;
+            for (int i = 0; i < 32; i++)
+            {
+                uint high = digest[i * 2], low = digest[i * 2 + 1];
+                high = high >= 'a' ? high - 'a' + 10 : high - '0';
+                low = low >= 'a' ? low - 'a' + 10 : low - '0';
+                different |= (uint)state->LinuxPackageHash[i] ^ ((high << 4) | low);
+            }
+            return different == 0;
+        }
+
         private static bool RecordNativeWritableUserCleanup(Storage* state, uint reaped, uint transfers, ulong epochs)
         {
             fixed (NativeWritableOwner* o = &s_nativeWritable)
             {
                 if (!NativeWritableDiskAllowsOuterTeardown(state) || o->UserCleanup || reaped == 0 || transfers == 0 ||
                     state->CooperativePhase != 6 || state->LinuxSyscallPhase != 6 || state->LinuxMemoryPhase != 6 ||
-                    state->LinuxDescriptorPhase != 6 || state->LinuxSyscallExitCode != 42 || state->LinuxSyscallFailed != 0 ||
+                    state->LinuxDescriptorPhase != 6 || !NativeWritableApplicationExitAccepted(state) || state->LinuxSyscallFailed != 0 ||
                     state->LinuxSyscallFaults != 0 || !ReadNetworkTime(state, out ulong now) || now < o->Evidence->LastClock) return false;
                 o->Reaped = reaped; o->Transfers = transfers; o->Epochs = epochs; o->CleanupClock = now; o->UserCleanup = true;
                 return true;
