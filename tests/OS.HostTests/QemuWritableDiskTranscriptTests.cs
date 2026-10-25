@@ -124,6 +124,8 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         Reject(() => Inspect(Change(e, begin, "phase", 3)));
         foreach (string key in new[] { "identity", "sequence", "source", "requestOwner", "requestEpoch", "request", "outputPrefix", "completion" })
             Reject(() => Inspect(Change(e, wake, key, Field(e.All[wake], key) + 1)));
+        foreach (ulong state in new ulong[] { 0, 2, 3, 4, 5, 6, 7, 8, 255 }) Reject(() => Inspect(Change(e, wake, "state", state)));
+        Reject(() => Inspect(e with { All = e.All.Select((text, i) => i == wake ? text.Replace(" state=1", "", StringComparison.Ordinal) : text).ToArray() }));
         foreach (string key in new[] { "identity", "sequence", "requestOwner", "requestEpoch", "request", "nr", "rip", "outputBytes", "completion", "action", "valueBits" })
             Reject(() => Inspect(Change(e, complete, key, Field(e.All[complete], key) + 1)));
         int borrowed = Array.FindIndex(e.All, x => x.StartsWith("M16_027_BEGIN ", StringComparison.Ordinal) && Field(x, "operation") == 3);
@@ -156,7 +158,7 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         all.InsertRange(at + 1, [
             $"M16_027_REPARK identity=4294967297 previous=1 sequence=2 request=1 clock={clock + 1}",
             "M16_008_SUPERVISOR identity=4294967297 action=3 transfers=4 ready=0 active=1",
-            $"M16_027_WAKE identity=4294967297 sequence=2 source=5 requestOwner={WriteAttachment} requestEpoch=272 request=1 outputPrefix=0 completion=1 clock={clock + 2}", final]);
+            $"M16_027_WAKE identity=4294967297 sequence=2 source=5 requestOwner={WriteAttachment} requestEpoch=272 request=1 outputPrefix=0 completion=1 state=1 clock={clock + 2}", final]);
         var e = original with { All = all.ToArray(), Count = original.Count + 4 }; var report = Inspect(e);
         HostCheck.True(report.Waits[0].Sequence == 2 && report.Transfers == Inspect(original).Transfers + 2 && report.Auxiliary.Any(r => r.Text.StartsWith("M16_027_REPARK ", StringComparison.Ordinal)));
         int repark = Find(e, "M16_027_REPARK ");
@@ -301,7 +303,7 @@ internal static unsafe class QemuWritableDiskTranscriptTests
                 Supervisor(3);
                 if (c.Number is 328 or 87 || c.Number == 2 && (c.A1 & 0x40) != 0) { w.Write(140001); w.Flush(); }
                 else if (c.Number == 74) w.Flush(); else if (c.Number is 0 or 17 && c.Result > 0) w.Read(140002);
-                w.Rows.Add(FormattableString.Invariant($"M16_027_WAKE identity=4294967297 sequence={sequence} source=5 requestOwner={WriteAttachment} requestEpoch=272 request={request} outputPrefix={c.OutputBytes} completion=1 clock={clock++}"));
+                w.Rows.Add(FormattableString.Invariant($"M16_027_WAKE identity=4294967297 sequence={sequence} source=5 requestOwner={WriteAttachment} requestEpoch=272 request={request} outputPrefix={c.OutputBytes} completion=1 state=1 clock={clock++}"));
                 w.Rows.Add(FormattableString.Invariant($"M16_027_COMPLETE identity=4294967297 sequence={sequence} requestOwner={WriteAttachment} requestEpoch=272 request={request} nr={c.Number} rip={c.ReturnRip} outputBytes={c.OutputBytes} completion=1 action=1 valueBits={unchecked((ulong)c.Result)} clock={clock++}"));
                 w.Rows.Add($"M16_008_RESUME identity=4294967297 valueBits={unchecked((ulong)c.Result)} status=1");
                 if (c.Number == 2 && c.Result >= 0) { generations[reservedFd] = reservedGeneration + 1; fds.Add(reservedFd, (reservedGeneration + 1, reservedDescription, request)); }

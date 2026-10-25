@@ -365,9 +365,10 @@ public static partial class QemuTranscripts
                 continue;
             }
             if (text.StartsWith("M16_027_WAKE ", StringComparison.Ordinal))
-            { WdNeed(pending is not null && !woke, "wake_order"); var w = WdRecord(Take(), "M16_027_WAKE", "identity sequence source requestOwner requestEpoch request outputPrefix completion clock");
+            { WdNeed(pending is not null && !woke, "wake_order"); var w = WdRecord(Take(), "M16_027_WAKE", "identity sequence source requestOwner requestEpoch request outputPrefix completion state clock");
                 WdNeed(w["identity"] == identity && w["sequence"] == sequence && w["source"] == 5 && w["requestOwner"] == pending!["requestOwner"] && w["requestEpoch"] == pending["requestEpoch"] &&
-                    w["request"] == pending["request"] && w["outputPrefix"] == pending["outputPrefix"] && w["completion"] == (ulong)KernelThreadTable.Completion.Woken, "wake"); WdClock(w["clock"], ref tableClock); woke = true; continue; }
+                    w["request"] == pending["request"] && w["outputPrefix"] == pending["outputPrefix"] && w["completion"] == (ulong)KernelThreadTable.Completion.Woken &&
+                    w["state"] == (ulong)KernelThreadTable.State.Ready, "wake"); WdClock(w["clock"], ref tableClock); woke = true; continue; }
             if (text.StartsWith("M16_027_COMPLETE ", StringComparison.Ordinal))
             {
                 WdNeed(pending is not null && supervisor == 0 && woke, "completion_order");
