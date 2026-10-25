@@ -9,7 +9,7 @@ public static partial class EfiContracts
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 [@"..\OS.Kernel\Storage\WritableBlockSession.cs"] = "6ba8ea9a0583d1c3570879c4b97a7bcaba03410fcf7520453131afae5fe10c48",
-                [@"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs"] = "f3b131428bf67fc28a387a1d3db6dcb73506da28d3fdd9f36555db00e717dcce",
+                [@"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs"] = "824280945e398a4b3a254c976e3bafeadca783467350a1711e3ef6288f6d0347",
                 [@"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs"] = "015a4c4c10ad770d5732cc0589c73ddb744f46c11348519cfc66449737990009",
                 [@"..\OS.Kernel\Storage\WritableBlockReadPort.cs"] = "797f15bb3603ccb5ad9932c6232472fd7e2963f3a74ca625320fedf0c42352b7",
                 [@"..\OS.Kernel\Storage\Fat32Mutation.Encoder.cs"] = "06e1f295505eed688255716aa2181735eaaec4595fc25fc3f8048e3f40011885",
