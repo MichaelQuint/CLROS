@@ -6,11 +6,11 @@ The paired read/write branch collects the actual retained process ranges and
 checks them within one synchronous Boolean query. AuditWritableDisk,
 AuditDiskPair and the transport shape run once for that traversal. Every
 nonempty range still checks descriptor/package/user backing, both attachment
-inventories, the existing writable-provider backend query and all
-socket/epoll/network ranges. One borrowed filesystem range query checks the
-same candidates after that loop: authenticate the retained FS/backend tree
-once, then retain every candidate port query and populated local extent
-exclusion. This is a synchronous Boolean result with no later authority.
+inventories and all socket/epoll/network ranges. Writable-provider and borrowed
+filesystem range queries check the same candidates after that loop. Each
+authenticates its own retained tree once, then retains every candidate engine
+or port query and populated local extent exclusion. Their epochs remain
+independent. This is a synchronous Boolean result with no later authority.
 Zero-byte inventory entries retain their
 original skip behavior; malformed bounds and stale/invalid pairs fail closed.
 
@@ -32,10 +32,32 @@ must establish the actual stack lifetime. Scalar/direct-device FS APIs retain
 their original guards. Dirty, cancelled, stopped or held backing can remain
 structurally retained; that result grants no new I/O, user copy or release.
 
+The writable-provider batch has the same1..177-pair shape. Its complete scalar
+retained-owner audit finishes before the private candidate helper allocates its
+local inventory scratch. Every nonempty candidate still calls the complete
+mutation-engine retention query. Dirty, poisoned, retiring, orphaned and stopped
+backing keeps its original cleanup semantics until actual retirement; the query
+does not require a new live process or device borrow. For25 candidates with
+locks enabled, this removes repeated provider inventory audits and changes the
+source-level engine-query count from200 to32. Other pair/attachment audits are
+excluded from that calculation; it is not a measured execution speedup.
+
+## Cached directory scan turns
+
+The mutation engine can parse at most16 physical directory entries from the
+sector already loaded when its scan turn begins. Each entry still executes the
+original work-budget, VFAT, alias, collision and corruption checks. A phase,
+step, slot, sector, loaded-LBA, owner/epoch, request-generation, revision,
+device/pool epoch or cancellation change ends the batch immediately. A reset
+to the same sector also ends it. Completion of an outstanding device request
+and parsing remain separate turns; no next-sector submission is folded into
+the cached loop. Other scan/chain/free-space operations retain their bounds.
+Host controls and scoped native review do not establish a passing guest create.
+
 The separate BCL preparation command and its no-execution boundary are described
 in [the application model](app-model.md#prepared-bcl-logupload-instruction-lookup).
 
-[Step1620](../done/step1620.md) batches borrowed filesystem retention across the same process-range inventory, preserving every candidate port/local exclusion and legacy scalar path. All16 integrated FS controls and the real paired dirty-write/orphan control pass. Scoped emitted review authenticates13 bodies; the current25-range conditional stack estimate is30805/32768 bytes, with broader bounds open. Retained-DATA image preparation passes11 frozen Fast controls and SQLite package/index preparation passes53; both grant no execution or persistence. Original r09 remains FAILED180s/exit4:44 reads complete and read45 is submitted at176.394s during the absent create-target directory scan, without request completion, OUT/FLUSH or normal cleanup. The one-entry-per-pump scan is the next bounded expert-reviewed problem. All failed originals, including the documentation-input-invalidated host run, remain retained. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
+[Step1621](../done/step1621.md) integrates bounded cached-sector directory turns and synchronous writable-provider range validation. The mutation91, provider115, paired dirty-write/orphan and source5 lifecycle26 focused controls pass. Typed BCL selector/startup/parent/stdout/CALL/wait-envelope inspectors remain preparation; actual BCL launch is blocked pending the complete original consumer. Scoped native review retains the conditional current25-range estimate30965/32768 with global/mapping/effect limits open; BCL hash literals occupy writable .data. Original r10 and r11 both remain FAILED180s/exit4 after48 completed reads, without first-create completion, OUT/FLUSH or normal cleanup. All failed originals are preserved. The expert is reviewing the next timing boundary and minimal copied syscall witnesses. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
 
 
 ## Writable final clock and audit continuation (step1617)

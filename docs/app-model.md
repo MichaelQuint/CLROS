@@ -48,12 +48,42 @@ EBE1F9D31153BE28AAED85DE7DFDDBA6E6BEBD2BDA472AE0901E5AB14727A04F.
 Partial/synthetic Inspect reports cannot construct a prepared program.
 
 The CLI prints `grants_execution=false`. These preparation holds end on return;
-an eventual original runner must retain its own exact inputs. The four-load/TLS,
-16-thread/exit0 BCL startup and complete writable guest consumer remain separate
-work. Existing Mechanical30/LogUpload40 two-load/exit42 contracts remain scoped.
+an eventual original runner must retain its own exact inputs. A typed copied
+startup/parent inspector now checks the prepared phase, exact package, four
+loads,24/264-byte TLS,67 startup ranges and21 package staging reads. Its leaf is
+explicitly unvalidated; it supplies no original process or guest authority.
+Without the prepared discriminator, the old two-load/65-range policy remains.
+
+The writable selector distinguishes `BclWrite` and `BclVerify` and requires a
+separate bounded instruction-disassembly path. Actual BCL execution is refused
+with `writable_bcl_complete_consumer_required` until the complete original
+consumer exists. A copied stdout decoder validates byte envelopes, empty
+stderr and the exact phase transcript; payload text cannot become kernel rows.
+An explicit source5 CALL reader validates complete suffixes and finite per-thread
+generation ordinals. Existing readers retain their source limits. These copied
+pieces do not replace scheduling, descriptor, instruction, image or runner joins.
+
+The copied wait-envelope inspector joins each source5 CALL to exact BEGIN,
+WAKE, COMPLETE and optional REPARK rows, retaining full original indices and
+numeric fields. Every row remains in the CALL/envelope/residual census; shaped
+source4 wakes remain unjoined and unknown027 families reject. Resource values
+are copied ceilings, not authenticated capacities. Teardown action4 and early
+interrupted completion without an observed wake are explicitly unsupported.
+Paths, write inputs and successful read/stat copyout witnesses still precede
+the complete syscall-to-media consumer.
+
+The selected027 cleanup predicate accepts exit0 only for the two exact retained
+whole-package length/SHA identities. It checks the retained package/view and
+owned application phase at both existing cleanup guards. Other027 packages keep
+exit42. This is an implementation candidate, not an executed BCL guest witness.
+The expected-hash literal objects occupy writable PE .data; exact emitted bytes
+and references are checked, while exclusive nonmutation and supervisor/user
+mapping remain assumptions. No hardware read-only literal guarantee is claimed.
+The selected physical pool remains32MiB despite the manifest's64MiB limit;
+actual16-worker memory/stack fit and syscall closure remain unqualified.
 Preparation does not establish file writes, reboot persistence or durability.
 
-[Step1620](../done/step1620.md) batches borrowed filesystem retention across the same process-range inventory, preserving every candidate port/local exclusion and legacy scalar path. All16 integrated FS controls and the real paired dirty-write/orphan control pass. Scoped emitted review authenticates13 bodies; the current25-range conditional stack estimate is30805/32768 bytes, with broader bounds open. Retained-DATA image preparation passes11 frozen Fast controls and SQLite package/index preparation passes53; both grant no execution or persistence. Original r09 remains FAILED180s/exit4:44 reads complete and read45 is submitted at176.394s during the absent create-target directory scan, without request completion, OUT/FLUSH or normal cleanup. The one-entry-per-pump scan is the next bounded expert-reviewed problem. All failed originals, including the documentation-input-invalidated host run, remain retained. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
+[Step1621](../done/step1621.md) integrates bounded cached-sector directory turns and synchronous writable-provider range validation. The mutation91, provider115, paired dirty-write/orphan and source5 lifecycle26 focused controls pass. Typed BCL selector/startup/parent/stdout/CALL/wait-envelope inspectors remain preparation; actual BCL launch is blocked pending the complete original consumer. Scoped native review retains the conditional current25-range estimate30965/32768 with global/mapping/effect limits open; BCL hash literals occupy writable .data. Original r10 and r11 both remain FAILED180s/exit4 after48 completed reads, without first-create completion, OUT/FLUSH or normal cleanup. All failed originals are preserved. The expert is reviewing the next timing boundary and minimal copied syscall witnesses. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
