@@ -38,6 +38,9 @@ public static unsafe partial class EfiEntry
             internal uint Command, NotifyMultiplier, PrimaryPid;
             internal byte Phase; //1 retained,2 device,3 GPT,4 C mount,5 FS mount,6 pair ready,7 retired,8 quarantined.
             internal bool BootstrapStarted, EngineStarted, PortStarted, FsStarted, ProviderStarted, ReadAttached, WriteAttached, Attached;
+            internal bool UserCleanup;
+            internal uint Reaped, Transfers;
+            internal ulong CleanupClock, Epochs;
             internal VirtioMappedRegion Common, Notify, Configuration;
             internal MsixCapability Msix;
             internal B.State* Device;
@@ -73,6 +76,85 @@ public static unsafe partial class EfiEntry
             internal LiveEfiPartitionResult Esp;
         }
         private static NativeWritableOwner s_nativeWritable;
+
+        // The original outer supervisor owns the deadline and yields to the
+        // live NIC between bounded parser/device turns. Failure retains every
+        // partial owner; an iteration ceiling never establishes readiness.
+        private static bool RunNativeWritableDiskBootstrap(Storage* state)
+        {
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            {
+                if (state->CooperativePhase != 0 || state->LinuxDescriptorPhase != 4 || state->LinuxSyscallPhase != 4 ||
+                    state->LinuxMemory.HasMutationGuard || !LinuxSocketIoCurrent(state, network) || network->Phase != 2 ||
+                    !StartNativeWritableDisk(state)) return false;
+                uint pid = state->LinuxDescriptors.Owner.PackageProcessId;
+                for (uint turn = 0; turn < 3_000_000; turn++)
+                {
+                    if (!PumpLinuxSocketFrames(network)) return false;
+                    var progress = NativeWritableDiskBootstrapStep(state, pid);
+                    if (progress == NativeWritableDiskProgress.Rejected) return false;
+                    if (progress == NativeWritableDiskProgress.Ready) return true;
+                }
+                return false;
+            }
+        }
+
+        // No live worker, pending native handoff or user copy survives entry.
+        // Each turn services the NIC and gives each serialized disk source one
+        // pump. Only actual idle owners authorize the following Release.
+        private static bool QuiesceNativeWritableDisk(Storage* state, LinuxNativeControl* c)
+        {
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            {
+                if (!NativeWritableControl(state, c) || !LinuxSocketIoCurrent(state, network) ||
+                    !ReadNetworkTime(state, out ulong now) || now > (ulong)long.MaxValue - 120_000_000_000) return false;
+                ulong deadline = now + 120_000_000_000;
+                for (uint turn = 0; turn < 3_000_000; turn++)
+                {
+                    if (!PumpLinuxSocketFrames(network) || !ReadNetworkTime(state, out now) || now >= deadline) return false;
+                    var progress = QuiesceNativeWritableDiskStep(state, c);
+                    if (progress == NativeWritableDiskProgress.Rejected) return false;
+                    if (progress == NativeWritableDiskProgress.Ready) return true;
+                }
+                return false;
+            }
+        }
+
+        private static bool RecordNativeWritableUserCleanup(Storage* state, uint reaped, uint transfers, ulong epochs)
+        {
+            fixed (NativeWritableOwner* o = &s_nativeWritable)
+            {
+                if (!NativeWritableDiskAllowsOuterTeardown(state) || o->UserCleanup || reaped == 0 || transfers == 0 ||
+                    state->CooperativePhase != 6 || state->LinuxSyscallPhase != 6 || state->LinuxMemoryPhase != 6 ||
+                    state->LinuxDescriptorPhase != 6 || state->LinuxSyscallExitCode != 42 || state->LinuxSyscallFailed != 0 ||
+                    state->LinuxSyscallFaults != 0 || !ReadNetworkTime(state, out ulong now) || now < o->Evidence->LastClock) return false;
+                o->Reaped = reaped; o->Transfers = transfers; o->Epochs = epochs; o->CleanupClock = now; o->UserCleanup = true;
+                return true;
+            }
+        }
+
+        // Called only after the ordinary network core has checked its original
+        // allocator/PCI/canary receipts and actually retired/reset the NIC.
+        private static bool WriteNativeWritableDiskCompletion(Storage* state)
+        {
+            fixed (NativeWritableOwner* o = &s_nativeWritable)
+            fixed (NetworkOwnerStorage* network = &s_networkOwner)
+                return NativeWritableDiskAllowsOuterTeardown(state) && o->UserCleanup && state->NetworkPhase == 3 &&
+                    network->Device.Retired && network->Pool.AllocatedMask == 0 &&
+                    ReadNetworkTime(state, out ulong now) && now >= o->CleanupClock &&
+                    LinuxText(state, "M16_027_END owner=") && LinuxNumber(state, (ulong)o->Device) &&
+                    LinuxText(state, " epoch=") && LinuxNumber(state, NativeWritableEpoch) &&
+                    LinuxText(state, " reaped=") && LinuxNumber(state, o->Reaped) &&
+                    LinuxText(state, " transfers=") && LinuxNumber(state, o->Transfers) &&
+                    LinuxText(state, " irqs=") && LinuxNumber(state, o->Epochs) &&
+                    LinuxText(state, " submitted=") && LinuxNumber(state, o->Device->Submitted) &&
+                    LinuxText(state, " completed=") && LinuxNumber(state, o->Device->Completed) &&
+                    LinuxText(state, " submittedBytes=") && LinuxNumber(state, o->Device->SubmittedBytes) &&
+                    LinuxText(state, " completedBytes=") && LinuxNumber(state, o->Device->CompletedBytes) &&
+                    LinuxText(state, " flushAcknowledgedBytes=") && LinuxNumber(state, o->Device->DurableBytes) &&
+                    LinuxText(state, " clock=") && LinuxNumber(state, now) &&
+                    LinuxText(state, " process=drained timer=restored descriptors=closed mappings=restored pool=scrubbed nic=retired dma=zero reservation=retained\r\nCLROS_M16_027_READY\r\nTEST_PASS m16.027\r\n");
+        }
 
         // Each pointer is either installed once into zeroed backing or compared
         // to its original sizeof-derived location without changing any owner.

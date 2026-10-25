@@ -109,7 +109,8 @@ public static unsafe partial class EfiEntry
             LinuxNativeControl* c = (LinuxNativeControl*)(state->CooperativePool + NativeProgram.MetadataPage * Page);
             if (c->State != state || c->Key != (state->CooperativePool ^ 0x4d31363030384f57UL) || c->Phase < 1 || c->Phase > 4) return null;
 #if M16_027_PROBE
-            if (!LinuxNativeUserCarriersCurrent(c)) return null;
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+                if (!LinuxNativeUserCarriersCurrent(c) || !LinuxSocketIoCurrent(state, network)) return null;
 #endif
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
@@ -604,7 +605,7 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitCall(c, index, call)) return LinuxNativeAbort(c, index);
 #endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
@@ -776,7 +777,13 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
             c->UserPreempted = 0;
 #endif
+#if M16_027_PROBE
+            bool shutdown = c->Process.Shutdown(c->Key, 2, 99);
+            bool shutdownSampled = SampleNativeWritableDisk(c->State);
+            if (!shutdown || !shutdownSampled) return 0;
+#else
             if (!c->Process.Shutdown(c->Key, 2, 99)) return 0;
+#endif
             var current = c->Threads.Inspect(c->Key, 2, c->Threads.Current);
             if (!current.Succeeded) return 0;
             // BeginWait owns a Parking state until the genuine capture commits
@@ -878,7 +885,7 @@ public static unsafe partial class EfiEntry
                 }
                 else if (action is LinuxSyscallAction.ThreadExited or LinuxSyscallAction.Terminate)
                 {
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
                     if (!ObserveNativeDiskExitCommit(c, index, false)) return 0;
 #endif
 #if M16_027_PROBE
@@ -888,7 +895,7 @@ public static unsafe partial class EfiEntry
 #else
                     if (!c->Process.CommitExit(c->Key, 2, worker, out long clearTid)) return 0;
 #endif
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
                     if (!ObserveNativeDiskExitCommit(c, index, true)) return 0;
 #endif
                     if (!LinuxText(c->State, "M16_008_EXIT identity=") || !LinuxNumber(c->State, worker.Identity) ||
@@ -1163,7 +1170,16 @@ public static unsafe partial class EfiEntry
                 c->GuardAttached = 0;
             }
             if (c->ProcessAttached != 0)
-            { if (!c->Process.Release(c->Key, 2)) return false; c->ProcessAttached = 0; }
+            {
+#if M16_027_PROBE
+                bool released = c->Process.Release(c->Key, 2);
+                bool sampled = SampleNativeWritableDisk(c->State);
+                if (!released || !sampled) return false;
+#else
+                if (!c->Process.Release(c->Key, 2)) return false;
+#endif
+                c->ProcessAttached = 0;
+            }
             if (!LinuxNativeReleaseSignals(c)) return false;
             if (c->TableAttached != 0)
             { if (c->Threads.Release(c->Key, 2, supervisorRsp) != KernelThreadTable.Status.Ok) return false; c->TableAttached = 0; }

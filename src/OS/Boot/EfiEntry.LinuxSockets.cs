@@ -225,6 +225,41 @@ public static unsafe partial class EfiEntry
         }
         private static LinuxSocketIoCarrier s_linuxSocketIoCarrier;
 
+        // Independent original addresses and whole context sizes are checked
+        // at each native/pump boundary. Mutual equality between copied owners
+        // alone cannot bind the opaque callbacks to this boot's NIC and DMA.
+        private static bool LinuxSocketIoCurrent(Storage* state, LinuxSocketStorage* owner)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            fixed (NetworkOwnerStorage* hardware = &s_networkOwner)
+            fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
+            {
+                if (state != original || owner != network || carrier->Self != (ulong)carrier ||
+                    carrier->Boot != original || carrier->Owner != network || carrier->Device != &hardware->Device ||
+                    network->Boot != original || network->Device != &hardware->Device || network->Phase is not (1 or 2) ||
+                    original->NetworkPhase != 2 || carrier->NetworkArena != original->NetworkArena ||
+                    original->Memory.References.NetworkArenaStart != carrier->NetworkArena ||
+                    original->Memory.References.NetworkArenaPages != 8 || !hardware->Device.Running) return false;
+                var device = &hardware->Device; var pool = &hardware->Pool;
+                if (device->Self != (ulong)device || device->PoolEpoch != 226 || device->Input.Epoch != 226 ||
+                    device->Input.Pool != pool || device->Input.Mmio.Context != original || device->Input.Clock.Context != original ||
+                    device->Input.Clock.Read != (delegate* unmanaged<void*, ulong*, byte>)&ReadNetworkNanos || device->Ring.Context != original ||
+                    pool->Self != (ulong)pool || pool->Epoch != 226 || pool->Count != 8 ||
+                    pool->Slots != (OS.Drivers.DmaBufferSlot*)hardware->Metadata ||
+                    pool->Window.CpuVirtualBase != carrier->NetworkArena || pool->Window.PhysicalBase != carrier->NetworkArena ||
+                    pool->Window.DeviceBase != carrier->NetworkArena || pool->Window.ByteLength != 8 * Page ||
+                    device->Input.Common.VirtualStart != original->Memory.References.VirtioBarStart ||
+                    device->Input.Common.PhysicalStart != original->Memory.References.VirtioBarStart ||
+                    device->Input.Notify.VirtualStart != original->Memory.References.VirtioBarStart + 0x3000 ||
+                    device->Input.Notify.PhysicalStart != original->Memory.References.VirtioBarStart + 0x3000) return false;
+                return network->Phase == 1 || network->Network.OriginalIoContext == carrier &&
+                    network->Network.IoContextBytes == sizeof(LinuxSocketIoCarrier) && network->Network.Io.Context == carrier &&
+                    network->Network.Io.NowNanoseconds == (delegate*<void*, ulong>)&LinuxSocketNow &&
+                    network->Network.Io.Send == (delegate*<void*, byte*, uint, byte>)&LinuxSocketSendFrame;
+            }
+        }
+
         private static void* PrepareLinuxSocketIoCarrier(Storage* state, LinuxSocketStorage* owner)
         {
             fixed (Storage* original = &s_storage)
@@ -238,7 +273,7 @@ public static unsafe partial class EfiEntry
                     carrier->NetworkArena != 0) return null;
                 carrier->Boot = state; carrier->Owner = network; carrier->Device = network->Device;
                 carrier->NetworkArena = state->NetworkArena; carrier->Self = (ulong)carrier;
-                return carrier;
+                return LinuxSocketIoCurrent(state, network) ? carrier : null;
             }
         }
 
@@ -248,11 +283,7 @@ public static unsafe partial class EfiEntry
             fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
             fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
             {
-                if (context != carrier || carrier->Self != (ulong)carrier || carrier->Boot != original ||
-                    carrier->Owner != network || carrier->Device == null || carrier->Device != network->Device ||
-                    network->Boot != original || carrier->NetworkArena != original->NetworkArena ||
-                    original->Memory.References.NetworkArenaStart != carrier->NetworkArena ||
-                    network->Phase is not (1 or 2) || original->NetworkPhase != 2) return null;
+                if (context != carrier || !LinuxSocketIoCurrent(original, network)) return null;
                 return network;
             }
         }
@@ -443,6 +474,9 @@ public static unsafe partial class EfiEntry
 
         private static bool PumpLinuxSocketFrames(LinuxSocketStorage* o)
         {
+#if M16_027_PROBE
+            if (!LinuxSocketIoCurrent(o->Boot, o)) return false;
+#endif
             if (o->Phase != 2 || o->Failed != 0 || !o->Device->Running ||
                 NetDevice.Poll(o->Device, 8, out _) != NetDevice.Status.Success || !ObserveLinuxSocketLifetimes(o)) return false;
             Span<byte> input = new(o->Input, 1514), output = new(o->Output, 1514); o->Polls++;
@@ -746,7 +780,7 @@ public static unsafe partial class EfiEntry
 #endif
             bool observe = true)
         {
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
             fixed (NativeDiskOwner* disk = &s_nativeDisk)
 #endif
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
@@ -810,6 +844,21 @@ public static unsafe partial class EfiEntry
                 }
                 return !pollTracked || disk->TimingDispatch.EndPoll();
             }
+#elif M16_027_PROBE
+            {
+                if (!LinuxSocketIoCurrent(c->State, o) || observe && !RecordLinuxSocketPoll(c) ||
+                    !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
+                    observe && !RecordLinuxSocketPoll(c)) return false;
+                bool read = c->Process.PollDiskReadiness(c->Key, 2);
+                bool readSampled = SampleNativeWritableDisk(c->State);
+                if (!read || !readSampled) return false;
+                bool write = c->Process.PollWritableDiskReadiness(c->Key, 2);
+                bool writeSampled = SampleNativeWritableDisk(c->State);
+                if (!write || !writeSampled) return false;
+                bool descriptors = c->Process.PollDescriptorReadiness(c->Key, 2);
+                bool descriptorsSampled = SampleNativeWritableDisk(c->State);
+                return descriptors && descriptorsSampled && RecordLinuxSocketWaits(o, c);
+            }
 #else
                 return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&
                     RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
@@ -836,7 +885,11 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < c->Capacity; i++)
             {
                 var slot = c->Slots + i;
-#if M10_018_PROBE
+#if M16_027_PROBE
+                bool disk = slot->WaitSource == 4, writable = slot->WaitSource == 5;
+                if (slot->WaitSource != 3 && !disk && !writable || !slot->Wait.IsValid) continue;
+                if (disk && !slot->DiskOperation.IsActive || writable && !slot->WritableDiskOperation.IsActive) return false;
+#elif M10_018_PROBE
                 bool disk = slot->WaitSource == 4;
                 if (slot->WaitSource != 3 && !disk || !slot->Wait.IsValid) continue;
                 if (disk && !slot->DiskOperation.IsActive) return false;
@@ -850,12 +903,20 @@ public static unsafe partial class EfiEntry
                 if (observed.Completion == ThreadTable.Completion.None ||
                     o->WakeIdentities[i] == view.Kernel.Value && o->WakeSequences[i] == view.Wait.Sequence) continue;
                 if (!LinuxText(c->State,
-#if M10_018_PROBE
+#if M16_027_PROBE
+                    disk || writable ? "M16_027_WAKE identity=" :
+#elif M10_018_PROBE
                     disk ? "M16_025_WAKE identity=" :
 #endif
                     "M16_012_WAKE identity=") || !LinuxNumber(c->State, view.Kernel.Value) ||
                     !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
-#if M10_018_PROBE
+#if M16_027_PROBE
+                    (disk || writable) && (!LinuxText(c->State, " source=") || !LinuxNumber(c->State, slot->WaitSource) ||
+                        !LinuxText(c->State, " requestOwner=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOperation.Owner : slot->DiskOperation.Owner) ||
+                        !LinuxText(c->State, " requestEpoch=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOperation.Epoch : slot->DiskOperation.Epoch) ||
+                        !LinuxText(c->State, " request=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOperation.Generation : slot->DiskOperation.Generation) ||
+                        !LinuxText(c->State, " outputPrefix=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOutputBytes : slot->DiskOutputBytes)) ||
+#elif M10_018_PROBE
                     disk && (!LinuxText(c->State, " request=") || !LinuxNumber(c->State, slot->DiskOperation.Generation)) ||
 #endif
                     !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)observed.Completion) ||
@@ -902,6 +963,9 @@ public static unsafe partial class EfiEntry
                     if (LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out _))
                     {
                         long closed = LinuxDescriptorServices.Dispatch(&state->LinuxDescriptors, new() { Number = 3, Argument0 = fd });
+#if M16_027_PROBE
+                        if (!SampleNativeWritableDisk(state)) return false;
+#endif
                         if (!LinuxText(state, "M16_011_CLOSE fd=") || !LinuxNumber(state, fd) ||
                             !LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)closed)) ||
                             !LinuxText(state, "\r\n") || closed != 0) return false;

@@ -89,7 +89,9 @@ public static unsafe partial class EfiEntry
             }
 #endif
             state->NetworkPhase = 3;
-#if M16_025_PROBE
+#if M16_027_PROBE
+            if (!WriteNativeWritableDiskCompletion(state)) return false;
+#elif M16_025_PROBE
             if (!WriteNativeDiskCompletion(state)) return false;
 #endif
 #if M10_017_PROBE || M10_018_PROBE
@@ -176,7 +178,9 @@ public static unsafe partial class EfiEntry
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                 return LinuxWebRetainFailure(state, null, success ? 5U : 6U);
 #else
-#if M16_025_PROBE
+#if M16_027_PROBE
+                if (!NativeWritableDiskAllowsOuterTeardown(state)) return false;
+#elif M16_025_PROBE
                 // No NIC/DMA teardown may follow an uncertain disk stop. Disk
                 // backing and callbacks outlive pre-user bootstrap, including
                 // failed Linux metadata publication and rejected preparation.
