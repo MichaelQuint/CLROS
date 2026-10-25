@@ -1,5 +1,24 @@
 # EFI Build
 
+## Writable clock repair publication (step1617)
+
+Fresh source `d3c6b005` publishes a1229824-byte Diagnostic M16-027 EFI,
+SHA256 `41C2F490059B863E1AD0FE89CC279650A69C6122490537FDDC010016513E7CB3`.
+Its verifier retains1023 source inputs and8 verifier inputs unchanged;2321
+runtime records contain1844 distinct unwind records. The live network clock
+guard stays unchanged; only the already-retired writable END caller selects the
+private owned clock core after its existing teardown checks.
+
+Original-byte audit preserves256866 instructions and44779 branch encodings.
+The expanded338 roots reach1525 runtime functions with zero instruction coverage
+gaps and304 retained indirect sites, including the separately discovered terminal
+Fault/NMI callback. These are census facts, not a complete native stack or
+allocation proof. Eight exact inline stack probes have conditional finite
+transfer summaries; entry capacity, mapping and interrupt obligations remain
+explicit. The selected mechanical build uses eight usable worker pages, sixteen
+switch pages and four timer IRQ pages; the web profile's sixteen worker pages
+cannot be substituted. See [step1617](../done/step1617.md) for evidence and failures.
+
 ## Selected writable publication review (step1616)
 
 Original Diagnostic M16-027 publication at70697d6b produces1229824-byte EFI SHA256
@@ -23,7 +42,7 @@ Direct frames/census do not establish complete no-allocation, IRQ, dynamic-stack
 or transitive-stack bounds. Fresh source-matched publication and guest evidence
 remain required after those obligations close.
 
-[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
 
 
 [Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.

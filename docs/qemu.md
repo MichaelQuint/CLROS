@@ -1,5 +1,10 @@
 # QEMU
 
+The [step1617](../done/step1617.md) final-clock repair has a fresh native
+publication, but no writable QEMU original is admitted by its static receipts.
+The first Mechanical30/LogUpload40 run still follows the callback, stack and
+interrupt review. All earlier failed read/HTTP captures retain their status.
+
 ## Writable original-run owner (step1616)
 
 The explicit development selection is `-BuildEfi -EnableM16027Probe` with
@@ -27,7 +32,7 @@ held-input/native rechecks. Optional raw-observation capture must validate in
 that held lifetime. A copied-value report or terminal marker supplies none of
 these original-run authorities. Physical durability remains unqualified.
 
-[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
 
 
 [Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.

@@ -1,6 +1,6 @@
 # Boot Order
 
-[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
 
 
 ## Qualified Linux application path
