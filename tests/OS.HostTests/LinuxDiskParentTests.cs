@@ -16,6 +16,91 @@ internal static class LinuxDiskParentTests
     private static readonly BclPackageInspector InspectBclPackage=typeof(NativeAotLogUploadContract).GetMethod("InspectClrosPackageCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<BclPackageInspector>();
     private static readonly StartupValueConsumer InspectStartupValues=typeof(QemuTranscripts).GetMethod("ValidateLinuxStartupTailCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<StartupValueConsumer>();
 
+    [HostTest("writable copied full parents preserve canonical30 and40 staging startup HPET roots and zero TCP without qualifying their leaf")]
+    private static void WritableFullParents()
+    {
+        foreach(bool logUpload in new[]{false,true})
+        {
+            byte[] package=logUpload?LinuxWritableDiskProofFixture.CreateLogUploadPackage():LinuxWritableDiskProofFixture.CreatePackage();
+            string[] rows=WritableParentRows(package),before=rows.ToArray();byte[] original=package.ToArray();
+            var report=QemuTranscripts.InspectWritableDiskParentValues(rows,package,logUpload);
+            HostCheck.Equal(16_777_216UL,report.Parent.UserRoot);HostCheck.Equal(33_554_432UL,report.Parent.KernelRoot);
+            HostCheck.Equal(1_000_000UL,report.Parent.Frequency);HostCheck.Equal(1_000_000_000UL,report.Parent.Period);
+            HostCheck.Equal(268_435_456UL,report.Parent.Dma);HostCheck.Equal(4_500_000UL,report.Parent.PeerStart);HostCheck.Equal(5_000_000UL,report.Parent.PeerEnd);
+            HostCheck.True(report.Parent.Records>QemuContracts.M03OwnedSubsystemMarkers.Count && report.Parent.Arp.ReceiveBytes>0 &&
+                report.Phase=="" && !report.HasPreparedBclProgram && !report.CheckedLeaf && !report.CheckedFirmwareFilesOrOriginalProcess &&
+                !report.GrantsSourceSchedulerGuestOrPersistenceAuthority && report.PackageSha256==Convert.ToHexString(SHA256.HashData(package)));
+            HostCheck.True(rows.SequenceEqual(before) && package.AsSpan().SequenceEqual(original));
+            Array.Fill(rows,"modified");package.AsSpan().Clear();
+            HostCheck.Equal(Convert.ToHexString(SHA256.HashData(original)),report.PackageSha256);
+        }
+    }
+
+    [HostTest("writable copied full parents reject late cleanup HPET staging root and TCP substitutions after a valid prefix")]
+    private static void WritableFullParentFailures()
+    {
+        byte[] package=LinuxWritableDiskProofFixture.CreateLogUploadPackage();string[] rows=WritableParentRows(package);
+        _=QemuTranscripts.InspectWritableDiskParentValues(rows,package,logUpload:true);
+        foreach(var change in new[]{("handlesClosed=2","handlesClosed=1"),("reads=1","reads=0"),
+            ("ranges=65","ranges=67"),("source=owned-hpet","source=firmware"),("frequency=1000000","frequency=2000000"),
+            ("start=4500000","start=4000000"),("nic=retired","nic=live"),("flushAcknowledgedBytes=512","flushAcknowledgedBytes=0"),
+            ("stage=5 a=8","stage=5 a=7")})
+        {
+            string[] changed=rows.Select(r=>r.Replace(change.Item1,change.Item2,StringComparison.Ordinal)).ToArray();
+            HostCheck.True(!rows.SequenceEqual(changed),change.Item1);
+            DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues(changed,package,logUpload:true));
+        }
+        int leaf=Array.IndexOf(rows,"TEST_START m16-009");
+        DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues([..rows[..(leaf+1)],"M16_011_SLOT event=0",..rows[(leaf+1)..]],package,true),"signal_epoll_no_tcp_lifetimes");
+        DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues([..rows,"unexpected tail"],package,true),"socket_parent_extra_record");
+        DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues(rows,package,logUpload:false));
+    }
+
+    [HostTest("writable copied full parents require the prepared BCL discriminator and reject malformed bounded rows")]
+    private static void WritableParentSelectionAndBounds()
+    {
+        foreach(string phase in new[]{"write","verify"})
+        {
+            var (package,_)=CopiedBclPackage(phase);string[] rows=WritableParentRows(package);
+            foreach(bool logUpload in new[]{false,true})
+                DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues(rows,package,logUpload));
+        }
+        byte[] ordinary=LinuxWritableDiskProofFixture.CreatePackage();string[] good=WritableParentRows(ordinary);
+        foreach(string[] input in new string[][]{[],["bad\0row"],["nonascii µ"],[new string('x',2049)],new string[131073],null!})
+            DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues(input,ordinary),"writable_parent_input");
+        DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues(good,null!),"writable_parent_input");
+        DenyStartup(()=>QemuTranscripts.InspectWritableDiskParentValues(good,[]));
+    }
+
+    // Full copied parents with an intentionally unvalidated placeholder leaf.
+    // Reused by the ignored original-B8 prepared-input readback; no guest runs.
+    internal static string[] WritableParentRows(byte[] package)
+    {
+        var view=LinuxElfPackage.Validate(package);HostCheck.True(view.Succeeded);
+        string Hash(ReadOnlySpan<byte> bytes)=>Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
+        string[] staged=["TEST_START m16-002",FormattableString.Invariant($"M16_002_STAGED bytes={package.Length} payload={view.PayloadBytes} pages={(package.Length+4095)/4096} handlesClosed=2 reads={(package.Length+65535)/65536}"),
+            "M16_002_DIGEST "+Hash(package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes)),"M16_002_PACKAGE_DIGEST "+Hash(package),
+            "M16_002_OWNED firmware=exited package=read-only-nx ledger=valid fileBytes=64 entry=false","CLROS_M16_002_READY","TEST_PASS m16-002"];
+        string[] startup=MappedStartupRows(package,view.PayloadBytes==NativeAotLogUploadContract.ClrosElfBytes?67UL:65UL)[^7..];
+        string[] service=["TEST_START m16-003","M16_003_CLOCK frequency=1000000 period=1000000000 recoveries=0 source=owned-hpet",
+            ..Enumerable.Range(1,4).Select(i=>FormattableString.Invariant($"M16_003_ITERATION index={i} ticks={i*1000+1}")),
+            ..Enumerable.Range(0,8).Select(i=>"M16_003_FIRMWARE_DENIED index="+i+" status=ServicesUnavailable providers=1 outputs=unchanged"),
+            "M16_003_STOP iterations=4 reads=5 first=1 last=4001 interval=1000 firmware=revoked providers=1 shutdown=owned-controller","CLROS_M16_003_READY","TEST_PASS m16-003"];
+        var rows=NativeAotSocketIntegrationTests.Envelope(true).ToList();int owned=QemuContracts.M03OwnedSubsystemMarkers.Count;
+        rows.RemoveRange(owned,31);rows.InsertRange(owned,[..staged,..startup,..service]);
+        int first=rows.IndexOf("TEST_START m16-009"),last=rows.IndexOf("TEST_PASS m16-009");
+        rows.RemoveRange(first+1,last-first-1);rows.Insert(first+1,"parent-only leaf deliberately unchecked");
+        void Set(string prefix,string value)=>rows[rows.FindIndex(r=>r.StartsWith(prefix,StringComparison.Ordinal))]=value;
+        Set("M16_011_PEER ","M16_011_PEER mac=90525193470466 sent=1 received=1 start=4500000 end=5000000");
+        Set("M16_011_WIRE ","M16_011_WIRE received=0 arp=0 accepted=0 ignored=0 capacity=0 arpCopied=0 tcpCopied=0");
+        Set("M16_011_END ","M16_011_END polls=1 received=0 copied=0 fresh=0 retired=0 start=4400000 end=500000000 maxDeadline=0 retained=0 buffers=scrubbed descriptors=closed workers=reaped");
+        Set("M07_026_ROW stage=4 ","M07_026_ROW stage=4 a=1 b=1 c=1 d=2");
+        int terminal=rows.IndexOf("CLROS_M07_026_READY");
+        rows.InsertRange(terminal,["M16_027_END owner=16781312 epoch=272 reaped=1 transfers=60 irqs=0 submitted=100 completed=100 submittedBytes=512 completedBytes=512 flushAcknowledgedBytes=512 clock=500000001 process=drained timer=restored descriptors=closed mappings=restored pool=scrubbed nic=retired dma=zero reservation=retained",
+            "CLROS_M16_027_READY","TEST_PASS m16.027"]);
+        return rows.ToArray();
+    }
+
     [HostTest("disk startup copied BCL write and verify geometry requires four loads TLS and67 ranges without preparing a program")]
     private static void BclStartupValues()
     {

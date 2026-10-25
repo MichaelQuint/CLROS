@@ -216,17 +216,54 @@ public static partial class QemuTranscripts
     private sealed record DiskCaptureParents(WebParentReport Parent, SocketNetworkProof Network,
         Dictionary<string,ulong> Clock, ulong[] OldPages, ulong[] NicBinding);
 
-    private static DiskCaptureParents ValidateLinuxDiskCaptureParents(string[] rows, byte[] package,
-        LinuxDiskExitPendingDeviceValues? pending = null, bool writableDisk = false, bool logUpload = false)
+    /// <summary>Copied complete parent observations. Phase is empty for the
+    /// canonical mechanical30/40 routes. Neither this report nor its prepared
+    /// BCL discriminator validates the opaque leaf, raw firmware, actual file
+    /// holds, process, instruction execution, packets or persistence.</summary>
+    public readonly record struct WritableDiskParentValues(WebParentReport Parent, string PackageSha256,
+        string Phase, bool HasPreparedBclProgram)
     {
-        Need(!logUpload || writableDisk,"writable_parent_selection");
+        public bool CheckedLeaf => false;
+        public bool CheckedFirmwareFilesOrOriginalProcess => false;
+        public bool GrantsSourceSchedulerGuestOrPersistenceAuthority => false;
+    }
+
+    /// <summary>Synchronously borrow a stable package and complete already-framed
+    /// ASCII rows, copying rows before strict package/staging/startup/service/
+    /// APIC/NIC/HPET/root/cleanup validation. Null program admits only canonical
+    /// mechanical30/40. A nonnull prepared B8 program requires logUpload and its
+    /// exact phase package; four loads alone never select BCL. The mechanical
+    /// network envelope still rejects TCP. Its leaf extent is deliberately opaque:
+    /// this parent-only value API validates no stdout, scheduler, runtime, source,
+    /// firmware file, original runner, packet or image evidence. Inputs remain
+    /// caller-owned; malformed/unsupported input throws ToolFailure.</summary>
+    public static WritableDiskParentValues InspectWritableDiskParentValues(string[] rows, byte[] package,
+        bool logUpload = false, NativeAotLogUploadProgram? logUploadProgram = null)
+    {
+        Need(rows is {Length:>0 and <=131072} && rows.All(row=>row is {Length:>0 and <=2048} &&
+            row.All(c=>c is >= ' ' and <= '~')),"writable_parent_input");
+        byte[] input=package??throw new ToolFailure("writable_parent_input");
+        Need(logUploadProgram is null || logUpload,"writable_parent_selection");
+        string[] copied=rows.ToArray();
+        if(logUploadProgram is not null) _=NativeAotLogUploadContract.InspectClrosPackage(input,logUploadProgram.Phase);
+        else if(logUpload) LinuxWritableDiskProofFixture.RequireLogUploadPackage(input);
+        else LinuxWritableDiskProofFixture.RequirePackage(input);
+        var inspected=ValidateLinuxDiskCaptureParents(copied,input,writableDisk:true,logUpload:logUpload,logUploadProgram:logUploadProgram);
+        return new(inspected.Parent,Convert.ToHexString(SHA256.HashData(input)),logUploadProgram?.Phase??"",logUploadProgram is not null);
+    }
+
+    private static DiskCaptureParents ValidateLinuxDiskCaptureParents(string[] rows, byte[] package,
+        LinuxDiskExitPendingDeviceValues? pending = null, bool writableDisk = false, bool logUpload = false,
+        NativeAotLogUploadProgram? logUploadProgram = null)
+    {
+        Need((!logUpload || writableDisk) && (logUploadProgram is null || writableDisk && logUpload && pending is null),"writable_parent_selection");
         var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending,writableDisk:writableDisk);
         int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
         int parentsEnd = owned + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
         int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - owned;
         int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
         string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
-        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null,writableDisk:writableDisk,logUpload:logUpload);
+        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null,writableDisk:writableDisk,logUpload:logUpload,logUploadProgram:logUploadProgram);
         original = ValidateLinuxElfTail(original, package!);
         string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
         int[] varying = [3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,
