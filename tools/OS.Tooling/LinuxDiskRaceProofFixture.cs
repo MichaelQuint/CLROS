@@ -232,7 +232,9 @@ public static class LinuxDiskRaceProofFixture
         if (exiting)
         {
             c.Fill(ParentOutput, 8192, Sentinel);
-            c.Call("child.witness", 1, 1, ImageBase + 0x180, (uint)Witness(variant).Length, Witness(variant).Length);
+            // The comparison above reads the original sentinel. Exit is the
+            // first child syscall: stdout would legitimately pump the read
+            // before exit intent, defeating this outstanding-request control.
             c.Syscall("child.group-exit", 231, 42, 0, 0, 0); c.JumpFailure();
         }
         else

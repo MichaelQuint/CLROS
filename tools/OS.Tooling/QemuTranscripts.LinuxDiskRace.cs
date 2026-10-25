@@ -453,7 +453,7 @@ public static partial class QemuTranscripts
                 if (exitStage == 0)
                 {
                     var p = workers[0].Pending;
-                    Need(MainPending() && selected == 1 && witness && !groupExit && workers[1].Calls < workers[1].Plan.Count &&
+                    Need(MainPending() && selected == 1 && !witness && !groupExit && workers[1].Calls == 0 && workers[1].Calls < workers[1].Plan.Count &&
                         workers[1].Plan[workers[1].Calls].Role == "child.group-exit" &&
                         p is not null && v["ordinal"] == p.Ordinal && v["sequence"] == p.Sequence && v["generation"] == p.Request &&
                         v["rip"] == p.Spec.ReturnRip && v["outputBytes"] == p.Spec.OutputBytes &&
@@ -520,10 +520,11 @@ public static partial class QemuTranscripts
             }
             if (line.StartsWith("M16_005_WRITE ", StringComparison.Ordinal))
             {
-                int w = exitPending ? 1 : 0; Select(w);
+                Need(!exitPending, "disk_race_exit_unexpected_stdout");
+                int w = 0; Select(w);
                 fifo?.Running(w);
-                Need(!witness && (exitPending ? MainPending() : workers[0].Pending is null && workers[1].Reaped) &&
-                    workers[w].Calls < workers[w].Plan.Count && workers[w].Plan[workers[w].Calls].Role == (exitPending ? "child.witness" : "main.witness"), "disk_race_witness_order");
+                Need(!witness && workers[0].Pending is null && workers[1].Reaped &&
+                    workers[w].Calls < workers[w].Plan.Count && workers[w].Plan[workers[w].Calls].Role == "main.witness", "disk_race_witness_order");
                 Exact("M16_005_WRITE fd=1 bytes=" + Race.Witness(variant).Length + " data=" + Race.Witness(variant)); witness = true; continue;
             }
             if (line.StartsWith("M16_008_CALL ", StringComparison.Ordinal))
@@ -585,7 +586,8 @@ public static partial class QemuTranscripts
                     {
                         if (exitPending)
                         {
-                            Need(w == 1 && e.Role == "child.group-exit" && MainPending() && witness && !groupExit, "disk_race_pending_group_exit");
+                            Need(w == 1 && e.Role == "child.group-exit" && owner.Calls == 1 && owner.Ordinal == 1 &&
+                                MainPending() && !witness && !groupExit, "disk_race_pending_group_exit");
                             var p = workers[0].Pending!;
                             abandoned.Add(new(p.Index, index, workers[0].Identity, p.Ordinal, p.Sequence, p.Request, p.Spec.OutputBytes));
                             if (fifo is null) workers[0].Pending = null;
@@ -683,8 +685,8 @@ public static partial class QemuTranscripts
         var end = ReadRecord(ownerEnd[..^cleanup.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
         Need(end["reaped"] == 2 && end["transfers"] == (ulong)transfers && end["irqs"] == epoch && end["exit"] == 42, "disk_race_owner_end");
         Exact("M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true"); Exact("CLROS_M16_009_READY"); Exact("TEST_PASS m16-009");
-        Need(at == rows.Length && waits.Count == calls.Count && returns.Count == calls.Count && witness && mainRead >= 0 &&
-            (exitPending ? mainComplete == -1 && groupExit && abandoned.Count == 1 : mainComplete > mainRead &&
+        Need(at == rows.Length && waits.Count == calls.Count && returns.Count == calls.Count && mainRead >= 0 &&
+            (exitPending ? !witness && workers[1].Calls == 1 && mainComplete == -1 && groupExit && abandoned.Count == 1 : witness && mainComplete > mainRead &&
                 (close ? childClose > mainRead && childClose < mainComplete : signalRace ? childSignal > mainRead && childSignal < mainComplete && handlerReturned :
                  childDuplicate > mainRead && childDuplicate < mainComplete)),
             "disk_race_terminal");

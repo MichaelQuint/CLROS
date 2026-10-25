@@ -12,7 +12,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "0154310cd3d0d8b294eba266fdfea37389eccf23bdbbc38a3ca2f5a0c363afba",
                 [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "bb09afc107d9405af85ef70520e36d566c1ea27fc38e8d2a7709deff48d6762b",
-                [@"Boot\EfiEntry.DiskEvidence.cs"] = "ea6eb50dde22da537489cb6d8fb9c001f6f36d761405a6dac1f6c4c738d1525b",
+                [@"Boot\EfiEntry.DiskEvidence.cs"] = "69d3a174cc93ec6858b8c11d6cc83daf84469dac1b3a62d43e66e588b6609708",
                 [@"Boot\EfiEntry.DiskBootstrap.cs"] = "89e8acf5685b78d48f1078deba8f8177cf7ca2efa570e1e66a8be9a13f79ec8d",
                 [@"Boot\EfiEntry.DiskNative.cs"] = "b04a76b9d38d52522a4e063b4a6d439d14737815401e6fcceca98cfdfeef12f7",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs"] = "eedd501f486cf9e0f17129577a909d9e18e1320babb90aad31f3b3e92b4e1fe6",

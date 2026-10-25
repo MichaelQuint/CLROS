@@ -6,6 +6,17 @@ using F = OS.Tooling.LinuxDiskRaceProofFixture;
 
 internal static class LinuxDiskRaceProofFixtureTests
 {
+    [HostTest("exit pending child compares the sentinel and enters exit as its first syscall without a stdout progress opportunity")]
+    private static void ExitFirstChildCall()
+    {
+        var calls = F.Calls("ExitPending", child: true);
+        HostCheck.Equal(1, calls.Count); HostCheck.Equal("child.group-exit", calls[0].Role);
+        HostCheck.Equal(231UL, calls[0].Number); HostCheck.Equal(42UL, calls[0].A0);
+        HostCheck.True(F.InstructionRips("ExitPending", child: true).Count > 8);
+        foreach (string variant in F.Variants.Where(v => v != "ExitPending"))
+            HostCheck.True(F.Calls(variant).Any(c => c.Role == "main.witness"));
+    }
+
     [HostTest("exit pending native selection authenticates the entire independently generated package")]
     private static void ExitPendingNativeIdentity()
     {

@@ -35,8 +35,8 @@ public static unsafe partial class EfiEntry
             if (state == null || state->LinuxBytes != 29002 || state->LinuxPackage == 0) return false;
             ulong* digest = stackalloc ulong[4];
             return OS.Std.Hash.Sha256.TryCompute((byte*)state->LinuxPackage, state->LinuxBytes, (byte*)digest, 32) &&
-                digest[0] == 0x2a4881983874f4b9 && digest[1] == 0x037fcacb4905c660 &&
-                digest[2] == 0x05672652b4492982 && digest[3] == 0x067ec74832c2b4cb;
+                digest[0] == 0xf1c4de52c3eb7a3b && digest[1] == 0x8e4cd7a7c9450031 &&
+                digest[2] == 0x8c14b69e6c088bcd && digest[3] == 0x3988b80eabe968e3;
         }
 
         // Called before the child's real exit_group dispatch. A source4 wait

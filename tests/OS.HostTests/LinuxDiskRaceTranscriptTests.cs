@@ -57,6 +57,9 @@ internal static class LinuxDiskRaceTranscriptTests
         int oldSupervisor = Array.FindIndex(old, r => r.StartsWith("M16_008_SUPERVISOR identity=" + F.ChildIdentity, StringComparison.Ordinal));
         Inspect(Change(old, oldSupervisor, "ready", 0), F.CreatePackage("ExitPending")); // Explicit old upper-bound hole.
         int first = Index(rows, "M16_025_EXIT_PENDING stage=1 "), second = Index(rows, "M16_025_EXIT_PENDING stage=2 ");
+        Deny([..rows[..first], $"M16_005_WRITE fd=1 bytes={F.Witness("ExitPending").Length} data={F.Witness("ExitPending")}", ..rows[first..]]);
+        int childCall = Array.FindIndex(rows, r => r.StartsWith("M16_008_CALL identity=" + F.ChildIdentity + " nr=231 ", StringComparison.Ordinal));
+        HostCheck.True(childCall >= 0); Deny(Change(rows, childCall, "ordinal", 2));
         int sixth = Index(rows, "M16_025_EXIT_PENDING stage=6 "), lastClose = Index(rows, "M16_011_CLOSE fd=7 ");
         Deny([..rows[..first], rows[first + 1], rows[first], ..rows[(first + 2)..]]);
         Deny([..rows[..second], "M16_008_RESUME identity=" + F.MainIdentity + " valueBits=0 status=1", ..rows[second..]]);
@@ -506,7 +509,7 @@ internal static class LinuxDiskRaceTranscriptTests
         Planned(0); Drain(0); Supervisor(0, 3, 1);
         if (variant == "ExitPending")
         {
-            Planned(1); Planned(1); Drain(1); rows.Add($"M16_008_EXIT identity={F.ChildIdentity} clearTidResult=0"); Supervisor(1, 2, 1); Reap(1);
+            Planned(1); Drain(1); rows.Add($"M16_008_EXIT identity={F.ChildIdentity} clearTidResult=0"); Supervisor(1, 2, 1); Reap(1);
             pending[0] = null; rows.Add($"M16_008_EXIT identity={F.MainIdentity} clearTidResult=0"); Supervisor(0, 4, 0); Reap(0);
         }
         else
