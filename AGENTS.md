@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1601](done/step1601.md) Root owns host catalog admission and verifier controls. Host EfiPeImage permits4096file-backed records; kernel unwind MaximumFunctions remains2048. Timing profile must keep allM04/EH probes disabled; never broaden kernel EH to satisfy host catalog growth. Preserve timingr01/r02 failures and require a new committed original. Exactly two agents continue borrowed close and separate SQLite recovery opt-in; root native lease remains exclusive.
+
 [Step1600](done/step1600.md) Exactly two implementation agents remain active: borrowed global-disk Busy handling and explicit receipt-bound SQLite archive dependency validation. Root owns all shared hooks, thread pins, native publication, documentation and tracker work. M10018Timing is a default-off short health/HEAD/64KiB-range/health diagnostic, with one aggregate and intentional joined runner cancellation; preserve fairness/per-step flush and do not promote it to full or cleanup qualification. SQLite d1 r04 failed compile-r0 at600s; its archive and process cleanup are retained.
 
 [Step1597](done/step1597.md) The integration branch now has fresh writable stat/lstat/root facts, source5 metadata pins and measured nonblocking flock; do not confuse their host controls with native writable activation. ExitPending must make exit_group its child first syscall: an earlier stdout witness can consume the outstanding read. Preserve failed originals. Normal application lifetime follows the continuing-service contract in step1599.

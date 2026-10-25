@@ -1,5 +1,7 @@
 <p align="center">
 
+[Step1601](done/step1601.md) The short timing producer compiles but its original r02 hit the former host catalog limit before guest launch. Expert-reviewed host-only capacity is now4096 with full row scans and over-bound rejection; the separate kernel unwind decoder stays2048 and is off for this profile. New diagnostic and full Blazor evidence remain pending.
+
 [Step1600](done/step1600.md) Host integration now reads the webroot through the same writable block owner, with explicit Busy retention in the filesystem; global descriptor integration is continuing. The128MiB combined web/data fixture and cold log/upload fake-media controls preserve the ESP and distinguish completed synchronization. An explicit default-off short disk timing diagnostic is prepared; fresh native measurements and full A/B/browser qualification remain pending. SQLite Linux r04 failed its600s compile deadline and is preserved; no new SQLite success follows.
 
 [Step1597](done/step1597.md) Writable metadata now includes fresh stat/lstat for confined files and /data, real source5 waits and nonblocking open-description flock. These host slices preserve copied paths, exact 144-byte output lifetimes and cursor ownership. The new exit-first race fixture needs a fresh original; full Blazor, continuing integrated service and durable SQLite remain unqualified.

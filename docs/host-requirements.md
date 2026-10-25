@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1601](../done/step1601.md) The host PE verifier bounds catalog storage/scan at4096rows and48KiB pdata, using managed file-backed observations only. Distinct4096scan3ms satisfies unchanged1s parser criterion; existing120s fixture process guard stays unchanged. Kernel decoder2048 and selected M04isolation remain required.
+
 [Step1600](../done/step1600.md) Retain pinned .NET11/C#14. Short timing host checks retain exact independent response bytes and owned runner joining; component times include boundary overhead. SQLite compilation still defaults to two fresh600s attempts; original r04 timeout does not justify an increased deadline or unverified object reuse. Native/guest work remains serialized with confirmed child cleanup.
 
 [Step1597](../done/step1597.md) Focused host integration covers fresh confined path/root metadata, real source5 output lifetime and nonblocking flock. Exact graph/fixture commands, producer identities and preserved failures belong to step1597. Native publication remains serialized with guest work, and unchanged-input full/native/ancestor gates remain required at acceptance. Finite test limits are not the normal application runtime policy.

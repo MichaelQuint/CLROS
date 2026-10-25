@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1601](../done/step1601.md) Timingr01 failed canonical XML admission before compilation; r02 compiled but failed the former2048 host catalog cap with2055rows, before guest. Expert review and actual original flags separate the host scan from disabled M04kernel decoder. Host4096 full-row/over-bound controls pass; failed originals are preserved and fresh timing evidence is still pending.
+
 [Step1600](../done/step1600.md) M10_018_TIMING counts actual completed disk-user reads after real listen, freezes at65536B and prints one bounded aggregate. Optional supervisor-owned DiskPumpMeasurements records pump/scan/flush and exclusive disk-ready/other-ready/no-advance/elapsed/step-limit reasons without new per-step prints. Measurement boundaries add overhead; durations overlap existing serial/device intervals and are not hardware latency. A short intentional runner cancellation is diagnostic-only.
 
 [Step1597](../done/step1597.md) The revised ExitPending child makes exit_group its first and only syscall, with no preceding stdout witness. Its strict consumer rejects the old observer sequence and requires the real pending read, cancellation/reset and cleanup stages. This is a new package requiring fresh native evidence; the failed b94028a8 original remains failed. Disk progress uses separate flushed primitives, bounded extra steps and ready-worker yielding.

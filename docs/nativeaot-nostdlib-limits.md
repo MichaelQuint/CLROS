@@ -1,5 +1,7 @@
 # NativeAOT NoStdLib Limits
 
+[Step1601](../done/step1601.md) The host file-backed PE catalog now permits4096records; this does not expand the kernel unwind decoder MaximumFunctions2048 or its snapshot/lookup/EH contract. An enabled kernel unwind probe still rejects a whole table beyond2048 with CapacityExceeded. The timing disk profile requires everyM04flag off and does not invoke that decoder.
+
 The isolated continuing-disk profile has original ILC/link/artifact verification
 and two retained failed diagnostic guests in steps1566/1567. The second reaches
 exit/startup/NIC records before memory admission rejects its 65 static mappings.

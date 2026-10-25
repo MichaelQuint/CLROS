@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1601](../done/step1601.md) Host catalog/profile controls establish no new guest milestone: timingr01/r02 stop before guest; fullr06 remains failed and browser never entered. The host4096 catalog change preserves kernel2048 unwind behavior. New timing/full/persistence/SQLite originals and stable acceptance gates remain required.
+
 [Step1600](../done/step1600.md) New shared-owner filesystem, combined image, cold media and timing controls are scoped host preparation. Full read r06 is failed; new short timing/native results are pending. Linux SQLite r04 is failed before publication. No full read/Blazor, sustained service, writable guest persistence, SQLite durability/recovery, cloud or production gate closes.
 
 [Step1597](../done/step1597.md) Fresh writable metadata, nonblocking flock and separate SQLite verifier/publication tooling are host development support. The revised exit-first race package still requires a fresh original; failed full/read-race runs remain failed. No write/flush, persistence, SQLite, read/browser or general-hosting gate closes. Complete product acceptance requires the continuously functioning integrated scenario in step1599.

@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1601](../done/step1601.md) Host full-PE catalog admission is4096 (48KiB pdata; bounded managed List/Dictionary scan), separately from unchanged2048 kernel unwind snapshots. Timing/full/018 actual flags have allM04=false and no decoder startup call.23verifier checks pass including full4096distinct scan3ms,2055regression and4097rejection with unchanged1s scan criterion. Originalr02 failed2055/2048 before guest; a fresh native/original remains required.
+
 [Step1600](../done/step1600.md) The timing candidate changes reviewed source/project pins and adds an explicit default-off M10_018_TIMING_PROBE; host graph and focused controls pass. Its emitted native catalog/ABI/local-frame review and fresh guest are still pending. The previous b940 full count2047/2048 remains historical; no catalog limit was raised for this preparation. Writable EFI activation stays absent.
 
 [Step1597](../done/step1597.md) The b94028a8 full-read candidate has 2047 runtime entries and 1620 distinct unwind records under the unchanged 2048 admission cap. Automated compiler-metadata review joins the original image/map and reports local frames only, excluding whole-stack bounds. The writable integration and new exit-first package require their own committed producer and native qualification. Per-application manual disassembly is not a deployment requirement.
@@ -3229,11 +3231,11 @@ termination of both processes and release of the sentinel, including when the
 parent exits while its descendant remains. These are controlled host checks;
 they preserve Job Object ownership and the output-drain and termination checks.
 
-The broader PE/link-evidence negative-fixture wrapper likewise allows 45
+The broader PE/link-evidence negative-fixture wrapper allows 120
 seconds for a verifier process to return its precise stable diagnostic. The
-same hard 45-second ceiling bounds each maximum-capacity verifier process,
+same existing hard 120-second ceiling bounds each maximum-capacity verifier process,
 while stable in-process markers separately require both the 4,096-token link
-response scan and the 2,048-record runtime-function scan to complete within
+response scan and the 4,096-record host runtime-function scan to complete within
 one second. The response timer accumulates tokenization, option-policy regexes,
 map-path parsing, and every token's object-path normalization/match pass, while
 pausing around linked-map authority-handle and identity-hash I/O. This

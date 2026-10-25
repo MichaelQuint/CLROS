@@ -14,8 +14,11 @@ internal static class NativeAotDiskStaticProfileTests
         HostCheck.True(!OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe);
         var plan=QemuProfiles.Create(QemuSmokeOptions.Parse([..Arguments,"-EnableM10018TimingProbe"]));
         HostCheck.True(NativeAotDiskSelection.TimingSelected(plan.Flags) && plan.IsEnabled("EnableM10018FullProbe"));
+        HostCheck.True(plan.Flags.Where(p=>p.Key.StartsWith("EnableM04",StringComparison.Ordinal)).All(p=>!p.Value));
+        HostCheck.Equal(2048U,OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput.MaximumFunctions);
         foreach(string[] suffix in new[]{new[]{"-EnableM10018FullProbe:false"},new[]{"-EnableM10018Probe:false"},
-            new[]{"-TimeoutSeconds","239"},new[]{"-TimeoutSeconds","601"},new[]{"-EnableM10017Probe"}})
+            new[]{"-TimeoutSeconds","239"},new[]{"-TimeoutSeconds","601"},new[]{"-EnableM10017Probe"},
+            new[]{"-EnableM04X64UnwindMetadataProbe"}})
         {
             bool rejected=false;
             try{_=QemuProfiles.Create(QemuSmokeOptions.Parse([..Arguments,"-EnableM10018TimingProbe",..suffix]));}

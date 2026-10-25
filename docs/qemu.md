@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1601](../done/step1601.md) The timing producer remains unqualified after two pre-guest originals: XML identity rejection, then2055-row host catalog rejection. The repaired admission uses the exact bounded XML reader; host catalog4096 is separately tested while kernel2048 remains unchanged/off. Launch a fresh committed original rather than reclassifying either failure.
+
 [Step1600](../done/step1600.md) The default-off -EnableM10018TimingProbe inherits the full disk/static parents, uses a240..600s capture bound and executes exactly health/HEAD CoreLib/64KiB range/health. One retained aggregate measures pump, worker scan, evidence flush and pre/post network work with exclusive yield reasons. The owner intentionally cancels and joins the runner after exact HTTP/metrics checks; its receipt explicitly records FullAndCleanupQualified=false. Use it before another full run; existing fairness and per-step evidence stay intact.
 
 [Step1597](../done/step1597.md) Preserve b94028a8 ExitPending r04 as failed: its preceding child stdout allowed the request to complete before exit_group. The new fixture removes that observer effect and has focused host support; no replay qualifies a fresh guest. Full A/B/browser originals, actual storage error/race witnesses and clean ownership retirement still precede read closure. Test budgets do not define normal service lifetime.

@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1601](../done/step1601.md) EFI build documents host4096catalog capacity and actual original2055rejection; nativeaot-nostdlib-limits retains separate kernel2048 semantics. Diagnostics/QEMU own exact XML-reader/native failure provenance and fresh-original requirements. Application/storage successor preparation remains under Step1600 until separately integrated.
+
 [Step1600](../done/step1600.md) Storage owns the shared writable block read-port/filesystem, combined web/data image and cold media controls. Diagnostics/QEMU own the short aggregate timing profile and intentional cancellation boundary; app-model owns the failed SQLite original and the next verified dependency preparation. Step1599 continues to define the continuously functioning product goal.
 
 [Step1597](../done/step1597.md) Step1597 records the fresh writable metadata/flock/source5 integration, separate SQLite publisher/verifier preparation and exit-first fixture repair. Storage/PAL own metadata, range arbitration and descriptor lifetimes; application docs own SQLite reference limits. EFI/QEMU retain exact native and failed-original provenance. Step1598 owns compiler/runtime guardrails and step1599 owns the continuously functioning product scenario.
