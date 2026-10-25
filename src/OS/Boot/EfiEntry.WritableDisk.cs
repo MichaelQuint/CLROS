@@ -417,9 +417,9 @@ public static unsafe partial class EfiEntry
             return device->Self == (ulong)device && device->Input.Epoch == NativeWritableEpoch && device->Input.Pool == o->Pool &&
                 device->PoolEpoch == NativeWritableEpoch && device->Input.Observation == o->Observation &&
                 device->Input.Access.Queue.Context == o->Carrier && device->Input.Clock.Context == o->Carrier &&
-                o->Common.VirtualStart == o->Bar && o->Common.PhysicalStart == o->Bar && o->Common.Bytes is >= 56 and <= Page &&
+                o->Common.VirtualStart == o->Bar && o->Common.PhysicalStart == o->Bar && o->Common.Bytes >= 56 && o->Common.Bytes <= Page &&
                 o->Notify.VirtualStart == o->Bar + 0x3000 && o->Notify.PhysicalStart == o->Bar + 0x3000 && o->Notify.Bytes <= Page &&
-                o->Configuration.VirtualStart == o->Bar + 0x2000 && o->Configuration.PhysicalStart == o->Bar + 0x2000 && o->Configuration.Bytes is >= 8 and <= Page &&
+                o->Configuration.VirtualStart == o->Bar + 0x2000 && o->Configuration.PhysicalStart == o->Bar + 0x2000 && o->Configuration.Bytes >= 8 && o->Configuration.Bytes <= Page &&
                 device->Input.Common.VirtualStart == o->Common.VirtualStart && device->Input.Common.Bytes == o->Common.Bytes &&
                 device->Input.Notify.VirtualStart == o->Notify.VirtualStart && device->Input.Notify.Bytes == o->Notify.Bytes &&
                 device->Input.Device.VirtualStart == o->Configuration.VirtualStart && device->Input.Device.Bytes == o->Configuration.Bytes &&
