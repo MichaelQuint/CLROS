@@ -1072,7 +1072,8 @@ public static unsafe class ReadOnlyWebRootFileSystem
     /// <summary>Check a flat, bounded start/byte-count inventory against one
     /// original borrowed mount. The serialized owner keeps the input and all
     /// backing stable/mapped through return. Audit the retained FS/backend once;
-    /// each nonempty range still uses the full port query and local exclusions.
+    /// the original candidate span uses one complete port batch, followed by
+    /// every local exclusion after the backend audit scratch has returned.
     /// Empty extents are skipped, but stale/retired or malformed owners reject
     /// even an all-empty inventory. Dirty/fault/stopped backing may remain
     /// structurally retained. No live I/O, copy, release or later permission
@@ -1081,12 +1082,12 @@ public static unsafe class ReadOnlyWebRootFileSystem
     {
         if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
             !Bound(m) || m->Phase == Retired || m->Input.Epoch != epoch || m->ReadPort == null || !RetainedBorrowed(m)) return false;
-        return BorrowedRangesOutside(m, pairs);
+        return Port.CanRetainStorageRanges(m->ReadPort, m->PortBinding.Epoch, pairs) && BorrowedRangesOutside(m, pairs);
     }
 
-    // Keep this scratch lifetime after RetainedBorrowed/AdmissionOutside has
-    // returned, rather than nesting two1088-byte FS inventories. Emitted stack
-    // accounting remains a separate native obligation.
+    // Keep this local-only scratch after RetainedBorrowed/AdmissionOutside and
+    // the external port batch returned. No backend query nests inside this
+    // additional1088-byte inventory. Emitted stack remains a separate gate.
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
     private static bool BorrowedRangesOutside(Mount* m, ReadOnlySpan<ulong> pairs)
     {
@@ -1095,7 +1096,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         {
             ulong start = pairs[i], bytes = pairs[i + 1];
             if (bytes == 0) continue;
-            if (!Storage(start, bytes, 1) || !Port.CanRetainStorage(m->ReadPort, m->PortBinding.Epoch, start, bytes)) return false;
+            if (!Storage(start, bytes, 1)) return false;
             for (uint j = 0; j < count; j++) if (Overlap(start, bytes, all[j].Start, all[j].Bytes)) return false;
         }
         return true;
@@ -1176,8 +1177,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
     {
         Extent* all = stackalloc Extent[68]; uint count = Extents(m, a, all);
         if (!Disjoint(all, count)) return false;
-        for (uint i = 0; i < count; i++) if (!Port.CanRetainStorage(port, epoch, all[i].Start, all[i].Bytes)) return false;
-        return true;
+        return Port.CanRetainStorageRanges(port, epoch, new ReadOnlySpan<ulong>((ulong*)all, (int)count * 2));
     }
 #endif
     private static bool External(Mount* m, ulong start, ulong bytes, ulong alignment)

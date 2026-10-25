@@ -9,6 +9,185 @@ internal static unsafe class WritableBlockReadPortTests
 {
     private delegate bool Retain(P.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly Retain CanRetain = typeof(P).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
+    private delegate bool RetainRanges(P.State* state, ulong epoch, ReadOnlySpan<ulong> pairs);
+    private static readonly RetainRanges CanRetainRanges = typeof(P).GetMethod("CanRetainStorageRanges", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainRanges>();
+
+    [HostTest("borrowed port range batch preserves complete scalar aliases boundaries and bounded zero skipping without effects")]
+    private static void RetainedBatchRanges()
+    {
+        using var f = new Fixture(); ulong address = (ulong)f.Bytes;
+        BatchQueriesOnly(f, () =>
+        {
+            ulong[] valid = [address + 1, 17, address + 8, 24, address + 80, 48];
+            BatchEquivalent(f, valid, true);
+            BatchEquivalent(f, [address, 1, address, 1, address + 1, 1, 0, 0, ulong.MaxValue, 0], true);
+            HostCheck.True(CanRetainRanges(f.State, f.Input.Epoch, [0, 0, ulong.MaxValue, 0]));
+            HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, []) && !CanRetainRanges(f.State, f.Input.Epoch, [address]));
+            ulong[] maximum = new ulong[177 * 2]; maximum[maximum.Length - 2] = address; maximum[maximum.Length - 1] = 512;
+            BatchEquivalent(f, maximum, true);
+            HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, new ulong[maximum.Length + 2]));
+            foreach (ulong[] bad in new ulong[][] { [0, 1], [4095, 1], [ulong.MaxValue - 7, 16], [0x0000800000000000, 1] })
+                BatchEquivalent(f, bad, false);
+            foreach (var extent in f.OwnedExtents())
+                foreach (var overlap in new[] { extent, (extent.Start, 1UL), (extent.Start - 1, extent.Bytes + 2),
+                    (extent.Start + extent.Bytes - 1, 2UL) })
+                    for (int position = 0; position < 3; position++)
+                    {
+                        ulong[] changed = valid.ToArray(); changed[position * 2] = overlap.Item1; changed[position * 2 + 1] = overlap.Item2;
+                        BatchEquivalent(f, changed, false);
+                    }
+            HostCheck.True(CanRetainRanges(f.State, f.Input.Epoch, [address + 4095, 1]));
+        });
+    }
+
+    [HostTest("borrowed port range batch revalidates exact original owner geometry epochs and every retained rewrite even for empty candidates")]
+    private static void RetainedBatchOwners()
+    {
+        using var f = new Fixture(); ulong[] valid = [(ulong)f.Bytes, 512];
+        HostCheck.True(!CanRetainRanges(null, f.Input.Epoch, valid) && !CanRetainRanges((P.State*)ulong.MaxValue, f.Input.Epoch, valid));
+        P.State copy = *f.State;
+        HostCheck.True(!CanRetainRanges(&copy, f.Input.Epoch, valid) && !CanRetainRanges(f.State, 0, valid));
+        var port = PortInput(ref *f.State); var engine = EngineInput(ref *f.Engine); var block = BlockInput(ref *f.Block);
+        ulong pool = PoolEpoch(ref *f.Device.Pool), self = PortSelf(ref *f.State);
+        try
+        {
+            for (int defect = 0; defect < 14; defect++)
+            {
+                PortInput(ref *f.State) = port; EngineInput(ref *f.Engine) = engine; BlockInput(ref *f.Block) = block;
+                PoolEpoch(ref *f.Device.Pool) = pool; PortSelf(ref *f.State) = self;
+                if (defect == 0) PortInput(ref *f.State).Epoch++;
+                else if (defect == 1) PortInput(ref *f.State).EngineEpoch++;
+                else if (defect == 2) EngineInput(ref *f.Engine).Epoch++;
+                else if (defect == 3) BlockInput(ref *f.Block).Epoch++;
+                else if (defect == 4) PoolEpoch(ref *f.Device.Pool)++;
+                else if (defect == 5) EngineInput(ref *f.Engine).PartitionFirst++;
+                else if (defect == 6) BlockInput(ref *f.Block).Observation = (B.Observation*)engine.Before;
+                else if (defect == 7) EngineInput(ref *f.Engine).Before = engine.After;
+                else if (defect == 8) PortInput(ref *f.State).Device = (B.State*)((byte*)f.Block + 8);
+                else if (defect == 9) PortInput(ref *f.State).Engine = (C.State*)ulong.MaxValue;
+                else if (defect == 10) PortSelf(ref *f.State)++;
+                else if (defect == 11) PortInput(ref *f.State).FirstLba = engine.PartitionFirst;
+                else if (defect == 12) PortInput(ref *f.State).LastLba = f.Block->SectorCount;
+                else PortInput(ref *f.State).DeviceEpoch++;
+                BatchQueriesOnly(f, () =>
+                {
+                    BatchEquivalent(f, valid, false);
+                    HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, [0, 0, ulong.MaxValue, 0]));
+                });
+            }
+        }
+        finally
+        {
+            PortInput(ref *f.State) = port; EngineInput(ref *f.Engine) = engine; BlockInput(ref *f.Block) = block;
+            PoolEpoch(ref *f.Device.Pool) = pool; PortSelf(ref *f.State) = self;
+        }
+        BatchEquivalent(f, valid, true);
+        HostCheck.Equal(P.Status.Success, P.Stop(f.State));
+        try
+        {
+            PortInput(ref *f.State).Engine = (C.State*)ulong.MaxValue; PortInput(ref *f.State).Device = (B.State*)ulong.MaxValue;
+            HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, valid) && !CanRetainRanges(f.State, f.Input.Epoch, [0, 0]));
+        }
+        finally { PortInput(ref *f.State) = port; }
+    }
+
+    [HostTest("borrowed port range batch keeps actual pending held cancelled and stopped read ownership structural")]
+    private static void RetainedBatchReads()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Fixture(); ulong[] pairs = [(ulong)f.Bytes, 512]; var token = f.Read(1);
+            if (held) { f.Device.Complete(); P.Completion ready = default; HostCheck.Equal(P.Status.Ready, P.Poll(f.State, token, &ready)); }
+            BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true));
+            HostCheck.Equal(held ? P.Status.Cancelled : P.Status.Pending, P.Cancel(f.State, token));
+            BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true));
+            if (!held) { f.Device.Complete(); P.Completion cancelled = default; HostCheck.Equal(P.Status.Cancelled, P.Poll(f.State, token, &cancelled)); }
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Block));
+            BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true));
+            HostCheck.Equal(P.Status.Success, P.Stop(f.State));
+            HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, pairs) && !CanRetainRanges(f.State, f.Input.Epoch, [0, 0]));
+        }
+    }
+
+    [HostTest("borrowed port range batch preserves real dirty write flush held metadata and fault cleanup lifetimes")]
+    private static void RetainedBatchMutation()
+    {
+        using (var f = new Fixture())
+        {
+            var file = f.Open(out _); C.RequestToken request = default;
+            HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.Engine, file, 0, new byte[37], &request));
+            ulong[] pairs = [(ulong)f.Bytes, 512]; bool dirty = false, flush = false;
+            for (int i = 0; i < 2000; i++)
+            {
+                var status = C.Pump(f.Engine);
+                if (!dirty && f.Engine->Dirty && f.Block->LastOperation == B.Operation.Write)
+                { BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true)); dirty = true; }
+                if (!flush && f.Block->RequestPending && f.Block->LastOperation == B.Operation.Flush)
+                { BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true)); flush = true; }
+                if (status == C.Status.Ready) break;
+                HostCheck.Equal(C.Status.Pending, status); HostCheck.True(i < 1999);
+                if (f.Device.Hardware->Pending) f.Device.Complete();
+            }
+            HostCheck.True(dirty && flush && f.Engine->IsReady && f.Engine->RequestActive);
+            BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true));
+            C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, request, &result));
+        }
+        using (var f = new Fixture())
+        {
+            var token = f.Read(1); f.Device.Complete(length: 1, status: 1); P.Completion failure = default;
+            HostCheck.Equal(P.Status.DeviceFailed, P.Poll(f.State, token, &failure));
+            ulong[] pairs = [(ulong)f.Bytes, 512]; BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true));
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Block)); BatchQueriesOnly(f, () => BatchEquivalent(f, pairs, true));
+            HostCheck.Equal(P.Status.Success, P.Stop(f.State)); HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, pairs));
+        }
+    }
+
+    [HostTest("borrowed port range batch performs three complete engine audits independent of external inventory length")]
+    private static void RetainedBatchAuditCount()
+    {
+        using var f = new Fixture(); ulong counter = 0;
+        foreach (int count in new[] { 1, 25, 177 })
+        {
+            ulong[] pairs = new ulong[count * 2];
+            for (int i = 0; i < count; i++) { pairs[i * 2] = (ulong)f.Bytes + (ulong)(i % 64); pairs[i * 2 + 1] = 1; }
+            OS.Kernel.Diagnostics.WritableStorageTiming.State timing = default;
+            HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&timing, (ulong)&counter, 64));
+            bool value = false, ended = false;
+            try { value = CanRetainRanges(f.State, f.Input.Epoch, pairs); ended = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing); }
+            finally { if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive) OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing); }
+            HostCheck.True(value && ended && timing.AuditCalls == 3 && timing.OutsideDeviceCalls == 42);
+        }
+    }
+
+    private static void BatchEquivalent(Fixture f, ReadOnlySpan<ulong> pairs, bool expected)
+    {
+        bool scalar = true;
+        for (int i = 0; i < pairs.Length; i += 2) if (pairs[i + 1] != 0) scalar &= CanRetain(f.State, f.Input.Epoch, pairs[i], pairs[i + 1]);
+        HostCheck.Equal(expected, scalar); HostCheck.Equal(expected, CanRetainRanges(f.State, f.Input.Epoch, pairs));
+    }
+    private static void BatchQueriesOnly(Fixture f, Action query)
+    {
+        byte[] Snapshot()
+        {
+            var bytes = new List<byte>(); var a = f.Device.Input;
+            foreach (var extent in f.OwnedExtents())
+                if (extent.Start != a.Common.VirtualStart && extent.Start != a.Notify.VirtualStart && extent.Start != a.Device.VirtualStart)
+                    bytes.AddRange(new ReadOnlySpan<byte>((void*)extent.Start, (int)extent.Bytes).ToArray());
+            bytes.AddRange(new ReadOnlySpan<byte>(f.Device.Hardware, sizeof(WritableBlockSessionTests.Hardware)).ToArray());
+            bytes.AddRange(new ReadOnlySpan<byte>(f.Bytes, 4096).ToArray()); return bytes.ToArray();
+        }
+        byte[] before = Snapshot(); query(); HostCheck.True(before.AsSpan().SequenceEqual(Snapshot()));
+    }
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref P.Admission PortInput(ref P.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref C.Admission EngineInput(ref C.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref B.Admission BlockInput(ref B.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Epoch")]
+    private static extern ref ulong PoolEpoch(ref OS.Drivers.DmaBufferPool pool);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Self")]
+    private static extern ref ulong PortSelf(ref P.State state);
 
     [HostTest("borrowed writable read port uses one real queue and preserves physical versus client read facts")]
     private static void OriginalRead()
@@ -249,7 +428,8 @@ internal static unsafe class WritableBlockReadPortTests
             HostCheck.Equal(restart ? P.Status.InvalidState : P.Status.DeviceFailed, P.Copy(f.State, token, f.Output));
             HostCheck.True(f.Output.IndexOfAnyExcept((byte)0x84) < 0 && f.Device.Hardware->Calls == calls && f.State->RequestActive);
             HostCheck.Equal(restart ? P.Status.InvalidState : P.Status.Success, P.Stop(f.State));
-            if (restart) HostCheck.True(!CanRetain(f.State, f.Input.Epoch, (ulong)f.Bytes, 512));
+            if (restart) HostCheck.True(!CanRetain(f.State, f.Input.Epoch, (ulong)f.Bytes, 512) &&
+                !CanRetainRanges(f.State, f.Input.Epoch, [(ulong)f.Bytes, 512]) && !CanRetainRanges(f.State, f.Input.Epoch, [0, 0]));
         }
     }
 
@@ -261,6 +441,7 @@ internal static unsafe class WritableBlockReadPortTests
         HostCheck.Equal(C.Status.Pending, C.Start(f.Engine, input)); HostCheck.Equal(C.Status.Ready, f.RunEngine());
         uint calls = f.Device.Hardware->Calls; P.Token token = default; f.AllowInvalidStop = true;
         HostCheck.True(!CanRetain(f.State, f.Input.Epoch, (ulong)f.Bytes, 512));
+        HostCheck.True(!CanRetainRanges(f.State, f.Input.Epoch, [(ulong)f.Bytes, 512]) && !CanRetainRanges(f.State, f.Input.Epoch, [0, 0]));
         HostCheck.Equal(P.Status.InvalidState, P.Submit(f.State, 1, &token)); HostCheck.Equal(P.Status.InvalidState, P.Stop(f.State));
         HostCheck.True(!token.IsInitialized && f.Device.Hardware->Calls == calls && f.Block->Running && f.Engine->IsMounted);
     }

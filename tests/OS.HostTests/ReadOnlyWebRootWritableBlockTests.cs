@@ -19,6 +19,73 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
     private delegate bool RetainRanges(Fs.Mount* mount, ulong epoch, ReadOnlySpan<ulong> pairs);
     private static readonly RetainRanges CanRetainRanges = typeof(Fs).GetMethod("CanRetainStorageRanges", BindingFlags.NonPublic | BindingFlags.Static)!.CreateDelegate<RetainRanges>();
 
+    [HostTest("borrowed filesystem shares complete port audits across local admission and the original external span", HostLane.Native)]
+    private static void RetainedPortBatchAuditCounts() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady();
+        RetainedQueriesOnly(f, () =>
+        {
+            ulong counter = 0;
+            OS.Kernel.Diagnostics.WritableStorageTiming.State timing = default;
+            HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&timing, (ulong)&counter, 64));
+            bool scalar = false, ended = false;
+            try { scalar = CanRetain(f.Mount, f.Input.Epoch, (ulong)f.Output, 128); ended = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing); }
+            finally { if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive) OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing); }
+            HostCheck.True(scalar && ended && timing.AuditCalls == 9 && timing.OutsideDeviceCalls == 126);
+            foreach (int count in new[] { 1, 25, 177 })
+            {
+                ulong[] pairs = new ulong[count * 2];
+                for (int i = 0; i < count; i++) { pairs[i * 2] = (ulong)f.Output + (ulong)(i % 64); pairs[i * 2 + 1] = 1; }
+                timing = default; ended = false;
+                HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&timing, (ulong)&counter, 64));
+                bool batch = false;
+                try { batch = CanRetainRanges(f.Mount, f.Input.Epoch, pairs); ended = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing); }
+                finally { if (OS.Kernel.Diagnostics.WritableStorageTiming.IsActive) OS.Kernel.Diagnostics.WritableStorageTiming.Cancel(&timing); }
+                HostCheck.True(batch && ended && timing.AuditCalls == 6 && timing.OutsideDeviceCalls == 84);
+            }
+        });
+    });
+
+    [HostTest("borrowed filesystem port batch refuses every observation overlap in its original admission inventory including zero external candidates", HostLane.Native)]
+    private static void RetainedPortBatchAdmission() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); ulong[] valid = [(ulong)f.Output, 128];
+        var local = f.FsExtents().ToArray(); var original = BlockAdmission(ref *f.Block).Observation;
+        foreach (var extent in local)
+        {
+            try
+            {
+                BlockAdmission(ref *f.Block).Observation = (B.Observation*)extent.Start;
+                RetainedQueriesOnly(f, () =>
+                {
+                    RetainedEquivalent(f, valid, false);
+                    HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, [0, 0, ulong.MaxValue, 0]));
+                });
+            }
+            finally { BlockAdmission(ref *f.Block).Observation = original; }
+            RetainedEquivalent(f, valid, true);
+        }
+        var admission = MountAdmission(ref *f.Mount);
+        for (int kind = 0; kind < 3; kind++)
+        {
+            try
+            {
+                if (kind == 0) MountAdmission(ref *f.Mount).OperationCount = Fs.MaximumSlots + 1;
+                else if (kind == 1) MountAdmission(ref *f.Mount).FileCount = Fs.MaximumSlots + 1;
+                else MountAdmission(ref *f.Mount).CacheCount = Fs.MaximumCacheSlots + 1;
+                RetainedQueriesOnly(f, () =>
+                {
+                    RetainedEquivalent(f, valid, false);
+                    HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, [0, 0]));
+                });
+            }
+            finally { MountAdmission(ref *f.Mount) = admission; }
+        }
+        C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginFlush(f.Engine, &request));
+        RetainedQueriesOnly(f, () => RetainedEquivalent(f, valid, true));
+        f.RunEngine(); C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, request, &result));
+    });
+
     [HostTest("borrowed retained range batch preserves scalar local and backend exclusions bounded input and zero skips", HostLane.Native)]
     private static void RetainedRangeExclusions() => WithImage((raw, receipt) =>
     {
@@ -461,6 +528,8 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
     private static extern ref P.Token BorrowedToken(ref Fs.Mount mount);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
     private static extern ref P.Admission PortAdmission(ref P.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref Fs.Admission MountAdmission(ref Fs.Mount mount);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
     private static extern ref B.Admission BlockAdmission(ref B.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]

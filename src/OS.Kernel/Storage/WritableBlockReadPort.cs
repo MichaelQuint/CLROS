@@ -241,6 +241,36 @@ public static unsafe class WritableBlockReadPort
     internal static bool CanRetainStorage(State* s, ulong epoch, ulong address, ulong bytes) =>
         Retained(s) && s->Input.Epoch == epoch && External(s, address, bytes, 1);
 
+    internal const int MaximumRetainedStorageRanges = 177;
+
+    /// <summary>Synchronously borrow a stable flat start/byte-count inventory
+    /// under one serialized original port owner. Audit the port/partition once
+    /// and pass the original span through the complete engine batch; every
+    /// nonempty candidate still excludes port and block/DMA/MMIO/observer
+    /// backing. Empty/odd/over177-pair input rejects. Zero-byte entries skip
+    /// only that candidate, never owner validation. Dirty/faulted, pending/held
+    /// and original-stopped backing keeps scalar retained semantics until Stop.
+    /// No callback, I/O, output, allocation, cache or retained input is added.
+    /// Success grants no live copy, submission, mapping or later authority.</summary>
+    internal static bool CanRetainStorageRanges(State* s, ulong epoch, ReadOnlySpan<ulong> pairs)
+    {
+        if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
+            !Retained(s) || s->Input.Epoch != epoch) return false;
+        return C.CanRetainStorageRanges(s->Input.Engine, s->Input.EngineEpoch, pairs) && RetainedRangesOutside(s, pairs);
+    }
+
+    private static bool RetainedRangesOutside(State* s, ReadOnlySpan<ulong> pairs)
+    {
+        for (int i = 0; i < pairs.Length; i += 2)
+        {
+            ulong address = pairs[i], bytes = pairs[i + 1];
+            if (bytes == 0) continue;
+            if (!Storage(address, bytes, 1) || Overlap(address, bytes, (ulong)s, (ulong)sizeof(State)) ||
+                !B.CanBorrowStorage(s->Input.Device, s->Input.DeviceEpoch, address, bytes)) return false;
+        }
+        return true;
+    }
+
     /// <summary>Compare copied original engine identity after the complete
     /// retained port/range/storage audit. The expected owner is numeric only.
     /// Dirty, faulted and original-stopped backing may match until local Stop;
