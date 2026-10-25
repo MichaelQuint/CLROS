@@ -276,6 +276,14 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected, bool ordinarySmoke = false)
     {
+        if(selected.Contains("EnableM16027TimingProbe"))selected=[..selected,"EnableM16027Probe"];
+        if(selected.Contains("EnableM16027Probe"))
+        {
+            if(new[]{"EnableM10004Probe","EnableM10017Probe","EnableM10018Probe","EnableM10018FullProbe","EnableM10018TimingProbe"}.Any(selected.Contains))
+                return "writable_disk_mechanical_profile_conflict";
+            selected=[..selected,"EnableM16025Probe"];
+        }
+        if(selected.Contains("EnableM10018TimingProbe"))selected=[..selected,"EnableM10018FullProbe"];
         if(selected.Contains("EnableM10018FullProbe"))selected=[..selected,"EnableM10018Probe"];
         if(selected.Contains("EnableM10018Probe"))selected=[..selected,"EnableM16025Probe","EnableM10004Probe"];
         bool disk=selected.Contains("EnableM16025Probe");
@@ -310,7 +318,7 @@ internal static class EfiProfileTestControls
                 "EnableM05VirtioNegotiationProbe", "EnableM05VirtqueuePollingProbe", "EnableM07VirtioNetProbe",
                 "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe"];
             string[] descendants = ["EnableM05ApicSetupProbe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe",
-                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+                "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
             if (selected.Any(name => name != "EnableM07026Probe" && !parents.Contains(name) && !(sockets && descendants.Contains(name)))) return "m07_026_profile_conflict";
             // The socket leaf supplies the entire declared network/runtime chain.
             if (sockets) return null;
@@ -487,7 +495,7 @@ internal static class EfiProfileTestControls
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
         string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe",
-            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
+            "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]

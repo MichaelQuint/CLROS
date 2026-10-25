@@ -25,7 +25,7 @@ internal static unsafe class M07026EfiIntegrationTests
             foreach (var parent in profile.Flags.Where(x => x.Value && x.Key != "EnableM07026Probe"))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + parent.Key, "false"], build).Profile());
             foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key))
-                .Except(["EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"]))
+                .Except(["EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe", "EnableM07027Probe", "EnableM07028Probe"]))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + extra], build).Profile());
             Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--BootPolicy", "VerifiedExit"], build).Profile());
         }

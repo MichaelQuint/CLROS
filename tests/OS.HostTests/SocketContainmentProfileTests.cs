@@ -104,8 +104,8 @@ internal static class SocketContainmentProfileTests
             Error(project,"disk_read_requires_combined_profile"));
         var forbidden = EfiContracts.DiagnosticProbes.Where(x => !expected.Contains(x))
             .Select(x=>x switch{
-                "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe"=>"EnableM10004Probe",
-                "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe"=>"EnableM16012Probe",
+                "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe"=>"EnableM10004Probe",
+                "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe"=>"EnableM16012Probe",
                 _=>x}).ToHashSet(StringComparer.Ordinal);
         HostCheck.True(forbidden.SetEquals(forbiddenNames.Skip(Leaves.Length)) &&
             forbiddenNames.Length == forbidden.Count + Leaves.Length && forbidden.Contains("EnableM16012Probe"));

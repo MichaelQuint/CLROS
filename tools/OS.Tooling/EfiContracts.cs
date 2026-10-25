@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "a02d218932a9cb5855a2405c8b2f99e89e97dd66863739ae7a7a8f1aa2cb07a4";
-    public const string CanonicalProjectSha256 = "ac08237744c8bd82d7f0edf22c0584d4cb215c68ca4ec18c7a07d757dd042ce6";
+    public const string ProjectSourceSha256 = "b07439f3ae6c2aafbe10510596ece3f2db7f2d9dee1c7485a27de990e25af899";
+    public const string CanonicalProjectSha256 = "ba165140143c3e91b97eca48d9099b7a58cf386f5cd5dc7b76d8dd39262d7c4d";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
     public const string EfiEntrySourceSha256 = "fba0ac895ab1d47b9b189b370e8c59083e3e0c4a200b77ea47f3246525dca5e4";
