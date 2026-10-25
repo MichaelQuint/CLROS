@@ -212,12 +212,68 @@ public static unsafe partial class EfiEntry
             internal fixed byte Input[1536], Output[1536];
         }
         private static LinuxSocketStorage s_linuxSocketStorage;
+#if M16_027_PROBE
+        // The whole direct IO carrier is separate from transport metadata and
+        // the user-copy carrier. Original Boot/NIC and all opaque referents
+        // retain their independent native mappings and lifetime obligations.
+        private struct LinuxSocketIoCarrier
+        {
+            internal ulong Self, NetworkArena;
+            internal Storage* Boot;
+            internal LinuxSocketStorage* Owner;
+            internal NetDevice.State* Device;
+        }
+        private static LinuxSocketIoCarrier s_linuxSocketIoCarrier;
+
+        private static void* PrepareLinuxSocketIoCarrier(Storage* state, LinuxSocketStorage* owner)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
+            {
+                if (state != original || owner != network || network->Boot != state || network->Phase != 1 ||
+                    network->Device == null || !network->Device->Running || state->NetworkArena < Page ||
+                    state->Memory.References.NetworkArenaStart != state->NetworkArena ||
+                    carrier->Self != 0 || carrier->Boot != null || carrier->Owner != null || carrier->Device != null ||
+                    carrier->NetworkArena != 0) return null;
+                carrier->Boot = state; carrier->Owner = network; carrier->Device = network->Device;
+                carrier->NetworkArena = state->NetworkArena; carrier->Self = (ulong)carrier;
+                return carrier;
+            }
+        }
+
+        private static LinuxSocketStorage* ResolveLinuxSocketIo(void* context)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
+            {
+                if (context != carrier || carrier->Self != (ulong)carrier || carrier->Boot != original ||
+                    carrier->Owner != network || carrier->Device == null || carrier->Device != network->Device ||
+                    network->Boot != original || carrier->NetworkArena != original->NetworkArena ||
+                    original->Memory.References.NetworkArenaStart != carrier->NetworkArena ||
+                    network->Phase is not (1 or 2) || original->NetworkPhase != 2) return null;
+                return network;
+            }
+        }
+#endif
 
         private static bool LinuxSocketImageMapped(SeparatePageFaultMappingRange* ranges, ulong count)
         {
             fixed (LinuxSocketStorage* owner = &s_linuxSocketStorage)
+#if M16_027_PROBE
+            fixed (LinuxSocketIoCarrier* io = &s_linuxSocketIoCarrier)
+            fixed (LinuxUserCarrier* user = &s_linuxUserCarrier)
+                return FirstExitImageMappings.Contains(ranges, count, (ulong)io, (ulong)sizeof(LinuxSocketIoCarrier),
+                    PageProtection.Read | PageProtection.Write) &&
+                    FirstExitImageMappings.Contains(ranges, count, (ulong)user, (ulong)sizeof(LinuxUserCarrier),
+                    PageProtection.Read | PageProtection.Write) &&
+                    FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(LinuxSocketStorage),
+                    PageProtection.Read | PageProtection.Write);
+#else
                 return FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(LinuxSocketStorage),
                     PageProtection.Read | PageProtection.Write);
+#endif
         }
 
         private static bool RunLinuxSocketNetwork(Storage* state, NetDevice.State* device)
@@ -305,7 +361,9 @@ public static unsafe partial class EfiEntry
                         (LinuxEpollServices.Registration*)o->Registrations, 64) ||
                     TcpConnectionTable.InitializeOwned(&o->Table, (TcpConnectionTableEntry*)o->Entries, LinuxSocketConnections,
                         o->Generations, LinuxSocketConnections, state->NetworkArena ^ 0x4c534f434b455453UL) != TcpConnectionTable.OwnershipStatus.Success) return false;
+#if !M16_027_PROBE
                 if (!LinuxSocketServices.AttachMessageObserver(&o->Sockets, state, &ObserveLinuxSocketMessage)) return false;
+#endif
                 // A finite diagnostic seed from the admitted clock, not a
                 // production unpredictable TCP initial-sequence generator.
 #if M16_014_PROBE
@@ -315,13 +373,22 @@ public static unsafe partial class EfiEntry
                 uint sequence = ((uint)now & 0x3fff0000) | 0x10000;
                 TcpInitialSequence.Owner* sequenceOwner = null;
 #endif
-                var io = new TcpPassiveConnection.Operations { Context = o, NowNanoseconds = &LinuxSocketNow, Send = &LinuxSocketSendFrame,
+                var io = new TcpPassiveConnection.Operations {
+#if M16_027_PROBE
+                    Context = PrepareLinuxSocketIoCarrier(state, o),
+#else
+                    Context = o,
+#endif
+                    NowNanoseconds = &LinuxSocketNow, Send = &LinuxSocketSendFrame,
                     LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
                 if (!SocketNetwork.Begin(&o->Network, &o->Sockets, &o->Table, (SocketNetwork.Slot*)o->Slots, LinuxSocketConnections,
                     o->Buffers, LinuxSocketReceive, LinuxSocketSend, new(2, 0, 0, 0, 0, 1), o->Peer, new(10, 0, 2, 2), sequence, io,
                     compactTimeWait: Probes.EnableM16014Probe, sequence: sequenceOwner
 #if M16_014_PROBE
                     , measureLeases: LinuxQuotaPolicy(state)
+#endif
+#if M16_027_PROBE
+                    , ioContextBytes: (uint)sizeof(LinuxSocketIoCarrier)
 #endif
                     )) return false;
 #if M16_014_PROBE
@@ -888,13 +955,23 @@ public static unsafe partial class EfiEntry
 
         private static ulong LinuxSocketNow(void* context)
         {
+#if M16_027_PROBE
+            var o = ResolveLinuxSocketIo(context);
+            if (o == null) return 0;
+#else
             var o = (LinuxSocketStorage*)context;
+#endif
             if (!ReadNetworkTime(o->Boot, out ulong now)) { o->Failed = 1; return 0; }
             return now;
         }
         private static byte LinuxSocketSendFrame(void* context, byte* frame, uint bytes)
         {
+#if M16_027_PROBE
+            var o = ResolveLinuxSocketIo(context);
+            if (o == null) return 2;
+#else
             var o = (LinuxSocketStorage*)context;
+#endif
             var sent = NetDevice.Send(o->Device, new ReadOnlySpan<byte>(frame, (int)bytes));
             if (sent == NetDevice.Status.Success) { o->Copied++; return 1; }
             if (sent == NetDevice.Status.Full) return 0;

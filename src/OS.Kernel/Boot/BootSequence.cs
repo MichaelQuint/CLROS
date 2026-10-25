@@ -245,7 +245,16 @@ public static class BootSequence
     /// this gate establishes neither device readiness nor guest I/O.</summary>
     public static unsafe bool PrepareOwnedReadOnlyDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
         OS.Kernel.Diagnostics.Probes.EnableM16023Probe && OS.Kernel.Diagnostics.Probes.EnableM16024Probe &&
-        OS.Kernel.Diagnostics.Probes.EnableM16025Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
+        OS.Kernel.Diagnostics.Probes.EnableM16025Probe && !OS.Kernel.Diagnostics.Probes.EnableM16027Probe &&
+        firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Reserve the distinct writable owner before firmware exit. The
+    /// selected read-only compile parents supply shared mapping/descriptor
+    /// contracts; they do not start a second block owner. The callback retains
+    /// successful allocations even on rejection. No I/O or fit is implied.</summary>
+    public static unsafe bool PrepareOwnedWritableDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16027Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe &&
+        firmwareAvailable && context != null && prepare != null && prepare(context);
 
     /// <summary>Enter the disk application through the original socket and
     /// firmware order. Prepared backing must belong to this boot; the callback

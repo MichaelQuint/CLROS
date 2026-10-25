@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -499,7 +499,7 @@ public static partial class EfiContracts
         "EnableM16011Probe",
         "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe",
         "EnableM16019InvalidProbe", "EnableM16019UnavailableProbe",
-        "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe",
+        "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }
