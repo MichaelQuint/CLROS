@@ -327,7 +327,16 @@ public static unsafe partial class EfiEntry
             nanos = 0;
             // The scheduler timestamps readiness before NIC admission. Only
             // that private bind call admits phase1; device callbacks require2.
-            if (state == null || (state->NetworkPhase != 2 && (!preparing || state->NetworkPhase != 1)) || state->ServicePhase != 2 ||
+            if (state == null || (state->NetworkPhase != 2 && (!preparing || state->NetworkPhase != 1))) return false;
+            return ReadOwnedNetworkClock(state, out nanos);
+        }
+
+        // Call only after the caller authenticates its exact network lifetime.
+        // HPET remains owned after NIC retirement; firmware access stays revoked.
+        private static bool ReadOwnedNetworkClock(Storage* state, out ulong nanos)
+        {
+            nanos = 0;
+            if (state == null || state->ServicePhase != 2 ||
                 state->AdapterConsole != null || state->AdapterServices != null ||
                 !OwnedMonotonicClock.Read(ref state->Clock) || state->Clock.Source != OwnedClockSource.Hpet ||
                 state->Clock.RecoveryAttempts > 1 || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;

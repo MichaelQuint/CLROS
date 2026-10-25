@@ -141,7 +141,7 @@ public static unsafe partial class EfiEntry
             fixed (NetworkOwnerStorage* network = &s_networkOwner)
                 return NativeWritableDiskAllowsOuterTeardown(state) && o->UserCleanup && state->NetworkPhase == 3 &&
                     network->Device.Retired && network->Pool.AllocatedMask == 0 &&
-                    ReadNetworkTime(state, out ulong now) && now >= o->CleanupClock &&
+                    ReadOwnedNetworkClock(state, out ulong now) && now >= o->CleanupClock &&
                     LinuxText(state, "M16_027_END owner=") && LinuxNumber(state, (ulong)o->Device) &&
                     LinuxText(state, " epoch=") && LinuxNumber(state, NativeWritableEpoch) &&
                     LinuxText(state, " reaped=") && LinuxNumber(state, o->Reaped) &&
