@@ -141,7 +141,8 @@ public static partial class QemuTranscripts
             var old = initial.Data.Find(name)!; var file = final.Data.Find(name)!;
             MediaNeed(old.Bytes == 0 && old.Clusters.Count == 0 && old.ShortEntryOffset == file.ShortEntryOffset, "target_entry");
             var root = Mask(old.ShortEntryOffset / 512); int entry = (int)(old.ShortEntryOffset % 512);
-            foreach (int field in new[] { 20, 21, 26, 27, 28, 29, 30, 31 }) root.Bits[entry + field] = 0xff;
+            foreach (int field in new[] { 20, 26, 27, 28, 29, 30, 31 }) root.Bits[entry + field] = 0xff;
+            root.Bits[entry + 21] = 0x0f; // Cluster bits28..31 are reserved here too.
             int remaining = file.Bytes;
             foreach (uint cluster in file.Clusters)
             {

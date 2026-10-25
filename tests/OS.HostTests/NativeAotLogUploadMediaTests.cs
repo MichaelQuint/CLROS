@@ -58,13 +58,19 @@ internal static class NativeAotLogUploadMediaTests
     private static void ProtectedWrites() => WithImages(f =>
     {
         ulong fat = f.Initial.Data.FirstFatSector, root = f.Initial.Data.FirstDataSector;
-        foreach ((ulong sector, int offset) in new[] { (fat, 0), (fat, 100 * 4 + 3), (root, 128 + 11),
+        foreach ((ulong sector, int offset) in new[] { (fat, 0), (fat, 100 * 4 + 3), (root, 21), (root, 128 + 11),
             (root, 5 * 32 + 1), (Combined.DataFirstLba + 1UL, 20), (f.TargetSectors[1], 200) })
         {
             byte[] changed = f.Sector(f.InitialBytes, sector); changed[offset] ^= 0x80;
             var w = f.Write(prefix: wire => { wire.Write(sector, changed); wire.Write(sector, f.Sector(f.InitialBytes, sector)); });
             Reject(() => f.Check(w), "log_upload_media_out_protected_bytes");
         }
+        // Only the low12 bits of the high word are mutable. This is a copied
+        // field-mask control, not validity/allocation authority for that transient
+        // cluster value or an assertion about intermediate filesystem states.
+        byte[] low12 = f.Sector(f.InitialBytes, root); low12[20] = 0xff; low12[21] = 0x0f;
+        var permitted = f.Write(prefix: wire => { wire.Write(root, low12); wire.Write(root, f.Sector(f.InitialBytes, root)); });
+        HostCheck.True(!f.Check(permitted).WholeCaptureQualified);
         foreach (ulong sector in new[] { root + 900, fat + Data.FatSectors - 1, (ulong)Combined.WebFirstLba,
             f.Initial.Data.Find("GUARD.TXT")!.Extents[0].FirstLba, Combined.DataFirstLba + 2UL })
         {
