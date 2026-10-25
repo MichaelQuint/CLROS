@@ -57,6 +57,12 @@ Allowed additions:
 
 Before adding a stub:
 
+First establish that a supported kernel operation needs the emitted helper.
+Prefer rewriting the triggering code into the existing restricted subset when
+that meets the requirement. A compiler/linker error alone does not justify new
+kernel GC, EH or general runtime behavior; follow the root
+[runtime guardrails](../../AGENTS.md#runtime-and-qualification-guardrails).
+
 1. Capture the exact `dotnet publish` or linker failure.
 2. Check whether the helper belongs in `std/no-runtime/shared` instead.
 3. Implement the smallest C# surface needed.

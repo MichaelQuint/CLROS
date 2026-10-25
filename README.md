@@ -96,6 +96,16 @@ SMP and cloud-provider qualification follow the first working NativeAOT service.
 The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 [architecture](docs/architecture.md) and [PAL](docs/pal.md) explain the boundaries.
 
+Keep kernel C# deliberately restricted: new kernel GC, exception or runtime
+features need a demonstrated product requirement. Preserve upstream guest
+runtime behavior and reusable OS services beneath the Linux adapter. Automate
+compiler-dependent checks so normal supported app deployment needs no manual
+disassembly or per-app kernel changes. Judge progress by complete guest static-file,
+persistent-upload, SQLite-recovery and isolation scenarios alongside focused tests.
+These are [development guardrails](AGENTS.md#runtime-and-qualification-guardrails)
+and [acceptance targets](docs/workload-profiles.md#product-scenarios-and-verification),
+not additional capabilities claimed by this documentation update.
+
 ## Current implementation batch
 
 The approved next milestone serves an actual Standalone Blazor WebAssembly app

@@ -101,6 +101,32 @@ diagnostics are separate from a guest command interpreter. Preserve hardware
 protection, capability checks, quotas and safe cleanup; a smaller interface is
 attack-surface reduction, not proof of security. See [security](security.md).
 
+## Restricted kernel runtime, upstream guest runtime
+
+The kernel's no-stdlib surface exists to implement the appliance's OS services.
+It is not a parallel implementation of the guest's .NET runtime. Prefer explicit
+ownership, bounded storage and status returns in kernel paths. Before adding
+kernel GC/EH, metadata parsing or another compiler helper, identify the supported
+product operation that requires it, why a smaller implementation is insufficient,
+and its ownership, failure and qualification boundaries. Guest GC/EH requirements
+belong to the upstream guest runtime and its required OS services; they do not
+justify making those features generally available in kernel C#.
+
+Compiler-dependent layouts, calling conventions and generated machine code are
+maintenance costs of the freestanding boundary. Pin the compiler/runtime and
+automate the checks in host tooling, keeping independent negative/ABI controls.
+Manual disassembly is useful for a new boundary or a specific defect; convert
+repeated discoveries into reusable checks. A supported app rebuild should change
+the package and its integrity metadata, without edits to the kernel, EFI image
+code, verifier source or app-specific address/hash allow-lists. Diagnostic fixture
+pins remain evidence for those fixtures, not the general deployment design.
+
+Do not undertake a compiler/runtime fork to bypass a failing test without first
+demonstrating a product requirement and evaluating the smaller OS-service or
+restricted-code repair. Use the [runtime limits](nativeaot-nostdlib-limits.md#runtime-expansion-and-toolchain-maintenance)
+and [complete guest scenarios](workload-profiles.md#product-scenarios-and-verification)
+to keep qualification tied to the supported appliance contract.
+
 ## Build-time assurance and measured optimization
 
 The [October 16 review order](workload-profiles.md#architecture-review-implementation-order-2026-10-16)
