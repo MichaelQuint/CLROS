@@ -521,6 +521,8 @@ public static unsafe class ContinuingFat32Mutation
     }
 
     /// <summary>One submit, one completion/copy, or one bounded metadata step.
+    /// A cached root scan consumes at most16 physical entries from one already
+    /// loaded sector; completing its IN never parses entries in the same call.
     /// Never waits synchronously. Successful overwrite becomes Ready only after
     /// its actual FLUSH. Read errors before publication change no media; issued
     /// failures/cancellation retain RecoveryRequired and all journal bytes.</summary>
@@ -538,7 +540,7 @@ public static unsafe class ContinuingFat32Mutation
         {
             case Step.Bpb: return Read(s, s->Input.PartitionFirst, s->Input.Sector, Purpose.Bpb);
             case Step.RootChain: case Step.TargetChain: case Step.OtherChain: return Walk(s);
-            case Step.Scan: return Scan(s);
+            case Step.Scan: return PumpScan(s);
             case Step.Plan: return Plan(s);
             case Step.ReadData: return ReadFileData(s);
             case Step.FindFree: return FindFree(s);
@@ -854,6 +856,34 @@ public static unsafe class ContinuingFat32Mutation
     { s->DirectorySector = s->DirectorySlot = 0; s->Vfat = default; s->LoadedDirectoryLba = ulong.MaxValue; s->Step = Step.Scan; }
     private static void Advance(State* s)
     { if (++s->DirectorySlot == 16) { s->DirectorySlot = 0; s->DirectorySector++; } }
+    // Batch only physical entries in the sector already owned at entry. Scan
+    // retains every budget/VFAT/collision check; no I/O completion or next
+    // sector submission is combined with this bounded cached turn.
+    private static Status PumpScan(State* s)
+    {
+        uint sector = s->DirectorySector, slot = s->DirectorySlot, sectors = s->Volume.SectorsPerCluster;
+        if (s->Phase != Life.Working || s->IoActive || s->Cancelled || slot >= 16 || sectors == 0 ||
+            sector >= s->RootCount * sectors) return Scan(s);
+        uint cluster = s->Input.DirectoryMap[sector / sectors];
+        ulong lba = s->Volume.FirstDataLba + (ulong)(cluster - 2) * sectors + sector % sectors;
+        if (s->LoadedDirectoryLba != lba) return Scan(s);
+        ulong self = s->Self, owner = s->Input.Owner, epoch = s->Input.Epoch, generation = s->RequestGeneration, revision = s->Revision;
+        Block.State* device = s->Input.Device;
+        ulong deviceEpoch = s->DeviceEpoch, poolEpoch = s->PoolEpoch;
+        Kind kind = s->Kind; byte reason = s->ScanReason;
+        for (uint count = 0; ; count++)
+        {
+            uint work = s->Work;
+            Status status = Scan(s);
+            if (status != Status.Pending || count + 1 == 16 || s->Phase != Life.Working || s->Step != Step.Scan ||
+                s->IoActive || s->Cancelled || s->DirectorySector != sector || s->LoadedDirectoryLba != lba ||
+                s->DirectorySlot != slot + 1 || s->DirectorySlot >= 16 || s->Work != work + 1 ||
+                s->Self != self || s->Input.Owner != owner || s->Input.Epoch != epoch || s->RequestGeneration != generation ||
+                s->Revision != revision || s->Kind != kind || s->ScanReason != reason || s->Input.Device != device ||
+                s->DeviceEpoch != deviceEpoch || s->PoolEpoch != poolEpoch) return status;
+            slot++;
+        }
+    }
     private static Status Scan(State* s)
     {
         if (s->DirectorySector == s->RootCount * s->Volume.SectorsPerCluster) return ScanEnd(s);

@@ -627,6 +627,204 @@ internal static unsafe class ContinuingFat32MutationTests
         f.Mount(); var file = File(f, name); HostCheck.True(file.FirstCluster == 4 && file.Length == 900); C.Stop(f.State);
     }
 
+    [HostTest("continuing FAT cached scan consumes at most one loaded sector and keeps directory completion separate")]
+    private static void CachedScanSector()
+    {
+        using var f = new Fixture(observe: true); ScanRoot(f); f.Mount();
+        HostCheck.Equal(C.Status.Pending, Create(f, "NEW.TXT", "NEW     TXT"u8, out var request)); ScanStart(f);
+        uint work = *Field<uint>(f, "Work"); ulong submitted = f.Device.State->Submitted;
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(*Field<bool>(f, "IoActive") && f.Device.Hardware->Pending && f.Device.Hardware->Sector == Data &&
+            *Field<uint>(f, "DirectorySlot") == 0 && *Field<uint>(f, "Work") == work && f.Device.State->Submitted == submitted + 1);
+        f.Device.Complete(); HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(!*Field<bool>(f, "IoActive") && *Field<ulong>(f, "LoadedDirectoryLba") == Data &&
+            *Field<uint>(f, "DirectorySlot") == 0 && *Field<uint>(f, "Work") == work);
+        var unchanged = MarkDevice(f);
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(*Field<uint>(f, "DirectorySector") == 1 && *Field<uint>(f, "DirectorySlot") == 0 &&
+            *Field<uint>(f, "Work") == work + 16 && *Field<ulong>(f, "LoadedDirectoryLba") == Data);
+        SameDevice(f, unchanged);
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(f.Device.Hardware->Pending && f.Device.Hardware->Sector == Data + 3 &&
+            f.Device.State->Submitted == submitted + 2 && *Field<uint>(f, "Work") == work + 16);
+        f.Device.Complete(); HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(*Field<ulong>(f, "LoadedDirectoryLba") == Data + 3 && *Field<uint>(f, "DirectorySlot") == 0 &&
+            *Field<uint>(f, "Work") == work + 16);
+        unchanged = MarkDevice(f); HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(StateIs(f, "Step", "Plan") && *Field<uint>(f, "Work") == work + 17); SameDevice(f, unchanged);
+        HostCheck.Equal(C.Status.Ready, f.Run()); Result(f, request);
+        HostCheck.True(f.Persistent.Slice((Data + 3) * 512, 11).SequenceEqual("NEW     TXT"u8)); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT cached scan stops immediately for other and target chains or a terminal empty match")]
+    private static void CachedScanTransitions()
+    {
+        for (int mode = 0; mode < 3; mode++)
+        {
+            using var f = new Fixture(observe: true);
+            if (mode != 0)
+            {
+                f.Volatile.Slice(Data * 512 + 32, 32).CopyTo(f.Volatile.Slice(Data * 512, 32)); f.Volatile.Slice(Data * 512 + 32, 32).Clear();
+                if (mode == 2) { Put16(f.Volatile, Data * 512 + 26, 0); Put32(f.Volatile, Data * 512 + 28, 0); }
+            }
+            f.Mount(); C.RequestToken request;
+            if (mode == 0) Create(f, "NEW.TXT", "NEW     TXT"u8, out request); else Open(f, "DATA.BIN", out request);
+            ScanLoaded(f); uint work = *Field<uint>(f, "Work"); var unchanged = MarkDevice(f);
+            HostCheck.Equal(mode == 2 ? C.Status.Ready : C.Status.Pending, C.Pump(f.State));
+            HostCheck.True(*Field<uint>(f, "Work") == work + 1 && *Field<uint>(f, "DirectorySlot") == 1);
+            SameDevice(f, unchanged);
+            if (mode == 2)
+            { C.FileToken file = default; HostCheck.Equal(C.Status.Success, C.CopyOpen(f.State, request, &file)); HostCheck.True(file.Length == 0 && file.FirstCluster == 0); }
+            else
+            {
+                HostCheck.True(StateIs(f, "Step", mode == 0 ? "OtherChain" : "TargetChain"));
+                HostCheck.Equal(C.Status.Ready, C.Cancel(f.State, request));
+                if (mode == 0) Result(f, request, C.Status.Cancelled);
+                else { C.FileToken file = default; HostCheck.Equal(C.Status.Cancelled, C.CopyOpen(f.State, request, &file)); }
+            }
+            HostCheck.Equal(0UL, f.Device.State->SubmittedBytes); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT cached scan stops on same-sector empty growth reset before another directory read")]
+    private static void CachedScanReset()
+    {
+        using var f = new Fixture(observe: true); f.Volatile.Slice(Data * 512, 512).Clear();
+        "EMPTY   TXT"u8.CopyTo(f.Volatile.Slice(Data * 512, 11)); f.Volatile[Data * 512 + 11] = 0x20;
+        f.Mount(); var file = File(f, "EMPTY.TXT"); Grow(f, file, 1, new uint[] { 8 }, out var request); ScanLoaded(f);
+        uint work = *Field<uint>(f, "Work"); var unchanged = MarkDevice(f);
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+        HostCheck.True(StateIs(f, "Step", "Scan") && *Field<uint>(f, "Work") == work + 1 &&
+            *Field<uint>(f, "DirectorySlot") == 0 && *Field<ulong>(f, "LoadedDirectoryLba") == ulong.MaxValue);
+        SameDevice(f, unchanged);
+        HostCheck.Equal(C.Status.Pending, C.Pump(f.State)); HostCheck.True(f.Device.Hardware->Pending && f.Device.Hardware->Sector == Data);
+        HostCheck.Equal(C.Status.Pending, C.Cancel(f.State, request)); f.Device.Complete(); HostCheck.Equal(C.Status.Ready, f.Run());
+        Result(f, request, C.Status.Cancelled); HostCheck.True(!f.State->Dirty && f.Device.State->SubmittedBytes == 0); C.Stop(f.State);
+    }
+
+    [HostTest("continuing FAT cached scan preserves split VFAT state and rejects checksum or deleted interruption before publication")]
+    private static void CachedScanVfatBoundary()
+    {
+        Span<byte> entry = stackalloc byte[32];
+        for (int mode = 0; mode < 3; mode++)
+        {
+            using var f = new Fixture(observe: true); ScanRoot(f);
+            entry.Clear(); "LONG    TXT"u8.CopyTo(entry); entry[11] = 0x20;
+            byte[] run = new byte[64]; HostCheck.Equal(Fat32Mutation.Status.Success, Fat32Mutation.EncodeEntryRun("a-long.txt", entry, run, out int slots));
+            HostCheck.Equal(2, slots); run.AsSpan(0, 32).CopyTo(f.Volatile.Slice(Data * 512 + 15 * 32, 32));
+            run.AsSpan(32, 32).CopyTo(f.Volatile.Slice((Data + 3) * 512, 32));
+            if (mode == 1) f.Volatile[(Data + 3) * 512] = (byte)'M';
+            if (mode == 2) f.Volatile[(Data + 3) * 512] = 0xe5;
+            f.Mount(); Open(f, "a-long.txt", out var request); ScanLoaded(f); uint work = *Field<uint>(f, "Work"); var unchanged = MarkDevice(f);
+            HostCheck.Equal(C.Status.Pending, C.Pump(f.State));
+            HostCheck.True(*Field<uint>(f, "DirectorySector") == 1 && *Field<uint>(f, "DirectorySlot") == 0 &&
+                Field<LiveVfatState>(f, "Vfat")->Slots == 1 && *Field<uint>(f, "ScanRunStart") == 15 && *Field<uint>(f, "Work") == work + 16);
+            SameDevice(f, unchanged); ScanLoaded(f, 1, Data + 3); unchanged = MarkDevice(f);
+            HostCheck.Equal(C.Status.Ready, C.Pump(f.State)); HostCheck.Equal(work + 17, *Field<uint>(f, "Work")); SameDevice(f, unchanged);
+            C.FileToken file = default; HostCheck.Equal(mode == 0 ? C.Status.Success : C.Status.CorruptDirectory, C.CopyOpen(f.State, request, &file));
+            if (mode == 0) HostCheck.True(file.EntryOffset == (Data + 3) * 512UL && *Field<uint>(f, "RunStart") == 15 && *Field<uint>(f, "RunSlots") == 2);
+            HostCheck.Equal(0UL, f.Device.State->SubmittedBytes); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT cached scan charges each physical entry and preserves late name alias and corruption rejection")]
+    private static void CachedScanBudgetsAndCollisions()
+    {
+        using (var f = new Fixture(observe: true))
+        {
+            ScanRoot(f); f.Input.WorkBudget = 6; f.Mount(); Create(f, "NEW.TXT", "NEW     TXT"u8, out var request); ScanLoaded(f);
+            HostCheck.Equal(3U, *Field<uint>(f, "Work")); var unchanged = MarkDevice(f);
+            HostCheck.Equal(C.Status.Ready, C.Pump(f.State));
+            HostCheck.True(*Field<uint>(f, "Work") == 6 && *Field<uint>(f, "DirectorySlot") == 3); SameDevice(f, unchanged);
+            Result(f, request, C.Status.BudgetExceeded); HostCheck.Equal(0UL, f.Device.State->SubmittedBytes); C.Stop(f.State);
+        }
+        for (int mode = 0; mode < 4; mode++)
+        {
+            using var f = new Fixture(observe: true); ScanRoot(f);
+            for (int i = 0; i < 16; i++) { f.Volatile.Slice(Data * 512 + i * 32, 32).Clear(); f.Volatile[Data * 512 + i * 32] = 0xe5; }
+            Span<byte> raw = f.Volatile.Slice(Data * 512 + 15 * 32, 32); raw.Clear(); "TARGET  TXT"u8.CopyTo(raw); raw[11] = 0x20;
+            if (mode == 2)
+            {
+                "OTHER   TXT"u8.CopyTo(raw); byte[] run = new byte[64];
+                HostCheck.Equal(Fat32Mutation.Status.Success, Fat32Mutation.EncodeEntryRun("TARGET.TXT", raw, run, out int slots)); HostCheck.Equal(2, slots);
+                run.CopyTo(f.Volatile.Slice(Data * 512 + 14 * 32, 64));
+            }
+            if (mode == 3) raw[11] = 0xc0;
+            f.Mount(); byte[] original = f.Volatile.Slice(Data * 512, 512).ToArray();
+            Create(f, mode == 1 ? "target.txt" : mode == 2 ? "unrelated" : "TARGET.TXT", mode == 2 ? "TARGET  TXT"u8 : "NEW     TXT"u8, out var request);
+            ScanLoaded(f); uint work = *Field<uint>(f, "Work"); var unchanged = MarkDevice(f);
+            HostCheck.Equal(C.Status.Ready, C.Pump(f.State));
+            HostCheck.True(*Field<uint>(f, "Work") == work + 16 && *Field<bool>(f, "CreateHasRun")); SameDevice(f, unchanged);
+            Result(f, request, mode == 3 ? C.Status.CorruptDirectory : C.Status.AlreadyExists);
+            HostCheck.True(f.Device.State->SubmittedBytes == 0 && f.Volatile.Slice(Data * 512, 512).SequenceEqual(original)); C.Stop(f.State);
+        }
+    }
+
+    [HostTest("continuing FAT cached scan cancellation and original device retirement prevent parsing or late sector copy")]
+    private static void CachedScanLifetime()
+    {
+        for (int mode = 0; mode < 4; mode++)
+        {
+            using var f = new Fixture(observe: true); ScanRoot(f); f.Mount(); Create(f, "NEW.TXT", "NEW     TXT"u8, out var request); ScanLoaded(f);
+            if (mode == 1) { C.Pump(f.State); C.Pump(f.State); HostCheck.True(f.Device.Hardware->Pending); }
+            uint work = *Field<uint>(f, "Work"); byte[] sector = new ReadOnlySpan<byte>(f.Input.Sector, 512).ToArray();
+            if (mode < 2)
+            {
+                HostCheck.Equal(mode == 0 ? C.Status.Ready : C.Status.Pending, C.Cancel(f.State, request));
+                if (mode == 1) f.Device.Complete();
+                HostCheck.Equal(C.Status.Ready, C.Pump(f.State)); Result(f, request, C.Status.Cancelled);
+            }
+            else
+            {
+                ulong* epoch = mode == 2 ? &((B.Admission*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "Input")))->Epoch :
+                    (ulong*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "PoolEpoch"));
+                ulong original = *epoch; (*epoch)++;
+                try { HostCheck.Equal(C.Status.BlockFailure, C.Pump(f.State)); }
+                finally { *epoch = original; }
+                HostCheck.True(!f.State->IsReady && f.State->LastBlockFailure == B.Status.InvalidState);
+            }
+            HostCheck.True(*Field<uint>(f, "Work") == work && f.Device.State->SubmittedBytes == 0 && !f.State->Dirty &&
+                new ReadOnlySpan<byte>(f.Input.Sector, 512).SequenceEqual(sector));
+        }
+    }
+
+    private static T* Field<T>(Fixture f, string name) where T : unmanaged =>
+        (T*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, name));
+    private static bool StateIs(Fixture f, string field, string value)
+    {
+        var info = typeof(C.State).GetField(field, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        return *Field<byte>(f, field) == Convert.ToByte(Enum.Parse(info.FieldType, value));
+    }
+    private static void ScanRoot(Fixture f)
+    {
+        f.Fat(2, 5); f.Fat(5, 0xfffffff);
+        f.Volatile.Slice(Data * 512, 512).Clear(); f.Volatile.Slice((Data + 3) * 512, 512).Clear();
+        for (int i = 0; i < 16; i++)
+        { Span<byte> raw = f.Volatile.Slice(Data * 512 + i * 32, 32); System.Text.Encoding.ASCII.GetBytes("F" + i.ToString("D7") + "TXT").CopyTo(raw); raw[11] = 0x20; }
+    }
+    private static void ScanStart(Fixture f)
+    {
+        for (int i = 0; i < 100; i++)
+        { if (StateIs(f, "Step", "Scan") && !*Field<bool>(f, "IoActive")) return; HostCheck.Equal(C.Status.Pending, f.Turn()); }
+        throw new InvalidOperationException("scan phase not reached");
+    }
+    private static void ScanLoaded(Fixture f, uint sector = 0, ulong lba = Data)
+    {
+        for (int i = 0; i < 100; i++)
+        {
+            if (StateIs(f, "Step", "Scan") && !*Field<bool>(f, "IoActive") && *Field<uint>(f, "DirectorySector") == sector &&
+                *Field<uint>(f, "DirectorySlot") == 0 && *Field<ulong>(f, "LoadedDirectoryLba") == lba) return;
+            HostCheck.Equal(C.Status.Pending, f.Turn());
+        }
+        throw new InvalidOperationException("loaded scan sector not reached");
+    }
+    private static (uint Calls, byte[] State, byte[] Observation) MarkDevice(Fixture f) =>
+        (f.Device.Hardware->Calls, new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).ToArray(),
+            new ReadOnlySpan<byte>(f.Device.Observation, sizeof(B.Observation)).ToArray());
+    private static void SameDevice(Fixture f, (uint Calls, byte[] State, byte[] Observation) mark) =>
+        HostCheck.True(mark.Calls == f.Device.Hardware->Calls && new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)).SequenceEqual(mark.State) &&
+            new ReadOnlySpan<byte>(f.Device.Observation, sizeof(B.Observation)).SequenceEqual(mark.Observation));
+
     [HostTest("continuing FAT zero byte operations and real clean barriers retain exact frontier and traversal budgets")]
     private static void BoundsAndBarrier()
     {
