@@ -129,11 +129,20 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.Equal(expected, EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch));
         // Deterministic warmup is outside the strict measurement. The complete
         // state/callback snapshot still covers it; no retry-until-zero occurs.
-        bool warm = true;
-        for (int i = 0; i < 256; i++) warm &= EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch) == expected;
-        long allocated = GC.GetAllocatedBytesForCurrentThread(); bool valid = true;
-        for (int i = 0; i < 64; i++) valid &= EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch) == expected;
-        long afterAllocated = GC.GetAllocatedBytesForCurrentThread(); byte[] after = EngineMatchSnapshot(f);
+        // The pinned CoreCLR can count abandoned allocation-context tails during
+        // background GC (dotnet/runtime#134855). Require one maintained no-GC
+        // region so the counter measures allocations; real allocations still fail.
+        bool warm = true, valid = true; long allocated = 0, afterAllocated = 0;
+        HostCheck.True(GC.TryStartNoGCRegion(1 << 20, disallowFullBlockingGC: true), "allocation measurement requires a no-GC region");
+        try
+        {
+            for (int i = 0; i < 256; i++) warm &= EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch) == expected;
+            allocated = GC.GetAllocatedBytesForCurrentThread();
+            for (int i = 0; i < 64; i++) valid &= EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch) == expected;
+            afterAllocated = GC.GetAllocatedBytesForCurrentThread();
+        }
+        finally { GC.EndNoGCRegion(); }
+        byte[] after = EngineMatchSnapshot(f);
         HostCheck.True(warm && valid, stage + ": retained engine result changed during repeated query");
         HostCheck.True(allocated == afterAllocated, stage + ": allocation delta=" + (afterAllocated - allocated));
         HostCheck.Equal(calls, f.Device->Calls); HostCheck.Equal(notifies, f.Device->Notifies);
