@@ -310,7 +310,7 @@ internal static unsafe class LinuxSyscallGatewayTests
     private static void DiskWaitActions()
     {
         byte* scratch = stackalloc byte[64];
-        foreach (ulong number in new ulong[] { 2, 4, 6, 8, 17, 257 })
+        foreach (ulong number in new ulong[] { 2, 4, 5, 6, 8, 17, 257 })
         {
             Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model, scratch);
             var frame = Frame(); frame.Number = number; frame.Argument2 = 5;
@@ -318,6 +318,8 @@ internal static unsafe class LinuxSyscallGatewayTests
             HostCheck.True(state.Status == LinuxSyscallGateStatus.Blocked && state.Calls == 1 && model.ThreadCalls == 1);
             HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
             HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Blocked)).Action);
+            HostCheck.True(state.Status == LinuxSyscallGateStatus.Blocked && state.Calls == 1 && state.TotalCalls == 1 &&
+                model.ThreadCalls == 1 && state.BytesWritten == 0 && state.TotalBytesWritten == 0);
             long value = number is 2 or 257 ? 3 : number == 8 ? 123456 : number == 17 ? 5 : 0;
             var completed = LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, value));
             HostCheck.True(completed.Action == LinuxSyscallAction.Return && completed.Value == value &&
@@ -332,7 +334,7 @@ internal static unsafe class LinuxSyscallGatewayTests
     private static void UnrelatedBlockedCalls()
     {
         byte* scratch = stackalloc byte[64];
-        foreach (ulong number in new ulong[] { 3, 5, 16, 20, 22, 24, 39, 41, 72, 79, 89, 293 })
+        foreach (ulong number in new ulong[] { 3, 16, 20, 22, 24, 39, 41, 72, 79, 89, 293 })
         {
             Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model, scratch);
             var frame = Frame(); frame.Number = number;

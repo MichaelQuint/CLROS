@@ -305,6 +305,11 @@ internal static unsafe class LinuxStartupServicesTests
     [HostTest("linux.startup brk shrink cannot invalidate retained disk output while nonoverlapping heap growth remains available")]
     private static void DiskOutputBrkGuard()
     {
+        foreach (bool failCopy in new[] { false, true }) DiskOutputBrkGuardCase(failCopy);
+    }
+
+    private static void DiskOutputBrkGuardCase(bool failCopy)
+    {
         using var startup = new Owner(); startup.Begin();
         HostCheck.Equal((long)Heap + 3 * 4096, startup.Call(12, Heap + 3 * 4096));
         using var disk = new LinuxDiskThreadServicesTests.Owner(); uint fd = disk.Open();
@@ -313,15 +318,24 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(LinuxMemoryServices.AttachMutationGuard(startup.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard));
         try
         {
-            var child = threads.Clone(); disk.Begin(17, fd, Heap + 4096 + 128, 5); disk.Park();
+            const ulong target = Heap + 4096 + 128;
+            var bytes = new Span<byte>(startup.Memory.At(target - 1), 7); bytes.Fill(0xa5);
+            var child = threads.Clone(); disk.Begin(17, fd, target, 5); disk.Park();
             HostCheck.Equal(child.Value, threads.Kernel.Dispatch().Value);
             BrkRejected(startup, Heap + 4096);
             HostCheck.Equal((long)Heap + 4 * 4096, startup.Call(12, Heap + 4 * 4096));
             HostCheck.Equal((long)Heap + 3 * 4096, startup.Call(12, Heap + 3 * 4096));
             disk.Ready(); BrkRejected(startup, Heap + 4096); // Held Ready still protects original backing.
-            // Completion won, so consume its genuine copy-fault result. This
-            // host fixture intentionally cannot copy dynamic user memory.
-            threads.Yield(child); HostCheck.Equal(-14L, disk.Consume());
+            // The model now copies actual mapped pool bytes. Its explicit
+            // failure control still rejects the final copy without late bytes.
+            if (failCopy) threads.FailWrite(target);
+            uint copies = threads.Writes, failed = threads.FailedWrites;
+            threads.Yield(child); HostCheck.Equal(failCopy ? -14L : 5L, disk.Consume());
+            HostCheck.True(threads.Writes == copies + 1 && threads.FailedWrites == failed + (failCopy ? 1U : 0) && disk.May(target, 5));
+            HostCheck.True(bytes[0] == 0xa5 && bytes[6] == 0xa5);
+            if (failCopy) HostCheck.True(bytes.IndexOfAnyExcept((byte)0xa5) < 0);
+            else HostCheck.True(bytes.Slice(1, 5).SequenceEqual(new byte[] { 0x5a, 0x45, 0x64, 0x07, 0x26 }));
+            threads.FailWrite(0);
             HostCheck.Equal((long)Heap + 4096, startup.Call(12, Heap + 4096));
         }
         finally { HostCheck.True(LinuxMemoryServices.DetachMutationGuard(startup.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard)); }

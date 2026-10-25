@@ -230,7 +230,11 @@ public unsafe partial struct LinuxThreadServices
         if (d->Disk != null)
         {
             var disk = d->Disk;
-            if (!Range((ulong)disk, (ulong)sizeof(LinuxDescriptorServices.DiskState)) ||
+            // A malformed non-null tree must reach the rejecting full audit,
+            // never a legacy fallback or a low/unaligned pointer dereference.
+            if ((ulong)disk < 4096 || ((ulong)disk & 7) != 0 ||
+                !Range((ulong)disk, (ulong)sizeof(LinuxDescriptorServices.DiskState)) ||
+                (ulong)disk->Mount < 4096 || ((ulong)disk->Mount & 7) != 0 ||
                 !Range((ulong)disk->Mount, (ulong)sizeof(OS.Storage.ReadOnlyWebRootFileSystem.Mount))) return true;
             return disk->Mount->ReadPort != null;
         }
