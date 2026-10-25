@@ -6,12 +6,185 @@ using OS.Storage;
 using C = OS.Storage.ContinuingFat32Mutation;
 using B = OS.Storage.WritableBlockSession;
 using D = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
+using LogUpload = OS.Tooling.NativeAotLogUploadContract;
 
 internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
 {
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
+
+    [HostTest("continuing strict log upload bytes survive actual flush snapshots clean teardown and fresh device engine provider epochs")]
+    private static void LogUploadColdMedia()
+    {
+        byte[] expectedLog = LogUpload.ExpectedLog(), expectedUpload = LogUpload.ExpectedUpload();
+        HostCheck.True(expectedLog.Length == 660 && expectedUpload.Length == 5126);
+        byte[] finalMedia; D.DescriptorToken staleLog = default; ulong priorDeviceEpoch, priorEngineEpoch;
+        using (var f = new Owner(growth: true, engineEpoch: 7101))
+        {
+            SeedLogUpload(f); byte[] before = f.Storage.Persistent.ToArray();
+            priorDeviceEpoch = f.Storage.Device.Input.Epoch; priorEngineEpoch = f.Input.Epoch;
+            var search = new D.FreeSearch(2, 128, 16); var snapshots = new List<byte[]>();
+            // Original r02 write-trace.7625:243-282 uses single-iovec
+            // pwritev2/RWF_NOAPPEND offsets, not kernel O_APPEND or a shared
+            // sequential cursor. These are provider operations, not trace replay.
+            for (int group = 0; group < 2; group++)
+            {
+                var writer = f.Open("/data/LOG.TXT", 0x88141); HostCheck.Equal(0L, D.Flock(f.State, writer, 5));
+                HostCheck.Equal((uint)(group * 330), f.Stat(writer).Facts.File.Length);
+                for (int row = group * 6; row < group * 6 + 6; row++)
+                    HostCheck.Equal(55L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, writer, expectedLog.AsSpan(row * 55, 55),
+                        (ulong)(row * 55), D.RwfNoAppend, search)).Value);
+                snapshots.Add(FlushSnapshot(f, writer)); HostCheck.Equal(0UL, f.Cursor(writer));
+                HostCheck.Equal(0L, D.Flock(f.State, writer, 8)); HostCheck.Equal(0L, D.Close(f.State, writer));
+                if (group != 0) HostCheck.True(writer.Number == staleLog.Number && writer.Generation > staleLog.Generation);
+                staleLog = writer;
+                CheckCopiedFile(snapshots[^1], "LOG.TXT", expectedLog.AsSpan(0, (group + 1) * 330));
+                CheckCopiedFile(snapshots[^1], "UPLOAD.BIN", []); CheckCopiedNeighbors(before, snapshots[^1]);
+            }
+            var upload = f.Open("/data/UPLOAD.BIN", 0x88101); HostCheck.Equal(0L, D.Flock(f.State, upload, 5));
+            HostCheck.Equal(4094L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, upload, expectedUpload.AsSpan(0, 4094), 0, D.RwfNoAppend, search)).Value);
+            HostCheck.Equal(1032L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, upload, expectedUpload.AsSpan(4094), 4094, D.RwfNoAppend, search)).Value);
+            snapshots.Add(FlushSnapshot(f, upload)); HostCheck.Equal(0UL, f.Cursor(upload));
+            HostCheck.Equal(0L, D.Flock(f.State, upload, 8)); HostCheck.Equal(0L, D.Close(f.State, upload));
+            finalMedia = snapshots[^1]; CheckCopiedNeighbors(before, finalMedia);
+            CheckCopiedFile(finalMedia, "LOG.TXT", expectedLog); CheckCopiedFile(finalMedia, "UPLOAD.BIN", expectedUpload);
+            HostCheck.True(snapshots.Count == 3 && !f.State->RequestActive && !f.Storage.State->Dirty);
+            RetireClean(f); HostCheck.True(f.Storage.Persistent.SequenceEqual(finalMedia));
+        }
+        // Copies initialize a genuinely new fake device's backing before any
+        // filesystem I/O. Mount/reopen/reads below use actual queued IN, never
+        // old engine maps, successful tokens or a prevalidated volume snapshot.
+        using var cold = new Owner(growth: true, restoredMedia: finalMedia, engineEpoch: 7102);
+        HostCheck.True(cold.Storage.Device.Input.Epoch != priorDeviceEpoch && cold.Input.Epoch != priorEngineEpoch);
+        uint calls = cold.Device->Notifies;
+        HostCheck.Equal(-9L, D.BeginRead(cold.State, staleLog, 1).Value); HostCheck.Equal(-9L, D.BeginSync(cold.State, staleLog).Value);
+        HostCheck.Equal(-9L, D.Close(cold.State, staleLog)); HostCheck.Equal(calls, cold.Device->Notifies);
+        byte[] actualLog = ReadCold(cold, "/data/LOG.TXT", expectedLog.Length), actualUpload = ReadCold(cold, "/data/UPLOAD.BIN", expectedUpload.Length);
+        HostCheck.Equal(LogUpload.InspectFileValues(expectedLog, expectedUpload), LogUpload.InspectFileValues(actualLog, actualUpload));
+        HostCheck.True(cold.Trace.Count > 0 && cold.Trace.All(row => row.Type == 0) && cold.Storage.Device.State->SubmittedBytes == 0);
+        RetireClean(cold);
+        Console.WriteLine("HOST_LOG_UPLOAD_COLD copiedContract=true bclExecuted=false physicalPersistence=false logBytes=660 uploadBytes=5126 appFlushSnapshots=3 freshEpochs=true");
+    }
+
+    [HostTest("continuing uncompleted requested log flush remains pending even when prior internal flushes already persisted the bytes")]
+    private static void LogUploadMissingBarrier()
+    {
+        using var f = new Owner(growth: true); SeedLogUpload(f); var log = f.Open("/data/LOG.TXT", 1);
+        byte[] record = LogUpload.ExpectedLog().AsSpan(0, 55).ToArray();
+        HostCheck.Equal(55L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, log, record, 0, D.RwfNoAppend, new(2, 128, 16))).Value);
+        byte[] priorMedia = f.Storage.Persistent.ToArray(); CheckCopiedFile(priorMedia, "LOG.TXT", record);
+        ulong submitted = f.Storage.Device.State->Submitted, completed = f.Storage.Device.State->Completed, acknowledged = f.Storage.Device.State->DurableBytes;
+        var barrier = D.BeginSync(f.State, log); HostCheck.Equal(D.Progress.Pending, barrier.Phase);
+        HostCheck.Equal(D.Progress.Pending, D.Pump(f.State).Phase); HostCheck.True(f.Device->Pending && f.Device->Type == 4);
+        for (int turn = 0; turn < 8; turn++) HostCheck.Equal(D.Progress.Pending, D.Pump(f.State).Phase);
+        HostCheck.True(f.State->RequestActive && f.Storage.Device.State->Submitted == submitted + 1 &&
+            f.Storage.Device.State->Completed == completed && f.Storage.Device.State->DurableBytes == acknowledged &&
+            !f.Storage.State->Dirty && f.Storage.Persistent.SequenceEqual(priorMedia));
+        HostCheck.Equal(D.Progress.Pending, D.Complete(f.State, barrier.Request).Phase);
+        // Clean frontier equality does not invent this requested completion.
+        // After the missing completion is actually supplied, cancel still wins
+        // the pending request; its actual successful FLUSH is not suppressed.
+        HostCheck.Equal(D.Progress.Pending, D.Cancel(f.State, barrier.Request).Phase); f.CompleteHardware();
+        HostCheck.Equal(-4L, f.Run(barrier).Value); HostCheck.Equal(completed + 1, f.Storage.Device.State->Completed);
+        CheckCopiedFile(f.Storage.Persistent.ToArray(), "LOG.TXT", record); HostCheck.Equal(0L, D.Close(f.State, log));
+    }
+
+    [HostTest("continuing failed log write flush retains dirty backing and a fresh copied medium sees only the last actual successful image")]
+    private static void LogUploadFailedFlush()
+    {
+        byte[] baseline; byte[] copied; ulong priorDeviceEpoch;
+        using (var failed = new Owner(growth: true, engineEpoch: 7201))
+        {
+            SeedLogUpload(failed); baseline = failed.Storage.Persistent.ToArray(); var log = failed.Open("/data/LOG.TXT", 1);
+            priorDeviceEpoch = failed.Storage.Device.Input.Epoch; ulong completed = failed.Storage.Device.State->Completed;
+            failed.FailureType = 4;
+            var write = D.Pwritev2SingleWithFreeSearch(failed.State, log, LogUpload.ExpectedLog().AsSpan(0, 55), 0, D.RwfNoAppend, new(2, 128, 16));
+            HostCheck.Equal(D.Progress.RecoveryRequired, failed.Wait(write).Phase);
+            HostCheck.True(failed.Storage.State->Dirty && failed.State->RequestActive && failed.State->Quarantined &&
+                failed.Storage.Device.State->LastFailure == B.Status.DeviceIoError && failed.Storage.Device.State->Completed > completed);
+            copied = failed.Storage.Persistent.ToArray(); HostCheck.True(copied.AsSpan().SequenceEqual(baseline));
+            byte[] retained = new ReadOnlySpan<byte>(failed.Storage.Input.Before, (int)failed.Storage.Input.ChangeCapacity * 512).ToArray();
+            HostCheck.Equal(D.Progress.RecoveryRequired, D.Complete(failed.State, write.Request).Phase);
+            HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(failed.State).Phase);
+            HostCheck.Equal(B.Status.Success, B.Stop(failed.Storage.Device.State));
+            HostCheck.Equal(C.Status.RecoveryRequired, C.Stop(failed.Storage.State));
+            HostCheck.True(!failed.State->Retired && !failed.Storage.State->Retired &&
+                new ReadOnlySpan<byte>(failed.Storage.Input.Before, retained.Length).SequenceEqual(retained));
+            CheckCopiedFile(copied, "LOG.TXT", []); CheckCopiedFile(copied, "UPLOAD.BIN", []); CheckCopiedNeighbors(baseline, copied);
+        }
+        // Ending this failed simulated machine is not successful dirty teardown
+        // or journal recovery. Only its independently copied last FLUSH image is
+        // admitted to a fresh unrelated owner for the following readback.
+        using var cold = new Owner(growth: true, restoredMedia: copied, engineEpoch: 7202);
+        HostCheck.True(cold.Storage.Device.Input.Epoch != priorDeviceEpoch && ReadCold(cold, "/data/LOG.TXT", 0).Length == 0 &&
+            ReadCold(cold, "/data/UPLOAD.BIN", 0).Length == 0 && cold.Storage.Device.State->SubmittedBytes == 0);
+        RetireClean(cold);
+    }
+
+    private static void SeedLogUpload(Owner f)
+    {
+        foreach (string path in new[] { "/data/LOG.TXT", "/data/UPLOAD.BIN" })
+        {
+            var file = f.Open(path, 2 | D.Create | D.Exclusive); HostCheck.Equal(0U, f.Stat(file).Facts.File.Length);
+            HostCheck.Equal(0L, D.Close(f.State, file));
+        }
+        HostCheck.True(!f.Storage.State->Dirty && f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->DurableBytes);
+    }
+    private static byte[] FlushSnapshot(Owner f, D.DescriptorToken file)
+    {
+        int start = f.Trace.Count; ulong submitted = f.Storage.Device.State->Submitted, completed = f.Storage.Device.State->Completed;
+        ulong written = f.Storage.Device.State->SubmittedBytes;
+        HostCheck.Equal(0L, f.Run(D.BeginSync(f.State, file)).Value);
+        HostCheck.True(f.Trace.Skip(start).Select(row => row.Type).SequenceEqual(new uint[] { 4 }) &&
+            f.Storage.Device.State->Submitted == submitted + 1 && f.Storage.Device.State->Completed == completed + 1 &&
+            f.Storage.Device.State->SubmittedBytes == written && f.Storage.Device.State->CompletedBytes == written &&
+            f.Storage.Device.State->DurableBytes == written && !f.Storage.State->Dirty);
+        return f.Storage.Persistent.ToArray();
+    }
+    private static void RetireClean(Owner f)
+    {
+        HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); HostCheck.True(!f.State->RequestActive && !f.Storage.State->Dirty);
+        HostCheck.Equal(C.Status.Success, C.Stop(f.Storage.State)); HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+        HostCheck.True(f.Storage.State->Retired && f.Storage.Device.State->Retired && f.Storage.Device.Pool->AllocatedMask == 0);
+    }
+    private static byte[] ReadCold(Owner f, string path, int bytes)
+    {
+        var file = f.Open(path, 0x88100); HostCheck.Equal(0UL, f.Cursor(file)); HostCheck.Equal((uint)bytes, f.Stat(file).Facts.File.Length);
+        byte[] result = new byte[bytes];
+        for (int offset = 0; offset < bytes; offset += 521)
+        {
+            uint count = (uint)Math.Min(521, bytes - offset); byte[] part = f.Read(file, count); HostCheck.Equal((int)count, part.Length); part.CopyTo(result, offset);
+        }
+        HostCheck.True(f.Read(file, 1).Length == 0 && f.Cursor(file) == (ulong)bytes); HostCheck.Equal(0L, D.Close(f.State, file)); return result;
+    }
+    private static void CheckCopiedFile(byte[] raw, string name, ReadOnlySpan<byte> expected)
+    {
+        byte[] output = new byte[expected.Length]; var read = Fat32Parser.ReadRootFile(new CopiedMedium(raw), 8, name, output);
+        HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && output.AsSpan().SequenceEqual(expected));
+    }
+    private static void CheckCopiedNeighbors(byte[] before, byte[] after)
+    {
+        CheckCopiedFile(after, "DATA.BIN", Enumerable.Range(0, 900).Select(Value).ToArray()); CheckCopiedFile(after, "KEEP.TXT", new byte[3]);
+        var parsed = Fat32Parser.ReadBpb(new CopiedMedium(after), 8); HostCheck.True(parsed.Succeeded && parsed.Bpb.SectorsPerCluster == 1 && parsed.Bpb.FatCount == 2);
+        int fat = checked((int)parsed.Bpb.FirstFatLba * 512), fatBytes = checked((int)parsed.Bpb.FatSizeSectors * 512);
+        HostCheck.True(after.AsSpan(fat, fatBytes).SequenceEqual(after.AsSpan(fat + fatBytes, fatBytes)) && before.AsSpan(0, fat).SequenceEqual(after.AsSpan(0, fat)));
+        // Explicit unchanged guard clusters from this test medium, including
+        // slack, plus both original short entries; no general allocation claim.
+        foreach (int cluster in new[] { 3, 4, 6 })
+        { int offset = checked((int)(parsed.Bpb.FirstDataLba + (uint)cluster - 2) * 512); HostCheck.True(before.AsSpan(offset, 512).SequenceEqual(after.AsSpan(offset, 512))); }
+        int root = checked((int)parsed.Bpb.FirstDataLba * 512); HostCheck.True(before.AsSpan(root, 64).SequenceEqual(after.AsSpan(root, 64)));
+    }
+    private sealed class CopiedMedium(byte[] raw) : IReadOnlyBlockDevice
+    {
+        public BlockDeviceInfo Info => BlockDeviceInfo.Create(512, (ulong)raw.Length / 512).Info;
+        public BlockReadResult ReadBlocks(ulong first, uint count, Span<byte> output)
+        {
+            ulong capacity = (ulong)raw.Length / 512;
+            if (first >= capacity || count == 0 || count > capacity - first || (ulong)output.Length != (ulong)count * 512) return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockRange);
+            raw.AsSpan(checked((int)first * 512), output.Length).CopyTo(output); return BlockReadResult.Success(count, (ulong)count * 512);
+        }
+    }
 
     [HostTest("continuing path stat and lstat use copied names fresh paired chain facts and root allocation without publishing descriptions or cursors")]
     private static void PathStatFacts()
@@ -1803,15 +1976,26 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         internal WritableBlockSessionTests.Hardware* Device => Storage.Device.Hardware;
         internal List<(uint Type, ulong Sector)> Trace => Storage.Trace;
         internal ulong DataLba => Storage.Input.PartitionFirst + 32 + 2 * 512;
-        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false, bool observe = false, byte sectorsPerCluster = 1)
+        internal Owner(bool attach = true, uint fdCount = 32, uint descriptionCount = 32, bool locks = false, bool growth = false, bool observe = false, byte sectorsPerCluster = 1,
+            byte[]? restoredMedia = null, ulong engineEpoch = 321)
         {
             Storage = new(sectorsPerCluster, observe: observe);
             if (sectorsPerCluster != 1) Storage.Fat(4, 0x0fffffff);
             Slots = (D.Descriptor*)NativeMemory.AllocZeroed(fdCount, (nuint)sizeof(D.Descriptor));
             Descriptions = (D.Description*)NativeMemory.AllocZeroed(descriptionCount, (nuint)sizeof(D.Description));
+            HostCheck.True(engineEpoch != 0); Storage.Input.Epoch = engineEpoch;
+            if (restoredMedia is not null)
+            {
+                HostCheck.True(sectorsPerCluster == 1 && restoredMedia.Length == Storage.Volatile.Length &&
+                    Device->MediumSectors * 512 == (ulong)restoredMedia.Length && !Storage.State->IsMounted &&
+                    Storage.Device.State->Submitted == 0 && Storage.Device.State->Completed == 0 && !Storage.Device.State->RequestPending);
+                // Initialize the new fake medium before its first actual IN.
+                // This creates neither a device completion nor mount facts.
+                restoredMedia.CopyTo(Storage.Volatile); restoredMedia.CopyTo(Storage.Persistent);
+            }
             // Explicitly unknown FSInfo is supported by the pinned engine;
             // allocation still validates every supplied cluster in both FATs.
-            if (growth) { Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff; Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; }
+            if (growth && restoredMedia is null) { Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff; Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; }
             Storage.Mount(); AtAttach = Device->Notifies;
             Input = new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = Slots, Descriptions = Descriptions,
                 DescriptorCount = fdCount, DescriptionCount = descriptionCount, Input = InputBytes, InputBytes = 8192, ExclusiveOwnerValidated = true };
