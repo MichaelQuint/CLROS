@@ -29,7 +29,9 @@ public static unsafe partial class EfiEntry
                 !state->LinuxSyscallPlan.ResumeUser || state->LinuxView.Manifest.Threads == 0 ||
                 state->LinuxView.Manifest.Threads > LinuxNativeWorkers || !CooperativeAuditOriginalMappings(state) ||
                 !CooperativeAuditPool(state, false)) return false;
-#if M16_025_PROBE
+#if M16_027_PROBE
+            if (!RunNativeWritableDiskBootstrap(state)) return false;
+#elif M16_025_PROBE
             if (!RunNativeDiskBootstrap(state))
             {
                 _ = RetireNativeDisk(state);
@@ -127,12 +129,20 @@ public static unsafe partial class EfiEntry
             var staticApp = c == null ? default : c->StaticApp;
             bool staticCompleted = staticApp.GracefulExit && state->LinuxSyscallExitCode == 0;
 #endif
-#if M16_025_PROBE
+#if M16_027_PROBE
+            if (!QuiesceNativeWritableDisk(state, c)) return LinuxNativeCleanupRejected(state, 14);
+#elif M16_025_PROBE
             ulong diskStarted = c == null ? 0 : c->Budget.StartedNanoseconds;
             if (!RetireNativeDiskAttachment(state, c) || !ObserveNativeDiskExitSentinel(state, c)) return LinuxNativeCleanupRejected(state, 13);
 #endif
+#if M16_027_PROBE
+            bool released = !published || LinuxNativeRelease(c, LinuxNativeRsp(c));
+            bool releaseSampled = SampleNativeWritableDisk(state);
+            if (!released || !releaseSampled) return LinuxNativeCleanupRejected(state, 2);
+#else
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
-#if M16_025_PROBE
+#endif
+#if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitReleased(state, c)) return LinuxNativeCleanupRejected(state, 13);
 #endif
             if (published && !LinuxNativeBeginTeardown(state, c)) return LinuxNativeCleanupRejected(state, 3);
@@ -141,12 +151,24 @@ public static unsafe partial class EfiEntry
 #if CLROS_LINUX_SOCKETS
                 if (!DrainLinuxSocketNetwork(state, !ran || failed)) return LinuxNativeCleanupRejected(state, 11);
 #endif
+#if M16_027_PROBE
+                bool descriptorAudit = LinuxDescriptorServices.Audit(&state->LinuxDescriptors);
+                bool auditSampled = SampleNativeWritableDisk(state);
+                if (!descriptorAudit || !auditSampled) return LinuxNativeCleanupRejected(state, 4);
+                bool descriptorEnd = LinuxDescriptorServices.End(&state->LinuxDescriptors);
+                bool endSampled = SampleNativeWritableDisk(state);
+                if (!descriptorEnd || !endSampled || !LinuxDescriptorReleaseChecked(state)) return LinuxNativeCleanupRejected(state, 4);
+#else
                 if (!LinuxDescriptorServices.Audit(&state->LinuxDescriptors) || !LinuxDescriptorServices.End(&state->LinuxDescriptors) ||
                     !LinuxDescriptorReleaseChecked(state)) return LinuxNativeCleanupRejected(state, 4);
+#endif
                 state->LinuxDescriptorPhase = 6;
             }
+#if M16_027_PROBE
+            if (!RetireNativeWritableDiskAttachment(state, c)) return LinuxNativeCleanupRejected(state, 14);
+#endif
             if (!LinuxNativeClearUserMemory(state)) return LinuxNativeCleanupRejected(state, 5);
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitMemoryRestored(state)) return LinuxNativeCleanupRejected(state, 13);
 #endif
             if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 6);
@@ -156,7 +178,7 @@ public static unsafe partial class EfiEntry
             if (!ClearLinuxRandom(state)) return LinuxNativeCleanupRejected(state, 9);
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return LinuxNativeCleanupRejected(state, 10);
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitCleanupEnd(state, diskStarted)) return LinuxNativeCleanupRejected(state, 13);
 #endif
 #if M16_014_PROBE
@@ -176,6 +198,9 @@ public static unsafe partial class EfiEntry
             bool success = ran && logged && !failed && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0;
 #if M16_025_PROBE && !M10_018_PROBE
             success &= state->LinuxSyscallExitCode == 42;
+#endif
+#if M16_027_PROBE
+            success = success && RecordNativeWritableUserCleanup(state, reaped, transfers, epochs);
 #endif
 #if M10_017_PROBE || M10_018_PROBE
             success &= staticCompleted;

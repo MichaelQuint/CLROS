@@ -98,11 +98,20 @@ public static unsafe partial class EfiEntry
 
         private static LinuxNativeControl* LinuxNativeOwner(void* context)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return null;
+#else
             Storage* state = (Storage*)context;
+#endif
             fixed (Storage* retained = &s_storage) if (state != retained) return null;
             if (!LinuxSyscallAuthority(state) || !CooperativeAuthority(state)) return null;
             LinuxNativeControl* c = (LinuxNativeControl*)(state->CooperativePool + NativeProgram.MetadataPage * Page);
             if (c->State != state || c->Key != (state->CooperativePool ^ 0x4d31363030384f57UL) || c->Phase < 1 || c->Phase > 4) return null;
+#if M16_027_PROBE
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+                if (!LinuxNativeUserCarriersCurrent(c) || !LinuxSocketIoCurrent(state, network)) return null;
+#endif
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
             byte* gateway = (byte*)state->LinuxSyscallData;
@@ -169,7 +178,13 @@ public static unsafe partial class EfiEntry
             if (!LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxStaticPending) * LinuxNativeWorkers, out byte* staticPending)) return false;
             c->StaticPending = (LinuxStaticPending*)staticPending;
 #endif
-            c->User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
+            c->User = new() {
+#if M16_027_PROBE
+                Context = LinuxUserCallbackContext(state),
+#else
+                Context = state,
+#endif
+                PageAccess = &LinuxUserPageAccess,
 #if M16_009_PROBE
                 UserInterrupts = state->LinuxSyscallPlan.UserInterrupts,
 #endif
@@ -238,6 +253,23 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < NativeProgram.Bytes; i++) codeCopy[i] = ((byte*)pool)[i];
             return true;
         }
+
+#if M16_027_PROBE
+        // Each stored access is checked against the original native carrier,
+        // not merely against another potentially changed copy. No callbacks,
+        // mapping changes or operation authority follow from this inventory.
+        private static bool LinuxNativeUserCarriersCurrent(LinuxNativeControl* c)
+        {
+            if (c == null || c->State == null || c->Capacity is 0 or > LinuxNativeWorkers ||
+                !LinuxUserCarrierCurrent(c->State, c->User.Context, (ulong)sizeof(LinuxUserCarrier)) ||
+                !LinuxUserCarrierCurrent(c->State, c->State->LinuxDescriptors.Owner.User.Context, (ulong)sizeof(LinuxUserCarrier)) ||
+                !LinuxUserCarrierCurrent(c->State, c->State->LinuxServices.Owner.User.Context, (ulong)sizeof(LinuxUserCarrier))) return false;
+            for (uint i = 0; i < c->Capacity; i++)
+                if ((c->Gates[i].Status != LinuxSyscallGateStatus.Uninitialized || c->Gates[i].Access.Context != null) &&
+                    !LinuxUserCarrierCurrent(c->State, c->Gates[i].Access.Context, (ulong)sizeof(LinuxUserCarrier))) return false;
+            return true;
+        }
+#endif
 
         private static bool LinuxNativeTake(ref ulong cursor, ulong end, uint bytes, out byte* result)
         {
@@ -329,6 +361,15 @@ public static unsafe partial class EfiEntry
             bool completed = c->Gates[index].Status == LinuxSyscallGateStatus.Blocked;
             if (completed)
             {
+#if M16_027_PROBE
+                // Copy only authenticated original wait facts before completion
+                // consumes/reparks the request. No retained user alias is added.
+                var writableWait = view.WaitSource == 5 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
+                var writableOperation = c->Slots[index].WritableDiskOperation;
+                uint writableOutputBytes = c->Slots[index].WritableDiskOutputBytes;
+                LinuxSyscallFrame writableCall = c->Slots[index].WaitCall;
+                if (!SampleNativeWritableDisk(c->State)) return LinuxNativeAbort(c, index);
+#endif
 #if M16_025_PROBE
                 var diskWait = view.WaitSource == 4 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
                 var diskOperation = c->Slots[index].DiskOperation;
@@ -348,10 +389,47 @@ public static unsafe partial class EfiEntry
                 else
 #endif
                 completion =
+#if M16_027_PROBE
+                view.WaitSource == 5 ? c->Process.CompleteWritableDiskWait(c->Key, 2) :
+#endif
 #if M16_025_PROBE
                 view.WaitSource == 4 ? c->Process.CompleteDiskWait(c->Key, 2) :
 #endif
                 view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
+#if M16_027_PROBE
+                if (!SampleNativeWritableDisk(c->State)) return LinuxNativeAbort(c, index);
+                if (view.WaitSource == 5)
+                {
+                    if (!writableWait.Succeeded || writableWait.Wait.Sequence != view.Wait.Sequence ||
+                        writableWait.Completion == KernelThreadTable.Completion.None || !writableOperation.IsActive ||
+                        !LinuxText(c->State, "M16_027_COMPLETE identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                        !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                        !LinuxText(c->State, " requestOwner=") || !LinuxNumber(c->State, writableOperation.Owner) ||
+                        !LinuxText(c->State, " requestEpoch=") || !LinuxNumber(c->State, writableOperation.Epoch) ||
+                        !LinuxText(c->State, " request=") || !LinuxNumber(c->State, writableOperation.Generation) ||
+                        !LinuxText(c->State, " nr=") || !LinuxNumber(c->State, writableCall.Number) ||
+                        !LinuxText(c->State, " rip=") || !LinuxNumber(c->State, writableCall.Rip) ||
+                        !LinuxText(c->State, " outputBytes=") || !LinuxNumber(c->State, writableOutputBytes) ||
+                        !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)writableWait.Completion) ||
+                        !LinuxText(c->State, " action=") || !LinuxNumber(c->State, (uint)completion.Action) ||
+                        !LinuxText(c->State, " valueBits=") || !LinuxNumber(c->State, unchecked((ulong)completion.Value)) ||
+                        !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n"))
+                        return LinuxNativeAbort(c, index);
+                    if (completion.Action == LinuxSyscallAction.Blocked &&
+                        (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var writableAgain) || writableAgain.WaitSource != 5 ||
+                         !writableAgain.Wait.IsValid || writableAgain.Wait.Sequence <= view.Wait.Sequence || writableAgain.WaitDeadline != 0 ||
+                         c->Slots[index].WritableDiskOperation.Generation != writableOperation.Generation ||
+                         c->Slots[index].WritableDiskOperation.Owner != writableOperation.Owner ||
+                         c->Slots[index].WritableDiskOperation.Epoch != writableOperation.Epoch ||
+                         c->Slots[index].WritableDiskOutputBytes != writableOutputBytes ||
+                         !LinuxText(c->State, "M16_027_REPARK identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                         !LinuxText(c->State, " previous=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                         !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, writableAgain.Wait.Sequence) ||
+                         !LinuxText(c->State, " request=") || !LinuxNumber(c->State, writableOperation.Generation) ||
+                         !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")))
+                        return LinuxNativeAbort(c, index);
+                }
+#endif
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
 #if M10_018_PROBE
                 if (view.WaitSource == 4 && completion.Action == LinuxSyscallAction.Return &&
@@ -459,7 +537,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte LinuxNativeReturnPolicy(void* context,LinuxSyscallFrame* frame)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 2;
+#else
             Storage* state=(Storage*)context;
+#endif
             fixed(Storage* retained=&s_storage) if(state!=retained || frame==null) return 2;
             if(!LinuxSyscallAuthority(state) || !CooperativeAuthority(state)) return 2;
             LinuxNativeControl* c=(LinuxNativeControl*)(state->CooperativePool+NativeProgram.MetadataPage*Page);
@@ -522,10 +605,13 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
 #endif
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitCall(c, index, call)) return LinuxNativeAbort(c, index);
 #endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
+#if M16_027_PROBE
+            if (!SampleNativeWritableDisk(state)) return LinuxNativeAbort(c, index);
+#endif
 #if M10_017_PROBE || M10_018_PROBE
             if (!LinuxStaticRecordFile(c, index, call, result, &staticFileBefore) ||
                 !LinuxStaticObserveCall(c, call, result, staticListenerClosing, staticListenerLast)) return LinuxNativeAbort(c, index);
@@ -611,6 +697,9 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
                 LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
                 LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
+#if M16_027_PROBE
+            if (logged) logged = RecordNativeWritableWait(c, index, call, result);
+#endif
 #if M16_014_PROBE && CLROS_LINUX_SOCKETS
             if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaSocketCall(c, index, call, result);
 #endif
@@ -691,7 +780,13 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
             c->UserPreempted = 0;
 #endif
+#if M16_027_PROBE
+            bool shutdown = c->Process.Shutdown(c->Key, 2, 99);
+            bool shutdownSampled = SampleNativeWritableDisk(c->State);
+            if (!shutdown || !shutdownSampled) return 0;
+#else
             if (!c->Process.Shutdown(c->Key, 2, 99)) return 0;
+#endif
             var current = c->Threads.Inspect(c->Key, 2, c->Threads.Current);
             if (!current.Succeeded) return 0;
             // BeginWait owns a Parking state until the genuine capture commits
@@ -775,6 +870,9 @@ public static unsafe partial class EfiEntry
                 {
                     bool handoff;
                     bool committed =
+#if M16_027_PROBE
+                        c->Slots[index].WaitSource == 5 ? c->Process.CommitWritableDiskWait(c->Key, 2, worker, out handoff) :
+#endif
 #if M16_025_PROBE
                         c->Slots[index].WaitSource == 4 ? c->Process.CommitDiskWait(c->Key, 2, worker, out handoff) :
 #endif
@@ -783,15 +881,24 @@ public static unsafe partial class EfiEntry
 #endif
                         c->Slots[index].PipeOperation.IsActive
                         ? c->Process.CommitPipeWait(c->Key, 2, worker, out handoff) : c->Process.CommitFutexWait(c->Key, 2, worker, out handoff);
+#if M16_027_PROBE
+                    if (!SampleNativeWritableDisk(c->State)) return 0;
+#endif
                     if (!committed || !handoff && !c->Threads.Yield(c->Key, 2, new(worker.Identity), worker).Succeeded) return 0;
                 }
                 else if (action is LinuxSyscallAction.ThreadExited or LinuxSyscallAction.Terminate)
                 {
-#if M16_025_PROBE
+#if M16_025_PROBE && !M16_027_PROBE
                     if (!ObserveNativeDiskExitCommit(c, index, false)) return 0;
 #endif
+#if M16_027_PROBE
+                    bool exitCommitted = c->Process.CommitExit(c->Key, 2, worker, out long clearTid);
+                    if (!SampleNativeWritableDisk(c->State)) return 0;
+                    if (!exitCommitted) return 0;
+#else
                     if (!c->Process.CommitExit(c->Key, 2, worker, out long clearTid)) return 0;
-#if M16_025_PROBE
+#endif
+#if M16_025_PROBE && !M16_027_PROBE
                     if (!ObserveNativeDiskExitCommit(c, index, true)) return 0;
 #endif
                     if (!LinuxText(c->State, "M16_008_EXIT identity=") || !LinuxNumber(c->State, worker.Identity) ||
@@ -843,7 +950,11 @@ public static unsafe partial class EfiEntry
                 Slots = c->Slots, SlotBytes = (uint)sizeof(LinuxThreadServices.Slot) * LinuxNativeWorkers,
                 Workers = c->Workers, WorkerBytes = (uint)sizeof(LinuxThreadServices.Worker) * LinuxNativeWorkers,
                 Capacity = c->Capacity, ProcessId = 1, ObservedMxcsrMask = c->Plan.Owner.ObservedMxcsrMask,
-                User = c->User, CopyToUser = &LinuxThreadCopyOutput, FirmwareExited = true, SingleOwnerValidated = true };
+                User = c->User, CopyToUser = &LinuxThreadCopyOutput, FirmwareExited = true, SingleOwnerValidated = true
+#if M16_027_PROBE
+                , UserContextBytes = (ulong)sizeof(LinuxUserCarrier)
+#endif
+            };
             if (!c->Process.Initialize(c->Key, 2, owner)) return false;
             c->ProcessAttached = 1;
             if (!LinuxNativeBindSignals(c)) return false;
@@ -1062,7 +1173,16 @@ public static unsafe partial class EfiEntry
                 c->GuardAttached = 0;
             }
             if (c->ProcessAttached != 0)
-            { if (!c->Process.Release(c->Key, 2)) return false; c->ProcessAttached = 0; }
+            {
+#if M16_027_PROBE
+                bool released = c->Process.Release(c->Key, 2);
+                bool sampled = SampleNativeWritableDisk(c->State);
+                if (!released || !sampled) return false;
+#else
+                if (!c->Process.Release(c->Key, 2)) return false;
+#endif
+                c->ProcessAttached = 0;
+            }
             if (!LinuxNativeReleaseSignals(c)) return false;
             if (c->TableAttached != 0)
             { if (c->Threads.Release(c->Key, 2, supervisorRsp) != KernelThreadTable.Status.Ok) return false; c->TableAttached = 0; }

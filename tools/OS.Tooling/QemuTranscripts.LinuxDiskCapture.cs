@@ -217,15 +217,16 @@ public static partial class QemuTranscripts
         Dictionary<string,ulong> Clock, ulong[] OldPages, ulong[] NicBinding);
 
     private static DiskCaptureParents ValidateLinuxDiskCaptureParents(string[] rows, byte[] package,
-        LinuxDiskExitPendingDeviceValues? pending = null)
+        LinuxDiskExitPendingDeviceValues? pending = null, bool writableDisk = false, bool logUpload = false)
     {
-        var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending);
+        Need(!logUpload || writableDisk,"writable_parent_selection");
+        var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending,writableDisk:writableDisk);
         int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
         int parentsEnd = owned + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
         int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - owned;
         int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
         string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
-        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null);
+        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null,writableDisk:writableDisk,logUpload:logUpload);
         original = ValidateLinuxElfTail(original, package!);
         string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
         int[] varying = [3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,

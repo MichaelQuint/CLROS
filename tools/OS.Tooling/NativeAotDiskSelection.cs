@@ -8,6 +8,18 @@ public static class NativeAotDiskSelection
     public static bool Selected(IReadOnlyDictionary<string, bool> flags) =>
         flags.TryGetValue("EnableM16025Probe", out bool value) && value;
 
+    public static bool WritableSelected(IReadOnlyDictionary<string, bool> flags) =>
+        flags.TryGetValue("EnableM16027Probe", out bool value) && value;
+
+    /// <summary>Require the complete canonical package for the explicit30/40
+    /// syscall fixture; neither the old59-call read fixture nor a variant is accepted.</summary>
+    public static void RequireWritablePackage(ReadOnlySpan<byte> package, string fixture)
+    {
+        if (fixture == "Mechanical30") LinuxWritableDiskProofFixture.RequirePackage(package);
+        else if (fixture == "LogUpload40") LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);
+        else throw new ToolFailure("writable_disk_fixture_required");
+    }
+
     public static bool StaticSelected(IReadOnlyDictionary<string, bool> flags) =>
         Selected(flags) && flags.TryGetValue("EnableM10018Probe", out bool value) && value;
 
@@ -31,7 +43,28 @@ public static class NativeAotDiskSelection
     internal static bool Bind(QemuSmokeOptions options, IReadOnlyDictionary<string, bool> flags)
     {
         bool disk = Selected(flags);
+        bool writable = WritableSelected(flags);
         bool race = options.HasDiskRaceSelection;
+        if (!writable && (options.WritableDiskFixture.Length != 0 || options.Explicit.Contains("WritableDiskFixture")))
+            throw new ToolFailure("writable_disk_fixture_requires_profile");
+        if (writable)
+        {
+            if (!disk || options.WritableDiskFixture is not ("Mechanical30" or "LogUpload40"))
+                throw new ToolFailure("writable_disk_fixture_required");
+            if (race || StaticSelected(flags) || options.HasThreadingSelection || options.LinuxHelloDisassembly.Length != 0 ||
+                options.SignalEpollRace || options.HasWebSignalRace || options.ServiceLifecycle || options.ServiceQuotaFailure)
+                throw new ToolFailure("writable_disk_selection_conflict");
+            if (options.WorkloadProfile != "SingleMinimalApi" || options.DiskFormat != "raw" || options.LinuxElfPackage.Length == 0 ||
+                options.LinuxElfImageVariant != "Intact" || options.GptImageVariant != "Intact" || options.PackageImageVariant != "Intact")
+                throw new ToolFailure("writable_disk_original_raw_required");
+            if (options.WebRootFixture is not ("DiskA" or "DiskB") || options.WebRootAssets.Length == 0)
+                throw new ToolFailure("writable_disk_webroot_fixture_required");
+            if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = 180;
+            // The raw-capture owner adds75seconds; the writable device runner
+            // retains its separately admitted120..295second execution budget.
+            if (options.TimeoutSeconds is < 120 or > 220) throw new ToolFailure("writable_disk_timeout");
+            return true;
+        }
         if (race && !LinuxDiskRaceProofFixture.Variants.Contains(options.LinuxDiskRaceVariant, StringComparer.Ordinal))
             throw new ToolFailure("disk_race_variant");
         if (race && !disk) throw new ToolFailure("disk_race_requires_mechanical_disk_profile");

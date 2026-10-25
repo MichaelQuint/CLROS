@@ -39,7 +39,7 @@ public static class NativeAotLogUploadContract
     public enum TraceKind { CompletedCall, UnfinishedCall, ResumedCall, UnreturnedCall, ProcessExit, Signal, Unclassified }
     public sealed record TraceRow(string Source, int Line, string Raw, TraceKind Kind, string Syscall, string Arguments, string Result);
     /// <summary>Copied raw trace rows, including unfinished/resumed, unreturned
-    /// exit_group and unknown records. No inferred returns or descriptor/path
+    /// terminal exit and unknown records. No inferred returns or descriptor/path
     /// causality. Complete projection is separate from successful process exit.</summary>
     public sealed class TraceValues
     {
@@ -51,6 +51,10 @@ public static class NativeAotLogUploadContract
         public int ExitedFiles { get; }
         public int UnjoinedRows => Rows.Count(row => row.Kind is TraceKind.UnfinishedCall or TraceKind.ResumedCall);
         public int UnreturnedRows => Rows.Count(row => row.Kind == TraceKind.UnreturnedCall);
+        /// <summary>Explicit unknown results for nonreturning exit syscalls.
+        /// These remain unreturned rows and do not complete the projection.</summary>
+        public int TerminalUnreturnedRows => Rows.Count(row => row.Kind == TraceKind.UnreturnedCall && row.Syscall is "exit" or "exit_group");
+        public int NonterminalUnreturnedRows => UnreturnedRows - TerminalUnreturnedRows;
         public int UnclassifiedRows => Rows.Count(row => row.Kind == TraceKind.Unclassified);
         public bool CompleteTraceProjection => ExitedFiles == Files && UnjoinedRows == 0 && UnreturnedRows == 0 && UnclassifiedRows == 0;
         public bool GrantsSyscallClosureLockFlushOrPersistenceAuthority => false;
@@ -125,7 +129,12 @@ public static class NativeAotLogUploadContract
                 if (timed.Success)
                 {
                     var call = Regex.Match(body, @"^([a-zA-Z0-9_]+)\((.*)\) += (.+)$", RegexOptions.CultureInvariant);
-                    if (body.Contains("<unfinished ...>", StringComparison.Ordinal))
+                    if (call.Success)
+                    {
+                        syscall = call.Groups[1].Value; arguments = call.Groups[2].Value; result = call.Groups[3].Value;
+                        kind = result.StartsWith('?') ? TraceKind.UnreturnedCall : TraceKind.CompletedCall;
+                    }
+                    else if (body.Contains("<unfinished ...>", StringComparison.Ordinal))
                     {
                         kind = TraceKind.UnfinishedCall;
                         var start = Regex.Match(body, @"^([a-zA-Z0-9_]+)\((.*)$", RegexOptions.CultureInvariant);
@@ -133,11 +142,6 @@ public static class NativeAotLogUploadContract
                     }
                     else if (body.StartsWith("<... ", StringComparison.Ordinal) && body.Contains(" resumed>", StringComparison.Ordinal))
                     { kind = TraceKind.ResumedCall; arguments = body; }
-                    else if (call.Success)
-                    {
-                        syscall = call.Groups[1].Value; arguments = call.Groups[2].Value; result = call.Groups[3].Value;
-                        kind = result.StartsWith('?') ? TraceKind.UnreturnedCall : TraceKind.CompletedCall;
-                    }
                     else if (body.StartsWith("+++ ", StringComparison.Ordinal))
                     { kind = TraceKind.ProcessExit; result = body; }
                     else if (body.StartsWith("--- ", StringComparison.Ordinal))

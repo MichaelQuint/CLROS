@@ -375,7 +375,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
                 RangeLock a = s->LockInput.Scratch[i], b = s->LockInput.Scratch[j];
                 bool near = a.First <= (b.Last == long.MaxValue ? b.Last : b.Last + 1) && b.First <= (a.Last == long.MaxValue ? a.Last : a.Last + 1);
                 if (a.Type != b.Type || !Same(a.Process, b.Process) || !Physical(a.File, b.File) || !near) { j++; continue; }
-                a.First = System.Math.Min(a.First, b.First); a.Last = System.Math.Max(a.Last, b.Last); s->LockInput.Scratch[i] = a;
+                a.First = a.First < b.First ? a.First : b.First; a.Last = a.Last > b.Last ? a.Last : b.Last; s->LockInput.Scratch[i] = a;
                 for (uint k = j + 1; k < count; k++) s->LockInput.Scratch[k - 1] = s->LockInput.Scratch[k]; count--;
                 // A merge may now meet an earlier interval; restart this row.
                 j = i + 1;
@@ -458,7 +458,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         const uint allowed = 3 | Create | Exclusive | CloseOnExec | NoFollow | DirectoryOnly | LargeFile | NoControllingTerminal;
         if ((flags & ~allowed) != 0 || (flags & 3) == 3) return Immediate(Unsupported);
         if (!External(s, path)) return Immediate(Fault);
-        bool root = path.SequenceEqual("/data"u8) || path.SequenceEqual("/data/"u8);
+        bool root = IsRoot(path);
         if (root && (flags & (3 | Create | Exclusive)) != 0) return Immediate(IsDirectory);
         long policy = root ? 0 : Path(path); if (policy != 0) return Immediate(policy);
         if (!root && (flags & DirectoryOnly) != 0) return Immediate(NotDirectory);
@@ -566,7 +566,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (bytes.Length == 0) return Immediate(0);
         var started = BeginBorrow(s, token, description, Operation.Write, position, (uint)bytes.Length, positioned);
         if (started.Phase != Progress.Pending) return started;
-        bytes.CopyTo(new Span<byte>(s->Input.Input, bytes.Length));
+        OS.Std.Memory.BufferOperations.MemoryCopy(bytes, new Span<byte>(s->Input.Input, bytes.Length));
         s->Work.NewLength = length; s->Work.GrowAllowed = grow;
         CopyCandidates(s, candidates); return started;
     }
@@ -626,7 +626,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (!Bound(s) || s->Retiring || !ProcessCurrent(s, process)) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         if (!External(s, path)) return Immediate(Fault);
-        if (path.SequenceEqual("/data"u8) || path.SequenceEqual("/data/"u8)) return Immediate(IsDirectory);
+        if (IsRoot(path)) return Immediate(IsDirectory);
         long policy = Path(path); if (policy != 0) return Immediate(policy);
         if (s->Work.Active || s->Input.Engine->RequestActive) return Immediate(Again);
         if (s->NextGeneration == ulong.MaxValue) return Immediate(Overflow);
@@ -684,9 +684,9 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         if (!Bound(s) || s->Retiring || !ProcessCurrent(s, process)) return Immediate(BadFd);
         if (!Revision(s)) return Immediate(Io);
         if (!External(s, path)) return Immediate(Fault);
-        bool root = path.SequenceEqual("/data"u8) || path.SequenceEqual("/data/"u8);
-        bool directoryRequired = !root && path.Length != 0 && path[^1] == '/';
-        ReadOnlySpan<byte> admitted = directoryRequired ? path[..^1] : path;
+        bool root = IsRoot(path);
+        bool directoryRequired = !root && path.Length != 0 && path[path.Length - 1] == '/';
+        ReadOnlySpan<byte> admitted = directoryRequired ? path.Slice(0, path.Length - 1) : path;
         long policy = root ? 0 : Path(admitted); if (policy != 0) return Immediate(policy);
         if (s->Work.Active || s->Input.Engine->RequestActive) return Immediate(Again);
         if (s->NextGeneration == ulong.MaxValue) return Immediate(Overflow);
@@ -1056,7 +1056,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     private static C.Status Lookup(State* s)
     {
         Span<char> name = stackalloc char[(int)PathBytes]; for (uint i = 0; i < s->Work.NameLength; i++) name[(int)i] = (char)s->Work.Name[i];
-        C.RequestToken request = default; var status = C.BeginOpenRoot(s->Input.Engine, name[..s->Work.NameLength], &request);
+        C.RequestToken request = default; var status = C.BeginOpenRoot(s->Input.Engine, name.Slice(0, s->Work.NameLength), &request);
         s->Work.EngineRequest = request; return status;
     }
     private static C.Status CreateEmpty(State* s)
@@ -1067,7 +1067,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         alias[0] = (byte)'F'; for (int i = 7; i > 0; i--) { alias[i] = (byte)('0' + value % 10); value /= 10; }
         alias[8] = (byte)'D'; alias[9] = (byte)'A'; alias[10] = (byte)'T';
         Span<char> name = stackalloc char[(int)PathBytes]; for (uint i = 0; i < s->Work.NameLength; i++) name[(int)i] = (char)s->Work.Name[i];
-        C.RequestToken request = default; var status = C.BeginCreateEmpty(s->Input.Engine, name[..s->Work.NameLength], alias, &request);
+        C.RequestToken request = default; var status = C.BeginCreateEmpty(s->Input.Engine, name.Slice(0, s->Work.NameLength), alias, &request);
         s->Work.EngineRequest = request; return status;
     }
     private static C.Status BeginData(State* s)
@@ -1099,7 +1099,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         { p->Step = Step.Write; status = C.BeginOverwrite(s->Input.Engine, p->File, p->Offset, new ReadOnlySpan<byte>(s->Input.Input, (int)p->Bytes), &request); }
         else
         {
-            p->Step = Step.Read; p->Expected = p->Offset >= p->File.Length ? 0 : (uint)System.Math.Min(p->Bytes, p->File.Length - p->Offset);
+            p->Step = Step.Read; p->Expected = p->Offset >= p->File.Length ? 0 : (uint)(p->Bytes < p->File.Length - p->Offset ? p->Bytes : p->File.Length - p->Offset);
             status = C.BeginRead(s->Input.Engine, p->File, p->Offset, p->Bytes, &request);
         }
         p->EngineRequest = request; return status;
@@ -1269,22 +1269,25 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         }
         new Span<byte>(s->Input.Input, (int)IoBytes).Clear(); s->Work = default;
     }
+    private static bool IsRoot(ReadOnlySpan<byte> path) => path.Length is 5 or 6 &&
+        path[0] == '/' && path[1] == 'd' && path[2] == 'a' && path[3] == 't' && path[4] == 'a' &&
+        (path.Length == 5 || path[5] == '/');
     private static long Path(ReadOnlySpan<byte> path)
     {
-        if (path.Length is < 7 or >= (int)PathBytes || !path[..6].SequenceEqual("/data/"u8)) return Access;
-        var name = path[6..]; if (name[^1] is (byte)'.' or (byte)' ') return Access;
+        if (path.Length is < 7 or >= (int)PathBytes || !IsRoot(path.Slice(0, 6))) return Access;
+        var name = path.Slice(6); if (name[name.Length - 1] is (byte)'.' or (byte)' ') return Access;
         int component = 0; bool nested = false;
         for (int i = 0; i <= name.Length; i++)
             if (i == name.Length || name[i] == '/')
             {
                 var part = name.Slice(component, i - component);
-                if (part.Length == 0 || part.SequenceEqual("."u8) || part.SequenceEqual(".."u8)) return Access;
+                if (part.Length == 0 || part.Length == 1 && part[0] == '.' || part.Length == 2 && part[0] == '.' && part[1] == '.') return Access;
                 if (i < name.Length) nested = true;
                 component = i + 1;
             }
         if (nested) return Unsupported;
-        foreach (byte b in name)
-        { if (b == '/') return Unsupported; if (b is < 33 or > 126 || b is (byte)'\\' or (byte)':' or (byte)'*' or (byte)'?' or (byte)'"' or (byte)'<' or (byte)'>' or (byte)'|') return Invalid; }
+        for (int i = 0; i < name.Length; i++)
+        { byte b = name[i]; if (b == '/') return Unsupported; if (b is < 33 or > 126 || b is (byte)'\\' or (byte)':' or (byte)'*' or (byte)'?' or (byte)'"' or (byte)'<' or (byte)'>' or (byte)'|') return Invalid; }
         return 0;
     }
     private static bool External(State* s, ReadOnlySpan<byte> bytes)
