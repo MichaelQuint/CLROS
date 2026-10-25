@@ -102,6 +102,18 @@ consumer candidate requires fresh validation. This is not upstream disk HTTP.
 consumer passes at `c66befd5`; each verifies59 calls and62 demand sector copies
 across both disk variants. Error/concurrency controls and the full upstream
 Blazor child remain subsequent boundaries. No general app/disk gate closes.
+## Intended service lifecycle
+
+CLROS is being developed as a small, functioning OS for continuing NativeAOT
+Minimal API workloads. The first integrated application serves a Blazor Static
+WebAssembly frontend whose API calls use persistent SQLite data through
+`Microsoft.Data.Sqlite`. Normal execution continues until intentional shutdown,
+restart or documented fault/resource policy; a fixed diagnostic timeout, request
+count or success marker is not an application lifecycle contract. Startup,
+continuing HTTP/database activity, shutdown and restart/recovery must work as
+one application. Finite fixtures validate parts of this contract without
+replacing it. The future live cloud demo will showcase the working OS after
+provider qualification. See the [product scenario criteria](workload-profiles.md#product-scenarios-and-verification).
 
 ## Current application boundary (October 23, 2026)
 

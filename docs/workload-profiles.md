@@ -115,6 +115,17 @@ focused host, native and negative controls. A scenario must run in CLROS with
 original package/image/source identities and observable results; Linux-host runs,
 transcript replay and check counts do not establish guest capability.
 
+The integrated product target is continuing NativeAOT Minimal API service with
+a Blazor Static WebAssembly frontend exercising the API and persisting its data
+in SQLite through `Microsoft.Data.Sqlite`. The API, static-file service and
+database must work together in the same running guest; the served frontend runs
+in an external browser. Include restart and database recovery. Separate finite
+fixtures are development and qualification tools; passing them alone is
+not completion of the functioning OS. Normal service has no hard-coded test
+duration or request-count cutoff and follows intentional lifecycle operations
+and documented fault/resource policy. The later cloud demo uses that OS, after
+the required provider qualification, rather than defining a smaller demo target.
+
 | Scenario | Required observable result |
 | --- | --- |
 | Static files and client | Real Kestrel `app.UseStaticFiles()` serves declared disk files with correct bytes and HTTP semantics; the standalone Blazor client loads and runs in a browser. Distinguish staged RAM files from continuing disk reads, and exercise concurrent API/file requests, cancellation and cleanup. |

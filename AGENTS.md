@@ -198,6 +198,17 @@ intended deployment model is a minimal single-workload cloud appliance:
 - .NET 11 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
+The deliverable is a small, fully functioning OS for continuously running
+supported NativeAOT Minimal API applications. The first integrated workload must
+serve a Blazor Static WebAssembly frontend that calls its API endpoints and uses
+persistent SQLite data through `Microsoft.Data.Sqlite`. Normal service continues
+until intentional shutdown/restart or a documented fault/resource policy acts;
+finite diagnostic timers, request counts and success markers are test controls,
+not the application's production lifetime or the product completion target.
+Persistence/recovery and usable continuing service are required. The planned
+GitHub update and live cloud demo app will showcase that functioning OS; the OS
+is not a demonstration project. Provider deployment still needs its own evidence.
+
 CLROS owns its architecture and security policy. Linux compatibility is a
 bounded application adapter, not a goal of reproducing a general Linux system.
 Keep memory ownership, scheduling/waits, storage, networking, quotas and cleanup
