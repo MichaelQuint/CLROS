@@ -1,5 +1,18 @@
 # Storage
 
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+## Step1615 retained process and writable-image contracts
+
+Finite paired storage now excludes the complete original process and kernel-thread inventory, prepared worker contexts/stacks, signals/futex backing, and bounded callback carriers. The structural inspectors call no user callback, global Audit or device operation. Active admission separately rejects failed/stopping owners; retained cleanup still excludes their storage. Writable attachment must match the admitted package PID and the actual attached thread process in either attachment order.
+
+After the original borrowed read-port, block owner and filesystem retire, a scrubbed local read-only receipt permits thread orphan cleanup while excluding every retained local extent. It grants no new I/O or backend borrow. New reads fail before backend calls, strict CanRetainStorage stays false, and actual cancel/close/detach/exit/reap controls confirm no late user copy. Writable pairs cannot use this read-only retirement path.
+
+The free-cluster search budget is independent of file-chain capacity. Synthetic592-cluster DB/608-cluster journal reads and growth controls select explicit engine work/free-search budgets;64 is the small search policy, not a64-cluster file limit. Those synthetic bytes are not valid SQLite transactions. The extracted bounded entry encoder keeps the snapshot planner host-only; selected no-stdlib compilation and emitted closure remain separate obligations.
+
+CombinedWebDataImageFixture.CloneForWrite holds the exact immutable original combined image/receipt/EFI/package, independently verifies extraction, and uses a fresh CreateNew128MiB working file. One retained read/write handle anchors its identity and permits actual writable opens. Revalidation protects original contents and working identity/link/length, while permitting changed working bytes. Dispose releases handles; actual child ownership, complete join, final modified-image inspection, FLUSH, reboot and durability evidence remain external requirements.
+
 [Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
 
 [Step1612](../done/step1612.md) Both current paired30 and shared FS13 lifetime controls pass on the integrated base. Synthetic303104B DB/310816B journal footprints use150positioned writes/755fakeFLUSH, exact592+608clusters, fresh B/C/W owner and strict extraction. Explicit1M traversal work passes;100k rejects beforeOUT. These are synthetic host geometry/capacity controls, with no valid SQLite execution, physical persistence or guest write acceptance.
