@@ -346,9 +346,9 @@ public static unsafe class FirstExitRetainedMappings
         + 1
 #endif
         ;
-    // The static fixture owns32 descriptions, including bounded proc snapshots.
+    // Static and writable fixtures own32 descriptions, including bounded proc snapshots.
     // Earlier profiles retain their original64-page admission ceiling.
-#if M10_017_PROBE || M10_018_PROBE
+#if M10_017_PROBE || M10_018_PROBE || M16_027_PROBE
     private const ulong MaximumDescriptorPages = 70;
 #else
     private const ulong MaximumDescriptorPages = 64;
