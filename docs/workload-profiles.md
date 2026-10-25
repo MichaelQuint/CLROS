@@ -31,6 +31,37 @@ startup. PE runtime porting remains separate and does not delay the current
 Kestrel batch. Optional hosted developer tools do not authorize a production
 administration surface or change the default appliance profile.
 
+## Product scenarios and verification
+
+Use complete supported guest workflows to judge product progress, alongside
+focused host, native and negative controls. A scenario must run in CLROS with
+original package/image/source identities and observable results; Linux-host runs,
+transcript replay and check counts do not establish guest capability.
+
+| Scenario | Required observable result |
+| --- | --- |
+| Static files and client | Real Kestrel `app.UseStaticFiles()` serves declared disk files with correct bytes and HTTP semantics; the standalone Blazor client loads and runs in a browser. Distinguish staged RAM files from continuing disk reads, and exercise concurrent API/file requests, cancellation and cleanup. |
+| Persistent uploads | An HTTP upload writes only inside the declared writable volume, returns success at its documented durability boundary and survives guest restart with exact bytes. Interrupted/failed writes, cancellation, quota exhaustion and path escape attempts preserve the filesystem and unrelated files. |
+| SQLite transactions and recovery | Use `Microsoft.Data.Sqlite` with the qualified native SQLite library. Demonstrate commit/rollback, locking and reopen after abrupt guest interruption with the declared journal/flush semantics and expected committed data. EF Core's separate NativeAOT constraints do not describe SQLite-engine compatibility; do not substitute an EF Core experiment for this engine/provider proof. |
+| Isolation and lifecycle | Two protected guest apps demonstrate that a fault, resource exhaustion or termination in one cannot corrupt the other's memory, storage capabilities or continuing HTTP service. Verify quotas, cancellation, resource reclamation and shutdown; a single-app exit test does not establish isolation. |
+
+These are separate capability targets under the existing dependency graph, not
+new prerequisites for historical finite Kestrel acceptance. Keep #774/#775,
+#798-#800/#792, the M14 isolation ladder and #226/#227 at their own scopes;
+persistent uploads need their writable-storage prerequisites. Do not claim a
+scenario from lower-layer or mock evidence alone. The generic hosting gate
+#793-#797 additionally requires independent compatible apps and changed rebuilds
+using unchanged kernel/EFI and deployment tools, without manual disassembly or
+per-app OS changes. Unsupported requirements must produce explicit diagnostics.
+
+During implementation, reproduce the smallest failing invariant and run focused
+checks after a bounded repair. Freeze a coherent batch before expensive full-host,
+native and complete guest qualification. Keep failure receipts and identify the
+replacement original run; do not relax a race or durability assertion to match
+an observation. Review whether diagnostics themselves change scheduling or I/O
+before attributing a failing fixture to the runtime. Measure request latency and
+progress as well as correctness when continuing services are involved.
+
 ## Status
 
 Accepted for planning. This document defines workload profile names and gate

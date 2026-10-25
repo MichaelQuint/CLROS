@@ -107,6 +107,42 @@ pass full-host/native review and intact/damaged-primary guest captures. Each
 sector uses a fresh reset/cleanup lifetime; manifest/package loading and
 continuing storage remain incomplete.
 
+## Runtime and qualification guardrails
+
+Apply these rules when choosing an implementation, diagnosing a failure or
+planning a batch:
+
+1. Keep kernel C# deliberately restricted. Extend kernel GC, exceptions, type
+   metadata or other runtime features only for a demonstrated product requirement.
+   Record the required kernel operation, why explicit ownership/status returns or
+   a simpler implementation cannot meet it, and the smallest qualified addition.
+   A compiler error, language convenience or a guest's use of GC/EH is not by
+   itself a requirement to expand the kernel runtime.
+2. Keep guest GC, EH and BCL behavior in the pinned upstream NativeAOT runtime.
+   Put reusable memory, scheduling, storage, network and lifecycle operations
+   below the Linux adapter, retaining ABI translation in the adapter. Preserve
+   separate kernel/guest heaps and metadata; reuse the core for the future PE
+   path without starting a speculative runtime port or abstraction framework.
+3. Automate compiler-dependent inspection in host tooling. Qualify toolchain/ABI
+   changes with pinned inputs, machine-readable checks and independent controls.
+   Turn recurring manual inspection into reusable checks; ordinary supported app
+   publication/rebuild/deployment must require no manual disassembly, reference-VM
+   analysis, app-specific kernel patch or code-address/hash allow-list update.
+   Recording package hashes for integrity remains required. Preserve original
+   diagnostic fixture identities; qualify the generic path separately.
+4. Measure product progress with complete guest scenarios: real static files,
+   persistent uploads, SQLite transaction/recovery and process isolation. Use
+   [the scenario criteria](docs/workload-profiles.md#product-scenarios-and-verification)
+   alongside focused contract tests. Keep required stable-batch qualification;
+   a larger test count or successful replay cannot replace original guest proof.
+
+For a failed run, preserve its original inputs/logs and identify the first failing
+invariant before changing code. Distinguish an OS defect, unsupported capability,
+fixture/observer interference and toolchain or evidence-tool failure. Make one
+bounded repair, verify it locally, then rerun the affected original guest scenario
+under its owner. Do not weaken acceptance, fabricate success markers or repeatedly
+launch a full suite without a concrete change or diagnostic hypothesis.
+
 ## Required First Reads
 
 Before meaningful changes, read:

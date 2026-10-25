@@ -1,5 +1,34 @@
 # NativeAOT NoStdLib Limits
 
+## Runtime expansion and toolchain maintenance
+
+Keep kernel C# restricted to the runtime behavior actually needed by supported
+OS operations. Before expanding kernel GC, EH, initialization, metadata or helper
+support, record the product requirement and why bounded storage, explicit
+ownership, status returns or a simpler code shape cannot satisfy it. A new
+compiler helper emitted by convenient syntax is a reason to inspect that syntax,
+not automatic authorization to implement more of the .NET runtime. Existing
+bounded GC/EH probes retain their exact scopes; this policy does not remove them
+or waive evidence for code that depends on them.
+
+Guest applications retain their pinned upstream NativeAOT runtime, including GC,
+EH and BCL behavior. Supply the measured OS services beneath the application ABI;
+do not share kernel GC roots, heaps, exception metadata or unwind ownership with
+the guest runtime. Future PE hosting reuses OS services but requires a separately
+qualified application/runtime boundary.
+
+When changing compiler/runtime pins or a native boundary, automate detection of
+the affected layouts, helpers, relocations, calling conventions and unwind
+assumptions in host tooling. Keep exact input identities and independently
+authored positive/negative controls. Report unsupported output explicitly; do not
+silently widen the contract to make verification pass. Native review may diagnose
+a new compiler behavior, but normal supported application publication must not
+require per-app manual disassembly, a reference-VM analysis session or edits to
+kernel/verifier allow-lists. Package checksums establish integrity, not a list of
+application-specific implementations. The generic publication/admission work in
+[the workload roadmap](workload-profiles.md#canonical-successor-issue-keys-2026-10-23)
+must replace that deployment dependency before general hosting is claimed.
+
 The user-selected .NET 11 migration is tracked in
 [#727](http://192.168.4.35:3000/admin/CLROS/issues/727). The active compiler
 source is dotnet/dotnet `820230c386db5b0106c5430b3e5aee92a7826bf5`.

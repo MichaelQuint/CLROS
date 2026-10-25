@@ -33,6 +33,19 @@ This is a documentation/tracker readback, not a new runtime test run. Earlier
 sections describe the named profile or dated checkpoint; their pending states
 do not override this summary or relabel their original evidence.
 
+## Product scenario interpretation
+
+The [product scenarios](workload-profiles.md#product-scenarios-and-verification)
+define the evidence needed to claim static-file/client service, persistent
+uploads, SQLite recovery and process isolation. Pair focused verification with
+original end-to-end guest results, including the relevant failure/recovery path.
+Host check counts, compiler inspection and replay are supporting evidence, not
+substitutes for those results. General hosting also requires independent apps
+and changed rebuilds through unchanged kernel/EFI and deployment tools, without
+per-app manual disassembly or OS patches. These requirements apply to the named
+successor capabilities; they do not change historical receipts or add all four
+scenarios to the existing finite #226/#227 local Kestrel gate.
+
 ## Earlier qualified profiles
 
 Development history is retained unchanged in [steps1426–1437](../done/step1437.md)
