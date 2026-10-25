@@ -2002,7 +2002,7 @@ public static unsafe partial class EfiEntry
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
             return LinuxText(state,
-#if M10_017_PROBE || M10_018_PROBE
+#if M10_017_PROBE || M10_018_PROBE || M16_027_PROBE
                 "M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
 #else
                 "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
