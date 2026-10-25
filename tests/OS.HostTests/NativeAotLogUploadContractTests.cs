@@ -122,7 +122,8 @@ internal static class NativeAotLogUploadContractTests
             """;
         var files = new Dictionary<string, string> { ["write-trace.17"] = main + "\n", ["write-trace.18"] = signalPipe + "\n" };
         var value = F.InspectTraceValues(files, "write");
-        HostCheck.True(value.Files == 2 && value.ExitedFiles == 2 && value.UnjoinedRows == 3 && value.UnreturnedRows == 1 &&
+        HostCheck.True(value.Files == 2 && value.ExitedFiles == 2 && value.UnjoinedRows == 2 && value.UnreturnedRows == 2 &&
+            value.TerminalUnreturnedRows == 1 && value.NonterminalUnreturnedRows == 1 &&
             value.UnclassifiedRows == 1 && !value.CompleteTraceProjection && !value.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
         HostCheck.Equal(main.Split('\n').Length + signalPipe.Split('\n').Length, value.Rows.Count);
         HostCheck.True(value.Rows.Where(row => row.Source == "write-trace.17").Select(row => row.Raw).SequenceEqual(main.Split('\n')) &&
@@ -137,6 +138,60 @@ internal static class NativeAotLogUploadContractTests
         HostCheck.True(copied.CompleteTraceProjection && !copied.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
         var killed = F.InspectTraceValues(new Dictionary<string, string> { ["verify-trace.44"] = complete.Replace("exited with 0", "killed by SIGKILL", StringComparison.Ordinal) }, "verify");
         HostCheck.True(killed.ExitedFiles == 0 && !killed.CompleteTraceProjection && killed.Rows[^1].Kind == F.TraceKind.ProcessExit);
+    }
+
+    [HostTest("log upload complete unknown result syntax preserves read epoll futex and terminal exit evidence without closing projection")]
+    private static void LinuxUnknownResults()
+    {
+        const string trace = """
+            1792919189.087207 read(3<pipe:[20592]> <unfinished ...>) = ?
+            1792919190.669175 epoll_pwait(5<anon_inode:[eventpoll]> <unfinished ...>) = ?
+            1792919190.685000 futex(0x7f00, FUTEX_WAIT_PRIVATE, 2, NULL) = ?
+            1792919190.657872 exit(0)               = ?
+            1792919190.685288 exit_group(0)         = ?
+            1792919190.697636 +++ exited with 0 +++
+            """;
+        var value = F.InspectTraceValues(new Dictionary<string, string> { ["write-trace.7"] = trace + "\n" }, "write");
+        HostCheck.True(value.Rows.Select(row => row.Raw).SequenceEqual(trace.Split('\n')) &&
+            value.Rows.Select(row => row.Line).SequenceEqual(Enumerable.Range(1, 6)) &&
+            value.Rows.All(row => row.Source == "write-trace.7"));
+        HostCheck.True(value.Files == 1 && value.ExitedFiles == 1 && value.UnjoinedRows == 0 && value.UnclassifiedRows == 0 &&
+            value.UnreturnedRows == 5 && value.TerminalUnreturnedRows == 2 && value.NonterminalUnreturnedRows == 3 &&
+            !value.CompleteTraceProjection && !value.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
+        HostCheck.True(value.Rows.Take(5).All(row => row.Kind == F.TraceKind.UnreturnedCall && row.Result == "?") &&
+            value.Rows[0].Syscall == "read" && value.Rows[0].Arguments == "3<pipe:[20592]> <unfinished ...>" &&
+            value.Rows[1].Syscall == "epoll_pwait" && value.Rows[1].Arguments == "5<anon_inode:[eventpoll]> <unfinished ...>" &&
+            value.Rows[2].Syscall == "futex" && value.Rows[2].Arguments == "0x7f00, FUTEX_WAIT_PRIVATE, 2, NULL" &&
+            value.Rows[3].Arguments == "0" && value.Rows[4].Arguments == "0");
+        string terminalOnly = "1.000001 exit_group(0) = ?\n1.000002 +++ exited with 0 +++\n";
+        var terminal = F.InspectTraceValues(new Dictionary<string, string> { ["verify-trace.9"] = terminalOnly }, "verify");
+        HostCheck.True(terminal.TerminalUnreturnedRows == 1 && terminal.NonterminalUnreturnedRows == 0 &&
+            terminal.UnreturnedRows == 1 && !terminal.CompleteTraceProjection && !terminal.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
+    }
+
+    [HostTest("log upload literal marker arguments remain complete calls while real cross PID fragments remain unjoined")]
+    private static void LinuxLiteralMarkersAndFragments()
+    {
+        const string literals = """
+            1.000001 write(3, "<unfinished ...>", 16) = 16
+            1.000002 write(3, "<... read resumed>", 18) = -1 EIO (Input/output error)
+            1.000003 +++ exited with 0 +++
+            """;
+        var complete = F.InspectTraceValues(new Dictionary<string, string> { ["write-trace.7"] = literals + "\n" }, "write");
+        HostCheck.True(complete.CompleteTraceProjection && complete.UnjoinedRows == 0 && complete.UnreturnedRows == 0 &&
+            complete.Rows.Take(2).All(row => row.Kind == F.TraceKind.CompletedCall && row.Syscall == "write") &&
+            complete.Rows[0].Arguments == "3, \"<unfinished ...>\", 16" && complete.Rows[0].Result == "16" &&
+            complete.Rows[1].Arguments == "3, \"<... read resumed>\", 18" && complete.Rows[1].Result == "-1 EIO (Input/output error)" &&
+            complete.Rows.Select(row => row.Raw).SequenceEqual(literals.Split('\n')) && !complete.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
+        var split = F.InspectTraceValues(new Dictionary<string, string>
+        {
+            ["write-trace.7"] = "1.000001 read(3, <unfinished ...>\n1.000003 +++ exited with 0 +++\n",
+            ["write-trace.8"] = "1.000002 <... read resumed>\"x\", 1) = 1\n1.000004 +++ exited with 0 +++\n"
+        }, "write");
+        HostCheck.True(split.ExitedFiles == 2 && split.UnjoinedRows == 2 && split.UnreturnedRows == 0 &&
+            split.Rows[0].Kind == F.TraceKind.UnfinishedCall && split.Rows[0].Result == "" &&
+            split.Rows[2].Kind == F.TraceKind.ResumedCall && split.Rows[2].Syscall == "" && split.Rows[2].Result == "" &&
+            !split.CompleteTraceProjection && !split.GrantsSyscallClosureLockFlushOrPersistenceAuthority);
     }
 
     [HostTest("log upload trace bounds reject partial bytes foreign phase PID aliases and capacity before Linux execution")]
