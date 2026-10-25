@@ -1,5 +1,8 @@
 # Windows development-machine handoff
 
+[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+
+
 ## Current handoff (October 23, 2026)
 
 Canonical LAN master includes PR790 at `82656076`. #748/#225/#737 and all

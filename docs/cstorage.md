@@ -1,5 +1,31 @@
 # Storage
 
+## Selected writable device integration (step1616)
+
+The default-off M16-027 native sources retain one serialized writable block
+owner and negotiate VERSION_1 plus FLUSH on slot7. The original emitted layout
+at70697d6b occupies603504bytes/148pages inside its256-page reservation. Its first
+page is DMA; the remaining owner, bootstrap, FAT engine, read port, borrowed
+web filesystem, writable provider and observations use bounded retained storage.
+The exact admitted package PID owns the writable attachment and locking scope.
+
+The native flow bootstraps the two-partition128MiB image before worker entry,
+then services source5 continuations cooperatively. User teardown requires actual
+workers reaped, storage quiesced and descriptors closed before device reset,
+bus-master disable and DMA scrub. STOP is an intermediate receipt; END follows
+user/pool and NIC cleanup. The new host consumer checks the full indexed row
+census, each copied IN/OUT sector, successful FLUSH frontiers, protected web/GPT
+bytes and independently extracted final files. These are implemented contracts;
+the first writable guest still awaits callback-complete emitted stack review.
+
+Mechanical30 creates/writes/removes its temporary file. LogUpload40 exercises
+the finite known log/upload syscall sequence. Neither is the actual NativeAOT
+MinimalApi app or SQLite engine. Guest FLUSH, cold reboot, physical durability
+and transactional recovery remain separate acceptance obligations.
+
+[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+
+
 [Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
 
 
