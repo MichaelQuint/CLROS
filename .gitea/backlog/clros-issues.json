@@ -38725,6 +38725,11 @@
       "ownedPaths": [
         "tools/OS.Tooling/QemuTranscripts.NativeAotLogUpload.Media.cs",
         "tests/OS.HostTests/NativeAotLogUploadMediaTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotLogUpload.Protocol.cs",
+        "tests/OS.HostTests/NativeAotLogUploadProtocolTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.Calls.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.ExitTail.cs",
         "apps/NativeAotLogUploadContract/Program.cs",
         "apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj",
         "tools/OS.Tooling/NativeAotLogUploadProgram.cs",
