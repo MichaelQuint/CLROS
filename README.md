@@ -1,6 +1,6 @@
 <p align="center">
 
-[Step1611](done/step1611.md) Paired web/data descriptor and finite TCP prerequisites are integrated for development on one original block owner. Source-only P identity staging preserves its failed ordinary allocation experiment unchanged and open.167 focused Fast checks pass so far; actual outer process ownership, source4 deferred fstat controls, emitted native closure/lifetime and guest read/write acceptance remain pending. Frozen LinuxHTTP r02 runs separately at24e5dff4.
+[Step1612](done/step1612.md) Current paired descriptor30 and shared filesystem13 lifetime controls pass, alongside17 managed HTTP controls, two large-footprint controls and17 backlog checks. Fresh publication input admission retains authenticated empty files with exact hashes and identity. Original Linuxr02 remains failed after publication; a fresh frozenr03 is next. These host preparations do not qualify guest writes, browser or SQLite durability.
 
 [Step1610](done/step1610.md) Original v5r13 completes four responses and exact64KiB range30.930s, then joins intentional cancellation. Whole service polling22.123s splits32%clock/36%supervisor/17%idle/15%other; full Blazor remains unqualified. Expert-reviewed HTTP input ownership repair is integrated:16HTTP+7console checks pass, with the earlier lease-collision failure retained. A fresh frozen LinuxHTTP r02 is next.
 

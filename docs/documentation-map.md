@@ -1,6 +1,6 @@
 # Documentation Map
 
-[Step1611](../done/step1611.md) Step1611 records development-only paired web/data/TCP prerequisite staging, preserved allocation failure boundaries and root integration repairs. Storage and networking docs retain the actual single-owner and carrier contracts; no guest/native activation is implied.
+[Step1612](../done/step1612.md) Step1612 joins current paired/FS/HTTP host checks, large synthetic SQLite-footprint controls and the preserved Linuxr02 failure archive. Storage/network/application docs describe their respective contracts; allocation, actual native activation, guest persistence and SQLite durability remain separate gates.
 
 [Step1610](../done/step1610.md) Step1610 owns the successful original v5r13 and exact poll-cause/stack observations, integrated007884f4 HTTP ownership repair and preserved managed lease collision. Diagnostics/EFI/QEMU retain original boundaries; application/host/storage/PAL/security docs distinguish retained historical evidence from current input authority. Both agents continue next bounded integration planning.
 

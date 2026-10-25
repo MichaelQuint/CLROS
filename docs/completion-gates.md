@@ -1,6 +1,6 @@
 # CLROS Completion Gates
 
-[Step1611](../done/step1611.md) Paired disk/TCP prerequisite staging advances no completion gate. Source-only P identity integration leaves ordinary allocation failures open;167 focused Fast passes and a clean build do not qualify actual outer ownership, emitted noGC/transitive stack, guest writes/reboot, browser or SQLite durability.
+[Step1612](../done/step1612.md) 79 distinct focused checks support current host preparation only: paired30, shared FS13, HTTP17, footprint2 and manifest17. Original LinuxHTTP r02 remains failed after successful publication/before app execution; its archived56files/53declared hashes are verified. No browser/guest write/reboot/SQLite durability or complete service gate advances.
 
 [Step1610](../done/step1610.md) V5r13 passes the short diagnostic with FullAndCleanupQualified=false; all19original identities and42metric fields are verified.007884 HTTP repair passes16HTTP and7console checks, with the first lease-collision failure preserved. No full/ordinary-cleanup/Blazor, guest write/reboot/SQLite/durability gate or issue closes. Fresh Linuxr02 is next; stable full-host/threeA-B/browser/ancestor/native review gates remain required.
 

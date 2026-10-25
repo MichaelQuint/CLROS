@@ -823,6 +823,13 @@ The example app projects exist and currently emit deferred-status markers only:
 
 ## Driver Status
 
+The next three status sections preserve the earlier parser/terminal-profile
+baseline through step1162. For current named finite Linux/Kestrel/readonly disk
+scopes, use `completion-gates.md` and steps1556/1571/1580. Step1612's writable
+pairing is host preparation; full Blazor, native writes/reboot and durability
+remain unqualified. Do not read the older categorical limits below as current
+denial of those specifically evidenced finite profiles.
+
 Owned COM1 configuration/output has accepted bounded guest and post-exit evidence. First-party APIC, general framebuffer, live PCI, virtio-blk and virtio-net drivers remain incomplete. Host-tested ACPI RSDP discovery/validation, RSDT/XSDT pointer-list parsing, MCFG-to-ECAM parsing, PCI ECAM address planning, PCI type-0 header parsing, PCI BAR metadata decoding, injected-reader PCI scanning, virtio PCI capability parsing/discovery, virtio initialization planning, virtio-blk split-ring descriptor materialization, and virtio-net queue/header metadata contracts exist. The opt-in ACPI physical discovery probe has live QEMU table-discovery markers, but these are not live hardware enumeration or driver evidence.
 
 ## Networking Status

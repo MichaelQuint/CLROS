@@ -256,6 +256,42 @@ internal static class NativeAotLogUploadHttpContractTests
         Reject(() => F.RetainCurrentNativeInput(invalid, Path.Combine(directory, "old-archive.a"), "bad"), "native_identity");
     }
 
+    [HostTest("HTTP authenticated publication empty native rows retain exact hashes and identity while default tools libraries and replaced empty files reject")]
+    private static void LinuxEmptyNativeHold()
+    {
+        string root = HostToolProcess.FindRepositoryRoot(), folder = Path.Combine(root, "artifacts", "http-empty-native-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try
+        {
+            string path = Path.Combine(folder, "generic-empty-input.bin"), replacement = path + ".different", old = path + ".old";
+            using (File.Open(path, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
+            using (File.Open(replacement, FileMode.CreateNew, FileAccess.Write, FileShare.None)) { }
+            string emptyHash = Convert.ToHexString(SHA256.HashData(Array.Empty<byte>()));
+            HostCheck.True(new FileInfo(path).Length == 0 && new FileInfo(replacement).Length == 0);
+            using (AuthorityFiles defaults = new())
+                Reject(() => F.RetainCurrentNativeInput(defaults, path, emptyHash), "linux_native_size_out_of_range");
+            using (AuthorityFiles wrong = new())
+                Reject(() => F.RetainCurrentNativeInput(wrong, path, Convert.ToHexString(SHA256.HashData(new byte[] { 1 })), allowEmpty: true), "native_input_changed");
+            using (AuthorityFiles held = new())
+            {
+                var input = F.RetainCurrentNativeInput(held, path, emptyHash, allowEmpty: true);
+                HostCheck.True(input.Length == 0 && input.Sha256.Equals(emptyHash, StringComparison.OrdinalIgnoreCase) && input.ReadBytes(1, "empty_fixture").Length == 0);
+                held.VerifyUnchanged();
+                bool denied = false; try { File.Move(path, old); } catch (IOException) { denied = true; }
+                if (denied) { HostCheck.True(OperatingSystem.IsWindows()); held.VerifyUnchanged(); }
+                else
+                {
+                    File.Move(replacement, path);
+                    HostCheck.True(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))) == emptyHash);
+                    bool rejected = false;
+                    try { held.VerifyUnchanged(); } catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; }
+                    HostCheck.True(rejected);
+                }
+            }
+        }
+        finally { Directory.Delete(folder, true); }
+    }
+
     [HostTest("HTTP Linux copied publication values reject foreign failed duplicate redirected and mismatched identities without granting authority")]
     private static void LinuxPublicationValues()
     {

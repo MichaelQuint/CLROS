@@ -1,6 +1,6 @@
 # CLROS AI Agent Guide
 
-[Step1611](done/step1611.md) Development-only paired disk/TCP integration imports the reviewed retained-owner closure and source-only P helper. The entire failed P allocation experiment remains unchanged/unimported and OPEN; no zero-allocation or native claim follows. Preserve root disk timing/source5, require complete outer process/carrier exclusion and actual deferred fstat source4 controls before paired activation. LinuxHTTP r02 uses frozen24e5dff4; serialize native producers.
+[Step1612](done/step1612.md) Step1612 has79 distinct focused passes: paired30, shared FS13, HTTP17, large-footprint2 and backlog17. Use explicit --lane full with filtered Native-labelled fixtures; default filtering runs Fast only. Source-onlyP staging is integrated, while its entire failed ordinary allocation experiment stays unchanged/unimported and OPEN. Outer-owner work and native activation are separate. Serialize the next LinuxHTTP r03 with the subagent Native-host lane.
 
 [Step1610](done/step1610.md) Preserve original v5r13 at830ef44c as diagnostic-only: all42fields/count/stage sums and19original hashes verified, joined cancellation, no full cleanup/Blazor gate. Integrated007884f4 repairs HTTP archived-recipe/current-input ownership;16HTTP and7console checks pass after serializing their managed qualification lease. Root next freezes/runs fresh Linuxr02. Both agents prepare exact outer-owner and writable-image-fit slices; no native competitor, allocation rerun or hidden tolerance change.
 
@@ -184,13 +184,15 @@ integration, documentation, tracker and serialized builds/native/guest work.
 [Step1568](done/step1568.md) retains the failed disk guests, conditional54/135
 range repairs, exact mechanical instruction metadata and zero-timestamp policy.
 Keep all64 mutable regions,128 table pages and historical ordinary/web limits.
-Staged and focused host passes still require complete disk consumption and fresh
-guest qualification before any disk issue closes.
-The isolated read-service integration adds a combined M16-025 mechanical disk
-profile with M16-023/024 parents and source4 thread waits. Preserve its separate
-PCI0:7 disk and PCI0:6 NIC ownership. Serialize native publication and guest
-qualification with the staged M10-017 lane; compiling EFI C# is not native or
-guest acceptance. M10-018 remains denied until its complete consumer is ready.
+Step1571's three fresh mechanical025 captures pass their complete consumer;
+step1580's original018r05 passes its five-response development consumer. These
+finite witnesses do not qualify full Blazor/browser or the ten-issue batch.
+Step1612 joins current paired writable/readonly/TCP host preparation; complete
+outer process/carrier proof, actual B/C/P native links and source5 continuation,
+emitted closure/transitive stack/lifetime and fresh guest writes remain pending.
+Preserve separate PCI0:7 disk and PCI0:6 NIC ownership. Serialize native
+publication and guest qualification; compiling EFI C# is not native or guest
+acceptance. The complete M10-018 Blazor/browser consumer remains unqualified.
 The new server is `apps/MinimalApiStaticFiles`; preserve exact original smoke
 app and `NativeAotPayload`/`NativeAotWebPayload` bytes. Publish through the fixed
 static-file wrapper and immutable original socket recipe. #224/#225/#737 are

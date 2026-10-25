@@ -1,6 +1,6 @@
 # EFI Build
 
-[Step1611](../done/step1611.md) Reviewed host paired prerequisites remain behind existing guards; no B/C/P compile links or native activation are added here. Preserve native025 compatibility and qualify helper reachability, actual emitted closure/transitive stack and real owner stop/drain/reset/reap before enabling a paired workload.
+[Step1612](../done/step1612.md) The paired30/FS13 passes are host contracts, despite their Native lane classification. No B/C/P EFI compile links or native activation were added. Current native socket carriers and source4-only wait dispatch need explicit paired adaptation and emitted noGC/transitive-stack/lifecycle evidence before a writable guest.
 
 [Step1610](../done/step1610.md) Fresh v5r13 at830ef44c compiles/boots with2056runtime/1629unwind entries, EFI BADFE2F185D74E1DABDC34CF4DF56FC2E5F18CB6FCCC520DF32DD02F43808D3E. Scoped original prologue/unwind frames remain128B readiness/480B wake/240B servicepoll including return addresses. This excludes callees/dynamic allocation/IRQ/callback nesting and supplies no general ABI/whole-stack proof.
 

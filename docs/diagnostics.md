@@ -1,6 +1,6 @@
 # Diagnostics
 
-[Step1611](../done/step1611.md) Source-only paired storage staging adds no diagnostic clocks, poll cadence or native witness. Preserve original v5r13 and failed full Blazor receipts. The next performance diagnostic remains complete phase-clipped dispatch accounting; LinuxHTTP r02 is a separately frozen producer.
+[Step1612](../done/step1612.md) Frozen LinuxHTTP r02 archives56files/53declared outputs with Complete=false; publication succeeds but input retention rejects a legitimate0B marker before app execution. The reviewed narrow fix keeps every row held and verified. Originalv5r13 and failed fullBlazor remain unchanged; the separately developed phase-clipped dispatch diagnostic is not imported or run here.
 
 [Step1610](../done/step1610.md) Original v5r13 conserves2053calls and22.1226843s wholepoll=4.3650485pre+12.0609952WHOLEdisk+5.6966406post. Clock668/7.1349208s, other364/3.3509460s, supervisor719/7.9647914s, idle302/3.6720261s. Root independently hashes19originals and all exact sums. Polling does not account for the entire active phase; next attribution must bound the complete dispatch envelope before a production policy. No interval is relabelled pure guest CPU.
 

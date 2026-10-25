@@ -1,6 +1,6 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1611](../done/step1611.md) Paired web/data descriptors and bounded finite TCP prerequisites are development staging only. The actual outer process/carrier proof, native helper closure/lifetime and fresh guest/browser/write qualification remain pending. Frozen LinuxHTTP r02 uses24e5dff4 separately; no Kestrel gate advances.
+[Step1612](../done/step1612.md) The current managed HTTP fixture passes17 controls, including actual seven-server execution and independent console verification. Linuxr02 publishes the HTTP ELF but fails current-input admission on a legitimate0B package marker before HTTP/console execution. The narrow held-file repair is integrated; freshLinuxr03 and guest/browser/write gates remain pending.
 
 [Step1610](../done/step1610.md) Original v5r13 returns exact64KiB range30.9304945s and joins deliberate cancellation. Measured wholepoll22.1226843s is32.25%clock/36.00%supervisor/16.60%idle/15.15%other; it cannot justify an unmeasured polling policy or resolve full Blazor. The HTTP current-input repair passes16checks and is ready for a new Linux original; old failure remains failed.
 

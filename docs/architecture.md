@@ -1,6 +1,6 @@
 # Architecture
 
-[Step1611](../done/step1611.md) The development paired descriptor model retains one original writable block engine for web reads and data operations, with pure structural cross-tree exclusion. Identity matching grants no live I/O or user-copy authority. Outer scheduler/process/carrier proof and native emitted closure/lifecycle still precede activation.
+[Step1612](../done/step1612.md) Current paired descriptor and shared filesystem lifetime controls pass on one original writable block owner. Synthetic large DB/journal footprints fit the bounded1M-work root engine. Complete outer ownership and actual emitted native/device lifecycle remain separate prerequisites; no native workload is activated.
 
 [Step1610](../done/step1610.md) V5r13 actually runs all four explicitly tagged service-poll causes, with22.1226843s total and exact stage conservation. This leaves substantial time outside service polls; no production cadence policy follows. The integrated HTTP repair separates authenticated historical recipe outputs from current executable/static-link/fresh publication inputs, retaining all current authority through complete sessions.
 

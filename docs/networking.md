@@ -1,6 +1,6 @@
 # Networking
 
-[Step1611](../done/step1611.md) Development-only finite TCP/network pairing now requires explicit whole callback-carrier bounds and excludes the paired disk trees before publication. Existing unpaired/native025 paths retain their original surface. Complete outer scheduler/process exclusion and a genuinely bounded native carrier remain mandatory before activation; host packet controls establish no guest persistence or sustained-service gate.
+[Step1612](../done/step1612.md) All30 current paired-global controls pass, including actual host packet/TCP/epoll interactions, dirty writes, held reads, reset and independent teardown. They establish finite host contracts. Complete outer process/carrier exclusion and a genuinely separate native callback carrier still precede actual writable web activation.
 
 ## Current network/service boundary (October 23, 2026)
 

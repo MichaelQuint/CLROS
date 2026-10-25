@@ -78,14 +78,17 @@ The repository has host-tested contracts and accepted QEMU/OVMF profiles for
 firmware-visible boot, bounded real firmware exit, owned post-exit diagnostics
 and subsystem use, and selected runtime operations. Each accepted profile has
 its own scope in `docs/completion-gates.md`; these results do not establish a
-general runtime or continuing platform services. Storage, PAL, app-model, and
-networking slices remain host-tested parser, planning, mock-table, or
-caller-owned-buffer evidence only.
+general runtime or continuing platform services. Named finite Linux NativeAOT,
+live TCP/socket and Kestrel scopes are recorded in steps1307 through1556.
+Step1571 adds complete mechanical readonly disk captures; step1580 qualifies
+the five-response disk/static development consumer. Full Blazor/browser and
+sustained-service acceptance remain open.
 
-Networking currently includes host-tested UDP/TCP checksum slices through
-active/passive handshakes, HTTP GET payload frames, and active close FIN/ACK
-frame generation. This is not live virtio-net I/O, a complete TCP stack,
-exported PAL sockets, hosted .NET, or Kestrel.
+Step1612's paired writable block/filesystem/TCP controls are host preparation,
+including fake media and managed HTTP processes. Complete native writable
+carriers, source5 integration, emitted closure/lifetime, guest writes/reboot
+and SQLite durability still require their own evidence. General hosting,
+exported socket PAL, isolation, cloud and production remain unqualified.
 
 Use `docs/completion-gates.md` and the latest `done/stepNN.md` for exact
 claim boundaries.

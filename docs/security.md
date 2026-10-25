@@ -1,6 +1,6 @@
 # Security
 
-[Step1611](../done/step1611.md) Paired finite descriptor admission authenticates the same original engine and excludes both private storage trees, with actual transport carrier bounds. Complete outer process/scheduler/futex/signal/user-carrier exclusion is still required. Numeric retained identity is structural, never mapping, live-copy or security isolation authority.
+[Step1612](../done/step1612.md) Authenticated fresh native publication inputs may be0B, with exact expected hash, opened original object/link identity and final VerifyUnchanged. Tools/static libraries retain nonempty default admission. No row is skipped or special-cased by filename; initial hard-link count1 is not an existing guarantee. Complete paired outer process/carrier proof is still pending.
 
 [Step1610](../done/step1610.md) The repaired HTTP owner authenticates sealed archived recipe/output identities before selecting current tools. Exact current paths/hashes and actual prelink libraries are held, and every fresh publication input remains mandatory with no archived-copy fallback. Host tamper/missing/replacement controls pass. V5 copied observations and successful finite responses grant no new isolation, guest locking/flush or durability authority.
 

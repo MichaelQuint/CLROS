@@ -1,6 +1,6 @@
 # App Model
 
-[Step1611](../done/step1611.md) Paired web/data global descriptors and bounded finite TCP prerequisites are staged on the current thread/source5 base. Deferred readonly fstat5 now captures and pins its original144-byte output prefix. Complete outer process ownership and actual paired wait controls remain pending; no native workload is enabled.
+[Step1612](../done/step1612.md) The repaired HTTP holder passes17 current controls including seven real managed server children. Only authenticated fresh publication.native rows admit empty files, still opened/hashed/held/rechecked; tools/static libraries remain nonempty. Original Linuxr02 published an ELF then failed on a0B marker before either app ran. Fresh Linuxr03 and actual guest write/reboot remain pending.
 
 [Step1610](../done/step1610.md) The repaired Linux HTTP owner now authenticates the retained socket archive through existing validation, admits exact current tools, holds nine actual static-link inputs before HTTP linking and every fresh publication input afterward. Original00ce r01 remains failed; fresh r02 is pending.16HTTP and7console checks pass, with the first concurrent managed lease failure preserved. Guest persistence remains unqualified.
 

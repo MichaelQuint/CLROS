@@ -14,6 +14,97 @@ using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServ
 // Host image/extraction controls only. No native/device/guest persistence claim.
 internal static unsafe class WritableDataImageFixtureTests
 {
+    [HostTest("writable large SQLite-sized synthetic footprint uses bounded same-owner growth real flushes fresh reopen and explicit work-budget rejection", HostLane.Fast)]
+    private static void LargeSqliteFootprint() => WithImage((_, _, _, seed, before) =>
+    {
+        // Sizes are the retained large reference footprint. These deterministic
+        // bytes are NOT a valid SQLite database/journal or a recovery protocol.
+        byte[] database = FootprintBytes(303104, 0x39), journal = FootprintBytes(310816, 0xa7);
+        const string dbPath = "/data/footprint.db", journalPath = "/data/footprint.db-journal";
+        HostCheck.True(seed.Image.Find("footprint.db") is null && seed.Image.Find("footprint.db-journal") is null);
+        byte[] after; ulong originalDeviceEpoch; uint writes = 0, flushes;
+        using (var media = new MutationMedia(before, workBudget: 1000000, epoch: 1702))
+        using (var files = new DescriptorMedia(media, epoch: 1702))
+        {
+            originalDeviceEpoch = media.Device.Input.Epoch;
+            var db = files.Open(dbPath, 2 | W.Create | W.Exclusive); var reader = files.Open(dbPath);
+            var log = files.Open(journalPath, 2 | W.Create | W.Exclusive);
+            HostCheck.Equal(17L, W.Seek(files.State, db, 17, 0).Value);
+            HostCheck.Equal(29L, W.Seek(files.State, reader, 29, 0).Value);
+            Write(db, database); files.Sync(db); Write(log, journal); files.Sync(log);
+            var directory = files.Open("/data"); files.Sync(directory); HostCheck.Equal(0L, W.Close(files.State, directory));
+            HostCheck.True(W.Seek(files.State, db, 0, 1).Value == 17 && W.Seek(files.State, reader, 0, 1).Value == 29 &&
+                files.Read(reader, 64, 303040, positioned: true).AsSpan().SequenceEqual(database.AsSpan(303040)));
+            foreach (var file in new[] { db, reader, log }) HostCheck.Equal(0L, W.Close(files.State, file));
+            HostCheck.True(!files.State->RequestActive && !media.State->RequestActive && !media.State->Dirty &&
+                !media.Device.State->RequestPending && !media.Device.State->Dirty && media.Device.State->Submitted == media.Device.State->Completed &&
+                media.Device.State->SubmittedBytes == media.Outs * 512UL && media.Device.State->CompletedBytes == media.Outs * 512UL &&
+                media.Device.State->DurableBytes == media.Outs * 512UL);
+            after = media.Snapshot(); flushes = media.Flushes;
+            void Write(W.DescriptorToken file, byte[] bytes)
+            {
+                for (int offset = 0; offset < bytes.Length; offset += 4096)
+                {
+                    int count = Math.Min(4096, bytes.Length - offset);
+                    HostCheck.Equal((long)count, files.Run(W.Pwritev2SingleWithFreeSearch(files.State, file,
+                        bytes.AsSpan(offset, count), (ulong)offset, 0x20, new W.FreeSearch(2, 4096, 8192))).Value);
+                    writes++;
+                }
+            }
+        }
+        // The128-sector transition API deliberately does not cover this much
+        // changed data. Independently reopen the complete clean raw image.
+        var inspected = Image.Inspect(after); var dbEntry = inspected.Find("footprint.db")!; var journalEntry = inspected.Find("footprint.db-journal")!;
+        HostCheck.True(writes == 150 && dbEntry.Bytes == 303104 && dbEntry.Clusters.Count == 592 &&
+            journalEntry.Bytes == 310816 && journalEntry.Clusters.Count == 608 && inspected.FreeClusters == seed.Image.FreeClusters - 1200 &&
+            dbEntry.CopyBytes().AsSpan().SequenceEqual(database) && journalEntry.CopyBytes().AsSpan().SequenceEqual(journal));
+        foreach (var file in seed.Image.Files)
+        {
+            var current = inspected.Find(file.Name)!;
+            HostCheck.True(current.Sha256 == file.Sha256 && current.Clusters.SequenceEqual(file.Clusters) &&
+                after.AsSpan((int)file.ShortEntryOffset, 32).SequenceEqual(before.AsSpan((int)file.ShortEntryOffset, 32)));
+            foreach (uint cluster in file.Clusters) HostCheck.True(after.AsSpan(ClusterOffset(cluster), 512).SequenceEqual(before.AsSpan(ClusterOffset(cluster), 512)));
+        }
+        foreach (uint cluster in seed.Image.RootClusters)
+            for (int slot = 0; slot < 16; slot++)
+            {
+                int at = ClusterOffset(cluster) + slot * 32;
+                if (before[at] is not (0 or 0xe5)) HostCheck.True(after.AsSpan(at, 32).SequenceEqual(before.AsSpan(at, 32)));
+            }
+        HostCheck.True(after.AsSpan(0, (int)Image.PartitionFirstLba * 512).SequenceEqual(before.AsSpan(0, (int)Image.PartitionFirstLba * 512)) &&
+            after.AsSpan(((int)Image.PartitionLastLba + 1) * 512).SequenceEqual(before.AsSpan(((int)Image.PartitionLastLba + 1) * 512)));
+        int used = journal.Length % 512; HostCheck.True(after.AsSpan(ClusterOffset(journalEntry.Clusters[^1]) + used, 512 - used).IndexOfAnyExcept((byte)0) < 0);
+        using (var limited = new MutationMedia(after, workBudget: 100000, epoch: 1802))
+        {
+            C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginOpenRoot(limited.State, "footprint.db", &request)); limited.Run();
+            C.FileToken file = default; HostCheck.Equal(C.Status.BudgetExceeded, C.CopyOpen(limited.State, request, &file));
+            HostCheck.True(file.Owner == 0 && !limited.State->RequestActive && !limited.State->Dirty && limited.Outs == 0 && limited.Flushes == 0 &&
+                limited.Device.State->SubmittedBytes == 0 && limited.Snapshot().AsSpan().SequenceEqual(after));
+        }
+        using (var cold = new MutationMedia((byte[])after.Clone(), workBudget: 1000000, epoch: 1902))
+        using (var files = new DescriptorMedia(cold, epoch: 1902))
+        {
+            HostCheck.True(cold.Device.Input.Epoch != originalDeviceEpoch);
+            foreach (var pair in new[] { (dbPath, database), (journalPath, journal) })
+            {
+                var file = files.Open(pair.Item1);
+                for (int offset = 0; offset < pair.Item2.Length; offset += 8192)
+                {
+                    uint count = (uint)Math.Min(8192, pair.Item2.Length - offset);
+                    HostCheck.True(files.Read(file, count, (ulong)offset, positioned: true).AsSpan().SequenceEqual(pair.Item2.AsSpan(offset, (int)count)));
+                }
+                HostCheck.True(files.Read(file, 1, (ulong)pair.Item2.Length, positioned: true, expectedBytes: 0).Length == 0 && W.Seek(files.State, file, 0, 1).Value == 0);
+                HostCheck.Equal(0L, W.Close(files.State, file));
+            }
+            HostCheck.True(cold.Outs == 0 && cold.Flushes == 0 && !files.State->RequestActive && !cold.State->RequestActive && !cold.Device.State->RequestPending &&
+                cold.Snapshot().AsSpan().SequenceEqual(after));
+        }
+        Console.WriteLine($"WRITABLE_LARGE_FOOTPRINT syntheticBytes=true sqliteExecuted=false db=303104:592 journal=310816:608 positionedWrites={writes} workBudget=1000000 lowBudgetRejected=100000 flushes={flushes} rawSha256={Hash(after)} dbSha256={dbEntry.Sha256} journalSha256={journalEntry.Sha256}");
+    });
+
+    private static byte[] FootprintBytes(int length, byte salt)
+    { byte[] bytes = new byte[length]; for (int i = 0; i < bytes.Length; i++) bytes[i] = unchecked((byte)(salt ^ i * 71 ^ i >> 9)); return bytes; }
+
     [HostTest("writable data image two fresh outputs and canonical extraction receipts are byte identical", HostLane.Native)]
     private static void Deterministic() => WithImage((root, folder, path, receipt, disk) =>
     {
@@ -667,10 +758,10 @@ internal static unsafe class WritableDataImageFixtureTests
         private readonly W.Descriptor* slots = (W.Descriptor*)NativeMemory.AllocZeroed(32, (nuint)sizeof(W.Descriptor));
         private readonly W.Description* descriptions = (W.Description*)NativeMemory.AllocZeroed(32, (nuint)sizeof(W.Description));
         private readonly byte* input = (byte*)NativeMemory.AllocZeroed(W.IoBytes);
-        internal DescriptorMedia(MutationMedia owner)
+        internal DescriptorMedia(MutationMedia owner, ulong epoch = 702)
         {
             media = owner;
-            HostCheck.True(W.Start(State, new() { Engine = media.State, Epoch = 702, Descriptors = slots, Descriptions = descriptions,
+            HostCheck.True(W.Start(State, new() { Engine = media.State, Epoch = epoch, Descriptors = slots, Descriptions = descriptions,
                 DescriptorCount = 32, DescriptionCount = 32, Input = input, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
         }
         private W.Result Wait(W.Result begun)
@@ -721,13 +812,13 @@ internal static unsafe class WritableDataImageFixtureTests
         internal readonly C.State* State = (C.State*)NativeMemory.AllocZeroed((nuint)sizeof(C.State));
         private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(48 * 4096, 4096);
         internal uint Outs, Flushes;
-        internal MutationMedia(byte[] image)
+        internal MutationMedia(byte[] image, uint workBudget = 100000, ulong epoch = 702)
         {
             Device = new((ulong)Image.ImageBytes / 512); Device.UseMedium(image); HostCheck.Equal(B.Status.Success, Device.Start());
             ulong cursor = (ulong)backing;
             ulong Take(ulong count) { ulong address = (cursor + 15) & ~15UL; cursor = address + count; return address; }
-            C.Admission input = new() { Device = Device.State, Owner = 701, Epoch = 702, PartitionFirst = Image.PartitionFirstLba, PartitionLast = Image.PartitionLastLba,
-                ChangeCapacity = C.JournalChanges, ChainCapacity = C.MaximumClusters, InputCapacity = C.WriteBytes, WorkBudget = 100000,
+            C.Admission input = new() { Device = Device.State, Owner = 701, Epoch = epoch, PartitionFirst = Image.PartitionFirstLba, PartitionLast = Image.PartitionLastLba,
+                ChangeCapacity = C.JournalChanges, ChainCapacity = C.MaximumClusters, InputCapacity = C.WriteBytes, WorkBudget = workBudget,
                 Changes = (Fat32Mutation.Change*)Take(C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)), Before = (byte*)Take(C.JournalChanges * 512UL), After = (byte*)Take(C.JournalChanges * 512UL),
                 DirectoryMap = (uint*)Take(C.MaximumClusters * 4UL), FileMap = (uint*)Take(C.MaximumClusters * 4UL), WalkMap = (uint*)Take(C.MaximumClusters * 4UL),
                 Sector = (byte*)Take(512), Fat0 = (byte*)Take(512), Fat1 = (byte*)Take(512), Input = (byte*)Take(C.WriteBytes),

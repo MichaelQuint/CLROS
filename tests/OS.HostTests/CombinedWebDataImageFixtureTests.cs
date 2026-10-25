@@ -13,6 +13,65 @@ using K = OS.Storage.ContinuingFat32Bootstrap;
 // Pure host image and fake-media controls; no native/guest/persistence authority.
 internal static unsafe class CombinedWebDataImageFixtureTests
 {
+    [HostTest("combined r13-sized synthetic web boot package and writable seeds repeat deterministically and independently extract from a cold copy", HostLane.Fast)]
+    private static void LargeFootprintColdCopy() => WebRootImageFixtureTests.WithImage((root, folder, _, source) =>
+    {
+        // Clean-checkout size control, not an executable package or Blazor app.
+        // The retained actual r13 bytes are a separately held original check.
+        HostCheck.True(source.StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
+        Directory.Delete(source, true); Directory.CreateDirectory(source);
+        void Asset(string relative, int bytes, byte salt)
+        {
+            string path = Path.Combine(source, relative.Replace('/', Path.DirectorySeparatorChar));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllBytes(path, SizedBytes(bytes, salt));
+        }
+        Asset("index.html", 357, 1); Asset("site.css", 159, 2);
+        Asset("_framework/System.Private.CoreLib.wasm", 2009369, 3); Asset("_framework/dotnet.native.wasm", 1585294, 4);
+        for (int i = 0; i < 41; i++) Asset($"_framework/footprint-{i:D2}.wasm", 56764 + (i < 4 ? 1 : 0), (byte)(5 + i));
+        var published = WebRootImageFixture.SnapshotPublishedRoot(source);
+        HostCheck.True(published.Files.Length == 45 && published.TotalBytes == 5922507 && published.MaximumFileBytes == 2009369);
+        string efi = Path.Combine(folder, "sized-efi.bin"), package = Path.Combine(folder, "sized-app.pkg"), basePath = Path.Combine(folder, "sized-base.raw");
+        File.WriteAllBytes(efi, SizedBytes(1106944, 0x51)); File.WriteAllBytes(package, SizedBytes(8642088, 0xc3));
+        string efiHash = FileHash(efi), packageHash = FileHash(package);
+        var start = HostToolProcess.CreateDotnetToolStartInfo(root, "OS.ImageBuilder");
+        foreach (string arg in new[] { "create-raw", "--efi", efi, "--package", package, "--output", basePath, "--image-size-mib", "64" }) start.ArgumentList.Add(arg);
+        using (var process = System.Diagnostics.Process.Start(start)!)
+        {
+            var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
+            if (!process.WaitForExit(30000)) { process.Kill(true); process.WaitForExit(5000); throw new InvalidOperationException("sized image builder timed out"); }
+            string text = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
+            HostCheck.True(process.ExitCode == 0 && text.Contains("TEST_PASS imagebuilder.raw", StringComparison.Ordinal), text);
+        }
+        string web = Path.Combine(folder, "sized-web.raw"), data = Path.Combine(folder, "sized-data.raw");
+        var webReceipt = WebRootImageFixture.Apply(root, basePath, source, published, web); var seed = Data.Create(root, data);
+        string first = Path.Combine(folder, "sized-combined-a.raw"), second = Path.Combine(folder, "sized-combined-b.raw");
+        var a = Image.Create(root, web, data, first); var b = Image.Create(root, web, data, second);
+        HostCheck.True(a.CopyJson().AsSpan().SequenceEqual(b.CopyJson()) && FileHash(first) == FileHash(second) &&
+            a.Image.CapacitySectors == 262144 && a.Image.DataFirst == 131072 && a.Image.DataLast == 260062 &&
+            a.Image.Data.FirstFatSector == 131104 && a.Image.Data.FirstDataSector == 133090 && a.Image.Data.FreeClusters == 126965);
+        foreach (string absent in new[] { "m16-write.bin", "contract.db", "contract.db-journal", "contract.db-wal", "contract.db-shm" }) HostCheck.True(a.Image.Data.Find(absent) is null);
+        foreach (string empty in new[] { "LOG.TXT", "UPLOAD.BIN", "SQLITE.DB" }) HostCheck.True(a.Image.Data.Find(empty) is { Bytes: 0 });
+        byte[] originalWeb = File.ReadAllBytes(web), combined = File.ReadAllBytes(first);
+        HostCheck.True(combined.AsSpan(2048 * 512, (131038 - 2048 + 1) * 512).SequenceEqual(originalWeb.AsSpan(2048 * 512, (131038 - 2048 + 1) * 512)));
+        HostCheck.True(a.Image.WebFiles.Single(x => x.Path == "/EFI/BOOT/BOOTX64.EFI").Sha256 == efiHash &&
+            a.Image.WebFiles.Single(x => x.Path == "/OS/APP.PKG").Sha256 == packageHash &&
+            a.Image.WebFiles.Single(x => x.Path == "/OS/APP.PKG").Bytes == 8642088 &&
+            a.Image.WebFiles.Single(x => x.Path == "/private/sentinel.txt").Sha256 == webReceipt.Sentinel.Sha256);
+        string coldPath = Path.Combine(folder, "sized-cold-copy.raw"); File.WriteAllBytes(coldPath, combined); combined.AsSpan().Clear();
+        Image.Verify(coldPath, a); var cold = Image.Inspect(coldPath);
+        HostCheck.True(cold.RawSha256 == a.Image.RawSha256 && cold.WebPartitionSha256 == a.Image.WebPartitionSha256 &&
+            cold.DataPartitionSha256 == a.Image.DataPartitionSha256 && cold.WebFiles.Count == 54 &&
+            cold.Data.Find("GUARD.TXT")!.CopyBytes().AsSpan().SequenceEqual(seed.Image.Find("GUARD.TXT")!.CopyBytes()));
+        foreach (var file in a.Image.WebFiles)
+        { var now = cold.WebFiles.Single(x => x.Path == file.Path); HostCheck.True(now.Sha256 == file.Sha256 && now.CopyBytes().AsSpan().SequenceEqual(file.CopyBytes()) && now.Extents.SequenceEqual(file.Extents)); }
+        HostCheck.True(FileHash(web) == a.OriginalWebSha256 && FileHash(data) == a.OriginalDataSha256 && FileHash(efi) == efiHash && FileHash(package) == packageHash &&
+            !Directory.GetFiles(folder, "*.tmp-*").Any());
+        Console.WriteLine($"COMBINED_LARGE_FOOTPRINT syntheticInputs=true executableValidated=false publishedFiles=45 publishedBytes=5922507 serverPackageBytes=8642088 efiBytes=1106944 capacity=262144 rawSha256={a.Image.RawSha256} receiptSha256={Hash(a.CopyJson())} coldSha256={cold.RawSha256}");
+    });
+
+    private static byte[] SizedBytes(int length, byte salt)
+    { byte[] bytes = new byte[length]; for (int i = 0; i < bytes.Length; i++) bytes[i] = unchecked((byte)(salt ^ i * 59 ^ i >> 8)); return bytes; }
+
     [HostTest("combined web data two fresh images and canonical receipts are deterministic with original sources unchanged", HostLane.Native)]
     private static void Deterministic() => WithImage((root, folder, web, data, path, receipt) =>
     {

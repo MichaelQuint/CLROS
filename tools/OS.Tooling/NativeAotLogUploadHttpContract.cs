@@ -149,12 +149,16 @@ public static class NativeAotLogUploadHttpContract
     /// caller-captured hash. Caller owns the supplied handle collection through
     /// use and final VerifyUnchanged; failure retains already admitted handles.
     /// Missing/substituted files fail without archive or historical fallback.
+    /// Empty files require explicit admission from an authenticated fresh
+    /// publication inventory; tools and static libraries remain nonempty.
+    /// The original object/link identity is retained and rechecked; this helper
+    /// does not require an initial single hard link.
     /// This cross-platform hold helper grants no compiler/publication authority;
     /// the Linux owner separately authenticates its selected paths and recipe.</summary>
-    public static AuthorityFile RetainCurrentNativeInput(AuthorityFiles held, string path, string expectedSha256)
+    public static AuthorityFile RetainCurrentNativeInput(AuthorityFiles held, string path, string expectedSha256, bool allowEmpty = false)
     {
         Need(Path.IsPathFullyQualified(path) && IsHash(expectedSha256), "native_identity");
-        var input = held.Open(Path.GetPathRoot(path)!, path, "original HTTP current native input", "log_upload_http_linux_native", 256 * 1024 * 1024);
+        var input = held.Open(Path.GetPathRoot(path)!, path, "original HTTP current native input", "log_upload_http_linux_native", 256 * 1024 * 1024, allowEmpty: allowEmpty);
         Need(input.Sha256.Equals(expectedSha256, StringComparison.OrdinalIgnoreCase), "native_input_changed"); return input;
     }
 
@@ -577,7 +581,7 @@ public static class NativeAotLogUploadHttpContract
                 var values = InspectLinuxPublicationValues(publicationJson, before);
                 using (var parsed = JsonDocument.Parse(publicationJson))
                 {
-                    foreach (var row in parsed.RootElement.GetProperty("native").EnumerateObject()) HoldNative(row.Name, row.Value.GetString()!);
+                    foreach (var row in parsed.RootElement.GetProperty("native").EnumerateObject()) HoldNative(row.Name, row.Value.GetString()!, allowEmpty: true);
                     var outputs = parsed.RootElement.GetProperty("outputs").EnumerateObject().ToArray();
                     Need(outputs.Select(row => row.Name).Order(StringComparer.Ordinal).SequenceEqual(publishedFiles.Where(path => Path.GetFileName(path) != "publication.json")
                         .Select(path => Path.GetRelativePath(publication, path).Replace('\\', '/')).Order(StringComparer.Ordinal)), "publication_output_inventory");
@@ -701,11 +705,11 @@ public static class NativeAotLogUploadHttpContract
 
         string[] OutputPaths() => Directory.GetFiles(destination, "*", SearchOption.AllDirectories)
             .Where(path => Path.GetFileName(path) is not ("ownership.lock" or "publication.lock")).Order(StringComparer.Ordinal).ToArray();
-        void HoldNative(string path, string hash)
+        void HoldNative(string path, string hash, bool allowEmpty = false)
         {
             Need(CanonicalLinux(path) && IsHash(hash) && (native.Count < 16384 || native.ContainsKey(path)), "native_identity");
             Need(!native.TryGetValue(path, out string? prior) || prior.Equals(hash, StringComparison.OrdinalIgnoreCase), "native_identity_changed");
-            RetainCurrentNativeInput(held, path, hash); native[path] = hash;
+            RetainCurrentNativeInput(held, path, hash, allowEmpty); native[path] = hash;
         }
         void CheckInputs()
         {

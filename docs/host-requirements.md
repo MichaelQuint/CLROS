@@ -1,6 +1,6 @@
 # Host Requirements
 
-[Step1611](../done/step1611.md) Root paired prerequisites build on the current thread/source5 base;167 focused Fast controls pass before outer-owner integration. Do not run Native-labelled fixtures beside frozen LinuxHTTP r02. The failed allocation experiment is not imported or rerun as a prerequisite for development staging.
+[Step1612](../done/step1612.md) Current root79 focused checks pass, including explicitly filtered full-lane paired30/FS13/HTTP17. The repaired native-input holder permits0B only for authenticated fresh publication rows; no descriptor-limit or initial hard-link policy changes. Linuxr02 parent1024/hard4096 restored, but1102/1146 boundary samples prove no peak/fit. Freshr03 is required.
 
 [Step1610](../done/step1610.md) Run managed HTTP and console reference owners serially: both intentionally acquire the same repository qualification lease. The first concurrent root attempt fails before server execution; its later serial16HTTP pass and7console pass do not erase that failure. Repaired Linux publication retains eight exact current tools, nine prelink static files and complete fresh inputs. Peak/4096-fit and actualLinuxr02 remain unmeasured.
 

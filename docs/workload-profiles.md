@@ -1,6 +1,6 @@
 # Workload Profiles ADR
 
-[Step1611](../done/step1611.md) Paired web/data/TCP host prerequisites are development staging only. The full outer process/scheduler/carrier exclusion and actual source4 deferred fstat checks precede native activation; source-only P integration leaves the ordinary allocation experiment unchanged/open. Existing accepted native profiles keep their original boundaries.
+[Step1612](../done/step1612.md) Current paired30/sharedFS13 and managedHTTP17 controls pass, with two synthetic large-footprint controls and17manifest checks. Complete outer ownership/native carrier and emitted lifecycle qualification remain prerequisites. Source-onlyP is staged; its ordinary allocation experiment remains failed, unchanged/unimported and OPEN. No accepted native profile or guest gate is expanded.
 
 [Step1610](../done/step1610.md) Actual v5r13 preserves unchanged server/package bytes and service/audit/flush/time policy, then intentionally cancels/joins. The cause distribution is attribution rather than production optimization. The repaired explicit LinuxHTTP reference retains two fresh publications and independent verification. No accepted application profile or continuously functioning read/write/SQLite goal changes.
 
