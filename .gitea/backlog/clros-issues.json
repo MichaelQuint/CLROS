@@ -37838,6 +37838,10 @@
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxWritableSyscallObservation.cs",
         "tests/OS.HostTests/LinuxWritableSyscallObservationTests.cs",
+        "src/OS.Kernel/Storage/WritableBlockReadPort.cs",
+        "tests/OS.HostTests/WritableBlockReadPortTests.cs",
+        "src/OS.Kernel/Storage/ReadOnlyWebRootFileSystem.cs",
+        "tests/OS.HostTests/ReadOnlyWebRootFileSystemTests.cs",
         "src/OS.Kernel/Diagnostics/WritableStorageTiming.cs",
         "tests/OS.HostTests/WritableStorageTimingTests.cs",
         "tools/OS.Tooling/WritableStorageTimingReport.cs",
