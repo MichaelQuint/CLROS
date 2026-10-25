@@ -46,6 +46,35 @@ public static class NativeAotLogUploadHttpContract
     public sealed record LinuxToolValue(string Name, string Path, string Sha256)
     { public bool GrantsOriginalFileOrToolAuthority => false; }
 
+    /// <summary>Copied immutable argv for the pinned physical BusyBox setsid
+    /// provider and physical strace child. Preparing ProcessStartInfo executes
+    /// nothing. The original owner must authenticate the socket recipe and keep
+    /// every selected binary held/unchanged through process and pipe cleanup;
+    /// copied names/hashes alone grant no tool, process or session authority.</summary>
+    public sealed class LinuxTracePlan
+    {
+        internal LinuxTracePlan(string executable, IEnumerable<string> arguments)
+        { Executable = executable; Arguments = Array.AsReadOnly(arguments.ToArray()); }
+        public string Executable { get; }
+        public ReadOnlyCollection<string> Arguments { get; }
+        public bool GrantsOriginalProcessOrToolAuthority => false;
+
+        /// <summary>Create an independent, unstarted process configuration
+        /// using this exact literal argv. No shell, PATH search or link lookup
+        /// occurs here; unsupported working-directory spelling rejects.</summary>
+        public ProcessStartInfo PrepareStartInfo(string workingDirectory)
+        {
+            Need(CanonicalLinux(workingDirectory), "session_directory");
+            var info = new ProcessStartInfo(Executable) { WorkingDirectory = workingDirectory, UseShellExecute = false,
+                CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
+            foreach (string argument in Arguments) info.ArgumentList.Add(argument);
+            info.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"; info.Environment["DOTNET_NOLOGO"] = "1"; info.Environment.Remove("OS_SMOKE_EXPECTED_BODY");
+            info.Environment["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"; info.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
+            info.Environment["MSBUILDDISABLENODEREUSE"] = "1"; info.Environment["DOTNET_ENVIRONMENT"] = "Production"; info.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
+            return info;
+        }
+    }
+
     /// <summary>Original Linux reference handles, transferred only after both
     /// fresh publications, real HTTP, natural exit and independent verification
     /// complete. Dispose releases evidence/input handles, never a live process.
@@ -122,6 +151,26 @@ public static class NativeAotLogUploadHttpContract
             selected.Add(new(name, path, hash!.ToUpperInvariant()));
         }
         return selected.AsReadOnly();
+    }
+
+    /// <summary>Check copied original-map/current-role identities and construct
+    /// the one supported trace invocation. This deliberately supports only the
+    /// original pinned BusyBox setsid applet, not arbitrary multicall binaries,
+    /// aliases or standalone providers. Inputs are borrowed synchronously;
+    /// returned argv is copied and readonly. No files are opened or executed.</summary>
+    public static LinuxTracePlan InspectLinuxTracePlan(string originalNativeJson,
+        IReadOnlyDictionary<string, LinuxToolValue> resolvedTools, IReadOnlyList<string> traceArguments)
+    {
+        var tools = InspectLinuxRecipeTools(originalNativeJson, resolvedTools);
+        LinuxToolValue session = tools.Single(tool => tool.Name == "setsid"), tracer = tools.Single(tool => tool.Name == "strace");
+        Need(session.Path == "/bin/busybox" && session.Sha256 == "01A989EB4D1D04B0D146C790AC536ABD88F374EC74A2E110C58910B840D42045" &&
+            tracer.Path == "/usr/bin/strace" && tracer.Sha256 == "BC573F002A4E1F4D3EA2209A01105D3B86DC59FC5DF0FEF3B1B191B2675A391D", "session_provider");
+        if (traceArguments is null) throw new ToolFailure("log_upload_http_session_arguments");
+        Need(traceArguments.Count is > 0 and <= 32, "session_arguments");
+        string[] copied = new string[traceArguments.Count]; for (int i = 0; i < copied.Length; i++) copied[i] = traceArguments[i];
+        Need(copied.All(argument => argument is not null && argument.Length is > 0 and <= 4096 && !argument.Any(char.IsControl)) &&
+            copied.Sum(argument => Encoding.UTF8.GetByteCount(argument)) <= 32768, "session_arguments");
+        return new(session.Path, new[] { "setsid", tracer.Path }.Concat(copied));
     }
 
     /// <summary>Validate one bounded copied gcc library-query line and return
@@ -515,7 +564,8 @@ public static class NativeAotLogUploadHttpContract
         List<object> commands = [], fdBoundaries = []; List<Control> controls = []; List<ResponseFact> responses = []; Dictionary<string, string> native = new(StringComparer.Ordinal);
         bool complete = false; string failure = ""; NativeAotPayload.Inspection? image = null; NativeAotLogUploadContract.FileValues? files = null;
         NativeAotLogUploadContract.TraceValues? writeTrace = null, verifyTrace = null;
-        string setsid = "", strace = "";
+        string strace = "", originalNative = "";
+        ReadOnlyCollection<LinuxToolValue> selectedTools = Array.AsReadOnly(Array.Empty<LinuxToolValue>());
         FileStream? sourceLease = null, recipeLease = null;
         try
         {
@@ -538,12 +588,14 @@ public static class NativeAotLogUploadHttpContract
             // outputs, the three relocated producer outputs and original ELF.
             // Historical absolute native-map rows are not current filenames.
             _ = NativeAotSocketPackage.Create(root, recipeRoot, asynchronous: true);
-            string originalNative = held.Open(recipeRoot, Path.Combine(recipe, "native-inputs.json"), "original recipe native inputs",
+            originalNative = held.Open(recipeRoot, Path.Combine(recipe, "native-inputs.json"), "original recipe native inputs",
                 "log_upload_http_linux_recipe", 16 * 1024 * 1024, singleLink: true).ReadUtf8(16 * 1024 * 1024, "log_upload_http_linux_recipe");
-            var selectedTools = InspectLinuxRecipeTools(originalNative, LinuxToolNames.ToDictionary(name => name, name =>
+            selectedTools = InspectLinuxRecipeTools(originalNative, LinuxToolNames.ToDictionary(name => name, name =>
             { string path = ResolveToolPath(name); return new LinuxToolValue(name, path, NativeAotWebPayload.HashFile(path)); }, StringComparer.Ordinal));
             foreach (var tool in selectedTools) HoldNative(tool.Path, tool.Sha256);
-            setsid = selectedTools.Single(tool => tool.Name == "setsid").Path; strace = selectedTools.Single(tool => tool.Name == "strace").Path;
+            strace = selectedTools.Single(tool => tool.Name == "strace").Path;
+            // Reject an unsupported provider before publication/tool execution.
+            _ = TracePlan(["--version"]);
             Directory.CreateDirectory(destination); AuthorityFiles.RequirePlainPath(root, destination, "log_upload_http_linux_output");
             using var ownership = new FileStream(Path.Combine(destination, "ownership.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
             try
@@ -554,7 +606,9 @@ public static class NativeAotLogUploadHttpContract
                 foreach (string library in LinuxLibraryNames)
                 {
                     cancellation.ThrowIfCancellationRequested(); CheckInputs(); string queryLog = "native-library-" + library;
-                    commands.Add(new { Executable = setsid, Arguments = new[] { gcc, "-print-file-name=" + library }, WorkingDirectory = root, Phase = "HTTP static-link discovery" });
+                    // ExecuteAsync uses its existing logical setsid wrapper;
+                    // this is distinct from the pinned physical trace plan.
+                    commands.Add(new { Executable = "setsid", Arguments = new[] { gcc, "-print-file-name=" + library }, WorkingDirectory = root, Phase = "HTTP static-link discovery" });
                     bool succeeded = false; string queryFailure = "";
                     try { cancellation.ThrowIfCancellationRequested(); await NativeAotWebPayload.ExecuteAsync(gcc, ["-print-file-name=" + library], root, Path.Combine(destination, queryLog), TimeSpan.FromMinutes(2)); succeeded = true; }
                     catch (Exception error) { queryFailure = error.Message.ReplaceLineEndings(" "); throw; }
@@ -599,7 +653,9 @@ public static class NativeAotLogUploadHttpContract
                 commands.Add(new { Producer = nameof(NativeAotLogUploadContract), Output = Path.Combine(destination, "verifier-reference") });
                 verifier = await NativeAotLogUploadContract.RunLinuxReferenceAsync(root, recipeRoot, Path.Combine(destination, "verifier-reference"), output, cancellation);
                 sourceLease = NativeAotPayload.OpenQualificationLease(root); recipeLease = NativeAotPayload.OpenQualificationLease(recipeRoot);
-                setsid = ToolPath("setsid"); strace = ToolPath("strace"); CheckInputs();
+                // Reuse the original selected roles and their live binary holds.
+                // A later path merely appearing in native cannot replace a role.
+                CheckInputs();
                 ObserveDescriptors("after-console-reference-holds");
                 foreach (string name in new[] { "missing-upload", "nonempty-log", "nonempty-upload", "cancel-body", "positive" })
                 {
@@ -617,11 +673,12 @@ public static class NativeAotLogUploadHttpContract
                 var verifyElf = held.Open(root, verifyExecutable, "original unchanged console verifier", "log_upload_http_linux_verifier", NativeAotPayload.MaximumImageBytes, singleLink: true);
                 Need(verifyElf.Sha256.Equals(verifier.Image.Sha256, StringComparison.OrdinalIgnoreCase), "verifier_identity");
                 string[] verifyArguments = NativeAotLogUploadContract.LinuxTraceArguments(verifyExecutable, data, Path.Combine(destination, "verify-trace"), "verify");
-                commands.Add(new { Executable = setsid, Arguments = new[] { strace }.Concat(verifyArguments), WorkingDirectory = root });
+                LinuxTracePlan verifyPlan = TracePlan(verifyArguments);
+                commands.Add(new { verifyPlan.Executable, verifyPlan.Arguments, WorkingDirectory = root });
                 bool verifyJoined = false, verifyNatural = false; int? verifyExit = null;
                 ObserveDescriptors("before-additional-verifier");
                 cancellation.ThrowIfCancellationRequested();
-                using (var verifyProcess = StartTrace(verifyArguments))
+                using (var verifyProcess = StartTrace(verifyPlan))
                 using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation))
                 {
                     deadline.CancelAfter(TimeSpan.FromSeconds(90));
@@ -742,21 +799,9 @@ public static class NativeAotLogUploadHttpContract
             Need(found is not null, "native_tool_missing"); string path = File.ResolveLinkTarget(found!, true)?.FullName ?? Path.GetFullPath(found!);
             Need(CanonicalLinux(path), "recipe_tool_paths"); return path;
         }
-        string ToolPath(string name)
-        {
-            string path = ResolveToolPath(name);
-            Need(native.TryGetValue(path, out string? hash), "native_tool_identity"); HoldNative(path, hash!); return path;
-        }
-        Process StartTrace(string[] arguments)
-        {
-            var info = new ProcessStartInfo(setsid) { WorkingDirectory = root, UseShellExecute = false, CreateNoWindow = true,
-                RedirectStandardOutput = true, RedirectStandardError = true };
-            info.ArgumentList.Add(strace); foreach (string argument in arguments) info.ArgumentList.Add(argument);
-            info.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"; info.Environment["DOTNET_NOLOGO"] = "1"; info.Environment.Remove("OS_SMOKE_EXPECTED_BODY");
-            info.Environment["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1"; info.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
-            info.Environment["MSBUILDDISABLENODEREUSE"] = "1"; info.Environment["DOTNET_ENVIRONMENT"] = "Production"; info.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
-            return Process.Start(info) ?? throw new IOException("log_upload_http_linux_process_start");
-        }
+        LinuxTracePlan TracePlan(string[] arguments) => InspectLinuxTracePlan(originalNative,
+            selectedTools.ToDictionary(tool => tool.Name, StringComparer.Ordinal), arguments);
+        Process StartTrace(LinuxTracePlan plan) => Process.Start(plan.PrepareStartInfo(root)) ?? throw new IOException("log_upload_http_linux_process_start");
         NativeAotLogUploadContract.TraceValues ReadTraces(string directory, string phase)
         {
             string[] paths = Directory.GetFiles(directory, phase + "-trace.*").Order(StringComparer.Ordinal).ToArray(); Need(paths.Length is > 0 and <= 64, "trace_inventory");
@@ -791,10 +836,11 @@ public static class NativeAotLogUploadHttpContract
                 await Save(directory, "initial-files.json", JsonSerializer.Serialize(new { Snapshot = baseline, Identities = identities }));
             }
             string[] arguments = LinuxTraceArguments(executable, data, Path.Combine(directory, "write-trace"), port);
-            commands.Add(new { Executable = setsid, Arguments = new[] { strace }.Concat(arguments), WorkingDirectory = root, Phase = name });
+            LinuxTracePlan plan = TracePlan(arguments);
+            commands.Add(new { plan.Executable, plan.Arguments, WorkingDirectory = root, Phase = name });
             ObserveDescriptors("before-" + name);
             cancellation.ThrowIfCancellationRequested();
-            using var process = StartTrace(arguments);
+            using var process = StartTrace(plan);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation); deadline.CancelAfter(TimeSpan.FromSeconds(90));
             using CancellationTokenSource monitorStop = new();
             var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

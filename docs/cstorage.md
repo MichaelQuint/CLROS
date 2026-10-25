@@ -1,6 +1,6 @@
 # Storage
 
-[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
 
 [Step1612](../done/step1612.md) Both current paired30 and shared FS13 lifetime controls pass on the integrated base. Synthetic303104B DB/310816B journal footprints use150positioned writes/755fakeFLUSH, exact592+608clusters, fresh B/C/W owner and strict extraction. Explicit1M traversal work passes;100k rejects beforeOUT. These are synthetic host geometry/capacity controls, with no valid SQLite execution, physical persistence or guest write acceptance.
 

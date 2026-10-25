@@ -1,5 +1,7 @@
 # Repository Audit
 
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
 [Step1559](../done/step1559.md) records the active static-app admission split,
 retained Linux-reference observations and14-check block service host leaf.
 These development results do not advance guest storage or completion gates.

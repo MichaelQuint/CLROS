@@ -150,6 +150,77 @@ internal static class NativeAotLogUploadHttpContractTests
     private static Dictionary<string, string> LinuxRecipe(Dictionary<string, F.LinuxToolValue> tools) => tools.Values
         .ToDictionary(tool => tool.Path, tool => tool.Sha256, StringComparer.Ordinal);
 
+    private static Dictionary<string, F.LinuxToolValue> PinnedTraceTools()
+    {
+        // Exact original074d/r03 copied role facts; these vectors grant no
+        // file or execution authority without the real owner's retained files.
+        var tools = LinuxTools();
+        tools["setsid"] = new("setsid", "/bin/busybox", "01A989EB4D1D04B0D146C790AC536ABD88F374EC74A2E110C58910B840D42045");
+        tools["strace"] = new("strace", "/usr/bin/strace", "BC573F002A4E1F4D3EA2209A01105D3B86DC59FC5DF0FEF3B1B191B2675A391D");
+        return tools;
+    }
+
+    [HostTest("HTTP pinned physical BusyBox trace plan preserves literal applet and complete HTTP or verifier argv in prepared process and command records")]
+    private static void LinuxPhysicalTracePlan()
+    {
+        var tools = PinnedTraceTools(); string recipe = JsonSerializer.Serialize(LinuxRecipe(tools));
+        foreach (string[] arguments in new[]
+        {
+            F.LinuxTraceArguments("/root/with spaces/http/app", "/root/with spaces/data", "/root/with spaces/write-trace", 18881),
+            NativeAotLogUploadContract.LinuxTraceArguments("/root/console/app", "/root/with spaces/data", "/root/verify-trace", "verify")
+        })
+        {
+            var plan = F.InspectLinuxTracePlan(recipe, tools, arguments); string[] expected = ["setsid", "/usr/bin/strace", .. arguments];
+            HostCheck.True(plan.Executable == "/bin/busybox" && plan.Arguments.SequenceEqual(expected) &&
+                plan.Arguments.Count(value => value == "setsid") == 1 && !plan.GrantsOriginalProcessOrToolAuthority);
+            var info = plan.PrepareStartInfo("/root/with spaces");
+            HostCheck.True(info.FileName == plan.Executable && info.ArgumentList.SequenceEqual(expected) && info.Arguments == "" &&
+                info.WorkingDirectory == "/root/with spaces" && !info.UseShellExecute && info.RedirectStandardOutput && info.RedirectStandardError && info.CreateNoWindow);
+            using var recorded = JsonDocument.Parse(JsonSerializer.Serialize(new { plan.Executable, plan.Arguments }));
+            HostCheck.True(recorded.RootElement.GetProperty("Executable").GetString() == info.FileName &&
+                recorded.RootElement.GetProperty("Arguments").EnumerateArray().Select(value => value.GetString()).SequenceEqual(info.ArgumentList));
+            HostCheck.True(info.Environment["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] == "1" && info.Environment["DOTNET_ENVIRONMENT"] == "Production");
+        }
+    }
+
+    [HostTest("HTTP trace invocation copies caller argv and role facts and exposes readonly arguments with independent unstarted process configurations")]
+    private static void LinuxTracePlanImmutable()
+    {
+        var tools = PinnedTraceTools(); string recipe = JsonSerializer.Serialize(LinuxRecipe(tools));
+        string[] arguments = F.LinuxTraceArguments("/root/app", "/root/data", "/root/trace", 18881);
+        string[] expected = ["setsid", "/usr/bin/strace", .. arguments]; var plan = F.InspectLinuxTracePlan(recipe, tools, arguments);
+        Array.Fill(arguments, "changed"); tools.Clear(); HostCheck.True(plan.Arguments.SequenceEqual(expected));
+        bool readOnly = false; try { ((IList<string>)plan.Arguments)[0] = "changed"; } catch (NotSupportedException) { readOnly = true; }
+        HostCheck.True(readOnly); var first = plan.PrepareStartInfo("/root/work"); first.ArgumentList.Clear();
+        HostCheck.True(plan.Arguments.SequenceEqual(expected) && plan.PrepareStartInfo("/root/work").ArgumentList.SequenceEqual(expected));
+    }
+
+    [HostTest("HTTP pinned trace invocation rejects unknown roles providers hashes paths controls and oversized argv without aliases or PATH fallback")]
+    private static void LinuxTracePlanRejections()
+    {
+        string[] arguments = F.LinuxTraceArguments("/root/app", "/root/data", "/root/trace", 18881);
+        foreach (string role in new[] { "setsid", "strace" })
+        {
+            foreach (string path in new[] { "relative", "/usr/bin/../bin/" + role, "/bin/busybox\0", "/bin/busybox\n", "/other/busybox", "/usr/bin/setsid" })
+            {
+                var tools = PinnedTraceTools(); tools[role] = tools[role] with { Path = path };
+                RejectAny(() => F.InspectLinuxTracePlan(JsonSerializer.Serialize(LinuxRecipe(tools)), tools, arguments));
+            }
+            var changed = PinnedTraceTools(); changed[role] = changed[role] with { Sha256 = new string('9', 64) };
+            Reject(() => F.InspectLinuxTracePlan(JsonSerializer.Serialize(LinuxRecipe(changed)), changed, arguments), "session_provider");
+            var wrongRole = PinnedTraceTools(); string original = JsonSerializer.Serialize(LinuxRecipe(wrongRole)); wrongRole[role] = wrongRole[role] with { Name = "unknown" };
+            Reject(() => F.InspectLinuxTracePlan(original, wrongRole, arguments), "recipe_tool_paths");
+            var mismatch = PinnedTraceTools(); var map = LinuxRecipe(mismatch); map[mismatch[role].Path] = new string('9', 64);
+            Reject(() => F.InspectLinuxTracePlan(JsonSerializer.Serialize(map), mismatch, arguments), "recipe_tool_identity");
+        }
+        var valid = PinnedTraceTools(); string recipe = JsonSerializer.Serialize(LinuxRecipe(valid));
+        foreach (string[] bad in new[] { Array.Empty<string>(), new string[33], new[] { "" }, new[] { "bad\0arg" }, new[] { "bad\narg" }, new[] { new string('a', 4097) }, Enumerable.Repeat(new string('a', 4096), 9).ToArray() })
+            Reject(() => F.InspectLinuxTracePlan(recipe, valid, bad), "session_arguments");
+        var plan = F.InspectLinuxTracePlan(recipe, valid, arguments);
+        foreach (string directory in new[] { "relative", "/root/../bad", "/root/bad\0", "/root/bad\n" })
+            Reject(() => plan.PrepareStartInfo(directory), "session_directory");
+    }
+
     [HostTest("HTTP current tool selection ignores historical filenames and returns only eight exact copied recipe identities without authority")]
     private static void LinuxToolSelection()
     {

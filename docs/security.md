@@ -1,6 +1,6 @@
 # Security
 
-[Step1612](../done/step1612.md) Authenticated fresh native publication inputs may be0B, with exact expected hash, opened original object/link identity and final VerifyUnchanged. Tools/static libraries retain nonempty default admission. No row is skipped or special-cased by filename; initial hard-link count1 is not an existing guarantee. Complete paired outer process/carrier proof is still pending.
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
 
 [Step1610](../done/step1610.md) The repaired HTTP owner authenticates sealed archived recipe/output identities before selecting current tools. Exact current paths/hashes and actual prelink libraries are held, and every fresh publication input remains mandatory with no archived-copy fallback. Host tamper/missing/replacement controls pass. V5 copied observations and successful finite responses grant no new isolation, guest locking/flush or durability authority.
 

@@ -1,6 +1,6 @@
 # PAL
 
-[Step1612](../done/step1612.md) Paired host lifetime and large-footprint controls pass without an OSHost ABI change. Fake device FLUSH frontiers and requested FileStream.Flush(true) do not establish guest synchronization, physical durability, reboot persistence or SQLite locking/transaction acceptance.
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
 
 [Step1610](../done/step1610.md) The successful v5 diagnostic changes no PAL behavior, current ownership or fresh audit requirement. The repaired HTTP reference binds current tool/static-link/fresh publication handles through joined finite processes, independently of archived recipe evidence. Actual guest file writes, lock/sync semantics, reboot and SQLite recovery/durability remain unqualified.
 

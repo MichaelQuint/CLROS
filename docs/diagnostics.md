@@ -1,6 +1,6 @@
 # Diagnostics
 
-[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
 
 [Step1612](../done/step1612.md) Frozen LinuxHTTP r02 archives56files/53declared outputs with Complete=false; publication succeeds but input retention rejects a legitimate0B marker before app execution. The reviewed narrow fix keeps every row held and verified. Originalv5r13 and failed fullBlazor remain unchanged; the separately developed phase-clipped dispatch diagnostic is not imported or run here.
 
@@ -2452,10 +2452,15 @@ the containing dispatch has not yet returned. Its later return validates and
 clears the original sequence without changing frozen totals. A late fault still
 fails the owner, and the peer checks final serial status again after runner join.
 
-The new arithmetic/parser/loopback tests establish host diagnostic contracts.
-Fresh committed native compilation, original emitted ABI/frame review and an
-actual guest run remain required. The diagnostic still uses deliberate joined
-cancellation and does not qualify normal shutdown, full Blazor or persistence.
+The arithmetic/parser/loopback tests establish host diagnostic contracts.
+Step1614 joins the first actual v6 native/guest run at cc2cad61, with all20
+original hashes checked and13 selected direct frames matched to original PE
+unwind/prologue bytes. This does not establish a transitive or whole-stack
+bound. The observed34.5754683s phase partitions into16.5062439s poll,
+13.3737262s dispatch outside poll and4.6954982s supervisor outside poll.
+The diagnostic uses deliberate joined cancellation and does not qualify normal
+shutdown, full Blazor or persistence. No polling policy changed; timing
+differences from earlier originals are not a demonstrated policy speedup.
 
 ## Owned subsystem result and panic profiles
 
