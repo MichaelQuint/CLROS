@@ -673,6 +673,63 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static void CheckSocketAuditSnapshot((ulong Address, byte[] Bytes)[] before)
     { foreach (var range in before) HostCheck.True(range.Bytes.AsSpan().SequenceEqual(new ReadOnlySpan<byte>((void*)range.Address, range.Bytes.Length))); }
 
+    [HostTest("socket paired disk candidate admission rejects every retained disk range and changed lifetime without effects")]
+    private static void SocketCandidateDiskRanges() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var owner = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: o =>
+        {
+            o.PrepareWritable(); o.AttachPair(false); o.PrepareConnectedTransport();
+            byte* candidate = o.Storage.Output; new Span<byte>(candidate, 128).Fill(0xcd);
+            HostCheck.True(F.Audit(o.Files.State) && TransportOutside(o.Files.State, candidate, 128));
+            var before = o.SocketAuditSnapshot(); uint deviceCalls = o.Storage.Device.Hardware->Calls, socketCalls = o.Connection!.Hardware->Calls;
+            ulong submitted = o.Storage.Block->Submitted, completed = o.Storage.Block->Completed;
+            List<(ulong Start, ulong Bytes)> local = [];
+            for (uint i = 0; i < F.DiskExtentCount; i++)
+            {
+                F.DiskExtentAt(o.Files.State, i, out ulong start, out ulong bytes);
+                if (bytes != 0) local.Add((start, bytes));
+            }
+            // Independently require every actual FS allocation, not merely
+            // whichever ranges the scalar adapter happened to enumerate.
+            foreach (var range in o.Storage.FsExtents()) HostCheck.True(local.Contains(range));
+            HostCheck.True(local.Contains(((ulong)o.Disk, (ulong)sizeof(F.DiskState))) &&
+                local.Contains(((ulong)o.Requests, F.DiskSlots * (ulong)sizeof(F.DiskRequest))) &&
+                local.Contains(((ulong)o.Storage.Port, (ulong)sizeof(P.State))));
+            var engine = o.Storage.EngineInput; var device = o.Storage.Device.Input;
+            List<(ulong Start, ulong Bytes)> shared =
+            [
+                ((ulong)o.Storage.Engine, (ulong)sizeof(C.State)), ((ulong)engine.Changes, o.Storage.EngineBackingBytes),
+                ((ulong)o.Storage.Block, (ulong)sizeof(B.State)), ((ulong)device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
+                ((ulong)o.Storage.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)),
+                ((ulong)o.Storage.Device.Data, 4096),
+                ((ulong)device.Observation, (ulong)sizeof(B.Observation)),
+                (device.Common.VirtualStart, device.Common.Bytes), (device.Notify.VirtualStart, device.Notify.Bytes),
+                (device.Device.VirtualStart, device.Device.Bytes)
+            ];
+            foreach ((ulong start, ulong bytes) in local.Concat(shared))
+                HostCheck.True(!TransportOutside(o.Files.State, (void*)start, bytes) &&
+                    !TransportOutside(o.Files.State, (void*)(start - 8), bytes + 16) &&
+                    !TransportOutside(o.Files.State, (void*)(start + bytes - 1), 2));
+
+            ref var input = ref MountAdmission(ref *o.Storage.Mount); var originalInput = input;
+            try { input.Epoch++; HostCheck.True(!TransportOutside(o.Files.State, candidate, 128)); }
+            finally { input = originalInput; }
+            CheckSocketAuditSnapshot(before);
+            try { input.Operations = o.Storage.Operations + 1; HostCheck.True(!TransportOutside(o.Files.State, candidate, 128)); }
+            finally { input = originalInput; }
+            CheckSocketAuditSnapshot(before);
+            ref byte phase = ref MountPhase(ref *o.Storage.Mount); byte originalPhase = phase;
+            try { phase = 4; HostCheck.True(o.Storage.Mount->IsRetired && !TransportOutside(o.Files.State, candidate, 128)); }
+            finally { phase = originalPhase; }
+            CheckSocketAuditSnapshot(before);
+            HostCheck.True(TransportOutside(o.Files.State, candidate, 128) && F.Audit(o.Files.State) &&
+                new ReadOnlySpan<byte>(candidate, 128).IndexOfAnyExcept((byte)0xcd) < 0 &&
+                deviceCalls == o.Storage.Device.Hardware->Calls && socketCalls == o.Connection.Hardware->Calls &&
+                submitted == o.Storage.Block->Submitted && completed == o.Storage.Block->Completed && !o.Storage.Block->RequestPending);
+        });
+        HostCheck.True(F.Audit(owner.Files.State));
+    });
+
     [HostTest("socket paired disk admission rejects socket and epoll metadata aliases into either filesystem and original block backing", HostLane.Native)]
     private static void SocketAdmissionAliases() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
     {
@@ -934,6 +991,10 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static extern ref F.Admission GlobalInput(ref F.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "PortBinding")]
     private static extern ref P.Inspection PortBinding(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref Fs.Admission MountAdmission(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Phase")]
+    private static extern ref byte MountPhase(ref Fs.Mount mount);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "EngineOwner")]
     private static extern ref ulong BindingEngine(ref P.Inspection binding);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
