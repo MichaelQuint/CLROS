@@ -37840,6 +37840,8 @@
         "tests/OS.HostTests/LinuxWritableSyscallObservationTests.cs",
         "src/OS.Kernel/Diagnostics/WritableStorageTiming.cs",
         "tests/OS.HostTests/WritableStorageTimingTests.cs",
+        "tools/OS.Tooling/WritableStorageTimingReport.cs",
+        "tests/OS.HostTests/WritableStorageTimingReportTests.cs",
       "src/OS.Kernel/Compatibility/LinuxX64/LinuxWritableDescriptorServices.cs",
       "tests/OS.HostTests/LinuxWritableDescriptorServicesTests.cs",
       "docs/cstorage.md",
