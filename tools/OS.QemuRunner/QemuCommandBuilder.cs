@@ -43,7 +43,7 @@ internal static class QemuCommandBuilder
             "-drive",
             // The web verifier holds the exact image read-only. AHCI needs a
             // writable disk, so keep its writes in QEMU's temporary overlay.
-            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService || options.FiniteStaticFiles || options.ReadOnlyWebRootDisk ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
+            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService || options.FiniteStaticFiles || options.ReadOnlyWebRootDisk || options.WritableDataImagePath is not null ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
             "-device",
             options.VirtioBlockQueueDevice && !separateBoot ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,
@@ -62,6 +62,9 @@ internal static class QemuCommandBuilder
         if (options.ReadOnlyWebRootDisk)
             arguments.AddRange(["-drive", "if=none,id=webroot,format=raw,readonly=on,file=" + options.ImagePath,
                 "-device", "virtio-blk-pci,drive=webroot,addr=07.0,disable-legacy=on,romfile="]);
+        if (options.WritableDataImagePath is not null)
+            arguments.AddRange(["-drive", "if=none,id=writabledata,format=raw,cache=writeback,readonly=off,file=" + options.WritableDataImagePath,
+                "-device", "virtio-blk-pci,drive=writabledata,addr=07.0,disable-legacy=on,romfile="]);
 
         if (options.PciBarTestDevice)
             arguments.AddRange(["-device", "pci-testdev,addr=06.0,membar=2M"]);

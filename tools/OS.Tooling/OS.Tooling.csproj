@@ -11,6 +11,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="QemuContracts.cs" />
+    <Compile Remove="NativeFile.cs" />
     <ProjectReference Include="..\OS.LibvirtRunner\OS.LibvirtRunner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
     <ProjectReference Include="..\OS.QemuRunner\OS.QemuRunner.csproj" />
     <ProjectReference Include="..\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj" />

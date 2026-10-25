@@ -49,6 +49,15 @@ internal static class QemuRunnerTests
             Run("qemu preflight validates raw image artifact", () => TestPreflightValidatesRawImageArtifact(tempRoot), ref failures);
             Run("qemu preflight rejects missing image artifact", () => TestPreflightRejectsMissingImageArtifact(tempRoot), ref failures);
             Run("qemu preflight rejects disk format mismatch", () => TestPreflightRejectsDiskFormatMismatch(tempRoot), ref failures);
+            Run("qemu writable dry-run separates immutable boot and mutable slot7", () => WritableDryRun(tempRoot), ref failures);
+            Run("qemu writable finite options reject conflicts and deadline boundaries", () => WritableOptions(tempRoot), ref failures);
+            Run("qemu writable preflight holds real distinct raw identities", () => WritablePreflight(tempRoot), ref failures);
+            Run("qemu writable lease allows changed bytes within original extent", () => WritableContent(tempRoot), ref failures);
+            Run("qemu writable lease rejects raw shape and original aliases", () => WritableInvalidImages(tempRoot), ref failures);
+            Run("qemu writable lease retains both handles for actual unjoined child", () => WritableChildLifetime(tempRoot), ref failures);
+            Run("qemu writable lease detects extent and named identity revocation", () => WritableRevocation(tempRoot), ref failures);
+            Run("qemu writable fake child joins before successful identity receipt", () => WritableFakeChild(tempRoot, false), ref failures);
+            Run("qemu writable fake child preserves premature and duplicate failures", () => WritableFakeChild(tempRoot, true), ref failures);
             Run("qemu dry-run emits marker requirements", () => TestDryRunMarkerRequirements(tempRoot), ref failures);
             Run("qemu.smoke.preset default preserves current markers", () => TestDryRunMarkerPresetDefault(tempRoot), ref failures);
             Run("qemu.smoke.preset acpi adds validation and MCFG markers", () => TestDryRunAcpiMarkerPreset(tempRoot), ref failures);
@@ -398,6 +407,217 @@ internal static class QemuRunnerTests
         }
         return true;
     }
+
+    private static (string Root, string Boot, string Data) WritableFiles(string root, string name)
+    {
+        string folder = Path.Combine(root, "writable-" + name); Directory.CreateDirectory(folder);
+        string boot = Path.Combine(folder, "boot.raw"), data = Path.Combine(folder, "working.raw");
+        File.WriteAllBytes(boot, new byte[4096]); File.WriteAllBytes(data, new byte[8192]);
+        return (folder, boot, data);
+    }
+
+    private static string[] WritableArguments(string root, string boot, string data) =>
+    [
+        "--image", boot, "--writable-data-image", data, "--virtio-negotiation-device", "--arp-receive-fixture",
+        "--ethernet-capture", Path.Combine(root, "capture.pcap"), "--serial-log", Path.Combine(root, "serial.log"),
+        "--summary-log", Path.Combine(root, "summary.log"), "--timeout", "120", "--replace-default-required-markers",
+        "--require-ordered-marker", "TEST_START writable.fixture", "--require-ordered-marker", "OS_SMOKE_PASS",
+        "--require-unique-marker", "OS_SMOKE_PASS"
+    ];
+
+    private static bool WritableDryRun(string root)
+    {
+        var f = WritableFiles(root, "dry with spaces");
+        var result = RunQemuRunner(["--dry-run", "--qemu", "qemu-test", .. WritableArguments(f.Root, f.Boot, f.Data)]);
+        string text = result.Output;
+        return result.ExitCode == 0 && text.Contains("WRITABLE_DATA_POLICY boot=immutable-overlay data=mutable cache=writeback acceptance=pending", StringComparison.Ordinal) &&
+            text.Contains("if=none,id=esp,format=raw,snapshot=on,file=" + f.Boot, StringComparison.Ordinal) &&
+            text.Contains("ide-hd,drive=esp,bus=ahci.0", StringComparison.Ordinal) &&
+            text.Contains("virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on", StringComparison.Ordinal) &&
+            text.Contains("if=none,id=writabledata,format=raw,cache=writeback,readonly=off,file=" + f.Data, StringComparison.Ordinal) &&
+            text.Contains("virtio-blk-pci,drive=writabledata,addr=07.0,disable-legacy=on", StringComparison.Ordinal) &&
+            !text.Contains("drive=esp,addr=06", StringComparison.Ordinal) && !text.Contains("id=gptdata", StringComparison.Ordinal) &&
+            !text.Contains("id=webroot", StringComparison.Ordinal) && !text.Contains("cache=unsafe", StringComparison.Ordinal) &&
+            !text.Contains("no-flush", StringComparison.Ordinal) && !File.Exists(Path.Combine(f.Root, "serial.log"));
+    }
+
+    private static bool WritableOptions(string root)
+    {
+        var f = WritableFiles(root, "options"); string[] good = WritableArguments(f.Root, f.Boot, f.Data);
+        foreach (string[] conflict in new string[][]
+        {
+            ["--writable-data-image", f.Data], ["--readonly-webroot-disk"], ["--virtio-block-queue-device"],
+            ["--virtio-block-boot-image", f.Boot], ["--pci-bar-test-device"], ["--continuing-web"],
+            ["--continuing-service"], ["--finite-static-files"], ["--full-disk-static-files"], ["--disk-read-timing"],
+            ["--continuing-network-peer"], ["--socket-containment-peer"], ["--socket-forward-port", "20080"],
+            ["--http-probe-url", "http://127.0.0.1:20080/"], ["--expect-unhandled-exception"],
+            ["--expect-unexpected-vector-panic"], ["--expect-owned-subsystem-panic"], ["--service-quota-failure"],
+            ["--disk-format", "qcow2"], ["--workload-profile", "MultiMinimalApi"]
+        }) if (RunQemuRunner(["--dry-run", .. good, .. conflict]).ExitCode == 0) return false;
+        foreach (string remove in new[] { "--virtio-negotiation-device", "--arp-receive-fixture", "--replace-default-required-markers" })
+            if (RunQemuRunner(["--dry-run", .. good.Where(x => x != remove)]).ExitCode == 0) return false;
+        foreach (string remove in new[] { "--summary-log", "--ethernet-capture" })
+        {
+            var incomplete = good.ToList(); incomplete.RemoveRange(incomplete.IndexOf(remove), 2);
+            if (RunQemuRunner(["--dry-run", .. incomplete]).ExitCode == 0) return false;
+        }
+        foreach (int seconds in new[] { 119, 120, 295, 296 })
+        {
+            string[] copy = (string[])good.Clone(); copy[Array.IndexOf(copy, "--timeout") + 1] = seconds.ToString();
+            if ((RunQemuRunner(["--dry-run", .. copy]).ExitCode == 0) != (seconds is 120 or 295)) return false;
+        }
+        foreach (string alias in new[] { f.Boot, Path.Combine(f.Root, "serial.log"), Path.Combine(f.Root, "summary.log"), Path.Combine(f.Root, "capture.pcap") })
+        {
+            string[] copy = (string[])good.Clone(); copy[Array.IndexOf(copy, "--writable-data-image") + 1] = alias;
+            if (RunQemuRunner(["--dry-run", .. copy]).ExitCode == 0) return false;
+        }
+        foreach (string[] missing in new string[][] { ["--writable-data-image"], ["--writable-data-image", ""], ["--writable-data-image", "a,b.raw"] })
+            if (RunQemuRunner(["--dry-run", .. missing]).ExitCode == 0) return false;
+        return !File.Exists(Path.Combine(f.Root, "serial.log"));
+    }
+
+    private static bool WritablePreflight(string root)
+    {
+        var f = WritableFiles(root, "preflight");
+        var result = RunQemuRunner(["preflight", .. WritableArguments(f.Root, f.Boot, f.Data)]);
+        bool valid = result.ExitCode == 0 && result.Output.Contains("TEST_PASS qemu.runner.preflight", StringComparison.Ordinal) &&
+            result.Output.Contains("WRITABLE_DATA_LIFETIME joined=false finalVerified=false acceptance=pending", StringComparison.Ordinal) &&
+            !File.Exists(Path.Combine(f.Root, "serial.log"));
+        string redirect = Path.Combine(f.Root, "output-link"); Directory.CreateSymbolicLink(redirect, f.Root);
+        var alias = RunQemuRunner(["preflight", .. WritableArguments(f.Root, f.Boot, f.Data),
+            "--summary-log", Path.Combine(redirect, "working.raw")]);
+        return valid && alias.ExitCode != 0 && alias.Output.Contains("writable_data_reparse_path", StringComparison.Ordinal) &&
+            !File.Exists(Path.Combine(f.Root, "serial.log")) && File.ReadAllBytes(f.Data).All(value => value == 0);
+    }
+
+    private static bool WritableContent(string root)
+    {
+        var f = WritableFiles(root, "content"); byte[] original = File.ReadAllBytes(f.Boot);
+        using var lease = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Data);
+        using (FileStream writer = new(f.Data, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+        { writer.Position = 511; writer.Write([0x31, 0x72, 0x94]); writer.Flush(); }
+        lease.VerifyOriginalAndWorkingIdentity();
+        byte[] actual = new byte[8192];
+        using (FileStream reader = new(f.Data, FileMode.Open, FileAccess.Read, FileShare.ReadWrite)) reader.ReadExactly(actual);
+        return lease.WorkingLength == 8192 && lease.BootLength == 4096 && lease.WorkingIdentity != lease.BootIdentity &&
+            File.ReadAllBytes(f.Boot).AsSpan().SequenceEqual(original) && actual[512] == 0x72 &&
+            Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(actual)) != lease.InitialWorkingSha256 &&
+            !lease.ChildJoined && !lease.FinalVerified;
+    }
+
+    private static bool WritableReject(Action action)
+    {
+        try { action(); return false; }
+        catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException) { return true; }
+    }
+
+    private static bool WritableInvalidImages(string root)
+    {
+        var f = WritableFiles(root, "invalid");
+        if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Boot); })) return false;
+        foreach (int length in new[] { 0, 513 })
+        {
+            File.WriteAllBytes(f.Data, new byte[length]);
+            if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Data); })) return false;
+        }
+        byte[] qcow = new byte[512]; qcow[0] = (byte)'Q'; qcow[1] = (byte)'F'; qcow[2] = (byte)'I'; qcow[3] = 0xfb;
+        File.WriteAllBytes(f.Data, qcow);
+        if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Data); })) return false;
+        File.WriteAllBytes(f.Data, new byte[512]);
+        if (OperatingSystem.IsWindows())
+        {
+            if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Data + ":stream"); })) return false;
+            string alias = Path.Combine(f.Root, "hardlink.raw");
+            if (!WritableCreateHardLink(alias, f.Data, IntPtr.Zero)) throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+            if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, alias); })) return false;
+        }
+        string redirect = Path.Combine(f.Root, "redirect");
+        Directory.CreateSymbolicLink(redirect, f.Root);
+        if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot,
+            Path.Combine(redirect, "working.raw")); })) return false;
+        return true;
+    }
+
+    private static bool WritableChildLifetime(string root)
+    {
+        var f = WritableFiles(root, "child");
+        var lease = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Data);
+        using Process child = new() { StartInfo = new("dotnet") { UseShellExecute = false, CreateNoWindow = true } };
+        child.StartInfo.ArgumentList.Add(typeof(QemuTestControl).Assembly.Location);
+        foreach (string arg in new[] { "--qemu-control", "sleep", "30000" }) child.StartInfo.ArgumentList.Add(arg);
+        bool started = false;
+        try
+        {
+            child.Start(); started = true; lease.BindStartedChild(child);
+            PanicCheck(WritableReject(() => lease.BindStartedChild(child)), "child binding is one-use", "");
+            bool refused = false;
+            try { lease.Dispose(); } catch (InvalidOperationException error) { refused = error.Message == "writable_data_child_unjoined"; }
+            PanicCheck(refused && !child.HasExited, "unjoined child retains actual media handles", "");
+            using (FileStream writer = new(f.Data, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) writer.WriteByte(0x7a);
+            lease.VerifyOriginalAndWorkingIdentity();
+            if (OperatingSystem.IsWindows()) PanicCheck(WritableReject(() => File.Delete(f.Boot)) &&
+                WritableReject(() => File.Delete(f.Data)), "both actual paths remain pinned after refused Dispose", "");
+            child.Kill(entireProcessTree: true);
+            PanicCheck(child.WaitForExit(5000), "owned child joins", "");
+            lease.CompleteAfterChildJoin();
+            return lease.ChildJoined && lease.FinalVerified;
+        }
+        finally
+        {
+            if (started && !child.HasExited) { child.Kill(entireProcessTree: true); if (!child.WaitForExit(5000)) throw new TimeoutException("writable test child unjoined"); }
+            lease.Dispose();
+        }
+    }
+
+    private static bool WritableRevocation(string root)
+    {
+        var f = WritableFiles(root, "revoke");
+        using (var lease = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot, f.Data))
+        using (FileStream writer = new(f.Data, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+        {
+            writer.SetLength(8704);
+            if (!WritableReject(lease.VerifyOriginalAndWorkingIdentity)) return false;
+            writer.SetLength(4096);
+            if (!WritableReject(lease.VerifyOriginalAndWorkingIdentity)) return false;
+            writer.SetLength(8192); lease.VerifyOriginalAndWorkingIdentity();
+            string moved = f.Data + ".moved";
+            if (OperatingSystem.IsWindows())
+            { if (!WritableReject(() => File.Move(f.Data, moved))) return false; }
+            else
+            { File.Move(f.Data, moved); File.WriteAllBytes(f.Data, new byte[8192]); if (!WritableReject(lease.VerifyOriginalAndWorkingIdentity)) return false; }
+        }
+        return true;
+    }
+
+    private static bool WritableFakeChild(string root, bool failures)
+    {
+        foreach (int mode in failures ? new[] { 1, 2 } : new[] { 0 })
+        {
+            var f = WritableFiles(root, "fake" + mode);
+            string fake = mode == 1 ? CreateFakeQemuScript(f.Root, "TEST_START writable.fixture", "OS_SMOKE_PASS") :
+                CreatePersistentFakeQemuScript(f.Root, mode == 2 ? ["TEST_START writable.fixture", "OS_SMOKE_PASS", "OS_SMOKE_PASS"] :
+                    ["TEST_START writable.fixture", "OS_SMOKE_PASS"]);
+            string ovmf = CreateEmptyFile(f.Root, "OVMF.fd");
+            var result = RunQemuRunner(["--qemu", fake, "--ovmf-code", ovmf, .. WritableArguments(f.Root, f.Boot, f.Data)]);
+            string summary = File.ReadAllText(Path.Combine(f.Root, "summary.log"));
+            PanicCheck(summary.Contains("WRITABLE_DATA_LIFETIME joined=true finalVerified=true acceptance=pending", StringComparison.Ordinal),
+                "actual fake child joined with final media identity checks", result.Output);
+            if (!failures)
+            {
+                if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal)) return false;
+            }
+            else PanicCheck(result.ExitCode != 0 && !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal) &&
+                summary.Contains(mode == 1 ? "FAIL_REASON qemu_reboot_or_shutdown" :
+                    "FAIL_REASON serial_marker_stream_duplicateterminalmarker", StringComparison.Ordinal) &&
+                (mode == 1 || summary.Contains("DUPLICATE_UNIQUE_MARKERS OS_SMOKE_PASS", StringComparison.Ordinal)),
+                "writable fake failure mode=" + mode, result.Output + "\n" + summary);
+        }
+        return true;
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool WritableCreateHardLink(string fileName, string existingFileName, IntPtr securityAttributes);
 
     private static bool TestVirtioBlockQueueFixture(string root)
     {

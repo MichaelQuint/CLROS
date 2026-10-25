@@ -35,6 +35,11 @@ try
     {
         Console.WriteLine("TEST_START qemu.runner.dryrun");
         Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
+        if (options.WritableDataImagePath is not null)
+        {
+            Console.WriteLine("WRITABLE_DATA_IMAGE " + options.WritableDataImagePath);
+            Console.WriteLine("WRITABLE_DATA_POLICY boot=immutable-overlay data=mutable cache=writeback acceptance=pending");
+        }
         if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
         if (options.ContinuingService) Console.WriteLine("CONTINUING_SERVICE true");
         if (options.ServiceQuotaFailure) Console.WriteLine("SERVICE_QUOTA_FAILURE true");
@@ -104,6 +109,10 @@ try
         return RunExpectedUnexpectedVectorPanic(options, qemu.Path, ovmf.Path);
     }
 
+    using WritableDataImageLease? writable = options.WritableDataImagePath is null ? null :
+        WritableDataImageLease.Open(options.ImagePath, options.WritableDataImagePath);
+    options.WritableDataLease = writable;
+
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(options.SerialLogPath)) ?? ".");
     if (options.EthernetCapturePath is not null)
         Directory.CreateDirectory(Path.GetDirectoryName(options.EthernetCapturePath) ?? ".");
@@ -117,6 +126,7 @@ try
     Console.WriteLine("SERIAL_LOG " + options.SerialLogPath);
     Console.WriteLine("OVMF_CODE " + ovmf.Path);
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
+    if (writable is not null) foreach (string row in writable.Summary()) Console.WriteLine(row);
     if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
     if (options.SocketForwardPort is int socketForward) Console.WriteLine("SOCKET_FORWARD_PORT " + socketForward.ToString(System.Globalization.CultureInfo.InvariantCulture));
     if (options.ContinuingService) Console.WriteLine("CONTINUING_SERVICE true");
@@ -192,8 +202,10 @@ try
     }
     try
     {
+    writable?.VerifyOriginalAndWorkingIdentity();
     process.Start();
     processStarted = true;
+    writable?.BindStartedChild(process);
     if (options.StaticEvidence is not null)
     {
         options.StaticEvidence.ProcessId = process.Id;
@@ -517,6 +529,22 @@ try
         if (process.HasExited)
         {
             qemuExitCode = process.ExitCode;
+        }
+    }
+
+    if (writable is not null)
+    {
+        if (!process.HasExited)
+        {
+            processCleanupFailed = true;
+            AwaitWritableChildJoin(process);
+        }
+        try { writable.CompleteAfterChildJoin(); }
+        catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            WriteSummaryLogBestEffort(options, "fail", [], options.RequiredMarkers, [], "writable_data_identity_changed");
+            Console.Error.WriteLine("TEST_FAIL qemu.smoke writable_data_identity_changed type=" + error.GetType().Name);
+            return 24;
         }
     }
 
@@ -1087,6 +1115,11 @@ try
         }
         finally
         {
+            if (writable is not null && processStarted)
+            {
+                AwaitWritableChildJoin(process);
+                if (!writable.FinalVerificationAttempted) writable.CompleteAfterChildJoin();
+            }
             if (serviceCancellation is not null && !JoinServiceControls(serviceControlTask, serviceCancellation))
                 throw new TimeoutException("Service controls join incomplete; reserved ports remain owned.");
         }
@@ -1096,6 +1129,19 @@ catch (ArgumentException ex)
 {
     Console.Error.WriteLine("TEST_FAIL qemu.runner.invalid_args " + ex.Message);
     return 1;
+}
+
+static void AwaitWritableChildJoin(Process process)
+{
+    if (!process.WaitForExit(0))
+    {
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke writable_child_join_unconfirmed");
+        Console.Error.WriteLine("WRITABLE_DATA_RETAINED reason=child_unjoined handles=open runner=retained");
+        // Active execution and kill attempts are bounded elsewhere. An unresolved
+        // child retains this runner and its handles until actual join. The outer
+        // owner may terminate the tree; handles cannot survive a killed runner.
+        while (!process.WaitForExit(250)) { }
+    }
 }
 
 static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, string ovmf)
@@ -1285,6 +1331,11 @@ static void ValidateResolvedPathSeparation(
     ];
 
     if (options.VirtioBlockBootImagePath is not null) paths.Add(("virtio-block-boot-image", options.VirtioBlockBootImagePath));
+    if (options.WritableDataImagePath is not null)
+    {
+        paths.Add(("writable-data-image", options.WritableDataImagePath));
+        paths.Add(("ethernet-capture", options.EthernetCapturePath!));
+    }
 
     if (!string.IsNullOrWhiteSpace(qemuPath))
     {
@@ -1309,6 +1360,9 @@ static void ValidateResolvedPathSeparation(
     foreach ((string name, string path) in paths)
     {
         string fullPath = Path.GetFullPath(path);
+        if (options.WritableDataImagePath is not null && fullPath.IndexOfAny([',', '\r', '\n', '\0']) >= 0)
+            throw new ArgumentException("Writable fixture runtime paths forbid QEMU option separators.");
+        if (options.WritableDataImagePath is not null) WritableDataImageLease.RequirePlainRuntimePath(fullPath);
         if (nameByPath.TryGetValue(fullPath, out string? existing))
         {
             throw new ArgumentException(
@@ -1534,6 +1588,8 @@ static string FormatSummaryList(IReadOnlyList<string> values)
 
 static int RunPreflight(RunnerOptions options)
 {
+    if (options.WritableDataImagePath is not null)
+        ValidateResolvedPathSeparation(options, null, string.IsNullOrEmpty(options.OvmfCodePath) ? null : options.OvmfCodePath);
     Console.WriteLine("TEST_START qemu.runner.preflight");
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
     if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
@@ -1565,6 +1621,10 @@ static int RunPreflight(RunnerOptions options)
     {
         return FailPreflight("image_empty", 11);
     }
+
+    using WritableDataImageLease? writable = options.WritableDataImagePath is null ? null :
+        WritableDataImageLease.Open(options.ImagePath, options.WritableDataImagePath);
+    if (writable is not null) foreach (string row in writable.Summary()) Console.WriteLine(row);
 
     string detectedDiskFormat;
     try
@@ -1618,6 +1678,7 @@ static int RunPreflight(RunnerOptions options)
         WriteHttpProbe(options.HttpProbe.Value);
     }
 
+    writable?.VerifyOriginalAndWorkingIdentity();
     Console.WriteLine("TEST_PASS qemu.runner.preflight");
     return 0;
 }
@@ -1686,6 +1747,8 @@ static bool WriteSummaryLogBestEffort(
         builder.Append("IMAGE_ARTIFACT ").AppendLine(options.ImagePath);
         builder.Append("SERIAL_LOG ").AppendLine(options.SerialLogPath);
         builder.Append("WORKLOAD_PROFILE ").AppendLine(options.WorkloadProfile);
+        if (options.WritableDataLease is not null)
+            foreach (string row in options.WritableDataLease.Summary()) builder.AppendLine(row);
         if (options.FirmwareRngSource is not null) builder.Append("FIRMWARE_RNG_SOURCE ").AppendLine(options.FirmwareRngSource);
         if (options.SocketForwardPort is int socketForward) builder.Append("SOCKET_FORWARD_PORT ").AppendLine(socketForward.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (options.ContinuingService) builder.AppendLine("CONTINUING_SERVICE true");
@@ -2522,6 +2585,8 @@ sealed class RunnerOptions
     public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
     public string? VirtioBlockBootImagePath { get; private set; }
+    public string? WritableDataImagePath { get; private set; }
+    public WritableDataImageLease? WritableDataLease { get; set; }
 
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
 
@@ -2699,6 +2764,12 @@ sealed class RunnerOptions
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
                     break;
+                case "--writable-data-image":
+                    if (options.WritableDataImagePath is not null) throw new ArgumentException("--writable-data-image may be specified only once.");
+                    options.WritableDataImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
+                    if (options.WritableDataImagePath.IndexOfAny([',', '\r', '\n', '\0']) >= 0)
+                        throw new ArgumentException("--writable-data-image forbids QEMU option separators.");
+                    break;
                 case "--virtio-block-queue-device":
                     if (options.VirtioBlockQueueDevice) throw new ArgumentException("--virtio-block-queue-device may be specified only once.");
                     options.VirtioBlockQueueDevice = true;
@@ -2762,6 +2833,17 @@ sealed class RunnerOptions
         if (options.VirtioBlockBootImagePath is not null && (!options.VirtioBlockQueueDevice || options.DiskFormat != "raw"))
             throw new ArgumentException("--virtio-block-boot-image requires the dedicated raw Virtio block fixture.");
         options.FinishParsing();
+        if (options.WritableDataImagePath is not null && (options.DiskFormat != "raw" || !options.VirtioNegotiationDevice ||
+            !options.ArpReceiveFixture || options.EthernetCapturePath is null || string.IsNullOrWhiteSpace(options.SummaryLogPath) ||
+            options.WorkloadProfile != "SingleMinimalApi" || !options.defaultRequiredMarkersReplaced ||
+            options.RequiredMarkers.Count == 0 || options.MarkerPresets.Count != 0 || options.TimeoutSeconds is < 120 or > 295 ||
+            options.ReadOnlyWebRootDisk || options.VirtioBlockBootImagePath is not null || options.VirtioBlockQueueDevice ||
+            options.PciBarTestDevice || options.ContinuingWeb || options.ContinuingService || options.ServiceQuotaFailure ||
+            options.FiniteStaticFiles || options.FullDiskStaticFiles || options.DiskReadTiming || options.ContinuingNetworkPeer ||
+            options.SocketContainmentPeer || options.SocketForwardPort is not null || options.HttpProbe is not null ||
+            options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException ||
+            options.ImagePath.IndexOfAny([',', '\r', '\n', '\0']) >= 0))
+            throw new ArgumentException("--writable-data-image requires the finite captured raw mechanical fixture, SingleMinimalApi, summary, replaced explicit markers and a120..295-second deadline without another fixture.");
         if(options.DiskReadTiming && (!options.FullDiskStaticFiles || !options.DiskStaticFiles || options.TimeoutSeconds is <240 or >600))
             throw new ArgumentException("--disk-read-timing requires the full finite readonly disk parent and explicit240..600-second deadline");
         if(options.FullDiskStaticFiles && (!options.DiskStaticFiles || (!options.DiskReadTiming && options.TimeoutSeconds is <2200 or >3600)))
@@ -2800,6 +2882,7 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
+        Console.WriteLine("--writable-data-image <raw> attaches a distinct existing mutable image at modern slot7 beside the captured slot6 NIC; --image boots through an AHCI temporary overlay. Requires raw, SingleMinimalApi, explicit replaced markers, summary and120..295seconds. Working identity/length stays held through actual child join; bytes may change. Unconfirmed cleanup retains the runner, never guest acceptance.");
         Console.WriteLine("--socket-containment-peer selects the finite three-socket timeout/VLAN raw Ethernet peer; requires captured modern ARP networking and a120..295-second timeout. Peer completion does not establish guest acceptance.");
         Console.WriteLine("--finite-static-files captures the finite static-file profile through guest shutdown, transport drain and final parent cleanup; external HTTP checks belong to the owning tooling peer.");
         Console.WriteLine("--disk-read-timing requires --full-disk-static-files, --finite-static-files, --readonly-webroot-disk and a240..600-second deadline. Its owning tooling peer joins deliberate cancellation after diagnostic HTTP checks; this does not qualify full service or cleanup.");
@@ -3066,6 +3149,11 @@ sealed class RunnerOptions
         ];
 
         if (VirtioBlockBootImagePath is not null) paths.Add(("virtio-block-boot-image", VirtioBlockBootImagePath));
+        if (WritableDataImagePath is not null)
+        {
+            paths.Add(("writable-data-image", WritableDataImagePath));
+            if (EthernetCapturePath is not null) paths.Add(("ethernet-capture", EthernetCapturePath));
+        }
 
         if (!string.IsNullOrWhiteSpace(OvmfCodePath))
         {
