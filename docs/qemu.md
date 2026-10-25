@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1607](../done/step1607.md) Fresh originalr11 at8a8bbe7c passes four HTTP responses/exact64KiB range26.147s, joined intentional cancellation and refusal; no full/ordinary cleanup qualification. Root next r12 must use the same strict v4 scenario and unchanged budgets with only the grouped unused-table audit hypothesis. Preserve originalr10 pre-guest failure and all older failures.
+
 [Step1606](../done/step1606.md) Fresh timingr10 at12128da1 stops before guest launch: CS8786 managed-versus-unmanaged diagnostic clock pointer. The candidate matches the existing unmanaged clock ABI without changing any budgets. Require a new committed -BuildEfi r11 namespace and preserve r10 failure receipts. The integrated HTTP log/upload owner runs managed host children only, with no QEMU/storage acceptance.
 
 [Step1605](../done/step1605.md) Original timing r09 passes four responses and deliberate joined cancellation/refusal; the exact 64 KiB range takes 27.958s. A fresh committed -BuildEfi timing r10 must use v4 readiness children before selecting a performance repair. This diagnostic does not qualify complete Blazor, ordinary cleanup, sustained service or writes. The separate Linux SQLite recovery original is fully archived after a zero-process audit and supplies no guest durability.

@@ -1,5 +1,7 @@
 # PAL
 
+[Step1607](../done/step1607.md) The grouped unused-table candidate changes only synchronous memory-audit loop shape; every bit remains checked in the current owned table arena. Descriptor refresh and retained wait scanning still perform their separate fresh full audits. It grants no PAL storage, physical FLUSH, guest persistence or new lifecycle authority. Existing finite log/upload and external Linux SQLite evidence remain scoped.
+
 [Step1606](../done/step1606.md) The new finite managed MinimalApi HTTP fixture measures requested FileStream flush and exact bytes independently of the console candidate. It grants no guest PAL/device flush, reboot or physical persistence. Readiness diagnostic ABI now matches the existing unmanaged supervisor clock; its later fresh descriptor graph audit and all lifetime rules remain intact.
 
 [Step1605](../done/step1605.md) The scoped Linux SQLite recovery r03 reference passes owned death/join, reserved-lock release and independent exact baseline recovery. Existing PAL/guest flush, locking and recovery boundaries do not advance. The new diagnostic-only readiness clock runs after consumed refresh admission and before any scan; the later full graph audit remains mandatory. Separate paired storage/TCP development has no native authority.

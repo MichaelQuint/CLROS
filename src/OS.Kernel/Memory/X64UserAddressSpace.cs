@@ -145,7 +145,15 @@ public static unsafe class X64UserAddressSpace
         }
         if (seenTables != required || leaves != expectedLeaves) return false;
         for (uint page = 1; page < tablePages; page++)
-            if (seen[page] == 0) for (uint i = 0; i < 512; i++) if (tables[page * 512 + i] != 0) return false;
+            if (seen[page] == 0)
+            {
+                ulong* row = tables + page * 512;
+                // All 512 words remain checked, including every bit in unused
+                // entries. The admitted full page needs no tail or overread.
+                for (uint i = 0; i < 512; i += 8)
+                    if ((row[i] | row[i + 1] | row[i + 2] | row[i + 3] |
+                        row[i + 4] | row[i + 5] | row[i + 6] | row[i + 7]) != 0) return false;
+            }
         return true;
     }
 

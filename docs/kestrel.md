@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1607](../done/step1607.md) Original r11 serves the exact64KiB CoreLib range in26.147s and confirms intentional cancellation/join/refusal. Measured post-network5.320s includes readiness5.282s, split into refresh2.665s/waitscan2.617s; aggregate boundaries are listen through65536user-read bytes, not HTTP-only attribution. A grouped full-audit zero-check experiment is pending fresh r12; full A/B/browser/continuous service remains unqualified.
+
 [Step1606](../done/step1606.md) Integrated MinimalApiLogUploadContract is a separate explicit --serve-once qualification app. It checks empty seeds, logs330B at startup, buffers an exact5126B upload before output, then writes/flushed-closes upload and appends to660B log. The independent HTTP owner requires complete responses, actual exit0, endpoint refusal and the unchanged console verifier. Partial failures retain actual bytes. This managed finite scope does not qualify continuous guest persistence; the original static server/package stays unchanged.
 
 [Step1605](../done/step1605.md) Original short timing r09 serves health, HEAD, the exact 64 KiB CoreLib range in 27.958s and final health, then intentionally cancels/joins. Readiness consumes 5.458806s of the 5.508793s measured post-network parent; this is not total HTTP attribution. The next v4 diagnostic separates refresh from wait scanning. Full A/B/browser and continuous service remain pending. Linux SQLite process-kill recovery r03 succeeds separately; guest persistence remains unqualified.

@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1607](../done/step1607.md) Source-matched originalr11 compiles/boots after the ABI repair:2056runtime/1629unwind entries, EFI19821FE308D8D4384ED3A700687C0F1DB385AE95C3464C4B2D1245FC0EFFEB31. Original disassembly confirms a scalar unused-table word loop. The next candidate groups eight ordinary ulong checks and updates only its reviewed source pin; fresh committed -BuildEfi r12 must compare actual generated code and timings. No general stack proof follows.
+
 [Step1606](../done/step1606.md) Timingr10 at12128da1 fails managed compilation inside fresh native publication with CS8786 before any guest or ELF. The measured readiness callback now uses delegate* unmanaged, matching the existing UnmanagedCallersOnly NativeDiskClock and disk-pump contract. Its host test callback uses the same ABI. One normalized source pin changes; clock placement, ownership, budgets and accepted ordinary profiles stay unchanged. A fresh committed -BuildEfi r11 is required.
 
 [Step1605](../done/step1605.md) The next short timing producer uses strict v4 fields readinessRefreshNs/readinessWaitScanNs, captured at one trusted post-refresh boundary and conserving postReadinessNs. The clock and fields compile only into the explicit timing profile; accepted ordinary profiles keep their original readiness path and layouts. Four reviewed normalized source pins follow the changed bytes. Fresh committed -BuildEfi timing r10 is required.

@@ -1,5 +1,7 @@
 # App Model
 
+[Step1607](../done/step1607.md) The latest short r11 diagnostic serves four responses and exact64KiB range26.147s, intentionally cancels and joins. It does not qualify full Blazor or persistent workloads. A narrowly scoped full-audit loop experiment is host-checked pending fresh r12. The finite managed HTTP app and successful Linux SQLite process-kill reference retain their separate earlier boundaries; Linux HTTP preparation remains isolated.
+
 [Step1606](../done/step1606.md) The four new MinimalApiLogUploadContract/NativeAotLogUploadHttpContract paths provide a separate finite managed HTTP/FileStream qualification candidate. Startup330B is the authenticated pre-request baseline; success produces660Blog/5126Bupload. Abort/cancel/open denial preserve startup, while a later log-append failure honestly retains330B/5126B. Independent completed HTTP, process join/refusal and console verification are required. Linux NativeAOT, guest reboot and durability remain subsequent qualification.
 
 [Step1605](../done/step1605.md) Linux NativeAOT SQLite recovery r03 now passes after the observer closes before its spill marker; independent recovery exactly matches the committed baseline. This supplies a measured Linux reference, not guest FAT32 persistence. The finite MinimalApi log/upload HTTP candidate is delegated under M10-027 and remains unimported. The application goal continues until intentional stop; finite fixtures remain intermediate qualification tools.

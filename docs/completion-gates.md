@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1607](../done/step1607.md) Original r11 is a successful short timing diagnostic with FullAndCleanupQualified=false. The grouped unused-table check has84 focused controls but needs fresh committed native timingr12, later full A/B/browser/cleanup/race/ancestor/full-host gates and scoped native review. The r11 three fixed-frame observations do not establish whole-stack bounds. No issue closes.
+
 [Step1606](../done/step1606.md) Timingr10 is a pre-guest compilation failure, preserved without any metric or acceptance. A callback-convention repair and fresh originalr11 are required. The new finite managed HTTP log/upload fixture supplies host qualification only; Linux NativeAOT HTTP, guest FAT32 writes/reboot and SQLite power-loss durability remain open. No completion gate or issue closes.
 
 [Step1605](../done/step1605.md) Fresh Linux SQLite recovery r03 passes its process-kill contract, reserved-lock absence and exact independently verified recovery. GuestQualified, PowerLossQualified and DurabilityQualified remain false. Timing r09 passes only the four-response diagnostic with intentional cancellation; the next v4 measurement and all full A/B/browser/cleanup gates remain pending. No issue or completion gate closes.

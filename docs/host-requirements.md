@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1607](../done/step1607.md) The next memory-audit experiment uses ordinary ulong loads/ORs with no vector/helper dependency or wall-clock host assertions. Focused checks cover16/max128 tables, actual first/last unused pages and300 single-word fault vectors with complete byte preservation/restoration. Source-matched r11 fixed frames are128/480/240B including return addresses for measured readiness/wake/network poll only; transitive stack/IRQ/callback bounds remain unqualified.
+
 [Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.
 
 [Step1605](../done/step1605.md) Linux SQLite recovery r03 succeeds with all held source/output lifetimes preserved. Only the owned native child raises soft RLIMIT_NOFILE from 1024 to 4096; parent soft 1024 and hard 4096 are verified before/after. Fresh publication reuses the explicitly verified nine-file SQLite archive dependency (zero fresh archive compiles). Independent post-join process audit is zero. This host procedure grants no guest or power-loss durability.

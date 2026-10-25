@@ -1,5 +1,7 @@
 <p align="center">
 
+[Step1607](done/step1607.md) Fresh v4 timingr11 passes the exact64KiB range in26.147s and owned cancellation/join/refusal. Its readiness split is2.665s refresh/2.617s wait scan. The next candidate groups unused page-table checks into eight-word ORs while still checking every word;84 focused controls pass. Fresh committed r12 is required before any speedup claim. Full Blazor and guest persistence remain unqualified.
+
 [Step1606](done/step1606.md) The finite managed MinimalApi log/upload fixture is integrated from30cfce2d: actual HTTP writes/readbacks and a separate unchanged console verifier, with honest startup/partial-effect failure receipts. Guest persistence remains unqualified. Timing r10 stopped before guest launch at a callback ABI mismatch; the candidate now uses the existing unmanaged clock convention and requires a fresh committed r11.
 
 [Step1605](done/step1605.md) Original timing r09 serves the exact 64 KiB range in 27.958s and confirms joined cancellation. Descriptor readiness accounts for 99.09% of its measured post-network interval. The next v4 diagnostic separates refresh from wait scanning without changing budgets or authority. Fresh Linux SQLite recovery r03 passes owned writer kill, reserved-lock release and exact baseline recovery; guest FAT32 recovery and power-loss durability remain unqualified.

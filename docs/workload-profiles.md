@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1607](../done/step1607.md) Original v4r11 passes diagnostic-only HTTP with exact bytes and complete process join. Expert-reviewed next hypothesis groups unused-table zero checks without skipping validation or changing accepted workload profiles, budgets, FIFO or per-step flush. No throughput improvement is claimed until fresh r12. Full read/Blazor, continuous writes and SQLite durability remain required.
+
 [Step1606](../done/step1606.md) The separate finite managed MinimalApi HTTP log/upload candidate is an intermediate contract fixture, preserving the existing static server package and the continuous product goal. Explicit startup and partial-effect states remain evidence, not rollback or durability. Timingr10 failed before guest; the diagnostic ABI repair needs fresh originalr11 before any performance conclusion.
 
 [Step1605](../done/step1605.md) Linux SQLite d938/r03 qualifies the scoped external process-kill reference, with exact recovered baseline and explicit reused archive inputs. It grants no guest or power-loss durability. Read timing r09 attributes 99.09% of measured post-network time to readiness; next v4 splits refresh and wait scanning before any optimization. Full disk A/B/Blazor and continuous persistence qualification remain required.

@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1607](../done/step1607.md) Original v4r11 exactly conserves postNetwork5320087700=postReadiness5282079100+postWaitRecord38008600ns and readiness5282079100=refresh2664672500+waitscan2617406600ns over2039calls. Root preserves all19 originals. The next sole production hypothesis groups unused-table zero checks; retain identical v4 population/clocks/budgets and compare absolute/per-call values without double counting or attributing all readiness time to that loop.
+
 [Step1606](../done/step1606.md) Preserve timingr10 as a pre-guest CS8786 failure with its original command, six committed producers and log. The v4 readiness callback ABI is corrected to the existing unmanaged clock convention; its single post-refresh/pre-scan boundary and all full-audit/overflow/population checks remain unchanged. The next original is r11; no r10 metric or guest success is inferred.
 
 [Step1605](../done/step1605.md) Original timing r09 retains its strict v3 receipt. New v4 adds readinessRefreshNs and readinessWaitScanNs, exactly conserving postReadinessNs, whose children still conserve postNetworkNs with postWaitRecordNs. Capture one trusted timestamp immediately after successful refresh before any scan, including no-epoll return; reject regressions/overflow/missing boundaries. Preserve all later audits and original budgets. Do not reinterpret v1-v3 originals as v4 or add children to their parent as independent time.

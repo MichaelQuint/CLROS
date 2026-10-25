@@ -1,5 +1,7 @@
 # Storage
 
+[Step1607](../done/step1607.md) Original r11 serves exact64KiB range26.147s with independently extracted bytes, then deliberate joined cancellation. No storage/read/browser gate advances. The next measured candidate changes only whole-page-table zero-check loop shape; all filesystem/block semantics, requested flushes, fairness and time bounds remain unchanged. Guest writes/reboot/SQLite durability remain pending.
+
 [Step1606](../done/step1606.md) The integrated finite managed HTTP log/upload fixture exercises actual FileStream writes/readbacks/Flush(true), including failure after the upload closes but before the second log append. Failed receipts retain330Blog/5126Bupload rather than imply rollback. Requested flushes and Windows host files supply no guest device-FLUSH, FAT32 reboot, or durability authority. The separate Linux SQLite recovery r03 boundary remains unchanged.
 
 [Step1605](../done/step1605.md) Fresh Linux SQLite recovery d938/r03 passes with an observed closed read-only journal witness, two live SQLite file handles, owned pidfd kill/join, absent reserved lock and exact recovered baseline. All 117 declared output hashes match the independently extracted 120-file original. This is Linux process-kill recovery using the explicitly verified archive dependency; no guest FAT32 write/reboot, physical flush or power-loss durability is qualified. Paired storage/TCP and actual HTTP log/upload remain separate implementation slices.

@@ -161,6 +161,63 @@ internal static unsafe class X64UserAddressSpaceTests
         finally { NativeMemory.AlignedFree(tables); }
     }
 
+    [HostTest("whole-root audit checks every lane of unused table boundary and interior groups without mutation or stale success")]
+    private static void UnusedTableWords()
+    {
+        foreach (uint tablePages in new[] { Pages, X64UserAddressSpace.MaximumTables })
+        {
+            var ranges = Ranges(); var conditions = Conditions();
+            ulong* tables = (ulong*)NativeMemory.AlignedAlloc(tablePages * 4096, 4096);
+            try
+            {
+                new Span<ulong>(tables, (int)tablePages * 512).Clear();
+                fixed (X64UserMappingRange* r = ranges)
+                {
+                    var result = X64UserAddressSpace.Build(r, (uint)ranges.Length, tables, Root, tablePages, conditions);
+                    HostCheck.True(result.Succeeded && X64UserAddressSpace.Audit(r, (uint)ranges.Length, tables, Root, tablePages, conditions, result));
+                    // Derive unused pages from the actual graph, never from a
+                    // presumed suffix beginning at the reported table count.
+                    HashSet<uint> reachable = [0]; Queue<(uint Page, int Level)> pending = new(); pending.Enqueue((0, 3));
+                    while (pending.TryDequeue(out var current))
+                    {
+                        if (current.Level == 0) continue;
+                        for (uint i = 0; i < 512; i++)
+                        {
+                            ulong entry = tables[current.Page * 512 + i]; if (entry == 0) continue;
+                            ulong physical = entry & 0x000ffffffffff000;
+                            HostCheck.True(physical >= Root && physical - Root < tablePages * 4096UL);
+                            uint child = (uint)((physical - Root) / 4096);
+                            HostCheck.True(reachable.Add(child)); pending.Enqueue((child, current.Level - 1));
+                        }
+                    }
+                    HostCheck.Equal(result.UsedTables, (uint)reachable.Count);
+                    uint[] unused = Enumerable.Range(1, (int)tablePages - 1).Select(i => (uint)i).Where(i => !reachable.Contains(i)).ToArray();
+                    HostCheck.True(unused.Length >= 2);
+                    int[] words = Enumerable.Range(0, 8).Concat(new[] { 8 }).Concat(Enumerable.Range(248, 8)).Concat(Enumerable.Range(504, 8)).ToArray();
+                    byte[] original = new ReadOnlySpan<byte>(tables, (int)tablePages * 4096).ToArray();
+                    byte[] originalRanges = MemoryMarshal.AsBytes(ranges.AsSpan()).ToArray();
+                    foreach (uint page in new[] { unused[0], unused[^1] })
+                        foreach (int word in words)
+                            foreach (ulong value in new ulong[] { 1, 0x60, 1UL << 63 })
+                            {
+                                ulong* changed = tables + page * 512 + word; HostCheck.Equal(0UL, *changed); *changed = value;
+                                byte[] before = new ReadOnlySpan<byte>(tables, (int)tablePages * 4096).ToArray();
+                                try
+                                {
+                                    HostCheck.True(!X64UserAddressSpace.Audit(r, (uint)ranges.Length, tables, Root, tablePages, conditions, result));
+                                    HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, before.Length)));
+                                    HostCheck.True(originalRanges.AsSpan().SequenceEqual(MemoryMarshal.AsBytes(ranges.AsSpan())));
+                                }
+                                finally { *changed = 0; }
+                                HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables, original.Length)));
+                                HostCheck.True(X64UserAddressSpace.Audit(r, (uint)ranges.Length, tables, Root, tablePages, conditions, result));
+                            }
+                }
+            }
+            finally { NativeMemory.AlignedFree(tables); }
+        }
+    }
+
     [HostTest("m16-006 audit checks every leaf across unsorted long ranges and the physical limit without retaining stale encodings", HostLane.Fast, 4)]
     private static void LongRangeAudit()
     {

@@ -1,5 +1,7 @@
 # Security
 
+[Step1607](../done/step1607.md) The unused page-table audit candidate continues rejecting any nonzero bit in every unreachable table page, including high and A/D bits. Eight-word OR grouping changes loop/check frequency only; the admitted full aligned arena and512-word page bound prevent a tail or overread. It does not cache ownership, skip pages, mask unused bits or reuse descriptor admission across callbacks. Existing security and isolation gates do not advance.
+
 [Step1600](../done/step1600.md) Borrowed filesystem admission validates the complete retained filesystem/port/engine/block/DMA/MMIO/observer tree. Busy cannot publish output or EOF. Global full-tree descriptor/thread hooks are continuing, and writable/read-only coexistence admission remains unchanged. Native writable integration is not qualified.
 
 [Step1597](../done/step1597.md) Writable path metadata has host-only support with copied confined paths and original 144-byte mapping/capacity protection through real waits and cancellation. Explicit root0700/file0600 and uid/gid0 values describe the confined mount policy; they are not persisted FAT32 Unix permissions or a multi-user security boundary. Shared-owner readonly-range preparation grants no second device owner or new copy/I/O authority. Native writable activation, persistence and isolation remain unqualified.

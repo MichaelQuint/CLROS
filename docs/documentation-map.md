@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1607](../done/step1607.md) Step1607 retains originalr11 v4 measurements, scoped fixed-frame/native scalar-loop observations and the expert-reviewed grouped unused-table candidate. Architecture/security document preserved full-audit authority; EFI/diagnostic/QEMU docs own the fresh comparison procedure. Storage/app/gate docs retain read/write/Blazor/SQLite limits. New source test coverage is in the existing X64UserAddressSpace fixture.
+
 [Step1606](../done/step1606.md) Step1606 records the pre-guest timingr10 ABI failure/repair and integrates the four-file finite managed MinimalApi HTTP log/upload fixture. App/Kestrel/storage/PAL/gate docs preserve its managed/Linux/guest/persistence boundaries. Step1605 retains the successful Linux SQLite recovery reference; no historical receipt is changed.
 
 [Step1605](../done/step1605.md) Current checkpoint: strict v4 readiness attribution belongs in diagnostics/EFI/QEMU; exact r09 and fresh Linux SQLite recovery r03 originals are retained in step1605. Storage/PAL/app/gate docs preserve the Linux-reference versus guest-FAT32/power-loss distinction. Two freshly claimed successor slices remain isolated and unimported. Historical step1604 failures retain their original status.

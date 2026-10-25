@@ -1,5 +1,7 @@
 # Architecture
 
+[Step1607](../done/step1607.md) Whole page-table Audit retains full current admission, reachability, leaf and unused-page validation. The candidate changes only the unused-page zero test to eight ordinary ulong words per OR group. It retains no cached authority, introduces no callback or helper, checks every bit and never substitutes UsedTables for the actual seen-page set. Fresh descriptor audits after readiness refresh and its diagnostic clock remain required.
+
 ## Current architecture boundary (October 23, 2026)
 
 CLROS uses C# 14/.NET 11, an explicit no-stdlib EFI kernel and a restricted
