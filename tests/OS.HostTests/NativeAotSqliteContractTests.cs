@@ -1,5 +1,6 @@
 using System.Buffers.Binary;
 using System.Globalization;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,6 +9,131 @@ using OS.Tooling;
 
 internal static class NativeAotSqliteContractTests
 {
+    private delegate byte[] ClrosPackageBuilder(ReadOnlySpan<byte> elf,string mode,string hash);
+    private delegate NativeAotSqliteContract.ClrosPackageValues ClrosPackageInspector(ReadOnlySpan<byte> package,string mode,string hash);
+    private static readonly ClrosPackageBuilder CreateCopiedPackage=typeof(NativeAotSqliteContract).GetMethod("CreateClrosPackageCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<ClrosPackageBuilder>();
+    private static readonly ClrosPackageInspector InspectCopiedPackage=typeof(NativeAotSqliteContract).GetMethod("InspectClrosPackageCore",BindingFlags.Static|BindingFlags.NonPublic)!.CreateDelegate<ClrosPackageInspector>();
+    private static readonly string[] ClrosModes=["database","verify-database","recovery-seed","recovery-spill","recovery-verify"];
+
+    [HostTest("sqlite copied CLROS packages bind five exact database file modes and a selected finite envelope")]
+    private static void ClrosPackageModes()
+    {
+        byte[] elf=ClrosElf();string hash=Convert.ToHexString(SHA256.HashData(elf));
+        foreach(string mode in ClrosModes)
+        {
+            string path=mode.StartsWith("recovery-",StringComparison.Ordinal)?"/data/recovery.db":"/data/contract.db";
+            byte[] package=CreateCopiedPackage(elf,mode,hash);var values=InspectCopiedPackage(package,mode,hash);
+            string manifest=ClrosManifest(mode,path,hash);var view=OS.Manifest.LinuxElfPackage.Validate(package);
+            HostCheck.True(view.Succeeded && view.DataFileCount==0 && view.PayloadBytes==NativeAotSqliteContract.ClrosElfBytes &&
+                view.Manifest.MemoryBytes==67108864 && view.Manifest.StackBytes==1572864 && view.Manifest.Threads==16 && view.Manifest.Descriptors==32 &&
+                values.Mode==mode && values.DatabasePath==path && values.Manifest==manifest && values.PackageBytes==package.Length &&
+                values.PackageSha256==Convert.ToHexString(SHA256.HashData(package)) && values.Arguments.SequenceEqual(new[]{"--"+mode,path}) &&
+                values.Image.Entry==4231863 && values.Image.ProgramHeaderCount==11 && values.Image.Loads.Count==4 &&
+                values.Image.Tls is {FileSize:24,MemorySize:264,Alignment:8} && !values.ResourceEnvelopeMeasured && !values.InstructionIndexAdmitted &&
+                !values.ExecutionAuthority && !values.GrantsOriginalPublicationGuestRecoveryOrPersistenceAuthority);
+            HostCheck.True(ClrosEnvelope(elf,manifest).AsSpan().SequenceEqual(package) &&
+                package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes).SequenceEqual(elf) && !manifest.Contains("--root",StringComparison.Ordinal) &&
+                !manifest.Contains("CLROS_USER_IRQS",StringComparison.Ordinal));
+            foreach(string other in ClrosModes.Where(other=>other!=mode))Reject(()=>InspectCopiedPackage(package,other,hash),"clros_package");
+        }
+    }
+
+    [HostTest("sqlite public CLROS admission fixes the original ELF identity and rejects synthetic default unknown and option-spelled modes")]
+    private static void ClrosPublicIdentity()
+    {
+        byte[] elf=ClrosElf();string hash=Convert.ToHexString(SHA256.HashData(elf));HostCheck.True(hash!=NativeAotSqliteContract.ClrosElfSha256);
+        byte[] package=CreateCopiedPackage(elf,"database",hash);
+        Reject(()=>NativeAotSqliteContract.CreateClrosPackage(elf,"database"),"clros_elf_identity");
+        Reject(()=>NativeAotSqliteContract.InspectClrosPackage(package,"database"),"clros_package");
+        foreach(string mode in new[]{"","default","Database","VERIFY-DATABASE","--database","recovery","recovery-spill\n",null!})
+        {
+            Reject(()=>NativeAotSqliteContract.CreateClrosPackage(elf,mode),"clros_mode");
+            Reject(()=>NativeAotSqliteContract.InspectClrosPackage(package,mode),"clros_mode");
+        }
+        Reject(()=>NativeAotSqliteContract.CreateClrosPackage([],"database"),"clros_elf_length");
+        Reject(()=>NativeAotSqliteContract.InspectClrosPackage([],"verify-database"),"clros_package");
+    }
+
+    [HostTest("sqlite copied CLROS geometry rejects changed entry loads TLS dynamic and truncated identities")]
+    private static void ClrosGeometry()
+    {
+        foreach(Action<byte[]> change in new Action<byte[]>[]{
+            elf=>BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(24),4231864),
+            elf=>BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(120+4),7),
+            elf=>BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(176+32),1338199),
+            elf=>BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(288+40),265),
+            elf=>BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(344),2)})
+        {
+            byte[] elf=ClrosElf();change(elf);string hash=Convert.ToHexString(SHA256.HashData(elf));
+            Reject(()=>CreateCopiedPackage(elf,"database",hash),"clros_elf_geometry");
+        }
+        byte[] original=ClrosElf();Reject(()=>CreateCopiedPackage(original.AsSpan(0,original.Length-1),"database",Convert.ToHexString(SHA256.HashData(original))),"clros_elf_length");
+    }
+
+    [HostTest("sqlite canonical package framing rejects every reserved header area altered payload truncation and trailing bytes")]
+    private static void ClrosFraming()
+    {
+        byte[] elf=ClrosElf();string hash=Convert.ToHexString(SHA256.HashData(elf));byte[] package=CreateCopiedPackage(elf,"recovery-seed",hash);
+        foreach(int at in new[]{0,8,12,16,20,24,32,40,48,56,63})
+        {byte[] changed=package.ToArray();changed[at]^=1;Reject(()=>InspectCopiedPackage(changed,"recovery-seed",hash),"clros_package");}
+        Reject(()=>InspectCopiedPackage(package.AsSpan(0,package.Length-1),"recovery-seed",hash),"clros_package");
+        Reject(()=>InspectCopiedPackage([..package,(byte)0],"recovery-seed",hash),"clros_package");
+        int payload=package.Length-elf.Length;package[payload+4096]^=1;
+        Reject(()=>InspectCopiedPackage(package,"recovery-seed",hash),"clros_elf_identity");
+    }
+
+    [HostTest("sqlite copied package policy rejects unconfined paths alternate arguments resource changes and user IRQ opt-in")]
+    private static void ClrosPolicy()
+    {
+        byte[] elf=ClrosElf();string hash=Convert.ToHexString(SHA256.HashData(elf)),manifest=ClrosManifest("database","/data/contract.db",hash);
+        foreach(string changed in new[]{
+            manifest.Replace("/data/contract.db","/tmp/contract.db",StringComparison.Ordinal),
+            manifest.Replace("/data/contract.db","/data/../private/contract.db",StringComparison.Ordinal),
+            manifest.Replace("args=--database /data/contract.db","args=--database --root /data",StringComparison.Ordinal),
+            manifest.Replace("memory=67108864","memory=134217728",StringComparison.Ordinal),
+            manifest.Replace("stack=1572864","stack=65536",StringComparison.Ordinal),
+            manifest.Replace("threads=16","threads=2",StringComparison.Ordinal),
+            manifest.Replace("descriptors=32","descriptors=64",StringComparison.Ordinal),
+            manifest+"env.CLROS_USER_IRQS=1\n",manifest.Replace(hash.ToLowerInvariant(),hash,StringComparison.Ordinal)})
+            Reject(()=>InspectCopiedPackage(ClrosEnvelope(elf,changed),"database",hash),"clros_package");
+    }
+
+    [HostTest("sqlite copied package metadata and arguments remain immutable after borrowed ELF and package buffers change")]
+    private static void ClrosCopiedValues()
+    {
+        byte[] elf=ClrosElf();string hash=Convert.ToHexString(SHA256.HashData(elf));byte[] package=CreateCopiedPackage(elf,"recovery-verify",hash);
+        var values=InspectCopiedPackage(package,"recovery-verify",hash);string packageHash=values.PackageSha256;
+        elf.AsSpan().Fill(0xcc);package.AsSpan().Fill(0xaa);
+        HostCheck.True(values.Mode=="recovery-verify" && values.DatabasePath=="/data/recovery.db" && values.Image.Sha256==hash &&
+            values.PackageSha256==packageHash && values.Arguments.SequenceEqual(new[]{"--recovery-verify","/data/recovery.db"}));
+        bool args=false,loads=false;try{((IList<string>)values.Arguments).Clear();}catch(NotSupportedException){args=true;}
+        try{((IList<NativeAotPayload.Segment>)values.Image.Loads).Clear();}catch(NotSupportedException){loads=true;}HostCheck.True(args && loads);
+    }
+
+    private static string ClrosManifest(string mode,string path,string hash)=>
+        "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\napp.path=apps/NativeAotSqliteContract\nargs=--"+mode+" "+path+
+        "\ndigest="+hash.ToLowerInvariant()+"\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=32\nlisten=0.0.0.0:8080\n";
+    private static byte[] ClrosEnvelope(byte[] elf,string manifest)
+    {
+        byte[] text=Encoding.ASCII.GetBytes(manifest),result=new byte[64+text.Length+elf.Length];
+        BinaryPrimitives.WriteUInt64LittleEndian(result,OS.Manifest.LinuxElfPackage.Magic);
+        BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(8),1);BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(12),1);
+        BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(16),64);BinaryPrimitives.WriteUInt32LittleEndian(result.AsSpan(20),(uint)text.Length);
+        BinaryPrimitives.WriteUInt64LittleEndian(result.AsSpan(24),(ulong)elf.Length);text.CopyTo(result,64);elf.CopyTo(result,64+text.Length);return result;
+    }
+    private static byte[] ClrosElf()
+    {
+        byte[] elf=new byte[NativeAotSqliteContract.ClrosElfBytes];new byte[]{0x7f,69,76,70,2,1,1}.CopyTo(elf,0);
+        void W16(int at,ushort value)=>BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(at),value);
+        void W32(int at,uint value)=>BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(at),value);
+        void W64(int at,ulong value)=>BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(at),value);
+        W16(16,2);W16(18,62);W32(20,1);W64(24,4231863);W64(32,64);W16(52,64);W16(54,56);W16(56,11);
+        void Segment(int at,uint type,uint flags,ulong offset,ulong address,ulong file,ulong memory,ulong alignment)
+        {W32(at,type);W32(at+4,flags);W64(at+8,offset);W64(at+16,address);W64(at+32,file);W64(at+40,memory);W64(at+48,alignment);}
+        Segment(64,1,4,0,4194304,748,748,4096);Segment(120,1,5,4096,4198400,2633584,2633584,4096);
+        Segment(176,1,4,2637824,6832128,1338200,1338200,4096);Segment(232,1,6,3977448,8171752,49504,603016,4096);
+        Segment(288,7,4,3977448,8171752,24,264,8);return elf;
+    }
     private static JsonObject Assets()
     {
         JsonObject libraries=[];string hash=Convert.ToBase64String(Enumerable.Range(0,64).Select(i=>(byte)i).ToArray());

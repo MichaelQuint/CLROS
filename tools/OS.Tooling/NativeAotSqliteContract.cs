@@ -28,6 +28,106 @@ public static class NativeAotSqliteContract
     public const string SourceCsha256="B1DD5D74EC7F29055A6684FA06FB3C2F6821C87DD38F9A458DFD2E8A1DB28189";
     public const string SourceHeaderSha256="919E7F2E8ED1D8F56AC17B412B8971C76AA5D1A879752CC6058F75E7D5910E1D";
     public const string SourceId="2026-07-24 19:02:57 bf7c7f30031888f4e796e429ab3978879485813aaca6f641c7b33e4e09459bcc";
+    public const int ClrosElfBytes=9_049_216;
+    public const string ClrosElfSha256="876D11A956E098174EE78C6CEF105C29FEEF2B5594F09EC6C557BC1D2808AAB2";
+    public const string ClrosApplicationPath="apps/NativeAotSqliteContract";
+    // Deliberately selected candidate envelope, not measured minima, backing
+    // reservation, native stack fit or permission to execute a guest.
+    public const uint ClrosMemoryBytes=67_108_864,ClrosStackBytes=1_572_864,ClrosThreads=16,ClrosDescriptors=32;
+
+    /// <summary>Immutable copied package/ELF values for one exact app mode.
+    /// The64MiB/1.5MiB/16thread/32fd envelope is selected candidate policy, not
+    /// measured resource fit. Arguments name a database file, never a --root.
+    /// Database/seed require absent inputs; recovery-spill intentionally waits
+    /// for an external owned kill. No image, process or recovery is admitted.</summary>
+    public sealed class ClrosPackageValues
+    {
+        internal ClrosPackageValues(string mode,string path,string manifest,int bytes,string hash,NativeAotPayload.Inspection image)
+        {Mode=mode;DatabasePath=path;Manifest=manifest;PackageBytes=bytes;PackageSha256=hash;Image=image;
+            Arguments=Array.AsReadOnly(new[]{"--"+mode,path});}
+        public string Mode{get;}
+        public string DatabasePath{get;}
+        public string Manifest{get;}
+        public int PackageBytes{get;}
+        public string PackageSha256{get;}
+        public NativeAotPayload.Inspection Image{get;}
+        public ReadOnlyCollection<string> Arguments{get;}
+        public bool ResourceEnvelopeMeasured=>false;
+        public bool InstructionIndexAdmitted=>false;
+        public bool ExecutionAuthority=>false;
+        public bool GrantsOriginalPublicationGuestRecoveryOrPersistenceAuthority=>false;
+    }
+
+    /// <summary>Build a new V1 package from only the pinned successful Linux
+    /// recovery-r03 ELF. Mode is exactly database, verify-database, recovery-seed,
+    /// recovery-spill or recovery-verify; paths are confined contract/recovery
+    /// database filenames under /data. Bytes are borrowed synchronously and not
+    /// retained. Invalid identity, geometry or mode throws before output returns.
+    /// This selects a finite envelope, without instruction/startup admission,
+    /// execution, physical FLUSH, recovery or persistence authority.</summary>
+    public static byte[] CreateClrosPackage(ReadOnlySpan<byte> elf,string mode)=>CreateClrosPackageCore(elf,mode,ClrosElfSha256);
+
+    /// <summary>Inspect exact canonical package bytes, mode, selected envelope
+    /// and fixed four-load/TLS ELF. Input must stay stable during the synchronous
+    /// borrow. Returned values own immutable metadata only; altered/unknown
+    /// packages throw. Actual source/native/image/process holds stay external.</summary>
+    public static ClrosPackageValues InspectClrosPackage(ReadOnlySpan<byte> package,string mode)=>InspectClrosPackageCore(package,mode,ClrosElfSha256);
+
+    // Portable independent geometry vectors may use an internal expected hash.
+    // Public entrypoints always supply the one fixed original identity above.
+    internal static byte[] CreateClrosPackageCore(ReadOnlySpan<byte> elf,string mode,string expectedElfSha256)
+    {
+        string path=ClrosDatabasePath(mode);_=InspectClrosElf(elf,expectedElfSha256);
+        byte[] manifest=Encoding.ASCII.GetBytes(ClrosManifest(mode,path,expectedElfSha256));
+        byte[] package=new byte[64+manifest.Length+elf.Length];ClrosHeader(manifest.Length).CopyTo(package,0);
+        manifest.CopyTo(package,64);elf.CopyTo(package.AsSpan(64+manifest.Length));return package;
+    }
+    internal static ClrosPackageValues InspectClrosPackageCore(ReadOnlySpan<byte> package,string mode,string expectedElfSha256)
+    {
+        string path=ClrosDatabasePath(mode),text=ClrosManifest(mode,path,expectedElfSha256);byte[] manifest=Encoding.ASCII.GetBytes(text);
+        Need(package.Length==64+manifest.Length+ClrosElfBytes && package[..64].SequenceEqual(ClrosHeader(manifest.Length)) &&
+            package.Slice(64,manifest.Length).SequenceEqual(manifest),"clros_package");
+        var image=InspectClrosElf(package[(64+manifest.Length)..],expectedElfSha256);var view=OS.Manifest.LinuxElfPackage.Validate(package);
+        Need(view.Succeeded && view.DataFileCount==0 && view.PayloadBytes==ClrosElfBytes,"clros_package");
+        return new(mode,path,text,package.Length,Convert.ToHexString(SHA256.HashData(package)),image);
+    }
+    private static unsafe NativeAotPayload.Inspection InspectClrosElf(ReadOnlySpan<byte> elf,string expectedElfSha256)
+    {
+        Need(elf.Length==ClrosElfBytes,"clros_elf_length");NativeAotPayload.Inspection image;
+        try{image=NativeAotPayload.Inspect(elf);}catch(InvalidDataException){throw new ToolFailure("sqlite_contract_clros_elf_geometry");}
+        NativeAotPayload.Segment[] loads=[new(1,4,0,4_194_304,748,748,4096),
+            new(1,5,4096,4_198_400,2_633_584,2_633_584,4096),
+            new(1,4,2_637_824,6_832_128,1_338_200,1_338_200,4096),
+            new(1,6,3_977_448,8_171_752,49_504,603_016,4096)];
+        Need(image.Entry==4_231_863 && image.ProgramHeaderCount==11 && image.Loads.SequenceEqual(loads) &&
+            image.Tls==new NativeAotPayload.Segment(7,4,3_977_448,8_171_752,24,264,8),"clros_elf_geometry");
+        fixed(byte* source=elf)
+            Need(OS.Kernel.Compatibility.LinuxX64.LinuxElfLoader.Validate(source,(uint)elf.Length,ClrosMemoryBytes,ClrosStackBytes,out var plan)==
+                OS.Kernel.Compatibility.LinuxX64.LinuxElfLoadStatus.Ready && plan.ImageBytes+ClrosStackBytes<=ClrosMemoryBytes,"clros_elf_envelope");
+        Need(image.Sha256==expectedElfSha256,"clros_elf_identity");return image;
+    }
+    private static string ClrosDatabasePath(string mode)=>mode switch
+    {
+        "database" or "verify-database"=>"/data/contract.db",
+        "recovery-seed" or "recovery-spill" or "recovery-verify"=>"/data/recovery.db",
+        _=>throw new ToolFailure("sqlite_contract_clros_mode")
+    };
+    private static string ClrosManifest(string mode,string path,string digest)
+    {
+        Need(Hex(digest),"clros_elf_identity");
+        // listen is a required V1 manifest field, not a measured SQLite socket
+        // or a claim that any network endpoint was opened.
+        return "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\napp.path="+ClrosApplicationPath+
+            "\nargs=--"+mode+" "+path+"\ndigest="+digest.ToLowerInvariant()+
+            "\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=32\nlisten=0.0.0.0:8080\n";
+    }
+    private static byte[] ClrosHeader(int manifestBytes)
+    {
+        byte[] bytes=new byte[64];BinaryPrimitives.WriteUInt64LittleEndian(bytes,OS.Manifest.LinuxElfPackage.Magic);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(8),1);BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(12),1);
+        BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(16),64);BinaryPrimitives.WriteUInt32LittleEndian(bytes.AsSpan(20),(uint)manifestBytes);
+        BinaryPrimitives.WriteUInt64LittleEndian(bytes.AsSpan(24),ClrosElfBytes);return bytes;
+    }
     public static IReadOnlyDictionary<string,string> PackagePins {get;}=new ReadOnlyDictionary<string,string>(new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase)
     {
         ["Microsoft.Data.Sqlite"]=ProviderVersion,["Microsoft.Data.Sqlite.Core"]=ProviderVersion,
