@@ -1,9 +1,13 @@
 # QEMU
 
-The [step1617](../done/step1617.md) final-clock repair has a fresh native
-publication, but no writable QEMU original is admitted by its static receipts.
-The first Mechanical30/LogUpload40 run still follows the callback, stack and
-interrupt review. All earlier failed read/HTTP captures retain their status.
+[Step1618](../done/step1618.md) repairs two writable admission mismatches: the retained descriptor cap now admits the selected70-page arena, and both canonical30/40 packages explicitly request32 descriptors while legacy defaults remain16. Failed originals before EBS and descriptor initialization stay failed. The exact304-site audit and source-bound native delta retain conditional stack/mapping limits; nine source/inventory,19 package,17 selection/transcript and26 source5 framing Fast checks support their named scopes. A copied pinned BCL Write/Verify package contract passes12 Fast checks; instruction-index and execution authority remain false. Original Mechanical30 r04 reaches the mount and worker setup but times out before user-call evidence; it remains failed. Complete Blazor/browser, actual BCL persistence, SQLite durability and continuous service still require full acceptance.
+
+
+The [step1618](../done/step1618.md) development originals preserve three guest
+failures and one pre-publication rejection. Mechanical30 r04 reaches block reads,
+mount binding and worker setup, then times out before user-call evidence. It
+does not pass the complete original consumer. All earlier failed read/HTTP
+captures retain their status.
 
 ## Writable original-run owner (step1616)
 
@@ -11,9 +15,10 @@ The explicit development selection is `-BuildEfi -EnableM16027Probe` with
 `-WritableDiskFixture Mechanical30` or `LogUpload40`, a byte-exact canonical
 package, `-WebRootFixture DiskA`/`DiskB` and confined `-WebRootAssets`. It admits
 120..220guest seconds, defaults180, and preserves the capture allowance. The
-initial fixture uses uncompressed small web assets. This selection compiles;
-its first actual guest is still gated by emitted callback and transitive-stack
-review. Existing read-only/static profiles retain their own admission.
+initial fixture uses uncompressed small web assets. Source-matched development
+boots now exist; complete original-run success and the remaining scoped native
+conditions still precede acceptance. Existing read-only/static profiles retain
+their own admission.
 
 The tool builds a fresh immutable combined boot image and a distinct identity-
 bound `.working.raw`. QEMU boots the immutable image through an overlay and

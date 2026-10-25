@@ -1,5 +1,8 @@
 # Storage
 
+[Step1618](../done/step1618.md) repairs two writable admission mismatches: the retained descriptor cap now admits the selected70-page arena, and both canonical30/40 packages explicitly request32 descriptors while legacy defaults remain16. Failed originals before EBS and descriptor initialization stay failed. The exact304-site audit and source-bound native delta retain conditional stack/mapping limits; nine source/inventory,19 package,17 selection/transcript and26 source5 framing Fast checks support their named scopes. A copied pinned BCL Write/Verify package contract passes12 Fast checks; instruction-index and execution authority remain false. Original Mechanical30 r04 reaches the mount and worker setup but times out before user-call evidence; it remains failed. Complete Blazor/browser, actual BCL persistence, SQLite durability and continuous service still require full acceptance.
+
+
 ## Writable final clock and audit continuation (step1617)
 
 Source `d3c6b005` repairs the final writable END clock. Ordinary network clock
