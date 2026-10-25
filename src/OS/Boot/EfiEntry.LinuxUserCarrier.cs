@@ -46,9 +46,21 @@ public static unsafe partial class EfiEntry
                 return state == original && LinuxUserCarrierMatches(carrier, state) ? carrier : null;
         }
 
+        // Independently check each copied selected admission against the actual
+        // canonical carrier and its whole size, not another copied admission.
+        // Exact context/size still grants no pointee, mapping or code authority.
+        private static bool LinuxUserCarrierCurrent(Storage* state, void* context, ulong bytes)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxUserCarrier* carrier = &s_linuxUserCarrier)
+                return state == original && context == carrier && bytes == (ulong)sizeof(LinuxUserCarrier) &&
+                    LinuxUserCarrierMatches(carrier, state);
+        }
+
         // Identify only either original static address before reading carrier
         // bytes. Exact Storage* is retained for internal native/temporary access
-        // callers; it supplies no authority beyond their existing checks.
+        // callers; recognizing its address cannot establish actual call origin.
+        // A malformed carrier never falls back to its Boot pointer.
         // This pure decoder must not require a published process: startup uses
         // the carrier before LinuxNativeControl or any worker is initialized.
         private static Storage* ResolveLinuxUserCallbackStorage(void* context)
