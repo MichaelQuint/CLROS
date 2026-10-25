@@ -37,6 +37,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static readonly Retain WritableCanRetain = typeof(F).GetMethods(BindingFlags.Static | BindingFlags.NonPublic)
         .Single(m => m.Name == "WritableDiskCanRetainStorage" && m.GetParameters().Length == 3).CreateDelegate<Retain>();
     private static readonly Retain SocketCanRetain = typeof(F).GetMethod("SocketCanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
+    private delegate bool RetainBatch(F.State* state, ReadOnlySpan<ulong> ranges);
+    private static readonly RetainBatch PairedBatch = typeof(F).GetMethod("PairedThreadStorageOutside", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainBatch>();
     private delegate bool Audit(F.State* state);
     private static readonly Audit AuditDisk = typeof(F).GetMethod("AuditDisk", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Audit AuditWritable = typeof(F).GetMethod("AuditWritableDisk", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
@@ -672,6 +674,98 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
 
     private static void CheckSocketAuditSnapshot((ulong Address, byte[] Bytes)[] before)
     { foreach (var range in before) HostCheck.True(range.Bytes.AsSpan().SequenceEqual(new ReadOnlySpan<byte>((void*)range.Address, range.Bytes.Length))); }
+
+    [HostTest("paired thread range batch preserves scalar exclusions malformed bounds and dirty orphan lifetimes without effects")]
+    private static void PairedThreadBatch() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p =>
+        { p.PrepareWritable(); p.AttachPair(false); p.PrepareConnectedTransport(); });
+        string stage = "clean-vectors";
+        try
+        {
+        ulong candidate = (ulong)o.Storage.Output; new Span<byte>((void*)candidate, 128).Fill(0xce);
+        ulong[] valid = [candidate, 16, candidate + 32, 32, candidate + 80, 48];
+        bool Scalar(ReadOnlySpan<ulong> ranges)
+        {
+            for (int i = 0; i < ranges.Length; i += 2)
+                if (ranges[i + 1] != 0 && (!WritableCanRetain(o.Files.State, ranges[i], ranges[i + 1]) ||
+                    !CanRetain(o.Files.State, ranges[i], ranges[i + 1]) || !SocketCanRetain(o.Files.State, ranges[i], ranges[i + 1]))) return false;
+            return true;
+        }
+        void Equivalent(ReadOnlySpan<ulong> ranges, bool expected)
+        { HostCheck.Equal(expected, Scalar(ranges)); HostCheck.Equal(expected, PairedBatch(o.Files.State, ranges)); }
+        void QueriesOnly(Action queries)
+        {
+            var before = o.SocketAuditSnapshot(); uint calls = o.Storage.Device.Hardware->Calls, socketCalls = o.Connection!.Hardware->Calls, writes = o.Thread.Writes;
+            ulong submitted = o.Storage.Block->Submitted, completed = o.Storage.Block->Completed;
+            queries(); CheckSocketAuditSnapshot(before);
+            HostCheck.True(calls == o.Storage.Device.Hardware->Calls && socketCalls == o.Connection.Hardware->Calls && writes == o.Thread.Writes &&
+                submitted == o.Storage.Block->Submitted && completed == o.Storage.Block->Completed &&
+                new ReadOnlySpan<byte>((void*)candidate, 128).IndexOfAnyExcept((byte)0xce) < 0);
+        }
+        QueriesOnly(() =>
+        {
+            Equivalent(valid, true);
+            var aliases = new[] { (ulong)o.Disk, (ulong)o.Storage.Mount, (ulong)o.Storage.Operations[0].Storage.Range,
+                o.Storage.FsExtents().Last().Start, (ulong)o.WriteInput, (ulong)o.Storage.Engine,
+                (ulong)o.Storage.EngineInput.Before, (ulong)o.Storage.Block, (ulong)o.Storage.Device.Data,
+                (ulong)o.Storage.Device.Observation, (ulong)o.Connection!.Hardware };
+            foreach (ulong alias in aliases)
+                for (int position = 0; position < 3; position++)
+                {
+                    ulong[] ranges = [.. valid]; ranges[position * 2] = alias; ranges[position * 2 + 1] = 1;
+                    Equivalent(ranges, false);
+                }
+            Equivalent([0, 0, candidate, 128, ulong.MaxValue, 0], true);
+            HostCheck.True(!PairedBatch(o.Files.State, []) && !PairedBatch(o.Files.State, [candidate]) &&
+                !PairedBatch(o.Files.State, [0, 1]) && !PairedBatch(o.Files.State, [ulong.MaxValue - 7, 16]));
+            int maximumPairs = checked((int)(8 + 9 + 2 * KernelThreadTable.MaximumSlots + 2 * LinuxThreadServices.MaximumThreads));
+            ulong[] maximum = new ulong[maximumPairs * 2]; maximum[^2] = candidate; maximum[^1] = 128;
+            HostCheck.True(PairedBatch(o.Files.State, maximum) && !PairedBatch(o.Files.State, new ulong[maximum.Length + 2]));
+            ref B.Admission block = ref BlockInput(ref *o.Storage.Block); ulong epoch = block.Epoch;
+            try { block.Epoch++; Equivalent(valid, false); }
+            finally { block.Epoch = epoch; }
+            Equivalent(valid, true);
+            ref W.Admission provider = ref ProviderInput(ref *o.Provider); byte* input = provider.Input;
+            try { provider.Input = o.Storage.Operations[0].Storage.Range; Equivalent(valid, false); }
+            finally { provider.Input = input; }
+            Equivalent(valid, true);
+            ref byte phase = ref MountPhase(ref *o.Storage.Mount); byte originalPhase = phase;
+            try { phase = 4; HostCheck.True(o.Storage.Mount->IsRetired); Equivalent(valid, false); }
+            finally { phase = originalPhase; }
+            Equivalent(valid, true);
+        });
+
+        stage = "dirty-submit";
+        uint write = o.WOpen(); var call = o.WriteCall(write, "batchio"u8, 13); var writing = o.WBegin(call);
+        HostCheck.Equal(F.WritableDiskProgress.Pending, writing.Progress);
+        for (int i = 0; i < 100000 && !o.Storage.Engine->Dirty; i++) { o.WPump(); o.CompleteDevice(); }
+        stage = "dirty-issued"; HostCheck.True(o.Storage.Engine->Dirty && o.Storage.Block->SubmittedBytes != 0);
+        stage = "dirty-query";
+        QueriesOnly(() => Equivalent(valid, true));
+        HostCheck.Equal(F.WritableDiskProgress.Ready, o.WReady(writing.Token).Progress);
+        HostCheck.True(o.Storage.Block->CompletedBytes != 0 && o.Storage.Block->DurableBytes == o.Storage.Block->CompletedBytes && !o.Storage.Engine->Dirty);
+        HostCheck.Equal(7L, o.WComplete(writing.Token, call).Value);
+        // Re-enter after an actual mutation/revision change; the earlier call
+        // must not leave a reusable proof or suppress fresh stale-owner checks.
+        stage = "post-mutation-query"; QueriesOnly(() => Equivalent(valid, true));
+
+        stage = "orphan-submit";
+        uint read = o.Open(); var readCall = o.Call(0, read, Output, 7); var reading = o.Begin(readCall); o.WaitPort(reading.Token);
+        var queued = o.WBegin(o.WriteCall(write, "cancelled"u8, 0));
+        var cancelled = F.CancelWritableDisk(o.Files.State, o.OwnerKey, queued.Token, true);
+        HostCheck.True(cancelled.Progress == F.WritableDiskProgress.Draining && cancelled.Value == -4 && !cancelled.Worker.IsValid && o.Storage.Port->RequestActive);
+        stage = "orphan-query"; QueriesOnly(() => Equivalent(valid, true));
+        var drained = o.WPump(); HostCheck.True(drained.Progress == F.WritableDiskProgress.Immediate && drained.Value == -4 && o.Storage.Port->RequestActive);
+        HostCheck.Equal(F.DiskProgress.Ready, o.Ready(reading.Token).Progress); HostCheck.Equal(7L, o.Complete(reading.Token, readCall).Value);
+        QueriesOnly(() => Equivalent(valid, true)); HostCheck.True(F.Audit(o.Files.State) && !o.Thread.Service->Failed);
+        }
+        catch (Exception failure)
+        {
+            Console.WriteLine($"PAIRED_BATCH_BODY_FAILURE stage={stage} dirty={o.Storage.Engine->Dirty} submittedBytes={o.Storage.Block->SubmittedBytes} completedBytes={o.Storage.Block->CompletedBytes} " + failure);
+            throw;
+        }
+    });
 
     [HostTest("socket paired disk candidate admission rejects every retained disk range and changed lifetime without effects")]
     private static void SocketCandidateDiskRanges() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
