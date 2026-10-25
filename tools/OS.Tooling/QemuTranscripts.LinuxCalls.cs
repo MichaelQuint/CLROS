@@ -96,10 +96,34 @@ public static partial class QemuTranscripts
     public static string[] ValidateLinuxDiskCallOrdinals(string[] tail,bool diskStaticFull=false) =>
         ParseLinuxCalls(tail, 2, out _, out _, allowEpoll: true, allowDisk: true,diskStaticFull:diskStaticFull);
 
-    private static string[] ParseLinuxCalls(string[] tail, int required, out LinuxCallWaitObservation[] waits,
-        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false, bool allowDisk = false,bool diskStaticFull=false)
+    /// <summary>Read complete finite writable-disk call suffixes, explicitly
+    /// admitting paired sources0..5. Each nonzero generation/slot identity has
+    /// contiguous ordinals1..4096; source5 requires a nonzero wait sequence and
+    /// zero deadline. Original positions and immutable copied values survive.
+    /// No scheduler, phase, package, fd/output capacity, prepared instruction,
+    /// original process, device or guest authority follows. BEGIN/WAKE and the
+    /// complete original protocol remain independent consumer obligations.</summary>
+    public static (IReadOnlyList<LinuxCallWaitObservation> Waits, IReadOnlyList<LinuxCallReturnObservation> Returns)
+        ReadLinuxWritableDiskCallObservations(string[] tail)
     {
-        Need(tail is not null && (!diskStaticFull || allowDisk && !continuingService),"linux_call_ordinal_input");
+        _ = ParseLinuxCalls(tail, 2, out var waits, out var returns, allowEpoll: true, allowDisk: true, allowWritableDisk: true);
+        return (Array.AsReadOnly(waits), Array.AsReadOnly(returns));
+    }
+
+    /// <summary>Validate only the explicit writable-disk copied call shape,
+    /// including complete wait/return suffixes and finite generation ordinals.
+    /// Return fresh stripped rows without modifying/retaining caller input.
+    /// Unknown other records stay for the complete consumer; no execution,
+    /// scheduler, output-prefix capacity or whole-capture authority is granted.</summary>
+    public static string[] ValidateLinuxWritableDiskCallOrdinals(string[] tail) =>
+        ParseLinuxCalls(tail, 2, out _, out _, allowEpoll: true, allowDisk: true, allowWritableDisk: true);
+
+    private static string[] ParseLinuxCalls(string[] tail, int required, out LinuxCallWaitObservation[] waits,
+        out LinuxCallReturnObservation[] returns, bool allowEpoll, bool continuingService = false, bool allowDisk = false,bool diskStaticFull=false,
+        bool allowWritableDisk=false)
+    {
+        Need(tail is not null && (!diskStaticFull || allowDisk && !continuingService) &&
+            (!allowWritableDisk || allowDisk && allowEpoll && !continuingService && !diskStaticFull && required==2),"linux_call_ordinal_input");
         string[] result=tail!.ToArray(); Dictionary<ulong,ulong> counts=[];
         List<LinuxCallWaitObservation> observations=[];
         List<LinuxCallReturnObservation> returned=[];
@@ -107,7 +131,7 @@ public static partial class QemuTranscripts
         {
             string line=result[i]; if(!line.StartsWith("M16_008_CALL ",StringComparison.Ordinal)) continue;
             const string n="(0|[1-9][0-9]*)";
-            var match=Regex.Match(line,@"\AM16_008_CALL identity=([1-9][0-9]*) .* ordinal=([1-9][0-9]*)(?: waitSource=("+(allowDisk?"[01234]":allowEpoll?"[0123]":"[012]")+") waitDeadline="+n+
+            var match=Regex.Match(line,@"\AM16_008_CALL identity=([1-9][0-9]*) .* ordinal=([1-9][0-9]*)(?: waitSource=("+(allowWritableDisk?"[012345]":allowDisk?"[01234]":allowEpoll?"[0123]":"[012]")+") waitDeadline="+n+
                 " waitSequence="+n+"(?: signalDepth=([0-4]) signalFrame="+n+" blockedSignals="+n+" returnRip="+n+" returnRsp="+n+
                 " returnFlags="+n+" returnFs="+n+" returnGs="+n+" returnValueBits="+n+@")?)?\z",RegexOptions.CultureInvariant);
             Need(match.Success && ulong.TryParse(match.Groups[1].Value,NumberStyles.None,CultureInfo.InvariantCulture,out _) &&
@@ -120,6 +144,15 @@ public static partial class QemuTranscripts
                 !line[..suffix].Contains(" signalDepth=",StringComparison.Ordinal) &&
                 !line[..suffix].Contains(" returnRip=",StringComparison.Ordinal),"linux_call_ordinal_shape");
             ulong identity=Number(match.Groups[1].Value), ordinal=Number(match.Groups[2].Value);
+            if(allowWritableDisk)
+            {
+                Need((identity>>32)!=0 && (uint)identity!=0,"linux_call_ordinal_generation");
+                string prefix=line[..suffix];
+                Need(!prefix.Contains(" signalFrame=",StringComparison.Ordinal) && !prefix.Contains(" blockedSignals=",StringComparison.Ordinal) &&
+                    !prefix.Contains(" returnRsp=",StringComparison.Ordinal) && !prefix.Contains(" returnFlags=",StringComparison.Ordinal) &&
+                    !prefix.Contains(" returnFs=",StringComparison.Ordinal) && !prefix.Contains(" returnGs=",StringComparison.Ordinal) &&
+                    !prefix.Contains(" returnValueBits=",StringComparison.Ordinal) && !prefix.Contains(" outputPrefix=",StringComparison.Ordinal),"linux_call_ordinal_shape");
+            }
             counts.TryGetValue(identity,out ulong previous);
             Need(previous!=ulong.MaxValue && ordinal==previous+1 && (continuingService || ordinal<=(diskStaticFull?OS.Kernel.Compatibility.LinuxX64.DiskStaticExecutionPolicy.MaximumCalls:4096)),"linux_call_ordinal_continuity"); counts[identity]=ordinal;
             bool present=match.Groups[3].Success;

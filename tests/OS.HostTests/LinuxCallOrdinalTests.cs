@@ -138,6 +138,110 @@ internal static class LinuxCallOrdinalTests
         HostCheck.Equal(3U, QemuTranscripts.ReadLinuxDiskCallObservations([epoll]).Waits[0].Source);
     }
 
+    private const string WritablePrefix = "M16_008_CALL identity=4294967297 nr=17 ordinal=1 waitSource=5 waitDeadline=0 waitSequence=9";
+
+    [HostTest("writable disk call observations explicitly copy paired sources zero through five with independent generation ordinals")]
+    private static void WritableObservations()
+    {
+        string[] rows = ["header", WritablePrefix + DiskReturn,
+            "M16_008_CALL identity=4294967298 nr=4 ordinal=1 waitSource=4 waitDeadline=0 waitSequence=8" + DiskReturn,
+            "M16_008_CALL identity=4294967297 nr=281 ordinal=2 waitSource=3 waitDeadline=100 waitSequence=10" + DiskReturn,
+            "M16_008_CALL identity=8589934594 nr=202 ordinal=1 waitSource=1 waitDeadline=1050 waitSequence=1" + DiskReturn,
+            "M16_008_CALL identity=4294967298 nr=0 ordinal=2 waitSource=2 waitDeadline=0 waitSequence=2" + DiskReturn,
+            "M16_008_CALL identity=4294967297 nr=39 ordinal=3 waitSource=0 waitDeadline=0 waitSequence=0" + DiskReturn];
+        string[] before = (string[])rows.Clone(); var parsed = QemuTranscripts.ReadLinuxWritableDiskCallObservations(rows);
+        HostCheck.Equal(new QemuTranscripts.LinuxCallWaitObservation(1, 4294967297, 1, 5, 0, 9), parsed.Waits[0]);
+        HostCheck.True(parsed.Waits.Count == 6 && parsed.Returns.Count == 6 &&
+            parsed.Waits.Select(value => value.Source).SequenceEqual(new uint[] { 5, 4, 3, 1, 2, 0 }) &&
+            parsed.Waits[3].Identity == 8589934594 && parsed.Waits[3].Ordinal == 1 && parsed.Waits[4].Ordinal == 2 &&
+            parsed.Returns[0].RecordIndex == 1 && parsed.Returns[5].RecordIndex == 6 && parsed.Returns[0].Rip == 4194818);
+        var stripped = QemuTranscripts.ValidateLinuxWritableDiskCallOrdinals(rows);
+        HostCheck.True(stripped[0] == "header" && stripped[1] == "M16_008_CALL identity=4294967297 nr=17" &&
+            stripped[6] == "M16_008_CALL identity=4294967297 nr=39" && rows.SequenceEqual(before));
+        Array.Fill(rows, "changed"); stripped[1] = "changed";
+        HostCheck.True(parsed.Waits[0].Sequence == 9 && parsed.Returns[0].Rsp == 1879048176 &&
+            parsed.Waits is not QemuTranscripts.LinuxCallWaitObservation[] && parsed.Returns is not QemuTranscripts.LinuxCallReturnObservation[]);
+        if (parsed.Waits is IList<QemuTranscripts.LinuxCallWaitObservation> waits)
+        { bool denied = false; try { waits[0] = default; } catch (NotSupportedException) { denied = true; } HostCheck.True(denied); }
+        if (parsed.Returns is IList<QemuTranscripts.LinuxCallReturnObservation> returns)
+        { bool denied = false; try { returns[0] = default; } catch (NotSupportedException) { denied = true; } HostCheck.True(denied); }
+    }
+
+    [HostTest("writable source five never broadens default runtime service epoll or readonly disk call readers")]
+    private static void WritableRequiresExplicitReader()
+    {
+        string[] rows = [WritablePrefix + DiskReturn];
+        foreach (Action historical in new Action[] {
+            () => QemuTranscripts.ValidateLinuxCallOrdinals(rows), () => QemuTranscripts.ValidateLinuxCallOrdinals(rows, true),
+            () => QemuTranscripts.ReadLinuxCallWaits(rows), () => QemuTranscripts.ReadLinuxCallWaits(rows, true),
+            () => QemuTranscripts.ReadLinuxCallReturns(rows), () => QemuTranscripts.ReadLinuxCallReturns(rows, true),
+            () => QemuTranscripts.ValidateLinuxServiceCallOrdinals(rows), () => QemuTranscripts.ReadLinuxServiceCallWaits(rows),
+            () => QemuTranscripts.ReadLinuxServiceCallReturns(rows), () => QemuTranscripts.ReadLinuxDiskCallObservations(rows),
+            () => QemuTranscripts.ReadLinuxDiskCallObservations(rows, true), () => QemuTranscripts.ValidateLinuxDiskCallOrdinals(rows),
+            () => QemuTranscripts.ValidateLinuxDiskCallOrdinals(rows, true) }) RejectAction(historical);
+        RejectWritable([rows[0].Replace("waitSource=5", "waitSource=6", StringComparison.Ordinal)]);
+        string source4 = rows[0].Replace("waitSource=5", "waitSource=4", StringComparison.Ordinal);
+        HostCheck.Equal(QemuTranscripts.ReadLinuxDiskCallObservations([source4]).Waits[0],
+            QemuTranscripts.ReadLinuxWritableDiskCallObservations([source4]).Waits[0]);
+    }
+
+    [HostTest("writable call suffix rejects invalid generations partial pairs forged output prefix bad decimals and reordered observations")]
+    private static void WritableFailures()
+    {
+        string row = WritablePrefix + DiskReturn;
+        foreach (var mutation in new (string Before, string After)[] {
+            ("waitSource=5", "waitSource=05"), ("waitSource=5", "waitSource=-1"),
+            ("waitSequence=9", "waitSequence=0"), ("waitSequence=9", "waitSequence=09"),
+            ("waitSequence=9", "waitSequence=18446744073709551616"),
+            ("waitDeadline=0", "waitDeadline=1"), ("waitDeadline=0", "waitDeadline=00"),
+            ("waitDeadline=0", "waitDeadline=-1"), ("waitDeadline=0", "waitDeadline=9223372036854775808"),
+            ("identity=4294967297", "identity=1"), ("identity=4294967297", "identity=4294967296"),
+            ("identity=4294967297", "identity=0"), ("identity=4294967297", "identity=04294967297"),
+            ("identity=4294967297", "identity=18446744073709551616"),
+            ("ordinal=1", "ordinal=0"), ("ordinal=1", "ordinal=01"), ("ordinal=1", "ordinal=2"),
+            ("ordinal=1", "ordinal=18446744073709551616"),
+            ("signalDepth=0", "signalDepth=1"), ("signalDepth=0", "signalDepth=5"),
+            ("returnRip=4194818", "returnRip=04194818"), ("returnValueBits=0", "returnValueBits=18446744073709551616") })
+            RejectWritable([row.Replace(mutation.Before, mutation.After, StringComparison.Ordinal)]);
+        foreach (string partial in new[] { WritablePrefix, "M16_008_CALL identity=4294967297 nr=17 ordinal=1",
+            WritablePrefix[..WritablePrefix.IndexOf(" waitSequence=", StringComparison.Ordinal)],
+            row.Replace(" returnRsp=1879048176", "", StringComparison.Ordinal), row + " extra", row + " waitSource=5",
+            row.Replace(" ordinal=1", " ordinal=1 ordinal=1", StringComparison.Ordinal),
+            row.Replace(" waitSource=5", " waitSource=5 waitSource=5", StringComparison.Ordinal) }) RejectWritable([partial]);
+        // CALL has no outputPrefix field. Capacity belongs to the later
+        // authenticated BEGIN/WAKE owner, never to these copied suffix values.
+        foreach (string field in new[] { "waitSource", "waitDeadline", "waitSequence", "signalDepth", "signalFrame", "blockedSignals",
+            "returnRip", "returnRsp", "returnFlags", "returnFs", "returnGs", "returnValueBits", "outputPrefix" })
+            RejectWritable([row.Replace(" ordinal=1", " " + field + "=0 ordinal=1", StringComparison.Ordinal)]);
+        RejectWritable([row + " outputPrefix=8193"]);
+        RejectWritable([row, row]);
+        RejectWritable([row, row.Replace("ordinal=1", "ordinal=3", StringComparison.Ordinal)]);
+        RejectWritable([row.Replace("ordinal=1", "ordinal=2", StringComparison.Ordinal), row]);
+        RejectAction(() => QemuTranscripts.ReadLinuxWritableDiskCallObservations(null!));
+        RejectAction(() => QemuTranscripts.ValidateLinuxWritableDiskCallOrdinals(null!));
+    }
+
+    [HostTest("writable call ordinals retain the finite4096 limit independently for each complete generation")]
+    private static void WritableFiniteLimit()
+    {
+        string[] rows = Enumerable.Range(1, 4096).Select(ordinal =>
+            "M16_008_CALL identity=4294967297 nr=17 ordinal=" + ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+            " waitSource=5 waitDeadline=0 waitSequence=" + ordinal.ToString(System.Globalization.CultureInfo.InvariantCulture) + DiskReturn).ToArray();
+        var parsed = QemuTranscripts.ReadLinuxWritableDiskCallObservations(rows);
+        HostCheck.True(parsed.Waits.Count == 4096 && parsed.Waits[^1].Ordinal == 4096 && parsed.Waits[^1].Sequence == 4096 &&
+            QemuTranscripts.ValidateLinuxWritableDiskCallOrdinals(rows).Length == rows.Length);
+        RejectWritable(rows.Append(rows[^1].Replace("ordinal=4096", "ordinal=4097", StringComparison.Ordinal)).ToArray());
+        string next = rows[0].Replace("identity=4294967297", "identity=8589934593", StringComparison.Ordinal);
+        var generations = QemuTranscripts.ReadLinuxWritableDiskCallObservations(rows.Append(next).ToArray());
+        HostCheck.True(generations.Waits.Count == 4097 && generations.Waits[^1].Identity == 8589934593 && generations.Waits[^1].Ordinal == 1);
+    }
+
+    private static void RejectWritable(string[] rows)
+    {
+        RejectAction(() => QemuTranscripts.ReadLinuxWritableDiskCallObservations(rows));
+        RejectAction(() => QemuTranscripts.ValidateLinuxWritableDiskCallOrdinals(rows));
+    }
+
     private static void RejectAction(Action action)
     { bool rejected = false; try { action(); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
 }
