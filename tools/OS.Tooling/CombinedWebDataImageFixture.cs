@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using OS.Std.Hash;
 using OS.Storage;
+using OS.Tooling.Native;
 using DataImage = OS.Tooling.WritableDataImageFixture;
 using Gpt = OS.Storage.PrimaryGPTIndependentlyBoundsCRC;
 
@@ -92,6 +93,123 @@ public static class CombinedWebDataImageFixture
         public string OriginalDataSha256 { get; }
         public Inspection Image { get; }
         public byte[] CopyJson() => (byte[])json.Clone();
+    }
+
+    /// <summary>A mutable working image with separately held immutable image,
+    /// receipt, EFI and package inputs. One exclusive builder/actual runner
+    /// owns its use. The working handle permits read/write sharing, denies
+    /// delete sharing on Windows, and anchors the initial file identity until
+    /// Dispose; Unix replacement is detected when explicitly checked. These
+    /// boundary checks are not an atomic execution or TOCTOU proof. Joining
+    /// the actual child and qualifying the eventual modified image remain the
+    /// runner's responsibility. No process, device or durability authority is
+    /// supplied; Dispose releases handles without deleting any file.</summary>
+    public sealed class WorkingImage : IDisposable
+    {
+        private readonly AuthorityFiles originals;
+        private readonly FileStream working;
+        private readonly string root;
+        private bool disposed;
+
+        internal WorkingImage(string root, AuthorityFiles originals, FileStream working,
+            string path, string originalImage, string originalReceipt, string efi, string package)
+        {
+            this.root = root; this.originals = originals; this.working = working;
+            Path = path; OriginalImagePath = originalImage; OriginalReceiptPath = originalReceipt;
+            EfiPath = efi; PackagePath = package;
+            IdentityKey = NativeFile.GetIdentity(working.SafeFileHandle).Key;
+            working.Position = 0; InitialSha256 = Convert.ToHexString(SHA256.HashData(working)); working.Position = 0;
+        }
+
+        public string Path { get; }
+        public string OriginalImagePath { get; }
+        public string OriginalReceiptPath { get; }
+        public string EfiPath { get; }
+        public string PackagePath { get; }
+        public string IdentityKey { get; }
+        public string InitialSha256 { get; }
+        public long Length => ImageBytes;
+
+        /// <summary>Recheck every immutable input and the working pathname,
+        /// retained handle, single link and fixed length. Intentionally does
+        /// not require current working bytes to equal the initial bytes.
+        /// Call only at serialized boundaries; concurrent writers and eventual
+        /// modified-image inspection are external responsibilities. Throws on
+        /// revocation or after Dispose and performs no child or device work.</summary>
+        public void VerifyOriginalsAndWorkingIdentity()
+        {
+            Need(!disposed, "working_disposed"); originals.VerifyUnchanged();
+            AuthorityFiles.RequirePlainPath(root, Path, "combined_image_working_path");
+            try
+            {
+                var retained = NativeFile.GetIdentity(working.SafeFileHandle);
+                using FileStream probe = new(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                var named = NativeFile.GetIdentity(probe.SafeFileHandle);
+                Need(retained.Key == IdentityKey && named.Key == IdentityKey &&
+                    retained.LinkCount == 1 && named.LinkCount == 1 &&
+                    retained.Length == ImageBytes && named.Length == ImageBytes, "working_identity");
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+            { throw new ToolFailure("combined_image_working_identity", "type=" + error.GetType().Name); }
+            originals.VerifyUnchanged();
+        }
+
+        public void Dispose()
+        {
+            if (disposed) return;
+            disposed = true;
+            try { working.Dispose(); } finally { originals.Dispose(); }
+        }
+    }
+
+    /// <summary>Copy an independently verified combined image into a fresh
+    /// plain artifacts file. The exact canonical receipt and EFI/package bytes
+    /// must match the image's independent extraction and remain held unchanged
+    /// for the returned lease. The CreateNew handle stays open through initial
+    /// copy/hash/identity checks and permits later writable opens. The caller
+    /// must exclude other writers until this method returns and subsequently
+    /// own the actual runner and joined modified-image inspection. Failure
+    /// releases all handles; an already created candidate is retained rather
+    /// than deleting a possibly substituted pathname. No unchanged-content
+    /// hold is installed on the mutable destination, and no execution, flush
+    /// completion, persistence or atomic handoff claim is made.</summary>
+    public static WorkingImage CloneForWrite(string repositoryRoot, string originalImagePath,
+        string originalReceiptPath, Receipt expected, string efiPath, string packagePath, string destinationPath)
+    {
+        ArgumentNullException.ThrowIfNull(expected);
+        string root = Path.GetFullPath(repositoryRoot), output = Path.GetFullPath(destinationPath);
+        ValidateOutput(root, output);
+        AuthorityFiles inputs = new(); FileStream? working = null;
+        try
+        {
+            var image = inputs.Open(root, originalImagePath, "original combined image", "combined_clone_input", ImageBytes, singleLink: true);
+            byte[] receipt = expected.CopyJson();
+            var proof = inputs.Open(root, originalReceiptPath, "original combined receipt", "combined_clone_receipt", receipt.Length, singleLink: true);
+            var efi = inputs.Open(root, efiPath, "original combined EFI", "combined_clone_efi", ImageBytes, singleLink: true);
+            var package = inputs.Open(root, packagePath, "original combined package", "combined_clone_package", ImageBytes, singleLink: true);
+            AuthorityFiles.RequireDistinct(image, proof, efi, package);
+            Need(image.Length == ImageBytes && image.Sha256.Equals(expected.Image.RawSha256, StringComparison.OrdinalIgnoreCase) &&
+                proof.ReadBytes(receipt.Length, "combined_clone_receipt").AsSpan().SequenceEqual(receipt), "clone_receipt");
+            Inspection actual = Verify(image.Path, expected);
+            bool Matches(AuthorityFile file, string guest) => actual.WebFiles.SingleOrDefault(x => x.Path == guest) is { } entry &&
+                entry.Bytes == (ulong)file.Length && entry.Sha256.Equals(file.Sha256, StringComparison.OrdinalIgnoreCase);
+            Need(Matches(efi, "/EFI/BOOT/BOOTX64.EFI") && Matches(package, "/OS/APP.PKG"), "clone_preserved_inputs");
+            byte[] bytes = image.ReadBytes(ImageBytes, "combined_clone_input");
+            inputs.VerifyUnchanged();
+            string parent = Path.GetDirectoryName(output)!;
+            EfiBuildFiles.InitializeDirectory(parent, "combined_image_working_path");
+            ValidateOutput(root, output);
+            working = new(output, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite, 65536, FileOptions.SequentialScan);
+            var created = NativeFile.GetIdentity(working.SafeFileHandle);
+            Need(created.Length == 0 && created.LinkCount == 1 &&
+                new[] { image, proof, efi, package }.All(file => file.InitialIdentity.Key != created.Key), "working_identity");
+            working.Write(bytes); working.Flush(true);
+            WorkingImage result = new(root, inputs, working, output, image.Path, proof.Path, efi.Path, package.Path);
+            Need(result.IdentityKey == created.Key && result.InitialSha256.Equals(image.Sha256, StringComparison.OrdinalIgnoreCase), "working_initial_bytes");
+            result.VerifyOriginalsAndWorkingIdentity();
+            working = null; return result;
+        }
+        catch { working?.Dispose(); inputs.Dispose(); throw; }
     }
 
     /// <summary>Hold exact original inputs read-only, independently inspect

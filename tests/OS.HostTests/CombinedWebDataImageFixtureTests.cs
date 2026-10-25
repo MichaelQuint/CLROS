@@ -5,6 +5,7 @@ using System.Text.Json;
 using OS.Std.Hash;
 using OS.Storage;
 using OS.Tooling;
+using OS.Tooling.Native;
 using Image = OS.Tooling.CombinedWebDataImageFixture;
 using Data = OS.Tooling.WritableDataImageFixture;
 using B = OS.Storage.WritableBlockSession;
@@ -13,6 +14,121 @@ using K = OS.Storage.ContinuingFat32Bootstrap;
 // Pure host image and fake-media controls; no native/guest/persistence authority.
 internal static unsafe class CombinedWebDataImageFixtureTests
 {
+    [HostTest("combined mutable working clone holds all original bytes while permitting separate writable image opens", HostLane.Fast)]
+    private static void MutableWorkingClone() => WithImage((root, folder, _, _, original, receipt) =>
+    {
+        string proof = Path.Combine(folder, "combined.json"), efi = Path.Combine(folder, "BOOTX64.EFI"), package = Path.Combine(folder, "APP.PKG");
+        File.WriteAllBytes(proof, receipt.CopyJson()); string output = Path.Combine(folder, "working.raw");
+        var fragment = receipt.Image.Data.Find("FRAG.BIN")!; ulong offset = fragment.Extents[0].FirstLba * 512;
+        byte changed;
+        using (var working = Image.CloneForWrite(root, original, proof, receipt, efi, package, output))
+        {
+            // The existing fixture folder contains a literal slash; the lease
+            // intentionally returns canonical full host paths.
+            HostCheck.Equal(Path.GetFullPath(output), working.Path);
+            HostCheck.Equal(Path.GetFullPath(original), working.OriginalImagePath);
+            HostCheck.Equal(Path.GetFullPath(proof), working.OriginalReceiptPath);
+            HostCheck.Equal(Path.GetFullPath(efi), working.EfiPath);
+            HostCheck.Equal(Path.GetFullPath(package), working.PackagePath);
+            HostCheck.Equal((long)Image.ImageBytes, working.Length);
+            HostCheck.Equal(receipt.Image.RawSha256, working.InitialSha256);
+            HostCheck.Equal(FileHash(original), FileHashShared(output));
+            using var source = new FileStream(original, FileMode.Open, FileAccess.Read, FileShare.Read);
+            HostCheck.True(NativeFile.GetIdentity(source.SafeFileHandle).Key != working.IdentityKey);
+            using (var writer = new FileStream(output, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+            {
+                writer.Position = checked((long)offset); int prior = writer.ReadByte(); HostCheck.True(prior >= 0);
+                changed = (byte)(prior ^ 0x5a); writer.Position = checked((long)offset); writer.WriteByte(changed); writer.Flush(true);
+            }
+            working.VerifyOriginalsAndWorkingIdentity();
+            HostCheck.True(FileHashShared(output) != working.InitialSha256 && FileHash(original) == receipt.Image.RawSha256 &&
+                File.ReadAllBytes(proof).AsSpan().SequenceEqual(receipt.CopyJson()));
+        }
+        // Reopen independently only after the mutable owner is released. This
+        // extraction is not approval of the changed file or any child/device.
+        var after = Image.Inspect(output);
+        HostCheck.True(after.Data.Find("FRAG.BIN")!.CopyBytes()[0] == changed &&
+            after.WebPartitionSha256 == receipt.Image.WebPartitionSha256 && after.RawSha256 != receipt.Image.RawSha256);
+        Image.Verify(original, receipt);
+    });
+
+    [HostTest("combined working clone joins actual original receipt EFI package and raw image before creating a destination", HostLane.Fast)]
+    private static void WorkingCloneInputJoins() => WithImage((root, folder, _, _, original, receipt) =>
+    {
+        string proof = Path.Combine(folder, "combined.json"), efi = Path.Combine(folder, "BOOTX64.EFI"), package = Path.Combine(folder, "APP.PKG");
+        byte[] json = receipt.CopyJson(); File.WriteAllBytes(proof, json);
+        string output = Path.Combine(folder, "not-created.raw"), badProof = Path.Combine(folder, "bad.json");
+        byte[] invalid = receipt.CopyJson(); invalid[0] ^= 1; File.WriteAllBytes(badProof, invalid);
+        Reject(() => Image.CloneForWrite(root, original, badProof, receipt, efi, package, output), "combined_image_clone_receipt");
+        string badEfi = Path.Combine(folder, "bad.efi"), badPackage = Path.Combine(folder, "bad.pkg");
+        byte[] efiBytes = File.ReadAllBytes(efi), packageBytes = File.ReadAllBytes(package);
+        efiBytes[0] ^= 1; packageBytes[^1] ^= 1; File.WriteAllBytes(badEfi, efiBytes); File.WriteAllBytes(badPackage, packageBytes);
+        Reject(() => Image.CloneForWrite(root, original, proof, receipt, badEfi, package, output), "combined_image_clone_preserved_inputs");
+        Reject(() => Image.CloneForWrite(root, original, proof, receipt, efi, badPackage, output), "combined_image_clone_preserved_inputs");
+        string badImage = Path.Combine(folder, "bad-original.raw"); File.Copy(original, badImage);
+        using (var change = File.OpenWrite(badImage)) { change.Position = Image.ImageBytes - 34 * 512; change.WriteByte(0x91); }
+        Reject(() => Image.CloneForWrite(root, badImage, proof, receipt, efi, package, output), "combined_image_clone_receipt");
+        HostCheck.True(!File.Exists(output) && File.ReadAllBytes(proof).AsSpan().SequenceEqual(json));
+        Image.Verify(original, receipt);
+    });
+
+    [HostTest("combined working clone rejects existing source alias outside artifacts and redirected destination paths", HostLane.Fast)]
+    private static void WorkingClonePathSafety() => WithImage((root, folder, _, _, original, receipt) =>
+    {
+        string proof = Path.Combine(folder, "combined.json"), efi = Path.Combine(folder, "BOOTX64.EFI"), package = Path.Combine(folder, "APP.PKG");
+        File.WriteAllBytes(proof, receipt.CopyJson());
+        Image.WorkingImage Clone(string path) => Image.CloneForWrite(root, original, proof, receipt, efi, package, path);
+        foreach (string existing in new[] { original, proof, efi, package, folder })
+            Reject(() => Clone(existing), "combined_image_output_path");
+        Reject(() => Clone(Path.Combine(root, "not-artifacts.raw")), "combined_image_output_path");
+        string target = Path.Combine(folder, "target"), redirect = Path.Combine(folder, "redirect"); Directory.CreateDirectory(target);
+        if (OperatingSystem.IsWindows()) TestJunction.Create(redirect, target);
+        else Directory.CreateSymbolicLink(redirect, target);
+        try { Reject(() => Clone(Path.Combine(redirect, "never.raw")), "combined_output_path"); }
+        finally { Directory.Delete(redirect); }
+        HostCheck.True(!File.Exists(Path.Combine(target, "never.raw"))); Image.Verify(original, receipt);
+    });
+
+    [HostTest("combined working clone retains distinct identities and rejects same bytes replacement and changed length until disposal", HostLane.Fast)]
+    private static void WorkingCloneLifetime() => WithImage((root, folder, _, _, original, receipt) =>
+    {
+        string proof = Path.Combine(folder, "combined.json"), efi = Path.Combine(folder, "BOOTX64.EFI"), package = Path.Combine(folder, "APP.PKG");
+        File.WriteAllBytes(proof, receipt.CopyJson());
+        using var first = Image.CloneForWrite(root, original, proof, receipt, efi, package, Path.Combine(folder, "working-a.raw"));
+        using var second = Image.CloneForWrite(root, original, proof, receipt, efi, package, Path.Combine(folder, "working-b.raw"));
+        HostCheck.True(first.IdentityKey != second.IdentityKey && first.InitialSha256 == second.InitialSha256 &&
+            FileHashShared(first.Path) == FileHashShared(second.Path));
+        foreach (string held in new[] { original, proof, efi, package })
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                bool denied = false;
+                try { using var forbidden = new FileStream(held, FileMode.Open, FileAccess.Write, FileShare.ReadWrite); }
+                catch (IOException) { denied = true; }
+                HostCheck.True(denied, "immutable input must reject a writable Windows open");
+            }
+            ReplaceSameBytes(held, first.VerifyOriginalsAndWorkingIdentity, "authority_input_changed");
+        }
+        ReplaceSameBytes(first.Path, first.VerifyOriginalsAndWorkingIdentity, "combined_image_working_identity");
+        using (var writer = new FileStream(first.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) writer.SetLength(Image.ImageBytes - 512);
+        Reject(first.VerifyOriginalsAndWorkingIdentity, "combined_image_working_identity");
+        using (var writer = new FileStream(first.Path, FileMode.Open, FileAccess.Write, FileShare.ReadWrite)) writer.SetLength(Image.ImageBytes);
+        first.VerifyOriginalsAndWorkingIdentity(); first.Dispose(); first.Dispose();
+        Reject(first.VerifyOriginalsAndWorkingIdentity, "combined_image_working_disposed");
+        second.VerifyOriginalsAndWorkingIdentity();
+
+        static void ReplaceSameBytes(string path, Action verify, string reason)
+        {
+            string saved = path + ".saved"; bool renamed = false;
+            try { File.Move(path, saved); renamed = true; }
+            catch (IOException) when (OperatingSystem.IsWindows()) { verify(); }
+            if (!renamed) return;
+            try { File.Copy(saved, path); Reject(verify, reason); }
+            finally { File.Delete(path); File.Move(saved, path); }
+            verify();
+        }
+    });
+
     [HostTest("combined r13-sized synthetic web boot package and writable seeds repeat deterministically and independently extract from a cold copy", HostLane.Fast)]
     private static void LargeFootprintColdCopy() => WebRootImageFixtureTests.WithImage((root, folder, _, source) =>
     {
@@ -222,6 +338,7 @@ internal static unsafe class CombinedWebDataImageFixtureTests
     private static void HeaderCrc(byte[] raw, int offset) { W32(raw, offset + 16, 0); W32(raw, offset + 16, Crc32.Compute(raw.AsSpan(offset, 92))); }
     private static string Hash(ReadOnlySpan<byte> raw) => Convert.ToHexString(SHA256.HashData(raw));
     private static string FileHash(string path) { using var stream = File.OpenRead(path); return Convert.ToHexString(SHA256.HashData(stream)); }
+    private static string FileHashShared(string path) { using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite); return Convert.ToHexString(SHA256.HashData(stream)); }
     private static uint U32(ReadOnlySpan<byte> raw, int offset) => BinaryPrimitives.ReadUInt32LittleEndian(raw.Slice(offset, 4));
     private static ulong U64(ReadOnlySpan<byte> raw, int offset) => BinaryPrimitives.ReadUInt64LittleEndian(raw.Slice(offset, 8));
     private static void W32(Span<byte> raw, int offset, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(raw.Slice(offset, 4), value);
