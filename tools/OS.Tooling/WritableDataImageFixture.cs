@@ -66,15 +66,25 @@ public static class WritableDataImageFixture
     public sealed class Inspection
     {
         internal Inspection(string rawHash, string[] structures, uint free, uint hint,
-            uint[] root, uint[] candidates, Entry[] files)
+            uint[] root, uint[] candidates, Entry[] files, uint first = PartitionFirstLba, bool checkedGpt = true)
         {
             RawSha256 = rawHash; StructureHashes = Array.AsReadOnly(structures);
             FreeClusters = free; FsInfoHint = hint; RootClusters = Array.AsReadOnly(root);
             FreeCandidates = Array.AsReadOnly(candidates); Files = Array.AsReadOnly(files);
+            FirstLba = first; LastLba = checked(first + PartitionLastLba - PartitionFirstLba);
+            FirstFatSector = first + ReservedSectors; FirstDataSector = FirstFatSector + 2 * FatSectors;
+            CheckedGpt = checkedGpt;
         }
         public string RawSha256 { get; }
+        public uint FirstLba { get; }
+        public uint LastLba { get; }
+        public uint FirstFatSector { get; }
+        public uint FirstDataSector { get; }
+        /// <summary>True only for the original strict64MiB whole-disk inspection.
+        /// InspectPartition validates the actual FAT body, not its caller's GPT selection.</summary>
+        public bool CheckedGpt { get; }
         /// <summary>Hashes ordered: primary GPT header, backup header, entries,
-        /// BPB, FSInfo, FAT0, FAT1. Their geometry is fixed by this fixture.</summary>
+        /// BPB, FSInfo, FAT0, FAT1. GPT hashes alone are not GPT validation.</summary>
         public ReadOnlyCollection<string> StructureHashes { get; }
         public uint FreeClusters { get; }
         public uint FsInfoHint { get; }
@@ -183,6 +193,21 @@ public static class WritableDataImageFixture
     {
         Need(image.Length == ImageBytes, "size");
         return new Reader(image.ToArray()).Read();
+    }
+
+    /// <summary>Synchronously borrow stable raw bytes and independently inspect
+    /// this fixture's FAT32 body at actual relocated bounds. The fixed partition
+    /// length, SPC1/FAT993 geometry, HiddenSectors, backups, full FAT allocation,
+    /// root and all file bytes are checked. All returned offsets/extents refer
+    /// to the actual image, never a synthetic projected disk. The caller must
+    /// authenticate GPT selection separately; CheckedGpt is false. At most256MiB
+    /// is copied; old Inspect and its64MiB receipt format remain unchanged.</summary>
+    public static Inspection InspectPartition(ReadOnlySpan<byte> image, ulong firstLba, ulong lastLba)
+    {
+        Need(image.Length is >= ImageBytes and <= WebRootImageFixture.MaximumImageBytes && image.Length % 512 == 0 &&
+            firstLba >= 34 && firstLba <= uint.MaxValue && lastLba >= firstLba && lastLba < (ulong)image.Length / 512 &&
+            lastLba - firstLba == PartitionLastLba - PartitionFirstLba, "partition_bounds");
+        return new Reader(image.ToArray(), (uint)firstLba).ReadPartition();
     }
 
     /// <summary>Independently reread and compare exact raw-image identity and
@@ -335,12 +360,14 @@ public static class WritableDataImageFixture
         W32(header, 88, entriesCrc); W32(header, 16, Crc32.Compute(header[..92]));
     }
 
-    private sealed class Reader(byte[] disk)
+    private sealed class Reader(byte[] disk, uint first = PartitionFirstLba)
     {
         private readonly HashSet<uint> claimed = [];
         private LiveFat32Volume volume;
         private readonly List<Entry> files = [];
         private readonly HashSet<string> names = new(StringComparer.OrdinalIgnoreCase);
+        private readonly uint last = checked(first + PartitionLastLba - PartitionFirstLba);
+        private readonly uint firstFat = first + ReservedSectors, firstData = first + ReservedSectors + 2 * FatSectors;
         private int extracted;
 
         public Inspection Read()
@@ -351,15 +378,20 @@ public static class WritableDataImageFixture
             var primary = Gpt(false); var backup = Gpt(true);
             Need(primary.FirstUsableLba == backup.FirstUsableLba && primary.LastUsableLba == backup.LastUsableLba &&
                 primary.DiskGuid == backup.DiskGuid && disk.AsSpan(1024, 16384).SequenceEqual(disk.AsSpan((int)(Sectors - 33) * 512, 16384)), "gpt_copies");
-            Span<byte> boot = disk.AsSpan((int)PartitionFirstLba * 512, 512);
-            Need(FATClusterChainsLoopBadClusterTruncationDetection.ParseBpb(boot, Sectors, PartitionFirstLba, PartitionLastLba, Complete, ref volume) == LiveFat32Status.Success &&
+            return ReadPartition(checkedGpt: true);
+        }
+
+        public Inspection ReadPartition(bool checkedGpt = false)
+        {
+            Span<byte> boot = disk.AsSpan(checked((int)first * 512), 512);
+            Need(FATClusterChainsLoopBadClusterTruncationDetection.ParseBpb(boot, (ulong)disk.Length / 512, first, last, Complete, ref volume) == LiveFat32Status.Success &&
                 volume.RootCluster == 2 && volume.ReservedSectors == ReservedSectors && volume.FatSectors == FatSectors &&
-                volume.SectorsPerCluster == 1 && volume.ClusterCount == ClusterCount && volume.TotalSectors == PartitionLastLba - PartitionFirstLba + 1 &&
-                volume.FirstFatLba == FirstFatLba && volume.FirstDataLba == FirstDataLba && U32(boot, 28) == PartitionFirstLba &&
+                volume.SectorsPerCluster == 1 && volume.ClusterCount == ClusterCount && volume.TotalSectors == last - first + 1 &&
+                volume.FirstFatLba == firstFat && volume.FirstDataLba == firstData && U32(boot, 28) == first &&
                 U16(boot, 48) == 1 && U16(boot, 50) == 6, "bpb");
-            Need(boot.SequenceEqual(disk.AsSpan(((int)PartitionFirstLba + 6) * 512, 512)), "boot_backup");
-            Span<byte> fat = disk.AsSpan((int)FirstFatLba * 512, (int)FatSectors * 512);
-            Span<byte> fat1 = disk.AsSpan(((int)FirstFatLba + (int)FatSectors) * 512, fat.Length);
+            Need(boot.SequenceEqual(disk.AsSpan(checked(((int)first + 6) * 512), 512)), "boot_backup");
+            Span<byte> fat = disk.AsSpan(checked((int)firstFat * 512), (int)FatSectors * 512);
+            Span<byte> fat1 = disk.AsSpan(checked(((int)firstFat + (int)FatSectors) * 512), fat.Length);
             Need(fat.SequenceEqual(fat1), "fat_mirror");
             Need(U32(fat, 0) == 0x0ffffff8 && U32(fat, 4) == End, "fat_reserved");
             uint[] roots = Chain(2);
@@ -371,8 +403,8 @@ public static class WritableDataImageFixture
                 if (next == 0) { Need(!claimed.Contains(cluster), "claimed_free"); free++; }
                 else Need(claimed.Contains(cluster), "unclaimed_cluster");
             }
-            Span<byte> info = disk.AsSpan(((int)PartitionFirstLba + 1) * 512, 512);
-            Need(info.SequenceEqual(disk.AsSpan(((int)PartitionFirstLba + 7) * 512, 512)), "fsinfo_backup");
+            Span<byte> info = disk.AsSpan(checked(((int)first + 1) * 512), 512);
+            Need(info.SequenceEqual(disk.AsSpan(checked(((int)first + 7) * 512), 512)), "fsinfo_backup");
             Need(U32(info, 0) == 0x41615252 && U32(info, 484) == 0x61417272 && U32(info, 508) == 0xaa550000, "fsinfo");
             Need(U32(info, 488) == uint.MaxValue || U32(info, 488) == free, "free_count");
             uint hint = U32(info, 492);
@@ -380,9 +412,9 @@ public static class WritableDataImageFixture
             List<uint> candidates = [];
             for (uint cluster = 100; cluster < ClusterCount + 2 && candidates.Count < 16; cluster += 2)
                 if (Next(cluster) == 0) { Need(!claimed.Contains(cluster), "candidate_not_free"); candidates.Add(cluster); }
-            return new(Hash(disk), [Hash(disk.AsSpan(512, 512)), Hash(disk.AsSpan(ImageBytes - 512, 512)),
+            return new(Hash(disk), [Hash(disk.AsSpan(512, 512)), Hash(disk.AsSpan(disk.Length - 512, 512)),
                 Hash(disk.AsSpan(1024, 16384)), Hash(boot), Hash(info), Hash(fat), Hash(fat1)], free, hint, roots, candidates.ToArray(),
-                files.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray());
+                files.OrderBy(x => x.Name, StringComparer.Ordinal).ToArray(), first, checkedGpt);
         }
 
         private GptHeader Gpt(bool backup)
@@ -403,7 +435,8 @@ public static class WritableDataImageFixture
             return parsed.Header;
         }
 
-        private uint Next(uint cluster) => U32(disk.AsSpan((int)FirstFatLba * 512, (int)FatSectors * 512), checked((int)cluster * 4)) & 0x0fffffff;
+        private int ClusterOffset(uint cluster) => checked((int)(firstData + cluster - 2) * 512);
+        private uint Next(uint cluster) => U32(disk.AsSpan((int)firstFat * 512, (int)FatSectors * 512), checked((int)cluster * 4)) & 0x0fffffff;
         private uint[] Chain(uint first)
         {
             List<uint> chain = [];
@@ -412,7 +445,7 @@ public static class WritableDataImageFixture
             {
                 Need(current >= 2 && current - 2 < ClusterCount && chain.Count < 4096 && claimed.Add(current), "chain_loop_or_crosslink");
                 chain.Add(current);
-                ulong sector = FirstFatLba + current / 128; uint next = 0;
+                ulong sector = firstFat + current / 128; uint next = 0;
                 var status = FATClusterChainsLoopBadClusterTruncationDetection.ReadFatEntry(volume, current, sector,
                     disk.AsSpan(checked((int)sector * 512), 512), Complete, ref next);
                 if (status == LiveFat32Status.EndOfChain) return chain.ToArray();
@@ -453,14 +486,14 @@ public static class WritableDataImageFixture
                     Need(date == 0 && time == 0 || GregorianUtc.TryUnixSeconds((uint)(1980 + (date >> 9)), (uint)((date >> 5) & 15), (uint)(date & 31),
                         (uint)(time >> 11), (uint)((time >> 5) & 63), (uint)((time & 31) * 2), out modified), "timestamp");
                     byte[] independentlyRead = new byte[content.Length];
-                    var read = Fat32Parser.ReadRootFile(device, PartitionFirstLba, name, independentlyRead);
+                    var read = Fat32Parser.ReadRootFile(device, first, name, independentlyRead);
                     Need(read.Succeeded && read.BytesRead == entry.ByteCount && read.Entry.FirstCluster == entry.FirstCluster &&
                         content.AsSpan().SequenceEqual(independentlyRead), "independent_extract");
                     List<Extent> extents = [];
                     for (int i = 0; i < chain.Length;)
                     {
                         int start = i++; while (i < chain.Length && chain[i] == chain[i - 1] + 1) i++;
-                        extents.Add(new(chain[start], (uint)(i - start), FirstDataLba + (ulong)chain[start] - 2));
+                        extents.Add(new(chain[start], (uint)(i - start), firstData + (ulong)chain[start] - 2));
                     }
                     files.Add(new(name, alias, (ulong)offset, entry.Attributes, date, time, modified, content, chain, extents.ToArray()));
                 }
@@ -471,10 +504,11 @@ public static class WritableDataImageFixture
 
     private sealed class Device(byte[] disk) : IReadOnlyBlockDevice
     {
-        public BlockDeviceInfo Info => BlockDeviceInfo.Create(512, Sectors).Info;
+        public BlockDeviceInfo Info => BlockDeviceInfo.Create(512, (ulong)disk.Length / 512).Info;
         public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
         {
-            if (firstBlock >= Sectors || blockCount == 0 || blockCount > Sectors - firstBlock) return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockRange);
+            ulong sectors = (ulong)disk.Length / 512;
+            if (firstBlock >= sectors || blockCount == 0 || blockCount > sectors - firstBlock) return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockRange);
             ulong bytes = (ulong)blockCount * 512;
             if ((ulong)destination.Length < bytes) return BlockReadResult.Fail(BlockDeviceStatus.DestinationTooSmall);
             disk.AsSpan(checked((int)firstBlock * 512), checked((int)bytes)).CopyTo(destination);

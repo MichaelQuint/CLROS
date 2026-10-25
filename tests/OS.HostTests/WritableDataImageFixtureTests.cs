@@ -21,6 +21,11 @@ internal static unsafe class WritableDataImageFixtureTests
         var repeated = Image.Create(root, second);
         HostCheck.True(receipt.Image.RawSha256 == repeated.Image.RawSha256 &&
             File.ReadAllBytes(second).AsSpan().SequenceEqual(disk) && receipt.CopyJson().AsSpan().SequenceEqual(repeated.CopyJson()));
+        // Retained original64MiB bytes/receipt, before relocated-body support.
+        HostCheck.Equal("777844321C8836EA0E0BAFA8BA37708D22345F4ECAC539B5B0A3699CC459265A", receipt.Image.RawSha256);
+        HostCheck.Equal("1C638F748E0A94C8291032B7AA3BAD9E8F6BA7B5CC05A7A799A64FE639902C11", Hash(receipt.CopyJson()));
+        HostCheck.True(receipt.Image.CheckedGpt && receipt.Image.FirstLba == 2048 && receipt.Image.LastLba == 131038 &&
+            receipt.Image.FirstFatSector == 2080 && receipt.Image.FirstDataSector == 4066);
         HostCheck.True(disk.Length == 67108864 && receipt.Image.Files.Count == 6 &&
             receipt.Image.Find(Image.ExclusiveCreateName) is null && receipt.Image.RootClusters.SequenceEqual(new uint[] { 2, 19, 37 }));
         using var json = JsonDocument.Parse(receipt.CopyJson());
@@ -36,6 +41,44 @@ internal static unsafe class WritableDataImageFixtureTests
         }
         Image.Verify(path, receipt);
         Console.WriteLine($"WRITABLE_DATA_IMAGE sha256={receipt.Image.RawSha256} receiptSha256={Hash(receipt.CopyJson())} bytes={disk.Length} files={receipt.Image.Files.Count} allocatedClusters=8 freeClusters={receipt.Image.FreeClusters}");
+    });
+
+    [HostTest("writable relocated body inspection uses actual physical bounds and extraction without claiming GPT selection", HostLane.Native)]
+    private static void RelocatedBody() => WithImage((_, _, _, original, disk) =>
+    {
+        const uint first = 131072, last = 260062, delta = 129024;
+        byte[] raw = new byte[128 * 1024 * 1024];
+        disk.AsSpan(2048 * 512, (131038 - 2048 + 1) * 512).CopyTo(raw.AsSpan((int)first * 512));
+        W32(raw, (int)first * 512 + 28, first); W32(raw, ((int)first + 6) * 512 + 28, first);
+        var body = Image.InspectPartition(raw, first, last);
+        HostCheck.True(!body.CheckedGpt && body.FirstLba == first && body.LastLba == last && body.FirstFatSector == first + 32 &&
+            body.FirstDataSector == first + 32 + 2 * 993 && body.RawSha256 == Hash(raw) && body.FreeClusters == original.Image.FreeClusters &&
+            body.RootClusters.SequenceEqual(original.Image.RootClusters) && body.FreeCandidates.SequenceEqual(original.Image.FreeCandidates));
+        foreach (var old in original.Image.Files)
+        {
+            var now = body.Find(old.Name)!;
+            HostCheck.True(now.ShortEntryOffset == old.ShortEntryOffset + delta * 512UL && now.Inode == now.ShortEntryOffset / 32 + 256 &&
+                now.Clusters.SequenceEqual(old.Clusters) && now.Extents.SequenceEqual(old.Extents.Select(x => x with { FirstLba = x.FirstLba + delta })) &&
+                now.CopyBytes().AsSpan().SequenceEqual(old.CopyBytes()));
+        }
+        byte[] guard = body.Find("GUARD.TXT")!.CopyBytes(); raw.AsSpan().Clear();
+        HostCheck.True(body.Find("GUARD.TXT")!.CopyBytes().AsSpan().SequenceEqual(guard));
+    });
+
+    [HostTest("writable relocated body rejects invalid extents hidden-sector mismatch actual backup and mirror failures", HostLane.Native)]
+    private static void RelocatedBodyRejection() => WithImage((_, _, _, _, disk) =>
+    {
+        foreach (var bounds in new (ulong First, ulong Last)[] { (0, 128990), (2048, 131037), (2048, 131039), (2048, ulong.MaxValue), (ulong.MaxValue, ulong.MaxValue) })
+            Reject(() => Image.InspectPartition(disk, bounds.First, bounds.Last), "partition_bounds");
+        byte[] hidden = (byte[])disk.Clone(); W32(hidden, 2048 * 512 + 28, 2049);
+        Reject(() => Image.InspectPartition(hidden, 2048, 131038), "bpb");
+        byte[] backup = (byte[])disk.Clone(); backup[(2048 + 6) * 512 + 28] ^= 1;
+        Reject(() => Image.InspectPartition(backup, 2048, 131038), "boot_backup");
+        byte[] mirror = (byte[])disk.Clone(); mirror[(2080 + 993) * 512 + 5 * 4] ^= 1;
+        Reject(() => Image.InspectPartition(mirror, 2048, 131038), "fat_mirror");
+        // A body result never repairs or authenticates a bad GPT header.
+        disk[512] ^= 1; HostCheck.True(!Image.InspectPartition(disk, 2048, 131038).CheckedGpt);
+        Reject(() => Image.Inspect(disk), "gpt");
     });
 
     [HostTest("writable data image independently extracts fragmented sectors max LFN and both FAT free candidates", HostLane.Native)]
