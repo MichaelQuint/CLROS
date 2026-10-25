@@ -16,6 +16,137 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
 {
     private delegate bool Retain(Fs.Mount* mount, ulong epoch, ulong address, ulong bytes);
     private static readonly Retain CanRetain = typeof(Fs).GetMethod("CanRetainStorage", BindingFlags.NonPublic | BindingFlags.Static)!.CreateDelegate<Retain>();
+    private delegate bool RetainRanges(Fs.Mount* mount, ulong epoch, ReadOnlySpan<ulong> pairs);
+    private static readonly RetainRanges CanRetainRanges = typeof(Fs).GetMethod("CanRetainStorageRanges", BindingFlags.NonPublic | BindingFlags.Static)!.CreateDelegate<RetainRanges>();
+
+    [HostTest("borrowed retained range batch preserves scalar local and backend exclusions bounded input and zero skips", HostLane.Native)]
+    private static void RetainedRangeExclusions() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); ulong candidate = (ulong)f.Output;
+        ulong[] valid = [candidate, 16, candidate + 8, 24, candidate + 80, 48];
+        RetainedQueriesOnly(f, () =>
+        {
+            RetainedEquivalent(f, valid, true);
+            RetainedEquivalent(f, [0, 0, candidate, 128, ulong.MaxValue, 0], true);
+            HostCheck.True(CanRetainRanges(f.Mount, f.Input.Epoch, [0, 0, ulong.MaxValue, 0]));
+            HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, []) && !CanRetainRanges(f.Mount, f.Input.Epoch, [candidate]));
+            foreach (ulong[] invalid in new ulong[][] { [0, 1], [ulong.MaxValue - 7, 16], [0x0000800000000000, 1] })
+                RetainedEquivalent(f, invalid, false);
+            ulong[] maximum = new ulong[177 * 2]; maximum[^2] = candidate; maximum[^1] = 128;
+            HostCheck.True(CanRetainRanges(f.Mount, f.Input.Epoch, maximum) && !CanRetainRanges(f.Mount, f.Input.Epoch, new ulong[maximum.Length + 2]));
+            var extents = f.FsExtents().Concat(new (ulong Start, ulong Bytes)[] {
+                ((ulong)f.Port, (ulong)sizeof(P.State)), ((ulong)f.Engine, (ulong)sizeof(C.State)),
+                ((ulong)f.EngineInput.Before, 65536), ((ulong)f.EngineInput.EncodedEntries, C.EncodedEntryBytes),
+                ((ulong)f.Block, (ulong)sizeof(B.State)), ((ulong)f.Device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
+                ((ulong)f.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)), ((ulong)f.Device.Data, 4096),
+                ((ulong)f.Device.Observation, (ulong)sizeof(B.Observation)),
+                (f.Device.Input.Common.VirtualStart, f.Device.Input.Common.Bytes), (f.Device.Input.Notify.VirtualStart, f.Device.Input.Notify.Bytes),
+                (f.Device.Input.Device.VirtualStart, f.Device.Input.Device.Bytes) });
+            foreach (var extent in extents)
+                foreach (var overlap in new[] { extent, (extent.Start - 1, extent.Bytes + 2), (extent.Start + extent.Bytes - 1, 2UL) })
+                    for (int position = 0; position < 3; position++)
+                    {
+                        ulong[] changed = [.. valid]; changed[position * 2] = overlap.Item1; changed[position * 2 + 1] = overlap.Item2;
+                        RetainedEquivalent(f, changed, false);
+                    }
+        });
+    });
+
+    [HostTest("borrowed retained range batch rejects changed lifetimes and malformed owned extents even for zero candidates", HostLane.Native)]
+    private static void RetainedRangeLifetimes() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); ulong[] valid = [(ulong)f.Output, 128];
+        void RejectOwner()
+        {
+            RetainedEquivalent(f, valid, false);
+            HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, [ulong.MaxValue, 0]));
+        }
+        RetainedQueriesOnly(f, () =>
+        {
+            HostCheck.True(!CanRetainRanges(null, f.Input.Epoch, valid) && !CanRetainRanges(f.Mount, f.Input.Epoch + 1, valid));
+            Fs.Mount copy = *f.Mount; HostCheck.True(!CanRetainRanges(&copy, f.Input.Epoch, valid));
+            ref byte phase = ref MountPhase(ref *f.Mount); byte savedPhase = phase;
+            try { phase = 4; RejectOwner(); } finally { phase = savedPhase; }
+            ref P.Admission port = ref PortAdmission(ref *f.Port); ulong portEpoch = port.Epoch;
+            try { port.Epoch++; RejectOwner(); } finally { port.Epoch = portEpoch; }
+            ref C.Admission engine = ref EngineAdmission(ref *f.Engine); ulong engineEpoch = engine.Epoch;
+            try { engine.Epoch++; RejectOwner(); } finally { engine.Epoch = engineEpoch; }
+            ref B.Admission block = ref BlockAdmission(ref *f.Block); ulong deviceEpoch = block.Epoch;
+            try { block.Epoch++; RejectOwner(); } finally { block.Epoch = deviceEpoch; }
+            ref ulong currentPoolEpoch = ref PoolEpoch(ref *f.Device.Pool); ulong poolEpoch = currentPoolEpoch;
+            try { currentPoolEpoch++; RejectOwner(); } finally { currentPoolEpoch = poolEpoch; }
+            B.Observation* observation = block.Observation;
+            try { block.Observation = (B.Observation*)f.Operations[0].Storage.Range; RejectOwner(); } finally { block.Observation = observation; }
+            byte* path = f.Operations[0].Storage.Path;
+            try { f.Operations[0].Storage.Path = (byte*)(ulong.MaxValue - 7); RejectOwner(); } finally { f.Operations[0].Storage.Path = path; }
+            byte* cache = f.Input.Cache[0].Data;
+            try { f.Input.Cache[0].Data = f.Operations[0].Storage.Path; RejectOwner(); } finally { f.Input.Cache[0].Data = cache; }
+            RetainedEquivalent(f, valid, true);
+        });
+        HostCheck.Equal(P.Status.Success, P.Stop(f.Port));
+        byte* replacement = (byte*)NativeMemory.AllocZeroed(4096); var original = PortAdmission(ref *f.Port);
+        try
+        {
+            ref P.Admission port = ref PortAdmission(ref *f.Port); port.Engine = (C.State*)replacement; port.Device = (B.State*)(replacement + 1024);
+            RetainedQueriesOnly(f, RejectOwner);
+            HostCheck.True(new ReadOnlySpan<byte>(replacement, 4096).IndexOfAnyExcept((byte)0) < 0);
+            HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount)); RejectOwner();
+        }
+        finally { PortAdmission(ref *f.Port) = original; NativeMemory.Free(replacement); }
+    });
+
+    [HostTest("borrowed retained range batch stays structural through actual pending held dirty flush cancelled and stopped owners", HostLane.Native)]
+    private static void RetainedRangeProgress() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); ulong[] valid = [(ulong)f.Output, 128];
+        void Retains() => RetainedQueriesOnly(f, () => RetainedEquivalent(f, valid, true));
+        var file = f.Open("/app/wwwroot/index.html"); var read = f.BeginRead(file.File, 0, 7); f.WaitForPort(read); Retains();
+        HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(f.Mount, read)); Retains();
+        if (f.Device.Hardware->Pending) f.Device.Complete();
+        HostCheck.Equal(Fs.Status.Cancelled, Fs.Poll(f.Mount, read)); Retains();
+        read = f.BeginRead(file.File, 0, 7); f.WaitForPort(read); f.HoldPort(); Retains();
+        HostCheck.Equal(Fs.Status.Ready, f.Drive(read)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, read)); Retains();
+        var target = f.OpenData("FRAG.BIN"); C.RequestToken write = default;
+        HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.Engine, target, 0, "range-proof"u8, &write));
+        bool dirty = false, flush = false;
+        for (int i = 0; i < 10000; i++)
+        {
+            var status = f.EngineTurn();
+            if (!dirty && f.Engine->Dirty && f.Block->LastOperation == B.Operation.Write) { Retains(); dirty = true; }
+            if (!flush && f.Block->RequestPending && f.Block->LastOperation == B.Operation.Flush) { Retains(); flush = true; }
+            if (status == C.Status.Ready) break;
+            HostCheck.Equal(C.Status.Pending, status); HostCheck.True(i < 9999);
+        }
+        HostCheck.True(dirty && flush && f.Engine->IsReady && f.Engine->RequestActive); Retains();
+        C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, write, &result)); HostCheck.Equal(11U, result.Bytes);
+        var refreshed = f.OpenData("FRAG.BIN"); HostCheck.True(refreshed.Revision > target.Revision); Retains();
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Block)); Retains();
+        HostCheck.Equal(P.Status.Success, P.Stop(f.Port));
+        HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, valid));
+        HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount)); HostCheck.True(!CanRetainRanges(f.Mount, f.Input.Epoch, [0, 0]));
+    });
+
+    private static void RetainedEquivalent(Fixture f, ReadOnlySpan<ulong> pairs, bool expected)
+    {
+        bool scalar = true;
+        for (int i = 0; i < pairs.Length; i += 2)
+            if (pairs[i + 1] != 0 && !CanRetain(f.Mount, f.Input.Epoch, pairs[i], pairs[i + 1])) scalar = false;
+        HostCheck.Equal(expected, scalar); HostCheck.Equal(expected, CanRetainRanges(f.Mount, f.Input.Epoch, pairs));
+    }
+
+    private static void RetainedQueriesOnly(Fixture f, Action queries)
+    {
+        var extents = f.FsExtents().Concat(new (ulong Start, ulong Bytes)[] {
+            ((ulong)f.Port, (ulong)sizeof(P.State)), ((ulong)f.Engine, (ulong)sizeof(C.State)), ((ulong)f.EngineInput.Changes, f.EngineBackingBytes),
+            ((ulong)f.Block, (ulong)sizeof(B.State)), ((ulong)f.Device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
+            ((ulong)f.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)), ((ulong)f.Device.Data, 4096),
+            ((ulong)f.Device.Observation, (ulong)sizeof(B.Observation)), ((ulong)f.Device.Hardware, (ulong)sizeof(WritableBlockSessionTests.Hardware)),
+            ((ulong)f.Output, 128) }).ToArray();
+        var before = extents.Select(x => new ReadOnlySpan<byte>((void*)x.Start, (int)x.Bytes).ToArray()).ToArray();
+        queries();
+        for (int i = 0; i < extents.Length; i++)
+            HostCheck.True(before[i].AsSpan().SequenceEqual(new ReadOnlySpan<byte>((void*)extents[i].Start, (int)extents[i].Bytes)), "retained query changed extent " + i);
+    }
 
     [HostTest("borrowed webroot reads independently extracted nested fragmented empty and bounded ranges on the same writable owner", HostLane.Native)]
     private static void OriginalFiles() => WithImage((raw, receipt) =>
@@ -332,6 +463,12 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
     private static extern ref P.Admission PortAdmission(ref P.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
     private static extern ref B.Admission BlockAdmission(ref B.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref C.Admission EngineAdmission(ref C.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Phase")]
+    private static extern ref byte MountPhase(ref Fs.Mount mount);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Epoch")]
+    private static extern ref ulong PoolEpoch(ref OS.Drivers.DmaBufferPool pool);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Index")]
     private static extern ref uint HandleIndex(ref Fs.FileToken token);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Phase")]

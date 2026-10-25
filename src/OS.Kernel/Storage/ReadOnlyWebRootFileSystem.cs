@@ -1066,6 +1066,40 @@ public static unsafe class ReadOnlyWebRootFileSystem
     // Full FS+port/C/B retained-tree query. It supplies no live-copy permission.
     internal static bool CanRetainStorage(Mount* m, ulong epoch, ulong address, ulong bytes) =>
         Bound(m) && m->Phase != Retired && m->Input.Epoch == epoch && DeviceBound(m) && External(m, address, bytes, 1);
+
+    internal const int MaximumRetainedStorageRanges = 177;
+
+    /// <summary>Check a flat, bounded start/byte-count inventory against one
+    /// original borrowed mount. The serialized owner keeps the input and all
+    /// backing stable/mapped through return. Audit the retained FS/backend once;
+    /// each nonempty range still uses the full port query and local exclusions.
+    /// Empty extents are skipped, but stale/retired or malformed owners reject
+    /// even an all-empty inventory. Dirty/fault/stopped backing may remain
+    /// structurally retained. No live I/O, copy, release or later permission
+    /// follows; no input, token, output, callback or mutation is retained.</summary>
+    internal static bool CanRetainStorageRanges(Mount* m, ulong epoch, ReadOnlySpan<ulong> pairs)
+    {
+        if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
+            !Bound(m) || m->Phase == Retired || m->Input.Epoch != epoch || m->ReadPort == null || !RetainedBorrowed(m)) return false;
+        return BorrowedRangesOutside(m, pairs);
+    }
+
+    // Keep this scratch lifetime after RetainedBorrowed/AdmissionOutside has
+    // returned, rather than nesting two1088-byte FS inventories. Emitted stack
+    // accounting remains a separate native obligation.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static bool BorrowedRangesOutside(Mount* m, ReadOnlySpan<ulong> pairs)
+    {
+        Extent* all = stackalloc Extent[68]; uint count = Extents(m, m->Input, all);
+        for (int i = 0; i < pairs.Length; i += 2)
+        {
+            ulong start = pairs[i], bytes = pairs[i + 1];
+            if (bytes == 0) continue;
+            if (!Storage(start, bytes, 1) || !Port.CanRetainStorage(m->ReadPort, m->PortBinding.Epoch, start, bytes)) return false;
+            for (uint j = 0; j < count; j++) if (Overlap(start, bytes, all[j].Start, all[j].Bytes)) return false;
+        }
+        return true;
+    }
 #endif
 
     // Admission and every external output use one complete retained extent
