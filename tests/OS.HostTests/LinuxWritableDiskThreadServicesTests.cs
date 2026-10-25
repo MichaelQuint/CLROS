@@ -15,6 +15,92 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
     private const ulong Key = LinuxThreadServicesTests.Key, User = LinuxThreadServicesTests.UserBase;
     private const ulong Path = User + 0x1200, Vector = User + 0x1400, Output = User + 0x2000, Payload = User + 0x3000;
 
+    [HostTest("writable source5 copied ordinal passes both dispatch routes and survives a genuine wait repark without another call")]
+    private static void CopiedOrdinalRepark()
+    {
+        foreach (bool fullDispatch in new[] { false, true })
+        {
+            using var f = new Fixture(); uint fd = f.Open(); var frame = f.Thread.CurrentImage()->Frame;
+            frame.Number = 0; frame.Argument0 = fd; frame.Argument1 = Output; frame.Argument2 = 16;
+            f.Thread.CurrentImage()->Frame = frame;
+            ulong ordinal = fullDispatch ? 103UL : 101UL;
+            var begun = fullDispatch ? f.Thread.Service->Dispatch(Key, 2, ref frame, ordinal) :
+                f.Thread.Service->DispatchDescriptor(Key, 2, frame, ordinal);
+            HostCheck.Equal(LinuxSyscallAction.Blocked, begun.Action);
+            var expected = (ordinal, frame.Rip); HostCheck.Equal(expected, LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            HostCheck.True(!f.May(Output, 16)); f.Park(); var first = f.Thread.View(f.Main).Wait;
+            HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2));
+            // A real early table wake can precede provider readiness. Completing
+            // it reparks the same adapter request, not a second gateway call.
+            HostCheck.True(f.Thread.Kernel.Table->Wake(KernelThreadTableTests.Key, 2, first).Succeeded);
+            HostCheck.Equal(f.Main.Value, f.Thread.Kernel.Dispatch().Value); uint copies = f.Thread.Writes;
+            HostCheck.Equal(LinuxSyscallAction.Blocked, f.Thread.Service->CompleteWritableDiskWait(Key, 2).Action);
+            HostCheck.True(f.Thread.View(f.Main).Wait.Sequence > first.Sequence && f.Thread.Writes == copies && !f.May(Output, 16));
+            HostCheck.Equal(expected, LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            f.Park(); f.Ready(); HostCheck.Equal(expected, LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            HostCheck.Equal(16L, f.Consume()); HostCheck.True(f.Thread.Writes == copies + 1 && f.May(Output, 16));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(Output), 16).SequenceEqual(Enumerable.Range(0, 16).Select(i => unchecked((byte)(i * 17 + 5))).ToArray()));
+            HostCheck.Equal((0UL, 0UL), LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            HostCheck.Equal(16L, f.Run(8, fd, 0, 1));
+            HostCheck.Equal(LinuxSyscallAction.Rejected, f.Thread.Service->CompleteWritableDiskWait(Key, 2).Action);
+            HostCheck.Equal(copies + 1, f.Thread.Writes);
+        }
+    }
+
+    [HostTest("writable source5 copied ordinal follows already ready mutation and sync winners without replay")]
+    private static void CopiedOrdinalKnownResult()
+    {
+        using var f = new Fixture(); uint fd = f.Open(flags: 2); f.PutWrite(new byte[] { 7, 11, 13 });
+        foreach (ulong number in new ulong[] { 328, 74 })
+        {
+            var frame = f.Thread.CurrentImage()->Frame; frame.Number = number; frame.Argument0 = fd;
+            frame.Argument1 = number == 328 ? Vector : 0; frame.Argument2 = number == 328 ? 1UL : 0;
+            frame.Argument3 = frame.Argument4 = 0; frame.Argument5 = number == 328 ? W.RwfNoAppend : 0;
+            f.Thread.CurrentImage()->Frame = frame;
+            HostCheck.Equal(LinuxSyscallAction.Blocked, f.Thread.Service->Dispatch(Key, 2, ref frame, number + 200).Action);
+            f.Park(); f.AdapterReady(); ulong writes = f.Storage.Device.State->SubmittedBytes, submits = f.Storage.Device.State->Submitted;
+            HostCheck.Equal((number + 200, frame.Rip), LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            HostCheck.True(f.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, f.Thread.View(f.Main).Wait).Succeeded);
+            HostCheck.Equal(number == 328 ? 3L : 0L, f.Consume());
+            HostCheck.True(f.Storage.Device.State->SubmittedBytes == writes && f.Storage.Device.State->Submitted == submits && !f.Disk->RequestActive);
+            HostCheck.Equal((0UL, 0UL), LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+        }
+    }
+
+    [HostTest("writable source5 copied ordinal clears only after interrupted or exiting orphan drains without late copy")]
+    private static void CopiedOrdinalCancellation()
+    {
+        foreach (bool exit in new[] { false, true })
+        {
+            using var f = new Fixture(); uint fd = f.Open(); var frame = f.Thread.CurrentImage()->Frame;
+            frame.Number = 17; frame.Argument0 = fd; frame.Argument1 = Output; frame.Argument2 = 16; frame.Argument3 = 0;
+            f.Thread.CurrentImage()->Frame = frame; uint copies = f.Thread.Writes;
+            HostCheck.Equal(LinuxSyscallAction.Blocked, f.Thread.Service->Dispatch(Key, 2, ref frame, 307).Action); f.Park();
+            HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2) && f.Storage.Device.Hardware->Pending);
+            if (exit)
+            {
+                HostCheck.True(f.Thread.Service->Shutdown(Key, 2, 7));
+                HostCheck.Equal(f.Main.Value, f.Thread.Kernel.Dispatch().Value);
+                HostCheck.True(f.Thread.Service->CommitExit(Key, 2, f.Thread.Kernel.Capture(f.Main), out _)); f.Thread.Kernel.Confirm();
+                HostCheck.True(f.Thread.Service->Reap(Key, 2, f.Main, f.Thread.Kernel.SupervisorRsp, out _));
+                HostCheck.True(!f.Thread.Service->Release(Key, 2));
+            }
+            else
+            {
+                HostCheck.True(f.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, f.Thread.View(f.Main).Wait).Succeeded);
+                HostCheck.Equal(-4L, f.Consume());
+            }
+            HostCheck.True(f.May(Output, 16) && f.Disk->RequestActive); HostCheck.Equal((307UL, frame.Rip), LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            f.Drain(); HostCheck.Equal((0UL, 0UL), LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+            HostCheck.True(f.Thread.Writes == copies && !f.Provider->RequestActive && F.Audit(f.Files.State));
+            if (!exit)
+            {
+                f.Begin(17, fd, Output, 1); HostCheck.Equal((0UL, 0UL), LinuxWritableDiskDescriptorServicesTests.CopiedCall(f.Disk));
+                f.Park(); f.Ready(); HostCheck.Equal(1L, f.Consume());
+            }
+        }
+    }
+
     [HostTest("writable source5 actual SQLite sized synthetic files use explicit engine work and search admissions through retained waits", HostLane.Native)]
     private static void SqliteFootprintWaitBudgets()
     {

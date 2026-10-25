@@ -50,10 +50,13 @@ public static unsafe partial class LinuxDescriptorServices
 
     /// <summary>Stable one-request POD independent of a thread Slot. It owns
     /// reservations/borrows until real completion or cancellation drain. No user
-    /// address, resolved pointer, caller Span, path or iovec is retained.</summary>
+    /// buffer address, resolved pointer, caller Span, path or iovec is retained.
+    /// An optional copied call ordinal and original instruction address identify
+    /// the request but grant no gateway, process or user-copy authority.</summary>
     public struct WritableDiskRequest
     {
         internal ulong Self, Generation, BindingGeneration, Number, Offset;
+        internal ulong CallOrdinal, OriginalRip;
         internal Token OriginalFd;
         internal W.RequestToken ProviderRequest;
         internal W.DescriptorToken TemporaryOpened;
@@ -159,9 +162,19 @@ public static unsafe partial class LinuxDescriptorServices
     /// mask077: regular metadata reports effective0600 and uid/gid0. FAT stores
     /// no Unix permission bits; this is not a per-process umask or chmod API.</summary>
     public static WritableDiskResult BeginWritableDisk(State* state, ulong owner, OSHostHandle worker, LinuxSyscallFrame call)
+        => BeginWritableDisk(state, owner, worker, call, 0);
+
+    /// <summary>Start the same serialized operation with an optional copied
+    /// gateway ordinal. Zero preserves the legacy unobserved request. Nonzero
+    /// retains the original canonical RIP until the request is consumed or its
+    /// orphan drains; completion must supply that same RIP. The caller owns
+    /// authentication of the ordinal and original frame. These copied values
+    /// grant no native gateway or copy authority and do not predict a counter.</summary>
+    public static WritableDiskResult BeginWritableDisk(State* state, ulong owner, OSHostHandle worker, LinuxSyscallFrame call, ulong callOrdinal)
     {
         if (state == null || state->WritableDisk == null) return new(WritableDiskProgress.NotHandled);
         if (!Attached(state, owner) || !worker.IsValid) return new(WritableDiskProgress.Rejected);
+        if (callOrdinal != 0 && (call.Rip < 4096 || call.Rip >= LinuxSyscallGateway.UserEnd)) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk;
         if (call.Number is 2 or 4 or 6 or 87 or 257)
         {
@@ -172,7 +185,7 @@ public static unsafe partial class LinuxDescriptorServices
             if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
             if (call.Number is 4 or 6)
             {
-                long statStarted = WritableStart(state, worker, call.Number, WritablePathStat);
+                long statStarted = WritableStart(state, worker, call.Number, WritablePathStat, callOrdinal, call.Rip);
                 if (statStarted != 0) return new(WritableDiskProgress.Immediate, statStarted);
                 d->Request.Requested = d->Request.Wanted = 144;
                 return WritableStarted(state, W.BeginPathStatForProcess(d->Provider, d->Process,
@@ -180,7 +193,7 @@ public static unsafe partial class LinuxDescriptorServices
             }
             if (call.Number == 87)
             {
-                long unlinkStarted = WritableStart(state, worker, call.Number, WritableUnlink);
+                long unlinkStarted = WritableStart(state, worker, call.Number, WritableUnlink, callOrdinal, call.Rip);
                 if (unlinkStarted != 0) return new(WritableDiskProgress.Immediate, unlinkStarted);
                 return WritableStarted(state, W.BeginUnlinkForProcess(d->Provider, d->Process, new ReadOnlySpan<byte>(path, (int)bytes)));
             }
@@ -193,7 +206,7 @@ public static unsafe partial class LinuxDescriptorServices
             uint fd = FreeSlot(state, 0, uint.MaxValue), description = FreeDescription(state, uint.MaxValue);
             if (fd == state->Owner.DescriptorCount) return new(WritableDiskProgress.Immediate, DescriptorTableFull);
             if (description == state->Owner.DescriptionCount || state->NextInode == uint.MaxValue) return new(WritableDiskProgress.Immediate, FileTableFull);
-            long started = WritableStart(state, worker, call.Number, WritableOpen);
+            long started = WritableStart(state, worker, call.Number, WritableOpen, callOrdinal, call.Rip);
             if (started != 0) return new(WritableDiskProgress.Immediate, started);
             WritableDiskRequest* r = &d->Request;
             r->Reserved = true; r->ReservedFd = fd; r->ReservedDescription = description;
@@ -226,10 +239,10 @@ public static unsafe partial class LinuxDescriptorServices
             return new(WritableDiskProgress.Immediate, Io);
         if (call.Number == 8) return WritableSeek(state, opened, unchecked((long)call.Argument1), call.Argument2);
         if (call.Number == 72) return WritableLock(state, opened, call);
-        if (call.Number == 328) return WritablePwrite(state, worker, opened, call);
+        if (call.Number == 328) return WritablePwrite(state, worker, opened, call, callOrdinal);
         if (call.Number == 5)
         {
-            long statStarted = WritableStart(state, worker, call.Number, WritableStat);
+            long statStarted = WritableStart(state, worker, call.Number, WritableStat, callOrdinal, call.Rip);
             if (statStarted != 0) return new(WritableDiskProgress.Immediate, statStarted);
             WritableBorrow(state, (uint)call.Argument0, opened);
             d->Request.Requested = d->Request.Wanted = 144;
@@ -237,7 +250,7 @@ public static unsafe partial class LinuxDescriptorServices
         }
         if (call.Number is 74 or 75)
         {
-            long syncStarted = WritableStart(state, worker, call.Number, WritableSync);
+            long syncStarted = WritableStart(state, worker, call.Number, WritableSync, callOrdinal, call.Rip);
             if (syncStarted != 0) return new(WritableDiskProgress.Immediate, syncStarted);
             WritableBorrow(state, (uint)call.Argument0, opened);
             return WritableStarted(state, W.BeginSync(d->Provider, d->Bindings[d->Request.Description].File, call.Number == 75));
@@ -245,7 +258,7 @@ public static unsafe partial class LinuxDescriptorServices
         if ((opened->Flags & 3) == 1) return new(WritableDiskProgress.Immediate, BadDescriptor);
         if (call.Argument2 > MaximumIo || call.Number == 17 && call.Argument3 > long.MaxValue) return new(WritableDiskProgress.Immediate, Invalid);
         if (!Capture(state, unchecked((uint)call.Argument0), out Token original)) return new(WritableDiskProgress.Rejected);
-        long readStarted = WritableStart(state, worker, call.Number, WritableRead);
+        long readStarted = WritableStart(state, worker, call.Number, WritableRead, callOrdinal, call.Rip);
         if (readStarted != 0) return new(WritableDiskProgress.Immediate, readStarted);
         WritableDiskRequest* request = &d->Request;
         WritableBorrow(state, original.Number, opened);
@@ -294,13 +307,16 @@ public static unsafe partial class LinuxDescriptorServices
     /// <summary>Only the exact live worker completes its saved original call.
     /// Read into supervisor scratch using a positioned provider request; validate
     /// the captured ceiling/current output, copy to user, scrub, then commit the
-    /// GLOBAL cursor. Close/cancel/fd reuse cannot publish late bytes or position.</summary>
+    /// GLOBAL cursor. An observed request also requires its saved original RIP
+    /// before any consumption or copy. Close/cancel/fd reuse cannot publish late
+    /// bytes or position.</summary>
     public static WritableDiskResult CompleteWritableDisk(State* state, ulong owner, OSHostHandle worker,
         WritableDiskToken token, LinuxSyscallFrame originalCall, uint outputBytes = 8192)
     {
         if (outputBytes > W.IoBytes || !Attached(state, owner) || !WritableRequestFor(state, token)) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
-        if (!worker.IsValid || worker.Value != r->Worker.Value || originalCall.Number != r->Number) return new(WritableDiskProgress.Rejected);
+        if (!worker.IsValid || worker.Value != r->Worker.Value || originalCall.Number != r->Number ||
+            r->OriginalRip != 0 && originalCall.Rip != r->OriginalRip) return new(WritableDiskProgress.Rejected);
         if (r->Phase == WritableRecovery)
         { r->CopyRevoked = true; r->Orphan = true; r->Worker = default; return ObserveWritable(d); }
         if (r->Phase != WritableReady) return ObserveWritable(d);
@@ -385,13 +401,14 @@ public static unsafe partial class LinuxDescriptorServices
         ((ulong)p & (alignment - 1)) == 0 && bytes != 0 && bytes <= 0x0000800000000000 - (ulong)p;
     private static bool WritableZero(void* p, ulong bytes) { for (ulong i = 0; i < bytes; i++) if (((byte*)p)[i] != 0) return false; return true; }
 
-    private static long WritableStart(State* state, OSHostHandle worker, ulong number, byte operation)
+    private static long WritableStart(State* state, OSHostHandle worker, ulong number, byte operation, ulong callOrdinal, ulong originalRip)
     {
         WritableDiskState* d = state->WritableDisk;
         if (d->NextGeneration == ulong.MaxValue) return Overflow;
         if (!W.CanBorrowStorage(d->Provider, d->Epoch, (ulong)d, (ulong)sizeof(WritableDiskState))) return Io;
         ulong self = d->Request.Self;
         d->Request = new() { Self = self, Generation = ++d->NextGeneration, Number = number, Operation = operation,
+            CallOrdinal = callOrdinal, OriginalRip = callOrdinal != 0 ? originalRip : 0,
             Worker = worker, Phase = WritablePending }; return 0;
     }
     private static void WritableBorrow(State* state, uint fd, Description* opened)
@@ -404,7 +421,7 @@ public static unsafe partial class LinuxDescriptorServices
     // Linux x64 LP64 pwritev2 uses full64 pos_l in argument3; argument4 is
     // unused by that ABI. This finite contract requires zero there, one copied
     // iovec and exactly RWF_NOAPPEND. No iovec/payload pointer survives yield.
-    private static WritableDiskResult WritablePwrite(State* state, OSHostHandle worker, Description* opened, LinuxSyscallFrame call)
+    private static WritableDiskResult WritablePwrite(State* state, OSHostHandle worker, Description* opened, LinuxSyscallFrame call, ulong callOrdinal)
     {
         if ((opened->Flags & 3) == 0) return new(WritableDiskProgress.Immediate, BadDescriptor);
         if (call.Argument2 != 1 || call.Argument4 != 0 || call.Argument5 != W.RwfNoAppend) return new(WritableDiskProgress.Immediate, WritableUnsupported);
@@ -415,7 +432,7 @@ public static unsafe partial class LinuxDescriptorServices
         uint bytes = (uint)vector[1];
         if (bytes != 0 && !WritableInput(state, vector[0], state->Owner.Scratch, bytes))
         { Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return new(WritableDiskProgress.Immediate, Fault); }
-        long started = WritableStart(state, worker, call.Number, WritableWrite);
+        long started = WritableStart(state, worker, call.Number, WritableWrite, callOrdinal, call.Rip);
         if (started != 0) { Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return new(WritableDiskProgress.Immediate, started); }
         WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
         WritableBorrow(state, (uint)call.Argument0, opened); r->Positioned = true; r->Offset = call.Argument3; r->Requested = bytes;
@@ -634,9 +651,11 @@ public static unsafe partial class LinuxDescriptorServices
         if (!TransportStorageOutside(s, null, d->Provider, d->Epoch, d, d->Bindings,
             d->BindingCount * (ulong)sizeof(WritableDiskBinding))) return false;
 #endif
-        if (r->Self != (ulong)r || r->Phase > WritableRecovery) return false;
+        if (r->Self != (ulong)r || r->Phase > WritableRecovery ||
+            (r->CallOrdinal == 0) != (r->OriginalRip == 0) ||
+            r->OriginalRip != 0 && (r->OriginalRip < 4096 || r->OriginalRip >= LinuxSyscallGateway.UserEnd)) return false;
         if (r->Phase == 0)
-        { if (r->Generation != 0 || r->Reserved || r->Borrowed || r->Worker.IsValid || r->ProviderRequest.Owner != 0 || r->TemporaryOpened.Owner != 0 || d->Provider->RequestActive) return false; }
+        { if (r->Generation != 0 || r->CallOrdinal != 0 || r->OriginalRip != 0 || r->Reserved || r->Borrowed || r->Worker.IsValid || r->ProviderRequest.Owner != 0 || r->TemporaryOpened.Owner != 0 || d->Provider->RequestActive) return false; }
         else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritablePathStat ||
             r->Orphan != !r->Worker.IsValid || r->Orphan && !r->CopyRevoked ||
             r->ProviderRequest.Owner != 0 && (r->ProviderRequest.Owner != (ulong)d->Provider || r->ProviderRequest.Epoch != d->Epoch || r->ProviderRequest.Generation == 0)) return false;

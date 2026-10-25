@@ -33,11 +33,11 @@ public unsafe partial struct LinuxThreadServices
         return true;
     }
 
-    private bool TryBeginWritableDisk(ulong flags, Slot* slot, LinuxSyscallFrame frame, out LinuxSyscallResult result)
+    private bool TryBeginWritableDisk(ulong flags, Slot* slot, LinuxSyscallFrame frame, ulong callOrdinal, out LinuxSyscallResult result)
     {
         result = new(LinuxSyscallAction.Rejected);
         if (!WritableDiskStorageOutsideProcess(_descriptors, flags)) { _failed = true; return true; }
-        var begun = LinuxDescriptorServices.BeginWritableDisk(_descriptors, _self, slot->Kernel, frame);
+        var begun = LinuxDescriptorServices.BeginWritableDisk(_descriptors, _self, slot->Kernel, frame, callOrdinal);
         if (begun.Progress == LinuxDescriptorServices.WritableDiskProgress.NotHandled) return false;
         if (begun.Progress == LinuxDescriptorServices.WritableDiskProgress.Immediate)
         { result = new(LinuxSyscallAction.Return, begun.Value); return true; }

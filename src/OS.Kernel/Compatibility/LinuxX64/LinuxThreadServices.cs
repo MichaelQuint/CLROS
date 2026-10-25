@@ -237,6 +237,14 @@ public unsafe partial struct LinuxThreadServices
     /// Futex is explicit optional admission; unsupported operations cannot
     /// report success. A staged wait must finish before another user call.</summary>
     public LinuxSyscallResult Dispatch(ulong key, ulong flags, ref LinuxSyscallFrame frame)
+        => Dispatch(key, flags, ref frame, 0);
+
+    /// <summary>Dispatch with an optional copied gateway ordinal forwarded only
+    /// to writable descriptor requests. Zero keeps legacy behavior. The owner
+    /// authenticates the ordinal and freshly captured frame; the value alone
+    /// grants no gateway authority. No staged global or frame pointer survives
+    /// this synchronous call; an admitted writable request retains its own pair.</summary>
+    public LinuxSyscallResult Dispatch(ulong key, ulong flags, ref LinuxSyscallFrame frame, ulong callOrdinal)
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
@@ -254,7 +262,7 @@ public unsafe partial struct LinuxThreadServices
             case 41: case 42: case 43: case 44: case 45: case 46: case 47: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
             case 213: case 232: case 233: case 281: case 291:
 #endif
-                return DispatchDescriptor(key, flags, frame);
+                return DispatchDescriptor(key, flags, frame, callOrdinal);
             case 13: case 131:
                 result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;
             case 14: result = SignalMask(slot, frame); break;

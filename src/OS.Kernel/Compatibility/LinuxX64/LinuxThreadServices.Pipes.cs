@@ -46,6 +46,13 @@ public unsafe partial struct LinuxThreadServices
     /// slice. The native gateway/worker owner must route this explicit result and
     /// restore CPL3 state before CommitPipeWait; no native transfer is done here.</summary>
     public LinuxSyscallResult DispatchDescriptor(ulong key, ulong flags, LinuxSyscallFrame frame)
+        => DispatchDescriptor(key, flags, frame, 0);
+
+    /// <summary>Forward an optional copied ordinal to the original writable
+    /// request. Other descriptor paths and ordinal zero preserve their existing
+    /// behavior. The caller authenticates this value and the captured frame;
+    /// no callback, native authority or predicted ordinal is introduced.</summary>
+    public LinuxSyscallResult DispatchDescriptor(ulong key, ulong flags, LinuxSyscallFrame frame, ulong callOrdinal)
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index) ||
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User) || _descriptors == null) return new(LinuxSyscallAction.Rejected);
@@ -59,7 +66,7 @@ public unsafe partial struct LinuxThreadServices
         }
 #endif
 #if !NOSTDLIB_EFI || M16_027_PROBE
-        if (TryBeginWritableDisk(flags, slot, frame, out var writableResult)) return writableResult;
+        if (TryBeginWritableDisk(flags, slot, frame, callOrdinal, out var writableResult)) return writableResult;
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (TryBeginDisk(flags, slot, frame, out var diskResult)) return diskResult;

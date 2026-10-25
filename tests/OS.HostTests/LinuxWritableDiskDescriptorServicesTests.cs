@@ -22,6 +22,120 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
+    // Read the actual request POD without constructing an operation token or
+    // treating a caller-supplied numeric ordinal as a genuine gateway witness.
+    internal static (ulong Ordinal, ulong Rip) CopiedCall(F.WritableDiskState* disk)
+    {
+        object request = typeof(F.WritableDiskState).GetField("Request", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(*disk)!;
+        return ((ulong)typeof(F.WritableDiskRequest).GetField("CallOrdinal", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(request)!,
+            (ulong)typeof(F.WritableDiskRequest).GetField("OriginalRip", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(request)!);
+    }
+
+    [HostTest("writable copied ordinal retains its original RIP until completion and legacy zero keeps its old unobserved behavior")]
+    private static void CopiedOrdinalCompletion()
+    {
+        foreach (ulong ordinal in new ulong[] { 0, 37, ulong.MaxValue })
+        {
+            using var f = new Owner(); uint fd = f.Open(); var call = f.Call(0, fd, Output, 16);
+            var begun = ordinal == 0 ? f.Begin(call) : F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, call, ordinal);
+            HostCheck.Equal(F.WritableDiskProgress.Pending, begun.Progress);
+            var expected = (ordinal, ordinal == 0 ? 0UL : call.Rip); HostCheck.Equal(expected, CopiedCall(f.Disk));
+            byte[] held = new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState)).ToArray(); uint copies = f.Thread.Writes;
+            var wrong = call; wrong.Rip++;
+            if (ordinal != 0)
+            {
+                HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, wrong).Progress);
+                HostCheck.True(held.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState))) && f.Thread.Writes == copies);
+            }
+            HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress); HostCheck.Equal(expected, CopiedCall(f.Disk));
+            if (ordinal != 0)
+            {
+                held = new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState)).ToArray();
+                HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, wrong).Progress);
+                HostCheck.True(held.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState))) && f.Provider->RequestActive && f.Thread.Writes == copies);
+            }
+            // Legacy completion deliberately never bound its RIP.
+            HostCheck.Equal(16L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, ordinal == 0 ? wrong : call).Value);
+            HostCheck.True(f.Bytes(16).SequenceEqual(Enumerable.Range(0, 16).Select(Value)) && f.Thread.Writes == copies + 1);
+            HostCheck.Equal((0UL, 0UL), CopiedCall(f.Disk)); HostCheck.True(!f.Disk->RequestActive && F.Audit(f.Files.State));
+            HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+            HostCheck.Equal(16L, f.Run(f.Call(8, fd, 0, 1)));
+            // The explicit zero overload also clears both fields, even with a real RIP.
+            var zero = F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, call, 0); HostCheck.Equal((0UL, 0UL), CopiedCall(f.Disk));
+            f.Ready(zero.Token); HostCheck.Equal(16L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, zero.Token, call).Value);
+        }
+        Console.WriteLine($"HOST_COPIED_ORDINAL_LAYOUT request={sizeof(F.WritableDiskRequest)} attachment={sizeof(F.WritableDiskState)} admission={sizeof(F.WritableDiskAdmission)} global={sizeof(F.State)}");
+    }
+
+    [HostTest("writable copied ordinal rejects malformed RIP and inconsistent retained pairs before input copy or effects")]
+    private static void CopiedOrdinalAdmission()
+    {
+        using var f = new Owner(); f.PutPath("/data/DATA.BIN"); var call = f.Call(2, Path);
+        byte[] before = new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState)).ToArray(); uint hardware = f.Hardware->Calls, copies = f.Thread.Writes;
+        foreach (ulong rip in new ulong[] { 0, 4095, LinuxSyscallGateway.UserEnd, ulong.MaxValue })
+        {
+            var malformed = call; malformed.Rip = rip;
+            HostCheck.Equal(F.WritableDiskProgress.Rejected, F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, malformed, 1).Progress);
+            HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Disk, sizeof(F.WritableDiskState))) &&
+                f.Hardware->Calls == hardware && f.Thread.Writes == copies && !f.Provider->RequestActive);
+        }
+        var begun = F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, call, 73);
+        int request = (int)Marshal.OffsetOf<F.WritableDiskState>("Request");
+        ulong* ordinal = (ulong*)((byte*)f.Disk + request + (int)Marshal.OffsetOf<F.WritableDiskRequest>("CallOrdinal"));
+        ulong* ripField = (ulong*)((byte*)f.Disk + request + (int)Marshal.OffsetOf<F.WritableDiskRequest>("OriginalRip"));
+        try
+        {
+            *ordinal = 0; HostCheck.True(!F.Audit(f.Files.State)); *ordinal = 73;
+            *ripField = 0; HostCheck.True(!F.Audit(f.Files.State)); *ripField = LinuxSyscallGateway.UserEnd; HostCheck.True(!F.Audit(f.Files.State));
+        }
+        finally { *ordinal = 73; *ripField = call.Rip; }
+        HostCheck.True(F.Audit(f.Files.State)); f.Ready(begun.Token);
+        HostCheck.Equal(3L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+        try { *ordinal = 73; *ripField = call.Rip; HostCheck.True(!F.Audit(f.Files.State)); }
+        finally { *ordinal = 0; *ripField = 0; }
+        HostCheck.Equal(0L, f.Core(3, 3)); HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+        HostCheck.Equal(-5L, F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, call, 74).Value);
+        HostCheck.Equal((0UL, 0UL), CopiedCall(f.Disk));
+    }
+
+    [HostTest("writable copied ordinal survives orphan and revoked fd drain then clears before a fresh legacy request")]
+    private static void CopiedOrdinalRevocation()
+    {
+        foreach (bool close in new[] { false, true })
+        {
+            using var f = new Owner(); uint fd = f.Open(); var call = f.Call(0, fd, Output, 16);
+            var begun = F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, call, 81); f.Pump(); HostCheck.True(f.Hardware->Pending);
+            uint copies = f.Thread.Writes; var expected = (81UL, call.Rip);
+            if (close) HostCheck.Equal(0L, f.Core(3, fd));
+            else HostCheck.Equal(F.WritableDiskProgress.Draining, F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, true).Progress);
+            HostCheck.Equal(expected, CopiedCall(f.Disk));
+            if (close)
+            {
+                f.PutPath("/app/fixture.data"); HostCheck.Equal((long)fd, f.Core(2, Path, 0x88100)); f.Ready(begun.Token);
+                HostCheck.Equal(expected, CopiedCall(f.Disk)); HostCheck.Equal(-9L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+            }
+            else f.Drain();
+            HostCheck.True(f.Thread.Writes == copies && !f.Disk->RequestActive && F.Audit(f.Files.State)); HostCheck.Equal((0UL, 0UL), CopiedCall(f.Disk));
+            HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+            uint fresh = f.Open(); var next = f.Call(17, fresh, Output, 1); var legacy = f.Begin(next); HostCheck.Equal((0UL, 0UL), CopiedCall(f.Disk));
+            f.Ready(legacy.Token); HostCheck.Equal(1L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, legacy.Token, next).Value);
+        }
+    }
+
+    [HostTest("writable copied ordinal remains with dirty recovery backing after cancellation revokes its worker")]
+    private static void CopiedOrdinalDirtyRetention()
+    {
+        using var f = new Owner(); uint fd = f.Open(flags: 2); var call = f.WriteCall(fd, new byte[] { 19, 23 }, 5);
+        var begun = F.BeginWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, call, 91);
+        for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) { f.Pump(); f.CompleteHardware(); }
+        HostCheck.True(f.Storage.State->Dirty); f.AllowRetainedFailure = true;
+        var cancelled = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, true);
+        HostCheck.True(cancelled.Progress == F.WritableDiskProgress.RecoveryRequired && !cancelled.Worker.IsValid && f.Disk->RequestActive);
+        HostCheck.Equal((91UL, call.Rip), CopiedCall(f.Disk)); HostCheck.True(F.Audit(f.Files.State) && !F.DetachWritableDisk(f.Files.State) && !F.End(f.Files.State));
+        HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+        HostCheck.Equal((91UL, call.Rip), CopiedCall(f.Disk));
+    }
+
     internal static (string Name, string Alias, uint First, uint Clusters, int Bytes, byte Salt)[] SqliteFootprints() =>
     [
         ("DB80.BIN", "DB80    BIN", 8, 80, 40960, 31),
