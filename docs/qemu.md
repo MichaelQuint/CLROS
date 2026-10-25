@@ -1,6 +1,6 @@
 # QEMU
 
-[Step1607](../done/step1607.md) Fresh originalr11 at8a8bbe7c passes four HTTP responses/exact64KiB range26.147s, joined intentional cancellation and refusal; no full/ordinary cleanup qualification. Root next r12 must use the same strict v4 scenario and unchanged budgets with only the grouped unused-table audit hypothesis. Preserve originalr10 pre-guest failure and all older failures.
+[Step1608](../done/step1608.md) Original r12 at85d326ad passes four HTTP responses, exact64KiB range25.722s and joined intentional cancellation/refusal. All19 original files and exact v4 partitions are retained. FullAndCleanupQualified=false; full r06 and earlier failures remain failed. Root next serializes the Linux HTTP reference publication; no agent may compete for the native/guest lease.
 
 [Step1606](../done/step1606.md) Fresh timingr10 at12128da1 stops before guest launch: CS8786 managed-versus-unmanaged diagnostic clock pointer. The candidate matches the existing unmanaged clock ABI without changing any budgets. Require a new committed -BuildEfi r11 namespace and preserve r10 failure receipts. The integrated HTTP log/upload owner runs managed host children only, with no QEMU/storage acceptance.
 

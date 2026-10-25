@@ -1,6 +1,6 @@
 # CLROS Completion Gates
 
-[Step1607](../done/step1607.md) Original r11 is a successful short timing diagnostic with FullAndCleanupQualified=false. The grouped unused-table check has84 focused controls but needs fresh committed native timingr12, later full A/B/browser/cleanup/race/ancestor/full-host gates and scoped native review. The r11 three fixed-frame observations do not establish whole-stack bounds. No issue closes.
+[Step1608](../done/step1608.md) Original timing r12 passes its short diagnostic with FullAndCleanupQualified=false. The grouped audit change has only a modest single-sample difference; failed full r06 remains failed before browser entry. Linux HTTP owner preparation passes focused host checks and awaits fresh native execution. Full A/B/browser/ordinary cleanup/races/ancestors/unfiltered host/native review, guest writes/reboot and SQLite synchronization remain required. No issue closes.
 
 [Step1606](../done/step1606.md) Timingr10 is a pre-guest compilation failure, preserved without any metric or acceptance. A callback-convention repair and fresh originalr11 are required. The new finite managed HTTP log/upload fixture supplies host qualification only; Linux NativeAOT HTTP, guest FAT32 writes/reboot and SQLite power-loss durability remain open. No completion gate or issue closes.
 

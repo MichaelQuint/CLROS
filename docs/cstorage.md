@@ -1,6 +1,6 @@
 # Storage
 
-[Step1607](../done/step1607.md) Original r11 serves exact64KiB range26.147s with independently extracted bytes, then deliberate joined cancellation. No storage/read/browser gate advances. The next measured candidate changes only whole-page-table zero-check loop shape; all filesystem/block semantics, requested flushes, fairness and time bounds remain unchanged. Guest writes/reboot/SQLite durability remain pending.
+[Step1608](../done/step1608.md) R12 remains a short read diagnostic: exact 64 KiB response, joined intentional cancellation, no full read/browser gate. The integrated Linux HTTP reference requires actual startup330B log, final660B log/5126B upload, distinct console verification, owned process joins and retained raw traces. Host checks pass; actual Linux execution, guest disk writes, reboot and durability remain unqualified.
 
 [Step1606](../done/step1606.md) The integrated finite managed HTTP log/upload fixture exercises actual FileStream writes/readbacks/Flush(true), including failure after the upload closes but before the second log append. Failed receipts retain330Blog/5126Bupload rather than imply rollback. Requested flushes and Windows host files supply no guest device-FLUSH, FAT32 reboot, or durability authority. The separate Linux SQLite recovery r03 boundary remains unchanged.
 

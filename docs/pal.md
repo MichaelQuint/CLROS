@@ -1,6 +1,6 @@
 # PAL
 
-[Step1607](../done/step1607.md) The grouped unused-table candidate changes only synchronous memory-audit loop shape; every bit remains checked in the current owned table arena. Descriptor refresh and retained wait scanning still perform their separate fresh full audits. It grants no PAL storage, physical FLUSH, guest persistence or new lifecycle authority. Existing finite log/upload and external Linux SQLite evidence remain scoped.
+[Step1608](../done/step1608.md) The new Linux HTTP reference owner composes fresh native HTTP/console producers and retains their actual file/process/trace identities; host checks validate preparation only. R12 preserves all fresh descriptor audits and shows a modest single-sample timing difference. Neither result grants guest PAL writes, locking, physical FLUSH, cold reboot or SQLite durability.
 
 [Step1606](../done/step1606.md) The new finite managed MinimalApi HTTP fixture measures requested FileStream flush and exact bytes independently of the console candidate. It grants no guest PAL/device flush, reboot or physical persistence. Readiness diagnostic ABI now matches the existing unmanaged supervisor clock; its later fresh descriptor graph audit and all lifetime rules remain intact.
 

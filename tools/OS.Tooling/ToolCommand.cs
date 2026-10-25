@@ -26,6 +26,14 @@ public static class ToolCommand
                 Console.WriteLine($"TEST_PASS linux.log-upload.reference artifacts={reference.Artifacts.Count} completeTraceProjection={reference.CompleteTraceProjection} guest_lock_flush_and_persistence_authority=false");
                 return 0;
             }
+            if (args is ["linux", "log-upload-http-reference", var httpLogUploadRecipe, var httpLogUploadOutput])
+            {
+                using var reference = NativeAotLogUploadHttpContract.RunLinuxReferenceAsync(
+                    Repository.FindRoot(), httpLogUploadRecipe, httpLogUploadOutput, Console.Out).GetAwaiter().GetResult();
+                reference.VerifyUnchanged();
+                Console.WriteLine($"TEST_PASS linux.log-upload.http-reference artifacts={reference.Artifacts.Count} guest_lock_flush_and_persistence_authority=false");
+                return 0;
+            }
             if (args is ["qemu", "inspect-disk-static-values", var staticDiskPackage, var staticDiskImage, var staticDiskIndex, var staticDiskSerial])
             {
                 string root=Repository.FindRoot();
@@ -402,6 +410,7 @@ public static class ToolCommand
             if (args.Length == 0 || args is ["--help"])
             {
                 Console.WriteLine("linux log-upload-reference <original-socket-recipe-root> <fresh-artifacts-output> (Linux NativeAOT reference only; requires an exclusive builder lease)");
+                Console.WriteLine("linux log-upload-http-reference <original-socket-recipe-root> <fresh-artifacts-output> (fresh HTTP and console NativeAOT reference only; requires an exclusive builder lease)");
                 Console.WriteLine("linux sqlite-reference|sqlite-recovery-reference <original-socket-recipe-root> <pinned-source-zip> <fresh-artifacts-output> (Linux NativeAOT reference only; requires an exclusive builder lease)");
                 Console.WriteLine("linux sqlite-reference-with-archive <original-socket-recipe-root> <pinned-source-zip> <reviewed-r03-artifacts-root> <fresh-artifacts-output> (explicit receipt-bound archive reuse; fresh app publication and traced processes)");
                 Console.WriteLine("linux sqlite-recovery-reference-with-archive <original-socket-recipe-root> <pinned-source-zip> <reviewed-r03-artifacts-root> <fresh-recovery-output> (explicit archive reuse; outer-held originals through fresh process kill/join and reopen; no power-loss authority)");

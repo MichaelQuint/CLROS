@@ -1,6 +1,6 @@
 # EFI Build
 
-[Step1607](../done/step1607.md) Source-matched originalr11 compiles/boots after the ABI repair:2056runtime/1629unwind entries, EFI19821FE308D8D4384ED3A700687C0F1DB385AE95C3464C4B2D1245FC0EFFEB31. Original disassembly confirms a scalar unused-table word loop. The next candidate groups eight ordinary ulong checks and updates only its reviewed source pin; fresh committed -BuildEfi r12 must compare actual generated code and timings. No general stack proof follows.
+[Step1608](../done/step1608.md) Original r12 at 85d326ad compiles and boots with 2056 runtime/1629 distinct unwind entries. EFI 57CFCC1CDA6079BEE1DA318452F10B977B7247C86B0683EB3C9E47DAC6D75A64; package bytes remain unchanged. Actual disassembly confirms eight ordinary word loads/ORs per unused-table loop group. The single measured comparison supplies no whole-stack, full Blazor or throughput acceptance.
 
 [Step1606](../done/step1606.md) Timingr10 at12128da1 fails managed compilation inside fresh native publication with CS8786 before any guest or ELF. The measured readiness callback now uses delegate* unmanaged, matching the existing UnmanagedCallersOnly NativeDiskClock and disk-pump contract. Its host test callback uses the same ABI. One normalized source pin changes; clock placement, ownership, budgets and accepted ordinary profiles stay unchanged. A fresh committed -BuildEfi r11 is required.
 

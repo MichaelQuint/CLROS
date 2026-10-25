@@ -1,6 +1,6 @@
 # Host Requirements
 
-[Step1607](../done/step1607.md) The next memory-audit experiment uses ordinary ulong loads/ORs with no vector/helper dependency or wall-clock host assertions. Focused checks cover16/max128 tables, actual first/last unused pages and300 single-word fault vectors with complete byte preservation/restoration. Source-matched r11 fixed frames are128/480/240B including return addresses for measured readiness/wake/network poll only; transitive stack/IRQ/callback bounds remain unqualified.
+[Step1608](../done/step1608.md) The integrated Linux HTTP owner retains all current compiled sources, native inputs, both fresh publications and evidence until final verification. Descriptor boundary censuses are observations, not peak/4096-fit proof; no handles are dropped and limits are not changed by the owner. Root will keep the parent limit unchanged and isolate any measured child limit. Actual native execution and capacity fit remain pending.
 
 [Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.
 

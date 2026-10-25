@@ -1,6 +1,6 @@
 # App Model
 
-[Step1607](../done/step1607.md) The latest short r11 diagnostic serves four responses and exact64KiB range26.147s, intentionally cancels and joins. It does not qualify full Blazor or persistent workloads. A narrowly scoped full-audit loop experiment is host-checked pending fresh r12. The finite managed HTTP app and successful Linux SQLite process-kill reference retain their separate earlier boundaries; Linux HTTP preparation remains isolated.
+[Step1608](../done/step1608.md) The finite HTTP log/upload owner now has a Linux NativeAOT reference path: fresh HTTP publication plus a separately published unchanged console verifier, owned sessions, actual HTTP bytes and raw traces. Root host checks pass; actual Linux execution is next. Run `linux log-upload-http-reference <original-socket-recipe-root> <fresh-artifacts-output>` only under the exclusive builder lease. This finite reference does not qualify continuous guest persistence.
 
 [Step1606](../done/step1606.md) The four new MinimalApiLogUploadContract/NativeAotLogUploadHttpContract paths provide a separate finite managed HTTP/FileStream qualification candidate. Startup330B is the authenticated pre-request baseline; success produces660Blog/5126Bupload. Abort/cancel/open denial preserve startup, while a later log-append failure honestly retains330B/5126B. Independent completed HTTP, process join/refusal and console verification are required. Linux NativeAOT, guest reboot and durability remain subsequent qualification.
 

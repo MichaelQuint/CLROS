@@ -1,6 +1,6 @@
 # Diagnostics
 
-[Step1607](../done/step1607.md) Original v4r11 exactly conserves postNetwork5320087700=postReadiness5282079100+postWaitRecord38008600ns and readiness5282079100=refresh2664672500+waitscan2617406600ns over2039calls. Root preserves all19 originals. The next sole production hypothesis groups unused-table zero checks; retain identical v4 population/clocks/budgets and compare absolute/per-call values without double counting or attributing all readiness time to that loop.
+[Step1608](../done/step1608.md) Original v4 r12 conserves postNetwork4894619400=readiness4856149400+waitRecord38470000ns and readiness4856149400=refresh2445679500+waitscan2410469900ns over1944calls. Root hashes all19 originals. Readiness per call is2498019ns versus r11 2590524ns; range25.722s versus26.147s, while runner70.346s versus68.041s. Retain all observations; this single sample gives no causal speedup or full qualification.
 
 [Step1606](../done/step1606.md) Preserve timingr10 as a pre-guest CS8786 failure with its original command, six committed producers and log. The v4 readiness callback ABI is corrected to the existing unmanaged clock convention; its single post-refresh/pre-scan boundary and all full-audit/overflow/population checks remain unchanged. The next original is r11; no r10 metric or guest success is inferred.
 

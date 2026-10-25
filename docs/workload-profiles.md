@@ -1,6 +1,6 @@
 # Workload Profiles ADR
 
-[Step1607](../done/step1607.md) Original v4r11 passes diagnostic-only HTTP with exact bytes and complete process join. Expert-reviewed next hypothesis groups unused-table zero checks without skipping validation or changing accepted workload profiles, budgets, FIFO or per-step flush. No throughput improvement is claimed until fresh r12. Full read/Blazor, continuous writes and SQLite durability remain required.
+[Step1608](../done/step1608.md) Original r12 preserves the unchanged DiskA server/package and all budgets, returning exact range bytes then joining intentional cancellation. Its modest single-sample timing difference does not qualify full Blazor. The finite HTTP log/upload reference is explicitly selected and composes fresh unchanged console verification; existing application profiles and the continuously functioning read/write/SQLite product goal remain unchanged.
 
 [Step1606](../done/step1606.md) The separate finite managed MinimalApi HTTP log/upload candidate is an intermediate contract fixture, preserving the existing static server package and the continuous product goal. Explicit startup and partial-effect states remain evidence, not rollback or durability. Timingr10 failed before guest; the diagnostic ABI repair needs fresh originalr11 before any performance conclusion.
 

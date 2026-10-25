@@ -1,6 +1,6 @@
 # Documentation Map
 
-[Step1607](../done/step1607.md) Step1607 retains originalr11 v4 measurements, scoped fixed-frame/native scalar-loop observations and the expert-reviewed grouped unused-table candidate. Architecture/security document preserved full-audit authority; EFI/diagnostic/QEMU docs own the fresh comparison procedure. Storage/app/gate docs retain read/write/Blazor/SQLite limits. New source test coverage is in the existing X64UserAddressSpace fixture.
+[Step1608](../done/step1608.md) Step1608 preserves the original r12 timing/code comparison and imports the Linux HTTP reference owner. Diagnostic/QEMU/EFI docs retain exact source and timing limits; app/Kestrel/storage/PAL docs distinguish finite reference orchestration from guest persistence. Host requirements own retained-handle and descriptor-census limits. Both agents continue under explicit nonoverlapping claims.
 
 [Step1606](../done/step1606.md) Step1606 records the pre-guest timingr10 ABI failure/repair and integrates the four-file finite managed MinimalApi HTTP log/upload fixture. App/Kestrel/storage/PAL/gate docs preserve its managed/Linux/guest/persistence boundaries. Step1605 retains the successful Linux SQLite recovery reference; no historical receipt is changed.
 

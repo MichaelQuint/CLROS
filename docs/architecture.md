@@ -1,6 +1,6 @@
 # Architecture
 
-[Step1607](../done/step1607.md) Whole page-table Audit retains full current admission, reachability, leaf and unused-page validation. The candidate changes only the unused-page zero test to eight ordinary ulong words per OR group. It retains no cached authority, introduces no callback or helper, checks every bit and never substitutes UsedTables for the actual seen-page set. Fresh descriptor audits after readiness refresh and its diagnostic clock remain required.
+[Step1608](../done/step1608.md) R12 executes the grouped unused-table audit without caching or skipping authority. Its modest single-sample timing difference does not resolve the full application throughput gap. The new Linux HTTP owner composes two fresh publications and retained original input/output handles; this host orchestration introduces no guest storage or process authority.
 
 ## Current architecture boundary (October 23, 2026)
 

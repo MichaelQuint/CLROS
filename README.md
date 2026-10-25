@@ -1,6 +1,6 @@
 <p align="center">
 
-[Step1607](done/step1607.md) Fresh v4 timingr11 passes the exact64KiB range in26.147s and owned cancellation/join/refusal. Its readiness split is2.665s refresh/2.617s wait scan. The next candidate groups unused page-table checks into eight-word ORs while still checking every word;84 focused controls pass. Fresh committed r12 is required before any speedup claim. Full Blazor and guest persistence remain unqualified.
+[Step1608](done/step1608.md) Fresh timing r12 returns the exact 64 KiB range in 25.722s versus r11 26.147s; one sample shows a modest difference, not a resolved Blazor throughput problem. Root preserves all original evidence and joins. The Linux HTTP log/upload reference owner and explicit CLI are integrated and host-checked; fresh NativeAOT publication, guest persistence and full Blazor remain unqualified.
 
 [Step1606](done/step1606.md) The finite managed MinimalApi log/upload fixture is integrated from30cfce2d: actual HTTP writes/readbacks and a separate unchanged console verifier, with honest startup/partial-effect failure receipts. Guest persistence remains unqualified. Timing r10 stopped before guest launch at a callback ABI mismatch; the candidate now uses the existing unmanaged clock convention and requires a fresh committed r11.
 

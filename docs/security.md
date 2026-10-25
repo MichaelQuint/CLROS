@@ -1,6 +1,6 @@
 # Security
 
-[Step1607](../done/step1607.md) The unused page-table audit candidate continues rejecting any nonzero bit in every unreachable table page, including high and A/D bits. Eight-word OR grouping changes loop/check frequency only; the admitted full aligned arena and512-word page bound prevent a tail or overread. It does not cache ownership, skip pages, mask unused bits or reuse descriptor admission across callbacks. Existing security and isolation gates do not advance.
+[Step1608](../done/step1608.md) Actual r12 native code preserves the grouped audit checks for every word/bit of every unused table page. Linux HTTP orchestration separately retains authenticated sources, executables and inputs through complete owned session cleanup, including cancellation and partial effects. No copied trace, boundary descriptor count or successful host response grants guest isolation, locking, device-FLUSH or durability authority.
 
 [Step1600](../done/step1600.md) Borrowed filesystem admission validates the complete retained filesystem/port/engine/block/DMA/MMIO/observer tree. Busy cannot publish output or EOF. Global full-tree descriptor/thread hooks are continuing, and writable/read-only coexistence admission remains unchanged. Native writable integration is not qualified.
 
