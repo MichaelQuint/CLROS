@@ -1,6 +1,6 @@
 # Architecture
 
-[Step1608](../done/step1608.md) R12 executes the grouped unused-table audit without caching or skipping authority. Its modest single-sample timing difference does not resolve the full application throughput gap. The new Linux HTTP owner composes two fresh publications and retained original input/output handles; this host orchestration introduces no guest storage or process authority.
+[Step1609](../done/step1609.md) Diagnostic-only v5 adds fixed four-cause counters for whole poll/pre-network/whole disk round/post-network time. All callbacks, fresh full audits, wake/flush ordering and service invocations remain unchanged. Causes are tagged at the three actual call sites, not inferred from thread identity. Ordinary profiles retain their signature/layout. Actual native measurement is pending.
 
 ## Current architecture boundary (October 23, 2026)
 

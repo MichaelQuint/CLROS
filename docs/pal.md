@@ -1,6 +1,6 @@
 # PAL
 
-[Step1608](../done/step1608.md) The new Linux HTTP reference owner composes fresh native HTTP/console producers and retains their actual file/process/trace identities; host checks validate preparation only. R12 preserves all fresh descriptor audits and shows a modest single-sample timing difference. Neither result grants guest PAL writes, locking, physical FLUSH, cold reboot or SQLite durability.
+[Step1609](../done/step1609.md) The copied journal sequence now traverses real source5 Park/Wake/Complete, locks, metadata, file/parent barriers and independent host extraction. Internal header OUT/failedFLUSH returnsEIO once, prevents replay/late copy and retains dirty backing through refused release. These fake-media controls supply no actual SQLite engine, guest PAL flush, reboot or durability. V5 polling observation changes no PAL behavior.
 
 [Step1606](../done/step1606.md) The new finite managed MinimalApi HTTP fixture measures requested FileStream flush and exact bytes independently of the console candidate. It grants no guest PAL/device flush, reboot or physical persistence. Readiness diagnostic ABI now matches the existing unmanaged supervisor clock; its later fresh descriptor graph audit and all lifetime rules remain intact.
 

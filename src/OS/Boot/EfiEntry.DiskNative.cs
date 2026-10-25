@@ -22,6 +22,9 @@ public static unsafe partial class EfiEntry
         private const uint NativeDiskSlots = 8, NativeDiskCaches = 4;
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
         private enum NativeDiskProgress : byte { Rejected, Pending, Ready }
+#if M10_018_TIMING_PROBE
+        private enum NativeDiskPollCause : uint { SyscallClock, SyscallOther, Supervisor, Idle }
+#endif
         private struct NativeDiskOwner
         {
             internal Storage* Boot;
@@ -36,6 +39,8 @@ public static unsafe partial class EfiEntry
             internal LinuxThreadServices.DiskPumpMeasurements TimingPump;
             internal ulong TimingPreNetwork, TimingPostNetwork, TimingPostReadiness, TimingPostWaitRecord, TimingNetworkCalls, TimingReadBytes;
             internal ulong TimingReadinessRefresh, TimingReadinessWaitScan;
+            internal ulong TimingNetworkTotal, TimingDiskRound;
+            internal fixed ulong TimingCauseCalls[4], TimingCauseTotal[4], TimingCausePre[4], TimingCauseDisk[4], TimingCausePost[4];
             internal byte TimingPhase; //0 unarmed,1 counting after listen,2 frozen before the single dump.
 #endif
             internal Fs.Operation* Operations;

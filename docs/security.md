@@ -1,6 +1,6 @@
 # Security
 
-[Step1608](../done/step1608.md) Actual r12 native code preserves the grouped audit checks for every word/bit of every unused table page. Linux HTTP orchestration separately retains authenticated sources, executables and inputs through complete owned session cleanup, including cancellation and partial effects. No copied trace, boundary descriptor count or successful host response grants guest isolation, locking, device-FLUSH or durability authority.
+[Step1609](../done/step1609.md) The v5 diagnostic retains current ownership and all fresh full audits at every actual poll/dispatch. Its copied metrics grant no execution authority. Linux HTTP preflight must authenticate the archived recipe separately from exact current executable/static-link/fresh publication files; missing or changed current input remains fatal, with no archived-copy fallback. Dirty header-FLUSH failure retains its owner and refuses release; no recovery or persistence claim follows.
 
 [Step1600](../done/step1600.md) Borrowed filesystem admission validates the complete retained filesystem/port/engine/block/DMA/MMIO/observer tree. Busy cannot publish output or EOF. Global full-tree descriptor/thread hooks are continuing, and writable/read-only coexistence admission remains unchanged. Native writable integration is not qualified.
 

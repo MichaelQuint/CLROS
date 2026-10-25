@@ -1,6 +1,6 @@
 # EFI Build
 
-[Step1608](../done/step1608.md) Original r12 at 85d326ad compiles and boots with 2056 runtime/1629 distinct unwind entries. EFI 57CFCC1CDA6079BEE1DA318452F10B977B7247C86B0683EB3C9E47DAC6D75A64; package bytes remain unchanged. Actual disassembly confirms eight ordinary word loads/ORs per unused-table loop group. The single measured comparison supplies no whole-stack, full Blazor or throughput acceptance.
+[Step1609](../done/step1609.md) Five reviewed native-source pins follow the diagnostic-only four-cause v5 bookkeeping. Ordinary inactive timing branches preserve their behavior; no audit/cadence/clock/flush change. Host source-admission and profile checks pass, but fresh committed -BuildEfi/native code and scoped ABI/stack review remain required. Original r12 evidence stays unchanged; v5 consumer does not reinterpret old v4 output.
 
 [Step1606](../done/step1606.md) Timingr10 at12128da1 fails managed compilation inside fresh native publication with CS8786 before any guest or ELF. The measured readiness callback now uses delegate* unmanaged, matching the existing UnmanagedCallersOnly NativeDiskClock and disk-pump contract. Its host test callback uses the same ABI. One normalized source pin changes; clock placement, ownership, budgets and accepted ordinary profiles stay unchanged. A fresh committed -BuildEfi r11 is required.
 

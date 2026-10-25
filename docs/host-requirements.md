@@ -1,6 +1,6 @@
 # Host Requirements
 
-[Step1608](../done/step1608.md) The integrated Linux HTTP owner retains all current compiled sources, native inputs, both fresh publications and evidence until final verification. Descriptor boundary censuses are observations, not peak/4096-fit proof; no handles are dropped and limits are not changed by the owner. Root will keep the parent limit unchanged and isolate any measured child limit. Actual native execution and capacity fit remain pending.
+[Step1609](../done/step1609.md) Linux HTTP00ce r01 retains source/producer Ustar hashes, exact command, joined prepublication failure and parentsoft1024before/after; owned childsoft4096 changes no parent state. Original historical paths are receipt evidence and retained archive outputs; current tools/static libraries/fresh publication inputs need actual held files. Do not fabricate old namespaces or drop current holds. Root56affected checks pass; native v5 and repaired HTTP qualification remain pending.
 
 [Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.
 

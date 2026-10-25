@@ -673,7 +673,11 @@ public static unsafe partial class EfiEntry
         private static uint PackLinuxSocketAddress(Ipv4Address address) => ((uint)address.Octet0 << 24) |
             ((uint)address.Octet1 << 16) | ((uint)address.Octet2 << 8) | address.Octet3;
 
-        private static bool PollLinuxSocketNetwork(LinuxNativeControl* c, bool observe = true)
+        private static bool PollLinuxSocketNetwork(LinuxNativeControl* c,
+#if M10_018_TIMING_PROBE
+            NativeDiskPollCause cause,
+#endif
+            bool observe = true)
         {
 #if M16_025_PROBE
             fixed (NativeDiskOwner* disk = &s_nativeDisk)
@@ -682,6 +686,8 @@ public static unsafe partial class EfiEntry
 #if M10_018_TIMING_PROBE
             {
                 bool timing = disk->TimingPhase == 1;
+                uint bucket = (uint)cause;
+                if (bucket >= 4) return false;
                 ulong started = 0, afterPre = 0, afterDisk = 0, afterRefresh = 0, afterReadiness = 0, finished = 0;
                 if (timing && !ReadNetworkTime(c->State, out started)) return false;
                 if (o->Boot != c->State || observe && !RecordLinuxSocketPoll(c) ||
@@ -710,7 +716,14 @@ public static unsafe partial class EfiEntry
                         disk->TimingPostReadiness > ~0UL - (afterReadiness - afterDisk) ||
                         disk->TimingReadinessRefresh > ~0UL - (afterRefresh - afterDisk) ||
                         disk->TimingReadinessWaitScan > ~0UL - (afterReadiness - afterRefresh) ||
-                        disk->TimingPostWaitRecord > ~0UL - (finished - afterReadiness)) return false;
+                        disk->TimingPostWaitRecord > ~0UL - (finished - afterReadiness) ||
+                        disk->TimingNetworkTotal > ~0UL - (finished - started) ||
+                        disk->TimingDiskRound > ~0UL - (afterDisk - afterPre) ||
+                        disk->TimingCauseCalls[bucket] == ~0UL ||
+                        disk->TimingCauseTotal[bucket] > ~0UL - (finished - started) ||
+                        disk->TimingCausePre[bucket] > ~0UL - (afterPre - started) ||
+                        disk->TimingCauseDisk[bucket] > ~0UL - (afterDisk - afterPre) ||
+                        disk->TimingCausePost[bucket] > ~0UL - (finished - afterDisk)) return false;
                     disk->TimingPreNetwork += afterPre - started;
                     disk->TimingPostNetwork += finished - afterDisk;
                     disk->TimingPostReadiness += afterReadiness - afterDisk;
@@ -718,6 +731,13 @@ public static unsafe partial class EfiEntry
                     disk->TimingReadinessWaitScan += afterReadiness - afterRefresh;
                     disk->TimingPostWaitRecord += finished - afterReadiness;
                     disk->TimingNetworkCalls++;
+                    disk->TimingNetworkTotal += finished - started;
+                    disk->TimingDiskRound += afterDisk - afterPre;
+                    disk->TimingCauseCalls[bucket]++;
+                    disk->TimingCauseTotal[bucket] += finished - started;
+                    disk->TimingCausePre[bucket] += afterPre - started;
+                    disk->TimingCauseDisk[bucket] += afterDisk - afterPre;
+                    disk->TimingCausePost[bucket] += finished - afterDisk;
                 }
                 return true;
             }
@@ -783,7 +803,11 @@ public static unsafe partial class EfiEntry
             ulong until = now + 5_000_000;
             for (uint poll = 0; poll < 100_000; poll++)
             {
-                if (!PollLinuxSocketNetwork(c, false) || !ReadNetworkTime(c->State, out now)) return false;
+                if (!PollLinuxSocketNetwork(c,
+#if M10_018_TIMING_PROBE
+                    NativeDiskPollCause.Idle,
+#endif
+                    false) || !ReadNetworkTime(c->State, out now)) return false;
                 if (c->Threads.ReadyCount != 0 || now >= until) return RecordLinuxSocketPoll(c, true);
             }
             return false;

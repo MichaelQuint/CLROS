@@ -1,6 +1,6 @@
 # Documentation Map
 
-[Step1608](../done/step1608.md) Step1608 preserves the original r12 timing/code comparison and imports the Linux HTTP reference owner. Diagnostic/QEMU/EFI docs retain exact source and timing limits; app/Kestrel/storage/PAL docs distinguish finite reference orchestration from guest persistence. Host requirements own retained-handle and descriptor-census limits. Both agents continue under explicit nonoverlapping claims.
+[Step1609](../done/step1609.md) Step1609 owns the v5 poll-cause diagnostic preparation, integrated copied journal/thread tests and failed original Linux HTTP prepublication provenance. Diagnostics/EFI/QEMU own source/measurement limits; storage/PAL/application docs distinguish real host waits and fake FLUSH from guest SQLite/persistence. Host requirements own the archived-recipe/current-input ownership repair. Both agents retain separate next slices.
 
 [Step1606](../done/step1606.md) Step1606 records the pre-guest timingr10 ABI failure/repair and integrates the four-file finite managed MinimalApi HTTP log/upload fixture. App/Kestrel/storage/PAL/gate docs preserve its managed/Linux/guest/persistence boundaries. Step1605 retains the successful Linux SQLite recovery reference; no historical receipt is changed.
 

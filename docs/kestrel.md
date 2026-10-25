@@ -1,6 +1,6 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1608](../done/step1608.md) Original timing r12 serves the exact 64 KiB CoreLib range in 25.722s and joins intentional cancellation; r11 was 26.147s. Readiness per call differs by about 3.6% in this single comparison, insufficient to resolve the long full Blazor transfers. The explicit Linux HTTP log/upload reference owner is integrated and host-checked, with actual fresh native publication and trace qualification still pending.
+[Step1609](../done/step1609.md) The next v5 short diagnostic partitions whole service polls by explicit clock-syscall/other-syscall/supervisor/idle cause; no cadence or full-audit change. It will test the expert observation that575of919 interior r12 syscall rows are clock reads paying service work. The initial Linux HTTP write reference stops before publication on a historical-path prehold; current-input repair and a fresh original are required. Full Blazor remains unqualified.
 
 [Step1606](../done/step1606.md) Integrated MinimalApiLogUploadContract is a separate explicit --serve-once qualification app. It checks empty seeds, logs330B at startup, buffers an exact5126B upload before output, then writes/flushed-closes upload and appends to660B log. The independent HTTP owner requires complete responses, actual exit0, endpoint refusal and the unchanged console verifier. Partial failures retain actual bytes. This managed finite scope does not qualify continuous guest persistence; the original static server/package stays unchanged.
 

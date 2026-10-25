@@ -5,7 +5,11 @@ using OS.Tooling;
 
 internal static class NativeAotDiskTimingPeerTests
 {
-    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 postReadinessNs=300 readinessRefreshNs=100 readinessWaitScanNs=200 postWaitRecordNs=500 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0\r\n";
+    private const string MetricsV4="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 postReadinessNs=300 readinessRefreshNs=100 readinessWaitScanNs=200 postWaitRecordNs=500 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0";
+    private const string Metrics=MetricsV4+" pollNs=11200 diskRoundNs=9600 clockCalls=8 clockNs=11200 clockPreNs=800 clockDiskNs=9600 clockPostNs=800"+
+        " syscallCalls=0 syscallNs=0 syscallPreNs=0 syscallDiskNs=0 syscallPostNs=0"+
+        " supervisorCalls=0 supervisorNs=0 supervisorPreNs=0 supervisorDiskNs=0 supervisorPostNs=0"+
+        " idleCalls=0 idleNs=0 idlePreNs=0 idleDiskNs=0 idlePostNs=0\r\n";
 
     [HostTest("timing aggregate rejects duplicates overflow missing and nonexclusive yield reasons")]
     private static void Aggregate()
@@ -41,18 +45,56 @@ internal static class NativeAotDiskTimingPeerTests
         {
             string row=Metrics.Replace("postNetworkNs=800","postNetworkNs="+parts.Parent)
                 .Replace("postReadinessNs=300","postReadinessNs="+parts.Ready).Replace("postWaitRecordNs=500","postWaitRecordNs="+parts.Wait)
-                .Replace("readinessRefreshNs=100","readinessRefreshNs="+parts.Ready).Replace("readinessWaitScanNs=200","readinessWaitScanNs=0");
+                .Replace("readinessRefreshNs=100","readinessRefreshNs="+parts.Ready).Replace("readinessWaitScanNs=200","readinessWaitScanNs=0")
+                .Replace("preNetworkNs=800","preNetworkNs=0").Replace("diskRoundNs=9600","diskRoundNs=0")
+                .Replace("pollNs=11200","pollNs="+parts.Parent).Replace("clockNs=11200","clockNs="+parts.Parent)
+                .Replace("clockPreNs=800","clockPreNs=0").Replace("clockDiskNs=9600","clockDiskNs=0")
+                .Replace("clockPostNs=800","clockPostNs="+parts.Parent);
             var values=NativeAotDiskTimingPeer.InspectMetrics(row);
             HostCheck.Equal(values["postNetworkNs"],values["postReadinessNs"]+values["postWaitRecordNs"]);
         }
-        string oldV3=Metrics.Replace("readinessRefreshNs=100 readinessWaitScanNs=200 ","");
+        string oldV3=MetricsV4.Replace("readinessRefreshNs=100 readinessWaitScanNs=200 ","");
         string oldV2=oldV3.Replace("postReadinessNs=300 postWaitRecordNs=500 ","")
             .Replace("flushedPastBudget=0","flushedPastBudget=0 replenished=0 replenishBudgetSkips=0");
-        foreach(string original in new[]{oldV3,oldV2})
+        foreach(string original in new[]{MetricsV4,oldV3,oldV2})
         {
             bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(original);}catch(ToolFailure){rejected=true;}
-            HostCheck.True(rejected,"original v2/v3 producers remain distinct from the v4 partition");
+            HostCheck.True(rejected,"original v2/v3/v4 producers remain distinct from the v5 cause partition");
         }
+    }
+
+    [HostTest("timing poll causes conserve counts whole elapsed and three stages without borrowing empty or overflowing buckets")]
+    private static void PollCauses()
+    {
+        // Redistribute the same measured intervals across all four causes.
+        // No independent pump/scan/flush sum is required to equal the WHOLE
+        // disk round: those are subintervals of an overlapping parent.
+        foreach(string cause in new[]{"clock","syscall","supervisor","idle"})
+        {
+            string row=Metrics;
+            if(cause!="clock")
+                row=row.Replace("clockCalls=8","clockCalls=0").Replace("clockNs=11200","clockNs=0")
+                    .Replace("clockPreNs=800","clockPreNs=0").Replace("clockDiskNs=9600","clockDiskNs=0").Replace("clockPostNs=800","clockPostNs=0")
+                    .Replace(cause+"Calls=0",cause+"Calls=8").Replace(cause+"Ns=0",cause+"Ns=11200")
+                    .Replace(cause+"PreNs=0",cause+"PreNs=800").Replace(cause+"DiskNs=0",cause+"DiskNs=9600").Replace(cause+"PostNs=0",cause+"PostNs=800");
+            var values=NativeAotDiskTimingPeer.InspectMetrics(row);
+            HostCheck.Equal(values["networkCalls"],values[cause+"Calls"]);
+            HostCheck.Equal(values["pollNs"],values[cause+"Ns"]);
+        }
+        string mixed=Metrics.Replace("clockCalls=8","clockCalls=2").Replace("clockNs=11200","clockNs=2800")
+            .Replace("clockPreNs=800","clockPreNs=200").Replace("clockDiskNs=9600","clockDiskNs=2400").Replace("clockPostNs=800","clockPostNs=200");
+        foreach(string cause in new[]{"syscall","supervisor","idle"})
+            mixed=mixed.Replace(cause+"Calls=0",cause+"Calls=2").Replace(cause+"Ns=0",cause+"Ns=2800")
+                .Replace(cause+"PreNs=0",cause+"PreNs=200").Replace(cause+"DiskNs=0",cause+"DiskNs=2400").Replace(cause+"PostNs=0",cause+"PostNs=200");
+        HostCheck.Equal(11200UL,NativeAotDiskTimingPeer.InspectMetrics(mixed)["pollNs"]);
+        foreach(string bad in new[]{Metrics.Replace("clockCalls=8","clockCalls=7"),Metrics.Replace("clockCalls=8","clockCalls=0"),
+            Metrics.Replace("clockNs=11200","clockNs=11199"),Metrics.Replace("diskRoundNs=9600","diskRoundNs=9599"),
+            Metrics.Replace("pollNs=11200","pollNs=11201"),Metrics.Replace(" clockDiskNs=9600",""),
+            Metrics.Replace("idleCalls=0","idleCalls=0 idleCalls=0"),Metrics.Replace("idleCalls=0","idleCalls=1"),
+            Metrics.Replace("clockDiskNs=9600","clockDiskNs=18446744073709551615"),
+            Metrics.Replace("idleNs=0","idleNs=18446744073709551615").Replace("idlePreNs=0","idlePreNs=18446744073709551615")
+                .Replace("idleCalls=0","idleCalls=1").Replace("clockCalls=8","clockCalls=7")})
+        { bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(bad);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected,bad); }
     }
 
     [HostTest("timing readiness children conserve parent and reject missing duplicated regressed and overflowing durations")]

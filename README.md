@@ -1,6 +1,6 @@
 <p align="center">
 
-[Step1608](done/step1608.md) Fresh timing r12 returns the exact 64 KiB range in 25.722s versus r11 26.147s; one sample shows a modest difference, not a resolved Blazor throughput problem. Root preserves all original evidence and joins. The Linux HTTP log/upload reference owner and explicit CLI are integrated and host-checked; fresh NativeAOT publication, guest persistence and full Blazor remain unqualified.
+[Step1609](done/step1609.md) The next short diagnostic attributes whole service-poll time to clock syscalls, other syscalls, supervisor work and idle work, using existing timestamps and preserving all progress/audits. Fifty-six affected controls pass; actual v5 native execution is next. The complete copied journal sequence now passes real host thread waits, including a dirty-owner FLUSH failure. The first Linux HTTP attempt stopped before publication on an overbroad historical-input prehold; its expert-reviewed repair remains isolated.
 
 [Step1606](done/step1606.md) The finite managed MinimalApi log/upload fixture is integrated from30cfce2d: actual HTTP writes/readbacks and a separate unchanged console verifier, with honest startup/partial-effect failure receipts. Guest persistence remains unqualified. Timing r10 stopped before guest launch at a callback ABI mismatch; the candidate now uses the existing unmanaged clock convention and requires a fresh committed r11.
 

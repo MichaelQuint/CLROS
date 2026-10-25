@@ -504,7 +504,13 @@ public static unsafe partial class EfiEntry
             // A validated process-wide exit revokes waits before opportunistic
             // device progress. Dispatch the genuine shutdown first; the normal
             // exit/reap/reset path still owns cancellation and quiescence.
-            if (call.Number != 231 && !PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
+#if M10_018_TIMING_PROBE
+            if (call.Number != 231 && !PollLinuxSocketNetwork(c,
+                call.Number == 228 ? NativeDiskPollCause.SyscallClock : NativeDiskPollCause.SyscallOther))
+#else
+            if (call.Number != 231 && !PollLinuxSocketNetwork(c))
+#endif
+                return LinuxNativeAbort(c, index);
 #endif
 #if M10_017_PROBE || M10_018_PROBE
             LinuxStaticFileBefore staticFileBefore = default;

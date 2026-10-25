@@ -366,7 +366,11 @@ public static unsafe partial class EfiEntry
                     !LinuxNativeStop(c, 2, step)) return false;
 #endif
 #if CLROS_LINUX_SOCKETS
-                if (c->Stopping == 0 && !PollLinuxSocketNetwork(c))
+                if (c->Stopping == 0 && !PollLinuxSocketNetwork(c
+#if M10_018_TIMING_PROBE
+                    , NativeDiskPollCause.Supervisor
+#endif
+                    ))
                 {
 #if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                     return false;

@@ -317,7 +317,19 @@ public static unsafe partial class EfiEntry
                     disk->TimingPostReadiness + disk->TimingPostWaitRecord != disk->TimingPostNetwork ||
                     disk->TimingReadinessRefresh > ~0UL - disk->TimingReadinessWaitScan ||
                     disk->TimingReadinessRefresh + disk->TimingReadinessWaitScan != disk->TimingPostReadiness) return false;
-                return LinuxText(c->State, "M10_018_TIMING bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
+                ulong calls = 0, total = 0, pre = 0, round = 0, post = 0;
+                for (uint i = 0; i < 4; i++)
+                {
+                    ulong a = disk->TimingCausePre[i], b = disk->TimingCauseDisk[i], d = disk->TimingCausePost[i];
+                    if (a > ~0UL - b || a + b > ~0UL - d || a + b + d != disk->TimingCauseTotal[i] ||
+                        disk->TimingCauseCalls[i] == 0 && disk->TimingCauseTotal[i] != 0 ||
+                        calls > ~0UL - disk->TimingCauseCalls[i] || total > ~0UL - disk->TimingCauseTotal[i] ||
+                        pre > ~0UL - a || round > ~0UL - b || post > ~0UL - d) return false;
+                    calls += disk->TimingCauseCalls[i]; total += disk->TimingCauseTotal[i]; pre += a; round += b; post += d;
+                }
+                if (calls != disk->TimingNetworkCalls || calls != p.Calls || total != disk->TimingNetworkTotal ||
+                    pre != disk->TimingPreNetwork || round != disk->TimingDiskRound || post != disk->TimingPostNetwork) return false;
+                if (!(LinuxText(c->State, "M10_018_TIMING bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
                     LinuxText(c->State, " calls=") && LinuxNumber(c->State, p.Calls) &&
                     LinuxText(c->State, " steps=") && LinuxNumber(c->State, p.Steps) &&
                     LinuxText(c->State, " pumpNs=") && LinuxNumber(c->State, p.PumpNanoseconds) &&
@@ -337,7 +349,20 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " stepLimit=") && LinuxNumber(c->State, p.StepLimit) &&
                     LinuxText(c->State, " failures=") && LinuxNumber(c->State, p.Failures) &&
                     LinuxText(c->State, " flushedPastBudget=") && LinuxNumber(c->State, p.FlushedPastBudget) &&
-                    LinuxText(c->State, "\r\n");
+                    LinuxText(c->State, " pollNs=") && LinuxNumber(c->State, disk->TimingNetworkTotal) &&
+                    LinuxText(c->State, " diskRoundNs=") && LinuxNumber(c->State, disk->TimingDiskRound))) return false;
+                for (uint i = 0; i < 4; i++)
+                    if (!LinuxText(c->State, i == 0 ? " clockCalls=" : i == 1 ? " syscallCalls=" : i == 2 ? " supervisorCalls=" : " idleCalls=") ||
+                        !LinuxNumber(c->State, disk->TimingCauseCalls[i]) ||
+                        !LinuxText(c->State, i == 0 ? " clockNs=" : i == 1 ? " syscallNs=" : i == 2 ? " supervisorNs=" : " idleNs=") ||
+                        !LinuxNumber(c->State, disk->TimingCauseTotal[i]) ||
+                        !LinuxText(c->State, i == 0 ? " clockPreNs=" : i == 1 ? " syscallPreNs=" : i == 2 ? " supervisorPreNs=" : " idlePreNs=") ||
+                        !LinuxNumber(c->State, disk->TimingCausePre[i]) ||
+                        !LinuxText(c->State, i == 0 ? " clockDiskNs=" : i == 1 ? " syscallDiskNs=" : i == 2 ? " supervisorDiskNs=" : " idleDiskNs=") ||
+                        !LinuxNumber(c->State, disk->TimingCauseDisk[i]) ||
+                        !LinuxText(c->State, i == 0 ? " clockPostNs=" : i == 1 ? " syscallPostNs=" : i == 2 ? " supervisorPostNs=" : " idlePostNs=") ||
+                        !LinuxNumber(c->State, disk->TimingCausePost[i])) return false;
+                return LinuxText(c->State, "\r\n");
             }
         }
 #endif

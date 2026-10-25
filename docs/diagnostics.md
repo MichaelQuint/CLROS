@@ -1,6 +1,6 @@
 # Diagnostics
 
-[Step1608](../done/step1608.md) Original v4 r12 conserves postNetwork4894619400=readiness4856149400+waitRecord38470000ns and readiness4856149400=refresh2445679500+waitscan2410469900ns over1944calls. Root hashes all19 originals. Readiness per call is2498019ns versus r11 2590524ns; range25.722s versus26.147s, while runner70.346s versus68.041s. Retain all observations; this single sample gives no causal speedup or full qualification.
+[Step1609](../done/step1609.md) V5 records four fixed invocation causes with count, whole elapsed, pre-network, WHOLE disk-round and post-network time from existing clocks. Every cause count/stage sum must conserve the aggregate; zero-count duration, missing/duplicate/overflow/old-v4 rows reject. The bounded single dump allows2048characters for42fields. Pump/scan/flush are disk-round subintervals and are not additive disjoint whole-service observations. Actual native v5 evidence is pending.
 
 [Step1606](../done/step1606.md) Preserve timingr10 as a pre-guest CS8786 failure with its original command, six committed producers and log. The v4 readiness callback ABI is corrected to the existing unmanaged clock convention; its single post-refresh/pre-scan boundary and all full-audit/overflow/population checks remain unchanged. The next original is r11; no r10 metric or guest success is inferred.
 

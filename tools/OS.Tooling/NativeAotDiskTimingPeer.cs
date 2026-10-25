@@ -18,7 +18,11 @@ public static class NativeAotDiskTimingPeer
     public const string Marker = "M10_018_TIMING ";
     private static readonly string[] Fields = ["bytes", "calls", "steps", "pumpNs", "scanNs", "flushNs",
         "preNetworkNs", "postNetworkNs", "postReadinessNs", "readinessRefreshNs", "readinessWaitScanNs", "postWaitRecordNs", "networkCalls", "diskReady", "otherReady", "noAdvance",
-        "elapsed", "stepLimit", "failures", "flushedPastBudget"];
+        "elapsed", "stepLimit", "failures", "flushedPastBudget", "pollNs", "diskRoundNs",
+        "clockCalls", "clockNs", "clockPreNs", "clockDiskNs", "clockPostNs",
+        "syscallCalls", "syscallNs", "syscallPreNs", "syscallDiskNs", "syscallPostNs",
+        "supervisorCalls", "supervisorNs", "supervisorPreNs", "supervisorDiskNs", "supervisorPostNs",
+        "idleCalls", "idleNs", "idlePreNs", "idleDiskNs", "idlePostNs"];
 
     public sealed class Completion
     {
@@ -37,7 +41,7 @@ public static class NativeAotDiskTimingPeer
         Need(text.Length<=32*1024*1024,"metric_extent");
         string[] lines=text.Replace("\r\n","\n",StringComparison.Ordinal).Split('\n')
             .Where(l=>l.StartsWith(Marker,StringComparison.Ordinal)).ToArray();
-        Need(lines.Length==1 && lines[0].Length<=1024,"metric_count");
+        Need(lines.Length==1 && lines[0].Length<=2048,"metric_count");
         string[] tokens=lines[0][Marker.Length..].Split(' ');Need(tokens.Length==Fields.Length,"metric_fields");
         Dictionary<string,ulong> values=new(StringComparer.Ordinal);
         for(int i=0;i<Fields.Length;i++)
@@ -60,6 +64,17 @@ public static class NativeAotDiskTimingPeer
         foreach(string field in new[]{"diskReady","otherReady","noAdvance","elapsed","stepLimit"})
         {Need(values[field]<=calls,"metric_reason");reasons+=values[field];}
         Need(reasons==calls,"metric_reasons");
+        ulong causeCalls=0,causeTotal=0,causePre=0,causeDisk=0,causePost=0;
+        foreach(string cause in new[]{"clock","syscall","supervisor","idle"})
+        {
+            ulong count=values[cause+"Calls"],total=values[cause+"Ns"],pre=values[cause+"PreNs"],disk=values[cause+"DiskNs"],post=values[cause+"PostNs"];
+            Need(count<=calls && (count!=0 || total==0) && pre<=ulong.MaxValue-disk && pre+disk<=ulong.MaxValue-post &&
+                pre+disk+post==total && causeCalls<=ulong.MaxValue-count && causeTotal<=ulong.MaxValue-total &&
+                causePre<=ulong.MaxValue-pre && causeDisk<=ulong.MaxValue-disk && causePost<=ulong.MaxValue-post,"metric_cause");
+            causeCalls+=count;causeTotal+=total;causePre+=pre;causeDisk+=disk;causePost+=post;
+        }
+        Need(causeCalls==calls && causeTotal==values["pollNs"] && causePre==values["preNetworkNs"] &&
+            causeDisk==values["diskRoundNs"] && causePost==values["postNetworkNs"],"metric_causes");
         return new System.Collections.ObjectModel.ReadOnlyDictionary<string,ulong>(values);
     }
 
@@ -118,7 +133,7 @@ public static class NativeAotDiskTimingPeer
             try
             {
                 using FileStream receipt=new(Path.Combine(directory,"diagnostic.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v4",Scope="diagnostic-only",Complete=complete,
+                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v5",Scope="diagnostic-only",Complete=complete,
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
                     Responses=rows,Metrics=metrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);

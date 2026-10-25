@@ -1,6 +1,6 @@
 # Storage
 
-[Step1608](../done/step1608.md) R12 remains a short read diagnostic: exact 64 KiB response, joined intentional cancellation, no full read/browser gate. The integrated Linux HTTP reference requires actual startup330B log, final660B log/5126B upload, distinct console verification, owned process joins and retained raw traces. Host checks pass; actual Linux execution, guest disk writes, reboot and durability remain unqualified.
+[Step1609](../done/step1609.md) The integrated copied journal source5 lifecycle passes59storage calls/35waits/12positioned writes/6explicit barriers with509submitted=completed and61952OUT/flush-acknowledged bytes. The12Bheader internal OUT followed by failedFLUSH returnsEIO once, retains dirty ownership, rejects release and preserves prior51712B snapshot. Independent bytes/FAT/guards pass on fake media; no real SQLite recovery or durability follows. The Linux HTTP prepublication failure remains failed pending current-input repair.
 
 [Step1606](../done/step1606.md) The integrated finite managed HTTP log/upload fixture exercises actual FileStream writes/readbacks/Flush(true), including failure after the upload closes but before the second log append. Failed receipts retain330Blog/5126Bupload rather than imply rollback. Requested flushes and Windows host files supply no guest device-FLUSH, FAT32 reboot, or durability authority. The separate Linux SQLite recovery r03 boundary remains unchanged.
 

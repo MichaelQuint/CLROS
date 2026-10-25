@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
@@ -156,6 +158,210 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
             byte[] actual = new byte[expected.Length]; var read = Fat32Parser.ReadRootFile(media, f.Storage.Input.PartitionFirst, name, actual);
             HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && actual.SequenceEqual(expected));
         }
+    }
+
+    [HostTest("writable source5 copied SQLite journal lifecycle keeps exact waits locks metadata and independent bytes across actual file and parent barriers")]
+    private static void SqliteJournalLifecycle() => SqliteJournalFlow(failHeaderFlush: false);
+
+    [HostTest("writable source5 journal header OUT then failed FLUSH returns EIO once retains dirty backing and cannot replay or copy late")]
+    private static void SqliteJournalHeaderFailure() => SqliteJournalFlow(failHeaderFlush: true);
+
+    private static void SqliteJournalFlow(bool failHeaderFlush)
+    {
+        // Only widths, offsets, lock regions and ordering are copied from
+        // original77B2 sqlite-trace.5255:343-364. These independent page bytes
+        // are not a SQLite database or a valid recovery journal. Real host
+        // services and fake-device IN/OUT/FLUSH run; no ELF/SQLite/guest or
+        // physical-persistence authority follows.
+        using var f = new Fixture(); f.Trace = [];
+        var media = new PersistentDevice(f.Storage.Device.Hardware);
+        var geometry = Fat32Parser.ReadBpb(media, f.Storage.Input.PartitionFirst); HostCheck.True(geometry.Succeeded);
+        var bpb = geometry.Bpb; HostCheck.Equal((byte)1, bpb.SectorsPerCluster);
+        byte[] oldEntries = f.Storage.Persistent.Slice((int)(bpb.FirstDataLba * 512), 64).ToArray();
+        byte[] oldFat = f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512), (int)bpb.FatSizeSectors * 512).ToArray();
+        uint[] protectedClusters = [3, 4, 6];
+        byte[][] protectedData = protectedClusters.Select(cluster => f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + cluster - 2) * 512), 512).ToArray()).ToArray();
+        byte[] initial = Enumerable.Range(0, 8192).Select(i => unchecked((byte)(i * 29 + 7))).ToArray();
+        byte[] updated = initial.Select(value => (byte)(value ^ 0x5a)).ToArray(), journalBytes = new byte[8720];
+        const ulong lockAddress = Vector + 64;
+        const long pending = 0x40000000, reserved = pending + 1, shared = pending + 2;
+        const uint flags = 2 | W.Create | W.NoFollow | W.CloseOnExec | W.LargeFile;
+        List<string> barriers = []; uint startingParks = f.Parked; int storageCalls = 0, writes = 0;
+
+        long Run(ulong nr, ulong a0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0, bool waits = false)
+        {
+            uint parks = f.Parked, copied = f.Thread.Writes;
+            long value = f.Run(nr, a0, a1, a2, a3, a4, a5); storageCalls++;
+            HostCheck.Equal(parks + (waits ? 1U : 0U), f.Parked);
+            HostCheck.Equal(copied + (nr is 4 or 5 or 6 && value == 0 || nr == 17 && value > 0 ? 1U : 0U), f.Thread.Writes);
+            HostCheck.True(!f.Thread.View(f.Main).Wait.IsValid && f.Thread.View(f.Main).WaitSource == 0 &&
+                !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !f.Storage.Device.State->RequestPending);
+            return value;
+        }
+        uint Open(string path, uint openFlags, ulong mode = 0)
+        {
+            f.PutPath(path); long value = Run(2, Path, openFlags, mode, waits: path != "/data"); HostCheck.True(value >= 3); return (uint)value;
+        }
+        void Write(uint fd, byte[] bytes, ulong offset)
+        {
+            f.PutWrite(bytes); int first = f.Trace.Count; ulong before = f.Storage.Device.State->SubmittedBytes;
+            HostCheck.Equal((long)bytes.Length, Run(328, fd, Vector, 1, offset, 0, W.RwfNoAppend, waits: true)); writes++;
+            HostCheck.True(f.Trace.Skip(first).Any(row => row.Type == 1) && f.Trace.Skip(first).Any(row => row.Type == 4) &&
+                f.Storage.Device.State->SubmittedBytes > before && f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->CompletedBytes &&
+                f.Storage.Device.State->CompletedBytes == f.Storage.Device.State->DurableBytes && !f.Storage.State->Dirty);
+        }
+        void Sync(uint fd, string role)
+        {
+            var block = f.Storage.Device.State; ulong submitted = block->Submitted, completed = block->Completed, bytes = block->SubmittedBytes;
+            int first = f.Trace.Count; HostCheck.Equal(0L, Run(74, fd, waits: true));
+            HostCheck.True(f.Trace.Skip(first).Select(row => row.Type).SequenceEqual(new uint[] { 4 }) &&
+                block->Submitted == submitted + 1 && block->Completed == completed + 1 && block->SubmittedBytes == bytes &&
+                block->CompletedBytes == bytes && block->DurableBytes == bytes && !f.Storage.State->Dirty);
+            barriers.Add(role);
+            Console.WriteLine($"SQLITE_SOURCE5_FLUSH_HOST role={role} submitted={block->Submitted} completed={block->Completed} writeBytes={bytes} flushAcknowledgedBytes={block->DurableBytes}");
+        }
+        void Lock(uint fd, short type, long first, long length)
+        {
+            Span<byte> wire = UserRange(f, lockAddress, 32); wire.Clear(); BinaryPrimitives.WriteInt16LittleEndian(wire, type);
+            BinaryPrimitives.WriteInt64LittleEndian(wire[8..], first); BinaryPrimitives.WriteInt64LittleEndian(wire[16..], length);
+            HostCheck.Equal(0L, Run(72, fd, 6, lockAddress));
+        }
+        byte[] Stat(uint fd, string path, ulong length)
+        {
+            HostCheck.Equal(0L, Run(5, fd, Output, waits: true)); byte[] wire = UserRange(f, Output, 144).ToArray();
+            HostCheck.True(BinaryPrimitives.ReadUInt32LittleEndian(wire.AsSpan(24)) == 0x8180 &&
+                BinaryPrimitives.ReadUInt64LittleEndian(wire.AsSpan(48)) == length && BinaryPrimitives.ReadUInt64LittleEndian(wire.AsSpan(56)) == 512 &&
+                BinaryPrimitives.ReadUInt64LittleEndian(wire.AsSpan(64)) == (length + 511) / 512);
+            foreach (ulong nr in new ulong[] { 4, 6 })
+            { f.PutPath(path); HostCheck.Equal(0L, Run(nr, Path, Output, waits: true)); HostCheck.True(UserRange(f, Output, 144).SequenceEqual(wire)); }
+            return wire;
+        }
+        void Independent(string name, byte[] expected)
+        {
+            byte[] actual = new byte[expected.Length]; var read = Fat32Parser.ReadRootFile(media, f.Storage.Input.PartitionFirst, name, actual);
+            HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && actual.SequenceEqual(expected));
+        }
+        uint Fat(uint cluster) => BinaryPrimitives.ReadUInt32LittleEndian(f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512 + cluster * 4), 4)) & 0x0fffffff;
+
+        uint database = Open("/data/contract.db", flags, 0x1a4); HostCheck.Equal(0L, Run(72, database, 2, 1));
+        HostCheck.True(F.Capture(f.Files.State, database, out var databaseToken));
+        Write(database, initial[..4096], 0); Write(database, initial[4096..], 4096); Sync(database, "seed-db");
+        ulong inode = BinaryPrimitives.ReadUInt64LittleEndian(Stat(database, "/data/contract.db", 8192).AsSpan(8));
+        uint reader = Open("/data/contract.db", W.LargeFile | W.CloseOnExec);
+        HostCheck.Equal(17L, Run(8, database, 17)); HostCheck.Equal(29L, Run(8, reader, 29));
+        Lock(database, 0, pending, 1); Lock(database, 0, shared, 510); Lock(database, 2, pending, 1); Lock(database, 1, reserved, 1);
+        HostCheck.True(f.HasLocks()); f.PutPath("/data/contract.db-journal"); HostCheck.Equal(-2L, Run(4, Path, Output, waits: true));
+        uint journal = Open("/data/contract.db-journal", flags, 0x180); HostCheck.Equal(0L, Run(72, journal, 2, 1));
+        HostCheck.True(F.Capture(f.Files.State, journal, out var journalToken)); HostCheck.Equal(31L, Run(8, journal, 31));
+        byte[] header = new byte[512], checksum = [0x4b, 9, 0xca, 0x75]; checksum.CopyTo(header, 12); header[19] = 2; header[22] = 2; header[26] = 0x10;
+        (ulong Offset, byte[] Bytes)[] records = [(0, header), (512, [0, 0, 0, 1]), (516, initial[..4096]),
+            (4612, checksum), (4616, [0, 0, 0, 2]), (4620, initial[4096..]), (8716, checksum)];
+        foreach (var record in records) { Write(journal, record.Bytes, record.Offset); record.Bytes.CopyTo(journalBytes, (int)record.Offset); }
+        byte[] facts = Stat(journal, "/data/contract.db-journal", 8720);
+        var located = Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, "contract.db-journal");
+        HostCheck.True(located.Succeeded && located.Entry.FileSize == 8720 && located.Entry.Attributes == 0x20);
+        List<uint> journalClusters = []; uint next = located.Entry.FirstCluster;
+        for (int i = 0; i < 18; i++) { HostCheck.True(next >= 2 && next < bpb.ClusterCount + 2 && !journalClusters.Contains(next)); journalClusters.Add(next); next = Fat(next); }
+        HostCheck.True(next >= 0x0ffffff8 && BinaryPrimitives.ReadUInt64LittleEndian(facts.AsSpan(64)) == (ulong)journalClusters.Count);
+        HostCheck.True(f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + journalClusters[^1] - 2) * 512 + 16), 496).IndexOfAnyExcept((byte)0) < 0);
+        ulong entry = (BinaryPrimitives.ReadUInt64LittleEndian(facts.AsSpan(8)) - 1) * 32;
+        var run = f.Storage.Persistent.Slice((int)entry - 64, 96);
+        HostCheck.True(run[0] == 0x42 && run[11] == 15 && run[32] == 1 && run[43] == 15 && run[75] == 0x20);
+        Independent("contract.db-journal", journalBytes); Independent("contract.db", initial);
+        Lock(database, 1, pending, 1); Lock(database, 1, shared, 510);
+        UserRange(f, Output, 8).Fill(0xa5); uint copies = f.Thread.Writes;
+        HostCheck.Equal(0L, Run(17, journal, Output, 8, 9216, waits: true)); HostCheck.Equal(copies, f.Thread.Writes);
+        HostCheck.True(UserRange(f, Output, 8).IndexOfAnyExcept((byte)0xa5) < 0);
+        Sync(journal, "journal-body"); uint parent = Open("/data", W.LargeFile | W.CloseOnExec);
+        Sync(parent, "parent"); HostCheck.Equal(0L, Run(3, parent)); HostCheck.True(f.HasLocks() && F.IsCurrent(f.Files.State, databaseToken));
+        byte[] committedHeader = [0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7, 0, 0, 0, 2];
+        if (failHeaderFlush)
+        {
+            byte[] priorSnapshotHash = SHA256.HashData(f.Storage.Persistent); ulong acknowledged = f.Storage.Device.State->DurableBytes;
+            f.PutWrite(committedHeader); byte[] userBefore = UserRange(f, User + 4096, (uint)(LinuxThreadServicesTests.UserBytes - 4096)).ToArray();
+            uint beforeCopies = f.Thread.Writes, beforeParks = f.Parked; int outCount = 0, flushCount = 0; bool failed = false;
+            ulong firstSector = bpb.FirstDataLba + journalClusters[0] - 2;
+            byte[] expectedSector = f.Storage.Persistent.Slice((int)(firstSector * 512), 512).ToArray(); committedHeader.CopyTo(expectedSector, 0);
+            f.Begin(328, journal, Vector, 1, 0, 0, W.RwfNoAppend); HostCheck.True(f.Thread.View(f.Main).WaitSource == 5); f.Park();
+            for (int i = 0; i < 100000 && !failed; i++)
+            {
+                HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2)); var device = f.Storage.Device.Hardware;
+                if (!device->Pending) continue;
+                f.Trace.Add((device->Type, device->Sector));
+                if (device->Type == 1)
+                {
+                    outCount++; HostCheck.True(device->Sector == firstSector && outCount == 1 &&
+                        new ReadOnlySpan<byte>(f.Storage.Device.Data + 512, 512).SequenceEqual(expectedSector));
+                }
+                if (device->Type == 4)
+                { flushCount++; HostCheck.True(outCount == 1); f.Storage.Device.Complete(status: 1); failed = true; f.RetainedFailure = true; }
+                else f.Storage.Device.Complete();
+            }
+            HostCheck.True(failed && outCount == 1 && flushCount == 1); f.Ready(); HostCheck.Equal(-5L, f.Consume());
+            HostCheck.True(f.Parked == beforeParks + 1 && f.Thread.Writes == beforeCopies &&
+                UserRange(f, User + 4096, (uint)userBefore.Length).SequenceEqual(userBefore) &&
+                f.Storage.State->Dirty && f.Disk->RequestActive && f.Provider->RequestActive && !f.Storage.Device.State->RequestPending &&
+                f.Storage.Device.State->DurableBytes == acknowledged && f.Storage.Device.State->CompletedBytes > acknowledged &&
+                SHA256.HashData(f.Storage.Persistent).SequenceEqual(priorSnapshotHash));
+            uint notifications = f.Storage.Device.Hardware->Notifies; ulong submitted = f.Storage.Device.State->Submitted;
+            for (int i = 0; i < 3; i++)
+            {
+                HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2));
+                HostCheck.Equal(LinuxSyscallAction.Rejected, f.Thread.Service->CompleteWritableDiskWait(Key, 2).Action);
+            }
+            HostCheck.True(f.Storage.Device.Hardware->Notifies == notifications && f.Storage.Device.State->Submitted == submitted &&
+                f.Thread.Writes == beforeCopies && UserRange(f, User + 4096, (uint)userBefore.Length).SequenceEqual(userBefore) &&
+                !F.DetachWritableDisk(f.Files.State) && ContinuingFat32Mutation.Stop(f.Storage.State) == ContinuingFat32Mutation.Status.RecoveryRequired);
+            Independent("contract.db-journal", journalBytes); Independent("contract.db", initial);
+            HostCheck.True(barriers.SequenceEqual(new[] { "seed-db", "journal-body", "parent" })); f.Storage.Device.CheckGuards();
+            Console.WriteLine($"SQLITE_SOURCE5_HEADER_FAILURE_HOST result=-5 out={outCount} failedFlushes={flushCount} consumedOnce=true priorSnapshotUnchanged=true dirtyRetained=true submitted={submitted} flushAcknowledgedBytes={acknowledged}");
+            return; // Fixture.Dispose verifies actual exit/reap refuses owner release, then resets only this failed fake machine.
+        }
+        Write(journal, committedHeader, 0); committedHeader.CopyTo(journalBytes, 0); Sync(journal, "journal-header");
+        Independent("contract.db-journal", journalBytes); Independent("contract.db", initial);
+        Write(database, updated[..4096], 0); Write(database, updated[4096..], 4096); Sync(database, "database");
+        HostCheck.True(BinaryPrimitives.ReadUInt64LittleEndian(Stat(reader, "/data/contract.db", 8192).AsSpan(8)) == inode &&
+            F.IsCurrent(f.Files.State, databaseToken) && f.HasLocks());
+        HostCheck.Equal(31L, Run(8, journal, 0, 1)); HostCheck.Equal(0L, Run(3, journal)); HostCheck.True(!F.IsCurrent(f.Files.State, journalToken) && f.HasLocks());
+        f.PutPath("/data/contract.db-journal"); HostCheck.Equal(0L, Run(87, Path, waits: true));
+        f.PutPath("/data/contract.db-journal"); HostCheck.Equal(-2L, Run(6, Path, Output, waits: true));
+        HostCheck.True(f.HasLocks() && journalClusters.All(cluster => Fat(cluster) == 0));
+        for (int i = 0; i < 3; i++) HostCheck.True(f.Storage.Persistent[(int)entry - 64 + i * 32] == 0xe5 &&
+            f.Storage.Persistent.Slice((int)entry - 63 + i * 32, 31).IndexOfAnyExcept((byte)0) < 0);
+        // This additional requested host barrier is not counted as an
+        // extra observed call in the original77B2 trace.
+        parent = Open("/data", W.LargeFile | W.CloseOnExec); Sync(parent, "parent-after-unlink"); HostCheck.Equal(0L, Run(3, parent));
+        Lock(database, 0, shared, 510); Lock(database, 2, pending, 2); Lock(database, 2, 0, 0); HostCheck.True(!f.HasLocks());
+        UserRange(f, Output, 8192).Fill(0xa5); HostCheck.Equal(8192L, Run(17, reader, Output, 8192, waits: true));
+        HostCheck.True(UserRange(f, Output, 8192).SequenceEqual(updated));
+        HostCheck.Equal(17L, Run(8, database, 0, 1)); HostCheck.Equal(29L, Run(8, reader, 0, 1));
+        Independent("contract.db", updated); Independent("DATA.BIN", Enumerable.Range(0, 900).Select(i => unchecked((byte)(i * 17 + 5))).ToArray()); Independent("KEEP.TXT", new byte[3]);
+        HostCheck.Equal(Fat32Status.MissingFile, Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, "contract.db-journal").Status);
+        HostCheck.True(f.Storage.Persistent.Slice((int)(bpb.FirstDataLba * 512), 64).SequenceEqual(oldEntries));
+        for (int i = 0; i < protectedClusters.Length; i++)
+        {
+            uint cluster = protectedClusters[i]; HostCheck.True(f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + cluster - 2) * 512), 512).SequenceEqual(protectedData[i]) &&
+                f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512 + cluster * 4), 4).SequenceEqual(oldFat.AsSpan((int)cluster * 4, 4)));
+        }
+        HostCheck.True(f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512), oldFat.Length).SequenceEqual(
+            f.Storage.Persistent.Slice((int)((bpb.FirstFatLba + bpb.FatSizeSectors) * 512), oldFat.Length)));
+        var databaseEntry = Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, "contract.db"); HostCheck.True(databaseEntry.Succeeded);
+        HashSet<uint> databaseClusters = []; next = databaseEntry.Entry.FirstCluster;
+        for (int i = 0; i < 16; i++) { HostCheck.True(next >= 2 && next < bpb.ClusterCount + 2 && databaseClusters.Add(next)); next = Fat(next); }
+        HostCheck.True(next >= 0x0ffffff8);
+        for (int offset = 0; offset < oldFat.Length; offset += 4)
+            if (!databaseClusters.Contains((uint)offset / 4)) HostCheck.True(f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512) + offset, 4).SequenceEqual(oldFat.AsSpan(offset, 4)));
+        HostCheck.Equal(0L, Run(3, reader)); HostCheck.Equal(0L, Run(3, database));
+        byte[] userAfter = UserRange(f, User + 4096, (uint)(LinuxThreadServicesTests.UserBytes - 4096)).ToArray(); copies = f.Thread.Writes;
+        HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2)); HostCheck.Equal(LinuxSyscallAction.Rejected, f.Thread.Service->CompleteWritableDiskWait(Key, 2).Action);
+        HostCheck.True(f.Thread.Writes == copies && UserRange(f, User + 4096, (uint)userAfter.Length).SequenceEqual(userAfter) &&
+            f.Files.State->ActiveDescriptors == 3 && f.Files.State->RetainedPipeOperations == 0 && F.Audit(f.Files.State) && !f.Storage.State->Dirty &&
+            !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !f.Storage.Device.State->RequestPending &&
+            f.Storage.Device.State->Submitted == f.Storage.Device.State->Completed && f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->CompletedBytes &&
+            f.Storage.Device.State->CompletedBytes == f.Storage.Device.State->DurableBytes && writes == 12 &&
+            barriers.SequenceEqual(new[] { "seed-db", "journal-body", "parent", "journal-header", "database", "parent-after-unlink" }));
+        f.Storage.Device.CheckGuards();
+        Console.WriteLine($"SQLITE_SOURCE5_JOURNAL_HOST journalBytes=8720 databaseBytes=8192 storageCalls={storageCalls} waits={f.Parked - startingParks} positionedWrites={writes} explicitFlushes={barriers.Count} submitted={f.Storage.Device.State->Submitted} completed={f.Storage.Device.State->Completed} writeBytes={f.Storage.Device.State->SubmittedBytes} flushAcknowledgedBytes={f.Storage.Device.State->DurableBytes}");
     }
 
     private static ReadOnlySpan<byte> ElfRange(byte[] elf, ulong address, ulong bytes)
@@ -582,6 +788,12 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         internal void PutWrite(byte[] bytes)
         { bytes.CopyTo(new Span<byte>(Thread.At(Payload), bytes.Length)); *(ulong*)Thread.At(Vector) = Payload; *(ulong*)(Thread.At(Vector) + 8) = (ulong)bytes.Length; }
         internal bool May(ulong start, ulong bytes) => Thread.Service->MayChangeUserRange(Key, 2, start, bytes);
+        internal bool HasLocks()
+        {
+            FieldInfo active = typeof(W.RangeLock).GetField("Active", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            for (int i = 0; i < 32; i++) if ((bool)active.GetValue(locks[i])!) return true;
+            return false;
+        }
         private LinuxSyscallResult Call(ulong number, ulong a0, ulong a1, ulong a2, ulong a3, ulong a4, ulong a5)
         {
             var image = Thread.CurrentImage(); var frame = image->Frame;
