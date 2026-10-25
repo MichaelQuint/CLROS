@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1602](../done/step1602.md) QEMU and diagnostics own actual timing runner selection, separate deadlines, retained pre-guest failures and original-input confinement. Host requirements own real CLI controls; the agent guide records two isolated successor claims. Host orchestration changes no storage/native/SQLite capability boundary.
+
 [Step1601](../done/step1601.md) EFI build documents host4096catalog capacity and actual original2055rejection; nativeaot-nostdlib-limits retains separate kernel2048 semantics. Diagnostics/QEMU own exact XML-reader/native failure provenance and fresh-original requirements. Application/storage successor preparation remains under Step1600 until separately integrated.
 
 [Step1600](../done/step1600.md) Storage owns the shared writable block read-port/filesystem, combined web/data image and cold media controls. Diagnostics/QEMU own the short aggregate timing profile and intentional cancellation boundary; app-model owns the failed SQLite original and the next verified dependency preparation. Step1599 continues to define the continuously functioning product goal.

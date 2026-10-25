@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1602](../done/step1602.md) The timing diagnostic reaches the actual runner in host dry-runs; nineteen focused controls pass. All timing originals through r06 stop before guest and remain failed. No read/Blazor/cleanup/persistence/SQLite/sustained-service gate closes. A fresh original must measure the selected path before any scheduling repair or full rerun.
+
 [Step1601](../done/step1601.md) Host catalog/profile controls establish no new guest milestone: timingr01/r02 stop before guest; fullr06 remains failed and browser never entered. The host4096 catalog change preserves kernel2048 unwind behavior. New timing/full/persistence/SQLite originals and stable acceptance gates remain required.
 
 [Step1600](../done/step1600.md) New shared-owner filesystem, combined image, cold media and timing controls are scoped host preparation. Full read r06 is failed; new short timing/native results are pending. Linux SQLite r04 is failed before publication. No full read/Blazor, sustained service, writable guest persistence, SQLite durability/recovery, cloud or production gate closes.

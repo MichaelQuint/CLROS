@@ -335,6 +335,7 @@ public static class QemuSmoke
             if (diskFiles) arguments.Add("--readonly-webroot-disk");
             if(staticFiles)arguments.Add("--finite-static-files");
             if(NativeAotDiskSelection.FullStaticSelected(plan.Flags))arguments.Add("--full-disk-static-files");
+            if(NativeAotDiskSelection.TimingSelected(plan.Flags))arguments.Add("--disk-read-timing");
             if(service)arguments.Add("--continuing-service");
             if(service&&serviceContract==NativeAotServiceContract.QuotaFailure)arguments.Add("--service-quota-failure");
             if((service||sockets||vectors||staticFiles)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
@@ -403,7 +404,7 @@ public static class QemuSmoke
                         var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
                         if(NativeAotDiskSelection.TimingSelected(plan.Flags))
                         {
-                            var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,cancellation);
+                            var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,options.TimeoutSeconds,cancellation);
                             diskInputs!.VerifyUnchanged();diskNative!.VerifyHeldInputs();
                             webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
                             WebRootImageFixture.Verify(Path.GetFullPath(options.Image,root),diskImageReceipt);

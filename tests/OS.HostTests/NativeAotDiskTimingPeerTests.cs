@@ -10,6 +10,14 @@ internal static class NativeAotDiskTimingPeerTests
     [HostTest("timing aggregate rejects duplicates overflow missing and nonexclusive yield reasons")]
     private static void Aggregate()
     {
+        HostCheck.Equal(210,NativeAotDiskTimingPeer.PeerTimeoutSeconds(240));
+        HostCheck.Equal(450,NativeAotDiskTimingPeer.PeerTimeoutSeconds(480));
+        HostCheck.Equal(480,NativeAotDiskTimingPeer.PeerTimeoutSeconds(600));
+        foreach(int timeout in new[]{239,601})
+        {
+            bool denied=false;try{_=NativeAotDiskTimingPeer.PeerTimeoutSeconds(timeout);}catch(ToolFailure){denied=true;}
+            HostCheck.True(denied);
+        }
         HostCheck.Equal(32UL,NativeAotDiskTimingPeer.InspectMetrics("unrelated\n"+Metrics)["steps"]);
         foreach(string bad in new[]{"",Metrics+Metrics,Metrics.Replace("calls=8","calls=18446744073709551616"),
             Metrics.Replace("calls=8","calls=08"),Metrics.Replace("stepLimit=7","stepLimit=8"),
@@ -42,10 +50,10 @@ internal static class NativeAotDiskTimingPeerTests
             using var deadline=new CancellationTokenSource(TimeSpan.FromSeconds(20));ToolFailure? failure=null;
             try
             {
-                var result=await NativeAotDiskTimingPeer.RunAsync(root,serial,Stub,inventory,deadline.Token);
+                var result=await NativeAotDiskTimingPeer.RunAsync(root,serial,Stub,inventory,600,deadline.Token);
                 HostCheck.True(mode=="good" && result.Runner.Cancelled && result.Runner.TerminationConfirmed && exited);
                 int starts=0;bool denied=false;
-                try{_=await NativeAotDiskTimingPeer.RunAsync(root,serial,(_,_)=>{starts++;throw new InvalidOperationException();},inventory,deadline.Token);}
+                try{_=await NativeAotDiskTimingPeer.RunAsync(root,serial,(_,_)=>{starts++;throw new InvalidOperationException();},inventory,600,deadline.Token);}
                 catch(ToolFailure error){denied=error.Reason=="disk_timing_fresh_artifacts";}
                 HostCheck.True(denied && starts==0);
             }

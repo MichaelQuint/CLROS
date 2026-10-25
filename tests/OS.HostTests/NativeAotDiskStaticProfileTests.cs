@@ -78,4 +78,62 @@ internal static class NativeAotDiskStaticProfileTests
             .Single(line => line.StartsWith("FORBIDDEN_MARKERS ", StringComparison.Ordinal));
         HostCheck.True(forbidden["FORBIDDEN_MARKERS ".Length..].Split(';').Contains("CLROS_M10_017_READY"));
     }
+
+    [HostTest("timing dry run reaches actual runner at both deadline boundaries without creating outputs")]
+    private static void TimingRunner()
+    {
+        foreach(string timeout in new[]{"240","600"})
+        {
+            string path=Path.Combine(Path.GetTempPath(),"clros-disk-timing-"+Guid.NewGuid().ToString("N"));
+            var run=HostToolProcess.RunTool(["qemu","smoke","-DryRun","-Qemu","qemu-test","-OvmfCode","ovmf-test",
+                ..Arguments,"-EnableM10018TimingProbe","-TimeoutSeconds",timeout,
+                "-Image",path+".raw","-SerialLog",path+".serial","-SummaryLog",path+".summary"]);
+            HostCheck.True(run.ExitCode==0,run.Output+run.Error);
+            foreach(string value in new[]{"TEST_PASS qemu.runner.dryrun","DISK_READ_TIMING true",
+                "virtio-blk-pci,drive=webroot,addr=07.0","readonly=on","addr=06.0",
+                "hostfwd=tcp:127.0.0.1:20080-:8080","-rtc base=utc,clock=host",
+                "filter-dump,id=clroscapture","CLROS_M10_018_READY","TEST_PASS m16-012"})
+                HostCheck.True(run.Output.Contains(value,StringComparison.Ordinal),value);
+            foreach(string suffix in new[]{".raw",".serial",".summary",".serial.pcap"})
+                HostCheck.True(!Path.Exists(path+suffix),suffix);
+        }
+        foreach(string[] args in new[]{Arguments.Where(value=>value!="-BuildEfi").ToArray(),[..Arguments,"-SkipImageBuild"]})
+        {
+            var denied=HostToolProcess.RunTool(["qemu","smoke","-DryRun",..args,"-EnableM10018TimingProbe"]);
+            HostCheck.True(denied.ExitCode!=0 && !denied.Output.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),denied.Output+denied.Error);
+        }
+    }
+
+    [HostTest("actual runner rejects timing parent deadline and duplicate errors while preserving full deadlines")]
+    private static async Task TimingRunnerRejections()
+    {
+        string root=HostToolProcess.FindRepositoryRoot();
+        string path=Path.Combine(Path.GetTempPath(),"clros-disk-timing-cli-"+Guid.NewGuid().ToString("N"));
+        string[] parent=["--dry-run","--qemu","qemu-test","--image",path+".raw","--serial-log",path+".serial",
+            "--summary-log",path+".summary","--virtio-negotiation-device","--arp-receive-fixture",
+            "--ethernet-capture",path+".pcap","--socket-forward-port","20880","--workload-profile","SingleMinimalApi",
+            "--firmware-rng-source","virtio","--replace-default-required-markers","--finite-static-files",
+            "--readonly-webroot-disk","--full-disk-static-files"];
+        foreach(string missing in new[]{"--full-disk-static-files","--readonly-webroot-disk","--finite-static-files"})
+            await Reject([..parent.Where(value=>value!=missing),"--disk-read-timing","--timeout","600"]);
+        await Reject([..parent,"--disk-read-timing","--disk-read-timing","--timeout","600"]);
+        foreach(string timeout in new[]{"239","601"})await Reject([..parent,"--disk-read-timing","--timeout",timeout]);
+        await Reject([..parent,"--timeout","600"]);
+        foreach(string timeout in new[]{"2200","3600"})
+        {
+            var run=await Run([..parent,"--timeout",timeout]);
+            HostCheck.True(run.ExitCode==0 && run.StandardOutput.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),run.StandardOutput+run.StandardError);
+            HostCheck.True(!run.StandardOutput.Contains("DISK_READ_TIMING",StringComparison.Ordinal));
+        }
+        foreach(string suffix in new[]{".raw",".serial",".summary",".pcap"})HostCheck.True(!Path.Exists(path+suffix));
+
+        Task<ProcessResult> Run(string[] args)=>ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..args],root)
+            {Timeout=TimeSpan.FromSeconds(20)});
+        async Task Reject(string[] args)
+        {
+            var run=await Run(args);
+            HostCheck.True(run.ExitCode==1 && run.StandardError.Contains("TEST_FAIL qemu.runner.invalid_args",StringComparison.Ordinal),run.StandardOutput+run.StandardError);
+            HostCheck.True(!run.StandardOutput.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal));
+        }
+    }
 }

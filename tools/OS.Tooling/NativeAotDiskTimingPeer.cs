@@ -59,14 +59,23 @@ public static class NativeAotDiskTimingPeer
         return new System.Collections.ObjectModel.ReadOnlyDictionary<string,ulong>(values);
     }
 
+    /// <summary>Leaves thirty seconds inside the admitted runner deadline for
+    /// owned cancellation and joining; the diagnostic itself never exceeds480s.</summary>
+    public static int PeerTimeoutSeconds(int runnerTimeoutSeconds)
+    {
+        Need(runnerTimeoutSeconds is >=240 and <=600,"runner_timeout");
+        return Math.Min(480,runnerTimeoutSeconds-30);
+    }
+
     /// <summary>Fresh artifacts must be inside root/artifacts. Caller retains
     /// exact image/source/native authorities until return. All failures preserve
     /// copied responses and the joined runner disposition. Cancellation of the
     /// original runner is deliberate only after every diagnostic check passes.</summary>
     public static async Task<Completion> RunAsync(string root,string serial,
         Func<int,CancellationToken,Task<ProcessResult>> runRunner,WebRootDiskInventory.Inspection inventory,
-        CancellationToken cancellation=default)
+        int runnerTimeoutSeconds=600,CancellationToken cancellation=default)
     {
+        int peerTimeoutSeconds=PeerTimeoutSeconds(runnerTimeoutSeconds);
         root=Path.GetFullPath(root);serial=Path.GetFullPath(serial,root);
         var file=inventory.Find(WebRootDiskInventory.Root+Target);
         Need(file is not null && !file.IsDirectory && file.Bytes>=65536,"corelib_inventory");
@@ -77,7 +86,7 @@ public static class NativeAotDiskTimingPeer
         AuthorityFiles.RequirePlainPath(root,Path.GetDirectoryName(directory)!,"disk_timing_path");Directory.CreateDirectory(directory);
         int port;using(TcpListener reserve=new(IPAddress.Loopback,0)){reserve.Start();port=((IPEndPoint)reserve.LocalEndpoint).Port;}
         using var owned=CancellationTokenSource.CreateLinkedTokenSource(cancellation);
-        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);deadline.CancelAfter(TimeSpan.FromSeconds(480));
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);deadline.CancelAfter(TimeSpan.FromSeconds(peerTimeoutSeconds));
         Task<ProcessResult> runner=runRunner(port,owned.Token);Task? peer=null;bool complete=false;List<object> rows=[];
         IReadOnlyDictionary<string,ulong>? metrics=null;string? failure=null;
         try
@@ -106,7 +115,8 @@ public static class NativeAotDiskTimingPeer
             {
                 using FileStream receipt=new(Path.Combine(directory,"diagnostic.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
                 await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v1",Scope="diagnostic-only",Complete=complete,
-                    FullAndCleanupQualified=false,Port=port,ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
+                    FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
+                    ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
                     Responses=rows,Metrics=metrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
                 receipt.Flush(true);
             }

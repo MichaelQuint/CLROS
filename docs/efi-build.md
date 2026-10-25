@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1602](../done/step1602.md) Original timing r06 at d6bd3919 completes native verification (2055 runtime/1628 unwind records) and image construction, then runner deadline admission fails before guest. EFI SHA256 0B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF. The runner repair changes no kernel, EFI source pin or metadata bound. A new committed -BuildEfi original remains mandatory; failed r03–r06 retain their original scope.
+
 [Step1601](../done/step1601.md) Host full-PE catalog admission is4096 (48KiB pdata; bounded managed List/Dictionary scan), separately from unchanged2048 kernel unwind snapshots. Timing/full/018 actual flags have allM04=false and no decoder startup call.23verifier checks pass including full4096distinct scan3ms,2055regression and4097rejection with unchanged1s scan criterion. Originalr02 failed2055/2048 before guest; a fresh native/original remains required.
 
 [Step1600](../done/step1600.md) The timing candidate changes reviewed source/project pins and adds an explicit default-off M10_018_TIMING_PROBE; host graph and focused controls pass. Its emitted native catalog/ABI/local-frame review and fresh guest are still pending. The previous b940 full count2047/2048 remains historical; no catalog limit was raised for this preparation. Writable EFI activation stays absent.

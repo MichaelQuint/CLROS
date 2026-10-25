@@ -38,6 +38,7 @@ try
         if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
         if (options.ContinuingService) Console.WriteLine("CONTINUING_SERVICE true");
         if (options.ServiceQuotaFailure) Console.WriteLine("SERVICE_QUOTA_FAILURE true");
+        if (options.DiskReadTiming) Console.WriteLine("DISK_READ_TIMING true");
         Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
         Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
         Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -2498,6 +2499,7 @@ sealed class RunnerOptions
     public bool ContinuingWeb { get; private set; }
     public bool FiniteStaticFiles { get; private set; }
     public bool FullDiskStaticFiles {get; private set;}
+    public bool DiskReadTiming {get; private set;}
     public bool DiskStaticFiles => FiniteStaticFiles && ReadOnlyWebRootDisk;
     public bool ReadOnlyWebRootDisk { get; private set; }
     public StaticFileProcessEvidence? StaticEvidence { get; private set; }
@@ -2655,6 +2657,9 @@ sealed class RunnerOptions
                 case "--full-disk-static-files":
                     if(options.FullDiskStaticFiles)throw new ArgumentException("duplicate full disk static selection");
                     options.FullDiskStaticFiles=true;break;
+                case "--disk-read-timing":
+                    if(options.DiskReadTiming)throw new ArgumentException("--disk-read-timing may be specified only once.");
+                    options.DiskReadTiming=true;break;
                 case "--finite-static-files":
                     if (options.FiniteStaticFiles) throw new ArgumentException("--finite-static-files may be specified only once.");
                     options.FiniteStaticFiles = true;
@@ -2757,12 +2762,14 @@ sealed class RunnerOptions
         if (options.VirtioBlockBootImagePath is not null && (!options.VirtioBlockQueueDevice || options.DiskFormat != "raw"))
             throw new ArgumentException("--virtio-block-boot-image requires the dedicated raw Virtio block fixture.");
         options.FinishParsing();
-        if(options.FullDiskStaticFiles && (!options.DiskStaticFiles || options.TimeoutSeconds is <2200 or >3600))
+        if(options.DiskReadTiming && (!options.FullDiskStaticFiles || !options.DiskStaticFiles || options.TimeoutSeconds is <240 or >600))
+            throw new ArgumentException("--disk-read-timing requires the full finite readonly disk parent and explicit240..600-second deadline");
+        if(options.FullDiskStaticFiles && (!options.DiskStaticFiles || (!options.DiskReadTiming && options.TimeoutSeconds is <2200 or >3600)))
             throw new ArgumentException("--full-disk-static-files requires the finite readonly disk parent and explicit2200..3600-second deadline");
         if (options.ReadOnlyWebRootDisk && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.DiskFormat != "raw" ||
             options.VirtioBlockQueueDevice || options.VirtioBlockBootImagePath is not null || options.PciBarTestDevice ||
             options.ContinuingNetworkPeer || options.SocketContainmentPeer || options.ContinuingWeb || options.ContinuingService ||
-            options.HttpProbe is not null || (options.FullDiskStaticFiles ? options.TimeoutSeconds is <2200 or >3600 : options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
+            options.HttpProbe is not null || (options.DiskReadTiming ? options.TimeoutSeconds is <240 or >600 : options.FullDiskStaticFiles ? options.TimeoutSeconds is <2200 or >3600 : options.FiniteStaticFiles ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 295) ||
             !options.defaultRequiredMarkersReplaced || string.IsNullOrWhiteSpace(options.SummaryLogPath)))
             throw new ArgumentException("--readonly-webroot-disk requires the finite captured raw disk/network child without another fixture.");
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
@@ -2795,6 +2802,7 @@ sealed class RunnerOptions
     {
         Console.WriteLine("--socket-containment-peer selects the finite three-socket timeout/VLAN raw Ethernet peer; requires captured modern ARP networking and a120..295-second timeout. Peer completion does not establish guest acceptance.");
         Console.WriteLine("--finite-static-files captures the finite static-file profile through guest shutdown, transport drain and final parent cleanup; external HTTP checks belong to the owning tooling peer.");
+        Console.WriteLine("--disk-read-timing requires --full-disk-static-files, --finite-static-files, --readonly-webroot-disk and a240..600-second deadline. Its owning tooling peer joins deliberate cancellation after diagnostic HTTP checks; this does not qualify full service or cleanup.");
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
         Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config, logging POST, repeat POST 409, the normal-case binary vector response and final health 200 before terminating its QEMU and checking the stopped endpoint refuses connections.");

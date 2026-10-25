@@ -1,5 +1,7 @@
 <p align="center">
 
+[Step1602](done/step1602.md) connects the short disk timing profile to the actual runner. Seven profile/CLI, two timing-peer and ten existing runner controls pass. Earlier timing r03–r06 all stopped before guest execution; their failures remain preserved. A fresh committed timing boot and full Blazor qualification are still required.
+
 [Step1601](done/step1601.md) The short timing producer compiles but its original r02 hit the former host catalog limit before guest launch. Expert-reviewed host-only capacity is now4096 with full row scans and over-bound rejection; the separate kernel unwind decoder stays2048 and is off for this profile. New diagnostic and full Blazor evidence remain pending.
 
 [Step1600](done/step1600.md) Host integration now reads the webroot through the same writable block owner, with explicit Busy retention in the filesystem; global descriptor integration is continuing. The128MiB combined web/data fixture and cold log/upload fake-media controls preserve the ESP and distinguish completed synchronization. An explicit default-off short disk timing diagnostic is prepared; fresh native measurements and full A/B/browser qualification remain pending. SQLite Linux r04 failed its600s compile deadline and is preserved; no new SQLite success follows.

@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1602](../done/step1602.md) Actual tooling-to-runner dry-runs cover both timing deadline boundaries and reject missing parents, duplicates and invalid deadlines. Receipts record runner and peer budgets. Exact response bytes/metadata, final health, deliberate cancellation, confirmed join and endpoint refusal remain mandatory after aggregate output. Timing r03–r06 failed before guest; r06 joined invalid-argument receipt and native/image identities are preserved. They supply no timing measurement.
+
 [Step1601](../done/step1601.md) Timingr01 failed canonical XML admission before compilation; r02 compiled but failed the former2048 host catalog cap with2055rows, before guest. Expert review and actual original flags separate the host scan from disabled M04kernel decoder. Host4096 full-row/over-bound controls pass; failed originals are preserved and fresh timing evidence is still pending.
 
 [Step1600](../done/step1600.md) M10_018_TIMING counts actual completed disk-user reads after real listen, freezes at65536B and prints one bounded aggregate. Optional supervisor-owned DiskPumpMeasurements records pump/scan/flush and exclusive disk-ready/other-ready/no-advance/elapsed/step-limit reasons without new per-step prints. Measurement boundaries add overhead; durations overlap existing serial/device intervals and are not hardware latency. A short intentional runner cancellation is diagnostic-only.

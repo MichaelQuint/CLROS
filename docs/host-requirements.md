@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1602](../done/step1602.md) Seven profile/CLI controls include the actual compiled runner at 240/600 seconds, dry-run output noncreation, original-build admission, missing parents, duplicates, invalid timing and unchanged full 2200/3600 admission. Two peer and ten existing runner controls also pass, unchanged inputs/zero reuse. These focused host checks do not establish unfiltered full or guest qualification. Peer budget min(480, runnerDeadline−30) preserves cancellation/join time.
+
 [Step1601](../done/step1601.md) The host PE verifier bounds catalog storage/scan at4096rows and48KiB pdata, using managed file-backed observations only. Distinct4096scan3ms satisfies unchanged1s parser criterion; existing120s fixture process guard stays unchanged. Kernel decoder2048 and selected M04isolation remain required.
 
 [Step1600](../done/step1600.md) Retain pinned .NET11/C#14. Short timing host checks retain exact independent response bytes and owned runner joining; component times include boundary overhead. SQLite compilation still defaults to two fresh600s attempts; original r04 timeout does not justify an increased deadline or unverified object reuse. Native/guest work remains serialized with confirmed child cleanup.

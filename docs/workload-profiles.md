@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1602](../done/step1602.md) Root retains exclusive native ownership for read timing/Blazor qualification. Exactly two M16-027 agents advance retained pre-engine writable admission and a global-descriptor test of measured journal/lock/sync ordering under fresh separate claims. Neither grants guest SQLite/durability authority. Continuously functioning Minimal API/Blazor/direct SQLite remains the product goal; the finite timing probe is an intermediate diagnostic.
+
 [Step1600](../done/step1600.md) The continuously functioning NativeAOT Minimal API, Blazor frontend and direct Microsoft.Data.Sqlite scenario remains the product goal. M10018Timing is a separate finite diagnostic, never the normal workload lifetime. Exactly two successor agents advance borrowed descriptor Busy retention and verified SQLite dependency preparation while root closes checkpoints and serializes native work.
 
 [Step1597](../done/step1597.md) The next dependency-compatible integration includes writable path/root metadata, nonblocking flock, exact source5 output lifetime, read-range arbitration preparation and separate SQLite writer/verifier/recovery publication. Their current authority is focused host support. Complete the fresh read/browser originals before native writable attachment; then qualify actual log/upload and SQLite locking/flush/recovery in the continuing integrated application.
