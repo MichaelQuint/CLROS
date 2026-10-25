@@ -1,6 +1,6 @@
 # PAL
 
-[Step1609](../done/step1609.md) The copied journal sequence now traverses real source5 Park/Wake/Complete, locks, metadata, file/parent barriers and independent host extraction. Internal header OUT/failedFLUSH returnsEIO once, prevents replay/late copy and retains dirty backing through refused release. These fake-media controls supply no actual SQLite engine, guest PAL flush, reboot or durability. V5 polling observation changes no PAL behavior.
+[Step1610](../done/step1610.md) The successful v5 diagnostic changes no PAL behavior, current ownership or fresh audit requirement. The repaired HTTP reference binds current tool/static-link/fresh publication handles through joined finite processes, independently of archived recipe evidence. Actual guest file writes, lock/sync semantics, reboot and SQLite recovery/durability remain unqualified.
 
 [Step1606](../done/step1606.md) The new finite managed MinimalApi HTTP fixture measures requested FileStream flush and exact bytes independently of the console candidate. It grants no guest PAL/device flush, reboot or physical persistence. Readiness diagnostic ABI now matches the existing unmanaged supervisor clock; its later fresh descriptor graph audit and all lifetime rules remain intact.
 

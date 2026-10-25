@@ -1,6 +1,6 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1609](../done/step1609.md) The next v5 short diagnostic partitions whole service polls by explicit clock-syscall/other-syscall/supervisor/idle cause; no cadence or full-audit change. It will test the expert observation that575of919 interior r12 syscall rows are clock reads paying service work. The initial Linux HTTP write reference stops before publication on a historical-path prehold; current-input repair and a fresh original are required. Full Blazor remains unqualified.
+[Step1610](../done/step1610.md) Original v5r13 returns exact64KiB range30.9304945s and joins deliberate cancellation. Measured wholepoll22.1226843s is32.25%clock/36.00%supervisor/16.60%idle/15.15%other; it cannot justify an unmeasured polling policy or resolve full Blazor. The HTTP current-input repair passes16checks and is ready for a new Linux original; old failure remains failed.
 
 [Step1606](../done/step1606.md) Integrated MinimalApiLogUploadContract is a separate explicit --serve-once qualification app. It checks empty seeds, logs330B at startup, buffers an exact5126B upload before output, then writes/flushed-closes upload and appends to660B log. The independent HTTP owner requires complete responses, actual exit0, endpoint refusal and the unchanged console verifier. Partial failures retain actual bytes. This managed finite scope does not qualify continuous guest persistence; the original static server/package stays unchanged.
 

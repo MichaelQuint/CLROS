@@ -1,6 +1,6 @@
 # Workload Profiles ADR
 
-[Step1609](../done/step1609.md) The next explicit short v5 diagnostic retains every existing service invocation, full audit, FIFO/flush and time budget; only cause-labelled aggregate observation changes. Existing ordinary profiles and server/package bytes stay unchanged. Copied journal thread controls and an isolated Linux HTTP preflight repair are development prerequisites, not the continuously functioning read/write/SQLite product goal.
+[Step1610](../done/step1610.md) Actual v5r13 preserves unchanged server/package bytes and service/audit/flush/time policy, then intentionally cancels/joins. The cause distribution is attribution rather than production optimization. The repaired explicit LinuxHTTP reference retains two fresh publications and independent verification. No accepted application profile or continuously functioning read/write/SQLite goal changes.
 
 [Step1606](../done/step1606.md) The separate finite managed MinimalApi HTTP log/upload candidate is an intermediate contract fixture, preserving the existing static server package and the continuous product goal. Explicit startup and partial-effect states remain evidence, not rollback or durability. Timingr10 failed before guest; the diagnostic ABI repair needs fresh originalr11 before any performance conclusion.
 

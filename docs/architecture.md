@@ -1,6 +1,6 @@
 # Architecture
 
-[Step1609](../done/step1609.md) Diagnostic-only v5 adds fixed four-cause counters for whole poll/pre-network/whole disk round/post-network time. All callbacks, fresh full audits, wake/flush ordering and service invocations remain unchanged. Causes are tagged at the three actual call sites, not inferred from thread identity. Ordinary profiles retain their signature/layout. Actual native measurement is pending.
+[Step1610](../done/step1610.md) V5r13 actually runs all four explicitly tagged service-poll causes, with22.1226843s total and exact stage conservation. This leaves substantial time outside service polls; no production cadence policy follows. The integrated HTTP repair separates authenticated historical recipe outputs from current executable/static-link/fresh publication inputs, retaining all current authority through complete sessions.
 
 ## Current architecture boundary (October 23, 2026)
 

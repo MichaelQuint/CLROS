@@ -1,6 +1,6 @@
 # Host Requirements
 
-[Step1609](../done/step1609.md) Linux HTTP00ce r01 retains source/producer Ustar hashes, exact command, joined prepublication failure and parentsoft1024before/after; owned childsoft4096 changes no parent state. Original historical paths are receipt evidence and retained archive outputs; current tools/static libraries/fresh publication inputs need actual held files. Do not fabricate old namespaces or drop current holds. Root56affected checks pass; native v5 and repaired HTTP qualification remain pending.
+[Step1610](../done/step1610.md) Run managed HTTP and console reference owners serially: both intentionally acquire the same repository qualification lease. The first concurrent root attempt fails before server execution; its later serial16HTTP pass and7console pass do not erase that failure. Repaired Linux publication retains eight exact current tools, nine prelink static files and complete fresh inputs. Peak/4096-fit and actualLinuxr02 remain unmeasured.
 
 [Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.
 

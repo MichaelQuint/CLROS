@@ -1,6 +1,6 @@
 # App Model
 
-[Step1609](../done/step1609.md) The first Linux HTTP reference attempt at00ce328e fails before publication because an overbroad prehold treats old absolute recipe paths as live current inputs. Preserve the joined failure and unchanged parent limit. The repair authenticates the retained original archive separately from current tools/static-link inputs and every fresh publication input; no old namespace reconstruction or archive fallback. Root21source5 journal controls pass, with no actual SQLite engine/guest/recovery authority.
+[Step1610](../done/step1610.md) The repaired Linux HTTP owner now authenticates the retained socket archive through existing validation, admits exact current tools, holds nine actual static-link inputs before HTTP linking and every fresh publication input afterward. Original00ce r01 remains failed; fresh r02 is pending.16HTTP and7console checks pass, with the first concurrent managed lease failure preserved. Guest persistence remains unqualified.
 
 [Step1606](../done/step1606.md) The four new MinimalApiLogUploadContract/NativeAotLogUploadHttpContract paths provide a separate finite managed HTTP/FileStream qualification candidate. Startup330B is the authenticated pre-request baseline; success produces660Blog/5126Bupload. Abort/cancel/open denial preserve startup, while a later log-append failure honestly retains330B/5126B. Independent completed HTTP, process join/refusal and console verification are required. Linux NativeAOT, guest reboot and durability remain subsequent qualification.
 

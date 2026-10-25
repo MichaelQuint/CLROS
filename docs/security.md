@@ -1,6 +1,6 @@
 # Security
 
-[Step1609](../done/step1609.md) The v5 diagnostic retains current ownership and all fresh full audits at every actual poll/dispatch. Its copied metrics grant no execution authority. Linux HTTP preflight must authenticate the archived recipe separately from exact current executable/static-link/fresh publication files; missing or changed current input remains fatal, with no archived-copy fallback. Dirty header-FLUSH failure retains its owner and refuses release; no recovery or persistence claim follows.
+[Step1610](../done/step1610.md) The repaired HTTP owner authenticates sealed archived recipe/output identities before selecting current tools. Exact current paths/hashes and actual prelink libraries are held, and every fresh publication input remains mandatory with no archived-copy fallback. Host tamper/missing/replacement controls pass. V5 copied observations and successful finite responses grant no new isolation, guest locking/flush or durability authority.
 
 [Step1600](../done/step1600.md) Borrowed filesystem admission validates the complete retained filesystem/port/engine/block/DMA/MMIO/observer tree. Busy cannot publish output or EOF. Global full-tree descriptor/thread hooks are continuing, and writable/read-only coexistence admission remains unchanged. Native writable integration is not qualified.
 

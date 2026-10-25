@@ -1,6 +1,6 @@
 # Documentation Map
 
-[Step1609](../done/step1609.md) Step1609 owns the v5 poll-cause diagnostic preparation, integrated copied journal/thread tests and failed original Linux HTTP prepublication provenance. Diagnostics/EFI/QEMU own source/measurement limits; storage/PAL/application docs distinguish real host waits and fake FLUSH from guest SQLite/persistence. Host requirements own the archived-recipe/current-input ownership repair. Both agents retain separate next slices.
+[Step1610](../done/step1610.md) Step1610 owns the successful original v5r13 and exact poll-cause/stack observations, integrated007884f4 HTTP ownership repair and preserved managed lease collision. Diagnostics/EFI/QEMU retain original boundaries; application/host/storage/PAL/security docs distinguish retained historical evidence from current input authority. Both agents continue next bounded integration planning.
 
 [Step1606](../done/step1606.md) Step1606 records the pre-guest timingr10 ABI failure/repair and integrates the four-file finite managed MinimalApi HTTP log/upload fixture. App/Kestrel/storage/PAL/gate docs preserve its managed/Linux/guest/persistence boundaries. Step1605 retains the successful Linux SQLite recovery reference; no historical receipt is changed.
 

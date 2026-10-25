@@ -141,6 +141,121 @@ internal static class NativeAotLogUploadHttpContractTests
             .SequenceEqual(new[] { "-ff", "-yy", "-ttt", "-s", "256", "-o", "/root/http/verify-trace", "/root/console/app", "--verify", "--root", "/root/http/data" }));
     }
 
+    private static Dictionary<string, F.LinuxToolValue> LinuxTools()
+    {
+        string[] names = ["dotnet", "clang", "ld", "gcc", "readelf", "nm", "strace", "setsid"];
+        return names.Select((name, index) => new F.LinuxToolValue(name, name == "dotnet" ? "/usr/share/dotnet/dotnet" : "/usr/bin/" + name,
+            new string((char)('1' + index), 64))).ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+    }
+    private static Dictionary<string, string> LinuxRecipe(Dictionary<string, F.LinuxToolValue> tools) => tools.Values
+        .ToDictionary(tool => tool.Path, tool => tool.Sha256, StringComparer.Ordinal);
+
+    [HostTest("HTTP current tool selection ignores historical filenames and returns only eight exact copied recipe identities without authority")]
+    private static void LinuxToolSelection()
+    {
+        var tools = LinuxTools(); var native = LinuxRecipe(tools);
+        native.Add("/clros-async-r05/apps/NativeAotSocketSmoke/obj/original.o", new string('9', 64));
+        native.Add("/clros-web-r02/artifacts/original-receipt.json", new string('8', 64));
+        native.Add("/.nuget/packages/original/runtime.so", new string('7', 64));
+        var facts = F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools);
+        HostCheck.True(facts.Count == 8 && facts.All(fact => tools[fact.Name] == fact && !fact.GrantsOriginalFileOrToolAuthority) &&
+            facts.All(fact => !fact.Path.StartsWith("/clros-", StringComparison.Ordinal) && !fact.Path.StartsWith("/.nuget", StringComparison.Ordinal)));
+        // Historical locations need not exist and are not selected. Removing
+        // them from this copied vector changes no current tool fact. The real
+        // owner separately authenticates the complete sealed E260 package.
+        HostCheck.True(F.InspectLinuxRecipeTools(JsonSerializer.Serialize(LinuxRecipe(tools)), tools).SequenceEqual(facts));
+        native.Clear(); tools.Clear(); HostCheck.True(facts.Count == 8 && facts.Single(tool => tool.Name == "gcc").Path == "/usr/bin/gcc");
+        bool readOnly = false; try { ((IList<F.LinuxToolValue>)facts).Clear(); } catch (NotSupportedException) { readOnly = true; } HostCheck.True(readOnly);
+    }
+
+    [HostTest("HTTP current tool selection rejects missing hashes exact paths aliases duplicate rows and changed resolved identities without basename fallback")]
+    private static void LinuxToolSelectionRejections()
+    {
+        foreach (var target in LinuxTools().Values)
+        {
+            var tools = LinuxTools(); var native = LinuxRecipe(tools); native.Remove(target.Path);
+            Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
+            native[target.Path] = new string('9', 64); Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
+            native = LinuxRecipe(tools); tools[target.Name] = target with { Path = "/same-basename/" + target.Name };
+            Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
+            tools = LinuxTools(); tools[target.Name] = target with { Sha256 = new string('9', 64) };
+            Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_identity");
+        }
+        foreach (string mode in new[] { "missing", "extra", "alias", "name", "noncanonical", "invalidhash" })
+        {
+            var tools = LinuxTools(); var native = LinuxRecipe(tools);
+            switch (mode)
+            {
+                case "missing": tools.Remove("dotnet"); break;
+                case "extra": tools.Add("other", new("other", "/usr/bin/other", new string('9', 64))); break;
+                case "alias": tools["gcc"] = tools["gcc"] with { Path = tools["clang"].Path }; break;
+                case "name": tools["gcc"] = tools["gcc"] with { Name = "other" }; break;
+                case "noncanonical": tools["gcc"] = tools["gcc"] with { Path = "/usr/bin/../bin/gcc" }; break;
+                default: tools["gcc"] = tools["gcc"] with { Sha256 = "not-a-hash" }; break;
+            }
+            Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(native), tools), "recipe_tool_paths");
+        }
+        var valid = LinuxTools(); string json = JsonSerializer.Serialize(LinuxRecipe(valid));
+        foreach (char value in new[] { '4', '9' })
+        {
+            string duplicate = json.Insert(1, "\"/usr/bin/gcc\":\"" + new string(value, 64) + "\",");
+            Reject(() => F.InspectLinuxRecipeTools(duplicate, valid), "recipe_native_map");
+        }
+        var malformed = LinuxRecipe(valid); malformed["/usr/bin/gcc"] = "bad";
+        Reject(() => F.InspectLinuxRecipeTools(JsonSerializer.Serialize(malformed), valid), "recipe_native_map");
+        Reject(() => F.InspectLinuxRecipeTools("[]", valid), "recipe_native_map");
+    }
+
+    [HostTest("HTTP static library discovery accepts only bounded single absolute query answers and canonicalizes gcc lexical paths without fallback")]
+    private static void LinuxStaticLibraryQueries()
+    {
+        foreach (string library in new[] { "libc.a", "libm.a", "libz.a", "libstdc++.a", "libgcc.a", "libgcc_eh.a", "crt1.o", "crti.o", "crtn.o" })
+        {
+            string path = "/usr/lib/" + library;
+            HostCheck.True(F.InspectLinuxLibraryPath(library, path + "\n") == path && F.InspectLinuxLibraryPath(library, path + "\r\n") == path &&
+                F.InspectLinuxLibraryPath(library, "/usr/lib/gcc/../" + library) == path);
+        }
+        foreach (string answer in new[] { "", "libc.a\n", "/usr/lib/libc.a\n/usr/other/libc.a\n", "/usr/lib/libc.a\n\n", "/../../libc.a\n",
+            "/usr/lib/libz.a\n", "/usr/lib/libc.a\0", "/usr/lib/libc.a\t", "/usr/lib/libc.a\\", "/usr/lib/\"libc.a", new string('x', 4097) })
+            Reject(() => F.InspectLinuxLibraryPath("libc.a", answer), "library_query");
+        Reject(() => F.InspectLinuxLibraryPath("unreviewed.a", "/usr/lib/unreviewed.a\n"), "library_query");
+    }
+
+    [HostTest("HTTP current native holds reject missing changed and substituted files despite available old archives and survive nested disposal")]
+    private static void LinuxCurrentNativeHolds()
+    {
+        string root = HostToolProcess.FindRepositoryRoot(), directory = Path.Combine(root, "artifacts", "http-current-native-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory); byte[] original = [0x7f, 0x45, 0x4c, 0x46, 1, 2, 3]; string expected = Convert.ToHexString(SHA256.HashData(original));
+        File.WriteAllBytes(Path.Combine(directory, "old-archive.a"), original);
+        using (AuthorityFiles held = new())
+            RejectAny(() => F.RetainCurrentNativeInput(held, Path.Combine(directory, "absent-current.a"), expected));
+        foreach (string name in new[] { "current-tool.bin", "current-static.a", "current-fresh-publication.dll" })
+        {
+            string path = Path.Combine(directory, name); File.WriteAllBytes(path, [.. original, 0xff]);
+            using (AuthorityFiles changed = new()) Reject(() => F.RetainCurrentNativeInput(changed, path, expected), "native_input_changed");
+            File.WriteAllBytes(path, original);
+            using (AuthorityFiles outer = new())
+            {
+                var retained = F.RetainCurrentNativeInput(outer, path, expected);
+                using (AuthorityFiles nested = new()) F.RetainCurrentNativeInput(nested, path, expected);
+                HostCheck.True(retained.ReadBytes(64, "fixture").SequenceEqual(original)); outer.VerifyUnchanged();
+                bool denied = false; try { File.WriteAllBytes(path, [.. original, 4]); } catch (IOException) { denied = true; }
+                if (denied) { HostCheck.True(OperatingSystem.IsWindows()); outer.VerifyUnchanged(); }
+                else { bool rejected = false; try { outer.VerifyUnchanged(); } catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; } HostCheck.True(rejected); }
+            }
+            File.WriteAllBytes(path, original); string replacement = path + ".replacement", old = path + ".old"; File.WriteAllBytes(replacement, original);
+            using (AuthorityFiles held = new())
+            {
+                F.RetainCurrentNativeInput(held, path, expected); bool denied = false; try { File.Move(path, old); } catch (IOException) { denied = true; }
+                if (denied) { HostCheck.True(OperatingSystem.IsWindows()); held.VerifyUnchanged(); }
+                else { File.Move(replacement, path); bool rejected = false; try { held.VerifyUnchanged(); } catch (ToolFailure error) when (error.Reason == "authority_input_changed") { rejected = true; } HostCheck.True(rejected); }
+            }
+        }
+        using AuthorityFiles invalid = new();
+        Reject(() => F.RetainCurrentNativeInput(invalid, "relative.a", expected), "native_identity");
+        Reject(() => F.RetainCurrentNativeInput(invalid, Path.Combine(directory, "old-archive.a"), "bad"), "native_identity");
+    }
+
     [HostTest("HTTP Linux copied publication values reject foreign failed duplicate redirected and mismatched identities without granting authority")]
     private static void LinuxPublicationValues()
     {

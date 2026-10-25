@@ -1,6 +1,6 @@
 # CLROS Completion Gates
 
-[Step1609](../done/step1609.md) Fifty-six affected host checks pass for v5 diagnostic preparation, unchanged disk/race profiles and the copied source5 journal lifecycle. No new full-host/native/guest gate advances. Linux HTTP00ce r01 fails before destination/publication and stays failed; repair requires a fresh original. Full A/B/Blazor/browser/ordinary cleanup/races/ancestors, actual guest writes/reboot and SQLite locking/synchronization/recovery remain required. No issue closes.
+[Step1610](../done/step1610.md) V5r13 passes the short diagnostic with FullAndCleanupQualified=false; all19original identities and42metric fields are verified.007884 HTTP repair passes16HTTP and7console checks, with the first lease-collision failure preserved. No full/ordinary-cleanup/Blazor, guest write/reboot/SQLite/durability gate or issue closes. Fresh Linuxr02 is next; stable full-host/threeA-B/browser/ancestor/native review gates remain required.
 
 [Step1606](../done/step1606.md) Timingr10 is a pre-guest compilation failure, preserved without any metric or acceptance. A callback-convention repair and fresh originalr11 are required. The new finite managed HTTP log/upload fixture supplies host qualification only; Linux NativeAOT HTTP, guest FAT32 writes/reboot and SQLite power-loss durability remain open. No completion gate or issue closes.
 

@@ -1,6 +1,6 @@
 <p align="center">
 
-[Step1609](done/step1609.md) The next short diagnostic attributes whole service-poll time to clock syscalls, other syscalls, supervisor work and idle work, using existing timestamps and preserving all progress/audits. Fifty-six affected controls pass; actual v5 native execution is next. The complete copied journal sequence now passes real host thread waits, including a dirty-owner FLUSH failure. The first Linux HTTP attempt stopped before publication on an overbroad historical-input prehold; its expert-reviewed repair remains isolated.
+[Step1610](done/step1610.md) Original v5r13 completes four responses and exact64KiB range30.930s, then joins intentional cancellation. Whole service polling22.123s splits32%clock/36%supervisor/17%idle/15%other; full Blazor remains unqualified. Expert-reviewed HTTP input ownership repair is integrated:16HTTP+7console checks pass, with the earlier lease-collision failure retained. A fresh frozen LinuxHTTP r02 is next.
 
 [Step1606](done/step1606.md) The finite managed MinimalApi log/upload fixture is integrated from30cfce2d: actual HTTP writes/readbacks and a separate unchanged console verifier, with honest startup/partial-effect failure receipts. Guest persistence remains unqualified. Timing r10 stopped before guest launch at a callback ABI mismatch; the candidate now uses the existing unmanaged clock convention and requires a fresh committed r11.
 

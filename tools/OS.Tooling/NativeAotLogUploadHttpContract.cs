@@ -23,6 +23,8 @@ public static class NativeAotLogUploadHttpContract
     private static readonly NativeAotSocketFixturePublisher Publisher = new(Application, "log-upload-http", [
         ("MinimalApiLogUploadContract.csproj", "EBF6DC7159A93708EB21DB8577B4BE63344F3720B83E8E097FA38C854EAFBB36"),
         ("Program.cs", "1B10C6E6578E104845074BF716BD7D34F52F36FB1F3B47481C24FDB653ACE043")]);
+    private static readonly string[] LinuxToolNames = ["dotnet", "clang", "ld", "gcc", "readelf", "nm", "strace", "setsid"];
+    private static readonly string[] LinuxLibraryNames = ["libc.a", "libm.a", "libz.a", "libstdc++.a", "libgcc.a", "libgcc_eh.a", "crt1.o", "crti.o", "crtn.o"];
 
     public enum ResponseKind { Health, StartupLog, WrongType, WrongLength, Oversized, Busy, Accepted, Log, Upload }
     public sealed record ResponseFact(ResponseKind Kind, string Method, string Target, int Status, string ContentType, int Bytes, string Sha256)
@@ -41,6 +43,8 @@ public static class NativeAotLogUploadHttpContract
 
     public sealed record PublicationValues(string ImageSha256, int Sources, int NativeInputs, int Outputs)
     { public bool GrantsOriginalPublicationOrExecutionAuthority => false; }
+    public sealed record LinuxToolValue(string Name, string Path, string Sha256)
+    { public bool GrantsOriginalFileOrToolAuthority => false; }
 
     /// <summary>Original Linux reference handles, transferred only after both
     /// fresh publications, real HTTP, natural exit and independent verification
@@ -91,6 +95,67 @@ public static class NativeAotLogUploadHttpContract
         // Reuse the unchanged canonical Linux path checks and trace flags.
         string[] prior = NativeAotLogUploadContract.LinuxTraceArguments(executable, data, tracePrefix, "write");
         return [.. prior[..8], "--serve-once", "--root", data, "--urls", "http://127.0.0.1:" + port.ToString(CultureInfo.InvariantCulture)];
+    }
+
+    /// <summary>Select exactly eight copied current-tool identities by their
+    /// resolved canonical Linux paths in an original native map. Historical
+    /// producer/cache rows remain receipt values; no path is opened here and
+    /// no basename/relocation fallback exists. The caller must independently
+    /// authenticate the sealed socket package and hold/check actual tools.
+    /// Borrowed inputs are not retained; returned facts grant no authority.</summary>
+    public static ReadOnlyCollection<LinuxToolValue> InspectLinuxRecipeTools(string originalNativeJson, IReadOnlyDictionary<string, LinuxToolValue> resolvedTools)
+    {
+        Need(originalNativeJson.Length <= 16 * 1024 * 1024 && Encoding.UTF8.GetByteCount(originalNativeJson) <= 16 * 1024 * 1024, "recipe_tool_capacity");
+        Need(resolvedTools.Count == LinuxToolNames.Length && LinuxToolNames.All(resolvedTools.ContainsKey) &&
+            resolvedTools.All(row => row.Value is not null && row.Key == row.Value.Name && CanonicalLinux(row.Value.Path) && IsHash(row.Value.Sha256)) &&
+            resolvedTools.Values.Select(tool => tool.Path).Distinct(StringComparer.Ordinal).Count() == LinuxToolNames.Length, "recipe_tool_paths");
+        using var document = JsonDocument.Parse(originalNativeJson); Need(document.RootElement.ValueKind == JsonValueKind.Object, "recipe_native_map");
+        var rows = document.RootElement.EnumerateObject().ToArray();
+        Need(rows.Length is > 0 and <= 16384 && rows.Select(row => row.Name).Distinct(StringComparer.Ordinal).Count() == rows.Length &&
+            rows.All(row => row.Value.ValueKind == JsonValueKind.String && IsHash(row.Value.GetString())), "recipe_native_map");
+        var native = rows.ToDictionary(row => row.Name, row => row.Value.GetString()!, StringComparer.Ordinal);
+        List<LinuxToolValue> selected = [];
+        foreach (string name in LinuxToolNames)
+        {
+            var actual = resolvedTools[name]; string path = actual.Path;
+            Need(native.TryGetValue(path, out string? hash) && actual.Sha256.Equals(hash, StringComparison.OrdinalIgnoreCase), "recipe_tool_identity");
+            selected.Add(new(name, path, hash!.ToUpperInvariant()));
+        }
+        return selected.AsReadOnly();
+    }
+
+    /// <summary>Validate one bounded copied gcc library-query line and return
+    /// its canonical absolute Linux spelling. GCC may print lexical ../ parts;
+    /// normalize those without filesystem access, refusing traversal above /.
+    /// No file, archive, symlink target or compiler authority follows. The
+    /// original owner resolves and holds the actual existing file separately.</summary>
+    public static string InspectLinuxLibraryPath(string library, string stdout)
+    {
+        Need(LinuxLibraryNames.Contains(library, StringComparer.Ordinal) && stdout.Length <= 4096 && Encoding.UTF8.GetByteCount(stdout) <= 4096, "library_query");
+        string line = stdout.EndsWith("\r\n", StringComparison.Ordinal) ? stdout[..^2] : stdout.EndsWith('\n') ? stdout[..^1] : stdout;
+        Need(line.Length > 1 && line[0] == '/' && line.All(c => c is >= ' ' and <= '~' && c is not ('"' or '\\')), "library_query");
+        List<string> parts = [];
+        foreach (string part in line[1..].Split('/'))
+        {
+            if (part is "" or ".") continue;
+            if (part == "..") { Need(parts.Count != 0, "library_query"); parts.RemoveAt(parts.Count - 1); }
+            else parts.Add(part);
+        }
+        Need(parts.Count != 0 && parts[^1] == library, "library_query");
+        string path = "/" + string.Join('/', parts); Need(CanonicalLinux(path), "library_query"); return path;
+    }
+
+    /// <summary>Hold one exact current local native input and require its
+    /// caller-captured hash. Caller owns the supplied handle collection through
+    /// use and final VerifyUnchanged; failure retains already admitted handles.
+    /// Missing/substituted files fail without archive or historical fallback.
+    /// This cross-platform hold helper grants no compiler/publication authority;
+    /// the Linux owner separately authenticates its selected paths and recipe.</summary>
+    public static AuthorityFile RetainCurrentNativeInput(AuthorityFiles held, string path, string expectedSha256)
+    {
+        Need(Path.IsPathFullyQualified(path) && IsHash(expectedSha256), "native_identity");
+        var input = held.Open(Path.GetPathRoot(path)!, path, "original HTTP current native input", "log_upload_http_linux_native", 256 * 1024 * 1024);
+        Need(input.Sha256.Equals(expectedSha256, StringComparison.OrdinalIgnoreCase), "native_input_changed"); return input;
     }
 
     /// <summary>Inspect bounded copied publication values only. The original
@@ -465,18 +530,45 @@ public static class NativeAotLogUploadHttpContract
             string recipe = Path.Combine(recipeRoot, "artifacts", "socket-qualification-r01");
             foreach (string name in new[] { "commands.json", "native-inputs.json", "receipt.json" })
                 held.Open(recipeRoot, Path.Combine(recipe, name), "original socket recipe", "log_upload_http_linux_recipe", 16 * 1024 * 1024, singleLink: true);
-            using (var recipeInputs = JsonDocument.Parse(held.Open(recipeRoot, Path.Combine(recipe, "native-inputs.json"), "original recipe native inputs",
-                "log_upload_http_linux_recipe", 16 * 1024 * 1024, singleLink: true).ReadBytes(16 * 1024 * 1024, "log_upload_http_linux_recipe")))
-                foreach (var row in recipeInputs.RootElement.EnumerateObject()) HoldNative(row.Name, row.Value.GetString()!);
+            // This existing validator authenticates E260, all32 retained
+            // outputs, the three relocated producer outputs and original ELF.
+            // Historical absolute native-map rows are not current filenames.
+            _ = NativeAotSocketPackage.Create(root, recipeRoot, asynchronous: true);
+            string originalNative = held.Open(recipeRoot, Path.Combine(recipe, "native-inputs.json"), "original recipe native inputs",
+                "log_upload_http_linux_recipe", 16 * 1024 * 1024, singleLink: true).ReadUtf8(16 * 1024 * 1024, "log_upload_http_linux_recipe");
+            var selectedTools = InspectLinuxRecipeTools(originalNative, LinuxToolNames.ToDictionary(name => name, name =>
+            { string path = ResolveToolPath(name); return new LinuxToolValue(name, path, NativeAotWebPayload.HashFile(path)); }, StringComparer.Ordinal));
+            foreach (var tool in selectedTools) HoldNative(tool.Path, tool.Sha256);
+            setsid = selectedTools.Single(tool => tool.Name == "setsid").Path; strace = selectedTools.Single(tool => tool.Name == "strace").Path;
             Directory.CreateDirectory(destination); AuthorityFiles.RequirePlainPath(root, destination, "log_upload_http_linux_output");
             using var ownership = new FileStream(Path.Combine(destination, "ownership.lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
             try
             {
+                // The later nested console publication cannot retroactively
+                // authenticate the system archives used by this first link.
+                string gcc = selectedTools.Single(tool => tool.Name == "gcc").Path;
+                foreach (string library in LinuxLibraryNames)
+                {
+                    cancellation.ThrowIfCancellationRequested(); CheckInputs(); string queryLog = "native-library-" + library;
+                    commands.Add(new { Executable = setsid, Arguments = new[] { gcc, "-print-file-name=" + library }, WorkingDirectory = root, Phase = "HTTP static-link discovery" });
+                    bool succeeded = false; string queryFailure = "";
+                    try { cancellation.ThrowIfCancellationRequested(); await NativeAotWebPayload.ExecuteAsync(gcc, ["-print-file-name=" + library], root, Path.Combine(destination, queryLog), TimeSpan.FromMinutes(2)); succeeded = true; }
+                    catch (Exception error) { queryFailure = error.Message.ReplaceLineEndings(" "); throw; }
+                    finally { await Save(destination, queryLog + ".process.json", JsonSerializer.Serialize(new { NormalOwnedSessionReturned = succeeded,
+                        Executable = gcc, Arguments = new[] { "-print-file-name=" + library }, MaximumSeconds = 120, Failure = queryFailure })); }
+                    var answer = held.Open(root, Path.Combine(destination, queryLog + ".stdout.log"), "original HTTP static library query", "log_upload_http_linux_library", 4096, singleLink: true);
+                    var errors = held.Open(root, Path.Combine(destination, queryLog + ".stderr.log"), "original HTTP static library query stderr", "log_upload_http_linux_library", 0, allowEmpty: true, singleLink: true);
+                    string path = InspectLinuxLibraryPath(library, answer.ReadUtf8(4096, "log_upload_http_linux_library"));
+                    Need(File.Exists(path) && errors.Length == 0, "static_library_missing");
+                    path = File.ResolveLinkTarget(path, true)?.FullName ?? Path.GetFullPath(path);
+                    HoldNative(path, NativeAotWebPayload.HashFile(path)); CheckInputs();
+                }
+                CheckInputs(); cancellation.ThrowIfCancellationRequested();
                 ObserveDescriptors("before-http-publication");
                 string publication = Path.Combine(destination, "http-publication");
                 commands.Add(new { Producer = nameof(NativeAotSocketFixturePublisher), Application, RecipeRoot = recipeRoot, Output = publication });
                 Need(await Publisher.RunAsync(root, ["publish", "--recipe-root", recipeRoot, "--output", publication], output) == 0, "linux_publication_failed");
-                cancellation.ThrowIfCancellationRequested();
+                cancellation.ThrowIfCancellationRequested(); CheckInputs();
                 string[] publishedFiles = Directory.GetFiles(publication, "*", SearchOption.AllDirectories).Where(path => Path.GetFileName(path) != "publication.lock").Order(StringComparer.Ordinal).ToArray();
                 Need(publishedFiles.Length is > 0 and <= 512, "publication_capacity");
                 foreach (string path in publishedFiles) held.Open(root, path, "original HTTP publication", "log_upload_http_linux_publication", 256 * 1024 * 1024, allowEmpty: true, singleLink: true);
@@ -524,6 +616,7 @@ public static class NativeAotLogUploadHttpContract
                 commands.Add(new { Executable = setsid, Arguments = new[] { strace }.Concat(verifyArguments), WorkingDirectory = root });
                 bool verifyJoined = false, verifyNatural = false; int? verifyExit = null;
                 ObserveDescriptors("before-additional-verifier");
+                cancellation.ThrowIfCancellationRequested();
                 using (var verifyProcess = StartTrace(verifyArguments))
                 using (var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation))
                 {
@@ -612,8 +705,7 @@ public static class NativeAotLogUploadHttpContract
         {
             Need(CanonicalLinux(path) && IsHash(hash) && (native.Count < 16384 || native.ContainsKey(path)), "native_identity");
             Need(!native.TryGetValue(path, out string? prior) || prior.Equals(hash, StringComparison.OrdinalIgnoreCase), "native_identity_changed");
-            var input = held.Open(Path.GetPathRoot(path)!, path, "original HTTP native input", "log_upload_http_linux_native", 256 * 1024 * 1024);
-            Need(input.Sha256.Equals(hash, StringComparison.OrdinalIgnoreCase), "native_input_changed"); native[path] = hash;
+            RetainCurrentNativeInput(held, path, hash); native[path] = hash;
         }
         void CheckInputs()
         {
@@ -640,10 +732,15 @@ public static class NativeAotLogUploadHttpContract
             output.WriteLine("LOG_UPLOAD_HTTP_FD_BOUNDARY phase=" + phase + " observed=" + (count?.ToString(CultureInfo.InvariantCulture) ?? "unavailable") +
                 " nativeInputs=" + native.Count.ToString(CultureInfo.InvariantCulture) + " peakOrCapacityProof=false");
         }
-        string ToolPath(string name)
+        string ResolveToolPath(string name)
         {
             string? found = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Select(directory => Path.Combine(directory, name)).FirstOrDefault(File.Exists);
             Need(found is not null, "native_tool_missing"); string path = File.ResolveLinkTarget(found!, true)?.FullName ?? Path.GetFullPath(found!);
+            Need(CanonicalLinux(path), "recipe_tool_paths"); return path;
+        }
+        string ToolPath(string name)
+        {
+            string path = ResolveToolPath(name);
             Need(native.TryGetValue(path, out string? hash), "native_tool_identity"); HoldNative(path, hash!); return path;
         }
         Process StartTrace(string[] arguments)
@@ -692,6 +789,7 @@ public static class NativeAotLogUploadHttpContract
             string[] arguments = LinuxTraceArguments(executable, data, Path.Combine(directory, "write-trace"), port);
             commands.Add(new { Executable = setsid, Arguments = new[] { strace }.Concat(arguments), WorkingDirectory = root, Phase = name });
             ObserveDescriptors("before-" + name);
+            cancellation.ThrowIfCancellationRequested();
             using var process = StartTrace(arguments);
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellation); deadline.CancelAfter(TimeSpan.FromSeconds(90));
             using CancellationTokenSource monitorStop = new();
