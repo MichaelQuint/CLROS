@@ -1323,6 +1323,195 @@ internal static unsafe class ContinuingFat32MutationTests
     private delegate bool BorrowCheck(C.State* state, ulong epoch, ulong address, ulong bytes);
     private static BorrowCheck RetainPredicate() => typeof(C).GetMethod("CanRetainStorage", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<BorrowCheck>();
 
+    private delegate bool RetainedRangeBatch(C.State* state, ulong epoch, ReadOnlySpan<ulong> pairs);
+    private static readonly RetainedRangeBatch RetainBatch = typeof(C).GetMethod("CanRetainStorageRanges",
+        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.CreateDelegate<RetainedRangeBatch>();
+    private static void CompareRetainBatch(Fixture f, ReadOnlySpan<ulong> pairs, bool? expected = null)
+    {
+        var scalar = RetainPredicate(); bool conjunction = true;
+        for (int i = 0; i < pairs.Length; i += 2)
+            if (pairs[i + 1] != 0) conjunction &= scalar(f.State, f.Input.Epoch, pairs[i], pairs[i + 1]);
+        if (expected.HasValue) HostCheck.Equal(expected.Value, conjunction);
+        HostCheck.Equal(conjunction, RetainBatch(f.State, f.Input.Epoch, pairs));
+    }
+    private static byte[] RetainBatchSnapshot(Fixture f)
+    {
+        using MemoryStream bytes = new();
+        bytes.Write(new ReadOnlySpan<byte>(f.State, sizeof(C.State)));
+        bytes.Write(new ReadOnlySpan<byte>(f.Input.Changes, (int)f.BackingBytes));
+        bytes.Write(new ReadOnlySpan<byte>(f.Device.State, sizeof(B.State)));
+        bytes.Write(new ReadOnlySpan<byte>(f.Device.Data, 4096));
+        bytes.Write(new ReadOnlySpan<byte>(f.Output, 128));
+        if (f.Device.Observation != null) bytes.Write(new ReadOnlySpan<byte>(f.Device.Observation, sizeof(B.Observation)));
+        return bytes.ToArray();
+    }
+    private static (ulong Start, ulong Bytes)[] RetainBatchProtected(Fixture f)
+    {
+        var a = f.Input; var block = f.Device.Input;
+        var ranges = new List<(ulong Start, ulong Bytes)>
+        {
+            ((ulong)f.State, (ulong)sizeof(C.State)), ((ulong)a.Changes, C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)),
+            ((ulong)a.Before, C.JournalChanges * 512UL), ((ulong)a.After, C.JournalChanges * 512UL),
+            ((ulong)a.DirectoryMap, C.MaximumClusters * 4UL), ((ulong)a.FileMap, C.MaximumClusters * 4UL), ((ulong)a.WalkMap, C.MaximumClusters * 4UL),
+            ((ulong)a.Sector, 512), ((ulong)a.Fat0, 512), ((ulong)a.Fat1, 512), ((ulong)a.Input, C.WriteBytes),
+            ((ulong)a.Name, C.NameWords * 2UL), ((ulong)a.LongName, C.VfatWords * 2UL), ((ulong)a.EncodedEntries, C.EncodedEntryBytes),
+            ((ulong)f.Device.State, (ulong)sizeof(B.State)), ((ulong)f.Device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
+            ((ulong)f.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)),
+            ((ulong)f.Device.Data, 4096),
+            (block.Common.VirtualStart, block.Common.Bytes), (block.Notify.VirtualStart, block.Notify.Bytes), (block.Device.VirtualStart, block.Device.Bytes)
+        };
+        if (f.Device.Observation != null) ranges.Add(((ulong)f.Device.Observation, (ulong)sizeof(B.Observation)));
+        return ranges.ToArray();
+    }
+
+    [HostTest("continuing C retained range batch preserves scalar byte geometry duplicates overlaps and bounded zero candidates")]
+    private static void RetainBatchShape()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); ulong address = (ulong)f.Output;
+        ulong[] pairs = [address, 16, address + 1, 3, address, 16, 0, 0, ulong.MaxValue, 0];
+        byte[] before = RetainBatchSnapshot(f); uint calls = f.Device.Hardware->Calls;
+        CompareRetainBatch(f, pairs, true);
+        HostCheck.True(RetainBatch(f.State, f.Input.Epoch, [ulong.MaxValue, 0]));
+        HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, []) && !RetainBatch(f.State, f.Input.Epoch, [address]));
+        ulong[] maximum = new ulong[177 * 2];
+        for (int i = 0; i < maximum.Length; i += 2) { maximum[i] = address + 1; maximum[i + 1] = 1; }
+        CompareRetainBatch(f, maximum, true);
+        HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, new ulong[maximum.Length + 2]));
+        foreach (var invalid in new (ulong Address, ulong Bytes)[] { (0, 1), (4095, 1), (ulong.MaxValue - 3, 8), (address, ulong.MaxValue), (0x0000800000000000UL, 1) })
+            CompareRetainBatch(f, [address, 1, invalid.Address, invalid.Bytes], false);
+        HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && f.Device.Hardware->Calls == calls);
+    }
+
+    [HostTest("continuing C retained range batch excludes every engine device DMA MMIO observer partial covering and exact boundary alias")]
+    private static void RetainBatchAliases()
+    {
+        foreach (bool observe in new[] { false, true })
+        {
+            using var f = new Fixture(observe: observe); f.Mount(); ulong address = (ulong)f.Output;
+            byte[] before = RetainBatchSnapshot(f); uint calls = f.Device.Hardware->Calls;
+            foreach (var extent in RetainBatchProtected(f))
+            {
+                foreach (var alias in new (ulong Start, ulong Bytes)[] { extent, (extent.Start, 1), (extent.Start + extent.Bytes - 1, 1),
+                    (extent.Start - 1, 2), (extent.Start + extent.Bytes - 1, 2), (extent.Start - 8, extent.Bytes + 16) })
+                    foreach (int position in new[] { 0, 2, 4 })
+                    {
+                        ulong[] pairs = [address, 1, address + 1, 1, address + 2, 1]; pairs[position] = alias.Start; pairs[position + 1] = alias.Bytes;
+                        CompareRetainBatch(f, pairs, false);
+                    }
+                // Adjacent candidates may meet another retained extent; preserve
+                // the scalar's actual half-open boundary decision either way.
+                CompareRetainBatch(f, [extent.Start - 1, 1]); CompareRetainBatch(f, [extent.Start + extent.Bytes, 1]);
+            }
+            HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && f.Device.Hardware->Calls == calls);
+        }
+    }
+
+    [HostTest("continuing C retained range batch reaudits original epochs observer and all backing even with zero candidates")]
+    private static void RetainBatchIdentity()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); ulong[] pairs = [(ulong)f.Output, 1];
+        HostCheck.True(!RetainBatch(null, f.Input.Epoch, pairs) && !RetainBatch((C.State*)ulong.MaxValue, f.Input.Epoch, pairs) &&
+            !RetainBatch(f.State, 0, pairs) && !RetainBatch(f.State, f.Input.Epoch + 1, pairs));
+        C.State copied = *f.State; HostCheck.True(!RetainBatch(&copied, f.Input.Epoch, pairs));
+        C.Admission* input = (C.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *input;
+        B.Admission* block = (B.Admission*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "Input")); var originalBlock = *block;
+        ulong* pool = (ulong*)((byte*)f.Device.Pool + WritableBlockSessionTests.ManagedOffset(f.Device.Pool, "Epoch")); ulong originalPool = *pool;
+        byte[] before = RetainBatchSnapshot(f); uint calls = f.Device.Hardware->Calls;
+        try
+        {
+            for (int mode = 0; mode < 7; mode++)
+            {
+                *input = original; *block = originalBlock; *pool = originalPool;
+                if (mode == 0) input->Epoch++;
+                else if (mode == 1) input->Before = input->After;
+                else if (mode == 2) input->Before = (byte*)8;
+                else if (mode == 3) block->Epoch++;
+                else if (mode == 4) (*pool)++;
+                else if (mode == 5) block->Observation = (B.Observation*)input->Before;
+                else block->Observation = (B.Observation*)(input->EncodedEntries + C.EncodedEntryBytes - 8);
+                CompareRetainBatch(f, pairs, false); HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, [ulong.MaxValue, 0]));
+            }
+        }
+        finally { *input = original; *block = originalBlock; *pool = originalPool; }
+        CompareRetainBatch(f, pairs, true); pairs[0] = (ulong)f.Input.After; CompareRetainBatch(f, pairs, false);
+        pairs[0] = (ulong)f.Output; CompareRetainBatch(f, pairs, true);
+        HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && f.Device.Hardware->Calls == calls);
+    }
+
+    [HostTest("continuing C retained range batch leaves actual pending held and cancelled read ownership untouched")]
+    private static void RetainBatchPending()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Fixture(observe: true); f.Mount(); var file = File(f); Read(f, file, 0, 8, out var request);
+            C.Pump(f.State); HostCheck.True(f.Device.State->ReadPending);
+            if (held) { f.Device.Complete(); HostCheck.Equal(C.Status.Ready, f.Run()); }
+            byte[] before = RetainBatchSnapshot(f); uint calls = f.Device.Hardware->Calls;
+            CompareRetainBatch(f, [(ulong)f.Output, 8], true);
+            HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && f.Device.Hardware->Calls == calls);
+            C.Cancel(f.State, request);
+            if (!held)
+            {
+                f.Device.Complete(); HostCheck.Equal(C.Status.Ready, f.Run()); C.Result result = default;
+                HostCheck.Equal(C.Status.Cancelled, C.CopyRead(f.State, request, [], &result));
+            }
+            CompareRetainBatch(f, [(ulong)f.Output, 8], true); HostCheck.True(!f.State->RequestActive);
+        }
+    }
+
+    [HostTest("continuing C retained range batch retains actual clean fault dirty recovery and original stopped cleanup")]
+    private static void RetainBatchCleanup()
+    {
+        foreach (bool dirty in new[] { false, true })
+        {
+            using var f = new Fixture(observe: true); f.Mount(); var file = File(f);
+            if (dirty) { f.FailPublication = 1; Overwrite(f, file, 0, new byte[] { 81 }, out _); }
+            else { f.FailAt = f.Device.Hardware->Notifies + 1; Read(f, file, 0, 1, out _); }
+            HostCheck.Equal(dirty ? C.Status.RecoveryRequired : C.Status.BlockFailure, f.Run());
+            CompareRetainBatch(f, [(ulong)f.Output, 1], true); HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
+            byte[] before = RetainBatchSnapshot(f); uint calls = f.Device.Hardware->Calls;
+            CompareRetainBatch(f, [(ulong)f.Output, 1], true);
+            HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && calls == f.Device.Hardware->Calls);
+            HostCheck.Equal(dirty ? C.Status.RecoveryRequired : C.Status.Success, C.Stop(f.State));
+            HostCheck.Equal(dirty, RetainBatch(f.State, f.Input.Epoch, [(ulong)f.Output, 1]));
+        }
+    }
+
+    [HostTest("continuing C retained range batch rejects actual block restart ABA and final retired poisoned backing")]
+    private static void RetainBatchAba()
+    {
+        using (var f = new Fixture(observe: true))
+        {
+            f.Mount(); HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+            C.Admission* input = (C.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *input;
+            try { input->Device = (B.State*)ulong.MaxValue; input->Before = (byte*)ulong.MaxValue;
+                HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, [(ulong)f.Output, 1]) && !RetainBatch(f.State, f.Input.Epoch, [0, 0])); }
+            finally { *input = original; }
+        }
+        using (var f = new Fixture(observe: true))
+        {
+            f.Mount(); CompareRetainBatch(f, [(ulong)f.Output, 1], true); HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State));
+            new Span<byte>(f.Device.State, sizeof(B.State)).Clear(); f.Device.Negotiate(); var next = f.Device.Input; next.Epoch++;
+            HostCheck.Equal(B.Status.Success, B.Start(f.Device.State, next));
+            CompareRetainBatch(f, [(ulong)f.Output, 1], false); HostCheck.True(!RetainBatch(f.State, f.Input.Epoch, [0, 0]));
+            HostCheck.Equal(C.Status.InvalidState, C.Stop(f.State)); HostCheck.True(f.State->IsMounted); B.Stop(f.Device.State);
+        }
+    }
+
+    [HostTest("continuing C retained range batch performs one real audit for twenty five candidates without I O or original writes")]
+    private static void RetainBatchAuditCount()
+    {
+        using var f = new Fixture(observe: true); f.Mount(); ulong[] pairs = new ulong[50];
+        for (int i = 0; i < pairs.Length; i += 2) { pairs[i] = (ulong)f.Output + (uint)(i / 2); pairs[i + 1] = 1; }
+        byte[] before = RetainBatchSnapshot(f); uint calls = f.Device.Hardware->Calls;
+        OS.Kernel.Diagnostics.WritableStorageTiming.State timing = default; ulong counter = 0;
+        HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&timing, (ulong)&counter, 64)); bool accepted;
+        try { accepted = RetainBatch(f.State, f.Input.Epoch, pairs); }
+        finally { HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing)); }
+        HostCheck.True(accepted && timing.AuditCalls == 1 && timing.OutsideDeviceCalls == 14 && timing.RawReads == 6);
+        HostCheck.True(before.SequenceEqual(RetainBatchSnapshot(f)) && f.Device.Hardware->Calls == calls && !OS.Kernel.Diagnostics.WritableStorageTiming.IsActive);
+    }
+
     [HostTest("continuing FAT retained original ownership permits clean pending and stopped DMA without I O or allocation")]
     private static void RetainedOriginalOwnership()
     {

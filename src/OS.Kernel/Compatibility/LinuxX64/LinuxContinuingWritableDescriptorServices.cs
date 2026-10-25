@@ -231,8 +231,8 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>Check a borrowed flat start/byte-count inventory under one
     /// serialized retained owner. Nonempty/even input is bounded to177 pairs.
-    /// Audit the provider tree once; every nonzero byte count still uses the
-    /// complete original engine query and all local exclusions. Zero byte
+    /// Audit the provider tree once, then borrow the original candidate span
+    /// for one complete engine batch and all local exclusions. Zero byte
     /// counts skip only that candidate, never the owner audit. Dirty, faulted,
     /// retiring, orphaned or original-stopped backing retains the scalar
     /// cleanup semantics; final retirement rejects. No input/span/token is
@@ -242,13 +242,13 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     {
         if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
             !RetainedStorage(s, expectedEpoch, 0, 0, false)) return false;
-        return RetainedRangesOutside(s, expectedEpoch, pairs);
+        return C.CanRetainStorageRanges(s->Input.Engine, expectedEpoch, pairs) && RetainedRangesOutside(s, pairs);
     }
 
-    // Inventory scratch starts only after the complete RetainedStorage audit
-    // returned. Actual emitted stack/fit remains a separate native obligation.
+    // Local inventory scratch starts only after both complete provider and
+    // engine batches returned. Actual emitted stack/fit is a separate gate.
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private static bool RetainedRangesOutside(State* s, ulong epoch, ReadOnlySpan<ulong> pairs)
+    private static bool RetainedRangesOutside(State* s, ReadOnlySpan<ulong> pairs)
     {
         Admission a = s->Input; LockAdmission l = s->LockInput;
         ulong* starts = stackalloc ulong[7] { (ulong)s, (ulong)a.Descriptors, (ulong)a.Descriptions, (ulong)a.Input,
@@ -261,7 +261,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         {
             ulong address = pairs[i], bytes = pairs[i + 1];
             if (bytes == 0) continue;
-            if (!Ordinary(address, bytes, 1) || !C.CanRetainStorage(a.Engine, epoch, address, bytes)) return false;
+            if (!Ordinary(address, bytes, 1)) return false;
             for (uint j = 0; j < count; j++) if (Overlap(address, bytes, starts[j], sizes[j])) return false;
         }
         return true;
@@ -296,19 +296,22 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         }
         else if (l.Processes != null || l.Locks != null || l.Scratch != null || l.ProcessCount != 0 || l.LockCount != 0 ||
             l.ScratchCount != 0 || l.PrimaryPid != 0 || !Same(s->PrimaryOwner, default)) return false;
-        ulong* starts = stackalloc ulong[7] { (ulong)s, (ulong)a.Descriptors, (ulong)a.Descriptions, (ulong)a.Input,
-            (ulong)l.Processes, (ulong)l.Locks, (ulong)l.Scratch };
-        ulong* sizes = stackalloc ulong[7] { (ulong)sizeof(State), a.DescriptorCount * (ulong)sizeof(Descriptor),
-            a.DescriptionCount * (ulong)sizeof(Description), IoBytes, l.ProcessCount * (ulong)sizeof(ProcessSlot),
-            l.LockCount * (ulong)sizeof(RangeLock), l.ScratchCount * (ulong)sizeof(RangeLock) };
+        Span<ulong> pairs = stackalloc ulong[16] { (ulong)s, (ulong)sizeof(State),
+            (ulong)a.Descriptors, a.DescriptorCount * (ulong)sizeof(Descriptor),
+            (ulong)a.Descriptions, a.DescriptionCount * (ulong)sizeof(Description), (ulong)a.Input, IoBytes,
+            (ulong)l.Processes, l.ProcessCount * (ulong)sizeof(ProcessSlot),
+            (ulong)l.Locks, l.LockCount * (ulong)sizeof(RangeLock),
+            (ulong)l.Scratch, l.ScratchCount * (ulong)sizeof(RangeLock), 0, 0 };
         uint count = s->Locking ? 7U : 4U;
         for (uint i = 0; i < count; i++)
         {
-            if (!Ordinary(starts[i], sizes[i], i == 3 ? 1UL : 8UL) ||
-                !C.CanRetainStorage(a.Engine, expectedEpoch, starts[i], sizes[i]) || external && Overlap(address, bytes, starts[i], sizes[i])) return false;
-            for (uint j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
+            ulong start = pairs[(int)(i * 2)], extentBytes = pairs[(int)(i * 2 + 1)];
+            if (!Ordinary(start, extentBytes, i == 3 ? 1UL : 8UL) || external && Overlap(address, bytes, start, extentBytes)) return false;
+            for (uint j = 0; j < i; j++)
+                if (Overlap(start, extentBytes, pairs[(int)(j * 2)], pairs[(int)(j * 2 + 1)])) return false;
         }
-        return !external || C.CanRetainStorage(a.Engine, expectedEpoch, address, bytes);
+        if (external) { pairs[(int)(count * 2)] = address; pairs[(int)(count * 2 + 1)] = bytes; count++; }
+        return C.CanRetainStorageRanges(a.Engine, expectedEpoch, pairs.Slice(0, (int)(count * 2)));
     }
 
     /// <summary>Enable fixed process-associated lock tables while no handle or

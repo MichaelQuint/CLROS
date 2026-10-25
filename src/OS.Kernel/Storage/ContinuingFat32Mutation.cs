@@ -1225,6 +1225,44 @@ public static unsafe class ContinuingFat32Mutation
     // the same address cannot authorize cleanup. No live-I/O/copy authority.
     internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
         CanBorrowStorage(s, expectedEpoch, address, bytes) && DeviceIdentity(s);
+
+    internal const int MaximumRetainedStorageRanges = 177;
+
+    /// <summary>Synchronously borrow a stable flat start/byte-count inventory
+    /// under the original serialized mounted owner. Audit all fourteen retained
+    /// extents and the original block lifetime once; every nonzero candidate
+    /// still excludes each extent and the complete device/DMA/MMIO/observer
+    /// tree. Empty/odd/over177-pair input rejects. Zero byte counts skip only
+    /// that candidate, never the owner audit. Dirty/faulted or original-stopped
+    /// backing retains scalar cleanup semantics; final retirement rejects.
+    /// No span/token escapes, cache, callback, I/O, allocation or output occurs.
+    /// This grants no later borrow, live device, user-copy or release authority.</summary>
+    internal static bool CanRetainStorageRanges(State* s, ulong expectedEpoch, ReadOnlySpan<ulong> pairs)
+    {
+        if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
+            expectedEpoch == 0 || !Live(s) || !s->Mounted || s->Input.Epoch != expectedEpoch || !DeviceIdentity(s)) return false;
+        return RetainedRangesOutside(s, pairs);
+    }
+
+    // One fixed224-byte extent inventory, independent of candidate count. It
+    // stays on this original synchronous stack through audit and all overlaps.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static bool RetainedRangesOutside(State* s, ReadOnlySpan<ulong> pairs)
+    {
+        Extent* all = stackalloc Extent[14];
+        if (!RetainedStorage(s, all)) return false;
+        for (int i = 0; i < pairs.Length; i += 2)
+        {
+            ulong address = pairs[i], bytes = pairs[i + 1];
+            if (bytes == 0) continue;
+            if (!Storage(address, bytes, 1)) return false;
+            for (int j = 0; j < 14; j++)
+                if (Overlap(address, bytes, all[j].Start, all[j].Bytes)) return false;
+            if (!OutsideDevice(s->Input.Device, address, bytes)) return false;
+        }
+        return true;
+    }
+
     /// <summary>Structural retained identity for a nonempty, already selected
     /// readonly partition range outside the ORIGINAL mounted data partition.
     /// LBA0 is excluded by this partition-only contract. Exact engine/block
