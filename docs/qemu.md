@@ -1,5 +1,35 @@
 # QEMU
 
+## Writable original-run owner (step1616)
+
+The explicit development selection is `-BuildEfi -EnableM16027Probe` with
+`-WritableDiskFixture Mechanical30` or `LogUpload40`, a byte-exact canonical
+package, `-WebRootFixture DiskA`/`DiskB` and confined `-WebRootAssets`. It admits
+120..220guest seconds, defaults180, and preserves the capture allowance. The
+initial fixture uses uncompressed small web assets. This selection compiles;
+its first actual guest is still gated by emitted callback and transitive-stack
+review. Existing read-only/static profiles retain their own admission.
+
+The tool builds a fresh immutable combined boot image and a distinct identity-
+bound `.working.raw`. QEMU boots the immutable image through an overlay and
+attaches only the working image writable on slot7 with `cache=writeback`; NIC
+remains slot6. The outer Windows process call opts into retained ownership: an
+uncertain cleanup stays pending with the original job/root/member handles and
+the working-image hold. Cancellation cannot release that ownership. A missing
+original process census cannot be reconstructed from a later empty job.
+
+After actual join, even a failed run retains a `.joined.raw` snapshot under a
+read-only identity/content hold. Original failure flags remain failures. The
+complete success consumer additionally requires exact runner stdout/summary,
+firmware framing, parent roots/clocks, NIC cleanup/independent packets, canonical
+calls/waits, all writable observations, exact modified bytes/extraction and final
+held-input/native rechecks. Optional raw-observation capture must validate in
+that held lifetime. A copied-value report or terminal marker supplies none of
+these original-run authorities. Physical durability remains unqualified.
+
+[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+
+
 [Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
 
 

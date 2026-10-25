@@ -1,5 +1,31 @@
 # EFI Build
 
+## Selected writable publication review (step1616)
+
+Original Diagnostic M16-027 publication at70697d6b produces1229824-byte EFI SHA256
+`9BFA103AC94CB19AE99777460E9957AA1BD4FE4DC5CA21B655A616B69C208558`.
+The verifier holds1022 source inputs and8 verifier inputs unchanged and checks
+PE32+x64 EFI subsystem10 with no import/bound/IAT/delay directories. Its2320
+runtime records contain1843 distinct unwind records. Four unavailable no-stdlib
+constructs were repaired in narrowly selected sources; no framework/runtime
+stubs or general GC/EH support were added.
+
+Independent original-byte review matches304 selected actual prologues/unwind
+frames (maximum direct frame2288bytes),603504-byte layout arithmetic and
+256899 emitted instruction byte sequences. The site census preserves44777
+relative/FF branches, call versus jump edges and four recursive components.
+It finds zero runtime instruction coverage gaps in the1167 direct-reachable
+functions. The188 indirect branches still need admitted targets and generated
+hardware-code entries. Decimal formatting and table walking need their bounded
+recursion arguments; the source5 Stage/Cancel/Finish cycle needs its exact
+Ready-result invariant. Pre-exit AllocatePages is outside post-exit closure.
+Direct frames/census do not establish complete no-allocation, IRQ, dynamic-stack
+or transitive-stack bounds. Fresh source-matched publication and guest evidence
+remain required after those obligations close.
+
+[Step1616](../done/step1616.md) records the selected default-off writable native publication, explicit30/40-call mechanical profiles, retained process joins and the original writable capture consumer. Direct emitted frames and arena arithmetic are checked; indirect callbacks and transitive stack closure still precede guest activation. Focused host results do not qualify a writable guest, full Blazor, reboot persistence or SQLite durability. Step1615 retains the prior Linux HTTP evidence and all original failures.
+
+
 [Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
 
 
