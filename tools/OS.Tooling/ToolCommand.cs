@@ -164,6 +164,15 @@ public static class ToolCommand
                 var program = NativeAotStaticFileProgram.Read(Repository.FindRoot(), staticPackage, staticProgramDump, staticProgramMode == "--staged");
                 Console.WriteLine("TEST_PASS nativeaot.static-files.program " + program.Metadata); return 0;
             }
+            if (args is ["nativeaot", "log-upload", "program", var logUploadPackage, var logUploadDump, var logUploadMode] && logUploadMode is "--write" or "--verify")
+            {
+                Console.WriteLine("TEST_START nativeaot.log-upload.program");
+                var program = NativeAotLogUploadProgram.Read(Repository.FindRoot(), logUploadPackage, logUploadDump, logUploadMode[2..]);
+                Console.WriteLine($"TEST_PASS nativeaot.log-upload.program phase={program.Phase} instructions={program.Metadata.InstructionCount} syscalls={program.Metadata.SyscallCount} index={program.Metadata.Sha256} grants_execution=false");
+                return 0;
+            }
+            if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "log-upload")
+                throw new ArgumentException("usage: nativeaot log-upload program <canonical-package> <llvm-disassembly> --write|--verify");
             if (args is ["nativeaot", "static-files", "package", "--recipe-root", var staticRecipe, "--evidence", var staticEvidence,
                 "--output", var staticOutput, var staticMode] && staticMode is "--staged" or "--disk")
             {
@@ -416,6 +425,7 @@ public static class ToolCommand
                 Console.WriteLine("linux sqlite-recovery-reference-with-archive <original-socket-recipe-root> <pinned-source-zip> <reviewed-r03-artifacts-root> <fresh-recovery-output> (explicit archive reuse; outer-held originals through fresh process kill/join and reopen; no power-loss authority)");
                 Console.WriteLine("nativeaot static-files package --recipe-root <original-candidate-root> --evidence <original-reference> --output <fresh-artifacts-package> --staged|--disk");
                 Console.WriteLine("nativeaot static-files index <original-ELF> <llvm-disassembly> | program <package> <llvm-disassembly> --staged|--disk");
+                Console.WriteLine("nativeaot log-upload program <canonical-package> <llvm-disassembly> --write|--verify (prepared index only; grants_execution=false)");
                 Console.WriteLine("nativeaot static-files prepare-client <published-webroot> <fresh-artifacts-webroot>\nnativeaot static-files image <base-image> <prepared-webroot> <fresh-image> DiskA|DiskB\nnativeaot static-files qualify --recipe-root <original-socket-root> --output <fresh-directory> --webroot <prepared-webroot>\nnativeaot static-files validate <evidence-directory>");
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
                 Console.WriteLine("qemu inspect-webroot-inventory <original-raw-image> requires its .webroot.json receipt; reports copied physical metadata only, without native/process/device/HTTP authority.");
