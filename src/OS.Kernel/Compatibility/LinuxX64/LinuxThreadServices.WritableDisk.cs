@@ -175,7 +175,21 @@ public unsafe partial struct LinuxThreadServices
         return true;
     }
 
+    /// <summary>Authenticate the original attached thread owner before publishing
+    /// a writable attachment. With no thread attachment, EnablePipes performs
+    /// the reciprocal check later. This pure query grants no process creation,
+    /// I/O or copy authority and does not strengthen retained cleanup audits.</summary>
+    internal static bool WritableDiskProcessMatches(LinuxDescriptorServices.State* descriptors, uint processId)
+    {
+        if (!Range((ulong)descriptors, (ulong)sizeof(LinuxDescriptorServices.State)) || processId == 0) return false;
+        if (descriptors->ThreadOwner == 0) return true;
+        if (!Range(descriptors->ThreadOwner, (ulong)sizeof(LinuxThreadServices)) || (descriptors->ThreadOwner & 7) != 0) return false;
+        var process = (LinuxThreadServices*)descriptors->ThreadOwner;
+        return process->ProcessRetainedShape(descriptors, out _) && process->_owner.ProcessId == processId;
+    }
+
     private bool WritableDiskStorageOutsideProcess(LinuxDescriptorServices.State* descriptors, ulong flags)
-        => !FiniteDescriptorTree(descriptors) || DescriptorTreesOutsideProcess(descriptors);
+        => (!FiniteDescriptorTree(descriptors) || DescriptorTreesOutsideProcess(descriptors)) &&
+            (descriptors->WritableDisk == null || descriptors->WritableDisk->Process.Pid == _owner.ProcessId);
 }
 #endif

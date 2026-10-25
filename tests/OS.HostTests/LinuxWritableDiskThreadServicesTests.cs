@@ -15,6 +15,95 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
     private const ulong Key = LinuxThreadServicesTests.Key, User = LinuxThreadServicesTests.UserBase;
     private const ulong Path = User + 0x1200, Vector = User + 0x1400, Output = User + 0x2000, Payload = User + 0x3000;
 
+    [HostTest("writable attachment before thread binding rejects a different registered primary PID without effects")]
+    private static void WritableFirstPidBinding() => PidBinding(writableFirst: true);
+
+    [HostTest("writable attachment after thread binding rejects a different registered primary PID without effects")]
+    private static void ThreadFirstPidBinding() => PidBinding(writableFirst: false);
+
+    private static void PidBinding(bool writableFirst)
+    {
+        using (var wrong = new Fixture(primaryPid: 202, deferBinding: true))
+        {
+            HostCheck.Equal(0U, wrong.Files.Admission.PackageProcessId);
+            HostCheck.True(writableFirst ? wrong.AttachWritable() : wrong.EnableThreads());
+            byte[] files = new ReadOnlySpan<byte>(wrong.Files.State, sizeof(F.State)).ToArray();
+            byte[] disk = new ReadOnlySpan<byte>(wrong.Disk, sizeof(F.WritableDiskState)).ToArray();
+            var kernel = wrong.Thread.Kernel.Snapshot(); uint calls = wrong.Storage.Device.Hardware->Calls;
+            HostCheck.True(!(writableFirst ? wrong.EnableThreads() : wrong.AttachWritable()), "copied PID202 must not bind to actual process101");
+            wrong.Thread.Kernel.Same(kernel);
+            HostCheck.True(files.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(wrong.Files.State, sizeof(F.State))) &&
+                disk.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(wrong.Disk, sizeof(F.WritableDiskState))) &&
+                calls == wrong.Storage.Device.Hardware->Calls);
+        }
+        foreach (uint packagePid in new uint[] { 0, 101 })
+        {
+            using var good = new Fixture(deferBinding: true, packagePid: packagePid);
+            var secondary = W.RegisterProcess(good.Provider, 202);
+            HostCheck.True(secondary.Value == 0 && secondary.Process.Pid == 202 && W.PrimaryProcess(good.Provider).Pid == 101);
+            HostCheck.True(writableFirst ? good.AttachWritable() : good.EnableThreads());
+            HostCheck.True(writableFirst ? good.EnableThreads() : good.AttachWritable());
+            good.Start(); uint fd = good.Open(); HostCheck.Equal(0L, good.Run(8, fd, 0, 1)); HostCheck.Equal(0L, good.Run(3, fd));
+            HostCheck.Equal(0L, W.ExitProcess(good.Provider, secondary.Process).Value);
+        }
+    }
+
+    [HostTest("writable attachment rejects a mismatching explicit package PID before thread publication")]
+    private static void PackagePidBinding()
+    {
+        using var f = new Fixture(primaryPid: 202, packagePid: 101, deferBinding: true);
+        byte[] state = new ReadOnlySpan<byte>(f.Files.State, sizeof(F.State)).ToArray();
+        uint calls = f.Storage.Device.Hardware->Calls;
+        HostCheck.True(!f.AttachWritable() && state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Files.State, sizeof(F.State))) &&
+            calls == f.Storage.Device.Hardware->Calls && !f.Disk->RequestActive && !f.Provider->RequestActive);
+    }
+
+    [HostTest("writable source5 copied GETLK returns a foreign registered owner with exact x64 fields beyond EOF without changing locks or padding")]
+    private static void ForeignLockWire()
+    {
+        // The secondary owner is an explicit host registration, not a second
+        // Linux process. Global calls below run on the actual modeled PID101.
+        using var f = new Fixture(); uint first = f.Open(flags: 2), second = f.Open();
+        var foreign = W.RegisterProcess(f.Provider, 202).Process;
+        var opened = f.ProviderResult(W.OpenForProcess(f.Provider, foreign, "/data/DATA.BIN"u8, 2));
+        HostCheck.True(opened.Phase == W.Progress.Immediate && opened.Value >= 3);
+        const long reserved = 0x40000001; uint parks = f.Parked, calls = f.Storage.Device.Hardware->Calls;
+        try
+        {
+            HostCheck.Equal(0L, W.FcntlLockForProcess(f.Provider, foreign, opened.Descriptor, 6, new(1, 0, reserved, 1)).Value);
+            byte[] input = PutLock(); uint copies = f.Thread.Writes;
+            HostCheck.Equal(0L, f.Run(72, first, 5, Output));
+            byte[] expected = (byte[])input.Clone(); BinaryPrimitives.WriteInt64LittleEndian(expected.AsSpan(8), reserved);
+            BinaryPrimitives.WriteInt64LittleEndian(expected.AsSpan(16), 1); BinaryPrimitives.WriteInt32LittleEndian(expected.AsSpan(24), 202);
+            HostCheck.True(Wire().SequenceEqual(expected)); HostCheck.Equal(copies + 1, f.Thread.Writes);
+            PutLock(); HostCheck.Equal(-11L, f.Run(72, first, 6, Output)); HostCheck.True(Wire().SequenceEqual(input));
+            f.Thread.FailWrite(Output);
+            try { HostCheck.Equal(-14L, f.Run(72, first, 5, Output)); HostCheck.True(Wire().SequenceEqual(input)); }
+            finally { f.Thread.FailWrite(ulong.MaxValue); }
+            HostCheck.Equal(0L, f.Run(3, second)); // Closing PID101 cannot release PID202's lock.
+            PutLock(); HostCheck.Equal(0L, f.Run(72, first, 5, Output)); HostCheck.True(Wire().SequenceEqual(expected));
+            HostCheck.Equal(0L, W.ExitProcess(f.Provider, foreign).Value);
+            var replacement = W.RegisterProcess(f.Provider, 202).Process;
+            HostCheck.True(replacement.Index == foreign.Index && replacement.Generation != foreign.Generation);
+            HostCheck.Equal(-9L, W.FcntlLockForProcess(f.Provider, foreign, opened.Descriptor, 6, new(1, 0, reserved, 1)).Value);
+            PutLock(); HostCheck.Equal(0L, f.Run(72, first, 5, Output)); input[0] = 2;
+            HostCheck.True(Wire().SequenceEqual(input)); // No conflict changes only l_type, retaining input PID9876.
+            HostCheck.Equal(0L, W.ExitProcess(f.Provider, replacement).Value);
+            HostCheck.True(F.Audit(f.Files.State) && !f.HasLocks() && f.Parked == parks && calls == f.Storage.Device.Hardware->Calls);
+            HostCheck.Equal(0L, f.Run(3, first));
+        }
+        finally { W.ExitProcess(f.Provider, foreign); }
+
+        byte[] PutLock()
+        {
+            Span<byte> wire = new(f.Thread.At(Output), 32); wire.Fill(0xa7);
+            BinaryPrimitives.WriteInt16LittleEndian(wire, 1); BinaryPrimitives.WriteInt16LittleEndian(wire[2..], 0);
+            BinaryPrimitives.WriteInt64LittleEndian(wire[8..], 0x40000000); BinaryPrimitives.WriteInt64LittleEndian(wire[16..], 512);
+            BinaryPrimitives.WriteInt32LittleEndian(wire[24..], 9876); return wire.ToArray();
+        }
+        ReadOnlySpan<byte> Wire() => new(f.Thread.At(Output), 32);
+    }
+
     [HostTest("writable source5 actual waits drive all28 measured descriptor calls with original wire values and independent file bytes")]
     private static void MechanicalCalls()
     {
@@ -728,12 +817,15 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
                 }
                 new Span<byte>(memory.At(address), 4096).Fill(0xa5); f.Ready();
                 if (initial) HostCheck.Equal(-12L, LinuxMemoryServices.Protect(memory.State, address, 4096, 1));
-                // This model resolves dynamic pages for admission/futex but
-                // deliberately copies only its original static user window.
-                // Both original copy capability and captured ceiling must hold.
-                f.Thread.Yield(child); HostCheck.Equal(-14L, f.Consume());
-                HostCheck.Equal(copies, f.Thread.Writes);
-                HostCheck.True(new ReadOnlySpan<byte>(memory.At(address), 4096).IndexOfAnyExcept((byte)0xa5) < 0);
+                // The model now copies real mapped pool bytes. A mapping which
+                // existed at Begin retains its original ceiling; a newly mapped
+                // range still cannot enlarge the captured zero-byte ceiling.
+                f.Thread.Yield(child); HostCheck.Equal(initial ? 16L : -14L, f.Consume());
+                HostCheck.Equal(copies + (initial ? 1U : 0U), f.Thread.Writes);
+                ReadOnlySpan<byte> output = new(memory.At(address), 4096);
+                if (initial) HostCheck.True(output[..16].SequenceEqual(Enumerable.Range(0, 16).Select(i => unchecked((byte)(i * 17 + 5))).ToArray()));
+                HostCheck.True(output[(initial ? 16 : 0)..].IndexOfAnyExcept((byte)0xa5) < 0);
+                HostCheck.Equal(0L, f.Run(8, fd, 0, 1)); // Positioned copy leaves the shared cursor unchanged.
                 HostCheck.True(f.May(address, 4096)); HostCheck.Equal(0L, LinuxMemoryServices.Protect(memory.State, address, 4096, 1));
             }
             finally { detached = LinuxMemoryServices.DetachMutationGuard(memory.State, f.Thread.Service, &LinuxFutexTests.MemoryGuard); }
@@ -755,14 +847,14 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         private readonly W.RangeLock* scratch = (W.RangeLock*)NativeMemory.AllocZeroed(65, (nuint)sizeof(W.RangeLock));
         internal readonly F.WritableDiskState* Disk = (F.WritableDiskState*)NativeMemory.AllocZeroed((nuint)sizeof(F.WritableDiskState));
         private readonly F.WritableDiskBinding* bindings = (F.WritableDiskBinding*)NativeMemory.AllocZeroed(32, (nuint)sizeof(F.WritableDiskBinding));
-        internal readonly OSHostHandle Main;
+        internal OSHostHandle Main;
         internal uint Parked;
         internal List<(uint Type, ulong Sector)>? Trace;
         internal bool RetainedFailure;
         internal readonly bool Rejected;
         private readonly bool borrowedInput;
         private ulong Owner => (ulong)Thread.Service;
-        internal Fixture(bool aliasScheduler = false)
+        internal Fixture(bool aliasScheduler = false, uint primaryPid = 101, bool deferBinding = false, uint packagePid = 0)
         {
             borrowedInput = aliasScheduler; input = aliasScheduler ? (byte*)Thread.Kernel.Ready : (byte*)NativeMemory.AllocZeroed(W.IoBytes);
             if (aliasScheduler) new Span<byte>(input, (int)W.IoBytes).Clear(); // No live workers; model of an invalid offered borrow.
@@ -771,18 +863,40 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
             HostCheck.True(W.Start(Provider, new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = descriptors,
                 Descriptions = descriptions, DescriptorCount = 32, DescriptionCount = 32, Input = input, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
             HostCheck.True(W.EnableLocks(Provider, new() { Processes = processes, ProcessCount = 4, Locks = locks, LockCount = 32,
-                Scratch = scratch, ScratchCount = 65, PrimaryPid = 101 }));
-            Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut; Files.Begin();
-            HostCheck.True(F.AttachWritableDisk(Files.State, Disk, new() { Provider = Provider, Process = W.PrimaryProcess(Provider),
-                Bindings = bindings, BindingCount = 32, Epoch = Storage.Input.Epoch, Search = new(2, 64, 256), FirmwareExited = true, SingleOwnerValidated = true }));
+                Scratch = scratch, ScratchCount = 65, PrimaryPid = primaryPid }));
+            Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut;
+            Files.Admission.PackageProcessId = packagePid; Files.Begin();
+            if (deferBinding) return;
+            HostCheck.True(AttachWritable());
             if (aliasScheduler)
             {
                 uint calls = Storage.Device.Hardware->Calls; var before = Thread.Kernel.Snapshot();
                 HostCheck.True(!Thread.Service->EnablePipes(Key, 2, Files.State)); Thread.Kernel.Same(before);
                 HostCheck.Equal(calls, Storage.Device.Hardware->Calls); Rejected = true; return;
             }
-            HostCheck.True(Thread.Service->EnablePipes(Key, 2, Files.State)); Main = Thread.Start();
+            HostCheck.True(EnableThreads()); Start();
+        }
+        internal bool AttachWritable() => F.AttachWritableDisk(Files.State, Disk, new()
+        {
+            Provider = Provider, Process = W.PrimaryProcess(Provider), Bindings = bindings, BindingCount = 32,
+            Epoch = Storage.Input.Epoch, Search = new(2, 64, 256), FirmwareExited = true, SingleOwnerValidated = true
+        });
+        internal bool EnableThreads() => Thread.Service->EnablePipes(Key, 2, Files.State);
+        internal void Start()
+        {
+            Main = Thread.Start();
             HostCheck.Equal(Main.Value, Thread.Kernel.Dispatch().Value);
+        }
+        internal W.Result ProviderResult(W.Result begun)
+        {
+            if (begun.Phase != W.Progress.Pending) return begun;
+            for (int i = 0; i < 100000; i++)
+            {
+                var result = W.Pump(Provider); CompleteHardware();
+                if (result.Phase == W.Progress.Ready) return W.Complete(Provider, begun.Request);
+                HostCheck.Equal(W.Progress.Pending, result.Phase);
+            }
+            throw new InvalidOperationException("direct registered owner did not complete");
         }
         internal void PutPath(string path) => Encoding.ASCII.GetBytes(path + '\0').CopyTo(new Span<byte>(Thread.At(Path), path.Length + 1));
         internal void PutWrite(byte[] bytes)

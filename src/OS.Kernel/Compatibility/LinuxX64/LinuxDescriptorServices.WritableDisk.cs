@@ -98,14 +98,17 @@ public static unsafe partial class LinuxDescriptorServices
 
     /// <summary>Borrow an already admitted idle provider and a zeroed table
     /// indexed by global description. Require its exact configured primary;
-    /// copied PID alone is not kernel process authority. Invalid admission has
+    /// bind its PID to any package and already attached thread process. A copied
+    /// PID alone is not kernel process authority. Invalid admission has
     /// no effects, callbacks or I/O. Native mapping/process proof remains outer.</summary>
     public static bool AttachWritableDisk(State* state, WritableDiskState* disk, in WritableDiskAdmission a)
     {
         if (!Audit(state) || state->WritableDisk != null || !a.FirmwareExited || !a.SingleOwnerValidated || a.Epoch == 0 ||
             !WritableExtent(disk, (ulong)sizeof(WritableDiskState)) || !WritableExtent(a.Provider, (ulong)sizeof(W.State)) ||
             a.BindingCount != state->Owner.DescriptionCount || !WritableExtent(a.Bindings, a.BindingCount * (ulong)sizeof(WritableDiskBinding)) ||
-            a.Provider->RequestActive || !WritableProcess(a.Process, W.PrimaryProcess(a.Provider))) return false;
+            a.Provider->RequestActive || !WritableProcess(a.Process, W.PrimaryProcess(a.Provider)) ||
+            state->Owner.PackageProcessId != 0 && state->Owner.PackageProcessId != a.Process.Pid ||
+            !LinuxThreadServices.WritableDiskProcessMatches(state, a.Process.Pid)) return false;
 #if !NOSTDLIB_EFI || M16_025_PROBE
         if (state->Disk != null && (!DiskBound(state) ||
             !PairedDiskStorage(state->Disk, RetainedDiskAdmission(state->Disk), disk, a))) return false;
