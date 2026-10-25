@@ -25,9 +25,13 @@ public sealed class QemuSmokeOptions
     /// Empty preserves its original59-call fixture. The selection supplies no
     /// package, native, scheduler or guest execution authority.</summary>
     public string LinuxDiskRaceVariant { get; set; } = "";
-    /// <summary>Explicit canonical writable mechanical fixture: Mechanical30
-    /// or LogUpload40. Selection grants no image, native or guest authority.</summary>
+    /// <summary>Explicit canonical writable target: Mechanical30, LogUpload40,
+    /// BclWrite or BclVerify. BCL targets remain planning-only until an original
+    /// consumer exists. Selection grants no image, native or guest authority.</summary>
     public string WritableDiskFixture { get; set; } = "";
+    /// <summary>Dedicated pinned BCL instruction input. Generic threading
+    /// selection is independent; a path supplies no prepared-index authority.</summary>
+    public string WritableDiskDisassembly { get; set; } = "";
     public string LinuxHelloDisassembly { get; set; } = "";
     public string LinuxThreadingApplication { get; set; } = "";
     public string LinuxThreadingDisassembly { get; set; } = "";
@@ -91,7 +95,7 @@ public sealed class QemuSmokeOptions
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
             ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant",
             ["linuxhellodisassembly"] = "LinuxHelloDisassembly", ["linuxdiskracevariant"] = "LinuxDiskRaceVariant",
-            ["writablediskfixture"] = "WritableDiskFixture",
+            ["writablediskfixture"] = "WritableDiskFixture", ["writablediskdisassembly"] = "WritableDiskDisassembly",
             ["linuxthreadingapplication"] = "LinuxThreadingApplication", ["linuxthreadingdisassembly"] = "LinuxThreadingDisassembly"
         };
         foreach (string flag in EfiContracts.DiagnosticProbes) names.Add(Key(flag), flag);
@@ -102,7 +106,7 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
-            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture") throw new ArgumentException("qemu_duplicate_option " + name);
+            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly") throw new ArgumentException("qemu_duplicate_option " + name);
             bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
             bool bit = false;
@@ -127,8 +131,9 @@ public sealed class QemuSmokeOptions
                 case "LinuxElfPackage": result.LinuxElfPackage = value; break;
                 case "LinuxElfImageVariant": result.LinuxElfImageVariant = value; break;
                 case "WritableDiskFixture":
-                    if (value is not ("Mechanical30" or "LogUpload40")) throw new ArgumentException("qemu_writable_disk_fixture");
+                    if (value is not ("Mechanical30" or "LogUpload40" or "BclWrite" or "BclVerify")) throw new ArgumentException("qemu_writable_disk_fixture");
                     result.WritableDiskFixture = value; break;
+                case "WritableDiskDisassembly": result.WritableDiskDisassembly = value; break;
                 case "LinuxDiskRaceVariant":
                     if (!LinuxDiskRaceProofFixture.Variants.Contains(value, StringComparer.Ordinal))
                         throw new ArgumentException("qemu_disk_race_variant");

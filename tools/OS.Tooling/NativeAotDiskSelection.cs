@@ -5,19 +5,50 @@ namespace OS.Tooling;
 /// completion evidence remain independent obligations of the runner.</summary>
 public static class NativeAotDiskSelection
 {
+    /// <summary>Exact copied target policy, without package, index or execution authority.</summary>
+    public enum WritableProgramKind : byte { Mechanical30, LogUpload40, BclWrite, BclVerify }
+
+    public static WritableProgramKind ParseWritableProgram(string name) => name switch
+    {
+        "Mechanical30" => WritableProgramKind.Mechanical30, "LogUpload40" => WritableProgramKind.LogUpload40,
+        "BclWrite" => WritableProgramKind.BclWrite, "BclVerify" => WritableProgramKind.BclVerify,
+        _ => throw new ToolFailure("writable_disk_fixture_required")
+    };
+
+    public static bool IsBcl(WritableProgramKind kind) => kind switch
+    {
+        WritableProgramKind.Mechanical30 or WritableProgramKind.LogUpload40 => false,
+        WritableProgramKind.BclWrite or WritableProgramKind.BclVerify => true,
+        _ => throw new ToolFailure("writable_disk_fixture_required")
+    };
+
+    /// <summary>Pre-read bound only. The complete canonical package must still
+    /// match the selected phase; this does not raise any global image limit.</summary>
+    public static int WritablePackageMaximumBytes(WritableProgramKind kind) => IsBcl(kind)
+        ? NativeAotLogUploadContract.ClrosElfBytes + 4096 : 65536;
+
     public static bool Selected(IReadOnlyDictionary<string, bool> flags) =>
         flags.TryGetValue("EnableM16025Probe", out bool value) && value;
 
     public static bool WritableSelected(IReadOnlyDictionary<string, bool> flags) =>
         flags.TryGetValue("EnableM16027Probe", out bool value) && value;
 
-    /// <summary>Require the complete canonical package for the explicit30/40
-    /// syscall fixture; neither the old59-call read fixture nor a variant is accepted.</summary>
-    public static void RequireWritablePackage(ReadOnlySpan<byte> package, string fixture)
+    /// <summary>Require complete canonical bytes for the explicit target. BCL
+    /// phases require the fixed original ELF and exact phase manifest; this
+    /// copied check admits no prepared index, process, device or guest.</summary>
+    public static void RequireWritablePackage(ReadOnlySpan<byte> package, string fixture) =>
+        RequireWritablePackage(package, ParseWritableProgram(fixture));
+
+    public static void RequireWritablePackage(ReadOnlySpan<byte> package, WritableProgramKind kind)
     {
-        if (fixture == "Mechanical30") LinuxWritableDiskProofFixture.RequirePackage(package);
-        else if (fixture == "LogUpload40") LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);
-        else throw new ToolFailure("writable_disk_fixture_required");
+        switch (kind)
+        {
+            case WritableProgramKind.Mechanical30: LinuxWritableDiskProofFixture.RequirePackage(package); break;
+            case WritableProgramKind.LogUpload40: LinuxWritableDiskProofFixture.RequireLogUploadPackage(package); break;
+            case WritableProgramKind.BclWrite: _ = NativeAotLogUploadContract.InspectClrosPackage(package, "write"); break;
+            case WritableProgramKind.BclVerify: _ = NativeAotLogUploadContract.InspectClrosPackage(package, "verify"); break;
+            default: throw new ToolFailure("writable_disk_fixture_required");
+        }
     }
 
     public static bool StaticSelected(IReadOnlyDictionary<string, bool> flags) =>
@@ -45,12 +76,19 @@ public static class NativeAotDiskSelection
         bool disk = Selected(flags);
         bool writable = WritableSelected(flags);
         bool race = options.HasDiskRaceSelection;
-        if (!writable && (options.WritableDiskFixture.Length != 0 || options.Explicit.Contains("WritableDiskFixture")))
+        bool disassembly = !string.IsNullOrEmpty(options.WritableDiskDisassembly) || options.Explicit.Contains("WritableDiskDisassembly");
+        if (!writable && (options.WritableDiskFixture.Length != 0 || options.Explicit.Contains("WritableDiskFixture") || disassembly))
             throw new ToolFailure("writable_disk_fixture_requires_profile");
         if (writable)
         {
-            if (!disk || options.WritableDiskFixture is not ("Mechanical30" or "LogUpload40"))
-                throw new ToolFailure("writable_disk_fixture_required");
+            if (!disk) throw new ToolFailure("writable_disk_fixture_required");
+            bool bcl = IsBcl(ParseWritableProgram(options.WritableDiskFixture));
+            if (bcl)
+            {
+                RequireBclDisassembly(options);
+                if (options.Explicit.Contains("LinuxHelloDisassembly")) throw new ToolFailure("writable_disk_selection_conflict");
+            }
+            else if (disassembly) throw new ToolFailure("writable_disk_disassembly_requires_bcl");
             if (race || StaticSelected(flags) || options.HasThreadingSelection || options.LinuxHelloDisassembly.Length != 0 ||
                 options.SignalEpollRace || options.HasWebSignalRace || options.ServiceLifecycle || options.ServiceQuotaFailure)
                 throw new ToolFailure("writable_disk_selection_conflict");
@@ -63,6 +101,9 @@ public static class NativeAotDiskSelection
             // The raw-capture owner adds75seconds; the writable device runner
             // retains its separately admitted120..295second execution budget.
             if (options.TimeoutSeconds is < 120 or > 220) throw new ToolFailure("writable_disk_timeout");
+            // No current runner/consumer handles the BCL4LOAD/TLS/exit0 policy.
+            // Fail before any builder, image mutation or child can be invoked.
+            if (bcl && !options.DryRun) throw new ToolFailure("writable_bcl_complete_consumer_required");
             return true;
         }
         if (race && !LinuxDiskRaceProofFixture.Variants.Contains(options.LinuxDiskRaceVariant, StringComparer.Ordinal))
@@ -106,5 +147,21 @@ public static class NativeAotDiskSelection
         if (web ? options.TimeoutSeconds is < 600 or > 825 : options.TimeoutSeconds is < 120 or > 285)
             throw new ToolFailure(web ? "disk_static_timeout" : "disk_mechanical_timeout");
         return true;
+    }
+
+    private static void RequireBclDisassembly(QemuSmokeOptions options)
+    {
+        string path = options.WritableDiskDisassembly;
+        if (string.IsNullOrWhiteSpace(path) || path.IndexOfAny(['\0', '\r', '\n']) >= 0)
+            throw new ToolFailure("writable_disk_disassembly_required");
+        path = Path.GetFullPath(path);
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        foreach (string other in new[] { options.LinuxElfPackage, options.Image, options.EfiArtifact, options.SerialLog,
+            options.SerialLog + ".pcap", options.SummaryLog, options.SummaryLog + ".stderr.log", options.M01RawObservationLog,
+            options.Image + ".web.raw", options.Image + ".data.raw", options.Image + ".working.raw", options.Image + ".joined.raw", options.Image + ".combined.json" })
+            if (other.Length != 0 && string.Equals(path, Path.GetFullPath(other), comparison))
+                throw new ToolFailure("writable_disk_disassembly_alias");
+        // Logical path checks only; the future original owner must independently
+        // hold and compare resolved file identities, sources and prepared index.
     }
 }

@@ -5,6 +5,87 @@ internal static class NativeAotWritableDiskSelectionTests
     private static string[] Arguments(string fixture) => ["-BuildEfi", "-EnableM16027Probe", "-WritableDiskFixture", fixture,
         "-LinuxElfPackage", "artifacts/writable.pkg", "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/published-webroot"];
 
+    [HostTest("writable BCL planning has an exact typed phase dedicated instruction path and scoped package bound")]
+    private static void BclPlanning()
+    {
+        foreach (string target in new[] { "BclWrite", "BclVerify" })
+        {
+            var kind = NativeAotDiskSelection.ParseWritableProgram(target);
+            HostCheck.Equal(target, kind.ToString()); HostCheck.True(NativeAotDiskSelection.IsBcl(kind));
+            HostCheck.Equal(NativeAotLogUploadContract.ClrosElfBytes + 4096, NativeAotDiskSelection.WritablePackageMaximumBytes(kind));
+            var options = QemuSmokeOptions.Parse([.. Arguments(target), "-DryRun", "-WritableDiskDisassembly", "artifacts/not-published.llvm"]);
+            var plan = QemuProfiles.Create(options);
+            HostCheck.True(NativeAotDiskSelection.WritableSelected(plan.Flags) && options.TimeoutSeconds == 180 &&
+                options.WritableDiskDisassembly == "artifacts/not-published.llvm" && options.LinuxThreadingDisassembly.Length == 0 &&
+                options.LinuxThreadingApplication.Length == 0 && plan.Required.Contains("CLROS_M16_027_READY"));
+            foreach (int seconds in new[] { 120, 220 })
+            {
+                var bounded = QemuSmokeOptions.Parse([.. Arguments(target), "-DryRun", "-WritableDiskDisassembly",
+                    "artifacts/not-published.llvm", "-TimeoutSeconds", seconds.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+                _ = QemuProfiles.Create(bounded); HostCheck.Equal(seconds, bounded.TimeoutSeconds);
+            }
+            foreach (string seconds in new[] { "119", "221" })
+                Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments(target), "-DryRun", "-WritableDiskDisassembly", "artifacts/not-published.llvm", "-TimeoutSeconds", seconds])));
+        }
+        foreach (string target in new[] { "Mechanical30", "LogUpload40" })
+        {
+            var kind = NativeAotDiskSelection.ParseWritableProgram(target);
+            HostCheck.True(!NativeAotDiskSelection.IsBcl(kind)); HostCheck.Equal(65536, NativeAotDiskSelection.WritablePackageMaximumBytes(kind));
+        }
+    }
+
+    [HostTest("writable BCL dedicated instructions reject missing ambiguous foreign and duplicate selection")]
+    private static void BclDisassembly()
+    {
+        foreach (string target in new[] { "BclWrite", "BclVerify" })
+        {
+            Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments(target), "-DryRun"])));
+            foreach (string path in new[] { "", " ", "artifacts/writable.pkg", "artifacts/../artifacts/writable.pkg", "bad\0path", "bad\npath" })
+                Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments(target), "-DryRun", "-WritableDiskDisassembly", path])));
+            foreach (string[] extra in new[] {
+                new[] { "-LinuxThreadingDisassembly", "artifacts/other.llvm" }, new[] { "-LinuxThreadingApplication", "NativeAotRuntimeSmoke" },
+                new[] { "-LinuxHelloDisassembly", "artifacts/other.llvm" }, new[] { "-LinuxHelloDisassembly", "" },
+                new[] { "-WritableDiskDisassembly", "artifacts/other.llvm" }, new[] { "-WritableDiskFixture", target },
+                new[] { "-Image", "artifacts/bcl.llvm" }, new[] { "-EfiArtifact", "artifacts/bcl.llvm" },
+                new[] { "-SerialLog", "artifacts/bcl.llvm" }, new[] { "-SummaryLog", "artifacts/bcl.llvm" } })
+                Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments(target), "-DryRun", "-WritableDiskDisassembly", "artifacts/bcl.llvm", .. extra])));
+        }
+        foreach (string target in new[] { "Mechanical30", "LogUpload40" })
+            foreach (string path in new[] { "", "artifacts/bcl.llvm" })
+                Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments(target), "-WritableDiskDisassembly", path])));
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["-DryRun", "-WritableDiskDisassembly", "artifacts/bcl.llvm"])));
+        foreach (string unknown in new[] { "Bcl", "Bclwrite", "bclverify", "--write" })
+            Reject(() => QemuSmokeOptions.Parse([.. Arguments(unknown), "-DryRun"]));
+    }
+
+    [HostTest("writable BCL package selection cannot substitute mechanical synthetic or unknown targets")]
+    private static void BclPackageGate()
+    {
+        foreach (var kind in new[] { NativeAotDiskSelection.WritableProgramKind.BclWrite, NativeAotDiskSelection.WritableProgramKind.BclVerify })
+            foreach (byte[] package in new[] { Array.Empty<byte>(), LinuxWritableDiskProofFixture.CreatePackage(),
+                LinuxWritableDiskProofFixture.CreateLogUploadPackage(), LinuxThreadProofFixture.CreatePackage("Threads") })
+                Failure(() => NativeAotDiskSelection.RequireWritablePackage(package, kind), "log_upload_clros_package");
+        foreach (string unknown in new[] { "", "Bcl", "default", null! }) Reject(() => NativeAotDiskSelection.ParseWritableProgram(unknown));
+        var invalid = (NativeAotDiskSelection.WritableProgramKind)byte.MaxValue;
+        Reject(() => NativeAotDiskSelection.IsBcl(invalid)); Reject(() => NativeAotDiskSelection.WritablePackageMaximumBytes(invalid));
+        Reject(() => NativeAotDiskSelection.RequireWritablePackage([], invalid));
+    }
+
+    [HostTest("writable BCL nonplanning run requires its original consumer before invoking a builder or child")]
+    private static async Task BclOwnerRequired()
+    {
+        foreach (string target in new[] { "BclWrite", "BclVerify" })
+        {
+            var options = QemuSmokeOptions.Parse([.. Arguments(target), "-WritableDiskDisassembly", "artifacts/not-published.llvm"]);
+            Failure(() => QemuProfiles.Create(options), "writable_bcl_complete_consumer_required");
+            int invoked = 0; using StringWriter output = new();
+            int exit = await QemuSmoke.RunAsync(OS.Tooling.Repository.FindRoot(), options, output, (_, _) =>
+            { invoked++; return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero)); });
+            HostCheck.Equal(1, exit); HostCheck.Equal(0, invoked);
+            HostCheck.True(output.ToString().Contains("writable_bcl_complete_consumer_required", StringComparison.Ordinal));
+        }
+    }
+
     [HostTest("writable profile binds explicit canonical30 and40 packages", HostLane.Fast, 0)]
     private static void CanonicalPackages()
     {
