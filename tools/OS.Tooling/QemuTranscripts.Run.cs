@@ -129,17 +129,38 @@ public static partial class QemuTranscripts
         throw new ToolFailure("qemu_runner_stderr_not_empty", "path=" + preservedPath);
     }
 
+    /// <summary>Copied original file identities used to reproduce the writable
+    /// runner's exact stdout and summary. Values alone grant no process, image,
+    /// device, execution or persistence authority; the enclosing owner retains
+    /// and revalidates those files across the actual joined invocation.</summary>
+    public sealed record WritableRunnerValues(string WorkingPath,string BootIdentity,long BootLength,string BootSha256,
+        string WorkingIdentity,long WorkingLength,string InitialSha256)
+    {
+        internal string[] Rows(bool joined) => ["WRITABLE_DATA_IMAGE "+WorkingPath,
+            $"WRITABLE_DATA_BOOT identity={BootIdentity} bytes={BootLength} sha256={BootSha256}",
+            $"WRITABLE_DATA_WORKING identity={WorkingIdentity} bytes={WorkingLength} initialSha256={InitialSha256} content=mutable cache=writeback",
+            "WRITABLE_DATA_LIFETIME joined="+(joined?"true":"false")+" finalVerified="+(joined?"true":"false")+" acceptance=pending"];
+    }
+
     public static void AssertStandardRunnerResult(string root, QemuSmokeOptions options, QemuSmokePlan plan, IReadOnlyList<string> original,
         NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null,
         NativeAotSocketProgram? socketProgram=null,int? socketForwardPort=null,NativeAotSocketContainmentProgram? containmentProgram=null,
         NativeAotSocketVectorsProgram? vectorsProgram=null,int? vectorsForwardPort=null,
-        NativeAotStaticFileProgram? staticProgram=null,int? staticForwardPort=null,IReadOnlyList<string>? staticChildRows=null)
+        NativeAotStaticFileProgram? staticProgram=null,int? staticForwardPort=null,IReadOnlyList<string>? staticChildRows=null,
+        WritableRunnerValues? writableData=null)
     {
         var lines = original.ToList();
         bool entropy = plan.IsEnabled("EnableM03FirmwareEntropySeedProbe") || plan.IsEnabled("EnableM16004Probe");
         bool staticFiles=staticProgram is not null;
         bool diskFiles=NativeAotDiskSelection.Selected(plan.Flags);
         bool diskStatic=NativeAotDiskSelection.StaticSelected(plan.Flags);
+        bool writableDisk=NativeAotDiskSelection.WritableSelected(plan.Flags);
+        Need(writableDisk==(writableData is not null),"writable_runner_original_values_required");
+        if(writableData is not null)
+        {
+            Need(entropy && lines.Count==22 && lines.Skip(7).Take(4).SequenceEqual(writableData.Rows(false)),"writable_runner_initial_identity");
+            lines.RemoveRange(7,4);
+        }
         Need(!diskStatic || staticFiles,"disk_static_runner_program_required");
         Need(!diskFiles || helloProgram is null && threadingProgram is null && runtimeProgram is null &&
             socketProgram is null && containmentProgram is null && vectorsProgram is null && (!staticFiles || diskStatic && !staticProgram!.Staged),"disk_runner_program_selection");
@@ -203,7 +224,7 @@ public static partial class QemuTranscripts
         Need(lines[12] == stream, "qemu_runner_stream_accounting");
         List<string> summary = ["QEMU_SMOKE_STATUS pass"];
         foreach (int i in new[] { 1, 2, 4, 5, 6, 7, 8, 9 })
-        { summary.Add(expected[i]); if (entropy && i == 4) summary.Add("FIRMWARE_RNG_SOURCE virtio");if((socketProgram is not null||vectorsProgram is not null||staticFiles)&&i==4)summary.Add("SOCKET_FORWARD_PORT "+socketForwardPort!.Value.ToString(CultureInfo.InvariantCulture)); }
+        { summary.Add(expected[i]); if(writableData is not null && i==4)summary.AddRange(writableData.Rows(true)); if (entropy && i == 4) summary.Add("FIRMWARE_RNG_SOURCE virtio");if((socketProgram is not null||vectorsProgram is not null||staticFiles)&&i==4)summary.Add("SOCKET_FORWARD_PORT "+socketForwardPort!.Value.ToString(CultureInfo.InvariantCulture)); }
         string[]? rawLines = threadingProgram is null && runtimeProgram is null && socketProgram is null && containmentProgram is null && vectorsProgram is null && !staticFiles && !diskFiles ? null : ReadThreadingSerialLines(serial);
         summary.AddRange((rawLines is null ? protocol : rawLines.Where(l => IsThreadingObservedLine(l, plan))).Select(l => "OBSERVED_MARKER " + l));
         summary.AddRange(["APP_EXIT_RESULT none", "APP_EXIT_MALFORMED none", "MISSING_MARKERS none", "OUT_OF_ORDER_MARKERS none", "DUPLICATE_UNIQUE_MARKERS none", "FORBIDDEN_MARKER_HIT none", "FAIL_REASON none", "SERIAL_TAIL_LIMIT lines=8 chars=240"]);

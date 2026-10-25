@@ -9,6 +9,84 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
+    /// <summary>Check copied mechanical NIC/envelope values and the exact027
+    /// cleanup tail. The leaf, images, firmware, actual process/native inputs,
+    /// independent packets and storage observations remain separate obligations.
+    /// Borrowed input is never modified; malformed or extra rows throw.</summary>
+    public static void InspectWritableDiskNetworkValues(string[] rows)
+    {
+        Need(rows is {Length:>0 and <=131072} && rows.All(row=>row is {Length:>0 and <=2048} &&
+            row.All(c=>c is >= ' ' and <= '~')),"writable_parent_input");
+        _=SocketNetworkEnvelope(rows,true,mechanical:true,diskFiles:true,writableDisk:true);
+    }
+
+    // Only the original production caller can supply these retained leases.
+    // Replays/value-only reports cannot establish this joined invocation.
+    internal static WritableDiskValueReport InspectOriginalWritableDiskRun(string root,QemuSmokeOptions options,
+        QemuSmokePlan plan,ProcessResult runner,AuthorityFile image,AuthorityFile snapshot,AuthorityFile efi,AuthorityFile package,
+        CombinedWebDataImageFixture.WorkingImage working,CombinedWebDataImageFixture.Receipt receipt,
+        CombinedWebDataImageFixture.Inspection extracted,string qemu,string ovmf,Action verifyOwnedInputs)
+    {
+        RequireCompleteProcess(runner,"writable_runner_incomplete");
+        Need(runner.Succeeded && runner.StandardError.Length==0 && NativeAotDiskSelection.WritableSelected(plan.Flags) &&
+            options.WritableDiskFixture is "Mechanical30" or "LogUpload40" && !options.HasDiskRaceSelection &&
+            options.WorkloadProfile=="SingleMinimalApi" && options.FirmwareRngSource=="virtio" &&
+            options.LinuxElfImageVariant=="Intact" && !options.SkipImageBuild && plan.BuildEfi,"writable_runner_selection");
+        working.VerifyOriginalsAndWorkingIdentity(); snapshot.VerifyUnchanged();
+        using AuthorityFiles captured=new();
+        AuthorityFile Hold(string path,int maximum)=>captured.Open(root,Path.GetFullPath(path,root),"original writable capture","writable_capture",maximum,singleLink:true);
+        var serial=Hold(options.SerialLog,8*1024*1024);
+        var summary=Hold(options.SummaryLog,16*1024*1024);
+        var packets=Hold(options.SerialLog+".pcap",4*1024*1024);
+        AuthorityFiles.RequireDistinct(image,snapshot,efi,package,serial,summary,packets);
+        string[] stdout=runner.StandardOutput.Replace("\r\n","\n",StringComparison.Ordinal).Split('\n');
+        if(stdout[^1]=="")stdout=stdout[..^1];
+        Need(stdout.Length==22 && stdout[0]==$"QEMU_DISCOVERY result={qemu} checked={qemu}" &&
+            stdout[1]==$"OVMF_DISCOVERY result={ovmf} checked={ovmf}","writable_runner_discovery");
+        AssertStandardRunnerResult(root,options,plan,stdout,writableData:new(working.Path,image.InitialIdentity.Key,image.Length,
+            image.Sha256.ToUpperInvariant(),working.IdentityKey,working.Length,working.InitialSha256));
+        string[] rows=FirmwareProtocol(serial.Path,"TEST_PASS m16-012\r\n",true,false,"writable_capture",linuxThreads:true);
+        byte[] packageBytes=package.ReadBytes(65536,"writable_package");
+        bool logUpload=options.WritableDiskFixture=="LogUpload40";
+        var parents=ValidateLinuxDiskCaptureParents(rows,packageBytes,writableDisk:true,logUpload:logUpload);
+        int first=Array.IndexOf(rows,"TEST_START m16-009"),last=Array.IndexOf(rows,"TEST_PASS m16-009");
+        Need(first>=0 && last>first && Array.LastIndexOf(rows,"TEST_START m16-009")==first &&
+            Array.LastIndexOf(rows,"TEST_PASS m16-009")==last,"writable_capture_leaf_extent");
+        var selected=rows.Select((text,index)=>new WritableDiskRow(index,text)).Where(row=>row.Text.StartsWith("M16_027_",StringComparison.Ordinal)).ToArray();
+        var result=InspectWritableDiskValues(rows[first..(last+1)],first,rows.Length,selected,packageBytes,
+            image.ReadBytes(CombinedWebDataImageFixture.ImageBytes,"writable_initial_image"),
+            snapshot.ReadBytes(CombinedWebDataImageFixture.ImageBytes,"writable_final_image"),receipt.Image,extracted,logUpload);
+        ValidateWritableCaptureBinding(rows,parents,selected,first,last);
+        AssertSocketCapture(packets.Path,parents.Network,mechanical:true);
+        ValidateUnselectedRecords(serial.ReadUtf8(8*1024*1024,"writable_serial"),plan);
+        captured.VerifyUnchanged(); snapshot.VerifyUnchanged(); working.VerifyOriginalsAndWorkingIdentity();
+        verifyOwnedInputs(); captured.VerifyUnchanged(); snapshot.VerifyUnchanged();
+        return result;
+    }
+
+    private static void ValidateWritableCaptureBinding(string[] rows,DiskCaptureParents parents,
+        IReadOnlyList<WritableDiskRow> selected,int first,int last)
+    {
+        string Unique(string prefix)
+        { var matches=rows.Where(row=>row.StartsWith(prefix,StringComparison.Ordinal)).ToArray(); Need(matches.Length==1,"writable_capture_unique_"+prefix);return matches[0]; }
+        var bindingRow=WdSingle(selected,"M16_027_BOUND ");
+        const string bindingSuffix=" pci=0:7:0 queue=0 access=readwrite flush=negotiated reservation=retained";
+        var b=WdRecord(bindingRow.Text[..^bindingSuffix.Length],"M16_027_BOUND","owner epoch arena pages bar capacity nativeOwner nativeOwnerBytes boot bootBytes carrier carrierBytes observation observationBytes engine engineEpoch port portEpoch mount mountEpoch provider providerEpoch readAttachment writeAttachment dataFirst dataLast webFirst webLast pid clock");
+        const string threadSuffix=" timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
+        string threadRow=Unique("M16_008_BOUND ");
+        Need(threadRow.EndsWith(threadSuffix,StringComparison.Ordinal),"writable_capture_thread_policy");
+        var thread=WdRecord(threadRow[..^threadSuffix.Length],"M16_008_BOUND","root pool workers code metadata userImage");
+        var arm=LinuxSyscallArm(Unique("M16_005_ARMED "));
+        var budget=WdRecord(Unique("M16_008_BUDGET "),"M16_008_BUDGET","started epochs steps nanos");
+        var finish=WdRecord(Unique("M16_008_BUDGET_END "),"M16_008_BUDGET_END","nanos");
+        Need(arm["root"]==parents.Parent.UserRoot && thread["root"]==parents.Parent.KernelRoot &&
+            b["clock"]>=parents.Parent.PeerEnd && budget["started"]>=b["clock"] && finish["nanos"]<=parents.Network.End["end"] &&
+            bindingRow.RecordIndex>first && bindingRow.RecordIndex<last,"writable_capture_lifetime_roots");
+        DistinctExtents([(parents.Parent.UserRoot,4096),(parents.Parent.KernelRoot,4096),(parents.Parent.Dma,32768),
+            (thread["pool"],LinuxThreadProgram.SignalPoolPages*4096UL),(parents.OldPages[0],8192),(parents.NicBinding[3],16384),
+            (b["arena"],b["pages"]*4096),(b["bar"],16384),(b["boot"],b["bootBytes"]),(b["nativeOwner"],b["nativeOwnerBytes"])],"writable_capture_live_extents");
+    }
+
     public const int MaximumWritableDiskRows = 65536;
     public readonly record struct WritableDiskRow(int RecordIndex, string Text);
 
