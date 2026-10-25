@@ -178,6 +178,7 @@ public static unsafe partial class LinuxDescriptorServices
             long read = DiskReadPath(state, call.Number == 257 ? call.Argument1 : call.Argument0, path, out length, out directory, out bool absolute);
             if (read != 0) return new(DiskProgress.Immediate, read);
             if (!DiskPath(path, length)) return new(DiskProgress.NotHandled);
+            if (state->Disk->Mount->IsRetired) return new(DiskProgress.Immediate, Io, failure: Fs.Status.Cancelled);
             kind = call.Number is 4 or 6 ? DiskStat : DiskOpen;
             if (kind == DiskOpen)
             {
@@ -196,6 +197,7 @@ public static unsafe partial class LinuxDescriptorServices
             Description* opened = Find(state, unchecked((uint)call.Argument0));
             if (opened == null || (Kind)opened->Type != Kind.Disk) return new(DiskProgress.NotHandled);
             if (!Capture(state, unchecked((uint)call.Argument0), out fd)) return new(DiskProgress.Rejected);
+            if (state->Disk->Mount->IsRetired) return new(DiskProgress.Immediate, Io, failure: Fs.Status.Cancelled);
             description = state->Owner.Slots[fd.Number].Description - 1; binding = opened->Pipe;
             if (call.Number == 5)
             {
@@ -575,8 +577,9 @@ public static unsafe partial class LinuxDescriptorServices
 
     /// <summary>Structural full-tree external-buffer query for the owning core
     /// and thread admission guards. It supplies no current-device/user-copy or
-    /// mapping authority. A null attachment imposes no disk exclusions. Borrowed
-    /// retired FS permits local cleanup only and grants no new backing borrow.
+    /// mapping authority. A null attachment imposes no disk exclusions. A
+    /// borrowed retired FS grants no new backing borrow; thread-local cleanup
+    /// uses the separately constrained DiskThreadStorageOutside query.
     /// No I/O, callback, allocation or retained caller pointer is introduced.</summary>
     internal static bool DiskCanRetainStorage(State* state, ulong address, ulong bytes)
     {
@@ -596,6 +599,36 @@ public static unsafe partial class LinuxDescriptorServices
         for (uint i = 0; i < 75; i++)
         { FsExtent(d->Mount, i, out ulong held, out ulong count); if (count != 0 && Overlap(address, bytes, held, count)) return false; }
         return true;
+    }
+
+    /// <summary>Structural process-storage exclusion for retained thread
+    /// cleanup. A retired borrowed mount may exclude only its retained local
+    /// metadata/scratch and numeric port extent after its requests/files are
+    /// scrubbed. No backend is dereferenced or borrowed in that branch. A live
+    /// writable attachment requires the original pair proof and cannot use
+    /// this local retirement path. This grants no I/O, copy, mapping or new
+    /// attachment authority; all live cases retain the strict full-tree query.</summary>
+    internal static bool DiskThreadStorageOutside(State* state, ulong address, ulong bytes)
+    {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!DiskStorage(state, (ulong)sizeof(State))) return false;
+        if (state->Disk != null)
+        {
+            DiskState* d = state->Disk;
+            if (!DiskStorage(d, (ulong)sizeof(DiskState)) || !DiskStorage(d->Mount, (ulong)sizeof(Fs.Mount))) return false;
+            if (BorrowedDiskMount(d->Mount) && d->Mount->IsRetired)
+            {
+                if (state->WritableDisk != null || !DiskStorage((void*)address, bytes, 1) || !DiskBound(state)) return false;
+                for (uint i = 0; i < DiskExtentCount; i++)
+                {
+                    DiskLocalExtent(d, i, out ulong held, out ulong count);
+                    if (count != 0 && (!DiskStorage((void*)held, count, 1) || Overlap(address, bytes, held, count))) return false;
+                }
+                return true;
+            }
+        }
+#endif
+        return DiskCanRetainStorage(state, address, bytes);
     }
 
     private static bool DiskAttachmentOutside(State* state, Fs.Mount* mount, void* pointer, ulong bytes)

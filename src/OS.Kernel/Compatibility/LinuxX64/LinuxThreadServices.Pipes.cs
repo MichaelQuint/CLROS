@@ -234,7 +234,7 @@ public unsafe partial struct LinuxThreadServices
     {
         if (!LinuxDescriptorServices.WritableDiskCanRetainStorage(d, start, bytes, includeUserBacking)) return false;
 #if !NOSTDLIB_EFI || M16_025_PROBE
-        if (!LinuxDescriptorServices.DiskCanRetainStorage(d, start, bytes)) return false;
+        if (!LinuxDescriptorServices.DiskThreadStorageOutside(d, start, bytes)) return false;
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (FiniteDescriptorTree(d) && !LinuxDescriptorServices.SocketCanRetainStorage(d, start, bytes)) return false;

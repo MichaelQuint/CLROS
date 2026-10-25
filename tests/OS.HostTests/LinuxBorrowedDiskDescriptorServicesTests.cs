@@ -256,9 +256,20 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
             HostCheck.True(o.Storage.Mount->IsRetired && o.Storage.Port->Retired && o.Storage.Block->Retired &&
                 !CanRetain(o.Files.State, (ulong)o.Thread.At(Output), 16));
             uint callbacks = o.Storage.Device.Hardware->Calls;
+            byte* originalRange = o.Storage.Operations[0].Storage.Range;
+            try
+            {
+                o.Storage.Operations[0].Storage.Range = (byte*)o.Thread.Service;
+                HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2));
+                HostCheck.True(callbacks == o.Storage.Device.Hardware->Calls && o.Thread.Writes == copies && o.Unchanged(16, 0xc7));
+            }
+            finally { o.Storage.Operations[0].Storage.Range = originalRange; }
             for (int i = 0; i < 4; i++) HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2));
             for (uint i = 0; i < F.DiskSlots; i++) HostCheck.Equal((byte)0, RequestPhase(ref o.Requests[i]));
             HostCheck.True(o.Thread.Writes == copies && o.Unchanged(16, 0xc7));
+            var rejected = o.Thread.DescriptorCall(17, fd, Output, 7, 0);
+            HostCheck.Equal(LinuxSyscallAction.Return, rejected.Action); HostCheck.True(rejected.Value < 0);
+            HostCheck.True(!CanRetain(o.Files.State, (ulong)o.Thread.At(Output), 16));
             var closed = o.Thread.Service->DispatchDescriptor(Key, 2, close); HostCheck.Equal(LinuxSyscallAction.Return, closed.Action); HostCheck.Equal(0L, closed.Value);
             HostCheck.True(F.DetachDisk(o.Files.State)); o.ReadAttached = false;
             HostCheck.True(o.Thread.Service->Shutdown(Key, 2, 7));
