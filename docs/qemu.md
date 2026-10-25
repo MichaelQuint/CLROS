@@ -2,6 +2,21 @@
 
 ## Writable timing capture
 
+The step1623 source-matched b7631af0 original at
+`artifacts/step1623-retained-guest-r01` remains FAILED180s/exit4, joined, after49
+completed reads. No first-create completion, OUT, FLUSH or normal cleanup is
+accepted. The three128MiB images are identical at
+E28DE35C33D20B9FB438A184C2F3A46BCCF1577AA7477D5291FB7BD1029FBEF2.
+Exactly one original459-byte timing record, including CRLF, starts at byte100140;
+the public parser validates its equations and engine212364176 against BOUND.
+It records4.4831872 seconds of audits within5.3845825 seconds outer time, with
+one actual engine read submission. No speedup or persistence claim follows.
+
+The mechanical descriptor policy now compares `packageBytes` with the validated
+ELF payload length, matching the native descriptor view. The complete package
+envelope length is rejected. Eleven focused transcript controls cover this
+producer/consumer repair; a copied transcript cannot establish guest execution.
+
 Append `-EnableM16027TimingProbe` to the existing original `-BuildEfi`
 Mechanical30/DiskA capture. LogUpload40 and BCL Write/Verify selection reject
 this switch. Its timeout policy remains120..220 seconds, default180; no work
@@ -23,7 +38,7 @@ the actual engine call submits I/O. This is no workload success, speedup or
 deadlock result. Step1622 preserves serial, summary, images and exact producer
 joins, including the failed original.
 
-[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
+[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
 
 
 The [step1618](../done/step1618.md) development originals preserve three guest

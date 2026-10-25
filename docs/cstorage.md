@@ -13,12 +13,24 @@ count device exclusions and copy actual engine entry/exit progress. Reports
 include hook overhead, a raw-read count and adjacent-read calibration. Open
 scopes, overflow or ambiguous half-range deltas invalidate the report.
 
-The source-matched original still fails at180 seconds. Its single copied row
-passes the strict public timing parser and identifies repeated audits in that
-turn. It does not qualify workload completion or predict a speedup. The next
-slice batches C's retained engine proof and W's scalar/candidate inventories
-within each synchronous call, preserving every exclusion and original-device
-identity. F's descriptor loops remain unchanged in that successor slice.
+Step1623 implements C's retained-range batch and W's eight-pair local inventory
+and original-span batch. C audits its fourteen extents once, then checks every
+nonzero candidate against every extent and the complete device tree. W uses a
+fixed128-byte inventory; C's separate non-inlined helper retains224 bytes.
+Malformed, empty, odd or over177-pair inventories reject; zero-size candidates
+still require original owner/epoch/device admission. No inventory or permission
+escapes the serialized call. Scalar failure and retained cleanup semantics stay
+separate from live submission and copy authority. F's loops are unchanged.
+
+The fresh b7631af0 diagnostic remains FAILED at180 seconds/exit4:49 reads
+complete, but the first create has no COMPLETE, OUT, FLUSH or normal cleanup.
+Its one public-parser-checked turn has324095 engine audits,4.4831872 seconds of
+audit time and5.3845825 seconds outer time; the one engine call submits a read.
+These include diagnostic overhead and do not establish a speedup or whole-life
+attribution. The next scoped port/filesystem batch addresses repeated retained
+proofs: static successful-path counts are339 to9 for a borrowed FS scalar and
+243 to6 for25 nonzero candidates. Those counts describe proposed call paths,
+not achieved guest timing. Its fresh emitted stack fit remains mandatory.
 
 The copied BCL media inspector binds the exact prepared Write/Verify package
 to its own initial ESP entry, partitions every original IO/STATE position and
@@ -90,7 +102,7 @@ Host controls and scoped native review do not establish a passing guest create.
 The separate BCL preparation command and its no-execution boundary are described
 in [the application model](app-model.md#prepared-bcl-logupload-instruction-lookup).
 
-[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
+[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
 
 
 ## Writable final clock and audit continuation (step1617)

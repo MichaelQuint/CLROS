@@ -1,6 +1,24 @@
 # EFI Build
 
-## One-turn writable diagnostic publication
+## Retained-range diagnostic publication (step1623)
+
+Source b7631af0 publishes the1242112-byte diagnostic image
+`29CF0609DB9A90647E5AB63DC43E26C17B540A09F073CC3EEB0E709C1F632079`,
+with map599FF0696D9B13D38C9879B81AFC60E5E416D6B7321E2D09C715B6A2D61C21AF.
+Its own original guest publication matches four compilation leaves; separate
+publication JSONs and all1031 source inputs retain their exact identities.
+The first publication failed because range syntax required missing freestanding
+`System.Range`/`System.Index`. Using the supported `Span.Slice` API repairs that
+compile error. Both original attempts are retained.
+
+Scoped review byte-joins47 unchanged bodies, including ten C/W scalar and28
+timing/native bodies. The selected retained descent grows1504 to1632 bytes;
+the earlier conditional estimate becomes32365/32768 bytes, leaving403 bytes
+under every earlier selected25/context/callback/descendant/terminal/effect/
+mapping/noIRQ premise. This is not a global stack or allocation proof. New port/
+filesystem and ordinal/carrier changes require their own emitted review.
+
+## One-turn writable diagnostic publication (step1622)
 
 ```powershell
 dotnet run --project tools/OS.Tooling -- efi build --EnableM16027TimingProbe
@@ -22,7 +40,7 @@ It is not a global stack/no-allocation proof or ordinary-profile emitted-byte
 identity. The normal RecordNativeWritableWait local/return spelling also
 changed; source-semantic equivalence alone does not establish emitted identity.
 
-[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
+[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
 
 
 ## Writable clock repair publication (step1617)

@@ -2,6 +2,19 @@
 
 ## Copied writable syscall observations
 
+Step1623 adds `InspectNativeAotLogUploadProtocolValues` for the exact prepared
+B8 write/verify program and its matching package. Stdout is framed before one
+original-index census. The copied checks bind source5 Stage, Wake, selected
+Complete, Repark and Resume, relative source5 FIFO, actual pre-CALL selected
+polls, idle-only/IF-disabled policy and exit0 cleanup values. Ten focused host
+controls pass. The actual public inspector also accepts two synthetic copied captures using genuine prepared Write/Verify packages and rejects four phase/instruction negatives. All 30 original normalized row positions remain accounted for, including six explicit residuals. This exercises public preparation and copied-value checks only; it grants no instruction, scheduler, syscall-copy, process, native, guest or persistence authority.
+
+This report preserves all residual rows. Generic clone/futex/pipe scheduling,
+global FIFO and ready counts, original instruction/process ownership, actual
+syscall copies, parent/network/media joins and guest persistence remain the
+enclosing consumer's obligations. Unknown027 rows reject. These copied checks
+do not enable the real BCL runner; its complete-consumer admission remains off.
+
 The step1622 host carrier uses8544 bytes: two144-byte headers share one8192-byte
 payload area. It records bounded copied PATH, single-iovec pwritev2 input,
 successful read output and stat bytes, with explicit peek/acknowledge draining.
@@ -102,7 +115,7 @@ The selected physical pool remains32MiB despite the manifest's64MiB limit;
 actual16-worker memory/stack fit and syscall closure remain unqualified.
 Preparation does not establish file writes, reboot persistence or durability.
 
-[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
+[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
