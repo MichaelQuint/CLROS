@@ -10,7 +10,7 @@ public static unsafe partial class LinuxDescriptorServices
 {
     private const long WritableUnsupported = -95, WritableAgain = -11;
     private const byte WritablePending = 1, WritableReady = 2, WritableDraining = 3, WritableRecovery = 4;
-    private const byte WritableOpen = 1, WritableRead = 2, WritableWrite = 3, WritableSync = 4, WritableUnlink = 5, WritableStat = 6;
+    private const byte WritableOpen = 1, WritableRead = 2, WritableWrite = 3, WritableSync = 4, WritableUnlink = 5, WritableStat = 6, WritablePathStat = 7;
     public enum WritableDiskProgress : byte { Rejected, NotHandled, Immediate, Pending, Ready, Draining, RecoveryRequired }
 
     /// <summary>Copied attachment/request generation, not a user fd, mapping
@@ -149,13 +149,21 @@ public static unsafe partial class LinuxDescriptorServices
         if (state == null || state->WritableDisk == null) return new(WritableDiskProgress.NotHandled);
         if (!Attached(state, owner) || !worker.IsValid) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk;
-        if (call.Number is 2 or 87 or 257)
+        if (call.Number is 2 or 4 or 6 or 87 or 257)
         {
             byte* path = stackalloc byte[(int)MaximumPath];
             long copied = WritableReadPath(state, call.Number == 257 ? call.Argument1 : call.Argument0, path, out uint bytes);
             if (copied != 0) return new(WritableDiskProgress.Immediate, copied);
             if (!WritablePath(path, bytes)) return new(WritableDiskProgress.NotHandled);
             if (d->Request.Phase != 0) return new(WritableDiskProgress.Immediate, WritableAgain);
+            if (call.Number is 4 or 6)
+            {
+                long statStarted = WritableStart(state, worker, call.Number, WritablePathStat);
+                if (statStarted != 0) return new(WritableDiskProgress.Immediate, statStarted);
+                d->Request.Requested = d->Request.Wanted = 144;
+                return WritableStarted(state, W.BeginPathStatForProcess(d->Provider, d->Process,
+                    new ReadOnlySpan<byte>(path, (int)bytes), call.Number == 6));
+            }
             if (call.Number == 87)
             {
                 long unlinkStarted = WritableStart(state, worker, call.Number, WritableUnlink);
@@ -293,6 +301,7 @@ public static unsafe partial class LinuxDescriptorServices
             r->TemporaryOpened = opened.Descriptor; return PublishWritableOpen(state);
         }
         if (r->Operation == WritableUnlink) return CompleteWritableMutation(state);
+        if (r->Operation == WritablePathStat) return CompleteWritableStat(state, originalCall, outputBytes);
         if (!IsCurrent(state, r->OriginalFd) || unchecked((uint)originalCall.Argument0) != r->OriginalFd.Number)
             return AbandonWritable(state, BadDescriptor);
         if (r->Operation == WritableWrite)
@@ -302,18 +311,7 @@ public static unsafe partial class LinuxDescriptorServices
             return CompleteWritableMutation(state);
         }
         if (r->Operation == WritableSync) return CompleteWritableMutation(state);
-        if (r->Operation == WritableStat)
-        {
-            W.StatMetadata metadata = default;
-            W.Result observed = W.CopyStat(d->Provider, r->ProviderRequest, &metadata, (uint)sizeof(W.StatMetadata));
-            if (observed.Phase != W.Progress.Immediate) return AbandonWritable(state, Io);
-            if (d->Provider->RequestActive) return AbandonWritable(state, observed.Value < 0 ? observed.Value : Io);
-            r->ProviderRequest = default;
-            if (observed.Value < 0) return FinishWritable(state, observed.Value, observed.Failure);
-            long statValue = WritableStatOutput(state, metadata, originalCall.Argument1, outputBytes, out C.Status failure);
-            if (statValue == 0) state->Owner.Descriptions[r->Description].Bytes = metadata.Facts.File.Length;
-            return FinishWritable(state, statValue, failure);
-        }
+        if (r->Operation == WritableStat) return CompleteWritableStat(state, originalCall, outputBytes);
         if (originalCall.Argument2 != r->Requested || r->Positioned && originalCall.Argument3 != r->Offset) return new(WritableDiskProgress.Rejected);
         W.Result read = W.CopyRead(d->Provider, r->ProviderRequest, new Span<byte>(state->Owner.Scratch, (int)W.IoBytes));
         if (read.Phase != W.Progress.Immediate)
@@ -327,14 +325,15 @@ public static unsafe partial class LinuxDescriptorServices
     }
 
     /// <summary>Cancel copy before detaching a worker. A live already-ready
-    /// non-read result wins interruption; abandoning consumes effects without user output.
+    /// mutation result wins interruption; reads and metadata can be revoked.
+    /// Abandoning consumes effects without user output.
     /// Clean pending cancellation returns an orphan EINTR while actual DMA drains.
     /// RecoveryRequired retains the record with empty Worker on abandon. No replay.</summary>
     public static WritableDiskResult CancelWritableDisk(State* state, ulong owner, WritableDiskToken token, bool abandoning)
     {
         if (!Attached(state, owner) || !WritableRequestFor(state, token)) return new(WritableDiskProgress.Rejected);
         WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
-        if (!abandoning && r->Operation is not (WritableRead or WritableStat) && r->Phase == WritableReady) return ObserveWritable(d);
+        if (!abandoning && r->Operation is not (WritableRead or WritableStat or WritablePathStat) && r->Phase == WritableReady) return ObserveWritable(d);
         r->CopyRevoked = true; r->Orphan = true; r->Worker = default; r->Value = -4;
         return CancelWritableProvider(state);
     }
@@ -423,12 +422,41 @@ public static unsafe partial class LinuxDescriptorServices
                 }
         return FinishWritable(state, done.Value, done.Failure);
     }
+    private static WritableDiskResult CompleteWritableStat(State* state, LinuxSyscallFrame originalCall, uint outputBytes)
+    {
+        WritableDiskState* d = state->WritableDisk; WritableDiskRequest* r = &d->Request;
+        W.StatMetadata metadata = default;
+        W.Result observed = W.CopyStat(d->Provider, r->ProviderRequest, &metadata, (uint)sizeof(W.StatMetadata));
+        if (observed.Phase != W.Progress.Immediate) return AbandonWritable(state, Io);
+        if (d->Provider->RequestActive) return AbandonWritable(state, observed.Value < 0 ? observed.Value : Io);
+        r->ProviderRequest = default;
+        if (observed.Value < 0) return FinishWritable(state, observed.Value, observed.Failure);
+        long value = WritableStatOutput(state, metadata, originalCall.Argument1, outputBytes, out C.Status failure);
+        if (value == 0 && r->Operation == WritableStat) state->Owner.Descriptions[r->Description].Bytes = metadata.Facts.File.Length;
+        return FinishWritable(state, value, failure);
+    }
+
     // Linux x64 stat is exactly 144 bytes. FAT modification fields are treated
     // as UTC under this finite fixture policy; unavailable times stay zero.
     // Invalid civil fields are corrupt metadata (EIO), never normalized dates.
     private static long WritableStatOutput(State* state, W.StatMetadata metadata, ulong address, uint outputBytes, out C.Status failure)
     {
         failure = C.Status.Success;
+        if (metadata.Directory)
+        {
+            if (outputBytes < 144) return Fault;
+            C.RootFacts root = metadata.Root;
+            byte* directory = stackalloc byte[144]; Clear(directory, 144);
+            // Explicit confined mount policy: directory0700, uid/gid0 and
+            // unavailable root times0. FAT has no root short-entry timestamp.
+            // The high-bit inode namespace cannot collide with any entry inode
+            // (EntryOffset/32+1 is at most2^59 even for ulong.MaxValue).
+            *(ulong*)(directory + 8) = 0x8000000000000000UL | root.FirstSector;
+            *(ulong*)(directory + 16) = 1; *(uint*)(directory + 24) = 0x41c0;
+            *(ulong*)(directory + 48) = (ulong)root.AllocatedClusters * root.ClusterBytes;
+            *(ulong*)(directory + 56) = root.ClusterBytes; *(ulong*)(directory + 64) = root.Allocated512Blocks;
+            return Output(state, address, directory, 144) ? 0 : Fault;
+        }
         C.OpenFacts facts = metadata.Facts; C.FileToken file = facts.File;
         ushort time = (ushort)(file.Fingerprint2 >> 48), date = (ushort)file.Fingerprint3;
         long modified = 0;
@@ -588,7 +616,7 @@ public static unsafe partial class LinuxDescriptorServices
         if (r->Self != (ulong)r || r->Phase > WritableRecovery) return false;
         if (r->Phase == 0)
         { if (r->Generation != 0 || r->Reserved || r->Borrowed || r->Worker.IsValid || r->ProviderRequest.Owner != 0 || r->TemporaryOpened.Owner != 0 || d->Provider->RequestActive) return false; }
-        else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritableStat ||
+        else if (r->Generation == 0 || r->Generation > d->NextGeneration || r->Operation is < WritableOpen or > WritablePathStat ||
             r->Orphan != !r->Worker.IsValid || r->Orphan && !r->CopyRevoked ||
             r->ProviderRequest.Owner != 0 && (r->ProviderRequest.Owner != (ulong)d->Provider || r->ProviderRequest.Epoch != d->Epoch || r->ProviderRequest.Generation == 0)) return false;
         if (r->Reserved && (!WritableReservationCurrent(s) || r->Operation != WritableOpen)) return false;

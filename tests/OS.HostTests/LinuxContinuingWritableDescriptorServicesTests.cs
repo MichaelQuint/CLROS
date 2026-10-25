@@ -13,6 +13,136 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
 
+    [HostTest("continuing path stat and lstat use copied names fresh paired chain facts and root allocation without publishing descriptions or cursors")]
+    private static void PathStatFacts()
+    {
+        foreach (byte sectors in new byte[] { 1, 2, 4 })
+        {
+            using var f = new Owner(sectorsPerCluster: sectors); var a = f.Open(); var b = f.Open();
+            D.Seek(f.State, a, 7, 0); D.Seek(f.State, b, 29, 0);
+            byte[] descriptions = new ReadOnlySpan<byte>(f.Descriptions, 32 * sizeof(D.Description)).ToArray();
+            byte[] slots = new ReadOnlySpan<byte>(f.Slots, 32 * sizeof(D.Descriptor)).ToArray();
+            foreach (bool noFollow in new[] { false, true })
+            {
+                byte[] path = "/data/DATA.BIN"u8.ToArray(); var request = D.BeginPathStat(f.State, path, noFollow); path.AsSpan().Fill((byte)'x');
+                HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); D.StatMetadata facts = default;
+                HostCheck.Equal(0L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+                HostCheck.True(!facts.Directory && facts.DescriptionGeneration == 0 && facts.Facts.File.Length == 900 &&
+                    facts.Facts.ClusterBytes == sectors * 512U && facts.Facts.Allocated512Blocks == (sectors == 1 ? 2UL : sectors));
+                var root = PathFacts(f, noFollow ? "/data/" : "/data");
+                HostCheck.True(root.Directory && root.Facts.File.Owner == 0 && root.DescriptionGeneration == 0 &&
+                    root.Root.Owner == (ulong)f.Storage.State && root.Root.Revision == f.Storage.State->VolumeRevision &&
+                    root.Root.FirstSector == f.DataLba && root.Root.ClusterBytes == sectors * 512U && root.Root.AllocatedClusters == 1 &&
+                    root.Root.Allocated512Blocks == sectors);
+            }
+            HostCheck.True(slots.SequenceEqual(new ReadOnlySpan<byte>(f.Slots, 32 * sizeof(D.Descriptor))) &&
+                descriptions.SequenceEqual(new ReadOnlySpan<byte>(f.Descriptions, 32 * sizeof(D.Description))));
+            HostCheck.True(f.Cursor(a) == 7 && f.Cursor(b) == 29 && f.Trace.All(row => row.Type == 0));
+        }
+        Console.WriteLine("HOST_WRITABLE_PATH_STAT_SIZE state=" + sizeof(D.State) + " stat=" + sizeof(D.StatMetadata) + " root=" + sizeof(C.RootFacts));
+    }
+
+    [HostTest("continuing path stat discovers actual missing journal WAL and SHM entries and preserves confinement and trailing slash errors")]
+    private static void PathStatMissing()
+    {
+        using var f = new Owner(); uint submitted = f.Device->Notifies; D.StatMetadata facts = default;
+        foreach (string name in new[] { "/data/contract.db", "/data/contract.db-journal", "/data/contract.db-wal", "/data/contract.db-shm" })
+        {
+            var request = D.BeginPathStat(f.State, Encoding.ASCII.GetBytes(name), true); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+            HostCheck.Equal(-2L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+            HostCheck.True(!f.State->RequestActive && facts.Facts.File.Owner == 0 && facts.Root.Owner == 0);
+        }
+        HostCheck.True(f.Device->Notifies > submitted);
+        var trailing = D.BeginPathStat(f.State, "/data/DATA.BIN/"u8); f.Wait(trailing);
+        HostCheck.Equal(-20L, D.CopyStat(f.State, trailing.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+        var missing = D.BeginPathStat(f.State, "/data/missing/"u8); f.Wait(missing);
+        HostCheck.Equal(-2L, D.CopyStat(f.State, missing.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+        foreach (string path in new[] { "data/DATA.BIN", "/data/../DATA.BIN", "/data//DATA.BIN", "/data//", "/else/DATA.BIN" })
+            HostCheck.True(D.BeginPathStat(f.State, Encoding.ASCII.GetBytes(path)).Value < 0 && !f.State->RequestActive);
+        HostCheck.Equal(-95L, D.BeginPathStat(f.State, "/data/nested/file"u8).Value);
+    }
+
+    [HostTest("continuing held path stat output validates whole aliases and sizes before writes and never consumes metadata through generic Complete")]
+    private static void PathStatOutput()
+    {
+        using var f = new Owner(locks: true, observe: true); var file = f.Open(); HostCheck.Equal(0L, D.Flock(f.State, file, 6));
+        foreach (string path in new[] { "/data", "/data/DATA.BIN" })
+        {
+            var request = D.BeginPathStat(f.State, Encoding.ASCII.GetBytes(path)); f.Wait(request);
+            HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, request.Request).Phase); D.StatMetadata facts = default;
+            foreach (uint bytes in new uint[] { 0, (uint)sizeof(D.StatMetadata) - 1, (uint)sizeof(D.StatMetadata) + 1 })
+                HostCheck.Equal(-14L, D.CopyStat(f.State, request.Request, &facts, bytes).Value);
+            foreach (var range in ProtectedStorage(f))
+                foreach (ulong pointer in new[] { range.Start, (range.Start + range.Bytes - 8) & ~7UL })
+                    HostCheck.Equal(-14L, D.CopyStat(f.State, request.Request, (D.StatMetadata*)pointer, (uint)sizeof(D.StatMetadata)).Value);
+            HostCheck.True(f.State->RequestActive && facts.Facts.File.Owner == 0 && facts.Root.Owner == 0);
+            HostCheck.Equal(0L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+        }
+        HostCheck.Equal(0L, D.Flock(f.State, file, 6)); HostCheck.Equal(0UL, f.Cursor(file));
+    }
+
+    [HostTest("continuing path metadata pending and held cancellation joins the original read without late output for root or regular paths")]
+    private static void PathStatCancellation()
+    {
+        foreach (string path in new[] { "/data", "/data/DATA.BIN" })
+            foreach (bool held in new[] { false, true })
+            {
+                using var f = new Owner(); var request = D.BeginPathStat(f.State, Encoding.ASCII.GetBytes(path));
+                if (held) f.Wait(request); else { D.Pump(f.State); HostCheck.True(f.Device->Pending); }
+                var cancelled = D.Cancel(f.State, request.Request);
+                if (!held) { f.CompleteHardware(); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); }
+                else HostCheck.Equal(D.Progress.Ready, cancelled.Phase);
+                D.StatMetadata output = default; new Span<byte>(&output, sizeof(D.StatMetadata)).Fill(0xa5);
+                HostCheck.Equal(-4L, D.CopyStat(f.State, request.Request, &output, (uint)sizeof(D.StatMetadata)).Value);
+                HostCheck.True(new ReadOnlySpan<byte>(&output, sizeof(D.StatMetadata)).IndexOfAnyExcept((byte)0xa5) < 0 &&
+                    !f.State->RequestActive && !f.Storage.State->RequestActive);
+            }
+    }
+
+    [HostTest("continuing path stat revokes pending process and request generations on exit before any metadata publication")]
+    private static void PathStatExit()
+    {
+        using var f = new Owner(locks: true); var primary = D.PrimaryProcess(f.State);
+        var request = D.BeginPathStat(f.State, "/data"u8); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+        HostCheck.Equal(D.Progress.Pending, D.ExitProcess(f.State, primary).Phase);
+        var replacement = D.RegisterProcess(f.State, primary.Pid).Process; HostCheck.True(replacement.Generation != primary.Generation);
+        f.CompleteHardware(); f.Drain(); D.StatMetadata facts = default;
+        HostCheck.Equal(D.Progress.Rejected, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Phase);
+        HostCheck.Equal(-9L, D.BeginPathStatForProcess(f.State, primary, "/data"u8).Value);
+        HostCheck.True(!f.State->RequestActive && !f.Storage.State->RequestActive);
+    }
+
+    [HostTest("continuing fresh path metadata sees own creation growth and removal while stopped device and foreign revision revoke held copies")]
+    private static void PathStatMutationLifetime()
+    {
+        using (var f = new Owner(growth: true))
+        {
+            var database = f.Open(flags: 2); HostCheck.Equal(0L, D.Flock(f.State, database, 6));
+            var journal = f.Open("/data/contract.db-journal", 2 | D.Create | D.Exclusive);
+            HostCheck.Equal(0U, PathFacts(f, "/data/contract.db-journal").Facts.File.Length);
+            HostCheck.Equal(37L, f.Run(D.BeginWriteWithFreeSearch(f.State, journal, new byte[37], new(8, 64, 128), 0, true)).Value);
+            HostCheck.Equal(37U, PathFacts(f, "/data/contract.db-journal").Facts.File.Length);
+            HostCheck.Equal(0L, D.Close(f.State, journal)); HostCheck.Equal(0L, f.Run(D.BeginUnlink(f.State, "/data/contract.db-journal"u8)).Value);
+            var request = D.BeginPathStat(f.State, "/data/contract.db-journal"u8); f.Wait(request); D.StatMetadata facts = default;
+            HostCheck.Equal(-2L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+            HostCheck.Equal(0L, D.Flock(f.State, database, 6));
+        }
+        foreach (bool revision in new[] { false, true })
+        {
+            using var f = new Owner(); var request = D.BeginPathStat(f.State, "/data"u8); f.Wait(request); D.StatMetadata facts = default;
+            if (revision) { ulong* value = (ulong*)((byte*)f.Storage.State + WritableBlockSessionTests.ManagedOffset(f.Storage.State, "Revision")); (*value)++; }
+            else B.Stop(f.Storage.Device.State);
+            HostCheck.Equal(-5L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value);
+            HostCheck.True(f.State->RequestActive && facts.Root.Owner == 0 && facts.Facts.File.Owner == 0);
+        }
+    }
+
+    private static D.StatMetadata PathFacts(Owner f, string path)
+    {
+        var request = D.BeginPathStat(f.State, Encoding.ASCII.GetBytes(path)); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        D.StatMetadata facts = default; HostCheck.Equal(0L, D.CopyStat(f.State, request.Request, &facts, (uint)sizeof(D.StatMetadata)).Value); return facts;
+    }
+
     [HostTest("continuing flock supports measured nonblocking modes validates flags and keeps directory and blocking modes explicit")]
     private static void FlockModes()
     {

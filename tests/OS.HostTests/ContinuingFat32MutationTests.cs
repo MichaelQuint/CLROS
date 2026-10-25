@@ -43,6 +43,91 @@ internal static unsafe class ContinuingFat32MutationTests
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
+    [HostTest("continuing FAT root facts walk actual fragmented paired FAT sectors and report complete multisector allocation without file tokens")]
+    private static void RootAllocationFacts()
+    {
+        foreach (byte sectors in new byte[] { 1, 2, 4 })
+        {
+            using var f = new Fixture(sectors); f.Fat(2, 129); f.Fat(129, 5); f.Fat(5, 0xfffffff); f.Mount();
+            C.RequestToken request = default; C.RootFacts facts = default; ulong submitted = f.Device.State->Submitted;
+            int trace = f.Trace.Count; HostCheck.Equal(C.Status.Pending, C.BeginInspectRoot(f.State, &request));
+            HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(submitted + 6, f.Device.State->Submitted);
+            HostCheck.True(f.Trace.Skip(trace).All(row => row.Type == 0));
+            uint calls = f.Device.Hardware->Calls; long allocated = GC.GetAllocatedBytesForCurrentThread();
+            HostCheck.Equal(C.Status.Success, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+            HostCheck.True(calls == f.Device.Hardware->Calls && allocated == GC.GetAllocatedBytesForCurrentThread());
+            HostCheck.True(facts.Owner == (ulong)f.State && facts.Epoch == f.Input.Epoch && facts.Revision == f.State->VolumeRevision &&
+                facts.FirstSector == Data && facts.ClusterBytes == sectors * 512U && facts.AllocatedClusters == 3 && facts.Allocated512Blocks == 3UL * sectors);
+            HostCheck.True(!f.State->RequestActive && !f.State->Dirty && !RuntimeHelpers.IsReferenceOrContainsReferences<C.RootFacts>());
+            HostCheck.Equal(C.Status.StaleToken, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+        }
+        Console.WriteLine("HOST_FAT_ROOT_FACTS_SIZE state=" + sizeof(C.State) + " rootFacts=" + sizeof(C.RootFacts));
+    }
+
+    [HostTest("continuing FAT root facts reject wrong sizes aliases kinds and stale requests before consuming held allocation")]
+    private static void RootFactsOutput()
+    {
+        using var f = new Fixture(); f.Mount(); C.RequestToken request = default;
+        HostCheck.Equal(C.Status.InvalidStorage, C.BeginInspectRoot(f.State, (C.RequestToken*)f.Input.Before));
+        HostCheck.Equal(C.Status.Pending, C.BeginInspectRoot(f.State, &request)); HostCheck.Equal(C.Status.Ready, f.Run());
+        C.RootFacts* output = (C.RootFacts*)f.Output; new Span<byte>(output, sizeof(C.RootFacts)).Fill(0xa5);
+        foreach (uint bytes in new uint[] { 0, (uint)sizeof(C.RootFacts) - 1, (uint)sizeof(C.RootFacts) + 1 })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyRootFacts(f.State, request, output, bytes));
+        HostCheck.True(new ReadOnlySpan<byte>(output, sizeof(C.RootFacts)).IndexOfAnyExcept((byte)0xa5) < 0);
+        foreach (ulong address in new[] { (ulong)f.State, (ulong)f.Input.Before, (ulong)f.Input.Before + 65528,
+            (ulong)f.Input.DirectoryMap, (ulong)f.Device.Data, 8UL, ulong.MaxValue - 7 })
+            HostCheck.Equal(C.Status.InvalidStorage, C.CopyRootFacts(f.State, request, (C.RootFacts*)address, (uint)sizeof(C.RootFacts)));
+        var wrong = request; ((ulong*)&wrong)[2]++; HostCheck.Equal(C.Status.StaleToken, C.CopyRootFacts(f.State, wrong, output, (uint)sizeof(C.RootFacts)));
+        HostCheck.True(f.State->IsReady && output->Owner == 0);
+        HostCheck.Equal(C.Status.Success, C.CopyRootFacts(f.State, request, output, (uint)sizeof(C.RootFacts)));
+        Open(f, "DATA.BIN", out request); f.Run();
+        HostCheck.Equal(C.Status.StaleToken, C.CopyRootFacts(f.State, request, output, (uint)sizeof(C.RootFacts)));
+        C.FileToken file = default; HostCheck.Equal(C.Status.Success, C.CopyOpen(f.State, request, &file));
+    }
+
+    [HostTest("continuing FAT root facts retain actual mirror cycle and I O failures instead of publishing geometry as successful allocation")]
+    private static void RootFactsCorruption()
+    {
+        foreach (bool mirror in new[] { false, true })
+        {
+            using var f = new Fixture(); f.Mount();
+            if (mirror) Put32(f.Volatile, (First + Reserved + FatSectors) * 512 + 8, 5); else f.Fat(2, 2);
+            C.RequestToken request = default; C.RootFacts facts = default; C.BeginInspectRoot(f.State, &request);
+            HostCheck.Equal(C.Status.Ready, f.Run());
+            HostCheck.Equal(mirror ? C.Status.MirrorMismatch : C.Status.CorruptChain, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+            HostCheck.True(facts.Owner == 0 && !f.State->RequestActive && !f.State->Dirty);
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); C.RequestToken request = default; C.RootFacts facts = default; C.BeginInspectRoot(f.State, &request);
+            f.FailAt = f.Device.Hardware->Notifies + 1; HostCheck.Equal(C.Status.BlockFailure, f.Run());
+            HostCheck.Equal(C.Status.BlockFailure, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+            HostCheck.True(facts.Owner == 0 && !f.State->Dirty);
+        }
+    }
+
+    [HostTest("continuing FAT root facts cancel pending and held reads and reject original DMA retirement and request reuse")]
+    private static void RootFactsLifetime()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Fixture(); f.Mount(); C.RequestToken request = default; C.RootFacts facts = default;
+            C.BeginInspectRoot(f.State, &request);
+            if (held) f.Run(); else { C.Pump(f.State); HostCheck.True(f.Device.Hardware->Pending); }
+            HostCheck.Equal(held ? C.Status.Ready : C.Status.Pending, C.Cancel(f.State, request));
+            HostCheck.Equal(C.Status.Ready, f.Run()); HostCheck.Equal(C.Status.Cancelled, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+            HostCheck.True(facts.Owner == 0 && !f.State->RequestActive);
+            C.RequestToken next = default; C.BeginInspectRoot(f.State, &next); f.Run();
+            HostCheck.Equal(C.Status.StaleToken, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+            ulong* generation = (ulong*)((byte*)f.Device.Slot + WritableBlockSessionTests.ManagedOffset(f.Device.Slot, "Generation")); ulong saved = *generation;
+            try { (*generation)++; HostCheck.Equal(C.Status.BlockFailure, C.CopyRootFacts(f.State, next, &facts, (uint)sizeof(C.RootFacts))); }
+            finally { *generation = saved; }
+            HostCheck.True(f.State->IsReady && facts.Owner == 0);
+            B.Stop(f.Device.State); HostCheck.Equal(C.Status.BlockFailure, C.CopyRootFacts(f.State, next, &facts, (uint)sizeof(C.RootFacts)));
+            HostCheck.Equal(C.Status.Success, C.Stop(f.State));
+        }
+    }
+
     [HostTest("continuing FAT copied open allocation facts use actual paired chain and multisector cluster geometry without IO or layout growth")]
     private static void OpenAllocationFacts()
     {

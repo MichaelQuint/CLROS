@@ -21,6 +21,111 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
+    [HostTest("writable global fresh stat and lstat match actual fstat bytes using copied path even when output aliases original path")]
+    private static void FreshPathWire()
+    {
+        foreach (byte sectors in new byte[] { 1, 4 })
+        {
+            using var f = new Owner(sectorsPerCluster: sectors); uint fd = f.Open(); f.Run(f.Call(8, fd, 29, 0));
+            HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output))); byte[] expected = f.Bytes(144); uint descriptors = f.Files.State->ActiveDescriptors;
+            foreach (ulong nr in new ulong[] { 4, 6 })
+            {
+                f.PutPath("/data/DATA.BIN"); var call = f.Call(nr, Path, Output); var request = f.Begin(call);
+                f.PutPath("/proc/meminfo"); HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(request.Token).Progress);
+                HostCheck.Equal(0L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, request.Token, call, 144).Value);
+                HostCheck.True(expected.SequenceEqual(f.Bytes(144)) && f.Files.State->ActiveDescriptors == descriptors);
+                f.PutPath("/data/DATA.BIN"); HostCheck.Equal(0L, f.Run(f.Call(nr, Path, Path)));
+                HostCheck.True(expected.SequenceEqual(new ReadOnlySpan<byte>(f.Thread.At(Path), 144).ToArray()));
+            }
+            HostCheck.Equal(29L, f.Run(f.Call(8, fd, 0, 1))); HostCheck.True(F.Audit(f.Files.State));
+        }
+    }
+
+    [HostTest("writable path root inode namespace is disjoint from a real preceding fragmented directory slot and reports actual allocation")]
+    private static void RootInodeAndAllocation()
+    {
+        using var f = new Owner(rootCollision: true); ulong rootSector = f.Storage.Input.PartitionFirst + 32 + 2 * 512 + 128;
+        byte[]? rootWire = null;
+        foreach (ulong nr in new ulong[] { 4, 6 })
+        {
+            f.PutPath("/data"); HostCheck.Equal(0L, f.Run(f.Call(nr, Path, Output))); byte[] actual = f.Bytes(144), expected = new byte[144];
+            BitConverter.GetBytes(0x8000000000000000UL | rootSector).CopyTo(expected, 8); BitConverter.GetBytes(1UL).CopyTo(expected, 16);
+            BitConverter.GetBytes(0x41c0U).CopyTo(expected, 24); BitConverter.GetBytes(1024UL).CopyTo(expected, 48);
+            BitConverter.GetBytes(512UL).CopyTo(expected, 56); BitConverter.GetBytes(2UL).CopyTo(expected, 64);
+            HostCheck.True(actual.SequenceEqual(expected)); rootWire = actual;
+        }
+        f.PutPath("/data/DATA.BIN"); HostCheck.Equal(0L, f.Run(f.Call(4, Path, Output)));
+        ulong fileInode = BitConverter.ToUInt64(f.Bytes(144), 8), rootInode = BitConverter.ToUInt64(rootWire!, 8);
+        HostCheck.Equal(rootSector * 16, fileInode); // This actual entry defeats an untagged root-sector encoding.
+        HostCheck.True(rootInode != fileInode && fileInode < (1UL << 63) && rootInode >= (1UL << 63));
+        HostCheck.True(rootInode > ulong.MaxValue / 32 + 1); // Any possible regular entry inode is below the namespace tag.
+        HostCheck.True(f.Files.State->ActiveDescriptors == 3 && f.Trace.All(row => row.Type == 0));
+    }
+
+    [HostTest("writable path metadata uses real missing responses preserves syscall output ceiling and refuses failed user copies")]
+    private static void PathMissingAndOutput()
+    {
+        using var f = new Owner(); uint before = f.Files.State->ActiveDescriptors;
+        foreach (ulong nr in new ulong[] { 4, 6 })
+            foreach (string name in new[] { "/data/contract.db-journal", "/data/contract.db-wal", "/data/contract.db-shm" })
+            { f.PutPath(name); HostCheck.Equal(-2L, f.Run(f.Call(nr, Path, Output))); }
+        foreach (string name in new[] { "/data", "/data/DATA.BIN" })
+        {
+            f.PutPath(name); var call = f.Call(4, Path, Output); var request = f.Begin(call); f.Ready(request.Token);
+            new Span<byte>(f.Thread.At(Output), 145).Fill(0xa5); uint copies = f.Thread.Writes;
+            HostCheck.Equal(-14L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, request.Token, call, 143).Value);
+            HostCheck.True(f.Thread.Writes == copies && f.Bytes(145).All(value => value == 0xa5));
+            f.Thread.FailWrite(Output); HostCheck.Equal(-14L, f.Run(call)); HostCheck.True(f.Bytes(145).All(value => value == 0xa5));
+            f.Thread.FailWrite(0); HostCheck.Equal(0L, f.Run(call)); HostCheck.True(f.Thread.At(Output)[144] == 0xa5);
+        }
+        HostCheck.True(f.Files.State->ActiveDescriptors == before && !f.Provider->RequestActive && !f.Disk->RequestActive);
+    }
+
+    [HostTest("writable path stat cancellation revokes pending and held root or file metadata and drains orphan records without an fd borrow")]
+    private static void PathCancellation()
+    {
+        foreach (bool held in new[] { false, true })
+            foreach (string path in new[] { "/data", "/data/DATA.BIN" })
+            {
+                using var f = new Owner(); f.PutPath(path); var call = f.Call(6, Path, Output); var request = f.Begin(call);
+                if (held) f.Ready(request.Token); else { f.Pump(); HostCheck.True(f.Hardware->Pending); }
+                new Span<byte>(f.Thread.At(Output), 144).Fill(0xa5); uint copies = f.Thread.Writes;
+                var cancelled = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, request.Token, false); HostCheck.True(!cancelled.Worker.IsValid);
+                f.Drain(); HostCheck.Equal(F.WritableDiskProgress.Rejected, F.PollWritableDisk(f.Files.State, f.ThreadOwner, request.Token).Progress);
+                HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, request.Token, call).Progress);
+                HostCheck.True(f.Thread.Writes == copies && f.Bytes(144).All(value => value == 0xa5) && f.Files.State->ActiveDescriptors == 3 && F.Audit(f.Files.State));
+            }
+    }
+
+    [HostTest("writable path metadata actual IO failure and stopped readiness never copy guessed facts and leave unsupported policy routes explicit")]
+    private static void PathFailureAndPolicy()
+    {
+        using (var f = new Owner())
+        {
+            f.PutPath("/data"); var call = f.Call(4, Path, Output); var request = f.Begin(call);
+            f.Pump(); HostCheck.True(f.Hardware->Pending); f.Storage.Device.Complete(length: 1, status: 1);
+            new Span<byte>(f.Thread.At(Output), 144).Fill(0xa5); uint copies = f.Thread.Writes;
+            HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(request.Token).Progress);
+            HostCheck.Equal(-5L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, request.Token, call).Value);
+            HostCheck.True(f.Thread.Writes == copies && f.Bytes(144).All(value => value == 0xa5));
+        }
+        using (var f = new Owner())
+        {
+            f.PutPath("/data"); var call = f.Call(6, Path, Output); var request = f.Begin(call); f.Ready(request.Token);
+            new Span<byte>(f.Thread.At(Output), 144).Fill(0xa5); uint copies = f.Thread.Writes; B.Stop(f.Storage.Device.State);
+            HostCheck.Equal(-5L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, request.Token, call).Value);
+            HostCheck.True(f.Thread.Writes == copies && f.Bytes(144).All(value => value == 0xa5));
+        }
+        using (var f = new Owner())
+        {
+            f.PutPath("/data/../private/sentinel"); HostCheck.Equal(-13L, f.Run(f.Call(6, Path, Output)));
+            f.PutPath("/proc/meminfo"); HostCheck.Equal(F.WritableDiskProgress.NotHandled, f.Begin(f.Call(4, Path, Output)).Progress);
+            f.PutPath("/data/not-created.db"); HostCheck.Equal(-95L, f.Run(f.Call(2, Path, 2 | W.Create, 0x1a4)));
+            HostCheck.Equal(-38L, f.Core(93, 3, 0, 0)); HostCheck.Equal(-38L, f.Core(138, 3, Output));
+            HostCheck.True(!f.Provider->RequestActive && !f.Disk->RequestActive && f.Storage.State->VolumeRevision == 1);
+        }
+    }
+
     [HostTest("writable global flock uses Linux operation values and regular open descriptions while filesystem stats remain unsupported")]
     private static void FlockWire()
     {
@@ -615,10 +720,20 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         internal WritableBlockSessionTests.Hardware* Hardware => Storage.Device.Hardware;
         internal F.WritableDiskAdmission Admission => new() { Provider = Provider, Process = W.PrimaryProcess(Provider), Bindings = Bindings,
             BindingCount = Files.Admission.DescriptionCount, Epoch = ProviderAdmission.Epoch, Search = new(2, 64, 256), FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true, bool observe = false, uint descriptors = 32, uint descriptions = 32, byte sectorsPerCluster = 1)
+        internal Owner(bool attach = true, bool observe = false, uint descriptors = 32, uint descriptions = 32, byte sectorsPerCluster = 1, bool rootCollision = false)
         {
             Files = new(descriptors, descriptions); Bindings = (F.WritableDiskBinding*)NativeMemory.AllocZeroed(descriptions, (nuint)sizeof(F.WritableDiskBinding));
             Storage = new(sectorsPerCluster, observe: observe); if (sectorsPerCluster != 1) Storage.Fat(4, 0x0fffffff);
+            if (rootCollision)
+            {
+                HostCheck.Equal((byte)1, sectorsPerCluster); ulong data = Storage.Input.PartitionFirst + 32 + 2 * 512;
+                byte[] entry = Storage.Volatile.Slice((int)(data * 512 + 32), 32).ToArray();
+                System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(Storage.Volatile.Slice((int)(Storage.Input.PartitionFirst * 512 + 44)), 130);
+                Storage.Fat(130, 129); Storage.Fat(129, 0xfffffff);
+                Storage.Volatile.Slice((int)((data + 128) * 512), 512).Fill(0xe5);
+                Storage.Volatile.Slice((int)((data + 127) * 512), 512).Fill(0xe5);
+                entry.CopyTo(Storage.Volatile.Slice((int)((data + 127) * 512 + 15 * 32), 32));
+            }
             Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff;
             Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; Storage.Mount();
             ProviderAdmission = new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = Slots, Descriptions = Descriptions,

@@ -30,7 +30,7 @@ public static unsafe class ContinuingFat32Mutation
         SearchBudgetExceeded, EndOfScan
     }
     internal enum Life : byte { Mounting = 1, Idle, Working, Ready, Faulted, Retired }
-    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete, FindFree }
+    internal enum Kind : byte { Mount, Open, Overwrite, Barrier, Create, Grow, Read, Truncate, Delete, FindFree, RootMetadata }
     internal enum Step : byte { Bpb, RootChain, Scan, TargetChain, OtherChain, Plan, Issue, Flush, GrowCandidates, GrowData, GrowFat, GrowDirectory, GrowFsInfo, ReadData, ShrinkDirectory, DeleteDirectory, ReleaseFat, FindFree }
     internal enum Purpose : byte { Bpb, Fat0, Fat1, Directory, Original, Write, Flush, GrowthEdit, FileData }
     internal enum Transform : byte { Zero, Fat, Directory, FsInfo, ShrinkDirectory, Tombstone }
@@ -84,6 +84,20 @@ public static unsafe class ContinuingFat32Mutation
         public readonly ulong Allocated512Blocks;
         internal OpenFacts(FileToken file, uint clusterBytes, uint clusters, ulong blocks)
         { File = file; ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
+    }
+    /// <summary>Copied mount-root allocation facts from an actual full
+    /// mirrored-FAT root-chain walk. The FAT root has no short entry, file
+    /// token, Unix owner/mode or timestamp. FirstSector is its first cluster's
+    /// physical sector; allocation includes every checked root cluster. These
+    /// historical values grant no fd, user-copy or future device authority.</summary>
+    public readonly struct RootFacts
+    {
+        public readonly ulong Owner, Epoch, Revision, FirstSector;
+        public readonly uint ClusterBytes, AllocatedClusters;
+        public readonly ulong Allocated512Blocks;
+        internal RootFacts(State* s, ulong sector, uint clusterBytes, uint clusters, ulong blocks)
+        { Owner = (ulong)s; Epoch = s->Input.Epoch; Revision = s->Revision; FirstSector = sector;
+            ClusterBytes = clusterBytes; AllocatedClusters = clusters; Allocated512Blocks = blocks; }
     }
     public readonly struct Result
     {
@@ -205,6 +219,21 @@ public static unsafe class ContinuingFat32Mutation
             for (int i = 0; i < name.Length; i++) s->Input.Name[i] = name[i];
             BeginRootChain(s, LookupName); *request = new(s); return Status.Pending;
         }
+    }
+
+    /// <summary>Start a fresh bounded mirrored-FAT walk of the mounted root
+    /// directory. No root entry or file token is invented and no directory
+    /// content, OUT or FLUSH is issued. One serialized supervisor retains all
+    /// backing. Invalid output aliases write nothing; a new generation revokes
+    /// prior request tokens. Pump never spins for device completion.</summary>
+    public static Status BeginInspectRoot(State* s, RequestToken* request)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (!Output(s, (ulong)request, (ulong)sizeof(RequestToken))) return Status.InvalidStorage;
+        *request = default;
+        if (!Available(s)) return s->Phase == Life.Faulted ? s->Failure : Status.Busy;
+        if (s->RequestGeneration == ulong.MaxValue) return Status.GenerationExhausted;
+        Begin(s, Kind.RootMetadata); BeginRootChain(s, ValidateRoot); *request = new(s); return Status.Pending;
     }
 
     /// <summary>Copy at most8192 input bytes before return. Only in-place
@@ -572,6 +601,34 @@ public static unsafe class ContinuingFat32Mutation
         EndRequest(s); return Status.Success;
     }
 
+    /// <summary>Consume matching Ready root facts into exactly sizeof
+    /// RootFacts bytes of disjoint ordinary RAM. Invalid size/aliases preserve
+    /// output and Ready. Other rejections clear admitted output. Success needs
+    /// the original clean running device/DMA owner; no post-copy action can
+    /// fail. Clean failed/cancelled Ready results drain without publishing facts;
+    /// faulted or stale requests remain owned for explicit cleanup. No I/O,
+    /// allocation or root-file identity is supplied.</summary>
+    public static Status CopyRootFacts(State* s, RequestToken request, RootFacts* facts, uint factsBytes)
+    {
+        if (!Live(s)) return Status.InvalidState;
+        if (factsBytes != sizeof(RootFacts) || !Output(s, (ulong)facts, (ulong)sizeof(RootFacts))) return Status.InvalidStorage;
+        *facts = default;
+        if (!Matches(s, request) || s->Kind != Kind.RootMetadata) return Status.StaleToken;
+        if (s->Phase != Life.Ready) return s->Phase == Life.Faulted ? s->Failure : Status.Pending;
+        Status result = s->Failure;
+        if (result == Status.Success)
+        {
+            if (!CanAdmitStorage(s, s->Input.Epoch)) return Status.BlockFailure;
+            uint sectors = s->Volume.SectorsPerCluster;
+            if (sectors is 0 or > 128 || (sectors & (sectors - 1)) != 0 || s->RootCount is 0 or > MaximumClusters ||
+                s->Volume.RootCluster < 2 || s->Volume.RootCluster - 2 >= s->Volume.ClusterCount ||
+                s->Input.DirectoryMap[0] != s->Volume.RootCluster) return Status.CorruptChain;
+            ulong first = s->Volume.FirstDataLba + (ulong)(s->Volume.RootCluster - 2) * sectors;
+            *facts = new(s, first, sectors * 512U, s->RootCount, (ulong)s->RootCount * sectors);
+        }
+        EndRequest(s); return result;
+    }
+
     /// <summary>Consume a retained overwrite/barrier result. No user pointer,
     /// cursor or fallible post-copy work is retained. Dirty failures have no
     /// successful consumable result and continue owning their journals.</summary>
@@ -661,7 +718,8 @@ public static unsafe class ContinuingFat32Mutation
     }
 
     /// <summary>Write/barrier Ready completion wins. A held read/discovery Ready is
-    /// revoked/scrubbed immediately. Otherwise revoke continuation and drain
+    /// revoked/scrubbed immediately. Root metadata Ready is revoked and kept
+    /// until CopyRootFacts drains its Cancelled status. Otherwise drain
     /// the actual token without retracting DMA. Before first write the plan may
     /// be discarded after reads drain; later cancellation retains recovery.</summary>
     public static Status Cancel(State* s, RequestToken request)
@@ -669,6 +727,7 @@ public static unsafe class ContinuingFat32Mutation
         if (!Bound(s) || !Matches(s, request)) return Status.StaleToken;
         if (s->Phase == Life.Ready)
         {
+            if (s->Kind == Kind.RootMetadata) { s->Cancelled = true; s->Failure = Status.Cancelled; return Status.Ready; }
             if (s->Kind is not (Kind.Read or Kind.FindFree)) return Status.Ready;
             if (s->Kind == Kind.Read) ScrubRead(s); else ScrubFree(s);
             s->Failure = Status.Cancelled; EndRequest(s); return Status.Cancelled;
@@ -742,6 +801,7 @@ public static unsafe class ContinuingFat32Mutation
         {
             s->RootCount = s->WalkCount;
             if (s->Kind == Kind.Mount) { s->Mounted = true; s->Phase = Life.Idle; return Status.Ready; }
+            if (s->Kind == Kind.RootMetadata) return Finish(s, Status.Success);
             ResetScan(s); return Status.Pending;
         }
         uint bytes = s->Step == Step.TargetChain ? s->File.Length : s->OtherLength;
