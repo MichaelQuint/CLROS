@@ -13,6 +13,14 @@ configured .NET 11 applications. It uses a restricted Linux x64 compatibility
 layer and statically published NativeAOT applications targeting **`linux-musl-x64`**.
 First-party kernel, shared-library and application source is C# 14.
 
+The goal is a **small, fully functioning OS that continuously hosts supported
+applications**. The first integrated workload combines a NativeAOT Minimal API,
+a Blazor Static WebAssembly frontend calling its API endpoints, and persistent
+SQLite data through `Microsoft.Data.Sqlite`, including restart and recovery.
+Finite guest tests verify progress toward that system; they are not the final
+service model. The planned public GitHub update and live cloud demo app will
+showcase the working OS after the corresponding capabilities are qualified.
+
 **The pinned Hello and bounded .NET runtime workloads already run inside CLROS.
 Real Kestrel also serves external HTTP in qualified finite guest profiles.**
 The complete local single-app Gate 14 remains open; CLROS is not cloud-ready or

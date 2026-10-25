@@ -60,6 +60,15 @@ Minimal API applications, normally one workload per VM. CLROS defines resource
 ownership, isolation, lifecycle and security policy. Linux supplies one supported
 application ABI; it does not define the kernel's internal architecture.
 
+The product must provide continuing application service, not stop after a finite
+demonstration. Its first integrated workload is a NativeAOT Minimal API with a
+Blazor Static WebAssembly frontend making real API calls backed by persistent
+SQLite. Normal lifetime ends through intentional shutdown/restart or documented
+fault/resource policy; diagnostic execution budgets must not become hard-coded
+service lifetimes. Storage durability/recovery and continuing network/runtime
+services are product requirements. A later public cloud demo showcases this OS;
+it does not replace the functioning OS as the architectural target.
+
 | Layer | Responsibility |
 | --- | --- |
 | Shared CLROS services | Owned memory and mappings, scheduling/waits, clocks/randomness, device/block/filesystem services, network streams, resource budgets and cleanup. Use explicit statuses and owned handles/tokens. |

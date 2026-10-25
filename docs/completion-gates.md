@@ -46,6 +46,15 @@ per-app manual disassembly or OS patches. These requirements apply to the named
 successor capabilities; they do not change historical receipts or add all four
 scenarios to the existing finite #226/#227 local Kestrel gate.
 
+Completion of a finite gate is a development milestone, not completion of the
+OS product. The integrated target is continuing Minimal API and persistent
+SQLite in the same guest, serving a Blazor Static WebAssembly frontend to a
+browser that calls the API. Restart and recovery are required. Finite test
+timeouts/request counts must remain test controls rather than the normal workload
+lifetime. Qualification must exercise sustained service and recovery without
+installing a test termination condition in the normal application.
+The planned live cloud demo additionally requires provider qualification.
+
 ## Earlier qualified profiles
 
 Development history is retained unchanged in [steps1426–1437](../done/step1437.md)
