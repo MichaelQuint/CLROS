@@ -35,6 +35,7 @@ public static unsafe partial class EfiEntry
 #if M10_018_TIMING_PROBE
             internal LinuxThreadServices.DiskPumpMeasurements TimingPump;
             internal ulong TimingPreNetwork, TimingPostNetwork, TimingPostReadiness, TimingPostWaitRecord, TimingNetworkCalls, TimingReadBytes;
+            internal ulong TimingReadinessRefresh, TimingReadinessWaitScan;
             internal byte TimingPhase; //0 unarmed,1 counting after listen,2 frozen before the single dump.
 #endif
             internal Fs.Operation* Operations;

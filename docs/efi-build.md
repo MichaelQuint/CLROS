@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1605](../done/step1605.md) The next short timing producer uses strict v4 fields readinessRefreshNs/readinessWaitScanNs, captured at one trusted post-refresh boundary and conserving postReadinessNs. The clock and fields compile only into the explicit timing profile; accepted ordinary profiles keep their original readiness path and layouts. Four reviewed normalized source pins follow the changed bytes. Fresh committed -BuildEfi timing r10 is required.
+
 [Step1604](../done/step1604.md) Original timingr08 at5cf3fcd1 verifies2057runtime/1630unwind entries and EFI5C86DAEA494E78DBF85FF506D11E43904166B7527AB8F62CD85DDC69825BE0DC. Image51A6575B100AE82D5EC2ABFA42336CD83BF4CF13B6AF81EF5D7C8FEF1B13B88A contains the unchanged server package. The next candidate retires the extra-submit route and updates five reviewed pins for a diagnostic-only clock partition. New source-matched BuildEfi is mandatory; host4096/kernel2048 capacities and default-off guards remain unchanged.
 
 [Step1603](../done/step1603.md) Original r07 at clean4efb1bc3 compiles and verifies2055runtime/1628unwind records, then runs the short guest diagnostic. EFI SHA2560B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF and image36A92BF15CE8BE4C0238101BBB81643CE5E46353EC4995DCE2F941AD3A34D393 retain exact original provenance. Three source pins now cover the host-qualified sole-read replenishment experiment and two added aggregate counters. New native publication and timingr08 are required; kernel unwind2048 and its disabled profile remain unchanged.

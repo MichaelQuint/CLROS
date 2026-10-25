@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1605](../done/step1605.md) Current checkpoint: strict v4 readiness attribution belongs in diagnostics/EFI/QEMU; exact r09 and fresh Linux SQLite recovery r03 originals are retained in step1605. Storage/PAL/app/gate docs preserve the Linux-reference versus guest-FAT32/power-loss distinction. Two freshly claimed successor slices remain isolated and unimported. Historical step1604 failures retain their original status.
+
 [Step1604](../done/step1604.md) Storage/PAL own restored immediate peer yield and additive host-only log/upload fixture/global execution. Diagnostics/QEMU own retainedr08 v2 results and the new v3 post-network partition; application/host docs own explicit Linux descriptor limits and failed recoveryr02. Shared pair and source5 successor claims are exact and isolated. No full product gate closes.
 
 [Step1603](../done/step1603.md) Storage/PAL own sole-read replenishment and retained writable admission; diagnostics/QEMU own original r07 timing, v2 counters and the required next guest comparison. Application/host docs distinguish the successful fresh Linux SQLite writer/verifier from failed recovery publication. README, guides, subsystem docs, canonical issues and parent summaries retain full Blazor/write/durability limits.

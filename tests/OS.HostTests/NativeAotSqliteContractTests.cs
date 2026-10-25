@@ -828,19 +828,123 @@ internal static class NativeAotSqliteContractTests
     [HostTest("sqlite killed trace preserves live descriptors and runtime waits without inventing closes or per page flush proof")]
     private static void LinuxRecoveryKilledTrace()
     {
-        string prefix=StorageRows()["trace.17"].Split("1.000017",StringSplitOptions.None)[0];
-        // Upstream syncJournal(newHdr=1) may write an empty next-segment header
-        // after syncing the preceding valid records, then spill a DB page.
-        prefix=prefix.Replace("1.000015 pwritev2", "1.0000145 pwritev2(6</app/data/contract.db-journal>, [{iov_base=\"empty next header\", iov_len=512}], 1, 5120, RWF_NOAPPEND) = 512\n1.000015 pwritev2",StringComparison.Ordinal);
-        string text=prefix+"1.000017 futex(0x1234, FUTEX_WAIT_PRIVATE, 2, NULL <unfinished ...>) = ?\n1.000018 +++ killed by SIGKILL +++\n";
+        string text=RecoverySpillRows();
         var value=NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text),"/app/data/contract.db");
         HostCheck.True(value.DatabaseWrites==1 && value.WritesAfterJournalAndParentSync==1 && value.JournalSyncs==2 && value.ParentSyncs==1 &&
             value.Storage.Lifetimes.Count(l=>l.CloseLine is null)==2 && value.Storage.UnjoinedLines==2 &&
-            !value.Storage.Journals.Single().ClosedBeforeUnlink && !value.GrantsOriginalTraceOrDurabilityAuthority);
+            value.Storage.Lifetimes.Single(l=>l.Id==value.ObserverLifetimeId).Descriptor==9 && value.JournalBytes==8192 &&
+            value.Storage.Lifetimes.Single(l=>l.Id==value.ObserverLifetimeId).CloseLine<value.SpillLine &&
+            value.Storage.Journals.All(j=>!j.CompleteSyncOrder) && !value.GrantsOriginalTraceOrDurabilityAuthority);
+        var flocks=value.Storage.Events.Where(e=>e.Call.Syscall=="flock").ToArray();
+        HostCheck.True(flocks.Select(e=>e.Flags).SequenceEqual(new[]{"LOCK_SH|LOCK_NB","LOCK_UN"}) && flocks.All(e=>e.Lock is null) &&
+            value.Storage.Events.Any(e=>e.Call.Syscall=="fcntl" && e.Lock is not null));
         Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(text),"/app/data/contract.db"),"storage_owner_unjoined");
         foreach(string missing in new[]{"1.000011 fsync(7</app/data>) = 0","1.000014 fsync(6</app/data/contract.db-journal>) = 0"})
             Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text.Replace(missing,"",StringComparison.Ordinal)),"/app/data/contract.db"),"recovery_trace_sync_order");
         Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text.Replace("futex(0x1234, FUTEX_WAIT_PRIVATE, 2, NULL", "pread64(5</app/data/contract.db>, 0x1234, 4096, 0",StringComparison.Ordinal)),"/app/data/contract.db"),"storage_owner_unjoined");
+    }
+
+    private static string RecoverySpillRows()
+    {
+        string prefix=StorageRows()["trace.17"].Split("1.000017",StringSplitOptions.None)[0];
+        // A synced previous segment may be followed by an unsynced empty header.
+        prefix=prefix.Replace("1.000015 pwritev2", "1.0000145 pwritev2(6</app/data/contract.db-journal>, [{iov_base=\"empty next header\", iov_len=512}], 1, 5120, RWF_NOAPPEND) = 512\n1.000015 pwritev2",StringComparison.Ordinal);
+        byte[] header=new byte[28];new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}.CopyTo(header,0);header[11]=1;
+        BinaryPrimitives.WriteUInt32BigEndian(header.AsSpan(16),2);BinaryPrimitives.WriteUInt32BigEndian(header.AsSpan(20),512);BinaryPrimitives.WriteUInt32BigEndian(header.AsSpan(24),4096);
+        string quoted=string.Concat(header.Select(b=>"\\"+Convert.ToString(b,8).PadLeft(3,'0')));
+        string marker="SQLITE_RECOVERY_SPILL rows=64 journalBytes=8192 headerBase64="+Convert.ToBase64String(header);
+        return prefix+"\n"+$$"""
+        1.000017 open("/app/data/contract.db-journal", O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC) = 9</app/data/contract.db-journal>
+        1.000018 fcntl(9</app/data/contract.db-journal>, F_SETFD, FD_CLOEXEC) = 0
+        1.000019 fstat(9</app/data/contract.db-journal>, {st_mode=S_IFREG|0600, st_size=8192, ...}) = 0
+        1.000020 flock(9</app/data/contract.db-journal>, LOCK_SH|LOCK_NB) = 0
+        1.000021 pread64(9</app/data/contract.db-journal>, "{{quoted}}"..., 4096, 0) = 4096
+        1.000022 fstat(9</app/data/contract.db-journal>, {st_mode=S_IFREG|0600, st_size=8192, ...}) = 0
+        1.000023 flock(9</app/data/contract.db-journal>, LOCK_UN) = 0
+        1.000024 close(9</app/data/contract.db-journal>) = 0
+        1.000025 write(1<pipe:[42]>, "{{marker}}\n", {{marker.Length+1}}) = {{marker.Length+1}}
+        1.000026 futex(0x1234, FUTEX_WAIT_PRIVATE, 2, NULL <unfinished ...>) = ?
+        1.000027 +++ killed by SIGKILL +++
+        """+"\n";
+    }
+
+    [HostTest("sqlite recovery observer metadata is scoped independently of fd number ordering and historical journal opens")]
+    private static void RecoveryObserverMetadataAndHistory()
+    {
+        string text=RecoverySpillRows();
+        // The constructor's earlier metadata is sufficient; do not require
+        // FileStream.Length to issue a second fstat after its buffered read.
+        text=text.Replace("1.000022 fstat(9</app/data/contract.db-journal>, {st_mode=S_IFREG|0600, st_size=8192, ...}) = 0\n","",StringComparison.Ordinal);
+        text="0.999997 open(\"/app/data/contract.db-journal\", O_RDONLY|O_LARGEFILE) = 12</app/data/contract.db-journal>\n"+
+            "0.999998 close(12</app/data/contract.db-journal>) = 0\n"+text.Replace("9</app/data/contract.db-journal>","23</app/data/contract.db-journal>",StringComparison.Ordinal);
+        text=text.Replace("\\040"," ",StringComparison.Ordinal).Replace("\\143","c",StringComparison.Ordinal);
+        text=System.Text.RegularExpressions.Regex.Replace(text,@"\\0([0-7]{2})",m=>"\\"+Convert.ToString(Convert.ToInt32(m.Groups[1].Value,8),8));
+        var value=NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text),"/app/data/contract.db");
+        HostCheck.True(value.Storage.Lifetimes.Count==5 && value.Storage.Lifetimes[0].Descriptor==12 && value.Storage.Lifetimes[0].CloseLine is not null &&
+            value.Storage.Lifetimes.Single(l=>l.Id==value.ObserverLifetimeId).Descriptor==23 && value.JournalSyncs==2 && value.ParentSyncs==1);
+    }
+
+    [HostTest("sqlite recovery rejects the original still live journal observer late close and reused stale or foreign observer lifetime")]
+    private static void RecoveryObserverLifetimeRejections()
+    {
+        string text=RecoverySpillRows(),unlock="1.000023 flock(9</app/data/contract.db-journal>, LOCK_UN) = 0\n",close="1.000024 close(9</app/data/contract.db-journal>) = 0\n";
+        foreach(var change in new[]{
+            (unlock+close,"","recovery_trace_live_files"),
+            (close,"","recovery_trace_live_files"),
+            (close,"1.000024 open(\"/app/data/contract.db-journal\", O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC) = 9</app/data/contract.db-journal>\n","storage_descriptor_reused"),
+            ("1.000023 flock",close+"1.000023 flock","storage_stale_descriptor"),
+            ("1.000026 futex",close+"1.000026 futex","storage_stale_descriptor"),
+            ("O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC","O_RDONLY|O_CREAT|O_NOCTTY|O_LARGEFILE|O_CLOEXEC","recovery_trace_observer_lifetime"),
+            ("O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC","O_RDONLY|O_TRUNC|O_LARGEFILE|O_CLOEXEC","recovery_trace_observer_lifetime"),
+            ("O_RDWR|O_CREAT|O_LARGEFILE|O_NOFOLLOW|O_CLOEXEC","O_RDONLY|O_CREAT|O_LARGEFILE|O_NOFOLLOW|O_CLOEXEC","recovery_trace_live_flags")})
+            Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text.Replace(change.Item1,change.Item2,StringComparison.Ordinal)),"/app/data/contract.db"),change.Item3);
+        string late=text.Replace(close,"",StringComparison.Ordinal).Replace("1.000026 futex",close+"1.000026 futex",StringComparison.Ordinal);
+        Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(late),"/app/data/contract.db"),"recovery_trace_observer_lifetime");
+        string outside=text.Replace("9</app/data/contract.db-journal>","9</app/data/wrong-journal>",StringComparison.Ordinal)
+            .Replace("open(\"/app/data/contract.db-journal\", O_RDONLY","open(\"/app/data/wrong-journal\", O_RDONLY",StringComparison.Ordinal);
+        Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(outside),"/app/data/contract.db"),"recovery_trace_observer");
+    }
+
+    [HostTest("sqlite recovery observer accepts only successful matched shared flock header read metadata and unlock without writer sync credit")]
+    private static void RecoveryObserverOperationRejections()
+    {
+        string text=RecoverySpillRows();
+        foreach(var change in new[]{
+            ("LOCK_SH|LOCK_NB","LOCK_EX|LOCK_NB","storage_flock"),
+            ("LOCK_SH|LOCK_NB) = 0","LOCK_SH|LOCK_NB) = -1 EWOULDBLOCK (Resource temporarily unavailable)","storage_flock"),
+            ("LOCK_UN) = 0","LOCK_UN) = -1 EIO (I/O error)","storage_flock"),
+            ("1.000023 flock(9</app/data/contract.db-journal>, LOCK_UN) = 0\n","","recovery_trace_observer_lock_read"),
+            ("1.000022 fstat","1.000022 flock(9</app/data/contract.db-journal>, LOCK_SH|LOCK_NB) = 0\n1.000022 fstat","recovery_trace_observer_lock_read"),
+            ("1.000021 pread64","1.000021 flock(9</app/data/contract.db-journal>, LOCK_UN) = 0\n1.000021 pread64","recovery_trace_observer_lock_read"),
+            ("1.000022 fstat","1.000022 fsync(9</app/data/contract.db-journal>) = 0\n1.000022 fstat","recovery_trace_observer_operation"),
+            ("1.000022 fstat","1.000022 pwrite64(9</app/data/contract.db-journal>, \"evil\", 4, 0) = 4\n1.000022 fstat","recovery_trace_observer_operation"),
+            ("1.000022 fstat","1.000022 fcntl(9</app/data/contract.db-journal>, F_SETLK, {l_type=F_WRLCK, l_whence=SEEK_SET, l_start=0, l_len=1}) = 0\n1.000022 fstat","recovery_trace_observer_operation"),
+            ("1.000022 fstat","1.000022 dup(9</app/data/contract.db-journal>) = 10</app/data/contract.db-journal>\n1.000022 fstat","storage_operation_unsupported_dup"),
+            ("..., 4096, 0) = 4096","..., 8192, 0) = 4096","recovery_trace_observer_lock_read"),
+            ("..., 4096, 0) = 4096","..., 4096, 0) = 27","recovery_trace_observer_lock_read"),
+            ("..., 4096, 0) = 4096","..., 4096, 1) = 4096","recovery_trace_observer_lock_read"),
+            ("st_size=8192","st_size=8193","recovery_trace_observer_metadata"),
+            ("\\331\\325","\\330\\325","recovery_trace_observer_header"),
+            ("\\331\\325","\\xD9\\325","recovery_trace_observer_header"),
+            ("1.000004 fcntl(5</app/data/contract.db>, F_SETLK, {l_type=F_WRLCK, l_whence=SEEK_SET, l_start=1073741825, l_len=1}) = 0\n","","recovery_trace_reserved_lock")})
+            Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(text.Replace(change.Item1,change.Item2,StringComparison.Ordinal)),"/app/data/contract.db"),change.Item3);
+        string noSync=text.Replace("1.000014 fsync(6</app/data/contract.db-journal>) = 0\n","",StringComparison.Ordinal);
+        Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(noSync),"/app/data/contract.db"),"recovery_trace_sync_order");
+    }
+
+    [HostTest("sqlite recovery spill barrier requires one complete same writer stdout write with matching header length and causal position")]
+    private static void RecoveryObserverSpillRejections()
+    {
+        string text=RecoverySpillRows();string spill=text.Split('\n').Single(l=>l.Contains(" write(1<pipe",StringComparison.Ordinal))+"\n";
+        foreach(string changed in new[]{text.Replace(spill,"",StringComparison.Ordinal),text+spill,
+            text.Replace("write(1<pipe","write(2<pipe",StringComparison.Ordinal),text.Replace(") = 102\n",") = 101\n",StringComparison.Ordinal),
+            text.Replace("rows=64 journalBytes","rows=63 journalBytes",StringComparison.Ordinal),
+            text.Replace("journalBytes=8192 headerBase64","journalBytes=9999999 headerBase64",StringComparison.Ordinal)})
+            Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(changed),"/app/data/contract.db"),"recovery_trace_spill");
+        var foreign=StorageRows(text.Replace(spill,"",StringComparison.Ordinal));foreign["trace.18"]+=spill;
+        Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(foreign,"/app/data/contract.db"),"recovery_trace_spill_marker");
+        string before=text.Replace(spill,"",StringComparison.Ordinal).Replace("1.000015 pwritev2",spill+"1.000015 pwritev2",StringComparison.Ordinal);
+        Reject(()=>NativeAotSqliteContract.InspectKilledRecoveryTraceValues(StorageRows(before),"/app/data/contract.db"),"recovery_trace_spill_marker");
     }
 
     [HostTest("sqlite contract source and provider admission reject altered inputs before native compilation")]

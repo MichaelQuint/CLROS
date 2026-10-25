@@ -108,6 +108,8 @@ public static class NativeAotSqliteContract
     }
     public sealed record StorageLifetime(int Id,int Descriptor,string Kind,string Path,string OpenFlags,string Mode,int OpenLine,int? CloseLine);
     public sealed record StorageLock(string Type,string Whence,long Start,long Length);
+    // Flags retains syscall-specific values; flock never becomes a fcntl
+    // StorageLock or supplies byte-range ownership from its file lock flags.
     public sealed record StorageEvent(TraceCall Call,int LifetimeId,int Descriptor,string Kind,long? Count,long? Offset,long Returned,string Flags,StorageLock? Lock);
     public sealed record JournalOrder(int LifetimeId,int DatabaseWrites,int? FirstJournalSync,int? ParentSync,int? HeaderWrite,
         int? LastJournalSync,int? DatabaseSync,int? Unlink,bool ClosedBeforeUnlink,bool CompleteSyncOrder);
@@ -115,7 +117,13 @@ public static class NativeAotSqliteContract
         IReadOnlyList<JournalOrder> Journals,int UnjoinedLines)
     {public bool GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority=>false;}
     public sealed record RecoveryTrace(StorageTrace Storage,int DatabaseWrites,int WritesAfterJournalAndParentSync,int JournalSyncs,int ParentSyncs)
-    {public bool GrantsOriginalTraceOrDurabilityAuthority=>false;}
+    {
+        public int ObserverLifetimeId {get;init;}
+        public int SpillLine {get;init;}
+        public long JournalBytes {get;init;}
+        public string SpillHeaderBase64 {get;init;}="";
+        public bool GrantsOriginalTraceOrDurabilityAuthority=>false;
+    }
     public sealed record LinuxRecoveryIdentity(int Tracer,int Writer,int Parent,int Group,int Session,ulong TracerStart,ulong WriterStart)
     {public bool GrantsProcessOrSignalAuthority=>false;}
 
@@ -868,6 +876,8 @@ public static class NativeAotSqliteContract
                             Need(region.Start<=long.MaxValue-region.Length,"storage_lock");
                         }
                         break;
+                    case "flock":
+                        Need(args.Length==2 && returned==0 && args[1] is "LOCK_SH|LOCK_NB" or "LOCK_UN","storage_flock");flags=args[1];break;
                     case "fsync":case "fdatasync":Need(args.Length==1,"storage_sync");break;
                     case "fstat":Need(args.Length==2,"storage_metadata");break;
                     case "fchown":Need(args.Length==3,"storage_metadata");Number(args[1]);Number(args[2]);break;
@@ -914,28 +924,95 @@ public static class NativeAotSqliteContract
     }
 
     /// <summary>Inspect copied storage before a separately proven SIGKILL. Keep
-    /// open lifetimes and unfinished pure runtime waits; never invent closes or
-    /// completed waits. Count database writes preceded by a journal-header
-    /// update, successful journal sync and parent sync. Empty next-segment
-    /// headers may legitimately follow a sync. This is not a per-page journal
-    /// or flush proof, original-process authority or recovery execution.</summary>
+    /// open writer lifetimes and unfinished pure runtime waits; never invent
+    /// closes or completed waits. Require the scoped read-only journal observer
+    /// to SH|NB lock, buffer-read4096 at0 (at least28 returned bytes), obtain
+    /// one to four matching fstats, unlock and close before the same writer's
+    /// complete SPILL stdout write. Metadata may precede or follow the read.
+    /// Match its first28 decoded bytes to that bounded marker; no full buffered
+    /// payload is proved. The observer grants no writer/parent sync credit.
+    /// Count protected DB writes, allowing empty next-segment headers after
+    /// sync. No per-page flush, original-process or recovery authority follows.</summary>
     public static RecoveryTrace InspectKilledRecoveryTraceValues(IReadOnlyDictionary<string,string> files,string databasePath)
     {
         var storage=InspectStorageTraceValuesCore(files,databasePath,killed:true);var events=storage.Events;
         var live=storage.Lifetimes.Where(l=>l.CloseLine is null).ToArray();
         Need(live.Count(l=>l.Kind=="database")==1 && live.Count(l=>l.Kind=="journal")==1 && live.Length==2,"recovery_trace_live_files");
+        Need(live.All(l=>l.OpenFlags.Split('|').Contains("O_RDWR",StringComparer.Ordinal) &&
+            !l.OpenFlags.Split('|').Any(f=>f is "O_RDONLY" or "O_WRONLY" or "O_TRUNC")),"recovery_trace_live_flags");
         var writes=events.Where(e=>e.Kind=="database" && e.Call.Syscall is "pwrite64" or "pwritev2" && e.Returned>0).ToArray();
-        var journalSyncs=events.Where(e=>e.Kind=="journal" && e.Call.Syscall=="fsync" && e.Returned==0).ToArray();
+        Need(writes.Length>0,"recovery_trace_no_spill");int lastWrite=writes.Max(e=>e.Call.Line);
+        var trace=InspectTraceValues(files,databasePath);
+        var markers=trace.Calls.Where(c=>c.Arguments.Contains("SQLITE_RECOVERY_SPILL",StringComparison.Ordinal)).ToArray();
+        Need(markers.Length==1 && markers[0].Source==storage.Source && markers[0].Syscall=="write","recovery_trace_spill_marker");var spill=markers[0];
+        var marker=Regex.Match(spill.Arguments,@"^1<pipe:\[\d+\]>, ""(SQLITE_RECOVERY_SPILL rows=64 journalBytes=([1-9]\d{0,6}) headerBase64=([A-Za-z0-9+/]{38}==))\\n"", ([1-9]\d{0,2})$",RegexOptions.CultureInvariant);
+        Need(marker.Success && int.TryParse(marker.Groups[4].Value,NumberStyles.None,CultureInfo.InvariantCulture,out int markerBytes) &&
+            markerBytes==marker.Groups[1].Value.Length+1 && spill.Result==marker.Groups[4].Value && spill.Line>lastWrite,"recovery_trace_spill_marker");
+        long journalBytes=long.Parse(marker.Groups[2].Value,CultureInfo.InvariantCulture);string encoded=marker.Groups[3].Value;
+        byte[] header=new byte[28];Need(journalBytes is >512 and <=8*1024*1024 && Convert.TryFromBase64String(encoded,header,out int headerBytes) &&
+            headerBytes==28 && Convert.ToBase64String(header)==encoded && header.AsSpan(0,8).SequenceEqual(new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}),"recovery_trace_spill_header");
+        var observers=storage.Lifetimes.Where(l=>l.Kind=="journal" && l.OpenLine>lastWrite && l.OpenFlags.Split('|').Contains("O_RDONLY",StringComparer.Ordinal)).ToArray();
+        Need(observers.Length==1,"recovery_trace_observer");var observer=observers[0];string[] openFlags=observer.OpenFlags.Split('|');
+        Need(observer.Mode.Length==0 && openFlags.Length==4 && openFlags.Distinct(StringComparer.Ordinal).Count()==4 &&
+            openFlags.All(f=>f is "O_RDONLY" or "O_NOCTTY" or "O_LARGEFILE" or "O_CLOEXEC") &&
+            observer.CloseLine is not null && observer.CloseLine<spill.Line,"recovery_trace_observer_lifetime");
+        var own=events.Where(e=>e.LifetimeId==observer.Id).ToArray();
+        Need(own.All(e=>e.Returned>=0 && (e.Call.Syscall is "open" or "openat" or "close" or "fstat" or "pread64" or "flock" ||
+            e.Call.Syscall=="fcntl" && e.Flags=="F_SETFD" && e.Lock is null)) &&
+            own.Count(e=>e.Call.Syscall=="fcntl")<=1,"recovery_trace_observer_operation");
+        var locks=own.Where(e=>e.Call.Syscall=="flock").ToArray();var reads=own.Where(e=>e.Call.Syscall=="pread64").ToArray();
+        Need(locks.Length==2 && locks[0].Flags=="LOCK_SH|LOCK_NB" && locks[1].Flags=="LOCK_UN" && locks.All(e=>e.Returned==0 && e.Lock is null) &&
+            reads.Length==1 && reads[0].Count==4096 && reads[0].Offset==0 && reads[0].Returned is >=28 and <=4096 &&
+            locks[0].Call.Line<reads[0].Call.Line && reads[0].Call.Line<locks[1].Call.Line && locks[1].Call.Line<observer.CloseLine,"recovery_trace_observer_lock_read");
+        Need(RecoveryReadHeader(reads[0].Call).AsSpan().SequenceEqual(header),"recovery_trace_observer_header");
+        var metadata=own.Where(e=>e.Call.Syscall=="fstat").ToArray();Need(metadata.Length is >=1 and <=4,"recovery_trace_observer_metadata");
+        foreach(var stat in metadata)
+        {
+            var size=Regex.Match(stat.Call.Arguments,@", \{st_mode=S_IFREG\|0[0-7]{3}, st_size=([1-9]\d{0,6}), \.\.\.\}$",RegexOptions.CultureInvariant);
+            Need(stat.Returned==0 && size.Success && long.Parse(size.Groups[1].Value,CultureInfo.InvariantCulture)==journalBytes,"recovery_trace_observer_metadata");
+        }
+        Need(events.All(e=>e.Call.Line<spill.Line),"recovery_trace_after_spill");
+        int database=live.Single(l=>l.Kind=="database").Id;
+        var reserved=events.LastOrDefault(e=>e.LifetimeId==database && e.Call.Syscall=="fcntl" && e.Flags=="F_SETLK" && e.Returned==0 && e.Lock is not null &&
+            e.Lock.Start<=1073741825 && (e.Lock.Length==0 || 1073741825-e.Lock.Start<e.Lock.Length));
+        Need(reserved?.Lock?.Type=="F_WRLCK","recovery_trace_reserved_lock");
+        var journalSyncs=events.Where(e=>e.Kind=="journal" && e.LifetimeId!=observer.Id && e.Call.Syscall=="fsync" && e.Returned==0).ToArray();
         var parentSyncs=events.Where(e=>e.Kind=="directory" && e.Call.Syscall=="fsync" && e.Returned==0).ToArray();int protectedWrites=0;
         foreach(var write in writes)
         {
-            var journals=storage.Lifetimes.Where(l=>l.Kind=="journal" && l.OpenLine<write.Call.Line && (l.CloseLine is null || l.CloseLine>write.Call.Line)).ToArray();
+            var journals=storage.Lifetimes.Where(l=>l.Kind=="journal" && l.Id!=observer.Id && l.OpenLine<write.Call.Line && (l.CloseLine is null || l.CloseLine>write.Call.Line)).ToArray();
             Need(journals.Length==1 && write.Returned==write.Count,"recovery_trace_write");int id=journals[0].Id;
             var headers=events.Where(e=>e.LifetimeId==id && e.Count==12 && e.Returned==12 && e.Call.Line<write.Call.Line);
             Need(headers.Any(header=>journalSyncs.Any(e=>e.LifetimeId==id && e.Call.Line>header.Call.Line && e.Call.Line<write.Call.Line)) &&
                 parentSyncs.Any(e=>e.Call.Line>journals[0].OpenLine && e.Call.Line<write.Call.Line),"recovery_trace_sync_order");protectedWrites++;
         }
-        Need(writes.Length>0,"recovery_trace_no_spill");return new(storage,writes.Length,protectedWrites,journalSyncs.Length,parentSyncs.Length);
+        return new(storage,writes.Length,protectedWrites,journalSyncs.Length,parentSyncs.Length)
+            {ObserverLifetimeId=observer.Id,SpillLine=spill.Line,JournalBytes=journalBytes,SpillHeaderBase64=encoded};
+    }
+
+    // Decode only the copied28-byte prefix, not a general strace string or its
+    // omitted payload. Octal escapes are one to three digits as emitted by -s.
+    private static byte[] RecoveryReadHeader(TraceCall call)
+    {
+        int at=call.Arguments.IndexOf(", \"",StringComparison.Ordinal);Need(at>=0,"recovery_trace_observer_header");at+=3;byte[] header=new byte[28];
+        for(int i=0;i<header.Length;i++)
+        {
+            Need(at<call.Arguments.Length,"recovery_trace_observer_header");char value=call.Arguments[at++];int decoded=value;
+            Need(value!='"' && value is >= ' ' and <= '~',"recovery_trace_observer_header");
+            if(value=='\\')
+            {
+                Need(at<call.Arguments.Length,"recovery_trace_observer_header");value=call.Arguments[at++];
+                if(value is >= '0' and <= '7')
+                {
+                    decoded=value-'0';int digits=1;
+                    while(digits<3 && at<call.Arguments.Length && call.Arguments[at] is >= '0' and <= '7')
+                    {decoded=decoded*8+call.Arguments[at++]-'0';digits++;}
+                }
+                else decoded=value switch {'\\'=>92,'"'=>34,'a'=>7,'b'=>8,'f'=>12,'n'=>10,'r'=>13,'t'=>9,'v'=>11,_=>-1};
+            }
+            Need(decoded is >=0 and <=255,"recovery_trace_observer_header");header[i]=(byte)decoded;
+        }
+        return header;
     }
 
     /// <summary>Own a fresh artifacts directory and serialized managed restore,

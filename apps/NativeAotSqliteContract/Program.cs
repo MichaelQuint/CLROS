@@ -137,10 +137,15 @@ internal static class Program
                     if(mode=="seed")transaction.Commit();
                     else
                     {
-                        using var journal=new FileStream(database+"-journal",FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
-                        byte[] header=new byte[28];journal.ReadExactly(header);
-                        Require(journal.Length is >512 and <=8*1024*1024 && header.AsSpan(0,8).SequenceEqual(new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}),"recovery_spill_header");
-                        Console.WriteLine("SQLITE_RECOVERY_SPILL rows=64 journalBytes="+journal.Length+" headerBase64="+Convert.ToBase64String(header));
+                        byte[] header=new byte[28];long journalLength;
+                        using(var journal=new FileStream(database+"-journal",FileMode.Open,FileAccess.Read,FileShare.ReadWrite))
+                        {
+                            journal.ReadExactly(header);journalLength=journal.Length;
+                            Require(journalLength is >512 and <=8*1024*1024 && header.AsSpan(0,8).SequenceEqual(new byte[]{0xd9,0xd5,5,0xf9,0x20,0xa1,0x63,0xd7}),"recovery_spill_header");
+                        }
+                        // Close only the observer before readiness. The SQLite
+                        // command/transaction/connection remain uncommitted/live.
+                        Console.WriteLine("SQLITE_RECOVERY_SPILL rows=64 journalBytes="+journalLength+" headerBase64="+Convert.ToBase64String(header));
                         Console.Out.Flush();Thread.Sleep(TimeSpan.FromSeconds(60));throw new InvalidOperationException("recovery_owned_kill_required");
                     }
                 }

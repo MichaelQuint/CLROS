@@ -5,7 +5,7 @@ using OS.Tooling;
 
 internal static class NativeAotDiskTimingPeerTests
 {
-    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 postReadinessNs=300 postWaitRecordNs=500 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0\r\n";
+    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 postReadinessNs=300 readinessRefreshNs=100 readinessWaitScanNs=200 postWaitRecordNs=500 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0\r\n";
 
     [HostTest("timing aggregate rejects duplicates overflow missing and nonexclusive yield reasons")]
     private static void Aggregate()
@@ -40,13 +40,40 @@ internal static class NativeAotDiskTimingPeerTests
             ("18446744073709551615","18446744073709551614","1"),("18446744073709551615","0","18446744073709551615")})
         {
             string row=Metrics.Replace("postNetworkNs=800","postNetworkNs="+parts.Parent)
-                .Replace("postReadinessNs=300","postReadinessNs="+parts.Ready).Replace("postWaitRecordNs=500","postWaitRecordNs="+parts.Wait);
+                .Replace("postReadinessNs=300","postReadinessNs="+parts.Ready).Replace("postWaitRecordNs=500","postWaitRecordNs="+parts.Wait)
+                .Replace("readinessRefreshNs=100","readinessRefreshNs="+parts.Ready).Replace("readinessWaitScanNs=200","readinessWaitScanNs=0");
             var values=NativeAotDiskTimingPeer.InspectMetrics(row);
             HostCheck.Equal(values["postNetworkNs"],values["postReadinessNs"]+values["postWaitRecordNs"]);
         }
-        string oldV2=Metrics.Replace("postReadinessNs=300 postWaitRecordNs=500 ","").Replace("flushedPastBudget=0","flushedPastBudget=0 replenished=0 replenishBudgetSkips=0");
-        bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(oldV2);}catch(ToolFailure){rejected=true;}
-        HostCheck.True(rejected,"original v2 is a distinct retained producer, not a v3 partition");
+        string oldV3=Metrics.Replace("readinessRefreshNs=100 readinessWaitScanNs=200 ","");
+        string oldV2=oldV3.Replace("postReadinessNs=300 postWaitRecordNs=500 ","")
+            .Replace("flushedPastBudget=0","flushedPastBudget=0 replenished=0 replenishBudgetSkips=0");
+        foreach(string original in new[]{oldV3,oldV2})
+        {
+            bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(original);}catch(ToolFailure){rejected=true;}
+            HostCheck.True(rejected,"original v2/v3 producers remain distinct from the v4 partition");
+        }
+    }
+
+    [HostTest("timing readiness children conserve parent and reject missing duplicated regressed and overflowing durations")]
+    private static void ReadinessPartition()
+    {
+        foreach(var parts in new (string Refresh,string Scan)[]{("0","300"),("300","0"),("100","200")})
+        {
+            string row=Metrics.Replace("readinessRefreshNs=100","readinessRefreshNs="+parts.Refresh)
+                .Replace("readinessWaitScanNs=200","readinessWaitScanNs="+parts.Scan);
+            var values=NativeAotDiskTimingPeer.InspectMetrics(row);
+            HostCheck.Equal(values["postReadinessNs"],values["readinessRefreshNs"]+values["readinessWaitScanNs"]);
+        }
+        foreach(string bad in new[]{Metrics.Replace("readinessRefreshNs=100","readinessRefreshNs=99"),
+            Metrics.Replace("readinessWaitScanNs=200","readinessWaitScanNs=201"),Metrics.Replace(" readinessRefreshNs=100",""),
+            Metrics.Replace("readinessWaitScanNs=200","readinessWaitScanNs=-1"),
+            Metrics.Replace("readinessRefreshNs=100","readinessRefreshNs=100 readinessRefreshNs=100"),
+            Metrics.Replace("readinessRefreshNs=100","readinessRefreshNs=18446744073709551615").Replace("readinessWaitScanNs=200","readinessWaitScanNs=1")})
+        {
+            bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(bad);}catch(ToolFailure){rejected=true;}
+            HostCheck.True(rejected);
+        }
     }
 
     // Real loopback HTTP with synthetic runner/serial and independent image

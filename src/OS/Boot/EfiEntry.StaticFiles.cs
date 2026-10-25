@@ -314,7 +314,9 @@ public static unsafe partial class EfiEntry
                 disk->TimingPhase = 2;
                 var p = disk->TimingPump;
                 if (disk->TimingPostReadiness > ~0UL - disk->TimingPostWaitRecord ||
-                    disk->TimingPostReadiness + disk->TimingPostWaitRecord != disk->TimingPostNetwork) return false;
+                    disk->TimingPostReadiness + disk->TimingPostWaitRecord != disk->TimingPostNetwork ||
+                    disk->TimingReadinessRefresh > ~0UL - disk->TimingReadinessWaitScan ||
+                    disk->TimingReadinessRefresh + disk->TimingReadinessWaitScan != disk->TimingPostReadiness) return false;
                 return LinuxText(c->State, "M10_018_TIMING bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
                     LinuxText(c->State, " calls=") && LinuxNumber(c->State, p.Calls) &&
                     LinuxText(c->State, " steps=") && LinuxNumber(c->State, p.Steps) &&
@@ -324,6 +326,8 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " preNetworkNs=") && LinuxNumber(c->State, disk->TimingPreNetwork) &&
                     LinuxText(c->State, " postNetworkNs=") && LinuxNumber(c->State, disk->TimingPostNetwork) &&
                     LinuxText(c->State, " postReadinessNs=") && LinuxNumber(c->State, disk->TimingPostReadiness) &&
+                    LinuxText(c->State, " readinessRefreshNs=") && LinuxNumber(c->State, disk->TimingReadinessRefresh) &&
+                    LinuxText(c->State, " readinessWaitScanNs=") && LinuxNumber(c->State, disk->TimingReadinessWaitScan) &&
                     LinuxText(c->State, " postWaitRecordNs=") && LinuxNumber(c->State, disk->TimingPostWaitRecord) &&
                     LinuxText(c->State, " networkCalls=") && LinuxNumber(c->State, disk->TimingNetworkCalls) &&
                     LinuxText(c->State, " diskReady=") && LinuxNumber(c->State, p.DiskReady) &&
