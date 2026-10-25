@@ -242,7 +242,7 @@ public unsafe partial struct LinuxThreadServices
             case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 8: case 16: case 17:
             case 20: case 22: case 72: case 79: case 89: case 257: case 293:
 #if !NOSTDLIB_EFI || M16_027_PROBE
-            case 74: case 75: case 87: case 328:
+            case 73: case 74: case 75: case 87: case 328:
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             case 41: case 42: case 43: case 44: case 45: case 46: case 47: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:

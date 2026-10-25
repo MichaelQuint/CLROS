@@ -199,6 +199,30 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         finally { HostCheck.True(LinuxMemoryServices.DetachMutationGuard(memory.State, f.Thread.Service, &LinuxFutexTests.MemoryGuard)); }
     }
 
+    [HostTest("writable gateway routes nonblocking flock through the actual current worker without parking or cursor changes")]
+    private static void GatewayFlock()
+    {
+        using var f = new Fixture(); uint first = f.Open(), second = f.Open();
+        byte* scratch = stackalloc byte[64]; LinuxSyscallGateState gate = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+        {
+            UserRoot = 0x200000, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64,
+            FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true
+        }, f.Thread.GatewayAccess));
+        uint parked = f.Parked;
+        foreach (var item in new (uint Fd, uint Mode, long Value)[] { (first, 5, 0), (second, 6, -11), (first, 8, 0), (second, 6, 0), (first, 5, -11), (second, 12, 0) })
+        {
+            var image = f.Thread.CurrentImage(); var frame = image->Frame;
+            frame.Number = 73; frame.Argument0 = item.Fd; frame.Argument1 = item.Mode;
+            frame.Argument2 = frame.Argument3 = frame.Argument4 = frame.Argument5 = 0; image->Frame = frame;
+            ulong calls = gate.TotalCalls; var result = LinuxSyscallGateway.Dispatch(ref gate, ref frame);
+            HostCheck.Equal(LinuxSyscallAction.Return, result.Action); HostCheck.Equal(item.Value, result.Value);
+            HostCheck.True(gate.Status == LinuxSyscallGateStatus.Active && gate.TotalCalls == calls + 1 &&
+                !f.Thread.View(f.Main).Wait.IsValid && !f.Disk->RequestActive && !f.Provider->RequestActive);
+        }
+        HostCheck.Equal(parked, f.Parked); HostCheck.Equal(0L, f.Run(8, first, 0, 1)); HostCheck.Equal(0L, f.Run(8, second, 0, 1));
+    }
+
     [HostTest("writable gateway admits measured positioned write sync and unlink through genuine source5 blocked completions")]
     private static void GatewayCalls()
     {
