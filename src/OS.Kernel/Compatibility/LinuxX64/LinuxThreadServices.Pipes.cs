@@ -292,6 +292,20 @@ public unsafe partial struct LinuxThreadServices
     private bool DescriptorTreesOutsideProcess(LinuxDescriptorServices.State* d)
     {
         if (!ProcessRetainedShape(d, out uint kernelCount)) return false;
+        if (d->Disk != null && d->WritableDisk != null)
+        {
+            uint count = 8 + kernelCount + 2 * _owner.Capacity;
+            if (count > LinuxDescriptorServices.MaximumThreadStorageRanges) return false;
+            Span<ulong> ranges = stackalloc ulong[(int)(count * 2)];
+            for (uint i = 0; i < count; i++)
+            {
+                if (!ProcessExtentAt(i, kernelCount, out ulong start, out ulong bytes)) return false;
+                ranges[(int)(i * 2)] = start; ranges[(int)(i * 2 + 1)] = bytes;
+            }
+            // No user validation, callback or publication occurs in this batch.
+            // Its Boolean result expires here, before any outer operation.
+            return LinuxDescriptorServices.PairedThreadStorageOutside(d, ranges);
+        }
         for (uint i = 0; i < 8 + kernelCount + 2 * _owner.Capacity; i++)
             if (!ProcessExtentAt(i, kernelCount, out ulong start, out ulong bytes) ||
                 bytes != 0 && !DescriptorTreesOutsideRange(d, start, bytes)) return false;

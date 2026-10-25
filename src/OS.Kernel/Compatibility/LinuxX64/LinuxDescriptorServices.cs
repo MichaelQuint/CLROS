@@ -908,6 +908,14 @@ public static unsafe partial class LinuxDescriptorServices
         if (!Extent(state, (ulong)sizeof(State)) || !Extent((void*)address, bytes)) return false;
         if (state->Sockets == null) return state->Epoll == null;
         if (!TransportShape(state)) return false;
+        return TransportOutsideRange(state, address, bytes);
+    }
+
+    // The caller authenticated TransportShape in this same synchronous query.
+    // No callback, mutation, polling or lifetime handoff may intervene.
+    private static bool TransportOutsideRange(State* state, ulong address, ulong bytes)
+    {
+        if (state->Sockets == null) return state->Epoll == null;
         for (uint i = 0; i < TransportExtentCount; i++)
         {
             TransportExtentAt(state, i, out ulong start, out ulong count);

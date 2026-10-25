@@ -631,6 +631,42 @@ public static unsafe partial class LinuxDescriptorServices
         return DiskCanRetainStorage(state, address, bytes);
     }
 
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    internal const uint MaximumThreadStorageRanges = 8 + 9 +
+        2 * OS.Kernel.Threading.KernelThreadTable.MaximumSlots + 2 * LinuxThreadServices.MaximumThreads;
+
+    /// <summary>Check a bounded, flat start/byte-count inventory against the
+    /// original paired read/write descriptor tree. The original serialized
+    /// supervisor keeps all backing and this input mapped through return.
+    /// Whole-tree admission runs once; each nonempty range still enters the
+    /// existing provider and filesystem backend queries and every exclusion.
+    /// Empty extents are skipped as in process inventory. Invalid/stale pairs
+    /// fail closed. No callback, mutation, allocation, I/O, output, retained
+    /// input or escaping validation token is introduced; no later authority
+    /// follows. Other attachment/retirement combinations use their old path.</summary>
+    internal static bool PairedThreadStorageOutside(State* state, ReadOnlySpan<ulong> ranges)
+    {
+        if (ranges.Length == 0 || (ranges.Length & 1) != 0 || ranges.Length > 2 * MaximumThreadStorageRanges ||
+            !DiskStorage(state, (ulong)sizeof(State)) || state->Initialized != 1 ||
+            state->Disk == null || state->WritableDisk == null || !AuditWritableDisk(state) || !AuditDiskPair(state)) return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (state->Sockets == null ? state->Epoll != null : !TransportShape(state)) return false;
+#endif
+        DiskState* d = state->Disk;
+        for (int i = 0; i < ranges.Length; i += 2)
+        {
+            ulong start = ranges[i], bytes = ranges[i + 1];
+            if (bytes == 0) continue;
+            if (!DiskStorage((void*)start, bytes, 1) || !WritableBaseOutside(state, start, bytes) ||
+                !PairedDiskExternal(state, start, bytes) || !Fs.CanRetainStorage(d->Mount, d->Epoch, start, bytes)) return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            if (!TransportOutsideRange(state, start, bytes)) return false;
+#endif
+        }
+        return true;
+    }
+#endif
+
     private static bool DiskAttachmentOutside(State* state, Fs.Mount* mount, void* pointer, ulong bytes)
     {
 #if !NOSTDLIB_EFI || M16_027_PROBE
