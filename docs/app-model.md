@@ -1,6 +1,30 @@
 # App Model
 
-[Step1618](../done/step1618.md) repairs two writable admission mismatches: the retained descriptor cap now admits the selected70-page arena, and both canonical30/40 packages explicitly request32 descriptors while legacy defaults remain16. Failed originals before EBS and descriptor initialization stay failed. The exact304-site audit and source-bound native delta retain conditional stack/mapping limits; nine source/inventory,19 package,17 selection/transcript and26 source5 framing Fast checks support their named scopes. A copied pinned BCL Write/Verify package contract passes12 Fast checks; instruction-index and execution authority remain false. Original Mechanical30 r04 reaches the mount and worker setup but times out before user-call evidence; it remains failed. Complete Blazor/browser, actual BCL persistence, SQLite durability and continuous service still require full acceptance.
+## Prepared BCL log/upload instruction lookup
+
+The ordinary FileStream candidate has a separate, host-only prepared lookup:
+
+```powershell
+dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll nativeaot log-upload program <package> <llvm-disassembly> --write
+dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll nativeaot log-upload program <package> <llvm-disassembly> --verify
+```
+
+NativeAotLogUploadProgram.Read requires the exact B8E4 ELF and canonical phase
+package, nine reviewed producer/app source identities and current app inventory.
+It holds distinct bounded plain single-link package/disassembly files through
+snapshot validation, then returns only an immutable phase and instruction
+lookup. The disassembly limit is20MiB. All265,797 instruction starts,170 syscall
+continuations and entry0x408f77 must match the reviewed domain digest
+EBE1F9D31153BE28AAED85DE7DFDDBA6E6BEBD2BDA472AE0901E5AB14727A04F.
+Partial/synthetic Inspect reports cannot construct a prepared program.
+
+The CLI prints `grants_execution=false`. These preparation holds end on return;
+an eventual original runner must retain its own exact inputs. The four-load/TLS,
+16-thread/exit0 BCL startup and complete writable guest consumer remain separate
+work. Existing Mechanical30/LogUpload40 two-load/exit42 contracts remain scoped.
+Preparation does not establish file writes, reboot persistence or durability.
+
+[Step1619](../done/step1619.md) removes repeated borrowed disk checks within one socket candidate query and introduces a bounded paired process-range query, retaining every backend/overlap check and the legacy attachment paths. Scoped emitted socket evidence finds no ABI/frame growth; scoped paired scratch review covers only the current25 ranges; fresh guest qualification and broader bounds remain open. The pinned B8E4 BCL Write/Verify host instruction lookup passes nine integrated Fast controls and eight direct CLI controls, with execution authority false. Original r05/r06 remain failed before worker evidence; r08 reaches its first source5 file-open wait at26.885s and44 reads, then times out180s before request completion or writes/flush. The six earlier HPET spans retain their diagnostic scope; no speedup or guest acceptance is inferred from timestamps alone. Temporary diagnostics are reverted; all failures and exact originals remain retained. Complete Blazor/browser, BCL guest writes/reboot persistence, SQLite durability and continuous service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.

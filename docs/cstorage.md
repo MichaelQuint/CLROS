@@ -1,6 +1,28 @@
 # Storage
 
-[Step1618](../done/step1618.md) repairs two writable admission mismatches: the retained descriptor cap now admits the selected70-page arena, and both canonical30/40 packages explicitly request32 descriptors while legacy defaults remain16. Failed originals before EBS and descriptor initialization stay failed. The exact304-site audit and source-bound native delta retain conditional stack/mapping limits; nine source/inventory,19 package,17 selection/transcript and26 source5 framing Fast checks support their named scopes. A copied pinned BCL Write/Verify package contract passes12 Fast checks; instruction-index and execution authority remain false. Original Mechanical30 r04 reaches the mount and worker setup but times out before user-call evidence; it remains failed. Complete Blazor/browser, actual BCL persistence, SQLite durability and continuous service still require full acceptance.
+## Paired process storage queries
+
+The paired read/write branch collects the actual retained process ranges and
+checks them within one synchronous Boolean query. AuditWritableDisk,
+AuditDiskPair and the transport shape run once for that traversal. Every
+nonempty range still checks descriptor/package/user backing, both attachment
+inventories, the existing writable-provider and filesystem backend queries, and
+all socket/epoll/network ranges. Zero-byte inventory entries retain their
+original skip behavior; malformed bounds and stale/invalid pairs fail closed.
+
+The serialized supervisor keeps all backing mapped through return. No callback,
+mutation, I/O, allocation or validation token escapes; a later call revalidates.
+Other attachment combinations, public single-range queries and scrubbed retired
+read-only cleanup retain their checked paths. Capacity bounds permit177 pairs
+and2,832 stack bytes; the current two-worker fixture uses25 pairs/400 bytes.
+Scoped emitted stack review covers the current two-worker/25-range fixture;
+larger-capacity and global bounds remain open. Development source, focused
+checks and native publication do not establish a passing writable guest.
+
+The separate BCL preparation command and its no-execution boundary are described
+in [the application model](app-model.md#prepared-bcl-logupload-instruction-lookup).
+
+[Step1619](../done/step1619.md) removes repeated borrowed disk checks within one socket candidate query and introduces a bounded paired process-range query, retaining every backend/overlap check and the legacy attachment paths. Scoped emitted socket evidence finds no ABI/frame growth; scoped paired scratch review covers only the current25 ranges; fresh guest qualification and broader bounds remain open. The pinned B8E4 BCL Write/Verify host instruction lookup passes nine integrated Fast controls and eight direct CLI controls, with execution authority false. Original r05/r06 remain failed before worker evidence; r08 reaches its first source5 file-open wait at26.885s and44 reads, then times out180s before request completion or writes/flush. The six earlier HPET spans retain their diagnostic scope; no speedup or guest acceptance is inferred from timestamps alone. Temporary diagnostics are reverted; all failures and exact originals remain retained. Complete Blazor/browser, BCL guest writes/reboot persistence, SQLite durability and continuous service remain open.
 
 
 ## Writable final clock and audit continuation (step1617)
@@ -218,7 +240,7 @@ including request generations, instead of inferring FIFO wake order from late
 completion. The first018 compile passed but native verification failed before
 boot; the repaired native policy and producer still need original qualification.
 
-## Current development batch (2026-10-24)
+## Read milestone development history (2026-10-24)
 
 [Step1573](../done/step1573.md) refreshes018's authenticated original cursor
 immediately before deferred completion, after older cursor owners commit.
