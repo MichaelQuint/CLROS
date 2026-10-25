@@ -215,6 +215,22 @@ internal static unsafe class M16008EfiIntegrationTests
             HostCheck.Equal(ledgerCapacity,5UL+(ulong)seal.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(n=>n.Expression.ToString()=="LinuxReservation"));
         }
 
+        foreach (string leaf in new[] { "EnableM16027Probe", "EnableM10018Probe" })
+        {
+            var selected = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [leaf] = true });
+            symbols = selected.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key])
+                .Append("NOSTDLIB_EFI").ToArray();
+            var selectedPrepare = Parse("src/OS/Boot/EfiEntry.LinuxThreads.cs").DescendantNodes()
+                .OfType<MethodDeclarationSyntax>().Single(n => n.Identifier.Text == "LinuxNativePrepare");
+            var limit = selectedPrepare.DescendantNodes().OfType<BinaryExpressionSyntax>().Single(n =>
+                n.Left.ToString() == "(uint)sizeof(LinuxNativeControl)" && n.OperatorToken.Text == ">");
+            HostCheck.Equal(leaf == "EnableM16027Probe" ? "NativeProgram.WritableControlMaximumBytes" : "8192",
+                limit.Right.ToString());
+            HostCheck.Equal(1, selectedPrepare.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(n =>
+                n.Expression.ToString() == "LinuxNativeTake" &&
+                n.ArgumentList.Arguments[2].Expression.ToString() == "(uint)sizeof(LinuxNativeControl)"));
+        }
+
         Microsoft.CodeAnalysis.SyntaxNode Parse(string path)
         {
             var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root, path)), new CSharpParseOptions(preprocessorSymbols: symbols));

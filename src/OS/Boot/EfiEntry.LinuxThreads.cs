@@ -136,7 +136,11 @@ public static unsafe partial class EfiEntry
             if (!CooperativeAuthority(state) || state->CooperativePhase != 0 || state->LinuxSyscallPhase != 4 || state->LinuxMemoryPhase != 4 ||
                 state->LinuxDescriptorPhase != 4 || state->ApicPhase != 2 ||
                 state->LinuxView.Manifest.Threads == 0 || state->LinuxView.Manifest.Threads > LinuxNativeWorkers ||
+#if M16_027_PROBE
+                (uint)sizeof(LinuxNativeControl) > NativeProgram.WritableControlMaximumBytes ||
+#else
                 (uint)sizeof(LinuxNativeControl) > 8192 ||
+#endif
                 !CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return false;
             state->CooperativePhase = 1; // One lifetime/key per boot, including failed preparation.
             ulong pool = state->CooperativePool, cursor = pool + NativeProgram.MetadataPage * Page, end = pool + NativeProgram.SwitchGuardPage * Page;

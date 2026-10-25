@@ -37930,7 +37930,8 @@
         "tests/OS.HostTests/LinuxStartupServicesTests.cs",
         "tests/OS.HostTests/LinuxSyscallGatewayTests.cs",
         "tests/OS.HostTests/LinuxThreadProgramTests.cs",
-        "tests/OS.HostTests/X64FrameUnwindTests.cs"
+        "tests/OS.HostTests/X64FrameUnwindTests.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadProgram.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

@@ -26,6 +26,11 @@ public static unsafe class LinuxThreadProgram
     // four-page IRQ stack and private IDT. The owner publishes/restores leaves;
     // these offsets alone grant no mappings, executable authority or lifetime.
     public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 28;
+    /// <summary>Control ceiling for the selected writable mechanical profile,
+    /// checked against its actual native sizeof before metadata publication.
+    /// The reviewed control is 2448 bytes; this ceiling grants no mappings or
+    /// fit for web/static profiles and does not replace allocator end checks.</summary>
+    public const uint WritableControlMaximumBytes = 2560;
     public const uint SwitchGuardPage = MetadataPage + MetadataPages, SwitchPages = 18;
     public const uint WorkerPage = SwitchGuardPage + SwitchPages;
     /// <summary>Bounded signal/runtime callback extent including both unmapped
