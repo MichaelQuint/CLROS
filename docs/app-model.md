@@ -1,5 +1,34 @@
 # App Model
 
+## Prepared SQLite package and instruction lookup
+
+The fixed successful Linux recovery-r03 SQLite ELF has a separate canonical
+CLROS package policy and host instruction lookup. The exact modes are
+`database`, `verify-database`, `recovery-seed`, `recovery-spill` and
+`recovery-verify`. The first two receive `/data/contract.db`; recovery modes
+receive `/data/recovery.db`. These are file arguments, with the seed file absent
+before creation. A present empty `SQLITE.DB` fixture is not a substitute.
+
+```powershell
+dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll nativeaot sqlite program <package> <llvm-disassembly> --database
+```
+
+The command accepts each exact mode with its `--` prefix. The policy fixes the
+9,049,216-byte876D ELF, four PT_LOAD segments and TLS. Its64MiB memory,
+1.5MiB stack,16 threads and32 descriptors are selected limits, explicitly
+unmeasured in CLROS. The lookup admits761,857 instruction starts and193 syscall
+continuations, entry0x4092b7 and domain digest
+`4E0AF370EC915FFFC23F88FABE140402A2AFF599835026DDE272C1180C3A44B0`.
+Executable sections cover2,633,509 bytes;75 load-padding bytes have no starts.
+
+Read holds distinct bounded plain single-link package/disassembly inputs;
+ten reviewed producer/app source identities and the current app inventory are
+checked while held. This is a scoped source policy, not the complete compiler,
+native package or kernel closure. Holds end before return. Partial/synthetic
+Inspect reports cannot construct a prepared lookup. The CLI reports
+`grants_execution=false`; guest startup, qualified locking/synchronization,
+rollback-journal transactions and recovery remain separate acceptance work.
+
 ## Prepared BCL log/upload instruction lookup
 
 The ordinary FileStream candidate has a separate, host-only prepared lookup:
@@ -24,7 +53,7 @@ an eventual original runner must retain its own exact inputs. The four-load/TLS,
 work. Existing Mechanical30/LogUpload40 two-load/exit42 contracts remain scoped.
 Preparation does not establish file writes, reboot persistence or durability.
 
-[Step1619](../done/step1619.md) removes repeated borrowed disk checks within one socket candidate query and introduces a bounded paired process-range query, retaining every backend/overlap check and the legacy attachment paths. Scoped emitted socket evidence finds no ABI/frame growth; scoped paired scratch review covers only the current25 ranges; fresh guest qualification and broader bounds remain open. The pinned B8E4 BCL Write/Verify host instruction lookup passes nine integrated Fast controls and eight direct CLI controls, with execution authority false. Original r05/r06 remain failed before worker evidence; r08 reaches its first source5 file-open wait at26.885s and44 reads, then times out180s before request completion or writes/flush. The six earlier HPET spans retain their diagnostic scope; no speedup or guest acceptance is inferred from timestamps alone. Temporary diagnostics are reverted; all failures and exact originals remain retained. Complete Blazor/browser, BCL guest writes/reboot persistence, SQLite durability and continuous service remain open.
+[Step1620](../done/step1620.md) batches borrowed filesystem retention across the same process-range inventory, preserving every candidate port/local exclusion and legacy scalar path. All16 integrated FS controls and the real paired dirty-write/orphan control pass. Scoped emitted review authenticates13 bodies; the current25-range conditional stack estimate is30805/32768 bytes, with broader bounds open. Retained-DATA image preparation passes11 frozen Fast controls and SQLite package/index preparation passes53; both grant no execution or persistence. Original r09 remains FAILED180s/exit4:44 reads complete and read45 is submitted at176.394s during the absent create-target directory scan, without request completion, OUT/FLUSH or normal cleanup. The one-entry-per-pump scan is the next bounded expert-reviewed problem. All failed originals, including the documentation-input-invalidated host run, remain retained. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.

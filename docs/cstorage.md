@@ -6,8 +6,12 @@ The paired read/write branch collects the actual retained process ranges and
 checks them within one synchronous Boolean query. AuditWritableDisk,
 AuditDiskPair and the transport shape run once for that traversal. Every
 nonempty range still checks descriptor/package/user backing, both attachment
-inventories, the existing writable-provider and filesystem backend queries, and
-all socket/epoll/network ranges. Zero-byte inventory entries retain their
+inventories, the existing writable-provider backend query and all
+socket/epoll/network ranges. One borrowed filesystem range query checks the
+same candidates after that loop: authenticate the retained FS/backend tree
+once, then retain every candidate port query and populated local extent
+exclusion. This is a synchronous Boolean result with no later authority.
+Zero-byte inventory entries retain their
 original skip behavior; malformed bounds and stale/invalid pairs fail closed.
 
 The serialized supervisor keeps all backing mapped through return. No callback,
@@ -19,10 +23,19 @@ Scoped emitted stack review covers the current two-worker/25-range fixture;
 larger-capacity and global bounds remain open. Development source, focused
 checks and native publication do not establish a passing writable guest.
 
+The borrowed FS batch accepts1..177 flat start/byte-count pairs and rejects
+odd, empty or oversized inventories, stale/retired mounts and missing ports.
+Even all-zero candidates require the original retained tree. Mount input epoch
+and port binding epoch remain distinct. Its private non-inlined scratch helper
+runs after shared admission returns; emitted frame and call/tail accounting
+must establish the actual stack lifetime. Scalar/direct-device FS APIs retain
+their original guards. Dirty, cancelled, stopped or held backing can remain
+structurally retained; that result grants no new I/O, user copy or release.
+
 The separate BCL preparation command and its no-execution boundary are described
 in [the application model](app-model.md#prepared-bcl-logupload-instruction-lookup).
 
-[Step1619](../done/step1619.md) removes repeated borrowed disk checks within one socket candidate query and introduces a bounded paired process-range query, retaining every backend/overlap check and the legacy attachment paths. Scoped emitted socket evidence finds no ABI/frame growth; scoped paired scratch review covers only the current25 ranges; fresh guest qualification and broader bounds remain open. The pinned B8E4 BCL Write/Verify host instruction lookup passes nine integrated Fast controls and eight direct CLI controls, with execution authority false. Original r05/r06 remain failed before worker evidence; r08 reaches its first source5 file-open wait at26.885s and44 reads, then times out180s before request completion or writes/flush. The six earlier HPET spans retain their diagnostic scope; no speedup or guest acceptance is inferred from timestamps alone. Temporary diagnostics are reverted; all failures and exact originals remain retained. Complete Blazor/browser, BCL guest writes/reboot persistence, SQLite durability and continuous service remain open.
+[Step1620](../done/step1620.md) batches borrowed filesystem retention across the same process-range inventory, preserving every candidate port/local exclusion and legacy scalar path. All16 integrated FS controls and the real paired dirty-write/orphan control pass. Scoped emitted review authenticates13 bodies; the current25-range conditional stack estimate is30805/32768 bytes, with broader bounds open. Retained-DATA image preparation passes11 frozen Fast controls and SQLite package/index preparation passes53; both grant no execution or persistence. Original r09 remains FAILED180s/exit4:44 reads complete and read45 is submitted at176.394s during the absent create-target directory scan, without request completion, OUT/FLUSH or normal cleanup. The one-entry-per-pump scan is the next bounded expert-reviewed problem. All failed originals, including the documentation-input-invalidated host run, remain retained. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
 
 
 ## Writable final clock and audit continuation (step1617)
