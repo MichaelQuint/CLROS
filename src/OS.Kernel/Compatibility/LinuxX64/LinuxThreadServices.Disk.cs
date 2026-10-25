@@ -62,7 +62,7 @@ public unsafe partial struct LinuxThreadServices
                 ready = true;
             }
             if (quantum && access.Flush(access.Context) != 1) return false;
-            if (ready || !progress.Advanced) break;
+            if (ready || _owner.Threads->ReadyCount != 0 || !progress.Advanced) break;
         }
         return true;
     }

@@ -176,7 +176,7 @@ internal static unsafe class LinuxDiskThreadServicesTests
     {
         foreach (bool elapsed in new[] { false, true })
         {
-            using Owner o = new(); uint fd = o.Open(); var child = o.Thread.Clone(); o.Begin(17, fd, Output, 700); o.Park();
+            using Owner o = new(); uint fd = o.Open(); o.Begin(17, fd, Output, 700); o.Park();
             ulong submitted = o.Storage.Device->Submitted;
             PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted,
                 Increment = elapsed ? 5000000UL : 0 };
@@ -190,11 +190,10 @@ internal static unsafe class LinuxDiskThreadServicesTests
             HostCheck.True(!context.Bad && o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None);
             // Cancellation occurs at a real serialized invocation boundary;
             // callbacks never manufacture IRQ-off reentrancy.
-            HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value);
-            HostCheck.Equal(0L, o.Thread.DescriptorCall(3, fd).Value);
+            HostCheck.True(o.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, o.Thread.View(o.Main).Wait).Succeeded);
             new Span<byte>(o.Thread.At(Output), 700).Fill(0x69); o.Storage.Tick();
             HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
-            o.Ready(); o.Thread.Yield(child); HostCheck.Equal(-9L, o.Consume());
+            o.Ready(); HostCheck.Equal(-4L, o.Consume());
             HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 700).IndexOfAnyExcept((byte)0x69) < 0);
         }
     }
@@ -279,6 +278,28 @@ internal static unsafe class LinuxDiskThreadServicesTests
             previous = current; if (i == 0) o.Thread.Yield(current);
         }
         HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(firstOutput), 8192).SequenceEqual(new ReadOnlySpan<byte>(o.Thread.At(firstOutput + 8192), 8192)));
+    }
+
+    [HostTest("linux.disk-thread quantum yields after one step to a ready worker without a disk token")]
+    private static void QuantumRunnablePeer()
+    {
+        using Owner o = new(large: true); uint fd = o.Open(); var child = o.Thread.Clone();
+        o.Storage.CompleteOnPoll = true; o.Begin(17, fd, Output, 8192); o.Park();
+        HostCheck.Equal(1U, o.Thread.Kernel.Table->ReadyCount);
+        ulong submitted = o.Storage.Device->Submitted;
+        PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted };
+        var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush };
+        int outer = 0;
+        while (o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None && outer < 100)
+        {
+            uint before = context.Flushes;
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access)); outer++;
+            HostCheck.Equal(before + 1, context.Flushes);
+        }
+        HostCheck.Equal(32, outer); HostCheck.Equal(submitted + 16, o.Storage.Device->Copied);
+        HostCheck.True(!context.Bad);
+        HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value); o.Thread.Yield(child);
+        HostCheck.Equal(8192L, o.Consume());
     }
 
     [HostTest("linux.disk-thread gateway carries stat open lstat seek pread and openat through real waits")]

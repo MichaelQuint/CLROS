@@ -8,7 +8,7 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "7afae39875d66e04204b263367ce08700b134482360393af44d00660b79943bc",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "a398d35c7352bf3a1d2c70d2889d8830e5518491eee5ae024f6133569cdecc44",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "0154310cd3d0d8b294eba266fdfea37389eccf23bdbbc38a3ca2f5a0c363afba",
                 [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "bb09afc107d9405af85ef70520e36d566c1ea27fc38e8d2a7709deff48d6762b",
