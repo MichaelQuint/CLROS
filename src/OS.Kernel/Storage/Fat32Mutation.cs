@@ -16,26 +16,8 @@ namespace OS.Storage;
 /// identity; this leaf does not provide that persistence or claim atomic rename.
 /// Directory creation/move, overwrite-rename and general OEM case folding are
 /// unsupported. Existing directories are traversed from the admitted root.</summary>
-public static unsafe class Fat32Mutation
+public static unsafe partial class Fat32Mutation
 {
-    public const int SectorBytes = 512, MaximumChanges = 4096, MaximumClusters = 4096;
-    public const int ScratchClusters = MaximumClusters * 3, MaximumWriteBytes = 65536;
-    public const uint MaximumWork = 1000000;
-    public enum Status : byte
-    {
-        Uninitialized, Success, InvalidStorage, InvalidVolume, InvalidName, InvalidAlias,
-        CorruptDirectory, CorruptChain, MirrorMismatch, NotFound, AlreadyExists,
-        NotFile, ReadOnly, CapacityExceeded, TraversalBudgetExceeded, DiskFull,
-        StaleToken, Busy, Planned, Pending, Cancelled, RecoveryRequired,
-        BlockFailure, SnapshotChanged, GenerationExhausted, InvalidJournal
-    }
-    public enum Stage : byte { Data = 1, AllocateFat, PublishDirectory, RetireDirectory, ReleaseFat, FsInfo }
-
-    /// <summary>Copied write identity; Before/After sector bytes live at the same
-    /// index in the caller's two journal buffers. Repeated LBAs at different
-    /// stages are deliberate. Before always denotes the original snapshot.</summary>
-    public struct Change { public ulong Sector; public Stage Phase; }
-
     /// <summary>Copied local journal framing/integrity, not a durable-storage or
     /// native authority receipt. Retain the complete metadata and before/after
     /// buffers independently; this value alone cannot reconstruct a journal.</summary>
@@ -57,43 +39,6 @@ public static unsafe class Fat32Mutation
         public readonly uint FirstCluster, Length;
         internal FileToken(ulong owner, ulong epoch, ulong generation, ulong entry, uint first, uint length)
         { Owner = owner; Epoch = epoch; Generation = generation; EntryOffset = entry; FirstCluster = first; Length = length; }
-    }
-
-    /// <summary>Encode the existing CLROS VFAT 13-word layout/checksum into a
-    /// caller-owned run, descending long ordinals followed by the supplied short
-    /// entry. Supports1..255 UTF16 characters (at most21 entries), with exact
-    /// decoder validation. Output is unspecified on failure; entriesWritten is0.
-    /// No I/O, alias selection, allocation or normalization is performed.</summary>
-    public static Status EncodeEntryRun(ReadOnlySpan<char> name, ReadOnlySpan<byte> shortEntry,
-        Span<byte> destination, out int entriesWritten)
-    {
-        entriesWritten = 0;
-        if (!Name(name) || shortEntry.Length != 32 || shortEntry[11] == 15) return Status.InvalidName;
-        int slots = (name.Length + 12) / 13, entries = slots + 1;
-        if (destination.Length < entries * 32 || Overlaps(name, destination) || shortEntry.Overlaps(destination)) return Status.InvalidStorage;
-        byte checksum = 0;
-        for (int i = 0; i < 11; i++) checksum = unchecked((byte)((checksum >> 1) + ((checksum & 1) << 7) + shortEntry[i]));
-        for (int ordinal = slots; ordinal != 0; ordinal--)
-        {
-            Span<byte> entry = destination.Slice((slots - ordinal) * 32, 32); entry.Clear();
-            entry[0] = (byte)(ordinal | (ordinal == slots ? 0x40 : 0)); entry[11] = 15; entry[13] = checksum;
-            for (int i = 0; i < 13; i++)
-            {
-                int position = (ordinal - 1) * 13 + i;
-                ushort value = position < name.Length ? name[position] : position == name.Length ? (ushort)0 : ushort.MaxValue;
-                int offset = i < 5 ? 1 + i * 2 : i < 11 ? 14 + (i - 5) * 2 : 28 + (i - 11) * 2;
-                Put16(entry, offset, value);
-            }
-        }
-        shortEntry.CopyTo(destination.Slice(slots * 32, 32));
-        Span<ushort> words = stackalloc ushort[260]; LiveVfatState state = default;
-        for (int i = 0; i < entries; i++)
-        {
-            var result = Vfat.Consume(destination.Slice(i * 32, 32), ref state, words, out var parsed);
-            if (result != (i == slots ? LiveDirectoryStatus.Entry : LiveDirectoryStatus.LongName) ||
-                (i == slots && parsed.NameLength != name.Length)) return Status.InvalidAlias;
-        }
-        entriesWritten = entries; return Status.Success;
     }
 
     /// <summary>A caller-owned, noncopyable-by-contract planning/transaction
@@ -880,19 +825,6 @@ public static unsafe class Fat32Mutation
         private bool InputBytes(ReadOnlySpan<byte> bytes) => !bytes.Overlaps(image) && !bytes.Overlaps(before) && !bytes.Overlaps(after) && DataStorage(bytes);
     }
 
-    private static bool Name(ReadOnlySpan<char> name)
-    {
-        if (name.Length is < 1 or > 255 || name[^1] is '.' or ' ' || name.SequenceEqual(".") || name.SequenceEqual("..")) return false;
-        bool high = false;
-        for (int i = 0; i < name.Length; i++)
-        {
-            char c = name[i];
-            if (c < 32 || c is '\uffff' or '"' or '\\' or '/' or ':' or '|' or '<' or '>' or '*' or '?' ||
-                (high ? c is < '\udc00' or > '\udfff' : c is >= '\udc00' and <= '\udfff')) return false;
-            high = c is >= '\ud800' and <= '\udbff';
-        }
-        return !high;
-    }
     private static bool Alias(ReadOnlySpan<byte> alias)
     {
         Span<byte> entry = stackalloc byte[32]; entry.Clear(); alias.CopyTo(entry); entry[11] = 0x20;
@@ -918,11 +850,7 @@ public static unsafe class Fat32Mutation
     }
     private static ushort Get16(ReadOnlySpan<byte> bytes, int offset) { fixed (byte* p = bytes) return EndianPrimitives.ReadUInt16LittleEndian(p + offset); }
     private static uint Get32(ReadOnlySpan<byte> bytes, int offset) { fixed (byte* p = bytes) return EndianPrimitives.ReadUInt32LittleEndian(p + offset); }
-    private static void Put16(Span<byte> bytes, int offset, ushort value) => EndianPrimitives.WriteUInt16LittleEndian(bytes[offset..], value);
     private static void Put32(Span<byte> bytes, int offset, uint value) => EndianPrimitives.WriteUInt32LittleEndian(bytes[offset..], value);
-    private static bool Overlaps(ReadOnlySpan<char> a, Span<byte> b)
-    { fixed (char* x = a) fixed (byte* y = b) return Range((ulong)x, (ulong)a.Length * 2, (ulong)y, (ulong)b.Length); }
-    private static bool Range(ulong a, ulong bytes, ulong b, ulong other) => bytes != 0 && other != 0 && a < b + other && b < a + bytes;
     private static bool Ordinary(ulong start, ulong bytes) => start >= 4096 && start < 0x0000800000000000UL && bytes <= 0x0000800000000000UL - start;
     private static bool DeviceStorage(Block.State* device) => Ordinary((ulong)device, (ulong)sizeof(Block.State)) && ((ulong)device & 7) == 0 &&
         device->Self == (ulong)device && Ordinary((ulong)device->Input.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)) &&

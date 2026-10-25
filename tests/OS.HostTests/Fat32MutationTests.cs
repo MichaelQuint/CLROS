@@ -43,6 +43,90 @@ internal static unsafe class Fat32MutationTests
         HostCheck.True(good && GC.GetAllocatedBytesForCurrentThread() == allocation);
     }
 
+    [HostTest("fat32 mutation entry encoding preserves slot boundaries UTF16 words metadata and unused bytes")]
+    private static void EncodingBoundaries()
+    {
+        byte[] shortEntry = new byte[32]; Alias(1).CopyTo(shortEntry, 0); shortEntry[11] = 0x21;
+        Put16(shortEntry, 22, 0x4321); Put16(shortEntry, 24, 0x5678); Put16(shortEntry, 26, 2); Put32(shortEntry, 28, 17);
+        string[] names = ["x", new('a', 12), new('b', 13), new('c', 14), new('d', 26), new('e', 27), new('f', 255), new string('g', 12) + "\ud83d\ude00.dat"];
+        int[] longSlots = [1, 1, 1, 2, 2, 3, 20, 2];
+        int[] wordOffsets = [1, 3, 5, 7, 9, 14, 16, 18, 20, 22, 24, 28, 30];
+        byte[] output = new byte[704];
+        for (int n = 0; n < names.Length; n++)
+        {
+            Array.Fill(output, (byte)0xcc);
+            HostCheck.Equal(M.Status.Success, M.EncodeEntryRun(names[n], shortEntry, output.AsSpan(16, 672), out int count));
+            HostCheck.Equal(longSlots[n] + 1, count);
+            HostCheck.True(output.AsSpan(16 + longSlots[n] * 32, 32).SequenceEqual(shortEntry));
+            for (int i = 0; i < 16; i++) HostCheck.Equal((byte)0xcc, output[i]);
+            for (int i = 16 + count * 32; i < output.Length; i++) HostCheck.Equal((byte)0xcc, output[i]);
+            for (int physical = 0; physical < longSlots[n]; physical++)
+            {
+                int ordinal = longSlots[n] - physical, start = 16 + physical * 32;
+                HostCheck.Equal((byte)(ordinal | (physical == 0 ? 0x40 : 0)), output[start]);
+                HostCheck.Equal((byte)0x0f, output[start + 11]);
+                HostCheck.Equal((byte)0, output[start + 12]);
+                HostCheck.Equal((ushort)0, System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(start + 26)));
+                for (int word = 0; word < wordOffsets.Length; word++)
+                {
+                    int position = (ordinal - 1) * 13 + word;
+                    ushort expected = position < names[n].Length ? names[n][position] : position == names[n].Length ? (ushort)0 : ushort.MaxValue;
+                    HostCheck.Equal(expected, System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(output.AsSpan(start + wordOffsets[word])));
+                }
+            }
+        }
+    }
+
+    [HostTest("fat32 mutation entry encoding rejects full partial and trailing input aliases before writing")]
+    private static void EncodingAliases()
+    {
+        byte[] entry = new byte[32]; Alias(1).CopyTo(entry, 0); entry[11] = 0x20;
+        byte[] backing = new byte[256];
+        foreach (int offset in new[] { 0, 16, 32, 95, 96, 128 })
+        {
+            Array.Fill(backing, (byte)0xcc); entry.CopyTo(backing, offset);
+            byte[] before = (byte[])backing.Clone();
+            int destinationBytes = offset == 128 ? 160 : 64;
+            bool alias = offset is 16 or 32 or 95 or 128;
+            HostCheck.Equal(alias ? M.Status.InvalidStorage : M.Status.Success,
+                M.EncodeEntryRun("test", backing.AsSpan(offset, 32), backing.AsSpan(32, destinationBytes), out int count));
+            HostCheck.Equal(alias ? 0 : 2, count);
+            if (alias) HostCheck.True(backing.AsSpan().SequenceEqual(before));
+        }
+        foreach (int offset in new[] { 0, 24, 26, 32, 94, 96, 180 })
+        {
+            Array.Fill(backing, (byte)0xcc);
+            Span<char> name = MemoryMarshal.Cast<byte, char>(backing.AsSpan(offset, 8)); "test".AsSpan().CopyTo(name);
+            byte[] before = (byte[])backing.Clone();
+            int destinationBytes = offset == 180 ? 160 : 64;
+            bool alias = offset is 26 or 32 or 94 or 180;
+            HostCheck.Equal(alias ? M.Status.InvalidStorage : M.Status.Success,
+                M.EncodeEntryRun(name, entry, backing.AsSpan(32, destinationBytes), out int count));
+            HostCheck.Equal(alias ? 0 : 2, count);
+            if (alias) HostCheck.True(backing.AsSpan().SequenceEqual(before));
+        }
+    }
+
+    [HostTest("fat32 mutation entry encoding rejects traversal malformed UTF16 and invalid short framing")]
+    private static void EncodingInvalidInputs()
+    {
+        byte[] entry = new byte[32]; Alias(1).CopyTo(entry, 0); entry[11] = 0x20;
+        byte[] output = new byte[672]; Array.Fill(output, (byte)0x5a); byte[] before = (byte[])output.Clone();
+        foreach (string invalid in new[] { ".", "..", "a.", "a ", "\udc00", "a\ud800b", "\ud800\ud800", "\ud800\udc00\udc00", "\uffff", new('x', 256) })
+        {
+            HostCheck.Equal(M.Status.InvalidName, M.EncodeEntryRun(invalid, entry, output, out int count));
+            HostCheck.Equal(0, count); HostCheck.True(output.AsSpan().SequenceEqual(before));
+        }
+        HostCheck.Equal(M.Status.InvalidName, M.EncodeEntryRun("valid", entry.AsSpan(0, 31), output, out int shortCount));
+        HostCheck.Equal(0, shortCount); HostCheck.True(output.AsSpan().SequenceEqual(before));
+        entry[11] = 0x0f;
+        HostCheck.Equal(M.Status.InvalidName, M.EncodeEntryRun("valid", entry, output, out int lfnCount));
+        HostCheck.Equal(0, lfnCount); HostCheck.True(output.AsSpan().SequenceEqual(before));
+        entry[11] = 0x20; entry[0] = (byte)' ';
+        HostCheck.Equal(M.Status.InvalidAlias, M.EncodeEntryRun("valid", entry, output, out int invalidAliasCount));
+        HostCheck.Equal(0, invalidAliasCount);
+    }
+
     [HostTest("fat32 mutation create grow gap overwrite truncate regrow rename delete independently reopen")]
     private static void Lifecycle()
     {
