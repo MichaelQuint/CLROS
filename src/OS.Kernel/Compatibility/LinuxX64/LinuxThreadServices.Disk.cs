@@ -15,6 +15,7 @@ public unsafe partial struct LinuxThreadServices
     {
         public ulong Calls, Steps, PumpNanoseconds, ScanNanoseconds, FlushNanoseconds;
         public ulong DiskReady, OtherReady, NoAdvance, Elapsed, StepLimit, Failures, FlushedPastBudget;
+        public ulong Replenished, ReplenishBudgetSkips;
     }
 
     /// <summary>Trusted serialized supervisor callbacks, borrowed for this
@@ -35,7 +36,10 @@ public unsafe partial struct LinuxThreadServices
     /// orphan records, then inspect at most16 actual worker generations. Wake
     /// only its original live source4 wait. Optional trusted callbacks permit
     /// at most4 separate steps/5ms elapsed checks, flushing every step; no
-    /// progress, ready/cancelled/exiting work or budget expiry yields. A
+    /// progress, ready/cancelled/exiting work or budget expiry yields.
+    /// A sole pending data read may replenish once after its first copied
+    /// nonfinal sector, inside the original5ms, before yielding to a ready
+    /// peer. It never polls that new submission in the same invocation. A
     /// signal/deadline/cancel winner is never overwritten. This serialized
     /// IRQ-off pump never copies user bytes.</summary>
     public bool PollDiskReadiness(ulong key, ulong flags, DiskPumpAccess access = default)
@@ -49,6 +53,7 @@ public unsafe partial struct LinuxThreadServices
             measurements->DiskReady > measurements->Calls || measurements->OtherReady > measurements->Calls ||
             measurements->NoAdvance > measurements->Calls || measurements->Elapsed > measurements->Calls ||
             measurements->StepLimit > measurements->Calls || measurements->Failures > measurements->Calls ||
+            measurements->Replenished > measurements->Calls || measurements->ReplenishBudgetSkips > measurements->Calls ||
             measurements->FlushedPastBudget > measurements->Steps)) return false;
         if (quantum && (access.Context == null || access.Clock == null || access.Flush == null)) return false;
         if (measurements != null) measurements->Calls++;
@@ -57,16 +62,20 @@ public unsafe partial struct LinuxThreadServices
         { if (measurements != null) measurements->Failures++; return false; }
         // Four separate primitives, with an elapsed check before each extra
         // step. A primitive/flush can overshoot5ms; this is not an IRQ bound.
+        LinuxDescriptorServices.DiskToken replenish = default;
+        OS.Pal.OSHostHandle replenishWorker = default;
         for (uint step = 0; step < (quantum ? 4U : 1U); step++)
         {
             ulong phaseStarted = started;
             if (step != 0)
             {
+                if (replenish.IsActive && !CanReplenishDiskWait(flags, replenish, replenishWorker))
+                { if (measurements != null) measurements->OtherReady++; break; }
                 ulong now = 0;
                 if (access.Clock(access.Context, &now) != 1 || now < started)
                 { if (measurements != null) measurements->Failures++; return false; }
                 if (now - started >= 5000000UL)
-                { if (measurements != null) measurements->Elapsed++; break; }
+                { if (measurements != null) { measurements->Elapsed++; if (replenish.IsActive) measurements->ReplenishBudgetSkips++; } break; }
                 phaseStarted = now;
             }
             var progress = LinuxDescriptorServices.PumpDiskOne(_descriptors, _self);
@@ -107,11 +116,37 @@ public unsafe partial struct LinuxThreadServices
                 if (phaseStarted - started >= 5000000UL) measurements->FlushedPastBudget++;
             }
             if (ready) { if (measurements != null) measurements->DiskReady++; break; }
-            if (_owner.Threads->ReadyCount != 0) { if (measurements != null) measurements->OtherReady++; break; }
+            if (replenish.IsActive)
+            {
+                if (measurements != null) { if (progress.SubmittedRead) measurements->Replenished++; measurements->OtherReady++; }
+                break;
+            }
+            if (_owner.Threads->ReadyCount != 0)
+            {
+                if (step == 0 && quantum && progress.CopiedPendingRead && !_failed && !_stopping)
+                { replenish = progress.Token; replenishWorker = progress.Worker; continue; }
+                if (measurements != null) measurements->OtherReady++; break;
+            }
             if (!progress.Advanced) { if (measurements != null) measurements->NoAdvance++; break; }
             if (step == 3 && measurements != null) measurements->StepLimit++;
         }
         return true;
+    }
+
+    private bool CanReplenishDiskWait(ulong flags, LinuxDescriptorServices.DiskToken token, OS.Pal.OSHostHandle worker)
+    {
+        if (_stopping || _failed || !LinuxDescriptorServices.CanReplenishDisk(_descriptors, _self, token, worker)) return false;
+        for (uint i = 0; i < _owner.Capacity; i++)
+        {
+            Slot* slot = _owner.Slots + i;
+            if (slot->Kernel.Value != worker.Value) continue;
+            if (slot->Exiting != 0 || !slot->Wait.IsValid || slot->WaitSource != 4 ||
+                slot->DiskOperation.Owner != token.Owner || slot->DiskOperation.Epoch != token.Epoch ||
+                slot->DiskOperation.Generation != token.Generation || slot->DiskOperation.Index != token.Index) return false;
+            var current = _owner.Threads->Inspect(_owner.ThreadKey, flags, worker);
+            return current.Succeeded && current.Wait.Sequence == slot->Wait.Sequence && current.Completion == KernelThreadTable.Completion.None;
+        }
+        return false;
     }
 
     private static bool MeasureDiskPhase(DiskPumpAccess access, ref ulong started, ref ulong elapsed)

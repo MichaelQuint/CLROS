@@ -7,12 +7,208 @@ using C = OS.Storage.ContinuingFat32Mutation;
 using B = OS.Storage.WritableBlockSession;
 using D = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
 using LogUpload = OS.Tooling.NativeAotLogUploadContract;
+using P = OS.Storage.WritableBlockReadPort;
 
 internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
 {
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
+
+    [HostTest("continuing unissued writes retain copied bytes and one token across actual borrowed pending and held IN")]
+    private static void QueuedWrite()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Owner(locks: true, observe: true); var file = f.Open(flags: 2);
+            using var foreign = new ForeignRead(f, held); byte[] bytes = Enumerable.Range(0, 37).Select(Value).ToArray(), expected = bytes.ToArray();
+            var begun = D.BeginWrite(f.State, file, bytes); bytes.AsSpan().Fill(0xee); foreign.Blocked(begun);
+            HostCheck.Equal(0UL, f.Cursor(file)); HostCheck.Equal(D.Progress.Pending, D.Complete(f.State, begun.Request).Phase);
+            foreign.Release(); HostCheck.Equal(D.Progress.Ready, f.Wait(begun).Phase); HostCheck.Equal(0UL, f.Cursor(file));
+            HostCheck.Equal(37L, D.Complete(f.State, begun.Request).Value); HostCheck.Equal(37UL, f.Cursor(file));
+            HostCheck.True(f.Read(file, 37, 0, true).SequenceEqual(expected));
+            HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, begun.Request).Phase);
+        }
+    }
+
+    [HostTest("continuing queued create retains the original copied path and reservation without consuming aliases before admission")]
+    private static void QueuedOpen()
+    {
+        using var f = new Owner(locks: true, observe: true); using var foreign = new ForeignRead(f, false);
+        byte[] path = "/data/queued-empty.txt"u8.ToArray(); var begun = D.Open(f.State, path, 2 | D.Create | D.Exclusive);
+        path.AsSpan().Fill((byte)'x'); foreign.Blocked(begun);
+        HostCheck.Equal(-11L, D.Open(f.State, "/data/another.txt"u8, D.Create).Value);
+        foreign.Release(); var opened = f.Run(begun); HostCheck.True(opened.Value >= 3);
+        HostCheck.Equal(0U, f.Stat(opened.Descriptor).Facts.File.Length); HostCheck.Equal(0L, D.Close(f.State, opened.Descriptor));
+        var existing = f.Open("/data/queued-empty.txt"); HostCheck.Equal(0, f.Read(existing, 1).Length);
+    }
+
+    [HostTest("continuing queued reads and regular path root metadata hold output and cursors until the borrowed IN is consumed")]
+    private static void QueuedReadAndStat()
+    {
+        for (int kind = 0; kind < 4; kind++)
+        {
+            using var f = new Owner(locks: true, observe: true); var file = f.Open(); using var foreign = new ForeignRead(f, kind % 2 != 0);
+            byte[] path = kind == 3 ? "/data"u8.ToArray() : "/data/DATA.BIN"u8.ToArray();
+            var begun = kind == 0 ? D.BeginRead(f.State, file, 8) : kind == 1 ? D.BeginStat(f.State, file) : D.BeginPathStat(f.State, path);
+            path.AsSpan().Fill((byte)'z'); foreign.Blocked(begun);
+            byte[] output = Enumerable.Repeat((byte)0xa5, 8).ToArray(); D.StatMetadata facts = default;
+            HostCheck.Equal(D.Progress.Pending, kind == 0 ? D.CopyRead(f.State, begun.Request, output).Phase : D.CopyStat(f.State, begun.Request, &facts, (uint)sizeof(D.StatMetadata)).Phase);
+            HostCheck.True(output.All(b => b == 0xa5) && facts.DescriptionGeneration == 0 && f.Cursor(file) == 0);
+            foreign.Release(); HostCheck.Equal(D.Progress.Ready, f.Wait(begun).Phase);
+            if (kind == 0)
+            { HostCheck.Equal(8L, D.CopyRead(f.State, begun.Request, output).Value); HostCheck.True(output.SequenceEqual(Enumerable.Range(0, 8).Select(Value))); HostCheck.Equal(8UL, f.Cursor(file)); }
+            else
+            { HostCheck.Equal(0L, D.CopyStat(f.State, begun.Request, &facts, (uint)sizeof(D.StatMetadata)).Value); HostCheck.Equal(kind == 3, facts.Directory); HostCheck.Equal(0UL, f.Cursor(file)); }
+        }
+    }
+
+    [HostTest("continuing queued synchronization submits exactly its later real FLUSH and honors the known ready result on interruption")]
+    private static void QueuedSync()
+    {
+        using var f = new Owner(observe: true); var file = f.Open(); using var foreign = new ForeignRead(f, true);
+        var begun = D.BeginSync(f.State, file); foreign.Blocked(begun); foreign.Release();
+        ulong before = f.Storage.Device.State->Submitted; HostCheck.Equal(D.Progress.Ready, f.Wait(begun).Phase);
+        HostCheck.True(f.Storage.Device.State->Submitted == before + 1 && f.Storage.Device.State->LastOperation == B.Operation.Flush);
+        var interrupted = D.Cancel(f.State, begun.Request); HostCheck.True(interrupted.Phase == D.Progress.Ready && interrupted.Value == 0);
+        HostCheck.Equal(0L, D.Complete(f.State, begun.Request).Value); HostCheck.Equal(0UL, f.Cursor(file));
+    }
+
+    [HostTest("continuing queued unlink uses its copied closed file path after the original borrowed read releases the device")]
+    private static void QueuedUnlink()
+    {
+        using var f = new Owner(observe: true); var file = f.Open("/data/queued-delete.txt", 2 | D.Create | D.Exclusive); HostCheck.Equal(0L, D.Close(f.State, file));
+        using var foreign = new ForeignRead(f, false); byte[] path = "/data/queued-delete.txt"u8.ToArray(); var begun = D.BeginUnlink(f.State, path);
+        path.AsSpan().Fill((byte)'z'); foreign.Blocked(begun); foreign.Release(); HostCheck.Equal(0L, f.Run(begun).Value);
+        HostCheck.Equal(-2L, f.Run(D.Open(f.State, "/data/queued-delete.txt"u8, 0)).Value); HostCheck.True(f.Open().Owner != 0);
+    }
+
+    [HostTest("continuing queued cancellation and final close revoke only the unissued request while numeric replacement and foreign IN stay intact")]
+    private static void QueuedCancelAndClose()
+    {
+        foreach (bool close in new[] { false, true })
+        {
+            using var f = new Owner(locks: true, observe: true); var file = f.Open(flags: 2); using var foreign = new ForeignRead(f, close);
+            var begun = D.BeginWrite(f.State, file, new byte[37]); foreign.Blocked(begun); byte[] physical = foreign.Physical();
+            if (!close) { HostCheck.Equal(-4L, D.Cancel(f.State, begun.Request).Value); HostCheck.Equal(-4L, D.Complete(f.State, begun.Request).Value); }
+            HostCheck.Equal(0L, D.Close(f.State, file)); var replacement = f.Open("/data");
+            HostCheck.True(replacement.Number == file.Number && replacement.Generation > file.Generation && !f.State->RequestActive);
+            HostCheck.True(physical.SequenceEqual(foreign.Physical()) && f.Storage.Device.State->RequestPending && foreign.State->RequestActive);
+            HostCheck.Equal(D.Progress.Rejected, D.Complete(f.State, begun.Request).Phase); foreign.Release();
+            HostCheck.Equal(0L, D.Close(f.State, replacement)); HostCheck.True(f.Read(f.Open(), 8).SequenceEqual(Enumerable.Range(0, 8).Select(Value)));
+        }
+    }
+
+    [HostTest("continuing queued process exit releases its borrow and PID generation without polling cancelling or copying the foreign request")]
+    private static void QueuedExit()
+    {
+        using var f = new Owner(locks: true, observe: true); var primary = D.PrimaryProcess(f.State); var file = f.Open(flags: 2);
+        using var foreign = new ForeignRead(f, false); var begun = D.BeginWrite(f.State, file, new byte[37]); foreign.Blocked(begun);
+        byte[] physical = foreign.Physical(); HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value);
+        var replacement = D.RegisterProcess(f.State, primary.Pid); HostCheck.True(replacement.Value == 0 && replacement.Process.Generation > primary.Generation);
+        HostCheck.True(physical.SequenceEqual(foreign.Physical()) && !f.State->RequestActive && foreign.State->RequestActive);
+        HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, begun.Request, new byte[8]).Phase); foreign.Release();
+        var root = D.OpenForProcess(f.State, replacement.Process, "/data"u8, 0); HostCheck.True(root.Value >= 3);
+        HostCheck.Equal(0L, D.CloseForProcess(f.State, replacement.Process, root.Descriptor));
+    }
+
+    [HostTest("continuing queued work rejects altered original epochs and an actually stopped device without adopting or completing the foreign read")]
+    private static void QueuedLifetime()
+    {
+        using (var f = new Owner(observe: true))
+        {
+            var file = f.Open(flags: 2); using var foreign = new ForeignRead(f, true);
+            var begun = D.BeginWrite(f.State, file, new byte[37]); foreign.Blocked(begun);
+            B.Admission* input = (B.Admission*)((byte*)f.Storage.Device.State + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.State, "Input")); ulong epoch = input->Epoch;
+            try
+            {
+                input->Epoch++; byte[] physical = foreign.Physical();
+                var rejected = D.Pump(f.State); HostCheck.True(rejected.Phase == D.Progress.RecoveryRequired && rejected.Failure == C.Status.InvalidState);
+                HostCheck.True(f.State->Quarantined && f.State->RequestActive && physical.SequenceEqual(foreign.Physical()));
+            }
+            finally { input->Epoch = epoch; }
+            // Restoring this test's altered copied admission is not a device
+            // restart. Only the unissued local work can now be cancelled.
+            HostCheck.Equal(-4L, D.Cancel(f.State, begun.Request).Value); HostCheck.Equal(-4L, D.Complete(f.State, begun.Request).Value);
+            HostCheck.True(f.State->Quarantined && !f.State->RequestActive && foreign.State->RequestActive);
+        }
+        using (var f = new Owner(observe: true))
+        {
+            var file = f.Open(flags: 2); using var foreign = new ForeignRead(f, true);
+            var begun = D.BeginWrite(f.State, file, new byte[37]); foreign.Blocked(begun);
+            HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); HostCheck.True(D.Pump(f.State).Phase == D.Progress.Ready && f.State->Quarantined);
+            HostCheck.Equal(-5L, D.Complete(f.State, begun.Request).Value); HostCheck.True(!f.State->RequestActive && foreign.State->RequestActive && !f.Storage.State->RequestActive);
+        }
+    }
+
+    [HostTest("continuing queued retry never pumps a distinct logical engine request that starts after the borrowed IN releases")]
+    private static void QueuedForeignEngine()
+    {
+        using var f = new Owner(observe: true); var file = f.Open(flags: 2); using var foreign = new ForeignRead(f, false);
+        var begun = D.BeginWrite(f.State, file, "owned payload"u8); foreign.Blocked(begun); foreign.Release();
+        C.RequestToken separate = default; HostCheck.Equal(C.Status.Pending, C.BeginOpenRoot(f.Storage.State, "DATA.BIN", &separate));
+        byte[] physical = foreign.Physical(); uint calls = f.Device->Calls;
+        for (int i = 0; i < 7; i++) HostCheck.Equal(D.Progress.Pending, D.Pump(f.State).Phase);
+        HostCheck.True(physical.SequenceEqual(foreign.Physical()) && calls == f.Device->Calls && f.Storage.State->RequestActive);
+        HostCheck.Equal(C.Status.Ready, f.Storage.Run()); C.FileToken copied = default;
+        HostCheck.Equal(C.Status.Success, C.CopyOpen(f.Storage.State, separate, &copied));
+        HostCheck.Equal(13L, f.Run(begun).Value); HostCheck.True(f.Read(file, 13, 0, true).AsSpan().SequenceEqual("owned payload"u8));
+    }
+
+    [HostTest("continuing queued to issued mutation transitions once and dirty cancellation retains the actual original recovery request")]
+    private static void QueuedIssuedCancellation()
+    {
+        using var f = new Owner(observe: true); var file = f.Open(flags: 2); using var foreign = new ForeignRead(f, false);
+        var begun = D.BeginWrite(f.State, file, new byte[37]); foreign.Blocked(begun); foreign.Release();
+        for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+        HostCheck.True(f.Storage.State->Dirty && f.Storage.State->RequestActive);
+        ulong submitted = f.Storage.Device.State->Submitted; HostCheck.Equal(D.Progress.RecoveryRequired, D.Cancel(f.State, begun.Request).Phase);
+        HostCheck.True(f.State->RequestActive && f.Storage.Device.State->Submitted == submitted);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State));
+    }
+
+    private sealed class ForeignRead : IDisposable
+    {
+        private readonly Owner owner;
+        internal readonly P.State* State = (P.State*)NativeMemory.AllocZeroed((nuint)sizeof(P.State));
+        private readonly byte* output = (byte*)NativeMemory.AllocZeroed(512);
+        private P.Token token;
+        internal ForeignRead(Owner owner, bool held)
+        {
+            this.owner = owner; var a = new P.Admission { Engine = owner.Storage.State, Device = owner.Storage.Device.State,
+                Epoch = 991, EngineEpoch = owner.Input.Epoch, DeviceEpoch = owner.Storage.Device.Input.Epoch, FirstLba = 1, LastLba = 7 };
+            HostCheck.Equal(P.Status.Success, P.Start(State, a)); P.Token started = default;
+            HostCheck.Equal(P.Status.Success, P.Submit(State, 1, &started)); token = started;
+            if (held) { owner.CompleteHardware(); P.Completion result = default; HostCheck.Equal(P.Status.Ready, P.Poll(State, token, &result)); }
+        }
+        internal byte[] Physical() => new ReadOnlySpan<byte>(owner.Storage.State, sizeof(C.State)).ToArray()
+            .Concat(new ReadOnlySpan<byte>(owner.Storage.Device.State, sizeof(B.State)).ToArray())
+            .Concat(new ReadOnlySpan<byte>(owner.Storage.Device.Observation, sizeof(B.Observation)).ToArray())
+            .Concat(new ReadOnlySpan<byte>(owner.Storage.Device.Data, 4096).ToArray()).ToArray();
+        internal void Blocked(D.Result request)
+        {
+            HostCheck.True(request.Phase == D.Progress.Pending && request.Request.Owner != 0 && !owner.Storage.State->RequestActive);
+            byte[] physical = Physical(); uint calls = owner.Device->Calls, notifies = owner.Device->Notifies;
+            for (int i = 0; i < 7; i++)
+            {
+                var progress = D.Pump(owner.State); HostCheck.True(progress.Phase == D.Progress.Pending && progress.Request.Generation == request.Request.Generation);
+                B.Observation sample = *owner.Storage.Device.Observation; HostCheck.True(sample.Request.Generation != 0);
+            }
+            HostCheck.True(physical.SequenceEqual(Physical()) && owner.Device->Calls == calls && owner.Device->Notifies == notifies && State->RequestActive);
+        }
+        internal void Release()
+        {
+            owner.CompleteHardware(); P.Completion result = default; HostCheck.Equal(P.Status.Ready, P.Poll(State, token, &result));
+            B.Observation completed = *owner.Storage.Device.Observation; HostCheck.True(completed.Request.Generation == result.Physical.Token.Generation);
+            HostCheck.Equal(P.Status.Success, P.Copy(State, token, new Span<byte>(output, 512)));
+            B.Observation copied = *owner.Storage.Device.Observation; HostCheck.True((copied.Flags & B.ObservationFlags.ReadCopied) != 0);
+        }
+        public void Dispose()
+        {
+            if (State->RequestActive && !owner.Storage.Device.State->Retired) Release();
+            HostCheck.Equal(P.Status.Success, P.Stop(State)); NativeMemory.Free(output); NativeMemory.Free(State);
+        }
+    }
 
     [HostTest("continuing strict log upload bytes survive actual flush snapshots clean teardown and fresh device engine provider epochs")]
     private static void LogUploadColdMedia()

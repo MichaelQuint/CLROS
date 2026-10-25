@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using OS.Tooling;
 
@@ -67,6 +68,297 @@ internal static class NativeAotSqliteContractTests
         string header="sqlite.o/".PadRight(16)+"0".PadRight(12)+"0".PadRight(6)+"0".PadRight(6)+"100644".PadRight(8)+
             elf.Length.ToString(CultureInfo.InvariantCulture).PadRight(10)+"`\n";
         return [.."!<arch>\n"u8.ToArray(),..Encoding.ASCII.GetBytes(header),..elf,..(elf.Length%2==0?Array.Empty<byte>():new byte[]{10})];
+    }
+
+    private sealed class DependencyVector
+    {
+        internal const string Directory="/fixture/artifacts/sqlite-reference";
+        internal readonly Dictionary<string,byte[]> Artifacts=new(StringComparer.Ordinal);
+        internal readonly Dictionary<string,NativeAotSqliteContract.CompilerInput> Compiler=new(StringComparer.Ordinal);
+        internal string[] Imports=["sqlite3_open_v2","sqlite3_close_v2","sqlite3_prepare_v2","sqlite3_step"];
+        internal readonly JsonObject Receipt;
+        internal JsonArray Commands;
+        internal static string Hash(ReadOnlySpan<byte> bytes)=>Convert.ToHexString(SHA256.HashData(bytes));
+        internal DependencyVector()
+        {
+            byte[] archive=ArchiveVector();int bytes=int.Parse(Encoding.ASCII.GetString(archive,56,10).Trim(),CultureInfo.InvariantCulture);
+            byte[] obj=archive.AsSpan(68,bytes).ToArray();
+            Artifacts.Add("libe_sqlite3.a",archive);Artifacts.Add("libe_sqlite3-repeat.a",archive.ToArray());
+            Artifacts.Add("round0/sqlite3.o",obj);Artifacts.Add("round1/sqlite3.o",obj.ToArray());
+            JsonObject native=[];foreach(string role in new[]{"dotnet","gcc","clang","ld","ar","readelf","nm","strace","setsid",
+                "libc.a","libm.a","libz.a","libstdc++.a","libgcc.a","libgcc_eh.a","crt1.o","crti.o","crtn.o"})
+            {string path="/compiler/"+role,hash=Hash(Encoding.ASCII.GetBytes("independent compiler "+role));Compiler.Add(role,new(path,hash));native[path]=hash;}
+            native[Directory+"/upstream/sqlite3.c"]=NativeAotSqliteContract.SourceCsha256;
+            native[Directory+"/upstream/sqlite3.h"]=NativeAotSqliteContract.SourceHeaderSha256;
+            Commands=[];
+            for(int round=0;round<2;round++)
+            {
+                string objectPath=Directory+"/round"+round+"/sqlite3.o",lib=Directory+(round==0?"/libe_sqlite3.a":"/libe_sqlite3-repeat.a");
+                Commands.Add(new JsonObject{["executable"]="gcc",["workingDirectory"]="/fixture",["log"]="compile-r"+round,
+                    ["arguments"]=new JsonArray("-c",Directory+"/upstream/sqlite3.c","-o",objectPath,"-O2","-fPIC","-ffunction-sections","-fdata-sections",
+                        "-march=x86-64-v2","-mtune=generic","-DSQLITE_THREADSAFE=1")});
+                Commands.Add(new JsonObject{["executable"]="ar",["workingDirectory"]="/fixture",["log"]="archive-r"+round,["arguments"]=new JsonArray("crD",lib,objectPath)});
+                native[objectPath]=Hash(obj);native[lib]=Hash(archive);
+            }
+            var inspected=NativeAotSqliteContract.InspectStaticArchiveValues(archive);JsonObject outputs=[];
+            foreach(var artifact in Artifacts)outputs[artifact.Key]=Hash(artifact.Value);
+            outputs["upstream/sqlite3.c"]=NativeAotSqliteContract.SourceCsha256;outputs["upstream/sqlite3.h"]=NativeAotSqliteContract.SourceHeaderSha256;
+            outputs["upstream/sqlite-amalgamation-3530400.zip"]=NativeAotSqliteContract.SourceArchiveSha256;
+            Receipt=new JsonObject{["Schema"]="clros-sqlite-linux-reference-v1",["Succeeded"]=true,["Failure"]="",
+                ["SourceArchiveSha256"]=NativeAotSqliteContract.SourceArchiveSha256,["SourceArchiveSha3"]=NativeAotSqliteContract.SourceArchiveSha3,
+                ["SourceId"]=NativeAotSqliteContract.SourceId,["Imports"]=new JsonArray(Imports.Select(p=>(JsonNode?)JsonValue.Create(p)).ToArray()),
+                ["Archive"]=JsonSerializer.SerializeToNode(inspected),["Native"]=native,["Outputs"]=outputs};RehashCommands();
+        }
+        internal void RehashCommands(){Artifacts["commands.json"]=Encoding.UTF8.GetBytes(Commands.ToJsonString());Rehash("commands.json");}
+        internal void Rehash(string name){Receipt["Outputs"]![name]=Hash(Artifacts[name]);}
+        internal NativeAotSqliteContract.ArchiveDependency Inspect()
+        {byte[] bytes=Json(Receipt);return NativeAotSqliteContract.InspectArchiveDependencyValues(bytes,Hash(bytes),Artifacts,Imports,Compiler);}
+    }
+
+    [HostTest("sqlite archive reuse validates independent two-build objects members recipes and copied immutable provenance without native authority")]
+    private static void ArchiveDependencyValues()
+    {
+        var vector=new DependencyVector();var actual=vector.Inspect();
+        HostCheck.True(actual.Archive.ObjectFiles==1 && actual.Archive.Bytes==vector.Artifacts["libe_sqlite3.a"].Length &&
+            actual.ReceiptSha256==DependencyVector.Hash(Json(vector.Receipt)) && actual.ObjectSha256==DependencyVector.Hash(vector.Artifacts["round0/sqlite3.o"]) &&
+            actual.CompilerInputs.Count==18 && !actual.GrantsNativeOrExecutionAuthority);
+        string gcc=actual.CompilerInputs["gcc"].Sha256;vector.Compiler["gcc"]=new("/changed/gcc",new string('A',64));
+        vector.Artifacts["round0/sqlite3.o"].AsSpan().Clear();vector.Receipt.Clear();
+        HostCheck.Equal(gcc,actual.CompilerInputs["gcc"].Sha256);
+        bool immutable=false;try{((IDictionary<string,NativeAotSqliteContract.CompilerInput>)actual.CompilerInputs).Clear();}catch(NotSupportedException){immutable=true;}
+        HostCheck.True(immutable && actual.Archive.DefinedSqliteSymbols.Contains("sqlite3_step"));
+    }
+
+    [HostTest("sqlite archive reuse refuses mismatched expected receipt failed unknown malformed and duplicated original declarations")]
+    private static void ArchiveDependencyReceipt()
+    {
+        var original=new DependencyVector();byte[] exact=Json(original.Receipt);
+        Reject(()=>NativeAotSqliteContract.InspectArchiveDependencyValues(exact,new string('A',64),original.Artifacts,original.Imports,original.Compiler),"dependency_receipt_hash");
+        foreach(string mode in new[]{"failed","failure","schema","missing","duplicate","malformed","capacity"})
+        {
+            var f=new DependencyVector();
+            if(mode=="failed")f.Receipt["Succeeded"]=false;if(mode=="failure")f.Receipt["Failure"]="compile timed out";
+            if(mode=="schema")f.Receipt["Schema"]="unreviewed-original";if(mode=="missing")f.Receipt.Remove("Archive");
+            byte[] bytes=mode switch{
+                "duplicate"=>Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(Json(f.Receipt)).Replace("\"Succeeded\":true","\"Succeeded\":true,\"Succeeded\":false",StringComparison.Ordinal)),
+                "malformed"=>"{"u8.ToArray(),"capacity"=>new byte[2*1024*1024+1],_=>Json(f.Receipt)};
+            Reject(()=>NativeAotSqliteContract.InspectArchiveDependencyValues(bytes,DependencyVector.Hash(bytes),f.Artifacts,f.Imports,f.Compiler),
+                mode is "failed" or "failure" or "schema"?"dependency_original_failed":mode=="capacity"?"dependency_receipt_hash":"dependency_json");
+        }
+    }
+
+    [HostTest("sqlite archive reuse rejects source provider compiler and static library substitution rather than accepting matching archive hash alone")]
+    private static void ArchiveDependencyInputs()
+    {
+        foreach(string mode in new[]{"zip","c","header","id","imports","gcc","library","missing-tool","extra-tool","source-native"})
+        {
+            var f=new DependencyVector();
+            if(mode=="zip")f.Receipt["SourceArchiveSha256"]=new string('A',64);
+            if(mode=="c")f.Receipt["Outputs"]!["upstream/sqlite3.c"]=new string('A',64);
+            if(mode=="header")f.Receipt["Outputs"]!["upstream/sqlite3.h"]=new string('A',64);
+            if(mode=="id")f.Receipt["SourceId"]="different engine";
+            if(mode=="imports")f.Receipt["Imports"]![0]="sqlite3_unknown_provider";
+            if(mode=="gcc")f.Compiler["gcc"]=f.Compiler["gcc"] with{Sha256=new string('A',64)};
+            if(mode=="library")f.Receipt["Native"]![f.Compiler["libc.a"].Path]=new string('A',64);
+            if(mode=="missing-tool")f.Compiler.Remove("ar");if(mode=="extra-tool")f.Compiler.Add("unreviewed",new("/compiler/unreviewed",new string('A',64)));
+            if(mode=="source-native")f.Receipt["Native"]![DependencyVector.Directory+"/upstream/sqlite3.c"]=new string('A',64);
+            Reject(()=>f.Inspect(),mode switch{"imports"=>"dependency_imports","gcc" or "library"=>"dependency_compiler_changed",
+                "missing-tool" or "extra-tool"=>"dependency_compiler_inventory",_=>"dependency_source"});
+        }
+    }
+
+    [HostTest("sqlite archive reuse compares actual output bytes identical repeats and sole archive object lineage")]
+    private static void ArchiveDependencyArtifacts()
+    {
+        foreach(string mode in new[]{"hash","repeat","member","native","declared","extra","size"})
+        {
+            var f=new DependencyVector();
+            if(mode=="hash")f.Artifacts["round0/sqlite3.o"][320]^=1;
+            if(mode=="repeat"){f.Artifacts["round1/sqlite3.o"][320]^=1;f.Rehash("round1/sqlite3.o");}
+            if(mode=="member")foreach(string name in new[]{"round0/sqlite3.o","round1/sqlite3.o"}){f.Artifacts[name][320]^=1;f.Rehash(name);f.Receipt["Native"]![DependencyVector.Directory+"/"+name]=DependencyVector.Hash(f.Artifacts[name]);}
+            if(mode=="native")f.Receipt["Native"]![DependencyVector.Directory+"/round0/sqlite3.o"]=new string('A',64);
+            if(mode=="declared")f.Receipt["Archive"]!["Bytes"]=1;
+            if(mode=="extra")f.Artifacts.Add("unverified.o",new byte[]{1});
+            if(mode=="size")f.Artifacts["round0/sqlite3.o"]=new byte[16*1024*1024+1];
+            Reject(()=>f.Inspect(),mode switch{"hash"=>"dependency_output_hash","repeat"=>"dependency_repeat","member"=>"dependency_object_member",
+                "native"=>"dependency_native_output","declared"=>"dependency_archive","extra"=>"dependency_inventory",_=>"dependency_artifact_size"});
+        }
+    }
+
+    [HostTest("sqlite archive reuse rejects altered defines optimization source archive ordering and extra or duplicate compile attempts")]
+    private static void ArchiveDependencyRecipes()
+    {
+        foreach(string mode in new[]{"optimization","define","optional","source","archive","order","duplicate","extra","workdir"})
+        {
+            var f=new DependencyVector();
+            if(mode=="optimization")f.Commands[0]!["arguments"]![4]="-O0";
+            if(mode=="define")f.Commands[0]!["arguments"]!.AsArray().Add("-DSQLITE_OMIT_WAL=1");
+            if(mode=="optional"){f.Imports[0]="sqlite3_column_table_name";f.Receipt["Imports"]![0]="sqlite3_column_table_name";}
+            if(mode=="source")f.Commands[0]!["arguments"]![1]="/fixture/artifacts/substitute.c";
+            if(mode=="archive")f.Commands[1]!["arguments"]![0]="cr";
+            if(mode=="order"){var command=f.Commands[1]!.DeepClone();f.Commands.RemoveAt(1);f.Commands.Add(command);}
+            if(mode=="duplicate")f.Commands.Add(f.Commands[0]!.DeepClone());
+            if(mode=="extra"){var command=f.Commands[0]!.DeepClone();command["log"]="compile-r2";f.Commands.Add(command);}
+            if(mode=="workdir")f.Commands[2]!["workingDirectory"]="/other";
+            f.RehashCommands();Reject(()=>f.Inspect(),mode is "order" or "duplicate" or "extra"?"dependency_commands":"dependency_recipe");
+        }
+    }
+
+    [HostTest("sqlite archive dependency command help makes reuse explicit and leaves the ordinary fresh reference route")]
+    private static void ArchiveDependencyHelp()
+    {
+        TextWriter previous=Console.Out;using StringWriter text=new(CultureInfo.InvariantCulture);
+        try {Console.SetOut(text);HostCheck.Equal(0,ToolCommand.Run(["--help"]));}finally{Console.SetOut(previous);}
+        HostCheck.True(text.ToString().Contains("linux sqlite-reference|sqlite-recovery-reference",StringComparison.Ordinal) &&
+            text.ToString().Contains("linux sqlite-reference-with-archive",StringComparison.Ordinal) &&
+            text.ToString().Contains("linux sqlite-recovery-reference-with-archive",StringComparison.Ordinal) &&
+            NativeAotSqliteContract.ArchiveDependencyReceiptSha256=="77B2A06C28E919CDE82383839AA37CDC3A9AB3FC131FD781CA26559B07C4D21B");
+    }
+
+    private sealed class HeldDependencyVector : IDisposable
+    {
+        internal static readonly string[] Names=["receipt.json","commands.json","round0/sqlite3.o","round1/sqlite3.o","libe_sqlite3.a",
+            "libe_sqlite3-repeat.a","upstream/sqlite3.c","upstream/sqlite3.h","upstream/sqlite-amalgamation-3530400.zip"];
+        internal readonly string Root=Path.Combine(HostToolProcess.FindRepositoryRoot(),"artifacts/sqlite-archive-held-tests",Guid.NewGuid().ToString("N"));
+        internal readonly DependencyVector Values=new();
+        internal string ReceiptHash=>DependencyVector.Hash(File.ReadAllBytes(PathOf("receipt.json")));
+        internal string PathOf(string relative)=>Path.Combine(Root,relative);
+        internal HeldDependencyVector()
+        {
+            Directory.CreateDirectory(Root);
+            foreach(var pair in Values.Artifacts)Write(pair.Key,pair.Value);
+            // Deliberately not pinned SQLite source: this helper grants only
+            // local held-file identity. Full recipe/source admission must fail.
+            foreach(string name in Names.Where(p=>p.StartsWith("upstream/",StringComparison.Ordinal)))
+            {
+                byte[] bytes=Encoding.UTF8.GetBytes("independent held source "+name);Write(name,bytes);
+                Values.Receipt["Outputs"]![name]=DependencyVector.Hash(bytes);
+            }
+            WriteReceipt();
+        }
+        internal void Write(string relative,byte[] bytes)
+        {string path=PathOf(relative);Directory.CreateDirectory(Path.GetDirectoryName(path)!);File.WriteAllBytes(path,bytes);}
+        internal void WriteReceipt()=>Write("receipt.json",Json(Values.Receipt));
+        internal IReadOnlyDictionary<string,AuthorityFile> Hold(AuthorityFiles files)=>
+            NativeAotSqliteContract.HoldArchiveDependencyInputs(files,Root,ReceiptHash);
+        public void Dispose()=>Directory.Delete(Root,true);
+    }
+    private static void ToolReject(Action action,string reason)
+    {
+        try{action();}catch(ToolFailure failure){HostCheck.Equal(reason,failure.Reason);return;}
+        throw new InvalidOperationException("expected "+reason);
+    }
+
+    [HostTest("sqlite recovery outer nine-file hold survives nested publisher disposal without granting pinned source authority")]
+    private static void RecoveryDependencyLifetime()
+    {
+        using var vector=new HeldDependencyVector();using AuthorityFiles outer=new();var files=vector.Hold(outer);
+        HostCheck.True(files.Count==9 && files.Keys.Order(StringComparer.Ordinal).SequenceEqual(HeldDependencyVector.Names.Order(StringComparer.Ordinal)));
+        using(AuthorityFiles nested=new())
+        {
+            var inside=vector.Hold(nested);HostCheck.True(files.All(p=>!ReferenceEquals(p.Value,inside[p.Key])));
+            nested.VerifyUnchanged();
+        }
+        foreach(var file in files)HostCheck.True(file.Value.ReadBytes(16*1024*1024,"fixture").SequenceEqual(File.ReadAllBytes(vector.PathOf(file.Key))));
+        outer.VerifyUnchanged();bool readOnly=false;
+        try{((IDictionary<string,AuthorityFile>)files).Clear();}catch(NotSupportedException){readOnly=true;}HostCheck.True(readOnly);
+        Reject(()=>vector.Values.Inspect(),"dependency_source");
+    }
+
+    [HostTest("sqlite recovery dependency hold rejects unknown receipt failed schema missing associations and actual substitutions")]
+    private static void RecoveryDependencyAdmission()
+    {
+        using(var unknown=new HeldDependencyVector())using(AuthorityFiles files=new())
+            Reject(()=>NativeAotSqliteContract.HoldArchiveDependencyInputs(files,unknown.Root,NativeAotSqliteContract.ArchiveDependencyReceiptSha256),"dependency_receipt_hash");
+        foreach(string mode in new[]{"failed","failure","schema","missing","substitution","duplicate","malformed","capacity"})
+        {
+            using var vector=new HeldDependencyVector();using AuthorityFiles files=new();
+            if(mode=="failed")vector.Values.Receipt["Succeeded"]=false;
+            if(mode=="failure")vector.Values.Receipt["Failure"]="prior producer failed";
+            if(mode=="schema")vector.Values.Receipt["Schema"]="unreviewed-recovery-receipt";
+            if(mode=="missing")vector.Values.Receipt["Outputs"]!.AsObject().Remove("round1/sqlite3.o");
+            vector.WriteReceipt();
+            if(mode=="substitution")File.AppendAllText(vector.PathOf("round1/sqlite3.o"),"changed actual object");
+            if(mode=="duplicate")File.WriteAllText(vector.PathOf("receipt.json"),Encoding.UTF8.GetString(Json(vector.Values.Receipt)).Replace("\"Succeeded\":true","\"Succeeded\":true,\"Succeeded\":false",StringComparison.Ordinal));
+            if(mode=="malformed")File.WriteAllText(vector.PathOf("receipt.json"),"{");
+            if(mode=="capacity")File.WriteAllBytes(vector.PathOf("commands.json"),new byte[2*1024*1024+1]);
+            string reason=mode switch{
+                "failed" or "failure" or "schema"=>"sqlite_contract_dependency_original_failed",
+                "duplicate" or "malformed"=>"sqlite_contract_dependency_json",
+                "capacity"=>"sqlite_archive_dependency_size_out_of_range",_=>"sqlite_contract_dependency_output_hash"};
+            ToolReject(()=>vector.Hold(files),reason);
+        }
+    }
+
+    [HostTest("sqlite recovery each original remains protected against mutation after the inner publisher closes")]
+    private static void RecoveryDependencyMutation()
+    {
+        foreach(string name in HeldDependencyVector.Names)
+        {
+            using var vector=new HeldDependencyVector();string path=vector.PathOf(name);byte[] original=File.ReadAllBytes(path);
+            using(AuthorityFiles outer=new())
+            {
+                _=vector.Hold(outer);using(AuthorityFiles nested=new())_=vector.Hold(nested);
+                bool denied=false;try{File.WriteAllBytes(path,[..original,0x7f]);}catch(IOException){denied=true;}
+                if(denied){HostCheck.True(OperatingSystem.IsWindows());outer.VerifyUnchanged();}
+                else ToolReject(outer.VerifyUnchanged,"authority_input_changed");
+            }
+            File.WriteAllBytes(path,original); // disposal released the outer handles
+        }
+    }
+
+    [HostTest("sqlite recovery each original name replacement is blocked or detected despite identical bytes after nested dispose")]
+    private static void RecoveryDependencyReplacement()
+    {
+        foreach(string name in HeldDependencyVector.Names)
+        {
+            using var vector=new HeldDependencyVector();string path=vector.PathOf(name),old=path+".old",replacement=path+".new";
+            byte[] bytes=File.ReadAllBytes(path);File.WriteAllBytes(replacement,bytes);
+            using(AuthorityFiles outer=new())
+            {
+                _=vector.Hold(outer);using(AuthorityFiles nested=new())_=vector.Hold(nested);
+                bool denied=false;try{File.Move(path,old);}catch(IOException){denied=true;}
+                if(denied){HostCheck.True(OperatingSystem.IsWindows());outer.VerifyUnchanged();}
+                else {File.Move(replacement,path);ToolReject(outer.VerifyUnchanged,"authority_input_changed");}
+            }
+            File.WriteAllBytes(path,bytes);
+        }
+    }
+
+    [HostTest("sqlite recovery partial dependency rejection retains caller ownership until outer disposal")]
+    private static void RecoveryDependencyFailureLifetime()
+    {
+        using var vector=new HeldDependencyVector();vector.Values.Receipt["Outputs"]!["upstream/sqlite-amalgamation-3530400.zip"]=new string('A',64);vector.WriteReceipt();
+        string path=vector.PathOf("receipt.json");byte[] bytes=File.ReadAllBytes(path);
+        using(AuthorityFiles outer=new())
+        {
+            Reject(()=>vector.Hold(outer),"dependency_output_hash");
+            bool denied=false;try{File.WriteAllBytes(path,[..bytes,0]);}catch(IOException){denied=true;}
+            if(denied){HostCheck.True(OperatingSystem.IsWindows());outer.VerifyUnchanged();}
+            else ToolReject(outer.VerifyUnchanged,"authority_input_changed");
+        }
+        File.WriteAllBytes(path,bytes);
+    }
+
+    [HostTest("sqlite recovery archive CLI refuses missing extra and unknown routes before native execution")]
+    private static void RecoveryDependencyRoute()
+    {
+        TextWriter previous=Console.Error,previousOutput=Console.Out;using StringWriter errors=new(CultureInfo.InvariantCulture);using StringWriter output=new(CultureInfo.InvariantCulture);
+        try
+        {
+            Console.SetError(errors);Console.SetOut(output);
+            foreach(string[] args in new[]{new[]{"linux","sqlite-recovery-reference-with-archive","recipe","zip","old"},
+                new[]{"linux","sqlite-recovery-reference-with-archive","recipe","zip","old","fresh","extra"},
+                new[]{"linux","sqlite-recovery-reference-with-unknown","recipe","zip","old","fresh"}})
+                HostCheck.Equal(1,ToolCommand.Run(args));
+            HostCheck.Equal(3,errors.ToString().Split("unknown_command",StringSplitOptions.None).Length-1);
+            if(!OperatingSystem.IsLinux())
+            {
+                errors.GetStringBuilder().Clear();HostCheck.Equal(1,ToolCommand.Run(["linux","sqlite-recovery-reference-with-archive","recipe","zip","old","fresh-recovery"]));
+                HostCheck.True(errors.ToString().Contains("linux_recovery_platform",StringComparison.Ordinal));
+            }
+        }
+        finally{Console.SetError(previous);Console.SetOut(previousOutput);}
     }
 
     [HostTest("sqlite contract static archive requires real x64 relocatable objects and defined executable symbols")]

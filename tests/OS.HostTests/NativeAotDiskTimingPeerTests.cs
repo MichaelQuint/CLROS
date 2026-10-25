@@ -5,7 +5,7 @@ using OS.Tooling;
 
 internal static class NativeAotDiskTimingPeerTests
 {
-    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0\r\n";
+    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0 replenished=0 replenishBudgetSkips=0\r\n";
 
     [HostTest("timing aggregate rejects duplicates overflow missing and nonexclusive yield reasons")]
     private static void Aggregate()
@@ -23,7 +23,8 @@ internal static class NativeAotDiskTimingPeerTests
             Metrics.Replace("calls=8","calls=08"),Metrics.Replace("stepLimit=7","stepLimit=8"),
             Metrics.Replace("failures=0","failures=1"),Metrics.Replace("steps=32","steps=33"),
             Metrics.Replace("networkCalls=8","networkCalls=7"),Metrics.Replace("bytes=65536","bytes=65535"),
-            Metrics.Replace(" flushedPastBudget=0","")})
+            Metrics.Replace(" flushedPastBudget=0",""),Metrics.Replace("replenished=0","replenished=1"),
+            Metrics.Replace("replenishBudgetSkips=0","replenishBudgetSkips=1"),Metrics.Replace(" replenishBudgetSkips=0","")})
         {
             bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(bad);}catch(ToolFailure){rejected=true;}
             HostCheck.True(rejected,bad);

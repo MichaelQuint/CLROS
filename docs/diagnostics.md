@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1603](../done/step1603.md) Original timingr07 completes health7.808s, CoreLib HEAD8.553s, exact range0..65535 in26.715s and final health2.567s. Its original16-field v1 aggregate is retained:1967calls/2361steps,446elapsed stops,971other-ready yields, zero failures. Do not reparse it as v2. New v2 adds replenished and replenishBudgetSkips to18 strict fields; the latter counts opportunities rejected by the original elapsed budget. flushedPastBudget measures cumulative call elapsed after flush, not individual slow flush duration. Component intervals overlap HTTP and device waits; do not sum them as independent latency.
+
 [Step1602](../done/step1602.md) Actual tooling-to-runner dry-runs cover both timing deadline boundaries and reject missing parents, duplicates and invalid deadlines. Receipts record runner and peer budgets. Exact response bytes/metadata, final health, deliberate cancellation, confirmed join and endpoint refusal remain mandatory after aggregate output. Timing r03–r06 failed before guest; r06 joined invalid-argument receipt and native/image identities are preserved. They supply no timing measurement.
 
 [Step1601](../done/step1601.md) Timingr01 failed canonical XML admission before compilation; r02 compiled but failed the former2048 host catalog cap with2055rows, before guest. Expert review and actual original flags separate the host scan from disabled M04kernel decoder. Host4096 full-row/over-bound controls pass; failed originals are preserved and fresh timing evidence is still pending.

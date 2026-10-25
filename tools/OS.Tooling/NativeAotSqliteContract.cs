@@ -21,6 +21,7 @@ public static class NativeAotSqliteContract
 {
     public const string Application="NativeAotSqliteContract",ProviderVersion="11.0.0-rc.2.26504.105",RawVersion="3.0.5",EngineVersion="3.53.4";
     public const string NativePackageSha256="5641EB58E88429FD73D09FC294BDAA610A6E99099F4141DE912A5E4AA6D773CA";
+    public const string ArchiveDependencyReceiptSha256="77B2A06C28E919CDE82383839AA37CDC3A9AB3FC131FD781CA26559B07C4D21B";
     public const string SourceArchiveUrl="https://www.sqlite.org/2026/sqlite-amalgamation-3530400.zip";
     public const string SourceArchiveSha256="1E71DDF93849C6A6ECF58B827C0692073D2DD7EE40196158068F7B29F422E87D";
     public const string SourceArchiveSha3="628A44CFE82C66AED1CCBBE85A562D2E33EBE64B3288981ED76285612227934E";
@@ -329,6 +330,177 @@ public static class NativeAotSqliteContract
         }
         Need(imports.Contains("sqlite3_open_v2") && imports.Contains("sqlite3_step") && imports.Contains("sqlite3_close_v2"),"provider_import_missing");
         return Array.AsReadOnly(imports.ToArray());
+    }
+
+    private static readonly string[] CompilerTools=["dotnet","gcc","clang","ld","ar","readelf","nm","strace","setsid"];
+    private static readonly string[] CompilerLibraries=["libc.a","libm.a","libz.a","libstdc++.a","libgcc.a","libgcc_eh.a","crt1.o","crti.o","crtn.o"];
+    private static readonly string[] DependencyArtifacts=["commands.json","round0/sqlite3.o","round1/sqlite3.o","libe_sqlite3.a","libe_sqlite3-repeat.a"];
+    /// <summary>Copied compiler-role path/hash facts; no file or execution authority.</summary>
+    public sealed record CompilerInput(string Path,string Sha256);
+    /// <summary>Copied dependency facts only. The caller's expected receipt
+    /// hash and supplied compiler facts do not themselves establish original
+    /// file, native, process or execution authority. Runtime reuse separately
+    /// holds every original input and pins the reviewed receipt.</summary>
+    public sealed record ArchiveDependency(Archive Archive,string ReceiptSha256,string CommandsSha256,string ObjectSha256,
+        IReadOnlyDictionary<string,CompilerInput> CompilerInputs)
+    { public bool GrantsNativeOrExecutionAuthority=>false; }
+
+    /// <summary>Open the fixed nine dependency inputs in a caller-owned holder,
+    /// checking a bounded successful receipt, its expected hash and each actual
+    /// output hash. Return a read-only name map borrowing that holder's files.
+    /// On success or failure the caller must retain/dispose the holder; a nested
+    /// publisher has no ownership of these handles. VerifyUnchanged is still
+    /// required through the outer consumer's last gate. This checks local file
+    /// identity/content only, not pinned sources, recipes, compiler compatibility
+    /// or execution authority; native reuse separately requires all those checks.</summary>
+    public static IReadOnlyDictionary<string,AuthorityFile> HoldArchiveDependencyInputs(AuthorityFiles held,string directory,string expectedReceiptSha256)
+    {
+        Need(held is not null && expectedReceiptSha256 is not null && Hex(expectedReceiptSha256),"dependency_receipt_hash");
+        directory=Path.GetFullPath(directory);
+        Dictionary<string,AuthorityFile> files=new(StringComparer.Ordinal);
+        var receipt=held.Open(directory,Path.Combine(directory,"receipt.json"),"original archive receipt","sqlite_archive_dependency",2*1024*1024,singleLink:true);
+        files.Add("receipt.json",receipt);Need(receipt.Sha256.Equals(expectedReceiptSha256,StringComparison.OrdinalIgnoreCase),"dependency_receipt_hash");
+        try
+        {
+            using var original=DependencyJson(receipt.ReadBytes(2*1024*1024,"sqlite_archive_dependency"));var value=original.RootElement;
+            Need(value.GetProperty("Schema").GetString() is "clros-sqlite-linux-reference-v1" or "clros-sqlite-linux-reference-v2" &&
+                value.GetProperty("Succeeded").ValueKind==JsonValueKind.True && value.GetProperty("Failure").GetString()=="","dependency_original_failed");
+            var outputs=DependencyMap(value.GetProperty("Outputs"),512);
+            foreach(string relative in DependencyArtifacts.Concat(new[]{"upstream/sqlite3.c","upstream/sqlite3.h","upstream/sqlite-amalgamation-3530400.zip"}))
+            {
+                var file=held.Open(directory,Path.Combine(directory,relative),"original archive dependency","sqlite_archive_dependency",
+                    relative=="commands.json"?2*1024*1024:16*1024*1024,singleLink:true);
+                files.Add(relative,file);Need(outputs.TryGetValue(relative,out string? hash) && file.Sha256.Equals(hash,StringComparison.OrdinalIgnoreCase),"dependency_output_hash");
+            }
+            AuthorityFiles.RequireDistinct(files.Values.ToArray());held.VerifyUnchanged();
+            return new ReadOnlyDictionary<string,AuthorityFile>(files);
+        }
+        catch(Exception error) when(error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
+        {throw new ToolFailure("sqlite_contract_dependency_json");}
+    }
+
+    /// <summary>Synchronously borrow bounded copied receipt/command/object/archive
+    /// bytes. Authenticate their hash associations, two identical objects and
+    /// archives, actual sole archive member, exact normalized gcc/ar recipes,
+    /// pinned upstream source declarations, provider imports and current compiler
+    /// input facts. Return immutable copied values, retaining no input buffers.
+    /// This does not open files or execute anything. The native owner must hold
+    /// and verify the actual upstream files and all dependencies through finish.</summary>
+    public static ArchiveDependency InspectArchiveDependencyValues(ReadOnlySpan<byte> receipt,string expectedReceiptSha256,
+        IReadOnlyDictionary<string,byte[]> artifacts,IReadOnlyList<string> imports,IReadOnlyDictionary<string,CompilerInput> compilerInputs)
+    {
+        try {return InspectArchiveDependency(receipt,expectedReceiptSha256,artifacts,imports,compilerInputs);}
+        catch(Exception error) when(error is JsonException or KeyNotFoundException or InvalidOperationException or FormatException or OverflowException)
+        {throw new ToolFailure("sqlite_contract_dependency_json");}
+    }
+    private static ArchiveDependency InspectArchiveDependency(ReadOnlySpan<byte> receipt,string expectedReceiptSha256,
+        IReadOnlyDictionary<string,byte[]> artifacts,IReadOnlyList<string> imports,IReadOnlyDictionary<string,CompilerInput> compilerInputs)
+    {
+        Need(receipt.Length is >0 and <=2*1024*1024 && Hex(expectedReceiptSha256) &&
+            Convert.ToHexString(SHA256.HashData(receipt))==expectedReceiptSha256,"dependency_receipt_hash");
+        Need(artifacts is not null && artifacts.Count==DependencyArtifacts.Length && DependencyArtifacts.All(artifacts.ContainsKey),"dependency_inventory");
+        Need(imports is {Count:>0 and <=512} && imports.Distinct(StringComparer.Ordinal).Count()==imports.Count,"dependency_imports");
+        string[] roles=CompilerTools.Concat(CompilerLibraries).ToArray();
+        Need(compilerInputs is not null && compilerInputs.Count==roles.Length && roles.All(compilerInputs.ContainsKey),"dependency_compiler_inventory");
+        foreach(var pair in artifacts)
+            Need(pair.Value is not null && pair.Value.Length>0 && pair.Value.Length<=(pair.Key=="commands.json"?2*1024*1024:16*1024*1024),"dependency_artifact_size");
+        using var original=DependencyJson(receipt);var root=original.RootElement;
+        Need(root.GetProperty("Schema").GetString() is "clros-sqlite-linux-reference-v1" or "clros-sqlite-linux-reference-v2" &&
+            root.GetProperty("Succeeded").ValueKind==JsonValueKind.True && root.GetProperty("Failure").GetString()=="","dependency_original_failed");
+        Need(root.GetProperty("SourceArchiveSha256").GetString()==SourceArchiveSha256 && root.GetProperty("SourceArchiveSha3").GetString()==SourceArchiveSha3 &&
+            root.GetProperty("SourceId").GetString()==SourceId,"dependency_source");
+        var provider=root.GetProperty("Imports");Need(provider.ValueKind==JsonValueKind.Array && provider.GetArrayLength()==imports.Count &&
+            provider.EnumerateArray().Select(p=>p.GetString()).SequenceEqual(imports),"dependency_imports");
+        var outputs=DependencyMap(root.GetProperty("Outputs"),512);var native=DependencyMap(root.GetProperty("Native"),4096);
+        foreach(var pair in artifacts)Need(outputs.TryGetValue(pair.Key,out string? hash) && hash==Convert.ToHexString(SHA256.HashData(pair.Value)),"dependency_output_hash");
+        foreach(var pair in new[]{("upstream/sqlite3.c",SourceCsha256),("upstream/sqlite3.h",SourceHeaderSha256),("upstream/sqlite-amalgamation-3530400.zip",SourceArchiveSha256)})
+            Need(outputs.TryGetValue(pair.Item1,out string? hash) && hash==pair.Item2,"dependency_source");
+        Dictionary<string,CompilerInput> copiedInputs=new(StringComparer.Ordinal);
+        foreach(string role in roles)
+        {
+            var input=compilerInputs[role];Need(input is not null && DependencyLinuxPath(input.Path) && Hex(input.Sha256) &&
+                native.TryGetValue(input.Path,out string? hash) && hash==input.Sha256,"dependency_compiler_changed");
+            copiedInputs.Add(role,new(input!.Path,input.Sha256));
+        }
+        byte[] object0=artifacts["round0/sqlite3.o"],object1=artifacts["round1/sqlite3.o"],archive0=artifacts["libe_sqlite3.a"],archive1=artifacts["libe_sqlite3-repeat.a"];
+        Need(object0.AsSpan().SequenceEqual(object1) && archive0.AsSpan().SequenceEqual(archive1),"dependency_repeat");
+        var archive=InspectStaticArchiveValues(archive0);var declared=root.GetProperty("Archive");DependencyUnique(declared);
+        Need(archive.ObjectFiles==1 && declared.GetProperty("Sha256").GetString()==archive.Sha256 && declared.GetProperty("Bytes").GetInt32()==archive.Bytes &&
+            declared.GetProperty("ObjectFiles").GetInt32()==1 && declared.GetProperty("DefinedSqliteSymbols").EnumerateArray().Select(p=>p.GetString()).SequenceEqual(archive.DefinedSqliteSymbols),"dependency_archive");
+        int at=8;bool matched=false;
+        while(at<archive0.Length)
+        {
+            string name=Encoding.ASCII.GetString(archive0.AsSpan(at,16)).Trim();int size=int.Parse(Encoding.ASCII.GetString(archive0.AsSpan(at+48,10)).Trim(),CultureInfo.InvariantCulture);
+            if(name is not ("/" or "//" or "/SYM64/")) {Need(!matched && archive0.AsSpan(at+60,size).SequenceEqual(object0),"dependency_object_member");matched=true;}
+            at+=60+size+(size&1);
+        }
+        Need(matched,"dependency_object_member");
+        using var planned=DependencyJson(artifacts["commands.json"]);var commands=planned.RootElement;
+        Need(commands.ValueKind==JsonValueKind.Array && commands.GetArrayLength() is >0 and <=128,"dependency_commands");
+        Dictionary<string,(JsonElement Value,int Index)> selected=new(StringComparer.Ordinal);int index=0;
+        foreach(var command in commands.EnumerateArray())
+        {
+            DependencyUnique(command);string? log=command.GetProperty("log").GetString();Need(log is {Length:>0 and <=128},"dependency_commands");
+            if(log!.StartsWith("compile-r",StringComparison.Ordinal) || log.StartsWith("archive-r",StringComparison.Ordinal))
+                Need((log is "compile-r0" or "compile-r1" or "archive-r0" or "archive-r1") && selected.TryAdd(log,(command,index)),"dependency_commands");
+            index++;
+        }
+        Need(selected.Count==4 && selected["compile-r0"].Index<selected["archive-r0"].Index && selected["archive-r0"].Index<selected["compile-r1"].Index &&
+            selected["compile-r1"].Index<selected["archive-r1"].Index,"dependency_commands");
+        string[] Arguments(JsonElement command)
+        {
+            var args=command.GetProperty("arguments");Need(args.ValueKind==JsonValueKind.Array && args.GetArrayLength() is >0 and <=128,"dependency_recipe");
+            return args.EnumerateArray().Select(p=>{string? value=p.GetString();Need(value is {Length:>0 and <=8192} && !value.Any(char.IsControl),"dependency_recipe");return value!;}).ToArray();
+        }
+        var first=selected["archive-r0"].Value;string[] firstArgs=Arguments(first);
+        const string suffix="/libe_sqlite3.a";
+        Need(firstArgs.Length==3 && firstArgs[1].EndsWith(suffix,StringComparison.Ordinal) && DependencyLinuxPath(firstArgs[1]),"dependency_recipe");
+        string directory=firstArgs[1][..^suffix.Length],working=first.GetProperty("workingDirectory").GetString()??"";
+        Need(DependencyLinuxPath(working) && directory.StartsWith(working+"/artifacts/",StringComparison.Ordinal),"dependency_recipe");
+        Need(native.TryGetValue(directory+"/upstream/sqlite3.c",out string? sourceHash) && sourceHash==SourceCsha256 &&
+            native.TryGetValue(directory+"/upstream/sqlite3.h",out string? headerHash) && headerHash==SourceHeaderSha256,"dependency_source");
+        string[] flags=StaticCompileArguments(Path.GetFullPath("sqlite-dependency-source.c"),Path.GetFullPath("sqlite-dependency-object.o"),imports).Skip(4).ToArray();
+        for(int round=0;round<2;round++)
+        {
+            string obj=directory+"/round"+round+"/sqlite3.o",lib=directory+(round==0?"/libe_sqlite3.a":"/libe_sqlite3-repeat.a");
+            var compile=selected["compile-r"+round].Value;var pack=selected["archive-r"+round].Value;
+            Need(compile.GetProperty("executable").GetString()=="gcc" && pack.GetProperty("executable").GetString()=="ar" &&
+                compile.GetProperty("workingDirectory").GetString()==working && pack.GetProperty("workingDirectory").GetString()==working &&
+                Arguments(compile).SequenceEqual(new[]{"-c",directory+"/upstream/sqlite3.c","-o",obj}.Concat(flags)) &&
+                Arguments(pack).SequenceEqual(new[]{"crD",lib,obj}),"dependency_recipe");
+            Need(native.TryGetValue(obj,out string? objectHash) && objectHash==Convert.ToHexString(SHA256.HashData(object0)) &&
+                native.TryGetValue(lib,out string? archiveHash) && archiveHash==archive.Sha256,"dependency_native_output");
+        }
+        return new(archive,expectedReceiptSha256,Convert.ToHexString(SHA256.HashData(artifacts["commands.json"])),
+            Convert.ToHexString(SHA256.HashData(object0)),new ReadOnlyDictionary<string,CompilerInput>(copiedInputs));
+    }
+    private static bool DependencyLinuxPath(string path)=>path.Length is >1 and <=4096 && path.StartsWith('/') && !path.Any(char.IsControl) &&
+        path.Split('/').Skip(1).All(p=>p.Length>0 && p is not "." and not "..");
+    private static void DependencyUnique(JsonElement value)
+    {Need(value.ValueKind==JsonValueKind.Object && value.EnumerateObject().Select(p=>p.Name).Distinct(StringComparer.Ordinal).Count()==value.EnumerateObject().Count(),"dependency_json");}
+    private static JsonDocument DependencyJson(ReadOnlySpan<byte> bytes)
+    {
+        JsonDocument? result=null;
+        try {result=JsonDocument.Parse(bytes.ToArray(),new JsonDocumentOptions{MaxDepth=32});if(result.RootElement.ValueKind==JsonValueKind.Object)DependencyUnique(result.RootElement);return result;}
+        catch(JsonException){throw new ToolFailure("sqlite_contract_dependency_json");}
+        catch {result?.Dispose();throw;}
+    }
+    private static Dictionary<string,string> DependencyMap(JsonElement value,int maximum)
+    {
+        DependencyUnique(value);Need(value.EnumerateObject().Count()<=maximum,"dependency_json");Dictionary<string,string> result=new(StringComparer.Ordinal);
+        foreach(var property in value.EnumerateObject()){string? hash=property.Value.GetString();Need(property.Name.Length is >0 and <=8192 && hash is not null && Hex(hash),"dependency_json");result.Add(property.Name,hash!);}return result;
+    }
+    private sealed class CommandAttempt
+    {
+        public required string executable {get;init;}
+        public required string[] arguments {get;init;}
+        public required string workingDirectory {get;init;}
+        public required string log {get;init;}
+        public required string phase {get;init;}
+        public double limitSeconds {get;init;}
+        public double elapsedSeconds {get;set;}
+        public string outcome {get;set;}="started";
+        public string failure {get;set;}="";
     }
 
     /// <summary>Plan one deterministic musl/x86-64-v2 object build. Preserve
@@ -1004,8 +1176,12 @@ public static class NativeAotSqliteContract
     /// SIGKILL that writer, drain/reap strace and join its owned session before
     /// probing RESERVED-byte locks and reopening. This method must only be run
     /// under the caller's serialized native-builder lease. It supplies no guest
-    /// or power-loss authority and does not alter original f616/r03 receipts.</summary>
-    public static async Task<int> RunLinuxRecoveryReferenceAsync(string root,string recipeRoot,string sourceArchive,string destination,TextWriter output)
+    /// or power-loss authority and does not alter original f616/r03 receipts.
+    /// Optional archiveDependencyRoot explicitly reuses the reviewed archive,
+    /// not an old application publication. This outer owner holds all nine
+    /// originals independently of the nested fresh publisher through kill/join,
+    /// RESERVED-lock verification and recovered reopen. Default builds twice.</summary>
+    public static async Task<int> RunLinuxRecoveryReferenceAsync(string root,string recipeRoot,string sourceArchive,string destination,TextWriter output,string? archiveDependencyRoot=null)
     {
         const string marker="nativeaot.sqlite-recovery-reference";output.WriteLine("TEST_START "+marker);
         Need(OperatingSystem.IsLinux() && RuntimeInformation.ProcessArchitecture==Architecture.X64,"linux_recovery_platform");
@@ -1016,6 +1192,7 @@ public static class NativeAotSqliteContract
         using AuthorityFiles held=new();
         string publication=Path.Combine(destination,"publication"),database=Path.Combine(destination,"recovery.db"),publicationHash="";
         List<object> commands=[];Dictionary<string,string> traceHashes=new(StringComparer.Ordinal);bool succeeded=false;string failure="",recoveredHash="";
+        IReadOnlyDictionary<string,AuthorityFile>? dependencyInputs=null;string archiveBuild="";int? freshCompilesCompleted=null;
         RecoveryJournal? barrier=null;RecoveryTrace? writerTrace=null;LinuxRecoveryIdentity? identity=null;bool pidfdDead=false,sessionJoined=false,lockClear=false;
         string engine="SQLITE_RECOVERY_ENGINE version=3.53.4 sourceBase64="+Convert.ToBase64String(Encoding.UTF8.GetBytes(SourceId));
         string[] Lines(string text)=>text.Replace("\r\n","\n",StringComparison.Ordinal).TrimEnd('\n').Split('\n');
@@ -1043,12 +1220,24 @@ public static class NativeAotSqliteContract
         }
         try
         {
-            Need(await RunLinuxReferenceAsync(root,recipeRoot,sourceArchive,publication,output)==0,"recovery_publication_failed");
+            if(archiveDependencyRoot is not null)
+            {
+                archiveDependencyRoot=Path.GetFullPath(archiveDependencyRoot);
+                Need(archiveDependencyRoot!=root && archiveDependencyRoot!=recipeRoot && archiveDependencyRoot!=destination &&
+                    !archiveDependencyRoot.StartsWith(destination+"/",StringComparison.Ordinal) && !destination.StartsWith(archiveDependencyRoot+"/",StringComparison.Ordinal),"dependency_path");
+                dependencyInputs=HoldArchiveDependencyInputs(held,archiveDependencyRoot,ArchiveDependencyReceiptSha256);
+            }
+            Need(await RunLinuxReferenceAsync(root,recipeRoot,sourceArchive,publication,output,archiveDependencyRoot)==0,"recovery_publication_failed");
             using var lease=NativeAotPayload.OpenQualificationLease(root);
             var producer=held.Open(root,Path.Combine(publication,"receipt.json"),"fresh recovery publication","sqlite_recovery_publication",4*1024*1024,singleLink:true);
             publicationHash=producer.Sha256;using(var receipt=JsonDocument.Parse(producer.ReadBytes(4*1024*1024,"sqlite_recovery_publication")))
             {
                 Need(receipt.RootElement.GetProperty("Succeeded").GetBoolean(),"recovery_publication_failed");
+                archiveBuild=receipt.RootElement.GetProperty("ArchiveBuild").GetString()??"";
+                freshCompilesCompleted=receipt.RootElement.GetProperty("FreshCompilesCompleted").GetInt32();
+                Need(archiveDependencyRoot is null?archiveBuild=="fresh_two_compiles" && freshCompilesCompleted==2:
+                    archiveBuild=="reused_verified_dependency" && freshCompilesCompleted==0 &&
+                    receipt.RootElement.GetProperty("ArchiveDependency").GetProperty("ReceiptSha256").GetString()==ArchiveDependencyReceiptSha256,"recovery_publication_dependency");
                 foreach(var entry in receipt.RootElement.GetProperty("Sources").EnumerateObject().Concat(receipt.RootElement.GetProperty("Outputs").EnumerateObject()))
                 {
                     string path=Path.IsPathFullyQualified(entry.Name)?entry.Name:Path.Combine(publication,entry.Name);
@@ -1162,6 +1351,9 @@ public static class NativeAotSqliteContract
             var files=Directory.GetFiles(destination,"*",SearchOption.AllDirectories).Where(p=>Path.GetFileName(p) is not "ownership.lock" and not "qualification.lock" && p!=Path.Combine(destination,"receipt.json")).Order(StringComparer.Ordinal);
             await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
             {Schema="clros-sqlite-linux-process-kill-recovery-v1",Succeeded=succeeded,Failure=failure,FreshPublicationReceiptSha256=publicationHash,Journal=barrier,
+                ArchiveBuild=archiveBuild,FreshCompilesCompleted=freshCompilesCompleted,ArchiveDependencyRoot=archiveDependencyRoot,
+                ArchiveDependencyReceiptSha256=dependencyInputs?["receipt.json"].Sha256,
+                ArchiveDependencyInputs=dependencyInputs?.ToDictionary(p=>p.Key,p=>p.Value.Sha256,StringComparer.Ordinal),
                 WriterTrace=writerTrace,Identity=identity,PidfdDeathObserved=pidfdDead,SessionJoined=sessionJoined,ReservedLockAbsent=lockClear,RecoveredDatabaseSha256=recoveredHash,
                 TraceSha256=traceHashes,Outputs=files.ToDictionary(p=>Path.GetRelativePath(destination,p),NativeAotWebPayload.HashFile),
                 CompleteWriterTraceProjection=false,OriginalLinuxProducerSource="f61648c223e9aad99e0bbb48a4be5ee19a0c1bce",FreshPublicationRequired=true,
@@ -1197,8 +1389,12 @@ public static class NativeAotSqliteContract
     /// failed output. The original socket recipe and accepted application bytes
     /// remain read-only. This supplies Linux-reference requirements only; guest
     /// execution, fault/recovery and durable transactions require their own gates.
-    /// Caller must serialize the external builder/transport with other owners.</summary>
-    public static async Task<int> RunLinuxReferenceAsync(string root,string recipeRoot,string sourceArchive,string destination,TextWriter output)
+    /// Caller must serialize the external builder/transport with other owners.
+    /// Optional archiveDependencyRoot explicitly reuses only the reviewed r03
+    /// receipt's two identical objects/archives, held through consumer finish.
+    /// It does not claim a new compilation. Default builds twice with unchanged
+    /// ten-minute per-compile limits; every app publication and process is fresh.</summary>
+    public static async Task<int> RunLinuxReferenceAsync(string root,string recipeRoot,string sourceArchive,string destination,TextWriter output,string? archiveDependencyRoot=null)
     {
         const string marker="nativeaot.sqlite-reference";output.WriteLine("TEST_START "+marker);
         Need(OperatingSystem.IsLinux(),"linux_builder_required");root=Path.GetFullPath(root);recipeRoot=Path.GetFullPath(recipeRoot);
@@ -1217,35 +1413,57 @@ public static class NativeAotSqliteContract
         string recipeCommands=Encoding.UTF8.GetString(original.ReadBytes(2*1024*1024,"sqlite_original_recipe"));
         var sourceInput=held.Open(root,sourceArchive,"upstream source ZIP","sqlite_upstream_source",4*1024*1024,singleLink:true);
         var upstream=InspectSourceArchiveValues(sourceInput.ReadBytes(4*1024*1024,"sqlite_upstream_source"));
+        IReadOnlyDictionary<string,AuthorityFile>? dependencyInputs=null;
+        if(archiveDependencyRoot is not null)
+        {
+            archiveDependencyRoot=Path.GetFullPath(archiveDependencyRoot);
+            Need(archiveDependencyRoot!=root && archiveDependencyRoot!=recipeRoot && archiveDependencyRoot!=destination &&
+                !archiveDependencyRoot.StartsWith(destination+"/",StringComparison.Ordinal) && !destination.StartsWith(archiveDependencyRoot+"/",StringComparison.Ordinal),"dependency_path");
+            dependencyInputs=HoldArchiveDependencyInputs(held,archiveDependencyRoot,ArchiveDependencyReceiptSha256);
+        }
         Directory.CreateDirectory(destination);AuthorityFiles.RequirePlainPath(root,destination,"sqlite_native_output");
         using var ownership=new FileStream(Path.Combine(destination,"qualification.lock"),FileMode.CreateNew,FileAccess.Write,FileShare.None);
         List<object> commands=[];Dictionary<string,string> native=new(StringComparer.Ordinal);bool succeeded=false;string failure="";
         NativeAotPayload.Inspection? image=null;Archive? archive=null;Transcript? transcript=null,verification=null;Trace? trace=null,verificationTrace=null;
+        ArchiveDependency? dependency=null;Dictionary<string,CompilerInput> compilerInputs=new(StringComparer.Ordinal);int freshCompilesCompleted=0;
         IReadOnlyList<string>? imports=null,retainedImports=null;string[] metadataWithoutArchive=[];IReadOnlyList<WeakUndefined>? weakUndefined=null;
         async Task<string> Run(string name,string executable,IReadOnlyList<string> arguments,TimeSpan? timeout=null)
         {
-            commands.Add(new{executable,arguments,workingDirectory=root,log=name});
-            await NativeAotWebPayload.ExecuteAsync(executable,arguments.ToArray(),root,Path.Combine(destination,name),timeout??TimeSpan.FromMinutes(2));
-            return await File.ReadAllTextAsync(Path.Combine(destination,name+".stdout.log"));
+            TimeSpan limit=timeout??TimeSpan.FromMinutes(2);var attempt=new CommandAttempt{executable=executable,arguments=arguments.ToArray(),workingDirectory=root,log=name,phase=name,limitSeconds=limit.TotalSeconds};
+            commands.Add(attempt);var elapsed=Stopwatch.StartNew();
+            try
+            {
+                await NativeAotWebPayload.ExecuteAsync(executable,attempt.arguments,root,Path.Combine(destination,name),limit);
+                string text=await File.ReadAllTextAsync(Path.Combine(destination,name+".stdout.log"));attempt.outcome="succeeded";return text;
+            }
+            catch(OperationCanceledException)
+            {
+                attempt.outcome="timed_out";attempt.failure="sqlite_contract_command_timeout";
+                throw new ToolFailure(attempt.failure,"phase="+name+" limitSeconds="+limit.TotalSeconds.ToString(CultureInfo.InvariantCulture));
+            }
+            catch(Exception error)
+            {attempt.outcome="failed";attempt.failure=error is ToolFailure tool?tool.Reason:error.GetType().Name;throw;}
+            finally {attempt.elapsedSeconds=elapsed.Elapsed.TotalSeconds;}
         }
-        void Native(string path)
+        string Native(string path)
         {
             path=File.ResolveLinkTarget(path,true)?.FullName??Path.GetFullPath(path);string hash=NativeAotWebPayload.HashFile(path);
-            Need(!native.TryGetValue(path,out string? prior) || prior==hash,"native_input_changed");native[path]=hash;
+            Need(!native.TryGetValue(path,out string? prior) || prior==hash,"native_input_changed");native[path]=hash;return path;
         }
         try
         {
             Need((await Run("sdk","dotnet",["--version"])).Trim()==NativeAotPayload.SdkVersion,"sdk_pin");
             var originalNative=JsonSerializer.Deserialize<Dictionary<string,string>>(await File.ReadAllTextAsync(Path.Combine(recipeRoot,"artifacts/socket-qualification-r01/native-inputs.json")))!;
-            foreach(string name in new[]{"dotnet","gcc","clang","ld","ar","readelf","nm","strace","setsid"})
+            foreach(string name in CompilerTools)
             {
                 string? path=(Environment.GetEnvironmentVariable("PATH")??"").Split(Path.PathSeparator).Select(p=>Path.Combine(p,name)).FirstOrDefault(File.Exists);
                 Need(path is not null,"native_tool_missing");path=File.ResolveLinkTarget(path!,true)?.FullName??Path.GetFullPath(path!);Native(path);
+                compilerInputs.Add(name,new(path,native[path]));
                 if(name!="ar")Need(originalNative.TryGetValue(path,out var hash) && hash==native[path],"original_tool_changed");
                 if(name is "gcc" or "ar")await Run("version-"+name,name,["--version"]);
             }
-            foreach(string library in new[]{"libc.a","libm.a","libz.a","libstdc++.a","libgcc.a","libgcc_eh.a","crt1.o","crti.o","crtn.o"})
-            {string path=(await Run("library-"+library,"gcc",["-print-file-name="+library])).Trim();Need(Path.IsPathFullyQualified(path) && File.Exists(path),"static_library_missing");Native(path);}
+            foreach(string library in CompilerLibraries)
+            {string path=(await Run("library-"+library,"gcc",["-print-file-name="+library])).Trim();Need(Path.IsPathFullyQualified(path) && File.Exists(path),"static_library_missing");path=Native(path);compilerInputs.Add(library,new(path,native[path]));}
             string sourceDirectory=Path.Combine(destination,"upstream");Directory.CreateDirectory(sourceDirectory);
             string c=Path.Combine(sourceDirectory,"sqlite3.c"),header=Path.Combine(sourceDirectory,"sqlite3.h"),a=Path.Combine(destination,"libe_sqlite3.a");
             await File.WriteAllBytesAsync(c,upstream.CopyC());await File.WriteAllBytesAsync(header,upstream.CopyHeader());
@@ -1270,11 +1488,28 @@ public static class NativeAotSqliteContract
                 {Need(!native.TryGetValue(input.Key,out var old) || old==input.Value,"native_input_changed");native[input.Key]=input.Value;}
             }
             Need(imports is not null,"provider_import_missing");
-            for(int round=0;round<2;round++)
+            if(dependencyInputs is not null)
+            {
+                Dictionary<string,byte[]> values=new(StringComparer.Ordinal);
+                foreach(string relative in DependencyArtifacts)
+                    values.Add(relative,dependencyInputs[relative].ReadBytes(16*1024*1024,"sqlite_archive_dependency"));
+                foreach(var pair in new[]{("upstream/sqlite3.c",SourceCsha256),("upstream/sqlite3.h",SourceHeaderSha256),("upstream/sqlite-amalgamation-3530400.zip",SourceArchiveSha256)})
+                    Need(dependencyInputs[pair.Item1].Sha256.Equals(pair.Item2,StringComparison.OrdinalIgnoreCase),"dependency_source");
+                byte[] receiptBytes=dependencyInputs["receipt.json"].ReadBytes(2*1024*1024,"sqlite_archive_dependency");
+                dependency=InspectArchiveDependencyValues(receiptBytes,ArchiveDependencyReceiptSha256,values,imports!,compilerInputs);
+                foreach(var pair in values)
+                {
+                    string path=Path.Combine(destination,pair.Key=="commands.json"?"dependency/commands.json":pair.Key);Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    await File.WriteAllBytesAsync(path,pair.Value);if(pair.Key!="commands.json")Native(path);
+                }
+                await File.WriteAllBytesAsync(Path.Combine(destination,"dependency/receipt.json"),receiptBytes);archive=dependency.Archive;
+            }
+            else for(int round=0;round<2;round++)
             {
                 string roundDirectory=Path.Combine(destination,"round"+round);Directory.CreateDirectory(roundDirectory);
                 string obj=Path.Combine(roundDirectory,"sqlite3.o"),lib=round==0?a:Path.Combine(destination,"libe_sqlite3-repeat.a");
                 await Run("compile-r"+round,"gcc",StaticCompileArguments(c,obj,imports!),TimeSpan.FromMinutes(10));
+                freshCompilesCompleted++;
                 await Run("archive-r"+round,"ar",["crD",lib,obj]);Native(obj);Native(lib);
             }
             Need(NativeAotWebPayload.HashFile(a)==NativeAotWebPayload.HashFile(Path.Combine(destination,"libe_sqlite3-repeat.a")),"archive_reproducibility");
@@ -1353,7 +1588,7 @@ public static class NativeAotSqliteContract
             var files=Directory.GetFiles(destination,"*",SearchOption.AllDirectories).Where(p=>Path.GetFileName(p)!="qualification.lock").Order(StringComparer.Ordinal)
                 .ToDictionary(p=>Path.GetRelativePath(destination,p),NativeAotWebPayload.HashFile);
             await File.WriteAllTextAsync(Path.Combine(destination,"receipt.json"),JsonSerializer.Serialize(new
-            {Schema="clros-sqlite-linux-reference-v2",Succeeded=succeeded,Failure=failure,Archive=archive,Imports=imports,RetainedImports=retainedImports,MetadataWithoutArchive=metadataWithoutArchive,WeakUndefined=weakUndefined,Image=image,Transcript=transcript,Verification=verification,
+            {Schema="clros-sqlite-linux-reference-v2",Succeeded=succeeded,Failure=failure,Archive=archive,ArchiveBuild=dependency is not null?"reused_verified_dependency":archiveDependencyRoot is not null?"dependency_not_validated":freshCompilesCompleted==2?"fresh_two_compiles":"fresh_incomplete",FreshCompilesCompleted=freshCompilesCompleted,ArchiveDependencyRoot=archiveDependencyRoot,ArchiveDependency=dependency,Imports=imports,RetainedImports=retainedImports,MetadataWithoutArchive=metadataWithoutArchive,WeakUndefined=weakUndefined,Image=image,Transcript=transcript,Verification=verification,
                 TraceUnjoinedLines=trace?.UnjoinedLines,VerificationTraceUnjoinedLines=verificationTrace?.UnjoinedLines,
                 TraceUnreturnedCalls=trace?.UnreturnedCalls,VerificationTraceUnreturnedCalls=verificationTrace?.UnreturnedCalls,
                 TraceTerminalUnreturnedCalls=trace?.TerminalUnreturnedCalls,VerificationTraceTerminalUnreturnedCalls=verificationTrace?.TerminalUnreturnedCalls,
@@ -1367,5 +1602,5 @@ public static class NativeAotSqliteContract
     private static ushort U16(ReadOnlySpan<byte> bytes,int at)=>BinaryPrimitives.ReadUInt16LittleEndian(bytes[at..]);
     private static uint U32(ReadOnlySpan<byte> bytes,int at)=>BinaryPrimitives.ReadUInt32LittleEndian(bytes[at..]);
     private static ulong U64(ReadOnlySpan<byte> bytes,int at)=>BinaryPrimitives.ReadUInt64LittleEndian(bytes[at..]);
-    private static void Need(bool condition,string reason){if(!condition)throw new ToolFailure("sqlite_contract_"+reason);}
+    private static void Need([System.Diagnostics.CodeAnalysis.DoesNotReturnIf(false)]bool condition,string reason){if(!condition)throw new ToolFailure("sqlite_contract_"+reason);}
 }

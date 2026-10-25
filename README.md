@@ -1,5 +1,7 @@
 <p align="center">
 
+[Step1603](done/step1603.md) Original timing r07 at 4efb1bc3 serves health, CoreLib HEAD, the independently checked 64 KiB range and final health, then confirms cancellation, join and endpoint refusal. The range takes26.715s; this diagnostic does not qualify full Blazor or cleanup. A sole-read copy/replenish experiment preserves the5ms budget and per-step flush, with235 focused host checks passing; a fresh committed guest measurement is next. Linux SQLite ordinary ef97/r05 passes fresh publication/writer/verifier using an explicitly verified archive dependency; recovery c79/r01 fails before its kill/reopen phase and remains unqualified.
+
 [Step1602](done/step1602.md) connects the short disk timing profile to the actual runner. Seven profile/CLI, two timing-peer and ten existing runner controls pass. Earlier timing r03–r06 all stopped before guest execution; their failures remain preserved. A fresh committed timing boot and full Blazor qualification are still required.
 
 [Step1601](done/step1601.md) The short timing producer compiles but its original r02 hit the former host catalog limit before guest launch. Expert-reviewed host-only capacity is now4096 with full row scans and over-bound rejection; the separate kernel unwind decoder stays2048 and is off for this profile. New diagnostic and full Blazor evidence remain pending.

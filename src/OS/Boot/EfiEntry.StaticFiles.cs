@@ -329,6 +329,8 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " stepLimit=") && LinuxNumber(c->State, p.StepLimit) &&
                     LinuxText(c->State, " failures=") && LinuxNumber(c->State, p.Failures) &&
                     LinuxText(c->State, " flushedPastBudget=") && LinuxNumber(c->State, p.FlushedPastBudget) &&
+                    LinuxText(c->State, " replenished=") && LinuxNumber(c->State, p.Replenished) &&
+                    LinuxText(c->State, " replenishBudgetSkips=") && LinuxNumber(c->State, p.ReplenishBudgetSkips) &&
                     LinuxText(c->State, "\r\n");
             }
         }

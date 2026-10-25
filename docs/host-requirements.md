@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1603](../done/step1603.md) Root passes235 distinct focused checks:24 disk-thread,103 continuing writable provider,40 global writable descriptor,2 timing peer,7 profile/CLI,5 source-admission,15 readonly descriptor,34 SQLite contract and5 authority-file controls, all unchanged inputs/zero reuse. This is not an unfiltered full lane. Linux ordinary SQLite ef97/r05 passes actual fresh publication/writer/distinct verifier with explicitly reused verified original archives. Recovery c79/r01 fails while retaining publication sources; the later read-only builder audit reports soft1024/hard4096 file descriptors. Preserve the failed original and qualify any explicit invocation prerequisite separately.
+
 [Step1602](../done/step1602.md) Seven profile/CLI controls include the actual compiled runner at 240/600 seconds, dry-run output noncreation, original-build admission, missing parents, duplicates, invalid timing and unchanged full 2200/3600 admission. Two peer and ten existing runner controls also pass, unchanged inputs/zero reuse. These focused host checks do not establish unfiltered full or guest qualification. Peer budget min(480, runnerDeadline−30) preserves cancellation/join time.
 
 [Step1601](../done/step1601.md) The host PE verifier bounds catalog storage/scan at4096rows and48KiB pdata, using managed file-backed observations only. Distinct4096scan3ms satisfies unchanged1s parser criterion; existing120s fixture process guard stays unchanged. Kernel decoder2048 and selected M04isolation remain required.
@@ -897,6 +899,18 @@ The prepared pinned SQLite reference CLI uses a fresh output directory on the Li
 ```text
 linux sqlite-reference <recipe> <pinned-source-zip> <fresh-output>
 linux sqlite-recovery-reference <recipe> <pinned-source-zip> <fresh-output>
+linux sqlite-reference-with-archive <recipe> <pinned-source-zip> <reviewed-r03-artifacts> <fresh-output>
+linux sqlite-recovery-reference-with-archive <recipe> <pinned-source-zip> <reviewed-r03-artifacts> <fresh-output>
 ```
 
 These commands route to the existing measured producer; the recovery run requires a separate fresh Linux root/publication. Preparation or a Linux-host success is not CLROS guest persistence or transaction durability evidence. See [step1597](../done/step1597.md).
+
+The explicit archive routes retain the pinned original dependency receipt,
+source, both object/archive outputs, recipes and toolchain identities; they
+report reused archives and zero fresh SQLite compiles while publishing a fresh
+application and running fresh processes. Recovery retains every source/output
+authority through its owned kill/join/reopen. Its original c79/r01 failed under
+the builder's1024 soft descriptor limit before recovery began. A subsequent
+invocation must explicitly log any child-only4096 limit and parent restoration,
+use fresh outputs and preserve all holds; this prerequisite is not yet a
+successful recovery result. See [step1603](../done/step1603.md).

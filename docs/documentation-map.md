@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1603](../done/step1603.md) Storage/PAL own sole-read replenishment and retained writable admission; diagnostics/QEMU own original r07 timing, v2 counters and the required next guest comparison. Application/host docs distinguish the successful fresh Linux SQLite writer/verifier from failed recovery publication. README, guides, subsystem docs, canonical issues and parent summaries retain full Blazor/write/durability limits.
+
 [Step1602](../done/step1602.md) QEMU and diagnostics own actual timing runner selection, separate deadlines, retained pre-guest failures and original-input confinement. Host requirements own real CLI controls; the agent guide records two isolated successor claims. Host orchestration changes no storage/native/SQLite capability boundary.
 
 [Step1601](../done/step1601.md) EFI build documents host4096catalog capacity and actual original2055rejection; nativeaot-nostdlib-limits retains separate kernel2048 semantics. Diagnostics/QEMU own exact XML-reader/native failure provenance and fresh-original requirements. Application/storage successor preparation remains under Step1600 until separately integrated.

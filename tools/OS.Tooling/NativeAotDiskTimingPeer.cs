@@ -18,7 +18,7 @@ public static class NativeAotDiskTimingPeer
     public const string Marker = "M10_018_TIMING ";
     private static readonly string[] Fields = ["bytes", "calls", "steps", "pumpNs", "scanNs", "flushNs",
         "preNetworkNs", "postNetworkNs", "networkCalls", "diskReady", "otherReady", "noAdvance",
-        "elapsed", "stepLimit", "failures", "flushedPastBudget"];
+        "elapsed", "stepLimit", "failures", "flushedPastBudget", "replenished", "replenishBudgetSkips"];
 
     public sealed class Completion
     {
@@ -51,7 +51,9 @@ public static class NativeAotDiskTimingPeer
         }
         ulong calls=values["calls"],steps=values["steps"];
         Need(values["bytes"]==65536 && calls is >0 and <=10_000_000 && steps>=calls && steps<=calls*4 &&
-            values["networkCalls"]==calls && values["failures"]==0 && values["flushedPastBudget"]<=steps,"metric_bounds");
+            values["networkCalls"]==calls && values["failures"]==0 && values["flushedPastBudget"]<=steps &&
+            values["replenished"]<=values["otherReady"] && values["replenished"]<=steps-calls &&
+            values["replenishBudgetSkips"]<=values["elapsed"],"metric_bounds");
         ulong reasons=0;
         foreach(string field in new[]{"diskReady","otherReady","noAdvance","elapsed","stepLimit"})
         {Need(values[field]<=calls,"metric_reason");reasons+=values[field];}
@@ -114,7 +116,7 @@ public static class NativeAotDiskTimingPeer
             try
             {
                 using FileStream receipt=new(Path.Combine(directory,"diagnostic.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v1",Scope="diagnostic-only",Complete=complete,
+                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v2",Scope="diagnostic-only",Complete=complete,
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
                     Responses=rows,Metrics=metrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);

@@ -8,15 +8,15 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "e0941ec990666d9134ca4a5ffe0f794960cd09f7c2ea699e33f047d129e78b65",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "0154310cd3d0d8b294eba266fdfea37389eccf23bdbbc38a3ca2f5a0c363afba",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "16106aa576b0c07127cb6dc2ac313e7baced3d964cb4051784b71e7f3a188737",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "03ef6fb4a3936a34192b04cd9363fa6f72e24f01ddc4f3ced1b2e74301b49386",
                 [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "c33deccc5cafd495ca44ae081558ed9bc5d48bf26789bc0bdf9406cb34ad8898",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "bb09afc107d9405af85ef70520e36d566c1ea27fc38e8d2a7709deff48d6762b",
                 [@"Boot\EfiEntry.DiskEvidence.cs"] = "69d3a174cc93ec6858b8c11d6cc83daf84469dac1b3a62d43e66e588b6609708",
                 [@"Boot\EfiEntry.DiskBootstrap.cs"] = "89e8acf5685b78d48f1078deba8f8177cf7ca2efa570e1e66a8be9a13f79ec8d",
                 [@"Boot\EfiEntry.DiskNative.cs"] = "32996812dfa29770ef925f86e12b4bd1f13a3a59b35ac6ea903e8a5830ab002e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs"] = "eedd501f486cf9e0f17129577a909d9e18e1320babb90aad31f3b3e92b4e1fe6",
-                [@"Boot\EfiEntry.StaticFiles.cs"] = "878b3ea967e4ec29ed7e049770a02af12258fe023539ba5d065d2113339561b2",
+                [@"Boot\EfiEntry.StaticFiles.cs"] = "28dedc2640a1f6705a6d9543b14c8cfbba13912cce77174016d89657ee7c4715",
                 [@"Boot\EfiEntry.Realtime.cs"] = "c871f076a82826df3763e248bafd0bbb095dfc0b12fe96c41b3a0f7c63b17fc9",
                 [@"..\OS.Kernel\Platform\OwnedRealtimeClock.cs"] = "0dfae6f8423a2443ca63800fd48b7b93da455fed1ef90e5ffe728f74c122a709",
                 [@"..\..\std\no-runtime\shared\Time\GregorianUtc.cs"] = "123bff62aaad42b88f372acd07043d850c726fa4f8e3efda92a755bf448e171f",

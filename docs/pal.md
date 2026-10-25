@@ -1,5 +1,7 @@
 # PAL
 
+[Step1603](../done/step1603.md) Source4 sole-read replenishment is limited to an unchanged pending data read and one next submit, with exact descriptor/user/worker ownership and the existing elapsed budget. Original fd close or a competing request rejects the extra submit; ready peers retain FIFO precedence after the poll. Imported host-only writable EngineQueued admission retains pre-engine ownership across genuine external Busy and retries only the unissued initial operation. Native shared readonly/writable activation and persistent application behavior remain unqualified.
+
 [Step1600](../done/step1600.md) The filesystem can borrow the same writable block owner through an authenticated read port; Busy is a resumable arbitration status and cannot become EOF or permanent device failure. Global borrowed descriptor work and root source4 fstat pinning are continuing; shared writable/read-only descriptor coexistence and native activation remain unqualified.
 
 [Step1597](../done/step1597.md) Writable syscalls4/6 use fresh path/root facts and the existing asynchronous stat serializer, with actual source5 Parking and original output-prefix protection through completion/cancellation. Nonblocking flock73 reaches the real current-worker gateway and uses open-description ownership. Blocking flock, fchown93 and fstatfs138 remain outside this measured host slice; no native writable activation is accepted.

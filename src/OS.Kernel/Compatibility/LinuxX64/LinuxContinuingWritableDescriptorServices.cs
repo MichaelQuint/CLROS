@@ -154,7 +154,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         internal Step Step;
         internal uint Description, Number, Flags, Bytes, Expected, AliasAttempts, NewLength, GrowthCount;
         internal ushort NameLength;
-        internal bool Active, Ready, Cancelled, Discard, Positioned, Borrowed, RevisionAccepted, GrowAllowed, SearchRequested, SearchComplete, DirectoryRequired;
+        internal bool Active, Ready, Cancelled, Discard, Positioned, Borrowed, RevisionAccepted, GrowAllowed, SearchRequested, SearchComplete, DirectoryRequired, EngineQueued;
         internal long Value;
         internal C.Status Failure;
         internal fixed byte Name[(int)PathBytes];
@@ -464,8 +464,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         s->Work = new() { Active = true, Generation = ++s->NextGeneration, Kind = Operation.Open, Step = Step.Lookup,
             Description = (uint)description, DescriptionGeneration = d->Generation, Number = (uint)fd, Flags = flags, Process = process, NameLength = (ushort)(path.Length - 6) };
         for (int i = 6; i < path.Length; i++) s->Work.Name[i - 6] = path[i];
-        var status = Lookup(s); if (status != C.Status.Pending) Finish(s, Map(status), status);
-        return Observe(s);
+        return StartedFirstEngine(s, Lookup(s));
     }
 
     /// <summary>Share a live description and cursor. The new descriptor has
@@ -623,8 +622,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         s->Work = new() { Active = true, Generation = ++s->NextGeneration, Kind = Operation.Unlink, Step = Step.DeleteLookup,
             Description = uint.MaxValue, Process = process, NameLength = (ushort)(path.Length - 6) };
         for (int i = 6; i < path.Length; i++) s->Work.Name[i - 6] = path[i];
-        var status = Lookup(s); if (status != C.Status.Pending) Finish(s, Map(status), status);
-        return Observe(s);
+        return StartedFirstEngine(s, Lookup(s));
     }
 
     /// <summary>Begin a held bounded read. The final copy is a separate call
@@ -688,8 +686,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         C.RequestToken request = default;
         var status = root ? C.BeginInspectRoot(s->Input.Engine, &request) : Lookup(s);
         if (root) s->Work.EngineRequest = request;
-        if (status != C.Status.Pending) Finish(s, Map(status), status);
-        return Observe(s);
+        return StartedFirstEngine(s, status);
     }
 
     /// <summary>Issue an actual engine volume FLUSH for a file or root fd.
@@ -705,13 +702,17 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>One bounded engine step. It never copies caller/user output
     /// or commits a description cursor. Positive read readiness holds the
-    /// engine's copied bytes until CopyRead; unrelated work cannot bypass it.</summary>
+    /// engine's copied bytes until CopyRead; unrelated work cannot bypass it.
+    /// A first begin blocked by a borrowed block IN retains its copied request.
+    /// Until admitted, Pump retries only that unissued begin; it never polls or
+    /// cancels another client's engine/block request or replays issued work.</summary>
     public static Result Pump(State* s)
     {
         if (!Bound(s)) return new(Progress.Rejected);
         if (!s->Work.Active) return s->Poisoned ? Immediate(Io) : Immediate(0);
         if (s->Work.Ready) return Observe(s);
         if (!Revision(s)) return Recovery(s);
+        if (s->Work.EngineQueued) return PumpFirstEngine(s);
         var status = C.Pump(s->Input.Engine);
         if (!AcceptOwnRevision(s)) return Recovery(s);
         if (status == C.Status.Pending) return Observe(s);
@@ -926,11 +927,20 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
 
     /// <summary>Revoke pending read/open continuation, or honor an already
     /// completed write/barrier. Close/retirement additionally discard every
-    /// result. Issued dirty cancellation retains recovery, never fake rollback.</summary>
+    /// result. An unissued queued begin releases only its own copied work and
+    /// borrow; it never cancels the foreign block IN. Issued dirty cancellation
+    /// retains recovery, never fake rollback.</summary>
     public static Result Cancel(State* s, RequestToken request)
     {
         if (!Matches(s, request)) return new(Progress.Rejected);
         Pending* p = &s->Work;
+        if (p->EngineQueued)
+        {
+            if (!FirstEngineShape(p) || !RetainedStorage(s, s->Input.Epoch, 0, 0, false))
+            { p->Failure = C.Status.InvalidState; return Recovery(s); }
+            p->EngineQueued = false; p->Cancelled = true; p->Step = Step.Done;
+            Finish(s, Interrupted, C.Status.Cancelled); return AfterFinish(s);
+        }
         if (p->Ready && p->Step != Step.Read)
         {
             if (p->Kind is Operation.Open or Operation.Read or Operation.Stat or Operation.PathStat) { p->Cancelled = true; p->Step = Step.Done; Finish(s, Interrupted, C.Status.Cancelled); }
@@ -985,8 +995,52 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
         C.RequestToken request = default;
         var status = kind == Operation.Sync ? C.BeginFlush(s->Input.Engine, &request) : Lookup(s);
         if (kind == Operation.Sync) s->Work.EngineRequest = request;
+        return StartedFirstEngine(s, status);
+    }
+
+    // Only a first, unissued begin may wait behind another client's block IN.
+    // There are no aliased caller inputs or effects to replay: lookup names,
+    // write bytes, offsets, process and descriptor generations are already owned.
+    private static Result StartedFirstEngine(State* s, C.Status status)
+    {
+        if (status == C.Status.Busy && FirstEngineShape(&s->Work) &&
+            !s->Input.Engine->RequestActive && C.CanAdmitStorage(s->Input.Engine, s->Input.Epoch))
+        { s->Work.EngineQueued = true; return Observe(s); }
         if (status != C.Status.Pending) Finish(s, Map(status), status);
         return Observe(s);
+    }
+    private static bool FirstEngineShape(Pending* p) => p->Active && !p->Ready && p->Generation != 0 && p->NameLength < PathBytes &&
+        p->EngineRequest.Owner == 0 && p->EngineRequest.Epoch == 0 && p->EngineRequest.Generation == 0 &&
+        (p->Step == Step.Lookup && p->Kind is Operation.Open or Operation.PathStat ||
+         p->Step == Step.Authenticate && p->Borrowed && p->Kind is Operation.Read or Operation.Write or Operation.Grow or Operation.Truncate or Operation.Stat ||
+         p->Step == Step.DeleteLookup && p->Kind == Operation.Unlink ||
+         p->Step == Step.RootStat && p->Kind == Operation.PathStat || p->Step == Step.Flush && p->Kind == Operation.Sync);
+
+    private static Result PumpFirstEngine(State* s)
+    {
+        Pending* p = &s->Work;
+        if (!FirstEngineShape(p) || !RetainedStorage(s, s->Input.Epoch, 0, 0, false))
+        { p->Failure = C.Status.InvalidState; return Recovery(s); }
+        if (!ProcessCurrent(s, p->Process) || p->Borrowed &&
+            (!Current(s, p->Original, out uint description) || description != p->Description ||
+             s->Input.Descriptions[description].Generation != p->DescriptionGeneration))
+        { p->Discard = true; Drop(s); return Immediate(BadFd); }
+        if (p->Kind == Operation.Open &&
+            (p->Number >= s->Input.DescriptorCount || p->Description >= s->Input.DescriptionCount ||
+             !s->Input.Descriptors[p->Number].Reserved || s->Input.Descriptors[p->Number].Description != p->Description + 1 ||
+             !s->Input.Descriptions[p->Description].Reserved || s->Input.Descriptions[p->Description].Generation != p->DescriptionGeneration))
+        { p->Failure = C.Status.InvalidState; return Recovery(s); }
+        // A different logical C request is never ours to pump, even if a
+        // supervisor started it after the borrowed read released the device.
+        if (s->Input.Engine->RequestActive) return Observe(s);
+        if (!C.CanAdmitStorage(s->Input.Engine, s->Input.Epoch))
+        { s->Poisoned = true; p->EngineQueued = false; Finish(s, Io, C.Status.InvalidState); return AfterFinish(s); }
+        C.RequestToken request = default;
+        var status = p->Step == Step.Flush ? C.BeginFlush(s->Input.Engine, &request) :
+            p->Step == Step.RootStat ? C.BeginInspectRoot(s->Input.Engine, &request) : Lookup(s);
+        if (p->Step is Step.Flush or Step.RootStat) p->EngineRequest = request;
+        p->EngineQueued = false;
+        return StartedFirstEngine(s, status);
     }
     private static C.Status Lookup(State* s)
     {

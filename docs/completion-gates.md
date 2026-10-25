@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1603](../done/step1603.md) The original r07 short diagnostic succeeds through exact64KiB HTTP bytes, final health, deliberate cancellation/join and endpoint refusal. It explicitly grants no full-cleanup/Blazor acceptance.235 focused host controls support a subsequent sole-read replenishment experiment, pending a fresh original. Linux SQLite ef97/r05 fresh publication/writer/verifier passes with recorded archive reuse; c79 recovery fails during source retention before seed/kill/reopen. Full A/B/browser, fresh race/ancestor/full-host gates, continuing service, guest writes/reboot, SQLite locking/flush/recovery, cloud and production remain unaccepted.
+
 [Step1602](../done/step1602.md) The timing diagnostic reaches the actual runner in host dry-runs; nineteen focused controls pass. All timing originals through r06 stop before guest and remain failed. No read/Blazor/cleanup/persistence/SQLite/sustained-service gate closes. A fresh original must measure the selected path before any scheduling repair or full rerun.
 
 [Step1601](../done/step1601.md) Host catalog/profile controls establish no new guest milestone: timingr01/r02 stop before guest; fullr06 remains failed and browser never entered. The host4096 catalog change preserves kernel2048 unwind behavior. New timing/full/persistence/SQLite originals and stable acceptance gates remain required.

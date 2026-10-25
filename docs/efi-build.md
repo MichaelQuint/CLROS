@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1603](../done/step1603.md) Original r07 at clean4efb1bc3 compiles and verifies2055runtime/1628unwind records, then runs the short guest diagnostic. EFI SHA2560B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF and image36A92BF15CE8BE4C0238101BBB81643CE5E46353EC4995DCE2F941AD3A34D393 retain exact original provenance. Three source pins now cover the host-qualified sole-read replenishment experiment and two added aggregate counters. New native publication and timingr08 are required; kernel unwind2048 and its disabled profile remain unchanged.
+
 [Step1602](../done/step1602.md) Original timing r06 at d6bd3919 completes native verification (2055 runtime/1628 unwind records) and image construction, then runner deadline admission fails before guest. EFI SHA256 0B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF. The runner repair changes no kernel, EFI source pin or metadata bound. A new committed -BuildEfi original remains mandatory; failed r03–r06 retain their original scope.
 
 [Step1601](../done/step1601.md) Host full-PE catalog admission is4096 (48KiB pdata; bounded managed List/Dictionary scan), separately from unchanged2048 kernel unwind snapshots. Timing/full/018 actual flags have allM04=false and no decoder startup call.23verifier checks pass including full4096distinct scan3ms,2055regression and4097rejection with unchanged1s scan criterion. Originalr02 failed2055/2048 before guest; a fresh native/original remains required.

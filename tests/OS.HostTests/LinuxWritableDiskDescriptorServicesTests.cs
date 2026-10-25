@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -476,6 +477,128 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         f.PutPath("/data/m16-write.bin"); HostCheck.Equal(-2L, f.Run(f.Call(2, Path, 0)));
         before = f.Trace.Count; HostCheck.Equal(0L, f.Run(f.Call(74, root))); HostCheck.True(f.Trace.Skip(before).Any(row => row.Type == 4));
         HostCheck.True(f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->DurableBytes);
+    }
+
+    [HostTest("writable global copied SQLite journal ordering preserves live database handles locks and independent media across real flushes")]
+    private static void SqliteJournalOrdering()
+    {
+        // Widths/offsets/lock ranges and journal->directory->header->DB order
+        // come from original77B2 sqlite-trace.5255:343-364. Page bytes below
+        // are independent host vectors, not a SQLite database/checksummed
+        // recovery journal. No SQLite engine, user execution or physical
+        // persistence is proved by this fake-device/global-wire control.
+        using var f = new Owner(); var media = new PersistentDevice(f.Hardware);
+        var geometry = Fat32Parser.ReadBpb(media, f.Storage.Input.PartitionFirst); HostCheck.True(geometry.Succeeded);
+        ulong data = geometry.Bpb.FirstDataLba;
+        byte[] keepSector = f.Storage.Persistent.Slice((int)((data + 1) * 512), 512).ToArray();
+        byte[] guard = Enumerable.Range(0, 900).Select(Value).ToArray();
+        byte[] initial = Enumerable.Range(0, 8192).Select(i => unchecked((byte)(i * 29 + 7))).ToArray();
+        byte[] updated = initial.Select(value => (byte)(value ^ 0x5a)).ToArray();
+        uint Fat(uint cluster, uint copy = 0) => BinaryPrimitives.ReadUInt32LittleEndian(f.Storage.Persistent.Slice(
+            (int)((geometry.Bpb.FirstFatLba + copy * geometry.Bpb.FatSizeSectors) * 512 + cluster * 4), 4));
+        uint[] preservedClusters = [0, 1, 2, 3, 4, 6]; uint[] preservedFat = preservedClusters.Select(cluster => Fat(cluster)).ToArray();
+        List<string> barriers = [];
+        void Write(uint fd, byte[] bytes, ulong offset)
+        {
+            int first = f.Trace.Count; ulong submitted = f.Storage.Device.State->SubmittedBytes;
+            HostCheck.Equal((long)bytes.Length, f.Run(f.WriteCall(fd, bytes, offset)));
+            HostCheck.True(f.Trace.Skip(first).Any(row => row.Type == 1) && f.Trace.Skip(first).Any(row => row.Type == 4) &&
+                f.Storage.Device.State->SubmittedBytes > submitted &&
+                f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->CompletedBytes &&
+                f.Storage.Device.State->CompletedBytes == f.Storage.Device.State->DurableBytes && !f.Storage.State->Dirty);
+        }
+        void Sync(uint fd, string role)
+        {
+            B.State* block = f.Storage.Device.State; ulong submitted = block->Submitted, completed = block->Completed, bytes = block->SubmittedBytes;
+            int first = f.Trace.Count; HostCheck.Equal(0L, f.Run(f.Call(74, fd)));
+            HostCheck.True(f.Trace.Skip(first).Select(row => row.Type).SequenceEqual(new uint[] { 4 }) &&
+                block->Submitted == submitted + 1 && block->Completed == completed + 1 &&
+                block->SubmittedBytes == bytes && block->CompletedBytes == bytes && block->DurableBytes == bytes && !f.Storage.State->Dirty);
+            barriers.Add(role); // Actual observed FLUSH frontiers, not application/power-loss durability.
+            Console.WriteLine($"SQLITE_GLOBAL_FLUSH_HOST role={role} submitted={block->Submitted} completed={block->Completed} writeBytes={bytes} flushAcknowledgedBytes={block->DurableBytes}");
+        }
+        void Lock(uint fd, short type, long first, long bytes)
+        { f.PutLock(type, first, bytes); HostCheck.Equal(0L, f.Run(f.Call(72, fd, 6, Flock))); }
+        byte[] Stat(uint fd, string path, ulong length)
+        {
+            HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output))); byte[] facts = f.Bytes(144);
+            HostCheck.True(BitConverter.ToUInt32(facts, 24) == 0x8180 && BitConverter.ToUInt64(facts, 48) == length &&
+                BitConverter.ToUInt64(facts, 64) == (length + 511) / 512);
+            foreach (ulong number in new ulong[] { 4, 6 })
+            { f.PutPath(path); HostCheck.Equal(0L, f.Run(f.Call(number, Path, Output))); HostCheck.True(f.Bytes(144).SequenceEqual(facts)); }
+            return facts;
+        }
+
+        const uint flags = 2 | W.Create | W.NoFollow | W.CloseOnExec | W.LargeFile;
+        f.PutPath("/data/contract.db"); long opened = f.Run(f.Call(2, Path, flags, 0x1a4)); HostCheck.True(opened >= 3); uint database = (uint)opened;
+        HostCheck.Equal(0L, f.Core(72, database, 2, 1));
+        HostCheck.True(F.Capture(f.Files.State, database, out var originalDatabase));
+        Write(database, initial[..4096], 0); Write(database, initial[4096..], 4096); Sync(database, "seed-db");
+        ulong inode = BitConverter.ToUInt64(Stat(database, "/data/contract.db", 8192), 8);
+        uint independent = f.Open("/data/contract.db", W.LargeFile | W.CloseOnExec);
+        HostCheck.Equal(17L, f.Run(f.Call(8, database, 17))); HostCheck.Equal(29L, f.Run(f.Call(8, independent, 29)));
+        const long pending = 0x40000000, reserved = pending + 1, shared = pending + 2;
+        Lock(database, 0, pending, 1); Lock(database, 0, shared, 510); Lock(database, 2, pending, 1);
+        Lock(database, 1, reserved, 1); HostCheck.True(f.HasLocks());
+        f.PutPath("/data/contract.db-journal"); HostCheck.Equal(-2L, f.Run(f.Call(4, Path, Output)));
+        uint journal = f.Open("/data/contract.db-journal", flags); HostCheck.Equal(0L, f.Core(72, journal, 2, 1));
+        HostCheck.True(F.Capture(f.Files.State, journal, out var originalJournal));
+        HostCheck.Equal(31L, f.Run(f.Call(8, journal, 31)));
+        byte[] journalBytes = new byte[8720], header = new byte[512], checksum = [0x4b, 9, 0xca, 0x75];
+        checksum.CopyTo(header, 12); header[19] = 2; header[22] = 2; header[26] = 0x10;
+        (ulong Offset, byte[] Bytes)[] records = [(0, header), (512, [0, 0, 0, 1]), (516, initial[..4096]),
+            (4612, checksum), (4616, [0, 0, 0, 2]), (4620, initial[4096..]), (8716, checksum)];
+        foreach (var record in records) { Write(journal, record.Bytes, record.Offset); record.Bytes.CopyTo(journalBytes, (int)record.Offset); }
+        byte[] journalFacts = Stat(journal, "/data/contract.db-journal", 8720);
+        var located = Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, "contract.db-journal");
+        HostCheck.True(located.Succeeded && located.Entry.FileSize == 8720 && located.Entry.Attributes == 0x20);
+        List<uint> journalClusters = []; uint next = located.Entry.FirstCluster;
+        for (int i = 0; i < 18; i++)
+        {
+            HostCheck.True(next >= 2 && next < geometry.Bpb.ClusterCount + 2 && !journalClusters.Contains(next));
+            journalClusters.Add(next); next = Fat(next) & 0x0fffffff;
+        }
+        HostCheck.True(next >= 0x0ffffff8 && BitConverter.ToUInt64(journalFacts, 64) == (ulong)journalClusters.Count);
+        ulong entry = (BitConverter.ToUInt64(journalFacts, 8) - 1) * 32;
+        var run = f.Storage.Persistent.Slice((int)entry - 64, 96);
+        HostCheck.True(run[0] == 0x42 && run[11] == 15 && run[32] == 1 && run[43] == 15 && run[75] == 0x20);
+        f.Independent("contract.db-journal", journalBytes); f.Independent("contract.db", initial);
+        HostCheck.True(F.IsCurrent(f.Files.State, originalDatabase) && f.HasLocks());
+        Lock(database, 1, pending, 1); Lock(database, 1, shared, 510);
+        HostCheck.Equal(0L, f.Run(f.Call(17, journal, Output, 8, 9216))); // Genuine journal EOF before its explicit barrier.
+        Sync(journal, "journal-body");
+        uint parent = f.Open("/data", W.LargeFile | W.CloseOnExec); HostCheck.Equal(0L, f.Core(72, parent, 2, 1));
+        Sync(parent, "parent"); HostCheck.Equal(0L, f.Core(3, parent)); HostCheck.True(f.HasLocks());
+        byte[] committedHeader = [0xd9, 0xd5, 5, 0xf9, 0x20, 0xa1, 0x63, 0xd7, 0, 0, 0, 2];
+        Write(journal, committedHeader, 0); committedHeader.CopyTo(journalBytes, 0); Sync(journal, "journal-header");
+        f.Independent("contract.db-journal", journalBytes); f.Independent("contract.db", initial);
+        Write(database, updated[..4096], 0); Write(database, updated[4096..], 4096); Sync(database, "database");
+        HostCheck.Equal(inode, BitConverter.ToUInt64(Stat(independent, "/data/contract.db", 8192), 8));
+        HostCheck.True(F.IsCurrent(f.Files.State, originalDatabase) && f.HasLocks());
+        HostCheck.Equal(31L, f.Run(f.Call(8, journal, 0, 1))); HostCheck.Equal(0L, f.Core(3, journal));
+        HostCheck.True(!F.IsCurrent(f.Files.State, originalJournal) && f.HasLocks());
+        f.PutPath("/data/contract.db-journal"); HostCheck.Equal(0L, f.Run(f.Call(87, Path)));
+        HostCheck.True(f.HasLocks()); HostCheck.Equal(-2L, f.Run(f.Call(4, Path, Output)));
+        HostCheck.Equal(Fat32Status.MissingFile, Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, "contract.db-journal").Status);
+        HostCheck.True(journalClusters.All(cluster => (Fat(cluster) & 0x0fffffff) == 0 && (Fat(cluster, 1) & 0x0fffffff) == 0));
+        for (int i = 0; i < 3; i++)
+            HostCheck.True(f.Storage.Persistent[(int)entry - 64 + i * 32] == 0xe5 &&
+                f.Storage.Persistent.Slice((int)entry - 63 + i * 32, 31).IndexOfAnyExcept((byte)0) < 0);
+        Lock(database, 0, shared, 510); Lock(database, 2, pending, 2); Lock(database, 2, 0, 0); HostCheck.True(!f.HasLocks());
+        HostCheck.Equal(8192L, f.Run(f.Call(17, independent, Output, 8192, 0))); HostCheck.True(f.Bytes(8192).SequenceEqual(updated));
+        HostCheck.Equal(17L, f.Run(f.Call(8, database, 0, 1))); HostCheck.Equal(29L, f.Run(f.Call(8, independent, 0, 1)));
+        f.Independent("contract.db", updated); f.Independent("DATA.BIN", guard); f.Independent("KEEP.TXT", new byte[3]);
+        HostCheck.True(f.Storage.Persistent.Slice((int)((data + 1) * 512), 512).SequenceEqual(keepSector));
+        ulong fat = geometry.Bpb.FirstFatLba;
+        HostCheck.True(f.Storage.Persistent.Slice((int)(fat * 512), (int)geometry.Bpb.FatSizeSectors * 512).SequenceEqual(
+            f.Storage.Persistent.Slice((int)((fat + geometry.Bpb.FatSizeSectors) * 512), (int)geometry.Bpb.FatSizeSectors * 512)));
+        HostCheck.True(preservedClusters.Select(cluster => Fat(cluster)).SequenceEqual(preservedFat));
+        HostCheck.True(barriers.SequenceEqual(new[] { "seed-db", "journal-body", "parent", "journal-header", "database" }) &&
+            !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->Dirty && F.Audit(f.Files.State) &&
+            f.Storage.Device.State->Submitted == f.Storage.Device.State->Completed &&
+            f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->CompletedBytes &&
+            f.Storage.Device.State->CompletedBytes == f.Storage.Device.State->DurableBytes);
+        Console.WriteLine($"SQLITE_GLOBAL_JOURNAL_HOST journalBytes=8720 databaseBytes=8192 explicitFlushes={barriers.Count} submitted={f.Storage.Device.State->Submitted} completed={f.Storage.Device.State->Completed} writeBytes={f.Storage.Device.State->SubmittedBytes} flushAcknowledgedBytes={f.Storage.Device.State->DurableBytes}");
     }
 
     [HostTest("writable copied x64 flock query preserves padding and PID data while any close releases actual process locks")]
