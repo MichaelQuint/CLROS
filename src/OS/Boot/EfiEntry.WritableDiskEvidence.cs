@@ -7,6 +7,24 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
+        // Temporary diagnostic spans. These rows deliberately do not belong to
+        // the acceptance transcript; they cannot qualify a writable guest.
+        // HPET reads and serial output do not enter descriptor/process admission.
+        private static bool BeginNativeWritableSpan(Storage* state, uint stage, out ulong started)
+        {
+            started = 0;
+            return LinuxText(state, "WRITABLE_DIAGNOSTIC_BEGIN stage=") && LinuxNumber(state, stage) &&
+                LinuxText(state, "\r\n") && ReadNetworkTime(state, out started);
+        }
+        private static bool EndNativeWritableSpan(Storage* state, uint stage, ulong started, bool succeeded)
+        {
+            if (!ReadNetworkTime(state, out ulong finished) || finished < started) return false;
+            return LinuxText(state, "WRITABLE_DIAGNOSTIC_END stage=") && LinuxNumber(state, stage) &&
+                LinuxText(state, " started=") && LinuxNumber(state, started) &&
+                LinuxText(state, " finished=") && LinuxNumber(state, finished) &&
+                LinuxText(state, " succeeded=") && LinuxNumber(state, succeeded ? 1UL : 0UL) && LinuxText(state, "\r\n");
+        }
+
         // Copied facts from the actual retained source5 request after CALL is
         // logged and before any later pump. No user alias or new borrow is kept.
         private static bool RecordNativeWritableWait(LinuxNativeControl* c, uint index,

@@ -847,15 +847,23 @@ public static unsafe partial class EfiEntry
 #elif M16_027_PROBE
             {
                 if (!LinuxSocketIoCurrent(c->State, o) || observe && !RecordLinuxSocketPoll(c) ||
-                    !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
-                    observe && !RecordLinuxSocketPoll(c)) return false;
+                    !RecordLinuxSocketWaits(o, c) || !BeginNativeWritableSpan(c->State, 2, out ulong pumpStarted)) return false;
+                bool pumped = PumpLinuxSocketFrames(o);
+                if (!EndNativeWritableSpan(c->State, 2, pumpStarted, pumped) || !pumped ||
+                    !BeginNativeWritableSpan(c->State, 3, out ulong advanceStarted)) return false;
+                bool advanced = c->Process.AdvanceFutexClock(c->Key, 2);
+                if (!EndNativeWritableSpan(c->State, 3, advanceStarted, advanced) || !advanced ||
+                    observe && !RecordLinuxSocketPoll(c) || !BeginNativeWritableSpan(c->State, 4, out ulong readStarted)) return false;
                 bool read = c->Process.PollDiskReadiness(c->Key, 2);
+                if (!EndNativeWritableSpan(c->State, 4, readStarted, read)) return false;
                 bool readSampled = SampleNativeWritableDisk(c->State);
-                if (!read || !readSampled) return false;
+                if (!read || !readSampled || !BeginNativeWritableSpan(c->State, 5, out ulong writeStarted)) return false;
                 bool write = c->Process.PollWritableDiskReadiness(c->Key, 2);
+                if (!EndNativeWritableSpan(c->State, 5, writeStarted, write)) return false;
                 bool writeSampled = SampleNativeWritableDisk(c->State);
-                if (!write || !writeSampled) return false;
+                if (!write || !writeSampled || !BeginNativeWritableSpan(c->State, 6, out ulong descriptorsStarted)) return false;
                 bool descriptors = c->Process.PollDescriptorReadiness(c->Key, 2);
+                if (!EndNativeWritableSpan(c->State, 6, descriptorsStarted, descriptors)) return false;
                 bool descriptorsSampled = SampleNativeWritableDisk(c->State);
                 return descriptors && descriptorsSampled && RecordLinuxSocketWaits(o, c);
             }

@@ -76,10 +76,27 @@ public static unsafe partial class EfiEntry
                         var plan = state->LinuxSyscallPlan;
                         LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
                             Rflags = c->User.UserInterrupts ? 0x202UL : 2UL, FsBase = plan.UserFs, GsBase = plan.UserGs };
+#if M16_027_PROBE
+                        OSHostHandle first = default;
+                        long startResult = -1;
+                        bool startReady = c->Failed == 0 && plan.ResumeUser && X64LinuxUserTransition.InitializeUserImage(c->Initial,
+                            X64LinuxUserTransition.UserImageBytes, initial, c->Plan.Owner.ObservedMxcsrMask, c->User);
+                        if (startReady)
+                        {
+                            startReady = BeginNativeWritableSpan(state, 1, out ulong startClock);
+                            if (startReady)
+                            {
+                                startResult = c->Process.Start(c->Key, 2, c->Initial, X64LinuxUserTransition.UserImageBytes, default, out first);
+                                startReady = EndNativeWritableSpan(state, 1, startClock, startResult > 0);
+                            }
+                        }
+                        if (startReady && startResult > 0 && first.Value == c->Plan.Bindings[0].Context.Identity)
+#else
                         if (c->Failed == 0 && plan.ResumeUser && X64LinuxUserTransition.InitializeUserImage(c->Initial,
                             X64LinuxUserTransition.UserImageBytes, initial, c->Plan.Owner.ObservedMxcsrMask, c->User) &&
                             c->Process.Start(c->Key, 2, c->Initial, X64LinuxUserTransition.UserImageBytes, default, out var first) > 0 &&
                             first.Value == c->Plan.Bindings[0].Context.Identity)
+#endif
                         {
 #if M10_017_PROBE || M10_018_PROBE
                             c->StaticMain = first;
