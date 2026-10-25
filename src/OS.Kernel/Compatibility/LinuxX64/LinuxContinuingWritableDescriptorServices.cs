@@ -311,7 +311,7 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
                 if (Overlap(start, extentBytes, pairs[(int)(j * 2)], pairs[(int)(j * 2 + 1)])) return false;
         }
         if (external) { pairs[(int)(count * 2)] = address; pairs[(int)(count * 2 + 1)] = bytes; count++; }
-        return C.CanRetainStorageRanges(a.Engine, expectedEpoch, pairs[..(int)(count * 2)]);
+        return C.CanRetainStorageRanges(a.Engine, expectedEpoch, pairs.Slice(0, (int)(count * 2)));
     }
 
     /// <summary>Enable fixed process-associated lock tables while no handle or

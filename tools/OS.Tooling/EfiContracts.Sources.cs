@@ -14,7 +14,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs"] = "015a4c4c10ad770d5732cc0589c73ddb744f46c11348519cfc66449737990009",
                 [@"..\OS.Kernel\Storage\WritableBlockReadPort.cs"] = "797f15bb3603ccb5ad9932c6232472fd7e2963f3a74ca625320fedf0c42352b7",
                 [@"..\OS.Kernel\Storage\Fat32Mutation.Encoder.cs"] = "06e1f295505eed688255716aa2181735eaaec4595fc25fc3f8048e3f40011885",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs"] = "a43defa4c2ddd0c6dcc4de8eb6531437e2c719bba37f07183c10642c8260b177",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs"] = "4dfbc90888b8249ac5b76ea58b83d31193ba310e1ff846d112a64b96f15cb16e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs"] = "f4df24a45420ef15205dd9a3912d2100816820ca1eec7b80922e478ec76c5778",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs"] = "b361a107907052e47febb622700b1d797b99e0f6b00aceb4feee888c9a40ee43",
                 [@"Boot\EfiEntry.LinuxUserCarrier.cs"] = "68f557315f04c9734d02458e585680e127153982e9054cd20a47b0951bccf5fb",
