@@ -69,7 +69,9 @@ public static unsafe partial class LinuxDescriptorServices
     /// Keep it, its description-sized binding table and the complete provider
     /// tree mapped supervisor RW/NX until Detach succeeds. Provider/engine/block
     /// teardown follows adapter detach. Dirty recovery prohibits successful End.
-    /// This dedicated mechanical slice excludes read-only disk/transport owners.</summary>
+    /// A readonly attachment requires the exact same retained engine and fully
+    /// disjoint private backing. Finite direct TCP requires its separately
+    /// bounded shared context; the NIC network owner remains unsupported.</summary>
     public struct WritableDiskState
     {
         internal ulong Self, Epoch, NextGeneration;
@@ -105,10 +107,12 @@ public static unsafe partial class LinuxDescriptorServices
             a.BindingCount != state->Owner.DescriptionCount || !WritableExtent(a.Bindings, a.BindingCount * (ulong)sizeof(WritableDiskBinding)) ||
             a.Provider->RequestActive || !WritableProcess(a.Process, W.PrimaryProcess(a.Provider))) return false;
 #if !NOSTDLIB_EFI || M16_025_PROBE
-        if (state->Disk != null) return false;
+        if (state->Disk != null && (!DiskBound(state) ||
+            !PairedDiskStorage(state->Disk, RetainedDiskAdmission(state->Disk), disk, a))) return false;
 #endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        if (state->Sockets != null || state->Epoll != null) return false;
+        if (!TransportStorageOutside(state, null, a.Provider, a.Epoch, disk, a.Bindings,
+            a.BindingCount * (ulong)sizeof(WritableDiskBinding))) return false;
 #endif
         if (!SocketOutside(state, disk, (ulong)sizeof(WritableDiskState)) ||
             !SocketOutside(state, a.Bindings, a.BindingCount * (ulong)sizeof(WritableDiskBinding)) ||
@@ -356,6 +360,9 @@ public static unsafe partial class LinuxDescriptorServices
         if (!WritableExtent(state, (ulong)sizeof(State)) || !WritableExtent((void*)address, bytes, 1)) return false;
         if (state->WritableDisk == null) return true;
         if (!AuditWritableDisk(state) || !WritableBaseOutside(state, address, bytes, includeUserBacking)) return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (!AuditDiskPair(state) || !PairedDiskExternal(state, address, bytes)) return false;
+#endif
         WritableDiskState* d = state->WritableDisk;
         return !Overlap(address, bytes, (ulong)d, (ulong)sizeof(WritableDiskState)) &&
             !Overlap(address, bytes, (ulong)d->Bindings, d->BindingCount * (ulong)sizeof(WritableDiskBinding)) &&
@@ -616,6 +623,10 @@ public static unsafe partial class LinuxDescriptorServices
         if (s->WritableDisk == null) return true;
         if (!WritableBound(s)) return false;
         WritableDiskState* d = s->WritableDisk; WritableDiskRequest* r = &d->Request;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (!TransportStorageOutside(s, null, d->Provider, d->Epoch, d, d->Bindings,
+            d->BindingCount * (ulong)sizeof(WritableDiskBinding))) return false;
+#endif
         if (r->Self != (ulong)r || r->Phase > WritableRecovery) return false;
         if (r->Phase == 0)
         { if (r->Generation != 0 || r->Reserved || r->Borrowed || r->Worker.IsValid || r->ProviderRequest.Owner != 0 || r->TemporaryOpened.Owner != 0 || d->Provider->RequestActive) return false; }

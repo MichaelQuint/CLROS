@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1611](../done/step1611.md) Root paired prerequisites build on the current thread/source5 base;167 focused Fast controls pass before outer-owner integration. Do not run Native-labelled fixtures beside frozen LinuxHTTP r02. The failed allocation experiment is not imported or rerun as a prerequisite for development staging.
+
 [Step1610](../done/step1610.md) Run managed HTTP and console reference owners serially: both intentionally acquire the same repository qualification lease. The first concurrent root attempt fails before server execution; its later serial16HTTP pass and7console pass do not erase that failure. Repaired Linux publication retains eight exact current tools, nine prelink static files and complete fresh inputs. Peak/4096-fit and actualLinuxr02 remain unmeasured.
 
 [Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.

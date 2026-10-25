@@ -445,10 +445,18 @@ public static unsafe class ReadOnlyWebRootFileSystem
     }
 
     /// <summary>Close an independent handle. Active operations keep it Busy;
-    /// stale/copied tokens cannot close a reused slot. No device I/O occurs.</summary>
+    /// stale/copied tokens cannot close a reused slot. An authenticated borrowed
+    /// backend Busy turn still permits this ONLY local unreferenced metadata
+    /// release: no I/O/cancel/cache or writer state is changed, and no current
+    /// volume/copy authority is granted. Legacy readonly liveness is unchanged.</summary>
     public static Status Close(Mount* m, FileToken token)
     {
-        Status live = RequireLive(m); if (live != Status.Success) return live;
+        Status live = RequireLive(m);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (live != Status.Success && !(live == Status.Busy && m->ReadPort != null)) return live;
+#else
+        if (live != Status.Success) return live;
+#endif
         if (!File(m, token, out FileHandle* f)) return Status.StaleToken;
         if (f->References != 0) return Status.Busy;
         f->Phase = Free; f->ClusterCount = 0; return Status.Success;

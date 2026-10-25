@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1611](done/step1611.md) Development-only paired disk/TCP integration imports the reviewed retained-owner closure and source-only P helper. The entire failed P allocation experiment remains unchanged/unimported and OPEN; no zero-allocation or native claim follows. Preserve root disk timing/source5, require complete outer process/carrier exclusion and actual deferred fstat source4 controls before paired activation. LinuxHTTP r02 uses frozen24e5dff4; serialize native producers.
+
 [Step1610](done/step1610.md) Preserve original v5r13 at830ef44c as diagnostic-only: all42fields/count/stage sums and19original hashes verified, joined cancellation, no full cleanup/Blazor gate. Integrated007884f4 repairs HTTP archived-recipe/current-input ownership;16HTTP and7console checks pass after serializing their managed qualification lease. Root next freezes/runs fresh Linuxr02. Both agents prepare exact outer-owner and writable-image-fit slices; no native competitor, allocation rerun or hidden tolerance change.
 
 [Step1606](done/step1606.md) Preserve original12128da1 timingr10 as FAILED before guest launch (CS8786 callback convention). The root candidate fixes only the diagnostic pointer ABI to match the existing UnmanagedCallersOnly clock; host controls use that same unmanaged convention. Integrated30cfce2d adds four finite managed HTTP log/upload paths; no shared server/package/guest write activation. Keep both agents busy on their independently claimed successor slices.

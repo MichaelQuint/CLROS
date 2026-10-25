@@ -1,5 +1,7 @@
 <p align="center">
 
+[Step1611](done/step1611.md) Paired web/data descriptor and finite TCP prerequisites are integrated for development on one original block owner. Source-only P identity staging preserves its failed ordinary allocation experiment unchanged and open.167 focused Fast checks pass so far; actual outer process ownership, source4 deferred fstat controls, emitted native closure/lifetime and guest read/write acceptance remain pending. Frozen LinuxHTTP r02 runs separately at24e5dff4.
+
 [Step1610](done/step1610.md) Original v5r13 completes four responses and exact64KiB range30.930s, then joins intentional cancellation. Whole service polling22.123s splits32%clock/36%supervisor/17%idle/15%other; full Blazor remains unqualified. Expert-reviewed HTTP input ownership repair is integrated:16HTTP+7console checks pass, with the earlier lease-collision failure retained. A fresh frozen LinuxHTTP r02 is next.
 
 [Step1606](done/step1606.md) The finite managed MinimalApi log/upload fixture is integrated from30cfce2d: actual HTTP writes/readbacks and a separate unchanged console verifier, with honest startup/partial-effect failure receipts. Guest persistence remains unqualified. Timing r10 stopped before guest launch at a callback ABI mismatch; the candidate now uses the existing unmanaged clock convention and requires a fresh committed r11.

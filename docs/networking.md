@@ -1,5 +1,7 @@
 # Networking
 
+[Step1611](../done/step1611.md) Development-only finite TCP/network pairing now requires explicit whole callback-carrier bounds and excludes the paired disk trees before publication. Existing unpaired/native025 paths retain their original surface. Complete outer scheduler/process exclusion and a genuinely bounded native carrier remain mandatory before activation; host packet controls establish no guest persistence or sustained-service gate.
+
 ## Current network/service boundary (October 23, 2026)
 
 Finite TCP (step1332), Linux sockets/epoll (step1351), Kestrel health/UTC

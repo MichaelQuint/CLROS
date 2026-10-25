@@ -1,5 +1,7 @@
 # App Model
 
+[Step1611](../done/step1611.md) Paired web/data global descriptors and bounded finite TCP prerequisites are staged on the current thread/source5 base. Deferred readonly fstat5 now captures and pins its original144-byte output prefix. Complete outer process ownership and actual paired wait controls remain pending; no native workload is enabled.
+
 [Step1610](../done/step1610.md) The repaired Linux HTTP owner now authenticates the retained socket archive through existing validation, admits exact current tools, holds nine actual static-link inputs before HTTP linking and every fresh publication input afterward. Original00ce r01 remains failed; fresh r02 is pending.16HTTP and7console checks pass, with the first concurrent managed lease failure preserved. Guest persistence remains unqualified.
 
 [Step1606](../done/step1606.md) The four new MinimalApiLogUploadContract/NativeAotLogUploadHttpContract paths provide a separate finite managed HTTP/FileStream qualification candidate. Startup330B is the authenticated pre-request baseline; success produces660Blog/5126Bupload. Abort/cancel/open denial preserve startup, while a later log-append failure honestly retains330B/5126B. Independent completed HTTP, process join/refusal and console verification are required. Linux NativeAOT, guest reboot and durability remain subsequent qualification.

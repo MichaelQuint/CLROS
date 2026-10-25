@@ -241,6 +241,16 @@ public static unsafe class WritableBlockReadPort
     internal static bool CanRetainStorage(State* s, ulong epoch, ulong address, ulong bytes) =>
         Retained(s) && s->Input.Epoch == epoch && External(s, address, bytes, 1);
 
+    /// <summary>Compare copied original engine identity after the complete
+    /// retained port/range/storage audit. The expected owner is numeric only.
+    /// Dirty, faulted and original-stopped backing may match until local Stop;
+    /// this grants no live I/O, process, filesystem or user-copy authority.
+    /// The serialized owner keeps all retained backing mapped through return.
+    /// No callbacks, allocations, output or state changes occur.</summary>
+    internal static bool MatchesRetainedEngine(State* s, ulong expectedEpoch, ulong engineOwner, ulong engineEpoch) =>
+        Retained(s) && s->Input.Epoch == expectedEpoch &&
+        (ulong)s->Input.Engine == engineOwner && s->Input.EngineEpoch == engineEpoch;
+
     private static bool InputShape(Admission a) => Storage((ulong)a.Engine, (ulong)sizeof(C.State), 8) &&
         Storage((ulong)a.Device, (ulong)sizeof(B.State), 8) && a.Epoch != 0 && a.EngineEpoch != 0 && a.DeviceEpoch != 0 &&
         a.FirstLba != 0 && a.FirstLba <= a.LastLba;

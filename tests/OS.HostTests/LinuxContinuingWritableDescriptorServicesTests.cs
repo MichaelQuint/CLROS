@@ -14,6 +14,142 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
+    private delegate bool RetainedEngine(D.State* state, ulong epoch, ulong engineOwner, ulong engineEpoch);
+    private static readonly RetainedEngine EnginePredicate = typeof(D).GetMethod("MatchesRetainedEngine", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedEngine>();
+
+    [HostTest("continuing retained engine identity matches exact original values without dereferencing foreign expected owners")]
+    private static void EngineMatchValues()
+    {
+        using var f = new Owner(locks: true, observe: true); using var other = new Owner();
+        CheckEngineMatch(f, true); CheckEngineMatch(f, false, epoch: 0); CheckEngineMatch(f, false, epoch: f.Input.Epoch + 1);
+        foreach (ulong owner in new[] { 0UL, ulong.MaxValue, (ulong)f.Storage.State + 8, (ulong)other.Storage.State }) CheckEngineMatch(f, false, owner: owner);
+        CheckEngineMatch(f, false, engineEpoch: 0); CheckEngineMatch(f, false, engineEpoch: f.Input.Epoch + 1);
+        byte[] before = EngineMatchSnapshot(f); D.State* copy = (D.State*)NativeMemory.AllocZeroed((nuint)sizeof(D.State));
+        try
+        {
+            *copy = *f.State;
+            HostCheck.True(!EnginePredicate(null, f.Input.Epoch, (ulong)f.Storage.State, f.Input.Epoch) &&
+                !EnginePredicate((D.State*)ulong.MaxValue, f.Input.Epoch, (ulong)f.Storage.State, f.Input.Epoch) &&
+                !EnginePredicate(copy, f.Input.Epoch, (ulong)f.Storage.State, f.Input.Epoch));
+            HostCheck.True(new ReadOnlySpan<byte>(copy, sizeof(D.State)).SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(D.State))));
+        }
+        finally { NativeMemory.Free(copy); }
+        HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)));
+    }
+
+    [HostTest("continuing retained engine identity observes queued pending and held reads without advancing callbacks state or allocation")]
+    private static void EngineMatchReads()
+    {
+        using var f = new Owner(locks: true, observe: true); var file = f.Open(flags: 2);
+        using (var foreign = new ForeignRead(f, true))
+        {
+            var queued = D.BeginWrite(f.State, file, "unissued"u8); foreign.Blocked(queued); CheckEngineMatch(f, true, stage: "borrowed read held / writer queued");
+            HostCheck.Equal(-4L, D.Cancel(f.State, queued.Request).Value); HostCheck.Equal(-4L, D.Complete(f.State, queued.Request).Value); foreign.Release();
+        }
+        var read = D.BeginRead(f.State, file, 8); D.Pump(f.State); HostCheck.True(f.Device->Pending); CheckEngineMatch(f, true, stage: "engine read pending");
+        f.CompleteHardware(); HostCheck.Equal(D.Progress.Ready, f.Wait(read).Phase); HostCheck.True(f.Storage.State->RequestActive); CheckEngineMatch(f, true, stage: "engine read held");
+        byte[] output = new byte[8]; HostCheck.Equal(8L, D.CopyRead(f.State, read.Request, output).Value); CheckEngineMatch(f, true, stage: "engine read consumed");
+        HostCheck.True(output.SequenceEqual(Enumerable.Range(0, 8).Select(Value)));
+    }
+
+    [HostTest("continuing retained engine identity survives actual dirty recovery retirement intent and original block stop without live admission")]
+    private static void EngineMatchDirty()
+    {
+        using var f = new Owner(locks: true, observe: true); var file = f.Open(flags: 2); var request = D.BeginWrite(f.State, file, new byte[37]);
+        for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+        HostCheck.True(f.Storage.State->Dirty); CheckEngineMatch(f, true); byte external = 0x49; HostCheck.True(!Borrow(f, (ulong)&external, 1));
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Cancel(f.State, request.Request).Phase); CheckEngineMatch(f, true);
+        HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase); HostCheck.True(f.State->IsRetiring && !f.State->Retired); CheckEngineMatch(f, true);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); CheckEngineMatch(f, true); HostCheck.True(!Borrow(f, (ulong)&external, 1));
+    }
+
+    [HostTest("continuing retained engine identity outlives an actual orphan primary exit and PID reuse until final detach")]
+    private static void EngineMatchOrphan()
+    {
+        using var f = new Owner(locks: true, observe: true); var primary = D.PrimaryProcess(f.State); var file = f.Open();
+        var request = D.BeginRead(f.State, file, 8); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+        HostCheck.Equal(0L, D.Close(f.State, file)); HostCheck.True(f.State->RequestActive); CheckEngineMatch(f, true);
+        HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value); CheckEngineMatch(f, true); byte external = 1; HostCheck.True(!Borrow(f, (ulong)&external, 1));
+        f.CompleteHardware(); f.Drain(); var replacement = D.RegisterProcess(f.State, primary.Pid);
+        HostCheck.True(replacement.Value == 0 && replacement.Process.Generation > primary.Generation); CheckEngineMatch(f, true);
+        HostCheck.True(!Borrow(f, (ulong)&external, 1)); HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, request.Request, new byte[8]).Phase);
+        HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); CheckEngineMatch(f, false);
+    }
+
+    [HostTest("continuing retained engine identity survives actual input fault and original stop but retirement rejects poisoned engine pointers first")]
+    private static void EngineMatchFaultAndRelease()
+    {
+        using var f = new Owner(locks: true, observe: true); var file = f.Open(); f.FailureType = 0; f.FailureSector = f.DataLba + 2;
+        var request = D.BeginRead(f.State, file, 8); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase);
+        HostCheck.Equal(-5L, D.CopyRead(f.State, request.Request, new byte[8]).Value); HostCheck.True(f.State->Quarantined); CheckEngineMatch(f, true);
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); CheckEngineMatch(f, true);
+        HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); HostCheck.Equal(C.Status.Success, C.Stop(f.Storage.State)); CheckEngineMatch(f, false);
+        D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *input;
+        try { input->Engine = (C.State*)ulong.MaxValue; CheckEngineMatch(f, false); }
+        finally { *input = original; }
+    }
+
+    [HostTest("continuing retained engine identity rejects original epoch substitutions internal aliases and overflow without callback or state effects")]
+    private static void EngineMatchRetainedDefects()
+    {
+        using var f = new Owner(locks: true, observe: true);
+        D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var originalInput = *input;
+        C.Admission* engine = (C.Admission*)((byte*)f.Storage.State + WritableBlockSessionTests.ManagedOffset(f.Storage.State, "Input")); var originalEngine = *engine;
+        B.Admission* block = (B.Admission*)((byte*)f.Storage.Device.State + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.State, "Input")); var originalBlock = *block;
+        ulong* poolEpoch = (ulong*)((byte*)f.Storage.Device.Pool + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.Pool, "Epoch")); ulong originalPoolEpoch = *poolEpoch;
+        ulong* self = (ulong*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Self")); ulong originalSelf = *self;
+        try
+        {
+            for (int defect = 0; defect < 9; defect++)
+            {
+                *input = originalInput; *engine = originalEngine; *block = originalBlock; *poolEpoch = originalPoolEpoch; *self = originalSelf;
+                if (defect == 0) input->Epoch++;
+                else if (defect == 1) engine->Epoch++;
+                else if (defect == 2) block->Epoch++;
+                else if (defect == 3) (*poolEpoch)++;
+                else if (defect == 4) input->Descriptions = (D.Description*)input->Descriptors;
+                else if (defect == 5) input->DescriptorCount = uint.MaxValue;
+                else if (defect == 6) block->Observation = (B.Observation*)f.InputBytes;
+                else if (defect == 7) input->Input = f.Storage.Input.Before;
+                else (*self)++;
+                CheckEngineMatch(f, false);
+            }
+        }
+        finally { *input = originalInput; *engine = originalEngine; *block = originalBlock; *poolEpoch = originalPoolEpoch; *self = originalSelf; }
+        CheckEngineMatch(f, true);
+    }
+
+    private static void CheckEngineMatch(Owner f, bool expected, ulong? epoch = null, ulong? owner = null, ulong? engineEpoch = null,
+        [CallerMemberName] string stage = "")
+    {
+        ulong expectedEpoch = epoch ?? f.Input.Epoch, expectedOwner = owner ?? (ulong)f.Storage.State, expectedEngineEpoch = engineEpoch ?? f.Input.Epoch;
+        byte[] before = EngineMatchSnapshot(f); uint calls = f.Device->Calls, notifies = f.Device->Notifies;
+        HostCheck.Equal(expected, EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch));
+        // Deterministic warmup is outside the strict measurement. The complete
+        // state/callback snapshot still covers it; no retry-until-zero occurs.
+        bool warm = true;
+        for (int i = 0; i < 256; i++) warm &= EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch) == expected;
+        long allocated = GC.GetAllocatedBytesForCurrentThread(); bool valid = true;
+        for (int i = 0; i < 64; i++) valid &= EnginePredicate(f.State, expectedEpoch, expectedOwner, expectedEngineEpoch) == expected;
+        long afterAllocated = GC.GetAllocatedBytesForCurrentThread(); byte[] after = EngineMatchSnapshot(f);
+        HostCheck.True(warm && valid, stage + ": retained engine result changed during repeated query");
+        HostCheck.True(allocated == afterAllocated, stage + ": allocation delta=" + (afterAllocated - allocated));
+        HostCheck.Equal(calls, f.Device->Calls); HostCheck.Equal(notifies, f.Device->Notifies);
+        int first = 0; while (first < before.Length && first < after.Length && before[first] == after[first]) first++;
+        HostCheck.True(before.SequenceEqual(after), "retained engine query changed snapshot at byte " + first + " of " + before.Length);
+    }
+    private static byte[] EngineMatchSnapshot(Owner f)
+    {
+        var device = f.Storage.Device.Input; var bytes = new List<byte>();
+        foreach (var extent in ProtectedStorage(f))
+        {
+            // MMIO addresses are callback-only in this fake. Never dereference
+            // them; exact Hardware bytes/counters below detect any callback.
+            if (extent.Start == 0 || extent.Start == device.Common.VirtualStart || extent.Start == device.Notify.VirtualStart || extent.Start == device.Device.VirtualStart) continue;
+            bytes.AddRange(new ReadOnlySpan<byte>((void*)extent.Start, checked((int)extent.Bytes)).ToArray());
+        }
+        bytes.AddRange(new ReadOnlySpan<byte>(f.Device, sizeof(WritableBlockSessionTests.Hardware)).ToArray()); return bytes.ToArray();
+    }
 
     [HostTest("continuing unissued writes retain copied bytes and one token across actual borrowed pending and held IN")]
     private static void QueuedWrite()

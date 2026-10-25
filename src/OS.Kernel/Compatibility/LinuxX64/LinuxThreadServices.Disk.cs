@@ -215,7 +215,7 @@ public unsafe partial struct LinuxThreadServices
     // mapping a formerly absent tail later cannot enlarge copy authority.
     private uint CaptureDiskOutputPrefix(LinuxSyscallFrame call)
     {
-        uint maximum = call.Number is 4 or 6 ? 144U : call.Number is 0 or 17 ?
+        uint maximum = call.Number is 4 or 5 or 6 ? 144U : call.Number is 0 or 17 ?
             (uint)(call.Argument2 < LinuxDescriptorServices.DiskCompletionBytes ? call.Argument2 : LinuxDescriptorServices.DiskCompletionBytes) : 0;
         ulong address = call.Argument1; uint admitted = 0;
         while (admitted < maximum)
@@ -242,7 +242,7 @@ public unsafe partial struct LinuxThreadServices
             Slot* slot = _owner.Slots + i;
             if (!slot->DiskOperation.IsActive) continue;
             var call = slot->WaitCall;
-            if (call.Number is not (0 or 2 or 4 or 6 or 8 or 17 or 257) ||
+            if (call.Number is not (0 or 2 or 4 or 5 or 6 or 8 or 17 or 257) ||
                 slot->DiskOutputBytes > LinuxDescriptorServices.DiskCompletionBytes ||
                 slot->DiskOutputBytes != 0 && !UserExtent(call.Argument1, slot->DiskOutputBytes)) return false;
             if (slot->DiskOutputBytes != 0 && Overlap(address, bytes, call.Argument1, slot->DiskOutputBytes)) return false;

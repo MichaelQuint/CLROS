@@ -1,5 +1,7 @@
 # Architecture
 
+[Step1611](../done/step1611.md) The development paired descriptor model retains one original writable block engine for web reads and data operations, with pure structural cross-tree exclusion. Identity matching grants no live I/O or user-copy authority. Outer scheduler/process/carrier proof and native emitted closure/lifecycle still precede activation.
+
 [Step1610](../done/step1610.md) V5r13 actually runs all four explicitly tagged service-poll causes, with22.1226843s total and exact stage conservation. This leaves substantial time outside service polls; no production cadence policy follows. The integrated HTTP repair separates authenticated historical recipe outputs from current executable/static-link/fresh publication inputs, retaining all current authority through complete sessions.
 
 ## Current architecture boundary (October 23, 2026)

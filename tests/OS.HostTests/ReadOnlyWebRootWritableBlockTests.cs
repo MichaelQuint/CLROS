@@ -224,6 +224,103 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
         finally { input = original; NativeMemory.AlignedFree(replacement); }
     });
 
+    [HostTest("borrowed local close releases only unreferenced handle metadata through actual writer dirty OUT FLUSH and held Ready", HostLane.Native)]
+    private static void CloseDuringWriter() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); Fs.FileToken[] handles = new Fs.FileToken[4];
+        for (int i = 0; i < handles.Length; i++) handles[i] = f.Open("/app/wwwroot/index.html").File;
+        var target = f.OpenData("FRAG.BIN"); C.RequestToken request = default;
+        HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.Engine, target, 0, "close only"u8, &request)); CloseOnly(f, handles[0]);
+        bool dirty = false, flush = false;
+        for (int i = 0; i < 10000; i++)
+        {
+            var status = f.EngineTurn();
+            if (!dirty && f.Engine->Dirty && f.Block->LastOperation == B.Operation.Write) { CloseOnly(f, handles[1]); dirty = true; }
+            if (!flush && f.Block->RequestPending && f.Block->LastOperation == B.Operation.Flush) { CloseOnly(f, handles[2]); flush = true; }
+            if (status == C.Status.Ready) break;
+            HostCheck.Equal(C.Status.Pending, status); HostCheck.True(i < 9999);
+        }
+        HostCheck.True(dirty && flush && f.Engine->IsReady && f.Engine->RequestActive); CloseOnly(f, handles[3]);
+        C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, request, &result)); HostCheck.Equal(10U, result.Bytes);
+        var replacement = f.Open("/app/wwwroot/fixture/nested/info.txt");
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Close(f.Mount, handles[0])); byte[] expected = receipt.Image.WebFiles.Single(x => x.Path.EndsWith("/nested/info.txt", StringComparison.Ordinal)).CopyBytes();
+        byte[] output = new byte[expected.Length]; f.Read(replacement.File, 0, (uint)output.Length, output, (uint)output.Length); HostCheck.True(output.AsSpan().SequenceEqual(expected));
+    });
+
+    [HostTest("borrowed local close retains active pending held and ready range references while unrelated handles close without physical cancellation", HostLane.Native)]
+    private static void ReferencedClose() => WithImage((raw, receipt) =>
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Fixture(raw, receipt); f.MountReady(); var active = f.Open("/app/wwwroot/index.html"); var other = f.Open("/app/wwwroot/index.html");
+            var read = f.BeginRead(active.File, 0, 7); f.WaitForPort(read); if (held) f.HoldPort();
+            uint calls = f.Device.Hardware->Calls; ulong submitted = f.Block->Submitted;
+            HostCheck.Equal(Fs.Status.Busy, Fs.Close(f.Mount, active.File)); CloseOnly(f, other.File);
+            HostCheck.True(f.Port->RequestActive && f.Device.Hardware->Calls == calls && f.Block->Submitted == submitted);
+            HostCheck.Equal(Fs.Status.Ready, f.Drive(read)); HostCheck.Equal(Fs.Status.Busy, Fs.Close(f.Mount, active.File));
+            var data = f.OpenData("FRAG.BIN"); C.RequestToken writer = default; HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.Engine, data, 0, "guard"u8, &writer));
+            HostCheck.Equal(Fs.Status.Busy, Fs.Close(f.Mount, active.File)); HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, read)); CloseOnly(f, active.File);
+            f.RunEngine(); C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, writer, &result));
+        }
+    });
+
+    [HostTest("borrowed local Busy close rejects altered epochs aliases and actual stopped device before any handle mutation", HostLane.Native)]
+    private static void CloseAuthority() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); var file = f.Open("/app/wwwroot/index.html"); var data = f.OpenData("FRAG.BIN"); C.RequestToken writer = default;
+        HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.Engine, data, 0, "guard"u8, &writer));
+        uint index = HandleIndex(ref file.File); byte[] original = new ReadOnlySpan<byte>(f.Input.Files + index, sizeof(Fs.FileHandle)).ToArray();
+        ref P.Admission port = ref PortAdmission(ref *f.Port); ulong epoch = port.Epoch;
+        try { port.Epoch++; HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Close(f.Mount, file.File)); }
+        finally { port.Epoch = epoch; }
+        ref B.Admission block = ref BlockAdmission(ref *f.Block); B.Observation* observation = block.Observation;
+        try { block.Observation = (B.Observation*)f.Input.Files; HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Close(f.Mount, file.File)); }
+        finally { block.Observation = observation; }
+        HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Input.Files + index, sizeof(Fs.FileHandle))));
+        f.RunEngine(); C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, writer, &result));
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Block)); HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Close(f.Mount, file.File));
+        HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Input.Files + index, sizeof(Fs.FileHandle))));
+        HostCheck.Equal(P.Status.Success, P.Stop(f.Port)); HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount));
+    });
+
+    [HostTest("borrowed local Busy close cannot adopt actual same-address restarted device and retains old metadata unchanged", HostLane.Native)]
+    private static void CloseAba() => WithImage((raw, receipt) =>
+    {
+        using var f = new Fixture(raw, receipt); f.MountReady(); var file = f.Open("/app/wwwroot/index.html"); var data = f.OpenData("FRAG.BIN"); C.RequestToken writer = default;
+        HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(f.Engine, data, 0, "never issued"u8, &writer));
+        byte[] handles = new ReadOnlySpan<byte>(f.Input.Files, 4 * sizeof(Fs.FileHandle)).ToArray();
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Block)); f.AllowStaleBacking = true; new Span<byte>(f.Block, sizeof(B.State)).Clear();
+        var replacement = f.Device.Input; replacement.Epoch += 0x10000; replacement.Negotiation = f.Device.Negotiate();
+        HostCheck.Equal(B.Status.Success, B.Start(f.Block, replacement));
+        uint calls = f.Device.Hardware->Calls; HostCheck.Equal(Fs.Status.DeviceFailed, Fs.Close(f.Mount, file.File));
+        HostCheck.True(handles.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Input.Files, 4 * sizeof(Fs.FileHandle))) && f.Device.Hardware->Calls == calls &&
+            f.Engine->RequestActive && !f.Engine->Dirty && !f.Mount->IsRetired && !f.Port->Retired);
+        // Old backing remains held. Stopping the replacement is not a logical
+        // retirement receipt for the violated original C/P/FS lifetime.
+        HostCheck.Equal(B.Status.Success, B.Stop(f.Block));
+    });
+
+    private static void CloseOnly(Fixture f, Fs.FileToken token)
+    {
+        List<(ulong Start, ulong Bytes)> protectedRanges = [((ulong)f.Mount, (ulong)sizeof(Fs.Mount)), ((ulong)f.Port, (ulong)sizeof(P.State)),
+            ((ulong)f.Engine, (ulong)sizeof(C.State)), ((ulong)f.Block, (ulong)sizeof(B.State)), ((ulong)f.Device.Pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)),
+            ((ulong)f.Device.Slot, (ulong)sizeof(OS.Drivers.DmaBufferSlot)), ((ulong)f.Device.Data, 4096), ((ulong)f.Device.Observation, (ulong)sizeof(B.Observation)),
+            ((ulong)f.EngineInput.Changes, C.JournalChanges * (ulong)sizeof(Fat32Mutation.Change)), ((ulong)f.EngineInput.Before, 65536), ((ulong)f.EngineInput.After, 65536),
+            ((ulong)f.EngineInput.DirectoryMap, 16384), ((ulong)f.EngineInput.FileMap, 16384), ((ulong)f.EngineInput.WalkMap, 16384),
+            ((ulong)f.EngineInput.Sector, 512), ((ulong)f.EngineInput.Fat0, 512), ((ulong)f.EngineInput.Fat1, 512), ((ulong)f.EngineInput.Input, C.WriteBytes),
+            ((ulong)f.EngineInput.Name, C.NameWords * 2UL), ((ulong)f.EngineInput.LongName, C.VfatWords * 2UL), ((ulong)f.EngineInput.EncodedEntries, C.EncodedEntryBytes),
+            ((ulong)f.Input.Operations, 4UL * (ulong)sizeof(Fs.Operation)), ((ulong)f.Input.Cache, 2UL * (ulong)sizeof(Fs.CacheSlot))];
+        for (int i = 0; i < 4; i++) protectedRanges.Add(((ulong)f.Input.Files[i].Clusters, 16384));
+        for (int i = 0; i < 2; i++) protectedRanges.Add(((ulong)f.Input.Cache[i].Data, 512));
+        byte[][] before = protectedRanges.Select(x => new ReadOnlySpan<byte>((void*)x.Start, (int)x.Bytes).ToArray()).ToArray();
+        Fs.FileHandle* expected = stackalloc Fs.FileHandle[4]; new ReadOnlySpan<Fs.FileHandle>(f.Input.Files, 4).CopyTo(new Span<Fs.FileHandle>(expected, 4));
+        uint index = HandleIndex(ref token); HandlePhase(ref expected[index]) = 0; HandleClusters(ref expected[index]) = 0;
+        uint calls = f.Device.Hardware->Calls; HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, token));
+        HostCheck.True(f.Device.Hardware->Calls == calls && new ReadOnlySpan<byte>(expected, 4 * sizeof(Fs.FileHandle)).SequenceEqual(new ReadOnlySpan<byte>(f.Input.Files, 4 * sizeof(Fs.FileHandle))));
+        for (int i = 0; i < protectedRanges.Count; i++) HostCheck.True(before[i].AsSpan().SequenceEqual(new ReadOnlySpan<byte>((void*)protectedRanges[i].Start, (int)protectedRanges[i].Bytes)), "close changed protected extent " + i);
+        HostCheck.Equal(Fs.Status.StaleToken, Fs.Close(f.Mount, token));
+    }
+
     private static void WithImage(Action<byte[], Image.Receipt> action) => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) => action(File.ReadAllBytes(path), receipt));
     private static string Hash(ReadOnlySpan<byte> bytes) => Convert.ToHexString(SHA256.HashData(bytes));
     private static int Offset<T>(string name) where T : struct => (int)Marshal.OffsetOf<T>(name);
@@ -233,8 +330,16 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
     private static extern ref P.Token BorrowedToken(ref Fs.Mount mount);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
     private static extern ref P.Admission PortAdmission(ref P.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
+    private static extern ref B.Admission BlockAdmission(ref B.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Index")]
+    private static extern ref uint HandleIndex(ref Fs.FileToken token);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Phase")]
+    private static extern ref byte HandlePhase(ref Fs.FileHandle handle);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ClusterCount")]
+    private static extern ref uint HandleClusters(ref Fs.FileHandle handle);
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal readonly WritableBlockSessionTests.Fixture Device;
         internal B.State* Block => Device.State;
@@ -252,6 +357,7 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
         internal readonly Fs.BorrowedAdmission Input;
         internal readonly ulong EngineBackingBytes, FsBackingBytes, MountedEngineGeneration;
         internal readonly List<B.Observation> Observations = [];
+        internal bool AllowStaleBacking;
         internal Span<byte> Persistent => new(Device.Hardware->Persistent, 128 * 1024 * 1024);
         internal Fixture(byte[] raw, Image.Receipt receipt, bool start = true)
         {
@@ -307,6 +413,13 @@ internal static unsafe class ReadOnlyWebRootWritableBlockTests
         }
         public void Dispose()
         {
+            if (AllowStaleBacking)
+            {
+                // Negative supervisor-ABA test only: retain every old object to
+                // this fake-owner boundary, never relabel it logically retired.
+                if (Block->RequiresCleanup) HostCheck.Equal(B.Status.Success, B.Stop(Block));
+                Device.CheckGuards(); Device.Dispose(); NativeMemory.Free(Engine); NativeMemory.Free(Port); NativeMemory.Free(Output); NativeMemory.AlignedFree(engineArena); NativeMemory.AlignedFree(fsArena); return;
+            }
             if (Mount->RequiresCleanup) { var status = Fs.Stop(Mount); Sample(); if (status == Fs.Status.Pending) { if (Device.Hardware->Pending) Device.Complete(); HostCheck.Equal(Fs.Status.Success, Fs.Stop(Mount)); Sample(); } }
             if (!Port->Retired) { var status = P.Stop(Port); Sample(); if (status == P.Status.Pending) { if (Device.Hardware->Pending) Device.Complete(); P.Completion result = default; var token = BorrowedToken(ref *Mount); P.Poll(Port, token, &result); Sample(); status = P.Stop(Port); } if (status != P.Status.Success) { B.Stop(Block); HostCheck.Equal(P.Status.Success, P.Stop(Port)); } }
             if (Mount->RequiresCleanup) HostCheck.Equal(Fs.Status.Success, Fs.Stop(Mount));

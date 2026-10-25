@@ -1,6 +1,11 @@
 #if !NOSTDLIB_EFI || M16_025_PROBE
+using OS.Kernel.Memory;
 using OS.Pal;
 using Fs = OS.Storage.ReadOnlyWebRootFileSystem;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+using P = OS.Storage.WritableBlockReadPort;
+using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
+#endif
 
 namespace OS.Kernel.Compatibility.LinuxX64;
 
@@ -9,6 +14,9 @@ public static unsafe partial class LinuxDescriptorServices
     public const uint DiskSlots = 8, DiskCompletionBytes = 8192, DiskExtentCount = 78;
     private const byte DiskQueued = 1, DiskWorking = 2, DiskReady = 3, DiskDraining = 4, DiskError = 5;
     private const byte DiskOpen = 1, DiskStat = 2, DiskRead = 3, DiskSeek = 4;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    private const byte DiskPausedReady = 6, DiskFstat = 5;
+#endif
     public enum DiskProgress : byte { Rejected, NotHandled, Immediate, Pending, Ready, Draining }
 
     /// <summary>Value token for one noncopyable pending record. It authenticates
@@ -67,6 +75,12 @@ public static unsafe partial class LinuxDescriptorServices
         internal byte Phase, Kind;
         internal bool Positioned, Borrowed, RequireDirectory, Cancelling;
         internal Fs.Status Failure;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        // Only a Busy borrowed-backend open retains this bounded copied path.
+        // It never retains/rereads an application pointer or enlarges025 layout.
+        internal uint PathLength;
+        internal fixed byte Path[(int)MaximumPath];
+#endif
     }
 
     /// <summary>One exclusive, externally serialized attachment. Keep all
@@ -102,6 +116,11 @@ public static unsafe partial class LinuxDescriptorServices
             !DiskStorage(disk, (ulong)sizeof(DiskState)) ||
             !DiskStorage(a.Bindings, DiskSlots * (ulong)sizeof(DiskBinding)) ||
             !DiskStorage(a.Requests, DiskSlots * (ulong)sizeof(DiskRequest))) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (BorrowedDiskMount(a.Mount) && !BorrowedDiskBaseStorage(state, a.Mount)) return false;
+        if (state->WritableDisk != null && (!WritableBound(state) || state->WritableDisk->Provider->RequestActive ||
+            !PairedDiskStorage(disk, a, state->WritableDisk, RetainedWritableAdmission(state->WritableDisk)))) return false;
+#endif
         ulong* starts = stackalloc ulong[3] { (ulong)disk, (ulong)a.Bindings, (ulong)a.Requests };
         ulong* lengths = stackalloc ulong[3] { (ulong)sizeof(DiskState), DiskSlots * (ulong)sizeof(DiskBinding), DiskSlots * (ulong)sizeof(DiskRequest) };
         for (uint i = 0; i < 3; i++)
@@ -113,7 +132,10 @@ public static unsafe partial class LinuxDescriptorServices
                 FsExtent(a.Mount, j, out ulong start, out ulong bytes);
                 if (bytes != 0 && Overlap(starts[i], lengths[i], start, bytes)) return false;
             }
-            if (!SocketOutside(state, (void*)starts[i], lengths[i])) return false;
+            if (!DiskAttachmentOutside(state, a.Mount, (void*)starts[i], lengths[i])) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (BorrowedDiskMount(a.Mount) && !Fs.CanRetainStorage(a.Mount, a.Epoch, starts[i], lengths[i])) return false;
+#endif
             for (ulong j = 0; j < lengths[i]; j++) if (((byte*)starts[i])[j] != 0) return false;
         }
         for (uint i = 0; i < a.Mount->Input.OperationCount; i++)
@@ -121,7 +143,7 @@ public static unsafe partial class LinuxDescriptorServices
         for (uint i = 0; i < 68; i++)
         {
             FsExtent(a.Mount, i, out ulong start, out ulong bytes);
-            if (bytes != 0 && !SocketOutside(state, (void*)start, bytes)) return false;
+            if (bytes != 0 && !DiskAttachmentOutside(state, a.Mount, (void*)start, bytes)) return false;
         }
         *disk = new() { Self = (ulong)disk, Epoch = a.Epoch, Owner = state, Mount = a.Mount, Bindings = a.Bindings, Requests = a.Requests };
         for (uint i = 0; i < DiskSlots; i++) disk->Requests[i].Self = (ulong)(disk->Requests + i);
@@ -179,10 +201,14 @@ public static unsafe partial class LinuxDescriptorServices
             {
                 Fs.FileInspection info = default;
                 Fs.Status observed = Fs.Inspect(state->Disk->Mount, state->Disk->Bindings[binding].File, &info);
-                return observed == Fs.Status.Success ? new(DiskProgress.Immediate, DiskStatOutput(state, info, call.Argument1)) :
-                    new(DiskProgress.Immediate, Io, failure: observed);
+                if (observed == Fs.Status.Success) return new(DiskProgress.Immediate, DiskStatOutput(state, info, call.Argument1));
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                if (observed == Fs.Status.Busy && BorrowedDiskMount(state->Disk->Mount)) kind = DiskFstat;
+                else
+#endif
+                return new(DiskProgress.Immediate, Io, failure: observed);
             }
-            kind = call.Number == 8 ? DiskSeek : DiskRead;
+            else kind = call.Number == 8 ? DiskSeek : DiskRead;
             if (kind == DiskRead && (call.Argument2 > MaximumIo || call.Number == 17 && call.Argument3 > long.MaxValue)) return new(DiskProgress.Immediate, Invalid);
             if (kind == DiskSeek && call.Argument2 > 2) return new(DiskProgress.Immediate, Invalid);
             if (opened->Borrowers == MaximumDescriptors) return new(DiskProgress.Immediate, FileTableFull);
@@ -198,6 +224,14 @@ public static unsafe partial class LinuxDescriptorServices
         {
             Fs.OperationToken operation = default;
             Fs.Status started = Fs.BeginOpen(disk->Mount, new ReadOnlySpan<byte>(path, (int)length), &operation);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (started == Fs.Status.Busy && BorrowedDiskMount(disk->Mount))
+            {
+                r->PathLength = length;
+                for (uint i = 0; i < length; i++) r->Path[i] = path[i];
+                return DiskObservation(disk, r);
+            }
+#endif
             if (started != Fs.Status.Pending) { ClearDiskRequest(r); return new(DiskProgress.Immediate, DiskErrno(started), failure: started); }
             r->Operation = operation; r->Phase = DiskWorking;
         }
@@ -223,6 +257,13 @@ public static unsafe partial class LinuxDescriptorServices
         {
             uint i = (d->NextPump + n) % DiskSlots;
             if (d->Requests[i].Phase == 0) continue;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            // Borrowed reads arbitrate through their original writable engine.
+            // The readonly device counters below do not exist for this backend;
+            // retain one selected turn without granting readonly replenishment.
+            if (BorrowedDiskMount(d->Mount))
+            { d->NextPump = (i + 1) % DiskSlots; return StepDisk(state, d->Requests + i); }
+#endif
             var device = d->Mount->Input.Device;
             ulong epoch = device->Input.Epoch, generation = d->Requests[i].Generation;
             ulong submitted = device->Submitted, completed = device->Completed, copied = device->Copied, cancelled = device->Cancelled;
@@ -245,6 +286,9 @@ public static unsafe partial class LinuxDescriptorServices
     public static DiskResult PollDisk(State* state, ulong owner, DiskToken token)
     {
         if (!Attached(state, owner) || !DiskRequestFor(state, token, out DiskRequest* r)) return new(DiskProgress.Rejected);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        RefreshDiskAvailability(state->Disk, r);
+#endif
         return DiskObservation(state->Disk, r);
     }
 
@@ -262,15 +306,24 @@ public static unsafe partial class LinuxDescriptorServices
             !worker.IsValid || worker.Value != r->Worker.Value || call.Number != r->Number) return new(DiskProgress.Rejected);
         if (r->Borrowed && (!IsCurrent(state, r->OriginalFd) || unchecked((uint)call.Argument0) != r->OriginalFd.Number))
             return DrainDisk(state, r, BadDescriptor, true, Fs.Status.Cancelled);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        RefreshDiskAvailability(state->Disk, r);
+#endif
         if (r->Phase is not (DiskReady or DiskError)) return DiskObservation(state->Disk, r);
         if (r->Phase == DiskError) return FinishDisk(state, r, r->Error, r->Failure);
         Fs.FileInspection live = default;
         if (r->Borrowed)
         {
             Fs.Status checkedFile = Fs.Inspect(state->Disk->Mount, state->Disk->Bindings[r->Binding].File, &live);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (checkedFile == Fs.Status.Busy && BorrowedDiskMount(state->Disk->Mount)) return PauseDiskReady(state->Disk, r);
+#endif
             if (checkedFile != Fs.Status.Success) return DrainDisk(state, r, Io, true, checkedFile);
         }
         if (r->Kind is DiskOpen or DiskStat) return CompleteDiskOpen(state, r, call, outputBytes);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (r->Kind == DiskFstat) return FinishDisk(state, r, outputBytes < 144 ? Fault : DiskStatOutput(state, live, call.Argument1));
+#endif
         Description* description = state->Owner.Descriptions + r->Description;
         if (r->Kind == DiskSeek) { description->Position = r->Offset; return FinishDisk(state, r, (long)r->Offset); }
         if (call.Argument2 != r->Requested || r->Positioned && call.Argument3 != r->Offset) return new(DiskProgress.Rejected);
@@ -279,6 +332,10 @@ public static unsafe partial class LinuxDescriptorServices
         {
             copiedStatus = Fs.CopyRead(state->Disk->Mount, r->Operation,
                 new Span<byte>(state->Owner.Scratch, (int)DiskCompletionBytes), &copied);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (copiedStatus == Fs.Status.Busy && BorrowedDiskMount(state->Disk->Mount))
+            { Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return PauseDiskReady(state->Disk, r); }
+#endif
             if (copiedStatus is not (Fs.Status.Success or Fs.Status.EndOfFile))
             { Clear(state->Owner.Scratch, state->Owner.ScratchBytes); return DrainDisk(state, r, Io, true, copiedStatus); }
             r->Operation = default;
@@ -304,13 +361,40 @@ public static unsafe partial class LinuxDescriptorServices
         DiskState* disk = state->Disk;
         if (r->Phase == DiskDraining) return DrainDisk(state, r, r->Error, !r->Worker.IsValid, r->Failure);
         if (r->Borrowed && !IsCurrent(state, r->OriginalFd)) return DrainDisk(state, r, BadDescriptor, false, Fs.Status.Cancelled);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        RefreshDiskAvailability(disk, r);
+        if (r->Phase == DiskPausedReady)
+        {
+            Fs.Status available = Fs.PumpMount(disk->Mount);
+            if (available == Fs.Status.Busy) return DiskObservation(disk, r);
+            if (available != Fs.Status.Ready) return DrainDisk(state, r, Io, false, available);
+            r->Phase = DiskReady; return DiskObservation(disk, r);
+        }
+#endif
         if (r->Phase is DiskReady or DiskError) return DiskObservation(disk, r);
         if (r->Phase == DiskQueued)
         {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (r->Kind is DiskOpen or DiskStat)
+            {
+                Fs.OperationToken operation = default;
+                Fs.Status begun = Fs.BeginOpen(disk->Mount, new ReadOnlySpan<byte>(r->Path, (int)r->PathLength), &operation);
+                if (begun == Fs.Status.Busy) return DiskObservation(disk, r);
+                if (begun != Fs.Status.Pending) return DrainDisk(state, r, DiskErrno(begun), false, begun);
+                r->Operation = operation; r->Phase = DiskWorking; Clear(r->Path, MaximumPath); r->PathLength = 0;
+                return DiskObservation(disk, r);
+            }
+#endif
             if (CursorDiskBusy(disk, r)) return DiskObservation(disk, r);
             Fs.FileInspection info = default;
             Fs.Status inspected = Fs.Inspect(disk->Mount, disk->Bindings[r->Binding].File, &info);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (inspected == Fs.Status.Busy && BorrowedDiskMount(disk->Mount)) return DiskObservation(disk, r);
+#endif
             if (inspected != Fs.Status.Success) return DrainDisk(state, r, Io, false, inspected);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (r->Kind == DiskFstat) { r->Phase = DiskReady; return DiskObservation(disk, r); }
+#endif
             Description* d = state->Owner.Descriptions + r->Description;
             if (r->Kind == DiskSeek)
             {
@@ -329,6 +413,9 @@ public static unsafe partial class LinuxDescriptorServices
             uint wanted = r->Requested < DiskCompletionBytes ? r->Requested : DiskCompletionBytes;
             Fs.OperationToken op = default;
             Fs.Status started = Fs.BeginRead(disk->Mount, disk->Bindings[r->Binding].File, r->Offset, wanted, &op);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (started == Fs.Status.Busy && BorrowedDiskMount(disk->Mount)) return DiskObservation(disk, r);
+#endif
             if (started != Fs.Status.Pending) return DrainDisk(state, r, DiskErrno(started), false, started);
             r->Operation = op; r->Phase = DiskWorking;
             // BeginRead only reserves the range. Use this selected turn's one
@@ -344,6 +431,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Fs.OpenResult file = default;
         Fs.Status copied = Fs.CopyOpen(state->Disk->Mount, r->Operation, &file);
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (copied == Fs.Status.Busy && BorrowedDiskMount(state->Disk->Mount)) return PauseDiskReady(state->Disk, r);
+#endif
         if (copied != Fs.Status.Success) return DrainDisk(state, r, Io, true, copied);
         r->Operation = default; Fs.FileInspection info = new() { Info = file.Info };
         Fs.Status checkedFile = Fs.Inspect(state->Disk->Mount, file.File, &info);
@@ -413,6 +503,9 @@ public static unsafe partial class LinuxDescriptorServices
 
     private static bool CursorDiskBusy(DiskState* disk, DiskRequest* request)
     {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (request->Kind == DiskFstat) return false;
+#endif
         if (request->Kind == DiskRead && request->Positioned) return false;
         for (uint i = 0; i < DiskSlots; i++)
         {
@@ -429,6 +522,15 @@ public static unsafe partial class LinuxDescriptorServices
         if (r->Borrowed && !DropDescription(state, r->Description, true))
         {
             r->Phase = DiskDraining; r->Worker = default; r->Error = Io;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (BorrowedDiskMount(state->Disk->Mount))
+            {
+                // Cleanup cannot replace an already known cancellation/closed
+                // fd result merely because C owns a temporary writer turn.
+                r->Error = value; r->Failure = failure;
+                return DiskObservation(state->Disk, r);
+            }
+#endif
             if (r->Failure == Fs.Status.Success) r->Failure = Fs.Status.InvalidState;
             return DiskObservation(state->Disk, r);
         }
@@ -436,6 +538,20 @@ public static unsafe partial class LinuxDescriptorServices
         return new(DiskProgress.Immediate, value, failure: failure);
     }
     private static void ClearDiskRequest(DiskRequest* r) { ulong self = r->Self; *r = default; r->Self = self; }
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    private static bool BorrowedDiskMount(Fs.Mount* mount) => mount->ReadPort != null;
+    private static DiskResult PauseDiskReady(DiskState* disk, DiskRequest* request)
+    { request->Phase = DiskPausedReady; return DiskObservation(disk, request); }
+    // PumpMount on an already mounted borrowed FS only inspects availability;
+    // it does not submit/poll I/O, copy a range or consume its typed result.
+    private static void RefreshDiskAvailability(DiskState* disk, DiskRequest* request)
+    {
+        if (!BorrowedDiskMount(disk->Mount) || request->Phase is not (DiskReady or DiskPausedReady)) return;
+        Fs.Status status = Fs.PumpMount(disk->Mount);
+        if (status == Fs.Status.Busy) request->Phase = DiskPausedReady;
+        else if (status == Fs.Status.Ready) request->Phase = DiskReady;
+    }
+#endif
     private static DiskResult DiskObservation(DiskState* disk, DiskRequest* r)
     {
         uint index = (uint)(r - disk->Requests);
@@ -456,6 +572,136 @@ public static unsafe partial class LinuxDescriptorServices
         ulong start = (ulong)value;
         return start >= 4096 && start < end && bytes != 0 && bytes <= end - start && (start & (alignment - 1)) == 0;
     }
+
+    /// <summary>Structural full-tree external-buffer query for the owning core
+    /// and thread admission guards. It supplies no current-device/user-copy or
+    /// mapping authority. A null attachment imposes no disk exclusions. Borrowed
+    /// retired FS permits local cleanup only and grants no new backing borrow.
+    /// No I/O, callback, allocation or retained caller pointer is introduced.</summary>
+    internal static bool DiskCanRetainStorage(State* state, ulong address, ulong bytes)
+    {
+        if (state == null) return false;
+        if (state->Disk == null) return true;
+        if (!DiskStorage((void*)address, bytes, 1) || !DiskBound(state)) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!AuditDiskPair(state) || !PairedDiskExternal(state, address, bytes)) return false;
+#endif
+        DiskState* d = state->Disk;
+        if (Overlap(address, bytes, (ulong)d, (ulong)sizeof(DiskState)) ||
+            Overlap(address, bytes, (ulong)d->Bindings, DiskSlots * (ulong)sizeof(DiskBinding)) ||
+            Overlap(address, bytes, (ulong)d->Requests, DiskSlots * (ulong)sizeof(DiskRequest))) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (BorrowedDiskMount(d->Mount)) return !d->Mount->IsRetired && Fs.CanRetainStorage(d->Mount, d->Epoch, address, bytes);
+#endif
+        for (uint i = 0; i < 75; i++)
+        { FsExtent(d->Mount, i, out ulong held, out ulong count); if (count != 0 && Overlap(address, bytes, held, count)) return false; }
+        return true;
+    }
+
+    private static bool DiskAttachmentOutside(State* state, Fs.Mount* mount, void* pointer, ulong bytes)
+    {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        return SocketOutsideCore(state, pointer, bytes, writablePair: BorrowedDiskMount(mount));
+#else
+        return SocketOutside(state, pointer, bytes);
+#endif
+    }
+
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    private static DiskAdmission RetainedDiskAdmission(DiskState* d) => new()
+    { Mount = d->Mount, Bindings = d->Bindings, Requests = d->Requests, Epoch = d->Epoch };
+
+    private static WritableDiskAdmission RetainedWritableAdmission(WritableDiskState* d) => new()
+    { Provider = d->Provider, Bindings = d->Bindings, BindingCount = d->BindingCount, Epoch = d->Epoch };
+
+    // Leaf structural pair proof: neither global Audit nor either global
+    // external-buffer query is called recursively. Dirty/orphan backing stays
+    // retained; each operation separately requires its live/copy authority.
+    private static bool AuditDiskPair(State* s)
+    {
+        if (s->Disk == null || s->WritableDisk == null) return true;
+        return DiskBound(s) && WritableBound(s) &&
+            PairedDiskStorage(s->Disk, RetainedDiskAdmission(s->Disk), s->WritableDisk, RetainedWritableAdmission(s->WritableDisk));
+    }
+
+    private static bool PairedDiskStorage(DiskState* read, in DiskAdmission r, WritableDiskState* write, in WritableDiskAdmission w)
+    {
+        if (!DiskStorage(read, (ulong)sizeof(DiskState)) || !DiskStorage(write, (ulong)sizeof(WritableDiskState)) ||
+            !DiskStorage(r.Mount, (ulong)sizeof(Fs.Mount)) || !DiskStorage(w.Provider, (ulong)sizeof(W.State)) ||
+            !DiskStorage(r.Bindings, DiskSlots * (ulong)sizeof(DiskBinding)) || !DiskStorage(r.Requests, DiskSlots * (ulong)sizeof(DiskRequest)) ||
+            w.BindingCount is 0 or > MaximumDescriptors || !DiskStorage(w.Bindings, w.BindingCount * (ulong)sizeof(WritableDiskBinding)) ||
+            r.Epoch == 0 || w.Epoch == 0 || r.Mount->Input.Epoch != r.Epoch || !BorrowedDiskMount(r.Mount) || r.Mount->IsRetired) return false;
+        var binding = r.Mount->PortBinding;
+        if (!P.MatchesRetainedEngine(r.Mount->ReadPort, binding.Epoch, binding.EngineOwner, binding.EngineEpoch) ||
+            !W.MatchesRetainedEngine(w.Provider, w.Epoch, binding.EngineOwner, binding.EngineEpoch)) return false;
+        ulong writableBytes = w.BindingCount * (ulong)sizeof(WritableDiskBinding);
+        if (!Fs.CanRetainStorage(r.Mount, r.Epoch, (ulong)write, (ulong)sizeof(WritableDiskState)) ||
+            !Fs.CanRetainStorage(r.Mount, r.Epoch, (ulong)w.Bindings, writableBytes)) return false;
+        for (uint i = 0; i < DiskExtentCount; i++)
+        {
+            ulong start, bytes;
+            if (i == 0) { start = (ulong)read; bytes = (ulong)sizeof(DiskState); }
+            else if (i == 1) { start = (ulong)r.Bindings; bytes = DiskSlots * (ulong)sizeof(DiskBinding); }
+            else if (i == 2) { start = (ulong)r.Requests; bytes = DiskSlots * (ulong)sizeof(DiskRequest); }
+            else FsExtent(r.Mount, i - 3, out start, out bytes);
+            if (bytes != 0 && (!W.CanRetainStorage(w.Provider, w.Epoch, start, bytes) ||
+                Overlap(start, bytes, (ulong)write, (ulong)sizeof(WritableDiskState)) ||
+                Overlap(start, bytes, (ulong)w.Bindings, writableBytes))) return false;
+        }
+        return true;
+    }
+
+    // Both external-buffer queries exclude the complete paired private tree.
+    // Pair audit already authenticated the common backend and its full extents;
+    // neither query may accept the other client's local metadata or buffers.
+    private static bool PairedDiskExternal(State* s, ulong address, ulong bytes)
+    {
+        if (s->Disk == null || s->WritableDisk == null) return true;
+        WritableDiskState* w = s->WritableDisk;
+        if (Overlap(address, bytes, (ulong)w, (ulong)sizeof(WritableDiskState)) ||
+            Overlap(address, bytes, (ulong)w->Bindings, w->BindingCount * (ulong)sizeof(WritableDiskBinding)) ||
+            !W.CanRetainStorage(w->Provider, w->Epoch, address, bytes)) return false;
+        for (uint i = 0; i < DiskExtentCount; i++)
+        {
+            DiskLocalExtent(s->Disk, i, out ulong start, out ulong count);
+            if (count != 0 && Overlap(address, bytes, start, count)) return false;
+        }
+        return true;
+    }
+
+    private static bool BorrowedDiskBaseStorage(State* state, Fs.Mount* mount)
+    {
+        var a = state->Owner;
+        ulong* extents = stackalloc ulong[26]
+        {
+            (ulong)state, (ulong)sizeof(State), (ulong)a.Slots, a.DescriptorCount * (ulong)sizeof(Slot),
+            (ulong)a.Descriptions, a.DescriptionCount * (ulong)sizeof(Description), (ulong)a.Pipes, a.PipeCount * (ulong)sizeof(LinuxPipe),
+            (ulong)a.PipeBuffers, a.PipeCount * a.PipeCapacity, (ulong)a.Snapshots, a.DescriptionCount * SnapshotBytes,
+            (ulong)a.Scratch, a.ScratchBytes, (ulong)a.Memory, (ulong)sizeof(LinuxMemoryServices.State),
+            (ulong)a.Memory->Memory.Pool, a.Memory->Memory.PoolPages * 4096UL,
+            (ulong)a.Memory->Memory.Tables, a.Memory->Memory.TablePages * 4096UL,
+            (ulong)a.Memory->Memory.CandidateTables, a.Memory->Memory.TablePages * 4096UL,
+            (ulong)a.Memory->Memory.StaticRanges, a.Memory->Memory.StaticCount * (ulong)sizeof(X64UserMappingRange),
+            (ulong)a.Views, a.ViewCount * (ulong)sizeof(View)
+        };
+        for (uint i = 0; i < 13; i++) if (extents[i * 2 + 1] != 0 &&
+            !Fs.CanRetainStorage(mount, mount->Input.Epoch, extents[i * 2], extents[i * 2 + 1])) return false;
+        for (uint i = 0; i < a.ViewCount; i++)
+            if (!Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)a.Views[i].Path, a.Views[i].PathBytes) ||
+                a.Views[i].Bytes != 0 && !Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)a.Views[i].Data, a.Views[i].Bytes)) return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (!TransportStorageOutside(state, mount, null, 0, null, null, 0)) return false;
+        var sockets = state->Sockets;
+        if (sockets != null && (!Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)sockets, (ulong)sizeof(LinuxSocketServices.State)) ||
+            !Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)sockets->Slots, sockets->Count * (ulong)sizeof(LinuxSocketServices.Endpoint)))) return false;
+        var epoll = state->Epoll;
+        if (epoll != null && (!Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)epoll, (ulong)sizeof(LinuxEpollServices.State)) ||
+            !Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)epoll->Ports, epoll->PortCount * (ulong)sizeof(LinuxEpollServices.Port)) ||
+            !Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)epoll->Registrations, epoll->RegistrationCount * (ulong)sizeof(LinuxEpollServices.Registration)))) return false;
+#endif
+        return true;
+    }
+#endif
     private static bool DiskBound(State* state)
     {
         if (!DiskStorage(state, (ulong)sizeof(State))) return false;
@@ -468,12 +714,21 @@ public static unsafe partial class LinuxDescriptorServices
             a.OperationCount is < 2 or > Fs.MaximumSlots || a.FileCount is < 2 or > Fs.MaximumSlots || a.CacheCount is 0 or > Fs.MaximumCacheSlots ||
             !DiskStorage(a.Operations, a.OperationCount * (ulong)sizeof(Fs.Operation)) ||
             !DiskStorage(a.Files, a.FileCount * (ulong)sizeof(Fs.FileHandle)) ||
-            !DiskStorage(a.Cache, a.CacheCount * (ulong)sizeof(Fs.CacheSlot)) ||
-            !DiskStorage(a.Device, (ulong)sizeof(OS.Storage.ContinuingReadOnlyBlockService.State))) return false;
+            !DiskStorage(a.Cache, a.CacheCount * (ulong)sizeof(Fs.CacheSlot))) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (BorrowedDiskMount(m))
+        {
+            if (a.Device != null || !m->IsRetired && !BorrowedDiskBaseStorage(state, m)) return false;
+        }
+        else
+#endif
+        {
+        if (!DiskStorage(a.Device, (ulong)sizeof(OS.Storage.ContinuingReadOnlyBlockService.State))) return false;
         var device = a.Device; var pool = device->Input.Pool;
         if (device->Self != (ulong)device || device->Input.Epoch != m->DeviceEpoch || device->PoolEpoch != m->PoolEpoch ||
             !DiskStorage(pool, (ulong)sizeof(OS.Drivers.DmaBufferPool)) || pool->Self != (ulong)pool || pool->Epoch != m->PoolEpoch ||
             pool->Count is 0 or > 64 || !DiskStorage(pool->Slots, pool->Count * (ulong)sizeof(OS.Drivers.DmaBufferSlot))) return false;
+        }
         for (uint i = 0; i < a.OperationCount; i++)
         {
             Fs.Operation* o = a.Operations + i; var s = o->Storage;
@@ -495,6 +750,14 @@ public static unsafe partial class LinuxDescriptorServices
         {
             if (Overlap(starts[i], bytes[i], (ulong)state, (ulong)sizeof(State)) || Overlap(starts[i], bytes[i], (ulong)m, (ulong)sizeof(Fs.Mount))) return false;
             for (uint j = 0; j < i; j++) if (Overlap(starts[i], bytes[i], starts[j], bytes[j])) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (BorrowedDiskMount(m))
+            {
+                if (!m->IsRetired && !Fs.CanRetainStorage(m, d->Epoch, starts[i], bytes[i])) return false;
+                for (uint j = 0; j < 68; j++)
+                { FsExtent(m, j, out ulong local, out ulong count); if (count != 0 && Overlap(starts[i], bytes[i], local, count)) return false; }
+            }
+#endif
         }
         // This is structural ownership, not device liveness or I/O admission.
         return !m->IsRetired || DiskRetired(d);
@@ -502,9 +765,19 @@ public static unsafe partial class LinuxDescriptorServices
 
     private static bool DiskRetired(DiskState* d)
     {
-        Fs.Mount* m = d->Mount; var device = m->Input.Device;
+        Fs.Mount* m = d->Mount;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (BorrowedDiskMount(m))
+        {
+            if (!m->IsRetired || m->IoActive) return false;
+        }
+        else
+#endif
+        {
+        var device = m->Input.Device;
         if (!m->IsRetired || m->IoActive || !device->Retired || !device->Receipt.ResetComplete ||
             !device->Receipt.BusMasterDisabled || !device->Receipt.DmaReleased || !device->ReturnedToCpu || !device->Scrubbed) return false;
+        }
         for (uint i = 0; i < m->Input.OperationCount; i++) if (m->Input.Operations[i].Phase != 0) return false;
         for (uint i = 0; i < m->Input.FileCount; i++) if (m->Input.Files[i].Phase != 0 || m->Input.Files[i].References != 0) return false;
         return true;
@@ -560,14 +833,21 @@ public static unsafe partial class LinuxDescriptorServices
                     if (owners != 1) return false;
                 }
             }
-            if (r->Self != (ulong)r || r->Phase > DiskError) return false;
+            bool paused = false, fstat = false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            paused = BorrowedDiskMount(disk->Mount) && r->Phase == DiskPausedReady;
+            fstat = BorrowedDiskMount(disk->Mount) && r->Kind == DiskFstat && r->Number == 5;
+            if (r->PathLength >= MaximumPath || r->PathLength != 0 &&
+                (!BorrowedDiskMount(disk->Mount) || r->Phase != DiskQueued || r->Kind is not (DiskOpen or DiskStat))) return false;
+#endif
+            if (r->Self != (ulong)r || r->Phase > DiskError && !paused) return false;
             if (r->Phase == 0)
             { if (r->Generation != 0 || r->Operation.IsInitialized || r->Borrowed || r->Worker.IsValid) return false; continue; }
-            if (r->Generation == 0 || r->Generation > disk->NextGeneration || r->Kind is < DiskOpen or > DiskSeek ||
+            if (r->Generation == 0 || r->Generation > disk->NextGeneration || (r->Kind is < DiskOpen or > DiskSeek) && !fstat ||
                 !r->Worker.IsValid && r->Phase != DiskDraining) return false;
             if (r->Kind == DiskSeek && r->Number != 8 || r->Kind == DiskRead && r->Number != (r->Positioned ? 17UL : 0) ||
                 r->Kind == DiskOpen && r->Number is not (2 or 257) || r->Kind == DiskStat && r->Number is not (4 or 6)) return false;
-            if (r->Borrowed != (r->Kind is DiskRead or DiskSeek)) return false;
+            if (r->Borrowed != (r->Kind is DiskRead or DiskSeek || fstat)) return false;
             if (r->Operation.IsInitialized && !DiskOperationLink(disk, r->Operation)) return false;
             if (r->Borrowed && (r->Description >= state->Owner.DescriptionCount || r->Binding >= DiskSlots ||
                 disk->Bindings[r->Binding].Active != 1 || disk->Bindings[r->Binding].Generation != r->BindingGeneration ||
@@ -580,13 +860,18 @@ public static unsafe partial class LinuxDescriptorServices
                 if (fd.Description != 0 && fd.Generation == r->OriginalFd.Generation && fd.Description != r->Description + 1) return false;
                 if (r->Kind == DiskSeek && (r->Operation.IsInitialized || r->Whence > 2 || r->Phase == DiskWorking) ||
                     r->Kind == DiskRead && (r->Requested > MaximumIo || r->Phase == DiskWorking && !r->Operation.IsInitialized ||
-                    r->Phase == DiskReady && !r->Operation.IsInitialized && r->Requested != 0 && r->Offset < binding->Metadata.Info.Length)) return false;
+                    (r->Phase == DiskReady || paused) && !r->Operation.IsInitialized && r->Requested != 0 && r->Offset < binding->Metadata.Info.Length)) return false;
+                if (fstat && (r->Operation.IsInitialized || r->Phase == DiskWorking)) return false;
                 if (r->Operation.IsInitialized && disk->Mount->Input.Operations[r->Operation.Index].FileIndex != binding->File.Index) return false;
             }
             else
             {
-                if (r->OriginalFd.Owner != null || r->Phase == DiskQueued ||
-                    r->Phase is DiskWorking or DiskReady && !r->Operation.IsInitialized) return false;
+                bool queued = false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                queued = BorrowedDiskMount(disk->Mount) && r->Phase == DiskQueued && r->PathLength is >= 12 and < MaximumPath && DiskPath(r->Path, r->PathLength);
+#endif
+                if (r->OriginalFd.Owner != null || r->Phase == DiskQueued && !queued ||
+                    (r->Phase is DiskWorking or DiskReady || paused) && !r->Operation.IsInitialized) return false;
                 if (r->BindingGeneration != 0 && (r->Phase != DiskDraining || r->Worker.IsValid || r->Binding >= DiskSlots ||
                     disk->Bindings[r->Binding].Active != 1 || disk->Bindings[r->Binding].Description != uint.MaxValue ||
                     disk->Bindings[r->Binding].Generation != r->BindingGeneration)) return false;
@@ -661,12 +946,18 @@ public static unsafe partial class LinuxDescriptorServices
         Fs.Status.InvalidOffset => Invalid, _ => Io
     };
 
-    /// <summary>Bounded retained-extent inventory for the thread/native owner.
-    /// These numeric ranges do not prove mappings or physical alias freedom.</summary>
+    /// <summary>Compatible scalar inventory for the thread/native owner. For a
+    /// borrowed backend this lists FS-local metadata and its port only; EVERY
+    /// external-buffer admission must also use DiskCanRetainStorage for the
+    /// complete C/B/DMA/MMIO/observer tree. Numeric ranges are not mapping proof.</summary>
     public static void DiskExtentAt(State* state, uint index, out ulong start, out ulong bytes)
     {
         start = bytes = 0; if (!DiskBound(state)) return;
-        DiskState* d = state->Disk;
+        DiskLocalExtent(state->Disk, index, out start, out bytes);
+    }
+    private static void DiskLocalExtent(DiskState* d, uint index, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
         if (index == 0) { start = (ulong)d; bytes = (ulong)sizeof(DiskState); }
         else if (index == 1) { start = (ulong)d->Bindings; bytes = DiskSlots * (ulong)sizeof(DiskBinding); }
         else if (index == 2) { start = (ulong)d->Requests; bytes = DiskSlots * (ulong)sizeof(DiskRequest); }
@@ -675,6 +966,13 @@ public static unsafe partial class LinuxDescriptorServices
     private static void FsExtent(Fs.Mount* m, uint index, out ulong start, out ulong bytes)
     {
         var a = m->Input; start = bytes = 0;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (BorrowedDiskMount(m) && index >= 68)
+        {
+            if (index == 68) { start = (ulong)m->ReadPort; bytes = (ulong)sizeof(OS.Storage.WritableBlockReadPort.State); }
+            return;
+        }
+#endif
         if (index == 0) { start = (ulong)m; bytes = (ulong)sizeof(Fs.Mount); }
         else if (index == 1) { start = (ulong)a.Operations; bytes = a.OperationCount * (ulong)sizeof(Fs.Operation); }
         else if (index == 2) { start = (ulong)a.Files; bytes = a.FileCount * (ulong)sizeof(Fs.FileHandle); }

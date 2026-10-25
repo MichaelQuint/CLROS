@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1611](../done/step1611.md) Paired web/data/TCP host prerequisites are development staging only. The full outer process/scheduler/carrier exclusion and actual source4 deferred fstat checks precede native activation; source-only P integration leaves the ordinary allocation experiment unchanged/open. Existing accepted native profiles keep their original boundaries.
+
 [Step1610](../done/step1610.md) Actual v5r13 preserves unchanged server/package bytes and service/audit/flush/time policy, then intentionally cancels/joins. The cause distribution is attribution rather than production optimization. The repaired explicit LinuxHTTP reference retains two fresh publications and independent verification. No accepted application profile or continuously functioning read/write/SQLite goal changes.
 
 [Step1606](../done/step1606.md) The separate finite managed MinimalApi HTTP log/upload candidate is an intermediate contract fixture, preserving the existing static server package and the continuous product goal. Explicit startup and partial-effect states remain evidence, not rollback or durability. Timingr10 failed before guest; the diagnostic ABI repair needs fresh originalr11 before any performance conclusion.

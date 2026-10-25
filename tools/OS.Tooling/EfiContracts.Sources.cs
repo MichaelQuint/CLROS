@@ -8,9 +8,9 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "e0941ec990666d9134ca4a5ffe0f794960cd09f7c2ea699e33f047d129e78b65",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "0154310cd3d0d8b294eba266fdfea37389eccf23bdbbc38a3ca2f5a0c363afba",
-                [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "c33deccc5cafd495ca44ae081558ed9bc5d48bf26789bc0bdf9406cb34ad8898",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "48a2c549432a55207eba4a944e88ff7c68b578091d0479c7ed1b51b565fdf289",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "1c282f985ea598b482769e26462aa214a894916500959a39666bc27cbd662c4f",
+                [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "a48c9681f54ca5a2d4288719ff6bd2c736ab4f725bafaf9cebf2fbae33e21adb",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "bb09afc107d9405af85ef70520e36d566c1ea27fc38e8d2a7709deff48d6762b",
                 [@"Boot\EfiEntry.DiskEvidence.cs"] = "69d3a174cc93ec6858b8c11d6cc83daf84469dac1b3a62d43e66e588b6609708",
                 [@"Boot\EfiEntry.DiskBootstrap.cs"] = "89e8acf5685b78d48f1078deba8f8177cf7ca2efa570e1e66a8be9a13f79ec8d",
@@ -72,9 +72,9 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "b81b93d28c7a99f3fc84d7f166e2036f9ac14fbe7d271be3976c3b0e0dcf79f1",
                 [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "1246c16c469b767e7b69b22d5d360cb235781eb0e1d076b6a05f2dd39b02f373",
                 [@"Boot\EfiEntry.LinuxSockets.cs"] = "baf806e4aa25559a8444330d51ac1a626741af136e6e1a58444f492262d1cfe4",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs"] = "ecc12c5acf7c85b191f1f2ff22c9f32786fd4f604aec7a823878f95cbee396ab",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs"] = "06edd9e88e84b05ab93f7496b02b761251e861ef9dc7adb37f8b9f950820d98d",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs"] = "7d429347e2c8dc693af73aa0356cbdc6c43f8b63f2836a1042e6d3e34887651a",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs"] = "399f93820f2dac19cf5bbaab00ba11740e43d967b875cb6518df24ccd074f9d6",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketNetwork.cs"] = "3b907c7a75cc8724790380832f655b30365de1795d05e7492fbe0dd29af71cad",
                 [@"..\OS.Kernel\Net\TcpInitialSequence.cs"] = "cbcbf828ad415e6d8ee94b42013840ae6c617c2258f3591826bafacf7f0bf960",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Epoll.cs"] = "d9496ff56818ab66956f15c279f36792f1e6d52baf1c16f13032c3472eb54403",
                 [@"Boot\EfiEntry.ThreadWait.cs"] = "1444baaec07677b26e813b144f4d6f0826e83fc7529b7464bab0a4f97fa34ad3",
@@ -96,7 +96,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Threading\X64TimerInterrupt.cs"] = "563d63d2cd071b20c306e4669d088d9fbbad52ccdadb98bcecc54afbd7353857",
                 [@"..\..\std\no-runtime\shared\Ascii.cs"] = "c642f5b645ee332e1984ddba3d80e1dd42d09700c5d90aa185ca7c5e74567417",
                 [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "60bc8468c8b838dc79b14abdeede4904edf0165ae182addee3d802b93c83b49e",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "8f7071f1497ab2120520c924f39c2cc5731419f9207426d6d4aa9aa23f324a05",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "f9ef41a6b91f74236543ec4b7f9a4ffea049fa9d4bab1c14064b69b08607c4fd",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Package.cs"] = "8799a29472a97004e1c62bdb75c6a9af1741ed747503fd15c84ef52176a9001a",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Paths.cs"] = "2807206b8dd2a8d0c107c296c49099eb0eb58053c24f8cfebdadd404e50800d9",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs"] = "752c43467e413502c805e604809c536bc67651d33040e5fa036334bc4a9b0958",

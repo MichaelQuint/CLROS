@@ -20,6 +20,9 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 public static unsafe class LinuxSocketNetwork
 {
     public const uint MaximumConnections = 16;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    internal const uint RetainedExtentCount = 8;
+#endif
     public enum Status : byte { Success, Ignored, Capacity, InvalidStorage, InvalidState, TransportFailure }
 
     /// <summary>Initially zero, noncopyable connection metadata. The private
@@ -56,6 +59,10 @@ public static unsafe class LinuxSocketNetwork
         internal MacAddress LocalMac, PeerMac;
         internal Ipv4Address PeerAddress;
         internal Pending.Operations Io;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        internal void* OriginalIoContext;
+        internal uint IoContextBytes;
+#endif
         internal TcpInitialSequence.Owner* Sequence;
         internal TcpInitialSequence.Lease SequenceLease;
         internal Waits.Owner TimeWait;
@@ -83,11 +90,20 @@ public static unsafe class LinuxSocketNetwork
     /// and is borrowed through End. It is disjoint from every retained extent,
     /// worker, packet and output; its startup/rekey quiet time ignores new SYNs.
     /// Optional lease measurement counts successful RX/TX owner bindings, not
-    /// physical allocation or payload usage; it defaults off.</summary>
+    /// physical allocation or payload usage; it defaults off. In the finite
+    /// storage mode, ioContextBytes declares the actual separate whole callback
+    /// carrier (8..65536 bytes), retained through End and disjoint from network
+    /// metadata/buffers and all descriptor/storage owners. The default zero
+    /// preserves unpaired callers; it grants no paired or transitive NIC/DMA
+    /// ownership. A container embedding the network backing is unsupported.</summary>
     public static bool Begin(State* state, LinuxSocketServices.State* sockets, TcpConnectionTable.Owner* table,
         Slot* slots, uint count, byte* buffers, uint receiveBytes, uint sendBytes,
         MacAddress localMac, MacAddress peerMac, Ipv4Address peerAddress, uint initialSequence, Pending.Operations io,
-        bool compactTimeWait = false, TcpInitialSequence.Owner* sequence = null, bool measureLeases = false)
+        bool compactTimeWait = false, TcpInitialSequence.Owner* sequence = null, bool measureLeases = false
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        , uint ioContextBytes = 0
+#endif
+        )
     {
         if (sizeof(Waits.Entry) > 64 || count is 0 or > MaximumConnections || receiveBytes is < 8 or > 32768 || sendBytes is < 8 or > 32768 ||
             ((receiveBytes | sendBytes) & 7) != 0 ||
@@ -101,6 +117,11 @@ public static unsafe class LinuxSocketNetwork
             localMac == default || peerMac == default || peerAddress == default || peerAddress.Octet0 is 0 or >= 224 ||
             io.Context == null || io.NowNanoseconds == null || io.Send == null || io.LifetimeNanoseconds is 0 or > 60_000_000_000 ||
             io.RetryNanoseconds == 0 || io.RetryNanoseconds > io.LifetimeNanoseconds || io.MaximumAttempts is 0 or > 8) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (ioContextBytes == 0 ? Fds.SocketRequiresBoundContext(sockets->Descriptors) :
+            !ContextOutside(state, sockets, table, slots, count, buffers, receiveBytes, sendBytes, sequence,
+                io.Context, ioContextBytes) || sockets->MessageContext != null) return false;
+#endif
         ulong* starts = stackalloc ulong[6]; ulong* sizes = stackalloc ulong[6];
         Extents(state, table, slots, count, buffers, receiveBytes, sendBytes, starts, sizes);
         for (uint i = 0; i < 6; i++)
@@ -119,6 +140,9 @@ public static unsafe class LinuxSocketNetwork
             Buffers = buffers, ReceiveBytes = receiveBytes, SendBytes = sendBytes, LocalMac = localMac,
             PeerMac = peerMac, PeerAddress = peerAddress, NextSequence = initialSequence, Io = io, Initialized = 1,
             MeasureLeases = measureLeases ? 1U : 0U };
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (ioContextBytes != 0) { state->OriginalIoContext = io.Context; state->IoContextBytes = ioContextBytes; }
+#endif
         if (compactTimeWait)
         {
             if (Waits.Initialize(&state->TimeWait, (Waits.Entry*)state->TimeWaitEntries, Waits.MaximumEntries,
@@ -266,7 +290,7 @@ public static unsafe class LinuxSocketNetwork
                         !ReapPrivate(state, slot)) return Fail(state);
                     continue;
                 }
-                if (LinuxSocketServices.EnqueueAccepted(state->Sockets, slot->Listener, slot->ListenerFd, &slot->Receiver, &slot->Sender)) slot->Phase = 3;
+                if (Enqueue(state, slot)) slot->Phase = 3;
             }
             if (TcpConnectionTable.ReadOwned(state->Table, slot->Handshake.Connection, out var entry) != TcpConnectionTable.OwnershipStatus.Success) return Fail(state);
             if (entry.State == TcpConnectionLifecycleState.Closed)
@@ -391,8 +415,17 @@ public static unsafe class LinuxSocketNetwork
                 if (result != Status.Success) return result;
             }
         }
-        if (RefreshListener(state, slot) && LinuxSocketServices.EnqueueAccepted(state->Sockets, slot->Listener, slot->ListenerFd, &slot->Receiver, &slot->Sender)) slot->Phase = 3;
+        if (RefreshListener(state, slot) && Enqueue(state, slot)) slot->Phase = 3;
         return result;
+    }
+
+    private static bool Enqueue(State* state, Slot* slot)
+    {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (state->IoContextBytes != 0) return LinuxSocketServices.EnqueueAccepted(state->Sockets, slot->Listener,
+            slot->ListenerFd, &slot->Receiver, &slot->Sender, state->IoContextBytes);
+#endif
+        return LinuxSocketServices.EnqueueAccepted(state->Sockets, slot->Listener, slot->ListenerFd, &slot->Receiver, &slot->Sender);
     }
 
     private static bool RefreshListener(State* state, Slot* slot)
@@ -555,6 +588,87 @@ public static unsafe class LinuxSocketNetwork
         Extents(state, state->Table, state->Slots, state->Count, state->Buffers, state->ReceiveBytes, state->SendBytes, starts, sizes);
         start = starts[index]; bytes = sizes[index];
     }
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    // Structural retained ownership only, including failed owners awaiting
+    // explicit cleanup. Never call Current/global Audit from this leaf: the
+    // complete descriptor graph invokes it while proving private-tree aliases.
+    internal static bool InspectRetainedStorage(State* state, LinuxSocketServices.State* sockets) =>
+        Shape(state, true) && state->Sockets == sockets && state->IoContextBytes != 0;
+
+    // Caller has just authenticated the same serialized retained shape.
+    internal static void RetainedExtentAt(State* state, uint index, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
+        if (state == null || index >= RetainedExtentCount) return;
+        if (index < 7) { ExtentAt(state, index, out start, out bytes); return; }
+        start = (ulong)state->OriginalIoContext; bytes = state->IoContextBytes;
+    }
+
+    private static bool ContextOutside(State* state, LinuxSocketServices.State* sockets, TcpConnectionTable.Owner* table,
+        Slot* slots, uint count, byte* buffers, uint receiveBytes, uint sendBytes, TcpInitialSequence.Owner* sequence,
+        void* context, uint bytes)
+    {
+        if (!ContextShape(context, bytes) || !Fds.SocketOutside(sockets->Descriptors, context, bytes)) return false;
+        return ContextLocalOutside(state, sockets, table, slots, count, buffers, receiveBytes, sendBytes, sequence, context, bytes);
+    }
+
+    private static bool ContextShape(void* context, uint bytes) => bytes is >= 8 and <= LinuxSocketServices.MaximumSharedContextBytes &&
+        (ulong)context >= 4096 && (ulong)context < 0x0000800000000000UL &&
+        ((ulong)context & 7) == 0 && bytes <= 0x0000800000000000UL - (ulong)context;
+
+    private static bool ContextLocalOutside(State* state, LinuxSocketServices.State* sockets, TcpConnectionTable.Owner* table,
+        Slot* slots, uint count, byte* buffers, uint receiveBytes, uint sendBytes, TcpInitialSequence.Owner* sequence,
+        void* context, uint bytes)
+    {
+        ulong* starts = stackalloc ulong[6]; ulong* sizes = stackalloc ulong[6];
+        Extents(state, table, slots, count, buffers, receiveBytes, sendBytes, starts, sizes);
+        for (uint i = 0; i < 6; i++) if (Overlap((ulong)context, bytes, starts[i], sizes[i])) return false;
+        return !LinuxSocketServices.StorageOverlap(sockets, (ulong)context, bytes) &&
+            !LinuxEpollServices.StorageOverlap(sockets->Descriptors->Epoll, (ulong)context, bytes) &&
+            (sequence == null || !Overlap((ulong)context, bytes, (ulong)sequence, (ulong)sizeof(TcpInitialSequence.Owner)));
+    }
+
+    private static bool BoundContextCurrent(State* state)
+    {
+        if (state->IoContextBytes == 0) return state->OriginalIoContext == null;
+        if (!ContextShape(state->OriginalIoContext, state->IoContextBytes) || state->Io.Context != state->OriginalIoContext ||
+            state->Io.NowNanoseconds == null || state->Io.Send == null || !Extent(state->Sockets->Descriptors, (ulong)sizeof(Fds.State)) ||
+            state->Sockets->Descriptors->Epoll != null && !Extent(state->Sockets->Descriptors->Epoll, (ulong)sizeof(LinuxEpollServices.State)) ||
+            TcpConnectionTable.ReadOwned(state->Table, default, out _) != TcpConnectionTable.OwnershipStatus.StaleHandle ||
+            !ContextLocalOutside(state, state->Sockets, state->Table, state->Slots, state->Count, state->Buffers,
+                state->ReceiveBytes, state->SendBytes, state->Sequence, state->OriginalIoContext, state->IoContextBytes)) return false;
+        for (uint i = 0; i < state->Count; i++)
+        {
+            Slot* slot = state->Slots + i; if (slot->Phase == 0) continue;
+            // These are copied capability addresses, not logical method
+            // equality. No method group is regenerated during this comparison.
+            if (slot->Handshake.Table != state->Table) return false;
+            if (slot->Phase == 1)
+            {
+                if (slot->Handshake.Io.Context != state->OriginalIoContext ||
+                    (ulong)slot->Handshake.Io.NowNanoseconds != (ulong)state->Io.NowNanoseconds ||
+                    (ulong)slot->Handshake.Io.Send != (ulong)state->Io.Send) return false;
+            }
+            else
+            {
+                // ReceiveAck consumes the pending callbacks while handing the
+                // original table handle to the established stream owners.
+                var pending = slot->Handshake.Io;
+                if (pending.Context != null || pending.NowNanoseconds != null || pending.Send != null ||
+                    pending.LifetimeNanoseconds != 0 || pending.RetryNanoseconds != 0 || pending.MaximumAttempts != 0) return false;
+            }
+            byte* buffer = state->Buffers + i * (state->ReceiveBytes + state->SendBytes);
+            if (slot->Phase >= 2 && (slot->Receiver.Context != state->OriginalIoContext || slot->Sender.Context != state->OriginalIoContext ||
+                (ulong)slot->Receiver.Send != (ulong)state->Io.Send || (ulong)slot->Sender.Send != (ulong)state->Io.Send ||
+                slot->Receiver.Table != state->Table || slot->Sender.Table != state->Table || slot->Sender.Receiver != &slot->Receiver ||
+                !Same(slot->Receiver.Handle, slot->Handshake.Connection) || !Same(slot->Sender.Handle, slot->Handshake.Connection) ||
+                slot->Receiver.Buffer != buffer || slot->Receiver.CapacityValue != state->ReceiveBytes ||
+                slot->Sender.Buffer != buffer + state->ReceiveBytes || slot->Sender.CapacityValue != state->SendBytes ||
+                slot->Sender.Timed != 0 && (slot->Sender.ClockContext != state->OriginalIoContext || (ulong)slot->Sender.Clock != (ulong)state->Io.NowNanoseconds))) return false;
+        }
+        return true;
+    }
+#endif
     private static void Extents(State* state, TcpConnectionTable.Owner* table, Slot* slots, uint count, byte* buffers,
         uint receiveBytes, uint sendBytes, ulong* starts, ulong* sizes)
     {
@@ -580,10 +694,15 @@ public static unsafe class LinuxSocketNetwork
                 ExtentAt(state, i, out ulong start, out ulong bytes);
                 if (Overlap(start, bytes, (ulong)source, (uint)input.Length) || Overlap(start, bytes, (ulong)target, (uint)output.Length)) return false;
             }
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (state->IoContextBytes != 0 && (Overlap((ulong)state->OriginalIoContext, state->IoContextBytes, (ulong)source, (uint)input.Length) ||
+                Overlap((ulong)state->OriginalIoContext, state->IoContextBytes, (ulong)target, (uint)output.Length))) return false;
+#endif
         }
         return true;
     }
-    private static bool Current(State* state, bool allowFailed = false)
+    private static bool Current(State* state, bool allowFailed = false) => Shape(state, allowFailed) && Fds.Audit(state->Sockets->Descriptors);
+    private static bool Shape(State* state, bool allowFailed)
     {
         if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 || state->CompactTimeWait > 1 ||
             state->MeasureLeases > 1 || state->MeasureLeases == 0 && (state->Leased != 0 || state->PeakLeased != 0 || state->LeaseAcquired != 0 || state->LeaseReturned != 0) ||
@@ -592,8 +711,10 @@ public static unsafe class LinuxSocketNetwork
             !Extent(state->Sockets, (ulong)sizeof(LinuxSocketServices.State)) || state->Sockets->Network != state ||
             !Extent(state->Table, (ulong)sizeof(TcpConnectionTable.Owner)) ||
             !Extent(state->Slots, state->Count * (ulong)sizeof(Slot)) ||
-            !Extent(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes)) ||
-            !Fds.Audit(state->Sockets->Descriptors)) return false;
+            !Extent(state->Buffers, state->Count * (ulong)(state->ReceiveBytes + state->SendBytes))) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!BoundContextCurrent(state)) return false;
+#endif
         if (state->CompactTimeWait != 0 && Waits.Read(&state->TimeWait, default, out _) != Waits.Status.StaleHandle) return false;
         if (state->Sequence != null && !TcpInitialSequence.Current(state->Sequence, state->SequenceLease) ||
             state->Sequence == null && state->SequenceLease.IsValid) return false;

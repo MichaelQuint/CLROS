@@ -1,5 +1,7 @@
 # Security
 
+[Step1611](../done/step1611.md) Paired finite descriptor admission authenticates the same original engine and excludes both private storage trees, with actual transport carrier bounds. Complete outer process/scheduler/futex/signal/user-carrier exclusion is still required. Numeric retained identity is structural, never mapping, live-copy or security isolation authority.
+
 [Step1610](../done/step1610.md) The repaired HTTP owner authenticates sealed archived recipe/output identities before selecting current tools. Exact current paths/hashes and actual prelink libraries are held, and every fresh publication input remains mandatory with no archived-copy fallback. Host tamper/missing/replacement controls pass. V5 copied observations and successful finite responses grant no new isolation, guest locking/flush or durability authority.
 
 [Step1600](../done/step1600.md) Borrowed filesystem admission validates the complete retained filesystem/port/engine/block/DMA/MMIO/observer tree. Busy cannot publish output or EOF. Global full-tree descriptor/thread hooks are continuing, and writable/read-only coexistence admission remains unchanged. Native writable integration is not qualified.

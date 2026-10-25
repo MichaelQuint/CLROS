@@ -1,5 +1,7 @@
 # PAL
 
+[Step1611](../done/step1611.md) Development-only paired Linux descriptors retain one original block owner and distinguish structural retained identity from submission/copy authority. No OSHost ABI, guest write/flush durability or SQLite synchronization/locking acceptance changes here.
+
 [Step1610](../done/step1610.md) The successful v5 diagnostic changes no PAL behavior, current ownership or fresh audit requirement. The repaired HTTP reference binds current tool/static-link/fresh publication handles through joined finite processes, independently of archived recipe evidence. Actual guest file writes, lock/sync semantics, reboot and SQLite recovery/durability remain unqualified.
 
 [Step1606](../done/step1606.md) The new finite managed MinimalApi HTTP fixture measures requested FileStream flush and exact bytes independently of the console candidate. It grants no guest PAL/device flush, reboot or physical persistence. Readiness diagnostic ABI now matches the existing unmanaged supervisor clock; its later fresh descriptor graph audit and all lifetime rules remain intact.

@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1611](../done/step1611.md) Source-only paired storage staging adds no diagnostic clocks, poll cadence or native witness. Preserve original v5r13 and failed full Blazor receipts. The next performance diagnostic remains complete phase-clipped dispatch accounting; LinuxHTTP r02 is a separately frozen producer.
+
 [Step1610](../done/step1610.md) Original v5r13 conserves2053calls and22.1226843s wholepoll=4.3650485pre+12.0609952WHOLEdisk+5.6966406post. Clock668/7.1349208s, other364/3.3509460s, supervisor719/7.9647914s, idle302/3.6720261s. Root independently hashes19originals and all exact sums. Polling does not account for the entire active phase; next attribution must bound the complete dispatch envelope before a production policy. No interval is relabelled pure guest CPU.
 
 [Step1606](../done/step1606.md) Preserve timingr10 as a pre-guest CS8786 failure with its original command, six committed producers and log. The v4 readiness callback ABI is corrected to the existing unmanaged clock convention; its single post-refresh/pre-scan boundary and all full-audit/overflow/population checks remain unchanged. The next original is r11; no r10 metric or guest success is inferred.

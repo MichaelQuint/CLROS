@@ -1,6 +1,9 @@
 using System;
 using OS.Kernel.Memory;
 using OS.Std.Text;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+using Writable = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
+#endif
 
 namespace OS.Kernel.Compatibility.LinuxX64;
 
@@ -362,6 +365,9 @@ public static unsafe partial class LinuxDescriptorServices
 #endif
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (!AuditWritableDisk(state)) return false;
+#endif
+#if (!NOSTDLIB_EFI || M16_025_PROBE) && (!NOSTDLIB_EFI || M16_027_PROBE)
+        if (!AuditDiskPair(state)) return false;
 #endif
         return true;
     }
@@ -828,13 +834,13 @@ public static unsafe partial class LinuxDescriptorServices
 
     // Socket metadata and transport backing are retained supervisor storage.
     // Check against descriptor, package and user-memory ownership before attachment.
-    internal static bool SocketOutside(State* state, void* pointer, ulong bytes)
+    internal static bool SocketOutside(State* state, void* pointer, ulong bytes) =>
+        SocketOutsideCore(state, pointer, bytes, writablePair: false);
+    private static bool SocketOutsideCore(State* state, void* pointer, ulong bytes, bool writablePair)
     {
         if (!Extent(pointer, bytes)) return false;
 #if !NOSTDLIB_EFI || M16_027_PROBE
-        // The first mechanical writable attachment excludes simultaneous disk
-        // or transport services. Their complete coexistence proof is separate.
-        if (state->WritableDisk != null) return false;
+        if (state->WritableDisk != null && !WritableDiskCanRetainStorage(state, (ulong)pointer, bytes)) return false;
 #endif
         var a = state->Owner; ulong start = (ulong)pointer;
         ulong* extents = stackalloc ulong[24]
@@ -852,8 +858,14 @@ public static unsafe partial class LinuxDescriptorServices
         if (Overlap(start, bytes, (ulong)a.Views, a.ViewCount * (ulong)sizeof(View))) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (LinuxSocketServices.StorageOverlap(state->Sockets, start, bytes) || LinuxEpollServices.StorageOverlap(state->Epoll, start, bytes)) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (writablePair && !SocketCanRetainStorage(state, start, bytes)) return false;
+#endif
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (state->Disk != null && BorrowedDiskMount(state->Disk->Mount) && !DiskCanRetainStorage(state, start, bytes)) return false;
+#endif
         if (state->Disk != null)
             for (uint i = 0; i < DiskExtentCount; i++)
             {
@@ -866,6 +878,83 @@ public static unsafe partial class LinuxDescriptorServices
                 Overlap(start, bytes, (ulong)a.Views[i].Data, a.Views[i].Bytes)) return false;
         return true;
     }
+
+#if (!NOSTDLIB_EFI || M16_027_PROBE) && (!NOSTDLIB_EFI || CLROS_LINUX_SOCKETS)
+    // Finite direct-TCP mode needs actual shared callback-carrier bounds.
+    // This is a shape requirement, never device/process/mapping authority.
+    internal static bool SocketRequiresBoundContext(State* state)
+    {
+        if (state->WritableDisk != null) return true;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (state->Disk != null && BorrowedDiskMount(state->Disk->Mount)) return true;
+#endif
+        return false;
+    }
+
+    // Complete socket/epoll tree only. Outer buffer owners combine this with
+    // their base/user policy and both disk retained-tree queries. No callbacks,
+    // I/O or global Audit recursion; serialized shape proof precedes inventory.
+    internal static bool SocketCanRetainStorage(State* state, ulong address, ulong bytes)
+    {
+        if (!Extent(state, (ulong)sizeof(State)) || !Extent((void*)address, bytes)) return false;
+        if (state->Sockets == null) return state->Epoll == null;
+        if (!TransportShape(state)) return false;
+        for (uint i = 0; i < TransportExtentCount; i++)
+        {
+            TransportExtentAt(state, i, out ulong start, out ulong count);
+            if (count != 0 && Overlap(address, bytes, start, count)) return false;
+        }
+        return true;
+    }
+
+    private const uint TransportExtentCount = LinuxSocketServices.RetainedExtentCount + 3;
+    private static bool TransportShape(State* state) =>
+        LinuxSocketServices.InspectRetainedStorage(state->Sockets, state) &&
+        (state->Epoll == null || LinuxEpollServices.Audit(state->Epoll, state));
+
+    private static void TransportExtentAt(State* state, uint index, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
+        if (index < LinuxSocketServices.RetainedExtentCount)
+        { LinuxSocketServices.RetainedExtentAt(state->Sockets, index, out start, out bytes); return; }
+        var epoll = state->Epoll; if (epoll == null) return;
+        index -= LinuxSocketServices.RetainedExtentCount;
+        if (index == 0) { start = (ulong)epoll; bytes = (ulong)sizeof(LinuxEpollServices.State); }
+        else if (index == 1) { start = (ulong)epoll->Ports; bytes = epoll->PortCount * (ulong)sizeof(LinuxEpollServices.Port); }
+        else if (index == 2) { start = (ulong)epoll->Registrations; bytes = epoll->RegistrationCount * (ulong)sizeof(LinuxEpollServices.Registration); }
+    }
+
+    // Candidate mount/provider pointers belong to the respective already
+    // authenticated admission, including BEFORE their global publication.
+    // Shared C/B backing is queried by its real owners; transport ranges never
+    // confer ownership of either device or permission to perform user copies.
+    private static bool TransportStorageOutside(State* state, void* mount, Writable.State* provider,
+        ulong epoch, void* writableState, void* writableBindings, ulong bindingBytes)
+    {
+        if (state->Sockets == null) return state->Epoll == null;
+        if (!TransportShape(state)) return false;
+        for (uint i = 0; i < TransportExtentCount; i++)
+        {
+            TransportExtentAt(state, i, out ulong start, out ulong bytes); if (bytes == 0) continue;
+            if (!Extent((void*)start, bytes) ||
+                provider != null && !Writable.CanRetainStorage(provider, epoch, start, bytes) ||
+                Overlap(start, bytes, (ulong)writableState, writableState == null ? 0UL : (ulong)sizeof(WritableDiskState)) ||
+                Overlap(start, bytes, (ulong)writableBindings, bindingBytes)) return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+            if (mount != null)
+            {
+                var m = (OS.Storage.ReadOnlyWebRootFileSystem.Mount*)mount;
+                if (!OS.Storage.ReadOnlyWebRootFileSystem.CanRetainStorage(m, m->Input.Epoch, start, bytes)) return false;
+                DiskState* d = state->Disk;
+                if (d != null && (d->Mount != m || Overlap(start, bytes, (ulong)d, (ulong)sizeof(DiskState)) ||
+                    Overlap(start, bytes, (ulong)d->Bindings, DiskSlots * (ulong)sizeof(DiskBinding)) ||
+                    Overlap(start, bytes, (ulong)d->Requests, DiskSlots * (ulong)sizeof(DiskRequest)))) return false;
+            }
+#endif
+        }
+        return true;
+    }
+#endif
 
     private static bool Storage(State* state, Admission a)
     {

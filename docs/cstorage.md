@@ -1,5 +1,7 @@
 # Storage
 
+[Step1611](../done/step1611.md) Development-only paired global attachments authenticate the same original B/C engine and exclude both private trees, including retained dirty/orphan backing. Borrowed PumpDiskOne uses one engine-arbitrated turn without legacy readonly counter access or replenishment authority. Source-only P staging is not allocation/native/guest write acceptance; the original failed allocation experiment remains open.
+
 [Step1610](../done/step1610.md) V5r13 serves exact64KiB and joins deliberate cancellation; no full read/browser or writable guest gate advances. Repaired HTTP reference holds actual current static-link inputs before publication and all fresh runtime/object/ELF inputs afterward, while preserving the original archive separately. Fresh Linuxr02, actual guest writes/reboot and SQLite synchronization/recovery remain pending.
 
 [Step1606](../done/step1606.md) The integrated finite managed HTTP log/upload fixture exercises actual FileStream writes/readbacks/Flush(true), including failure after the upload closes but before the second log append. Failed receipts retain330Blog/5126Bupload rather than imply rollback. Requested flushes and Windows host files supply no guest device-FLUSH, FAT32 reboot, or durability authority. The separate Linux SQLite recovery r03 boundary remains unchanged.

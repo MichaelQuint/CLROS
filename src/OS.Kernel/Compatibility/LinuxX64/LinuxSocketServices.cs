@@ -22,6 +22,13 @@ public static unsafe class LinuxSocketServices
     /// existing scratch/send-capacity prefix actually copied or queued.</summary>
     public const uint MaximumMessageBytes = 1024 * 1024;
     public const uint MaximumSockets = 16;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    /// <summary>Finite direct-TCP callback carrier bound. The trusted caller
+    /// supplies the actual whole allocation size; this is not mapping proof.</summary>
+    public const uint MaximumSharedContextBytes = 65536;
+    private const uint SocketRetainedExtentCount = 2 + MaximumSockets * 8;
+    internal const uint RetainedExtentCount = SocketRetainedExtentCount + LinuxSocketNetwork.RetainedExtentCount;
+#endif
     private const long Fault = -14, Invalid = -22, Again = -11, Unsupported = -38;
     private const long NotSocket = -88, NotConnected = -107, Reset = -104, BrokenPipe = -32;
     private const uint Created = 1, Bound = 2, Listening = 3, Pending = 4, Connected = 5, Closing = 6;
@@ -38,6 +45,10 @@ public static unsafe class LinuxSocketServices
         internal ulong Order;
         internal TcpReceiveWindow.Owner* Receiver;
         internal TcpSendWindow.Owner* Sender;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        internal void* SharedContext;
+        internal uint SharedContextBytes;
+#endif
     }
 
     /// <summary>One-use, noncopyable owner with exclusive zeroed endpoint storage.
@@ -103,6 +114,9 @@ public static unsafe class LinuxSocketServices
         delegate* unmanaged<void*, ulong, uint, ulong, ulong, ulong, ulong*, uint, uint, byte> observer)
     {
         if (context == null || observer == null || !Current(state) || state->ObserveMessage != null) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (LinuxDescriptorServices.SocketRequiresBoundContext(state->Descriptors)) return false;
+#endif
         state->MessageContext = context; state->ObserveMessage = observer; return true;
     }
 
@@ -125,6 +139,9 @@ public static unsafe class LinuxSocketServices
                 descriptions != (e->Phase is Pending or Closing ? 0U : 1U)) return false;
             if (e->Phase < Pending)
             {
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                if (e->SharedContext != null || e->SharedContextBytes != 0) return false;
+#endif
                 if (e->Receiver != null || e->Sender != null || e->Listener != 0 || e->Order != 0 ||
                     e->Phase != Created && (e->Port != state->AllowedPort ||
                         e->Address != default && e->Address != state->InterfaceAddress)) return false;
@@ -132,6 +149,9 @@ public static unsafe class LinuxSocketServices
             else
             {
                 if (!Connection(e, out _)) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                if (e->SharedContextBytes == 0 ? e->SharedContext != null : !SharedContextCurrent(e)) return false;
+#endif
                 if (e->Phase == Pending && (e->Order == 0 || e->Listener == 0 || e->Listener > state->Count ||
                     state->Slots[e->Listener - 1].Phase != Listening)) return false;
                 for (uint j = 0; j < i; j++)
@@ -154,6 +174,18 @@ public static unsafe class LinuxSocketServices
     /// No handshake or packet is synthesized.</summary>
     public static bool EnqueueAccepted(State* state, LinuxDescriptorServices.Token listener,
         uint listenerFd, TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender)
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        => EnqueueAccepted(state, listener, listenerFd, receiver, sender, 0);
+
+    /// <summary>Finite direct-TCP storage coexistence. Copy the trusted actual
+    /// whole callback-carrier byte count before publication. RX, TX and any
+    /// active TX clock must retain that same original context through ReapClosed.
+    /// Its bounded extent is distinct from transport and descriptor backing.
+    /// A network caller separately proves its complete retained tree; this
+    /// endpoint bound grants no native NIC or opaque observer authority.</summary>
+    public static bool EnqueueAccepted(State* state, LinuxDescriptorServices.Token listener,
+        uint listenerFd, TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender, uint sharedContextBytes)
+#endif
     {
         if (!Current(state) || !LinuxDescriptorServices.IsCurrent(state->Descriptors, listener) ||
             listener.Number != listenerFd || !Find(state, listenerFd, out uint index, out _) ||
@@ -162,6 +194,10 @@ public static unsafe class LinuxSocketServices
             TcpSendWindow.Validate(sender, out _) != TcpSendWindow.Status.Success || sender->Receiver != receiver ||
             sender->CloseEnabled != 1 || sender->WritesClosed || entry.Key.LocalAddress != state->InterfaceAddress ||
             entry.Key.LocalPort != state->Slots[index].Port || !TransportOutside(state, receiver, sender)) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (sharedContextBytes == 0 ? LinuxDescriptorServices.SocketRequiresBoundContext(state->Descriptors) :
+            !SharedContextOutside(state, receiver, sender, sharedContextBytes)) return false;
+#endif
         uint pending = 0, free = state->Count;
         for (uint i = 0; i < state->Count; i++)
         {
@@ -177,6 +213,10 @@ public static unsafe class LinuxSocketServices
             ReuseAddress = inherited.ReuseAddress, NoDelay = inherited.NoDelay,
             SendBytes = inherited.SendBytes < sender->CapacityValue ? inherited.SendBytes : (uint)sender->CapacityValue,
             ReceiveBytes = (uint)receiver->ReceiveCapacity };
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (sharedContextBytes != 0)
+        { state->Slots[free].SharedContext = receiver->Context; state->Slots[free].SharedContextBytes = sharedContextBytes; }
+#endif
         return true;
     }
 
@@ -324,6 +364,59 @@ public static unsafe class LinuxSocketServices
     internal static bool StorageOverlap(State* state, ulong start, ulong bytes) => state != null &&
         (Overlap(start, bytes, (ulong)state, (ulong)sizeof(State)) ||
          Overlap(start, bytes, (ulong)state->Slots, state->Count * (ulong)sizeof(Endpoint)));
+
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    // Separate from generic enqueue admission: TCP lifetimes may share their
+    // original table. Storage owners need the complete retained inventory.
+    internal static bool InspectRetainedStorage(State* state, LinuxDescriptorServices.State* descriptors)
+    {
+        if (!Audit(state, descriptors) || state->MessageContext != null || state->Network != null &&
+            !LinuxSocketNetwork.InspectRetainedStorage(state->Network, state)) return false;
+        for (uint i = 0; i < state->Count; i++)
+            if (state->Slots[i].Phase >= Pending && !SharedContextCurrent(state->Slots + i)) return false;
+        return true;
+    }
+
+    // Caller just established InspectRetainedStorage and retains the same
+    // serialized lifetime. No callback, polling, copy or mutation occurs.
+    internal static void RetainedExtentAt(State* state, uint index, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
+        if (index >= SocketRetainedExtentCount)
+        { LinuxSocketNetwork.RetainedExtentAt(state->Network, index - SocketRetainedExtentCount, out start, out bytes); return; }
+        if (index == 0) { start = (ulong)state; bytes = (ulong)sizeof(State); return; }
+        if (index == 1) { start = (ulong)state->Slots; bytes = state->Count * (ulong)sizeof(Endpoint); return; }
+        uint slot = (index - 2) / 8, part = (index - 2) % 8;
+        if (slot >= state->Count || state->Slots[slot].Phase < Pending) return;
+        Endpoint* e = state->Slots + slot;
+        if (part == 0) { start = (ulong)e->Receiver; bytes = (ulong)sizeof(TcpReceiveWindow.Owner); }
+        else if (part == 1) { start = (ulong)e->Sender; bytes = (ulong)sizeof(TcpSendWindow.Owner); }
+        else if (part == 2) { start = (ulong)e->Receiver->Buffer; bytes = (uint)e->Receiver->ReceiveCapacity; }
+        else if (part == 3) { start = (ulong)e->Sender->Buffer; bytes = (uint)e->Sender->CapacityValue; }
+        else if (part == 4) { start = (ulong)e->Sender->Table; bytes = (ulong)sizeof(TcpConnectionTable.Owner); }
+        else if (part == 5) { start = (ulong)e->Sender->Table->Entries; bytes = e->Sender->Table->CapacityValue * (ulong)sizeof(TcpConnectionTableEntry); }
+        else if (part == 6) { start = (ulong)e->Sender->Table->Generations; bytes = (ulong)e->Sender->Table->CapacityValue * 8; }
+        else { start = (ulong)e->SharedContext; bytes = e->SharedContextBytes; }
+    }
+
+    private static bool SharedContextCurrent(Endpoint* e) =>
+        SharedContextShape(e->Receiver, e->Sender, e->SharedContextBytes) && e->SharedContext == e->Receiver->Context;
+
+    private static bool SharedContextShape(TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender, uint bytes) =>
+        bytes is >= 8 and <= MaximumSharedContextBytes && Extent(receiver->Context, bytes) &&
+        receiver->Context == sender->Context && (sender->Timed == 0 || sender->ClockContext == receiver->Context);
+
+    private static bool SharedContextOutside(State* state, TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender, uint bytes)
+    {
+        if (!SharedContextShape(receiver, sender, bytes) ||
+            !LinuxDescriptorServices.SocketOutside(state->Descriptors, receiver->Context, bytes)) return false;
+        // Callback storage may not contain any of the seven transport ranges.
+        ulong* extents = stackalloc ulong[14]; TransportExtents(receiver, sender, extents);
+        for (uint i = 0; i < 7; i++)
+            if (Overlap((ulong)receiver->Context, bytes, extents[i * 2], extents[i * 2 + 1])) return false;
+        return true;
+    }
+#endif
 
     // Observe actual transport state without consuming bytes/errors or changing
     // flags. The serialized network owner refreshes epoll after each transition.
@@ -622,18 +715,21 @@ public static unsafe class LinuxSocketServices
     }
     private static bool TransportOutside(State* state, TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender)
     {
-        ulong* extents = stackalloc ulong[14]
-        {
-            (ulong)receiver, (ulong)sizeof(TcpReceiveWindow.Owner), (ulong)sender, (ulong)sizeof(TcpSendWindow.Owner),
-            (ulong)receiver->Buffer, (ulong)receiver->ReceiveCapacity, (ulong)sender->Buffer, (ulong)sender->CapacityValue,
-            (ulong)sender->Table, (ulong)sizeof(TcpConnectionTable.Owner),
-            (ulong)sender->Table->Entries, (ulong)sender->Table->CapacityValue * (ulong)sizeof(TcpConnectionTableEntry),
-            (ulong)sender->Table->Generations, (ulong)sender->Table->CapacityValue * 8
-        };
+        ulong* extents = stackalloc ulong[14]; TransportExtents(receiver, sender, extents);
         for (uint i = 0; i < 7; i++)
             if (StorageOverlap(state, extents[i * 2], extents[i * 2 + 1]) ||
                 !LinuxDescriptorServices.SocketOutside(state->Descriptors, (void*)extents[i * 2], extents[i * 2 + 1])) return false;
         return true;
+    }
+    private static void TransportExtents(TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender, ulong* extents)
+    {
+        extents[0] = (ulong)receiver; extents[1] = (ulong)sizeof(TcpReceiveWindow.Owner);
+        extents[2] = (ulong)sender; extents[3] = (ulong)sizeof(TcpSendWindow.Owner);
+        extents[4] = (ulong)receiver->Buffer; extents[5] = (uint)receiver->ReceiveCapacity;
+        extents[6] = (ulong)sender->Buffer; extents[7] = (uint)sender->CapacityValue;
+        extents[8] = (ulong)sender->Table; extents[9] = (ulong)sizeof(TcpConnectionTable.Owner);
+        extents[10] = (ulong)sender->Table->Entries; extents[11] = sender->Table->CapacityValue * (ulong)sizeof(TcpConnectionTableEntry);
+        extents[12] = (ulong)sender->Table->Generations; extents[13] = (ulong)sender->Table->CapacityValue * 8;
     }
     private static bool Extent(void* pointer, ulong bytes) => pointer != null && ((ulong)pointer & 7) == 0 && bytes != 0 && bytes <= ~0UL - (ulong)pointer;
     private static bool Overlap(ulong a, ulong size, ulong b, ulong bytes) => size != 0 && bytes != 0 && a < b + bytes && b < a + size;

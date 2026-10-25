@@ -227,6 +227,17 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
         RetainedStorage(s, expectedEpoch, address, bytes, true);
 
+    /// <summary>Match copied engine identity against this provider's complete
+    /// original retained tree under its serialized supervisor. Dirty, orphaned,
+    /// retiring, faulted or original-stopped backing remains identifiable until
+    /// Detach; final retirement rejects before dereferencing released engine
+    /// backing. The expected owner is a value, never a pointer to dereference.
+    /// No output, I/O, allocation, live process/file/device, new admission or
+    /// copy authority follows. This does not authenticate a readonly partition.</summary>
+    internal static bool MatchesRetainedEngine(State* s, ulong expectedEpoch, ulong engineOwner, ulong engineEpoch) =>
+        RetainedStorage(s, expectedEpoch, 0, 0, false) &&
+        (ulong)s->Input.Engine == engineOwner && s->Input.Epoch == engineEpoch;
+
     private static bool RetainedStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes, bool external)
     {
         if (!Ordinary((ulong)s, (ulong)sizeof(State), 8) || external && !Ordinary(address, bytes, 1) || expectedEpoch == 0 ||

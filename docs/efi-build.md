@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1611](../done/step1611.md) Reviewed host paired prerequisites remain behind existing guards; no B/C/P compile links or native activation are added here. Preserve native025 compatibility and qualify helper reachability, actual emitted closure/transitive stack and real owner stop/drain/reset/reap before enabling a paired workload.
+
 [Step1610](../done/step1610.md) Fresh v5r13 at830ef44c compiles/boots with2056runtime/1629unwind entries, EFI BADFE2F185D74E1DABDC34CF4DF56FC2E5F18CB6FCCC520DF32DD02F43808D3E. Scoped original prologue/unwind frames remain128B readiness/480B wake/240B servicepoll including return addresses. This excludes callees/dynamic allocation/IRQ/callback nesting and supplies no general ABI/whole-stack proof.
 
 [Step1606](../done/step1606.md) Timingr10 at12128da1 fails managed compilation inside fresh native publication with CS8786 before any guest or ELF. The measured readiness callback now uses delegate* unmanaged, matching the existing UnmanagedCallersOnly NativeDiskClock and disk-pump contract. Its host test callback uses the same ABI. One normalized source pin changes; clock placement, ownership, budgets and accepted ordinary profiles stay unchanged. A fresh committed -BuildEfi r11 is required.

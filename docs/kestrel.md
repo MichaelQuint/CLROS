@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1611](../done/step1611.md) Paired web/data descriptors and bounded finite TCP prerequisites are development staging only. The actual outer process/carrier proof, native helper closure/lifetime and fresh guest/browser/write qualification remain pending. Frozen LinuxHTTP r02 uses24e5dff4 separately; no Kestrel gate advances.
+
 [Step1610](../done/step1610.md) Original v5r13 returns exact64KiB range30.9304945s and joins deliberate cancellation. Measured wholepoll22.1226843s is32.25%clock/36.00%supervisor/16.60%idle/15.15%other; it cannot justify an unmeasured polling policy or resolve full Blazor. The HTTP current-input repair passes16checks and is ready for a new Linux original; old failure remains failed.
 
 [Step1606](../done/step1606.md) Integrated MinimalApiLogUploadContract is a separate explicit --serve-once qualification app. It checks empty seeds, logs330B at startup, buffers an exact5126B upload before output, then writes/flushed-closes upload and appends to660B log. The independent HTTP owner requires complete responses, actual exit0, endpoint refusal and the unchanged console verifier. Partial failures retain actual bytes. This managed finite scope does not qualify continuous guest persistence; the original static server/package stays unchanged.

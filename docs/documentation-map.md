@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1611](../done/step1611.md) Step1611 records development-only paired web/data/TCP prerequisite staging, preserved allocation failure boundaries and root integration repairs. Storage and networking docs retain the actual single-owner and carrier contracts; no guest/native activation is implied.
+
 [Step1610](../done/step1610.md) Step1610 owns the successful original v5r13 and exact poll-cause/stack observations, integrated007884f4 HTTP ownership repair and preserved managed lease collision. Diagnostics/EFI/QEMU retain original boundaries; application/host/storage/PAL/security docs distinguish retained historical evidence from current input authority. Both agents continue next bounded integration planning.
 
 [Step1606](../done/step1606.md) Step1606 records the pre-guest timingr10 ABI failure/repair and integrates the four-file finite managed MinimalApi HTTP log/upload fixture. App/Kestrel/storage/PAL/gate docs preserve its managed/Linux/guest/persistence boundaries. Step1605 retains the successful Linux SQLite recovery reference; no historical receipt is changed.
