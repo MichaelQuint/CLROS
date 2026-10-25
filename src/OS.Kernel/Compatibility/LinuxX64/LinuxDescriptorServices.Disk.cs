@@ -639,7 +639,8 @@ public static unsafe partial class LinuxDescriptorServices
     /// original paired read/write descriptor tree. The original serialized
     /// supervisor keeps all backing and this input mapped through return.
     /// Whole-tree admission runs once; each nonempty range still enters the
-    /// existing provider and filesystem backend queries and every exclusion.
+    /// existing provider backend query and every exclusion. The filesystem
+    /// checks the same candidate inventory in one synchronous retained audit.
     /// Empty extents are skipped as in process inventory. Invalid/stale pairs
     /// fail closed. No callback, mutation, allocation, I/O, output, retained
     /// input or escaping validation token is introduced; no later authority
@@ -658,12 +659,12 @@ public static unsafe partial class LinuxDescriptorServices
             ulong start = ranges[i], bytes = ranges[i + 1];
             if (bytes == 0) continue;
             if (!DiskStorage((void*)start, bytes, 1) || !WritableBaseOutside(state, start, bytes) ||
-                !PairedDiskExternal(state, start, bytes) || !Fs.CanRetainStorage(d->Mount, d->Epoch, start, bytes)) return false;
+                !PairedDiskExternal(state, start, bytes)) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             if (!TransportOutsideRange(state, start, bytes)) return false;
 #endif
         }
-        return true;
+        return Fs.CanRetainStorageRanges(d->Mount, d->Epoch, ranges);
     }
 #endif
 
