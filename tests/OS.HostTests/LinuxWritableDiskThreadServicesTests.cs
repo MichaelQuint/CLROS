@@ -89,6 +89,61 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         }
     }
 
+    [HostTest("writable gateway stat and lstat retain copied paths and exact metadata output until actual source5 completion")]
+    private static void GatewayPathMetadata()
+    {
+        byte* scratch = stackalloc byte[64];
+        foreach (ulong number in new ulong[] { 4, 6 })
+        foreach (bool root in new[] { false, true })
+        {
+            using var f = new Fixture(); uint fd = f.Open(); HostCheck.Equal(23L, f.Run(8, fd, 23));
+            f.PutPath(root ? "/data" : "/data/DATA.BIN");
+            const ulong address = Output + 4096 - 80;
+            var bytes = new Span<byte>(f.Thread.At(address - 1), 146); bytes.Fill(0xa5); uint copies = f.Thread.Writes;
+            LinuxSyscallGateState gate = default;
+            HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate, new()
+            {
+                UserRoot = 0x200000, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64,
+                FirmwareExited = true, OwnedBoundaryValidated = true, EnableStartup = true, EnableDescriptors = true, EnableThreads = true
+            }, f.Thread.GatewayAccess));
+            var image = f.Thread.CurrentImage(); var frame = image->Frame;
+            frame.Number = number; frame.Argument0 = Path; frame.Argument1 = address;
+            frame.Argument2 = frame.Argument3 = frame.Argument4 = frame.Argument5 = 0; image->Frame = frame;
+            HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref gate, ref frame).Action);
+            HostCheck.True(f.Thread.View(f.Main).WaitSource == 5 && !f.May(address, 144) &&
+                f.May(address - 1, 1) && f.May(address + 144, 1));
+            f.PutPath("/data/missing.db-journal"); // Only the already-copied path owns this request.
+            f.Ready(); HostCheck.True(bytes.IndexOfAnyExcept((byte)0xa5) < 0 && f.Thread.Writes == copies);
+            HostCheck.True(f.Thread.Service->CommitWritableDiskWait(Key, 2, f.Thread.Kernel.Capture(f.Main), out bool handoff) && !handoff);
+            var completion = f.Thread.Service->CompleteWritableDiskWait(Key, 2);
+            var done = LinuxSyscallGateway.CompleteBlocked(ref gate, completion);
+            HostCheck.True(done.Action == LinuxSyscallAction.Return && done.Value == 0 && gate.TotalCalls == 1);
+            HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.CompleteBlocked(ref gate, completion).Action);
+            var wire = bytes.Slice(1, 144);
+            HostCheck.Equal(root ? 0x4000U : 0x8000U, BinaryPrimitives.ReadUInt32LittleEndian(wire[24..]) & 0xf000U);
+            HostCheck.True(BinaryPrimitives.ReadUInt64LittleEndian(wire[8..]) != 0 &&
+                bytes[0] == 0xa5 && bytes[145] == 0xa5 && f.Thread.Writes == copies + 1 && f.May(address, 144));
+            HostCheck.Equal(23L, f.Run(8, fd, 0, 1));
+        }
+    }
+
+    [HostTest("writable source5 path metadata cancellation revokes output and partial original capacity never expands")]
+    private static void PathMetadataCancellationAndCapacity()
+    {
+        foreach (ulong number in new ulong[] { 4, 6 })
+        foreach (bool cancel in new[] { false, true })
+        {
+            using var f = new Fixture(); f.PutPath("/data");
+            ulong address = cancel ? Output : User + LinuxThreadServicesTests.UserBytes - 80;
+            var bytes = new Span<byte>(f.Thread.At(address), 80); bytes.Fill(0xa5); uint copies = f.Thread.Writes;
+            f.Begin(number, Path, address); HostCheck.True(!f.May(address, 80)); f.Park();
+            if (cancel) HostCheck.True(f.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, f.Thread.View(f.Main).Wait).Succeeded);
+            else f.Ready();
+            HostCheck.Equal(cancel ? -4L : -14L, f.Consume()); f.Drain();
+            HostCheck.True(f.May(address, 80) && f.Thread.Writes == copies && bytes.IndexOfAnyExcept((byte)0xa5) < 0);
+        }
+    }
+
     [HostTest("writable source5 interrupted pending read revokes original output without restart or late copy and drains independently")]
     private static void InterruptedRead()
     {

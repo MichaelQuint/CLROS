@@ -147,7 +147,7 @@ public unsafe partial struct LinuxThreadServices
 
     private uint CaptureWritableDiskOutputPrefix(LinuxSyscallFrame call)
     {
-        uint maximum = call.Number == 5 ? WritableDiskStatBytes :
+        uint maximum = call.Number is 4 or 5 or 6 ? WritableDiskStatBytes :
             call.Number is 0 or 17 ? (uint)(call.Argument2 < 8192 ? call.Argument2 : 8192) : 0;
         ulong address = call.Argument1; uint admitted = 0;
         while (admitted < maximum)
@@ -167,9 +167,9 @@ public unsafe partial struct LinuxThreadServices
         {
             Slot* slot = _owner.Slots + i;
             if (!slot->WritableDiskOperation.IsActive) continue;
-            uint maximum = slot->WaitCall.Number == 5 ? WritableDiskStatBytes : 8192U;
+            uint maximum = slot->WaitCall.Number is 4 or 5 or 6 ? WritableDiskStatBytes : 8192U;
             if (slot->WritableDiskOutputBytes > maximum || slot->WritableDiskOutputBytes != 0 &&
-                (slot->WaitCall.Number is not (0 or 5 or 17) || !UserExtent(slot->WaitCall.Argument1, slot->WritableDiskOutputBytes) ||
+                (slot->WaitCall.Number is not (0 or 4 or 5 or 6 or 17) || !UserExtent(slot->WaitCall.Argument1, slot->WritableDiskOutputBytes) ||
                  Overlap(address, bytes, slot->WaitCall.Argument1, slot->WritableDiskOutputBytes))) return false;
         }
         return true;
