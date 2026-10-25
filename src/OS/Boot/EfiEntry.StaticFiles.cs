@@ -158,6 +158,9 @@ public static unsafe partial class EfiEntry
                     !LinuxText(state, " mode=") || !LinuxNumber(state, mode) || !LinuxText(state, "\r\n")) return false;
             }
             if (file.Kind == 0) return true;
+#if M10_018_TIMING_PROBE
+            if (file.Kind == 5 && call.Number is 0 or 17 && result.Value > 0 && !ObserveLinuxDiskTiming(c, (ulong)result.Value)) return false;
+#endif
             ulong afterPosition = file.Position;
             if (call.Number == 3)
             { if (result.Value != 0 || LinuxDescriptorServices.Find(&state->LinuxDescriptors, file.Fd) != null) return false; }
@@ -264,6 +267,9 @@ public static unsafe partial class EfiEntry
 #if M10_018_PROBE
                     !ArmLinuxStaticDisk(c->State, now) ||
 #endif
+#if M10_018_TIMING_PROBE
+                    !ObserveLinuxDiskTiming(c, 0) ||
+#endif
                     !LinuxText(c->State, LinuxStaticTag + "_LISTENING main=") || !LinuxNumber(c->State, c->StaticMain.Value) ||
                     !LinuxText(c->State, " writer=") || !LinuxNumber(c->State, writer) ||
                     !LinuxText(c->State, " fd=") || !LinuxNumber(c->State, call.Argument0) ||
@@ -286,6 +292,47 @@ public static unsafe partial class EfiEntry
             }
             return true;
         }
+
+#if M10_018_TIMING_PROBE
+        // Count only actual completed user reads after the real listen. Stop
+        // measurements before printing one aggregate; existing per-step evidence
+        // and scheduling remain intact. This diagnostic does not drive shutdown.
+        private static bool ObserveLinuxDiskTiming(LinuxNativeControl* c, ulong bytes)
+        {
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->Boot != c->State) return false;
+                if (bytes == 0)
+                {
+                    if (disk->TimingPhase != 0) return false;
+                    disk->TimingPhase = 1; return true;
+                }
+                if (disk->TimingPhase == 2) return true;
+                if (disk->TimingPhase != 1 || bytes > 65536 || disk->TimingReadBytes > 65536 - bytes) return false;
+                disk->TimingReadBytes += bytes;
+                if (disk->TimingReadBytes != 65536) return true;
+                disk->TimingPhase = 2;
+                var p = disk->TimingPump;
+                return LinuxText(c->State, "M10_018_TIMING bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
+                    LinuxText(c->State, " calls=") && LinuxNumber(c->State, p.Calls) &&
+                    LinuxText(c->State, " steps=") && LinuxNumber(c->State, p.Steps) &&
+                    LinuxText(c->State, " pumpNs=") && LinuxNumber(c->State, p.PumpNanoseconds) &&
+                    LinuxText(c->State, " scanNs=") && LinuxNumber(c->State, p.ScanNanoseconds) &&
+                    LinuxText(c->State, " flushNs=") && LinuxNumber(c->State, p.FlushNanoseconds) &&
+                    LinuxText(c->State, " preNetworkNs=") && LinuxNumber(c->State, disk->TimingPreNetwork) &&
+                    LinuxText(c->State, " postNetworkNs=") && LinuxNumber(c->State, disk->TimingPostNetwork) &&
+                    LinuxText(c->State, " networkCalls=") && LinuxNumber(c->State, disk->TimingNetworkCalls) &&
+                    LinuxText(c->State, " diskReady=") && LinuxNumber(c->State, p.DiskReady) &&
+                    LinuxText(c->State, " otherReady=") && LinuxNumber(c->State, p.OtherReady) &&
+                    LinuxText(c->State, " noAdvance=") && LinuxNumber(c->State, p.NoAdvance) &&
+                    LinuxText(c->State, " elapsed=") && LinuxNumber(c->State, p.Elapsed) &&
+                    LinuxText(c->State, " stepLimit=") && LinuxNumber(c->State, p.StepLimit) &&
+                    LinuxText(c->State, " failures=") && LinuxNumber(c->State, p.Failures) &&
+                    LinuxText(c->State, " flushedPastBudget=") && LinuxNumber(c->State, p.FlushedPastBudget) &&
+                    LinuxText(c->State, "\r\n");
+            }
+        }
+#endif
 
         // Enter only on the restored supervisor. The deadline proposes one
         // real directed kernel SIGTERM; it never declares HTTP completion or

@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1600](../done/step1600.md) The timing candidate changes reviewed source/project pins and adds an explicit default-off M10_018_TIMING_PROBE; host graph and focused controls pass. Its emitted native catalog/ABI/local-frame review and fresh guest are still pending. The previous b940 full count2047/2048 remains historical; no catalog limit was raised for this preparation. Writable EFI activation stays absent.
+
 [Step1597](../done/step1597.md) The b94028a8 full-read candidate has 2047 runtime entries and 1620 distinct unwind records under the unchanged 2048 admission cap. Automated compiler-metadata review joins the original image/map and reports local frames only, excluding whole-stack bounds. The writable integration and new exit-first package require their own committed producer and native qualification. Per-application manual disassembly is not a deployment requirement.
 
 [Step1594](../done/step1594.md) Step1594 retains full read r05 EFI92b68ac3a0ef05f89181642dd6f663a70958c258a193330e5b2350bbf6e44fe9 from source24f74824:2046 runtime records/1619 distinct unwind entries under the unchanged2048 cap. Emitted LookupStep/FileChainStep frames168B, FileChainOne264B and LookupOne56B are scoped local-frame facts, excluding callers/callees. Guarded writable host changes are excluded from this original; no writable native activation or catalogue-bound increase is accepted.

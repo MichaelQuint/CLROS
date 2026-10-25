@@ -679,6 +679,32 @@ public static unsafe partial class EfiEntry
             fixed (NativeDiskOwner* disk = &s_nativeDisk)
 #endif
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
+#if M10_018_TIMING_PROBE
+            {
+                bool timing = disk->TimingPhase == 1;
+                ulong started = 0, afterPre = 0, afterDisk = 0, finished = 0;
+                if (timing && !ReadNetworkTime(c->State, out started)) return false;
+                if (o->Boot != c->State || observe && !RecordLinuxSocketPoll(c) ||
+                    !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
+                    observe && !RecordLinuxSocketPoll(c)) return false;
+                if (timing && (!ReadNetworkTime(c->State, out afterPre) || afterPre < started ||
+                    disk->TimingPreNetwork > ~0UL - (afterPre - started) || disk->TimingNetworkCalls == ~0UL)) return false;
+                if (disk->Boot != c->State || !c->Process.PollDiskReadiness(c->Key, 2,
+                    new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush,
+                        Measurements = timing ? &disk->TimingPump : null })) return false;
+                if (timing && !ReadNetworkTime(c->State, out afterDisk)) return false;
+                if (!c->Process.PollDescriptorReadiness(c->Key, 2) || !RecordLinuxSocketWaits(o, c)) return false;
+                if (timing)
+                {
+                    if (!ReadNetworkTime(c->State, out finished) || finished < afterDisk ||
+                        disk->TimingPostNetwork > ~0UL - (finished - afterDisk)) return false;
+                    disk->TimingPreNetwork += afterPre - started;
+                    disk->TimingPostNetwork += finished - afterDisk;
+                    disk->TimingNetworkCalls++;
+                }
+                return true;
+            }
+#else
                 return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&
                     RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
                     (!observe || RecordLinuxSocketPoll(c)) &&
@@ -687,6 +713,7 @@ public static unsafe partial class EfiEntry
                         new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush }) &&
 #endif
                     c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
+#endif
         }
 
         private static bool ObserveLinuxSocketWaits(LinuxNativeControl* c)

@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "3ddbf020cbc0629ed8d2d410ceec0581cf57a562381b1c75286b99a188240936";
-    public const string CanonicalProjectSha256 = "23d6bad3e389cfcdf74ddc9dacff250ea3216f87ad2572e6c6d19dae3c0f9039";
+    public const string ProjectSourceSha256 = "4530ed2737997bc55d6a7cf85195e0a33a49d9d715d3a912fff2ed9c935b444a";
+    public const string CanonicalProjectSha256 = "1b92a5ee8d205110545db1db6b54581508dcdacaa08d2d139580ea1fdd3a3a85";
     // Step1582 reviews the three M10-018 preprocessor extensions for fresh
     // M02/M04 source admission. Historical artifacts keep their original hashes.
     public const string EfiEntrySourceSha256 = "7f0d3f3996d12f50fbd2f32d9fea701aa781468f981864e7c82975273380f9f6";
@@ -486,7 +486,7 @@ public static partial class EfiContracts
         "EnableM07VirtioNetProbe",
         "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe",
         "EnableM09011Probe", "EnableM09012Probe",
-        "EnableM10004Probe", "EnableM10017Probe", "EnableM10018FullProbe", "EnableM10018Probe",
+        "EnableM10004Probe", "EnableM10017Probe", "EnableM10018FullProbe", "EnableM10018Probe", "EnableM10018TimingProbe",
         "EnableM16002Probe",
         "EnableM16003Probe",
         "EnableM16004Probe",

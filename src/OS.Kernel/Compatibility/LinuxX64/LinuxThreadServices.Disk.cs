@@ -5,6 +5,18 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Optional supervisor-owned diagnostic totals. Zero before the
+    /// first call; retain aligned private storage and inspect/reset only between
+    /// serialized invocations. These observations grant no device, scheduling
+    /// or copy authority. Successful calls have exactly one yield reason;
+    /// failures retain backing and make the diagnostic incomplete. Times include
+    /// the small measurement boundary overhead and are not hardware latencies.</summary>
+    public struct DiskPumpMeasurements
+    {
+        public ulong Calls, Steps, PumpNanoseconds, ScanNanoseconds, FlushNanoseconds;
+        public ulong DiskReady, OtherReady, NoAdvance, Elapsed, StepLimit, Failures, FlushedPastBudget;
+    }
+
     /// <summary>Trusted serialized supervisor callbacks, borrowed for this
     /// invocation only. Both must be null for one-step mode, or nonnull with a
     /// stable Context. Clock returns monotonic nanoseconds; Flush retains each
@@ -16,6 +28,7 @@ public unsafe partial struct LinuxThreadServices
         public void* Context;
         public delegate* unmanaged<void*, ulong*, byte> Clock;
         public delegate* unmanaged<void*, byte> Flush;
+        public DiskPumpMeasurements* Measurements;
     }
 
     /// <summary>Advance one of eight retained requests, including cancelled
@@ -30,21 +43,41 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _descriptors == null || !LinuxDescriptorServices.Attached(_descriptors, _self)) return false;
         if (_descriptors->Disk == null) return true;
         bool quantum = access.Clock != null || access.Flush != null;
+        DiskPumpMeasurements* measurements = access.Measurements;
+        if (measurements != null && (!quantum || ((ulong)measurements & 7) != 0 ||
+            measurements->Calls == ulong.MaxValue || measurements->Steps > ulong.MaxValue - 4 ||
+            measurements->DiskReady > measurements->Calls || measurements->OtherReady > measurements->Calls ||
+            measurements->NoAdvance > measurements->Calls || measurements->Elapsed > measurements->Calls ||
+            measurements->StepLimit > measurements->Calls || measurements->Failures > measurements->Calls ||
+            measurements->FlushedPastBudget > measurements->Steps)) return false;
+        if (quantum && (access.Context == null || access.Clock == null || access.Flush == null)) return false;
+        if (measurements != null) measurements->Calls++;
         ulong started = 0;
-        if (quantum && (access.Context == null || access.Clock == null || access.Flush == null ||
-            access.Clock(access.Context, &started) != 1)) return false;
+        if (quantum && access.Clock(access.Context, &started) != 1)
+        { if (measurements != null) measurements->Failures++; return false; }
         // Four separate primitives, with an elapsed check before each extra
         // step. A primitive/flush can overshoot5ms; this is not an IRQ bound.
         for (uint step = 0; step < (quantum ? 4U : 1U); step++)
         {
+            ulong phaseStarted = started;
             if (step != 0)
             {
                 ulong now = 0;
-                if (access.Clock(access.Context, &now) != 1 || now < started) return false;
-                if (now - started >= 5000000UL) break;
+                if (access.Clock(access.Context, &now) != 1 || now < started)
+                { if (measurements != null) measurements->Failures++; return false; }
+                if (now - started >= 5000000UL)
+                { if (measurements != null) measurements->Elapsed++; break; }
+                phaseStarted = now;
             }
             var progress = LinuxDescriptorServices.PumpDiskOne(_descriptors, _self);
-            if (progress.Progress == LinuxDescriptorServices.DiskProgress.Rejected) { _failed = true; return false; }
+            if (measurements != null)
+            {
+                measurements->Steps++;
+                if (!MeasureDiskPhase(access, ref phaseStarted, ref measurements->PumpNanoseconds))
+                { measurements->Failures++; return false; }
+            }
+            if (progress.Progress == LinuxDescriptorServices.DiskProgress.Rejected)
+            { _failed = true; if (measurements != null) measurements->Failures++; return false; }
             bool ready = false;
             for (uint i = 0; i < _owner.Capacity; i++)
             {
@@ -52,19 +85,40 @@ public unsafe partial struct LinuxThreadServices
                 if (!slot->DiskOperation.IsActive) continue;
                 if (!slot->Wait.IsValid || slot->WaitSource != 4 || slot->Exiting != 0) { ready = true; continue; }
                 var current = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
-                if (!current.Succeeded || current.Wait.Sequence != slot->Wait.Sequence) { _failed = true; return false; }
+                if (!current.Succeeded || current.Wait.Sequence != slot->Wait.Sequence)
+                { _failed = true; if (measurements != null) measurements->Failures++; return false; }
                 if (current.Completion != KernelThreadTable.Completion.None) { ready = true; continue; }
                 var observed = LinuxDescriptorServices.PollDisk(_descriptors, _self, slot->DiskOperation);
                 if (observed.Progress == LinuxDescriptorServices.DiskProgress.Rejected || observed.Worker.Value != slot->Kernel.Value)
-                { _failed = true; return false; }
+                { _failed = true; if (measurements != null) measurements->Failures++; return false; }
                 if (observed.Progress != LinuxDescriptorServices.DiskProgress.Ready) continue;
-                if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
+                if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded)
+                { _failed = true; if (measurements != null) measurements->Failures++; return false; }
                 ready = true;
             }
-            if (quantum && access.Flush(access.Context) != 1) return false;
-            if (ready || _owner.Threads->ReadyCount != 0 || !progress.Advanced) break;
+            if (measurements != null && !MeasureDiskPhase(access, ref phaseStarted, ref measurements->ScanNanoseconds))
+            { measurements->Failures++; return false; }
+            if (quantum && access.Flush(access.Context) != 1)
+            { if (measurements != null) measurements->Failures++; return false; }
+            if (measurements != null)
+            {
+                if (!MeasureDiskPhase(access, ref phaseStarted, ref measurements->FlushNanoseconds))
+                { measurements->Failures++; return false; }
+                if (phaseStarted - started >= 5000000UL) measurements->FlushedPastBudget++;
+            }
+            if (ready) { if (measurements != null) measurements->DiskReady++; break; }
+            if (_owner.Threads->ReadyCount != 0) { if (measurements != null) measurements->OtherReady++; break; }
+            if (!progress.Advanced) { if (measurements != null) measurements->NoAdvance++; break; }
+            if (step == 3 && measurements != null) measurements->StepLimit++;
         }
         return true;
+    }
+
+    private static bool MeasureDiskPhase(DiskPumpAccess access, ref ulong started, ref ulong elapsed)
+    {
+        ulong now = 0;
+        if (access.Clock(access.Context, &now) != 1 || now < started || now - started > ulong.MaxValue - elapsed) return false;
+        elapsed += now - started; started = now; return true;
     }
 
     // Called only by DispatchDescriptor after its actual current-image checks.

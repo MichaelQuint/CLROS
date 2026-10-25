@@ -1,5 +1,7 @@
 # Image Builder
 
+[Step1600](../done/step1600.md) CombinedWebDataImageFixture creates a128MiB GPT image with byte-preserved web/EFI/package ESP and relocated writable FAT32 data partition. Inspection binds actual partition geometry, independent extracted files and both FAT copies. Existing64MiB fixture receipt semantics stay unchanged; synthetic combined-image and bootstrap checks do not establish guest writes or durability.
+
 ## Webroot fixture development (2026-10-23)
 
 [Step1558](../done/step1558.md) adds the host-side recursive FAT32 webroot importer

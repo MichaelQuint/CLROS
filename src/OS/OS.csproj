@@ -108,6 +108,7 @@
 		<EnableM16023Probe Condition="'$(EnableM16023Probe)' == ''">false</EnableM16023Probe>
 		<EnableM16024Probe Condition="'$(EnableM16024Probe)' == ''">false</EnableM16024Probe>
 		<EnableM16025Probe Condition="'$(EnableM16025Probe)' == ''">false</EnableM16025Probe>
+		<EnableM10018TimingProbe Condition="'$(EnableM10018TimingProbe)' == ''">false</EnableM10018TimingProbe>
 		<EnableM10018FullProbe Condition="'$(EnableM10018FullProbe)' == ''">false</EnableM10018FullProbe>
 		<EnableM10018Probe Condition="'$(EnableM10018Probe)' == ''">false</EnableM10018Probe>
 		<EnableM10004Probe Condition="'$(EnableM10004Probe)' == ''">false</EnableM10004Probe>
@@ -431,6 +432,9 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM16025Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M16_025_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM10018TimingProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M10_018_TIMING_PROBE</DefineConstants>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM10018FullProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M10_018_FULL_PROBE</DefineConstants>
@@ -2256,6 +2260,8 @@
 		<Error Condition="'$(EnableM16023Probe)' != 'true' and '$(EnableM16023Probe)' != 'false'" Text="disk_probe_switch_invalid" />
 		<Error Condition="'$(EnableM16024Probe)' != 'true' and '$(EnableM16024Probe)' != 'false'" Text="disk_probe_switch_invalid" />
 		<Error Condition="'$(EnableM16025Probe)' != 'true' and '$(EnableM16025Probe)' != 'false'" Text="disk_probe_switch_invalid" />
+		<Error Condition="'$(EnableM10018TimingProbe)' != 'true' and '$(EnableM10018TimingProbe)' != 'false'" Text="disk_timing_switch_invalid" />
+		<Error Condition="'$(EnableM10018TimingProbe)' == 'true' and '$(EnableM10018FullProbe)' != 'true'" Text="disk_timing_parent_required" />
 		<Error Condition="'$(EnableM10018FullProbe)' != 'true' and '$(EnableM10018FullProbe)' != 'false'" Text="disk_static_full_switch_invalid" />
 		<Error Condition="'$(EnableM10018FullProbe)' == 'true' and '$(EnableM10018Probe)' != 'true'" Text="disk_static_full_parent_required" />
 		<Error Condition="'$(EnableM10018Probe)' != 'true' and '$(EnableM10018Probe)' != 'false'" Text="disk_probe_switch_invalid" />

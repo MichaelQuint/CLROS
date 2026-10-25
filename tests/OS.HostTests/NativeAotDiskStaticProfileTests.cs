@@ -2,6 +2,21 @@ using OS.Tooling;
 
 internal static class NativeAotDiskStaticProfileTests
 {
+    [HostTest("short timing diagnostic is explicit default off and retains full parents with bounded capture")]
+    private static void Timing()
+    {
+        HostCheck.True(!OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe);
+        var plan=QemuProfiles.Create(QemuSmokeOptions.Parse([..Arguments,"-EnableM10018TimingProbe"]));
+        HostCheck.True(NativeAotDiskSelection.TimingSelected(plan.Flags) && plan.IsEnabled("EnableM10018FullProbe"));
+        foreach(string[] suffix in new[]{new[]{"-EnableM10018FullProbe:false"},new[]{"-EnableM10018Probe:false"},
+            new[]{"-TimeoutSeconds","239"},new[]{"-TimeoutSeconds","601"},new[]{"-EnableM10017Probe"}})
+        {
+            bool rejected=false;
+            try{_=QemuProfiles.Create(QemuSmokeOptions.Parse([..Arguments,"-EnableM10018TimingProbe",..suffix]));}
+            catch(ToolFailure){rejected=true;}
+            HostCheck.True(rejected,string.Join(' ',suffix));
+        }
+    }
     private static string[] Arguments => ["-BuildEfi", "-EnableM10018Probe", "-LinuxElfPackage", "artifacts/disk-static.pkg",
         "-LinuxThreadingDisassembly", "artifacts/disk-static.dump", "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/webroot"];
 

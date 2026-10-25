@@ -14,6 +14,9 @@ public static class NativeAotDiskSelection
     public static bool FullStaticSelected(IReadOnlyDictionary<string, bool> flags) =>
         StaticSelected(flags) && flags.TryGetValue("EnableM10018FullProbe", out bool value) && value;
 
+    public static bool TimingSelected(IReadOnlyDictionary<string, bool> flags) =>
+        FullStaticSelected(flags) && flags.TryGetValue("EnableM10018TimingProbe", out bool value) && value;
+
     /// <summary>Require complete canonical bytes for one explicitly selected
     /// mechanical original consumer. Empty selection preserves the positive
     /// fixture; only ExitPending has the separate pending-reset consumer.
@@ -53,6 +56,12 @@ public static class NativeAotDiskSelection
             throw new ToolFailure("disk_mechanical_original_raw_required");
         if (options.WebRootFixture is not ("DiskA" or "DiskB") || options.WebRootAssets.Length == 0)
             throw new ToolFailure("disk_webroot_fixture_required");
+        if (TimingSelected(flags))
+        {
+            if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = 600;
+            if (options.TimeoutSeconds is < 240 or > 600) throw new ToolFailure("disk_timing_timeout");
+            return true;
+        }
         if (FullStaticSelected(flags))
         {
             if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = DiskStaticCapturePolicy.DefaultTimeoutSeconds;

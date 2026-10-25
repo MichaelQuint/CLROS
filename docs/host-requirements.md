@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1600](../done/step1600.md) Retain pinned .NET11/C#14. Short timing host checks retain exact independent response bytes and owned runner joining; component times include boundary overhead. SQLite compilation still defaults to two fresh600s attempts; original r04 timeout does not justify an increased deadline or unverified object reuse. Native/guest work remains serialized with confirmed child cleanup.
+
 [Step1597](../done/step1597.md) Focused host integration covers fresh confined path/root metadata, real source5 output lifetime and nonblocking flock. Exact graph/fixture commands, producer identities and preserved failures belong to step1597. Native publication remains serialized with guest work, and unchanged-input full/native/ancestor gates remain required at acceptance. Finite test limits are not the normal application runtime policy.
 
 [Step1594](../done/step1594.md) Step1594 preserves C#14/.NET11 pins and crypto/OpenSSL limitations while removing incidental app crypto from the finite storage fixture. Actual files must still be independently extracted and hashed by the host. The frozen revised native reference uses source1bb15b76 and matching five portable DLL versions; run it in a fresh Linux root under an exclusive builder lease. Host copied values do not establish guest durability. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.

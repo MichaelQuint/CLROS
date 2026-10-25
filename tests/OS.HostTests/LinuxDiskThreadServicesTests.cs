@@ -171,6 +171,52 @@ internal static unsafe class LinuxDiskThreadServicesTests
         }
     }
 
+    [HostTest("linux.disk-thread diagnostic phases count every real primitive and one exclusive yield without early user copy")]
+    private static void QuantumMeasurements()
+    {
+        using Owner o = new(large: true); uint fd = o.Open(); o.Storage.CompleteOnPoll = true;
+        new Span<byte>(o.Thread.At(Output), 8192).Fill(0xa5);
+        o.Begin(17, fd, Output, 8192); o.Park(); ulong submitted = o.Storage.Device->Submitted;
+        PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted,
+            Copied = submitted, Now = 100, Increment = 100 };
+        LinuxThreadServices.DiskPumpMeasurements measurements = default;
+        var access = new LinuxThreadServices.DiskPumpAccess
+            { Context = &context, Clock = &PumpClock, Flush = &PumpFlush, Measurements = &measurements };
+        while (o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None && measurements.Calls < 100)
+            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access));
+        HostCheck.True(measurements.Calls == 8 && measurements.Steps == 32 && measurements.DiskReady == 1 &&
+            measurements.StepLimit == 7 && measurements.OtherReady == 0 && measurements.NoAdvance == 0 &&
+            measurements.Elapsed == 0 && measurements.Failures == 0 && measurements.FlushedPastBudget == 0);
+        HostCheck.True(measurements.PumpNanoseconds == 3200 && measurements.ScanNanoseconds == 3200 &&
+            measurements.FlushNanoseconds == 3200 && context.Flushes == 32 && !context.Bad);
+        HostCheck.True(o.Storage.Device->Submitted == submitted + 16 && o.Storage.Device->Completed == submitted + 16 &&
+            o.Storage.Device->Copied == submitted + 16 && new ReadOnlySpan<byte>(o.Thread.At(Output), 8192).IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.Equal(8192L, o.Consume());
+    }
+
+    [HostTest("linux.disk-thread diagnostic overflow and failed clock or flush retain the original request without an extra submit")]
+    private static void QuantumMeasurementFailures()
+    {
+        foreach (bool clockFailure in new[] { false, true })
+        {
+            using Owner o = new(large: true); uint fd = o.Open(); o.Storage.CompleteOnPoll = true;
+            o.Begin(17, fd, Output, 8192); o.Park(); ulong submitted = o.Storage.Device->Submitted;
+            PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted,
+                Copied = submitted, Now = 100, Increment = 100 };
+            LinuxThreadServices.DiskPumpMeasurements measurements = new() { Calls = ulong.MaxValue };
+            var access = new LinuxThreadServices.DiskPumpAccess
+                { Context = &context, Clock = &PumpClock, Flush = &PumpFlush, Measurements = &measurements };
+            HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            HostCheck.True(context.ClockCalls == 0 && context.Flushes == 0 && o.Storage.Device->Submitted == submitted);
+            measurements = default;
+            if (clockFailure) context.FailClockAt = 2; else context.FailFlushAt = 1;
+            HostCheck.True(!o.Thread.Service->PollDiskReadiness(Key, 2, access));
+            HostCheck.True(measurements.Calls == 1 && measurements.Steps == 1 && measurements.Failures == 1 &&
+                measurements.DiskReady + measurements.OtherReady + measurements.NoAdvance + measurements.Elapsed + measurements.StepLimit == 0 &&
+                o.Storage.Device->Submitted == submitted + 1 && o.Storage.Device->Copied == submitted);
+        }
+    }
+
     [HostTest("linux.disk-thread quantum yields on delayed completion and elapsed budget while cancellation revokes copy")]
     private static void QuantumYields()
     {

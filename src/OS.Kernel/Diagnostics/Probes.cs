@@ -17,6 +17,11 @@ public static partial class Probes
 #else
     public const bool EnableM16025Probe = false;
 #endif
+#if M10_018_TIMING_PROBE
+    public const bool EnableM10018TimingProbe = true;
+#else
+    public const bool EnableM10018TimingProbe = false;
+#endif
 #if M10_018_FULL_PROBE
     public const bool EnableM10018FullProbe = true;
 #else
@@ -382,7 +387,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 76;
+    public const int ProbeCatalogCount = 77;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -694,6 +699,10 @@ public static partial class Probes
     public static ProbeDefinition GetM10018FullProbe() =>
         new("app.nativeaot-disk-static-full-v1", nameof(EnableM10018FullProbe), EnableM10018FullProbe,
             ProbeRisk.Destructive, "Finite full disk asset and external Blazor capture; requires the disk/static parent and original consumer.");
+
+    public static ProbeDefinition GetM10018TimingProbe() =>
+        new("app.nativeaot-disk-read-timing", nameof(EnableM10018TimingProbe), EnableM10018TimingProbe,
+            ProbeRisk.Destructive, "Short original disk read timing diagnostic with intentional owned runner cancellation; no full or cleanup qualification.");
 
     public static ProbeDefinition GetM10018Probe() =>
         new("app.nativeaot-disk-static-files", nameof(EnableM10018Probe), EnableM10018Probe,
@@ -1121,6 +1130,9 @@ public static partial class Probes
                 return true;
             case 75:
                 definition = GetM10018FullProbe();
+                return true;
+            case 76:
+                definition = GetM10018TimingProbe();
                 return true;
             default:
                 definition = default;

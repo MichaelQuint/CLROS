@@ -401,6 +401,17 @@ public static class QemuSmoke
                     {
                         if(diskImageInput is null || diskImageReceipt is null)throw new ToolFailure("disk_full_image_owner_required");
                         var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                        if(NativeAotDiskSelection.TimingSelected(plan.Flags))
+                        {
+                            var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,cancellation);
+                            diskInputs!.VerifyUnchanged();diskNative!.VerifyHeldInputs();
+                            webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
+                            WebRootImageFixture.Verify(Path.GetFullPath(options.Image,root),diskImageReceipt);
+                            if(capture is not null)capture.Validate();
+                            cancellation.ThrowIfCancellationRequested();
+                            output.WriteLine("TEST_PASS qemu.smoke.disk-read-timing-diagnostic responses=4 bytes=65536 runner_joined=true full_and_cleanup_qualified=false");
+                            return 0;
+                        }
                         diskStaticPeer=await NativeAotDiskStaticPeer.RunAsync(root,options.SerialLog,RunSocketRunner,cancellation,inventory,
                             async (port,directory,token)=>{diskBrowser=await NativeAotDiskStaticBrowser.RunAsync(root,port,directory,inventory,token);});
                     }
