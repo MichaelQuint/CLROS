@@ -46,6 +46,17 @@ namespace OS.Tooling.Native
 
     public static class BoundedJobProcessRunner
     {
+        /// <summary>Copied host join facts for a per-request test observer.
+        /// These values grant no process or file authority. A control may only
+        /// delay an otherwise proven join, never replace any native receipt.</summary>
+        public readonly record struct OwnershipJoinObservation(uint ActiveProcesses, uint TotalProcesses,
+            int CapturedProcesses, bool CaptureComplete, bool RootSignaled, bool MembersSignaled,
+            bool Assigned, bool InitialWaitExpired, nint RootHandle, nint FirstDescendantHandle)
+        {
+            public bool HasCompleteHandleJoin => CaptureComplete && RootSignaled && MembersSignaled &&
+                ActiveProcesses == 0 && (!Assigned || TotalProcesses == CapturedProcesses);
+        }
+
         private const int MinimumTimeoutSeconds = 5;
         private const int MaximumTimeoutSeconds = 3600;
         private const int MinimumOutputCharacters = 4096;
@@ -187,6 +198,135 @@ namespace OS.Tooling.Native
             protected override bool ReleaseHandle()
             {
                 return CloseHandle(handle);
+            }
+        }
+
+        // One synchronous owner remains inside RunCore until all of its original
+        // handles signal. Incomplete census facts latch; an empty later job
+        // cannot reconstruct an uncaptured process's lifetime.
+        private sealed class OwnedProcessJoin : IDisposable
+        {
+            private readonly SafeKernelHandle job, root;
+            private readonly Func<OwnershipJoinObservation, bool> pendingForTest;
+            private readonly List<SafeKernelHandle> handles = new();
+            private readonly HashSet<(uint Pid, ulong Created)> identities = new();
+            private bool captureComplete = true, assigned, terminationRequested, joined;
+            private uint active, total;
+            private string failure = String.Empty;
+            internal bool Uncertain { get; private set; }
+            internal string Detail => failure;
+
+            internal OwnedProcessJoin(SafeKernelHandle job, SafeKernelHandle root,
+                Func<OwnershipJoinObservation, bool> pendingForTest)
+            {
+                this.job = job; this.root = root; this.pendingForTest = pendingForTest;
+                handles.Add(root);
+                if (TryIdentity(root, out var identity)) identities.Add(identity);
+                else Incomplete("root_identity_" + Win32Detail());
+            }
+
+            internal void Assigned() { assigned = true; Capture(); }
+
+            internal void Capture()
+            {
+                if (!assigned || joined) return;
+                if (captureComplete)
+                {
+                    var current = new List<SafeKernelHandle>();
+                    bool captured;
+                    string detail;
+                    try { captured = CaptureJobProcesses(job, current, out detail); }
+                    catch (Exception error) { captured = false; detail = "process_inventory_" + error.GetType().Name; }
+                    // Retain even the partial census before latching its error.
+                    foreach (SafeKernelHandle member in current)
+                    {
+                        if (!TryIdentity(member, out var identity))
+                        { handles.Add(member); Incomplete("member_identity_" + Win32Detail()); }
+                        else if (identities.Add(identity)) handles.Add(member);
+                        else member.Dispose();
+                    }
+                    if (!captured) Incomplete(detail);
+                }
+                ReadCounts();
+                if (active == 0 && total != handles.Count) Incomplete("uncaptured_job_process");
+            }
+
+            internal void Join()
+            {
+                if (joined) return;
+                if (!terminationRequested)
+                {
+                    Capture();
+                    if (assigned && total != handles.Count) Incomplete("incomplete_termination_census");
+                    terminationRequested = true;
+                    bool requested = assigned ? active == 0 || TerminateJobObject(job, TerminationExitCode) :
+                        WaitForSingleObject(root, 0) == WaitObject0 || TerminateProcess(root, TerminationExitCode);
+                    if (!requested) failure = "terminate_" + Win32Detail();
+                }
+                Stopwatch wait = Stopwatch.StartNew();
+                while (true)
+                {
+                    if (assigned) ReadCounts();
+                    bool rootSignaled = Signaled(root), membersSignaled = true;
+                    foreach (SafeKernelHandle member in handles)
+                        if (!Signaled(member)) membersSignaled = false;
+                    bool expired = wait.ElapsedMilliseconds >= TerminationConfirmationMilliseconds;
+                    var observation = new OwnershipJoinObservation(active, total, handles.Count, captureComplete,
+                        rootSignaled, membersSignaled, assigned, expired, root.DangerousGetHandle(),
+                        handles.Count > 1 ? handles[1].DangerousGetHandle() : IntPtr.Zero);
+                    bool forcedPending = false;
+                    if (pendingForTest != null)
+                    {
+                        try { forcedPending = pendingForTest(observation); }
+                        catch (Exception error) { Incomplete("join_observer_" + error.GetType().Name); forcedPending = true; }
+                    }
+                    if (observation.HasCompleteHandleJoin && !forcedPending) { joined = true; return; }
+                    if (expired)
+                    {
+                        Uncertain = true;
+                        if (failure.Length == 0) failure = "original_handle_join_pending";
+                    }
+                    // No cancellation token or detached task can release this
+                    // owner. Only original handles plus the complete job census
+                    // end this same pending call; kill attempts remain bounded.
+                    Thread.Sleep(expired ? 250 : 10);
+                }
+            }
+
+            internal void MarkUncertain(string detail)
+            { Uncertain = true; if (failure.Length == 0) failure = detail; }
+
+            private void ReadCounts()
+            {
+                if (!QueryInformationJobObject(job, JobObjectBasicAccountingInformationClass,
+                    out JobObjectBasicAccountingInformation information,
+                    (uint)Marshal.SizeOf(typeof(JobObjectBasicAccountingInformation)), IntPtr.Zero))
+                { active = UInt32.MaxValue; Incomplete("join_job_query_" + Win32Detail()); return; }
+                if (information.TotalProcesses < total) Incomplete("job_population_regressed");
+                total = Math.Max(total, information.TotalProcesses); active = information.ActiveProcesses;
+            }
+
+            private bool Signaled(SafeKernelHandle handle)
+            {
+                uint result = WaitForSingleObject(handle, 0);
+                if (result == WaitFailed) Incomplete("original_handle_wait_" + Win32Detail());
+                return result == WaitObject0;
+            }
+
+            private void Incomplete(string detail)
+            { captureComplete = false; if (failure.Length == 0) failure = detail; }
+
+            private static bool TryIdentity(SafeKernelHandle handle, out (uint Pid, ulong Created) identity)
+            {
+                uint pid = GetProcessId(handle);
+                bool valid = GetProcessTimes(handle, out ulong created, out _, out _, out _) && pid != 0;
+                identity = (pid, created); return valid;
+            }
+
+            public void Dispose()
+            {
+                if (!joined) throw new InvalidOperationException("original_process_join_pending");
+                foreach (SafeKernelHandle handle in handles) if (!ReferenceEquals(handle, root)) handle.Dispose();
             }
         }
 
@@ -412,6 +552,14 @@ namespace OS.Tooling.Native
             out uint exitCode);
 
         [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern uint GetProcessId(SafeKernelHandle process);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetProcessTimes(SafeKernelHandle process,
+            out ulong creationTime, out ulong exitTime, out ulong kernelTime, out ulong userTime);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool TerminateProcess(
             SafeKernelHandle process,
@@ -469,14 +617,17 @@ namespace OS.Tooling.Native
         internal static BoundedJobProcessResult RunManaged(string executablePath, ProcessRequest request, CancellationToken cancellation)
         {
             return RunCore(executablePath, request.Arguments.ToArray(), request.WorkingDirectory, request.Timeout, request.OutputCharacterLimit,
-                request.EnvironmentOverrides, true, cancellation, request.OutputReceived);
+                request.EnvironmentOverrides, true, cancellation, request.OutputReceived,
+                request.RetainOwnershipUntilJoined, request.JoinPendingForTest, request.AssignmentFailureForTest);
         }
 
         private static BoundedJobProcessResult RunCore(string executablePath, string[] arguments, string workingDirectory,
             TimeSpan timeout, int outputCharacterLimit, IReadOnlyDictionary<string, string> environmentOverrides,
-            bool terminateDescendantsAfterRootExit, CancellationToken cancellation, Action<string, bool> outputReceived)
+            bool terminateDescendantsAfterRootExit, CancellationToken cancellation, Action<string, bool> outputReceived,
+            bool retainOwnershipUntilJoined = false, Func<OwnershipJoinObservation, bool> pendingForTest = null,
+            bool assignmentFailureForTest = false)
         {
-            if (cancellation.IsCancellationRequested) return Result("Cancelled", -1, null, true, "cancellation_requested");
+            if (cancellation.IsCancellationRequested) return BoundedJobProcessRunner.Result("Cancelled", -1, null, true, "cancellation_requested");
 
             SafeKernelHandle job = null;
             SafeKernelHandle process = null;
@@ -489,13 +640,50 @@ namespace OS.Tooling.Native
             FileStream standardOutputStream = null;
             FileStream standardErrorStream = null;
             Task[] readerTasks = null;
+            OwnedProcessJoin ownedJoin = null;
             BoundedCapture capture = new BoundedCapture(outputCharacterLimit, outputReceived);
             bool processCreated = false;
             bool processAssigned = false;
+            bool retainedRootExitObserved = false;
             IntPtr environmentBlock = IntPtr.Zero;
             IntPtr attributeList = IntPtr.Zero;
             IntPtr inheritedHandles = IntPtr.Zero;
             bool attributeListInitialized = false;
+
+            // All existing exits and cleanup calls use the same opt-in owner.
+            // Default callers retain the reviewed bounded-return behavior.
+            bool TerminateAssignedTree(SafeKernelHandle currentJob, out string detail)
+            {
+                if (ownedJoin == null) return BoundedJobProcessRunner.TerminateAssignedTree(currentJob, out detail);
+                ownedJoin.Join(); detail = ownedJoin.Detail; return true;
+            }
+            bool TerminateSingleProcess(SafeKernelHandle currentProcess, out string detail)
+            {
+                if (ownedJoin == null) return BoundedJobProcessRunner.TerminateSingleProcess(currentProcess, out detail);
+                ownedJoin.Join(); detail = ownedJoin.Detail; return true;
+            }
+            BoundedJobProcessResult Result(string status, int exitCode, BoundedCapture output, bool confirmed, string detail)
+            {
+                if (ownedJoin != null)
+                {
+                    ownedJoin.Join();
+                    if (readerTasks != null && !WaitForReaders(readerTasks, capture))
+                    {
+                        ownedJoin.MarkUncertain("reader_completion_timeout");
+                        // Keep streams and the same call while readers still own
+                        // them. Later cancellation does not dispose active I/O.
+                        while (readerTasks.Any(task => !task.IsCompleted)) Thread.Sleep(250);
+                        WaitForReaders(readerTasks, capture);
+                    }
+                    if (ownedJoin.Uncertain)
+                    {
+                        if (status == "Success") { status = "TerminationUnconfirmed"; exitCode = -1; }
+                        detail += (detail.Length == 0 ? "" : " ") + "retained_cleanup=" + ownedJoin.Detail;
+                    }
+                    confirmed = true;
+                }
+                return BoundedJobProcessRunner.Result(status, exitCode, output, confirmed, detail);
+            }
 
             try
             {
@@ -670,6 +858,7 @@ namespace OS.Tooling.Native
                 processCreated = true;
                 process = new SafeKernelHandle(processInformation.Process);
                 thread = new SafeKernelHandle(processInformation.Thread);
+                if (retainOwnershipUntilJoined) ownedJoin = new OwnedProcessJoin(job, process, pendingForTest);
                 standardOutputWrite.Dispose();
                 standardOutputWrite = null;
                 standardErrorWrite.Dispose();
@@ -677,7 +866,7 @@ namespace OS.Tooling.Native
                 standardInput.Dispose();
                 standardInput = null;
 
-                if (!AssignProcessToJobObject(job, process))
+                if ((retainOwnershipUntilJoined && assignmentFailureForTest) || !AssignProcessToJobObject(job, process))
                 {
                     string terminationDetail;
                     bool terminated = TerminateSingleProcess(
@@ -698,9 +887,10 @@ namespace OS.Tooling.Native
                         -1,
                         capture,
                         true,
-                        Win32Detail());
+                        retainOwnershipUntilJoined && assignmentFailureForTest ? "controlled_job_assignment_failure" : Win32Detail());
                 }
                 processAssigned = true;
+                ownedJoin?.Assigned();
 
                 try
                 {
@@ -782,6 +972,7 @@ namespace OS.Tooling.Native
                 string triggerDetail = String.Empty;
                 while (true)
                 {
+                    ownedJoin?.Capture();
                     if (cancellation.IsCancellationRequested)
                     {
                         triggerStatus = "Cancelled";
@@ -822,10 +1013,11 @@ namespace OS.Tooling.Native
                     if (waitResult == WaitObject0 &&
                         (activeProcesses == 0 || terminateDescendantsAfterRootExit))
                     {
+                        retainedRootExitObserved = retainOwnershipUntilJoined;
                         // EFI publishing historically completes at root exit,
                         // then reaps its entire assigned job and drains both
                         // streams. Other callers require natural tree exit.
-                        if (activeProcesses != 0 && !TerminateAssignedTree(job, out string completionDetail))
+                        if ((activeProcesses != 0 || retainOwnershipUntilJoined) && !TerminateAssignedTree(job, out string completionDetail))
                             return Result("TerminationUnconfirmed", -1, capture, false,
                                 "trigger=RootExited " + completionDetail);
                         break;
@@ -860,8 +1052,16 @@ namespace OS.Tooling.Native
                     }
                     if (!WaitForReaders(readerTasks, capture))
                     {
-                        triggerStatus = "CaptureFailed";
-                        triggerDetail = "reader_completion_timeout";
+                        if (!retainOwnershipUntilJoined)
+                        {
+                            triggerStatus = "CaptureFailed";
+                            triggerDetail = "reader_completion_timeout";
+                        }
+                        else
+                        {
+                            ownedJoin.MarkUncertain("reader_completion_timeout");
+                            triggerDetail += " reader_completion_timeout";
+                        }
                     }
                     return Result(
                         triggerStatus,
@@ -899,7 +1099,7 @@ namespace OS.Tooling.Native
                         "limit=" + outputCharacterLimit.ToString(
                             System.Globalization.CultureInfo.InvariantCulture));
                 }
-                if (cancellation.IsCancellationRequested)
+                if (cancellation.IsCancellationRequested && !retainedRootExitObserved)
                     return Result("Cancelled", -1, capture, true, "cancellation_requested");
 
                 uint unsignedExitCode;
@@ -947,6 +1147,9 @@ namespace OS.Tooling.Native
             }
             finally
             {
+                // This precedes every handle/stream unwind, including catches
+                // and the suspended, not-yet-assigned process failure path.
+                ownedJoin?.Join();
                 if (environmentBlock != IntPtr.Zero) Marshal.FreeHGlobal(environmentBlock);
                 if (attributeListInitialized) DeleteProcThreadAttributeList(attributeList);
                 if (attributeList != IntPtr.Zero) Marshal.FreeHGlobal(attributeList);
@@ -989,6 +1192,7 @@ namespace OS.Tooling.Native
                 }
                 if (process != null)
                 {
+                    ownedJoin?.Dispose();
                     process.Dispose();
                 }
                 if (job != null)

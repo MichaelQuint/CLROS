@@ -11,6 +11,17 @@ public sealed record ProcessRequest(string Executable, IReadOnlyList<string> Arg
     public int OutputCharacterLimit { get; init; } = 4 * 1024 * 1024;
     public IReadOnlyDictionary<string, string?> EnvironmentOverrides { get; init; } = new Dictionary<string, string?>();
     public Action<string, bool>? OutputReceived { get; init; }
+    /// <summary>Windows job ownership for a caller which retains mutable files
+    /// across this await. Execution and initial termination remain bounded, but
+    /// uncertain cleanup keeps the same call and all original process handles
+    /// pending until their signals and an empty, completely captured job agree.
+    /// Cancellation does not release those handles or authorize extraction.
+    /// An incomplete original census cannot become proof from a later empty job.</summary>
+    public bool RetainOwnershipUntilJoined { get; init; }
+    // Per-request host controls may only defer an actual join, never manufacture
+    // a signaled process, empty job or complete census. No global test hook.
+    internal Func<BoundedJobProcessRunner.OwnershipJoinObservation, bool>? JoinPendingForTest { get; init; }
+    internal bool AssignmentFailureForTest { get; init; }
 }
 
 public sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError,
@@ -31,6 +42,8 @@ public static class ProcessRunner
             throw new ArgumentOutOfRangeException(nameof(request));
         cancellation.ThrowIfCancellationRequested();
         if (OperatingSystem.IsWindows()) return await RunWindowsAsync(request, cancellation);
+        if (request.RetainOwnershipUntilJoined)
+            throw new PlatformNotSupportedException("retained_process_join_requires_windows_job");
         var start = new ProcessStartInfo(request.Executable)
         {
             WorkingDirectory = request.WorkingDirectory, UseShellExecute = false, CreateNoWindow = true,
