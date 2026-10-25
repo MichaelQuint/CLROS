@@ -126,7 +126,7 @@ internal static unsafe class LinuxEpollServicesTests
     }
 
     private delegate bool MeasuredReadiness(ref LinuxThreadServices receiver, ulong key, ulong flags,
-        void* context, delegate* managed<void*, ulong*, byte> clock, out ulong afterRefresh);
+        void* context, delegate* unmanaged<void*, ulong*, byte> clock, out ulong afterRefresh);
     private struct RefreshClock
     {
         internal uint* Ready;
@@ -137,6 +137,7 @@ internal static unsafe class LinuxEpollServicesTests
         internal byte Result;
         internal bool Refreshed, Unwoken;
     }
+    [UnmanagedCallersOnly]
     private static byte ReadRefreshClock(void* context, ulong* value)
     {
         RefreshClock* clock = (RefreshClock*)context;

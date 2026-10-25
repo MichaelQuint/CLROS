@@ -1,5 +1,7 @@
 # PAL
 
+[Step1606](../done/step1606.md) The new finite managed MinimalApi HTTP fixture measures requested FileStream flush and exact bytes independently of the console candidate. It grants no guest PAL/device flush, reboot or physical persistence. Readiness diagnostic ABI now matches the existing unmanaged supervisor clock; its later fresh descriptor graph audit and all lifetime rules remain intact.
+
 [Step1605](../done/step1605.md) The scoped Linux SQLite recovery r03 reference passes owned death/join, reserved-lock release and independent exact baseline recovery. Existing PAL/guest flush, locking and recovery boundaries do not advance. The new diagnostic-only readiness clock runs after consumed refresh admission and before any scan; the later full graph audit remains mandatory. Separate paired storage/TCP development has no native authority.
 
 [Step1604](../done/step1604.md) Current source4 polling restores immediate ready-peer yield and removes the extra-submit/token-query experiment without changing original quantum/flush/ownership. Additive log/upload fake-media execution validates the actual global descriptor boundary with38calls and strict cleanup. Actual source5 log/upload now passes19host controls with27waits, exact pins and no late copies. Isolated SQLite witness repair and shared readonly/writable pair qualification continue under separate exact claims; no native writable activation or persistent application acceptance follows.

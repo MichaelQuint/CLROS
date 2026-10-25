@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1606](../done/step1606.md) Timingr10 is a pre-guest compilation failure, preserved without any metric or acceptance. A callback-convention repair and fresh originalr11 are required. The new finite managed HTTP log/upload fixture supplies host qualification only; Linux NativeAOT HTTP, guest FAT32 writes/reboot and SQLite power-loss durability remain open. No completion gate or issue closes.
+
 [Step1605](../done/step1605.md) Fresh Linux SQLite recovery r03 passes its process-kill contract, reserved-lock absence and exact independently verified recovery. GuestQualified, PowerLossQualified and DurabilityQualified remain false. Timing r09 passes only the four-response diagnostic with intentional cancellation; the next v4 measurement and all full A/B/browser/cleanup gates remain pending. No issue or completion gate closes.
 
 [Step1604](../done/step1604.md) Successful short diagnosticr08 does not qualify throughput improvement, full cleanup or Blazor:0replenished/119skips, range35.662s. Restore immediate ready-peer yield and measure the two post-network components before optimization.113focused current controls pass; no unfilteredfull claim. SQLite recoveryr02 proves its scoped publication/seed/spill/ownedkill/join stages but fails strictflock parsing before lock-clear/recovered reopen. Full A/B/browser, races/ancestors/full-host, continuing service, guest writes/reboot and SQLite recovery/durability remain open.

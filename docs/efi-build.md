@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1606](../done/step1606.md) Timingr10 at12128da1 fails managed compilation inside fresh native publication with CS8786 before any guest or ELF. The measured readiness callback now uses delegate* unmanaged, matching the existing UnmanagedCallersOnly NativeDiskClock and disk-pump contract. Its host test callback uses the same ABI. One normalized source pin changes; clock placement, ownership, budgets and accepted ordinary profiles stay unchanged. A fresh committed -BuildEfi r11 is required.
+
 [Step1605](../done/step1605.md) The next short timing producer uses strict v4 fields readinessRefreshNs/readinessWaitScanNs, captured at one trusted post-refresh boundary and conserving postReadinessNs. The clock and fields compile only into the explicit timing profile; accepted ordinary profiles keep their original readiness path and layouts. Four reviewed normalized source pins follow the changed bytes. Fresh committed -BuildEfi timing r10 is required.
 
 [Step1604](../done/step1604.md) Original timingr08 at5cf3fcd1 verifies2057runtime/1630unwind entries and EFI5C86DAEA494E78DBF85FF506D11E43904166B7527AB8F62CD85DDC69825BE0DC. Image51A6575B100AE82D5EC2ABFA42336CD83BF4CF13B6AF81EF5D7C8FEF1B13B88A contains the unchanged server package. The next candidate retires the extra-submit route and updates five reviewed pins for a diagnostic-only clock partition. New source-matched BuildEfi is mandatory; host4096/kernel2048 capacities and default-off guards remain unchanged.

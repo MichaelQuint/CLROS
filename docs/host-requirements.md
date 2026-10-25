@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.
+
 [Step1605](../done/step1605.md) Linux SQLite recovery r03 succeeds with all held source/output lifetimes preserved. Only the owned native child raises soft RLIMIT_NOFILE from 1024 to 4096; parent soft 1024 and hard 4096 are verified before/after. Fresh publication reuses the explicitly verified nine-file SQLite archive dependency (zero fresh archive compiles). Independent post-join process audit is zero. This host procedure grants no guest or power-loss durability.
 
 [Step1604](../done/step1604.md) Current candidate passes113distinct focused controls:19disk-thread,3timing-peer,19writable-fixture,41global-writable,19writable-source5,5source-admission and7profile/actual-CLI, unchanged inputs/zero reuse. The strict v3 parser requires exact checked child-sum conservation and rejects originalv2 syntax. SQLite recoveryr02 explicitly logs childsoft/hard4096 and parentsoft1024 before/after; all publication holds succeed, but its later flock consumer fails. This is not unfiltered full, recovery or durability acceptance.

@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1606](../done/step1606.md) The separate finite managed MinimalApi HTTP log/upload candidate is an intermediate contract fixture, preserving the existing static server package and the continuous product goal. Explicit startup and partial-effect states remain evidence, not rollback or durability. Timingr10 failed before guest; the diagnostic ABI repair needs fresh originalr11 before any performance conclusion.
+
 [Step1605](../done/step1605.md) Linux SQLite d938/r03 qualifies the scoped external process-kill reference, with exact recovered baseline and explicit reused archive inputs. It grants no guest or power-loss durability. Read timing r09 attributes 99.09% of measured post-network time to readiness; next v4 splits refresh and wait scanning before any optimization. Full disk A/B/Blazor and continuous persistence qualification remain required.
 
 [Step1604](../done/step1604.md) Root retires the unproductive read replenishment experiment after actualr08 supplies0submissions/119skips. Preserve original quantum/fairness and attribute the existing post-network interval with a v3 child partition before another repair. Source5 log/upload lifecycle now passes host checks. Two isolated successors continue closed SQLite journal-witness/consumer repair and same-original-C/B global descriptor pair admission. All are development scopes; actual complete Blazor and persistent direct SQLite remain product acceptance work.

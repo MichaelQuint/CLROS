@@ -1,5 +1,7 @@
 <p align="center">
 
+[Step1606](done/step1606.md) The finite managed MinimalApi log/upload fixture is integrated from30cfce2d: actual HTTP writes/readbacks and a separate unchanged console verifier, with honest startup/partial-effect failure receipts. Guest persistence remains unqualified. Timing r10 stopped before guest launch at a callback ABI mismatch; the candidate now uses the existing unmanaged clock convention and requires a fresh committed r11.
+
 [Step1605](done/step1605.md) Original timing r09 serves the exact 64 KiB range in 27.958s and confirms joined cancellation. Descriptor readiness accounts for 99.09% of its measured post-network interval. The next v4 diagnostic separates refresh from wait scanning without changing budgets or authority. Fresh Linux SQLite recovery r03 passes owned writer kill, reserved-lock release and exact baseline recovery; guest FAT32 recovery and power-loss durability remain unqualified.
 
 [Step1604](done/step1604.md) Original timingr08 passes all four HTTP responses and owned cancellation/join, but delivers0extra submits and119budget skips; range35.662s. The unproductive scheduling experiment is retired. Current candidate restores immediate ready-peer yield and adds a diagnostic-only split of post-network readiness versus wait recording, pending fresh committed timingr09. The additive40-frame log/upload fixture,38actual global storage calls and27real source5 waits pass host checks. SQLite recoveryr02 reaches owned kill/join then fails its strict flock evidence parser; no recovery or durability acceptance.

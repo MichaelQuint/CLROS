@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1606](../done/step1606.md) Fresh timingr10 at12128da1 stops before guest launch: CS8786 managed-versus-unmanaged diagnostic clock pointer. The candidate matches the existing unmanaged clock ABI without changing any budgets. Require a new committed -BuildEfi r11 namespace and preserve r10 failure receipts. The integrated HTTP log/upload owner runs managed host children only, with no QEMU/storage acceptance.
+
 [Step1605](../done/step1605.md) Original timing r09 passes four responses and deliberate joined cancellation/refusal; the exact 64 KiB range takes 27.958s. A fresh committed -BuildEfi timing r10 must use v4 readiness children before selecting a performance repair. This diagnostic does not qualify complete Blazor, ordinary cleanup, sustained service or writes. The separate Linux SQLite recovery original is fully archived after a zero-process audit and supplies no guest durability.
 
 [Step1604](../done/step1604.md) Original timingr08 at5cf3fcd1 passes exact four-response/finalhealth/cancel/join/refusal, runner94.8718815s, timedOut=false.19file original receipt5FD2AE6C154C393E18309FDA42A091CDE98515A598C911E2FD87908460225C6F retains source/native/image/packet/HTTP joins.0replenished/119skips and35.662s range supply no improvement claim. Next v3 timingr09 combines retirement of the extra-submit experiment with one clock splitting existing post-network readiness/wait recording. Use fresh committed BuildEfi, same confined inputs and fresh outputs. No full/cleanup/browser acceptance follows.

@@ -33,7 +33,7 @@ public unsafe partial struct LinuxThreadServices
     /// refresh admission grants descriptor authority to the subsequent scan.
     /// A failed clock retains actual refresh effects but performs no wake.</summary>
     internal bool PollDescriptorReadinessMeasured(ulong key, ulong flags, void* context,
-        delegate* managed<void*, ulong*, byte> clock, out ulong afterRefresh)
+        delegate* unmanaged<void*, ulong*, byte> clock, out ulong afterRefresh)
     {
         afterRefresh = 0;
         if (context == null || clock == null || !Access(key, flags) || _failed || _descriptors == null) return false;
@@ -148,7 +148,7 @@ public unsafe partial struct LinuxThreadServices
 
     private bool WakeEpollChanges(ulong flags, ref LinuxEpollServices.ThreadRefresh refresh
 #if !NOSTDLIB_EFI || M10_018_TIMING_PROBE
-        , void* context = null, delegate* managed<void*, ulong*, byte> clock = null, ulong* afterRefresh = null
+        , void* context = null, delegate* unmanaged<void*, ulong*, byte> clock = null, ulong* afterRefresh = null
 #endif
         )
     {
