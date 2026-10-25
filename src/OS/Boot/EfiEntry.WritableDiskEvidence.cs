@@ -7,6 +7,46 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
+        // Copied facts from the actual retained source5 request after CALL is
+        // logged and before any later pump. No user alias or new borrow is kept.
+        private static bool RecordNativeWritableWait(LinuxNativeControl* c, uint index,
+            OS.Kernel.Compatibility.LinuxX64.LinuxSyscallFrame call,
+            OS.Kernel.Compatibility.LinuxX64.LinuxSyscallResult result)
+        {
+            var slot = c->Slots + index;
+            if (result.Action != OS.Kernel.Compatibility.LinuxX64.LinuxSyscallAction.Blocked || slot->WaitSource != 5) return true;
+            var disk = c->State->LinuxDescriptors.WritableDisk;
+            if (disk == null || !NativeWritableControl(c->State, c) || !slot->Wait.IsValid ||
+                !slot->WritableDiskOperation.IsActive || slot->WritableDiskOperation.Owner != (ulong)disk ||
+                slot->WritableDiskOperation.Epoch != disk->Epoch || slot->WritableDiskOperation.Generation != disk->Request.Generation ||
+                disk->Request.Phase == 0 || disk->Request.Worker.Value != slot->Kernel.Value ||
+                slot->WaitCall.Number != call.Number || slot->WaitCall.Rip != call.Rip) return false;
+            var request = &disk->Request;
+            Storage* state = c->State;
+            return LinuxText(state, "M16_027_BEGIN identity=") && LinuxNumber(state, slot->Kernel.Value) &&
+                LinuxText(state, " ordinal=") && LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) &&
+                LinuxText(state, " sequence=") && LinuxNumber(state, slot->Wait.Sequence) &&
+                LinuxText(state, " requestOwner=") && LinuxNumber(state, slot->WritableDiskOperation.Owner) &&
+                LinuxText(state, " requestEpoch=") && LinuxNumber(state, slot->WritableDiskOperation.Epoch) &&
+                LinuxText(state, " request=") && LinuxNumber(state, slot->WritableDiskOperation.Generation) &&
+                LinuxText(state, " nr=") && LinuxNumber(state, call.Number) &&
+                LinuxText(state, " rip=") && LinuxNumber(state, call.Rip) &&
+                LinuxText(state, " outputPrefix=") && LinuxNumber(state, slot->WritableDiskOutputBytes) &&
+                LinuxText(state, " fdOwner=") && LinuxNumber(state, (ulong)request->OriginalFd.Owner) &&
+                LinuxText(state, " fd=") && LinuxNumber(state, request->OriginalFd.Number) &&
+                LinuxText(state, " fdGeneration=") && LinuxNumber(state, request->OriginalFd.Generation) &&
+                LinuxText(state, " description=") && LinuxNumber(state, request->Description) &&
+                LinuxText(state, " bindingGeneration=") && LinuxNumber(state, request->BindingGeneration) &&
+                LinuxText(state, " reservedFd=") && LinuxNumber(state, request->ReservedFd) &&
+                LinuxText(state, " reservedDescription=") && LinuxNumber(state, request->ReservedDescription) &&
+                LinuxText(state, " reservationGeneration=") && LinuxNumber(state, request->ReservationGeneration) &&
+                LinuxText(state, " providerOwner=") && LinuxNumber(state, request->ProviderRequest.Owner) &&
+                LinuxText(state, " providerEpoch=") && LinuxNumber(state, request->ProviderRequest.Epoch) &&
+                LinuxText(state, " providerRequest=") && LinuxNumber(state, request->ProviderRequest.Generation) &&
+                LinuxText(state, " operation=") && LinuxNumber(state, request->Operation) &&
+                LinuxText(state, " phase=") && LinuxNumber(state, request->Phase) &&
+                LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
+        }
         // Retained ordinary RAM, separate from B's exclusive observation slot.
         // Root samples before and immediately after EVERY possible B-touching
         // dispatch/commit/complete/readiness/cancel/exit/detach/end call. No

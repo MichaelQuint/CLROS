@@ -697,6 +697,9 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
                 LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
                 LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
+#if M16_027_PROBE
+            if (logged) logged = RecordNativeWritableWait(c, index, call, result);
+#endif
 #if M16_014_PROBE && CLROS_LINUX_SOCKETS
             if (logged && LinuxQuotaPolicy(state)) logged = ObserveLinuxQuotaSocketCall(c, index, call, result);
 #endif

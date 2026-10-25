@@ -86,7 +86,7 @@ public static unsafe partial class EfiEntry
             {
                 if (state->CooperativePhase != 0 || state->LinuxDescriptorPhase != 4 || state->LinuxSyscallPhase != 4 ||
                     state->LinuxMemory.HasMutationGuard || !LinuxSocketIoCurrent(state, network) || network->Phase != 2 ||
-                    !StartNativeWritableDisk(state)) return false;
+                    !LinuxText(state, "TEST_START m16.027\r\n") || !StartNativeWritableDisk(state)) return false;
                 uint pid = state->LinuxDescriptors.Owner.PackageProcessId;
                 for (uint turn = 0; turn < 3_000_000; turn++)
                 {
