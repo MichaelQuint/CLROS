@@ -3,6 +3,17 @@ namespace OS.Tooling;
 public static partial class EfiContracts
 {
     public static IReadOnlyList<string> ReviewedSourceIncludes { get; } = Array.AsReadOnly<string>([
+        @"..\OS.Kernel\Storage\WritableBlockSession.cs",
+        @"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs",
+        @"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs",
+        @"..\OS.Kernel\Storage\WritableBlockReadPort.cs",
+        @"..\OS.Kernel\Storage\Fat32Mutation.Encoder.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs",
+        @"Boot\EfiEntry.LinuxUserCarrier.cs",
+        @"Boot\EfiEntry.WritableDisk.cs",
+        @"Boot\EfiEntry.WritableDiskEvidence.cs",
         @"Boot\EfiEntry.StaticFiles.cs", @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStaticFileObservation.cs",
         @"..\OS.Kernel\Manifest\LinuxAppConfiguration.cs",
         @"..\..\std\no-runtime\shared\Text\AsciiHexParser.Pointer.cs",

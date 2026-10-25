@@ -51,11 +51,11 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "4530ed2737997bc55d6a7cf85195e0a33a49d9d715d3a912fff2ed9c935b444a";
-    public const string CanonicalProjectSha256 = "6b7202ff76e45a06d0319c26e02d6add85154d4605bbc618021ba3e0d6afe1a0";
-    // Step1582 reviews the three M10-018 preprocessor extensions for fresh
-    // M02/M04 source admission. Historical artifacts keep their original hashes.
-    public const string EfiEntrySourceSha256 = "7f0d3f3996d12f50fbd2f32d9fea701aa781468f981864e7c82975273380f9f6";
+    public const string ProjectSourceSha256 = "fd1b8ac3197b977bb321d4921e9e160d106cdbbc623839558803b674315aacdc";
+    public const string CanonicalProjectSha256 = "5c66ec2759cdb28bd28ba76c053a5c53c66cf0cd9c49ff32c3601130a20244fa";
+    // Review the selected M16-027 writable-owner sources and entry boundary.
+    // Historical artifacts retain their original project and source identities.
+    public const string EfiEntrySourceSha256 = "0fb413f7fc4e66a11becdcf40cac3960b2b003a534ba852d36373b9d71e006e2";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -379,6 +379,17 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadRun.cs|",
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",
         @"Boot\EfiEntry.LinuxSockets.cs|",
+        @"..\OS.Kernel\Storage\WritableBlockSession.cs|Storage\WritableBlockSession.cs",
+        @"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs|Storage\ContinuingFat32Mutation.cs",
+        @"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs|Storage\ContinuingFat32Bootstrap.cs",
+        @"..\OS.Kernel\Storage\WritableBlockReadPort.cs|Storage\WritableBlockReadPort.cs",
+        @"..\OS.Kernel\Storage\Fat32Mutation.Encoder.cs|Storage\Fat32Mutation.Encoder.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs|Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs|Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs",
+        @"Boot\EfiEntry.LinuxUserCarrier.cs|",
+        @"Boot\EfiEntry.WritableDisk.cs|",
+        @"Boot\EfiEntry.WritableDiskEvidence.cs|",
         @"Boot\EfiEntry.DiskNative.cs|",
         @"Boot\EfiEntry.DiskBootstrap.cs|",
         @"Boot\EfiEntry.DiskEvidence.cs|",

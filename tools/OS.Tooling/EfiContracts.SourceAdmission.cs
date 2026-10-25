@@ -3,6 +3,17 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Storage\WritableBlockSession.cs"] = "reviewed_m16_027_writable_block_owner_source_identity",
+        [@"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs"] = "reviewed_m16_027_continuing_fat32_mutation_source_identity",
+        [@"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs"] = "reviewed_m16_027_continuing_fat32_bootstrap_source_identity",
+        [@"..\OS.Kernel\Storage\WritableBlockReadPort.cs"] = "reviewed_m16_027_borrowed_read_port_source_identity",
+        [@"..\OS.Kernel\Storage\Fat32Mutation.Encoder.cs"] = "reviewed_m16_027_fat32_entry_encoder_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs"] = "reviewed_m16_027_continuing_writable_provider_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs"] = "reviewed_m16_027_writable_descriptor_adapter_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs"] = "reviewed_m16_027_writable_thread_continuation_source_identity",
+        [@"Boot\EfiEntry.LinuxUserCarrier.cs"] = "reviewed_m16_027_bounded_user_callback_carrier_source_identity",
+        [@"Boot\EfiEntry.WritableDisk.cs"] = "reviewed_m16_027_native_writable_owner_source_identity",
+        [@"Boot\EfiEntry.WritableDiskEvidence.cs"] = "reviewed_m16_027_native_writable_observation_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "reviewed_source4_wait_output_ceiling_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "reviewed_disk_descriptor_generation_close_drain_identity",
         [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "reviewed_confined_fat_files_cache_cursor_identity",

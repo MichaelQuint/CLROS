@@ -162,6 +162,17 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"..\OS.Kernel\Storage\WritableBlockSession.cs|Storage\WritableBlockSession.cs" or
+            @"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs|Storage\ContinuingFat32Mutation.cs" or
+            @"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs|Storage\ContinuingFat32Bootstrap.cs" or
+            @"..\OS.Kernel\Storage\WritableBlockReadPort.cs|Storage\WritableBlockReadPort.cs" or
+            @"..\OS.Kernel\Storage\Fat32Mutation.Encoder.cs|Storage\Fat32Mutation.Encoder.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs|Compatibility\LinuxX64\LinuxContinuingWritableDescriptorServices.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs|Compatibility\LinuxX64\LinuxDescriptorServices.WritableDisk.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs|Compatibility\LinuxX64\LinuxThreadServices.WritableDisk.cs" or
+            @"Boot\EfiEntry.LinuxUserCarrier.cs|" or
+            @"Boot\EfiEntry.WritableDisk.cs|" or
+            @"Boot\EfiEntry.WritableDiskEvidence.cs|" => profile.IsEnabled("EnableM16027Probe"),
             @"Boot\EfiEntry.DiskNative.cs|" or
             @"Boot\EfiEntry.DiskBootstrap.cs|" or
             @"Boot\EfiEntry.DiskEvidence.cs|" or
