@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Step1612 joins current paired/FS/HTTP host checks, large synthetic SQLite-footprint controls and the preserved Linuxr02 failure archive. Storage/network/application docs describe their respective contracts; allocation, actual native activation, guest persistence and SQLite durability remain separate gates.
 
 [Step1610](../done/step1610.md) Step1610 owns the successful original v5r13 and exact poll-cause/stack observations, integrated007884f4 HTTP ownership repair and preserved managed lease collision. Diagnostics/EFI/QEMU retain original boundaries; application/host/storage/PAL/security docs distinguish retained historical evidence from current input authority. Both agents continue next bounded integration planning.

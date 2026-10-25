@@ -1,5 +1,7 @@
 # Storage
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Both current paired30 and shared FS13 lifetime controls pass on the integrated base. Synthetic303104B DB/310816B journal footprints use150positioned writes/755fakeFLUSH, exact592+608clusters, fresh B/C/W owner and strict extraction. Explicit1M traversal work passes;100k rejects beforeOUT. These are synthetic host geometry/capacity controls, with no valid SQLite execution, physical persistence or guest write acceptance.
 
 [Step1610](../done/step1610.md) V5r13 serves exact64KiB and joins deliberate cancellation; no full read/browser or writable guest gate advances. Repaired HTTP reference holds actual current static-link inputs before publication and all fresh runtime/object/ELF inputs afterward, while preserving the original archive separately. Fresh Linuxr02, actual guest writes/reboot and SQLite synchronization/recovery remain pending.

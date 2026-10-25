@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Current paired30/sharedFS13 and managedHTTP17 controls pass, with two synthetic large-footprint controls and17manifest checks. Complete outer ownership/native carrier and emitted lifecycle qualification remain prerequisites. Source-onlyP is staged; its ordinary allocation experiment remains failed, unchanged/unimported and OPEN. No accepted native profile or guest gate is expanded.
 
 [Step1610](../done/step1610.md) Actual v5r13 preserves unchanged server/package bytes and service/audit/flush/time policy, then intentionally cancels/joins. The cause distribution is attribution rather than production optimization. The repaired explicit LinuxHTTP reference retains two fresh publications and independent verification. No accepted application profile or continuously functioning read/write/SQLite goal changes.

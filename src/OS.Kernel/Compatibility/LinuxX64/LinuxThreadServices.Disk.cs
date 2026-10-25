@@ -17,6 +17,121 @@ public unsafe partial struct LinuxThreadServices
         public ulong DiskReady, OtherReady, NoAdvance, Elapsed, StepLimit, Failures, FlushedPastBudget;
     }
 
+    /// <summary>Diagnostic arithmetic only: one serialized zeroed value follows
+    /// real outer dispatch entry/return and an explicitly armed/frozen window.
+    /// Times and cumulative poll totals come from the owner; they authorize no
+    /// skipped check, callback, scheduling, I/O or user copy. A rejected event
+    /// permanently invalidates this value. Freeze clips a currently active
+    /// dispatch at that observed boundary; its later physical return cannot
+    /// change the frozen totals. Retain the value until that return. No pointer,
+    /// clock callback, allocation or per-event output is retained or performed.</summary>
+    public struct DiskDispatchMeasurements
+    {
+        private ulong _lastTime, _lastPoll, _phaseStart, _phasePoll;
+        private ulong _segmentStart, _segmentPoll, _dispatch, _nested, _completed, _clipped;
+        private ulong _elapsed, _poll, _nextSequence, _activeSequence;
+        private byte _phase, _active, _clippedStart, _failed, _pollActive, _physicalAtFreeze;
+
+        public readonly bool IsComplete => _phase == 2 && _failed == 0;
+        public readonly bool IsPhysicalDispatchActive => _active != 0;
+
+        public bool BeginDispatch(ulong now, ulong cumulativePoll, out ulong sequence)
+        {
+            sequence = 0;
+            if (_active != 0 || _pollActive != 0 || _phase == 2 || _nextSequence == ulong.MaxValue || !Observe(now, cumulativePoll)) return Reject();
+            _active = 1; _clippedStart = 0;
+            _activeSequence = ++_nextSequence; sequence = _activeSequence;
+            if (_phase == 1) { _segmentStart = now; _segmentPoll = cumulativePoll; }
+            return true;
+        }
+
+        public bool Arm(ulong now, ulong cumulativePoll)
+        {
+            if (_phase != 0 || _pollActive != 0 || !Observe(now, cumulativePoll)) return Reject();
+            _phase = 1; _phaseStart = now; _phasePoll = cumulativePoll;
+            if (_active != 0) { _segmentStart = now; _segmentPoll = cumulativePoll; _clippedStart = 1; }
+            return true;
+        }
+
+        public bool EndDispatch(ulong sequence, ulong now, ulong cumulativePoll)
+        {
+            if (_active != 1 || _pollActive != 0 || sequence == 0 || sequence != _activeSequence ||
+                _phase == 2 && cumulativePoll != _lastPoll || !Observe(now, cumulativePoll)) return Reject();
+            if (_phase == 1 && !AddSegment(now, cumulativePoll, _clippedStart != 0)) return false;
+            _active = 0; _clippedStart = 0; _activeSequence = 0;
+            return true;
+        }
+
+        public bool Freeze(ulong now, ulong cumulativePoll)
+        {
+            if (_phase != 1 || _pollActive != 0 || !Observe(now, cumulativePoll) || now < _phaseStart) return Reject();
+            if (_active != 0 && !AddSegment(now, cumulativePoll, true)) return false;
+            ulong elapsed = now - _phaseStart, poll = cumulativePoll - _phasePoll;
+            if (poll > elapsed || _nested > poll || _nested > _dispatch || _dispatch - _nested > elapsed - poll) return Reject();
+            _elapsed = elapsed; _poll = poll; _physicalAtFreeze = _active; _phase = 2;
+            return true;
+        }
+
+        // v5 publishes cumulative poll duration only at its successful return.
+        // Track its actual entry even before Arm; neither boundary may silently
+        // omit a poll crossing that event. Caller skips tracking after Freeze.
+        public bool BeginPoll()
+        {
+            if (_failed != 0 || _phase == 2 || _pollActive != 0) return Reject();
+            _pollActive = 1; return true;
+        }
+        public bool EndPoll()
+        {
+            if (_failed != 0 || _pollActive != 1) return Reject();
+            _pollActive = 0; return true;
+        }
+
+        /// <summary>Copy only a successfully frozen partition. The completed
+        /// and clipped counts are exclusive; an envelope crossing both window
+        /// boundaries counts once as clipped. DispatchNonPoll includes guest
+        /// execution AND kernel validation, transitions and synchronous logging;
+        /// it is not pure guest CPU. Poll includes both nested and supervisor
+        /// calls exactly once. Missing Freeze never supplies a complete result.</summary>
+        public readonly bool Inspect(out DiskDispatchTotals totals)
+        {
+            totals = _phase == 2 ? new(_elapsed, _poll, _dispatch, _nested, _completed, _clipped, _physicalAtFreeze != 0) : default;
+            return IsComplete;
+        }
+
+        private bool AddSegment(ulong now, ulong poll, bool clipped)
+        {
+            if (now < _segmentStart || poll < _segmentPoll) return Reject();
+            ulong elapsed = now - _segmentStart, nested = poll - _segmentPoll;
+            if (nested > elapsed) return Reject();
+            if (elapsed == 0) return true; // Empty half-open boundary contributes no envelope.
+            if (_dispatch > ulong.MaxValue - elapsed || _nested > ulong.MaxValue - nested ||
+                clipped && _clipped == ulong.MaxValue || !clipped && _completed == ulong.MaxValue) return Reject();
+            _dispatch += elapsed; _nested += nested;
+            if (clipped) _clipped++; else _completed++;
+            return true;
+        }
+        private bool Observe(ulong now, ulong poll)
+        {
+            if (_failed != 0 || now < _lastTime || poll < _lastPoll) return Reject();
+            _lastTime = now; _lastPoll = poll; return true;
+        }
+        private bool Reject() { _failed = 1; return false; }
+    }
+
+    /// <summary>Copied frozen phase partition, without callback, lifetime or
+    /// dispatch-return authority. A default value represents no observation.</summary>
+    public readonly struct DiskDispatchTotals
+    {
+        public readonly ulong PhaseNanoseconds, PollNanoseconds, DispatchNanoseconds, NestedPollNanoseconds;
+        public readonly ulong CompletedEnvelopes, ClippedEnvelopes;
+        public readonly bool PhysicalDispatchActiveAtFreeze;
+        public ulong DispatchNonPollNanoseconds => DispatchNanoseconds - NestedPollNanoseconds;
+        public ulong SupervisorNonPollNanoseconds => PhaseNanoseconds - PollNanoseconds - DispatchNonPollNanoseconds;
+        internal DiskDispatchTotals(ulong phase, ulong poll, ulong dispatch, ulong nested, ulong completed, ulong clipped, bool physicalActive)
+        { PhaseNanoseconds = phase; PollNanoseconds = poll; DispatchNanoseconds = dispatch; NestedPollNanoseconds = nested;
+            CompletedEnvelopes = completed; ClippedEnvelopes = clipped; PhysicalDispatchActiveAtFreeze = physicalActive; }
+    }
+
     /// <summary>Trusted serialized supervisor callbacks, borrowed for this
     /// invocation only. Both must be null for one-step mode, or nonnull with a
     /// stable Context. Clock returns monotonic nanoseconds; Flush retains each

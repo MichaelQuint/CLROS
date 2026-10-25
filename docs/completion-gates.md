@@ -1,5 +1,7 @@
 # CLROS Completion Gates
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) 79 distinct focused checks support current host preparation only: paired30, shared FS13, HTTP17, footprint2 and manifest17. Original LinuxHTTP r02 remains failed after successful publication/before app execution; its archived56files/53declared hashes are verified. No browser/guest write/reboot/SQLite durability or complete service gate advances.
 
 [Step1610](../done/step1610.md) V5r13 passes the short diagnostic with FullAndCleanupQualified=false; all19original identities and42metric fields are verified.007884 HTTP repair passes16HTTP and7console checks, with the first lease-collision failure preserved. No full/ordinary-cleanup/Blazor, guest write/reboot/SQLite/durability gate or issue closes. Fresh Linuxr02 is next; stable full-host/threeA-B/browser/ancestor/native review gates remain required.

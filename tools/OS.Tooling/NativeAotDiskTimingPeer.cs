@@ -16,6 +16,9 @@ public static class NativeAotDiskTimingPeer
 {
     public const string Target = "/_framework/System.Private.CoreLib.wasm";
     public const string Marker = "M10_018_TIMING ";
+    public const string DispatchMarker = "M10_018_DISPATCH ";
+    private static readonly string[] DispatchFields = ["bytes", "phaseNs", "pollNs", "dispatchNs", "nestedPollNs",
+        "dispatchNonPollNs", "supervisorNonPollNs", "completed", "clipped", "physicalActive", "phaseComplete"];
     private static readonly string[] Fields = ["bytes", "calls", "steps", "pumpNs", "scanNs", "flushNs",
         "preNetworkNs", "postNetworkNs", "postReadinessNs", "readinessRefreshNs", "readinessWaitScanNs", "postWaitRecordNs", "networkCalls", "diskReady", "otherReady", "noAdvance",
         "elapsed", "stepLimit", "failures", "flushedPastBudget", "pollNs", "diskRoundNs",
@@ -78,6 +81,36 @@ public static class NativeAotDiskTimingPeer
         return new System.Collections.ObjectModel.ReadOnlyDictionary<string,ulong>(values);
     }
 
+    /// <summary>Validate a separate phase-complete dispatch partition against
+    /// the unchanged v5 poll record. Physical activity at Freeze is explicit;
+    /// neither record proves dispatch return or guest shutdown. Copied values
+    /// grant no original source, native, runner or execution authority.</summary>
+    public static IReadOnlyDictionary<string, ulong> InspectDispatchMetrics(string text, IReadOnlyDictionary<string, ulong> pollMetrics)
+    {
+        Need(text.Length <= 32 * 1024 * 1024, "dispatch_extent");
+        string[] lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')
+            .Where(line => line.StartsWith(DispatchMarker, StringComparison.Ordinal)).ToArray();
+        Need(lines.Length == 1 && lines[0].Length <= 1024, "dispatch_count");
+        string[] tokens = lines[0][DispatchMarker.Length..].Split(' '); Need(tokens.Length == DispatchFields.Length, "dispatch_fields");
+        Dictionary<string, ulong> values = new(StringComparer.Ordinal);
+        for (int i = 0; i < DispatchFields.Length; i++)
+        {
+            string prefix = DispatchFields[i] + "="; Need(tokens[i].StartsWith(prefix, StringComparison.Ordinal), "dispatch_field");
+            string number = tokens[i][prefix.Length..];
+            Need(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') &&
+                ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "dispatch_number");
+            values.Add(DispatchFields[i], ulong.Parse(number, CultureInfo.InvariantCulture));
+        }
+        ulong phase = values["phaseNs"], poll = values["pollNs"], dispatch = values["dispatchNs"], nested = values["nestedPollNs"];
+        Need(values["bytes"] == 65536 && phase > 0 && pollMetrics.TryGetValue("pollNs", out ulong oldPoll) && oldPoll == poll &&
+            poll <= phase && dispatch <= phase && nested <= poll && nested <= dispatch &&
+            values["dispatchNonPollNs"] == dispatch - nested && dispatch - nested <= phase - poll &&
+            values["supervisorNonPollNs"] == phase - poll - (dispatch - nested) &&
+            values["completed"] <= 10_000_000 && values["clipped"] is > 0 and <= 2 &&
+            values["physicalActive"] == 1 && values["phaseComplete"] == 1, "dispatch_partition");
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<string, ulong>(values);
+    }
+
     /// <summary>Leaves thirty seconds inside the admitted runner deadline for
     /// owned cancellation and joining; the diagnostic itself never exceeds480s.</summary>
     public static int PeerTimeoutSeconds(int runnerTimeoutSeconds)
@@ -107,7 +140,7 @@ public static class NativeAotDiskTimingPeer
         using var owned=CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);deadline.CancelAfter(TimeSpan.FromSeconds(peerTimeoutSeconds));
         Task<ProcessResult> runner=runRunner(port,owned.Token);Task? peer=null;bool complete=false;List<object> rows=[];
-        IReadOnlyDictionary<string,ulong>? metrics=null;string? failure=null;
+        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null;string? failure=null;
         try
         {
             peer=Observe();
@@ -115,6 +148,13 @@ public static class NativeAotDiskTimingPeer
             await peer;cancellation.ThrowIfCancellationRequested();
             owned.Cancel();var joined=await runner;
             Need(joined.Cancelled && joined.TerminationConfirmed && !joined.TimedOut && !joined.OutputLimitExceeded,"runner_join");
+            // A frozen phase line cannot erase a later physical-End failure.
+            // Re-read only after the original runner joins; keep frozen values
+            // but fail the diagnostic if later guest bookkeeping failed.
+            string finalSerial = await ReadSerial(CancellationToken.None);
+            InspectGuestStatus(finalSerial);
+            Need(metrics is not null && dispatchMetrics is not null && InspectMetrics(finalSerial).SequenceEqual(metrics) &&
+                InspectDispatchMetrics(finalSerial, metrics).SequenceEqual(dispatchMetrics), "final_metrics_changed");
             using Socket stopped=new(AddressFamily.InterNetwork,SocketType.Stream,ProtocolType.Tcp);
             using var refusal=new CancellationTokenSource(TimeSpan.FromSeconds(5));bool refused=false;
             try{await stopped.ConnectAsync(IPAddress.Loopback,port,refusal.Token);}
@@ -133,10 +173,10 @@ public static class NativeAotDiskTimingPeer
             try
             {
                 using FileStream receipt=new(Path.Combine(directory,"diagnostic.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v5",Scope="diagnostic-only",Complete=complete,
+                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v6",Scope="diagnostic-only",Complete=complete,
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
-                    Responses=rows,Metrics=metrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
+                    Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
                 receipt.Flush(true);
             }
             catch(IOException){}catch(UnauthorizedAccessException){}
@@ -155,12 +195,10 @@ public static class NativeAotDiskTimingPeer
             while(true)
             {
                 deadline.Token.ThrowIfCancellationRequested();
-                using FileStream input=new(serial,FileMode.Open,FileAccess.Read,FileShare.ReadWrite);
-                Need(input.Length<=32*1024*1024,"serial_extent");using StreamReader reader=new(input,Encoding.UTF8,false);
-                string text=await reader.ReadToEndAsync(deadline.Token);
-                Need(!text.Contains("TEST_FAIL",StringComparison.Ordinal) && !text.Contains("M16_008_STOP ",StringComparison.Ordinal),"guest_failure");
-                if(text.Split('\n').Any(line=>line.StartsWith(Marker,StringComparison.Ordinal)) &&
-                    text.LastIndexOf('\n')>text.IndexOf(Marker,StringComparison.Ordinal)){metrics=InspectMetrics(text);break;}
+                string text = await ReadSerial(deadline.Token); InspectGuestStatus(text);
+                if(text.Split('\n').Any(line=>line.StartsWith(DispatchMarker,StringComparison.Ordinal)) &&
+                    text.LastIndexOf('\n')>text.IndexOf(DispatchMarker,StringComparison.Ordinal))
+                { metrics=InspectMetrics(text);dispatchMetrics=InspectDispatchMetrics(text,metrics);break; }
                 await Task.Delay(50,deadline.Token);
             }
 
@@ -186,6 +224,15 @@ public static class NativeAotDiskTimingPeer
                         (ranged?response.Content.Headers.ContentRange?.ToString()=="bytes 0-65535/"+asset.Bytes:response.Content.Headers.ContentRange is null),"metadata");
             }
         }
+
+        async Task<string> ReadSerial(CancellationToken token)
+        {
+            using FileStream input = new(serial, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            Need(input.Length <= 32 * 1024 * 1024, "serial_extent");
+            using StreamReader reader = new(input, Encoding.UTF8, false); return await reader.ReadToEndAsync(token);
+        }
+        void InspectGuestStatus(string text) => Need(!text.Contains("TEST_FAIL", StringComparison.Ordinal) &&
+            !text.Contains("M16_008_STOP ", StringComparison.Ordinal), "guest_failure");
     }
 
     private static void Need(bool valid,string reason){if(!valid)throw new ToolFailure("disk_timing_"+reason);}

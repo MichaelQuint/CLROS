@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Frozen LinuxHTTP r02 archives56files/53declared outputs with Complete=false; publication succeeds but input retention rejects a legitimate0B marker before app execution. The reviewed narrow fix keeps every row held and verified. Originalv5r13 and failed fullBlazor remain unchanged; the separately developed phase-clipped dispatch diagnostic is not imported or run here.
 
 [Step1610](../done/step1610.md) Original v5r13 conserves2053calls and22.1226843s wholepoll=4.3650485pre+12.0609952WHOLEdisk+5.6966406post. Clock668/7.1349208s, other364/3.3509460s, supervisor719/7.9647914s, idle302/3.6720261s. Root independently hashes19originals and all exact sums. Polling does not account for the entire active phase; next attribution must bound the complete dispatch envelope before a production policy. No interval is relabelled pure guest CPU.
@@ -2422,6 +2424,38 @@ it has all 73 ordered/unique markers and no post-terminal bytes. Fourteen altere
 copies and unselected-profile replay are rejected by the production parser on
 the host; these are not additional guest executions. Explicit profile selection
 and collecting-GC ancestry remain required. The fixture runs before firmware exit.
+
+## Disk dispatch timing window
+
+The explicit disk-read timing profile retains its original42-field
+`M10_018_TIMING` record. A separate11-field `M10_018_DISPATCH` record partitions
+the same listen-to-final65536B-copy window. The peer's v6 receipt requires both
+records and exact conservation:
+
+```text
+phaseNs = pollNs + dispatchNonPollNs + supervisorNonPollNs
+dispatchNonPollNs = dispatchNs - nestedPollNs
+```
+
+The complete supervisor dispatch invocation includes guest execution, kernel
+checks, transitions and synchronous logging. It is not pure guest CPU time.
+Nested polls are counted once. Entry/return sequences reject overlap, missing
+or wrong returns, regressing clocks/counters and overflow. Arm/Freeze reject an
+in-flight poll because its cumulative duration is published only on return.
+
+An invocation crossing either measurement boundary contributes only its
+intersection with the half-open window. One invocation crossing both counts
+once as clipped; an empty intersection contributes no envelope. The actual
+final-copy hook freezes before both aggregate dumps. `phaseComplete=1` means
+the measured partition is complete; `physicalActive=1` explicitly records that
+the containing dispatch has not yet returned. Its later return validates and
+clears the original sequence without changing frozen totals. A late fault still
+fails the owner, and the peer checks final serial status again after runner join.
+
+The new arithmetic/parser/loopback tests establish host diagnostic contracts.
+Fresh committed native compilation, original emitted ABI/frame review and an
+actual guest run remain required. The diagnostic still uses deliberate joined
+cancellation and does not qualify normal shutdown, full Blazor or persistence.
 
 ## Owned subsystem result and panic profiles
 

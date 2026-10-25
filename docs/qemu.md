@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Current paired30/sharedFS13 are host fixtures using fake media, not QEMU writes. Original LinuxHTTP r02 is separately joined failed, process audit0 and archive hashes verified; a freshr03 follows the empty-input repair. No new guest boot/browser/persistence or cleanup qualification is claimed.
 
 [Step1610](../done/step1610.md) Original v5r13 at830ef44c passes four responses/exact64KiB30.930s and joined intentional cancellation/refusal; all19originals retained. EFI BADFE2F1...08D3E, imageDC3F63E473655374868B4166FEF6B141CE55A21D09B55353C26EEC94A854A9DF, package unchanged. Root serializes repaired fresh LinuxHTTP r02 next; no full Blazor/ordinary cleanup qualification follows.

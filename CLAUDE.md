@@ -84,6 +84,8 @@ Step1571 adds complete mechanical readonly disk captures; step1580 qualifies
 the five-response disk/static development consumer. Full Blazor/browser and
 sustained-service acceptance remain open.
 
+Step1613 adds a separate phase-complete dispatch diagnostic with34 focused Fast passes; actual native timing remains pending. Its frozen totals do not prove physical dispatch return or guest cleanup.
+
 Step1612's paired writable block/filesystem/TCP controls are host preparation,
 including fake media and managed HTTP processes. Complete native writable
 carriers, source5 integration, emitted closure/lifetime, guest writes/reboot

@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1613](done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](done/step1612.md) Step1612 has79 distinct focused passes: paired30, shared FS13, HTTP17, large-footprint2 and backlog17. Use explicit --lane full with filtered Native-labelled fixtures; default filtering runs Fast only. Source-onlyP staging is integrated, while its entire failed ordinary allocation experiment stays unchanged/unimported and OPEN. Outer-owner work and native activation are separate. Serialize the next LinuxHTTP r03 with the subagent Native-host lane.
 
 [Step1610](done/step1610.md) Preserve original v5r13 at830ef44c as diagnostic-only: all42fields/count/stage sums and19original hashes verified, joined cancellation, no full cleanup/Blazor gate. Integrated007884f4 repairs HTTP archived-recipe/current-input ownership;16HTTP and7console checks pass after serializing their managed qualification lease. Root next freezes/runs fresh Linuxr02. Both agents prepare exact outer-owner and writable-image-fit slices; no native competitor, allocation rerun or hidden tolerance change.

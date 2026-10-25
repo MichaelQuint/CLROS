@@ -2,14 +2,114 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using OS.Tooling;
+using OS.Kernel.Compatibility.LinuxX64;
+using System.Runtime.CompilerServices;
 
 internal static class NativeAotDiskTimingPeerTests
 {
+    [HostTest("dispatch window partitions completed envelopes and supervisor polls without subtracting nested polls twice")]
+    private static void DispatchPartition()
+    {
+        LinuxThreadServices.DiskDispatchMeasurements m = default;
+        ulong first = 0, second = 0; LinuxThreadServices.DiskDispatchTotals t = default;
+        HostCheck.True(m.Arm(100, 50) && m.BeginDispatch(110, 53, out first));
+        HostCheck.True(m.BeginPoll() && m.EndPoll() && m.EndDispatch(first, 150, 63));
+        HostCheck.True(m.BeginDispatch(160, 67, out second) && second != first && m.EndDispatch(second, 180, 71));
+        HostCheck.True(m.Freeze(200, 75) && m.Inspect(out t));
+        Partition(t, 100, 25, 60, 14, 2, 0, false);
+    }
+
+    [HostTest("dispatch window clips either boundary and one envelope crossing both only once with frozen delayed-return totals")]
+    private static void DispatchClips()
+    {
+        ulong first = 0, last = 0, across = 0; LinuxThreadServices.DiskDispatchTotals s = default, e = default, b = default;
+        LinuxThreadServices.DiskDispatchMeasurements start = default;
+        HostCheck.True(start.BeginDispatch(90, 0, out first) && start.Arm(100, 0) && start.EndDispatch(first, 130, 6));
+        HostCheck.True(!start.Inspect(out _) && start.Freeze(150, 10) && start.Inspect(out s));
+        Partition(s, 50, 10, 30, 6, 0, 1, false);
+
+        LinuxThreadServices.DiskDispatchMeasurements end = default;
+        HostCheck.True(end.Arm(100, 0) && end.BeginDispatch(120, 3, out last) && end.Freeze(160, 8) && end.Inspect(out e));
+        Partition(e, 60, 8, 40, 5, 0, 1, true); HostCheck.True(end.IsPhysicalDispatchActive);
+        HostCheck.True(end.EndDispatch(last, 999, 8) && !end.IsPhysicalDispatchActive && end.Inspect(out e));
+        Partition(e, 60, 8, 40, 5, 0, 1, true);
+        HostCheck.True(!end.EndDispatch(last, 1000, 8) && !end.Inspect(out e));
+        Partition(e, 60, 8, 40, 5, 0, 1, true); // Late bookkeeping fault revokes completion, preserves frozen numbers.
+
+        LinuxThreadServices.DiskDispatchMeasurements both = default;
+        HostCheck.True(both.BeginDispatch(90, 0, out across) && both.Arm(100, 0) && both.Freeze(150, 10) && both.Inspect(out b));
+        Partition(b, 50, 10, 50, 10, 0, 1, true);
+        HostCheck.True(both.EndDispatch(across, 155, 10) && both.Inspect(out b)); Partition(b, 50, 10, 50, 10, 0, 1, true);
+    }
+
+    [HostTest("dispatch window half-open zero-length boundaries add no envelope and missing freeze never completes")]
+    private static void DispatchHalfOpen()
+    {
+        LinuxThreadServices.DiskDispatchMeasurements m = default;
+        ulong sequence = 0; LinuxThreadServices.DiskDispatchTotals t = default;
+        HostCheck.True(m.Arm(100, 0) && m.BeginDispatch(150, 2, out sequence) && !m.Inspect(out _));
+        HostCheck.True(m.Freeze(150, 2) && m.Inspect(out t)); Partition(t, 50, 2, 0, 0, 0, 0, true);
+        HostCheck.True(m.EndDispatch(sequence, 200, 2) && m.Inspect(out t)); Partition(t, 50, 2, 0, 0, 0, 0, true);
+        LinuxThreadServices.DiskDispatchMeasurements zero = default;
+        HostCheck.True(zero.Arm(1000, 2) && zero.Freeze(1000, 2) && zero.Inspect(out t)); Partition(t, 0, 0, 0, 0, 0, 0, false);
+    }
+
+    [HostTest("dispatch window rejects overlapping wrong or missing ends poll-crossing boundaries rollback overflow and impossible partitions")]
+    private static void DispatchRejections()
+    {
+        ulong sequence = 0;
+        LinuxThreadServices.DiskDispatchMeasurements overlap = default;
+        HostCheck.True(overlap.BeginDispatch(10, 0, out _) && !overlap.BeginDispatch(11, 0, out _) && !overlap.IsComplete);
+        LinuxThreadServices.DiskDispatchMeasurements wrong = default;
+        HostCheck.True(wrong.Arm(10, 0) && wrong.BeginDispatch(11, 0, out sequence) && !wrong.EndDispatch(sequence + 1, 12, 0));
+        LinuxThreadServices.DiskDispatchMeasurements poll = default;
+        HostCheck.True(poll.BeginPoll() && !poll.Arm(10, 0) && !poll.IsComplete);
+        poll = default; HostCheck.True(poll.Arm(10, 0) && poll.BeginPoll() && !poll.Freeze(20, 0));
+        poll = default; HostCheck.True(!poll.EndPoll());
+        LinuxThreadServices.DiskDispatchMeasurements time = default;
+        HostCheck.True(time.Arm(10, 10) && !time.Freeze(9, 10));
+        time = default; HostCheck.True(time.Arm(10, 10) && !time.Freeze(20, 9));
+        time = default; HostCheck.True(time.Arm(10, 0) && !time.Freeze(20, 11));
+        time = default; HostCheck.True(time.Arm(10, 0) && time.BeginDispatch(11, 0, out sequence) && !time.EndDispatch(sequence, 12, 2));
+        LinuxThreadServices.DiskDispatchMeasurements counter = default;
+        HostCheck.True(counter.Arm(0, 0) && counter.BeginDispatch(1, 0, out sequence));
+        CompletedDispatchCount(ref counter) = ulong.MaxValue; HostCheck.True(!counter.EndDispatch(sequence, 2, 0));
+    }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_completed")]
+    private static extern ref ulong CompletedDispatchCount(ref LinuxThreadServices.DiskDispatchMeasurements value);
+
+    private static void Partition(LinuxThreadServices.DiskDispatchTotals t, ulong phase, ulong poll, ulong dispatch, ulong nested, ulong completed, ulong clipped, bool active)
+    {
+        HostCheck.True(t.PhaseNanoseconds == phase && t.PollNanoseconds == poll && t.DispatchNanoseconds == dispatch &&
+            t.NestedPollNanoseconds == nested && t.CompletedEnvelopes == completed && t.ClippedEnvelopes == clipped && t.PhysicalDispatchActiveAtFreeze == active);
+        HostCheck.Equal(t.PhaseNanoseconds, t.PollNanoseconds + t.DispatchNonPollNanoseconds + t.SupervisorNonPollNanoseconds);
+    }
+
     private const string MetricsV4="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 postReadinessNs=300 readinessRefreshNs=100 readinessWaitScanNs=200 postWaitRecordNs=500 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0";
     private const string Metrics=MetricsV4+" pollNs=11200 diskRoundNs=9600 clockCalls=8 clockNs=11200 clockPreNs=800 clockDiskNs=9600 clockPostNs=800"+
         " syscallCalls=0 syscallNs=0 syscallPreNs=0 syscallDiskNs=0 syscallPostNs=0"+
         " supervisorCalls=0 supervisorNs=0 supervisorPreNs=0 supervisorDiskNs=0 supervisorPostNs=0"+
         " idleCalls=0 idleNs=0 idlePreNs=0 idleDiskNs=0 idlePostNs=0\r\n";
+    private const string Dispatch = "M10_018_DISPATCH bytes=65536 phaseNs=20000 pollNs=11200 dispatchNs=16000 nestedPollNs=10000 dispatchNonPollNs=6000 supervisorNonPollNs=2800 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
+
+    [HostTest("dispatch aggregate requires separate complete bounded conservation matching unchanged v5 polls and explicit active physical dispatch")]
+    private static void DispatchAggregate()
+    {
+        var polls = NativeAotDiskTimingPeer.InspectMetrics(Metrics);
+        HostCheck.Equal(20000UL, NativeAotDiskTimingPeer.InspectDispatchMetrics(Metrics + Dispatch, polls)["phaseNs"]);
+        foreach (string bad in new[] { Metrics, Dispatch + Dispatch, Dispatch.Replace("phaseNs=20000", "phaseNs=0"),
+            Dispatch.Replace("pollNs=11200", "pollNs=11201"), Dispatch.Replace("nestedPollNs=10000", "nestedPollNs=11201"),
+            Dispatch.Replace("dispatchNs=16000", "dispatchNs=20001"), Dispatch.Replace("dispatchNonPollNs=6000", "dispatchNonPollNs=5999"),
+            Dispatch.Replace("supervisorNonPollNs=2800", "supervisorNonPollNs=2801"), Dispatch.Replace("completed=2", "completed=02"),
+            Dispatch.Replace("clipped=2", "clipped=3"), Dispatch.Replace("physicalActive=1", "physicalActive=0"),
+            Dispatch.Replace("phaseComplete=1", "phaseComplete=0"), Dispatch.Replace("phaseNs=20000", "phaseNs=18446744073709551616"),
+            Dispatch.Replace(" nestedPollNs=10000", ""), Dispatch.Replace("clipped=2", "clipped=2 clipped=2") })
+        {
+            bool rejected = false; try { _ = NativeAotDiskTimingPeer.InspectDispatchMetrics(bad, polls); } catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected, bad);
+        }
+    }
 
     [HostTest("timing aggregate rejects duplicates overflow missing and nonexclusive yield reasons")]
     private static void Aggregate()
@@ -128,7 +228,7 @@ internal static class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","body","etag","metrics","unconfirmed"})
+        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","late-fault","unconfirmed"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
@@ -151,6 +251,9 @@ internal static class NativeAotDiskTimingPeerTests
             HostCheck.Equal(mode=="good",actual.RootElement.GetProperty("Complete").GetBoolean());
             HostCheck.True(!actual.RootElement.GetProperty("FullAndCleanupQualified").GetBoolean() &&
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
+            HostCheck.Equal("clros-disk-read-timing-v6", actual.RootElement.GetProperty("Schema").GetString()!);
+            if (mode is "good" or "late-fault")
+                HostCheck.Equal(1UL, actual.RootElement.GetProperty("DispatchMetrics").GetProperty("phaseComplete").GetUInt64());
 
             async Task<ProcessResult> Stub(int port,CancellationToken cancellation)
             {
@@ -175,11 +278,15 @@ internal static class NativeAotDiskTimingPeerTests
                         if(range)context.Response.Headers["Content-Range"]="bytes 0-65535/"+core.Length;
                         if(!head)await context.Response.OutputStream.WriteAsync(entity,cancellation);
                         context.Response.Close();
-                        if(i==3)File.AppendAllText(serial,mode=="metrics"?Metrics+Metrics:Metrics);
+                        if(i==3)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
+                            (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch));
                     }
                 }
                 catch(OperationCanceledException)when(cancellation.IsCancellationRequested)
-                {return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};}
+                {
+                    if (mode == "late-fault") File.AppendAllText(serial, "TEST_FAIL disk.dispatch.bookkeeping late_end\r\n");
+                    return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};
+                }
                 finally{exited=true;listener.Stop();}
             }
         }

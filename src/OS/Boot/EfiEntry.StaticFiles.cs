@@ -305,12 +305,17 @@ public static unsafe partial class EfiEntry
                 if (bytes == 0)
                 {
                     if (disk->TimingPhase != 0) return false;
+                    if (!ReadNetworkTime(c->State, out ulong armed) ||
+                        !disk->TimingDispatch.Arm(armed, disk->TimingNetworkTotal)) return false;
                     disk->TimingPhase = 1; return true;
                 }
                 if (disk->TimingPhase == 2) return true;
                 if (disk->TimingPhase != 1 || bytes > 65536 || disk->TimingReadBytes > 65536 - bytes) return false;
                 disk->TimingReadBytes += bytes;
                 if (disk->TimingReadBytes != 65536) return true;
+                if (!ReadNetworkTime(c->State, out ulong frozen) ||
+                    !disk->TimingDispatch.Freeze(frozen, disk->TimingNetworkTotal) ||
+                    !disk->TimingDispatch.Inspect(out var dispatch) || !dispatch.PhysicalDispatchActiveAtFreeze) return false;
                 disk->TimingPhase = 2;
                 var p = disk->TimingPump;
                 if (disk->TimingPostReadiness > ~0UL - disk->TimingPostWaitRecord ||
@@ -362,7 +367,19 @@ public static unsafe partial class EfiEntry
                         !LinuxNumber(c->State, disk->TimingCauseDisk[i]) ||
                         !LinuxText(c->State, i == 0 ? " clockPostNs=" : i == 1 ? " syscallPostNs=" : i == 2 ? " supervisorPostNs=" : " idlePostNs=") ||
                         !LinuxNumber(c->State, disk->TimingCausePost[i])) return false;
-                return LinuxText(c->State, "\r\n");
+                // The original42-field v5 record stays byte-for-byte in its
+                // own schema. This separate partition ends before both dumps.
+                return LinuxText(c->State, "\r\nM10_018_DISPATCH bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
+                    LinuxText(c->State, " phaseNs=") && LinuxNumber(c->State, dispatch.PhaseNanoseconds) &&
+                    LinuxText(c->State, " pollNs=") && LinuxNumber(c->State, dispatch.PollNanoseconds) &&
+                    LinuxText(c->State, " dispatchNs=") && LinuxNumber(c->State, dispatch.DispatchNanoseconds) &&
+                    LinuxText(c->State, " nestedPollNs=") && LinuxNumber(c->State, dispatch.NestedPollNanoseconds) &&
+                    LinuxText(c->State, " dispatchNonPollNs=") && LinuxNumber(c->State, dispatch.DispatchNonPollNanoseconds) &&
+                    LinuxText(c->State, " supervisorNonPollNs=") && LinuxNumber(c->State, dispatch.SupervisorNonPollNanoseconds) &&
+                    LinuxText(c->State, " completed=") && LinuxNumber(c->State, dispatch.CompletedEnvelopes) &&
+                    LinuxText(c->State, " clipped=") && LinuxNumber(c->State, dispatch.ClippedEnvelopes) &&
+                    LinuxText(c->State, " physicalActive=") && LinuxNumber(c->State, dispatch.PhysicalDispatchActiveAtFreeze ? 1UL : 0UL) &&
+                    LinuxText(c->State, " phaseComplete=1\r\n");
             }
         }
 #endif

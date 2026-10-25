@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) The current managed HTTP fixture passes17 controls, including actual seven-server execution and independent console verification. Linuxr02 publishes the HTTP ELF but fails current-input admission on a legitimate0B package marker before HTTP/console execution. The narrow held-file repair is integrated; freshLinuxr03 and guest/browser/write gates remain pending.
 
 [Step1610](../done/step1610.md) Original v5r13 returns exact64KiB range30.9304945s and joins deliberate cancellation. Measured wholepoll22.1226843s is32.25%clock/36.00%supervisor/16.60%idle/15.15%other; it cannot justify an unmeasured polling policy or resolve full Blazor. The HTTP current-input repair passes16checks and is ready for a new Linux original; old failure remains failed.

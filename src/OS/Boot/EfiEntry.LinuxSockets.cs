@@ -686,6 +686,8 @@ public static unsafe partial class EfiEntry
 #if M10_018_TIMING_PROBE
             {
                 bool timing = disk->TimingPhase == 1;
+                bool pollTracked = disk->TimingPhase != 2;
+                if (pollTracked && !disk->TimingDispatch.BeginPoll()) return false;
                 uint bucket = (uint)cause;
                 if (bucket >= 4) return false;
                 ulong started = 0, afterPre = 0, afterDisk = 0, afterRefresh = 0, afterReadiness = 0, finished = 0;
@@ -739,7 +741,7 @@ public static unsafe partial class EfiEntry
                     disk->TimingCauseDisk[bucket] += afterDisk - afterPre;
                     disk->TimingCausePost[bucket] += finished - afterDisk;
                 }
-                return true;
+                return !pollTracked || disk->TimingDispatch.EndPoll();
             }
 #else
                 return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&

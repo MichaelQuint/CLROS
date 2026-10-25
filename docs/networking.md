@@ -1,5 +1,7 @@
 # Networking
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) All30 current paired-global controls pass, including actual host packet/TCP/epoll interactions, dirty writes, held reads, reset and independent teardown. They establish finite host contracts. Complete outer process/carrier exclusion and a genuinely separate native callback carrier still precede actual writable web activation.
 
 ## Current network/service boundary (October 23, 2026)

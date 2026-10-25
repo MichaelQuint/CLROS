@@ -381,7 +381,13 @@ public static unsafe partial class EfiEntry
 #endif
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok) return false;
                 if (c->Threads.ReadyCount != 0)
-                { if (!LinuxNativeDispatch(c)) return false; }
+                { if (!
+#if M10_018_TIMING_PROBE
+                    LinuxNativeMeasuredDispatch
+#else
+                    LinuxNativeDispatch
+#endif
+                    (c)) return false; }
 #if CLROS_LINUX_SOCKETS
                 else if (c->Stopping == 0)
                 {
@@ -410,7 +416,13 @@ public static unsafe partial class EfiEntry
             {
                 if (!LinuxNativeReapExited(c)) return false;
                 if (c->Process.ActiveThreads == 0) return false;
-                if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok || c->Threads.ReadyCount == 0 || !LinuxNativeDispatch(c)) return false;
+                if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok || c->Threads.ReadyCount == 0 || !
+#if M10_018_TIMING_PROBE
+                    LinuxNativeMeasuredDispatch
+#else
+                    LinuxNativeDispatch
+#endif
+                    (c)) return false;
             }
             return false;
 #endif
@@ -440,6 +452,29 @@ public static unsafe partial class EfiEntry
             bool stopped = !c->Threads.Current.IsValid && !c->Threads.HandoffPending && c->Process.Shutdown(c->Key, 2, 99);
             return logged && stopped;
         }
+
+#if M10_018_TIMING_PROBE
+        // Measure the complete unchanged dispatch invocation at its actual
+        // supervisor boundary. The listen/last-copy hooks clip inside it.
+        // No accounting result grants authority to omit any dispatch checks.
+        private static bool LinuxNativeMeasuredDispatch(LinuxNativeControl* c)
+        {
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->Boot != c->State) return false;
+                if (disk->TimingPhase == 2)
+                    return disk->TimingDispatch.IsComplete && !disk->TimingDispatch.IsPhysicalDispatchActive && LinuxNativeDispatch(c);
+                if (!ReadNetworkTime(c->State, out ulong began) ||
+                    !disk->TimingDispatch.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence)) return false;
+                bool returned = LinuxNativeDispatch(c);
+                // A later bookkeeping fault fails the original owner even if
+                // an immutable phase-complete line has already been printed.
+                if (!ReadNetworkTime(c->State, out ulong ended) ||
+                    !disk->TimingDispatch.EndDispatch(sequence, ended, disk->TimingNetworkTotal)) return false;
+                return returned;
+            }
+        }
+#endif
 
         private static bool LinuxNativeDispatch(LinuxNativeControl* c)
         {

@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Current root79 focused checks pass, including explicitly filtered full-lane paired30/FS13/HTTP17. The repaired native-input holder permits0B only for authenticated fresh publication rows; no descriptor-limit or initial hard-link policy changes. Linuxr02 parent1024/hard4096 restored, but1102/1146 boundary samples prove no peak/fit. Freshr03 is required.
 
 [Step1610](../done/step1610.md) Run managed HTTP and console reference owners serially: both intentionally acquire the same repository qualification lease. The first concurrent root attempt fails before server execution; its later serial16HTTP pass and7console pass do not erase that failure. Repaired Linux publication retains eight exact current tools, nine prelink static files and complete fresh inputs. Peak/4096-fit and actualLinuxr02 remain unmeasured.

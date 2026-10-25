@@ -1,5 +1,7 @@
 # Architecture
 
+[Step1613](../done/step1613.md) A separate phase-clipped dispatch partition now complements the unchanged42-field disk-poll record. Its34 focused Fast checks pass, including late-return failure propagation; actual native/guest timing remains pending. Freeze completes the measured window while the physical dispatch may still be active. Original v5r13 and failed full Blazor retain their scopes; frozen074d27b9 Linux HTTP r03 runs separately.
+
 [Step1612](../done/step1612.md) Current paired descriptor and shared filesystem lifetime controls pass on one original writable block owner. Synthetic large DB/journal footprints fit the bounded1M-work root engine. Complete outer ownership and actual emitted native/device lifecycle remain separate prerequisites; no native workload is activated.
 
 [Step1610](../done/step1610.md) V5r13 actually runs all four explicitly tagged service-poll causes, with22.1226843s total and exact stage conservation. This leaves substantial time outside service polls; no production cadence policy follows. The integrated HTTP repair separates authenticated historical recipe outputs from current executable/static-link/fresh publication inputs, retaining all current authority through complete sessions.
