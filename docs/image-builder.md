@@ -1,5 +1,8 @@
 # Image Builder
 
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
 [Step1600](../done/step1600.md) CombinedWebDataImageFixture creates a128MiB GPT image with byte-preserved web/EFI/package ESP and relocated writable FAT32 data partition. Inspection binds actual partition geometry, independent extracted files and both FAT copies. Existing64MiB fixture receipt semantics stay unchanged; synthetic combined-image and bootstrap checks do not establish guest writes or durability.
 
 ## Webroot fixture development (2026-10-23)

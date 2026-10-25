@@ -1,5 +1,12 @@
 # Networking
 
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+## Step1615 bounded callback ownership
+
+The selected finite paired socket contract admits a copied whole message-observer carrier of8..65536bytes through the guarded four-argument AttachMessageObserver overload. Establish the actual Network first, then attach a distinct observer carrier before threads. The observer carrier and Network original IO carrier must be disjoint. Structural ownership checks neither call the observer nor imply authority over its opaque children; the native owner must independently retain and validate Boot/NIC/DMA/MMIO/code referents. Existing unpaired/025 signatures and layouts retain their compile boundaries. The actual writable native owner and its separate user-copy/IO/message carriers are still under implementation.
+
 [Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
 
 [Step1612](../done/step1612.md) All30 current paired-global controls pass, including actual host packet/TCP/epoll interactions, dirty writes, held reads, reset and independent teardown. They establish finite host contracts. Complete outer process/carrier exclusion and a genuinely separate native callback carrier still precede actual writable web activation.

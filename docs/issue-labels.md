@@ -1,5 +1,8 @@
 # Issue Labels
 
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
 [Step1597](../done/step1597.md) Keep affected read, writable, persistence and SQLite issues open while publishing the focused integration evidence. Reconcile canonical changes with fresh content versions, preserve human addenda/owners, post exact evidence and read back every mutation plus zero drift. Step1598/1599 policy clarification does not turn finite or host evidence into completed product acceptance.
 
 [Step1594](../done/step1594.md) Step1594 records source5 metadata waits and separate host writable preparations without closing issues. Full read r05 remains failed; copied value reports cannot authenticate a physical device, guest process, reset or durable write. Reconcile fresh scoped content versions and read back evidence comments and every mutation; preserve current human addenda, owners and original failures.

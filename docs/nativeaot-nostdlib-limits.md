@@ -1,5 +1,8 @@
 # NativeAOT NoStdLib Limits
 
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
 [Step1601](../done/step1601.md) The host file-backed PE catalog now permits4096records; this does not expand the kernel unwind decoder MaximumFunctions2048 or its snapshot/lookup/EH contract. An enabled kernel unwind probe still rejects a whole table beyond2048 with CapacityExceeded. The timing disk profile requires everyM04flag off and does not invoke that decoder.
 
 The isolated continuing-disk profile has original ILC/link/artifact verification
