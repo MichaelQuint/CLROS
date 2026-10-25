@@ -73,6 +73,12 @@ public unsafe partial struct LinuxThreadServices
         public Worker* Workers;
         public uint Capacity, SlotBytes, WorkerBytes, ProcessId, ObservedMxcsrMask;
         public LinuxSyscallAccess User;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        /// <summary>Actual whole separate direct user-copy callback carrier,
+        /// retained through Release. Required by finite paired storage; zero
+        /// preserves unpaired callers. No transitive pointee/mapping claim.</summary>
+        public ulong UserContextBytes;
+#endif
         public delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         public bool FirmwareExited, SingleOwnerValidated;
     }
@@ -452,8 +458,14 @@ public unsafe partial struct LinuxThreadServices
     private bool Access(ulong key, ulong flags)
     {
         if (_initialized != 1 || key == 0 || key != _key || !IfClear(flags)) return false;
-        fixed (LinuxThreadServices* p = &this) return (ulong)p == _self &&
-            _owner.Threads->Inspect(_owner.ThreadKey, flags, default).Code == KernelThreadTable.Status.InvalidIdentity;
+        fixed (LinuxThreadServices* p = &this)
+        {
+            if ((ulong)p != _self || _owner.Threads->Inspect(_owner.ThreadKey, flags, default).Code != KernelThreadTable.Status.InvalidIdentity) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (_descriptors != null && FiniteDescriptorTree(_descriptors) && !DescriptorTreesOutsideProcess(_descriptors)) return false;
+#endif
+            return true;
+        }
     }
     private bool Input(ulong address, byte* output, uint bytes) => LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, _owner.User) &&
         _owner.User.CopyFromUser(_owner.User.Context, address, output, bytes) == 1;

@@ -695,13 +695,22 @@ public static unsafe class LinuxSocketNetwork
                 if (Overlap(start, bytes, (ulong)source, (uint)input.Length) || Overlap(start, bytes, (ulong)target, (uint)output.Length)) return false;
             }
 #if !NOSTDLIB_EFI || M16_027_PROBE
+            // External packet storage is not part of the retained network
+            // inventory. Exclude the actual attached process separately, using
+            // structural lifetime ownership so final cleanup remains possible.
+            if (input.Length != 0 && !LinuxThreadServices.DescriptorProcessOutsideStorage(state->Sockets->Descriptors, (ulong)source, (uint)input.Length) ||
+                !LinuxThreadServices.DescriptorProcessOutsideStorage(state->Sockets->Descriptors, (ulong)target, (uint)output.Length)) return false;
             if (state->IoContextBytes != 0 && (Overlap((ulong)state->OriginalIoContext, state->IoContextBytes, (ulong)source, (uint)input.Length) ||
                 Overlap((ulong)state->OriginalIoContext, state->IoContextBytes, (ulong)target, (uint)output.Length))) return false;
 #endif
         }
         return true;
     }
-    private static bool Current(State* state, bool allowFailed = false) => Shape(state, allowFailed) && Fds.Audit(state->Sockets->Descriptors);
+    private static bool Current(State* state, bool allowFailed = false) => Shape(state, allowFailed) && Fds.Audit(state->Sockets->Descriptors)
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        && LinuxThreadServices.DescriptorProcessCurrent(state->Sockets->Descriptors)
+#endif
+        ;
     private static bool Shape(State* state, bool allowFailed)
     {
         if (!Extent(state, (ulong)sizeof(State)) || state->Self != (ulong)state || state->Initialized != 1 || state->Failed > 1 || state->CompactTimeWait > 1 ||

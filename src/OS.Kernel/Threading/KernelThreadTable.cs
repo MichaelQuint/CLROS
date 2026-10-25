@@ -90,6 +90,31 @@ public unsafe struct KernelThreadTable
     {
         start = bytes = 0;
         Status status = Access(key, flags); if (status != Status.Ok) return status;
+        return RetainedExtentAt(index, out start, out bytes);
+    }
+
+    /// <summary>Copy one original retained range under the serialized lifetime
+    /// owner. Exact self/key and bounded backing are required; no IRQ flags,
+    /// mapping, execution, transfer or new borrowing authority are supplied.
+    /// No callbacks, allocations or retained state changes occur. Released or
+    /// copied owners reject with zero facts. The caller holds all backing.</summary>
+    internal Status InspectRetainedStorage(ulong key, uint index, out ulong start, out ulong bytes, out uint count)
+    {
+        start = bytes = 0; count = 0;
+        if (!_initialized) return Status.Uninitialized;
+        if (key == 0 || key != _key) return Status.WrongOwner;
+        fixed (KernelThreadTable* self = &this) if ((ulong)self != _self) return Status.CopiedOwner;
+        if (_capacity is 0 or > MaximumSlots || !Buffer((ulong)_slots, _slotBytes, _capacity * (uint)sizeof(KernelThreadSlot)))
+            return Status.InvalidStorage;
+        count = 9 + 2 * _capacity;
+        Status result = RetainedExtentAt(index, out start, out bytes);
+        if (result == Status.Ok && bytes != 0 && !Range(start, bytes)) { start = bytes = 0; count = 0; return Status.InvalidStorage; }
+        return result;
+    }
+
+    private Status RetainedExtentAt(uint index, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
         if (index >= 9 + 2 * _capacity) return Status.InvalidStorage;
         switch (index)
         {

@@ -409,7 +409,8 @@ public static unsafe class LinuxSocketServices
     private static bool SharedContextOutside(State* state, TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender, uint bytes)
     {
         if (!SharedContextShape(receiver, sender, bytes) ||
-            !LinuxDescriptorServices.SocketOutside(state->Descriptors, receiver->Context, bytes)) return false;
+            !LinuxDescriptorServices.SocketOutside(state->Descriptors, receiver->Context, bytes) ||
+            !LinuxThreadServices.CanPublishDescriptorStorage(state->Descriptors, (ulong)receiver->Context, bytes)) return false;
         // Callback storage may not contain any of the seven transport ranges.
         ulong* extents = stackalloc ulong[14]; TransportExtents(receiver, sender, extents);
         for (uint i = 0; i < 7; i++)
@@ -705,7 +706,11 @@ public static unsafe class LinuxSocketServices
     private static bool Writable(State* state, ulong address, uint bytes) => bytes == 0 ||
         LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Write, state->Descriptors->Owner.User);
     private static bool Current(State* state) => Extent(state, (ulong)sizeof(State)) && state->Initialized == 1 &&
-        state->Self == (ulong)state && LinuxDescriptorServices.Audit(state->Descriptors);
+        state->Self == (ulong)state && LinuxDescriptorServices.Audit(state->Descriptors)
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        && LinuxThreadServices.DescriptorProcessCurrent(state->Descriptors)
+#endif
+        ;
     private static bool Connection(Endpoint* e, out TcpConnectionTableEntry entry)
     {
         entry = default;
@@ -718,7 +723,11 @@ public static unsafe class LinuxSocketServices
         ulong* extents = stackalloc ulong[14]; TransportExtents(receiver, sender, extents);
         for (uint i = 0; i < 7; i++)
             if (StorageOverlap(state, extents[i * 2], extents[i * 2 + 1]) ||
-                !LinuxDescriptorServices.SocketOutside(state->Descriptors, (void*)extents[i * 2], extents[i * 2 + 1])) return false;
+                !LinuxDescriptorServices.SocketOutside(state->Descriptors, (void*)extents[i * 2], extents[i * 2 + 1])
+#if !NOSTDLIB_EFI || M16_027_PROBE
+                || !LinuxThreadServices.CanPublishDescriptorStorage(state->Descriptors, extents[i * 2], extents[i * 2 + 1])
+#endif
+                ) return false;
         return true;
     }
     private static void TransportExtents(TcpReceiveWindow.Owner* receiver, TcpSendWindow.Owner* sender, ulong* extents)

@@ -176,31 +176,6 @@ public unsafe partial struct LinuxThreadServices
     }
 
     private bool WritableDiskStorageOutsideProcess(LinuxDescriptorServices.State* descriptors, ulong flags)
-    {
-        if (descriptors->WritableDisk == null) return true;
-        if (!LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, _self, (ulong)sizeof(LinuxThreadServices)) ||
-            !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_owner.Threads, (ulong)sizeof(KernelThreadTable)) ||
-            !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_owner.Slots, _owner.SlotBytes) ||
-            !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_owner.Workers, _owner.WorkerBytes)) return false;
-        uint extents = _owner.Threads->RetainedExtentCount(_owner.ThreadKey, flags);
-        if (extents == 0 || extents > 9 + 2 * KernelThreadTable.MaximumSlots) return false;
-        for (uint i = 0; i < extents; i++)
-        {
-            if (_owner.Threads->InspectRetainedExtent(_owner.ThreadKey, flags, i, out ulong start, out ulong bytes) != KernelThreadTable.Status.Ok ||
-                bytes != 0 && !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, start, bytes)) return false;
-        }
-        if (_signals != null && !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_signals, (ulong)sizeof(LinuxSignalServices.State))) return false;
-        if (_futexEnabled &&
-            (!LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_futex.Cells, _futex.CellBytes) ||
-             !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_futex.Addresses, _futex.AddressBytes) ||
-             !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)_futex.Registrations, _futex.RegistrationBytes))) return false;
-        for (uint i = 0; i < _owner.Capacity; i++)
-        {
-            var d = _owner.Workers[i].Initial;
-            if (!LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, (ulong)d.Context, d.ContextBytes) ||
-                !LinuxDescriptorServices.WritableDiskCanRetainStorage(descriptors, d.StackGuardStart, d.StackBytes)) return false;
-        }
-        return true;
-    }
+        => !FiniteDescriptorTree(descriptors) || DescriptorTreesOutsideProcess(descriptors);
 }
 #endif

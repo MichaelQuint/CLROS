@@ -6,6 +6,9 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Pal;
+using OS.Kernel.Threading;
+using Memory = OS.Kernel.Compatibility.LinuxX64.LinuxMemoryServices;
+using Signals = OS.Kernel.Compatibility.LinuxX64.LinuxSignalServices;
 using OS.Net;
 using B = OS.Storage.WritableBlockSession;
 using C = OS.Storage.ContinuingFat32Mutation;
@@ -21,7 +24,8 @@ using Rx = OS.Net.TcpReceiveWindow;
 using Wire = TcpReceiveWindowTests;
 
 // Real queued fake media, with separate C-writer and paired-global controls.
-// Every positive pair uses one ORIGINAL B/C. No thread/native qualification.
+// Every positive pair uses one ORIGINAL B/C. Thread controls use copied host
+// contexts and actual scheduler contracts; none establishes native execution.
 internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, Base = LinuxThreadServicesTests.UserBase;
@@ -37,6 +41,200 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static readonly Audit AuditDisk = typeof(F).GetMethod("AuditDisk", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Audit AuditWritable = typeof(F).GetMethod("AuditWritableDisk", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Audit AuditPair = typeof(F).GetMethod("AuditDiskPair", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
+    private static readonly Audit ProcessCurrent = typeof(LinuxThreadServices).GetMethod("DescriptorProcessCurrent", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
+    private static readonly Retain CanPublish = typeof(LinuxThreadServices).GetMethod("CanPublishDescriptorStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
+    private static readonly Retain ProcessOutside = typeof(LinuxThreadServices).GetMethod("DescriptorProcessOutsideStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
+
+    [HostTest("outer process source4 deferred fstat pins original cross-page144 bytes through writer and held readiness", HostLane.Native)]
+    private static void DeferredFstat() => WithPairedThread(o =>
+    {
+        uint fd = o.Open(); ulong output = Base + 0x2fc1; new Span<byte>(o.Thread.At(output - 1), 146).Fill(0xa9);
+        o.StartWriter(); uint copies = o.Thread.Writes;
+        HostCheck.Equal(LinuxSyscallAction.Blocked, o.Thread.DescriptorCall(5, fd, output).Action);
+        HostCheck.True(!o.May(output, 144) && o.May(output - 1, 1) && o.May(output + 144, 1)); o.ParkSource4();
+        HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2)); HostCheck.True(!o.May(output, 144));
+        o.WriterReady(() => HostCheck.True(!o.May(output, 144))); o.ConsumeWriter(); o.ReadySource4();
+        HostCheck.True(!o.May(output, 144) && o.Thread.Writes == copies && new ReadOnlySpan<byte>(o.Thread.At(output - 1), 146).IndexOfAnyExcept((byte)0xa9) < 0);
+        HostCheck.Equal(0L, o.ConsumeSource4()); HostCheck.True(o.May(output, 144) && o.Thread.Writes == copies + 1 && o.Position(fd) == 0);
+        HostCheck.Equal((ulong)o.Expected("/app/wwwroot/index.html").Length, o.Thread.Read64(output + 48));
+        HostCheck.True(*o.Thread.At(output - 1) == 0xa9 && *o.Thread.At(output + 144) == 0xa9);
+    });
+
+    [HostTest("outer process source4 fstat original short prefix cannot expand when a real mapped tail becomes writable", HostLane.Native)]
+    private static void DeferredFstatPrefix() => WithPairedThread(o =>
+    {
+        uint fd = o.Open(); var memory = o.Files.Memory;
+        const ulong page = Memory.DynamicStart + 0x20000, output = page + 4096 - 64;
+        HostCheck.Equal((long)page, Memory.Map(memory.State, page, 4096, 3, 0x100022, ulong.MaxValue, 0));
+        o.Thread.UseMemory(memory.Memory); new Span<byte>(memory.At(output), 64).Fill(0xa7);
+        HostCheck.True(Memory.AttachMutationGuard(memory.State, o.Thread.Service, &LinuxFutexTests.MemoryGuard));
+        try
+        {
+            o.StartWriter(); uint copies = o.Thread.Writes; HostCheck.Equal(LinuxSyscallAction.Blocked, o.Thread.DescriptorCall(5, fd, output).Action); o.ParkSource4();
+            HostCheck.True(!o.May(output, 64) && o.May(page + 4096, 4096));
+            HostCheck.Equal((long)(page + 4096), Memory.Map(memory.State, page + 4096, 4096, 3, 0x100022, ulong.MaxValue, 0));
+            for (uint i = 64; i < 144; i++) *memory.At(output + i) = 0xa7;
+            o.WriterReady(); o.ConsumeWriter(); o.ReadySource4(); HostCheck.Equal(-14L, o.ConsumeSource4());
+            HostCheck.True(o.Thread.Writes == copies && o.May(output, 144));
+            for (uint i = 0; i < 144; i++) HostCheck.Equal((byte)0xa7, *memory.At(output + i));
+            // The SAME actual callback and now-mapped bytes can succeed on a
+            // fresh request: the earlier failure was its captured ceiling.
+            var fresh = o.Thread.DescriptorCall(5, fd, output); HostCheck.True(fresh.Action == LinuxSyscallAction.Return && fresh.Value == 0 && o.Thread.Writes == copies + 1);
+            byte[] wire = Enumerable.Range(0, 144).Select(i => *memory.At(output + (uint)i)).ToArray();
+            HostCheck.Equal((ulong)o.Expected("/app/wwwroot/index.html").Length, System.Buffers.Binary.BinaryPrimitives.ReadUInt64LittleEndian(wire.AsSpan(48)));
+        }
+        finally { HostCheck.True(Memory.DetachMutationGuard(memory.State, o.Thread.Service, &LinuxFutexTests.MemoryGuard)); }
+    });
+
+    [HostTest("outer process source4 fstat cancellation and fd reuse revoke original output without late metadata", HostLane.Native)]
+    private static void DeferredFstatCancellation() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        foreach (bool close in new[] { false, true })
+        {
+            using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p => { p.PrepareWritable(); p.AttachPair(false); }, signals: true);
+            try
+            {
+                uint fd = o.Open(); OSHostHandle child = close ? o.Thread.Clone() : default; o.Fill(144, 0xb7); o.StartWriter(); uint copies = o.Thread.Writes;
+                // The actual restart path validates the captured syscall opcode.
+                // Default fixture bytes intentionally contain no executable syscall.
+                *(ushort*)o.Thread.At(Base + 0xfe) = 0x050f;
+                HostCheck.Equal(LinuxSyscallAction.Blocked, o.Thread.DescriptorCall(5, fd, Output).Action); o.ParkSource4();
+                if (close)
+                {
+                    HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value); HostCheck.Equal(0L, o.Core(3, fd));
+                    o.PutPath("/app/fixture.data"); HostCheck.Equal((long)fd, o.Core(2, Path, 0x88100));
+                    HostCheck.True(!o.May(Output, 144)); o.ReadySource4(); o.ExitChild(child);
+                    // Actual child exit clears its user TID once; it must not be
+                    // confused with publication of the revoked metadata output.
+                    HostCheck.Equal(copies + 1, o.Thread.Writes); copies++;
+                }
+                else HostCheck.True(o.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, o.Thread.View(o.Worker).Wait).Succeeded);
+                HostCheck.Equal(close ? -9L : -4L, o.ConsumeSource4());
+                if (!close) HostCheck.Equal(Signals.Delivery.None, o.Thread.Service->DeliverPendingSignals(Key, 2));
+                HostCheck.True(o.May(Output, 144) && o.Thread.Writes == copies && o.Unchanged(144, 0xb7));
+                o.WriterReady(); o.ConsumeWriter();
+                for (int i = 0; i < 4; i++) HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2));
+                HostCheck.True(o.Thread.Writes == copies && o.Unchanged(144, 0xb7));
+            }
+            catch (Exception failure) { Console.WriteLine($"OUTER_CANCEL_BODY_FAILURE close={close} " + failure); throw; }
+        }
+    });
+
+    [HostTest("outer process complete retained ranges reject late candidates while direct TCP and paired storage remain usable", HostLane.Native)]
+    private static void OuterRanges() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p => { p.PrepareWritable(); p.AttachPair(false); p.PrepareConnectedTransport(); }, signals: true);
+        var before = o.SocketAuditSnapshot();
+        foreach ((ulong start, ulong bytes) in o.ProcessExtents())
+            HostCheck.True(!CanPublish(o.Files.State, start, bytes) && !CanPublish(o.Files.State, start - 8, bytes + 16) && !CanPublish(o.Files.State, start + bytes - 1, 2));
+        HostCheck.True(!CanPublish(o.Files.State, ulong.MaxValue - 7, 16) && ProcessCurrent(o.Files.State)); CheckSocketAuditSnapshot(before);
+        o.SocketRoundtrip(); uint fd = o.Open(); HostCheck.Equal(7L, o.Run(o.Call(0, fd, Output, 7)));
+    });
+
+    [HostTest("outer process EnablePipes rejects prepared worker aliases into each private client before attachment", HostLane.Native)]
+    private static void OuterAdmission() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p =>
+        {
+            p.PrepareWritable(); p.AttachPair(false); p.PrepareTransport(); p.PreparePacketNetwork();
+            foreach (ulong alias in new[] { (ulong)p.WriteInput, (ulong)p.Storage.EngineInput.Before, (ulong)p.Storage.Operations[0].Storage.Range, (ulong)p.PacketNetwork!.Context })
+            {
+                var before = p.SocketAuditSnapshot(); var original = p.Thread.Workers[2];
+                try
+                {
+                    p.Thread.Workers[2].Initial.Context = (X64ThreadContext*)alias;
+                    HostCheck.True(!p.Thread.Service->EnablePipes(Key, 2, p.Files.State) && !p.Thread.Service->Failed);
+                }
+                finally { p.Thread.Workers[2] = original; }
+                CheckSocketAuditSnapshot(before); HostCheck.True(F.Audit(p.Files.State));
+            }
+        });
+        HostCheck.True(ProcessCurrent(o.Files.State)); o.PacketRoundtrip();
+    });
+
+    [HostTest("outer process ongoing prepared context alias rejects actual dispatch and packet callbacks without poisoning restored owner", HostLane.Native)]
+    private static void OuterOngoing() => WithPacketOwner(o =>
+    {
+        var frame = o.Call(44, o.Connected, SocketData, 3); var before = o.SocketAuditSnapshot(); var original = o.Thread.Workers[2];
+        uint sends = o.PacketNetwork!.Sends, clocks = o.PacketNetwork.Clocks;
+        try
+        {
+            o.Thread.Workers[2].Initial.Context = (X64ThreadContext*)o.PacketNetwork.Context;
+            HostCheck.True(F.Audit(o.Files.State) && !ProcessCurrent(o.Files.State));
+            HostCheck.Equal(LinuxSyscallAction.Rejected, o.Thread.Service->DispatchDescriptor(Key, 2, frame).Action);
+            HostCheck.Equal(Network.Status.InvalidState, o.PacketNetwork.Pump());
+        }
+        finally { o.Thread.Workers[2] = original; }
+        CheckSocketAuditSnapshot(before); HostCheck.True(!o.Thread.Service->Failed && ProcessCurrent(o.Files.State) && sends == o.PacketNetwork.Sends && clocks == o.PacketNetwork.Clocks);
+        o.PacketRoundtrip();
+    });
+
+    [HostTest("outer process late enqueue checks unpublished real receive ring against actual scheduler backing before publication", HostLane.Native)]
+    private static void OuterLateEnqueue() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p => { p.PrepareWritable(); p.AttachPair(false); p.PrepareConnectedTransport(); });
+        var candidate = LinuxSocketServicesTests.Connection(); bool adopted = false;
+        try
+        {
+            HostCheck.True(F.Capture(o.Files.State, o.Listener, out var token)); var before = o.SocketAuditSnapshot(); uint callbacks = candidate.Hardware->Calls;
+            byte* original = ReceiveBuffer(ref *candidate.Receiver);
+            try
+            {
+                ReceiveBuffer(ref *candidate.Receiver) = (byte*)o.Thread.Kernel.Ready;
+                HostCheck.True(!Sockets.EnqueueAccepted(o.SocketState, token, o.Listener, candidate.Receiver, candidate.Owner, (uint)sizeof(TcpSendWindowTests.Hardware)));
+            }
+            finally { ReceiveBuffer(ref *candidate.Receiver) = original; }
+            CheckSocketAuditSnapshot(before); HostCheck.True(callbacks == candidate.Hardware->Calls && candidate.Table->Count == 1 && ProcessCurrent(o.Files.State));
+            HostCheck.True(Sockets.EnqueueAccepted(o.SocketState, token, o.Listener, candidate.Receiver, candidate.Owner, (uint)sizeof(TcpSendWindowTests.Hardware)));
+            o.Adopt(candidate); adopted = true; HostCheck.True(o.SCall(288, o.Listener, 0, 0, F.NonBlock) >= 3 && ProcessCurrent(o.Files.State));
+        }
+        finally { if (!adopted) candidate.Dispose(); }
+    });
+
+    [HostTest("outer process external packet frames reject actual scheduler and callback carrier aliases without effects", HostLane.Native)]
+    private static void OuterPacketFrames() => WithPacketOwner(o =>
+    {
+        var network = o.PacketNetwork!; var before = o.SocketAuditSnapshot();
+        uint clocks = network.Clocks, sends = network.Sends, writes = o.Thread.Writes;
+        Span<byte> output = stackalloc byte[1514]; output.Fill(0xd6);
+        foreach ((ulong start, ulong bytes) in o.ProcessExtents())
+        {
+            HostCheck.True(!ProcessOutside(o.Files.State, start, bytes) && !ProcessOutside(o.Files.State, start - 1, bytes + 2) &&
+                !ProcessOutside(o.Files.State, start + bytes - 1, 2));
+            // All these original process extents lie in the model's actual
+            // mapped arena. Even the short queue/carrier ranges must reject a
+            // larger output that starts there before its first possible write.
+            HostCheck.Equal(Network.Status.InvalidStorage, Network.Pump(network.State, new Span<byte>((void*)start, 1514)));
+            HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(network.State, new ReadOnlySpan<byte>((void*)(start + bytes - 1), 2), output));
+        }
+        HostCheck.True(output.IndexOfAnyExcept((byte)0xd6) < 0 && clocks == network.Clocks && sends == network.Sends && writes == o.Thread.Writes);
+        CheckSocketAuditSnapshot(before); HostCheck.True(ProcessCurrent(o.Files.State) && !o.Thread.Service->Failed);
+        o.PacketRoundtrip();
+    });
+
+    [HostTest("outer process stopping blocks new transport publication while real disjoint packet FIN cleanup remains usable", HostLane.Native)]
+    private static void OuterPacketStopping() => WithPacketOwner(o =>
+    {
+        o.PacketRoundtrip();
+        // Close through the actual live worker before stopping. Teardown never
+        // dispatches a new user close after the process enters its stop phase.
+        o.CloseUserDescriptors(); HostCheck.True(o.Thread.Service->Shutdown(Key, 2, 7));
+        byte* frame = stackalloc byte[1514]; Span<byte> output = new(frame, 1514); output.Fill(0xa6);
+        HostCheck.True(ProcessCurrent(o.Files.State) && ProcessOutside(o.Files.State, (ulong)frame, 1514) &&
+            !CanPublish(o.Files.State, (ulong)frame, 1514));
+        var network = o.PacketNetwork!; uint clocks = network.Clocks, sends = network.Sends;
+        HostCheck.Equal(Network.Status.Success, Network.Pump(network.State, output));
+        HostCheck.True(network.Clocks > clocks && network.Sends > sends && !o.Thread.Service->Failed);
+        HostCheck.Equal(PacketParseStatus.Success, EthernetHeader.TryParse(network.Sent, out _, out var ip));
+        HostCheck.Equal(PacketParseStatus.Success, Ipv4Header.TryParse(ip, out _, out var tcp));
+        HostCheck.Equal(PacketParseStatus.Success, TcpHeader.TryParse(tcp, out var header, out _, out _)); HostCheck.True((header.Flags & 1) != 0);
+    });
+
+    private static void WithPairedThread(Action<Owner> action) => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p => { p.PrepareWritable(); p.AttachPair(false); });
+        try { action(o); } catch (Exception failure) { Console.WriteLine("OUTER_PROCESS_BODY_FAILURE " + failure); throw; }
+    });
 
     [HostTest("borrowed linux disk Busy open and path stat retain one copied path and token through actual writer and held result", HostLane.Native)]
     private static void CopiedPath() => WithOwner(o =>
@@ -151,16 +349,18 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
             HostCheck.True(!CanRetain(o.Files.State, address, bytes) && !CanRetain(o.Files.State, address - 8, bytes + 16) && !CanRetain(o.Files.State, address + bytes - 1, 2));
         HostCheck.True(!CanRetain(o.Files.State, ulong.MaxValue - 7, 64) && CanRetain(o.Files.State, (ulong)o.Thread.At(Output), 4));
         o.StartWriter(); HostCheck.True(CanRetain(o.Files.State, (ulong)o.Thread.At(Output), 4)); o.WriterReady(); o.ConsumeWriter();
-        uint fd = o.Open(); var read = o.Begin(o.Call(17, fd, Output, 7, 0)); HostCheck.Equal(F.DiskProgress.Ready, o.Ready(read.Token).Progress); o.Fill(16, 0xd4);
+        uint fd = o.Open(); var call = o.Call(17, fd, Output, 7, 0); var read = o.Begin(call); HostCheck.Equal(F.DiskProgress.Ready, o.Ready(read.Token).Progress); o.Fill(16, 0xd4);
         ref B.Admission input = ref BlockInput(ref *o.Storage.Block); B.Observation* original = input.Observation;
         try
         {
             input.Observation = (B.Observation*)o.Requests;
             HostCheck.True(!CanRetain(o.Files.State, (ulong)o.Thread.At(Output), 4));
-            HostCheck.Equal(F.DiskProgress.Rejected, o.Complete(read.Token, o.Call(17, fd, Output, 7, 0)).Progress); HostCheck.True(o.Unchanged(16, 0xd4));
+            // The frame was captured while the original graph was valid. The
+            // active thread image gate correctly rejects this malformed graph.
+            HostCheck.Equal(F.DiskProgress.Rejected, o.Complete(read.Token, call).Progress); HostCheck.True(o.Unchanged(16, 0xd4));
         }
         finally { input.Observation = original; }
-        HostCheck.Equal(7L, o.Complete(read.Token, o.Call(17, fd, Output, 7, 0)).Value);
+        HostCheck.Equal(7L, o.Complete(read.Token, call).Value);
         Console.WriteLine($"BORROWED_DISK_LAYOUT request={sizeof(F.DiskRequest)} state={sizeof(F.DiskState)} binding={sizeof(F.DiskBinding)}");
     }, attach: false);
 
@@ -674,7 +874,10 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     }
 
     private static void WithOwner(Action<Owner> action, bool attach = true) => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
-    { using var owner = new Owner(File.ReadAllBytes(path), receipt, attach); action(owner); });
+    {
+        using var owner = new Owner(File.ReadAllBytes(path), receipt, attach);
+        try { action(owner); } catch (Exception failure) { Console.WriteLine("BORROWED_OWNER_BODY_FAILURE " + failure); throw; }
+    });
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
     private static extern ref B.Admission BlockInput(ref B.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Description")]
@@ -691,6 +894,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static extern ref W.Admission ProviderInput(ref W.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Buffer")]
     private static extern ref byte* SendBuffer(ref Tx.Owner owner);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Buffer")]
+    private static extern ref byte* ReceiveBuffer(ref Rx.Owner owner);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ClockContext")]
     private static extern ref void* SendClockContext(ref Tx.Owner owner);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Io")]
@@ -713,7 +918,11 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         private readonly OS.Tooling.CombinedWebDataImageFixture.Receipt image;
         private readonly List<F.DiskToken> tokens = [];
         private readonly OSHostHandle worker;
+        internal OSHostHandle Worker => worker;
         private bool threadsAttached;
+        private const ulong SignalKey = 0x6f75746572736967;
+        private Signals.State* signalState;
+        private uint signalBytes;
         private C.RequestToken writer;
         internal W.State* Provider;
         private W.Descriptor* writeFds;
@@ -739,12 +948,21 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         internal ulong OwnerKey => (ulong)Thread.Service;
         internal F.DiskAdmission Admission => new() { Mount = Storage.Mount, Bindings = bindings, Requests = Requests,
             Epoch = Storage.Input.Epoch, FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(byte[] raw, OS.Tooling.CombinedWebDataImageFixture.Receipt receipt, bool attach, Action<Owner>? beforeThreads = null)
+        internal Owner(byte[] raw, OS.Tooling.CombinedWebDataImageFixture.Receipt receipt, bool attach, Action<Owner>? beforeThreads = null, bool signals = false)
         {
             image = receipt; Storage = new(raw, receipt); Storage.MountReady();
             Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut; Files.Begin();
             if (attach) HostCheck.True(AttachReadOnly());
             beforeThreads?.Invoke(this);
+            if (signals)
+            {
+                signalBytes = checked(((uint)sizeof(Signals.State) + 4095U) & ~4095U);
+                signalState = (Signals.State*)NativeMemory.AlignedAlloc(signalBytes, 4096);
+                new Span<byte>(signalState, checked((int)signalBytes)).Clear();
+                HostCheck.True(Signals.Initialize(signalState, signalBytes, SignalKey, 2, new()
+                { User = Thread.Access, CopyToUser = Thread.UserCopyOut, Capacity = Thread.Capacity, FirmwareExited = true, SingleOwnerValidated = true }));
+                HostCheck.True(Thread.Service->EnableSignals(Key, 2, signalState));
+            }
             HostCheck.True(Thread.Service->EnablePipes(Key, 2, Files.State));
             threadsAttached = true;
             worker = Thread.Start(); HostCheck.Equal(worker.Value, Thread.Kernel.Dispatch().Value);
@@ -771,6 +989,7 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
             Thread.Put32(SocketEvent, 1 | 4 | 8 | 16); Thread.Put64(SocketEvent + 4, 0x1234567890abcdef);
             HostCheck.Equal(0L, SCall(233, EpollFd, 1, Connected, SocketEvent));
         }
+        internal void Adopt(TcpSendWindowTests.Fixture connection) => connections.Add(connection);
         internal void PreparePacketNetwork()
         {
             HostCheck.True(PacketNetwork == null && Connection == null && SocketState != null);
@@ -853,8 +1072,32 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
                 ((ulong)Storage.EngineInput.Changes, Storage.EngineBackingBytes), ((ulong)Storage.Block, (ulong)sizeof(B.State)),
                 ((ulong)Storage.Device.Observation, (ulong)sizeof(B.Observation)), ((ulong)Storage.Device.Data, 4096),
                 ((ulong)Storage.Device.Hardware, (ulong)sizeof(WritableBlockSessionTests.Hardware)),
-                ((ulong)Thread.Service, (ulong)sizeof(LinuxThreadServices)), ((ulong)Thread.At(Base), LinuxThreadServicesTests.UserBytes)];
+                ((ulong)Thread.Kernel.Memory, KernelThreadTableTests.Model.Bytes), ((ulong)Thread.Access.Context, Thread.UserContextBytes)];
+            if (signalState != null) ranges.Add(((ulong)signalState, signalBytes));
             return ranges.Select(range => (range.Address, new ReadOnlySpan<byte>((void*)range.Address, checked((int)range.Bytes)).ToArray())).ToArray();
+        }
+        internal IEnumerable<(ulong, ulong)> ProcessExtents()
+        {
+            List<(ulong, ulong)> ranges = [((ulong)Thread.Service, (ulong)sizeof(LinuxThreadServices)),
+                ((ulong)Thread.Slots, Thread.Capacity * (ulong)sizeof(LinuxThreadServices.Slot)),
+                ((ulong)Thread.Workers, Thread.Capacity * (ulong)sizeof(LinuxThreadServices.Worker)),
+                ((ulong)Thread.Access.Context, Thread.UserContextBytes)];
+            var futex = Thread.FutexPlan();
+            ranges.Add(((ulong)futex.Cells, futex.CellBytes)); ranges.Add(((ulong)futex.Addresses, futex.AddressBytes));
+            ranges.Add(((ulong)futex.Registrations, futex.RegistrationBytes));
+            if (signalState != null) ranges.Add(((ulong)signalState, (ulong)sizeof(Signals.State)));
+            uint count = Thread.Kernel.Table->RetainedExtentCount(KernelThreadTableTests.Key, 2); HostCheck.True(count != 0);
+            for (uint i = 0; i < count; i++)
+            {
+                HostCheck.Equal(KernelThreadTable.Status.Ok, Thread.Kernel.Table->InspectRetainedExtent(KernelThreadTableTests.Key, 2, i, out ulong start, out ulong bytes));
+                if (bytes != 0) ranges.Add((start, bytes));
+            }
+            for (uint i = 0; i < Thread.Capacity; i++)
+            {
+                var w = Thread.Workers[i].Initial;
+                ranges.Add(((ulong)w.Context, w.ContextBytes)); ranges.Add((w.StackGuardStart, w.StackBytes));
+            }
+            return ranges;
         }
         internal void CheckNetworkRejected()
         {
@@ -938,10 +1181,42 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         internal uint Open() { PutPath("/app/wwwroot/index.html"); long value = Run(Call(2, Path, 0x88100)); HostCheck.True(value >= 3); return (uint)value; }
         internal long Core(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0)
         { var result = Thread.DescriptorCall(number, a0, a1, a2); HostCheck.Equal(LinuxSyscallAction.Return, result.Action); return result.Value; }
+        internal void CloseUserDescriptors()
+        { for (uint fd = 3; fd < 32; fd++) if (F.Capture(Files.State, fd, out _)) HostCheck.Equal(0L, Core(3, fd)); }
         internal ulong Position(uint fd)
         { uint index = SlotDescription(ref Files.Admission.Slots[fd]) - 1; return DescriptionPosition(ref Files.Admission.Descriptions[index]); }
         internal void Fill(int bytes, byte value) => new Span<byte>(Thread.At(Output), bytes).Fill(value);
         internal bool Unchanged(int bytes, byte value) => new ReadOnlySpan<byte>(Thread.At(Output), bytes).IndexOfAnyExcept(value) < 0;
+        internal bool May(ulong address, ulong bytes) => Thread.Service->MayChangeUserRange(Key, 2, address, bytes);
+        internal void ParkSource4()
+        {
+            HostCheck.True(Thread.Service->CommitDiskWait(Key, 2, Thread.Kernel.Capture(worker), out bool handoff));
+            if (handoff) Thread.Kernel.Confirm();
+        }
+        internal void ReadySource4()
+        {
+            // The C writer is a separate owner. This helper never polls its B
+            // request or completes its device operation on the reader's behalf.
+            for (int i = 0; i < 100000; i++)
+            {
+                HostCheck.True(Thread.Service->PollDiskReadiness(Key, 2)); Storage.Sample();
+                if (Thread.Kernel.Inspect(worker).Completion != KernelThreadTable.Completion.None) return;
+            }
+            throw new InvalidOperationException("outer_source4_wait_bound");
+        }
+        internal long ConsumeSource4()
+        {
+            if (!Thread.Kernel.Table->Current.IsValid) HostCheck.Equal(worker.Value, Thread.Kernel.Dispatch().Value);
+            HostCheck.Equal(worker.Value, Thread.Kernel.Table->Current.Value);
+            var result = Thread.Service->CompleteDiskWait(Key, 2); HostCheck.Equal(LinuxSyscallAction.Return, result.Action); return result.Value;
+        }
+        internal void ExitChild(OSHostHandle child)
+        {
+            HostCheck.Equal(child.Value, Thread.Kernel.Table->Current.Value);
+            HostCheck.Equal(LinuxSyscallAction.ThreadExited, Thread.Call(60).Action);
+            HostCheck.True(Thread.Service->CommitExit(Key, 2, Thread.Kernel.Capture(child), out long clear) && clear == 0);
+            Thread.Kernel.Confirm(); HostCheck.True(Thread.Service->Reap(Key, 2, child, Thread.Kernel.SupervisorRsp, out _));
+        }
         internal void StartWriter()
         { HostCheck.True(writer.Owner == 0); var file = Storage.OpenData("FRAG.BIN"); C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginOverwrite(Storage.Engine, file, 0, "same-owner data"u8, &request)); writer = request; }
         internal void WriterReady(Action? observe = null)
@@ -969,7 +1244,7 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
                     if (tokens.All(t => Observe(t).Progress == F.DiskProgress.Rejected)) break;
                     if (Storage.Device.Hardware->Pending) Storage.Device.Complete(); F.PumpDiskOne(Files.State, OwnerKey); Storage.Sample(); HostCheck.True(i < 999);
                 }
-                for (uint fd = 3; fd < 32; fd++) if (F.Capture(Files.State, fd, out _)) HostCheck.Equal(0L, Core(3, fd));
+                CloseUserDescriptors();
                 foreach (var connection in connections)
                     if (connection.Table->Count != 0)
                     { if (connection.Owner->Active) HostCheck.Equal(Tx.Status.Success, Tx.AbortConnection(connection.Owner)); HostCheck.True(Sockets.ReapClosed(SocketState, connection.Owner)); }
@@ -980,6 +1255,7 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
                 HostCheck.True(Thread.Service->Shutdown(Key, 2, 7)); HostCheck.True(Thread.Service->CommitExit(Key, 2, Thread.Kernel.Capture(worker), out long clear) && clear == 0);
                 Thread.Kernel.Confirm(); HostCheck.True(Thread.Service->Reap(Key, 2, worker, Thread.Kernel.SupervisorRsp, out _));
                 HostCheck.True(Thread.Service->Release(Key, 2));
+                if (signalState != null) HostCheck.True(Signals.End(signalState, SignalKey, 2));
                 if (PacketNetwork != null)
                 {
                     // Network.Abort requires ALL descriptors closed. The
@@ -993,7 +1269,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
                 if (Provider != null) HostCheck.Equal(W.Progress.Retired, W.Detach(Provider).Phase);
             }
             finally
-            { NativeMemory.Free(Disk); NativeMemory.Free(bindings); NativeMemory.Free(Requests); NativeMemory.Free(WriteDisk); NativeMemory.Free(WriteBindings);
+            { if (signalState != null) NativeMemory.AlignedFree(signalState);
+                NativeMemory.Free(Disk); NativeMemory.Free(bindings); NativeMemory.Free(Requests); NativeMemory.Free(WriteDisk); NativeMemory.Free(WriteBindings);
                 NativeMemory.Free(Provider); NativeMemory.Free(writeFds); NativeMemory.Free(writeDescriptions); NativeMemory.Free(WriteInput);
                 NativeMemory.Free(processes); NativeMemory.Free(locks); NativeMemory.Free(lockScratch);
                 foreach (var connection in connections) connection.Dispose(); foreach (var shared in sharedConnections) shared.Dispose(); PacketNetwork?.Dispose();
