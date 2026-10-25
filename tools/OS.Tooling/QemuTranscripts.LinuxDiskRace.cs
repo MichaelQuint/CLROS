@@ -453,12 +453,17 @@ public static partial class QemuTranscripts
                 if (exitStage == 0)
                 {
                     var p = workers[0].Pending;
-                    Need(MainPending() && selected == 1 && !witness && !groupExit && workers[1].Calls == 0 && workers[1].Calls < workers[1].Plan.Count &&
+                    Need(MainPending() && selected is -1 or 1 && !witness && !groupExit && workers[1].Calls == 0 && workers[1].Calls < workers[1].Plan.Count &&
                         workers[1].Plan[workers[1].Calls].Role == "child.group-exit" &&
                         p is not null && v["ordinal"] == p.Ordinal && v["sequence"] == p.Sequence && v["generation"] == p.Request &&
                         v["rip"] == p.Spec.ReturnRip && v["outputBytes"] == p.Spec.OutputBytes &&
                         index + 1 < rows.Length && rows[index + 1].StartsWith("M16_008_CALL ", StringComparison.Ordinal),
                         "disk_race_exit_stage_pending");
+                    // The first child syscall can precede any optional child
+                    // POLL record. The immediately following call must bind the
+                    // complete child exit frame; replay its sole FIFO dispatch
+                    // here so the preceding pending snapshot has the same owner.
+                    Select(1); fifo!.Running(1);
                     fifo!.BeforeShutdown();
                 }
                 else

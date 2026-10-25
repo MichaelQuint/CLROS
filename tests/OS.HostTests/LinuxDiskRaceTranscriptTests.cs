@@ -37,6 +37,28 @@ internal static class LinuxDiskRaceTranscriptTests
         HostCheck.True(QemuTranscripts.InspectLinuxDiskExitPendingLeaf(idleReady, package, 0x200000, 0x100000).CheckedSchedulerReplay);
     }
 
+    [HostTest("exit pending first child syscall binds the actual FIFO without an optional child poll and rejects substituted calls")]
+    private static void ExitPendingFirstChildCall()
+    {
+        string[] original = ExitPendingStagedLeaf();
+        int stage = Index(original, "M16_025_EXIT_PENDING stage=1 ");
+        string[] rows = original.Where((row, index) => index >= stage ||
+            !row.StartsWith("M16_012_POLL identity=" + F.ChildIdentity + " ", StringComparison.Ordinal)).ToArray();
+        HostCheck.True(rows.Length < original.Length);
+        byte[] package = F.CreatePackage("ExitPending");
+        var report = QemuTranscripts.InspectLinuxDiskExitPendingLeaf(rows, package, 0x200000, 0x100000);
+        HostCheck.True(report.CheckedSchedulerReplay && report.MainReadCompletionIndex == -1 &&
+            report.Calls.Count(c => c.Identity == F.ChildIdentity) == 1);
+        int call = Index(rows, "M16_008_CALL identity=" + F.ChildIdentity + " nr=231 ");
+        foreach (var (field, value) in new (string, ulong)[] { ("identity", F.MainIdentity), ("nr", 1), ("ordinal", 2), ("a0", 0) })
+        {
+            bool rejected = false;
+            try { _ = QemuTranscripts.InspectLinuxDiskExitPendingLeaf(Change(rows, call, field, value), package, 0x200000, 0x100000); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+    }
+
     [HostTest("exit pending finite FIFO rejects lost cancellation queue early capability loss and misplaced teardown")]
     private static void ExitPendingFifoRejections()
     {
