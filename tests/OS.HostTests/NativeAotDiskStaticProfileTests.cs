@@ -2,6 +2,12 @@ using OS.Tooling;
 
 internal static class NativeAotDiskStaticProfileTests
 {
+    [HostTest("actual project XML uses the same bounded reader and source admission as native publication")]
+    private static void ProjectAdmission()
+    {
+        var result=EfiProjectAdmission.InspectStatic(HostToolProcess.FindRepositoryRoot());
+        HostCheck.True(result.Succeeded,result.Reason+" "+result.Detail);
+    }
     [HostTest("short timing diagnostic is explicit default off and retains full parents with bounded capture")]
     private static void Timing()
     {

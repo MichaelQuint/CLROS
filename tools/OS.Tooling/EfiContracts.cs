@@ -52,7 +52,7 @@ public static partial class EfiContracts
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
     public const string ProjectSourceSha256 = "4530ed2737997bc55d6a7cf85195e0a33a49d9d715d3a912fff2ed9c935b444a";
-    public const string CanonicalProjectSha256 = "1b92a5ee8d205110545db1db6b54581508dcdacaa08d2d139580ea1fdd3a3a85";
+    public const string CanonicalProjectSha256 = "6b7202ff76e45a06d0319c26e02d6add85154d4605bbc618021ba3e0d6afe1a0";
     // Step1582 reviews the three M10-018 preprocessor extensions for fresh
     // M02/M04 source admission. Historical artifacts keep their original hashes.
     public const string EfiEntrySourceSha256 = "7f0d3f3996d12f50fbd2f32d9fea701aa781468f981864e7c82975273380f9f6";
