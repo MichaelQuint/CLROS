@@ -1,5 +1,7 @@
 # CLROS AI Agent Guide
 
+[Step1597](done/step1597.md) The integration branch now has fresh writable stat/lstat/root facts, source5 metadata pins and measured nonblocking flock; do not confuse their host controls with native writable activation. ExitPending must make exit_group its child first syscall: an earlier stdout witness can consume the outstanding read. Preserve failed originals. Normal application lifetime follows the continuing-service contract in step1599.
+
 [Step1594](done/step1594.md) Step1594 keeps exactly two agents busy on measured writable syscall and SQLite/reference closure while root investigates read throughput. Guarded source5 fstat pins144 output bytes through actual waits and revalidates fd/user generations. No writable EFI activation exists. Full read r05 failed and joined; native publication remains serialized by explicit lease handoff. Preserve every original and current live owner. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
 
 [Step1593](done/step1593.md) Step1593 keeps readonly tests independent of successor writable code. Scope the next original read producer to the read repair and its documentation; guarded writable implementation remains separate. Exactly two agents continue media/observation controls and strict crypto-free BCL fixture preparation. Root owns the native/guest lease until the next read run joins; do not start a competing publisher.

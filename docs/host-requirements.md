@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1597](../done/step1597.md) Focused host integration covers fresh confined path/root metadata, real source5 output lifetime and nonblocking flock. Exact graph/fixture commands, producer identities and preserved failures belong to step1597. Native publication remains serialized with guest work, and unchanged-input full/native/ancestor gates remain required at acceptance. Finite test limits are not the normal application runtime policy.
+
 [Step1594](../done/step1594.md) Step1594 preserves C#14/.NET11 pins and crypto/OpenSSL limitations while removing incidental app crypto from the finite storage fixture. Actual files must still be independently extracted and hashed by the host. The frozen revised native reference uses source1bb15b76 and matching five portable DLL versions; run it in a fresh Linux root under an exclusive builder lease. Host copied values do not establish guest durability. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
 
 [Step1593](../done/step1593.md) Step1593 discovers that the finite Linux log/upload fixture SHA256 report requires an unavailable native OpenSSL library. Its writer completed file I/O/readback before exit134; the revised storage-only fixture removes incidental app crypto and retains independent host hashes. This grants no crypto/OpenSSL compatibility. Scoped readonly tests must not require successor writable production; committed producer versions/hashes remain mandatory.
@@ -883,3 +885,12 @@ Historical baseline evidence from 2026-05-21:
 2. Validate the existing `.gitea/workflows/ci-smoke.yml` on a compatible Windows
    runner and retain its logs/artifacts. Workflow presence alone is not CI
    execution evidence.
+
+The prepared pinned SQLite reference CLI uses a fresh output directory on the Linux builder:
+
+```text
+linux sqlite-reference <recipe> <pinned-source-zip> <fresh-output>
+linux sqlite-recovery-reference <recipe> <pinned-source-zip> <fresh-output>
+```
+
+These commands route to the existing measured producer; the recovery run requires a separate fresh Linux root/publication. Preparation or a Linux-host success is not CLROS guest persistence or transaction durability evidence. See [step1597](../done/step1597.md).

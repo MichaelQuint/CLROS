@@ -1,5 +1,7 @@
 # Issue Labels
 
+[Step1597](../done/step1597.md) Keep affected read, writable, persistence and SQLite issues open while publishing the focused integration evidence. Reconcile canonical changes with fresh content versions, preserve human addenda/owners, post exact evidence and read back every mutation plus zero drift. Step1598/1599 policy clarification does not turn finite or host evidence into completed product acceptance.
+
 [Step1594](../done/step1594.md) Step1594 records source5 metadata waits and separate host writable preparations without closing issues. Full read r05 remains failed; copied value reports cannot authenticate a physical device, guest process, reset or durable write. Reconcile fresh scoped content versions and read back evidence comments and every mutation; preserve current human addenda, owners and original failures.
 
 [Step1593](../done/step1593.md) Step1593 preserves failed native M10-027 r01 and records test-only readonly dependency repair without closing issues. Source-based diagnosis and correct extracted bytes do not relabel the failed original or invent a distinct verifier. Current LAN masterab60bddd is already an ancestor of the feature branches; the accepted finite82656076 boundary remains historical. Fresh scoped preview/apply/readback is still required.

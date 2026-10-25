@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1597](../done/step1597.md) Step1597 records the fresh writable metadata/flock/source5 integration, separate SQLite publisher/verifier preparation and exit-first fixture repair. Storage/PAL own metadata, range arbitration and descriptor lifetimes; application docs own SQLite reference limits. EFI/QEMU retain exact native and failed-original provenance. Step1598 owns compiler/runtime guardrails and step1599 owns the continuously functioning product scenario.
+
 [Step1594](../done/step1594.md) Step1594 owns guarded writable fstat/thread integration, actual candidate fake-media and copied observation evidence, imported pinned SQLite preparation, and failed read r05 identities. Storage/PAL own metadata lifetime and allocation facts; app-model owns strict crypto-free reporting and original SQLite boundaries; EFI/QEMU/diagnostics retain emitted-source and failed-run scope. Earlier steps remain immutable. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
 
 [Step1593](../done/step1593.md) Step1593 owns scoped readonly test-dependency repair,60focused passes and failed native log/upload identity/crypto-reporting decision. Application docs own exact writer/readback/report ordering; storage owns actual versus expected bytes; EFI/QEMU retain committed producer and exclusive lease requirements. Step1591/1592 history remains unchanged.

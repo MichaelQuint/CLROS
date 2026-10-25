@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1597](../done/step1597.md) Writable metadata/flock and source5 integration have focused host support. The full FAT32/Blazor read and external browser qualification remain required, followed by actual log/upload and SQLite synchronization/recovery. The service target is continuous operation until intentional stop/restart or documented fault/resource policy; finite fixture budgets are intermediate verification controls.
+
 [Step1594](../done/step1594.md) Step1594 preserves full r05 as failed after86 responses and timeout in dotnet.native.wasm body; CoreLib completes but browser never enters. Existing1700s matrix,240s header and5min browser bounds remain unchanged. No full disk Blazor, persistent MinimalApi logs/uploads or SQLite transaction gate advances. Root seeks a measured throughput repair; guarded writable host integration proceeds separately. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
 
 [Step1593](../done/step1593.md) Step1593 scopes the next readonly native producer independently of guarded writable preparation. The first native BCL log/upload original failed after file I/O in incidental SHA reporting; MinimalApi logging/upload HTTP and persistence remain unqualified. Full r04 stays failed, and the loaded-directory repair still needs a fresh complete read/browser original.
