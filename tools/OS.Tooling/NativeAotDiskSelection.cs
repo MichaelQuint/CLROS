@@ -83,6 +83,8 @@ public static class NativeAotDiskSelection
         {
             if (!disk) throw new ToolFailure("writable_disk_fixture_required");
             bool bcl = IsBcl(ParseWritableProgram(options.WritableDiskFixture));
+            if (flags.TryGetValue("EnableM16027TimingProbe", out bool timing) && timing && options.WritableDiskFixture != "Mechanical30")
+                throw new ToolFailure("writable_timing_mechanical30_required");
             if (bcl)
             {
                 RequireBclDisassembly(options);

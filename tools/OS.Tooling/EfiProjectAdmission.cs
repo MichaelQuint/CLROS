@@ -162,6 +162,7 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"..\OS.Kernel\Diagnostics\WritableStorageTiming.cs|Diagnostics\WritableStorageTiming.cs" => profile.IsEnabled("EnableM16027TimingProbe"),
             @"..\OS.Kernel\Storage\WritableBlockSession.cs|Storage\WritableBlockSession.cs" or
             @"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs|Storage\ContinuingFat32Mutation.cs" or
             @"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs|Storage\ContinuingFat32Bootstrap.cs" or

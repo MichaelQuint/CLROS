@@ -108,6 +108,7 @@
 		<EnableM16023Probe Condition="'$(EnableM16023Probe)' == ''">false</EnableM16023Probe>
 		<EnableM16024Probe Condition="'$(EnableM16024Probe)' == ''">false</EnableM16024Probe>
 		<EnableM16027Probe Condition="'$(EnableM16027Probe)' == ''">false</EnableM16027Probe>
+		<EnableM16027TimingProbe Condition="'$(EnableM16027TimingProbe)' == ''">false</EnableM16027TimingProbe>
 		<EnableM16025Probe Condition="'$(EnableM16025Probe)' == ''">false</EnableM16025Probe>
 		<EnableM10018TimingProbe Condition="'$(EnableM10018TimingProbe)' == ''">false</EnableM10018TimingProbe>
 		<EnableM10018FullProbe Condition="'$(EnableM10018FullProbe)' == ''">false</EnableM10018FullProbe>
@@ -433,6 +434,9 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM16027Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M16_027_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16027TimingProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_027_TIMING_PROBE</DefineConstants>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM16025Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M16_025_PROBE</DefineConstants>
@@ -994,6 +998,7 @@
 		<Compile Include="Boot\EfiEntry.LinuxThreadRun.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreadTimer.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxSockets.cs" Condition="'$(EnableM16011Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Diagnostics\WritableStorageTiming.cs" Link="Diagnostics\WritableStorageTiming.cs" Condition="'$(EnableM16027TimingProbe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Storage\WritableBlockSession.cs" Link="Storage\WritableBlockSession.cs" Condition="'$(EnableM16027Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Storage\ContinuingFat32Mutation.cs" Link="Storage\ContinuingFat32Mutation.cs" Condition="'$(EnableM16027Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs" Link="Storage\ContinuingFat32Bootstrap.cs" Condition="'$(EnableM16027Probe)' == 'true'" />
@@ -2275,6 +2280,8 @@
 		<Error Condition="'$(EnableM16023Probe)' != 'true' and '$(EnableM16023Probe)' != 'false'" Text="disk_probe_switch_invalid" />
 		<Error Condition="'$(EnableM16024Probe)' != 'true' and '$(EnableM16024Probe)' != 'false'" Text="disk_probe_switch_invalid" />
 		<Error Condition="'$(EnableM16027Probe)' != 'true' and '$(EnableM16027Probe)' != 'false'" Text="writable_disk_probe_switch_invalid" />
+		<Error Condition="'$(EnableM16027TimingProbe)' != 'true' and '$(EnableM16027TimingProbe)' != 'false'" Text="writable_timing_probe_switch_invalid" />
+		<Error Condition="'$(EnableM16027TimingProbe)' == 'true' and '$(EnableM16027Probe)' != 'true'" Text="writable_timing_parent_required" />
 		<Error Condition="'$(EnableM16027Probe)' == 'true' and ('$(EnableM16025Probe)' != 'true' or '$(EnableM16012Probe)' != 'true')" Text="writable_disk_prerequisite_missing" />
 		<Error Condition="'$(EnableM16027Probe)' == 'true' and ('$(EnableM10018Probe)' == 'true' or '$(EnableM10017Probe)' == 'true' or '$(EnableM10004Probe)' == 'true')" Text="writable_disk_mechanical_profile_conflict" />
 		<Error Condition="'$(EnableM16025Probe)' != 'true' and '$(EnableM16025Probe)' != 'false'" Text="disk_probe_switch_invalid" />

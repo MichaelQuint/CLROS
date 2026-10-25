@@ -845,6 +845,19 @@ public static unsafe partial class EfiEntry
                 return !pollTracked || disk->TimingDispatch.EndPoll();
             }
 #elif M16_027_PROBE
+#if M16_027_TIMING_PROBE
+            {
+                fixed (NativeWritableOwner* timing = &s_nativeWritable)
+                {
+                    if (!BeginNativeWritableTiming(timing, c, out bool started)) return false;
+                    bool result = PollNativeWritableNetworkTurn(c, o, observe);
+                    if (!started) return result;
+                    bool valid = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing->Evidence->Timing);
+                    bool emitted = EmitNativeWritableTiming(timing, valid);
+                    return result && valid && emitted;
+                }
+            }
+#else
             {
                 if (!LinuxSocketIoCurrent(c->State, o) || observe && !RecordLinuxSocketPoll(c) ||
                     !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
@@ -859,6 +872,7 @@ public static unsafe partial class EfiEntry
                 bool descriptorsSampled = SampleNativeWritableDisk(c->State);
                 return descriptors && descriptorsSampled && RecordLinuxSocketWaits(o, c);
             }
+#endif
 #else
                 return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&
                     RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
@@ -870,6 +884,26 @@ public static unsafe partial class EfiEntry
                     c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
 #endif
         }
+
+#if M16_027_TIMING_PROBE
+        // Same original sequence as the ordinary027 arm. The separate method
+        // lets the diagnostic owner close its window on EVERY returned result.
+        private static bool PollNativeWritableNetworkTurn(LinuxNativeControl* c, LinuxSocketStorage* o, bool observe)
+        {
+            if (!LinuxSocketIoCurrent(c->State, o) || observe && !RecordLinuxSocketPoll(c) ||
+                !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
+                observe && !RecordLinuxSocketPoll(c)) return false;
+            bool read = c->Process.PollDiskReadiness(c->Key, 2);
+            bool readSampled = SampleNativeWritableDisk(c->State);
+            if (!read || !readSampled) return false;
+            bool write = c->Process.PollWritableDiskReadiness(c->Key, 2);
+            bool writeSampled = SampleNativeWritableDisk(c->State);
+            if (!write || !writeSampled) return false;
+            bool descriptors = c->Process.PollDescriptorReadiness(c->Key, 2);
+            bool descriptorsSampled = SampleNativeWritableDisk(c->State);
+            return descriptors && descriptorsSampled && RecordLinuxSocketWaits(o, c);
+        }
+#endif
 
         private static bool ObserveLinuxSocketWaits(LinuxNativeControl* c)
         {

@@ -96,6 +96,21 @@ internal static class EfiCompileInventoryTests
         }
     }
 
+    [HostTest("EFI writable timing adds only the separately reviewed diagnostic helper")]
+    private static void WritableTimingSource()
+    {
+        EfiProfile plain = EfiOptions.Parse(["--EnableM16027Probe"], true).Profile();
+        EfiProfile timing = EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile();
+        const string include = @"..\OS.Kernel\Diagnostics\WritableStorageTiming.cs";
+        string[] additions = EfiProjectAdmission.ExpectedCompileItems(timing)
+            .Except(EfiProjectAdmission.ExpectedCompileItems(plain), StringComparer.Ordinal).ToArray();
+        HostCheck.True(additions.SequenceEqual(new[] { include + @"|Diagnostics\WritableStorageTiming.cs" }, StringComparer.Ordinal));
+        string source = File.ReadAllText(Path.GetFullPath(include, Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS")));
+        HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
+        HostCheck.True(EfiSourceAdmission.Inspect(source, include).Succeeded);
+        HostCheck.True(!EfiSourceAdmission.Inspect(source + "\n// changed timing source\n", include).Succeeded);
+    }
+
     private static EfiProfile[] Profiles() =>
     [
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()),
@@ -116,6 +131,7 @@ internal static class EfiCompileInventoryTests
         EfiOptions.Parse(["--EnableM10017Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM16025Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM16027Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile()
     ];
@@ -151,6 +167,7 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM10017Probe)' == 'true' or '$(EnableM10018Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe") || profile.IsEnabled("EnableM10018Probe"),
             "'$(EnableM16025Probe)' == 'true'" => profile.IsEnabled("EnableM16025Probe"),
             "'$(EnableM16027Probe)' == 'true'" => profile.IsEnabled("EnableM16027Probe"),
+            "'$(EnableM16027TimingProbe)' == 'true'" => profile.IsEnabled("EnableM16027TimingProbe"),
             "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();

@@ -3,6 +3,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Diagnostics\WritableStorageTiming.cs"] = "reviewed_m16_027_bounded_raw_counter_timing_source_identity",
         [@"..\OS.Kernel\Storage\WritableBlockSession.cs"] = "reviewed_m16_027_writable_block_owner_source_identity",
         [@"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs"] = "reviewed_m16_027_continuing_fat32_mutation_source_identity",
         [@"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs"] = "reviewed_m16_027_continuing_fat32_bootstrap_source_identity",

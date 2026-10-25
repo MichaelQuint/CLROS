@@ -5,6 +5,25 @@ internal static class NativeAotWritableDiskSelectionTests
     private static string[] Arguments(string fixture) => ["-BuildEfi", "-EnableM16027Probe", "-WritableDiskFixture", fixture,
         "-LinuxElfPackage", "artifacts/writable.pkg", "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/published-webroot"];
 
+    [HostTest("writable timing is explicit mechanical-only diagnostic with unchanged budgets")]
+    private static void TimingSelection()
+    {
+        HostCheck.True(!EfiOptions.Parse([], true).Profile().IsEnabled("EnableM16027TimingProbe"));
+        HostCheck.True(!QemuProfiles.Create(QemuSmokeOptions.Parse(Arguments("Mechanical30"))).IsEnabled("EnableM16027TimingProbe"));
+        var options = QemuSmokeOptions.Parse([.. Arguments("Mechanical30"), "-EnableM16027TimingProbe"]);
+        var plan = QemuProfiles.Create(options);
+        HostCheck.True(plan.IsEnabled("EnableM16027TimingProbe") && plan.IsEnabled("EnableM16027Probe"));
+        HostCheck.Equal(180, options.TimeoutSeconds);
+        HostCheck.True(EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile().IsEnabled("EnableM16027Probe"));
+        Failure(() => EfiOptions.Parse(["--EnableM16027TimingProbe", "--EnableM16027Probe:false"], true).Profile(),
+            "writable_timing_explicit_false_prerequisite");
+        foreach (string target in new[] { "LogUpload40", "BclWrite", "BclVerify" })
+            Failure(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments(target), "-EnableM16027TimingProbe", "-DryRun"])),
+                "writable_timing_mechanical30_required");
+        foreach (string conflict in new[] { "M10018", "M16014", "M16013" })
+            Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([.. Arguments("Mechanical30"), "-EnableM16027TimingProbe", "-Enable" + conflict + "Probe"])));
+    }
+
     [HostTest("writable BCL planning has an exact typed phase dedicated instruction path and scoped package bound")]
     private static void BclPlanning()
     {

@@ -23,7 +23,7 @@ public static unsafe partial class EfiEntry
                 slot->WaitCall.Number != call.Number || slot->WaitCall.Rip != call.Rip) return false;
             var request = &disk->Request;
             Storage* state = c->State;
-            return LinuxText(state, "M16_027_BEGIN identity=") && LinuxNumber(state, slot->Kernel.Value) &&
+            bool written = LinuxText(state, "M16_027_BEGIN identity=") && LinuxNumber(state, slot->Kernel.Value) &&
                 LinuxText(state, " ordinal=") && LinuxNumber(state, LinuxNativeCallOrdinal(c, index)) &&
                 LinuxText(state, " sequence=") && LinuxNumber(state, slot->Wait.Sequence) &&
                 LinuxText(state, " requestOwner=") && LinuxNumber(state, slot->WritableDiskOperation.Owner) &&
@@ -46,6 +46,17 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " operation=") && LinuxNumber(state, request->Operation) &&
                 LinuxText(state, " phase=") && LinuxNumber(state, request->Phase) &&
                 LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
+#if M16_027_TIMING_PROBE
+            if (written)
+            {
+                fixed (NativeWritableOwner* o = &s_nativeWritable)
+                {
+                    if (o->Boot != state || o->Phase != 6 || o->Evidence == null) return false;
+                    if (o->Evidence->TimingPhase == 0) o->Evidence->TimingPhase = 1;
+                }
+            }
+#endif
+            return written;
         }
         // Retained ordinary RAM, separate from B's exclusive observation slot.
         // Root samples before and immediately after EVERY possible B-touching
@@ -58,7 +69,69 @@ public static unsafe partial class EfiEntry
             internal B.Status LastBlockFailure;
             internal ulong StateSubmitted, StateCompleted, StateSubmittedBytes, StateCompletedBytes, StateFlushedBytes;
             internal bool Failed, HeaderCopied, HadState, LastBound, LastRunning, LastRetired, LastDirty, LastRetry;
+#if M16_027_TIMING_PROBE
+            internal byte TimingPhase; //0 unarmed,1 first source5 BEGIN,2 measuring,3 report emitted.
+            internal OS.Kernel.Diagnostics.WritableStorageTiming.State Timing;
+#endif
         }
+
+#if M16_027_TIMING_PROBE
+        // The complete owner/evidence/mapping admission finishes BEFORE the
+        // measured turn. Only the already admitted HPET register is sampled;
+        // normal Clock and Threads.ObservedTicks are never changed by timing.
+        private static bool BeginNativeWritableTiming(NativeWritableOwner* o, LinuxNativeControl* c, out bool started)
+        {
+            started = false;
+            if (o->Boot != c->State || o->Phase != 6 || o->Evidence == null) return true;
+            if (o->Evidence->TimingPhase != 1) return true;
+            if (!NativeWritableControl(c->State, c) || !NativeWritableShape(o)) return false;
+            Storage* s = c->State;
+            if (s->Clock.Source != OS.Kernel.Platform.OwnedClockSource.Hpet ||
+                s->Clock.Status != OS.Kernel.Platform.OwnedClockStatus.Ready || s->Clock.CounterWidth is not (32 or 64) ||
+                s->Clock.FrequencyHz == 0 || s->HpetDescription.Address != s->Memory.References.HpetDevicePage ||
+                s->HpetDescription.Address > ulong.MaxValue - 0xf0 ||
+                !OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&o->Evidence->Timing, s->HpetDescription.Address + 0xf0, s->Clock.CounterWidth)) return false;
+            o->Evidence->TimingPhase = 2; started = true; return true;
+        }
+
+        private static bool EmitNativeWritableTiming(NativeWritableOwner* o, bool valid)
+        {
+            if (o->Evidence->TimingPhase != 2) return false;
+            var r = &o->Evidence->Timing; Storage* s = o->Boot;
+            bool written = LinuxText(s, "M16_027_TIMING") &&
+                NativeWritableTimingValue(s, " width=", r->Width) &&
+                NativeWritableTimingValue(s, " frequency=", s->Clock.FrequencyHz) &&
+                NativeWritableTimingValue(s, " valid=", valid ? 1UL : 0UL) &&
+                NativeWritableTimingValue(s, " outer=", r->OuterTicks) &&
+                NativeWritableTimingValue(s, " auditCalls=", r->AuditCalls) &&
+                NativeWritableTimingValue(s, " auditTicks=", r->AuditTicks) &&
+                NativeWritableTimingValue(s, " outsideDeviceCalls=", r->OutsideDeviceCalls) &&
+                NativeWritableTimingValue(s, " pairCalls=", r->PairCalls) &&
+                NativeWritableTimingValue(s, " pairTicks=", r->PairTicks) &&
+                NativeWritableTimingValue(s, " pairAuditTicks=", r->PairAuditTicks) &&
+                NativeWritableTimingValue(s, " pumpCalls=", r->PumpCalls) &&
+                NativeWritableTimingValue(s, " pumpTicks=", r->PumpTicks) &&
+                NativeWritableTimingValue(s, " pumpAuditTicks=", r->PumpAuditTicks) &&
+                NativeWritableTimingValue(s, " engineCalls=", r->EnginePumpCalls) &&
+                NativeWritableTimingValue(s, " engineOwner=", r->EngineOwner) &&
+                NativeWritableTimingValue(s, " beforePhase=", r->FirstEnginePhase) &&
+                NativeWritableTimingValue(s, " beforeStep=", r->FirstEngineStep) &&
+                NativeWritableTimingValue(s, " beforeWork=", r->FirstEngineWork) &&
+                NativeWritableTimingValue(s, " beforeIo=", r->FirstEngineIo ? 1UL : 0UL) &&
+                NativeWritableTimingValue(s, " afterPhase=", r->LastEnginePhase) &&
+                NativeWritableTimingValue(s, " afterStep=", r->LastEngineStep) &&
+                NativeWritableTimingValue(s, " afterWork=", r->LastEngineWork) &&
+                NativeWritableTimingValue(s, " afterIo=", r->LastEngineIo ? 1UL : 0UL) &&
+                NativeWritableTimingValue(s, " rawReads=", r->RawReads) &&
+                NativeWritableTimingValue(s, " adjacentReadTicks=", r->AdjacentReadTicks) &&
+                NativeWritableTimingValue(s, " auditOutside=", r->AuditOutsideEnclosingTicks) &&
+                NativeWritableTimingValue(s, " unattributed=", r->UnattributedTicks) && LinuxText(s, "\r\n");
+            if (written) o->Evidence->TimingPhase = 3;
+            return written;
+        }
+        private static bool NativeWritableTimingValue(Storage* s, string label, ulong value) =>
+            LinuxText(s, label) && LinuxNumber(s, value);
+#endif
 
         // Structural original-owner sampling also works after B.Stop returned
         // its DMA lease. It neither polls nor authorizes another I/O. Missing

@@ -527,6 +527,23 @@ public static unsafe class ContinuingFat32Mutation
     /// its actual FLUSH. Read errors before publication change no media; issued
     /// failures/cancellation retain RecoveryRequired and all journal bytes.</summary>
     public static Status Pump(State* s)
+#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
+    {
+        bool timing = OS.Kernel.Diagnostics.WritableStorageTiming.IsActive;
+        if (timing) RecordTimingProgress(s, true);
+        Status result = PumpCore(s);
+        if (timing) RecordTimingProgress(s, false);
+        return result;
+    }
+    private static void RecordTimingProgress(State* s, bool entering)
+    {
+        if (!Bound(s))
+        { OS.Kernel.Diagnostics.WritableStorageTiming.EngineProgress(0, 0, 0, 0, false, entering); return; }
+        OS.Kernel.Diagnostics.WritableStorageTiming.EngineProgress((ulong)s, (uint)s->Phase,
+            (uint)s->Step, s->Work, s->IoActive, entering);
+    }
+    private static Status PumpCore(State* s)
+#endif
     {
         if (!Bound(s)) return Status.InvalidState;
         if (s->Phase == Life.Faulted) return s->Failure;
@@ -1305,6 +1322,15 @@ public static unsafe class ContinuingFat32Mutation
     // An observer changed into engine backing must reject all new borrows.
     // No running-device predicate: fault/retired cleanup still retains extents.
     private static bool RetainedStorage(State* s, Extent* all)
+#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
+    {
+        var stamp = OS.Kernel.Diagnostics.WritableStorageTiming.Enter(OS.Kernel.Diagnostics.WritableStorageTiming.Bucket.Audit);
+        bool result = RetainedStorageCore(s, all);
+        OS.Kernel.Diagnostics.WritableStorageTiming.Leave(stamp);
+        return result;
+    }
+    private static bool RetainedStorageCore(State* s, Extent* all)
+#endif
     {
         Extents(s, s->Input, all);
         for (int i = 0; i < 14; i++)
@@ -1316,6 +1342,9 @@ public static unsafe class ContinuingFat32Mutation
     }
     private static bool OutsideDevice(Block.State* d, ulong address, ulong bytes)
     {
+#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
+        OS.Kernel.Diagnostics.WritableStorageTiming.OutsideDevice();
+#endif
         if (!Storage((ulong)d, (ulong)sizeof(Block.State), 8) || d->Self != (ulong)d) return false;
         var a = d->Input; DmaBufferPool* p = a.Pool;
         if (!Storage((ulong)p, (ulong)sizeof(DmaBufferPool), 8) || p->Self != (ulong)p || p->Epoch != d->PoolEpoch || p->Count is < 1 or > 64 ||
