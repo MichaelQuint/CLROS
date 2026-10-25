@@ -143,7 +143,10 @@ public static unsafe partial class LinuxDescriptorServices
     /// fds. A null attachment is neutral before input copies. The parent supplies
     /// an actual current worker and retains its original call and output ceiling.
     /// One outstanding I/O request; other I/O admissions return EAGAIN.
-    /// Nonblocking flock is synchronous and may run during a clean read.</summary>
+    /// Nonblocking flock is synchronous and may run during a clean read.
+    /// Requested create modes0600 and0644 use the immutable confined-appliance
+    /// mask077: regular metadata reports effective0600 and uid/gid0. FAT stores
+    /// no Unix permission bits; this is not a per-process umask or chmod API.</summary>
     public static WritableDiskResult BeginWritableDisk(State* state, ulong owner, OSHostHandle worker, LinuxSyscallFrame call)
     {
         if (state == null || state->WritableDisk == null) return new(WritableDiskProgress.NotHandled);
@@ -175,7 +178,7 @@ public static unsafe partial class LinuxDescriptorServices
             const uint allowed = 3 | W.Create | W.Exclusive | CloseOnExec | NoFollow | LargeFile | W.DirectoryOnly | W.NoControllingTerminal;
             if (((uint)flags & ~allowed) != 0 || (flags & 3) == 3) return new(WritableDiskProgress.Immediate, WritableUnsupported);
             ulong mode = call.Number == 2 ? call.Argument2 : call.Argument3;
-            if ((flags & W.Create) != 0 && mode != 0x180) return new(WritableDiskProgress.Immediate, WritableUnsupported);
+            if ((flags & W.Create) != 0 && mode is not (0x180 or 0x1a4)) return new(WritableDiskProgress.Immediate, WritableUnsupported);
             uint fd = FreeSlot(state, 0, uint.MaxValue), description = FreeDescription(state, uint.MaxValue);
             if (fd == state->Owner.DescriptorCount) return new(WritableDiskProgress.Immediate, DescriptorTableFull);
             if (description == state->Owner.DescriptionCount || state->NextInode == uint.MaxValue) return new(WritableDiskProgress.Immediate, FileTableFull);

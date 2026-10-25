@@ -21,6 +21,99 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
+    [HostTest("writable measured create modes0600 and0644 use fixed mask077 and fresh effective metadata without persisted Unix permissions")]
+    private static void CreateModePolicy()
+    {
+        foreach (ulong number in new ulong[] { 2, 257 })
+            foreach (ulong mode in new ulong[] { 0x180, 0x1a4 })
+            {
+                using var f = new Owner(); f.PutPath("/data/contract.db");
+                const uint flags = 2 | W.Create | W.Exclusive | W.NoFollow | W.CloseOnExec | W.LargeFile;
+                var call = number == 2 ? f.Call(2, Path, flags, mode) : f.Call(257, unchecked((ulong)-100L), Path, flags, mode);
+                HostCheck.Equal(3L, f.Run(call)); HostCheck.Equal(1L, f.Core(72, 3, 1));
+                HostCheck.Equal(0L, f.Run(f.Call(5, 3, Output))); byte[] facts = f.Bytes(144);
+                HostCheck.True(BitConverter.ToUInt32(facts, 24) == 0x8180 && BitConverter.ToUInt32(facts, 28) == 0 &&
+                    BitConverter.ToUInt32(facts, 32) == 0 && BitConverter.ToUInt64(facts, 48) == 0 && BitConverter.ToUInt64(facts, 64) == 0);
+                foreach (ulong stat in new ulong[] { 4, 6 })
+                { f.PutPath("/data/contract.db"); HostCheck.Equal(0L, f.Run(f.Call(stat, Path, Output))); HostCheck.True(f.Bytes(144).SequenceEqual(facts)); }
+                ulong inode = BitConverter.ToUInt64(facts, 8); ulong entry = (inode - 1) * 32;
+                HostCheck.Equal((byte)0x20, f.Storage.Persistent[(int)entry + 11]); // FAT archive, with no Unix permission storage.
+                f.Independent("contract.db", []);
+                HostCheck.True(F.Capture(f.Files.State, 3, out var original)); HostCheck.Equal(0L, f.Core(3, 3));
+                f.PutPath("/data/contract.db");
+                var reopen = number == 2 ? f.Call(2, Path, 2 | W.Create, mode) : f.Call(257, unchecked((ulong)-100L), Path, 2 | W.Create, mode);
+                ulong writes = f.Storage.Device.State->SubmittedBytes, revision = f.Storage.State->VolumeRevision;
+                HostCheck.Equal(3L, f.Run(reopen)); HostCheck.True(!F.IsCurrent(f.Files.State, original));
+                HostCheck.Equal(0L, f.Run(f.Call(5, 3, Output))); HostCheck.Equal(inode, BitConverter.ToUInt64(f.Bytes(144), 8));
+                HostCheck.True(f.Storage.Device.State->SubmittedBytes == writes && f.Storage.State->VolumeRevision == revision);
+                HostCheck.Equal(-17L, f.Run(call)); HostCheck.True(F.Audit(f.Files.State));
+            }
+    }
+
+    [HostTest("writable create mode policy rejects every other requested permission before reservation or IO and ignores mode without create")]
+    private static void CreateModeRejection()
+    {
+        using var f = new Owner(); uint calls = f.Hardware->Calls; ulong submitted = f.Storage.Device.State->Submitted;
+        foreach (ulong number in new ulong[] { 2, 257 })
+            foreach (ulong mode in new ulong[] { 0, 0x100, 0x1a0, 0x1b6, 0x1c0, 0x1ff, 0x8180, 0x100000180, ulong.MaxValue })
+            {
+                f.PutPath("/data/must-not-create.db");
+                var call = number == 2 ? f.Call(2, Path, 2 | W.Create, mode) : f.Call(257, unchecked((ulong)-100L), Path, 2 | W.Create, mode);
+                HostCheck.Equal(-95L, f.Run(call));
+                HostCheck.True(!f.Disk->RequestActive && !f.Provider->RequestActive && f.Files.State->ActiveDescriptors == 3 && F.Audit(f.Files.State));
+            }
+        HostCheck.True(f.Hardware->Calls == calls && f.Storage.Device.State->Submitted == submitted && f.Storage.State->VolumeRevision == 1);
+        f.PutPath("/data/DATA.BIN"); HostCheck.Equal(3L, f.Run(f.Call(2, Path, 0, ulong.MaxValue)));
+        HostCheck.Equal(-38L, f.Core(93, 3, 0, 0)); HostCheck.Equal(-38L, f.Core(138, 3, Output));
+    }
+
+    [HostTest("writable0644 admission retains global capacity and exact reservation cancellation and ready winner generations")]
+    private static void CreateModeCapacityAndCancellation()
+    {
+        foreach (bool fdFull in new[] { true, false })
+        {
+            using var full = new Owner(descriptors: fdFull ? 3U : 32U, descriptions: 3);
+            full.PutPath("/data/no-space.db"); uint calls = full.Hardware->Calls;
+            HostCheck.Equal(fdFull ? -24L : -23L, full.Run(full.Call(2, Path, 2 | W.Create, 0x1a4)));
+            HostCheck.True(full.Hardware->Calls == calls && !full.Disk->RequestActive && !full.Provider->RequestActive && full.Storage.State->VolumeRevision == 1);
+        }
+        using (var f = new Owner())
+        {
+            f.PutPath("/data/cancelled.db"); var call = f.Call(2, Path, 2 | W.Create | W.Exclusive, 0x1a4); var begun = f.Begin(call);
+            HostCheck.Equal(F.WritableDiskProgress.Pending, begun.Progress); HostCheck.True(!F.Capture(f.Files.State, 3, out _));
+            var cancelled = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, true);
+            HostCheck.True(cancelled.Progress == F.WritableDiskProgress.Draining && !cancelled.Worker.IsValid);
+            f.PutPath("/app/fixture.data"); HostCheck.Equal(4L, f.Core(2, Path, 0x88100)); f.Drain();
+            HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && f.Storage.State->VolumeRevision == 1);
+            HostCheck.Equal(3L, f.Core(2, Path, 0x88100));
+            HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+        }
+        using (var f = new Owner())
+        {
+            f.PutPath("/data/ready.db"); var call = f.Call(257, unchecked((ulong)-100L), Path, 2 | W.Create | W.Exclusive, 0x1a4);
+            var begun = f.Begin(call); HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress);
+            uint calls = f.Hardware->Calls; var winner = F.CancelWritableDisk(f.Files.State, f.ThreadOwner, begun.Token, false);
+            HostCheck.True(winner.Progress == F.WritableDiskProgress.Ready && winner.Worker.Value == f.Worker.Value);
+            HostCheck.Equal(3L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+            HostCheck.Equal(calls, f.Hardware->Calls); HostCheck.True(F.Capture(f.Files.State, 3, out var original));
+            HostCheck.Equal(0L, f.Core(3, 3)); uint reused = f.Open(); HostCheck.Equal(3U, reused);
+            HostCheck.True(!F.IsCurrent(f.Files.State, original));
+            HostCheck.Equal(F.WritableDiskProgress.Rejected, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Progress);
+            HostCheck.Equal(0L, f.Run(f.Call(8, reused, 0, 1))); HostCheck.True(F.Audit(f.Files.State));
+        }
+    }
+
+    [HostTest("writable0644 creation reports actual lookup IO failure without fd publication or mutation")]
+    private static void CreateModeIoFailure()
+    {
+        using var f = new Owner(); f.PutPath("/data/failed.db"); var call = f.Call(2, Path, 2 | W.Create, 0x1a4); var begun = f.Begin(call);
+        f.Pump(); HostCheck.True(f.Hardware->Pending && f.Hardware->Type == 0); f.Storage.Device.Complete(length: 1, status: 1);
+        HostCheck.Equal(F.WritableDiskProgress.Ready, f.Ready(begun.Token).Progress);
+        HostCheck.Equal(-5L, F.CompleteWritableDisk(f.Files.State, f.ThreadOwner, f.Worker, begun.Token, call).Value);
+        HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && f.Storage.State->VolumeRevision == 1 &&
+            f.Files.State->ActiveDescriptors == 3 && !F.Capture(f.Files.State, 3, out _) && F.Audit(f.Files.State));
+    }
+
     [HostTest("writable global fresh stat and lstat match actual fstat bytes using copied path even when output aliases original path")]
     private static void FreshPathWire()
     {
@@ -120,7 +213,7 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         {
             f.PutPath("/data/../private/sentinel"); HostCheck.Equal(-13L, f.Run(f.Call(6, Path, Output)));
             f.PutPath("/proc/meminfo"); HostCheck.Equal(F.WritableDiskProgress.NotHandled, f.Begin(f.Call(4, Path, Output)).Progress);
-            f.PutPath("/data/not-created.db"); HostCheck.Equal(-95L, f.Run(f.Call(2, Path, 2 | W.Create, 0x1a4)));
+            f.PutPath("/data/not-created.db"); HostCheck.Equal(-95L, f.Run(f.Call(2, Path, 2 | W.Create, 0x1a0)));
             HostCheck.Equal(-38L, f.Core(93, 3, 0, 0)); HostCheck.Equal(-38L, f.Core(138, 3, Output));
             HostCheck.True(!f.Provider->RequestActive && !f.Disk->RequestActive && f.Storage.State->VolumeRevision == 1);
         }

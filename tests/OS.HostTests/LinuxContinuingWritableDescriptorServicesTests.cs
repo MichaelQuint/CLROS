@@ -917,6 +917,73 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         HostCheck.Equal(ulong.MaxValue, *(ulong*)((byte*)f.Processes + WritableBlockSessionTests.ManagedOffset(f.Processes, "Generation")));
     }
 
+    [HostTest("continuing copied SQLite lock progression survives real journal and database mutations with independent owner contention")]
+    private static void SqliteLockTransaction()
+    {
+        // Lock ranges, ordering and write widths are copied from original
+        // sqlite-trace.5255:269-315. Test payloads are not a SQLite database or
+        // recovery journal; actual SQLite, guest and durability claims stay out.
+        using var f = new Owner(locks: true, growth: true);
+        var primary = D.PrimaryProcess(f.State); var other = D.RegisterProcess(f.State, 22).Process;
+        var database = f.Open(flags: 2); var independent = f.Open(); var reader = f.OpenFor(other, flags: 2);
+        var initial = f.CopiedFile(database); D.Seek(f.State, database, 17, 0); D.Seek(f.State, independent, 29, 0);
+        byte[] guard = f.Storage.Persistent.Slice((int)((f.DataLba + 1) * 512), 512).ToArray();
+        byte[] guardEntry = f.Storage.Persistent.Slice((int)(f.DataLba * 512), 32).ToArray();
+        const long pending = 0x40000000, reserved = pending + 1, shared = pending + 2;
+        D.FreeSearch search = new(8, 64, 128);
+        void Lock(D.ProcessToken process, D.DescriptorToken file, short type, long first, long bytes, long expected = 0) =>
+            HostCheck.Equal(expected, L(f, process, file, 6, type, first, bytes).Value);
+        void Sync(D.DescriptorToken file)
+        {
+            int start = f.Trace.Count; ulong written = f.Storage.Device.State->SubmittedBytes;
+            HostCheck.Equal(0L, f.Run(D.BeginSync(f.State, file)).Value);
+            HostCheck.True(f.Trace.Skip(start).Select(row => row.Type).SequenceEqual(new uint[] { 4 }) &&
+                f.Storage.Device.State->SubmittedBytes == written && f.Storage.Device.State->CompletedBytes == written &&
+                f.Storage.Device.State->DurableBytes == written && !f.Storage.State->Dirty);
+        }
+
+        Lock(primary, database, 0, pending, 1); Lock(primary, database, 0, shared, 510); Lock(primary, database, 2, pending, 1);
+        Lock(other, reader, 0, pending, 1); Lock(other, reader, 0, shared, 510); Lock(other, reader, 2, pending, 1);
+        Lock(primary, database, 1, reserved, 1); Lock(other, reader, 1, reserved, 1, -11);
+        var journal = f.Open("/data/contract.db-journal", 2 | D.Create | D.NoFollow | D.CloseOnExec | D.LargeFile);
+        var journalFile = f.CopiedFile(journal); HostCheck.True(journalFile.EntryOffset != initial.EntryOffset);
+        byte[] journalBytes = Enumerable.Range(0, 512).Select(Value).ToArray();
+        HostCheck.Equal(512L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, journal, journalBytes, 0, D.RwfNoAppend, search)).Value);
+        Lock(other, reader, 1, reserved, 1, -11); // Journal revisions must not drop the database reservation.
+        Lock(primary, database, 1, pending, 1); Lock(primary, database, 1, shared, 510, -11);
+        Lock(other, reader, 0, pending, 1, -11); // Failed exclusive upgrade retains PENDING, blocking new readers.
+        Lock(other, reader, 2, shared, 510); Lock(primary, database, 1, shared, 510);
+        Sync(journal); var root = f.Open("/data", D.LargeFile | D.CloseOnExec); Sync(root); HostCheck.Equal(0L, D.Close(f.State, root));
+        byte[] header = Enumerable.Range(0, 12).Select(i => (byte)(0xe0 + i)).ToArray(); header.CopyTo(journalBytes, 0);
+        HostCheck.Equal(12L, f.Run(D.Pwritev2Single(f.State, journal, header, 0, D.RwfNoAppend)).Value); Sync(journal);
+        f.Independent("contract.db-journal", journalBytes);
+
+        byte[] databaseBytes = Enumerable.Range(0, 8192).Select(i => unchecked((byte)(i * 29 + 7))).ToArray();
+        HostCheck.Equal(4096L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, database, databaseBytes.AsSpan(0, 4096), 0, D.RwfNoAppend, search)).Value);
+        HostCheck.Equal(4096L, f.Run(D.Pwritev2SingleWithFreeSearch(f.State, database, databaseBytes.AsSpan(4096), 4096, D.RwfNoAppend, search)).Value);
+        Sync(database); var current = f.CopiedFile(database);
+        HostCheck.True(current.EntryOffset == initial.EntryOffset && current.Owner == initial.Owner && current.Epoch == initial.Epoch &&
+            current.Revision > initial.Revision && current.Length == 8192 && f.CopiedFile(independent).Length == 8192);
+        Lock(other, reader, 0, shared, 510, -11); HostCheck.Equal(0L, D.Close(f.State, journal));
+        HostCheck.Equal(0L, f.Run(D.BeginUnlink(f.State, "/data/contract.db-journal"u8)).Value);
+        Lock(other, reader, 0, shared, 510, -11); // Closing/deleting a different inode must preserve EXCLUSIVE.
+        var missing = D.BeginPathStat(f.State, "/data/contract.db-journal"u8); HostCheck.Equal(D.Progress.Ready, f.Wait(missing).Phase);
+        D.StatMetadata metadata = default; HostCheck.Equal(-2L, D.CopyStat(f.State, missing.Request, &metadata, (uint)sizeof(D.StatMetadata)).Value);
+        Lock(primary, database, 0, shared, 510); Lock(primary, database, 2, pending, 2);
+        Lock(other, reader, 0, pending, 1); Lock(other, reader, 0, shared, 510); Lock(other, reader, 2, pending, 1);
+        Lock(other, reader, 1, shared, 510, -11); Lock(primary, database, 2, 0, 0); Lock(other, reader, 1, shared, 510);
+        Lock(other, reader, 2, 0, 0); HostCheck.Equal(0, f.ActiveLocks());
+        HostCheck.True(f.Cursor(database) == 17 && f.Cursor(independent) == 29 &&
+            f.Read(database, 8192, 0, true).SequenceEqual(databaseBytes) && f.Cursor(database) == 17);
+        f.Independent("DATA.BIN", databaseBytes);
+        HostCheck.True(f.Storage.Persistent.Slice((int)((f.DataLba + 1) * 512), 512).SequenceEqual(guard) &&
+            f.Storage.Persistent.Slice((int)(f.DataLba * 512), 32).SequenceEqual(guardEntry) && !f.State->Quarantined);
+        HostCheck.True(f.Trace.Any(row => row.Type == 1) && f.Trace.Count(row => row.Type == 4) >= 4 &&
+            f.Storage.Device.State->Submitted == f.Storage.Device.State->Completed &&
+            f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->CompletedBytes &&
+            f.Storage.Device.State->CompletedBytes == f.Storage.Device.State->DurableBytes);
+    }
+
     [HostTest("continuing own data revisions preserve process locks while another owner exit leaves pending writes alone")]
     private static void LockDataProgress()
     {
