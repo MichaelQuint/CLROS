@@ -863,13 +863,22 @@ public static unsafe partial class LinuxDescriptorServices
 #endif
 #endif
 #if !NOSTDLIB_EFI || M16_025_PROBE
+        bool borrowedDiskChecked = false;
 #if !NOSTDLIB_EFI || M16_027_PROBE
-        if (state->Disk != null && BorrowedDiskMount(state->Disk->Mount) && !DiskCanRetainStorage(state, start, bytes)) return false;
+        if (state->Disk != null && BorrowedDiskMount(state->Disk->Mount))
+        {
+            if (!DiskCanRetainStorage(state, start, bytes)) return false;
+            borrowedDiskChecked = true;
+        }
 #endif
         if (state->Disk != null)
             for (uint i = 0; i < DiskExtentCount; i++)
             {
-                DiskExtentAt(state, i, out ulong held, out ulong heldBytes);
+                // The strict borrowed query authenticates the full tree once.
+                // This local inventory cannot invoke callbacks, yield or mutate it.
+                ulong held, heldBytes;
+                if (borrowedDiskChecked) DiskLocalExtent(state->Disk, i, out held, out heldBytes);
+                else DiskExtentAt(state, i, out held, out heldBytes);
                 if (heldBytes != 0 && Overlap(start, bytes, held, heldBytes)) return false;
             }
 #endif
