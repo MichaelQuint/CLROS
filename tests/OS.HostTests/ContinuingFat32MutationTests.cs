@@ -43,6 +43,99 @@ internal static unsafe class ContinuingFat32MutationTests
     private static C.Result Result(Fixture f, C.RequestToken request, C.Status expected = C.Status.Success)
     { C.Result result = default; HostCheck.Equal(expected, C.CopyResult(f.State, request, &result)); HostCheck.Equal(expected, result.Status); return result; }
 
+    private delegate bool RetainedReadRange(C.State* state, ulong epoch, B.State* block, ulong blockEpoch, ulong first, ulong last);
+    private static readonly RetainedReadRange ReadRangePredicate = typeof(C).GetMethod("CanRetainReadRange",
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.CreateDelegate<RetainedReadRange>();
+    private static bool Range(Fixture f, ulong first = 1, ulong last = First - 1) =>
+        ReadRangePredicate(f.State, f.Input.Epoch, f.Device.State, f.Device.Input.Epoch, first, last);
+
+    [HostTest("continuing retained readonly range uses original partition inclusive bounds capacity and exact engine block identities without effects")]
+    private static void RetainReadRangeBounds()
+    {
+        using var f = new Fixture(spareSectors: 16); f.Mount(); ulong end = f.Input.PartitionLast, capacity = f.Device.State->SectorCount;
+        HostCheck.True(Range(f) && Range(f, end + 1, capacity - 1));
+        foreach (var pair in new (ulong First, ulong Last)[] { (0, 0), (0, 7), (2, 1), (1, First), (First, First),
+            (end, end + 1), (end, end), (capacity, capacity), (1, ulong.MaxValue) }) HostCheck.True(!Range(f, pair.First, pair.Last));
+        HostCheck.True(!ReadRangePredicate(f.State, 0, f.Device.State, f.Device.Input.Epoch, 1, 7) &&
+            !ReadRangePredicate(f.State, f.Input.Epoch + 1, f.Device.State, f.Device.Input.Epoch, 1, 7) &&
+            !ReadRangePredicate(f.State, f.Input.Epoch, f.Device.State, f.Device.Input.Epoch + 1, 1, 7));
+        B.State* other = (B.State*)NativeMemory.AllocZeroed((nuint)sizeof(B.State));
+        try { *other = *f.Device.State; HostCheck.True(!ReadRangePredicate(f.State, f.Input.Epoch, other, f.Device.Input.Epoch, 1, 7)); }
+        finally { NativeMemory.Free(other); }
+        byte[] engine = new ReadOnlySpan<byte>(f.State, sizeof(C.State)).ToArray(); uint calls = f.Device.Hardware->Calls;
+        long allocated = GC.GetAllocatedBytesForCurrentThread(); bool good = true;
+        for (int i = 0; i < 64; i++) good &= Range(f) && !Range(f, First, First);
+        HostCheck.True(good && allocated == GC.GetAllocatedBytesForCurrentThread() && calls == f.Device.Hardware->Calls &&
+            engine.SequenceEqual(new ReadOnlySpan<byte>(f.State, sizeof(C.State))));
+    }
+
+    [HostTest("continuing retained readonly range refuses rewritten data geometry epoch ABA and overlapping backing while retaining original stopped owner")]
+    private static void RetainReadRangeTamper()
+    {
+        using var f = new Fixture(observe: true); f.Mount();
+        C.Admission* input = (C.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var saved = *input;
+        try
+        {
+            input->PartitionFirst = 1; input->PartitionLast = 7; HostCheck.True(!Range(f)); *input = saved;
+            input->Before = input->After; HostCheck.True(!Range(f));
+        }
+        finally { *input = saved; }
+        LiveFat32Volume* volume = (LiveFat32Volume*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Volume")); var originalVolume = *volume;
+        try { volume->PartitionFirstLba = 1; volume->PartitionLastLba = 7; HostCheck.True(!Range(f)); }
+        finally { *volume = originalVolume; }
+        B.Admission* block = (B.Admission*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "Input")); ulong epoch = block->Epoch;
+        try { block->Epoch++; HostCheck.True(!Range(f)); } finally { block->Epoch = epoch; }
+        ulong* poolEpoch = (ulong*)((byte*)f.Device.State + WritableBlockSessionTests.ManagedOffset(f.Device.State, "PoolEpoch")); ulong pool = *poolEpoch;
+        try { (*poolEpoch)++; HostCheck.True(!Range(f)); } finally { *poolEpoch = pool; }
+        HostCheck.True(Range(f)); HostCheck.Equal(B.Status.Success, B.Stop(f.Device.State)); HostCheck.True(Range(f));
+        HostCheck.Equal(C.Status.Success, C.Stop(f.State)); HostCheck.True(!Range(f));
+    }
+
+    [HostTest("continuing external IN pending and held results retain structural range but exclude every new engine turn and Stop until actual drain")]
+    private static void RetainReadRangeQueueExclusion()
+    {
+        using var f = new Fixture(); f.Mount(); var file = File(f); B.RequestToken read = default;
+        HostCheck.Equal(B.Status.Success, B.SubmitRead(f.Device.State, 1, &read));
+        for (int phase = 0; phase < 2; phase++)
+        {
+            HostCheck.True(Range(f) && f.Device.State->RequestPending && !f.State->RequestActive);
+            ulong submitted = f.Device.State->Submitted; C.RequestToken rejected = default;
+            HostCheck.Equal(C.Status.Busy, C.BeginInspectRoot(f.State, &rejected));
+            HostCheck.Equal(C.Status.Busy, C.BeginOpenRoot(f.State, "DATA.BIN", &rejected));
+            HostCheck.Equal(C.Status.Busy, C.BeginOverwrite(f.State, file, 0, new byte[1], &rejected));
+            HostCheck.Equal(C.Status.Busy, C.Stop(f.State)); HostCheck.True(submitted == f.Device.State->Submitted && rejected.Owner == 0);
+            if (phase == 0)
+            { f.Device.Complete(); B.Completion completion = default; HostCheck.Equal(B.Status.Ready, B.Poll(f.Device.State, &completion)); }
+        }
+        HostCheck.Equal(B.Status.Success, B.Cancel(f.Device.State, read)); HostCheck.True(!f.Device.State->RequestPending);
+        C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginInspectRoot(f.State, &request));
+        HostCheck.True(f.State->RequestActive && Range(f)); // Structural true never grants a port submission.
+        HostCheck.Equal(C.Status.Ready, f.Run()); C.RootFacts facts = default;
+        HostCheck.Equal(C.Status.Success, C.CopyRootFacts(f.State, request, &facts, (uint)sizeof(C.RootFacts)));
+        HostCheck.True(Range(f));
+    }
+
+    [HostTest("continuing retained readonly range survives clean faults and dirty recovery solely as ownership while device reset never authorizes discard")]
+    private static void RetainReadRangeFailureOwnership()
+    {
+        using (var f = new Fixture())
+        {
+            f.Mount(); C.RequestToken request = default; C.BeginInspectRoot(f.State, &request); f.FailAt = f.Device.Hardware->Notifies + 1;
+            HostCheck.Equal(C.Status.BlockFailure, f.Run()); HostCheck.True(Range(f));
+            B.Stop(f.Device.State); HostCheck.True(Range(f)); HostCheck.Equal(C.Status.Success, C.Stop(f.State)); HostCheck.True(!Range(f));
+        }
+        using (var f = new Fixture())
+        {
+            f.Mount(); var file = File(f); Overwrite(f, file, 0, new byte[37], out var request);
+            for (int i = 0; i < 10000 && !f.State->Dirty; i++) f.Turn();
+            HostCheck.True(f.State->Dirty && Range(f)); var cancelled = C.Cancel(f.State, request);
+            HostCheck.True(cancelled is C.Status.Pending or C.Status.RecoveryRequired);
+            if (cancelled == C.Status.Pending) HostCheck.Equal(C.Status.RecoveryRequired, f.Run());
+            HostCheck.True(Range(f)); B.Stop(f.Device.State); HostCheck.True(Range(f));
+            HostCheck.Equal(C.Status.RecoveryRequired, C.Stop(f.State)); HostCheck.True(Range(f) && f.State->Dirty);
+        }
+    }
+
     [HostTest("continuing FAT root facts walk actual fragmented paired FAT sectors and report complete multisector allocation without file tokens")]
     private static void RootAllocationFacts()
     {
@@ -1730,9 +1823,9 @@ internal static unsafe class ContinuingFat32MutationTests
         private int publication;
         internal Span<byte> Volatile => new(Device.Hardware->Medium, Sectors * 512);
         internal Span<byte> Persistent => new(Device.Hardware->Persistent, Sectors * 512);
-        internal Fixture(byte sectorsPerCluster = 1, bool observe = false)
+        internal Fixture(byte sectorsPerCluster = 1, bool observe = false, uint spareSectors = 0)
         {
-            ulong capacity = (ulong)Data + Clusters * (ulong)sectorsPerCluster; Device = new(capacity, observe);
+            ulong capacity = (ulong)Data + Clusters * (ulong)sectorsPerCluster; Device = new(capacity + spareSectors, observe);
             new Span<byte>(arena, 208896).Fill(0xa7); byte[] image = new byte[Sectors * 512];
             Span<byte> boot = image.AsSpan(First * 512, 512); Put16(boot, 11, 512); boot[13] = sectorsPerCluster; Put16(boot, 14, Reserved); boot[16] = 2;
             Put32(boot, 32, (uint)(capacity - First)); Put32(boot, 36, FatSectors); Put32(boot, 44, 2); boot[510] = 0x55; boot[511] = 0xaa;
@@ -1741,7 +1834,7 @@ internal static unsafe class ContinuingFat32MutationTests
             var keep = image.AsSpan(Data * 512, 32); "KEEP    TXT"u8.CopyTo(keep); keep[11] = 0x20; Put16(keep, 26, 3); Put32(keep, 28, 3);
             var file = image.AsSpan(Data * 512 + 32, 32); "DATA    BIN"u8.CopyTo(file); file[11] = 0x20; Put16(file, 26, 4); Put32(file, 28, 900);
             for (int i = 0; i < 900; i++) image[(i < 512 ? Data + 2 : Data + 4) * 512 + i % 512] = Value(i);
-            Device.UseMedium(image, sectorsPerCluster != 1); HostCheck.Equal(B.Status.Success, Device.Start());
+            Device.UseMedium(image, sectorsPerCluster != 1 || spareSectors != 0); HostCheck.Equal(B.Status.Success, Device.Start());
             ulong cursor = (ulong)arena + 4096;
             void* Take(ulong bytes) { cursor = (cursor + 15) & ~15UL; ulong value = cursor; cursor += bytes; return (void*)value; }
             Input = new()

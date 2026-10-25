@@ -1178,6 +1178,28 @@ public static unsafe class ContinuingFat32Mutation
     // the same address cannot authorize cleanup. No live-I/O/copy authority.
     internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
         CanBorrowStorage(s, expectedEpoch, address, bytes) && DeviceIdentity(s);
+    /// <summary>Structural retained identity for a nonempty, already selected
+    /// readonly partition range outside the ORIGINAL mounted data partition.
+    /// LBA0 is excluded by this partition-only contract. Exact engine/block
+    /// self/epoch/pool identity, original parsed capacity/bounds and all retained
+    /// extents must agree. Dirty/faulted/busy state and an original stopped block
+    /// may pass for cleanup while every byte stays mapped. This performs no
+    /// I/O, mutation or allocation and grants no submission, DMA release, current
+    /// device, partition-provenance or concurrent-hosting authority. A submitting
+    /// port must separately require current clean C/B admission, !RequestActive
+    /// and !Device.RequestPending under the same serialized owner.</summary>
+    internal static bool CanRetainReadRange(State* s, ulong engineEpoch, Block.State* originalDevice,
+        ulong deviceEpoch, ulong firstLba, ulong lastLba)
+    {
+        if (!Live(s) || !s->Mounted || engineEpoch == 0 || s->Input.Epoch != engineEpoch ||
+            s->Input.Device != originalDevice || deviceEpoch == 0 || s->DeviceEpoch != deviceEpoch || !DeviceIdentity(s)) return false;
+        LiveFat32Volume v = s->Volume;
+        if (!v.Succeeded || v.Capacity != originalDevice->SectorCount || s->Input.PartitionFirst != v.PartitionFirstLba ||
+            s->Input.PartitionLast != v.PartitionLastLba || v.PartitionFirstLba == 0 || v.PartitionLastLba < v.PartitionFirstLba ||
+            v.PartitionLastLba >= v.Capacity || firstLba == 0 || firstLba > lastLba || lastLba >= v.Capacity ||
+            !(lastLba < v.PartitionFirstLba || firstLba > v.PartitionLastLba)) return false;
+        Extent* all = stackalloc Extent[14]; return RetainedStorage(s, all);
+    }
     // Stronger live provider admission, separate from retained teardown extents.
     // Clean pending/held reads are allowed. This checks RAM ownership only;
     // hardware/configuration and final copy are checked by the actual operation.
