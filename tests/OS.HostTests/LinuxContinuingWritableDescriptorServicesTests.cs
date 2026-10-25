@@ -2291,6 +2291,30 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         Console.WriteLine("HOST_WRITABLE_RETAIN_BATCH state=" + sizeof(D.State) + " maxPairs=177 providerExtents=4or7 copiedRanges=false nativeFit=false");
     }
 
+    [HostTest("continuing provider retained scalar and twenty five range batches use one and two real engine audits")]
+    private static void RetainRangesEngineAuditCount()
+    {
+        byte* external = stackalloc byte[32];
+        foreach (bool locking in new[] { false, true })
+        {
+            using var f = new Owner(locks: locking, observe: true);
+            new Span<byte>(external, 32).Fill(0x83); ulong[] pairs = new ulong[50];
+            for (int i = 0; i < pairs.Length; i += 2) { pairs[i] = (ulong)external + (uint)(i / 2); pairs[i + 1] = 1; }
+            byte[] before = EngineMatchSnapshot(f); uint calls = f.Device->Calls;
+            for (int mode = 0; mode < 2; mode++)
+            {
+                OS.Kernel.Diagnostics.WritableStorageTiming.State timing = default; ulong counter = 0;
+                HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.Begin(&timing, (ulong)&counter, 64)); bool accepted;
+                try { accepted = mode == 0 ? Retain(f, (ulong)external, 1) : RetainRangesPredicate(f.State, f.Input.Epoch, pairs); }
+                finally { HostCheck.True(OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing)); }
+                ulong audits = mode == 0 ? 1UL : 2UL;
+                HostCheck.True(accepted && timing.AuditCalls == audits && timing.OutsideDeviceCalls == 14 * audits && timing.RawReads == 4 + 2 * audits);
+            }
+            HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)) && f.Device->Calls == calls &&
+                new ReadOnlySpan<byte>(external, 32).IndexOfAnyExcept((byte)0x83) < 0 && !OS.Kernel.Diagnostics.WritableStorageTiming.IsActive);
+        }
+    }
+
     [HostTest("continuing retained range batch excludes every provider engine block DMA MMIO and observer full partial or covering alias")]
     private static void RetainRangesAliases()
     {
