@@ -379,7 +379,9 @@ public static partial class QemuTranscripts
         string Take() { SkipDevice(); WdNeed(at < rows.Length, "truncated"); return rows[at++].Text; }
         void Exact(string text) => WdNeed(Take() == text, "leaf_order");
         Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take());
-        Exact("M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes=" + package.Length.ToString(CultureInfo.InvariantCulture) +
+        // Native package views expose the ELF payload, not its envelope.
+        uint payloadBytes = OS.Manifest.LinuxElfPackage.Validate(package).PayloadBytes;
+        Exact("M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes=" + payloadBytes.ToString(CultureInfo.InvariantCulture) +
             " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
         int networkAt = at; Exact("M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live"); auxiliary.Add(rows[networkAt]);
         ulong userRoot = LinuxSyscallArm(Take())["root"];

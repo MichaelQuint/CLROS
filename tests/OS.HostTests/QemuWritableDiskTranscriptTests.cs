@@ -115,6 +115,20 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         }
     }
 
+    [HostTest("writable native descriptor policy binds ELF payload bytes and rejects package envelope length")]
+    private static void PackagePayloadPolicy()
+    {
+        foreach (bool log in new[] { false, true })
+        {
+            var e = Synthetic(log); int policy = Find(e, "M16_007_POLICY ");
+            ulong expected = (ulong)(log ? F.LogUploadElfBytes : F.ElfBytes);
+            HostCheck.Equal(expected, Field(e.All[policy], "packageBytes"));
+            HostCheck.True(expected != (ulong)e.Package.Length, "regression mutation must change the field");
+            HostCheck.True(Inspect(e).CheckedCallAndWaitValues);
+            Reject(() => Inspect(Change(e, policy, "packageBytes", (ulong)e.Package.Length)));
+        }
+    }
+
     [HostTest("writable leaf rejects stale begin fd reservation provider wait repark and completion identities")]
     private static void WaitMutations()
     {
@@ -275,7 +289,7 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         byte[] package = log ? F.CreateLogUploadPackage() : F.CreatePackage(); var calls = log ? F.LogUploadCalls() : F.Calls();
         ulong stack = Stack(package), clock = 100, sequence = 0, request = 0; int transfers = 0;
         w.Rows.AddRange(["TEST_START m16-009", "M16_006_POLICY physical=536870912 available=268435456 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
-            $"M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes={package.Length} package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
+            $"M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes={LinuxElfPackage.Validate(package).PayloadBytes} package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
             "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live", "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=3145728 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null", "TEST_START m16.027"]);
         w.Rows.Add(initialState); w.StateIoRows++;
         for (ulong sector = 1; sector <= ContinuingFat32Bootstrap.MaximumReads; sector++) w.Read(sector);
