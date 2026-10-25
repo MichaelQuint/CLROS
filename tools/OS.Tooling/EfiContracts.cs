@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM07027Probe", "EnableM07028Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe", "EnableM16011Probe", "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe", "EnableM10004Probe", "EnableM10017Probe", "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe", "EnableM16019UnavailableProbe", "EnableM16019InvalidProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "fd1b8ac3197b977bb321d4921e9e160d106cdbbc623839558803b674315aacdc";
-    public const string CanonicalProjectSha256 = "5c66ec2759cdb28bd28ba76c053a5c53c66cf0cd9c49ff32c3601130a20244fa";
+    public const string ProjectSourceSha256 = "a02d218932a9cb5855a2405c8b2f99e89e97dd66863739ae7a7a8f1aa2cb07a4";
+    public const string CanonicalProjectSha256 = "ac08237744c8bd82d7f0edf22c0584d4cb215c68ca4ec18c7a07d757dd042ce6";
     // Review the selected M16-027 writable-owner sources and entry boundary.
     // Historical artifacts retain their original project and source identities.
     public const string EfiEntrySourceSha256 = "fba0ac895ab1d47b9b189b370e8c59083e3e0c4a200b77ea47f3246525dca5e4";
@@ -379,6 +379,7 @@ public static partial class EfiContracts
         @"Boot\EfiEntry.LinuxThreadRun.cs|",
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",
         @"Boot\EfiEntry.LinuxSockets.cs|",
+        @"..\OS.Kernel\Diagnostics\WritableStorageTiming.cs|Diagnostics\WritableStorageTiming.cs",
         @"..\OS.Kernel\Storage\WritableBlockSession.cs|Storage\WritableBlockSession.cs",
         @"..\OS.Kernel\Storage\ContinuingFat32Mutation.cs|Storage\ContinuingFat32Mutation.cs",
         @"..\OS.Kernel\Storage\ContinuingFat32Bootstrap.cs|Storage\ContinuingFat32Bootstrap.cs",
@@ -510,7 +511,7 @@ public static partial class EfiContracts
         "EnableM16011Probe",
         "EnableM16012Probe", "EnableM16013Probe", "EnableM16014Probe",
         "EnableM16019InvalidProbe", "EnableM16019UnavailableProbe",
-        "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe",
+        "EnableM16023Probe", "EnableM16024Probe", "EnableM16025Probe", "EnableM16027Probe", "EnableM16027TimingProbe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

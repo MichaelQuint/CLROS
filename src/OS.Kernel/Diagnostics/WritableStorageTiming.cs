@@ -19,7 +19,8 @@ public static unsafe class WritableStorageTiming
     /// it while installed. Failed accounting invalidates the complete report.</summary>
     public struct State
     {
-        public ulong Self, Generation, Counter, Started, OuterTicks, RawReads;
+        public ulong Self, Generation, Counter, Started, OuterTicks, RawReads, AdjacentReadTicks;
+        public ulong AuditOutsideEnclosingTicks, UnattributedTicks;
         public ulong AuditCalls, AuditTicks, OutsideDeviceCalls;
         public ulong PairCalls, PairTicks, PairAuditTicks;
         public ulong PumpCalls, PumpTicks, PumpAuditTicks, EnginePumpCalls;
@@ -45,6 +46,9 @@ public static unsafe class WritableStorageTiming
     // constructor, managed object, callback or cross-turn permission is retained.
     private static State* current;
     private static ulong generation;
+    /// <summary>Whether the serialized supervisor currently has an installed
+    /// diagnostic area. This query performs no counter load or admission.</summary>
+    public static bool IsActive => current != null;
 
     /// <summary>Install one zeroed caller-owned area. Invalid geometry or a
     /// second installation has no effects. The caller separately admits HPET
@@ -57,7 +61,13 @@ public static unsafe class WritableStorageTiming
         for (uint i = 0; i < sizeof(State); i++) if (((byte*)s)[i] != 0) return false;
         s->Self = (ulong)s; s->Generation = ++generation;
         s->Counter = counterAddress; s->Width = width; s->Phase = 1;
-        current = s; s->Started = Sample(s); return !s->Failed;
+        current = s;
+        ulong calibration = Sample(s), afterCalibration = Sample(s);
+        var overhead = MonotonicHpetTscClockMath.Accumulate(calibration, afterCalibration, width, 0);
+        if (!overhead.Succeeded)
+        { current = null; s->Failed = true; s->Phase = 2; return false; }
+        s->AdjacentReadTicks = overhead.DeltaTicks;
+        s->Started = Sample(s); return !s->Failed;
     }
 
     /// <summary>Start one hook; same-bucket recursion poisons the measurement.
@@ -67,6 +77,8 @@ public static unsafe class WritableStorageTiming
         State* s = current;
         if (s == null || s->Failed) return default;
         if (kind > Bucket.Pump) { s->Failed = true; return default; }
+        if (kind == Bucket.Pair && s->PumpDepth != 0 || kind == Bucket.Pump && s->PairDepth != 0)
+        { s->Failed = true; return default; }
         uint* depth = kind == Bucket.Audit ? &s->AuditDepth : kind == Bucket.Pair ? &s->PairDepth : &s->PumpDepth;
         ulong* calls = kind == Bucket.Audit ? &s->AuditCalls : kind == Bucket.Pair ? &s->PairCalls : &s->PumpCalls;
         if (*depth != 0 || !Increment(s, calls)) { s->Failed = true; return default; }
@@ -141,6 +153,19 @@ public static unsafe class WritableStorageTiming
             var delta = MonotonicHpetTscClockMath.Accumulate(s->Started, raw, s->Width, 0);
             if (!delta.Succeeded) s->Failed = true;
             else s->OuterTicks = delta.DeltaTicks;
+        }
+        if (!s->Failed)
+        {
+            if (s->PairAuditTicks > s->AuditTicks || s->PumpAuditTicks > s->AuditTicks - s->PairAuditTicks ||
+                s->PairAuditTicks > s->PairTicks || s->PumpAuditTicks > s->PumpTicks ||
+                s->PairTicks > ulong.MaxValue - s->PumpTicks) s->Failed = true;
+            else
+            {
+                ulong outside = s->AuditTicks - s->PairAuditTicks - s->PumpAuditTicks;
+                ulong enclosed = s->PairTicks + s->PumpTicks;
+                if (enclosed > s->OuterTicks || outside > s->OuterTicks - enclosed) s->Failed = true;
+                else { s->AuditOutsideEnclosingTicks = outside; s->UnattributedTicks = s->OuterTicks - enclosed - outside; }
+            }
         }
         return !s->Failed;
     }

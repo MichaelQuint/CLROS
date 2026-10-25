@@ -690,6 +690,15 @@ public static unsafe partial class LinuxDescriptorServices
     // external-buffer query is called recursively. Dirty/orphan backing stays
     // retained; each operation separately requires its live/copy authority.
     private static bool AuditDiskPair(State* s)
+#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
+    {
+        var stamp = OS.Kernel.Diagnostics.WritableStorageTiming.Enter(OS.Kernel.Diagnostics.WritableStorageTiming.Bucket.Pair);
+        bool result = AuditDiskPairCore(s);
+        OS.Kernel.Diagnostics.WritableStorageTiming.Leave(stamp);
+        return result;
+    }
+    private static bool AuditDiskPairCore(State* s)
+#endif
     {
         if (s->Disk == null || s->WritableDisk == null) return true;
         return DiskBound(s) && WritableBound(s) &&

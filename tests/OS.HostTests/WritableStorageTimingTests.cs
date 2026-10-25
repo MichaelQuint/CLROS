@@ -22,7 +22,8 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(s.AuditCalls == 2 && s.AuditTicks == 40 && s.OutsideDeviceCalls == 3);
             HostCheck.True(s.PairCalls == 1 && s.PairTicks == 60 && s.PairAuditTicks == 30);
             HostCheck.True(s.PumpCalls == 1 && s.PumpTicks == 40 && s.PumpAuditTicks == 10);
-            HostCheck.True(s.OuterTicks == 140 && s.RawReads == 10 && s.Phase == 2 && !s.Failed);
+            HostCheck.True(s.OuterTicks == 140 && s.RawReads == 12 && s.AdjacentReadTicks == 0 && s.Phase == 2 && !s.Failed);
+            HostCheck.True(s.AuditOutsideEnclosingTicks == 0 && s.UnattributedTicks == 40);
         }
         finally { T.Cancel(&s); }
     }
@@ -187,5 +188,23 @@ public static unsafe class WritableStorageTimingTests
             HostCheck.True(s.PairCalls == 2 && s.PairTicks == 20 && s.OuterTicks == 40);
         }
         finally { T.Cancel(&s); }
+    }
+
+    [HostTest("writable timing rejects overlapping enclosing buckets rather than double counting audits")]
+    public static void OverlappingEnclosingBuckets()
+    {
+        foreach (var kind in new[] { T.Bucket.Pair, T.Bucket.Pump })
+        {
+            T.State s = default; ulong raw = 10;
+            HostCheck.True(T.Begin(&s, (ulong)&raw, 64));
+            try
+            {
+                var outer = T.Enter(kind);
+                _ = T.Enter(kind == T.Bucket.Pair ? T.Bucket.Pump : T.Bucket.Pair);
+                raw = 20; T.Leave(outer);
+                HostCheck.True(s.Failed && !T.End(&s) && s.UnattributedTicks == 0);
+            }
+            finally { T.Cancel(&s); }
+        }
     }
 }

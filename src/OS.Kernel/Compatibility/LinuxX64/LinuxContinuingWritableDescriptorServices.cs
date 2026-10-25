@@ -758,6 +758,15 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     /// Until admitted, Pump retries only that unissued begin; it never polls or
     /// cancels another client's engine/block request or replays issued work.</summary>
     public static Result Pump(State* s)
+#if !NOSTDLIB_EFI || M16_027_TIMING_PROBE
+    {
+        var stamp = OS.Kernel.Diagnostics.WritableStorageTiming.Enter(OS.Kernel.Diagnostics.WritableStorageTiming.Bucket.Pump);
+        Result result = PumpCore(s);
+        OS.Kernel.Diagnostics.WritableStorageTiming.Leave(stamp);
+        return result;
+    }
+    private static Result PumpCore(State* s)
+#endif
     {
         if (!Bound(s)) return new(Progress.Rejected);
         if (!s->Work.Active) return s->Poisoned ? Immediate(Io) : Immediate(0);

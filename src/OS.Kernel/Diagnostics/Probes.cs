@@ -2,6 +2,11 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_027_TIMING_PROBE
+    public const bool EnableM16027TimingProbe = true;
+#else
+    public const bool EnableM16027TimingProbe = false;
+#endif
 #if M16_027_PROBE
     public const bool EnableM16027Probe = true;
 #else
