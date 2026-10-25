@@ -236,6 +236,39 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         try { action(o); } catch (Exception failure) { Console.WriteLine("OUTER_PROCESS_BODY_FAILURE " + failure); throw; }
     });
 
+    [HostTest("borrowed retired filesystem actual source4 cancellation drains local thread ownership without borrowing retired backend", HostLane.Native)]
+    private static void RetiredThreadCleanup() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, true, signals: true);
+        try
+        {
+            uint fd = o.Open(); o.Fill(16, 0xc7); *(ushort*)o.Thread.At(Base + 0xfe) = 0x050f;
+            // Retain the actual captured close frame before retirement. Local
+            // teardown never asks to borrow a new image from a retired tree.
+            var close = o.Call(3, fd); uint copies = o.Thread.Writes;
+            HostCheck.Equal(LinuxSyscallAction.Blocked, o.Thread.DescriptorCall(17, fd, Output, 7, 0).Action);
+            o.WaitSource4Port(); o.ParkSource4();
+            HostCheck.True(o.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key, 2, o.Thread.View(o.Worker).Wait).Succeeded);
+            HostCheck.Equal(-4L, o.ConsumeSource4()); HostCheck.Equal(Signals.Delivery.None, o.Thread.Service->DeliverPendingSignals(Key, 2));
+            HostCheck.True(o.Storage.Port->RequestActive && o.Storage.Block->RequestPending && o.Thread.Writes == copies && o.Unchanged(16, 0xc7));
+            HostCheck.Equal(B.Status.Success, B.Stop(o.Storage.Block)); o.Storage.Sample();
+            HostCheck.Equal(P.Status.Success, P.Stop(o.Storage.Port)); HostCheck.Equal(Fs.Status.Success, Fs.Stop(o.Storage.Mount));
+            HostCheck.True(o.Storage.Mount->IsRetired && o.Storage.Port->Retired && o.Storage.Block->Retired &&
+                !CanRetain(o.Files.State, (ulong)o.Thread.At(Output), 16));
+            uint callbacks = o.Storage.Device.Hardware->Calls;
+            for (int i = 0; i < 4; i++) HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2));
+            for (uint i = 0; i < F.DiskSlots; i++) HostCheck.Equal((byte)0, RequestPhase(ref o.Requests[i]));
+            HostCheck.True(o.Thread.Writes == copies && o.Unchanged(16, 0xc7));
+            var closed = o.Thread.Service->DispatchDescriptor(Key, 2, close); HostCheck.Equal(LinuxSyscallAction.Return, closed.Action); HostCheck.Equal(0L, closed.Value);
+            HostCheck.True(F.DetachDisk(o.Files.State)); o.ReadAttached = false;
+            HostCheck.True(o.Thread.Service->Shutdown(Key, 2, 7));
+            HostCheck.True(callbacks == o.Storage.Device.Hardware->Calls && o.Thread.Writes == copies && o.Unchanged(16, 0xc7));
+            // Owner.Dispose must still commit the actual current worker exit,
+            // confirm/reap/release and retire its independently held engine.
+        }
+        catch (Exception failure) { Console.WriteLine("BORROWED_RETIRED_THREAD_BODY_FAILURE " + failure); throw; }
+    });
+
     [HostTest("borrowed linux disk Busy open and path stat retain one copied path and token through actual writer and held result", HostLane.Native)]
     private static void CopiedPath() => WithOwner(o =>
     {
@@ -882,6 +915,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static extern ref B.Admission BlockInput(ref B.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Description")]
     private static extern ref uint SlotDescription(ref F.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Phase")]
+    private static extern ref byte RequestPhase(ref F.DiskRequest request);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Position")]
     private static extern ref ulong DescriptionPosition(ref F.Description description);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Owner")]
@@ -1192,6 +1227,12 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         {
             HostCheck.True(Thread.Service->CommitDiskWait(Key, 2, Thread.Kernel.Capture(worker), out bool handoff));
             if (handoff) Thread.Kernel.Confirm();
+        }
+        internal void WaitSource4Port()
+        {
+            for (int i = 0; i < 10000 && !Storage.Port->RequestActive; i++)
+            { HostCheck.True(Thread.Service->PollDiskReadiness(Key, 2)); Storage.Sample(); }
+            HostCheck.True(Storage.Port->RequestActive && Storage.Device.Hardware->Pending);
         }
         internal void ReadySource4()
         {
