@@ -15,7 +15,7 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
     private const ulong Key = LinuxThreadServicesTests.Key, User = LinuxThreadServicesTests.UserBase;
     private const ulong Path = User + 0x1200, Vector = User + 0x1400, Output = User + 0x2000, Payload = User + 0x3000;
 
-    [HostTest("writable source5 actual SQLite sized synthetic files use explicit engine work and search admissions through retained waits")]
+    [HostTest("writable source5 actual SQLite sized synthetic files use explicit engine work and search admissions through retained waits", HostLane.Native)]
     private static void SqliteFootprintWaitBudgets()
     {
         foreach (uint work in new uint[] { 100000, 1000000 })
