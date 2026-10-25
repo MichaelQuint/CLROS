@@ -14,6 +14,8 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
     private delegate bool RetainedStorage(D.State* state, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainedStorage RetainPredicate = typeof(D).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedStorage>();
+    private delegate bool RetainedRanges(D.State* state, ulong epoch, ReadOnlySpan<ulong> pairs);
+    private static readonly RetainedRanges RetainRangesPredicate = typeof(D).GetMethod("CanRetainStorageRanges", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedRanges>();
     private delegate bool RetainedEngine(D.State* state, ulong epoch, ulong engineOwner, ulong engineEpoch);
     private static readonly RetainedEngine EnginePredicate = typeof(D).GetMethod("MatchesRetainedEngine", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainedEngine>();
 
@@ -2262,6 +2264,173 @@ internal static unsafe class LinuxContinuingWritableDescriptorServicesTests
         try { (*self)++; HostCheck.True(!Retain(f, address, 1)); }
         finally { *self = original; }
         HostCheck.True(Retain(f, address, 1) && Borrow(f, address, 1));
+    }
+
+    [HostTest("continuing retained range batch preserves scalar byte alignment duplicate ranges zero skips and the finite input ceiling")]
+    private static void RetainRangesShape()
+    {
+        byte* external = stackalloc byte[32]; new Span<byte>(external, 32).Fill(0x6d);
+        foreach (bool locking in new[] { false, true }) foreach (bool observe in new[] { false, true })
+        {
+            using var f = new Owner(locks: locking, observe: observe); ulong address = (ulong)external;
+            ulong[] pairs = [address + 1, 9, address, 1, 0, 0, ulong.MaxValue, 0, address, 1];
+            ulong[] copied = pairs.ToArray(); byte[] before = EngineMatchSnapshot(f); uint calls = f.Device->Calls;
+            CheckRetainRanges(f, pairs, true);
+            HostCheck.True(RetainRangesPredicate(f.State, f.Input.Epoch, [0, 0, ulong.MaxValue, 0]));
+            HostCheck.True(!RetainRangesPredicate(f.State, f.Input.Epoch, []) && !RetainRangesPredicate(f.State, f.Input.Epoch, [address]));
+            ulong[] maximum = new ulong[177 * 2];
+            for (int i = 0; i < maximum.Length; i += 2) { maximum[i] = address; maximum[i + 1] = 1; }
+            CheckRetainRanges(f, maximum, true);
+            HostCheck.True(!RetainRangesPredicate(f.State, f.Input.Epoch, new ulong[maximum.Length + 2]));
+            maximum[^2] = (ulong)f.InputBytes; CheckRetainRanges(f, maximum, false);
+            foreach (var invalid in new (ulong Start, ulong Bytes)[] { (0, 1), (4095, 1), (ulong.MaxValue - 3, 8), (address, ulong.MaxValue) })
+                CheckRetainRanges(f, [address, 1, invalid.Start, invalid.Bytes], false);
+            HostCheck.True(copied.SequenceEqual(pairs) && new ReadOnlySpan<byte>(external, 32).IndexOfAnyExcept((byte)0x6d) < 0 &&
+                before.SequenceEqual(EngineMatchSnapshot(f)) && f.Device->Calls == calls);
+        }
+        Console.WriteLine("HOST_WRITABLE_RETAIN_BATCH state=" + sizeof(D.State) + " maxPairs=177 providerExtents=4or7 copiedRanges=false nativeFit=false");
+    }
+
+    [HostTest("continuing retained range batch excludes every provider engine block DMA MMIO and observer full partial or covering alias")]
+    private static void RetainRangesAliases()
+    {
+        foreach (bool observe in new[] { false, true })
+        {
+            using var f = new Owner(locks: true, observe: observe); byte external = 0x54; ulong address = (ulong)&external;
+            byte[] before = EngineMatchSnapshot(f); uint calls = f.Device->Calls;
+            foreach (var extent in ProtectedStorage(f))
+                foreach (var alias in new (ulong Start, ulong Bytes)[] { extent, (extent.Start, 1), (extent.Start + extent.Bytes - 1, 1),
+                    (extent.Start - 1, 2), (extent.Start + extent.Bytes - 1, 2), (extent.Start - 8, extent.Bytes + 16) })
+                    CheckRetainRanges(f, [address, 1, 0, 0, alias.Start, alias.Bytes], false);
+            HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)) && f.Device->Calls == calls && external == 0x54);
+        }
+    }
+
+    [HostTest("continuing retained range batch audits malformed owned extents and original epochs even when every candidate is empty")]
+    private static void RetainRangesIdentity()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x72; ulong[] pairs = [(ulong)&external, 1];
+        HostCheck.True(!RetainRangesPredicate(null, f.Input.Epoch, pairs) && !RetainRangesPredicate((D.State*)ulong.MaxValue, f.Input.Epoch, pairs) &&
+            !RetainRangesPredicate(f.State, 0, pairs) && !RetainRangesPredicate(f.State, f.Input.Epoch + 1, pairs));
+        D.State copy = *f.State; HostCheck.True(!RetainRangesPredicate(&copy, f.Input.Epoch, pairs));
+        D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var admitted = *input;
+        D.LockAdmission* locks = (D.LockAdmission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "LockInput")); var admittedLocks = *locks;
+        B.Admission* block = (B.Admission*)((byte*)f.Storage.Device.State + WritableBlockSessionTests.ManagedOffset(f.Storage.Device.State, "Input")); var admittedBlock = *block;
+        C.Admission* engine = (C.Admission*)((byte*)f.Storage.State + WritableBlockSessionTests.ManagedOffset(f.Storage.State, "Input")); var admittedEngine = *engine;
+        byte[] before = EngineMatchSnapshot(f); uint calls = f.Device->Calls;
+        try
+        {
+            for (int defect = 0; defect < 12; defect++)
+            {
+                *input = admitted; *locks = admittedLocks; *block = admittedBlock; *engine = admittedEngine;
+                if (defect == 0) input->DescriptorCount = uint.MaxValue;
+                else if (defect == 1) input->InputBytes--;
+                else if (defect == 2) input->Descriptions = (D.Description*)input->Descriptors;
+                else if (defect == 3) input->Input = f.Storage.Input.Before;
+                else if (defect == 4) input->ExclusiveOwnerValidated = false;
+                else if (defect == 5) locks->ProcessCount = 0;
+                else if (defect == 6) locks->ScratchCount--;
+                else if (defect == 7) locks->Processes = (D.ProcessSlot*)locks->Locks;
+                else if (defect == 8) block->Observation = (B.Observation*)f.Storage.Input.Before;
+                else if (defect == 9) block->Observation = (B.Observation*)f.InputBytes;
+                else if (defect == 10) block->Epoch++;
+                else engine->Epoch++;
+                CheckRetainRanges(f, pairs, false);
+                HostCheck.True(!RetainRangesPredicate(f.State, f.Input.Epoch, [ulong.MaxValue, 0]));
+            }
+        }
+        finally { *input = admitted; *locks = admittedLocks; *block = admittedBlock; *engine = admittedEngine; }
+        HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)) && f.Device->Calls == calls); CheckRetainRanges(f, pairs, true);
+    }
+
+    [HostTest("continuing retained range batch stays read only across actual pending held and cancelled reads without late output")]
+    private static void RetainRangesReadCancellation()
+    {
+        foreach (bool held in new[] { false, true })
+        {
+            using var f = new Owner(locks: true, observe: true); byte external = 0x27; ulong[] pairs = [(ulong)&external, 1, ulong.MaxValue, 0];
+            var file = f.Open(); var request = D.BeginRead(f.State, file, 8); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+            byte[] before = EngineMatchSnapshot(f); CheckRetainRanges(f, pairs, true); HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)));
+            if (held) { f.CompleteHardware(); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); }
+            before = EngineMatchSnapshot(f); CheckRetainRanges(f, pairs, true); HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)));
+            D.Cancel(f.State, request.Request);
+            if (!held) { f.CompleteHardware(); HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); }
+            CheckRetainRanges(f, pairs, true);
+            byte[] output = Enumerable.Repeat((byte)0xa5, 8).ToArray(); HostCheck.Equal(-4L, D.CopyRead(f.State, request.Request, output).Value);
+            HostCheck.True(output.All(value => value == 0xa5) && f.Cursor(file) == 0 && !f.State->RequestActive && external == 0x27);
+        }
+    }
+
+    [HostTest("continuing retained range batch preserves dirty retiring orphan and stopped backing until actual provider retirement")]
+    private static void RetainRangesCleanup()
+    {
+        for (int mode = 0; mode < 3; mode++)
+        {
+            using var f = new Owner(locks: true, observe: true); byte external = 0x38; ulong[] pairs = [(ulong)&external, 1];
+            var primary = D.PrimaryProcess(f.State); var file = f.Open(flags: mode == 0 ? 2U : 0U);
+            if (mode == 0)
+            {
+                var request = D.BeginWrite(f.State, file, new byte[37]);
+                for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+                HostCheck.True(f.Storage.State->Dirty); CheckRetainRanges(f, pairs, true); HostCheck.True(!Borrow(f, pairs[0], 1));
+                HostCheck.Equal(D.Progress.RecoveryRequired, D.Cancel(f.State, request.Request).Phase);
+                HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase); HostCheck.True(f.State->IsRetiring);
+                CheckRetainRanges(f, pairs, true); HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); CheckRetainRanges(f, pairs, true);
+                HostCheck.Equal(D.Progress.RecoveryRequired, D.Detach(f.State).Phase); HostCheck.True(!f.State->Retired);
+            }
+            else if (mode == 1)
+            {
+                var request = D.BeginRead(f.State, file, 8); D.Pump(f.State); HostCheck.True(f.Device->Pending);
+                HostCheck.Equal(0L, D.Close(f.State, file)); HostCheck.Equal(0L, D.ExitProcess(f.State, primary).Value);
+                CheckRetainRanges(f, pairs, true); HostCheck.True(!Borrow(f, pairs[0], 1)); f.CompleteHardware(); f.Drain();
+                HostCheck.True(D.RegisterProcess(f.State, primary.Pid).Process.Generation > primary.Generation); CheckRetainRanges(f, pairs, true);
+                HostCheck.Equal(D.Progress.Rejected, D.CopyRead(f.State, request.Request, new byte[8]).Phase);
+            }
+            else
+            {
+                f.FailureType = 0; f.FailureSector = f.DataLba + 2; var request = D.BeginRead(f.State, file, 8);
+                f.Wait(request); HostCheck.Equal(-5L, D.CopyRead(f.State, request.Request, new byte[8]).Value);
+                HostCheck.True(f.State->Quarantined); CheckRetainRanges(f, pairs, true);
+                HostCheck.Equal(B.Status.Success, B.Stop(f.Storage.Device.State)); CheckRetainRanges(f, pairs, true);
+            }
+            if (mode != 0)
+            {
+                HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase); CheckRetainRanges(f, pairs, false);
+                HostCheck.True(!RetainRangesPredicate(f.State, f.Input.Epoch, [0, 0]));
+                D.Admission* input = (D.Admission*)((byte*)f.State + WritableBlockSessionTests.ManagedOffset(f.State, "Input")); var original = *input;
+                try { input->Engine = (C.State*)ulong.MaxValue; HostCheck.True(!RetainRangesPredicate(f.State, f.Input.Epoch, [0, 0])); }
+                finally { *input = original; }
+            }
+        }
+    }
+
+    [HostTest("continuing retained range batch preserves real OUT and FLUSH frontiers cursors guards and independent extraction")]
+    private static void RetainRangesWriteFlush()
+    {
+        using var f = new Owner(locks: true, observe: true); byte external = 0x47; ulong[] pairs = [(ulong)&external, 1];
+        var file = f.Open(flags: 2); byte[] expected = Enumerable.Range(0, 900).Select(Value).ToArray(), payload = Enumerable.Repeat((byte)0x9b, 37).ToArray();
+        payload.CopyTo(expected, 10); int first = f.Trace.Count;
+        var request = D.BeginWrite(f.State, file, payload, 10, true);
+        for (int i = 0; i < 100000 && !f.Storage.State->Dirty; i++) f.Tick();
+        HostCheck.True(f.Storage.State->Dirty); CheckRetainRanges(f, pairs, true);
+        HostCheck.Equal(D.Progress.Ready, f.Wait(request).Phase); CheckRetainRanges(f, pairs, true);
+        HostCheck.True(f.Cursor(file) == 0 && f.Storage.Device.State->CompletedBytes == 512 && f.Storage.Device.State->DurableBytes == 512);
+        HostCheck.Equal(37L, D.Complete(f.State, request.Request).Value); HostCheck.Equal(0UL, f.Cursor(file)); f.Independent("DATA.BIN", expected);
+        HostCheck.True(f.Trace.Skip(first).Where(row => row.Type != 0).SequenceEqual(new (uint, ulong)[] { (1, f.DataLba + 2), (4, 0) }));
+        var barrier = D.BeginSync(f.State, file); HostCheck.Equal(D.Progress.Pending, D.Pump(f.State).Phase);
+        HostCheck.True(f.Device->Pending && f.Device->Type == 4); byte[] before = EngineMatchSnapshot(f);
+        CheckRetainRanges(f, pairs, true); HostCheck.True(before.SequenceEqual(EngineMatchSnapshot(f)));
+        f.CompleteHardware(); HostCheck.Equal(0L, f.Run(barrier).Value);
+        HostCheck.True(f.Storage.Device.State->CompletedBytes == 512 && f.Storage.Device.State->DurableBytes == 512 && !f.Storage.State->Dirty);
+        HostCheck.Equal(0L, D.Close(f.State, file)); HostCheck.Equal(D.Progress.Retired, D.Detach(f.State).Phase);
+        CheckRetainRanges(f, pairs, false); HostCheck.True(!RetainRangesPredicate(f.State, f.Input.Epoch, [0, 0]));
+    }
+
+    private static void CheckRetainRanges(Owner f, ReadOnlySpan<ulong> pairs, bool expected)
+    {
+        bool scalar = true;
+        for (int i = 0; i < pairs.Length; i += 2) if (pairs[i + 1] != 0) scalar &= Retain(f, pairs[i], pairs[i + 1]);
+        HostCheck.Equal(expected, scalar); HostCheck.Equal(expected, RetainRangesPredicate(f.State, f.Input.Epoch, pairs));
     }
 
     private static bool Retain(Owner f, ulong address, ulong bytes) => RetainPredicate(f.State, f.Input.Epoch, address, bytes);

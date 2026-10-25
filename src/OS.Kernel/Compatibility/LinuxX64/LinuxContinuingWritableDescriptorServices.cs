@@ -227,6 +227,46 @@ public static unsafe class LinuxContinuingWritableDescriptorServices
     internal static bool CanRetainStorage(State* s, ulong expectedEpoch, ulong address, ulong bytes) =>
         RetainedStorage(s, expectedEpoch, address, bytes, true);
 
+    internal const int MaximumRetainedStorageRanges = 177;
+
+    /// <summary>Check a borrowed flat start/byte-count inventory under one
+    /// serialized retained owner. Nonempty/even input is bounded to177 pairs.
+    /// Audit the provider tree once; every nonzero byte count still uses the
+    /// complete original engine query and all local exclusions. Zero byte
+    /// counts skip only that candidate, never the owner audit. Dirty, faulted,
+    /// retiring, orphaned or original-stopped backing retains the scalar
+    /// cleanup semantics; final retirement rejects. No input/span/token is
+    /// retained and no callback, I/O, allocation, output or mutation occurs.
+    /// Return supplies no later permission, live process, copy or release.</summary>
+    internal static bool CanRetainStorageRanges(State* s, ulong expectedEpoch, ReadOnlySpan<ulong> pairs)
+    {
+        if (pairs.Length == 0 || (pairs.Length & 1) != 0 || pairs.Length > MaximumRetainedStorageRanges * 2 ||
+            !RetainedStorage(s, expectedEpoch, 0, 0, false)) return false;
+        return RetainedRangesOutside(s, expectedEpoch, pairs);
+    }
+
+    // Inventory scratch starts only after the complete RetainedStorage audit
+    // returned. Actual emitted stack/fit remains a separate native obligation.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static bool RetainedRangesOutside(State* s, ulong epoch, ReadOnlySpan<ulong> pairs)
+    {
+        Admission a = s->Input; LockAdmission l = s->LockInput;
+        ulong* starts = stackalloc ulong[7] { (ulong)s, (ulong)a.Descriptors, (ulong)a.Descriptions, (ulong)a.Input,
+            (ulong)l.Processes, (ulong)l.Locks, (ulong)l.Scratch };
+        ulong* sizes = stackalloc ulong[7] { (ulong)sizeof(State), a.DescriptorCount * (ulong)sizeof(Descriptor),
+            a.DescriptionCount * (ulong)sizeof(Description), IoBytes, l.ProcessCount * (ulong)sizeof(ProcessSlot),
+            l.LockCount * (ulong)sizeof(RangeLock), l.ScratchCount * (ulong)sizeof(RangeLock) };
+        uint count = s->Locking ? 7U : 4U;
+        for (int i = 0; i < pairs.Length; i += 2)
+        {
+            ulong address = pairs[i], bytes = pairs[i + 1];
+            if (bytes == 0) continue;
+            if (!Ordinary(address, bytes, 1) || !C.CanRetainStorage(a.Engine, epoch, address, bytes)) return false;
+            for (uint j = 0; j < count; j++) if (Overlap(address, bytes, starts[j], sizes[j])) return false;
+        }
+        return true;
+    }
+
     /// <summary>Match copied engine identity against this provider's complete
     /// original retained tree under its serialized supervisor. Dirty, orphaned,
     /// retiring, faulted or original-stopped backing remains identifiable until
