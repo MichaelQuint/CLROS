@@ -36,15 +36,9 @@ public static unsafe partial class LinuxDescriptorServices
         /// submit/completion/copy transition. Only the serialized current owner
         /// may use this to consider another bounded step; it grants no copy.</summary>
         public readonly bool Advanced;
-        /// <summary>Actual data-read primitives on the same live request.
-        /// A continuing copy has no device request left outstanding; neither
-        /// fact grants another step, priority, wake or user-copy authority.</summary>
-        public readonly bool CopiedPendingRead, SubmittedRead;
         internal DiskResult(DiskProgress progress, long value = 0, DiskToken token = default,
-            OSHostHandle worker = default, Fs.Status failure = Fs.Status.Success, bool advanced = false,
-            bool copiedPendingRead = false, bool submittedRead = false)
-        { Progress = progress; Value = value; Token = token; Worker = worker; Failure = failure; Advanced = advanced;
-            CopiedPendingRead = copiedPendingRead; SubmittedRead = submittedRead; }
+            OSHostHandle worker = default, Fs.Status failure = Fs.Status.Success, bool advanced = false)
+        { Progress = progress; Value = value; Token = token; Worker = worker; Failure = failure; Advanced = advanced; }
     }
 
     /// <summary>One original open description's filesystem handle. Duplicated
@@ -232,8 +226,6 @@ public static unsafe partial class LinuxDescriptorServices
             var device = d->Mount->Input.Device;
             ulong epoch = device->Input.Epoch, generation = d->Requests[i].Generation;
             ulong submitted = device->Submitted, completed = device->Completed, copied = device->Copied, cancelled = device->Cancelled;
-            bool dataRead = d->Requests[i].Kind == DiskRead && d->Requests[i].Phase == DiskWorking &&
-                !d->Requests[i].Cancelling && d->Requests[i].Borrowed;
             d->NextPump = (i + 1) % DiskSlots;
             DiskResult result = StepDisk(state, d->Requests + i);
             bool advanced = result.Progress == DiskProgress.Pending && result.Worker.IsValid &&
@@ -243,30 +235,9 @@ public static unsafe partial class LinuxDescriptorServices
                 device->Completed >= completed && device->Completed - completed <= 1 &&
                 device->Copied >= copied && device->Copied - copied <= 1 &&
                 (device->Submitted != submitted || device->Completed != completed || device->Copied != copied);
-            bool pendingRead = dataRead && advanced && d->Requests[i].Kind == DiskRead && d->Requests[i].Phase == DiskWorking;
-            bool copiedRead = pendingRead && device->Submitted == submitted && device->Completed - completed == 1 &&
-                device->Copied - copied == 1 && !device->ReadPending && !device->ReadReady && !d->Mount->IoActive;
-            bool submittedRead = pendingRead && device->Submitted - submitted == 1 && device->Completed == completed &&
-                device->Copied == copied && device->ReadPending;
-            return new(result.Progress, result.Value, result.Token, result.Worker, result.Failure, advanced, copiedRead, submittedRead);
+            return new(result.Progress, result.Value, result.Token, result.Worker, result.Failure, advanced);
         }
         return new(DiskProgress.Immediate);
-    }
-
-    /// <summary>Pure revalidation for one possible replenishing submit. Require
-    /// the exact live data-read token/fd/worker and no other nonfree request,
-    /// including queued, ready or orphan records. Retains round-robin selection;
-    /// does not advance the filesystem/device or confer scheduling authority.</summary>
-    internal static bool CanReplenishDisk(State* state, ulong owner, DiskToken token, OSHostHandle worker)
-    {
-        if (!Attached(state, owner) || !DiskRequestFor(state, token, out DiskRequest* r) ||
-            !worker.IsValid || r->Worker.Value != worker.Value || r->Kind != DiskRead || r->Phase != DiskWorking ||
-            !r->Borrowed || r->Cancelling || !r->Operation.IsInitialized || !IsCurrent(state, r->OriginalFd)) return false;
-        DiskState* disk = state->Disk;
-        for (uint i = 0; i < DiskSlots; i++) if (disk->Requests + i != r && disk->Requests[i].Phase != 0) return false;
-        var device = disk->Mount->Input.Device;
-        return disk->Mount->Ready && !disk->Mount->IoActive && device->Running && !device->ReadPending && !device->ReadReady &&
-            device->Submitted == device->Completed;
     }
 
     /// <summary>Inspect one exact token without advancing I/O. A stale token

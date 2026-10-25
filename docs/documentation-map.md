@@ -1,5 +1,7 @@
 # Documentation Map
 
+[Step1604](../done/step1604.md) Storage/PAL own restored immediate peer yield and additive host-only log/upload fixture/global execution. Diagnostics/QEMU own retainedr08 v2 results and the new v3 post-network partition; application/host docs own explicit Linux descriptor limits and failed recoveryr02. Shared pair and source5 successor claims are exact and isolated. No full product gate closes.
+
 [Step1603](../done/step1603.md) Storage/PAL own sole-read replenishment and retained writable admission; diagnostics/QEMU own original r07 timing, v2 counters and the required next guest comparison. Application/host docs distinguish the successful fresh Linux SQLite writer/verifier from failed recovery publication. README, guides, subsystem docs, canonical issues and parent summaries retain full Blazor/write/durability limits.
 
 [Step1602](../done/step1602.md) QEMU and diagnostics own actual timing runner selection, separate deadlines, retained pre-guest failures and original-input confinement. Host requirements own real CLI controls; the agent guide records two isolated successor claims. Host orchestration changes no storage/native/SQLite capability boundary.

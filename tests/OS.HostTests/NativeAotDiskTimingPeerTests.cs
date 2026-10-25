@@ -5,7 +5,7 @@ using OS.Tooling;
 
 internal static class NativeAotDiskTimingPeerTests
 {
-    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0 replenished=0 replenishBudgetSkips=0\r\n";
+    private const string Metrics="M10_018_TIMING bytes=65536 calls=8 steps=32 pumpNs=3200 scanNs=3200 flushNs=3200 preNetworkNs=800 postNetworkNs=800 postReadinessNs=300 postWaitRecordNs=500 networkCalls=8 diskReady=1 otherReady=0 noAdvance=0 elapsed=0 stepLimit=7 failures=0 flushedPastBudget=0\r\n";
 
     [HostTest("timing aggregate rejects duplicates overflow missing and nonexclusive yield reasons")]
     private static void Aggregate()
@@ -23,12 +23,30 @@ internal static class NativeAotDiskTimingPeerTests
             Metrics.Replace("calls=8","calls=08"),Metrics.Replace("stepLimit=7","stepLimit=8"),
             Metrics.Replace("failures=0","failures=1"),Metrics.Replace("steps=32","steps=33"),
             Metrics.Replace("networkCalls=8","networkCalls=7"),Metrics.Replace("bytes=65536","bytes=65535"),
-            Metrics.Replace(" flushedPastBudget=0",""),Metrics.Replace("replenished=0","replenished=1"),
-            Metrics.Replace("replenishBudgetSkips=0","replenishBudgetSkips=1"),Metrics.Replace(" replenishBudgetSkips=0","")})
+            Metrics.Replace(" flushedPastBudget=0",""),Metrics.Replace("postReadinessNs=300","postReadinessNs=299"),
+            Metrics.Replace("postWaitRecordNs=500","postWaitRecordNs=501"),Metrics.Replace(" postReadinessNs=300",""),
+            Metrics.Replace("postWaitRecordNs=500","postWaitRecordNs=-1"),Metrics.Replace("postReadinessNs=300","postReadinessNs=300 postReadinessNs=300"),
+            Metrics.Replace("postReadinessNs=300","postReadinessNs=18446744073709551615").Replace("postWaitRecordNs=500","postWaitRecordNs=1")})
         {
             bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(bad);}catch(ToolFailure){rejected=true;}
             HostCheck.True(rejected,bad);
         }
+    }
+
+    [HostTest("timing post-network partition conserves parent duration at zero and maximum unsigned boundaries")]
+    private static void PostNetworkPartition()
+    {
+        foreach(var parts in new (string Parent,string Ready,string Wait)[]{("0","0","0"),("800","0","800"),("800","800","0"),
+            ("18446744073709551615","18446744073709551614","1"),("18446744073709551615","0","18446744073709551615")})
+        {
+            string row=Metrics.Replace("postNetworkNs=800","postNetworkNs="+parts.Parent)
+                .Replace("postReadinessNs=300","postReadinessNs="+parts.Ready).Replace("postWaitRecordNs=500","postWaitRecordNs="+parts.Wait);
+            var values=NativeAotDiskTimingPeer.InspectMetrics(row);
+            HostCheck.Equal(values["postNetworkNs"],values["postReadinessNs"]+values["postWaitRecordNs"]);
+        }
+        string oldV2=Metrics.Replace("postReadinessNs=300 postWaitRecordNs=500 ","").Replace("flushedPastBudget=0","flushedPastBudget=0 replenished=0 replenishBudgetSkips=0");
+        bool rejected=false;try{_=NativeAotDiskTimingPeer.InspectMetrics(oldV2);}catch(ToolFailure){rejected=true;}
+        HostCheck.True(rejected,"original v2 is a distinct retained producer, not a v3 partition");
     }
 
     // Real loopback HTTP with synthetic runner/serial and independent image

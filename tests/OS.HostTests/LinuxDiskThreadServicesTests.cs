@@ -10,25 +10,6 @@ using Signals = OS.Kernel.Compatibility.LinuxX64.LinuxSignalServices;
 
 internal static unsafe class LinuxDiskThreadServicesTests
 {
-    private delegate bool ReplenishQuery(Fds.State* state,ulong owner,Fds.DiskToken token,OSHostHandle worker);
-    private static readonly ReplenishQuery MayReplenish=typeof(Fds).GetMethod("CanReplenishDisk",
-        System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!.CreateDelegate<ReplenishQuery>();
-    // Inspect private retained metadata without widening the production API.
-    private static ulong TokenPart(Fds.DiskToken token,string name)=>(ulong)typeof(Fds.DiskToken).GetField(name,
-        System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(token)!;
-    private static Fds.DiskToken MakeToken(ulong owner,ulong epoch,ulong generation,uint index)=>(Fds.DiskToken)Activator.CreateInstance(
-        typeof(Fds.DiskToken),System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic,null,
-        [owner,epoch,generation,index],System.Globalization.CultureInfo.InvariantCulture)!;
-    private static Fds.DiskToken ChangedToken(Fds.DiskToken token,string field,ulong value)
-    {
-        return MakeToken(TokenPart(token,"Owner"),field=="Epoch"?value:TokenPart(token,"Epoch"),
-            field=="Generation"?value:TokenPart(token,"Generation"),TokenIndex(token));
-    }
-    private static uint TokenIndex(Fds.DiskToken token)=>(uint)typeof(Fds.DiskToken).GetField("Index",
-        System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic)!.GetValue(token)!;
-    private static Fds.DiskRequest* Requests(Fds.DiskState* disk)=>*(Fds.DiskRequest**)((byte*)disk+(int)Marshal.OffsetOf<Fds.DiskState>("Requests"));
-    private static OSHostHandle RequestWorker(Fds.DiskRequest* request)=>*(OSHostHandle*)((byte*)request+(int)Marshal.OffsetOf<Fds.DiskRequest>("Worker"));
-    private static uint NextPump(Fds.DiskState* disk)=>*(uint*)((byte*)disk+(int)Marshal.OffsetOf<Fds.DiskState>("NextPump"));
     private const ulong Key = LinuxThreadServicesTests.Key, Base = LinuxThreadServicesTests.UserBase;
     private const ulong Path = Base + 0x1200, Output = Base + 0x2000;
     internal sealed class Owner : IDisposable
@@ -345,162 +326,26 @@ internal static unsafe class LinuxDiskThreadServicesTests
         HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(firstOutput), 8192).SequenceEqual(new ReadOnlySpan<byte>(o.Thread.At(firstOutput + 8192), 8192)));
     }
 
-    [HostTest("linux.disk-thread sole read replenishes once after copy then preserves the ready peer FIFO")]
+    [HostTest("linux.disk-thread quantum yields after one step to a ready worker without a disk token")]
     private static void QuantumRunnablePeer()
     {
         using Owner o = new(large: true); uint fd = o.Open(); var child = o.Thread.Clone();
         o.Storage.CompleteOnPoll = true; o.Begin(17, fd, Output, 8192); o.Park();
         HostCheck.Equal(1U, o.Thread.Kernel.Table->ReadyCount);
-        new Span<byte>(o.Thread.At(Output),8192).Fill(0xa5);
         ulong submitted = o.Storage.Device->Submitted;
         PumpContext context = new() { Device = o.Storage.Device, Submitted = submitted, Completed = submitted, Copied = submitted };
-        LinuxThreadServices.DiskPumpMeasurements measurements = default;
-        var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush, Measurements = &measurements };
+        var access = new LinuxThreadServices.DiskPumpAccess { Context = &context, Clock = &PumpClock, Flush = &PumpFlush };
         int outer = 0;
         while (o.Thread.Kernel.Inspect(o.Main).Completion == KernelThreadTable.Completion.None && outer < 100)
         {
             uint before = context.Flushes;
             HostCheck.True(o.Thread.Service->PollDiskReadiness(Key, 2, access)); outer++;
-            HostCheck.Equal(before + (outer is 1 or 17 ? 1U : 2U), context.Flushes);
-            HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output), 8192).IndexOfAnyExcept((byte)0xa5) < 0);
+            HostCheck.Equal(before + 1, context.Flushes);
         }
-        HostCheck.Equal(17, outer); HostCheck.Equal(submitted + 16, o.Storage.Device->Copied);
-        HostCheck.True(measurements.Calls == 17 && measurements.Steps == 32 && measurements.Replenished == 15 &&
-            measurements.OtherReady == 16 && measurements.DiskReady == 1 && measurements.ReplenishBudgetSkips == 0);
+        HostCheck.Equal(32, outer); HostCheck.Equal(submitted + 16, o.Storage.Device->Copied);
         HostCheck.True(!context.Bad);
         HostCheck.Equal(child.Value, o.Thread.Kernel.Dispatch().Value); o.Thread.Yield(child);
         HostCheck.Equal(8192L, o.Consume());
-    }
-
-    [HostTest("linux.disk-thread sole read exact and expired budgets clock and flush faults prevent replenishment")]
-    private static void ReplenishBounds()
-    {
-        for(int mode=0;mode<5;mode++)
-        {
-            using Owner o=new(large:true); uint fd=o.Open(); _=o.Thread.Clone();
-            o.Storage.CompleteOnPoll=true; o.Begin(17,fd,Output,8192); o.Park();
-            ulong initial=o.Storage.Device->Submitted;
-            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key,2)); // Submit first; ready child still wins.
-            HostCheck.True(o.Storage.Device->Submitted==initial+1 && o.Storage.Device->Completed==initial);
-            new Span<byte>(o.Thread.At(Output),8192).Fill(0x69);
-            PumpContext context=new(){Device=o.Storage.Device,Submitted=initial+1,Completed=initial,Copied=initial,
-                Now=10,Increment=mode==0?1250000UL:mode==1?1500000UL:0,
-                FailClockAt=mode==2?5U:0,Regress=mode==3,FailFlushAt=mode==4?1U:0};
-            LinuxThreadServices.DiskPumpMeasurements measurements=default;
-            bool succeeded=o.Thread.Service->PollDiskReadiness(Key,2,new(){Context=&context,Clock=&PumpClock,Flush=&PumpFlush,Measurements=&measurements});
-            HostCheck.Equal(mode<2,succeeded);
-            HostCheck.True(o.Storage.Device->Submitted==initial+1 && o.Storage.Device->Completed==initial+1 &&
-                o.Storage.Device->Copied==initial+1 && measurements.Replenished==0 && !context.Bad);
-            HostCheck.Equal(mode==3?0U:1U,context.Flushes);
-            if(mode<2)HostCheck.True(measurements.Elapsed==1 && measurements.ReplenishBudgetSkips==1);
-            else HostCheck.Equal(1UL,measurements.Failures);
-            HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output),8192).IndexOfAnyExcept((byte)0x69)<0 && !o.May(Output,8192));
-        }
-    }
-
-    [HostTest("linux.disk-thread final copy wakes without replenishing and legacy ready peer remains one primitive")]
-    private static void ReplenishFinalAndLegacy()
-    {
-        foreach(bool quantum in new[]{false,true})
-        {
-            using Owner o=new();uint fd=o.Open();var child=o.Thread.Clone();o.Storage.CompleteOnPoll=true;
-            o.Begin(17,fd,Output,700);o.Park();new Span<byte>(o.Thread.At(Output),700).Fill(0x77);
-            ulong initial=o.Storage.Device->Submitted;
-            PumpContext context=new(){Device=o.Storage.Device,Submitted=initial,Completed=initial,Copied=initial};
-            LinuxThreadServices.DiskPumpMeasurements measurements=default;
-            var access=quantum?new LinuxThreadServices.DiskPumpAccess{Context=&context,Clock=&PumpClock,Flush=&PumpFlush,Measurements=&measurements}:default;
-            int passes=0;while(o.Thread.Kernel.Inspect(o.Main).Completion==KernelThreadTable.Completion.None && passes<10)
-            {
-                ulong before=o.Storage.Device->Submitted;uint flushes=context.Flushes;
-                HostCheck.True(o.Thread.Service->PollDiskReadiness(Key,2,access));passes++;
-                HostCheck.True(o.Storage.Device->Submitted-before<=1 && new ReadOnlySpan<byte>(o.Thread.At(Output),700).IndexOfAnyExcept((byte)0x77)<0);
-                if(quantum && passes==3)HostCheck.Equal(flushes+1,context.Flushes);
-            }
-            HostCheck.Equal(quantum?3:4,passes);HostCheck.Equal(initial+2,o.Storage.Device->Copied);
-            if(quantum)HostCheck.True(measurements.Replenished==1 && measurements.DiskReady==1 && measurements.Steps==4);
-            HostCheck.Equal(child.Value,o.Thread.Kernel.Dispatch().Value);o.Thread.Yield(child);HostCheck.Equal(700L,o.Consume());
-        }
-    }
-
-    [HostTest("linux.disk-thread copied read fact excludes first submits stale tokens and outstanding device work")]
-    private static void ReplenishIdentity()
-    {
-        using Owner o=new(large:true);uint fd=o.Open();var child=o.Thread.Clone();o.Storage.CompleteOnPoll=true;
-        o.Begin(17,fd,Output,8192);o.Park();new Span<byte>(o.Thread.At(Output),8192).Fill(0x69);
-        ulong owner=(ulong)o.Thread.Service;
-        var first=Fds.PumpDiskOne(o.Files.State,owner);HostCheck.True(first.Advanced && !first.CopiedPendingRead && !first.SubmittedRead);
-        HostCheck.True(!MayReplenish(o.Files.State,owner,first.Token,first.Worker));
-        var copied=Fds.PumpDiskOne(o.Files.State,owner);HostCheck.True(copied.Advanced && copied.CopiedPendingRead && !copied.SubmittedRead);
-        HostCheck.True(MayReplenish(o.Files.State,owner,copied.Token,copied.Worker));
-        foreach(var stale in new[]{ChangedToken(copied.Token,"Epoch",TokenPart(copied.Token,"Epoch")+1),
-            ChangedToken(copied.Token,"Generation",TokenPart(copied.Token,"Generation")+1)})
-            HostCheck.True(!MayReplenish(o.Files.State,owner,stale,copied.Worker));
-        HostCheck.True(!MayReplenish(o.Files.State,owner,copied.Token,child));
-        var input=(Block.Admission*)((byte*)o.Storage.Device+(int)Marshal.OffsetOf<Block.State>("Input")); ulong epoch=input->Epoch;
-        try{input->Epoch++;HostCheck.True(!MayReplenish(o.Files.State,owner,copied.Token,copied.Worker));}
-        finally{input->Epoch=epoch;}
-        var submit=Fds.PumpDiskOne(o.Files.State,owner);HostCheck.True(submit.Advanced && submit.SubmittedRead && !submit.CopiedPendingRead);
-        HostCheck.True(!MayReplenish(o.Files.State,owner,submit.Token,submit.Worker));
-        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output),8192).IndexOfAnyExcept((byte)0x69)<0);
-        o.Ready();HostCheck.Equal(child.Value,o.Thread.Kernel.Dispatch().Value);o.Thread.Yield(child);HostCheck.Equal(8192L,o.Consume());
-        Console.WriteLine($"DISK_REPLENISH_LAYOUT resultBytes={sizeof(Fds.DiskResult)} measurementBytes={sizeof(LinuxThreadServices.DiskPumpMeasurements)}");
-    }
-
-    [HostTest("linux.disk-thread second queued or orphan request forbids replenishment and preserves round robin")]
-    private static void ReplenishCompeting()
-    {
-        const ulong firstOutput=Base+0x1000;
-        foreach(bool orphan in new[]{false,true})
-        {
-            using Owner o=new(large:true);uint firstFd=o.Open(),secondFd=o.Open();var child=o.Thread.Clone();
-            o.Storage.CompleteOnPoll=true;o.Begin(17,firstFd,firstOutput,8192);o.Park();ulong owner=(ulong)o.Thread.Service;
-            _=Fds.PumpDiskOne(o.Files.State,owner);var copied=Fds.PumpDiskOne(o.Files.State,owner);
-            HostCheck.True(copied.CopiedPendingRead && MayReplenish(o.Files.State,owner,copied.Token,copied.Worker));
-            HostCheck.Equal(child.Value,o.Thread.Kernel.Dispatch().Value);var peer=o.Thread.Clone();
-            o.Begin(17,secondFd,firstOutput+8192,8192);
-            HostCheck.True(o.Thread.Service->CommitDiskWait(Key,2,o.Thread.Kernel.Capture(child),out bool handoff)&&handoff);
-            o.Thread.Kernel.Confirm();
-            uint second=0;for(;second<Fds.DiskSlots;second++)if(RequestWorker(Requests(o.Disk)+second).Value==child.Value)break;
-            HostCheck.True(second<Fds.DiskSlots && o.Thread.Kernel.Table->ReadyCount==1);
-            if(orphan)
-            {
-                var issued=Fds.PumpDiskOne(o.Files.State,owner);HostCheck.True(issued.Advanced && o.Storage.Device->ReadPending);
-                // Use the actual thread winner/drop path: directly cancelling
-                // its descriptor would leave a live source4 slot owning it.
-                HostCheck.True(o.Thread.Kernel.Table->Interrupt(KernelThreadTableTests.Key,2,o.Thread.View(child).Wait).Succeeded);
-                HostCheck.Equal(peer.Value,o.Thread.Kernel.Dispatch().Value);o.Thread.Yield(peer);
-                HostCheck.Equal(child.Value,o.Thread.Kernel.Dispatch().Value);
-                var interrupted=o.Thread.Service->CompleteDiskWait(Key,2);
-                HostCheck.True(interrupted.Action==LinuxSyscallAction.Return && interrupted.Value==-4);
-            }
-            HostCheck.True(!MayReplenish(o.Files.State,owner,copied.Token,copied.Worker));
-            new Span<byte>(o.Thread.At(firstOutput),16384).Fill(0x69);
-            var device=o.Storage.Device;
-            PumpContext context=new(){Device=device,Submitted=device->Submitted,Completed=device->Completed,Copied=device->Copied};
-            LinuxThreadServices.DiskPumpMeasurements measurements=default;
-            HostCheck.True(o.Thread.Service->PollDiskReadiness(Key,2,new(){Context=&context,Clock=&PumpClock,Flush=&PumpFlush,Measurements=&measurements}));
-            HostCheck.True(context.Flushes==1 && measurements.Steps==1 && measurements.Replenished==0 &&
-                NextPump(o.Disk)==((orphan?TokenIndex(copied.Token):second)+1)%Fds.DiskSlots && !context.Bad);
-            HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(firstOutput),16384).IndexOfAnyExcept((byte)0x69)<0);
-        }
-    }
-
-    [HostTest("linux.disk-thread actual fd close after a nonfinal copy revokes replenishment and all user output")]
-    private static void ReplenishClosedFd()
-    {
-        using Owner o=new(large:true);uint fd=o.Open();var child=o.Thread.Clone();o.Storage.CompleteOnPoll=true;
-        o.Begin(17,fd,Output,8192);o.Park();new Span<byte>(o.Thread.At(Output),8192).Fill(0x69);
-        ulong owner=(ulong)o.Thread.Service;_=Fds.PumpDiskOne(o.Files.State,owner);var copied=Fds.PumpDiskOne(o.Files.State,owner);
-        HostCheck.True(copied.CopiedPendingRead && MayReplenish(o.Files.State,owner,copied.Token,copied.Worker));
-        HostCheck.Equal(child.Value,o.Thread.Kernel.Dispatch().Value);HostCheck.Equal(0L,o.Thread.DescriptorCall(3,fd).Value);
-        HostCheck.True(!MayReplenish(o.Files.State,owner,copied.Token,copied.Worker));
-        var device=o.Storage.Device;ulong submitted=device->Submitted;
-        PumpContext context=new(){Device=device,Submitted=submitted,Completed=device->Completed,Copied=device->Copied};
-        LinuxThreadServices.DiskPumpMeasurements measurements=default;
-        HostCheck.True(o.Thread.Service->PollDiskReadiness(Key,2,new(){Context=&context,Clock=&PumpClock,Flush=&PumpFlush,Measurements=&measurements}));
-        HostCheck.True(context.Flushes==1 && measurements.Replenished==0 && device->Submitted==submitted && !context.Bad);
-        o.Thread.Yield(child);HostCheck.Equal(-9L,o.Consume());
-        HostCheck.True(new ReadOnlySpan<byte>(o.Thread.At(Output),8192).IndexOfAnyExcept((byte)0x69)<0);
     }
 
     [HostTest("linux.disk-thread gateway carries stat open lstat seek pread and openat through real waits")]

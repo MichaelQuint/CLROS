@@ -24,9 +24,14 @@ public static class LinuxWritableDiskProofFixture
     public const uint ReadFlags = 0x8000 | 0x20000 | 0x80000, RootFlags = 0x8000 | 0x80000;
     public const long ReservedLockByte = 1073741825;
     public const byte Sentinel = 0xa5;
+    public const string LogUploadVariant = "WritableLogUpload", LogUploadAppPath = "apps/m16logupload.elf", LogUploadWitness = "M16_LOG_UPLOAD_OK!";
+    public const int LogUploadElfBytes = 0x6000;
+    public const ulong LogName = 0x401000, UploadName = 0x401040, LogUploadIovecs = 0x401200;
+    public const ulong ExpectedLogAddress = 0x402000, ExpectedUploadAddress = 0x402400, LogUploadOutput = 0x404000;
+    public const uint LogUploadWriteFlags = 2 | 0x100 | 0x8000 | 0x20000 | 0x80000, LogUploadReadFlags = ReadFlags | 0x100;
 
     /// <summary>Copied six-register Linux x64 syscall contract. Positional
-    /// pwritev2 uses A3/A4 for the low/high offset and A5 for RWF_NOAPPEND.
+    /// pwritev2 uses the full 64-bit A3 offset, unused A4 = 0, and A5 = RWF_NOAPPEND.
     /// OutputBytes bounds the checked copy-out range; it does not authenticate
     /// user mappings, continuations, device requests or completion timing.</summary>
     public readonly record struct CallSpec(string Role, ulong Number, ulong A0, ulong A1, ulong A2,
@@ -60,6 +65,25 @@ public static class LinuxWritableDiskProofFixture
     /// throws; success supplies no native execution or persistence authority.</summary>
     public static void RequirePackage(ReadOnlySpan<byte> package)
     { if (!package.SequenceEqual(CreatePackage())) throw new ToolFailure("writable_disk_package_identity"); }
+
+    /// <summary>Construct a separate finite log/upload mechanical package.
+    /// The original owner must independently authenticate initially empty
+    /// /data/LOG.TXT and UPLOAD.BIN; this stream does not establish freshness.
+    /// It checks the candidate's 660/5126 copied bytes, explicit file/directory
+    /// sync return values, close/reopen and EOF. No BCL execution, append mode,
+    /// original I/O, process, persistence or native admission is established.</summary>
+    public static byte[] CreateLogUploadPackage() => LinuxThreadProofFixture.CreateMechanicalPackage(
+        CreateLogUploadElf(), LogUploadVariant, LogUploadAppPath, userInterrupts: false, socketListener: true);
+    public static byte[] CreateLogUploadElf() => BuildLogUpload().Elf;
+    public static IReadOnlyList<CallSpec> LogUploadCalls() => Array.AsReadOnly(BuildLogUpload().Calls);
+    public static IReadOnlyList<ulong> LogUploadInstructionRips() => Array.AsReadOnly(BuildLogUpload().Instructions);
+    public static IReadOnlyList<ulong> LogUploadExpectedReturnRips() => Array.AsReadOnly(BuildLogUpload().Calls.Select(c => c.ReturnRip).ToArray());
+    public static ulong LogUploadSuccessRip => BuildLogUpload().Calls[^1].ReturnRip;
+    public static ulong LogUploadMainEndRip => BuildLogUpload().MainEnd;
+    /// <summary>Borrow complete bytes only for this distinct package. Reject
+    /// changed/foreign/default packages; return no execution/storage authority.</summary>
+    public static void RequireLogUploadPackage(ReadOnlySpan<byte> package)
+    { if (!package.SequenceEqual(CreateLogUploadPackage())) throw new ToolFailure("writable_log_upload_package_identity"); }
 
     public const int MaximumBlockObservationSamples = 65536;
 
@@ -295,6 +319,64 @@ public static class LinuxWritableDiskProofFixture
         Built result = new(elf, w.Calls.ToArray(), w.Instructions.ToArray(), ImageBase + (uint)w.Position);
         Writer failure = new(elf, FailureOffset); failure.Instruction(0xfc, 1); failure.Syscall("failure", 231, 99, 0, 0, 0); failure.Instruction(0xf4, 1);
         if (failure.Calls[0].ReturnRip != FailureExitRip) throw new ToolFailure("writable_disk_failure_rip");
+        return result;
+    }
+
+    private static Built BuildLogUpload()
+    {
+        byte[] log = NativeAotLogUploadContract.ExpectedLog(), upload = NativeAotLogUploadContract.ExpectedUpload();
+        if (log.Length != 660 || upload.Length != 5126) throw new ToolFailure("writable_log_upload_payload");
+        byte[] elf = new byte[LogUploadElfBytes]; elf.AsSpan(EntryOffset, 4096 - EntryOffset).Fill(0xcc);
+        "\u007fELF"u8.CopyTo(elf); elf[4] = 2; elf[5] = 1; elf[6] = 1;
+        void U16(int at, ushort value) => BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(at), value);
+        void U32(int at, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(at), value);
+        void U64(int at, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(at), value);
+        void Text(ulong address, string value) => Encoding.ASCII.GetBytes(value).CopyTo(elf, (int)(address - ImageBase));
+        U16(16, 2); U16(18, 62); U32(20, 1); U64(24, ImageBase + EntryOffset);
+        U64(32, 64); U16(52, 64); U16(54, 56); U16(56, 3);
+        void Load(int at, uint type, uint flags, ulong offset, ulong address, ulong length, ulong alignment)
+        { U32(at, type); U32(at + 4, flags); U64(at + 8, offset); U64(at + 16, address); U64(at + 24, address); U64(at + 32, length); U64(at + 40, length); U64(at + 48, alignment); }
+        Load(64, 1, 5, 0, ImageBase, 4096, 4096); Load(120, 1, 6, 4096, ImageBase + 4096, LogUploadElfBytes - 4096, 4096);
+        Load(176, 0x6474e551, 6, 0, 0, 0, 16);
+        Text(ImageBase + WitnessOffset, LogUploadWitness); Text(LogName, "/data/LOG.TXT\0"); Text(UploadName, "/data/UPLOAD.BIN\0");
+        Text(RootName, RootPath + "\0"); Text(OutsideName, OutsidePath + "\0");
+        log.CopyTo(elf, (int)(ExpectedLogAddress - ImageBase)); upload.CopyTo(elf, (int)(ExpectedUploadAddress - ImageBase));
+        elf.AsSpan((int)(LogUploadOutput - ImageBase), 8192).Fill(Sentinel);
+        ulong Vector(int index) => LogUploadIovecs + (uint)index * 16;
+        for (int i = 0; i < 14; i++)
+        {
+            ulong source = i < 12 ? ExpectedLogAddress + (uint)i * 55 : ExpectedUploadAddress + (i == 12 ? 0UL : 4094UL);
+            U64((int)(Vector(i) - ImageBase), source); U64((int)(Vector(i) - ImageBase + 8), i < 12 ? 55UL : i == 12 ? 4094UL : 1032UL);
+        }
+        Writer w = new(elf, EntryOffset); w.Instruction(0xc031, 2); w.Instruction(0xc88c66, 3); w.Compare(0x3b);
+        w.Call("log.open.first", 2, LogName, LogUploadWriteFlags, 0, 3);
+        for (int i = 0; i < 6; i++) w.Call("log.row." + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), 328, 3, Vector(i), 1, 55, a3: (uint)i * 55, a5: RwfNoAppend);
+        w.Call("log.sync.first", 74, 3, 0, 0, 0); w.Call("log.close.first", 3, 3, 0, 0, 0);
+        w.Call("log.open.second", 2, LogName, LogUploadWriteFlags, 0, 3); w.Call("log.seek.end", 8, 3, 0, 2, 330);
+        for (int i = 6; i < 12; i++) w.Call("log.row." + (i + 1).ToString(System.Globalization.CultureInfo.InvariantCulture), 328, 3, Vector(i), 1, 55, a3: (uint)i * 55, a5: RwfNoAppend);
+        w.Call("log.cursor", 8, 3, 0, 1, 330); w.Call("log.sync.second", 74, 3, 0, 0, 0); w.Call("log.close.second", 3, 3, 0, 0, 0);
+        w.Call("log.reopen", 2, LogName, LogUploadReadFlags, 0, 3);
+        w.Call("log.read", 17, 3, LogUploadOutput, 660, 660, 660); w.CompareBytes(LogUploadOutput, ExpectedLogAddress, 660);
+        w.MemoryByte(LogUploadOutput + 660, Sentinel);
+        w.Call("log.eof", 17, 3, LogUploadOutput + 660, 1, 0, 1, 660); w.MemoryByte(LogUploadOutput + 660, Sentinel);
+        w.Call("log.close.reopened", 3, 3, 0, 0, 0);
+        w.Call("upload.open", 2, UploadName, LogUploadWriteFlags, 0, 3);
+        w.Call("upload.first", 328, 3, Vector(12), 1, 4094, a5: RwfNoAppend);
+        w.Call("upload.second", 328, 3, Vector(13), 1, 1032, a3: 4094, a5: RwfNoAppend);
+        w.Call("upload.cursor", 8, 3, 0, 1, 0); w.Call("upload.sync", 74, 3, 0, 0, 0); w.Call("upload.close", 3, 3, 0, 0, 0);
+        w.Call("upload.reopen", 2, UploadName, LogUploadReadFlags, 0, 3);
+        w.Call("upload.read", 17, 3, LogUploadOutput, 5126, 5126, 5126); w.CompareBytes(LogUploadOutput, ExpectedUploadAddress, 5126);
+        w.MemoryByte(LogUploadOutput + 5126, Sentinel);
+        w.Call("upload.eof", 17, 3, LogUploadOutput + 5126, 1, 0, 1, 5126); w.MemoryByte(LogUploadOutput + 5126, Sentinel);
+        w.Call("upload.close.reopened", 3, 3, 0, 0, 0); w.Call("parent.open", 2, RootName, RootFlags, 0, 3);
+        w.Call("parent.sync", 74, 3, 0, 0, 0); w.Call("parent.close", 3, 3, 0, 0, 0);
+        w.Call("open.outside", 2, OutsideName, LogUploadReadFlags, 0, -13);
+        w.Call("witness", 1, 1, ImageBase + WitnessOffset, (uint)LogUploadWitness.Length, LogUploadWitness.Length);
+        w.Syscall("exit", 231, 42, 0, 0, 0); w.JumpFailure();
+        if (w.Position >= FailureOffset || w.Calls.Count != 40) throw new ToolFailure("writable_log_upload_code_capacity");
+        Built result = new(elf, w.Calls.ToArray(), w.Instructions.ToArray(), ImageBase + (uint)w.Position);
+        Writer failure = new(elf, FailureOffset); failure.Instruction(0xfc, 1); failure.Syscall("failure", 231, 99, 0, 0, 0); failure.Instruction(0xf4, 1);
+        if (failure.Calls[0].ReturnRip != FailureExitRip) throw new ToolFailure("writable_log_upload_failure_rip");
         return result;
     }
 

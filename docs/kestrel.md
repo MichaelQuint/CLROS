@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1604](../done/step1604.md) Original short r08 succeeds through exact64KiB range35.662s and deliberate joined cancellation. Extra-submit experiment delivers0submissions; it is retired. The next v3 diagnostic only attributes post-network descriptor readiness versus wait recording, with unchanged HTTP/guest budgets and aggregate boundaries. Actual full A/B/browser and continuous-service acceptance remain required before persistent log/upload/direct-SQLite product qualification.
+
 [Step1603](../done/step1603.md) Original r07 successfully serves the independently extracted64KiB CoreLib range in26.715s between successful health/HEAD/final-health calls. It intentionally cancels and joins, with endpoint refusal; full Blazor/browser and normal cleanup remain unqualified. A host-qualified sole-read replenishment experiment targets measured gaps while preserving original time budgets and fairness, and requires fresh timing before full A/B/browser repetitions. Persistent logs/uploads and actual direct SQLite remain subsequent guest acceptance work.
 
 [Step1600](../done/step1600.md) Full read r06 remains failed after113complete responses/6121425B; browser entry never occurred. The next explicit M10018Timing diagnostic checks health, CoreLib HEAD, bytes0-65535 and health using independent image bytes, then intentionally cancels/joins its runner. It supplies component timing only. Three fresh source-matched A/B boots and external Blazor/API rendering remain required; the product target continues until intentional stop.

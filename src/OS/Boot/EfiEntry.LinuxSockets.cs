@@ -682,7 +682,7 @@ public static unsafe partial class EfiEntry
 #if M10_018_TIMING_PROBE
             {
                 bool timing = disk->TimingPhase == 1;
-                ulong started = 0, afterPre = 0, afterDisk = 0, finished = 0;
+                ulong started = 0, afterPre = 0, afterDisk = 0, afterReadiness = 0, finished = 0;
                 if (timing && !ReadNetworkTime(c->State, out started)) return false;
                 if (o->Boot != c->State || observe && !RecordLinuxSocketPoll(c) ||
                     !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
@@ -692,14 +692,22 @@ public static unsafe partial class EfiEntry
                 if (disk->Boot != c->State || !c->Process.PollDiskReadiness(c->Key, 2,
                     new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush,
                         Measurements = timing ? &disk->TimingPump : null })) return false;
-                if (timing && !ReadNetworkTime(c->State, out afterDisk)) return false;
-                if (!c->Process.PollDescriptorReadiness(c->Key, 2) || !RecordLinuxSocketWaits(o, c)) return false;
+                if (timing && (!ReadNetworkTime(c->State, out afterDisk) || afterDisk < afterPre)) return false;
+                if (!c->Process.PollDescriptorReadiness(c->Key, 2)) return false;
+                // One diagnostic-only clock partitions the existing parent
+                // interval; its measurement overhead remains in that parent.
+                if (timing && (!ReadNetworkTime(c->State, out afterReadiness) || afterReadiness < afterDisk)) return false;
+                if (!RecordLinuxSocketWaits(o, c)) return false;
                 if (timing)
                 {
-                    if (!ReadNetworkTime(c->State, out finished) || finished < afterDisk ||
-                        disk->TimingPostNetwork > ~0UL - (finished - afterDisk)) return false;
+                    if (!ReadNetworkTime(c->State, out finished) || finished < afterReadiness ||
+                        disk->TimingPostNetwork > ~0UL - (finished - afterDisk) ||
+                        disk->TimingPostReadiness > ~0UL - (afterReadiness - afterDisk) ||
+                        disk->TimingPostWaitRecord > ~0UL - (finished - afterReadiness)) return false;
                     disk->TimingPreNetwork += afterPre - started;
                     disk->TimingPostNetwork += finished - afterDisk;
+                    disk->TimingPostReadiness += afterReadiness - afterDisk;
+                    disk->TimingPostWaitRecord += finished - afterReadiness;
                     disk->TimingNetworkCalls++;
                 }
                 return true;

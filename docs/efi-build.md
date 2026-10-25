@@ -1,5 +1,7 @@
 # EFI Build
 
+[Step1604](../done/step1604.md) Original timingr08 at5cf3fcd1 verifies2057runtime/1630unwind entries and EFI5C86DAEA494E78DBF85FF506D11E43904166B7527AB8F62CD85DDC69825BE0DC. Image51A6575B100AE82D5EC2ABFA42336CD83BF4CF13B6AF81EF5D7C8FEF1B13B88A contains the unchanged server package. The next candidate retires the extra-submit route and updates five reviewed pins for a diagnostic-only clock partition. New source-matched BuildEfi is mandatory; host4096/kernel2048 capacities and default-off guards remain unchanged.
+
 [Step1603](../done/step1603.md) Original r07 at clean4efb1bc3 compiles and verifies2055runtime/1628unwind records, then runs the short guest diagnostic. EFI SHA2560B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF and image36A92BF15CE8BE4C0238101BBB81643CE5E46353EC4995DCE2F941AD3A34D393 retain exact original provenance. Three source pins now cover the host-qualified sole-read replenishment experiment and two added aggregate counters. New native publication and timingr08 are required; kernel unwind2048 and its disabled profile remain unchanged.
 
 [Step1602](../done/step1602.md) Original timing r06 at d6bd3919 completes native verification (2055 runtime/1628 unwind records) and image construction, then runner deadline admission fails before guest. EFI SHA256 0B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF. The runner repair changes no kernel, EFI source pin or metadata bound. A new committed -BuildEfi original remains mandatory; failed r03–r06 retain their original scope.

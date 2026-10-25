@@ -1,5 +1,7 @@
 # Host Requirements
 
+[Step1604](../done/step1604.md) Current candidate passes113distinct focused controls:19disk-thread,3timing-peer,19writable-fixture,41global-writable,19writable-source5,5source-admission and7profile/actual-CLI, unchanged inputs/zero reuse. The strict v3 parser requires exact checked child-sum conservation and rejects originalv2 syntax. SQLite recoveryr02 explicitly logs childsoft/hard4096 and parentsoft1024 before/after; all publication holds succeed, but its later flock consumer fails. This is not unfiltered full, recovery or durability acceptance.
+
 [Step1603](../done/step1603.md) Root passes235 distinct focused checks:24 disk-thread,103 continuing writable provider,40 global writable descriptor,2 timing peer,7 profile/CLI,5 source-admission,15 readonly descriptor,34 SQLite contract and5 authority-file controls, all unchanged inputs/zero reuse. This is not an unfiltered full lane. Linux ordinary SQLite ef97/r05 passes actual fresh publication/writer/distinct verifier with explicitly reused verified original archives. Recovery c79/r01 fails while retaining publication sources; the later read-only builder audit reports soft1024/hard4096 file descriptors. Preserve the failed original and qualify any explicit invocation prerequisite separately.
 
 [Step1602](../done/step1602.md) Seven profile/CLI controls include the actual compiled runner at 240/600 seconds, dry-run output noncreation, original-build admission, missing parents, duplicates, invalid timing and unchanged full 2200/3600 admission. Two peer and ten existing runner controls also pass, unchanged inputs/zero reuse. These focused host checks do not establish unfiltered full or guest qualification. Peer budget min(480, runnerDeadline−30) preserves cancellation/join time.
@@ -910,7 +912,7 @@ source, both object/archive outputs, recipes and toolchain identities; they
 report reused archives and zero fresh SQLite compiles while publishing a fresh
 application and running fresh processes. Recovery retains every source/output
 authority through its owned kill/join/reopen. Its original c79/r01 failed under
-the builder's1024 soft descriptor limit before recovery began. A subsequent
-invocation must explicitly log any child-only4096 limit and parent restoration,
+the builder's1024 soft descriptor limit before recovery began. Originalr02 explicitly logs its child-only4096 limit and parent restoration;
+it reaches owned kill/join then fails strictflock parsing. Future runs must
 use fresh outputs and preserve all holds; this prerequisite is not yet a
 successful recovery result. See [step1603](../done/step1603.md).

@@ -34,7 +34,7 @@ public static unsafe partial class EfiEntry
             internal NativeDiskExitObservation ExitObservation;
 #if M10_018_TIMING_PROBE
             internal LinuxThreadServices.DiskPumpMeasurements TimingPump;
-            internal ulong TimingPreNetwork, TimingPostNetwork, TimingNetworkCalls, TimingReadBytes;
+            internal ulong TimingPreNetwork, TimingPostNetwork, TimingPostReadiness, TimingPostWaitRecord, TimingNetworkCalls, TimingReadBytes;
             internal byte TimingPhase; //0 unarmed,1 counting after listen,2 frozen before the single dump.
 #endif
             internal Fs.Operation* Operations;

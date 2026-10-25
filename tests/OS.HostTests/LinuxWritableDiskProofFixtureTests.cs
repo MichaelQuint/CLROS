@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Security.Cryptography;
 using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Manifest;
@@ -9,6 +10,115 @@ using C = OS.Storage.ContinuingFat32Mutation;
 
 internal static unsafe class LinuxWritableDiskProofFixtureTests
 {
+    [HostTest("writable additive log upload construction preserves original thirty call ELF package and strict identity")]
+    private static void CanonicalBytes()
+    {
+        HostCheck.Equal("BF52DF564589F7E04930C25268484C49C11866C6B384E729C5FF33F0F3624FA7", Convert.ToHexString(SHA256.HashData(F.CreateElf())));
+        HostCheck.Equal("3BE41FA9959FA2FE1C48F4DE1AF5774DD64BAFD22E02B8EA424B07279D79C808", Convert.ToHexString(SHA256.HashData(F.CreatePackage())));
+        HostCheck.True(F.ExpectedCalls == 30 && F.InstructionRips().Count == 339 && F.SuccessRip == 4196538 && F.MainEndRip == 4196543);
+        Reject(F.CreateLogUploadPackage(), logUpload: false); Reject(F.CreatePackage(), logUpload: true);
+    }
+
+    [HostTest("writable log upload package bounds independent expected bytes vectors and complete read output without a zero hole")]
+    private static void LogUploadPackage()
+    {
+        byte[] elf = F.CreateLogUploadElf(), package = F.CreateLogUploadPackage(); var view = LinuxElfPackage.Validate(package);
+        HostCheck.True(view.Succeeded && view.DataFileCount == 0 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16 &&
+            package.AsSpan((int)view.PayloadOffset).SequenceEqual(elf));
+        string manifest = Encoding.ASCII.GetString(package, (int)view.ManifestOffset, (int)view.ManifestBytes);
+        HostCheck.True(manifest.Contains("app.path=apps/m16logupload.elf\nargs=WritableLogUpload\n", StringComparison.Ordinal) && !manifest.Contains("CLROS_USER_IRQS", StringComparison.Ordinal));
+        fixed (byte* input = elf)
+        {
+            HostCheck.Equal(LinuxElfLoadStatus.Ready, LinuxElfLoader.Validate(input, (uint)elf.Length, view.Manifest.MemoryBytes, view.Manifest.StackBytes, out var plan));
+            HostCheck.True(plan.LoadCount == 2 && plan.Entry == 0x400200 && plan.ImageBytes == 0x6000);
+        }
+        HostCheck.True(U32(elf, 68) == 5 && U32(elf, 124) == 6 && U64(elf, 96) == 4096 && U64(elf, 152) == 20480);
+        HostCheck.Equal("/data/LOG.TXT", Text(elf, F.LogName)); HostCheck.Equal("/data/UPLOAD.BIN", Text(elf, F.UploadName));
+        HostCheck.Equal("/data", Text(elf, F.RootName)); HostCheck.Equal("/data/../private/sentinel", Text(elf, F.OutsideName));
+        byte[] log = NativeAotLogUploadContract.ExpectedLog(), upload = NativeAotLogUploadContract.ExpectedUpload();
+        HostCheck.True(log.Length == 660 && upload.Length == 5126 && elf.AsSpan((int)(F.ExpectedLogAddress - F.ImageBase), 660).SequenceEqual(log) &&
+            elf.AsSpan((int)(F.ExpectedUploadAddress - F.ImageBase), 5126).SequenceEqual(upload));
+        for (int i = 0; i < 14; i++)
+        {
+            int at = (int)(F.LogUploadIovecs - F.ImageBase) + i * 16;
+            ulong source = i < 12 ? F.ExpectedLogAddress + (uint)i * 55 : F.ExpectedUploadAddress + (i == 12 ? 0UL : 4094UL);
+            HostCheck.Equal(source, U64(elf, at)); HostCheck.Equal(i < 12 ? 55UL : i == 12 ? 4094UL : 1032UL, U64(elf, at + 8));
+        }
+        HostCheck.True(upload.AsSpan(4094).SequenceEqual(elf.AsSpan((int)(F.ExpectedUploadAddress - F.ImageBase) + 4094, 1032)) &&
+            !upload.AsSpan(4094).SequenceEqual(F.ExpectedPayload()) && upload.AsSpan(0, 4094).IndexOfAnyExcept((byte)0) >= 0);
+        HostCheck.True(F.LogUploadIovecs + 14 * 16 < F.ExpectedLogAddress && F.ExpectedLogAddress + 660 < F.ExpectedUploadAddress &&
+            F.ExpectedUploadAddress + 5126 < F.LogUploadOutput && F.LogUploadOutput + 8192 == F.ImageBase + (ulong)elf.Length &&
+            elf.AsSpan((int)(F.LogUploadOutput - F.ImageBase), 8192).IndexOfAnyExcept(F.Sentinel) < 0);
+        F.RequireLogUploadPackage(package); Reject(package.AsSpan(0, package.Length - 1), true);
+        package[^1] ^= 1; Reject(package, true); Reject([], true);
+    }
+
+    [HostTest("writable log upload forty register frames and exact instruction boundaries match independent decoding")]
+    private static void LogUploadDecode()
+    {
+        byte[] elf = F.CreateLogUploadElf(); var decoded = Decode(elf, F.LogUploadMainEndRip); var calls = F.LogUploadCalls();
+        ulong[] numbers = [2,328,328,328,328,328,328,74,3,2,8,328,328,328,328,328,328,8,74,3,2,17,17,3,2,328,328,8,74,3,2,17,17,3,2,74,3,2,1,231];
+        HostCheck.True(calls.Count == 40 && decoded.Calls.Select(c => c.Number).SequenceEqual(numbers) &&
+            F.LogUploadInstructionRips().SequenceEqual(decoded.Starts) && F.LogUploadExpectedReturnRips().SequenceEqual(decoded.Calls.Select(c => c.Rip)));
+        for (int i = 0; i < calls.Count; i++)
+        {
+            var expected = calls[i]; var actual = decoded.Calls[i];
+            HostCheck.True(expected.Number == actual.Number && expected.A0 == actual.A0 && expected.A1 == actual.A1 && expected.A2 == actual.A2 &&
+                expected.A3 == actual.A3 && expected.A4 == actual.A4 && expected.A5 == actual.A5 && expected.ReturnRip == actual.Rip && decoded.Starts.Contains(actual.Rip));
+            if (actual.Number != 231)
+            { int at = (int)(actual.Rip - F.ImageBase); HostCheck.True(elf[at] == 0x48 && elf[at + 1] == 0x3d); HostCheck.Equal(expected.Result, (long)BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 2))); }
+        }
+        var writes = calls.Where(c => c.Number == 328).ToArray();
+        HostCheck.True(writes.Length == 14 && writes.All(c => c.A0 == 3 && c.A2 == 1 && c.A4 == 0 && c.A5 == 0x20));
+        for (int i = 0; i < 12; i++) HostCheck.True(writes[i].A3 == (ulong)i * 55 && writes[i].Result == 55);
+        HostCheck.True(writes[12] is { A3: 0, Result: 4094 } && writes[13] is { A3: 4094, Result: 1032 });
+        HostCheck.True(calls[10] is { Number: 8, A1: 0, A2: 2, Result: 330 } && calls[17].Result == 330 && calls[27].Result == 0);
+        HostCheck.True(calls.Where(c => c.OutputBytes != 0).Select(c => c.OutputBytes).SequenceEqual(new uint[] { 660, 1, 5126, 1 }) &&
+            calls.Where(c => c.Number == 2).All(c => (c.A1 & (0x40 | 0x80 | 0x200 | 0x400)) == 0));
+        HostCheck.True(decoded.Starts.Distinct().Count() == decoded.Starts.Length && decoded.Starts.Zip(decoded.Starts.Skip(1)).All(p => p.First < p.Second) &&
+            !decoded.Starts.Contains(F.FailureExitRip) && calls[^1] is { Number: 231, A0: 42 } && F.LogUploadSuccessRip == calls[^1].ReturnRip);
+    }
+
+    [HostTest("writable log upload finite two file model proves copied byte checks cursors EOF closure and distinct syncs")]
+    private static void LogUploadModel()
+    {
+        var actual = ExecuteLogUpload(F.CreateLogUploadElf());
+        HostCheck.True(actual.Exit == 42 && actual.OpenCount == 0 && actual.Calls.Count == 40 && actual.Witness == F.LogUploadWitness &&
+            actual.Calls.Select(c => c.Rip).SequenceEqual(F.LogUploadExpectedReturnRips()) && actual.LogCursor == 330 && actual.UploadCursor == 0);
+        HostCheck.True(actual.Syncs.SequenceEqual(new[] { "/data/LOG.TXT", "/data/LOG.TXT", "/data/UPLOAD.BIN", "/data" }) &&
+            actual.Log.SequenceEqual(NativeAotLogUploadContract.ExpectedLog()) && actual.Upload.SequenceEqual(NativeAotLogUploadContract.ExpectedUpload()));
+        // Freshness remains an independently authenticated image precondition.
+        // These specific overlong seeds are detected by the explicit EOF calls;
+        // a short preexisting file overwritten in full is not detectable here.
+        foreach (string failure in new[] { "missing-log", "missing-upload", "long-log", "long-upload", "short", "sync", "corrupt", "eof" })
+            HostCheck.Equal(99, ExecuteLogUpload(F.CreateLogUploadElf(), failure).Exit);
+        byte[] suffix = F.CreateLogUploadElf(); BinaryPrimitives.WriteUInt64LittleEndian(suffix.AsSpan((int)(F.LogUploadIovecs - F.ImageBase) + 13 * 16), F.ExpectedUploadAddress);
+        HostCheck.Equal(99, ExecuteLogUpload(suffix).Exit);
+        byte[] flags = F.CreateLogUploadElf(); int at = (int)(F.LogUploadCalls().First(c => c.Number == 328).ReturnRip - F.ImageBase) - 6;
+        BinaryPrimitives.WriteUInt32LittleEndian(flags.AsSpan(at), 0); HostCheck.Equal(99, ExecuteLogUpload(flags).Exit);
+    }
+
+    [HostTest("writable log upload copied metadata and image buffers cannot mutate future constructions")]
+    private static void LogUploadImmutable()
+    {
+        var calls = F.LogUploadCalls(); var starts = F.LogUploadInstructionRips(); var returns = F.LogUploadExpectedReturnRips();
+        bool a = false, b = false, c = false;
+        try { ((IList<F.CallSpec>)calls).Clear(); } catch (NotSupportedException) { a = true; }
+        try { ((IList<ulong>)starts).Clear(); } catch (NotSupportedException) { b = true; }
+        try { ((IList<ulong>)returns).Clear(); } catch (NotSupportedException) { c = true; }
+        byte[] elf = F.CreateLogUploadElf(), package = F.CreateLogUploadPackage(); Array.Clear(elf); Array.Clear(package);
+        HostCheck.True(a && b && c && calls.SequenceEqual(F.LogUploadCalls()) && starts.SequenceEqual(F.LogUploadInstructionRips()) &&
+            returns.SequenceEqual(F.LogUploadExpectedReturnRips()) && F.CreateLogUploadElf()[0] == 0x7f && F.CreateLogUploadPackage()[0] != 0);
+    }
+
+    private static void Reject(ReadOnlySpan<byte> package, bool logUpload)
+    {
+        bool rejected = false;
+        try { if (logUpload) F.RequireLogUploadPackage(package); else F.RequirePackage(package); }
+        catch (ToolFailure failure) when (failure.Reason == (logUpload ? "writable_log_upload_package_identity" : "writable_disk_package_identity")) { rejected = true; }
+        HostCheck.True(rejected);
+    }
+
     [HostTest("writable disk fixture admits canonical bounded RX RW package without child or IRQ requests")]
     private static void Package()
     {
@@ -405,10 +515,10 @@ internal static unsafe class LinuxWritableDiskProofFixtureTests
     }
     // Independent decoder recognizes only this finite byte vocabulary. Every
     // conditional branch must target failure, and the final JMP cannot loop.
-    private static (ulong[] Starts, Call[] Calls) Decode(byte[] elf)
+    private static (ulong[] Starts, Call[] Calls) Decode(byte[] elf, ulong? mainEnd = null)
     {
         List<ulong> starts = []; List<Call> calls = []; ulong[] r = new ulong[16];
-        int end = checked((int)(F.MainEndRip - F.ImageBase));
+        int end = checked((int)((mainEnd ?? F.MainEndRip) - F.ImageBase));
         for (int at = F.EntryOffset; at < end;)
         {
             starts.Add(F.ImageBase + (uint)at); ReadOnlySpan<byte> code = elf.AsSpan(at); int bytes;
@@ -446,10 +556,89 @@ internal static unsafe class LinuxWritableDiskProofFixtureTests
     private sealed class Description(bool directory, bool writable)
     { public bool Directory = directory, Writable = writable; public long Offset; }
 
+    private sealed class LogUploadResult
+    {
+        public int Exit, OpenCount;
+        public long LogCursor, UploadCursor;
+        public string Witness = "";
+        public byte[] Log = [], Upload = [];
+        public readonly List<Call> Calls = [];
+        public readonly List<string> Syncs = [];
+    }
+    private sealed class NamedDescription(string name, bool writable)
+    { internal readonly string Name = name; internal readonly bool Writable = writable; internal long Offset; }
+
+    private static LogUploadResult ExecuteLogUpload(byte[] memory, string failure = "")
+    {
+        LogUploadResult result = new(); Dictionary<int, NamedDescription> fds = [];
+        Dictionary<string, byte[]> files = new(StringComparer.Ordinal) { ["/data/LOG.TXT"] = [], ["/data/UPLOAD.BIN"] = [] };
+        if (failure == "missing-log") files.Remove("/data/LOG.TXT"); if (failure == "missing-upload") files.Remove("/data/UPLOAD.BIN");
+        if (failure == "long-log") files["/data/LOG.TXT"] = new byte[661]; if (failure == "long-upload") files["/data/UPLOAD.BIN"] = new byte[5127];
+        int Address(ulong address, int count)
+        {
+            HostCheck.True(address >= F.ImageBase + 4096 && address <= F.ImageBase + (ulong)memory.Length && count >= 0 &&
+                (ulong)count <= F.ImageBase + (ulong)memory.Length - address);
+            return checked((int)(address - F.ImageBase));
+        }
+        long SystemCall(Call call)
+        {
+            if (call.Number == 2)
+            {
+                string path = Text(memory, call.A0); if (path.Contains("..", StringComparison.Ordinal)) return -13;
+                if (path != "/data" && !files.ContainsKey(path)) return -2;
+                HostCheck.True(call.A2 == 0 && (call.A1 & (0x40 | 0x80 | 0x200 | 0x400)) == 0);
+                int fd = 3; while (fds.ContainsKey(fd)) fd++;
+                fds.Add(fd, new(path, (call.A1 & 3) == 2)); return fd;
+            }
+            if (call.Number == 1)
+            { HostCheck.True(call.A0 == 1); result.Witness = Encoding.ASCII.GetString(memory, (int)(call.A1 - F.ImageBase), (int)call.A2); return (long)call.A2; }
+            if (!fds.TryGetValue((int)call.A0, out var description)) return -9;
+            if (call.Number == 3)
+            {
+                if (description.Writable)
+                { if (description.Name == "/data/LOG.TXT") result.LogCursor = description.Offset; else result.UploadCursor = description.Offset; }
+                fds.Remove((int)call.A0); return 0;
+            }
+            if (call.Number == 74)
+            { if (failure == "sync") return -5; result.Syncs.Add(description.Name); return 0; }
+            HostCheck.True(description.Name != "/data"); byte[] bytes = files[description.Name];
+            if (call.Number == 8)
+            {
+                description.Offset = call.A2 switch { 0 => checked((long)call.A1), 1 => checked(description.Offset + (long)call.A1),
+                    2 => checked(bytes.Length + (long)call.A1), _ => throw new InvalidOperationException("log upload seek whence") };
+                return description.Offset;
+            }
+            if (call.Number == 328)
+            {
+                if (call.A5 != 0x20 || call.A4 != 0) return -95;
+                HostCheck.True(description.Writable && call.A2 == 1 && call.A3 <= 8192);
+                int vector = Address(call.A1, 16), count = checked((int)U64(memory, vector + 8)), offset = (int)call.A3;
+                HostCheck.True(count is > 0 and <= 8192 && offset + count <= 8192); if (failure == "short") count--;
+                if (offset + count > bytes.Length) Array.Resize(ref bytes, offset + count);
+                memory.AsSpan(Address(U64(memory, vector), count), count).CopyTo(bytes.AsSpan(offset)); files[description.Name] = bytes; return count;
+            }
+            if (call.Number == 17)
+            {
+                HostCheck.True(!description.Writable && call.A2 is > 0 and <= 8192 && call.A3 <= 8192);
+                int offset = (int)call.A3, count = Math.Min((int)call.A2, Math.Max(0, bytes.Length - offset)), target = Address(call.A1, (int)call.A2);
+                if (count != 0) bytes.AsSpan(offset, count).CopyTo(memory.AsSpan(target));
+                if (failure == "corrupt" && count == 5126) memory[target + count - 1] ^= 1;
+                if (failure == "eof" && count == 0) memory[target] = 0x33;
+                return count;
+            }
+            throw new InvalidOperationException("unexpected log upload syscall " + call.Number);
+        }
+        ModelResult execution = Execute(memory, alternateSyscall: SystemCall);
+        result.Exit = execution.Exit; result.OpenCount = fds.Count; result.Calls.AddRange(execution.Calls);
+        result.Log = files.TryGetValue("/data/LOG.TXT", out var log) ? (byte[])log.Clone() : [];
+        result.Upload = files.TryGetValue("/data/UPLOAD.BIN", out var upload) ? (byte[])upload.Clone() : [];
+        return result;
+    }
+
     // This small independent interpreter checks the emitted assertions and
     // syscall register bytes against a bounded file model. No kernel service,
     // hardware, NativeAOT, persistence or generic x64 execution is represented.
-    private static ModelResult Execute(byte[] memory, bool corruptReopened = false, bool failFileSync = false)
+    private static ModelResult Execute(byte[] memory, bool corruptReopened = false, bool failFileSync = false, Func<Call, long>? alternateSyscall = null)
     {
         ModelResult result = new(); Dictionary<int, Description> fds = []; byte[]? file = null;
         ulong[] r = new ulong[16]; bool equal = false, locked = false; int at = F.EntryOffset;
@@ -547,7 +736,7 @@ internal static unsafe class LinuxWritableDiskProofFixtureTests
             {
                 var call = Current(); result.Calls.Add(call);
                 if (call.Number == 231) { result.Exit = (int)call.A0; result.OpenCount = fds.Count; return result; }
-                r[0] = unchecked((ulong)SystemCall(call)); size = 2;
+                r[0] = unchecked((ulong)(alternateSyscall is null ? SystemCall(call) : alternateSyscall(call))); size = 2;
             }
             else throw new InvalidOperationException("unsupported model opcode " + at.ToString("x"));
             at += size;

@@ -313,6 +313,8 @@ public static unsafe partial class EfiEntry
                 if (disk->TimingReadBytes != 65536) return true;
                 disk->TimingPhase = 2;
                 var p = disk->TimingPump;
+                if (disk->TimingPostReadiness > ~0UL - disk->TimingPostWaitRecord ||
+                    disk->TimingPostReadiness + disk->TimingPostWaitRecord != disk->TimingPostNetwork) return false;
                 return LinuxText(c->State, "M10_018_TIMING bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
                     LinuxText(c->State, " calls=") && LinuxNumber(c->State, p.Calls) &&
                     LinuxText(c->State, " steps=") && LinuxNumber(c->State, p.Steps) &&
@@ -321,6 +323,8 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " flushNs=") && LinuxNumber(c->State, p.FlushNanoseconds) &&
                     LinuxText(c->State, " preNetworkNs=") && LinuxNumber(c->State, disk->TimingPreNetwork) &&
                     LinuxText(c->State, " postNetworkNs=") && LinuxNumber(c->State, disk->TimingPostNetwork) &&
+                    LinuxText(c->State, " postReadinessNs=") && LinuxNumber(c->State, disk->TimingPostReadiness) &&
+                    LinuxText(c->State, " postWaitRecordNs=") && LinuxNumber(c->State, disk->TimingPostWaitRecord) &&
                     LinuxText(c->State, " networkCalls=") && LinuxNumber(c->State, disk->TimingNetworkCalls) &&
                     LinuxText(c->State, " diskReady=") && LinuxNumber(c->State, p.DiskReady) &&
                     LinuxText(c->State, " otherReady=") && LinuxNumber(c->State, p.OtherReady) &&
@@ -329,8 +333,6 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " stepLimit=") && LinuxNumber(c->State, p.StepLimit) &&
                     LinuxText(c->State, " failures=") && LinuxNumber(c->State, p.Failures) &&
                     LinuxText(c->State, " flushedPastBudget=") && LinuxNumber(c->State, p.FlushedPastBudget) &&
-                    LinuxText(c->State, " replenished=") && LinuxNumber(c->State, p.Replenished) &&
-                    LinuxText(c->State, " replenishBudgetSkips=") && LinuxNumber(c->State, p.ReplenishBudgetSkips) &&
                     LinuxText(c->State, "\r\n");
             }
         }

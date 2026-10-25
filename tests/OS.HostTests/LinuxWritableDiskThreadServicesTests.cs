@@ -4,6 +4,7 @@ using System.Text;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
 using OS.Pal;
+using OS.Storage;
 using W = OS.Kernel.Compatibility.LinuxX64.LinuxContinuingWritableDescriptorServices;
 using F = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 
@@ -28,6 +29,177 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
             }
         }
         HostCheck.True(completed == 28 && f.Parked > 8 && !f.Disk->RequestActive && !f.Provider->RequestActive);
+    }
+
+    [HostTest("writable source5 decoded log upload frames park wake and consume exact translated inputs with four real flush barriers and no late user copy")]
+    private static void LogUploadCalls()
+    {
+        // Copied instruction/data vectors drive the real host wait services;
+        // this does not execute the ELF/BCL or establish physical persistence.
+        using var f = new Fixture(); f.Trace = [];
+        byte[] elf = OS.Tooling.LinuxWritableDiskProofFixture.CreateLogUploadElf();
+        byte[] log = OS.Tooling.NativeAotLogUploadContract.ExpectedLog(), upload = OS.Tooling.NativeAotLogUploadContract.ExpectedUpload();
+        var specs = OS.Tooling.LinuxWritableDiskProofFixture.LogUploadCalls(); HostCheck.Equal(40, specs.Count);
+        var media = new PersistentDevice(f.Storage.Device.Hardware);
+        var geometry = Fat32Parser.ReadBpb(media, f.Storage.Input.PartitionFirst); HostCheck.True(geometry.Succeeded);
+        var bpb = geometry.Bpb; HostCheck.Equal((byte)1, bpb.SectorsPerCluster);
+        byte[] oldFat = f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512), (int)bpb.FatSizeSectors * 512).ToArray();
+        byte[] oldEntries = f.Storage.Persistent.Slice((int)(bpb.FirstDataLba * 512), 64).ToArray();
+        uint[] guards = [3, 4, 6]; byte[][] guardBytes = guards.Select(cluster =>
+            f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + cluster - 2) * 512), 512).ToArray()).ToArray();
+        byte[] boot = f.Storage.Persistent.Slice((int)(f.Storage.Input.PartitionFirst * 512), 512).ToArray();
+        BinaryPrimitives.WriteUInt16LittleEndian(boot.AsSpan(48), 0xffff); // Existing fixture setup, committed by seed FLUSH.
+        HostCheck.True(f.Storage.Volatile.Slice((int)(f.Storage.Input.PartitionFirst * 512), 512).SequenceEqual(boot));
+        foreach (string name in new[] { "LOG.TXT", "UPLOAD.BIN" })
+        {
+            HostCheck.Equal(Fat32Status.MissingFile, Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, name).Status);
+            uint fd = f.Open("/data/" + name, 2 | W.Create | W.Exclusive); HostCheck.Equal(0L, f.Run(3, fd));
+            var empty = Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, name);
+            HostCheck.True(empty.Succeeded && empty.Entry.FileSize == 0 && empty.Entry.FirstCluster == 0); Independent(name, []);
+        }
+        HostCheck.True(f.Storage.Persistent.Slice((int)(f.Storage.Input.PartitionFirst * 512), 512).SequenceEqual(boot));
+        uint startingParks = f.Parked; int storageCalls = 0, metadataOnly = 0, writes = 0, barriers = 0;
+        List<string> barrierRoles = [];
+        foreach (var spec in specs)
+        {
+            ulong[] wire = DecodeLogUploadFrame(elf, spec);
+            if (wire[0] == 1)
+            {
+                HostCheck.True(spec.Role == "witness" && wire[1] == 1 && wire[3] == (ulong)OS.Tooling.LinuxWritableDiskProofFixture.LogUploadWitness.Length &&
+                    ElfRange(elf, wire[2], wire[3]).SequenceEqual(Encoding.ASCII.GetBytes(OS.Tooling.LinuxWritableDiskProofFixture.LogUploadWitness)));
+                metadataOnly++; continue;
+            }
+            if (wire[0] == 231) { HostCheck.True(spec.Role == "exit" && wire[1] == 42); metadataOnly++; continue; }
+            if (wire[0] == 2)
+            {
+                ReadOnlySpan<byte> path = ElfRange(elf, wire[1], 128); int zero = path.IndexOf((byte)0); HostCheck.True(zero > 0);
+                path[..(zero + 1)].CopyTo(UserRange(f, Path, (uint)zero + 1)); wire[1] = Path;
+            }
+            else if (wire[0] == 328)
+            {
+                HostCheck.True(wire[2] == OS.Tooling.LinuxWritableDiskProofFixture.LogUploadIovecs + (uint)writes * 16 &&
+                    wire[3] == 1 && wire[5] == 0 && wire[6] == W.RwfNoAppend);
+                ReadOnlySpan<byte> vector = ElfRange(elf, wire[2], 16); ulong source = BinaryPrimitives.ReadUInt64LittleEndian(vector), count = BinaryPrimitives.ReadUInt64LittleEndian(vector[8..]);
+                HostCheck.True(count == (ulong)spec.Result && count is > 0 and <= 4094);
+                ReadOnlySpan<byte> bytes = ElfRange(elf, source, count), expected = writes < 12 ? log.AsSpan(writes * 55, 55) : writes == 12 ? upload.AsSpan(0, 4094) : upload.AsSpan(4094);
+                HostCheck.True(bytes.SequenceEqual(expected) && wire[4] == (writes < 12 ? (ulong)writes * 55 : writes == 12 ? 0UL : 4094UL));
+                bytes.CopyTo(UserRange(f, Payload, (uint)count)); Span<byte> copied = UserRange(f, Vector, 16);
+                BinaryPrimitives.WriteUInt64LittleEndian(copied, Payload); BinaryPrimitives.WriteUInt64LittleEndian(copied[8..], count); wire[2] = Vector; writes++;
+            }
+            else if (wire[0] == 17)
+            {
+                HostCheck.True(wire[2] >= OS.Tooling.LinuxWritableDiskProofFixture.LogUploadOutput);
+                ulong delta = wire[2] - OS.Tooling.LinuxWritableDiskProofFixture.LogUploadOutput;
+                HostCheck.True(delta <= 8192 && wire[3] <= 8192 - delta && spec.OutputBytes == wire[3]);
+                if (delta == 0) UserRange(f, Output, 8192).Fill(OS.Tooling.LinuxWritableDiskProofFixture.Sentinel);
+                wire[2] = Output + delta; UserRange(f, wire[2], (uint)wire[3]);
+            }
+            uint copies = f.Thread.Writes, parks = f.Parked; int firstTrace = f.Trace.Count;
+            var block = f.Storage.Device.State; ulong submitted = block->Submitted, completed = block->Completed, beforeBytes = block->SubmittedBytes;
+            HostCheck.Equal(spec.Result, f.Run(wire[0], wire[1], wire[2], wire[3], wire[4], wire[5], wire[6])); storageCalls++;
+            // The authenticated root barrier open is immediate; only its
+            // subsequent fsync owns a queued device request/source5 wait.
+            bool waits = wire[0] is 17 or 74 or 328 || wire[0] == 2 && spec.Result >= 0 && spec.A0 != OS.Tooling.LinuxWritableDiskProofFixture.RootName;
+            HostCheck.Equal(parks + (waits ? 1U : 0U), f.Parked);
+            HostCheck.Equal(copies + (wire[0] == 17 && spec.Result > 0 ? 1U : 0U), f.Thread.Writes);
+            HostCheck.True(f.Thread.View(f.Main).WaitSource == 0 && !f.Thread.View(f.Main).Wait.IsValid && f.May(Output, 8192) &&
+                !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !block->RequestPending);
+            if (wire[0] == 328) HostCheck.True(f.Trace.Skip(firstTrace).Any(row => row.Type == 1) && block->SubmittedBytes > beforeBytes && !f.Storage.State->Dirty);
+            if (wire[0] == 74)
+            {
+                HostCheck.True(f.Trace.Skip(firstTrace).Select(row => row.Type).SequenceEqual(new uint[] { 4 }) && block->Submitted == submitted + 1 &&
+                    block->Completed == completed + 1 && block->SubmittedBytes == beforeBytes && block->CompletedBytes == beforeBytes && block->DurableBytes == beforeBytes);
+                barriers++; barrierRoles.Add(spec.Role);
+                Console.WriteLine($"LOG_UPLOAD_SOURCE5_FLUSH_HOST role={spec.Role} submitted={block->Submitted} completed={block->Completed} writeBytes={beforeBytes} flushAcknowledgedBytes={block->DurableBytes}");
+            }
+            if (spec.Role == "log.read") HostCheck.True(UserRange(f, Output, 660).SequenceEqual(log) && f.Thread.At(Output)[660] == 0xa5);
+            if (spec.Role == "upload.read") HostCheck.True(UserRange(f, Output, 5126).SequenceEqual(upload) && f.Thread.At(Output)[5126] == 0xa5);
+            if (spec.Role is "log.eof" or "upload.eof") HostCheck.True(UserRange(f, wire[2], 1)[0] == 0xa5);
+            if (wire[0] == 3) HostCheck.True(!F.Capture(f.Files.State, (uint)wire[1], out _));
+            copies = f.Thread.Writes; byte[] user = UserRange(f, User + 4096, (uint)(LinuxThreadServicesTests.UserBytes - 4096)).ToArray();
+            HostCheck.True(f.Thread.Service->PollWritableDiskReadiness(Key, 2));
+            HostCheck.Equal(LinuxSyscallAction.Rejected, f.Thread.Service->CompleteWritableDiskWait(Key, 2).Action);
+            HostCheck.True(f.Thread.Writes == copies && UserRange(f, User + 4096, (uint)user.Length).SequenceEqual(user));
+        }
+        HostCheck.True(storageCalls == 38 && metadataOnly == 2 && writes == 14 && barriers == 4 && f.Parked - startingParks == 27 &&
+            barrierRoles.SequenceEqual(new[] { "log.sync.first", "log.sync.second", "upload.sync", "parent.sync" }));
+        Independent("LOG.TXT", log); Independent("UPLOAD.BIN", upload);
+        Independent("DATA.BIN", Enumerable.Range(0, 900).Select(i => unchecked((byte)(i * 17 + 5))).ToArray()); Independent("KEEP.TXT", new byte[3]);
+        var finalFat = f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512), oldFat.Length);
+        HostCheck.True(finalFat.SequenceEqual(f.Storage.Persistent.Slice((int)((bpb.FirstFatLba + bpb.FatSizeSectors) * 512), oldFat.Length)));
+        HashSet<uint> allocated = [];
+        foreach (var item in new[] { (Name: "LOG.TXT", Bytes: log.Length), (Name: "UPLOAD.BIN", Bytes: upload.Length) })
+        {
+            var entry = Fat32Parser.FindRootDirectoryEntry(media, f.Storage.Input.PartitionFirst, item.Name); HostCheck.True(entry.Succeeded && entry.Entry.FileSize == item.Bytes);
+            uint cluster = entry.Entry.FirstCluster; int count = (item.Bytes + 511) / 512;
+            for (int i = 0; i < count; i++)
+            {
+                HostCheck.True(cluster >= 2 && cluster < bpb.ClusterCount + 2 && allocated.Add(cluster));
+                if (i == count - 1) HostCheck.True(f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + cluster - 2) * 512 + (uint)item.Bytes % 512), 512 - item.Bytes % 512).IndexOfAnyExcept((byte)0) < 0);
+                cluster = BinaryPrimitives.ReadUInt32LittleEndian(finalFat[(int)(cluster * 4)..]) & 0x0fffffff;
+            }
+            HostCheck.True(cluster >= 0x0ffffff8);
+        }
+        for (int offset = 0; offset < oldFat.Length; offset += 4)
+            if (!allocated.Contains((uint)offset / 4)) HostCheck.True(finalFat.Slice(offset, 4).SequenceEqual(oldFat.AsSpan(offset, 4)));
+        for (int i = 0; i < guards.Length; i++) HostCheck.True(f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + guards[i] - 2) * 512), 512).SequenceEqual(guardBytes[i]));
+        HostCheck.True(f.Storage.Persistent.Slice((int)(bpb.FirstDataLba * 512), 64).SequenceEqual(oldEntries) &&
+            f.Storage.Persistent.Slice((int)(f.Storage.Input.PartitionFirst * 512), 512).SequenceEqual(boot));
+        HostCheck.True(f.Files.State->ActiveDescriptors == 3 && f.Files.State->RetainedPipeOperations == 0 && F.Audit(f.Files.State) &&
+            !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !f.Storage.State->Dirty && !f.Storage.Device.State->RequestPending &&
+            f.Storage.Device.State->Submitted == f.Storage.Device.State->Completed && f.Storage.Device.State->SubmittedBytes == f.Storage.Device.State->CompletedBytes &&
+            f.Storage.Device.State->CompletedBytes == f.Storage.Device.State->DurableBytes);
+        f.Storage.Device.CheckGuards();
+        Console.WriteLine($"LOG_UPLOAD_SOURCE5_HOST frames=40 storageCalls={storageCalls} waits={f.Parked - startingParks} positionedWrites={writes} explicitFlushes={barriers} submitted={f.Storage.Device.State->Submitted} completed={f.Storage.Device.State->Completed} writeBytes={f.Storage.Device.State->SubmittedBytes} flushAcknowledgedBytes={f.Storage.Device.State->DurableBytes}");
+        void Independent(string name, byte[] expected)
+        {
+            byte[] actual = new byte[expected.Length]; var read = Fat32Parser.ReadRootFile(media, f.Storage.Input.PartitionFirst, name, actual);
+            HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && actual.SequenceEqual(expected));
+        }
+    }
+
+    private static ReadOnlySpan<byte> ElfRange(byte[] elf, ulong address, ulong bytes)
+    {
+        const ulong image = OS.Tooling.LinuxWritableDiskProofFixture.ImageBase;
+        HostCheck.True(address >= image && bytes <= (ulong)elf.Length && address - image <= (ulong)elf.Length - bytes);
+        return elf.AsSpan((int)(address - image), (int)bytes);
+    }
+    private static Span<byte> UserRange(Fixture f, ulong address, uint bytes)
+    {
+        HostCheck.True(bytes > 0 && address >= User + 4096 && bytes <= LinuxThreadServicesTests.UserBytes && address - User <= LinuxThreadServicesTests.UserBytes - bytes);
+        return new Span<byte>(f.Thread.At(address), (int)bytes);
+    }
+    private static ulong[] DecodeLogUploadFrame(byte[] elf, OS.Tooling.LinuxWritableDiskProofFixture.CallSpec spec)
+    {
+        HostCheck.True(spec.ReturnRip >= OS.Tooling.LinuxWritableDiskProofFixture.ImageBase + 40);
+        ReadOnlySpan<byte> code = ElfRange(elf, spec.ReturnRip - 40, 40); ulong[] actual = new ulong[7]; int cursor = 0;
+        byte[] registers = [0xb8, 0xbf, 0xbe, 0xba, 0xba, 0xb8, 0xb9];
+        for (int i = 0; i < actual.Length; i++)
+        {
+            if (i >= 4) HostCheck.Equal((byte)0x41, code[cursor++]);
+            HostCheck.Equal(registers[i], code[cursor++]); actual[i] = BinaryPrimitives.ReadUInt32LittleEndian(code[cursor..]); cursor += 4;
+        }
+        HostCheck.True(cursor == 38 && code[cursor] == 0x0f && code[cursor + 1] == 0x05 && actual.SequenceEqual(new[] { spec.Number, spec.A0, spec.A1, spec.A2, spec.A3, spec.A4, spec.A5 }));
+        if (spec.Number != 231)
+        {
+            ReadOnlySpan<byte> check = ElfRange(elf, spec.ReturnRip, 12);
+            HostCheck.True(check[0] == 0x48 && check[1] == 0x3d && BinaryPrimitives.ReadInt32LittleEndian(check[2..]) == spec.Result &&
+                check[6] == 0x0f && check[7] == 0x85 && (long)(spec.ReturnRip + 12) + BinaryPrimitives.ReadInt32LittleEndian(check[8..]) ==
+                (long)OS.Tooling.LinuxWritableDiskProofFixture.ImageBase + OS.Tooling.LinuxWritableDiskProofFixture.FailureOffset);
+        }
+        return actual;
+    }
+
+    private sealed class PersistentDevice(WritableBlockSessionTests.Hardware* hardware) : IReadOnlyBlockDevice
+    {
+        public BlockDeviceInfo Info => BlockDeviceInfo.Create(512, hardware->MediumSectors).Info;
+        public BlockReadResult ReadBlocks(ulong first, uint count, Span<byte> target)
+        {
+            if (first >= hardware->MediumSectors || count > hardware->MediumSectors - first || target.Length != count * 512)
+                return BlockReadResult.Fail(BlockDeviceStatus.InvalidBlockRange);
+            new ReadOnlySpan<byte>(hardware->Persistent + first * 512, checked((int)count * 512)).CopyTo(target);
+            return BlockReadResult.Success(count, count * 512UL);
+        }
     }
 
     [HostTest("writable source5 pins original read output through early readiness and consumes only after real Parking capture")]
@@ -379,6 +551,7 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         private readonly F.WritableDiskBinding* bindings = (F.WritableDiskBinding*)NativeMemory.AllocZeroed(32, (nuint)sizeof(F.WritableDiskBinding));
         internal readonly OSHostHandle Main;
         internal uint Parked;
+        internal List<(uint Type, ulong Sector)>? Trace;
         internal bool RetainedFailure;
         internal readonly bool Rejected;
         private readonly bool borrowedInput;
@@ -433,7 +606,11 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
             HostCheck.True(Thread.Service->CommitWritableDiskWait(Key, 2, Thread.Kernel.Capture(Main), out bool handoff)); Parked++;
             if (handoff) Thread.Kernel.Confirm();
         }
-        private void CompleteHardware() { if (Storage.Device.Hardware->Pending) Storage.Device.Complete(); }
+        private void CompleteHardware()
+        {
+            if (!Storage.Device.Hardware->Pending) return;
+            Trace?.Add((Storage.Device.Hardware->Type, Storage.Device.Hardware->Sector)); Storage.Device.Complete();
+        }
         internal void Ready()
         {
             for (int i = 0; i < 100000; i++)
