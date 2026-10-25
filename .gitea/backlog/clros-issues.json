@@ -37836,6 +37836,10 @@
       ],
       "priority": "priority:p2",
       "ownedPaths": [
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxWritableSyscallObservation.cs",
+        "tests/OS.HostTests/LinuxWritableSyscallObservationTests.cs",
+        "src/OS.Kernel/Diagnostics/WritableStorageTiming.cs",
+        "tests/OS.HostTests/WritableStorageTimingTests.cs",
       "src/OS.Kernel/Compatibility/LinuxX64/LinuxWritableDescriptorServices.cs",
       "tests/OS.HostTests/LinuxWritableDescriptorServicesTests.cs",
       "docs/cstorage.md",
@@ -38717,6 +38721,8 @@
       ],
       "priority": "priority:p1",
       "ownedPaths": [
+        "tools/OS.Tooling/QemuTranscripts.NativeAotLogUpload.Media.cs",
+        "tests/OS.HostTests/NativeAotLogUploadMediaTests.cs",
         "apps/NativeAotLogUploadContract/Program.cs",
         "apps/NativeAotLogUploadContract/NativeAotLogUploadContract.csproj",
         "tools/OS.Tooling/NativeAotLogUploadProgram.cs",
