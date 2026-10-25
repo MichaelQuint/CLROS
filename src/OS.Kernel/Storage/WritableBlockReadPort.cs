@@ -17,7 +17,7 @@ public static unsafe class WritableBlockReadPort
 
     public enum Status : byte
     { Uninitialized, Success, Pending, Ready, Busy, Idle, Cancelled, InvalidState, InvalidStorage,
-        InvalidRange, StaleToken, GenerationExhausted, DeviceFailed }
+        InvalidRange, StaleToken, GenerationExhausted, DeviceFailed, Retired }
 
     /// <summary>Stable original engine/device and independently authorized
     /// inclusive readonly partition bounds. All epochs are nonzero and Epoch
@@ -57,6 +57,20 @@ public static unsafe class WritableBlockReadPort
             AvailableBytes = result == Status.Ready ? SectorBytes : 0; BlockFailure = s->Failure; }
     }
 
+    /// <summary>Copied current port geometry and identity for a typed filesystem
+    /// admission. Success authenticates the original clean owner, including this
+    /// port's pending/held IN. It grants no mapping, partition provenance or user
+    /// copy authority. Busy/fault/retired inspection publishes no facts.</summary>
+    public readonly struct Inspection
+    {
+        public readonly ulong Owner, Epoch, EngineOwner, EngineEpoch, DeviceOwner, DeviceEpoch, SectorCount, FirstLba, LastLba;
+        public readonly bool RequestActive, ReadReady;
+        internal Inspection(State* s)
+        { Owner = (ulong)s; Epoch = s->Input.Epoch; EngineOwner = (ulong)s->Input.Engine; EngineEpoch = s->Input.EngineEpoch;
+            DeviceOwner = (ulong)s->Input.Device; DeviceEpoch = s->Input.DeviceEpoch; SectorCount = s->Input.Device->SectorCount;
+            FirstLba = s->Input.FirstLba; LastLba = s->Input.LastLba; RequestActive = s->HasIo; ReadReady = s->Phase == ReadyPhase; }
+    }
+
     /// <summary>Zeroed noncopyable POD. Faults retain exact original ownership;
     /// no replacement device at the same address is adopted. An uncertain issued
     /// request retires only after the original owner is independently stopped.
@@ -90,6 +104,25 @@ public static unsafe class WritableBlockReadPort
         if (a.Engine->RequestActive || a.Device->RequestPending) return Status.Busy;
         if (!C.CanAdmitStorage(a.Engine, a.EngineEpoch) || !B.CanAdmitStorage(a.Device, a.DeviceEpoch)) return Status.DeviceFailed;
         s->Self = (ulong)s; s->Input = a; s->Phase = IdlePhase; s->Failure = B.Status.Success; return Status.Success;
+    }
+
+    /// <summary>Inspect without I/O. Busy is an unavailable writer/foreign-read
+    /// turn, never successful filesystem readiness or copy. Retired authenticates
+    /// only exact local self/epoch retirement, without dereferencing released C/B
+    /// backing or touching output; it grants no retained-storage authority. Other
+    /// failures also leave output untouched. Nonretired outputs follow full-tree
+    /// alias rules and are borrowed only through return.</summary>
+    public static Status Inspect(State* s, ulong epoch, Inspection* result)
+    {
+        if (!Bound(s) || s->Input.Epoch != epoch) return Status.InvalidState;
+        if (s->Phase == RetiredPhase) return Status.Retired;
+        if (!Retained(s)) return Status.InvalidState;
+        if (!External(s, (ulong)result, (ulong)sizeof(Inspection), 8)) return Status.InvalidStorage;
+        if (s->Phase == FaultPhase) return Status.DeviceFailed;
+        if (s->Input.Engine->RequestActive) return Status.Busy;
+        if (!Clean(s)) return Status.DeviceFailed;
+        if (s->HasIo ? !CurrentRead(s) : s->Input.Device->RequestPending) return s->HasIo ? Status.DeviceFailed : Status.Busy;
+        *result = new(s); return Status.Success;
     }
 
     /// <summary>Submit at most one real IN. The engine must have no logical

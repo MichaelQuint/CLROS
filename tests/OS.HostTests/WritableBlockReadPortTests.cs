@@ -265,6 +265,42 @@ internal static unsafe class WritableBlockReadPortTests
         HostCheck.True(!token.IsInitialized && f.Device.Hardware->Calls == calls && f.Block->Running && f.Engine->IsMounted);
     }
 
+    [HostTest("borrowed inspection authenticates exact geometry and reports writer Busy without publishing facts or consuming Ready")]
+    private static void InspectionAvailability()
+    {
+        using var f = new Fixture(); P.Inspection facts = default;
+        HostCheck.Equal(P.Status.Success, P.Inspect(f.State, f.Input.Epoch, &facts));
+        HostCheck.True(facts.Owner == (ulong)f.State && facts.Epoch == f.Input.Epoch && facts.EngineOwner == (ulong)f.Engine &&
+            facts.EngineEpoch == f.Media.Input.Epoch && facts.DeviceOwner == (ulong)f.Block && facts.DeviceEpoch == f.Device.Input.Epoch &&
+            facts.FirstLba == 1 && facts.LastLba == 7 && facts.SectorCount == f.Block->SectorCount && !facts.RequestActive);
+        C.RequestToken request = default; HostCheck.Equal(C.Status.Pending, C.BeginFlush(f.Engine, &request));
+        new Span<byte>(&facts, sizeof(P.Inspection)).Fill(0x8d); uint calls = f.Device.Hardware->Calls;
+        HostCheck.Equal(P.Status.Busy, P.Inspect(f.State, f.Input.Epoch, &facts));
+        HostCheck.True(new ReadOnlySpan<byte>(&facts, sizeof(P.Inspection)).IndexOfAnyExcept((byte)0x8d) < 0 && f.Device.Hardware->Calls == calls);
+        HostCheck.Equal(C.Status.Ready, f.RunEngine()); HostCheck.Equal(P.Status.Busy, P.Inspect(f.State, f.Input.Epoch, &facts));
+        HostCheck.True(f.Engine->IsReady && new ReadOnlySpan<byte>(&facts, sizeof(P.Inspection)).IndexOfAnyExcept((byte)0x8d) < 0);
+        C.Result result = default; HostCheck.Equal(C.Status.Success, C.CopyResult(f.Engine, request, &result));
+        var token = f.Read(1); HostCheck.Equal(P.Status.Success, P.Inspect(f.State, f.Input.Epoch, &facts)); HostCheck.True(facts.RequestActive && !facts.ReadReady);
+        f.Device.Complete(); P.Completion completion = default; HostCheck.Equal(P.Status.Ready, P.Poll(f.State, token, &completion)); f.Sample();
+        HostCheck.Equal(P.Status.Success, P.Inspect(f.State, f.Input.Epoch, &facts)); HostCheck.True(facts.ReadReady);
+        foreach (ulong address in f.Owned()) HostCheck.Equal(P.Status.InvalidStorage, P.Inspect(f.State, f.Input.Epoch, (P.Inspection*)address));
+        HostCheck.Equal(P.Status.Success, P.Copy(f.State, token, f.Output)); f.Sample(); HostCheck.Equal(P.Status.Success, P.Stop(f.State));
+    }
+
+    [HostTest("borrowed retired inspection is exact local epoch only and never dereferences released backend or writes output")]
+    private static void RetiredInspection()
+    {
+        using var f = new Fixture(); HostCheck.Equal(P.Status.Success, P.Stop(f.State)); HostCheck.Equal(C.Status.Success, C.Stop(f.Engine));
+        new Span<byte>(f.Bytes, 4096).Clear(); P.Admission* input = (P.Admission*)((byte*)f.State + Offset<P.State>("Input"));
+        // Substitute mapped zero RAM to detect any attempted C/B validation;
+        // exact local retirement must not depend on released backend contents.
+        input->Engine = (C.State*)f.Bytes; input->Device = (B.State*)(f.Bytes + 1024);
+        HostCheck.Equal(P.Status.Retired, P.Inspect(f.State, f.Input.Epoch, null));
+        HostCheck.Equal(P.Status.Retired, P.Inspect(f.State, f.Input.Epoch, (P.Inspection*)f.State));
+        HostCheck.Equal(P.Status.InvalidState, P.Inspect(f.State, f.Input.Epoch + 1, null));
+        HostCheck.True(!CanRetain(f.State, f.Input.Epoch, (ulong)f.Bytes, 512) && f.Output.IndexOfAnyExcept((byte)0) < 0);
+    }
+
     [HostTest("borrowed device failures retain cleanup and dirty engine blocks reads without losing its journal")]
     private static void FailureRetention()
     {
