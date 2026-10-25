@@ -37643,7 +37643,9 @@
       "ownedPaths": [
         "src/OS.Kernel/Storage/WritableBlockSession.cs",
         "tests/OS.HostTests/WritableBlockSessionTests.cs",
-        "docs/cstorage.md"
+        "docs/cstorage.md",
+        "src/OS.Kernel/Storage/WritableBlockReadPort.cs",
+        "tests/OS.HostTests/WritableBlockReadPortTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
