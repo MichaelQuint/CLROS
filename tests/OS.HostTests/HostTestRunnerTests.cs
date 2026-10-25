@@ -4,6 +4,24 @@ using OS.Tooling;
 
 internal static class HostTestRunnerTests
 {
+    [HostTest("runner preserves the original synchronous fixture exception and throwing frame")]
+    private static void SynchronousThrowFrame()
+    {
+        var method = typeof(HostTestRunnerTests).GetMethod(nameof(SynchronousThrowControl),
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        try { _ = HostTestRunner.Invoke(method); }
+        catch (InvalidOperationException error) when (ReferenceEquals(error, SynchronousFailure))
+        {
+            HostCheck.True(error.StackTrace?.Contains(nameof(SynchronousThrowControl), StringComparison.Ordinal) == true);
+            return;
+        }
+        throw new InvalidOperationException("fixture_exception_not_preserved");
+    }
+
+    private static readonly InvalidOperationException SynchronousFailure = new("original_fixture_failure");
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void SynchronousThrowControl() => throw SynchronousFailure;
+
     [HostTest("runner waits for asynchronous false failure and success before reporting their actual results")]
     private static void AsyncWorkerResults()
     {

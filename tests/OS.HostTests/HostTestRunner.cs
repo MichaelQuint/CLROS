@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 
 internal enum HostLane { Fast, Native }
@@ -117,7 +118,11 @@ internal static class HostTestRunner
             throw new InvalidOperationException("unsupported_fixture_return " + type.FullName);
         object? value;
         try { value = method.Invoke(null, null); }
-        catch (TargetInvocationException error) { throw error.InnerException ?? error; }
+        catch (TargetInvocationException error)
+        {
+            ExceptionDispatchInfo.Capture(error.InnerException ?? error).Throw();
+            throw;
+        }
         if (value is null && typeof(Task).IsAssignableFrom(type))
             throw new InvalidOperationException("null_fixture_task " + type.FullName);
         if (value is Task<bool> result) return result.GetAwaiter().GetResult();

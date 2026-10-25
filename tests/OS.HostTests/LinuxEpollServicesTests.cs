@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Kernel.Compatibility.LinuxX64;
@@ -18,6 +19,10 @@ internal static unsafe class LinuxEpollServicesTests
     private const ulong Event = User + 0x1200, Output = User + 0x2000, Data = User + 0x1800;
     private const uint Edge = 0x80000000;
     private const ulong SignalKey = 0x65706f6c6c736967;
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ThreadOwner")]
+    private static extern ref ulong DescriptorThreadOwner(ref Fds.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Self")]
+    private static extern ref ulong EpollSelf(ref Epoll.State state);
     private sealed class Model : IDisposable
     {
         internal readonly LinuxThreadServicesTests.Model Thread = new(futex: true);
@@ -195,10 +200,16 @@ internal static unsafe class LinuxEpollServicesTests
         HostCheck.Equal(0U, clock.Calls);
         HostCheck.True(poll(ref *m.Thread.Service, Key, 2, &clock, &ReadRefreshClock, out boundary) && boundary == 0);
         HostCheck.Equal(1U, clock.Calls); HostCheck.True(clock.Refreshed && clock.Unwoken);
-        ulong* owner = (ulong*)((byte*)m.Files.State + Marshal.OffsetOf<Fds.State>("ThreadOwner"));
-        ulong original = *owner; *owner ^= 2;
-        HostCheck.True(!poll(ref *m.Thread.Service, Key, 2, &clock, &ReadRefreshClock, out boundary) && boundary == 0);
-        HostCheck.Equal(1U, clock.Calls); *owner = original; m.Drain();
+        ref ulong owner = ref DescriptorThreadOwner(ref *m.Files.State);
+        ulong original = owner;
+        try
+        {
+            owner ^= 2;
+            HostCheck.True(!poll(ref *m.Thread.Service, Key, 2, &clock, &ReadRefreshClock, out boundary) && boundary == 0);
+            HostCheck.Equal(1U, clock.Calls);
+        }
+        finally { owner = original; }
+        m.Drain();
     }
 
     [HostTest("m16-012 epoll admission rejects dirty and aliased storage without publication", HostLane.Fast, 0)]
@@ -231,17 +242,18 @@ internal static unsafe class LinuxEpollServicesTests
             // refresh after the following corruption would now change the snapshot.
             HostCheck.Equal(1L, m.Files.Admission.Pipes[0].Write(&ready, 1, true, true));
             byte[] before = new ReadOnlySpan<byte>(m.Registrations, 8 * sizeof(Epoll.Registration)).ToArray();
-            ulong* changed = control switch
+            ref ulong changed = ref DescriptorThreadOwner(ref *m.Files.State);
+            if (control == 1) changed = ref m.Files.Memory.Memory.Tables[1];
+            else if (control == 2) changed = ref EpollSelf(ref *m.State);
+            ulong original = changed;
+            try
             {
-                0 => (ulong*)((byte*)m.Files.State + Marshal.OffsetOf<Fds.State>("ThreadOwner")),
-                1 => m.Files.Memory.Memory.Tables + 1,
-                _ => (ulong*)((byte*)m.State + Marshal.OffsetOf<Epoll.State>("Self"))
-            };
-            ulong original = *changed; *changed ^= 2;
-            HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key, 2));
-            HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
-            HostCheck.Equal(1U, m.Files.Admission.Pipes[0].BufferedBytes);
-            *changed = original;
+                changed ^= 2;
+                HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key, 2));
+                HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
+                HostCheck.Equal(1U, m.Files.Admission.Pipes[0].BufferedBytes);
+            }
+            finally { changed = original; }
             HostCheck.True(Fds.Audit(m.Files.State));
             HostCheck.True(Epoll.Refresh(m.State));
             HostCheck.True(!before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
