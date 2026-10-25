@@ -1,5 +1,24 @@
 # App Model
 
+## Copied writable syscall observations
+
+The step1622 host carrier uses8544 bytes: two144-byte headers share one8192-byte
+payload area. It records bounded copied PATH, single-iovec pwritev2 input,
+successful read output and stat bytes, with explicit peek/acknowledge draining.
+Overflow latches evidence loss while retaining prior records. Caller-owned
+backing and a separate drain destination must stay admitted and disjoint;
+an8192-byte worker stack allocation is outside this contract.
+
+Pre-admission PATH/write records may carry a zero request triple. They must
+later join the actual syscall thread/ordinal/nr/rip and genuine retained request;
+predicting NextGeneration is unsupported. Immediate and committed output have
+different boundaries. Failed, cancelled, revoked or reparked attempts supply no
+successful copy-out record. The current carrier checks supplied copied values;
+it is not yet connected to native descriptor admission, dispatch, output or
+teardown. Full BCL execution stays refused until those witnesses and the
+complete original consumer exist. Source/package/media agreement alone does
+not qualify actual syscall input or output.
+
 ## Prepared SQLite package and instruction lookup
 
 The fixed successful Linux recovery-r03 SQLite ELF has a separate canonical
@@ -83,7 +102,7 @@ The selected physical pool remains32MiB despite the manifest's64MiB limit;
 actual16-worker memory/stack fit and syscall closure remain unqualified.
 Preparation does not establish file writes, reboot persistence or durability.
 
-[Step1621](../done/step1621.md) integrates bounded cached-sector directory turns and synchronous writable-provider range validation. The mutation91, provider115, paired dirty-write/orphan and source5 lifecycle26 focused controls pass. Typed BCL selector/startup/parent/stdout/CALL/wait-envelope inspectors remain preparation; actual BCL launch is blocked pending the complete original consumer. Scoped native review retains the conditional current25-range estimate30965/32768 with global/mapping/effect limits open; BCL hash literals occupy writable .data. Original r10 and r11 both remain FAILED180s/exit4 after48 completed reads, without first-create completion, OUT/FLUSH or normal cleanup. All failed originals are preserved. The expert is reviewing the next timing boundary and minimal copied syscall witnesses. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
+[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.

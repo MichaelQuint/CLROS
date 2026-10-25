@@ -1,5 +1,38 @@
 # Storage
 
+## Writable timing and copied media preparation (step1622)
+
+`EnableM16027TimingProbe` is default off and admits only the Mechanical30
+diagnostic. After the first actual source5 BEGIN, it measures one complete
+outer socket-network polling turn through a separately admitted HPET register.
+The normal owned clock and thread clock are unchanged. A caller-owned 216-byte
+timing area is embedded in the already admitted writable evidence allocation;
+the complete evidence extent grows from1304 to1528 bytes. Serialized hooks time
+the retained14-extent engine audit, paired descriptor audit and writable pump,
+count device exclusions and copy actual engine entry/exit progress. Reports
+include hook overhead, a raw-read count and adjacent-read calibration. Open
+scopes, overflow or ambiguous half-range deltas invalidate the report.
+
+The source-matched original still fails at180 seconds. Its single copied row
+passes the strict public timing parser and identifies repeated audits in that
+turn. It does not qualify workload completion or predict a speedup. The next
+slice batches C's retained engine proof and W's scalar/candidate inventories
+within each synchronous call, preserving every exclusion and original-device
+identity. F's descriptor loops remain unchanged in that successor slice.
+
+The copied BCL media inspector binds the exact prepared Write/Verify package
+to its own initial ESP entry, partitions every original IO/STATE position and
+replays IN/OUT values against independently extracted images. Write requires
+empty targets to become canonical660-byte logs and5126-byte uploads with an
+observed successful FLUSH frontier. Verify forbids every OUT publication and
+requires an identical entire image. Per-publication masks preserve FAT and
+directory reserved bits, root chains, unrelated entries, slack, guards and
+padding, including temporary changes later restored. Only target cluster/size
+fields, final target chains/data and FSInfo count/hint fields can change;
+new target tails must remain zero. These masks establish copied media
+consistency. They grant no syscall-input, creator/process, native/guest, reboot
+or physical durability authority.
+
 ## Paired process storage queries
 
 The paired read/write branch collects the actual retained process ranges and
@@ -57,7 +90,7 @@ Host controls and scoped native review do not establish a passing guest create.
 The separate BCL preparation command and its no-execution boundary are described
 in [the application model](app-model.md#prepared-bcl-logupload-instruction-lookup).
 
-[Step1621](../done/step1621.md) integrates bounded cached-sector directory turns and synchronous writable-provider range validation. The mutation91, provider115, paired dirty-write/orphan and source5 lifecycle26 focused controls pass. Typed BCL selector/startup/parent/stdout/CALL/wait-envelope inspectors remain preparation; actual BCL launch is blocked pending the complete original consumer. Scoped native review retains the conditional current25-range estimate30965/32768 with global/mapping/effect limits open; BCL hash literals occupy writable .data. Original r10 and r11 both remain FAILED180s/exit4 after48 completed reads, without first-create completion, OUT/FLUSH or normal cleanup. All failed originals are preserved. The expert is reviewing the next timing boundary and minimal copied syscall witnesses. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
+[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
 
 
 ## Writable final clock and audit continuation (step1617)

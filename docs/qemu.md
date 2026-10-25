@@ -1,6 +1,29 @@
 # QEMU
 
-[Step1621](../done/step1621.md) integrates bounded cached-sector directory turns and synchronous writable-provider range validation. The mutation91, provider115, paired dirty-write/orphan and source5 lifecycle26 focused controls pass. Typed BCL selector/startup/parent/stdout/CALL/wait-envelope inspectors remain preparation; actual BCL launch is blocked pending the complete original consumer. Scoped native review retains the conditional current25-range estimate30965/32768 with global/mapping/effect limits open; BCL hash literals occupy writable .data. Original r10 and r11 both remain FAILED180s/exit4 after48 completed reads, without first-create completion, OUT/FLUSH or normal cleanup. All failed originals are preserved. The expert is reviewing the next timing boundary and minimal copied syscall witnesses. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
+## Writable timing capture
+
+Append `-EnableM16027TimingProbe` to the existing original `-BuildEfi`
+Mechanical30/DiskA capture. LogUpload40 and BCL Write/Verify selection reject
+this switch. Its timeout policy remains120..220 seconds, default180; no work
+budget, polling sequence or ordinary acceptance profile changes.
+
+Only the first pending source5 turn emits `M16_027_TIMING`. Its27 ordered
+decimal fields preserve inclusive audit/pair/pump times, nested audit deltas,
+engine progress, read/calibration counts and an exact outer decomposition.
+`WritableStorageTimingReport.Read` validates copied accounting for valid=1 and
+preserves shaped partial diagnostics for valid=0. Neither case authenticates an
+original capture. The ordinary full writable consumer does not accept a timing
+diagnostic as workload qualification.
+
+Original `writable-timing-guest-r01` joins FAILED180s/exit4:48 reads complete,
+read49 is submitted at174.2202626s, and all three134217728-byte images retain
+SHA256 `CC3D0542BD4BD4E3B8146956EF9CC42244E299C9AC772505889C25FC966ADD4E`.
+The copied5.877140-second turn has4.9306459 seconds of retained audit time;
+the actual engine call submits I/O. This is no workload success, speedup or
+deadlock result. Step1622 preserves serial, summary, images and exact producer
+joins, including the failed original.
+
+[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
 
 
 The [step1618](../done/step1618.md) development originals preserve three guest

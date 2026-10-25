@@ -1,6 +1,28 @@
 # EFI Build
 
-[Step1621](../done/step1621.md) integrates bounded cached-sector directory turns and synchronous writable-provider range validation. The mutation91, provider115, paired dirty-write/orphan and source5 lifecycle26 focused controls pass. Typed BCL selector/startup/parent/stdout/CALL/wait-envelope inspectors remain preparation; actual BCL launch is blocked pending the complete original consumer. Scoped native review retains the conditional current25-range estimate30965/32768 with global/mapping/effect limits open; BCL hash literals occupy writable .data. Original r10 and r11 both remain FAILED180s/exit4 after48 completed reads, without first-create completion, OUT/FLUSH or normal cleanup. All failed originals are preserved. The expert is reviewing the next timing boundary and minimal copied syscall witnesses. Full Blazor/browser, BCL guest persistence, SQLite durability and continuous service remain open.
+## One-turn writable diagnostic publication
+
+```powershell
+dotnet run --project tools/OS.Tooling -- efi build --EnableM16027TimingProbe
+```
+
+The explicit switch implies the M16-027 parent and rejects an explicitly false
+parent. It defaults false and adds one reviewed source link to the evaluated
+ordinary writable inventory (327 to328 sources). The standalone diagnostic
+publication at `dd81324e` is1241088 bytes, SHA256
+`E9CF32CAB3AF6A99F1B6D0E842BD7E2664B3D29AA6930345B94A0230ACCD9BD1`.
+Original guest publication matches its four compilation leaves; publication
+JSONs remain separate. Step1622 retains all1030 raw source inputs unchanged.
+
+Scoped review authenticates direct32/64-bit HPET loads, fixed frames, transfer
+targets, preserved operation bodies and the expanded evidence extent. Its
+conservative conditional32237/32768-byte estimate retains the older selected
+25-range, callback, descendant, mapping, lifetime, effect and noIRQ assumptions.
+It is not a global stack/no-allocation proof or ordinary-profile emitted-byte
+identity. The normal RecordNativeWritableWait local/return spelling also
+changed; source-semantic equivalence alone does not establish emitted identity.
+
+[Step1622](../done/step1622.md) adds opt-in raw HPET accounting for one pending writable turn, a bounded copied syscall observation carrier and copied BCL media preparation. Original diagnostic source dd81324e remains FAILED (180 seconds, exit 4): 48 reads complete, a 49th is submitted, and the first create has no COMPLETE, OUT, FLUSH or normal cleanup. One validated timing row records 5.877140 s outer time, 4.9306459 s in retained audits (336853 calls and 4715942 device exclusions), and 0.0005045 s in the writable pump. Totals include instrumentation overhead. Scoped native review retains only the conditional estimate of 32237/32768 bytes for 25 selected ranges, under the prior lifetime, effect, mapping and noIRQ assumptions. All originals remain preserved. The expert-directed next slice batches the FAT engine and writable provider synchronously; descriptor loops stay unchanged. Complete original BCL syscall inputs, guest persistence, Blazor/browser, SQLite durability and continuous service remain open.
 
 
 ## Writable clock repair publication (step1617)
