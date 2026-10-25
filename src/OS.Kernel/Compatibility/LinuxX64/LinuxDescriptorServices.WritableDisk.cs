@@ -89,6 +89,10 @@ public static unsafe partial class LinuxDescriptorServices
     {
         public W.State* Provider;
         public W.ProcessToken Process;
+        /// <summary>Copied caller-selected free-cluster discovery budgets for
+        /// growing writes. This is not a file-chain limit or reservation. The
+        /// engine's independently admitted WorkBudget bounds chain validation;
+        /// neither budget is enlarged or retried automatically by this adapter.</summary>
         public W.FreeSearch Search;
         public WritableDiskBinding* Bindings;
         public uint BindingCount;

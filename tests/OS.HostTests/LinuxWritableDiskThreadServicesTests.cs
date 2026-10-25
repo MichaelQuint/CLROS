@@ -15,6 +15,60 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
     private const ulong Key = LinuxThreadServicesTests.Key, User = LinuxThreadServicesTests.UserBase;
     private const ulong Path = User + 0x1200, Vector = User + 0x1400, Output = User + 0x2000, Payload = User + 0x3000;
 
+    [HostTest("writable source5 actual SQLite sized synthetic files use explicit engine work and search admissions through retained waits")]
+    private static void SqliteFootprintWaitBudgets()
+    {
+        foreach (uint work in new uint[] { 100000, 1000000 })
+        {
+            using var f = new Fixture(sqliteFootprints: true, workBudget: work, search: work == 1000000 ? new W.FreeSearch(2, 4096, 8192) : null);
+            f.Trace = []; uint initialParks = f.Parked;
+            foreach (var file in LinuxWritableDiskDescriptorServicesTests.SqliteFootprints())
+            {
+                uint copies = f.Thread.Writes, hardware = f.Storage.Device.Hardware->Notifies; int trace = f.Trace.Count;
+                f.PutPath("/data/" + file.Name); long opened = f.Run(2, Path);
+                if (work == 100000 && file.Clusters > 80)
+                {
+                    HostCheck.Equal(-75L, opened); HostCheck.True(!F.Capture(f.Files.State, 3, out _) && copies == f.Thread.Writes &&
+                        f.Storage.Device.Hardware->Notifies > hardware && f.Trace.Skip(trace).All(row => row.Type == 0));
+                }
+                else
+                {
+                    HostCheck.True(opened >= 3); uint fd = (uint)opened;
+                    HostCheck.Equal(0L, f.Run(5, fd, Output));
+                    HostCheck.True(BinaryPrimitives.ReadUInt64LittleEndian(new ReadOnlySpan<byte>(f.Thread.At(Output) + 48, 8)) == (ulong)file.Bytes &&
+                        BinaryPrimitives.ReadUInt64LittleEndian(new ReadOnlySpan<byte>(f.Thread.At(Output) + 64, 8)) == file.Clusters);
+                    ulong offset = (ulong)file.Bytes - 8192; HostCheck.Equal(8192L, f.Run(17, fd, Output, 8192, offset));
+                    HostCheck.True(new ReadOnlySpan<byte>(f.Thread.At(Output), 8192).SequenceEqual(
+                        LinuxWritableDiskDescriptorServicesTests.FootprintBytes(8192, file.Salt, (int)offset)));
+                    HostCheck.Equal(0L, f.Run(8, fd, 0, 1)); HostCheck.Equal(0L, f.Run(3, fd));
+                }
+                HostCheck.True(!f.Thread.View(f.Main).Wait.IsValid && !f.Disk->RequestActive && !f.Provider->RequestActive &&
+                    !f.Storage.State->RequestActive && !f.Storage.State->Dirty && F.Audit(f.Files.State));
+            }
+            HostCheck.True(f.Parked > initialParks && f.Storage.Device.State->SubmittedBytes == 0 && f.Trace.All(row => row.Type == 0));
+            var ordinary = LinuxWritableDiskDescriptorServicesTests.SqliteFootprints()[0];
+            uint writing = f.Open("/data/" + ordinary.Name, 2); byte[] payload = LinuxWritableDiskDescriptorServicesTests.FootprintBytes(8192, 83);
+            f.PutWrite(payload); uint outputs = f.Thread.Writes;
+            HostCheck.Equal(work == 1000000 ? 8192L : -11L, f.Run(328, writing, Vector, 1, 40960, 0, W.RwfNoAppend));
+            HostCheck.True(outputs == f.Thread.Writes && f.Run(8, writing, 0, 1) == 0 && !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->Dirty);
+            if (work == 1000000)
+            {
+                HostCheck.True(f.Trace.Any(row => row.Type == 1) && f.Trace.Any(row => row.Type == 4));
+                ulong submitted = f.Storage.Device.State->Submitted; HostCheck.Equal(0L, f.Run(74, writing));
+                HostCheck.True(f.Storage.Device.State->Submitted == submitted + 1 && f.Storage.Device.State->Completed == submitted + 1 &&
+                    f.Storage.Device.State->DurableBytes == f.Storage.Device.State->SubmittedBytes);
+            }
+            else HostCheck.True(f.Storage.Device.State->SubmittedBytes == 0 && f.Trace.All(row => row.Type == 0));
+            HostCheck.Equal(0L, f.Run(3, writing)); writing = f.Open("/data/" + ordinary.Name);
+            byte[] expected = LinuxWritableDiskDescriptorServicesTests.FootprintBytes(ordinary.Bytes, ordinary.Salt);
+            if (work == 1000000) expected = [.. expected, .. payload];
+            byte[] extracted = new byte[expected.Length]; var read = Fat32Parser.ReadRootFile(new PersistentDevice(f.Storage.Device.Hardware),
+                f.Storage.Input.PartitionFirst, ordinary.Name, extracted);
+            HostCheck.True(read.Succeeded && read.BytesRead == (ulong)expected.Length && extracted.AsSpan().SequenceEqual(expected));
+            HostCheck.Equal(0L, f.Run(3, writing));
+        }
+    }
+
     [HostTest("writable attachment before thread binding rejects a different registered primary PID without effects")]
     private static void WritableFirstPidBinding() => PidBinding(writableFirst: true);
 
@@ -853,13 +907,19 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         internal bool RetainedFailure;
         internal readonly bool Rejected;
         private readonly bool borrowedInput;
+        private readonly W.FreeSearch search;
         private ulong Owner => (ulong)Thread.Service;
-        internal Fixture(bool aliasScheduler = false, uint primaryPid = 101, bool deferBinding = false, uint packagePid = 0)
+        internal Fixture(bool aliasScheduler = false, uint primaryPid = 101, bool deferBinding = false, uint packagePid = 0,
+            bool sqliteFootprints = false, uint workBudget = 100000, W.FreeSearch? search = null)
         {
+            this.search = search ?? new(2, 64, 256);
             borrowedInput = aliasScheduler; input = aliasScheduler ? (byte*)Thread.Kernel.Ready : (byte*)NativeMemory.AllocZeroed(W.IoBytes);
             if (aliasScheduler) new Span<byte>(input, (int)W.IoBytes).Clear(); // No live workers; model of an invalid offered borrow.
             Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff;
-            Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; Storage.Mount();
+            Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff;
+            Storage.Input.WorkBudget = workBudget;
+            if (sqliteFootprints) LinuxWritableDiskDescriptorServicesTests.SeedSqliteFootprints(Storage);
+            Storage.Mount();
             HostCheck.True(W.Start(Provider, new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = descriptors,
                 Descriptions = descriptions, DescriptorCount = 32, DescriptionCount = 32, Input = input, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true }));
             HostCheck.True(W.EnableLocks(Provider, new() { Processes = processes, ProcessCount = 4, Locks = locks, LockCount = 32,
@@ -879,7 +939,7 @@ internal static unsafe class LinuxWritableDiskThreadServicesTests
         internal bool AttachWritable() => F.AttachWritableDisk(Files.State, Disk, new()
         {
             Provider = Provider, Process = W.PrimaryProcess(Provider), Bindings = bindings, BindingCount = 32,
-            Epoch = Storage.Input.Epoch, Search = new(2, 64, 256), FirmwareExited = true, SingleOwnerValidated = true
+            Epoch = Storage.Input.Epoch, Search = search, FirmwareExited = true, SingleOwnerValidated = true
         });
         internal bool EnableThreads() => Thread.Service->EnablePipes(Key, 2, Files.State);
         internal void Start()

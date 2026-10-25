@@ -22,6 +22,117 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         binder: null, types: arguments, modifiers: null)!;
     private static byte Value(int i) => unchecked((byte)(i * 17 + 5));
 
+    internal static (string Name, string Alias, uint First, uint Clusters, int Bytes, byte Salt)[] SqliteFootprints() =>
+    [
+        ("DB80.BIN", "DB80    BIN", 8, 80, 40960, 31),
+        ("DB592.BIN", "DB592   BIN", 128, 592, 303104, 47),
+        ("JOURNAL.BIN", "JOURNAL BIN", 768, 608, 310816, 61)
+    ];
+    internal static byte[] FootprintBytes(int bytes, byte salt, int offset = 0) =>
+        Enumerable.Range(offset, bytes).Select(i => unchecked((byte)(i * 29 + salt))).ToArray();
+
+    // Independently authored initial fake-media bytes at measured lengths,
+    // not SQLite pages or engine-issued writes. Every later open still walks
+    // the actual mirrored FAT through the continuing engine and sole B owner.
+    internal static void SeedSqliteFootprints(ContinuingFat32MutationTests.Fixture storage)
+    {
+        var parsed = Fat32Parser.ReadBpb(new PersistentDevice(storage.Device.Hardware), storage.Input.PartitionFirst);
+        HostCheck.True(parsed.Succeeded && parsed.Bpb.SectorsPerCluster == 1 && parsed.Bpb.RootCluster == 2);
+        var bpb = parsed.Bpb; Seed(storage.Volatile); Seed(storage.Persistent);
+        void Seed(Span<byte> image)
+        {
+            BinaryPrimitives.WriteUInt16LittleEndian(image.Slice((int)(storage.Input.PartitionFirst * 512 + 48)), 0xffff);
+            int entry = (int)(bpb.FirstDataLba * 512 + 64);
+            foreach (var file in SqliteFootprints())
+            {
+                HostCheck.True(file.Clusters == (file.Bytes + 511U) / 512 && file.First + file.Clusters < bpb.ClusterCount + 2);
+                Span<byte> raw = image.Slice(entry, 32); raw.Clear(); Encoding.ASCII.GetBytes(file.Alias).CopyTo(raw);
+                raw[11] = 0x20; BinaryPrimitives.WriteUInt16LittleEndian(raw[20..], (ushort)(file.First >> 16));
+                BinaryPrimitives.WriteUInt16LittleEndian(raw[26..], (ushort)file.First); BinaryPrimitives.WriteUInt32LittleEndian(raw[28..], (uint)file.Bytes);
+                for (uint i = 0; i < file.Clusters; i++)
+                {
+                    uint cluster = file.First + i, next = i + 1 == file.Clusters ? 0x0fffffffU : cluster + 1;
+                    for (uint fat = 0; fat < 2; fat++) BinaryPrimitives.WriteUInt32LittleEndian(
+                        image.Slice((int)((bpb.FirstFatLba + fat * bpb.FatSizeSectors) * 512 + cluster * 4)), next);
+                    Span<byte> sector = image.Slice((int)((bpb.FirstDataLba + cluster - 2) * 512), 512); sector.Fill(0xd3);
+                    for (int j = 0; j < sector.Length && (ulong)i * 512 + (uint)j < (uint)file.Bytes; j++)
+                        sector[j] = unchecked((byte)(((int)i * 512 + j) * 29 + file.Salt));
+                }
+                entry += 32;
+            }
+            image[entry] = 0;
+        }
+    }
+
+    [HostTest("writable global synthetic SQLite footprints distinguish explicit chain work from free search budgets without publishing failed opens")]
+    private static void SqliteFootprintOpenBudgets()
+    {
+        foreach (uint work in new uint[] { 100000, 1000000 })
+        {
+            using var f = new Owner(sqliteFootprints: true, workBudget: work); ulong writes = f.Storage.Device.State->SubmittedBytes;
+            foreach (var file in SqliteFootprints())
+            {
+                uint copies = f.Thread.Writes, hardware = f.Hardware->Notifies; int trace = f.Trace.Count;
+                f.PutPath("/data/" + file.Name); long opened = f.Run(f.Call(2, Path));
+                if (work == 100000 && file.Clusters > 80)
+                {
+                    HostCheck.Equal(-75L, opened); // Existing C.BudgetExceeded -> EOVERFLOW, not ENOSPC.
+                    HostCheck.True(!F.Capture(f.Files.State, 3, out _) && f.Thread.Writes == copies && f.Hardware->Notifies > hardware &&
+                        f.Trace.Skip(trace).All(row => row.Type == 0) && f.Storage.Device.State->SubmittedBytes == writes &&
+                        !f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !f.Storage.State->Dirty && F.Audit(f.Files.State));
+                    continue;
+                }
+                HostCheck.True(opened >= 3); uint fd = (uint)opened; HostCheck.Equal(17L, f.Run(f.Call(8, fd, 17)));
+                HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output))); byte[] facts = f.Bytes(144);
+                HostCheck.True(BinaryPrimitives.ReadUInt64LittleEndian(facts.AsSpan(48)) == (ulong)file.Bytes &&
+                    BinaryPrimitives.ReadUInt64LittleEndian(facts.AsSpan(56)) == 512 && BinaryPrimitives.ReadUInt64LittleEndian(facts.AsSpan(64)) == file.Clusters);
+                HostCheck.Equal(8192L, f.Run(f.Call(17, fd, Output, 8192, (ulong)file.Bytes - 8192)));
+                HostCheck.True(f.Bytes(8192).AsSpan().SequenceEqual(FootprintBytes(8192, file.Salt, file.Bytes - 8192)));
+                HostCheck.Equal(17L, f.Run(f.Call(8, fd, 0, 1))); HostCheck.Equal(0L, f.Core(3, fd));
+                uint reopened = f.Open("/data/" + file.Name); HostCheck.Equal(0L, f.Run(f.Call(8, reopened, 0, 1))); HostCheck.Equal(0L, f.Core(3, reopened));
+                f.Independent(file.Name, FootprintBytes(file.Bytes, file.Salt));
+            }
+            HostCheck.True(f.Storage.Device.State->SubmittedBytes == writes && f.Trace.All(row => row.Type == 0));
+        }
+    }
+
+    [HostTest("writable global explicit free search admits a sixteen cluster growth while the unchanged sixty four cluster default rejects without OUT")]
+    private static void SqliteFootprintGrowthBudgets()
+    {
+        foreach (bool largeSearch in new[] { false, true })
+        {
+            using var f = new Owner(sqliteFootprints: true, workBudget: 1000000, search: largeSearch ? new W.FreeSearch(2, 4096, 8192) : null);
+            var geometry = Fat32Parser.ReadBpb(new PersistentDevice(f.Hardware), f.Storage.Input.PartitionFirst); HostCheck.True(geometry.Succeeded);
+            var bpb = geometry.Bpb; byte[] guardedEntries = f.Storage.Persistent.Slice((int)(bpb.FirstDataLba * 512), 64).ToArray();
+            var files = SqliteFootprints(); uint fd = f.Open("/data/" + files[0].Name, 2); uint independent = f.Open("/data/" + files[1].Name);
+            HostCheck.Equal(23L, f.Run(f.Call(8, fd, 23))); byte[] payload = FootprintBytes(8192, 83);
+            uint copies = f.Thread.Writes; int trace = f.Trace.Count; ulong writeBytes = f.Storage.Device.State->SubmittedBytes;
+            HostCheck.Equal(largeSearch ? 8192L : -11L, f.Run(f.WriteCall(fd, payload, 40960)));
+            HostCheck.Equal(copies, f.Thread.Writes); HostCheck.Equal(23L, f.Run(f.Call(8, fd, 0, 1)));
+            HostCheck.True(!f.Disk->RequestActive && !f.Provider->RequestActive && !f.Storage.State->RequestActive && !f.Storage.State->Dirty);
+            if (!largeSearch) HostCheck.True(f.Trace.Skip(trace).All(row => row.Type == 0) && f.Storage.Device.State->SubmittedBytes == writeBytes);
+            else
+            {
+                HostCheck.True(f.Trace.Skip(trace).Any(row => row.Type == 1) && f.Trace.Skip(trace).Any(row => row.Type == 4) &&
+                    f.Storage.Device.State->SubmittedBytes > writeBytes);
+                ulong submitted = f.Storage.Device.State->Submitted, bytes = f.Storage.Device.State->SubmittedBytes;
+                HostCheck.Equal(0L, f.Run(f.Call(74, fd))); HostCheck.True(f.Storage.Device.State->Submitted == submitted + 1 &&
+                    f.Storage.Device.State->Completed == f.Storage.Device.State->Submitted && f.Storage.Device.State->DurableBytes == bytes);
+            }
+            HostCheck.Equal(0L, f.Core(3, fd)); fd = f.Open("/data/" + files[0].Name);
+            HostCheck.Equal(0L, f.Run(f.Call(5, fd, Output)));
+            HostCheck.Equal(largeSearch ? 49152UL : 40960UL, BinaryPrimitives.ReadUInt64LittleEndian(f.Bytes(144).AsSpan(48)));
+            HostCheck.Equal(0L, f.Run(f.Call(8, independent, 0, 1))); HostCheck.Equal(0L, f.Core(3, independent)); HostCheck.Equal(0L, f.Core(3, fd));
+            byte[] expected = FootprintBytes(40960, files[0].Salt); if (largeSearch) expected = [.. expected, .. payload]; f.Independent(files[0].Name, expected);
+            foreach (var file in files.Skip(1)) f.Independent(file.Name, FootprintBytes(file.Bytes, file.Salt));
+            f.Independent("KEEP.TXT", new byte[3]); f.Independent("DATA.BIN", Enumerable.Range(0, 900).Select(Value).ToArray());
+            HostCheck.True(f.Storage.Persistent.Slice((int)(bpb.FirstDataLba * 512), 64).SequenceEqual(guardedEntries) &&
+                f.Storage.Persistent.Slice((int)(bpb.FirstFatLba * 512), (int)bpb.FatSizeSectors * 512).SequenceEqual(
+                    f.Storage.Persistent.Slice((int)((bpb.FirstFatLba + bpb.FatSizeSectors) * 512), (int)bpb.FatSizeSectors * 512)) &&
+                f.Storage.Persistent.Slice((int)((bpb.FirstDataLba + files[2].First + files[2].Clusters - 3) * 512 + 32), 480).IndexOfAnyExcept((byte)0xd3) < 0);
+        }
+    }
+
     [HostTest("writable measured create modes0600 and0644 use fixed mask077 and fresh effective metadata without persisted Unix permissions")]
     private static void CreateModePolicy()
     {
@@ -1094,14 +1205,17 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
         internal readonly List<F.WritableDiskToken> Tokens = [];
         internal readonly List<(uint Type, ulong Sector)> Trace = [];
         internal readonly W.Admission ProviderAdmission;
+        private readonly W.FreeSearch search;
         internal OSHostHandle Worker;
         internal bool Attached, AllowRetainedFailure;
         internal ulong ThreadOwner => (ulong)Thread.Service;
         internal WritableBlockSessionTests.Hardware* Hardware => Storage.Device.Hardware;
         internal F.WritableDiskAdmission Admission => new() { Provider = Provider, Process = W.PrimaryProcess(Provider), Bindings = Bindings,
-            BindingCount = Files.Admission.DescriptionCount, Epoch = ProviderAdmission.Epoch, Search = new(2, 64, 256), FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true, bool observe = false, uint descriptors = 32, uint descriptions = 32, byte sectorsPerCluster = 1, bool rootCollision = false)
+            BindingCount = Files.Admission.DescriptionCount, Epoch = ProviderAdmission.Epoch, Search = search, FirmwareExited = true, SingleOwnerValidated = true };
+        internal Owner(bool attach = true, bool observe = false, uint descriptors = 32, uint descriptions = 32, byte sectorsPerCluster = 1, bool rootCollision = false,
+            bool sqliteFootprints = false, uint workBudget = 100000, W.FreeSearch? search = null)
         {
+            this.search = search ?? new(2, 64, 256);
             Files = new(descriptors, descriptions); Bindings = (F.WritableDiskBinding*)NativeMemory.AllocZeroed(descriptions, (nuint)sizeof(F.WritableDiskBinding));
             Storage = new(sectorsPerCluster, observe: observe); if (sectorsPerCluster != 1) Storage.Fat(4, 0x0fffffff);
             if (rootCollision)
@@ -1115,7 +1229,10 @@ internal static unsafe class LinuxWritableDiskDescriptorServicesTests
                 entry.CopyTo(Storage.Volatile.Slice((int)((data + 127) * 512 + 15 * 32), 32));
             }
             Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 48)] = 0xff;
-            Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff; Storage.Mount();
+            Storage.Volatile[(int)(Storage.Input.PartitionFirst * 512 + 49)] = 0xff;
+            Storage.Input.WorkBudget = workBudget;
+            if (sqliteFootprints) { HostCheck.True(sectorsPerCluster == 1 && !rootCollision); SeedSqliteFootprints(Storage); }
+            Storage.Mount();
             ProviderAdmission = new() { Engine = Storage.State, Epoch = Storage.Input.Epoch, Descriptors = Slots, Descriptions = Descriptions,
                 DescriptorCount = 32, DescriptionCount = 32, Input = ProviderInput, InputBytes = W.IoBytes, ExclusiveOwnerValidated = true };
             HostCheck.True(W.Start(Provider, ProviderAdmission));
