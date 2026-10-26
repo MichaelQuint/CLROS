@@ -203,6 +203,29 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         }
     }
 
+    [HostTest("writable BAR values admit the original high Memory64 window and exact upper edge while rejecting invalid or overlapping windows")]
+    private static void NativeBarWindow()
+    {
+        var e = Synthetic(false); int bound = Find(e, "M16_027_BOUND ");
+        const ulong userEnd = OS.Kernel.Memory.X64UserAddressSpace.UserEnd;
+        HostCheck.Equal(4026531840UL, Field(e.All[bound], "bar"));
+        foreach (ulong bar in new[] { 4026531840UL, 34359771136UL, userEnd - 16384 })
+        {
+            // 34359771136 (0x800008000) is copied from the failed original,
+            // not a grant of mappings or a reclassification of that run.
+            var report = Inspect(e.Replace(bound, Changed(e.All[bound], "bar", bar)));
+            HostCheck.True(report.CheckedCallAndWaitValues && !report.CheckedImageValues && !report.CheckedAuxiliaryJoins &&
+                !report.NativeQualified && !report.FirmwareQualified && !report.ProcessQualified && !report.PacketQualified &&
+                !report.PhysicalPersistenceQualified && !report.RebootQualified && !report.WholeCaptureQualified &&
+                !report.Block.GrantsDeviceOrPersistenceAuthority);
+        }
+        foreach (ulong bar in new[]
+        {
+            0UL, 0xfc000UL, 34359771137UL, userEnd - 8192, userEnd,
+            ulong.MaxValue - 16383, ulong.MaxValue, Arena, Boot
+        }) Reject(() => Inspect(e.Replace(bound, Changed(e.All[bound], "bar", bar))));
+    }
+
     [HostTest("writable leaf rejects stale begin fd reservation provider wait repark and completion identities")]
     private static void WaitMutations()
     {

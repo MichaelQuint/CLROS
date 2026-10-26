@@ -535,8 +535,10 @@ public static partial class QemuTranscripts
     private static ulong WdOperation(ulong nr) => nr switch { 2 => 1, 0 or 17 => 2, 328 => 3, 74 => 4, 87 => 5, _ => 0 };
     private static void WdBinding(IReadOnlyDictionary<string, ulong> b)
     {
+        // The boot arena stays below4GiB; retained supervisor MMIO uses its
+        // separate supported mapping envelope, including decoded Memory64 BARs.
         WdNeed(b["pages"] is > 0 and <= 256 && b["arena"] >= 4096 && b["arena"] % 4096 == 0 && b["arena"] <= 0x100000000UL - b["pages"] * 4096 &&
-            b["bar"] >= 0x100000 && b["bar"] % 16384 == 0 && b["bar"] <= 0x100000000UL - 16384 && b["capacity"] == CombinedWebDataImageFixture.Sectors &&
+            b["bar"] >= 0x100000 && b["bar"] % 16384 == 0 && b["bar"] <= OS.Kernel.Memory.X64UserAddressSpace.UserEnd - 16384 && b["capacity"] == CombinedWebDataImageFixture.Sectors &&
             b["dataFirst"] == CombinedWebDataImageFixture.DataFirstLba && b["dataLast"] == CombinedWebDataImageFixture.DataLastLba &&
             b["webFirst"] == CombinedWebDataImageFixture.WebFirstLba && b["webLast"] == CombinedWebDataImageFixture.WebLastLba && b["pid"] == 1 &&
             b["epoch"] is > 0 and <= ulong.MaxValue - 4 && b["engineEpoch"] == b["epoch"] + 2 && b["providerEpoch"] == b["engineEpoch"] &&
