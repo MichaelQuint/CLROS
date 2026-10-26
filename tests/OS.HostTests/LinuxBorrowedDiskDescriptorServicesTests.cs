@@ -5,6 +5,7 @@ using System.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Kernel.Compatibility.LinuxX64;
+using OS.Kernel.Memory;
 using OS.Pal;
 using OS.Kernel.Threading;
 using Memory = OS.Kernel.Compatibility.LinuxX64.LinuxMemoryServices;
@@ -43,6 +44,16 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static readonly Audit AuditDisk = typeof(F).GetMethod("AuditDisk", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Audit AuditWritable = typeof(F).GetMethod("AuditWritableDisk", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Audit AuditPair = typeof(F).GetMethod("AuditDiskPair", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
+    private delegate bool BorrowedBase(F.State* state, Fs.Mount* mount);
+    private static readonly BorrowedBase BaseStorage = typeof(F).GetMethod("BorrowedDiskBaseStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<BorrowedBase>();
+    private delegate bool PairStorage(F.DiskState* read, in F.DiskAdmission r, F.WritableDiskState* write, in F.WritableDiskAdmission w);
+    private static readonly PairStorage PairInventories = typeof(F).GetMethod("PairedDiskStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<PairStorage>();
+    private delegate void FsRange(Fs.Mount* mount, uint index, out ulong start, out ulong bytes);
+    private static readonly FsRange ReadFsRange = typeof(F).GetMethod("FsExtent", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<FsRange>();
+    private delegate bool RetainFs(Fs.Mount* mount, ulong epoch, ulong address, ulong bytes);
+    private static readonly RetainFs FsCanRetain = typeof(Fs).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainFs>();
+    private delegate bool RetainProvider(W.State* provider, ulong epoch, ulong address, ulong bytes);
+    private static readonly RetainProvider ProviderCanRetain = typeof(W).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainProvider>();
     private static readonly Audit ProcessCurrent = typeof(LinuxThreadServices).GetMethod("DescriptorProcessCurrent", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Retain CanPublish = typeof(LinuxThreadServices).GetMethod("CanPublishDescriptorStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
     private static readonly Retain ProcessOutside = typeof(LinuxThreadServices).GetMethod("DescriptorProcessOutsideStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
@@ -675,6 +686,119 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static void CheckSocketAuditSnapshot((ulong Address, byte[] Bytes)[] before)
     { foreach (var range in before) HostCheck.True(range.Bytes.AsSpan().SequenceEqual(new ReadOnlySpan<byte>((void*)range.Address, range.Bytes.Length))); }
 
+    // The old scalar inventories are an independent admission oracle. They use
+    // the existing checked leaf queries; they do not cache a successful proof.
+    private static bool ScalarBaseInventory(Owner o)
+    {
+        var a = GlobalInput(ref *o.Files.State); var memory = MemoryAdmission(ref *a.Memory);
+        ulong[] pairs =
+        [
+            (ulong)o.Files.State, (ulong)sizeof(F.State), (ulong)a.Slots, a.DescriptorCount * (ulong)sizeof(F.Slot),
+            (ulong)a.Descriptions, a.DescriptionCount * (ulong)sizeof(F.Description), (ulong)a.Pipes, a.PipeCount * (ulong)sizeof(LinuxPipe),
+            (ulong)a.PipeBuffers, a.PipeCount * a.PipeCapacity, (ulong)a.Snapshots, a.DescriptionCount * F.SnapshotBytes,
+            (ulong)a.Scratch, a.ScratchBytes, (ulong)a.Memory, (ulong)sizeof(LinuxMemoryServices.State),
+            (ulong)memory.Pool, memory.PoolPages * 4096UL, (ulong)memory.Tables, memory.TablePages * 4096UL,
+            (ulong)memory.CandidateTables, memory.TablePages * 4096UL,
+            (ulong)memory.StaticRanges, memory.StaticCount * (ulong)sizeof(X64UserMappingRange), (ulong)a.Views, a.ViewCount * (ulong)sizeof(F.View)
+        ];
+        for (int i = 0; i < pairs.Length; i += 2)
+            if (pairs[i + 1] != 0 && !FsCanRetain(o.Storage.Mount, o.Storage.Input.Epoch, pairs[i], pairs[i + 1])) return false;
+        for (uint i = 0; i < a.ViewCount; i++)
+            if (!FsCanRetain(o.Storage.Mount, o.Storage.Input.Epoch, (ulong)a.Views[i].Path, a.Views[i].PathBytes) ||
+                a.Views[i].Bytes != 0 && !FsCanRetain(o.Storage.Mount, o.Storage.Input.Epoch, (ulong)a.Views[i].Data, a.Views[i].Bytes)) return false;
+        // This oracle is used only with the fixture's unconfigured transport.
+        HostCheck.True(o.SocketState == null);
+        return true;
+    }
+
+    private static bool ScalarPairInventory(Owner o) => ScalarPairInventory(o, o.Admission, o.WriteAdmission);
+
+    private static bool ScalarPairInventory(Owner o, in F.DiskAdmission r, in F.WritableDiskAdmission w)
+    {
+        ulong writableBytes = w.BindingCount * (ulong)sizeof(F.WritableDiskBinding);
+        if (!FsCanRetain(r.Mount, r.Epoch, (ulong)o.WriteDisk, (ulong)sizeof(F.WritableDiskState)) ||
+            !FsCanRetain(r.Mount, r.Epoch, (ulong)w.Bindings, writableBytes)) return false;
+        for (uint i = 0; i < F.DiskExtentCount; i++)
+        {
+            ulong start, bytes;
+            if (i == 0) { start = (ulong)o.Disk; bytes = (ulong)sizeof(F.DiskState); }
+            else if (i == 1) { start = (ulong)r.Bindings; bytes = F.DiskSlots * (ulong)sizeof(F.DiskBinding); }
+            else if (i == 2) { start = (ulong)r.Requests; bytes = F.DiskSlots * (ulong)sizeof(F.DiskRequest); }
+            else ReadFsRange(r.Mount, i - 3, out start, out bytes);
+            if (bytes != 0 && (!ProviderCanRetain(w.Provider, w.Epoch, start, bytes) ||
+                TestOverlap(start, bytes, (ulong)o.WriteDisk, (ulong)sizeof(F.WritableDiskState)) ||
+                TestOverlap(start, bytes, (ulong)w.Bindings, writableBytes))) return false;
+        }
+        return true;
+    }
+
+    private static bool TestOverlap(ulong a, ulong bytes, ulong b, ulong count) =>
+        bytes != 0 && count != 0 && a < b + count && b < a + bytes;
+
+    [HostTest("descriptor retained base and pair inventories match scalar guards before malformed FS extent reads", HostLane.Native)]
+    private static void DescriptorInventoryBatches() => WithOwner(o =>
+    {
+        o.PrepareWritable(); HostCheck.True(o.AttachWritable() && F.Audit(o.Files.State));
+        void Queries(bool expectedBase, bool expectedPair)
+        {
+            byte[] global = new ReadOnlySpan<byte>(o.Files.State, sizeof(F.State)).ToArray();
+            byte[] fs = o.Storage.CopyFsBacking(), mount = new ReadOnlySpan<byte>(o.Storage.Mount, sizeof(Fs.Mount)).ToArray();
+            byte[] provider = new ReadOnlySpan<byte>(o.Provider, sizeof(W.State)).ToArray();
+            byte[] engine = new ReadOnlySpan<byte>(o.Storage.Engine, sizeof(C.State)).ToArray();
+            byte[] block = new ReadOnlySpan<byte>(o.Storage.Block, sizeof(B.State)).ToArray();
+            uint callbacks = o.Storage.Device.Hardware->Calls, reads = o.Thread.Reads, writes = o.Thread.Writes;
+            HostCheck.Equal(expectedBase, ScalarBaseInventory(o)); HostCheck.Equal(expectedBase, BaseStorage(o.Files.State, o.Storage.Mount));
+            HostCheck.Equal(expectedPair, ScalarPairInventory(o)); HostCheck.Equal(expectedPair, PairInventories(o.Disk, o.Admission, o.WriteDisk, o.WriteAdmission));
+            HostCheck.True(global.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(o.Files.State, sizeof(F.State))) &&
+                fs.AsSpan().SequenceEqual(o.Storage.CopyFsBacking()) && mount.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(o.Storage.Mount, sizeof(Fs.Mount))) &&
+                provider.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(o.Provider, sizeof(W.State))) &&
+                engine.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(o.Storage.Engine, sizeof(C.State))) &&
+                block.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(o.Storage.Block, sizeof(B.State))) &&
+                callbacks == o.Storage.Device.Hardware->Calls && reads == o.Thread.Reads && writes == o.Thread.Writes);
+        }
+        Queries(true, true);
+        F.DiskAdmission aliased = o.Admission;
+        aliased.Bindings = (F.DiskBinding*)o.WriteBindings;
+        HostCheck.True(!ScalarPairInventory(o, aliased, o.WriteAdmission) && !PairInventories(o.Disk, aliased, o.WriteDisk, o.WriteAdmission));
+        aliased = o.Admission; aliased.Requests = (F.DiskRequest*)o.WriteDisk;
+        HostCheck.True(!ScalarPairInventory(o, aliased, o.WriteAdmission) && !PairInventories(o.Disk, aliased, o.WriteDisk, o.WriteAdmission));
+        ref F.Admission globalInput = ref GlobalInput(ref *o.Files.State); byte* scratch = globalInput.Scratch;
+        try { globalInput.Scratch = o.Storage.Operations[0].Storage.Range; Queries(false, true); }
+        finally { globalInput.Scratch = scratch; }
+        uint views = globalInput.ViewCount; F.View* viewTable = globalInput.Views;
+        try { globalInput.ViewCount = 0; globalInput.Views = null; Queries(true, true); }
+        finally { globalInput.ViewCount = views; globalInput.Views = viewTable; }
+        F.View view = globalInput.Views[0];
+        try
+        {
+            globalInput.Views[0].Data = o.Storage.Operations[0].Storage.Range; globalInput.Views[0].Bytes = 0; Queries(true, true);
+            globalInput.Views[0].Bytes = 1; Queries(false, true);
+        }
+        finally { globalInput.Views[0] = view; }
+        ref Fs.Admission input = ref MountAdmission(ref *o.Storage.Mount);
+        uint operations = input.OperationCount, files = input.FileCount, caches = input.CacheCount;
+        try { input.OperationCount = Fs.MaximumSlots + 1; Queries(false, false); } finally { input.OperationCount = operations; }
+        try { input.FileCount = Fs.MaximumSlots + 1; Queries(false, false); } finally { input.FileCount = files; }
+        try { input.CacheCount = Fs.MaximumCacheSlots + 1; Queries(false, false); } finally { input.CacheCount = caches; }
+        Fs.Operation* originalOperations = input.Operations;
+        try { input.Operations = (Fs.Operation*)2; Queries(false, false); }
+        finally { input.Operations = originalOperations; }
+        uint rangeBytes = o.Storage.Operations[0].Storage.RangeCapacity;
+        try { o.Storage.Operations[0].Storage.RangeCapacity = 0; Queries(false, false); }
+        finally { o.Storage.Operations[0].Storage.RangeCapacity = rangeBytes; }
+        ref W.Admission providerInput = ref ProviderInput(ref *o.Provider); byte* providerBytes = providerInput.Input;
+        try { providerInput.Input = o.Storage.Operations[0].Storage.Range; Queries(true, false); }
+        finally { providerInput.Input = providerBytes; }
+        ulong providerEpoch = providerInput.Epoch;
+        try { providerInput.Epoch++; Queries(true, false); } finally { providerInput.Epoch = providerEpoch; }
+        ref B.Admission blockInput = ref BlockInput(ref *o.Storage.Block); ulong blockEpoch = blockInput.Epoch;
+        try { blockInput.Epoch++; Queries(false, false); } finally { blockInput.Epoch = blockEpoch; }
+        ref byte phase = ref MountPhase(ref *o.Storage.Mount); byte originalPhase = phase;
+        try { phase = 4; Queries(false, false); } finally { phase = originalPhase; }
+        Queries(true, true); HostCheck.True(F.Audit(o.Files.State));
+        HostCheck.Equal(B.Status.Success, B.Stop(o.Storage.Block)); Queries(true, true);
+    });
+
     [HostTest("paired thread range batch preserves scalar exclusions malformed bounds and dirty orphan lifetimes without effects")]
     private static void PairedThreadBatch() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
     {
@@ -742,20 +866,20 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         for (int i = 0; i < 100000 && !o.Storage.Engine->Dirty; i++) { o.WPump(); o.CompleteDevice(); }
         stage = "dirty-issued"; HostCheck.True(o.Storage.Engine->Dirty && o.Storage.Block->SubmittedBytes != 0);
         stage = "dirty-query";
-        QueriesOnly(() => Equivalent(valid, true));
+        QueriesOnly(() => { Equivalent(valid, true); HostCheck.Equal(ScalarPairInventory(o), PairInventories(o.Disk, o.Admission, o.WriteDisk, o.WriteAdmission)); });
         HostCheck.Equal(F.WritableDiskProgress.Ready, o.WReady(writing.Token).Progress);
         HostCheck.True(o.Storage.Block->CompletedBytes != 0 && o.Storage.Block->DurableBytes == o.Storage.Block->CompletedBytes && !o.Storage.Engine->Dirty);
         HostCheck.Equal(7L, o.WComplete(writing.Token, call).Value);
         // Re-enter after an actual mutation/revision change; the earlier call
         // must not leave a reusable proof or suppress fresh stale-owner checks.
-        stage = "post-mutation-query"; QueriesOnly(() => Equivalent(valid, true));
+        stage = "post-mutation-query"; QueriesOnly(() => { Equivalent(valid, true); HostCheck.Equal(ScalarPairInventory(o), PairInventories(o.Disk, o.Admission, o.WriteDisk, o.WriteAdmission)); });
 
         stage = "orphan-submit";
         uint read = o.Open(); var readCall = o.Call(0, read, Output, 7); var reading = o.Begin(readCall); o.WaitPort(reading.Token);
         var queued = o.WBegin(o.WriteCall(write, "cancelled"u8, 0));
         var cancelled = F.CancelWritableDisk(o.Files.State, o.OwnerKey, queued.Token, true);
         HostCheck.True(cancelled.Progress == F.WritableDiskProgress.Draining && cancelled.Value == -4 && !cancelled.Worker.IsValid && o.Storage.Port->RequestActive);
-        stage = "orphan-query"; QueriesOnly(() => Equivalent(valid, true));
+        stage = "orphan-query"; QueriesOnly(() => { Equivalent(valid, true); HostCheck.Equal(ScalarPairInventory(o), PairInventories(o.Disk, o.Admission, o.WriteDisk, o.WriteAdmission)); });
         var drained = o.WPump(); HostCheck.True(drained.Progress == F.WritableDiskProgress.Immediate && drained.Value == -4 && o.Storage.Port->RequestActive);
         HostCheck.Equal(F.DiskProgress.Ready, o.Ready(reading.Token).Progress); HostCheck.Equal(7L, o.Complete(reading.Token, readCall).Value);
         QueriesOnly(() => Equivalent(valid, true)); HostCheck.True(F.Audit(o.Files.State) && !o.Thread.Service->Failed);
@@ -1083,6 +1207,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static extern ref ulong DescriptionPosition(ref F.Description description);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Owner")]
     private static extern ref F.Admission GlobalInput(ref F.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Memory")]
+    private static extern ref LinuxMemoryServices.Admission MemoryAdmission(ref LinuxMemoryServices.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "PortBinding")]
     private static extern ref P.Inspection PortBinding(ref Fs.Mount mount);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]

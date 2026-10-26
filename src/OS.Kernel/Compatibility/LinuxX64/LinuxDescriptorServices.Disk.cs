@@ -716,8 +716,12 @@ public static unsafe partial class LinuxDescriptorServices
         if (!P.MatchesRetainedEngine(r.Mount->ReadPort, binding.Epoch, binding.EngineOwner, binding.EngineEpoch) ||
             !W.MatchesRetainedEngine(w.Provider, w.Epoch, binding.EngineOwner, binding.EngineEpoch)) return false;
         ulong writableBytes = w.BindingCount * (ulong)sizeof(WritableDiskBinding);
-        if (!Fs.CanRetainStorage(r.Mount, r.Epoch, (ulong)write, (ulong)sizeof(WritableDiskState)) ||
-            !Fs.CanRetainStorage(r.Mount, r.Epoch, (ulong)w.Bindings, writableBytes)) return false;
+        ulong* extents = stackalloc ulong[(int)DiskExtentCount * 2];
+        extents[0] = (ulong)write; extents[1] = (ulong)sizeof(WritableDiskState);
+        extents[2] = (ulong)w.Bindings; extents[3] = writableBytes;
+        // Authenticate the FS-owned fields before FsExtent reads any of them.
+        // Reuse this bounded scratch for the later readonly candidate inventory.
+        if (!Fs.CanRetainStorageRanges(r.Mount, r.Epoch, new ReadOnlySpan<ulong>(extents, 4))) return false;
         for (uint i = 0; i < DiskExtentCount; i++)
         {
             ulong start, bytes;
@@ -725,8 +729,13 @@ public static unsafe partial class LinuxDescriptorServices
             else if (i == 1) { start = (ulong)r.Bindings; bytes = DiskSlots * (ulong)sizeof(DiskBinding); }
             else if (i == 2) { start = (ulong)r.Requests; bytes = DiskSlots * (ulong)sizeof(DiskRequest); }
             else FsExtent(r.Mount, i - 3, out start, out bytes);
-            if (bytes != 0 && (!W.CanRetainStorage(w.Provider, w.Epoch, start, bytes) ||
-                Overlap(start, bytes, (ulong)write, (ulong)sizeof(WritableDiskState)) ||
+            extents[i * 2] = start; extents[i * 2 + 1] = bytes;
+        }
+        if (!W.CanRetainStorageRanges(w.Provider, w.Epoch, new ReadOnlySpan<ulong>(extents, (int)DiskExtentCount * 2))) return false;
+        for (uint i = 0; i < DiskExtentCount; i++)
+        {
+            ulong start = extents[i * 2], bytes = extents[i * 2 + 1];
+            if (bytes != 0 && (Overlap(start, bytes, (ulong)write, (ulong)sizeof(WritableDiskState)) ||
                 Overlap(start, bytes, (ulong)w.Bindings, writableBytes))) return false;
         }
         return true;
@@ -773,8 +782,7 @@ public static unsafe partial class LinuxDescriptorServices
             (ulong)a.Memory->Memory.StaticRanges, a.Memory->Memory.StaticCount * (ulong)sizeof(X64UserMappingRange),
             (ulong)a.Views, a.ViewCount * (ulong)sizeof(View)
         };
-        for (uint i = 0; i < 13; i++) if (extents[i * 2 + 1] != 0 &&
-            !Fs.CanRetainStorage(mount, mount->Input.Epoch, extents[i * 2], extents[i * 2 + 1])) return false;
+        if (!Fs.CanRetainStorageRanges(mount, mount->Input.Epoch, new ReadOnlySpan<ulong>(extents, 26))) return false;
         for (uint i = 0; i < a.ViewCount; i++)
             if (!Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)a.Views[i].Path, a.Views[i].PathBytes) ||
                 a.Views[i].Bytes != 0 && !Fs.CanRetainStorage(mount, mount->Input.Epoch, (ulong)a.Views[i].Data, a.Views[i].Bytes)) return false;
