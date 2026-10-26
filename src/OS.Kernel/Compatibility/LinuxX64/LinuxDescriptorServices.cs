@@ -943,6 +943,8 @@ public static unsafe partial class LinuxDescriptorServices
 
     // Candidate mount/provider pointers belong to the respective already
     // authenticated admission, including BEFORE their global publication.
+    // A published read attachment is already locally validated by the caller;
+    // candidate read admission has no published read attachment yet.
     // Shared C/B backing is queried by its real owners; transport ranges never
     // confer ownership of either device or permission to perform user copies.
     private static bool TransportStorageOutside(State* state, void* mount, Writable.State* provider,
@@ -950,25 +952,48 @@ public static unsafe partial class LinuxDescriptorServices
     {
         if (state->Sockets == null) return state->Epoll == null;
         if (!TransportShape(state)) return false;
+        ulong* ranges = stackalloc ulong[32]; int used = 0;
         for (uint i = 0; i < TransportExtentCount; i++)
         {
             TransportExtentAt(state, i, out ulong start, out ulong bytes); if (bytes == 0) continue;
             if (!Extent((void*)start, bytes) ||
-                provider != null && !Writable.CanRetainStorage(provider, epoch, start, bytes) ||
                 Overlap(start, bytes, (ulong)writableState, writableState == null ? 0UL : (ulong)sizeof(WritableDiskState)) ||
                 Overlap(start, bytes, (ulong)writableBindings, bindingBytes)) return false;
 #if !NOSTDLIB_EFI || M16_025_PROBE
             if (mount != null)
             {
                 var m = (OS.Storage.ReadOnlyWebRootFileSystem.Mount*)mount;
-                if (!OS.Storage.ReadOnlyWebRootFileSystem.CanRetainStorage(m, m->Input.Epoch, start, bytes)) return false;
                 DiskState* d = state->Disk;
                 if (d != null && (d->Mount != m || Overlap(start, bytes, (ulong)d, (ulong)sizeof(DiskState)) ||
                     Overlap(start, bytes, (ulong)d->Bindings, DiskSlots * (ulong)sizeof(DiskBinding)) ||
                     Overlap(start, bytes, (ulong)d->Requests, DiskSlots * (ulong)sizeof(DiskRequest)))) return false;
             }
 #endif
+            ranges[used++] = start; ranges[used++] = bytes;
+            if (used == 32)
+            {
+                if (!TransportStorageBatchOutside(mount, provider, epoch, new ReadOnlySpan<ulong>(ranges, used))) return false;
+                used = 0;
+            }
         }
+        return used == 0 || TransportStorageBatchOutside(mount, provider, epoch, new ReadOnlySpan<ulong>(ranges, used));
+    }
+
+    // The compact span contains only checked nonempty transport extents and
+    // cannot escape this serialized query. Legacy direct FS mounts retain the
+    // original scalar path; the FS batch admits borrowed mounts only.
+    private static bool TransportStorageBatchOutside(void* mount, Writable.State* provider, ulong epoch, ReadOnlySpan<ulong> ranges)
+    {
+        if (provider != null && !Writable.CanRetainStorageRanges(provider, epoch, ranges)) return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (mount != null)
+        {
+            var m = (OS.Storage.ReadOnlyWebRootFileSystem.Mount*)mount;
+            if (m->ReadPort != null) return OS.Storage.ReadOnlyWebRootFileSystem.CanRetainStorageRanges(m, m->Input.Epoch, ranges);
+            for (int i = 0; i < ranges.Length; i += 2)
+                if (!OS.Storage.ReadOnlyWebRootFileSystem.CanRetainStorage(m, m->Input.Epoch, ranges[i], ranges[i + 1])) return false;
+        }
+#endif
         return true;
     }
 #endif

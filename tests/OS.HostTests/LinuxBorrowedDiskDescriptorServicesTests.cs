@@ -54,6 +54,12 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static readonly RetainFs FsCanRetain = typeof(Fs).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainFs>();
     private delegate bool RetainProvider(W.State* provider, ulong epoch, ulong address, ulong bytes);
     private static readonly RetainProvider ProviderCanRetain = typeof(W).GetMethod("CanRetainStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<RetainProvider>();
+    private delegate bool TransportStorage(F.State* state, void* mount, W.State* provider, ulong epoch, void* writable, void* bindings, ulong bindingBytes);
+    private static readonly TransportStorage TransportInventory = typeof(F).GetMethod("TransportStorageOutside", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<TransportStorage>();
+    private static readonly Audit TransportIsShape = typeof(F).GetMethod("TransportShape", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
+    private delegate void TransportRange(F.State* state, uint index, out ulong start, out ulong bytes);
+    private static readonly TransportRange ReadTransportRange = typeof(F).GetMethod("TransportExtentAt", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<TransportRange>();
+    private static readonly uint TransportSlots = (uint)typeof(F).GetField("TransportExtentCount", BindingFlags.Static | BindingFlags.NonPublic)!.GetRawConstantValue()!;
     private static readonly Audit ProcessCurrent = typeof(LinuxThreadServices).GetMethod("DescriptorProcessCurrent", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Audit>();
     private static readonly Retain CanPublish = typeof(LinuxThreadServices).GetMethod("CanPublishDescriptorStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
     private static readonly Retain ProcessOutside = typeof(LinuxThreadServices).GetMethod("DescriptorProcessOutsideStorage", BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<Retain>();
@@ -735,6 +741,222 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static bool TestOverlap(ulong a, ulong bytes, ulong b, ulong count) =>
         bytes != 0 && count != 0 && a < b + count && b < a + bytes;
 
+    private static (ulong Start, ulong Bytes)[] TransportEntries(F.State* state)
+    {
+        List<(ulong, ulong)> result = [];
+        for (uint i = 0; i < TransportSlots; i++)
+        { ReadTransportRange(state, i, out ulong start, out ulong bytes); if (bytes != 0) result.Add((start, bytes)); }
+        return result.ToArray();
+    }
+
+    // Exact old transport inventory, using the same checked scalar owner
+    // leaves and retained shape. It grants no cached admission to later calls.
+    private static bool ScalarTransportInventory(F.State* state, void* mount, W.State* provider, ulong epoch,
+        void* writable, void* bindings, ulong bindingBytes)
+    {
+        if (GlobalSockets(ref *state) == null) return GlobalEpoll(ref *state) == null;
+        if (!TransportIsShape(state)) return false;
+        for (uint i = 0; i < TransportSlots; i++)
+        {
+            ReadTransportRange(state, i, out ulong start, out ulong bytes); if (bytes == 0) continue;
+            if (start == 0 || start > ulong.MaxValue - bytes ||
+                provider != null && !ProviderCanRetain(provider, epoch, start, bytes) ||
+                TestOverlap(start, bytes, (ulong)writable, writable == null ? 0UL : (ulong)sizeof(F.WritableDiskState)) ||
+                TestOverlap(start, bytes, (ulong)bindings, bindingBytes)) return false;
+            if (mount != null)
+            {
+                var m = (Fs.Mount*)mount;
+                if (!FsCanRetain(m, MountAdmission(ref *m).Epoch, start, bytes)) return false;
+                F.DiskState* d = GlobalDisk(ref *state);
+                if (d != null && (DiskMount(ref *d) != m || TestOverlap(start, bytes, (ulong)d, (ulong)sizeof(F.DiskState)) ||
+                    TestOverlap(start, bytes, (ulong)DiskBindings(ref *d), F.DiskSlots * (ulong)sizeof(F.DiskBinding)) ||
+                    TestOverlap(start, bytes, (ulong)DiskRequests(ref *d), F.DiskSlots * (ulong)sizeof(F.DiskRequest)))) return false;
+            }
+        }
+        return true;
+    }
+
+    private static void CheckTransportInventory(Owner o, void* mount, W.State* provider, ulong epoch,
+        void* writable, void* bindings, ulong bindingBytes, bool expected)
+    {
+        HostCheck.Equal(expected, ScalarTransportInventory(o.Files.State, mount, provider, epoch, writable, bindings, bindingBytes));
+        HostCheck.Equal(expected, TransportInventory(o.Files.State, mount, provider, epoch, writable, bindings, bindingBytes));
+    }
+
+    [HostTest("transport compact inventory matches scalar guards across full chunks late partial aliases and smaller subsequent owners without effects", HostLane.Native)]
+    private static void TransportInventoryBatches() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p =>
+        { p.PrepareWritable(); p.AttachPair(false); p.PrepareConnectedTransport(); });
+        void Equivalent(bool expected) => CheckTransportInventory(o, o.Storage.Mount, o.Provider, o.WriteAdmission.Epoch,
+            o.WriteDisk, o.WriteBindings, o.WriteAdmission.BindingCount * (ulong)sizeof(F.WritableDiskBinding), expected);
+        void QueriesOnly(Action query)
+        {
+            var before = o.SocketAuditSnapshot().Concat(TransportEntries(o.Files.State).Select(r =>
+                (r.Start, new ReadOnlySpan<byte>((void*)r.Start, checked((int)r.Bytes)).ToArray()))).ToArray();
+            uint device = o.Storage.Device.Hardware->Calls, socket = o.Connection!.Hardware->Calls, reads = o.Thread.Reads, writes = o.Thread.Writes;
+            query(); CheckSocketAuditSnapshot(before);
+            HostCheck.True(device == o.Storage.Device.Hardware->Calls && socket == o.Connection.Hardware->Calls && reads == o.Thread.Reads && writes == o.Thread.Writes);
+        }
+        int initial = TransportEntries(o.Files.State).Length;
+        HostCheck.True(initial is > 0 and <= 16 && TransportSlots == 142);
+        QueriesOnly(() => Equivalent(true));
+        o.EnqueueShared(); int twoChunks = TransportEntries(o.Files.State).Length;
+        HostCheck.True(twoChunks > 16 && twoChunks < 32); QueriesOnly(() => Equivalent(true));
+        o.EnqueueShared(); var populated = TransportEntries(o.Files.State);
+        HostCheck.True(populated.Length > 32 && populated.Length < 48); QueriesOnly(() => Equivalent(true));
+        QueriesOnly(() =>
+        {
+            byte* originalBuffer = SendBuffer(ref *o.Connection!.Owner);
+            try
+            {
+                SendBuffer(ref *o.Connection.Owner) = o.Storage.EngineInput.Before;
+                var entries = TransportEntries(o.Files.State);
+                int position = Array.FindIndex(entries, r => r.Start == (ulong)o.Storage.EngineInput.Before);
+                HostCheck.True(TransportIsShape(o.Files.State) && position is >= 0 and < 16);
+                Equivalent(false); // Backend alias in the first compact chunk.
+            }
+            finally { SendBuffer(ref *o.Connection.Owner) = originalBuffer; }
+            TcpConnectionTable.Owner* table = o.FirstSharedTable;
+            TcpConnectionTableEntry* originalEntries = TableEntries(ref *table); ulong* originalGenerations = TableGenerations(ref *table);
+            int entryBytes = checked((int)((ulong)table->Capacity * (ulong)sizeof(TcpConnectionTableEntry)));
+            byte[] preserved = new ReadOnlySpan<byte>(o.Storage.EngineInput.Before, entryBytes).ToArray();
+            foreach (bool entriesAlias in new[] { true, false })
+            {
+                try
+                {
+                    // Copy valid table values into idle backend scratch so the
+                    // socket shape remains valid. Only cross-owner exclusion
+                    // may reject the last first-chunk / first next-chunk pair.
+                    if (entriesAlias)
+                    {
+                        new ReadOnlySpan<byte>(originalEntries, entryBytes).CopyTo(new Span<byte>(o.Storage.EngineInput.Before, entryBytes));
+                        TableEntries(ref *table) = (TcpConnectionTableEntry*)o.Storage.EngineInput.Before;
+                    }
+                    else
+                    {
+                        int bytes = checked((int)((ulong)table->Capacity * 8UL));
+                        new ReadOnlySpan<byte>(originalGenerations, bytes).CopyTo(new Span<byte>(o.Storage.EngineInput.Before, bytes));
+                        TableGenerations(ref *table) = (ulong*)o.Storage.EngineInput.Before;
+                    }
+                    var entries = TransportEntries(o.Files.State);
+                    HostCheck.True(TransportIsShape(o.Files.State));
+                    HostCheck.Equal(entriesAlias ? 15 : 16, Array.FindIndex(entries, r => r.Start == (ulong)o.Storage.EngineInput.Before));
+                    Equivalent(false);
+                }
+                finally
+                {
+                    TableEntries(ref *table) = originalEntries; TableGenerations(ref *table) = originalGenerations;
+                    preserved.AsSpan().CopyTo(new Span<byte>(o.Storage.EngineInput.Before, entryBytes));
+                }
+            }
+            Equivalent(true);
+        });
+        Tx.Owner* last = o.LastTransportSender;
+        ref byte* buffer = ref SendBuffer(ref *last); byte* original = buffer;
+        ulong alias = (ulong)o.Storage.EngineInput.Before;
+        QueriesOnly(() =>
+        {
+            try
+            {
+                SendBuffer(ref *last) = (byte*)alias;
+                var entries = TransportEntries(o.Files.State);
+                HostCheck.True(TransportIsShape(o.Files.State) && Array.FindIndex(entries, r => r.Start == alias) >= 32);
+                Equivalent(false); // Invalid only in the late partial third chunk.
+                SendBuffer(ref *last) = (byte*)(alias - 7); HostCheck.True(TransportIsShape(o.Files.State)); Equivalent(false);
+                SendBuffer(ref *last) = (byte*)(alias + 511); HostCheck.True(TransportIsShape(o.Files.State)); Equivalent(false);
+            }
+            finally { SendBuffer(ref *last) = original; }
+            Equivalent(true);
+        });
+        QueriesOnly(() =>
+        {
+            CheckTransportInventory(o, o.Storage.Mount, o.Provider, o.WriteAdmission.Epoch, original, o.WriteBindings,
+                o.WriteAdmission.BindingCount * (ulong)sizeof(F.WritableDiskBinding), false);
+            CheckTransportInventory(o, o.Storage.Mount, o.Provider, o.WriteAdmission.Epoch, o.WriteDisk, original, 8, false);
+            ref F.DiskBinding* bindings = ref DiskBindings(ref *o.Disk); F.DiskBinding* savedBindings = bindings;
+            ref F.DiskRequest* requests = ref DiskRequests(ref *o.Disk); F.DiskRequest* savedRequests = requests;
+            try { bindings = (F.DiskBinding*)original; Equivalent(false); } finally { bindings = savedBindings; }
+            try { requests = (F.DiskRequest*)original; Equivalent(false); } finally { requests = savedRequests; }
+        });
+        // After exercising all full chunks and a poisoned partial tail, an
+        // independently configured smaller inventory must not inspect stale
+        // scratch entries left outside its exact used span.
+        using var smaller = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p =>
+        { p.PrepareWritable(); p.AttachPair(false); p.PrepareConnectedTransport(); });
+        HostCheck.True(TransportEntries(smaller.Files.State).Length == initial);
+        CheckTransportInventory(smaller, smaller.Storage.Mount, smaller.Provider, smaller.WriteAdmission.Epoch,
+            smaller.WriteDisk, smaller.WriteBindings, smaller.WriteAdmission.BindingCount * (ulong)sizeof(F.WritableDiskBinding), true);
+    });
+
+    [HostTest("transport compact inventory preserves stale retired malformed and no-transport early-return semantics", HostLane.Native)]
+    private static void TransportInventoryLifetimes() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p =>
+        { p.PrepareWritable(); p.AttachPair(false); p.PrepareConnectedTransport(); });
+        void Equivalent(bool expected) => CheckTransportInventory(o, o.Storage.Mount, o.Provider, o.WriteAdmission.Epoch,
+            o.WriteDisk, o.WriteBindings, o.WriteAdmission.BindingCount * (ulong)sizeof(F.WritableDiskBinding), expected);
+        var before = o.SocketAuditSnapshot(); uint callbacks = o.Storage.Device.Hardware->Calls, socket = o.Connection!.Hardware->Calls, reads = o.Thread.Reads, writes = o.Thread.Writes;
+        Equivalent(true);
+        CheckTransportInventory(o, o.Storage.Mount, o.Provider, o.WriteAdmission.Epoch + 1, o.WriteDisk, o.WriteBindings,
+            o.WriteAdmission.BindingCount * (ulong)sizeof(F.WritableDiskBinding), false);
+        ref B.Admission block = ref BlockInput(ref *o.Storage.Block); ulong epoch = block.Epoch;
+        try { block.Epoch++; Equivalent(false); } finally { block.Epoch = epoch; }
+        ref P.Inspection portBinding = ref PortBinding(ref *o.Storage.Mount); ref ulong portEpoch = ref BindingPortEpoch(ref portBinding); ulong savedPortEpoch = portEpoch;
+        try { portEpoch++; Equivalent(false); } finally { portEpoch = savedPortEpoch; }
+        ref Fs.Admission input = ref MountAdmission(ref *o.Storage.Mount);
+        uint count = input.OperationCount;
+        try { input.OperationCount = Fs.MaximumSlots + 1; Equivalent(false); } finally { input.OperationCount = count; }
+        ref byte phase = ref MountPhase(ref *o.Storage.Mount); byte savedPhase = phase;
+        try { phase = 4; Equivalent(false); } finally { phase = savedPhase; }
+        ref uint socketCount = ref SocketCount(ref *o.SocketState); uint savedCount = socketCount;
+        try { socketCount = Sockets.MaximumSockets + 1; HostCheck.True(!TransportIsShape(o.Files.State)); Equivalent(false); } finally { socketCount = savedCount; }
+        byte* original = SendBuffer(ref *o.Connection.Owner);
+        try { SendBuffer(ref *o.Connection.Owner) = (byte*)(ulong.MaxValue - 3); Equivalent(false); }
+        finally { SendBuffer(ref *o.Connection.Owner) = original; }
+        ref Sockets.State* sockets = ref GlobalSockets(ref *o.Files.State); Sockets.State* savedSockets = sockets;
+        ref Epoll.State* epoll = ref GlobalEpoll(ref *o.Files.State); Epoll.State* savedEpoll = epoll;
+        try
+        {
+            sockets = null; epoll = null;
+            // Original zero-transport branch must not query even these invalid
+            // optional owners, nor manufacture an all-empty batch admission.
+            CheckTransportInventory(o, (void*)2, (W.State*)2, 0, null, null, 0, true);
+            epoll = savedEpoll; CheckTransportInventory(o, (void*)2, (W.State*)2, 0, null, null, 0, false);
+        }
+        finally { sockets = savedSockets; epoll = savedEpoll; }
+        Equivalent(true); CheckSocketAuditSnapshot(before);
+        HostCheck.True(callbacks == o.Storage.Device.Hardware->Calls && socket == o.Connection.Hardware->Calls && reads == o.Thread.Reads && writes == o.Thread.Writes && F.Audit(o.Files.State));
+        HostCheck.Equal(B.Status.Success, B.Stop(o.Storage.Block)); Equivalent(true);
+    });
+
+    [HostTest("transport inventory preserves prepublication checks and nonborrowed read-only filesystem scalar fallback", HostLane.Native)]
+    private static void TransportInventoryLegacy() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var legacy = new ReadOnlyWebRootFileSystemTests.Fixture(); legacy.MountReady();
+        byte[] legacyBytes = new ReadOnlySpan<byte>(legacy.Arena, checked((int)legacy.UsedArenaBytes)).ToArray(); ulong polls = legacy.DrivePolls;
+        using var o = new Owner(File.ReadAllBytes(path), receipt, false, beforeThreads: p =>
+        {
+            p.PrepareWritable(); p.PrepareConnectedTransport();
+            HostCheck.True(!p.ReadAttached && !p.WriteAttached);
+            CheckTransportInventory(p, p.Storage.Mount, p.Provider, p.WriteAdmission.Epoch, p.WriteDisk, p.WriteBindings,
+                p.WriteAdmission.BindingCount * (ulong)sizeof(F.WritableDiskBinding), true);
+            // Actual direct-device mount, before either disk publication. The
+            // borrowed-only FS batch cannot replace its scalar query.
+            CheckTransportInventory(p, legacy.Mount, null, 0, null, null, 0, true);
+            ref byte phase = ref MountPhase(ref *legacy.Mount); byte saved = phase;
+            try { phase = 4; CheckTransportInventory(p, legacy.Mount, null, 0, null, null, 0, false); }
+            finally { phase = saved; }
+            p.AttachPair(false);
+        });
+        var before = o.SocketAuditSnapshot();
+        // After publication, another valid mount cannot silently substitute
+        // for the original read attachment.
+        CheckTransportInventory(o, legacy.Mount, null, 0, null, null, 0, false);
+        CheckSocketAuditSnapshot(before); HostCheck.True(legacy.DrivePolls == polls &&
+            legacyBytes.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(legacy.Arena, legacyBytes.Length)) && F.Audit(o.Files.State));
+    });
+
     [HostTest("descriptor retained base and pair inventories match scalar guards before malformed FS extent reads", HostLane.Native)]
     private static void DescriptorInventoryBatches() => WithOwner(o =>
     {
@@ -1207,6 +1429,20 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static extern ref ulong DescriptionPosition(ref F.Description description);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Owner")]
     private static extern ref F.Admission GlobalInput(ref F.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Disk")]
+    private static extern ref F.DiskState* GlobalDisk(ref F.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Sockets")]
+    private static extern ref Sockets.State* GlobalSockets(ref F.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Epoll")]
+    private static extern ref Epoll.State* GlobalEpoll(ref F.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Mount")]
+    private static extern ref Fs.Mount* DiskMount(ref F.DiskState state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Bindings")]
+    private static extern ref F.DiskBinding* DiskBindings(ref F.DiskState state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Requests")]
+    private static extern ref F.DiskRequest* DiskRequests(ref F.DiskState state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Count")]
+    private static extern ref uint SocketCount(ref Sockets.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Memory")]
     private static extern ref LinuxMemoryServices.Admission MemoryAdmission(ref LinuxMemoryServices.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "PortBinding")]
@@ -1217,6 +1453,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
     private static extern ref byte MountPhase(ref Fs.Mount mount);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "EngineOwner")]
     private static extern ref ulong BindingEngine(ref P.Inspection binding);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Epoch")]
+    private static extern ref ulong BindingPortEpoch(ref P.Inspection binding);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Input")]
     private static extern ref W.Admission ProviderInput(ref W.State state);
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Buffer")]
@@ -1267,6 +1505,8 @@ internal static unsafe class LinuxBorrowedDiskDescriptorServicesTests
         private Epoll.Registration* registrations;
         internal uint Listener, Connected, EpollFd;
         internal TcpSendWindowTests.Fixture? Connection;
+        internal TcpConnectionTable.Owner* FirstSharedTable => sharedConnections[0].Table;
+        internal Tx.Owner* LastTransportSender => sharedConnections.Count == 0 ? Connection!.Owner : sharedConnections[^1].Sender(1);
         internal LinuxSocketNetworkTests.PacketCarrier? PacketNetwork;
         internal uint PacketLocal;
         private readonly List<TcpSendWindowTests.Fixture> connections = [];
