@@ -72,6 +72,28 @@ internal static class LinuxSignalEpollTranscriptTests
         HostCheck.True(rejected);
     }
 
+    [HostTest("m16-020 epoll race requires no progress before exit_group and exact nonexit poll pairs")]
+    private static void ExitProgress()
+    {
+        string[] rows=Synthetic();
+        int Call(ulong nr)=>Array.FindIndex(rows,r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal)&&T.Field(r,"nr")==nr);
+        int exit=Call(231);
+        ulong clock=T.Field(rows[exit],"clock");
+        string poll=FormattableString.Invariant($"M16_012_POLL identity=4294967297 clock={clock} ready=0 idle=0");
+        Reject([..rows[..exit],poll,..rows[exit..]]);
+        Reject([..rows[..exit],poll,poll,..rows[exit..]]);
+        Reject(T.Change(rows,exit,"clock",clock-1));Reject(T.Change(rows,exit,"clock",clock+1));
+        foreach(ulong nr in new ulong[]{39,60})
+        {
+            int at=Call(nr);
+            Reject(rows.Where((_,i)=>i!=at-1).ToArray());
+            Reject(rows.Where((_,i)=>i!=at-1&&i!=at-2).ToArray());
+        }
+        Reject(T.Change(rows,exit,"nr",60));Reject(T.Change(rows,exit,"a0",0));
+        Reject(T.Change(rows,exit,"action",1));Reject(T.Change(rows,exit,"status",1));
+        Reject(T.Change(rows,exit,"ordinal",T.Field(rows[exit],"ordinal")+1));
+    }
+
     // Deterministic controls pin the Parking state and standard close inventory
     // observed in failed r03. These synthetic clocks/rows grant no guest proof.
     private static string[] Synthetic()
@@ -87,7 +109,8 @@ internal static class LinuxSignalEpollTranscriptTests
         }
         void Emit(ulong nr,long value=0,ulong a=0,ulong b=0,ulong c=0,ulong d=0,ulong e=0,ulong action=1,ulong status=1,ulong ready=0)
         {
-            ulong identity=child?4294967298UL:4294967297UL;Poll(identity,ready);
+            ulong identity=child?4294967298UL:4294967297UL;
+            if(nr!=231)Poll(identity,ready);
             if(nr==1&&a==1)rows.Add("M16_005_WRITE fd=1 bytes=15 data="+(handler?"M16_HANDLER_OK!":"M16_SIGNALS_OK!"));
             var instruction=instructions[call++];int ordinal=ordinals.GetValueOrDefault(identity)+1;ordinals[identity]=ordinal;
             ulong rsp=child?0x406000UL:handler?nr==15?0x406c40UL:0x406c38UL:0x405000UL,fs=child?0x403000UL:call<=2?0UL:0x402000UL;
