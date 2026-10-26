@@ -420,7 +420,8 @@ public static partial class QemuTranscripts
                     LinuxSyscallGateway.ValidateUserFlags(c["flags"], false) && (c["flags"] & 0x400) == 0 && c["signalDepth"] == 0 && c["signalFrame"] == 0 && c["blockedSignals"] == 0 &&
                     c["returnRip"] == c["rip"] && c["returnRsp"] == stack && c["returnFlags"] == c["flags"] && c["returnFs"] == 0 && c["returnGs"] == 0 && c["returnValueBits"] == c["valueBits"], "call");
                 WdClock(c["clock"], ref tableClock);
-                bool async = active.Number is 0 or 17 or 74 or 328 or 87 || active.Number == 2 && active.Role != "open.outside";
+                bool rootOpen = WdRootOpen(active);
+                bool async = active.Number is 0 or 17 or 74 or 328 or 87 || active.Number == 2 && active.Role != "open.outside" && !rootOpen;
                 if (active.Role == "read.closed") async = false;
                 if (async)
                 {
@@ -438,6 +439,17 @@ public static partial class QemuTranscripts
                     bool exit = active.Number == 231;
                     WdNeed(c["waitSource"] == 0 && c["waitDeadline"] == 0 && c["waitSequence"] == 0 && c["valueBits"] == unchecked((ulong)active.Result) &&
                         c["action"] == (exit ? 2UL : 1UL) && c["status"] == (exit ? 2UL : 1UL), "immediate");
+                    if (rootOpen)
+                    {
+                        // Mounted-root open publishes immediately after consuming
+                        // one descriptor request, without a provider wait/token.
+                        ulong free = 3; while (fds.ContainsKey(free)) free++;
+                        ulong description = 3; while (fds.Values.Any(x => x.Description == description)) description++;
+                        fdGenerations.TryGetValue(free, out ulong generation);
+                        WdNeed(free < 32 && description < 32 && active.Result >= 3 && (ulong)active.Result == free && generation < uint.MaxValue, "root_open_publish");
+                        fdGenerations[free] = generation + 1;
+                        fds.Add(free, (generation + 1, description, ++request));
+                    }
                     if (active.Number == 3) WdNeed(fds.Remove(active.A0), "close_binding");
                     if (exit) { WdNeed(witness && fds.Count == 0, "exit_fds"); exitCall = true; supervisor = 2; }
                     lastReturn = first + index;
@@ -541,6 +553,10 @@ public static partial class QemuTranscripts
         DistinctExtents(inside, "writable_binding_internal");
         DistinctExtents([(arena, length), (b["bar"], 16384), (b["boot"], b["bootBytes"]), (b["nativeOwner"], b["nativeOwnerBytes"])], "writable_binding_external");
     }
+
+    private static bool WdRootOpen(Fixture.CallSpec call) => call.Number == 2 &&
+        (call.Role is "sync.parent-open" or "sync.deleted-parent-open" or "parent.open") &&
+        call.A0 == Fixture.RootName && call.A1 == Fixture.RootFlags && call.A2 == 0 && call.A3 == 0 && call.A4 == 0 && call.A5 == 0 && call.OutputBytes == 0;
 
     private static void WdBeginBinding(Dictionary<string, ulong> p, IReadOnlyDictionary<string, ulong> b, Fixture.CallSpec call,
         Dictionary<ulong, (ulong Generation, ulong Description, ulong Binding)> fds, Dictionary<ulong, ulong> generations,

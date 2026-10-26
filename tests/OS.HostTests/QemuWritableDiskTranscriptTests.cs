@@ -115,6 +115,80 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         }
     }
 
+    [HostTest("writable canonical root opens return inline and advance only descriptor request fd and binding generations")]
+    private static void RootOpenPublication()
+    {
+        foreach (bool log in new[] { false, true })
+        foreach (ulong providerBase in new ulong[] { 0, 100 })
+        {
+            var e = Synthetic(log, providerBase: providerBase); var report = Inspect(e);
+            var calls = log ? F.LogUploadCalls() : F.Calls();
+            int[] roots = log ? [35] : [14, 24];
+            foreach (int ordinal in roots)
+            {
+                int at = CallAt(e, ordinal); string root = e.All[at]; var spec = calls[ordinal - 1];
+                HostCheck.True(spec.Number == 2 && spec.A0 == F.RootName && spec.A1 == F.RootFlags && spec.A2 == 0 && spec.A3 == 0 && spec.A4 == 0 && spec.A5 == 0);
+                HostCheck.Equal(1UL, Field(root, "action")); HostCheck.Equal(1UL, Field(root, "status"));
+                HostCheck.Equal(unchecked((ulong)spec.Result), Field(root, "valueBits"));
+                HostCheck.Equal(Field(root, "valueBits"), Field(root, "returnValueBits"));
+                foreach (string key in new[] { "waitSource", "waitDeadline", "waitSequence" }) HostCheck.Equal(0UL, Field(root, key));
+                HostCheck.True(!e.All.Any(row => row.StartsWith("M16_027_BEGIN ", StringComparison.Ordinal) && Field(row, "ordinal") == (ulong)ordinal));
+                int next = CallAt(e, ordinal + 1); string begun = e.All[next + 1];
+                HostCheck.True(begun.StartsWith("M16_027_BEGIN ", StringComparison.Ordinal));
+                ulong binding = log ? 27UL : ordinal == 14 ? 8UL : 14UL;
+                ulong sequence = log ? 27UL : ordinal == 14 ? 8UL : 13UL;
+                ulong generation = 1 + (ulong)calls.Take(ordinal - 1).Count(call => call.Number == 2 && call.Result == spec.Result);
+                HostCheck.Equal(sequence, Field(e.All[next], "waitSequence")); HostCheck.Equal(sequence, Field(begun, "sequence"));
+                HostCheck.Equal(binding + 1, Field(begun, "request")); HostCheck.Equal(binding, Field(begun, "bindingGeneration"));
+                HostCheck.Equal(providerBase + sequence, Field(begun, "providerRequest"));
+                HostCheck.Equal(unchecked((ulong)spec.Result), Field(begun, "fd"));
+                HostCheck.Equal(unchecked((ulong)spec.Result), Field(begun, "description"));
+                HostCheck.Equal(generation, Field(begun, "fdGeneration"));
+            }
+            // The measured Mechanical ordinal14 returns fd5 inline; its next
+            // fsync retains descriptor request9, wait sequence8, provider8 and
+            // root binding8. The zero-base synthetic case copies those numbers.
+            foreach (var regular in calls.Select((call, index) => (call, index)).Where(x => x.call.Number == 2 && !RootCall(x.call) && x.call.Role != "open.outside"))
+            {
+                string row = e.All[CallAt(e, regular.index + 1)];
+                HostCheck.True(Field(row, "action") == 3 && Field(row, "status") == 9 && Field(row, "waitSource") == 5);
+            }
+            HostCheck.True(report.CheckedCallAndWaitValues && !report.NativeQualified && !report.WholeCaptureQualified);
+        }
+    }
+
+    [HostTest("writable root publication rejects blocking shape wrong fd descriptor increments wait and subsequent binding changes")]
+    private static void RootOpenMutations()
+    {
+        foreach (bool log in new[] { false, true })
+        {
+            var e = Synthetic(log, providerBase: 0);
+            foreach (int ordinal in log ? new[] { 35 } : new[] { 14, 24 })
+            {
+                int root = CallAt(e, ordinal), next = CallAt(e, ordinal + 1), begin = next + 1;
+                string blocked = e.All[root];
+                foreach ((string key, ulong value) in new (string, ulong)[] { ("action", 3), ("status", 9), ("valueBits", 0), ("returnValueBits", 0), ("waitSource", 5), ("waitSequence", Field(e.All[next], "waitSequence")) })
+                    blocked = Changed(blocked, key, value);
+                Reject(() => Inspect(e.Replace(root, blocked)));
+                string wrongFd = Changed(Changed(e.All[root], "valueBits", Field(e.All[root], "valueBits") + 1), "returnValueBits", Field(e.All[root], "valueBits") + 1);
+                Reject(() => Inspect(e.Replace(root, wrongFd)));
+                foreach (string key in new[] { "waitSource", "waitDeadline", "waitSequence" }) Reject(() => Inspect(Change(e, root, key, 1)));
+                ulong request = Field(e.All[begin], "request");
+                Reject(() => Inspect(Change(e, begin, "request", request - 1))); // Root request was omitted.
+                Reject(() => Inspect(Change(e, begin, "request", request + 1))); // Root request was counted twice.
+                Reject(() => Inspect(Change(e, next, "waitSequence", Field(e.All[next], "waitSequence") + 1)));
+                Reject(() => Inspect(Change(e, begin, "sequence", Field(e.All[begin], "sequence") + 1)));
+                foreach (string key in new[] { "fd", "description", "fdGeneration", "bindingGeneration" })
+                    Reject(() => Inspect(Change(e, begin, key, Field(e.All[begin], key) + 1)));
+                Reject(() => Inspect(Change(e, begin, "providerRequest", Field(e.All[begin], "providerRequest") - 1)));
+            }
+            int regular = CallAt(e, 1); string immediate = e.All[regular];
+            foreach ((string key, ulong value) in new (string, ulong)[] { ("action", 1), ("status", 1), ("valueBits", 3), ("returnValueBits", 3), ("waitSource", 0), ("waitSequence", 0) })
+                immediate = Changed(immediate, key, value);
+            Reject(() => Inspect(e.Replace(regular, immediate)));
+        }
+    }
+
     [HostTest("writable native descriptor policy binds ELF payload bytes and rejects package envelope length")]
     private static void PackagePayloadPolicy()
     {
@@ -245,6 +319,7 @@ internal static unsafe class QemuWritableDiskTranscriptTests
     }
     private static Q.WritableDiskValueReport Inspect(Evidence e) => Q.InspectWritableDiskLeafValues(e.Leaf, e.First, e.All.Length, e.Selected, e.Package, e.Log);
     private static int Find(Evidence e, string prefix) { int at = Array.FindIndex(e.All, s => s.StartsWith(prefix, StringComparison.Ordinal)); HostCheck.True(at >= 0); return at; }
+    private static int CallAt(Evidence e, int ordinal) { int at = Array.FindIndex(e.All, s => s.StartsWith("M16_008_CALL ", StringComparison.Ordinal) && Field(s, "ordinal") == (ulong)ordinal); HostCheck.True(at >= 0); return at; }
     private static ulong Field(string row, string key) => ulong.Parse(Regex.Match(row, @"(?:^| )" + key + @"=([0-9]+)(?: |$)").Groups[1].Value, CultureInfo.InvariantCulture);
     private static string Changed(string row, string key, ulong value) => Regex.Replace(row, @"(?<=\b" + key + @"=)[0-9]+", value.ToString(CultureInfo.InvariantCulture));
     private static Evidence Change(Evidence e, int at, string field, ulong value) => e.Replace(at, Changed(e.All[at], field, value));
@@ -282,12 +357,16 @@ internal static unsafe class QemuWritableDiskTranscriptTests
             Completed++; State(); Io(B.Operation.Read, sector, (byte)(cancelled || held ? 3 : 7), B.Status.Success, cancelled, cancelled || held ? null : Sector(sector)); }
     }
 
-    private static Evidence Synthetic(bool log, byte[]? raw = null)
+    private static bool RootCall(F.CallSpec call) => call.Number == 2 &&
+        call.Role is "sync.parent-open" or "sync.deleted-parent-open" or "parent.open" &&
+        call.A0 == F.RootName && call.A1 == F.RootFlags && call.A2 == 0 && call.A3 == 0 && call.A4 == 0 && call.A5 == 0 && call.OutputBytes == 0;
+
+    private static Evidence Synthetic(bool log, byte[]? raw = null, ulong providerBase = 100)
     {
         var w = new Writer { Image = raw }; string initialState = w.Rows[0]; w.Rows.Clear(); w.StateIoRows = 0;
         w.Rows.AddRange(Enumerable.Repeat("original parent row", 50)); const int first = 50;
         byte[] package = log ? F.CreateLogUploadPackage() : F.CreatePackage(); var calls = log ? F.LogUploadCalls() : F.Calls();
-        ulong stack = Stack(package), clock = 100, sequence = 0, request = 0; int transfers = 0;
+        ulong stack = Stack(package), clock = 100, sequence = 0, request = 0, providerRequest = providerBase; int transfers = 0;
         w.Rows.AddRange(["TEST_START m16-009", "M16_006_POLICY physical=536870912 available=268435456 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
             $"M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes={LinuxElfPackage.Validate(package).PayloadBytes} package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
             "M16_011_BOUND connections=8 rx=8192 tx=32768 epoll=4 watches=64 nic=live", "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=3145728 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null", "TEST_START m16.027"]);
@@ -297,23 +376,27 @@ internal static unsafe class QemuWritableDiskTranscriptTests
         w.Rows.Add($"M16_008_BOUND root=1048576 pool=4194304 workers=2 code={LinuxThreadProgram.Bytes} metadata={LinuxThreadProgram.MetadataPages * 4096} userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack");
         w.Rows.Add("M16_008_BUDGET started=1 epochs=8192 steps=16384 nanos=300000000000");
         Dictionary<ulong, (ulong Generation, ulong Description, ulong Binding)> fds = []; Dictionary<ulong, ulong> generations = [];
+        void OpenReservation(out ulong fd, out ulong description, out ulong generation)
+        { fd = 3; while (fds.ContainsKey(fd)) fd++; ulong selectedDescription = 3; while (fds.Values.Any(v => v.Description == selectedDescription)) selectedDescription++; description = selectedDescription; generations.TryGetValue(fd, out generation); }
         void Supervisor(int action) { transfers += 2; w.Rows.Add($"M16_008_SUPERVISOR identity=4294967297 action={action} transfers={transfers} ready=0 active=1"); }
         for (int ordinal = 0; ordinal < calls.Count; ordinal++)
         {
-            var c = calls[ordinal]; bool async = c.Number is 0 or 17 or 74 or 328 or 87 || c.Number == 2 && c.Role != "open.outside"; if (c.Role == "read.closed") async = false;
+            var c = calls[ordinal]; bool root = RootCall(c);
+            bool async = c.Number is 0 or 17 or 74 or 328 or 87 || c.Number == 2 && !root && c.Role != "open.outside"; if (c.Role == "read.closed") async = false;
             if (ordinal == 0) w.Read(140000); // A real dispatch sample may precede CALL/BEGIN serialization.
             if (c.Role == "witness") { string witness = log ? F.LogUploadWitness : F.Witness; w.Rows.Add($"M16_005_WRITE fd=1 bytes={witness.Length} data={witness}"); }
-            if (async) { sequence++; request++; }
+            if (async) { sequence++; request++; providerRequest++; }
+            else if (root) request++; // Immediate root open has no provider work/wait generation.
             bool exit = c.Number == 231; ulong value = unchecked((ulong)(async ? 0 : c.Result));
             w.Rows.Add(FormattableString.Invariant($"M16_008_CALL identity=4294967297 nr={c.Number} a0={c.A0} a1={c.A1} a2={c.A2} a3={c.A3} a4={c.A4} a5={c.A5} rip={c.ReturnRip} rsp={stack} flags=2 fs=0 gs=0 clock={clock++} valueBits={value} action={(async ? 3 : exit ? 2 : 1)} status={(async ? 9 : exit ? 2 : 1)} ordinal={ordinal + 1} waitSource={(async ? 5 : 0)} waitDeadline=0 waitSequence={(async ? sequence : 0)} signalDepth=0 signalFrame=0 blockedSignals=0 returnRip={c.ReturnRip} returnRsp={stack} returnFlags=2 returnFs=0 returnGs=0 returnValueBits={value}"));
             if (async)
             {
                 ulong reservedFd = 0, reservedDescription = 0, reservedGeneration = 0, fdOwner = 0, fd = 0, fdGeneration = 0, description = 0, bindingGeneration = 0;
                 if (c.Number == 2)
-                { reservedFd = 3; while (fds.ContainsKey(reservedFd)) reservedFd++; reservedDescription = 3; while (fds.Values.Any(v => v.Description == reservedDescription)) reservedDescription++; generations.TryGetValue(reservedFd, out reservedGeneration); }
+                    OpenReservation(out reservedFd, out reservedDescription, out reservedGeneration);
                 else if (c.Number != 87) { var binding = fds[c.A0]; fdOwner = Boot + 4096; fd = c.A0; fdGeneration = binding.Generation; description = binding.Description; bindingGeneration = binding.Binding; }
                 ulong operation = c.Number switch { 2 => 1, 0 or 17 => 2, 328 => 3, 74 => 4, _ => 5 };
-                w.Rows.Add(FormattableString.Invariant($"M16_027_BEGIN identity=4294967297 ordinal={ordinal + 1} sequence={sequence} requestOwner={WriteAttachment} requestEpoch=272 request={request} nr={c.Number} rip={c.ReturnRip} outputPrefix={c.OutputBytes} fdOwner={fdOwner} fd={fd} fdGeneration={fdGeneration} description={description} bindingGeneration={bindingGeneration} reservedFd={reservedFd} reservedDescription={reservedDescription} reservationGeneration={reservedGeneration} providerOwner={Provider} providerEpoch=272 providerRequest={request + 100} operation={operation} phase=1 clock={clock++}"));
+                w.Rows.Add(FormattableString.Invariant($"M16_027_BEGIN identity=4294967297 ordinal={ordinal + 1} sequence={sequence} requestOwner={WriteAttachment} requestEpoch=272 request={request} nr={c.Number} rip={c.ReturnRip} outputPrefix={c.OutputBytes} fdOwner={fdOwner} fd={fd} fdGeneration={fdGeneration} description={description} bindingGeneration={bindingGeneration} reservedFd={reservedFd} reservedDescription={reservedDescription} reservationGeneration={reservedGeneration} providerOwner={Provider} providerEpoch=272 providerRequest={providerRequest} operation={operation} phase=1 clock={clock++}"));
                 Supervisor(3);
                 if (c.Number is 328 or 87 || c.Number == 2 && (c.A1 & 0x40) != 0) { w.Write(140001); w.Flush(); }
                 else if (c.Number == 74) w.Flush(); else if (c.Number is 0 or 17 && c.Result > 0) w.Read(140002);
@@ -321,6 +404,12 @@ internal static unsafe class QemuWritableDiskTranscriptTests
                 w.Rows.Add(FormattableString.Invariant($"M16_027_COMPLETE identity=4294967297 sequence={sequence} requestOwner={WriteAttachment} requestEpoch=272 request={request} nr={c.Number} rip={c.ReturnRip} outputBytes={c.OutputBytes} completion=1 action=1 valueBits={unchecked((ulong)c.Result)} clock={clock++}"));
                 w.Rows.Add($"M16_008_RESUME identity=4294967297 valueBits={unchecked((ulong)c.Result)} status=1");
                 if (c.Number == 2 && c.Result >= 0) { generations[reservedFd] = reservedGeneration + 1; fds.Add(reservedFd, (reservedGeneration + 1, reservedDescription, request)); }
+            }
+            else if (root)
+            {
+                OpenReservation(out ulong fd, out ulong description, out ulong generation);
+                HostCheck.Equal(unchecked((ulong)c.Result), fd); HostCheck.True(fd < 32 && description < 32 && generation < uint.MaxValue);
+                generations[fd] = generation + 1; fds.Add(fd, (generation + 1, description, request));
             }
             else if (c.Number == 3) fds.Remove(c.A0);
             if (exit) { w.Rows.Add("M16_008_EXIT identity=4294967297 clearTidResult=0"); Supervisor(2); }
