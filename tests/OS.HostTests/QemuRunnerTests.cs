@@ -54,6 +54,7 @@ internal static class QemuRunnerTests
             Run("qemu writable preflight holds real distinct raw identities", () => WritablePreflight(tempRoot), ref failures);
             Run("qemu writable lease allows changed bytes within original extent", () => WritableContent(tempRoot), ref failures);
             Run("qemu writable lease rejects raw shape and original aliases", () => WritableInvalidImages(tempRoot), ref failures);
+            Run("qemu writable directory link cleanup precedes full snapshots", () => WritableLinkCleanupBeforeSnapshots(tempRoot), ref failures);
             Run("qemu writable lease retains both handles for actual unjoined child", () => WritableChildLifetime(tempRoot), ref failures);
             Run("qemu writable lease detects extent and named identity revocation", () => WritableRevocation(tempRoot), ref failures);
             Run("qemu writable fake child joins before successful identity receipt", () => WritableFakeChild(tempRoot, false), ref failures);
@@ -484,10 +485,14 @@ internal static class QemuRunnerTests
             result.Output.Contains("WRITABLE_DATA_LIFETIME joined=false finalVerified=false acceptance=pending", StringComparison.Ordinal) &&
             !File.Exists(Path.Combine(f.Root, "serial.log"));
         string redirect = Path.Combine(f.Root, "output-link"); Directory.CreateSymbolicLink(redirect, f.Root);
-        var alias = RunQemuRunner(["preflight", .. WritableArguments(f.Root, f.Boot, f.Data),
-            "--summary-log", Path.Combine(redirect, "working.raw")]);
-        return valid && alias.ExitCode != 0 && alias.Output.Contains("writable_data_reparse_path", StringComparison.Ordinal) &&
-            !File.Exists(Path.Combine(f.Root, "serial.log")) && File.ReadAllBytes(f.Data).All(value => value == 0);
+        try
+        {
+            var alias = RunQemuRunner(["preflight", .. WritableArguments(f.Root, f.Boot, f.Data),
+                "--summary-log", Path.Combine(redirect, "working.raw")]);
+            return valid && alias.ExitCode != 0 && alias.Output.Contains("writable_data_reparse_path", StringComparison.Ordinal) &&
+                !File.Exists(Path.Combine(f.Root, "serial.log")) && File.ReadAllBytes(f.Data).All(value => value == 0);
+        }
+        finally { Directory.Delete(redirect, recursive: false); }
     }
 
     private static bool WritableContent(string root)
@@ -533,9 +538,40 @@ internal static class QemuRunnerTests
         }
         string redirect = Path.Combine(f.Root, "redirect");
         Directory.CreateSymbolicLink(redirect, f.Root);
-        if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot,
-            Path.Combine(redirect, "working.raw")); })) return false;
-        return true;
+        try
+        {
+            if (!WritableReject(() => { using var _ = OS.Tools.QemuRunner.WritableDataImageLease.Open(f.Boot,
+                Path.Combine(redirect, "working.raw")); })) return false;
+            return true;
+        }
+        finally { Directory.Delete(redirect, recursive: false); }
+    }
+
+    private static bool WritableLinkCleanupBeforeSnapshots(string root)
+    {
+        string shared = Path.Combine(root, "writable-link-snapshot");
+        Directory.CreateDirectory(shared);
+        long allocatedBefore = GC.GetTotalAllocatedBytes(precise: true);
+        var elapsed = Stopwatch.StartNew();
+        try
+        {
+            if (!WritablePreflight(shared) ||
+                Directory.GetFileSystemEntries(Path.Combine(shared, "writable-preflight"), "output-link", SearchOption.TopDirectoryOnly).Length != 0)
+                return false;
+            if (!WritableInvalidImages(shared) ||
+                Directory.GetFileSystemEntries(Path.Combine(shared, "writable-invalid"), "redirect", SearchOption.TopDirectoryOnly).Length != 0)
+                return false;
+            bool inactive = TestM01RawObservationDryRunIsInactiveAndSideEffectFree(shared);
+            bool paging = TestM01RawObservationLogRequiresOwnedPaging(shared);
+            return inactive && paging;
+        }
+        finally
+        {
+            elapsed.Stop();
+            long allocated = GC.GetTotalAllocatedBytes(precise: true) - allocatedBefore;
+            using Process process = Process.GetCurrentProcess();
+            Console.WriteLine($"QEMU_LINK_SNAPSHOT_OBSERVATION elapsedMs={elapsed.ElapsedMilliseconds} managedAllocatedBytesAllThreads={allocated} processLifetimePeakWorkingSetBytes={process.PeakWorkingSet64}");
+        }
     }
 
     private static bool WritableChildLifetime(string root)
@@ -7503,12 +7539,12 @@ internal static class QemuRunnerTests
 
     private static string[] SnapshotFileSystemEntries(string path)
     {
-        return Directory.GetFileSystemEntries(
+        string[] entries = Directory.GetFileSystemEntries(
                 path,
                 "*",
-                SearchOption.AllDirectories)
-            .OrderBy(value => value, StringComparer.Ordinal)
-            .ToArray();
+                SearchOption.AllDirectories);
+        Array.Sort(entries, StringComparer.Ordinal);
+        return entries;
     }
 
     private static string RemoveWhitespace(string value)
