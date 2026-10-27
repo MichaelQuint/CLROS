@@ -82,16 +82,21 @@ internal static class NativeAotDiskStaticCaptureTests
         var host = new Host(mode);
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(50));
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
-        Task<NativeAotDiskStaticPeer.Completion> operation = NativeAotDiskStaticPeer.RunAsync(
-            host.Root, host.Serial, host.RunAsync, cancellation.Token);
+        var bodyCopied = new TaskCompletionSource<long>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<NativeAotDiskStaticPeer.Completion> operation = mode == Mode.CancelBody
+            ? NativeAotDiskStaticPeer.RunCoreAsync(host.Root, host.Serial, host.RunAsync, cancellation.Token, null, null,
+                (ordinal, copied) => { if (ordinal == 3 && copied == 8) bodyCopied.TrySetResult(copied); })
+            : NativeAotDiskStaticPeer.RunAsync(host.Root, host.Serial, host.RunAsync, cancellation.Token);
         NativeAotDiskStaticPeer.Completion? completion = null;
         bool wrongStatus = false, cancelled = false;
         try
         {
             if (mode == Mode.CancelBody)
             {
-                await host.BodyStarted.Task.WaitAsync(TimeSpan.FromSeconds(20), deadline.Token);
-                HostCheck.True(File.Exists(host.Serial) && !operation.IsCompleted);
+                await Task.WhenAll(host.BodyStarted.Task, bodyCopied.Task).WaitAsync(TimeSpan.FromSeconds(20), deadline.Token);
+                HostCheck.Equal(8L, await bodyCopied.Task);
+                HostCheck.True(host.Index.Length > 8 && !deadline.IsCancellationRequested &&
+                    File.Exists(host.Serial) && !operation.IsCompleted);
                 cancellation.Cancel();
             }
             try { completion = await operation; }

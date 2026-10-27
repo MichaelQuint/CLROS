@@ -1,7 +1,7 @@
 <p align="center">
 
 <!-- step1625-progress-development -->
-[Step1627](done/step1627.md) retains a fresh complete Progress original pass:27 calls,9 disk requests and2 independently joined child-entry witnesses, with source/image/native/packet/cleanup checks. The earlier original remains failed. Current staged middleware native review and full guest-origin Blazor qualification are next; #770–#774 remain open.
+[Step1627](done/step1627.md) retains the complete Progress mechanical original and its independent disk/entry-time census. [Step1629](done/step1629.md) records the conditional staged017 native closure and three fresh complete staged middleware originals at frozen `2df449b8`: each26 HTTP responses, verified application exit/cleanup and exactly one satisfied WEB_IMAGE_JOIN. Earlier failed originals remain failed. The current unfiltered full r03 passes 7,332 checks across 918 fixtures (808 Fast, 110 Native), unchanged inputs and zero reuse. This qualifies the finite staged scope of #772 with the reviewed historical ancestor regressions. Full r01/r02 remain failed; the source-pin and strict client-body rendezvous repairs retain their focused and current full results. Full FAT32/Blazor/browser, persistent writes, SQLite durability and sustained service remain open.
 
 [Step1628](done/step1628.md) adds a measured SQLite `F_GETLK` returned observation to the typed host trace reader, with48 focused Fast checks. This is preparatory trace support; guest locking, persistent writes and SQLite durability remain open.
 

@@ -13,7 +13,22 @@ row, LP64 values, overflow, descriptor reuse/staleness and annotations. These
 values establish no guest syscall, synchronization or durability acceptance.
 
 <!-- step1625-progress-development -->
-[Step1627](../done/step1627.md) retains a fresh source-matched Progress complete-consumer pass and independent census:30 post-readiness transactions,9 request windows,4 data reads and2 exact child-entry witnesses. Bootstrap37 are boundary counters. Every whole transaction retains one request owner and independent sector coverage; shared cursor8200 and independent cursor0 reconcile. A witness is the adjacent identity-bound syscall-entry timestamp strictly between one main-read submit and completion validation, not printed row position, duration overlap, dispatch/completion or hardware busy time. Failed original r01 stays failed; #770–#774 and product storage acceptance remain open.
+[Step1627](../done/step1627.md) retains a fresh source-matched Progress complete-consumer pass and independent census:30 post-readiness transactions,9 request windows,4 data reads and2 exact child-entry witnesses. Bootstrap37 are boundary counters. Every whole transaction retains one request owner and independent sector coverage; shared cursor8200 and independent cursor0 reconcile. A witness is the adjacent identity-bound syscall-entry timestamp strictly between one main-read submit and completion validation, not printed row position, duration overlap, dispatch/completion or hardware busy time. Failed original r01 stays failed; #770/#771/#773/#774 and product storage acceptance remain open. #772 qualifies only the separate package-staged scope.
+
+
+The independent Progress census also retains actual cold/warm FAT-cache reads:
+cold generations38-45 contain two directory sectors and three mirrored FAT
+pairs; warm46-47 contains only the two directory sectors and no FAT reads.
+Every512-byte copy matches independently extracted image bytes. The511hits and
+3misses corroborate those physical joins; counters alone are not the witness.
+Eviction, failed fills, generation invalidation and the two interleaved cursor
+bounds remain explicit host controls. [Step1629](../done/step1629.md) records
+this acceptance mapping without inventing a new cache or guest getdents API.
+
+Step1629 also retains three complete small package-staged middleware originals;
+those advance only the memory-backed intermediate. Pending close/reuse and
+same-delay timer/runtime witnesses, the current complete mechanical matrix,
+Full018 disk/Blazor/browser and all write/SQLite/durability gates remain open.
 
 ## Port and borrowed filesystem range batches (step1624)
 
