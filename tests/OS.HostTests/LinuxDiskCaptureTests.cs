@@ -624,6 +624,37 @@ internal static class LinuxDiskCaptureTests
         }
     });
 
+    [HostTest("CloseReuse physical completion time follows real copy while logical completion stays unchanged", HostLane.Native)]
+    private static void CloseReusePhysicalCompletionTime() => WithCapture(c =>
+    {
+        string[] rows = CloseReuseWholeRows(c), before = rows.ToArray();
+        var baseline = CloseReuseWhole(c, rows);
+        var later = baseline.Requests.Single(r => r.Call.Spec.Role == "main.duplicate");
+        int complete = later.Window.CompletionRecordIndex, time = complete - 1;
+        int submit = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == later.DeviceGenerations.Single());
+        HostCheck.True(submit >= 0 && submit + 3 == time &&
+            rows[time].StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal));
+        ulong logical = Field(rows[complete], "clock");
+        string[] changed = rows.ToArray();
+        for (int i = 0; i < 3; i++) changed[submit + i] = Set(changed[submit + i], "clock", logical + 10UL * (ulong)(i + 1));
+        changed[time] = Set(changed[time], "clock", logical + 40);
+        var report = CloseReuseWhole(c, changed);
+        bool Logical(string row) => !row.StartsWith("M16_023_IO ", StringComparison.Ordinal) &&
+            !row.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal);
+        HostCheck.True(rows.Where(Logical).SequenceEqual(changed.Where(Logical)) && rows.SequenceEqual(before) &&
+            Field(changed[submit + 2], "clock") > logical &&
+            !report.Leaf.CheckedUserMemoryOrAuxiliaryJoins && !report.Leaf.CheckedPostDeathSentinelOrOrphanDrain);
+        var old = report.Requests.Single(r => r.Call.Spec.Role == "main.read");
+        int oldTerminal = Array.FindIndex(changed, r => r.StartsWith("M16_023_IO kind=1 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == old.DeviceGenerations.Single());
+        HostCheck.True(old.Window.Value == -9 && oldTerminal > old.Window.CompletionRecordIndex);
+        RejectCloseReuseWhole(c, Change(changed, time, "clock", logical + 29), "disk_close_reuse_completion_time");
+        var nonadjacent = changed.ToList(); string witness = nonadjacent[time];
+        nonadjacent.RemoveAt(time); nonadjacent.Insert(submit, witness);
+        RejectCloseReuseWhole(c, nonadjacent.ToArray(), "disk_close_reuse_completion_time_witness");
+    });
+
     [HostTest("CloseReuse rejects missing reassigned orphan stale and out-of-leaf physical owners", HostLane.Native)]
     private static void CloseReuseTransactionRejections() => WithCapture(c =>
     {
@@ -788,13 +819,24 @@ internal static class LinuxDiskCaptureTests
         Add(reopenedAt, Emit(root, reopenedClock)); Add(reopenedAt, Emit(directory, reopenedClock + 100));
         var duplicate = Window("main.duplicate"); Add(duplicate.CompletionRecordIndex,
             Emit(data, Field(rows[duplicate.CompletionRecordIndex], "clock") - 300));
-        List<string> result = [];
-        for (int i = 0; i < rows.Length; i++) { if (insert.TryGetValue(i, out var values)) result.AddRange(values); result.Add(rows[i]); }
+        List<string> result = []; string? completionTime = null;
+        for (int i = 0; i < rows.Length; i++)
+        {
+            if (rows[i].StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal))
+            { HostCheck.True(completionTime is null); completionTime = rows[i]; continue; }
+            if (insert.TryGetValue(i, out var values)) result.AddRange(values);
+            if (rows[i].StartsWith("M16_025_COMPLETE ", StringComparison.Ordinal))
+            { HostCheck.True(completionTime is not null); result.Add(completionTime!); completionTime = null; }
+            result.Add(rows[i]);
+        }
+        HostCheck.True(completionTime is null);
         return result.ToArray();
     }
 
     private static string[] MoveCloseReuseTransaction(string[] rows, int from, int to, ulong clock)
     {
+        if (to > 0 && rows[to].StartsWith("M16_025_COMPLETE ", StringComparison.Ordinal) &&
+            rows[to - 1].StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal)) to--;
         var copy = rows.ToList(); string[] tx = copy.Skip(from).Take(3).Select((row, i) => Set(row, "clock", clock + (ulong)i)).ToArray();
         copy.RemoveRange(from, 3); copy.InsertRange(to > from ? to - 3 : to, tx);
         return RenumberCloseReuseIo(copy.ToArray());

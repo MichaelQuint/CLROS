@@ -594,7 +594,11 @@ internal static class LinuxDiskRaceTranscriptTests
         void Complete(int w)
         {
             var p = pending[w]!;
-            if (p.Source == 4) rows.Add(FormattableString.Invariant($"M16_025_COMPLETE identity={Identity(w)} sequence={p.Sequence} request={p.Request} outputBytes={p.Spec.OutputBytes} completion=1 valueBits={unchecked((ulong)p.Spec.Result)} clock={clock++}"));
+            if (p.Source == 4)
+            {
+                if (variant == "CloseReuse") rows.Add(FormattableString.Invariant($"M16_025_COMPLETE_TIME identity={Identity(w)} sequence={p.Sequence} request={p.Request} clock={clock}"));
+                rows.Add(FormattableString.Invariant($"M16_025_COMPLETE identity={Identity(w)} sequence={p.Sequence} request={p.Request} outputBytes={p.Spec.OutputBytes} completion=1 valueBits={unchecked((ulong)p.Spec.Result)} clock={clock++}"));
+            }
             rows.Add(FormattableString.Invariant($"M16_008_RESUME identity={Identity(w)} valueBits={unchecked((ulong)p.Spec.Result)} status=1")); pending[w] = null;
         }
         void Disk(int w, string role) { Call(w, role); Supervisor(w, 3); Complete(w); }
@@ -658,6 +662,55 @@ internal static class LinuxDiskRaceTranscriptTests
         public string this[int index] => throw new InvalidOperationException("must reject bounds first");
         public IEnumerator<string> GetEnumerator() => throw new InvalidOperationException("must reject bounds first");
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [HostTest("CloseReuse completion times require exact adjacent tuples without changing logical clocks")]
+    private static void CloseReuseCompletionTimes()
+    {
+        byte[] image = Enumerable.Range(0, 8192).Select(i => unchecked((byte)(i * 17 + 3))).ToArray();
+        string[] rows = CloseReuseWithDeviceValues(image), before = rows.ToArray();
+        var report = CloseReuseCandidate(rows, image);
+        var windows = report.Windows.Where(w => w.Source == 4).ToArray();
+        HostCheck.Equal(windows.Length, rows.Count(r => r.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal)));
+        foreach (var window in windows)
+        {
+            string time = rows[window.CompletionRecordIndex - 1], complete = rows[window.CompletionRecordIndex];
+            HostCheck.True(time.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal) &&
+                rows[window.CompletionRecordIndex + 1].StartsWith("M16_008_RESUME ", StringComparison.Ordinal));
+            foreach (string field in new[] { "identity", "sequence", "request", "clock" })
+                HostCheck.Equal(Field(complete, field), Field(time, field));
+        }
+        HostCheck.True(rows.SequenceEqual(before) && !report.CheckedUserMemoryOrAuxiliaryJoins &&
+            !report.CheckedPostDeathSentinelOrOrphanDrain);
+        void Denied(string[] changed)
+        {
+            bool rejected = false;
+            try { CloseReuseCandidate(changed, image); }
+            catch (ToolFailure error) { rejected = error.Reason == "disk_close_reuse_completion_time_witness"; }
+            HostCheck.True(rejected, "disk_close_reuse_completion_time_witness");
+        }
+        var later = report.Calls.Single(c => c.Spec.Role == "main.duplicate");
+        var completed = windows.Single(w => w.CallRecordIndex == later.RecordIndex);
+        int at = completed.CompletionRecordIndex - 1;
+        Denied(rows.Where((_, i) => i != at).ToArray());
+        var duplicate = rows.ToList(); duplicate.Insert(at, rows[at]); Denied(duplicate.ToArray());
+        Denied(Change(rows, at, "identity", F.ChildIdentity));
+        Denied(Change(rows, at, "sequence", completed.Sequence + 1));
+        Denied(Change(rows, at, "request", completed.RequestGeneration + 1));
+        Denied(Change(rows, at, "clock", Field(rows[completed.CompletionRecordIndex], "clock") - 1));
+        Denied(Change(rows, at, "clock", Field(rows[Index(rows, "M16_008_BUDGET_END ")], "nanos") + 1));
+
+        string[] progress = Synthetic("Progress");
+        HostCheck.True(!progress.Any(r => r.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal)));
+        int completion = Index(progress, "M16_025_COMPLETE ");
+        string unexpected = progress[completion].Replace("M16_025_COMPLETE ", "M16_025_COMPLETE_TIME ", StringComparison.Ordinal);
+        unexpected = string.Join(' ', unexpected.Split(' ').Where(f => !f.StartsWith("outputBytes=", StringComparison.Ordinal) &&
+            !f.StartsWith("completion=", StringComparison.Ordinal) && !f.StartsWith("valueBits=", StringComparison.Ordinal)));
+        var wrongVariant = progress.ToList(); wrongVariant.Insert(completion, unexpected);
+        bool variantRejected = false;
+        try { Inspect(wrongVariant.ToArray(), F.CreatePackage("Progress")); }
+        catch (ToolFailure error) { variantRejected = error.Reason == "disk_race_completion_time"; }
+        HostCheck.True(variantRejected, "disk_race_completion_time");
     }
 
     [HostTest("CloseReuse copied close dispatch and later data token retain explicit sentinel authority cuts")]
@@ -771,8 +824,17 @@ internal static class LinuxDiskRaceTranscriptTests
                 Io(2, 39, 0, 38, 512, 39, 39, data + 20) + " copied=committed data=" +
                     Convert.ToHexString(image.AsSpan(0, 512)).ToLowerInvariant()]
         };
-        List<string> result = [];
-        for (int i = 0; i < rows.Length; i++) { if (insert.TryGetValue(i, out var extra)) result.AddRange(extra); result.Add(rows[i]); }
+        List<string> result = []; string? completionTime = null;
+        for (int i = 0; i < rows.Length; i++)
+        {
+            if (rows[i].StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal))
+            { HostCheck.True(completionTime is null); completionTime = rows[i]; continue; }
+            if (insert.TryGetValue(i, out var extra)) result.AddRange(extra);
+            if (rows[i].StartsWith("M16_025_COMPLETE ", StringComparison.Ordinal))
+            { HostCheck.True(completionTime is not null); result.Add(completionTime!); completionTime = null; }
+            result.Add(rows[i]);
+        }
+        HostCheck.True(completionTime is null);
         return result.ToArray();
     }
 }
