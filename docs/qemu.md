@@ -1,5 +1,7 @@
 # QEMU
 
+[Step1632](../done/step1632.md) fixes the new CloseReuse evidence contract without changing existing logical clocks: an exact-package completion now has a separate adjacent, request-bound fresh wall-clock witness for physical IO comparisons. All112 coherent focused checks pass; a fresh native image and conditional data/instruction bindings are retained, while its strict original guest is pending. The failed controlled original remains failed. Full FAT32/Blazor/browser, #770/#771/#773/#774, writes and SQLite remain open.
+
 [Step1631](../done/step1631.md) retains fresh complete Mechanical59 and ExitPending originals, plus the failed CloseReuse original whose strict physical pending interval was absent. A digest-bound, probe-only zero-or-one-step close boundary is implemented and reviewed; its fresh guest run is still pending. All110 coherent focused checks pass. The additive fault-image verifier authenticates four existing corrupt variants against an intact image; it does not yet execute a corrupt guest HTTP request. #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
 
 <!-- step1625-progress-development -->
@@ -3661,3 +3663,14 @@ four controlled callbacks, 30 exact CLROS records, no real firmware exit.
 All three QEMU processes were runner-terminated with signed exit -1 after
 success. The configured 750ms drain was not independently timed; pristine
 disk images used for accounting were reconstructed after execution.
+
+The exact canonical CloseReuse diagnostic preserves `M16_025_COMPLETE.clock` as
+the scheduler table’s last logical observation. Only that digest-bound probe
+emits `M16_025_COMPLETE_TIME identity=… sequence=… request=… clock=…` immediately
+before its matching COMPLETE. Evidence is flushed without device progress, then
+the original owned monotonic clock is sampled. The complete consumer requires
+one adjacent matching witness per source4 completion, a finite monotonic physical
+stream within the original budget end, and every attached physical copy before
+that fresh time. TIME does not advance the logical CALL/POLL/COMPLETE stream.
+The selected detached old-token exception, all transaction ownership, stale-fd,
+generation and cleanup checks remain mandatory. Other probes retain their schema.

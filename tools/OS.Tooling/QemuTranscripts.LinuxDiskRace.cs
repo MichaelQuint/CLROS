@@ -649,6 +649,15 @@ public static partial class QemuTranscripts
             }
             if (line.StartsWith("M16_023_IO ", StringComparison.Ordinal))
             { Need(fifo is null || exitStage == 0, "disk_race_post_shutdown_io"); RaceIoShape(Take()); Aux(index); continue; }
+            if (line.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal))
+            {
+                var time = Row("M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
+                Need(variant == "CloseReuse" && time["clock"] is > 0 and <= long.MaxValue,
+                    "disk_race_completion_time");
+                // This is a physical wall-clock witness, outside the unchanged
+                // logical CALL/POLL/COMPLETE observation stream.
+                Aux(index); continue;
+            }
             if (line.StartsWith("M16_008_TICK ", StringComparison.Ordinal))
             {
                 // This explicit socket-backed leaf idles cooperatively through
@@ -1012,6 +1021,32 @@ public static partial class QemuTranscripts
         for (int i = 2; i <= 10; i++) Need(ulong.TryParse(match.Groups[i].Value, NumberStyles.None, CultureInfo.InvariantCulture, out _), "disk_race_io_number");
     }
 
+    private static ulong LinuxDiskCloseReuseCompletionTime(IReadOnlyList<string> rows,
+        LinuxDiskRaceLeafReport leaf, LinuxDiskRaceWindow window)
+    {
+        var times = leaf.Auxiliary.Where(a => a.Text.StartsWith("M16_025_COMPLETE_TIME ", StringComparison.Ordinal)).ToArray();
+        Need(times.Length == leaf.Windows.Count(w => w.Source == 4), "disk_close_reuse_completion_time_witness");
+        var ends = rows.Where(r => r.StartsWith("M16_008_BUDGET_END ", StringComparison.Ordinal)).ToArray();
+        Need(ends.Length == 1, "disk_close_reuse_completion_time_witness");
+        ulong ended = ReadRecord(ends[0], "M16_008_BUDGET_END", "nanos:dec")["nanos"];
+        ulong last = 0;
+        foreach (var time in times)
+        {
+            var value = ReadRecord(time.Text, "M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
+            Need(value["clock"] >= last && value["clock"] <= ended && value["clock"] <= long.MaxValue, "disk_close_reuse_completion_time_witness");
+            last = value["clock"];
+        }
+        var matching = times.Where(t => t.RecordIndex == window.CompletionRecordIndex - 1).ToArray();
+        Need(matching.Length == 1, "disk_close_reuse_completion_time_witness");
+        var wall = ReadRecord(matching[0].Text, "M16_025_COMPLETE_TIME", "identity:dec", "sequence:dec", "request:dec", "clock:dec");
+        var logical = ReadRecord(rows[window.CompletionRecordIndex], "M16_025_COMPLETE", "identity:dec",
+            "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
+        Need(wall["identity"] == logical["identity"] && wall["sequence"] == logical["sequence"] &&
+            wall["request"] == logical["request"] && wall["clock"] >= logical["clock"],
+            "disk_close_reuse_completion_time_witness");
+        return wall["clock"];
+    }
+
     /// <summary>Borrow copied canonical leaf/image values synchronously. Check
     /// the close dispatch inside one real pending physical token and one later
     /// data transaction. Keep every auxiliary row at its original leaf index.
@@ -1035,6 +1070,8 @@ public static partial class QemuTranscripts
         LinuxDiskRaceWindow Window(LinuxDiskRaceCall call) =>
             leaf.Windows.Single(w => w.CallRecordIndex == call.RecordIndex);
         var main = Call("main.read"); var old = Window(main);
+        foreach (var window in leaf.Windows.Where(w => w.Source == 4))
+            _ = LinuxDiskCloseReuseCompletionTime(rows, leaf, window);
         var close = Call("child.close"); var reopen = Call("child.reopen");
         var opened = Window(reopen); var later = Call("main.duplicate"); var read = Window(later);
         var replacementCursor = Call("main.replacement-cursor");
@@ -1085,15 +1122,14 @@ public static partial class QemuTranscripts
         int first = pending[0], next = subsequent[0];
         int terminal = device.Rows[first + 1].Bytes == 0 ? first + 1 : first + 2;
         var oldToken = device.Rows[first]; var newToken = device.Rows[next];
-        var finished = ReadRecord(rows[read.CompletionRecordIndex], "M16_025_COMPLETE", "identity:dec",
-            "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
+        ulong finished = LinuxDiskCloseReuseCompletionTime(rows, leaf, read);
         Need(terminal < next && io[terminal].RecordIndex < io[next].RecordIndex &&
             device.Rows[terminal].Clock <= newToken.Clock &&
             oldToken.Owner == newToken.Owner && oldToken.Epoch == newToken.Epoch &&
             oldToken.Generation < newToken.Generation &&
-            device.Rows[next + 2].Kind == NativeDiskReadObservations.Kind.Copied &&
-            device.Rows[next + 2].Clock <= finished["clock"],
+            device.Rows[next + 2].Kind == NativeDiskReadObservations.Kind.Copied,
             "disk_close_reuse_token_order");
+        Need(device.Rows[next + 2].Clock <= finished, "disk_close_reuse_completion_time");
         // This is the old PHYSICAL token's terminal boundary. It is not a
         // sampled fd/FS-operation generation or a user-output observation.
         // The original owner still needs the pinned Cancel/Pump source join:
@@ -1177,9 +1213,8 @@ public static partial class QemuTranscripts
         var t = LinuxSyscallTiming(local[close.RecordIndex + 1], close.Identity, close.Ordinal, close.Spec.Number);
         decimal Nanos(ulong ticks) => decimal.Floor((decimal)ticks * periodFs / 1_000_000);
         var mainWindow = leaf.Windows.Single(w => w.CallRecordIndex == main.RecordIndex);
-        var failed = ReadRecord(local[mainWindow.CompletionRecordIndex], "M16_025_COMPLETE", "identity:dec",
-            "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
-        Need(Nanos(t["dispatched"]) <= failed["clock"], "disk_close_reuse_close_before_error");
+        ulong failed = LinuxDiskCloseReuseCompletionTime(local, leaf, mainWindow);
+        Need(Nanos(t["dispatched"]) <= failed, "disk_close_reuse_close_before_error");
 
         List<(int Start, int End)> transactions = [];
         for (int i = 0; i < device.Rows.Count;)
@@ -1234,8 +1269,7 @@ public static partial class QemuTranscripts
                 "disk_close_reuse_request_lifetime");
             Need(request.Call.Spec.Role != "child.reopen" || Nanos(started["dispatched"]) >= Nanos(t["dispatched"]),
                 "disk_close_reuse_reopen_time");
-            var completed = ReadRecord(local[request.Window.CompletionRecordIndex], "M16_025_COMPLETE", "identity:dec",
-                "sequence:dec", "request:dec", "outputBytes:dec", "completion:dec", "valueBits:dec", "clock:dec");
+            ulong completed = LinuxDiskCloseReuseCompletionTime(local, leaf, request.Window);
             // Cancellation is terminal for this read: only the selected last
             // token may drain without data. Earlier prefix transactions must
             // have completed their real kernel copy before a following token.
@@ -1244,7 +1278,7 @@ public static partial class QemuTranscripts
                     device.Rows[p.End].Kind == NativeDiskReadObservations.Kind.Copied,
                     "disk_close_reuse_early_cancel");
             bool detached = request.Call.Spec.Role == "main.read" && submit.Generation == oldLast;
-            Need(detached || device.Rows[p.End].Clock <= completed["clock"], "disk_close_reuse_completion_time");
+            Need(detached || device.Rows[p.End].Clock <= completed, "disk_close_reuse_completion_time");
             if (metadata)
             {
                 Need(device.Rows[p.Start + 1].Bytes == 512 &&

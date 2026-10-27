@@ -785,15 +785,44 @@ public static unsafe partial class EfiEntry
             selected = false;
             if (index != 1 || call.Number != 3 || call.Argument0 != 3 || c->State->LinuxBytes != 29001)
                 return true;
+            if (!SelectNativeCloseReusePackage(c->State, out selected)) return false;
+            if (!selected) return true;
+            return call.Argument1 == 0 && call.Argument2 == 0 && call.Argument3 == 0 &&
+                call.Argument4 == 0 && call.Argument5 == 0 && LinuxNativeCallOrdinal(c, index) == 4;
+        }
+
+        private static bool SelectNativeCloseReusePackage(Storage* state, out bool selected)
+        {
+            selected = false;
+            if (state == null) return false;
+            if (state->LinuxBytes != 29001) return true;
             ulong* digest = stackalloc ulong[4];
-            if (c->State->LinuxPackage == 0 ||
-                !OS.Std.Hash.Sha256.TryCompute((byte*)c->State->LinuxPackage, c->State->LinuxBytes, (byte*)digest, 32))
+            if (state->LinuxPackage == 0 ||
+                !OS.Std.Hash.Sha256.TryCompute((byte*)state->LinuxPackage, state->LinuxBytes, (byte*)digest, 32))
                 return false;
             if (digest[0] != 0x786039823719dce0 || digest[1] != 0x8e029608a574caba ||
                 digest[2] != 0x87219389ec77dfc6 || digest[3] != 0xa6215a3aec154ca6) return true;
             selected = true;
-            return call.Argument1 == 0 && call.Argument2 == 0 && call.Argument3 == 0 &&
-                call.Argument4 == 0 && call.Argument5 == 0 && LinuxNativeCallOrdinal(c, index) == 4;
+            return true;
+        }
+
+        // The scheduler's COMPLETE clock remains its last logical observation.
+        // Only this immutable fixture also records a fresh owned wall-clock
+        // bound after completion work and queued IO evidence have finished.
+        // The IRQ-off caller retains the current thread/request synchronously;
+        // no pointer escapes and clock/flush failure aborts without a witness.
+        private static bool ObserveNativeCloseReuseCompletionTime(LinuxNativeControl* c,
+            ulong sequence, ulong request)
+        {
+            if (!SelectNativeCloseReusePackage(c->State, out bool selected)) return false;
+            if (!selected) return true;
+            if (!FlushNativeDiskEvidence(c->State) ||
+                !ReadNetworkTime(c->State, out ulong now) || now < c->Threads.ObservedTicks || now > (ulong)long.MaxValue)
+                return false;
+            return LinuxText(c->State, "M16_025_COMPLETE_TIME identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
+                LinuxText(c->State, " sequence=") && LinuxNumber(c->State, sequence) &&
+                LinuxText(c->State, " request=") && LinuxNumber(c->State, request) &&
+                LinuxText(c->State, " clock=") && LinuxNumber(c->State, now) && LinuxText(c->State, "\r\n");
         }
 
         // Inspect only the original parked8192-byte read. The canonical code,

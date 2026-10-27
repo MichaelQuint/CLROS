@@ -444,6 +444,9 @@ public static unsafe partial class EfiEntry
                     (!diskWait.Succeeded ||
                     diskWait.Wait.Sequence != view.Wait.Sequence || diskWait.Completion == KernelThreadTable.Completion.None ||
                     !diskOperation.IsActive ||
+#if !M16_027_PROBE && !M10_018_PROBE
+                    !ObserveNativeCloseReuseCompletionTime(c, view.Wait.Sequence, diskOperation.Generation) ||
+#endif
                     !LinuxText(c->State, "M16_025_COMPLETE identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
                     !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
                     !LinuxText(c->State, " request=") || !LinuxNumber(c->State, diskOperation.Generation) ||

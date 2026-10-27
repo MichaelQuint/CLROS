@@ -123,6 +123,21 @@ internal static class LinuxDiskRaceProofFixtureTests
         int recheck = compactThreads.IndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", admittedAt, StringComparison.Ordinal);
         int dispatch = compactThreads.IndexOf("LinuxSyscallGateway.Dispatch(refc->Gates[index],ref*frame)", recheck, StringComparison.Ordinal);
         HostCheck.True(select >= 0 && select < poll && poll < admittedAt && admittedAt < recheck && recheck < dispatch);
+        string observed = Compact(Between(sockets, "private static bool ObserveNativeCloseReuseCompletionTime",
+            "private static bool RequireNativeCloseReuseParentRead"));
+        HostCheck.True(observed.Contains("SelectNativeCloseReusePackage(c->State,outboolselected)", StringComparison.Ordinal) &&
+            observed.Contains("if(!selected)returntrue;", StringComparison.Ordinal));
+        int drained = observed.IndexOf("FlushNativeDiskEvidence(c->State)", StringComparison.Ordinal);
+        int sampled = observed.IndexOf("ReadNetworkTime(c->State,outulongnow)", StringComparison.Ordinal);
+        int written = observed.IndexOf("M16_025_COMPLETE_TIMEidentity=", StringComparison.Ordinal);
+        HostCheck.True(drained >= 0 && sampled > drained && written > sampled &&
+            observed.Contains("now<c->Threads.ObservedTicks||now>(ulong)long.MaxValue", StringComparison.Ordinal) &&
+            !observed.Contains("ObservedTicks=", StringComparison.Ordinal));
+        int completed = compactThreads.IndexOf("c->Process.CompleteDiskWait(c->Key,2)", StringComparison.Ordinal);
+        int witness = compactThreads.IndexOf("ObserveNativeCloseReuseCompletionTime(c,view.Wait.Sequence,diskOperation.Generation)", completed, StringComparison.Ordinal);
+        int completeRow = compactThreads.IndexOf("M16_025_COMPLETEidentity=", witness, StringComparison.Ordinal);
+        HostCheck.True(completed >= 0 && witness > completed && completeRow > witness &&
+            compactThreads.Contains("LinuxNumber(c->State,c->Threads.ObservedTicks)", StringComparison.Ordinal));
     }
 
     [HostTest("disk race packages are canonical deterministic two-worker cooperative children")]
