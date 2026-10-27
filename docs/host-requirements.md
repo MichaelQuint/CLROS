@@ -1,6 +1,35 @@
 # Host Requirements
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+## Current-phase SDK selection after the October 25 restart
+
+The intentional Visual Studio update installed RC3. Finish the current PR810
+phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
+installed separately; leave the system RC3 installation intact:
+
+```powershell
+$clrosDotnet = 'C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105'
+$env:DOTNET_ROOT = $clrosDotnet
+$env:DOTNET_ROOT_X64 = $clrosDotnet
+$env:DOTNET_HOST_PATH = Join-Path $clrosDotnet 'dotnet.exe'
+$env:PATH = "$clrosDotnet;$env:PATH"
+dotnet --version # 11.0.100-rc.2.26504.105
+dotnet --list-runtimes # NETCore.App and AspNetCore.App must both select RC2
+```
+
+Microsoft's release metadata and the downloaded win-x64 archive have matching
+SHA-512, independently checked before extraction. The restored host hash matches
+the retained original `07678CE60DD20ED36F1D25B88F6F51D8BF5A880442680A664690154EBE976AD9`.
+The SDK includes the exact RC2 NETCore, ASP.NET Core and Windows Desktop runtimes.
+Settings above apply only to the current terminal and its children. Step1624
+retains the download, runtime and producer evidence. The earlier Program Files
+selection below describes the October 13 installation; it now selects RC3.
+
+The interrupted full run is not a pass. Preserve it, rebuild with the exact RC2
+root and execute a fresh unfiltered full without reuse. Upgrade SDK/runtime/ILC
+and affected qualification together in a separate follow-on after this phase
+is merged; do not relax `global.json` or roll forward during this qualification.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
@@ -89,7 +118,9 @@ The retained r03 full run failed this guard after its fixtures rebuilt two older
 stamps. Its 6,388 checks across 864 fixtures do not establish full acceptance.
 After the corrected baseline at `5ceeb0c2`, the two rebuilding fixture groups
 and repository recovery pass 27 focused checks with unchanged dependency bytes.
-A fresh unfiltered full remains required; preserve the failed original.
+Those27 focused checks did not qualify the full lane; preserve that historical
+failed original. Current frozen-source full qualification is recorded in
+[Step1624](../done/step1624.md), with its own source and producer identities.
 
 ## Static-file candidate host work (2026-10-23)
 

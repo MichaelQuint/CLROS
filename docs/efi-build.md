@@ -1,5 +1,39 @@
 # EFI Build
 
+## Selected writable control ceiling (step1624)
+
+The Mechanical30 M16-027 preparation checks actual native control size against
+the named2560-byte ceiling. Other profiles retain their8192-byte guard. Actual
+sizeof allocations and all allocator end checks remain; no reservation grows.
+Independent review of the prior29CF0609 image measures a2448-byte control and
+109136 of114688 arena bytes across21 independently16-aligned allocations.
+The selected ceiling gives a conservative109248 bytes, leaving5440. This is
+old selected-image evidence and a current fail-closed source contract; a new
+publication still needs its own emitted review.
+
+The current ordinary CD5D2A42 publication retains the2448-byte control and
+109136/114688-byte total across21 independently16-aligned allocations. Its
+schema-three provenance records timing=false. The d682 emitted review counts
+the descriptor1248-byte scratch and transport256-byte chunks: the conditional
+known worker path is30725/32768 bytes, leaving2043 bytes arithmetically under
+explicit callback, mapping, lifetime, IRQ and unresolved-path premises. This is
+neither an all-path stack bound nor a global noGC claim. The4e48acc1 host-only
+capture BAR repair reuses that review only after its full original verifier,
+14 source and4 output identities match. The fresh original Mechanical30/DiskA
+guest passes all30 calls and cleanup; the unfiltered full r04 naturally joins
+exit0 with7318 checks/918 fixtures, unchanged inputs and zero reuse. The current
+28b6 ordinary027 publication and1987-pair/327-item raw comparison retain those
+exact native bytes and runtime inputs; the Mechanical30 guest remains historical
+4e48 evidence. Fourteen selected final-source originals now pass their own
+complete consumers and guards. Final Root full r02 passes 7,319 checks with unchanged inputs and zero reuse.
+Closing review, tracker reconciliation and merge remain required; this CD5D review does not transfer across native selections.
+
+The two complete-policy project inventories now include the already-existing
+M10-018 and M16-027 timing children. Explicit-false rejection, parent closure,
+default-off policy, production profile and compile items remain unchanged.
+The corresponding independent test inventories and exact source identities
+are refreshed together. Host compilation alone does not qualify a new image.
+
 ## Retained-range diagnostic publication (step1623)
 
 Source b7631af0 publishes the1242112-byte diagnostic image
@@ -40,7 +74,7 @@ It is not a global stack/no-allocation proof or ordinary-profile emitted-byte
 identity. The normal RecordNativeWritableWait local/return spelling also
 changed; source-semantic equivalence alone does not establish emitted identity.
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 ## Writable clock repair publication (step1617)
@@ -777,6 +811,11 @@ socket profile keeps its prepared-program and owned-peer requirements. The
 mechanical mode retains serial/summary/PCAP read locks, validates the complete
 firmware/APIC/NIC/startup/cleanup envelope and rejects TCP traffic. Its leaf
 requires the two-thread stolen pipe-readiness schedule through actual epoll.
+The exact leaf has no network poll pair before process-wide `exit_group` (231);
+every other syscall, including child exit60, retains its required poll pair.
+Identity, clock, ordinal, wait, signal-return and cleanup checks remain exact.
+Step1624 retains the failed pre-repair original and requires a fresh final-source
+original; an offline corrected replay supplies only parser regression evidence.
 Use fresh output paths for each invocation:
 
 ```powershell

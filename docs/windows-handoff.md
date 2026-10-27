@@ -1,12 +1,27 @@
 # Windows development-machine handoff
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+The October 25 host crash interrupted the first Step1624 full run at902/918
+recorded fixtures. It has no final full result. The intentional Visual Studio
+RC3 update is preserved; the current phase uses the separately restored exact
+RC2 SDK and both required RC2 runtimes. Select the parent/child environment in
+[host requirements](host-requirements.md#current-phase-sdk-selection-after-the-october-25-restart)
+before builds, tooling or tests. Restored-toolchain full r03 passes7311 checks
+on f3202d25 only. Source4e48acc1 has matching ordinary CD5D2A42 emitted bytes
+and conditional review plus a fresh original Mechanical30/DiskA pass; its
+unfiltered full r04 now passes7318 checks/918 fixtures, unchanged/zero reuse.
+Current28b6b454 adds the exact host-only epoll shutdown parser repair; four
+focused controls pass. All14 selected final-source original recipes now pass
+their own complete consumers and guards. Final Root full r02 passes 7,319 checks with unchanged inputs and zero reuse.
+Closing review, tracker reconciliation and merge remain required before merge. RC3 migration follows
+the current integration merges.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
 
 
-## Current handoff (October 23, 2026)
+## Historical handoff (October 23, 2026)
 
 Canonical LAN master includes PR790 at `82656076`. #748/#225/#737 and all
 fourteen predecessor scopes reviewed in step1481 are closed. Step1556 retains

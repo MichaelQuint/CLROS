@@ -1,6 +1,6 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
@@ -166,7 +166,7 @@ earlier a34 archive and failed attempts remain unchanged.
 | `stat(4)`, `lstat(6)`, `fstat(5)` | Directory/file kind, length and modification time; path metadata precedes conditional/range decisions | Readonly disk metadata and confined generation-bound handles are implemented; full guest matrix qualification remains pending |
 | `open(2)`, `fcntl(72)`, `close(3)` | `O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC`, then `F_SETFD(FD_CLOEXEC)` | Readonly disk ownership and last-close cleanup are implemented; race/error guest qualification remains pending |
 | `pread64(17)` |631 retained webroot calls; explicit offsets and16KiB requests, including510..1031 range | Readonly disk waits use owned continuations and revalidate before copy-out; full matrix and cancellation guests remain pending |
-| `flock(73)` | Shared/nonblocking advisory acquisition and unlock,100 calls | Unsupported today. Upstream treats this as best effort except contention; no writable locking or SQLite claim follows |
+| `flock(73)` | Shared/nonblocking advisory acquisition and unlock,100 calls | The readonly webroot route remains unsupported and upstream treats this as best effort except contention. Separate finite writable advisory-lock implementation does not qualify this web matrix, SQLite locking or guest service. |
 | `fadvise64(221)` |50 sequential hints with offset0/length0 | Unsupported today; pinned upstream explicitly permits an unsupported hint. Verify the selected errno/fallback in the guest profile |
 | `geteuid(107)` | Zero calls with uniform0444 files/0555 directories | The earlier0644 research run made106 calls. The final immutable mount contract avoids that path; this does not add a user subsystem |
 | `getdents64(217)`, `statfs(137)` | NUMA/cgroup startup observations outside the webroot; no webroot directory enumeration | Keep existing startup rejection/fallback scope separate from file service |
@@ -182,6 +182,53 @@ asynchronous file path. FileStream's Unix sharing lock and sequential advice
 have distinct fallback policies. Neither is evidence of durable write/locking
 semantics. The actual final native package inventory, traces and controlled
 guest behavior take precedence over a source-only inference.
+
+For #768, the required measured operations are readonly open/close, descriptor
+flags, metadata and positioned reads. The proposed readonly metadata contract
+uses the existing144-byte Linux x64 `stat` wire: inode at8, link count1 at16,
+mode at24 (`0100444` regular files, `040555` directories), size at48, block
+size4096 at56, known512-byte allocation blocks at64 and FAT modification seconds
+at88. Unavailable fields remain zero. `stat`, `lstat` and `fstat` agree for the
+same retained file. This is the contract implemented by
+`LinuxDescriptorServices.Disk.cs:DiskStatOutput` and covered by
+`LinuxDiskDescriptorServicesTests.Metadata`; it is not a completed guest matrix.
+The mount is confined to `/app/wwwroot`, paths are bounded by256 bytes and read
+requests by65536 bytes; successful short reads and zero-byte EOF remain distinct
+from errors. Generation checks must precede every eventual copy-out.
+
+The proposed error contract preserves existing readonly adapter distinctions:
+missing entries return `ENOENT`; non-directory traversal returns `ENOTDIR`;
+invalid/outside-root/unsupported-encoding paths return `EACCES`; write/create/
+truncate/append opens return `EROFS`; unsupported open flags or invalid offsets
+return `EINVAL`; invalid descriptors return `EBADF`; invalid output memory
+returns `EFAULT`. Descriptor and file-table exhaustion remain `EMFILE` and
+`ENFILE`, respectively; generation exhaustion returns `EOVERFLOW`. Corruption,
+device failure and unusable retained storage fail with `EIO`, never EOF.
+Cancellation returns `EINTR` and revokes later copying while owned I/O drains.
+These are source/host contracts; original guest race/error witnesses remain
+required by #770/#773/#774.
+
+Optional advice and sharing locks have separate proposed policies. The pinned
+[SafeFileHandle implementation](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/System.Private.CoreLib/src/Microsoft/Win32/SafeHandles/SafeFileHandle.Unix.cs)
+throws for advisory-lock contention (`EWOULDBLOCK`) while tolerating other lock
+errors. A readonly unsupported-lock response may therefore use `ENOTSUP`,
+subject to guest verification. Its sequential-advice caller uses
+[CheckFileCall](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/System.Private.CoreLib/src/System/IO/Strategies/FileStreamHelpers.Unix.cs)
+with the explicit `ENOTSUP` exception. This supports a proposed unsupported-hint
+policy, not admission of the current unknown-syscall `ENOSYS` response: native
+`posix_fadvise` uses its own error-return convention, so the final libc/PAL path
+and guest must establish the actual result. Unmeasured fallback errors remain
+unadmitted. Enumeration outside the startup contract, file-backed mappings,
+sendfile, watchers and write/locking/durability operations remain unsupported by
+this reference milestone; no unconditional-success substitutes are authorized.
+
+The retained r03 qualifier invokes the same independent `Validate` routine
+before its successful outer exit. A separate retained validation replay emits
+its validation PASS and then fails the unrelated archive-export wrapper with
+exit2; no standalone dotnet exit was captured. Preserve that failed wrapper.
+The original source/compiler/native paths remain provenance requirements, so
+validation on another checkout must not remap paths or substitute rebuilt
+inputs. Step1624 records the original review, commands and normal-harness tests.
 
 The new finite guest profile uses an explicit owner-only SIGTERM request to
 the retained initial generation after actual listener readiness and a bounded

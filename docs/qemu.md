@@ -30,6 +30,14 @@ preserves shaped partial diagnostics for valid=0. Neither case authenticates an
 original capture. The ordinary full writable consumer does not accept a timing
 diagnostic as workload qualification.
 
+The strict original consumer selects every `M16_027_` row and rejects
+`M16_027_TIMING` as `selected_unknown`; the timing reader is not integrated
+into that consumer. Current Step1624 verification therefore selects ordinary
+Mechanical30 with timing explicitly false. Review that exact native image
+before the unchanged180-second DiskA acceptance attempt. Reserve a separate
+timing publication for a concrete diagnostic question; its stack review does
+not transfer to the ordinary profile.
+
 Original `writable-timing-guest-r01` joins FAILED180s/exit4:48 reads complete,
 read49 is submitted at174.2202626s, and all three134217728-byte images retain
 SHA256 `CC3D0542BD4BD4E3B8146956EF9CC42244E299C9AC772505889C25FC966ADD4E`.
@@ -38,7 +46,7 @@ the actual engine call submits I/O. This is no workload success, speedup or
 deadlock result. Step1622 preserves serial, summary, images and exact producer
 joins, including the failed original.
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 The [step1618](../done/step1618.md) development originals preserve three guest
@@ -84,6 +92,15 @@ calls/waits, all writable observations, exact modified bytes/extraction and fina
 held-input/native rechecks. Optional raw-observation capture must validate in
 that held lifetime. A copied-value report or terminal marker supplies none of
 these original-run authorities. Physical durability remains unqualified.
+
+Canonical root opens are the narrow immediate exception: Mechanical30
+sync.parent-open/sync.deleted-parent-open and LogUpload40 parent.open require
+their exact nr2/RootName/RootFlags and zero remaining arguments. They return
+the lowest free fd inline with zero wait fields, consuming one descriptor
+request and publishing its fd/description/binding generation without a source5
+sequence or provider request. Regular file opens remain blocking. This repairs
+an original-consumer mismatch observed in failed-r02; it does not reclassify
+that incomplete original or accept arbitrary immediate opens.
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
 
@@ -3214,11 +3231,11 @@ QEMU evidence from 2026-05-21:
 ## Known Limitations
 
 - QEMU launch uses `-display none`; serial output is the evidence channel.
-- The default EFI smoke still returns to firmware UI after `EfiMain`. The
-  M01-022 stage-one and M01-024 dual-stage continuations intentionally do not
-  return after the owned-stack transfer; after each validated transcript
-  becomes quiet, the runner terminates QEMU. None of these behaviors is
-  `ExitBootServices` evidence.
+- The historical pre-EBS smoke returned to firmware UI. Ordinary VerifiedExit
+  now leaves firmware services and ends after its qualified owned checks;
+  explicit profiles retain their own lifecycle. The older M01-022/M01-024
+  quiet-terminal tuples prove their recorded pre-EBS facts only. Current
+  writable acceptance requires the original owner/cleanup/EOF joins.
 - The M02-010 profile also returns to the ordinary smoke path after freeing its
   temporary LoaderData page. Its exact guest marker proves materialization,
   readback, and release only. It does not prove executable publication, slot or

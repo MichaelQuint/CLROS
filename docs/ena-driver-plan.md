@@ -2,14 +2,12 @@
 
 ## Current Status
 
-OS has host-tested Ethernet, ARP, IPv4, UDP, DHCP, DNS, TCP, HTTP planning,
-PAL socket mocks, PCI snapshot parsers, BAR metadata parsing, virtio-net
-queue/header/lifecycle planning, ENA PCI candidate metadata,
-register-map/admin-readiness metadata, an ENA admin command execution boundary
-planner, and an ENA DMA address / queue-memory capability planner. It does not
-have a live network device driver, live PCI ECAM reader, BAR mapping, MSI-X
-setup, DMA allocator, ENA admin queue, ENA TX/RX queues, DHCP over ENA, TCP
-over ENA, hosted .NET 10, or Kestrel evidence.
+The ENA route has host-tested PCI candidate, register-map/admin-readiness,
+command-boundary, DMA capability and descriptor-layout contracts. It does not
+yet qualify live ENA PCI/BAR/MSI-X/DMA ownership, admin/TX/RX queues, DHCP/TCP
+over ENA or Kestrel over ENA. CLROS's separately qualified bounded virtio/QEMU/
+runtime profiles are not ENA or AWS acceptance; preserve their exact scopes in
+the driver/networking and completion-gate docs.
 
 Issue #244 added host-tested ENA admin descriptor constants and caller-buffer
 helpers for `GET_FEATURE DEVICE_ATTRIBUTES` command encoding plus ACQ completion
@@ -69,7 +67,7 @@ Implement ENA in small host-testable slices before any live EC2 packet I/O:
    discover MAC address, queue limits, MTU, address width, and required feature
    boundaries.
 
-No DHCP, DNS, TCP, HTTP, hosted .NET 10, ASP.NET Minimal API, or Kestrel claim
+No DHCP, DNS, TCP, HTTP, hosted .NET 11, ASP.NET Minimal API, or Kestrel claim
 can be made from this ADR or from admin-queue-only code. Those claims require
 live ENA Ethernet frame receive/transmit integrated into the existing packet
 stack and then separately proven at each protocol layer.
@@ -600,6 +598,6 @@ programming, no DMA allocation, no IOMMU programming, no admin queue execution,
 no MAC retrieval from hardware, no Ethernet frame send/receive, no DHCP, no TCP,
 and no Kestrel behavior.
 
-The first valid runtime networking evidence remains an ENA-backed Ethernet
+The first required live ENA-specific networking evidence remains an ENA-backed Ethernet
 frame RX/TX smoke that feeds the existing network stack and emits stable
 markers without claiming higher protocols until each protocol has its own proof.

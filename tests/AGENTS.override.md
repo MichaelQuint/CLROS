@@ -24,8 +24,9 @@ Successful selection determines the final marker:
 - Filtered run: `TEST_PASS host.tests.focused`.
 - Unfiltered full lane: `TEST_PASS host.tests`.
 
-Failures emit `TEST_FAIL host.tests failures=<count>`. A focused or resumed
-subset must not be reported as a fresh full-host acceptance run.
+Completed-run failures use the same selection scope as success, for example
+`TEST_FAIL host.tests.focused failures=<count>` for a filtered run. A focused
+or resumed subset must not be reported as a fresh full-host acceptance run.
 
 Keep names stable because scripts and future CI will parse them.
 
@@ -86,8 +87,10 @@ dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build -- --la
 
 If a test changes build outputs, run the build separately before `--no-build`.
 The default lane is fast and emits `host.tests.fast`. Filtered runs emit
-`host.tests.focused`. Native/full runs include real compiler and artifact checks;
-do not relabel fast evidence as complete acceptance. Input changes
+`host.tests.focused`. Native/full selections include compiler/artifact checks
+and explicitly labelled synthetic host controls. A Native lane label alone is
+not actual native or guest evidence; do not relabel fast/focused results as
+complete acceptance. Input changes
 since compilation are rejected before execution and checked again afterward.
 Use `--results <empty-directory>` to name a run and `--resume <directory>` to
 continue its saved lane and selection. Reused groups emit `HOST_FIXTURE_REUSED`,

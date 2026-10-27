@@ -313,7 +313,7 @@ Before that point, these are not Kestrel support evidence:
 
 ## Unsupported Behavior
 
-No exported PAL functions are implemented yet. Memory, socket, timer, thread/sync, package file/config, entropy, hosted .NET 10, and Kestrel behavior are contract-only. The status-name, status-category, and status-domain contract helpers are host-tested caller-buffer helpers only and are not exported PAL diagnostic functions. The memory, socket, timer, wait, package, config/environment, app-log, and random facades are host-only in-process adapters over mock tables; they are not unmanaged exports, do not mutate page tables, do not perform DNS/routing/TCP handshakes/packet I/O, do not block or wake scheduler threads, do not read guest disks, do not provide cryptographic entropy, and are not consumed by a hosted runtime.
+No exported PAL functions are implemented yet. Memory, socket, timer, thread/sync, package file/config, entropy, hosted .NET 11, and Kestrel behavior are contract-only. The status-name, status-category, and status-domain contract helpers are host-tested caller-buffer helpers only and are not exported PAL diagnostic functions. The memory, socket, timer, wait, package, config/environment, app-log, and random facades are host-only in-process adapters over mock tables; they are not unmanaged exports, do not mutate page tables, do not perform DNS/routing/TCP handshakes/packet I/O, do not block or wake scheduler threads, do not read guest disks, do not provide cryptographic entropy, and are not consumed by a hosted runtime.
 
 ## Tests
 

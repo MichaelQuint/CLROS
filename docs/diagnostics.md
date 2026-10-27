@@ -1,6 +1,44 @@
 # Diagnostics
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+## Shared QEMU fixture filesystem snapshots
+
+Test-only f3202d25 removes each rejection test's self-referencing directory
+link in nonrecursive `finally` cleanup. Both original link-rejection checks and
+the complete recursive filesystem snapshot remain. Sorting the returned array
+in place preserves ordinal comparison and avoids the extra LINQ materialization.
+
+The normal harness interaction control runs both link creators, checks that
+their immediate-parent entries are absent, then runs both original M01 snapshot
+checks in the same fresh subtree:
+
+```powershell
+dotnet run --project tests/OS.HostTests --no-build -- --lane native --filter QemuRunnerTests.Initialize --case "qemu writable directory link cleanup precedes full snapshots"
+```
+
+Use the current toolchain setup in [host requirements](host-requirements.md).
+Its `QEMU_LINK_SNAPSHOT_OBSERVATION` reports elapsed time, managed allocation
+across all process threads during the control, and process-lifetime peak working
+set. These are observations without new thresholds or increased budgets. The
+completed interaction and191-check affected-fixture runs in
+[Step1624](../done/step1624.md) do not replace fresh unfiltered qualification.
+
+## Fail-closed regression repairs (step1624)
+
+FiniteDescriptorTree classifies low, unaligned and noncanonical Disk/Mount
+pointers through its complete fail-closed path before dereferencing. Corruption
+controls use typed field access to the actual ThreadOwner field; the old marshaled
+offset crossed a bool-containing structure and targeted Disk instead. A separate
+real poisoned-pointer dispatch control verifies unchanged frame, copies and
+kernel ownership. Startup now checks the actual five copied payload bytes while
+retaining its explicit FailWrite/EFAULT negative. Syscall5 joins the existing
+positive asynchronous metadata census; unrelated blocked calls still reject.
+
+The unwind allocation assertion now reports actual successes and allocated bytes
+and checks backing first. Its64 warmups, two counter reads and measured calls
+remain unchanged. The original failure did not report those values and has no
+established allocator cause; the later isolated pass preserves that boundary.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.

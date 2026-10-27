@@ -1,6 +1,6 @@
 # Image Builder
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
@@ -49,8 +49,8 @@ dotnet run --project tools/OS.Tooling -- nativeaot static-files image <base-imag
 ```
 
 The image command emits `<image>.webroot.json` with measured assets, preserved
-files and physical extents. Six final focused host checks pass; #769 still needs
-exact qualified candidate binding. A host image receipt is not guest disk/HTTP proof.
+files and physical extents. The original focused checks and exact candidate binding
+qualify #769's finite host fixture scope; a host receipt is not guest disk/HTTP proof.
 
 The retained real-candidate fixture run now uses all 45 published Blazor assets
 (5,922,507 bytes), the separate static server package and reviewed staged EFI.
@@ -107,13 +107,13 @@ new disk image feature. #781 -> #782 host FAT repairs remain open prerequisites
 for #769 webroot fixtures. Existing v1/V2 package commands retain their exact
 format and source admission; the new static-file commands above remain development-only. Preserve the same distinction in image receipts and guest claims.
 
-The planned [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
-will generate deterministic HTML/CSS/JS and boundary assets in the existing
+The qualified finite [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
+generates deterministic HTML/CSS/JS and boundary assets in the existing
 read-only FAT32 image, preserving EFI/package bytes and both FATs. Its disk-only
 variants use the same application ELF/package with different asset contents;
 an independent readback records exact paths, cluster/LBA extents, lengths,
 timestamp policy and hashes. A separate staged variant supports #772 only.
-The development command above implements the host fixture portion. See the
+The command above implements the host fixture portion. See the
 [dependency roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18).
 
 Linux ELF v1 package/staging is qualified in

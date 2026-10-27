@@ -1,6 +1,6 @@
 # Workload Profiles ADR
 
-[Step1623](../done/step1623.md) adds retained range batches in the FAT engine and writable provider, repairs ELF payload policy, and checks copied BCL source5 scheduling. The b7631af0 diagnostic still fails at 180 seconds (exit 4): 49 reads complete, with no first-create COMPLETE, OUT, FLUSH or normal cleanup. Its measured turn contains 324095 audits taking 4.4831872 of 5.3845825 seconds. The conditional native estimate is 32365/32768 bytes under all prior selected25/context/descendant/effect/mapping/noIRQ premises. The provider passes 116 host checks with a corrected counter precondition; original failures remain preserved. The new unfiltered full attempt at 50eab85c fails: 808 Fast fixtures start 6089 checks, with 19 failed case markers in 17 fixtures; the runner aggregate is 18 failures and blocks all 110 selected Native fixtures. Inputs remain unchanged and reuse is zero. Timing-profile inventory, Linux ownership/blocking, sixteen-worker metadata capacity and an independent unwind allocation check require repair; no full pass is claimed. Port/filesystem batching and copied ordinals are separate next work. Complete BCL/native syscall witnesses, guest-origin Blazor/browser, persistence, SQLite durability and continuous service remain open.
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
 
 
 [Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
@@ -106,7 +106,7 @@ HTTP/native/process/packet ownership and the full Blazor/browser witness still
 precede first-batch closure. Continue the approved read then writable FAT/flush/
 log/upload/locking/direct SQLite ladder without promoting these value reports.
 
-## Current roadmap position (October 23, 2026)
+## Historical roadmap position (October 23, 2026)
 
 PR790 is merged at `82656076`. #748/#225 and the finite #737 integration are
 closed; the fourteen step1481 prerequisites, including #224/#747/#760, are
@@ -266,9 +266,11 @@ follow-ups were subsequently qualified by steps1481/1556; #224/#747/#748/#760,
 currently active successor work.
 
 [#780 tracker conflict protection](http://192.168.4.35:3000/admin/CLROS/issues/780)
-is independent host tooling. Before [#769 disk fixtures](http://192.168.4.35:3000/admin/CLROS/issues/769),
-complete [#781 host FAT selection](http://192.168.4.35:3000/admin/CLROS/issues/781)
-then [#782 bounded directory scratch](http://192.168.4.35:3000/admin/CLROS/issues/782).
+is qualified within its independent host-tooling scope. The finite
+[#781 host FAT selection](http://192.168.4.35:3000/admin/CLROS/issues/781) ->
+[#782 bounded directory scratch](http://192.168.4.35:3000/admin/CLROS/issues/782) ->
+[#769 disk fixtures](http://192.168.4.35:3000/admin/CLROS/issues/769) scopes are qualified;
+their dependency order and guest-service boundaries remain unchanged.
 These image-verification repairs do not become first-web runtime dependencies
 or reopen the nineteen-child M06 epic. #752 retains measured optimization;
 #753-#755 retain later build-time assurance. The manifest owns exact dependencies.
@@ -940,7 +942,7 @@ issues are represented and tested.
 
 ## Canonical successor issue keys (2026-10-23)
 
-Finish the current #780/#781/#782/#768-#774 batch without changing its owner or accepted receipts. Direct `Microsoft.Data.Sqlite` requirement measurement is M10-020/#791. Sustained read-only service #775 precedes writable block/flush M06-020/#798, FAT mutation/recovery M06-021/#799 and confined writable descriptor/locking M16-027/#800; #798 also requires measured #791. M10-021/#792 then qualifies rollback-journal transactions/recovery. #468 remains bounded preallocated overwrite and cannot substitute for these prerequisites. EF Core's separate NativeAOT requirements do not describe SQLite-engine compatibility.
+Preserve the qualified finite #780/#781/#782/#768/#769 scopes and continue #770-#774 under their existing ownership and accepted-receipt boundaries. Direct `Microsoft.Data.Sqlite` requirement measurement is M10-020/#791. Sustained read-only service #775 precedes writable block/flush M06-020/#798, FAT mutation/recovery M06-021/#799 and confined writable descriptor/locking M16-027/#800; #798 also requires measured #791. M10-021/#792 then qualifies rollback-journal transactions/recovery. #468 remains bounded preallocated overwrite and cannot substitute for these prerequisites. EF Core's separate NativeAOT requirements do not describe SQLite-engine compatibility.
 
 General NativeAOT hosting follows #774: M10-022/#793 contract -> M10-023/#794 generic publication/admission -> M10-024/#795 generic launch/stop -> M10-025/#796 semantic conformance -> M10-026/#797 independent-app/rebuild gate. #797 also requires #227. Normal compatible apps and changed rebuilds use unchanged kernel/EFI and deployment tools, with no app-name/hash allow-list patch or manual disassembly/reference-VM session. Unsupported features remain explicit; advertised disk/SQLite capabilities require their own qualification. #755 specialization is optional and cannot replace this general path.
 

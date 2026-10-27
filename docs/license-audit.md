@@ -374,7 +374,7 @@ behavior. Full per-file hashes/blob IDs, archive and issue read-backs are retain
 under `artifacts/reference-research-20261011-uacpi`; see [step1186](../done/step1186.md).
 Any future substantial adaptation still needs exact affected CLROS files,
 authorship/notices and a copied-versus-reimplemented boundary. First-party source
-remains C# 14/.NET 10 and every reference remains outside the build/image.
+remains C# 14/.NET 11 and every reference remains outside the build/image.
 
 ## First-Party and Distribution Rules
 
