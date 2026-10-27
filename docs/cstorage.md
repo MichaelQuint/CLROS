@@ -1,7 +1,7 @@
 # Storage
 
 <!-- step1625-progress-development -->
-[Step1626](../done/step1626.md) corrects the Progress host timing join after the first original failed. Every whole device transaction retains one request owner and independent sector coverage. The counted child witness is its exact adjacent, identity-bound syscall-entry timestamp strictly between one main-read submit and completion validation; printed CALL position and duration overlap confer no witness. This does not prove syscall dispatch/completion during pending I/O. Thirteen focused capture checks and diagnostic replay pass; the failed original remains failed and fresh guest qualification is required.
+[Step1627](../done/step1627.md) retains a fresh source-matched Progress complete-consumer pass and independent census:30 post-readiness transactions,9 request windows,4 data reads and2 exact child-entry witnesses. Bootstrap37 are boundary counters. Every whole transaction retains one request owner and independent sector coverage; shared cursor8200 and independent cursor0 reconcile. A witness is the adjacent identity-bound syscall-entry timestamp strictly between one main-read submit and completion validation, not printed row position, duration overlap, dispatch/completion or hardware busy time. Failed original r01 stays failed; #770–#774 and product storage acceptance remain open.
 
 ## Port and borrowed filesystem range batches (step1624)
 
