@@ -10,7 +10,7 @@ using F = OS.Tooling.LinuxDiskFileProofFixture;
 
 internal static class LinuxDiskCaptureTests
 {
-    [HostTest("Progress copied full capture joins every transaction to independent sectors and child progress inside a pending device read",HostLane.Native)]
+    [HostTest("Progress copied full capture joins independent sectors and owned child syscall entry inside a pending main device read",HostLane.Native)]
     private static void ProgressCapture()=>WithCapture(c=>
     {
         byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress"),saved=package.ToArray();
@@ -33,16 +33,82 @@ internal static class LinuxDiskCaptureTests
         var main=report.Requests.Single(r=>r.Role=="main.read");int first=Array.IndexOf(rows,"TEST_START m16-009");
         int submit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==main.DeviceGenerations[0])-first;
         int validated=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=1 ",StringComparison.Ordinal)&&Field(r,"generation")==main.DeviceGenerations[0])-first;
-        var child=report.DevicePendingProgress.Single(call=>call.Spec.Role=="child.pin");
-        HostCheck.True(submit<child.RecordIndex&&child.RecordIndex<validated);
+        var child=report.DevicePendingProgress.Single(call=>call.Spec.Role=="child.tid");
+        ulong entry=Field(rows[first+child.RecordIndex+1],"entered")*1000;
+        HostCheck.True(Field(rows[first+submit],"clock")<entry&&entry<Field(rows[first+validated],"clock"));
         var duplicate=report.Requests.Single(r=>r.Role=="child.duplicate");
         HostCheck.True(Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&
             Field(r,"generation")==duplicate.DeviceGenerations[0])-first>report.Leaf.MainReadCompletionIndex);
         HostCheck.True(!report.CheckedOriginalExecution&&!report.CheckedSchedulerReplay&&!report.ReplayedArbitraryUserMemory);
         HostCheck.Equal(c.Receipt.FinalSha256,report.ImageSha256);HostCheck.True(rows.SequenceEqual(before)&&package.SequenceEqual(saved));
         bool immutable=false;try{((IList<ulong>)main.DeviceGenerations)[0]=0;}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
-        Array.Fill(rows,"changed");Array.Clear(package);HostCheck.True(main.DeviceGenerations[0]!=0&&child.Spec.Role=="child.pin");
+        Array.Fill(rows,"changed");Array.Clear(package);HostCheck.True(main.DeviceGenerations[0]!=0&&child.Spec.Role=="child.tid");
     });
+
+    [HostTest("Progress entry timing survives delayed serialization but requires strict main request clock boundaries",HostLane.Native)]
+    private static void ProgressEntryClock()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress");
+        var report=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+        ulong generation=report.Requests.Single(r=>r.Role=="main.read").DeviceGenerations[0];
+        int submit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        int validated=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=1 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        int timing=Index(rows,"M16_008_SYSCALL_TIME ");
+        var delayed=rows.ToList();string[] completion=delayed.GetRange(validated,2).ToArray();delayed.RemoveRange(validated,2);
+        delayed.InsertRange(timing-1,completion);
+        var observed=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(delayed.ToArray(),package,c.Image,c.Receipt,c.Path);
+        HostCheck.True(observed.DevicePendingProgress.Single().RecordIndex>
+            delayed.FindIndex(r=>r==completion[0])-delayed.IndexOf("TEST_START m16-009"));
+
+        // Align the physical endpoints to the fixture HPET quantum so exact
+        // equality, as well as either side, is tested without rounding aliases.
+        ulong low=(Field(rows[submit],"clock")/1000+1)*1000;
+        ulong high=Field(rows[validated],"clock")/1000*1000;
+        string[] aligned=Change(Change(rows,submit,"clock",low),validated,"clock",high);
+        foreach(ulong entry in new[]{low-1000,low,high,high+1000})
+        {
+            string[] boundary=aligned.ToArray();boundary[timing]=TimingAt(boundary[timing],entry/1000);
+            RejectProgress(c,boundary,"disk_progress_device_overlap");
+        }
+        // A long prelude crossing a transaction is not an entry witness.
+        string[] duration=aligned.ToArray();duration[timing]=TimingAt(duration[timing],low/1000-1);
+        foreach(string field in new[]{"admitted","dispatched","prepared"})duration[timing]=Set(duration[timing],field,high/1000+1);
+        RejectProgress(c,duration,"disk_progress_device_overlap");
+
+        // Entry inside another request's physical transaction cannot stand in
+        // for the uniquely owned main.read interval, even with intact sectors.
+        ulong foreign=report.Requests.Single(r=>r.Role=="main.pread").DeviceGenerations[0];
+        int foreignSubmit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==foreign);
+        ulong foreignClock=Field(rows[foreignSubmit],"clock");string[] other=rows.ToArray();
+        for(int i=foreignSubmit;i<other.Length;i++)
+            if(other[i].StartsWith("M16_023_IO ",StringComparison.Ordinal))
+                other[i]=Set(other[i],"clock",Field(other[i],"clock")+(i==foreignSubmit?0UL:i==foreignSubmit+1?1000UL:i==foreignSubmit+2?1001UL:2000UL));
+        other[timing]=TimingAt(other[timing],foreignClock/1000+1);
+        NativeDiskReadObservations.Inspect(other.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray(),c.Image,report.Device.Counters);
+        RejectProgress(c,other,"disk_progress_device_overlap");
+    });
+
+    [HostTest("Progress rejects absent malformed detached duplicated and foreign syscall timing even after a valid witness",HostLane.Native)]
+    private static void ProgressEntryIdentity()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);int timing=Index(rows,"M16_008_SYSCALL_TIME ");
+        RejectProgress(c,rows.Where((_,i)=>i!=timing).ToArray(),"disk_progress_device_overlap");
+        foreach(string field in new[]{"identity","ordinal","nr","periodFs"})
+            RejectProgress(c,Change(rows,timing,field,Field(rows[timing],field)+1));
+        RejectProgress(c,[..rows[..timing],rows[timing],..rows[timing..]],"disk_race_timing_order");
+        RejectProgress(c,Change(rows,timing,"prepared",Field(rows[timing],"entered")-1),"linux_syscall_timing_observation");
+        RejectProgress(c,Change(rows,timing,"entered",0),"disk_progress_syscall_timing");
+        string[] late=rows.ToArray();late[timing]=Set(late[timing],"prepared",ulong.MaxValue);
+        RejectProgress(c,late,"disk_progress_syscall_timing");
+        int later=Array.FindIndex(rows,timing+1,r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal));
+        RejectProgress(c,[..rows[..(later+1)],rows[timing],..rows[(later+1)..]],"linux_syscall_timing_observation");
+    });
+
+    private static string TimingAt(string row,ulong ticks)
+    {
+        foreach(string field in new[]{"entered","admitted","dispatched","prepared"})row=Set(row,field,ticks);
+        return row;
+    }
 
     [HostTest("Progress copied capture rejects shared cursor submission before main commit despite valid whole device transactions",HostLane.Native)]
     private static void ProgressSharedCursor()=>WithCapture(c=>
@@ -160,6 +226,12 @@ internal static class LinuxDiskCaptureTests
                 }
             }
             leaf.Add(row);
+            if(row.StartsWith("M16_008_CALL ",StringComparison.Ordinal)&&
+                Field(row,"identity")==LinuxDiskRaceProofFixture.ChildIdentity&&Field(row,"ordinal")==1)
+            {
+                ulong ticks=Field(row,"clock")/1000;
+                leaf.Add($"M16_008_SYSCALL_TIME identity={Field(row,"identity")} ordinal=1 nr=186 entered={ticks} admitted={ticks} dispatched={ticks} prepared={ticks} periodFs=1000000000");
+            }
             if(row.StartsWith("M16_008_RESUME ",StringComparison.Ordinal)&&duplicateClock!=0)
             {
                 Emit(file.Cover((ulong)main.Result,(uint)duplicate.Result)[0].Lba,duplicateClock);

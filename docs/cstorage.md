@@ -1,7 +1,7 @@
 # Storage
 
 <!-- step1625-progress-development -->
-[Step1625](../done/step1625.md) adds the Progress copied capture consumer and narrow original route. Every whole device transaction has one request owner; shared-cursor data follows parent commit, and child progress is joined to a submitted/unvalidated device interval. Focused host controls pass; no fresh Progress guest or live cold/warm cache qualification is claimed.
+[Step1626](../done/step1626.md) corrects the Progress host timing join after the first original failed. Every whole device transaction retains one request owner and independent sector coverage. The counted child witness is its exact adjacent, identity-bound syscall-entry timestamp strictly between one main-read submit and completion validation; printed CALL position and duration overlap confer no witness. This does not prove syscall dispatch/completion during pending I/O. Thirteen focused capture checks and diagnostic replay pass; the failed original remains failed and fresh guest qualification is required.
 
 ## Port and borrowed filesystem range batches (step1624)
 

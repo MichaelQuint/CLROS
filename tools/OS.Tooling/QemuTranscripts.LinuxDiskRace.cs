@@ -17,8 +17,9 @@ public static partial class QemuTranscripts
         IReadOnlyList<ulong> DeviceGenerations);
 
     /// <summary>Complete copied Progress parent/image/device/request joins.
-    /// A progress witness lies inside a submitted but not yet validated device
-    /// transaction, not an inferred hardware completion time. Original files,
+    /// A progress witness is another worker's owned syscall-entry sample inside
+    /// a submitted but not yet validated main-read device transaction. It does
+    /// not establish syscall dispatch/completion or hardware busy time. Original files,
     /// native/source, firmware, packets and process remain separate obligations.
     /// No FIFO/fairness or arbitrary user-buffer emulation is claimed.</summary>
     public sealed class LinuxDiskProgressCaptureInspection
@@ -109,7 +110,8 @@ public static partial class QemuTranscripts
             requests.Add(new(window,call,metadata,offset,bytes,sectors));
         }
         Need(requests.Count(r=>r.Metadata)==2 && requests.Count(r=>r.Bytes>0)==4,"disk_progress_request_inventory");
-        List<(int Submit,int Validated)> parentIntervals=[];
+        List<(ProgressRequest Owner,NativeDiskReadObservations.Observation Submit,
+            NativeDiskReadObservations.Observation Validated)> parentIntervals=[];
         for(int i=0;i<device.Rows.Count;i+=3)
         {
             Need(i+2<device.Rows.Count && device.Rows[i].Kind==NativeDiskReadObservations.Kind.Submitted &&
@@ -127,27 +129,34 @@ public static partial class QemuTranscripts
             Need(owner.Call.Spec.Role!="child.duplicate" || submit>leaf.MainReadCompletionIndex,
                 "disk_progress_shared_cursor_commit");
             owner.Observed.Add(transaction.Sector);owner.Generations.Add(transaction.Generation);
-            if(owner.Call.Spec.Role=="main.read")parentIntervals.Add((submit,validated));
+            if(owner.Call.Spec.Role=="main.read")parentIntervals.Add((owner,transaction,device.Rows[i+1]));
         }
         foreach(var request in requests)
         {
             if(request.Metadata) _=WebRootDiskInventory.ClassifyMetadata(inventory,rawImage!,request.Observed);
             else Need(request.Observed.SequenceEqual(request.Sectors),"disk_progress_read_sector_window");
         }
-        var progress=leaf.Calls.Where(c=>c.Spec.Role is "child.pin" or "child.disjoint-readonly" or
-            "child.disjoint-writable" or "child.notify" or "child.duplicate")
-            .Where(c=>parentIntervals.Any(p=>p.Submit<c.RecordIndex && c.RecordIndex<p.Validated)).ToArray();
-        Need(progress.Length>0,"disk_progress_device_overlap");
+        decimal Nanos(ulong ticks)=>decimal.Floor((decimal)ticks*parents.Clock["period"]/1_000_000);
+        var callsByIndex=leaf.Calls.ToDictionary(c=>c.RecordIndex);
+        Dictionary<int,decimal> entered=[];
         foreach(var auxiliary in leaf.Auxiliary)
         {
             Need(!auxiliary.Text.StartsWith("M16_008_TIMING ",StringComparison.Ordinal),"disk_progress_irq_timing");
             if(!auxiliary.Text.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal))continue;
-            var t=ReadRecord(auxiliary.Text,"M16_008_SYSCALL_TIME","identity:dec","ordinal:dec","nr:dec",
-                "entered:dec","admitted:dec","dispatched:dec","prepared:dec","periodFs:dec");
-            decimal Nanos(ulong ticks)=>decimal.Floor((decimal)ticks*parents.Clock["period"]/1_000_000);
+            Need(callsByIndex.TryGetValue(auxiliary.RecordIndex-1,out var call),"disk_progress_timing_owner");
+            var t=LinuxSyscallTiming(auxiliary.Text,call.Identity,call.Ordinal,call.Spec.Number);
             Need(t["periodFs"]==parents.Clock["period"] && Nanos(t["entered"])>=binding.Budget["started"] &&
-                Nanos(t["prepared"])<=parents.Network.End["end"],"disk_progress_syscall_timing");
+                Nanos(t["prepared"])<=parents.Network.End["end"] &&
+                entered.TryAdd(call.RecordIndex,Nanos(t["entered"])),"disk_progress_syscall_timing");
         }
+        // CALL/TIME serialization follows syscall-prelude polling. Only the
+        // adjacent, identity-bound entry sample locates the other worker in
+        // physical request time; neither row position nor duration overlap does.
+        var progress=leaf.Calls.Where(c=>c.Spec.Role is "child.tid" or "child.pin" or "child.disjoint-readonly" or
+            "child.disjoint-writable" or "child.notify" or "child.duplicate")
+            .Where(c=>entered.TryGetValue(c.RecordIndex,out decimal entry) &&
+                parentIntervals.Count(p=>p.Submit.Clock<entry && entry<p.Validated.Clock)==1).ToArray();
+        Need(progress.Length>0,"disk_progress_device_overlap");
         var owned=requests.Select(r=>new LinuxDiskProgressRequest(r.Call.Identity,r.Call.Ordinal,r.Window.Sequence,
             r.Window.RequestGeneration,r.Call.Spec.Role,r.Offset,r.Bytes,Array.AsReadOnly(r.Sectors.ToArray()),
             Array.AsReadOnly(r.Generations.ToArray()))).ToArray();
