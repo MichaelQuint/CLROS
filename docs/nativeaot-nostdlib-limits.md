@@ -1,5 +1,30 @@
 # NativeAOT NoStdLib Limits
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1601](../done/step1601.md) The host file-backed PE catalog now permits4096records; this does not expand the kernel unwind decoder MaximumFunctions2048 or its snapshot/lookup/EH contract. An enabled kernel unwind probe still rejects a whole table beyond2048 with CapacityExceeded. The timing disk profile requires everyM04flag off and does not invoke that decoder.
+
+The isolated continuing-disk profile has original ILC/link/artifact verification
+and two retained failed diagnostic guests in steps1566/1567. The second reaches
+exit/startup/NIC records before memory admission rejects its 65 static mappings.
+The profile-specific range repairs need fresh native/guest qualification; full
+ABI/stack, retained image/arena and real device progress remain unaccepted.
+Its fixed observation records contain
+copied POD/sector bytes; callbacks allocate no storage and cannot reenter a
+block mutator. Accepted older profiles retain their exact source/native scopes.
+
+The freestanding BCL does not provide `System.Range` or `System.Index`. Use the
+existing `Span.Slice`/`ReadOnlySpan.Slice` surface in linked kernel code. A normal
+managed build does not catch these missing-type errors; step1623 retains the
+original failed native compilation and its explicit Slice repair.
+
 ## Runtime expansion and toolchain maintenance
 
 Keep kernel C# restricted to the runtime behavior actually needed by supported

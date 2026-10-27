@@ -56,7 +56,8 @@ internal static class EfiCompileInventoryTests
                 bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
                     requested.IsEnabled("M09010") && other.IsEnabled("M09009");
                 bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
-                HostCheck.True(waitPair || signalPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
+                bool diskPair=requested.IsEnabled("M10018") && other.IsEnabled("M10018");
+                HostCheck.True(waitPair || signalPair || diskPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
                 try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
                 catch (ToolFailure failure) { actual = failure.Reason; }
                 HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
@@ -68,6 +69,46 @@ internal static class EfiCompileInventoryTests
             catch (ToolFailure failure) { actual = failure.Reason; }
             HostCheck.Equal("post_restore_evidence_count_mismatch", actual);
         }
+    }
+
+    [HostTest("EFI writable leaf admits only its independently declared reviewed source bytes")]
+    private static void WritableSources()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        EfiProfile parent = EfiOptions.Parse(["--EnableM16025Probe"], true).Profile();
+        EfiProfile writable = EfiOptions.Parse(["--EnableM16027Probe"], true).Profile();
+        string[] additions = EfiProjectAdmission.ExpectedCompileItems(writable)
+            .Except(EfiProjectAdmission.ExpectedCompileItems(parent), StringComparer.Ordinal).ToArray();
+        var declared = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj")).Descendants("Compile")
+            .Where(item => (string?)item.Attribute("Condition") == "'$(EnableM16027Probe)' == 'true'")
+            .Select(item => (string)item.Attribute("Include")! + "|" + ((string?)item.Attribute("Link") ?? "")).ToArray();
+        HostCheck.True(declared.Length > 0 && declared.SequenceEqual(additions, StringComparer.Ordinal));
+        foreach (string item in additions)
+        {
+            string include = item[..item.IndexOf('|')];
+            HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
+            HostCheck.True(EfiContracts.SourceAdmissionReasons.ContainsKey(include) && EfiContracts.SourceIdentities.ContainsKey(include));
+            string source = File.ReadAllText(Path.GetFullPath(include, Path.Combine(root, "src/OS")));
+            foreach (string valid in new[] { source, source.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\n", "\r\n", StringComparison.Ordinal) })
+                HostCheck.True(EfiSourceAdmission.Inspect(valid, include).Succeeded, include);
+            var changed = EfiSourceAdmission.Inspect(source + "\n// unreviewed writable source mutation\n", include);
+            HostCheck.True(!changed.Succeeded && changed.Reason == "forbidden_active_source", include);
+        }
+    }
+
+    [HostTest("EFI writable timing adds only the separately reviewed diagnostic helper")]
+    private static void WritableTimingSource()
+    {
+        EfiProfile plain = EfiOptions.Parse(["--EnableM16027Probe"], true).Profile();
+        EfiProfile timing = EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile();
+        const string include = @"..\OS.Kernel\Diagnostics\WritableStorageTiming.cs";
+        string[] additions = EfiProjectAdmission.ExpectedCompileItems(timing)
+            .Except(EfiProjectAdmission.ExpectedCompileItems(plain), StringComparer.Ordinal).ToArray();
+        HostCheck.True(additions.SequenceEqual(new[] { include + @"|Diagnostics\WritableStorageTiming.cs" }, StringComparer.Ordinal));
+        string source = File.ReadAllText(Path.GetFullPath(include, Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS")));
+        HostCheck.True(EfiContracts.ReviewedSourceIncludes.Contains(include, StringComparer.Ordinal));
+        HostCheck.True(EfiSourceAdmission.Inspect(source, include).Succeeded);
+        HostCheck.True(!EfiSourceAdmission.Inspect(source + "\n// changed timing source\n", include).Succeeded);
     }
 
     private static EfiProfile[] Profiles() =>
@@ -86,7 +127,13 @@ internal static class EfiCompileInventoryTests
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16010Probe"] = true }),
         EfiOptions.Parse(["--EnableM16011Probe"], true).Profile(),
         EfiOptions.Parse(["--EnableM16012Probe"], true).Profile(),
-        EfiOptions.Parse(["--EnableM10004Probe"], true).Profile()
+        EfiOptions.Parse(["--EnableM10004Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10017Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM16025Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM16027Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM16027TimingProbe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10018Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10018FullProbe"], true).Profile()
     ];
 
     // The project declarations are an independent oracle for the shared helper.
@@ -116,6 +163,11 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM16009Probe)' == 'true'" => profile.IsEnabled("EnableM16009Probe"),
             "'$(EnableM16011Probe)' == 'true'" => profile.IsEnabled("EnableM16011Probe"),
             "'$(EnableM10004Probe)' == 'true'" => profile.IsEnabled("EnableM10004Probe"),
+            "'$(EnableM10017Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe"),
+            "'$(EnableM10017Probe)' == 'true' or '$(EnableM10018Probe)' == 'true'" => profile.IsEnabled("EnableM10017Probe") || profile.IsEnabled("EnableM10018Probe"),
+            "'$(EnableM16025Probe)' == 'true'" => profile.IsEnabled("EnableM16025Probe"),
+            "'$(EnableM16027Probe)' == 'true'" => profile.IsEnabled("EnableM16027Probe"),
+            "'$(EnableM16027TimingProbe)' == 'true'" => profile.IsEnabled("EnableM16027TimingProbe"),
             "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();

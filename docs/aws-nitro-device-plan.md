@@ -66,7 +66,7 @@ The current driver layer already has useful host-testable metadata contracts:
   are host-tested, but they are not generic PCI driver binding and they are not
   usable as ENA or NVMe drivers.
 
-Missing prerequisites for Nitro device work:
+Nitro-specific ownership and live integration still to qualify (existing QEMU/virtio implementations do not supply these AWS device proofs):
 
 - live ACPI physical-memory reads from the firmware RSDP;
 - live MCFG-to-ECAM mapping;

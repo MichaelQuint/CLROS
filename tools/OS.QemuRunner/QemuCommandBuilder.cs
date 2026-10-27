@@ -25,7 +25,7 @@ internal static class QemuCommandBuilder
         // The finite web fixture may resolve EFI_UNSPECIFIED_TIMEZONE only
         // under this declared UTC RTC contract. Retain these arguments in the
         // runner receipt; arbitrary firmware/local-time configurations differ.
-        if (options.ContinuingWeb) arguments.AddRange(["-rtc", "base=utc,clock=host"]);
+        if (options.ContinuingWeb || options.FiniteStaticFiles) arguments.AddRange(["-rtc", "base=utc,clock=host"]);
 
         if (!string.IsNullOrWhiteSpace(ovmfCodePath))
         {
@@ -43,7 +43,7 @@ internal static class QemuCommandBuilder
             "-drive",
             // The web verifier holds the exact image read-only. AHCI needs a
             // writable disk, so keep its writes in QEMU's temporary overlay.
-            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
+            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot || options.ContinuingWeb || options.ContinuingService || options.FiniteStaticFiles || options.ReadOnlyWebRootDisk || options.WritableDataImagePath is not null ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
             "-device",
             options.VirtioBlockQueueDevice && !separateBoot ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
             .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,
@@ -55,6 +55,16 @@ internal static class QemuCommandBuilder
             options.VirtioNegotiationDevice ? "virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=" +
                 (options.ArpReceiveFixture ? ",mac=02:00:00:00:00:01" : "") : "virtio-net-pci,netdev=n0"
         ]);
+
+        // The same immutable image supplies boot bytes through a temporary
+        // AHCI overlay and demand reads through a distinct read-only device.
+        // Slot6 remains the NIC; the disk owns only function0 at slot7.
+        if (options.ReadOnlyWebRootDisk)
+            arguments.AddRange(["-drive", "if=none,id=webroot,format=raw,readonly=on,file=" + options.ImagePath,
+                "-device", "virtio-blk-pci,drive=webroot,addr=07.0,disable-legacy=on,romfile="]);
+        if (options.WritableDataImagePath is not null)
+            arguments.AddRange(["-drive", "if=none,id=writabledata,format=raw,cache=writeback,readonly=off,file=" + options.WritableDataImagePath,
+                "-device", "virtio-blk-pci,drive=writabledata,addr=07.0,disable-legacy=on,romfile="]);
 
         if (options.PciBarTestDevice)
             arguments.AddRange(["-device", "pci-testdev,addr=06.0,membar=2M"]);

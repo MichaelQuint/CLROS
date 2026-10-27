@@ -21,7 +21,7 @@ public unsafe partial struct LinuxThreadServices
         if (!a.SigpipeIgnored || a.PackageProcessId != 0 && a.PackageProcessId != _owner.ProcessId ||
             a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
             (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
-        for (uint i = 0; i < 25; i++)
+        for (uint i = 0; i < DescriptorExtentCount; i++)
         {
             DescriptorExtent(descriptors, i, out ulong start, out ulong bytes);
             if (bytes == 0) continue;
@@ -32,6 +32,9 @@ public unsafe partial struct LinuxThreadServices
                 if (Overlap(start, bytes, (ulong)d.Context, d.ContextBytes) || Overlap(start, bytes, d.StackGuardStart, d.StackBytes)) return false;
             }
         }
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!WritableDiskStorageOutsideProcess(descriptors, flags)) return false;
+#endif
         if (!LinuxDescriptorServices.AttachThreads(descriptors, _self)) return false;
         _descriptors = descriptors; return true;
     }
@@ -43,6 +46,13 @@ public unsafe partial struct LinuxThreadServices
     /// slice. The native gateway/worker owner must route this explicit result and
     /// restore CPL3 state before CommitPipeWait; no native transfer is done here.</summary>
     public LinuxSyscallResult DispatchDescriptor(ulong key, ulong flags, LinuxSyscallFrame frame)
+        => DispatchDescriptor(key, flags, frame, 0);
+
+    /// <summary>Forward an optional copied ordinal to the original writable
+    /// request. Other descriptor paths and ordinal zero preserve their existing
+    /// behavior. The caller authenticates this value and the captured frame;
+    /// no callback, native authority or predicted ordinal is introduced.</summary>
+    public LinuxSyscallResult DispatchDescriptor(ulong key, ulong flags, LinuxSyscallFrame frame, ulong callOrdinal)
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index) ||
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User) || _descriptors == null) return new(LinuxSyscallAction.Rejected);
@@ -54,6 +64,12 @@ public unsafe partial struct LinuxThreadServices
             if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
             if (_descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
         }
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (TryBeginWritableDisk(flags, slot, frame, callOrdinal, out var writableResult)) return writableResult;
+#endif
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (TryBeginDisk(flags, slot, frame, out var diskResult)) return diskResult;
 #endif
         uint* before = stackalloc uint[(int)LinuxDescriptorServices.MaximumPipes * 3];
         if (!LinuxDescriptorServices.DispatchThreads(_descriptors, _self, frame, ref slot->PipeOperation, before, out bool pipe, out long value))
@@ -192,7 +208,10 @@ public unsafe partial struct LinuxThreadServices
     private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
-        for (uint i = 0; i < 25; i++)
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (!DescriptorTreesOutsideRange(_descriptors, start, bytes, includeUserBacking)) return true;
+#endif
+        for (uint i = 0; i < DescriptorExtentCount; i++)
         {
             // Validated futex words may use application backing; service metadata may not.
             if (i == 8 && !includeUserBacking) continue;
@@ -201,9 +220,160 @@ public unsafe partial struct LinuxThreadServices
         }
         return false;
     }
+#if !NOSTDLIB_EFI || M16_027_PROBE
+    // Do not enter Access/Current/global Audit from these leaves. Socket Audit
+    // and Network Shape remain separate from their active entry gates.
+    private static bool FiniteDescriptorTree(LinuxDescriptorServices.State* d)
+    {
+        if (d->WritableDisk != null) return true;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (d->Disk != null)
+        {
+            var disk = d->Disk;
+            // A malformed non-null tree must reach the rejecting full audit,
+            // never a legacy fallback or a low/unaligned pointer dereference.
+            if ((ulong)disk < 4096 || ((ulong)disk & 7) != 0 ||
+                !Range((ulong)disk, (ulong)sizeof(LinuxDescriptorServices.DiskState)) ||
+                (ulong)disk->Mount < 4096 || ((ulong)disk->Mount & 7) != 0 ||
+                !Range((ulong)disk->Mount, (ulong)sizeof(OS.Storage.ReadOnlyWebRootFileSystem.Mount))) return true;
+            return disk->Mount->ReadPort != null;
+        }
+#endif
+        return false;
+    }
+    private static bool DescriptorTreesOutsideRange(LinuxDescriptorServices.State* d, ulong start, ulong bytes, bool includeUserBacking = true)
+    {
+        if (!LinuxDescriptorServices.WritableDiskCanRetainStorage(d, start, bytes, includeUserBacking)) return false;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (!LinuxDescriptorServices.DiskThreadStorageOutside(d, start, bytes)) return false;
+#endif
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (FiniteDescriptorTree(d) && !LinuxDescriptorServices.SocketCanRetainStorage(d, start, bytes)) return false;
+#endif
+        return true;
+    }
+    private bool ProcessRetainedShape(LinuxDescriptorServices.State* d, out uint kernelCount)
+    {
+        kernelCount = 0;
+        if (_initialized != 1 || !Range(_self, (ulong)sizeof(LinuxThreadServices)) ||
+            !Range((ulong)d, (ulong)sizeof(LinuxDescriptorServices.State)) || d->Initialized != 1 ||
+            (_descriptors == null ? d->ThreadOwner != 0 : _descriptors != d || d->ThreadOwner != _self) ||
+            _owner.Capacity is 0 or > MaximumThreads ||
+            !Buffer((ulong)_owner.Threads, (uint)sizeof(KernelThreadTable), (uint)sizeof(KernelThreadTable)) ||
+            !Buffer((ulong)_owner.Slots, _owner.SlotBytes, _owner.Capacity * (uint)sizeof(Slot)) ||
+            !Buffer((ulong)_owner.Workers, _owner.WorkerBytes, _owner.Capacity * (uint)sizeof(Worker)) ||
+            ((ulong)_owner.User.Context & 7) != 0 || !Range((ulong)_owner.User.Context, _owner.UserContextBytes)) return false;
+        fixed (LinuxThreadServices* self = &this) if ((ulong)self != _self) return false;
+        var a = d->Owner;
+        if (a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
+            (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
+        return _owner.Threads->InspectRetainedStorage(_owner.ThreadKey, 0, out _, out _, out kernelCount) == KernelThreadTable.Status.Ok &&
+            kernelCount is >= 9 and <= 9 + 2 * KernelThreadTable.MaximumSlots;
+    }
+    private bool ProcessExtentAt(uint index, uint kernelCount, out ulong start, out ulong bytes)
+    {
+        start = bytes = 0;
+        if (index >= 8 + kernelCount + 2 * _owner.Capacity) return false;
+        switch (index)
+        {
+            case 0: start = _self; bytes = (ulong)sizeof(LinuxThreadServices); break;
+            case 1: start = (ulong)_owner.Slots; bytes = _owner.SlotBytes; break;
+            case 2: start = (ulong)_owner.Workers; bytes = _owner.WorkerBytes; break;
+            case 3: start = (ulong)_owner.User.Context; bytes = _owner.UserContextBytes; break;
+            case 4: start = (ulong)_signals; bytes = _signals == null ? 0 : (ulong)sizeof(LinuxSignalServices.State); break;
+            case 5: if (_futexEnabled) { start = (ulong)_futex.Cells; bytes = _futex.CellBytes; } break;
+            case 6: if (_futexEnabled) { start = (ulong)_futex.Addresses; bytes = _futex.AddressBytes; } break;
+            case 7: if (_futexEnabled) { start = (ulong)_futex.Registrations; bytes = _futex.RegistrationBytes; } break;
+            default:
+                uint offset = index - 8;
+                if (offset < kernelCount)
+                {
+                    if (_owner.Threads->InspectRetainedStorage(_owner.ThreadKey, offset, out start, out bytes, out uint count) != KernelThreadTable.Status.Ok || count != kernelCount) return false;
+                }
+                else
+                {
+                    offset -= kernelCount; var w = _owner.Workers[offset / 2].Initial;
+                    if ((offset & 1) == 0) { start = (ulong)w.Context; bytes = w.ContextBytes; }
+                    else { start = w.StackGuardStart; bytes = w.StackBytes; }
+                }
+                break;
+        }
+        return bytes == 0 || Range(start, bytes);
+    }
+    private bool DescriptorTreesOutsideProcess(LinuxDescriptorServices.State* d)
+    {
+        if (!ProcessRetainedShape(d, out uint kernelCount)) return false;
+        if (d->Disk != null && d->WritableDisk != null)
+        {
+            uint count = 8 + kernelCount + 2 * _owner.Capacity;
+            if (count > LinuxDescriptorServices.MaximumThreadStorageRanges) return false;
+            Span<ulong> ranges = stackalloc ulong[(int)(count * 2)];
+            for (uint i = 0; i < count; i++)
+            {
+                if (!ProcessExtentAt(i, kernelCount, out ulong start, out ulong bytes)) return false;
+                ranges[(int)(i * 2)] = start; ranges[(int)(i * 2 + 1)] = bytes;
+            }
+            // No user validation, callback or publication occurs in this batch.
+            // Its Boolean result expires here, before any outer operation.
+            return LinuxDescriptorServices.PairedThreadStorageOutside(d, ranges);
+        }
+        for (uint i = 0; i < 8 + kernelCount + 2 * _owner.Capacity; i++)
+            if (!ProcessExtentAt(i, kernelCount, out ulong start, out ulong bytes) ||
+                bytes != 0 && !DescriptorTreesOutsideRange(d, start, bytes)) return false;
+        return true;
+    }
+    /// <summary>Check finite retained process/descriptor backing on its original
+    /// serialized supervisor. Dirty/orphan/stopped backing remains excluded;
+    /// no I/O/copy/CPU/mapping authority follows. The original attachment and
+    /// every range stay mapped through return. Structural socket inspectors
+    /// must not invoke this active entry gate.</summary>
+    internal static bool DescriptorProcessCurrent(LinuxDescriptorServices.State* d)
+    {
+        if (!Range((ulong)d, (ulong)sizeof(LinuxDescriptorServices.State))) return false;
+        if (!FiniteDescriptorTree(d) || d->ThreadOwner == 0) return true;
+        if (!Range(d->ThreadOwner, (ulong)sizeof(LinuxThreadServices)) || (d->ThreadOwner & 7) != 0) return false;
+        return ((LinuxThreadServices*)d->ThreadOwner)->DescriptorTreesOutsideProcess(d);
+    }
+    /// <summary>Exclude an actual external packet range from the original
+    /// retained process tree. The serialized owner holds all mapped backing;
+    /// no callback, global Audit, allocation, I/O, synthetic flags or current
+    /// user-copy authority follow. Failed/stopping process backing remains
+    /// excluded while its independent network owner drains final traffic.</summary>
+    internal static bool DescriptorProcessOutsideStorage(LinuxDescriptorServices.State* d, ulong address, ulong bytes)
+    {
+        if (!Range((ulong)d, (ulong)sizeof(LinuxDescriptorServices.State)) || !Range(address, bytes)) return false;
+        if (!FiniteDescriptorTree(d) || d->ThreadOwner == 0) return true;
+        if (!Range(d->ThreadOwner, (ulong)sizeof(LinuxThreadServices)) || (d->ThreadOwner & 7) != 0) return false;
+        var p = (LinuxThreadServices*)d->ThreadOwner;
+        if (!p->ProcessRetainedShape(d, out uint kernelCount)) return false;
+        for (uint i = 0; i < 8 + kernelCount + 2 * p->_owner.Capacity; i++)
+            if (!p->ProcessExtentAt(i, kernelCount, out ulong start, out ulong count) ||
+                count != 0 && Overlap(address, bytes, start, count)) return false;
+        return true;
+    }
+    /// <summary>Prove an unpublished transport/carrier range before ownership
+    /// transfer, with the same structural exclusions as packet storage. Failed
+    /// or stopping processes may drain owned traffic but cannot publish a new
+    /// transport lifetime. Rejection leaves the candidate untouched.</summary>
+    internal static bool CanPublishDescriptorStorage(LinuxDescriptorServices.State* d, ulong address, ulong bytes)
+    {
+        if (!DescriptorProcessOutsideStorage(d, address, bytes)) return false;
+        if (!FiniteDescriptorTree(d) || d->ThreadOwner == 0) return true;
+        var p = (LinuxThreadServices*)d->ThreadOwner;
+        return !p->_failed && !p->_stopping;
+    }
+#endif
+    private const uint DescriptorExtentCount = 25
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        + LinuxDescriptorServices.DiskExtentCount
+#endif
+        ;
     private static void DescriptorExtent(LinuxDescriptorServices.State* state, uint index, out ulong start, out ulong bytes)
     {
         var a = state->Owner; start = bytes = 0;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        if (index >= 25) { LinuxDescriptorServices.DiskExtentAt(state, index - 25, out start, out bytes); return; }
+#endif
         switch (index)
         {
             case 0: start = (ulong)state; bytes = (uint)sizeof(LinuxDescriptorServices.State); break;

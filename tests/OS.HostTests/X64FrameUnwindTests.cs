@@ -266,8 +266,9 @@ internal static unsafe class X64FrameUnwindTests
             if (f.Invoke(input, stackBytes: 0).Succeeded) successes++;
         }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - allocatedBefore;
-        Require(successes == 64 && allocated == 0, "zero allocated bytes for success and failure");
         f.Unchanged(before);
+        Require(successes == 64 && allocated == 0,
+            $"zero allocated bytes for success and failure successes={successes} allocatedBytes={allocated}");
         Console.WriteLine("CLROS_ONE_FRAME_UNWIND_HOST allocatedBytes=0 iterations=64 backingUnchanged=true liveRegisters=false");
     }
 

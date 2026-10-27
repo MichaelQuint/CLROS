@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Kernel.Threading;
 using OS.Pal;
@@ -9,6 +10,12 @@ internal static unsafe class LinuxBlockingPipeTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, Base = LinuxThreadServicesTests.UserBase;
     private const ulong Fds = Base + 0x1180, Data = Base + 0x1000, Output = Base + 0x3400;
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ThreadOwner")]
+    private static extern ref ulong DescriptorThreadOwner(ref Descriptors.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Disk")]
+    private static extern ref Descriptors.DiskState* AttachedDisk(ref Descriptors.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Mount")]
+    private static extern ref OS.Storage.ReadOnlyWebRootFileSystem.Mount* DiskMount(ref Descriptors.DiskState state);
     internal sealed class Owner : IDisposable
     {
         internal readonly ThreadModel Thread = new(futex: true);
@@ -81,18 +88,53 @@ internal static unsafe class LinuxBlockingPipeTests
             var pipe = o.Pipe(kind == 0 ? 0U : Descriptors.NonBlock);
             uint descriptors = o.Files.State->ActiveDescriptors;
             m.Put32(Data, 0x63);
-            ulong* changed = damage == 0
-                ? (ulong*)((byte*)o.Files.State + Marshal.OffsetOf<Descriptors.State>("ThreadOwner"))
-                : o.Files.Memory.Memory.Tables + 1;
-            ulong original = *changed; *changed ^= 2;
-            var result = kind == 2 ? o.Call(72, pipe.Write, 0, 3) : o.Call(1, pipe.Write, Data, 1);
-            HostCheck.Equal(LinuxSyscallAction.Rejected, result.Action);
-            HostCheck.Equal(descriptors, o.Files.State->ActiveDescriptors);
-            HostCheck.Equal(0U, o.Files.State->RetainedPipeOperations);
-            HostCheck.Equal(0U, o.Files.Admission.Pipes[0].BufferedBytes);
-            o.ScratchClean();
-            *changed = original; o.Drain();
+            // Marshal.OffsetOf describes a different bool layout in Admission;
+            // authenticate the actual managed field instead of hitting Disk.
+            ref ulong changed = ref (damage == 0 ? ref DescriptorThreadOwner(ref *o.Files.State) : ref o.Files.Memory.Memory.Tables[1]);
+            ulong original = changed;
+            try
+            {
+                changed ^= 2;
+                var result = kind == 2 ? o.Call(72, pipe.Write, 0, 3) : o.Call(1, pipe.Write, Data, 1);
+                HostCheck.Equal(LinuxSyscallAction.Rejected, result.Action);
+                HostCheck.Equal(descriptors, o.Files.State->ActiveDescriptors);
+                HostCheck.Equal(0U, o.Files.State->RetainedPipeOperations);
+                HostCheck.Equal(0U, o.Files.Admission.Pipes[0].BufferedBytes);
+                o.ScratchClean();
+            }
+            finally { changed = original; }
+            o.Drain();
         }
+    }
+
+    [HostTest("linux.descriptor malformed disk and mount pointers reject before classification dereference or pipe effects")]
+    private static void MalformedDiskTreeAdmission()
+    {
+        using Owner o = new(); var m = o.Thread; var parent = m.Start(); HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
+        var pipe = o.Pipe(); m.Put32(Data, 0x63);
+        // Capture while the owner is valid. Model.Call would first query
+        // CurrentImage, which must itself reject after the tree is poisoned.
+        var frame = m.CurrentImage()->Frame; frame.Number = 1; frame.Argument0 = pipe.Write; frame.Argument1 = Data; frame.Argument2 = 1;
+        Descriptors.DiskState candidate = default; OS.Storage.ReadOnlyWebRootFileSystem.Mount mount = default;
+        var original = AttachedDisk(ref *o.Files.State);
+        foreach (bool poisonMount in new[] { false, true })
+            foreach (ulong address in new[] { 2UL, 8UL, poisonMount ? (ulong)&mount + 1 : (ulong)&candidate + 1, 0x0000800000000000UL, ulong.MaxValue })
+            {
+                try
+                {
+                    DiskMount(ref candidate) = poisonMount ? (OS.Storage.ReadOnlyWebRootFileSystem.Mount*)address : &mount;
+                    AttachedDisk(ref *o.Files.State) = poisonMount ? &candidate : (Descriptors.DiskState*)address;
+                    byte[] before = new ReadOnlySpan<byte>(o.Files.State, sizeof(Descriptors.State)).ToArray();
+                    var kernel = m.Kernel.Snapshot(); uint reads = m.Reads, copies = m.Writes;
+                    HostCheck.Equal(LinuxSyscallAction.Rejected, m.Service->DispatchDescriptor(Key, 2, frame).Action);
+                    HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(o.Files.State, sizeof(Descriptors.State))));
+                    HostCheck.True(m.Reads == reads && m.Writes == copies && o.Files.State->RetainedPipeOperations == 0 &&
+                        o.Files.Admission.Pipes[0].BufferedBytes == 0);
+                    m.Kernel.Same(kernel); o.ScratchClean();
+                }
+                finally { AttachedDisk(ref *o.Files.State) = original; DiskMount(ref candidate) = &mount; }
+            }
+        HostCheck.True(Descriptors.Audit(o.Files.State)); o.Drain();
     }
 
     [HostTest("linux.blocking-pipe read parks and wakes on real bytes with scrubbed scratch and explicit descriptor ownership")]

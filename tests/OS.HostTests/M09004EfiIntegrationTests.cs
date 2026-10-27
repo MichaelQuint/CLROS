@@ -123,10 +123,16 @@ internal static unsafe class M09004EfiIntegrationTests
         string realtimeParent = project.Descendants("Error").Single(element =>
             element.Attribute("Text")?.Value == "realtime_rejection_requires_web_profile").Attribute("Condition")!.Value;
         HostCheck.Equal("('$(EnableM16019UnavailableProbe)' == 'true' or '$(EnableM16019InvalidProbe)' == 'true') and '$(EnableM10004Probe)' != 'true'", realtimeParent);
+        foreach(var expected in new (string Name,string Condition)[]{
+            ("disk_static_full_parent_required","'$(EnableM10018FullProbe)' == 'true' and '$(EnableM10018Probe)' != 'true'"),
+            ("disk_static_prerequisite_missing","'$(EnableM10018Probe)' == 'true' and ('$(EnableM16025Probe)' != 'true' or '$(EnableM10004Probe)' != 'true')"),
+            ("disk_read_prerequisite_missing","'$(EnableM16025Probe)' == 'true' and ('$(EnableM16023Probe)' != 'true' or '$(EnableM16024Probe)' != 'true' or '$(EnableM16012Probe)' != 'true')"),
+            ("disk_read_requires_combined_profile","('$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true') and '$(EnableM16025Probe)' != 'true'")})
+            HostCheck.Equal(expected.Condition,project.Descendants("Error").Single(e=>e.Attribute("Text")?.Value==expected.Name).Attribute("Condition")!.Value);
         string ExclusionName(string name) => name switch
         {
-            "EnableM16013Probe" => "EnableM16012Probe",
-            "EnableM16014Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
+            "EnableM16013Probe" or "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" => "EnableM16012Probe",
+            "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" => "EnableM10004Probe",
             _ => name
         };
         string[] declared = project.Descendants("PropertyGroup").SelectMany(group => group.Elements()).Select(element => element.Name.LocalName)

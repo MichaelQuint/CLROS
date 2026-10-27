@@ -1,5 +1,8 @@
 using System.Buffers.Binary;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Net;
 using Network = OS.Kernel.Compatibility.LinuxX64.LinuxSocketNetwork;
@@ -8,11 +11,12 @@ using Sockets = OS.Kernel.Compatibility.LinuxX64.LinuxSocketServices;
 using Epoll = OS.Kernel.Compatibility.LinuxX64.LinuxEpollServices;
 using Table = OS.Net.TcpConnectionTable;
 using Wire = TcpReceiveWindowTests;
+using Rx = OS.Net.TcpReceiveWindow;
 
 internal static unsafe class LinuxSocketNetworkTests
 {
     private const ulong User = 0x100000000, Output = User + 0x4000;
-    private struct Hardware { internal ulong Now; internal uint Calls, Length; internal byte Result; internal fixed byte Frame[1514]; }
+    private struct Hardware { internal ulong Now; internal uint Calls, Length, ClockCalls; internal byte Result; internal fixed byte Frame[1514]; }
     private sealed class Model : IDisposable
     {
         internal readonly LinuxDescriptorServicesTests.Owner Files = new(16, 16);
@@ -33,7 +37,7 @@ internal static unsafe class LinuxSocketNetworkTests
         internal readonly uint Count;
         private readonly uint ReceiveBytes, SendBytes;
         internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768, bool compactTimeWait = false, bool continuingSequence = false,
-            bool measureLeases = false, uint endpointCount = 8)
+            bool measureLeases = false, uint endpointCount = 8, bool boundedContext = false, bool start = true)
         {
             Count = count; ReceiveBytes = receiveBytes; SendBytes = sendBytes; Files.Begin();
             Sockets = (Sockets.State*)NativeMemory.AllocZeroed((nuint)sizeof(Sockets.State));
@@ -57,9 +61,9 @@ internal static unsafe class LinuxSocketNetworkTests
             HostCheck.True(LinuxSocketServices.Begin(Sockets, Files.State, Endpoints, endpointCount, new(10, 0, 2, 15), 8080));
             HostCheck.True(LinuxEpollServices.Begin(Epoll, Files.State, Ports, 2, Registrations, 16));
             HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.InitializeOwned(Table, Entries, count, Generations, count, 0x1234));
-            HostCheck.True(Network.Begin(State, Sockets, Table, Slots, count, Buffers, receiveBytes, sendBytes,
+            if (start) HostCheck.True(Network.Begin(State, Sockets, Table, Slots, count, Buffers, receiveBytes, sendBytes,
                 new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), continuingSequence ? 0U : 700U, Io,
-                compactTimeWait, Sequence, measureLeases));
+                compactTimeWait, Sequence, measureLeases, ioContextBytes: boundedContext ? (uint)sizeof(Hardware) : 0));
         }
         internal TcpPassiveConnection.Operations Io => new() { Context = Hardware, NowNanoseconds = &Now, Send = &Send,
             LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
@@ -99,7 +103,7 @@ internal static unsafe class LinuxSocketNetworkTests
             NativeMemory.Free(Endpoints); NativeMemory.Free(Sockets); Files.Dispose();
         }
     }
-    private static ulong Now(void* context) => ((Hardware*)context)->Now;
+    private static ulong Now(void* context) { var h = (Hardware*)context; h->ClockCalls++; return h->Now; }
     private static byte Send(void* context, byte* frame, uint bytes)
     {
         Hardware* h = (Hardware*)context; h->Calls++;
@@ -109,6 +113,181 @@ internal static unsafe class LinuxSocketNetworkTests
     }
     private static byte[] Syn(ushort port = 40000, uint sequence = 99) => Wire.Packet(sequence, ReadOnlySpan<byte>.Empty, 0, port,
         flags: 2, options: [2, 4, 5, 180]);
+
+    // A real packet/timer owner borrowing another test's actual socket table.
+    // This owns only its declared host network buffers/carrier. The caller must
+    // close/detach workers, Abort/End and retire the table before disposal.
+    internal sealed class PacketCarrier : IDisposable
+    {
+        internal readonly Network.State* State = (Network.State*)NativeMemory.AllocZeroed((nuint)sizeof(Network.State));
+        internal readonly Network.Slot* Slots = (Network.Slot*)NativeMemory.AllocZeroed(2, (nuint)sizeof(Network.Slot));
+        internal readonly Table.Owner* Table = (Table.Owner*)NativeMemory.AllocZeroed((nuint)sizeof(Table.Owner));
+        private readonly TcpConnectionTableEntry* entries = (TcpConnectionTableEntry*)NativeMemory.AllocZeroed(2, (nuint)sizeof(TcpConnectionTableEntry));
+        private readonly ulong* generations = (ulong*)NativeMemory.AllocZeroed(2, 8);
+        private readonly byte* buffers = (byte*)NativeMemory.AllocZeroed(32);
+        private readonly Hardware* hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware));
+        private readonly Sockets.State* sockets;
+        private readonly byte[] frame = new byte[1514];
+        internal void* Context => hardware;
+        internal uint ContextBytes => (uint)sizeof(Hardware);
+        internal uint Sends => hardware->Calls;
+        internal uint Clocks => hardware->ClockCalls;
+        internal ReadOnlySpan<byte> Sent => new(hardware->Frame, (int)hardware->Length);
+        internal PacketCarrier(Sockets.State* socketOwner)
+        {
+            sockets = socketOwner; hardware->Now = 1000; hardware->Result = 1;
+            HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.InitializeOwned(Table, entries, 2, generations, 2, 0x626f756e646e6574));
+        }
+        internal bool Start() => Start(Context, ContextBytes);
+        internal bool Start(void* context, uint bytes)
+        {
+            var io = new TcpPassiveConnection.Operations { Context = context, NowNanoseconds = &Now, Send = &Send,
+                LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
+            return Network.Begin(State, sockets, Table, Slots, 2, buffers, 8, 8,
+                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), 700, io, ioContextBytes: bytes);
+        }
+        internal uint Connect()
+        {
+            HostCheck.Equal(Network.Status.Success, Receive(Syn()));
+            uint local = BinaryPrimitives.ReadUInt32BigEndian(Sent.Slice(38, 4)) + 1;
+            HostCheck.Equal(Network.Status.Success, Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local, flags: 0x10))); return local;
+        }
+        internal Network.Status Receive(byte[] packet) => Network.Receive(State, packet, frame);
+        internal Network.Status Pump() => Network.Pump(State, frame);
+        internal IEnumerable<(ulong, ulong)> Extents() => new[] {
+            ((ulong)State, (ulong)sizeof(Network.State)), ((ulong)Slots, 2UL * (ulong)sizeof(Network.Slot)), ((ulong)buffers, 32UL),
+            ((ulong)Table, (ulong)sizeof(TcpConnectionTable.Owner)), ((ulong)entries, 2UL * (ulong)sizeof(TcpConnectionTableEntry)),
+            ((ulong)generations, 16UL), ((ulong)hardware, (ulong)sizeof(Hardware)) };
+        internal void Retire()
+        {
+            HostCheck.True(Network.Abort(State)); HostCheck.True(Network.End(State));
+            HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.RetireOwned(Table));
+            HostCheck.True(new ReadOnlySpan<byte>(buffers, 32).IndexOfAnyExcept((byte)0) < 0);
+        }
+        public void Dispose()
+        { NativeMemory.Free(State); NativeMemory.Free(Slots); NativeMemory.Free(Table); NativeMemory.Free(entries); NativeMemory.Free(generations); NativeMemory.Free(buffers); NativeMemory.Free(hardware); }
+    }
+
+    [HostTest("bounded network declaration rejects invalid carrier extents before clock send or publication", HostLane.Fast)]
+    private static void BoundedAdmission()
+    {
+        using Model m = new(start: false);
+        foreach ((ulong address, uint bytes) in new[] { (0UL, 8U), (1UL, 8U), (ulong.MaxValue - 7, 16U),
+            ((ulong)m.Hardware, 1U), ((ulong)m.Hardware, Sockets.MaximumSharedContextBytes + 1),
+            ((ulong)m.State, (uint)sizeof(Network.State)), ((ulong)m.Slots, 8U), ((ulong)m.Buffers, 8U), ((ulong)m.Table, 8U) })
+        {
+            var io = m.Io; io.Context = (void*)address;
+            HostCheck.True(!Network.Begin(m.State, m.Sockets, m.Table, m.Slots, m.Count, m.Buffers, 8192, 32768,
+                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), 700, io,
+                compactTimeWait: true, ioContextBytes: bytes));
+            HostCheck.True(m.Hardware->Calls == 0 && m.Hardware->ClockCalls == 0 &&
+                new ReadOnlySpan<byte>(m.State, sizeof(Network.State)).IndexOfAnyExcept((byte)0) < 0 && Fds.Audit(m.Files.State));
+        }
+        HostCheck.True(Network.Begin(m.State, m.Sockets, m.Table, m.Slots, m.Count, m.Buffers, 8192, 32768,
+            new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), 700, m.Io, ioContextBytes: (uint)sizeof(Hardware)));
+        m.Finish();
+    }
+
+    [HostTest("bounded network packet buffers exclude the whole actual callback carrier before callbacks", HostLane.Fast)]
+    private static void BoundedFrames()
+    {
+        using Model m = new(boundedContext: true); m.Listen(); byte[] before = new ReadOnlySpan<byte>(m.Hardware, sizeof(Hardware)).ToArray();
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, Syn(), new Span<byte>(m.Hardware, 1514)));
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, new ReadOnlySpan<byte>(m.Hardware, 8), m.Frame));
+        HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Hardware, sizeof(Hardware)))); m.Finish();
+    }
+
+    [HostTest("bounded network pending and established contexts cannot change their original carrier or call callbacks", HostLane.Fast)]
+    private static void BoundedContextLifetime()
+    {
+        using Model m = new(boundedContext: true); uint listener = m.Listen();
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn()));
+        var originalIo = NetworkIo(ref *m.State); ref var handshake = ref SlotHandshake(ref m.Slots[0]);
+        for (int phase = 0; phase < 2; phase++)
+        {
+            if (phase != 0)
+            {
+                uint local = BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame + 38, 4)) + 1;
+                HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local, flags: 0x10))); m.Accept(listener);
+            }
+            var pendingIo = HandshakeIo(ref handshake);
+            HostCheck.True(ProbeShape(m.State, true) && ProbeContext(m.State));
+            for (int changed = 0; changed < (phase == 0 ? 2 : 5); changed++)
+            {
+                uint clocks = m.Hardware->ClockCalls, sends = m.Hardware->Calls; byte[] before = new ReadOnlySpan<byte>(m.Frame).ToArray();
+                ref var receiver = ref SlotReceiver(ref m.Slots[0]); ref var sender = ref SlotSender(ref m.Slots[0]);
+                void* rx = ReceiveContext(ref receiver), tx = SendContext(ref sender), clock = ClockContext(ref sender);
+                try
+                {
+                    void* wrong = (byte*)m.Hardware + 8;
+                    switch (changed)
+                    {
+                        case 0: NetworkIo(ref *m.State).Context = wrong; break;
+                        case 1: HandshakeIo(ref handshake).Context = wrong; break;
+                        case 2: ReceiveContext(ref receiver) = wrong; break;
+                        case 3: SendContext(ref sender) = wrong; break;
+                        case 4: ClockContext(ref sender) = wrong; break;
+                    }
+                    HostCheck.Equal(Network.Status.InvalidState, Network.Pump(m.State, m.Frame));
+                    HostCheck.True(clocks == m.Hardware->ClockCalls && sends == m.Hardware->Calls && before.AsSpan().SequenceEqual(m.Frame) && !m.State->RequiresShutdown);
+                }
+                finally { NetworkIo(ref *m.State) = originalIo; HandshakeIo(ref handshake) = pendingIo; ReceiveContext(ref receiver) = rx; SendContext(ref sender) = tx; ClockContext(ref sender) = clock; }
+                HostCheck.True(Fds.Audit(m.Files.State) && ProbeShape(m.State, true) && ProbeContext(m.State));
+            }
+        }
+        m.Finish();
+    }
+
+    [HostTest("bounded network phase2 retry retains exact carrier and later publishes the actual accepted connection", HostLane.Fast)]
+    private static void BoundedPhaseTwo()
+    {
+        using Model m = new(count: 2, endpointCount: 2, boundedContext: true); uint listener = m.Listen(1);
+        uint firstLocal = BoundedConnect(m, "first", 40000, 99); uint first = m.Accept(listener); BoundedConnect(m, "second", 40001, 199);
+        HostCheck.Equal(-11L, m.Call(288, listener, 0, 0, Fds.NonBlock));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, firstLocal, flags: 0x14)));
+        HostCheck.Equal(0L, m.Call(3, first)); m.Pump(); uint second = m.Accept(listener);
+        m.Files.Text(User, "retry"); HostCheck.Equal(5L, m.Call(44, second, User, 5)); m.Pump();
+        HostCheck.True(new ReadOnlySpan<byte>(m.Hardware->Frame + 54, 5).SequenceEqual("retry"u8)); m.Finish();
+    }
+
+    private delegate bool ShapeProbe(Network.State* state, bool allowFailed);
+    private delegate bool ContextProbe(Network.State* state);
+    private static readonly ShapeProbe ProbeShape = typeof(Network).GetMethod("Shape", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.CreateDelegate<ShapeProbe>();
+    private static readonly ContextProbe ProbeContext = typeof(Network).GetMethod("BoundContextCurrent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!.CreateDelegate<ContextProbe>();
+    private static uint BoundedConnect(Model m, string label, ushort port, uint sequence)
+    {
+        var result = m.Receive(Syn(port, sequence));
+        if (result != Network.Status.Success) Console.WriteLine($"BOUNDED_CONNECT_FAILURE stage={label}:syn status={result} global={Fds.Audit(m.Files.State)} shape={ProbeShape(m.State, true)} context={ProbeContext(m.State)} held={m.Table->Count} retained={m.State->RetainedConnections} clocks={m.Hardware->ClockCalls} sends={m.Hardware->Calls}");
+        HostCheck.Equal(Network.Status.Success, result);
+        uint local = BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(m.Hardware->Frame + 38, 4)) + 1;
+        result = m.Receive(Wire.Packet(sequence + 1, ReadOnlySpan<byte>.Empty, local, port, flags: 0x10));
+        if (result != Network.Status.Success) Console.WriteLine($"BOUNDED_CONNECT_FAILURE stage={label}:ack status={result} global={Fds.Audit(m.Files.State)} shape={ProbeShape(m.State, true)} context={ProbeContext(m.State)} held={m.Table->Count} retained={m.State->RetainedConnections}");
+        HostCheck.Equal(Network.Status.Success, result); return local;
+    }
+
+    [HostTest("bounded network optional context preserves native025 state and original Begin signature", HostLane.Fast)]
+    private static void BoundedNativeBoundary()
+    {
+        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketNetwork.cs"));
+        var legacy = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14,
+            preprocessorSymbols: ["NOSTDLIB_EFI", "CLROS_LINUX_SOCKETS", "M16_025_PROBE"])).GetRoot();
+        var state = legacy.DescendantNodes().OfType<StructDeclarationSyntax>().Single(x => x.Identifier.ValueText == "State");
+        HostCheck.True(!state.DescendantNodes().OfType<VariableDeclaratorSyntax>().Any(x => x.Identifier.ValueText is "OriginalIoContext" or "IoContextBytes"));
+        HostCheck.True(legacy.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.ValueText == "Begin")
+            .ParameterList.Parameters.All(x => x.Identifier.ValueText != "ioContextBytes"));
+        var current = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.CSharp14)).GetRoot();
+        HostCheck.True(current.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.ValueText == "Begin")
+            .ParameterList.Parameters.Last().Identifier.ValueText == "ioContextBytes");
+    }
+
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Io")] private static extern ref TcpPassiveConnection.Operations NetworkIo(ref Network.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Io")] private static extern ref TcpPassiveConnection.Operations HandshakeIo(ref TcpPassiveConnection.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Handshake")] private static extern ref TcpPassiveConnection.State SlotHandshake(ref Network.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Receiver")] private static extern ref Rx.Owner SlotReceiver(ref Network.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Sender")] private static extern ref TcpSendWindow.Owner SlotSender(ref Network.Slot slot);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Context")] private static extern ref void* ReceiveContext(ref Rx.Owner owner);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Context")] private static extern ref void* SendContext(ref TcpSendWindow.Owner owner);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ClockContext")] private static extern ref void* ClockContext(ref TcpSendWindow.Owner owner);
 
     // Test-only native layout access for independent corruption controls.
     // Production fields stay private and no unchecked public setter is added.

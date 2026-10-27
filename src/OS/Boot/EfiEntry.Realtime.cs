@@ -1,6 +1,7 @@
 #if M10_004_PROBE
 using OS.Kernel.Platform;
 using OS.Kernel.Diagnostics;
+using OS.Kernel.Compatibility.LinuxX64;
 
 namespace OS.Boot;
 
@@ -74,7 +75,8 @@ public static unsafe partial class EfiEntry
             if (sourceStatus != 0 || !OwnedRealtimeClock.TryFirmwareUtc(snapshot, unspecifiedTimezoneIsUtc: true,
                 out long seconds, out uint nanoseconds) || !OwnedRealtimeClock.Begin(ref state->Realtime, seconds, nanoseconds,
                     state->Clock.Ticks, state->Clock.FrequencyHz,
-                    maximumElapsedSeconds: Probes.EnableM16014Probe ? 0UL : 600UL,
+                    maximumElapsedSeconds: Probes.EnableM16014Probe ? 0UL :
+                        Probes.EnableM10018FullProbe ? DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds : 600UL,
                     continuing: Probes.EnableM16014Probe)) return false;
             state->RealtimeSnapshot = snapshot;
             return true;

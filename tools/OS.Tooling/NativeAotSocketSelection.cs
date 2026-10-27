@@ -12,7 +12,7 @@ public static class NativeAotSocketSelection
     {
         bool On(string name)=>flags.TryGetValue("Enable"+name+"Probe",out bool enabled)&&enabled;
         if(NativeAotSocketContainmentSelection.Selected(flags)||NativeAotSocketVectorsSelection.Selected(flags))return "";
-        if(On("M10004"))return ""; // Shared socket owners do not select the finite socket fixture.
+        if(On("M10004") || On("M16025"))return ""; // Shared owners do not select the finite socket fixture.
         string app=On("M16012")?"NativeAotSocketSmokeAsync":On("M16011")?"NativeAotSocketSmoke":"";
         if(app.Length==0)return "";
         if(On("M09011")||On("M09012")||On("M16010"))throw new ToolFailure("socket_runtime_conflict");

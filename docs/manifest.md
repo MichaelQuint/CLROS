@@ -1,5 +1,15 @@
 # Manifest
 
+## Planned physical webroot profile (2026-10-23)
+
+The separate `apps/MinimalApiStaticFiles` candidate selects static middleware only with
+`CLROS_STATIC_FILES_PROFILE=v1`; the guest namespace is one read-only
+`/app/wwwroot`. [Step1558](../done/step1558.md) records the development boundary.
+The Blazor asset inventory belongs to the separate FAT32 image and its receipt,
+not to ELF/package data records. Existing package limits (seven data files,
+64KiB each) and accepted v1/v2 package profiles remain unchanged. Guest manifest
+admission for this environment entry and disk root remains #772/#773 work.
+
 The active workload route is the versioned Linux ELF envelope with pinned
 .NET 11 NativeAOT payloads. Configuration and finite quota behavior are qualified
 through steps1380/1556. The older JSON `runtime.kind: "dotnet10"` below is an
@@ -77,7 +87,12 @@ manifest version1, followed by the ELF and a bounded immutable-data table:
   offsets0/4/8/12, then32 raw SHA256 digest bytes, path bytes and data bytes.
 - Record bytes equal48 +path bytes +data bytes. Each nonempty data file is at
   most65,536 bytes; paths contain at most128 bytes, use canonical relative ASCII rules, start
-  `apps/`, and cannot duplicate another file or the executable path.
+  `apps/`, and cannot duplicate another file or the executable path. The current
+  static-file development adds the explicit immutable `wwwroot/` prefix for its
+  seven small staged controls; other roots, case aliases and traversal reject.
+  This maps through package views to `/app/wwwroot`. It carries no demand-disk,
+  writable-file or guest qualification; original accepted envelopes keep their
+  bytes and acceptance scopes.
 
 Validation hashes every data file before publication. `Copy` revalidates the
 complete staged bytes. `GetDataFile` returns borrowed offsets; `ReadFile` copies

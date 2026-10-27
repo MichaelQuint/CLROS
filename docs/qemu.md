@@ -1,5 +1,246 @@
 # QEMU
 
+## Writable timing capture
+
+The step1623 source-matched b7631af0 original at
+`artifacts/step1623-retained-guest-r01` remains FAILED180s/exit4, joined, after49
+completed reads. No first-create completion, OUT, FLUSH or normal cleanup is
+accepted. The three128MiB images are identical at
+E28DE35C33D20B9FB438A184C2F3A46BCCF1577AA7477D5291FB7BD1029FBEF2.
+Exactly one original459-byte timing record, including CRLF, starts at byte100140;
+the public parser validates its equations and engine212364176 against BOUND.
+It records4.4831872 seconds of audits within5.3845825 seconds outer time, with
+one actual engine read submission. No speedup or persistence claim follows.
+
+The mechanical descriptor policy now compares `packageBytes` with the validated
+ELF payload length, matching the native descriptor view. The complete package
+envelope length is rejected. Eleven focused transcript controls cover this
+producer/consumer repair; a copied transcript cannot establish guest execution.
+
+Append `-EnableM16027TimingProbe` to the existing original `-BuildEfi`
+Mechanical30/DiskA capture. LogUpload40 and BCL Write/Verify selection reject
+this switch. Its timeout policy remains120..220 seconds, default180; no work
+budget, polling sequence or ordinary acceptance profile changes.
+
+Only the first pending source5 turn emits `M16_027_TIMING`. Its27 ordered
+decimal fields preserve inclusive audit/pair/pump times, nested audit deltas,
+engine progress, read/calibration counts and an exact outer decomposition.
+`WritableStorageTimingReport.Read` validates copied accounting for valid=1 and
+preserves shaped partial diagnostics for valid=0. Neither case authenticates an
+original capture. The ordinary full writable consumer does not accept a timing
+diagnostic as workload qualification.
+
+The strict original consumer selects every `M16_027_` row and rejects
+`M16_027_TIMING` as `selected_unknown`; the timing reader is not integrated
+into that consumer. Current Step1624 verification therefore selects ordinary
+Mechanical30 with timing explicitly false. Review that exact native image
+before the unchanged180-second DiskA acceptance attempt. Reserve a separate
+timing publication for a concrete diagnostic question; its stack review does
+not transfer to the ordinary profile.
+
+Original `writable-timing-guest-r01` joins FAILED180s/exit4:48 reads complete,
+read49 is submitted at174.2202626s, and all three134217728-byte images retain
+SHA256 `CC3D0542BD4BD4E3B8146956EF9CC42244E299C9AC772505889C25FC966ADD4E`.
+The copied5.877140-second turn has4.9306459 seconds of retained audit time;
+the actual engine call submits I/O. This is no workload success, speedup or
+deadlock result. Step1622 preserves serial, summary, images and exact producer
+joins, including the failed original.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+The [step1618](../done/step1618.md) development originals preserve three guest
+failures and one pre-publication rejection. Mechanical30 r04 reaches block reads,
+mount binding and worker setup, then times out before user-call evidence. It
+does not pass the complete original consumer. All earlier failed read/HTTP
+captures retain their status.
+
+## BCL writable selection preparation
+
+`-WritableDiskFixture BclWrite` and `BclVerify` select the exact prepared console
+phase packages. They require `-WritableDiskDisassembly` with a distinct bounded
+LLVM dump path. At present these choices admit planning/dry-run only; a real
+launch fails before the builder/child with
+`writable_bcl_complete_consumer_required`. Copied startup, parent, stdout and
+source5 CALL inspectors do not constitute the complete original consumer.
+Mechanical30/LogUpload40 keep their original package and timeout policy.
+
+## Writable original-run owner (step1616)
+
+The explicit development selection is `-BuildEfi -EnableM16027Probe` with
+`-WritableDiskFixture Mechanical30` or `LogUpload40`, a byte-exact canonical
+package, `-WebRootFixture DiskA`/`DiskB` and confined `-WebRootAssets`. It admits
+120..220guest seconds, defaults180, and preserves the capture allowance. The
+initial fixture uses uncompressed small web assets. Source-matched development
+boots now exist; complete original-run success and the remaining scoped native
+conditions still precede acceptance. Existing read-only/static profiles retain
+their own admission.
+
+The tool builds a fresh immutable combined boot image and a distinct identity-
+bound `.working.raw`. QEMU boots the immutable image through an overlay and
+attaches only the working image writable on slot7 with `cache=writeback`; NIC
+remains slot6. The outer Windows process call opts into retained ownership: an
+uncertain cleanup stays pending with the original job/root/member handles and
+the working-image hold. Cancellation cannot release that ownership. A missing
+original process census cannot be reconstructed from a later empty job.
+
+After actual join, even a failed run retains a `.joined.raw` snapshot under a
+read-only identity/content hold. Original failure flags remain failures. The
+complete success consumer additionally requires exact runner stdout/summary,
+firmware framing, parent roots/clocks, NIC cleanup/independent packets, canonical
+calls/waits, all writable observations, exact modified bytes/extraction and final
+held-input/native rechecks. Optional raw-observation capture must validate in
+that held lifetime. A copied-value report or terminal marker supplies none of
+these original-run authorities. Physical durability remains unqualified.
+
+Canonical root opens are the narrow immediate exception: Mechanical30
+sync.parent-open/sync.deleted-parent-open and LogUpload40 parent.open require
+their exact nr2/RootName/RootFlags and zero remaining arguments. They return
+the lowest free fd inline with zero wait fields, consuming one descriptor
+request and publishing its fd/description/binding generation without a source5
+sequence or provider request. Regular file opens remain blocking. This repairs
+an original-consumer mismatch observed in failed-r02; it does not reclassify
+that incomplete original or accept arbitrary immediate opens.
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) Current paired30/sharedFS13 are host fixtures using fake media, not QEMU writes. Original LinuxHTTP r02 is separately joined failed, process audit0 and archive hashes verified; a freshr03 follows the empty-input repair. No new guest boot/browser/persistence or cleanup qualification is claimed.
+
+[Step1610](../done/step1610.md) Original v5r13 at830ef44c passes four responses/exact64KiB30.930s and joined intentional cancellation/refusal; all19originals retained. EFI BADFE2F1...08D3E, imageDC3F63E473655374868B4166FEF6B141CE55A21D09B55353C26EEC94A854A9DF, package unchanged. Root serializes repaired fresh LinuxHTTP r02 next; no full Blazor/ordinary cleanup qualification follows.
+
+[Step1606](../done/step1606.md) Fresh timingr10 at12128da1 stops before guest launch: CS8786 managed-versus-unmanaged diagnostic clock pointer. The candidate matches the existing unmanaged clock ABI without changing any budgets. Require a new committed -BuildEfi r11 namespace and preserve r10 failure receipts. The integrated HTTP log/upload owner runs managed host children only, with no QEMU/storage acceptance.
+
+[Step1605](../done/step1605.md) Original timing r09 passes four responses and deliberate joined cancellation/refusal; the exact 64 KiB range takes 27.958s. A fresh committed -BuildEfi timing r10 must use v4 readiness children before selecting a performance repair. This diagnostic does not qualify complete Blazor, ordinary cleanup, sustained service or writes. The separate Linux SQLite recovery original is fully archived after a zero-process audit and supplies no guest durability.
+
+[Step1604](../done/step1604.md) Original timingr08 at5cf3fcd1 passes exact four-response/finalhealth/cancel/join/refusal, runner94.8718815s, timedOut=false.19file original receipt5FD2AE6C154C393E18309FDA42A091CDE98515A598C911E2FD87908460225C6F retains source/native/image/packet/HTTP joins.0replenished/119skips and35.662s range supply no improvement claim. Next v3 timingr09 combines retirement of the extra-submit experiment with one clock splitting existing post-network readiness/wait recording. Use fresh committed BuildEfi, same confined inputs and fresh outputs. No full/cleanup/browser acceptance follows.
+
+[Step1603](../done/step1603.md) Timingr07 at4efb1bc3 passes its original four-response diagnostic and confirms deliberate cancellation/join plus endpoint refusal (runner77.800s, timedOut=false). The64KiB body hash is2DD5FBF50694CF4465818C3A82B11976E785185CFD0B61179CF7A4484970C457. Original19-file receiptA7366F4C6A251DE17B7752F31B1072AE20B5C7937CD23D3A05B1508AD19E8D40 retains native/image/package/serial/packet/HTTP joins. This is not full cleanup or browser qualification. The sole-read replenishment experiment requires new committed -BuildEfi timingr08 with checkout-local held inputs and fresh paths; inspect v2 actual replenishment/budget-skip counters before changing scheduling or running the full matrix.
+
+[Step1602](../done/step1602.md) -EnableM10018TimingProbe emits explicit --disk-read-timing plus full/finite/readonly parents. Both runner deadline checks admit 240–600 seconds; ordinary full stays 2200–3600. Peer budget is min(480, selectedTimeout−30), inside runner and outer process deadlines. Startup watchdog, RTC, readonly slot7, forwarded NIC6/capture and full terminal remain intact. Original r03 failed external assets, r04 external package confinement, r05 missing mandatory -BuildEfi, and r06 old full timeout admission; none started a guest. Use fresh committed -BuildEfi and checkout-local package/index/assets. Aggregate output is diagnostic data; final health, owned cancellation/join and endpoint refusal remain mandatory, without full cleanup authority.
+
+[Step1601](../done/step1601.md) The timing producer remains unqualified after two pre-guest originals: XML identity rejection, then2055-row host catalog rejection. The repaired admission uses the exact bounded XML reader; host catalog4096 is separately tested while kernel2048 remains unchanged/off. Launch a fresh committed original rather than reclassifying either failure.
+
+[Step1600](../done/step1600.md) The default-off -EnableM10018TimingProbe inherits the full disk/static parents, uses a240..600s capture bound and executes exactly health/HEAD CoreLib/64KiB range/health. One retained aggregate measures pump, worker scan, evidence flush and pre/post network work with exclusive yield reasons. The owner intentionally cancels and joins the runner after exact HTTP/metrics checks; its receipt explicitly records FullAndCleanupQualified=false. Use it before another full run; existing fairness and per-step evidence stay intact.
+
+[Step1597](../done/step1597.md) Preserve b94028a8 ExitPending r04 as failed: its preceding child stdout allowed the request to complete before exit_group. The new fixture removes that observer effect and has focused host support; no replay qualifies a fresh guest. Full A/B/browser originals, actual storage error/race witnesses and clean ownership retirement still precede read closure. Test budgets do not define normal service lifetime.
+
+[Step1594](../done/step1594.md) Step1594 preserves full DiskA r05 source24f74824 as FAILED:86 complete responses; GET /_framework/dotnet.native.wasm ordinal86 cancelled during body after275.352s at the unchanged1700s matrix deadline. Owner/caller cancellation=false; runner Joined/TerminationConfirmed=true, exit-1. CoreLib GET064 succeeds2009369B in441.819s, but no browser or successful full cleanup consumer follows. Original serial58529262B and failed identity receipt61FFA9768AC52FCBDAAE834FA6FFE1D7058C72893C66BF47F29C7B5DB517E1A2 remain unchanged. Missing-disassembly preflight is retained separately and is not guest execution. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 holds the exclusive native/guest lease after the failed Linux log/upload original is joined with no owned child processes remaining. Persistent builder/seed services remain intact. Next full read original uses new filenames, committed scoped read source and matching original/copied producers; all existing budgets and mandatory HTTP/browser/cleanup joins stay unchanged.
+
+[Step1592](../done/step1592.md) Step1592 prepares bounded loaded-directory lookup for the next full read original. Keep r04 original97-file receipt unchanged; no budget, timeout, serial cap or HTTP requirement is relaxed. Source-matched producer/native/image/package/serial/packet/external HTTP/browser/cleanup joins remain mandatory. The parallel log/upload Linux reference lease is serialized before the next guest.
+
+[Step1591](../done/step1591.md) Step1591 retains full r04 failed original runner/image/native/serial/packet/HTTP artifacts under readonly-disk-waits. The runner joined after matrix cancellation with termination confirmed;83 completed responses do not establish the full protocol/browser/cleanup result. No timeout or byte bound is raised. Next read repair requires a fresh source-matched original after focused coverage and native review; the Linux reference lease remains exclusive.
+
+[Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes qemu.smoke.disk-exit-pending calls=8 copiedDataSectors=0 outstanding=1 resetRetired=true and all original source/native/image/package/parent/process joins. Submitted48/completed47/copied47 stays frozen; final cleanup uses its own HPET clock. r01/r02 originals remain failed/unaccepted. Full r04 is separate and pending; copied leaf tests or this finite race cannot replace full A/B/browser evidence.
+
+[Step1589](../done/step1589.md) preserves full DiskA r03 timeout and ExitPending r02 wrapper failure with exact original serial/summary/packet/native/image identities. Explicit ExitPending now requires one fresh M16_025_EXIT_CLEANUP_END row after stage8 and before BUDGET_END. Stages1-3 precede active-end;4-7 lie between active-end and network-end;8 lies between network-end and fresh cleanup-end. Missing/duplicate/foreign/backwards/moved/out-of-budget witnesses reject. Old captures are not augmented or requalified.
+
+[Step1588](../done/step1588.md) records only isolated writable host integration; no new QEMU profile or writable native link is added. Native publication and original guest owners remain serialized. First-batch read qualification retains its exact independent source/producer provenance.
+
+[Step1587](../done/step1587.md) preserves original ExitPending r01 as failed, including immutable artifact identities. Its exit-observation ordering repair needs a new source-matched original. Full DiskA r03 is separately running from committed91cd04cd with the repaired128MiB live/final serial policy; preserve its original result and freeze its producer checkout until joining. Neither launch nor copied inspection qualifies a guest.
+
+[Step1586](../done/step1586.md) retains full DiskA r02 at a692a4f4 as failed after35 HTTP responses. Serial16779956B exceeds the still-active16MiB live cap by2740; no cleanup terminal or browser follows. Source identifies immediate runner termination on capacity failure, while the lost runner result prevents exact original attribution. Full-only capacity is now128MiB with bounded failure and joined-runner receipts. The connected exact ExitPending original wrapper is pending a fresh run; use fresh paths and preserve all failures.
+
+[Step1585](../done/step1585.md) preserves original full DiskA r01 at5dd6e6c0: source/native/image joins and listening succeed,31 HTTP responses are captured, then native-return/service fail with exit99/reaped19 and no requested shutdown. Last observed time600802031800ns minus start5125929500ns is595676102300ns, below the2100000000000ns execution allowance. Source review confirms the separately anchored600s UTC cap can abort before failed-call logging; the hidden triggering call was not observed. Full-only UTC now has a finite3600s allowance; original command exits1 and remains failed. No browser or full read acceptance; use fresh output names for repaired qualification.
+
+[Step1581](../done/step1581.md) connects the full finite disk/static candidate.
+Use fresh output paths and the same pinned disk server package/index/assets:
+
+```text
+dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu smoke -BuildEfi -EnableM10018FullProbe -LinuxElfPackage artifacts/readonly-disk-waits-r01/static-disk-r01.pkg -LinuxThreadingDisassembly artifacts/readonly-disk-waits-r01/static-files-llvm22.1.3.txt -WebRootFixture DiskA -WebRootAssets artifacts/readonly-disk-waits-r01/blazor-webroot-r01 -EfiArtifact artifacts/efi/BOOTX64-disk-full-r01.EFI -Image artifacts/images/disk-full-r01.raw -SerialLog artifacts/readonly-disk-waits-r01/disk-full-r01.serial.log -SummaryLog artifacts/readonly-disk-waits-r01/disk-full-r01.summary.log -Qemu "C:/Program Files/qemu/qemu-system-x86_64.exe" -OvmfCode "C:/Program Files/qemu/share/edk2-x86_64-code.fd" -TimeoutSeconds 3000
+```
+
+This runnable candidate has not passed a full original execution. Full mode
+requires its disk/static parent and cannot combine with continuing-service,
+staged-static or race selection. It preserves readonly PCI0:7 and NIC0:6.
+Timeout is2200..3600s (default3000); serial/summary/packet limits are128/256/64MiB,
+aggregate stream limit24MiB, protocol rows1000000 and device rows196608.
+Per-call copyout remains8192 bytes. Expected peer entities are bounded16MiB,
+2MiB each. Browser traffic/bodies/DOM/screenshot and original process cleanup
+are checked against the actual packet streams and independent image bytes.
+Only an original full pass can emit `scope=disk-static-full-v1` with
+`blazor_booted=true`; three fresh boots across both variants and all remaining
+batch checks still precede issue closure. `-EnableM10018Probe` alone keeps the
+825-second, five-response development contract and `blazor_qualified=false`.
+
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
+[Step1579](../done/step1579.md) retains fresh018r04 at `6bbdcad2`. Its original
+runner exits0 with five HTTP200s and cleanup, but the outer owner fails
+`disk_static_receipt_identity`: held digests use lowercase and the peer uses
+uppercase. Hex-case-insensitive digest comparison now preserves strict identity;
+image receipt text still matches exactly. Explicit disk/static parent validation
+requires the canonical disk package and its four-load/67-range layout. Ordinary
+web keeps64 and canonical mechanical disk keeps65. The report-only CLI now checks
+that parent before full copied replay; r04 matches2946 calls and12 copied sectors.
+It remains a failed original, with fresh complete execution still required.
+
+The new `linux disk-race-package <variant> <fresh-artifacts-output>` command
+publishes exact canonical Progress/CloseReuse/InterruptWins/CompletionWins/
+ExitPending bytes. `-LinuxDiskRaceVariant` is an explicit mechanical025-only
+selection. Actual race execution refuses before child launch until its original
+consumer exists; `-DryRun` selection and publication are not execution evidence.
+
+[Step1578](../done/step1578.md) replaces the018 placeholder with a separate
+original five-response consumer candidate. The peer uses one pooled connection
+and records bounded failure receipts even after external cancellation. The owner
+holds original captures and all five bodies through final source/native callbacks,
+checks the original child lifetime and stopped endpoint, replays the full leaf,
+and joins physical sectors, TCP streams, metadata and cold-read-before-send order.
+Live roots/worker/NIC/disk extents must be disjoint; IO clocks stay within the
+original device lifetime. Success is explicitly `five-response-development`,
+with `blazor_qualified=false`. Fresh original execution is still required. The
+value-only CLI additionally reports per-description queued-send byte intervals.
+
+[Step1577](../done/step1577.md) adds a report-only full disk/static value CLI:
+
+    dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll qemu inspect-disk-static-values <disk-package> <raw-image> <complete-instruction-index> <serial>
+
+It holds distinct bounded original package/image/receipt/index/serial files,
+uses the pinned complete instruction index, replays the entire scheduler/file
+leaf, checks every device byte and joins positive file ranges plus physical
+metadata intervals. It reports2973 calls/13 reaps/11 disk operations/12 sectors
+for the failed original018r03. This is value inspection only: no original
+native, parent, runner, packet or HTTP acceptance is created, and the original
+outer command still fails. Existing017 and mechanical consumers stay separate.
+
+[Step1576](../done/step1576.md) records original018r03: the runner exits0 after
+five HTTP200 responses and owned exit0/cleanup, while the outer command fails
+`disk_static_complete_consumer_required`. The failure remains original. The
+new `qemu inspect-webroot-inventory <original-raw-image>` command requires its
+`.webroot.json` receipt and reports held-image physical metadata only. Value
+inspection cannot rescue r03 or qualify disk HTTP/Blazor.
+
+[Step1575](../done/step1575.md) records018r02: native verification and mount
+pass, but fixed metadata allocation refuses before any app thread. The original
+failed runner has no final summary. Removing redundant wait frames fits the
+measured arena; no HTTP or complete cleanup result is inferred.
+
+[Step1574](../done/step1574.md) preserves the first018 native compile followed
+by original artifact-verifier failure before any guest. Explicit018 native
+bindings and actual source4 WAKE/REPARK observations are repaired; the complete
+disk/static consumer and original guest qualification remain outstanding.
+
+[Step1573](../done/step1573.md) repairs the018 diagnostic's deferred cursor
+observation before first publication. Existing host cursor/cancellation checks
+pass; the full disk/static consumer and original guest qualification remain.
+
 ## Current acceptance and recipe selection
 
 [Step1556](../done/step1556.md) records the latest qualified finite Smoke,
@@ -7,6 +248,41 @@ quota256/512, configured V2 and 20 ancestor profiles. The stable full-host run
 at `28a79996` passes 6,258 checks/847 fixtures; original guest inputs retain
 their separate heads. #779/#784 and the #225/#748/#737 integration are closed.
 Complete local Gate14 remains open under #226/#227.
+
+The isolated read-only disk development selector is `-EnableM16025Probe`, with
+`-BuildEfi -LinuxElfPackage <canonical-disk-files.pkg> -WebRootFixture DiskA`
+or `DiskB`, and `-WebRootAssets <prepared-wwwroot>`. Generate its fresh mechanical
+package with `linux disk-files-package <fresh-artifacts-output>` through
+OS.Tooling. It uses the original AHCI boot image with snapshot writes and a
+second read-only view at PCI0:7; the NIC stays at PCI0:6. Timeout is 180 seconds
+by default, bounded 120..285. Source gates remain default off. M16-023/024 are
+parents of this combined profile; they have no separate capture selector.
+M10-018 requires the exact indexed disk server package and DiskA/B fixture.
+The original five-response development owner passes in step1580, preserving its
+600..825-second runner policy. Step1581 adds the explicit full modifier and its
+larger finite limits; no original full execution has passed. Failed captures
+retain their original outcomes.
+Dry run checks argument/device policy only. Step1570 connects the candidate
+mechanical consumer after r08's original `disk_files_complete_consumer_required`
+failure. [Step1571](../done/step1571.md) records three fresh complete owned
+passes across DiskA/DiskB/DiskA at `c66befd5`, each with59 calls,62 demand
+sectors and seven positive read windows. Error/concurrency controls and full
+disk HTTP/Blazor/batch acceptance remain outstanding.
+
+For diagnostic value inspection through compiled OS.Tooling:
+
+```text
+qemu inspect-disk-leaf <canonical-package> <original-serial>
+qemu inspect-disk-values <canonical-package> <raw-image> <original-serial>
+```
+
+The second command requires the image's original `.webroot.json` receipt. Both
+hold bounded plain inputs and report value checks only; they supply no original
+process/native/packet authority and cannot qualify or rescue a failed run. Only
+fresh `qemu smoke` owns the complete original consumer. It retains image/EFI/
+package and capture files through exact runner-summary, sector/window, parent,
+timing/IRQ, packet and source/native checks before `TEST_PASS qemu.smoke.disk-files`.
+That marker covers the finite mechanical exercise, not disk HTTP or Blazor.
 
 Use the [Kestrel ledger](kestrel.md) for the current owned service/race/quota
 recipes and admission requirements. A low-level example or successful replay
@@ -2955,11 +3231,11 @@ QEMU evidence from 2026-05-21:
 ## Known Limitations
 
 - QEMU launch uses `-display none`; serial output is the evidence channel.
-- The default EFI smoke still returns to firmware UI after `EfiMain`. The
-  M01-022 stage-one and M01-024 dual-stage continuations intentionally do not
-  return after the owned-stack transfer; after each validated transcript
-  becomes quiet, the runner terminates QEMU. None of these behaviors is
-  `ExitBootServices` evidence.
+- The historical pre-EBS smoke returned to firmware UI. Ordinary VerifiedExit
+  now leaves firmware services and ends after its qualified owned checks;
+  explicit profiles retain their own lifecycle. The older M01-022/M01-024
+  quiet-terminal tuples prove their recorded pre-EBS facts only. Current
+  writable acceptance requires the original owner/cleanup/EOF joins.
 - The M02-010 profile also returns to the ordinary smoke path after freeing its
   temporary LoaderData page. Its exact guest marker proves materialization,
   readback, and release only. It does not prove executable publication, slot or

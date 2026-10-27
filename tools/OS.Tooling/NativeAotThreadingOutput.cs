@@ -72,7 +72,7 @@ public static class NativeAotThreadingOutput
     /// Other bytes, including a final incomplete kernel row, remain unchanged.
     /// Malformed envelopes, size overflow or invalid channel UTF8 throw. This
     /// value-only decoder grants no app, scheduler, source or guest authority.</summary>
-    public static Capture ReadWeb(ReadOnlySpan<byte> rawTail) => ReadFramed(rawTail, web: true);
+    public static Capture ReadWeb(ReadOnlySpan<byte> rawTail, bool diskStaticFull = false) => ReadFramed(rawTail, web: true, diskStaticFull: diskStaticFull);
 
     /// <summary>Decode a bounded continuing-service capture of at most128 MiB.
     /// The8192-byte write,65536 combined-output and4096-write limits match the
@@ -81,9 +81,10 @@ public static class NativeAotThreadingOutput
     /// validates no application, scheduler, completion or guest authority.</summary>
     public static Capture ReadService(ReadOnlySpan<byte> rawTail) => ReadFramed(rawTail, web: true, service: true);
 
-    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web, bool vectors = false, bool service = false)
+    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web, bool vectors = false, bool service = false, bool diskStaticFull = false)
     {
-        Need(rawTail.Length >0 && rawTail.Length <=(service ?128 :8) *1024 *1024, "size");
+        Need(!diskStaticFull || web && !service && !vectors, "full_mode");
+        Need(rawTail.Length >0 && rawTail.Length <=(diskStaticFull ? DiskStaticCapturePolicy.SerialBytes : (service ?128 :8) *1024 *1024), "size");
         int limit = web ? 65536 : vectors ? 32768 : 4096, writeLimit = web ? 8192 : 4096;
         byte[] stdout = new byte[limit], stderr = new byte[web ? limit : 0], normalized = new byte[rawTail.Length];
         List<int> lengths = []; List<uint> channels = [];

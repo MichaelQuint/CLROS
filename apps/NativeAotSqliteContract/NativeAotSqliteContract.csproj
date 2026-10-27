@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <IsAotCompatible>true</IsAotCompatible>
+    <RuntimeFrameworkVersion>11.0.0-rc.2.26504.105</RuntimeFrameworkVersion>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <EventSourceSupport>false</EventSourceSupport>
+    <EnableDiagnostics>false</EnableDiagnostics>
+    <DebuggerSupport>false</DebuggerSupport>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="[11.0.0-rc.2.26504.105]" />
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="[11.0.0-rc.2.26504.105]" />
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="[3.0.5]" />
+    <PackageReference Include="SQLitePCLRaw.config.e_sqlite3" Version="[3.0.5]" />
+    <PackageReference Include="SQLitePCLRaw.provider.e_sqlite3" Version="[3.0.5]" />
+    <PackageReference Include="SQLitePCLRaw.core" Version="[3.0.5]" />
+    <PackageReference Include="SQLite" Version="[3.53.4]" />
+  </ItemGroup>
+  <!-- NuGet supplies a musl shared library, not a Linux static archive. A
+       separately audited original archive must be supplied for static AOT.
+       Structural archive inspection alone is not complete symbol/link proof. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <DirectPInvoke Include="e_sqlite3" />
+    <NativeLibrary Include="$(SqliteNativeArchive)" Condition="'$(SqliteNativeArchive)' != ''" />
+  </ItemGroup>
+  <Target Name="RequireSqliteStaticArchive" BeforeTargets="PrepareForILLink;IlcCompile"
+    Condition="'$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <Error Condition="'$(SqliteNativeArchive)' == '' or !Exists('$(SqliteNativeArchive)')"
+      Text="sqlite_contract_static_archive_required: pinned NuGet linux-musl-x64 libe_sqlite3.so cannot qualify the CLROS static ELF closure." />
+  </Target>
+</Project>

@@ -17,8 +17,21 @@ public sealed class QemuSmokeOptions
     public string WorkloadProfile { get; set; } = "SingleMinimalApi";
     public string GptImageVariant { get; set; } = "Intact";
     public string PackageImageVariant { get; set; } = "Intact";
+    public string WebRootFixture { get; set; } = "";
+    public string WebRootAssets { get; set; } = "";
     public string LinuxElfPackage { get; set; } = "artifacts/packages/linux-elf.pkg";
     public string LinuxElfImageVariant { get; set; } = "Intact";
+    /// <summary>Explicit canonical two-worker race under mechanical M16-025.
+    /// Empty preserves its original59-call fixture. The selection supplies no
+    /// package, native, scheduler or guest execution authority.</summary>
+    public string LinuxDiskRaceVariant { get; set; } = "";
+    /// <summary>Explicit canonical writable target: Mechanical30, LogUpload40,
+    /// BclWrite or BclVerify. BCL targets remain planning-only until an original
+    /// consumer exists. Selection grants no image, native or guest authority.</summary>
+    public string WritableDiskFixture { get; set; } = "";
+    /// <summary>Dedicated pinned BCL instruction input. Generic threading
+    /// selection is independent; a path supplies no prepared-index authority.</summary>
+    public string WritableDiskDisassembly { get; set; } = "";
     public string LinuxHelloDisassembly { get; set; } = "";
     public string LinuxThreadingApplication { get; set; } = "";
     public string LinuxThreadingDisassembly { get; set; } = "";
@@ -59,6 +72,7 @@ public sealed class QemuSmokeOptions
     public HashSet<string> Explicit { get; } = new(StringComparer.Ordinal);
     internal bool HasThreadingSelection => LinuxThreadingApplication.Length!=0 || LinuxThreadingDisassembly.Length!=0 ||
         Explicit.Contains("LinuxThreadingApplication") || Explicit.Contains("LinuxThreadingDisassembly");
+    internal bool HasDiskRaceSelection => LinuxDiskRaceVariant.Length != 0 || Explicit.Contains("LinuxDiskRaceVariant");
     public static IReadOnlyList<string> DefaultRequiredMarkers { get; } = Array.AsReadOnly<string>(
         ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY",
          "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT",
@@ -74,12 +88,14 @@ public sealed class QemuSmokeOptions
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["memorymib"] = "MemoryMiB", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
+            ["webrootfixture"] = "WebRootFixture", ["webrootassets"] = "WebRootAssets",
             ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["servicelifecycle"] = "ServiceLifecycle", ["servicequotafailure"] = "ServiceQuotaFailure", ["signalepollrace"] = "SignalEpollRace", ["websignalrace"] = "WebSignalRace", ["webeventownedsignalrace"] = "WebEventOwnedSignalRace", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
             ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant",
-            ["linuxhellodisassembly"] = "LinuxHelloDisassembly",
+            ["linuxhellodisassembly"] = "LinuxHelloDisassembly", ["linuxdiskracevariant"] = "LinuxDiskRaceVariant",
+            ["writablediskfixture"] = "WritableDiskFixture", ["writablediskdisassembly"] = "WritableDiskDisassembly",
             ["linuxthreadingapplication"] = "LinuxThreadingApplication", ["linuxthreadingdisassembly"] = "LinuxThreadingDisassembly"
         };
         foreach (string flag in EfiContracts.DiagnosticProbes) names.Add(Key(flag), flag);
@@ -90,7 +106,7 @@ public sealed class QemuSmokeOptions
             string raw = separator < 0 ? input : input[..separator];
             if (!raw.StartsWith('-') || !names.TryGetValue(Key(raw), out string? name)) throw new ArgumentException("qemu_unknown_option " + raw);
             bool first = result.Explicit.Add(name);
-            if (!first && name == "WebEventOwnedSignalRace") throw new ArgumentException("qemu_duplicate_option " + name);
+            if (!first && name is "WebEventOwnedSignalRace" or "LinuxDiskRaceVariant" or "WritableDiskFixture" or "WritableDiskDisassembly") throw new ArgumentException("qemu_duplicate_option " + name);
             bool flag = name.StartsWith("Enable", StringComparison.Ordinal) || name is "DryRun" or "BuildEfi" or "SkipImageBuild" or "RequireNativeAppMarkers" or "ServiceLifecycle" or "ServiceQuotaFailure" or "SignalEpollRace" or "WebSignalRace" or "WebEventOwnedSignalRace";
             string value = separator >= 0 ? input[(separator + 1)..] : flag ? "true" : ++i < arguments.Length ? arguments[i] : throw new ArgumentException("qemu_missing_value " + name);
             bool bit = false;
@@ -110,8 +126,18 @@ public sealed class QemuSmokeOptions
                 case "WorkloadProfile": result.WorkloadProfile = value; break;
                 case "GptImageVariant": result.GptImageVariant = value; break;
                 case "PackageImageVariant": result.PackageImageVariant = value; break;
+                case "WebRootFixture": result.WebRootFixture = value; break;
+                case "WebRootAssets": result.WebRootAssets = value; break;
                 case "LinuxElfPackage": result.LinuxElfPackage = value; break;
                 case "LinuxElfImageVariant": result.LinuxElfImageVariant = value; break;
+                case "WritableDiskFixture":
+                    if (value is not ("Mechanical30" or "LogUpload40" or "BclWrite" or "BclVerify")) throw new ArgumentException("qemu_writable_disk_fixture");
+                    result.WritableDiskFixture = value; break;
+                case "WritableDiskDisassembly": result.WritableDiskDisassembly = value; break;
+                case "LinuxDiskRaceVariant":
+                    if (!LinuxDiskRaceProofFixture.Variants.Contains(value, StringComparer.Ordinal))
+                        throw new ArgumentException("qemu_disk_race_variant");
+                    result.LinuxDiskRaceVariant = value; break;
                 case "LinuxHelloDisassembly": result.LinuxHelloDisassembly = value; break;
                 case "LinuxThreadingApplication": result.LinuxThreadingApplication = value; break;
                 case "LinuxThreadingDisassembly": result.LinuxThreadingDisassembly = value; break;

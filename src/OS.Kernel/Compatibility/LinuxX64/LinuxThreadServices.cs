@@ -40,6 +40,14 @@ public unsafe partial struct LinuxThreadServices
         internal KernelThreadWait Wait;
         internal uint FutexCellIndex, WaitSource;
         internal LinuxDescriptorServices.PipeOperation PipeOperation;
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        internal LinuxDescriptorServices.DiskToken DiskOperation;
+        internal uint DiskOutputBytes;
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        internal LinuxDescriptorServices.WritableDiskToken WritableDiskOperation;
+        internal uint WritableDiskOutputBytes;
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         internal LinuxEpollServices.Operation EpollOperation;
 #endif
@@ -65,6 +73,12 @@ public unsafe partial struct LinuxThreadServices
         public Worker* Workers;
         public uint Capacity, SlotBytes, WorkerBytes, ProcessId, ObservedMxcsrMask;
         public LinuxSyscallAccess User;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        /// <summary>Actual whole separate direct user-copy callback carrier,
+        /// retained through Release. Required by finite paired storage; zero
+        /// preserves unpaired callers. No transitive pointee/mapping claim.</summary>
+        public ulong UserContextBytes;
+#endif
         public delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         public bool FirmwareExited, SingleOwnerValidated;
     }
@@ -79,7 +93,8 @@ public unsafe partial struct LinuxThreadServices
         public readonly ulong ClearTid, BlockedSignals;
         public readonly LinuxSyscallFrame Frame;
         public readonly KernelThreadWait Wait;
-        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe, 3 epoll.
+        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe, 3 epoll,
+        /// 4 read-only disk, 5 writable disk.
         /// Deadline is absolute monotonic nanoseconds, or zero for an untimed
         /// wait. Both are zero without a valid Wait. Completion may be ready
         /// while the wait and its backing remain retained until consumption.</summary>
@@ -222,6 +237,14 @@ public unsafe partial struct LinuxThreadServices
     /// Futex is explicit optional admission; unsupported operations cannot
     /// report success. A staged wait must finish before another user call.</summary>
     public LinuxSyscallResult Dispatch(ulong key, ulong flags, ref LinuxSyscallFrame frame)
+        => Dispatch(key, flags, ref frame, 0);
+
+    /// <summary>Dispatch with an optional copied gateway ordinal forwarded only
+    /// to writable descriptor requests. Zero keeps legacy behavior. The owner
+    /// authenticates the ordinal and freshly captured frame; the value alone
+    /// grants no gateway authority. No staged global or frame pointer survives
+    /// this synchronous call; an admitted writable request retains its own pair.</summary>
+    public LinuxSyscallResult Dispatch(ulong key, ulong flags, ref LinuxSyscallFrame frame, ulong callOrdinal)
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
@@ -232,11 +255,14 @@ public unsafe partial struct LinuxThreadServices
         {
             case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 8: case 16: case 17:
             case 20: case 22: case 72: case 79: case 89: case 257: case 293:
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            case 73: case 74: case 75: case 87: case 328:
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             case 41: case 42: case 43: case 44: case 45: case 46: case 47: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
             case 213: case 232: case 233: case 281: case 291:
 #endif
-                return DispatchDescriptor(key, flags, frame);
+                return DispatchDescriptor(key, flags, frame, callOrdinal);
             case 13: case 131:
                 result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;
             case 14: result = SignalMask(slot, frame); break;
@@ -365,6 +391,12 @@ public unsafe partial struct LinuxThreadServices
         if (s->Exiting != 1 || captured.Identity != s->Kernel.Value) return false;
         if (!_owner.Threads->Exit(_owner.ThreadKey, flags, s->Kernel, captured, unchecked((int)s->ExitCode)).Succeeded) return false;
         bool dropped = DropPipeOperation(flags, s);
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        dropped = dropped && DropDiskOperation(s);
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        dropped = dropped && DropWritableDiskOperation(flags, s);
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         dropped = dropped && DropEpollOperation(s);
 #endif
@@ -400,12 +432,22 @@ public unsafe partial struct LinuxThreadServices
     public bool Release(ulong key, ulong flags)
     {
         if (!Access(key, flags) || _active != 0 || _owner.Threads->Current.IsValid || _owner.Threads->HandoffPending) return false;
+        // A pending disk lookup has no description borrow yet. Reject it before
+        // consuming the independent futex owner, so the original owner can drain
+        // cancellation and retry Release. Futex teardown cannot change fd state.
+        if (_descriptors != null && !LinuxDescriptorServices.CanDetachThreads(_descriptors, _self)) return false;
         if (!ReleaseFutex(flags)) return false;
         if (_descriptors != null && !LinuxDescriptorServices.DetachThreads(_descriptors, _self)) return false;
         if (_signals != null && !LinuxSignalServices.Detach(_signals, _self)) return false;
         this = default; return true;
     }
     private static bool HasDescriptorOperation(Slot* slot) => slot->PipeOperation.IsActive
+#if !NOSTDLIB_EFI || M16_025_PROBE
+        || slot->DiskOperation.IsActive
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        || slot->WritableDiskOperation.IsActive
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         || slot->EpollOperation.IsActive
 #endif
@@ -424,8 +466,14 @@ public unsafe partial struct LinuxThreadServices
     private bool Access(ulong key, ulong flags)
     {
         if (_initialized != 1 || key == 0 || key != _key || !IfClear(flags)) return false;
-        fixed (LinuxThreadServices* p = &this) return (ulong)p == _self &&
-            _owner.Threads->Inspect(_owner.ThreadKey, flags, default).Code == KernelThreadTable.Status.InvalidIdentity;
+        fixed (LinuxThreadServices* p = &this)
+        {
+            if ((ulong)p != _self || _owner.Threads->Inspect(_owner.ThreadKey, flags, default).Code != KernelThreadTable.Status.InvalidIdentity) return false;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+            if (_descriptors != null && FiniteDescriptorTree(_descriptors) && !DescriptorTreesOutsideProcess(_descriptors)) return false;
+#endif
+            return true;
+        }
     }
     private bool Input(ulong address, byte* output, uint bytes) => LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, _owner.User) &&
         _owner.User.CopyFromUser(_owner.User.Context, address, output, bytes) == 1;

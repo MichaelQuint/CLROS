@@ -1,6 +1,112 @@
 # Workload Profiles ADR
 
-## Current roadmap position (October 23, 2026)
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) Current paired30/sharedFS13 and managedHTTP17 controls pass, with two synthetic large-footprint controls and17manifest checks. Complete outer ownership/native carrier and emitted lifecycle qualification remain prerequisites. Source-onlyP is staged; its ordinary allocation experiment remains failed, unchanged/unimported and OPEN. No accepted native profile or guest gate is expanded.
+
+[Step1610](../done/step1610.md) Actual v5r13 preserves unchanged server/package bytes and service/audit/flush/time policy, then intentionally cancels/joins. The cause distribution is attribution rather than production optimization. The repaired explicit LinuxHTTP reference retains two fresh publications and independent verification. No accepted application profile or continuously functioning read/write/SQLite goal changes.
+
+[Step1606](../done/step1606.md) The separate finite managed MinimalApi HTTP log/upload candidate is an intermediate contract fixture, preserving the existing static server package and the continuous product goal. Explicit startup and partial-effect states remain evidence, not rollback or durability. Timingr10 failed before guest; the diagnostic ABI repair needs fresh originalr11 before any performance conclusion.
+
+[Step1605](../done/step1605.md) Linux SQLite d938/r03 qualifies the scoped external process-kill reference, with exact recovered baseline and explicit reused archive inputs. It grants no guest or power-loss durability. Read timing r09 attributes 99.09% of measured post-network time to readiness; next v4 splits refresh and wait scanning before any optimization. Full disk A/B/Blazor and continuous persistence qualification remain required.
+
+[Step1604](../done/step1604.md) Root retires the unproductive read replenishment experiment after actualr08 supplies0submissions/119skips. Preserve original quantum/fairness and attribute the existing post-network interval with a v3 child partition before another repair. Source5 log/upload lifecycle now passes host checks. Two isolated successors continue closed SQLite journal-witness/consumer repair and same-original-C/B global descriptor pair admission. All are development scopes; actual complete Blazor and persistent direct SQLite remain product acceptance work.
+
+[Step1603](../done/step1603.md) The successful r07 short diagnostic is an intermediate measured read boundary. Expert-correlated120 nonfinal data-copy/next-submit gaps total3.525s; a scoped experiment permits one replenishing submit only for the sole unchanged pending read after its mandatory flush and wake scan, within the original5ms call budget. Ready-peer FIFO and all other request arbitration remain unchanged.235 focused checks pass; root owns fresh timingr08 before any full rerun. Two isolated agents advance log/upload execution and retained-identity/recovery preparation. No original failure is superseded and continuously functioning Minimal API/Blazor/direct SQLite remains the product target.
+
+[Step1602](../done/step1602.md) Root retains exclusive native ownership for read timing/Blazor qualification. Exactly two M16-027 agents advance retained pre-engine writable admission and a global-descriptor test of measured journal/lock/sync ordering under fresh separate claims. Neither grants guest SQLite/durability authority. Continuously functioning Minimal API/Blazor/direct SQLite remains the product goal; the finite timing probe is an intermediate diagnostic.
+
+[Step1600](../done/step1600.md) The continuously functioning NativeAOT Minimal API, Blazor frontend and direct Microsoft.Data.Sqlite scenario remains the product goal. M10018Timing is a separate finite diagnostic, never the normal workload lifetime. Exactly two successor agents advance borrowed descriptor Busy retention and verified SQLite dependency preparation while root closes checkpoints and serializes native work.
+
+[Step1597](../done/step1597.md) The next dependency-compatible integration includes writable path/root metadata, nonblocking flock, exact source5 output lifetime, read-range arbitration preparation and separate SQLite writer/verifier/recovery publication. Their current authority is focused host support. Complete the fresh read/browser originals before native writable attachment; then qualify actual log/upload and SQLite locking/flush/recovery in the continuing integrated application.
+
+[Step1594](../done/step1594.md) Step1594 advances guarded writable host preparation while the current read batch remains open. NativeAOT log/upload reporting is revised without app crypto; actual extracted bytes and a distinct verifier remain mandatory. Fresh regular fstat and copied block-observation controls do not activate native writable hosting. Full read r05 fails at the unchanged matrix deadline; preserve it and qualify a measured throughput repair before new A/B/browser acceptance. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 keeps read and next writable batch sources separate for native qualification. Scoped read controls pass after removing a test-only writable dependency. Failed Linux log/upload r01 supplies observed BCL requirements but no complete acceptance; the second agent revises strict crypto-free reporting while storage implements actual-candidate media/observation controls. Root continues the current read original under its native lease.
+
+[Step1592](../done/step1592.md) Step1592 combines the guarded writable host foundation with internal loaded-sector lookup16 and33filesystem controls. Both implementation agents remain busy: storage matches actual candidate bytes on fake media while the other agent measures Linux NativeAOT BCL requirements. Complete the original first-ten read/Blazor batch before its reviewed merge; writable activation/log-upload/reboot and qualified SQLite remain the following dependency chain.
+
+[Step1591](../done/step1591.md) Step1591 implements guarded writable source5 host continuations and copied scheduler storage exclusion;13 controls and87 regressions pass alongside app7/global19/image20/FAT70 controls. First-ten issues remain unfinished: full r04 failed after83 responses and no browser. Continue internal loaded-directory parser repair while the second implementation agent measures the original Linux NativeAOT log/upload contract. Native writable activation, persistence and SQLite remain subsequent dependency-bound work.
+
+[Step1590](../done/step1590.md) Step1590 adds one passing fresh original8-call ExitPending race atc3dbab92; the complete read/Blazor batch remains unfinished while full DiskA r04 runs. Add missing nonrequired M10-027/#809 log/upload persistence scope after M10-018 and M16-027, with four isolated preparatory app/tool/test paths. Root owns scheduler extent and source-pin integration; both implementation agents stay active without competing native publications.
+
+[Step1589](../done/step1589.md) advances implementation only: bounded64-visit cached FAT metadata walks and an independent fresh final-cleanup clock for ExitPending. Full DiskA r03 and original ExitPending r02 wrapper remain failed. The three complete read/Blazor A/B/browser originals, stable source-matched full/native/ancestor checks and write/log/upload/SQLite gates remain unfinished. Exactly two agents continue dependency-compatible host work.
+
+[Step1588](../done/step1588.md) assembles the writable host foundation in an isolated branch while the original read milestone continues.192 distinct controls pass; the agent global descriptor/bootstrap slices and root source5/native integration remain unfinished. Keep #775/#791 -> #798 -> #799 -> #800 -> #792 dependencies and all accepted profile boundaries unchanged.
+
+[Step1587](../done/step1587.md) preserves failed original ExitPending r01 at91cd04cd and records its unqualified syscall-entry ordering repair. Full DiskA r03 is separately pending at that committed source. Continue the same first-ten dependency graph; isolated writable descriptor preparation may proceed in its freshly claimed four-path scope, while gateway/source5/native ownership remains with root. No accepted profile or completion gate is broadened.
+
+[Step1586](../done/step1586.md) connects the exact finite ExitPending original consumer; other variants stay refused and fresh qualification remains required. Full DiskA r02 passes the old600s UTC boundary but fails after35 HTTP responses without browser/cleanup, matching a separately active16MiB live-serial cap. Full-only live/final capture now shares128MiB. Two agents continue bounded writable admission/observation repairs; their host checkpoints do not bypass read-batch dependencies or native ownership.
+
+[Step1585](../done/step1585.md) records the5dd6e6c0 full6516-check pass and failed full DiskA r01 after31 HTTP captures. Complete read/Blazor and actual races remain open; FIFO/typed reset inspection is preparatory. Two isolated agents continue FAT32/data-image and writable-fd/lock/receipt work. Shared native/boot/syscall integration remains primary-owned.
+
+[Step1584](../done/step1584.md) adds the separate copied pending-reset device
+consumer without enabling original race execution. The primary5dd6e6c0 full
+run remains frozen; two isolated implementation agents continue bounded FAT32
+and writable-descriptor work. Full read/write/Blazor/SQLite gates remain open.
+
+[Step1583](../done/step1583.md) prepares canonical pending-exit observation
+stages without enabling original race execution. Complete disk/HTTP/Blazor and
+write/SQLite gates stay open. Two isolated agents continue bounded writable
+sector/file and SQLite recovery preparation while the primary owns qualification.
+
+[Step1582](../done/step1582.md) preserves the failed unfiltered full run at
+`e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
+The complete diagnostic-policy declarations, independent descendant/conflict
+checks, reviewed entry-source pin and backlog contracts are repaired;121 focused
+checks pass unchanged. A fresh committed-source unfiltered full/native run is
+still required before guest qualification. First-batch issues remain open.
+
+[Step1581](../done/step1581.md) adds the explicitly selected, default-off
+`-EnableM10018FullProbe` candidate. Its finite policy, full asset HTTP peer,
+consecutive-read/send checks and original external Chromium capture are now
+connected. This is implementation with focused host evidence; no full guest or
+browser execution has passed yet. Step1580's five-response result retains its
+scope. Three full boots across DiskA/B, actual storage races/errors and stable
+full/native/ancestor verification still precede read-batch closure. Exactly two
+isolated agents continue writable descriptors and pinned SQLite reference work.
+
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
+[Step1579](../done/step1579.md) retains the failed original018r04 and its
+receipt/startup repairs. Current read acceptance still needs fresh originals,
+full Blazor/browser, both variants and actual races. At the user request, two
+implementation subagents may prepare isolated #798/#791 host contracts while the
+primary tests the current batch. Their blocked dependency gates stay intact; no
+write activation, native/guest claim or batch merge follows from preparation.
+
+[Step1578](../done/step1578.md) adds an original five-response disk/static
+consumer candidate and host lifecycle controls. Fresh original execution still
+precedes even that limited development boundary. Continue the full Blazor/browser,
+both-variant and actual race qualification before closing the first ten issues;
+then proceed to the approved write/flush/log/upload/locking/SQLite ladder. No
+issue, complete Kestrel/Gate14, durability or production scope advances here.
+
+[Step1577](../done/step1577.md) adds complete copied disk/static scheduler/file
+and sector joins. Original018r03 remains a failed diagnostic; complete original
+HTTP/native/process/packet ownership and the full Blazor/browser witness still
+precede first-batch closure. Continue the approved read then writable FAT/flush/
+log/upload/locking/direct SQLite ladder without promoting these value reports.
+
+## Historical roadmap position (October 23, 2026)
 
 PR790 is merged at `82656076`. #748/#225 and the finite #737 integration are
 closed; the fourteen step1481 prerequisites, including #224/#747/#760, are
@@ -160,9 +266,11 @@ follow-ups were subsequently qualified by steps1481/1556; #224/#747/#748/#760,
 currently active successor work.
 
 [#780 tracker conflict protection](http://192.168.4.35:3000/admin/CLROS/issues/780)
-is independent host tooling. Before [#769 disk fixtures](http://192.168.4.35:3000/admin/CLROS/issues/769),
-complete [#781 host FAT selection](http://192.168.4.35:3000/admin/CLROS/issues/781)
-then [#782 bounded directory scratch](http://192.168.4.35:3000/admin/CLROS/issues/782).
+is qualified within its independent host-tooling scope. The finite
+[#781 host FAT selection](http://192.168.4.35:3000/admin/CLROS/issues/781) ->
+[#782 bounded directory scratch](http://192.168.4.35:3000/admin/CLROS/issues/782) ->
+[#769 disk fixtures](http://192.168.4.35:3000/admin/CLROS/issues/769) scopes are qualified;
+their dependency order and guest-service boundaries remain unchanged.
 These image-verification repairs do not become first-web runtime dependencies
 or reopen the nineteen-child M06 epic. #752 retains measured optimization;
 #753-#755 retain later build-time assurance. The manifest owns exact dependencies.
@@ -213,6 +321,50 @@ original native/source joins and affected ancestors. Host checks, source
 analysis, documentation or a longer diagnostic timeout cannot close a guest
 issue. See [review evidence](repo-audit.md#october-16-architecture-review) and
 [completion gates](completion-gates.md#architecture-review-acceptance-boundaries).
+
+## Approved implementation continuation (2026-10-24)
+
+The user approved ten related issues: #780, #781 -> #782, and #768-#774. The
+updated goal requires exactly two implementation subagents with disjoint file
+ownership and one primary integrator. #224/#225/#737 are closed on
+LAN master at82656076; #226/#227 remain open. The historical roadmap below
+retains its original planning context; its first service prerequisite is now
+satisfied within step1556's finite boundary. Preserve original owners/evidence,
+serialize shared boot/native/guest work, and qualify dependencies before closure.
+
+[Step1559](../done/step1559.md) keeps the new static server in a separate fixed
+app/project, preserving accepted app/publisher/ELF/index identities. The initial
+a34 research run is retained separately; final publication uses the immutable
+original socket recipe through `NativeAotStaticFilePublisher`.
+
+The first disk demo now includes the actual pinned Standalone Blazor WebAssembly
+client, not only HTML/CSS/JavaScript. The client loads its raw framework assets
+from FAT32 and renders `/api/status`, `/api/items` and a disk-only nonce. Keep
+#772's staged fixture small; disk mode must not embed/stage the complete assets.
+[Step1558](../done/step1558.md) records development only.
+
+The separate server now passes its frozen1f8ee218 Linux reference:61 HTTP
+observations over45 published Blazor assets, with actual SIGTERM/exit0 and
+endpoint refusal. Its exact ELF/index and source admission remain separate from
+the accepted smoke application. This is Linux-reference evidence; guest staged,
+live-disk and browser qualifications remain pending.
+
+After this read milestone, #226/#227/#775 accompany six bounded successor
+issues: measured write/SQLite contracts; continuing writable block plus flush;
+FAT create/grow/overwrite/truncate/delete; confined writable Linux descriptors
+and locking; log/upload restart persistence; and pinned SQLite rollback-journal
+transactions/recovery. #468's preallocated in-place overwrite remains a separate
+limited scope. No successful sector write alone establishes durable commits.
+Reuse [#791](http://192.168.4.35:3000/admin/CLROS/issues/791) for the measured
+SQLite contract and [#792](http://192.168.4.35:3000/admin/CLROS/issues/792) for
+transaction/recovery qualification. Both require direct `Microsoft.Data.Sqlite`,
+with a pinned native SQLite dependency and measured file/locking/flush behavior.
+`Microsoft.EntityFrameworkCore.Sqlite` adds EF Core model/query generation and
+separate NativeAOT constraints; those limitations do not establish SQLite engine
+incompatibility. EF Core is outside this local SQLite acceptance scope.
+After each batch audit README, all first-party docs/guides and Gitea, update
+every affected statement, retain a new immutable done receipt, merge only
+verified work, reconcile/read back the tracker, and continue the durable goal.
 
 ## Disk-backed static-file roadmap (2026-10-18)
 
@@ -790,7 +942,7 @@ issues are represented and tested.
 
 ## Canonical successor issue keys (2026-10-23)
 
-Finish the current #780/#781/#782/#768-#774 batch without changing its owner or accepted receipts. Direct `Microsoft.Data.Sqlite` requirement measurement is M10-020/#791. Sustained read-only service #775 precedes writable block/flush M06-020/#798, FAT mutation/recovery M06-021/#799 and confined writable descriptor/locking M16-027/#800; #798 also requires measured #791. M10-021/#792 then qualifies rollback-journal transactions/recovery. #468 remains bounded preallocated overwrite and cannot substitute for these prerequisites. EF Core's separate NativeAOT requirements do not describe SQLite-engine compatibility.
+Preserve the qualified finite #780/#781/#782/#768/#769 scopes and continue #770-#774 under their existing ownership and accepted-receipt boundaries. Direct `Microsoft.Data.Sqlite` requirement measurement is M10-020/#791. Sustained read-only service #775 precedes writable block/flush M06-020/#798, FAT mutation/recovery M06-021/#799 and confined writable descriptor/locking M16-027/#800; #798 also requires measured #791. M10-021/#792 then qualifies rollback-journal transactions/recovery. #468 remains bounded preallocated overwrite and cannot substitute for these prerequisites. EF Core's separate NativeAOT requirements do not describe SQLite-engine compatibility.
 
 General NativeAOT hosting follows #774: M10-022/#793 contract -> M10-023/#794 generic publication/admission -> M10-024/#795 generic launch/stop -> M10-025/#796 semantic conformance -> M10-026/#797 independent-app/rebuild gate. #797 also requires #227. Normal compatible apps and changed rebuilds use unchanged kernel/EFI and deployment tools, with no app-name/hash allow-list patch or manual disassembly/reference-VM session. Unsupported features remain explicit; advertised disk/SQLite capabilities require their own qualification. #755 specialization is optional and cannot replace this general path.
 

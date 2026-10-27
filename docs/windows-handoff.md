@@ -1,6 +1,27 @@
 # Windows development-machine handoff
 
-## Current handoff (October 23, 2026)
+The October 25 host crash interrupted the first Step1624 full run at902/918
+recorded fixtures. It has no final full result. The intentional Visual Studio
+RC3 update is preserved; the current phase uses the separately restored exact
+RC2 SDK and both required RC2 runtimes. Select the parent/child environment in
+[host requirements](host-requirements.md#current-phase-sdk-selection-after-the-october-25-restart)
+before builds, tooling or tests. Restored-toolchain full r03 passes7311 checks
+on f3202d25 only. Source4e48acc1 has matching ordinary CD5D2A42 emitted bytes
+and conditional review plus a fresh original Mechanical30/DiskA pass; its
+unfiltered full r04 now passes7318 checks/918 fixtures, unchanged/zero reuse.
+Current28b6b454 adds the exact host-only epoll shutdown parser repair; four
+focused controls pass. All14 selected final-source original recipes now pass
+their own complete consumers and guards. Final Root full r02 passes 7,319 checks with unchanged inputs and zero reuse.
+Closing review, tracker reconciliation and merge remain required before merge. RC3 migration follows
+the current integration merges.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+## Historical handoff (October 23, 2026)
 
 Canonical LAN master includes PR790 at `82656076`. #748/#225/#737 and all
 fourteen predecessor scopes reviewed in step1481 are closed. Step1556 retains
@@ -12,6 +33,13 @@ disk-fixture work. See [current gate status](completion-gates.md#current-accepta
 Inspect `git status --short --branch`, `git worktree list` and current LAN
 ownership before editing. The primary may hold active development on a feature
 branch; do not switch it or absorb another agent's changes for a docs update.
+Commit and freeze qualification changes before the final complete test-graph
+build; compare producer/copied DLL hashes and revision stamps as described in
+the [host baseline](host-requirements.md#full-lane-build-baseline). The failed
+r03 full retains its original mixed-stamp evidence. Disk integration proceeds
+in the attached `codex/readonly-disk-waits` worktree while the primary owns the
+staged guest sequence. Join commands before changing their source, and serialize
+native publication/guest work across lanes.
 The old instruction to keep `codex/resume-service-validation-20261020` frozen
 was specific to a completed run. It is not a current workspace restriction.
 

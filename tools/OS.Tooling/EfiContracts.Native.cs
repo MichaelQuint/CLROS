@@ -61,7 +61,9 @@ public static partial class EfiContracts
         "tools/OS.X64TextSerializerGenerator/NormalFinallyThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/EhContributionCatalogGenerator.cs"
     ]);
-    public const int MaximumRuntimeFunctionRecords = 2048, MaximumLinkResponseTokens = 4096;
+    // Bounded host file-backed catalog scan only. The separate kernel unwind
+    // decoder retains its2048-function snapshot/lookup contract.
+    public const int MaximumRuntimeFunctionRecords = 4096, MaximumLinkResponseTokens = 4096;
     public const int SerializerObjectBytes = 336, SerializerSuccessCookie = 1397902403;
     public const string SerializerSymbol = "CLROS_X64_SerializeInstructionPublication";
     public static System.ReadOnlySpan<byte> SerializerBytes => [0x53, 0xb8, 0, 0, 0, 0, 0xb9, 0, 0, 0, 0, 0x0f, 0xa2, 0xb8, 0x43, 0x4c, 0x52, 0x53, 0x5b, 0xc3];

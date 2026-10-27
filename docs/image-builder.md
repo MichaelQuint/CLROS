@@ -1,5 +1,66 @@
 # Image Builder
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1600](../done/step1600.md) CombinedWebDataImageFixture creates a128MiB GPT image with byte-preserved web/EFI/package ESP and relocated writable FAT32 data partition. Inspection binds actual partition geometry, independent extracted files and both FAT copies. Existing64MiB fixture receipt semantics stay unchanged; synthetic combined-image and bootstrap checks do not establish guest writes or durability.
+
+## Retained DATA candidates
+
+`CombinedWebDataImageFixture.CreateWithRetainedData` combines a fresh64MiB
+web image with a separately authenticated prior128MiB combined image. It
+preserves the complete new ESP/disk GUID and the complete old DATA partition
+body and128-byte GPT entry, including unique GUID, name, attributes, FAT copies,
+FSInfo and slack. DATA stays at its existing LBA; no BPB relocation occurs.
+Only the combined GPT framing/CRCs change. Input identities, exact full hashes
+and independent extraction are checked under immutable distinct single-link
+file holds. A fresh CreateNew output is reheld against its created identity,
+length/hash and independently inspected before return.
+
+The API produces a copied image candidate. The original run owner must
+separately authenticate the prior joined image and process receipt, exclude
+concurrent writers and qualify any reboot. File holds end before return.
+Failed created outputs remain for inspection; no substituted path is deleted.
+The receipt's OriginalDataSha256 denotes the whole128MiB retained source for
+this API; ordinary Create retains its original64MiB seed meaning. Existing
+Create, receipt schema and CloneForWrite contracts remain unchanged. Synthetic
+FAT file changes and a cold host copy do not establish actual guest writes,
+reboot persistence or storage durability.
+
+## Webroot fixture development (2026-10-23)
+
+[Step1558](../done/step1558.md) adds the host-side recursive FAT32 webroot importer
+and an independent GPT/BPB/VFAT byte verifier. It accepts a measured prepared
+asset tree and writes a fresh image under `artifacts`; the original image is
+preserved. DiskA and DiskB have the same executable/package and asset layout,
+with one different byte in `fixture-nonce.txt`. Read-only attributes and declared
+1980-01-01 UTC metadata are deterministic. Empty, nested, fragmented and larger
+than64KiB controls plus an outside-root sentinel are generated separately.
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot static-files prepare-client <published-wwwroot> <fresh-artifacts-webroot>
+dotnet run --project tools/OS.Tooling -- nativeaot static-files image <base-image> <prepared-webroot> <fresh-artifacts-image> DiskA
+```
+
+The image command emits `<image>.webroot.json` with measured assets, preserved
+files and physical extents. The original focused checks and exact candidate binding
+qualify #769's finite host fixture scope; a host receipt is not guest disk/HTTP proof.
+
+The retained real-candidate fixture run now uses all 45 published Blazor assets
+(5,922,507 bytes), the separate static server package and reviewed staged EFI.
+Repeated base/DiskA/DiskB images and receipts are byte-identical; independent
+numeric readback reconstructs 54 files including preserved inputs, boundary
+controls and the outside-root sentinel. The two 64 MiB variants differ at one
+nonce byte, offset17871883. The 131,109-byte fragmented control has257 extents.
+These are actual host image results; the original inputs remain retained and
+no guest disk or browser qualification follows from extraction.
+
 ## Planned manifest-driven packaging (2026-10-23)
 
 The OPS research is now tracked as a successor workflow; these commands and
@@ -44,16 +105,15 @@ records tracker creation and verification only.
 As of October 23, PR790/step1556 qualifies finite application service, not a
 new disk image feature. #781 -> #782 host FAT repairs remain open prerequisites
 for #769 webroot fixtures. Existing v1/V2 package commands retain their exact
-format and source admission; proposed static-file commands below are not yet
-implemented. Preserve the same distinction in image receipts and guest claims.
+format and source admission; the new static-file commands above remain development-only. Preserve the same distinction in image receipts and guest claims.
 
-The planned [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
-will generate deterministic HTML/CSS/JS and boundary assets in the existing
+The qualified finite [#769 webroot fixture](http://192.168.4.35:3000/admin/CLROS/issues/769)
+generates deterministic HTML/CSS/JS and boundary assets in the existing
 read-only FAT32 image, preserving EFI/package bytes and both FATs. Its disk-only
 variants use the same application ELF/package with different asset contents;
 an independent readback records exact paths, cluster/LBA extents, lengths,
 timestamp policy and hashes. A separate staged variant supports #772 only.
-The proposed fixture command in the issue is not implemented yet. See the
+The command above implements the host fixture portion. See the
 [dependency roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18).
 
 Linux ELF v1 package/staging is qualified in

@@ -68,14 +68,24 @@ public static unsafe partial class EfiEntry
         private const uint CooperativePoolPages = Cooperative.PoolPages, CooperativeCodePages = 2;
 #endif
 #if M16_007_PROBE
+#if M10_017_PROBE || M10_018_PROBE || M16_027_PROBE
+        private const uint LinuxDescriptorPages = 70, LinuxDescriptorSlots = 32;
+        private const uint LinuxDescriptorDescriptions = 0x200, LinuxDescriptorPipeMetadata = 0xc00;
+        private const uint LinuxDescriptorViews = 0xcc0, LinuxDescriptorPaths = 0xe00;
+        private const uint LinuxDescriptorSnapshots = 0x2000, LinuxDescriptorPipes = 0x42000, LinuxDescriptorScratch = 0x44000;
+#else
         private const uint LinuxDescriptorPages = 37;
         private const uint LinuxDescriptorSlots = 16;
         private const uint LinuxDescriptorSnapshots = 0x1000, LinuxDescriptorPipes = 0x21000, LinuxDescriptorScratch = 0x23000;
         private const uint LinuxDescriptorViews = 0x6c0, LinuxDescriptorPaths = 0x800;
+        private const uint LinuxDescriptorDescriptions = 0x100, LinuxDescriptorPipeMetadata = 0x600;
+#endif
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
-#if M16_011_PROBE
+#if M16_025_PROBE
+            19;
+#elif M16_011_PROBE
             18;
 #elif M07_026_PROBE
             11;
@@ -486,6 +496,20 @@ public static unsafe partial class EfiEntry
             if (!BootSequence.PrepareLinuxDescriptors(state->Phase == 2, state, &PrepareLinuxDescriptors)) return false;
             references.LinuxDescriptorStart = state->LinuxDescriptorArena;
             references.LinuxDescriptorPages = LinuxDescriptorPages;
+#endif
+#if M16_027_PROBE
+            if (!BootSequence.PrepareOwnedWritableDisk(state->Phase == 2, state, &PrepareNativeWritableDiskBacking) ||
+                !GetNativeWritableDiskBacking(state, out references.NativeDiskArenaStart,
+                    out references.NativeDiskArenaPages, out references.NativeDiskBarStart)) return false;
+#elif M16_025_PROBE
+            if (!BootSequence.PrepareOwnedReadOnlyDisk(state->Phase == 2, state, &PrepareNativeDiskBacking)) return false;
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->Boot != state || disk->Phase != 1) return false;
+                references.NativeDiskBarStart = disk->Bar;
+                references.NativeDiskArenaStart = disk->Arena;
+                references.NativeDiskArenaPages = disk->ArenaPages;
+            }
 #endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
@@ -1101,6 +1125,13 @@ public static unsafe partial class EfiEntry
                 !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger, ref count)) return false;
 #if M07_026_PROBE
             if (!LinuxReservation(BootReservationKind.DiagnosticState, state->NetworkArena, 8, ledger, ref count)) return false;
+#endif
+#if M16_027_PROBE
+            if (!GetNativeWritableDiskBacking(state, out ulong diskArena, out ulong diskPages, out _) ||
+                !LinuxReservation(BootReservationKind.DiagnosticState, diskArena, diskPages, ledger, ref count)) return false;
+#elif M16_025_PROBE
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+                if (disk->Boot != state || !LinuxReservation(BootReservationKind.DiagnosticState, disk->Arena, disk->ArenaPages, ledger, ref count)) return false;
 #endif
 #if M16_004_PROBE
             if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger, ref count) ||
@@ -1786,7 +1817,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte ReadLinuxClock(void* context, ulong* ticks)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             if (ticks == null || state->LinuxMemoryPhase < 3 || state->LinuxMemoryPhase > 4 ||
                 state->AdapterConsole != null || state->AdapterServices != null ||
                 !OwnedMonotonicClock.Read(ref state->Clock) || state->Clock.Source != OwnedClockSource.Hpet ||
@@ -1797,7 +1833,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte LinuxMemoryBarrier(void* context)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             if (!LinuxSyscallAuthority(state) || state->LinuxMemoryPhase != 4) return 0;
             return ((delegate* unmanaged<byte>)(state->LinuxSyscallCode + X64LinuxUserTransition.MemoryBarrierOffset))();
         }
@@ -1805,7 +1846,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static long DispatchLinuxStartup(void* context, LinuxSyscallFrame* frame)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return -14;
+#else
             Storage* state = (Storage*)context;
+#endif
             var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset + X64LinuxElfReadBackBridge.ReadCr3Offset);
             if (!LinuxSyscallAuthority(state) || state->LinuxMemoryPhase != 4 || frame == null || readRoot() != state->LinuxDispatchRoot) return -14;
 #if M16_014_PROBE
@@ -1836,7 +1882,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte CopyToLinuxUser(void* context, ulong destination, byte* source, uint bytes)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             uint maximum = Probes.EnableM16014Probe ? OS.Std.Hash.HmacSha256Drbg.MaximumRequestBytes : 4096;
             if (!LinuxSyscallAuthority(state) || bytes == 0 || bytes > maximum ||
                 (ulong)source < state->LinuxSyscallData + X64LinuxUserTransition.StackOffset ||
@@ -1901,9 +1952,9 @@ public static unsafe partial class EfiEntry
                 !LinuxMemoryFacts(state, out ulong physical, out ulong available)) return false;
             // Retained package metadata stays below the first snapshot page;
             // views and their copied paths outlive every borrowed descriptor.
-            if (sizeof(LinuxDescriptorServices.Slot) * LinuxDescriptorSlots > 0x100 ||
-                sizeof(LinuxDescriptorServices.Description) * LinuxDescriptorSlots > 0x500 ||
-                sizeof(LinuxPipe) * 2 > LinuxDescriptorViews - 0x600 ||
+            if (sizeof(LinuxDescriptorServices.Slot) * LinuxDescriptorSlots > LinuxDescriptorDescriptions ||
+                sizeof(LinuxDescriptorServices.Description) * LinuxDescriptorSlots > LinuxDescriptorPipeMetadata - LinuxDescriptorDescriptions ||
+                sizeof(LinuxPipe) * 2 > LinuxDescriptorViews - LinuxDescriptorPipeMetadata ||
                 sizeof(LinuxDescriptorServices.View) * LinuxDescriptorServices.MaximumViews > LinuxDescriptorPaths - LinuxDescriptorViews ||
                 LinuxDescriptorPaths + LinuxDescriptorServices.MaximumViews * LinuxDescriptorServices.MaximumPath > LinuxDescriptorSnapshots) return false;
             byte* arena = (byte*)state->LinuxDescriptorArena;
@@ -1913,13 +1964,19 @@ public static unsafe partial class EfiEntry
                 LinuxDescriptorServices.MaximumViews * LinuxDescriptorServices.MaximumPath, out uint viewCount)) return false;
             LinuxDescriptorServices.Admission owner = new()
             {
-                Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + 0x100),
-                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = viewCount, PackageProcessId = 1,
+                Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + LinuxDescriptorDescriptions),
+                Pipes = (LinuxPipe*)(arena + LinuxDescriptorPipeMetadata), Views = view, ViewCount = viewCount, PackageProcessId = 1,
                 Snapshots = arena + LinuxDescriptorSnapshots, PipeBuffers = arena + LinuxDescriptorPipes,
                 Scratch = arena + LinuxDescriptorScratch, ScratchBytes = 8192,
                 DescriptorCount = LinuxDescriptorSlots, DescriptionCount = LinuxDescriptorSlots, PipeCount = 2, PipeCapacity = 4096,
                 Memory = &state->LinuxMemory, PhysicalBytes = physical, AvailableBytes = available,
-                User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
+                User = new() {
+#if M16_027_PROBE
+                    Context = LinuxUserCallbackContext(state),
+#else
+                    Context = state,
+#endif
+                    PageAccess = &LinuxUserPageAccess,
 #if M16_008_PROBE
                     CopyFromUser = &LinuxThreadCopyInput,
 #else
@@ -1939,9 +1996,17 @@ public static unsafe partial class EfiEntry
                 !state->LinuxLogBudget.Initialize(LinuxAppLogBudget.DefaultByteLimit, logRecords)) return false;
             state->LinuxLogRecordLimit = logRecords;
 #endif
+            #if M16_027_PROBE
+            if (!LinuxUserCarrierCurrent(state, owner.User.Context, (ulong)sizeof(LinuxUserCarrier))) return false;
+#endif
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
-            return LinuxText(state, "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+            return LinuxText(state,
+#if M10_017_PROBE || M10_018_PROBE || M16_027_PROBE
+                "M16_007_POLICY descriptors=32 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+#else
+                "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+#endif
                 LinuxNumber(state, view->Bytes) && LinuxText(state,
 #if M16_008_PROBE
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler\r\n");
@@ -1979,7 +2044,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte CopyDescriptorInput(void* context, ulong address, byte* destination, uint bytes)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             return LinuxSyscallAuthority(state) && state->LinuxDescriptorPhase == 4 && DescriptorKernelRange(state, destination, bytes, false)
                 ? CopyLinuxAlias(state, address, destination, bytes, false) : (byte)0;
         }
@@ -1987,7 +2057,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte CopyDescriptorOutput(void* context, ulong address, byte* source, uint bytes)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             return LinuxSyscallAuthority(state) && state->LinuxDescriptorPhase == 4 && DescriptorKernelRange(state, source, bytes, true)
                 ? CopyLinuxAlias(state, address, source, bytes, true) : (byte)0;
         }
@@ -1995,7 +2070,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte WriteDescriptorOutput(void* context, uint channel, byte* source, uint bytes)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             if (!LinuxSyscallAuthority(state) || state->LinuxDescriptorPhase != 4 || (channel != 1 && channel != 2) ||
                 source != (byte*)(state->LinuxDescriptorArena + LinuxDescriptorScratch) || bytes == 0 || bytes > 8192) return 0;
 #if M10_004_PROBE
@@ -2014,7 +2094,9 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
             if (!LinuxText(state, "\r\n")) return 0;
             state->LinuxSyscallWrites++;
-#if M10_004_PROBE
+#if M10_017_PROBE || M10_018_PROBE
+            return LinuxStaticObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;
+#elif M10_004_PROBE
             return LinuxWebObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;
 #else
             return 1;
@@ -2024,7 +2106,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static long DispatchLinuxDescriptors(void* context, LinuxSyscallFrame* frame)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return -14;
+#else
             Storage* state = (Storage*)context;
+#endif
             var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset + X64LinuxElfReadBackBridge.ReadCr3Offset);
             if (!LinuxSyscallAuthority(state) || state->LinuxDescriptorPhase != 4 || frame == null || readRoot() != state->LinuxDispatchRoot) return -14;
             return LinuxDescriptorServices.Dispatch(&state->LinuxDescriptors, *frame);
@@ -2191,7 +2278,17 @@ public static unsafe partial class EfiEntry
                 UserRoot = plan.UserRoot, MaximumCalls = LinuxSyscallGateway.MaximumCalls, MaximumWrite = LinuxSyscallGateway.MaximumWrite,
                 Scratch = data + X64LinuxUserTransition.ScratchOffset, ScratchBytes = 4096, FirmwareExited = true, OwnedBoundaryValidated = true
             };
-            LinuxSyscallAccess access = new() { Context = state, PageAccess = &LinuxUserPageAccess,
+            #if M16_027_PROBE
+            if (!PrepareLinuxUserCarrier(state) || LinuxUserCallbackContext(state) == null)
+                return LinuxSyscallAdmissionFailure(state, "user-carrier");
+#endif
+            LinuxSyscallAccess access = new() {
+#if M16_027_PROBE
+                Context = LinuxUserCallbackContext(state),
+#else
+                Context = state,
+#endif
+                PageAccess = &LinuxUserPageAccess,
 #if M16_008_PROBE
                 CopyFromUser = &LinuxThreadCopyInput,
 #else
@@ -2360,7 +2457,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte LinuxUserPageAccess(void* context, ulong address)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             if (!LinuxSyscallAuthority(state) || !X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
                 X64UserAddressSpace.MaximumTables, address, out ulong leaf) || (leaf & 5) != 5) return 0;
             return (byte)(1 | ((leaf & 2) != 0 ? 2 : 0) | ((leaf & 0x8000000000000000) == 0 ? 4 : 0));
@@ -2369,7 +2471,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte CopyLinuxUserBytes(void* context, ulong source, byte* destination, uint bytes)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             if (!LinuxSyscallAuthority(state) || destination != (byte*)(state->LinuxSyscallData + X64LinuxUserTransition.ScratchOffset) ||
                 bytes == 0 || bytes > 4096) return 0;
             // Dispatch has preflighted every page; mappings cannot change in this
@@ -2385,7 +2492,12 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte WriteLinuxUserBytes(void* context, uint descriptor, byte* source, uint bytes)
         {
+            #if M16_027_PROBE
+            Storage* state = ResolveLinuxUserCallbackStorage(context);
+            if (state == null) return 0;
+#else
             Storage* state = (Storage*)context;
+#endif
             if (!LinuxSyscallAuthority(state) || (descriptor != 1 && descriptor != 2) ||
                 source != (byte*)(state->LinuxSyscallData + X64LinuxUserTransition.ScratchOffset) || bytes == 0 || bytes > 4096 ||
                 !LinuxText(state, "M16_005_WRITE fd=") || !LinuxNumber(state, descriptor) ||

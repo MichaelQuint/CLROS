@@ -9,7 +9,10 @@ public static class QemuSmoke
     {
         root = Path.GetFullPath(root);
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
-        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0||NativeAotSocketContainmentSelection.Selected(options.Flags)||NativeAotSocketVectorsSelection.Selected(options.Flags)||NativeAotWebSelection.Application(options.Flags).Length!=0)
+        { RetainOwnershipUntilJoined = name == "OS.QemuRunner" && options.WritableDiskFixture.Length != 0,
+            Timeout = name == "OS.QemuRunner" && options.WritableDiskFixture.Length != 0
+            ? TimeSpan.FromSeconds(options.TimeoutSeconds + QemuCaptureSession.RunnerCaptureAllowanceSeconds + 30)
+            : name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0||NativeAotSocketContainmentSelection.Selected(options.Flags)||NativeAotSocketVectorsSelection.Selected(options.Flags)||NativeAotWebSelection.Application(options.Flags).Length!=0||NativeAotStaticFileSelection.Application(options.Flags).Length!=0)
             ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
             OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
@@ -17,7 +20,9 @@ public static class QemuSmoke
             var result = await invoke(name, args);
             output.Write(result.StandardOutput);
             if (result.StandardError.Length != 0) output.Write(result.StandardError);
-            QemuTranscripts.RequireCompleteProcess(result, "qemu_child_incomplete tool=" + name);
+            if(name=="OS.QemuRunner" && options.WritableDiskFixture.Length!=0)
+            { if(!result.TerminationConfirmed)throw new ToolFailure("writable_original_runner_unjoined"); }
+            else QemuTranscripts.RequireCompleteProcess(result, "qemu_child_incomplete tool=" + name);
             return result;
         }
         QemuCaptureSession? capture = null;
@@ -33,6 +38,10 @@ public static class QemuSmoke
         NativeAotSocketVectorsProgram? vectorsProgram=null;
         NativeAotSocketVectorsPeer.Completion? vectorsPeer=null;
         NativeAotWebProgram? webProgram=null;
+        NativeAotStaticFileProgram? staticProgram=null;
+        NativeAotStagedStaticPeer.Completion? staticPeer=null;
+        NativeAotDiskStaticPeer.Completion? diskStaticPeer=null;
+        NativeAotDiskStaticBrowser.Completion? diskBrowser=null;
         NativeAotWebRacePeer.Completion? webRacePeer=null;
         NativeAotServiceProgram? serviceProgram=null;
         NativeAotServicePeer.Completion? servicePeer=null;
@@ -48,17 +57,32 @@ public static class QemuSmoke
         AuthorityFiles? webInputs=null;
         AuthorityFile? webPackageInput=null,webDisassemblyInput=null,webImageInput=null,webEfiInput=null;
         EfiVerification? webNative=null;
+        AuthorityFiles? diskInputs = null;
+        AuthorityFile? diskImageInput = null, diskEfiInput = null, diskPackageInput = null, diskReceiptInput=null;
+        EfiVerification? diskNative = null;
+        WebRootImageFixture.Receipt? diskImageReceipt = null;
+        CombinedWebDataImageFixture.Receipt? writableReceipt = null;
+        CombinedWebDataImageFixture.WorkingImage? writableWorking = null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            // Only ExitPending has a complete original race consumer. Never
+            // run the positive59-call package under a requested race.
+            if(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant!="ExitPending" && !options.DryRun)
+                throw new ToolFailure("disk_race_complete_consumer_required");
+            bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
+            bool writableDisk = NativeAotDiskSelection.WritableSelected(plan.Flags);
+            bool diskStatic = NativeAotDiskSelection.StaticSelected(plan.Flags);
+            if (writableDisk) RequireWritableOutputPaths(root, options);
             bool signalEpoll=LinuxSignalEpollSelection.Bind(options,plan.Flags);
             bool sockets=!signalEpoll&&NativeAotSocketSelection.Application(plan.Flags).Length!=0;
             bool containment=NativeAotSocketContainmentSelection.Selected(plan.Flags);
             bool vectors=NativeAotSocketVectorsSelection.Selected(plan.Flags);
             bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
+            bool staticFiles=NativeAotStaticFileSelection.Application(plan.Flags).Length!=0;
             bool service=NativeAotServiceSelection.Application(plan.Flags).Length!=0;
             var serviceContract=service?NativeAotServiceSelection.Contract(options,plan.Flags):NativeAotServiceContract.V1;
-            if((signalEpoll||service||sockets||containment||vectors||web)&&!options.DryRun)
+            if((signalEpoll||service||sockets||containment||vectors||web||staticFiles||diskFiles)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if(options.HasWebSignalRace&&!options.DryRun)
@@ -99,17 +123,25 @@ public static class QemuSmoke
                             serviceProgram=NativeAotServiceProgram.Create(root,p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"service_package"),d.ReadUtf8(128*1024*1024,"service_instructions"),serviceContract);
                             NativeAotServiceProgram.HoldSources(root,serviceInputs);serviceInputs.VerifyUnchanged();
                         }
-                        else if(web)
+                        else if(web||staticFiles)
                         {
                             webInputs=new();
                             var p=webPackageInput=webInputs.Open(Path.GetDirectoryName(package)!,package,"web package","web_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
                             var d=webDisassemblyInput=webInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"web instructions","web_instructions",NativeAotWebProgram.MaximumDisassemblyBytes,singleLink:true);
                             AuthorityFiles.RequireDistinct(p,d);
                             byte[] bytes=p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package");
-                            webProgram=NativeAotWebProgram.Create(root,bytes,d.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes,"web_instructions"));
-                            NativeAotWebProgram.HoldSources(root,webInputs);
-                            webConfiguration=NativeAotWebProgram.DescribeConfiguration(bytes);
-                            if(options.HasWebSignalRace&&webConfiguration.LogQuota)throw new ToolFailure("web_race_normal_logging_required");
+                            if(staticFiles)
+                            {
+                                staticProgram=NativeAotStaticFileProgram.Create(root,bytes,d.ReadUtf8(NativeAotStaticFileProgram.MaximumDisassemblyBytes,"static_instructions"),staged:!diskStatic);
+                                NativeAotStaticFileProgram.HoldSources(root,webInputs);
+                            }
+                            else
+                            {
+                                webProgram=NativeAotWebProgram.Create(root,bytes,d.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes,"web_instructions"));
+                                NativeAotWebProgram.HoldSources(root,webInputs);
+                                webConfiguration=NativeAotWebProgram.DescribeConfiguration(bytes);
+                                if(options.HasWebSignalRace&&webConfiguration.LogQuota)throw new ToolFailure("web_race_normal_logging_required");
+                            }
                             webInputs.VerifyUnchanged();
                         }
                         else if(vectors)vectorsProgram=NativeAotSocketVectorsProgram.Read(root,package,disassembly);
@@ -130,6 +162,14 @@ public static class QemuSmoke
                         helloDisassemblyInput = new FileStream(disassembly, FileMode.Open, FileAccess.Read, FileShare.Read);
                         helloProgram = NativeAotHelloProgram.Read(root, Path.GetFullPath(options.LinuxElfPackage, root),
                             disassembly);
+                    }
+                    else if (diskFiles)
+                    {
+                        if (linuxInput.Length > 65536) throw new ToolFailure("disk_mechanical_package_size");
+                        byte[] bytes = new byte[(int)linuxInput.Length]; linuxInput.ReadExactly(bytes);
+                        if (writableDisk) NativeAotDiskSelection.RequireWritablePackage(bytes, options.WritableDiskFixture);
+                        else NativeAotDiskSelection.RequireMechanicalPackage(bytes,options.LinuxDiskRaceVariant);
+                        linuxInput.Position = 0;
                     }
                     else if(signalEpoll)LinuxSignalEpollSelection.RequirePackage(linuxInput);
                     else LinuxSignalProofFixture.RequirePackage(linuxInput);
@@ -176,8 +216,30 @@ public static class QemuSmoke
                 if (!options.SkipImageBuild)
                 {
                     string[] package = plan.IsEnabled("EnableM16002Probe") ? ["--package", options.LinuxElfPackage] : [];
-                    var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", options.Image, .. package]);
+                    string imageOutput = diskFiles ? options.Image + ".base.raw" : options.Image;
+                    if (diskFiles && (Path.Exists(Path.GetFullPath(imageOutput, root)) || Path.Exists(Path.GetFullPath(options.Image, root))))
+                        throw new ToolFailure("disk_image_output_not_fresh");
+                    var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", imageOutput, .. package]);
                     if (image.ExitCode != 0) return image.ExitCode;
+                    if (diskFiles)
+                    {
+                        string assets = Path.GetFullPath(options.WebRootAssets, root);
+                        var inventory = WebRootImageFixture.SnapshotPublishedRoot(assets);
+                        string webImage = Path.GetFullPath(writableDisk ? options.Image + ".web.raw" : options.Image, root);
+                        diskImageReceipt = WebRootImageFixture.Apply(root, Path.GetFullPath(imageOutput, root), assets, inventory,
+                            webImage, options.WebRootFixture);
+                        WebRootImageFixture.Verify(webImage, diskImageReceipt);
+                        using (var receipt = new FileStream(webImage + ".webroot.json", FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+                            System.Text.Json.JsonSerializer.Serialize(receipt, diskImageReceipt);
+                        if (writableDisk)
+                        {
+                            string dataImage = Path.GetFullPath(options.Image + ".data.raw", root);
+                            _ = WritableDataImageFixture.Create(root, dataImage);
+                            writableReceipt = CombinedWebDataImageFixture.Create(root, webImage, dataImage, Path.GetFullPath(options.Image, root));
+                            using var receipt = new FileStream(Path.GetFullPath(options.Image + ".combined.json", root), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                            receipt.Write(writableReceipt.CopyJson()); receipt.Flush(true);
+                        }
+                    }
                 }
                 if (plan.IsEnabled("EnableM06FatReadProbe"))
                 {
@@ -204,9 +266,49 @@ public static class QemuSmoke
                     output.WriteLine("M06_GPT_BOOT_IMAGE path=" + gptBootImage + " sha256=" + receipt.OriginalSha256);
                     output.WriteLine("M06_GPT_IMAGE_FAULT " + System.Text.Json.JsonSerializer.Serialize(receipt));
                 }
-                int preflight = ValidateImage(Path.GetFullPath(options.Image, root), options.DiskFormat, output, options.Image);
+                int preflight = writableDisk ? 0 : ValidateImage(Path.GetFullPath(options.Image, root), options.DiskFormat, output, options.Image);
                 if (preflight != 0) return preflight;
-                if(web)
+                if (diskFiles)
+                {
+                    if (diskImageReceipt is null) throw new ToolFailure("disk_generated_image_receipt_required");
+                    diskNative = new(EfiOptions.Parse(["--root", root, "--boot-policy", plan.BootPolicy, "--efi-artifact", options.EfiArtifact,
+                        ..plan.Flags.Where(p => p.Value).Select(p => "-" + p.Key)], false), output.WriteLine);
+                    diskNative.Verify(); diskInputs = new();
+                    var image = diskImageInput = diskInputs.Open(root, Path.GetFullPath(options.Image, root), "disk image", "disk_image",
+                        writableDisk ? CombinedWebDataImageFixture.ImageBytes : WebRootImageFixture.MaximumImageBytes, singleLink: true);
+                    var efi = diskEfiInput = diskInputs.Open(root, Path.GetFullPath(options.EfiArtifact, root), "disk EFI", "disk_efi", 16 * 1024 * 1024, singleLink: true);
+                    var package = diskPackageInput = diskInputs.Open(root, Path.GetFullPath(options.LinuxElfPackage, root), "disk package", "disk_package", diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, singleLink: true);
+                    AuthorityFiles.RequireDistinct(image, efi, package);
+                    if(diskStatic)
+                    {
+                        diskReceiptInput=diskInputs.Open(root,Path.GetFullPath(options.Image+".webroot.json",root),"disk image receipt","disk_image_receipt",16*1024*1024,singleLink:true);
+                        AuthorityFiles.RequireDistinct(image,efi,package,diskReceiptInput);
+                        if(diskReceiptInput.ReadUtf8(16*1024*1024,"disk_image_receipt")!=System.Text.Json.JsonSerializer.Serialize(diskImageReceipt))
+                            throw new ToolFailure("disk_image_receipt_identity");
+                    }
+                    byte[] packageBytes = package.ReadBytes(diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, "disk_package");
+                    if (writableDisk) NativeAotDiskSelection.RequireWritablePackage(packageBytes, options.WritableDiskFixture);
+                    else if (diskStatic) NativeAotStaticFileProgram.RequirePackage(packageBytes, false);
+                    else NativeAotDiskSelection.RequireMechanicalPackage(packageBytes,options.LinuxDiskRaceVariant);
+                    if (writableDisk)
+                    {
+                        if (writableReceipt is null) throw new ToolFailure("writable_generated_combined_receipt_required");
+                        _ = CombinedWebDataImageFixture.Verify(image.Path, writableReceipt);
+                        writableWorking = CombinedWebDataImageFixture.CloneForWrite(root, image.Path,
+                            Path.GetFullPath(options.Image + ".combined.json", root), writableReceipt, efi.Path, package.Path,
+                            Path.GetFullPath(options.Image + ".working.raw", root));
+                        diskInputs.VerifyUnchanged();
+                        output.WriteLine($"WRITABLE_IMAGE_JOIN originalSha256={image.Sha256} workingIdentity={writableWorking.IdentityKey} initialSha256={writableWorking.InitialSha256} efiSha256={efi.Sha256} packageSha256={package.Sha256}");
+                    }
+                    else
+                    {
+                        var locations = LinuxElfImageFixture.Inspect(image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"),
+                            efi.ReadBytes(16 * 1024 * 1024, "disk_efi"), packageBytes);
+                        diskInputs.VerifyUnchanged();
+                        output.WriteLine($"DISK_IMAGE_JOIN efiOffset={locations.EfiStart} packageOffset={locations.PackageStart} imageSha256={image.Sha256} efiSha256={efi.Sha256} packageSha256={package.Sha256}");
+                    }
+                }
+                if(web||staticFiles)
                 {
                     webNative=new(EfiOptions.Parse(["--root",root,"--boot-policy",plan.BootPolicy,"--efi-artifact",options.EfiArtifact,
                         ..plan.Flags.Where(p=>p.Value).Select(p=>"-"+p.Key)],false),output.WriteLine);
@@ -264,10 +366,15 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
             if(containment)arguments.Add("--socket-containment-peer");
-            else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web) arguments.Add("--continuing-network-peer");
+            else if (plan.IsEnabled("EnableM07026Probe")&&!signalEpoll&&!service&&!sockets&&!vectors&&!web&&!staticFiles&&!diskFiles) arguments.Add("--continuing-network-peer");
+            if (writableDisk) arguments.AddRange(["--writable-data-image", Path.GetFullPath(options.Image + ".working.raw", root)]);
+            else if (diskFiles) arguments.Add("--readonly-webroot-disk");
+            if(staticFiles)arguments.Add("--finite-static-files");
+            if(NativeAotDiskSelection.FullStaticSelected(plan.Flags))arguments.Add("--full-disk-static-files");
+            if(NativeAotDiskSelection.TimingSelected(plan.Flags))arguments.Add("--disk-read-timing");
             if(service)arguments.Add("--continuing-service");
             if(service&&serviceContract==NativeAotServiceContract.QuotaFailure)arguments.Add("--service-quota-failure");
-            if((service||sockets||vectors)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
+            if((service||sockets||vectors||staticFiles)&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
             if(web)
             {
                 int port=20080;
@@ -292,7 +399,7 @@ public static class QemuSmoke
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            if(signalEpoll||service||sockets||containment||vectors||web)
+            if(signalEpoll||service||sockets||containment||vectors||web||staticFiles||diskFiles)
             {
                 // Preserve required insertion order while sending each ordered
                 // marker only once. The combined profile otherwise exceeds the
@@ -314,14 +421,47 @@ public static class QemuSmoke
             async Task<ProcessResult> RunSocketRunner(int port,CancellationToken token)
             {
                 if(service){serviceStarted=DateTimeOffset.UtcNow;serviceForwardPort=port;}
+                if(staticFiles){webStarted=DateTimeOffset.UtcNow;webForwardPort=port;}
                 var result=await ProcessRunner.RunAsync(new("dotnet",[HostTools.ManagedTool(root,"OS.QemuRunner"),..arguments,"--socket-forward-port",port.ToString(CultureInfo.InvariantCulture)],root)
                     {Timeout=TimeSpan.FromSeconds((capture is null?options.TimeoutSeconds+60:timeout+30)),OutputCharacterLimit=16*1024*1024,
                         EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
                 if(service)serviceCompleted=DateTimeOffset.UtcNow;
+                if(staticFiles)webCompleted=DateTimeOffset.UtcNow;
                 output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
             }
             ProcessResult runner;
-            if(service&&!options.DryRun)
+            if(staticFiles&&!options.DryRun)
+            {
+                if (diskStatic)
+                {
+                    if(NativeAotDiskSelection.FullStaticSelected(plan.Flags))
+                    {
+                        if(diskImageInput is null || diskImageReceipt is null)throw new ToolFailure("disk_full_image_owner_required");
+                        var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                        if(NativeAotDiskSelection.TimingSelected(plan.Flags))
+                        {
+                            var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,options.TimeoutSeconds,cancellation);
+                            diskInputs!.VerifyUnchanged();diskNative!.VerifyHeldInputs();
+                            webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
+                            WebRootImageFixture.Verify(Path.GetFullPath(options.Image,root),diskImageReceipt);
+                            if(capture is not null)capture.Validate();
+                            cancellation.ThrowIfCancellationRequested();
+                            output.WriteLine("TEST_PASS qemu.smoke.disk-read-timing-diagnostic responses=4 bytes=65536 runner_joined=true full_and_cleanup_qualified=false");
+                            return 0;
+                        }
+                        diskStaticPeer=await NativeAotDiskStaticPeer.RunAsync(root,options.SerialLog,RunSocketRunner,cancellation,inventory,
+                            async (port,directory,token)=>{diskBrowser=await NativeAotDiskStaticBrowser.RunAsync(root,port,directory,inventory,token);});
+                    }
+                    else diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
+                    runner = diskStaticPeer.Runner;
+                }
+                else
+                {
+                    staticPeer=await NativeAotStagedStaticPeer.RunAsync(root,options.SerialLog,options.SerialLog+".static",RunSocketRunner,cancellation);
+                    runner=staticPeer.Runner;
+                }
+            }
+            else if(service&&!options.DryRun)
             {
                 if(serviceContract==NativeAotServiceContract.QuotaFailure)
                 {
@@ -379,11 +519,86 @@ public static class QemuSmoke
             else
             {
                 runner = await ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, "OS.QemuRunner"), .. arguments], root)
-                    { Timeout = TimeSpan.FromSeconds(timeout + 30), EnvironmentOverrides = capture.Environment }, cancellation);
+                    { Timeout = TimeSpan.FromSeconds(timeout + 30), EnvironmentOverrides = capture.Environment,
+                        RetainOwnershipUntilJoined = writableDisk }, cancellation);
                 output.Write(runner.StandardOutput); output.Write(runner.StandardError);
-                QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
+                if(writableDisk) { if(!runner.TerminationConfirmed)throw new ToolFailure("writable_original_runner_unjoined"); }
+                else QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
             }
             if (options.DryRun) return runner.ExitCode;
+            if (writableDisk)
+            {
+                if (writableWorking is null || writableReceipt is null || diskInputs is null || diskNative is null)
+                    throw new ToolFailure("writable_original_owner_required");
+                // The opt-in process call remains pending until its original
+                // process tree actually joins, including uncertain cleanup.
+                if(!runner.TerminationConfirmed)throw new ToolFailure("writable_original_runner_unjoined");
+                writableWorking.VerifyOriginalsAndWorkingIdentity(); diskInputs.VerifyUnchanged(); diskNative.VerifyHeldInputs();
+                using AuthorityFile snapshot = SnapshotJoinedWritableImage(root, writableWorking, options.Image + ".joined.raw");
+                var extracted = CombinedWebDataImageFixture.Inspect(snapshot.Path);
+                output.WriteLine($"WRITABLE_JOINED_IMAGE sha256={extracted.RawSha256} files={extracted.Data.Files.Count} runnerExit={runner.ExitCode} guestQualified=false physicalDurabilityQualified=false");
+                writableWorking.VerifyOriginalsAndWorkingIdentity(); diskInputs.VerifyUnchanged(); diskNative.VerifyHeldInputs();
+                QemuTranscripts.RequireCompleteProcess(runner, "writable_original_runner_incomplete");
+                if (runner.ExitCode != 0) return runner.ExitCode;
+                var report=QemuTranscripts.InspectOriginalWritableDiskRun(root,options,plan,runner,diskImageInput!,snapshot,
+                    diskEfiInput!,diskPackageInput!,writableWorking,writableReceipt,extracted,qemu,ovmf,()=>
+                    {
+                        if(capture is not null){capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");}
+                        snapshot.VerifyUnchanged();writableWorking.VerifyOriginalsAndWorkingIdentity();diskInputs.VerifyUnchanged();diskNative.VerifyHeldInputs();
+                        cancellation.ThrowIfCancellationRequested();
+                    });
+                output.WriteLine($"WRITABLE_ORIGINAL_CAPTURE calls={report.Calls} waits={report.Waits.Count} transfers={report.Transfers} ioRows={report.Block.Io.Count} firmware=true packets=true originalInputs=true imageValues=true physicalDurabilityQualified=false");
+                return 0;
+            }
+            if (diskFiles)
+            {
+                diskInputs!.VerifyUnchanged(); diskNative!.VerifyHeldInputs();
+                WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
+                if (runner.ExitCode != 0) return runner.ExitCode;
+                if (diskStatic)
+                {
+                    if(diskStaticPeer is null || staticProgram is null || diskReceiptInput is null)throw new ToolFailure("disk_static_original_owner_required");
+                    var original=QemuTranscripts.InspectDiskStaticRun(root,options,plan,runner,staticProgram,diskStaticPeer,
+                        diskImageInput!,diskEfiInput!,diskPackageInput!,diskReceiptInput,diskImageReceipt!,new(webForwardPort,qemu,ovmf,webStarted,webCompleted),()=>
+                        {
+                            if(capture is not null){capture.Validate();output.WriteLine("TEST_PASS m01.026.raw-observations");}
+                            diskInputs.VerifyUnchanged();diskNative.VerifyHeldInputs();webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
+                            cancellation.ThrowIfCancellationRequested();
+                            diskBrowser?.VerifyUnchanged();
+                        },NativeAotDiskSelection.FullStaticSelected(plan.Flags)?(messages,held)=>
+                        {
+                            if(diskBrowser is null || diskImageInput is null || diskImageReceipt is null || diskBrowser.Port!=webForwardPort ||
+                                Path.GetFullPath(diskBrowser.Directory)!=Path.GetFullPath(Path.Combine(diskStaticPeer.Directory,"browser")))
+                                throw new ToolFailure("disk_full_browser_original_owner_required");
+                            diskBrowser.VerifyUnchanged();var browserFiles=diskBrowser.ArtifactPaths.Select(path=>held.Open(root,path,
+                                "original disk browser evidence","disk_browser_original_capture",NativeAotDiskStaticBrowser.MaximumProtocolBytes,allowEmpty:true,singleLink:true)).ToArray();
+                            if(browserFiles.Length is 0 or >272 || browserFiles.Sum(f=>f.Length)>128*1024*1024 ||
+                                browserFiles.Any(f=>Path.GetDirectoryName(f.Path)!=diskBrowser.Directory))throw new ToolFailure("disk_full_browser_artifact_inventory");
+                            var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                            _=NativeAotDiskStaticBrowser.ValidateOriginal(diskBrowser,inventory,QemuTranscripts.InspectDiskStaticBrowserWireValues(messages));
+                            diskBrowser.VerifyUnchanged();return browserFiles;
+                        }:null);
+                    output.WriteLine($"TEST_PASS qemu.smoke.disk-static scope={original.Http.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} {(diskBrowser is null?"blazor_qualified=false":"blazor_booted=true")}");
+                    return 0;
+                }
+                void VerifyDiskInputs()
+                {
+                    if (capture is not null)
+                    { capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations"); }
+                    diskInputs.VerifyUnchanged(); diskNative.VerifyHeldInputs(); cancellation.ThrowIfCancellationRequested();
+                }
+                if(options.HasDiskRaceSelection)
+                {
+                    var pending=QemuTranscripts.InspectLinuxDiskExitPendingRun(root,options,plan,runner,
+                        diskImageInput!,diskEfiInput!,diskPackageInput!,diskImageReceipt!,qemu,ovmf,VerifyDiskInputs);
+                    output.WriteLine($"TEST_PASS qemu.smoke.disk-exit-pending calls={pending.Leaf.Calls.Count} copiedDataSectors={pending.CopiedDataSectors.Count} outstanding=1 resetRetired=true");
+                    return 0;
+                }
+                var report = QemuTranscripts.InspectLinuxDiskFileRun(root, options, plan, runner,
+                    diskImageInput!, diskEfiInput!, diskPackageInput!, diskImageReceipt!, qemu, ovmf,VerifyDiskInputs);
+                output.WriteLine($"TEST_PASS qemu.smoke.disk-files calls={report.Leaf.Calls} sectors={report.Device.Counters.Copied-report.Device.Counters.BootstrapCopied} readWindows={report.ReadWindows.Count} instructionIrqs={report.InstructionIrqs}");
+                return 0;
+            }
             if(serviceQuotaPeer is not null)
             {
                 // Expected runner22 is only the private owner's capture
@@ -419,7 +634,8 @@ public static class QemuSmoke
             }
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
-            using AuthorityFiles? threadingEvidence = servicePeer is not null?QemuTranscripts.HoldServiceEvidence(root,options,servicePeer):
+            using AuthorityFiles? threadingEvidence = staticPeer is not null?QemuTranscripts.HoldStaticFileEvidence(root,options,staticPeer):
+                servicePeer is not null?QemuTranscripts.HoldServiceEvidence(root,options,servicePeer):
                 vectorsPeer is not null?QemuTranscripts.HoldSocketVectorsEvidence(root,options,vectorsPeer):
                 containmentProgram is not null?QemuTranscripts.HoldSocketContainmentEvidence(root,options):
                 socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
@@ -428,6 +644,18 @@ public static class QemuSmoke
             if (capture is not null)
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
+            }
+            if(staticProgram is not null)
+            {
+                if(staticPeer is null || webInputs is null || webNative is null)
+                    throw new ToolFailure("static_complete_owned_inputs_required");
+                int result=QemuTranscripts.InspectStaticFileRun(root,options,plan,runner,output,staticProgram,staticPeer,
+                    new(webForwardPort,qemu,ovmf,webStarted,webCompleted));
+                NativeAotStaticFileProgram.HoldSources(root,webInputs!);
+                webInputs!.VerifyUnchanged();webNative!.VerifyHeldInputs();
+                threadingEvidence!.VerifyUnchanged();cancellation.ThrowIfCancellationRequested();
+                if(result==0)output.WriteLine("TEST_PASS qemu.smoke.static-files");
+                return result;
             }
             int validated = serviceProgram is not null?QemuTranscripts.InspectServiceRun(root,options,plan,runner,output,serviceProgram,servicePeer!,
                 new(serviceForwardPort,qemu,ovmf,serviceStarted,serviceCompleted)):
@@ -457,7 +685,61 @@ public static class QemuSmoke
         {output.WriteLine("TEST_FAIL qemu.smoke socket_orchestration_timeout");return 1;}
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); serviceInputs?.Dispose(); serviceNative?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); serviceInputs?.Dispose(); serviceNative?.Dispose(); writableWorking?.Dispose(); diskInputs?.Dispose(); diskNative?.Dispose(); }
+    }
+
+    // Reject aliases before builders create any output. The runner repeats
+    // runtime identity/plain-path checks against its actual child lifetime.
+    private static void RequireWritableOutputPaths(string root, QemuSmokeOptions options)
+    {
+        string[] outputs = [options.Image, options.Image + ".base.raw", options.Image + ".web.raw", options.Image + ".web.raw.webroot.json",
+            options.Image + ".data.raw", options.Image + ".combined.json", options.Image + ".working.raw", options.Image + ".joined.raw",
+            options.SerialLog, options.SummaryLog, options.SerialLog + ".pcap", options.SummaryLog + ".stderr.log"];
+        string[] paths = outputs.Select(p => Path.GetFullPath(p, root)).ToArray();
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        string[] inputs = new[] { options.LinuxElfPackage, options.EfiArtifact, options.WebRootAssets, options.Qemu, options.OvmfCode }
+            .Where(p => p.Length != 0).Select(p => Path.GetFullPath(p, root)).ToArray();
+        if (paths.Distinct(comparer).Count() != paths.Length || paths.Any(p => inputs.Contains(p, comparer)))
+            throw new ToolFailure("writable_output_alias");
+        foreach (string path in paths)
+        {
+            OS.Tools.QemuRunner.WritableDataImageLease.RequirePlainRuntimePath(path);
+            if (!options.DryRun && Path.Exists(path)) throw new ToolFailure("writable_output_not_fresh");
+        }
+    }
+
+    // Called only after the original owned process call confirms tree join.
+    // Keep the working identity anchor through this independent snapshot's
+    // inspection; read/write sharing itself grants no exclusive-writer proof.
+    private static AuthorityFile SnapshotJoinedWritableImage(string root, CombinedWebDataImageFixture.WorkingImage working, string destination)
+    {
+        string path = Path.GetFullPath(destination, root);
+        OS.Tools.QemuRunner.WritableDataImageLease.RequirePlainRuntimePath(path);
+        working.VerifyOriginalsAndWorkingIdentity();
+        OS.Tooling.Native.FileIdentity created;
+        using (var input = new FileStream(working.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+        using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+        {
+            if (OS.Tooling.Native.NativeFile.GetIdentity(input.SafeFileHandle).Key != working.IdentityKey || input.Length != working.Length)
+                throw new ToolFailure("writable_snapshot_identity");
+            input.CopyTo(output); output.Flush(true);
+            if (output.Length != working.Length) throw new ToolFailure("writable_snapshot_length");
+            created=OS.Tooling.Native.NativeFile.GetIdentity(output.SafeFileHandle);
+        }
+        working.VerifyOriginalsAndWorkingIdentity();
+        using var source = new FileStream(working.Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        try
+        {
+            var identity=OS.Tooling.Native.NativeFile.GetIdentity(stream.SafeFileHandle);
+            if(identity.Key!=created.Key || identity.LinkCount!=1 || identity.Length!=(ulong)working.Length)
+                throw new ToolFailure("writable_snapshot_identity");
+            byte[] first = System.Security.Cryptography.SHA256.HashData(source), second = System.Security.Cryptography.SHA256.HashData(stream);
+            if (!first.AsSpan().SequenceEqual(second)) throw new ToolFailure("writable_snapshot_bytes");
+            var snapshot=new AuthorityFile(path,root,"joined writable snapshot","writable_snapshot",stream,identity,true);
+            snapshot.VerifyUnchanged(); working.VerifyOriginalsAndWorkingIdentity(); return snapshot;
+        }
+        catch { stream.Dispose(); throw; }
     }
 
     public static string? ResolveExecutable(string? requested)

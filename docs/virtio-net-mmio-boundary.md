@@ -2,7 +2,13 @@
 
 ## Current Status
 
-This document plans the first live virtio-net PCI MMIO boundary after the host-tested queue bring-up, MMIO setup command/execution, descriptor publication, queue-notification, and TX completion/reclaim planners. It is design and host-test evidence only. No code in this repository currently maps virtio PCI BARs, performs volatile MMIO reads/writes, configures a live virtqueue, notifies a live device, handles interrupts, waits for hardware completion, or proves packet I/O in QEMU.
+This document describes host-tested planning and fake-accessor surfaces for
+the virtio-net MMIO boundary. Those types alone do not establish live mappings,
+queues, completions or packet I/O. Separately retained default-off CLROS
+profiles implement bounded live PCI/BAR/MMIO/DMA/virtqueue/network behavior;
+use the driver/networking and completion-gate evidence for those claims.
+Current finite writable evidence does not extend their acceptance to arbitrary
+devices, guest BCL/Blazor, reboot persistence or cloud.
 
 Existing inputs:
 
@@ -857,10 +863,10 @@ Host tests also cover TX register-window completion/reclaim composition:
 - `TEST_PASS drivers.virtionet.tx.reclaim.windowexec rejects ownership mismatch`
 - `TEST_PASS drivers.virtionet.tx.reclaim.windowexec preserves no-live-mmio boundary`
 
-## Known Limitations
+## Limits of these planner-only surfaces
 
-- No BAR mapping.
-- No volatile MMIO accessor exists.
+- These planning/fake-accessor types do not themselves map BARs or provide
+  the live volatile accessor.
 - BAR register-window planning validates caller-provided mapping metadata and
   computes future register addresses only. It does not create page mappings,
   change cacheability attributes, perform volatile access, or read/write live
@@ -928,17 +934,16 @@ Host tests also cover TX register-window completion/reclaim composition:
   live completions, mutate network state, or prove live receive evidence.
 - Queue setup and notification execution use only injected fake accessors,
   injected fake sinks, and caller-owned test storage.
-- No DMA-safe page allocator or physical address translator exists.
-- No live virtio-net queue is configured.
-- Barrier readiness is explicit metadata only; no real memory barrier primitive
-  is executed in the queue publish-to-notify sequence.
-- No interrupt controller or MSI-X support is present.
+- These planner results do not allocate DMA-safe pages, translate physical
+  addresses, configure live queues or prove native barriers/interrupt delivery.
+  Existing owned implementations require their own selected mapping, lifetime
+  and emitted/guest proof; they cannot be inferred from planner success.
 - TX completion planning reads caller-owned test memory only after successful fake-sink or register-window notification execution provenance; it does not prove hardware observed the notification, wait for live hardware, drain multiple completions, or reclaim descriptors into an allocator.
 - TX descriptor ownership planning mutates only caller-owned `Free`/`InFlight` state entries for the published header/frame descriptors. The TX free-list planner reads that state to select the first contiguous free pair and to report capacity exhaustion; the TX publish-plan composer uses that pair to write caller-owned queue memory/header bytes through the existing lifecycle path and marks only selected descriptors in-flight after successful publication; the TX readiness planner composes that fake-accessor setup/publication/barrier/notification path; the TX register-window readiness planner composes the common BAR-window setup plus notify BAR-window notification path for the same caller-owned TX publication; and the TX register-window reclaim planner composes that readiness with one caller-owned used-ring completion and descriptor-state reclaim. The RX readiness planner composes the register-window setup/publication/barrier/notification path for caller-owned RX descriptors. These are not live virtio-net RX/TX, not a full runtime allocator, and not live device notification/completion/reclaim evidence.
 - No QEMU packet transmission or reception evidence is claimed.
-- No hosted .NET 10, ASP.NET Minimal API, or Kestrel evidence is claimed.
+- No hosted .NET 11, ASP.NET Minimal API, or Kestrel evidence is claimed.
 
-## Next Steps
+## Next steps when integrating these planning surfaces into a new live route
 
 1. Implement the live PCI config-space accessor/executor that consumes the fake-executed, address-bound planned BAR sizing write/read/restore contracts.
 2. Define the live BAR-backed volatile register accessor and MMIO ownership rules needed to consume the register-window, queue setup, and queue notification access plans and replace the fake RX/TX byte-span/accessor paths.

@@ -85,9 +85,11 @@ internal static unsafe class LinuxThreadProgramTests
         uint covered = 0;
         foreach (var region in code) { HostCheck.Equal(covered, region.Start); covered += region.Bytes; }
         HostCheck.Equal(P.Bytes, covered);
-        // Generous fixed control allowance plus every actual public native
-        // component, aligning every allocation independently as LinuxNativeTake.
-        uint[] sizes = [8192, X64ThreadContext.Bytes, X64ThreadContext.Bytes * 16, X64ThreadContext.Bytes, 512, 16,
+        // Selected writable mechanical control ceiling plus the host's full
+        // public component layout. Static/web conditional allocations require
+        // their own native layout evidence; this is not a universal bound.
+        HostCheck.Equal(2560U, P.WritableControlMaximumBytes);
+        uint[] sizes = [P.WritableControlMaximumBytes, X64ThreadContext.Bytes, X64ThreadContext.Bytes * 16, X64ThreadContext.Bytes, 512, 16,
             (uint)sizeof(P.Binding) * 16, (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices.Slot) * 16,
             (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices.Worker) * 16,
             (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxSyscallGateState) * 16, 64, 64,
@@ -98,7 +100,7 @@ internal static unsafe class LinuxThreadProgramTests
             OS.Kernel.Compatibility.LinuxX64.X64LinuxUserTransition.UserImageBytes, P.Bytes];
         uint used = 0; foreach (uint size in sizes) used = ((used + 15) & ~15U) + size;
         HostCheck.True(used <= P.MetadataPages * 4096,
-            $"sixteen-worker native metadata budget required={used} capacity={P.MetadataPages * 4096}");
+            $"selected writable mechanical metadata required={used} capacity={P.MetadataPages * 4096}");
     }
 
     [HostTest("linux.thread program excludes the fault region only under its explicit separate owner and preserves it on re-emission")]

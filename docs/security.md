@@ -1,5 +1,22 @@
 # Security
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1610](../done/step1610.md) The repaired HTTP owner authenticates sealed archived recipe/output identities before selecting current tools. Exact current paths/hashes and actual prelink libraries are held, and every fresh publication input remains mandatory with no archived-copy fallback. Host tamper/missing/replacement controls pass. V5 copied observations and successful finite responses grant no new isolation, guest locking/flush or durability authority.
+
+[Step1600](../done/step1600.md) Borrowed filesystem admission validates the complete retained filesystem/port/engine/block/DMA/MMIO/observer tree. Busy cannot publish output or EOF. Global full-tree descriptor/thread hooks are continuing, and writable/read-only coexistence admission remains unchanged. Native writable integration is not qualified.
+
+[Step1597](../done/step1597.md) Writable path metadata has host-only support with copied confined paths and original 144-byte mapping/capacity protection through real waits and cancellation. Explicit root0700/file0600 and uid/gid0 values describe the confined mount policy; they are not persisted FAT32 Unix permissions or a multi-user security boundary. Shared-owner readonly-range preparation grants no second device owner or new copy/I/O authority. Native writable activation, persistence and isolation remain unqualified.
+
 The production appliance profile has no guest interactive shell, terminal, SSH,
 general command interpreter or command-execution administration endpoint.
 Management uses the deployment environment's lifecycle/configuration boundary;
@@ -10,6 +27,11 @@ validation. Both Linux and future custom PE adapters must enforce the same core
 capability, user-memory, ownership, quota and cleanup rules; format selection
 must not bypass protection. See the [core/adapter contract](architecture.md#core-services-and-application-adapters).
 
+[Step1571](../done/step1571.md) records three complete owned positive mechanical
+file captures across both disk variants. Error/cancellation/concurrent progress,
+full disk HTTP and all writable/durability/isolation controls remain outstanding;
+these finite positive witnesses grant no broader security acceptance.
+
 The [October19 review](repo-audit.md#october-19-whole-project-review) adds
 [#778](http://192.168.4.35:3000/admin/CLROS/issues/778) for peer-controlled unread
 data retaining fd-less bulk TCP capacity, and
@@ -19,6 +41,17 @@ loss. Both are reproduced in local host fixtures; no live attack was attempted.
 qualified by step1481 and are closed. #780 remains open as of October23; protect
 tracker writes with fresh versioned reads and readback. Step1556 adds finite
 quota termination/churn, not general isolation or production security.
+
+The isolated immutable `/app/wwwroot` service confines path traversal and uses
+generation-bound descriptors. A pending read pins only its originally admitted
+writable output prefix; mapping changes that overlap it reject until consume
+or cancellation revokes the copy. Observer rejection or uncertain device reset
+retains DMA. Host controls cover these contracts; guest disk, write, locking,
+durability and isolation acceptance remain separate.
+[Step1570](../done/step1570.md) joins mechanical call windows to original sector
+bytes as development evidence. Its original outer command remains failed;
+fresh owned capture, pending cancellation/error controls and the disk/browser
+demonstration remain required. No writable or multi-app security scope advances.
 
 [Step1437](../done/step1437.md) qualifies the bounded DRBG/TCP-key ownership
 contracts defined in [step1424](../done/step1424.md).
@@ -427,7 +460,7 @@ execution boundaries remain with M01-026 and later hardware evidence.
 2. Complete local Gate14 before advancing general process termination/isolation.
    #749 user-fault containment and #761 SIGPIPE policy precede the later
    two-app crash-survival and per-process resource claims.
-3. Finish #780 tracker conflict protection; keep versioned updates and readback
-   until its fix is accepted. Finish #781/#782 before trusting new disk fixtures.
+3. Preserve #780's qualified tracker-conflict checks, versioned updates and readback,
+   and #781/#782's finite host FAT checks. These do not qualify guest isolation or durability.
 4. Retain license/provenance records and explicit unsupported security features;
    no provider, production or superiority claim follows from finite controls.

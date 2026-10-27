@@ -1,5 +1,20 @@
 # Architecture
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) Current paired descriptor and shared filesystem lifetime controls pass on one original writable block owner. Synthetic large DB/journal footprints fit the bounded1M-work root engine. Complete outer ownership and actual emitted native/device lifecycle remain separate prerequisites; no native workload is activated.
+
+[Step1610](../done/step1610.md) V5r13 actually runs all four explicitly tagged service-poll causes, with22.1226843s total and exact stage conservation. This leaves substantial time outside service polls; no production cadence policy follows. The integrated HTTP repair separates authenticated historical recipe outputs from current executable/static-link/fresh publication inputs, retaining all current authority through complete sessions.
+
 ## Current architecture boundary (October 23, 2026)
 
 CLROS uses C# 14/.NET 11, an explicit no-stdlib EFI kernel and a restricted
@@ -901,8 +916,9 @@ Minimal API, Kestrel, CloudReady status, or production readiness.
 
 1. Complete #226 evidence packaging and #227 local SingleMinimalApi acceptance
    while preserving every accepted source/profile boundary.
-2. Finish #780 and #781 -> #782 host repairs; follow the ordered disk/static-file
-   roadmap rather than treating boot-time staging as continuing storage.
+2. Preserve the qualified finite #780/#781/#782 host repairs and #768/#769
+   contract/image fixtures; follow the remaining disk/static-file roadmap
+   without treating boot-time staging as continuing storage.
 3. Qualify user-fault containment, per-process resources and two-app isolation
    before provider deployment. General kernel EH and CoreCLR remain separate.
 4. Keep shared utilities under `std/no-runtime/shared` and follow the exact

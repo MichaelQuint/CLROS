@@ -25,6 +25,25 @@ public unsafe partial struct LinuxThreadServices
     public bool PollDescriptorReadiness(ulong key, ulong flags)
         => Access(key, flags) && !_failed && _descriptors != null && WakeEpollChanges(flags);
 
+#if !NOSTDLIB_EFI || M10_018_TIMING_PROBE
+    /// <summary>Diagnostic-only refresh boundary on the serialized supervisor.
+    /// The trusted, nonmutating clock reads once after successful refresh and
+    /// before any wait scan exists, including when no epoll owner is attached.
+    /// Its caller retains context and output; neither time nor the consumed
+    /// refresh admission grants descriptor authority to the subsequent scan.
+    /// A failed clock retains actual refresh effects but performs no wake.</summary>
+    internal bool PollDescriptorReadinessMeasured(ulong key, ulong flags, void* context,
+        delegate* unmanaged<void*, ulong*, byte> clock, out ulong afterRefresh)
+    {
+        afterRefresh = 0;
+        if (context == null || clock == null || !Access(key, flags) || _failed || _descriptors == null) return false;
+        ulong boundary = 0;
+        LinuxEpollServices.ThreadRefresh refresh = default;
+        if (!WakeEpollChanges(flags, ref refresh, context, clock, &boundary)) return false;
+        afterRefresh = boundary; return true;
+    }
+#endif
+
     private LinuxSyscallResult BeginEpoll(ulong flags, Slot* slot, LinuxSyscallFrame frame)
     {
         _epollExpiredDeadline = 0; _epollExpiredThread = default;
@@ -127,9 +146,16 @@ public unsafe partial struct LinuxThreadServices
         return WakeEpollChanges(flags, ref refresh);
     }
 
-    private bool WakeEpollChanges(ulong flags, ref LinuxEpollServices.ThreadRefresh refresh)
+    private bool WakeEpollChanges(ulong flags, ref LinuxEpollServices.ThreadRefresh refresh
+#if !NOSTDLIB_EFI || M10_018_TIMING_PROBE
+        , void* context = null, delegate* unmanaged<void*, ulong*, byte> clock = null, ulong* afterRefresh = null
+#endif
+        )
     {
         if (!refresh.Refresh(_descriptors, _self)) { _failed = true; return false; }
+#if !NOSTDLIB_EFI || M10_018_TIMING_PROBE
+        if (clock != null && (afterRefresh == null || clock(context, afterRefresh) != 1)) { _failed = true; return false; }
+#endif
         if (_descriptors->Epoll == null) return true;
         LinuxEpollServices.ReadinessScan scan = default;
         for (uint i = 0; i < _owner.Capacity; i++)

@@ -1,5 +1,56 @@
 # Issue Labels
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1597](../done/step1597.md) Keep affected read, writable, persistence and SQLite issues open while publishing the focused integration evidence. Reconcile canonical changes with fresh content versions, preserve human addenda/owners, post exact evidence and read back every mutation plus zero drift. Step1598/1599 policy clarification does not turn finite or host evidence into completed product acceptance.
+
+[Step1594](../done/step1594.md) Step1594 records source5 metadata waits and separate host writable preparations without closing issues. Full read r05 remains failed; copied value reports cannot authenticate a physical device, guest process, reset or durable write. Reconcile fresh scoped content versions and read back evidence comments and every mutation; preserve current human addenda, owners and original failures.
+
+[Step1593](../done/step1593.md) Step1593 preserves failed native M10-027 r01 and records test-only readonly dependency repair without closing issues. Source-based diagnosis and correct extracted bytes do not relabel the failed original or invent a distinct verifier. Current LAN masterab60bddd is already an ancestor of the feature branches; the accepted finite82656076 boundary remains historical. Fresh scoped preview/apply/readback is still required.
+
+[Step1592](../done/step1592.md) Step1592 keeps M16-024/M10-018 open while recording internal loaded-sector parsing, large-file host controls and preserved failed r04. Step1591 evidence comments800/24360,809/24361,774/24362,799/24363 read back exact/open. Initial integer indexing of an ordered PowerShell map failed before any comment mutation; corrected string-keyed posting retained a separate receipt. Reconcile only current explicit manifest versions and read back zero drift.
+
+[Step1591](../done/step1591.md) Step1591 claims ToolCommand.cs on M10-027 before its CLI edit: fresh preview1/apply1/readback9unchanged. Source5 host integration, native-reference preparation and the newly failed full r04 are evidence updates only; all issue states/dependencies remain open and unchanged. Use the current explicit manifest across checkouts; preserve both agent owners and human addenda.
+
+[Step1590](../done/step1590.md) Step1590 reviews204open LAN issues and creates the missing M10-027/#809 log/upload scope with four exact agent paths. Fresh preview1create/apply1/readback9unchanged precedes source edits. Parent M10-EPIC and M16-027 scheduler claim have preview2/apply2/readback15unchanged; a separate source-pin claim has preview1/apply1/readback9unchanged. All remain open; no finite guest result closes a larger issue.
+
+[Step1589](../done/step1589.md) keeps M16-024/M16-025/M10-018 open while recording original failures and unqualified repairs. Reconcile fresh content versions with the explicit current manifest, read back every change and preserve the newer M16-027 seven-path source5 claim. A guest terminal without a passing complete original wrapper does not close an issue.
+
+[Step1588](../done/step1588.md) claims seven root source5 integration paths on M16-027. The compiled tool resolves its own repository root; cross-checkout reconciliation therefore used an explicit absolute --manifestpath, then preview1/apply1/readback9 unchanged before source edits. Initial implicit-path zero-action previews inspected the earlier read checkout and did not claim the new scope. Preserve both receipts; no issue closes.
+
+[Step1587](../done/step1587.md) extends M16-027 ownership by the global descriptor core/Pipes/new WritableDisk partial/new test paths. Fresh scoped preview1/apply1/readback9unchanged verifies zero drift before agent source edits. Gateway, source5 threads and native integration stay root-owned. Preserve the failed original ExitPending and pending full r03 boundaries; no issue closes from this ownership preparation.
+
+[Step1586](../done/step1586.md) reconciles M16-025 complete ExitPending-consumer preparation and M10-018 original r02 failure/capture repair, plus isolated M06-021/M16-027 admission/observer scopes. Refresh content versions, preview/apply/readback and preserve all original failures. No issue closes from copied inspection, connected launch or host-only writable preparation.
+
+[Step1585](../done/step1585.md) extends M06-021 ownership to two isolated WritableDataImageFixture tool/test paths and M10-018 ownership to Realtime source plus its clock/startup tests. Each scoped preview1/apply1/readback9 unchanged confirms zero drift before edits. The full-profile finite UTC repair and copied FIFO/reset evidence retain open issue states and dependencies; isolated write/discovery/provider checkpoints grant no guest acceptance. Refresh content versions before later evidence reconciliation.
+
+[Step1584](../done/step1584.md) separately reconciles M16-027's two new POD
+descriptor-provider paths: preview1/apply1/readback9 unchanged, zero drift.
+This extends isolated implementation ownership; it changes no state, dependency,
+label, native activation or guest acceptance. M16-025's copied reset/sector
+evidence remains preparatory and its original launch guard stays in force.
+Its status summary has separate preview1/apply1/readback9 unchanged, zero drift.
+
+[Step1583](../done/step1583.md) reconciles three preparatory evidence summaries
+with fresh versions and readback: preview3/apply3/readback18 unchanged, zero
+drift. Recovery ownership now explicitly reuses the four existing contract paths.
+The separate M16-027 two-file writable mechanical fixture claim has preview1/
+apply1/readback9 unchanged. Existing labels, dependencies, states and unmanaged
+content remain preserved; these handoffs do not authorize guest activation.
+
+[Step1582](../done/step1582.md) adds the existing required ownership-note contract
+to the seven OPS successors M11-027..033 without changing their owners, paths,
+dependencies or states. Fresh scoped preview7/apply7/readback16 unchanged confirms
+zero drift. The independent M10-026 test now includes its existing M11-031 image
+inspection prerequisite. No OPS implementation or gate is accepted by metadata.
+
 ## Current NativeAOT-first workflow
 
 Canonical target is now `http://192.168.4.35:3000/admin/CLROS`, repository ID9.
@@ -18,12 +69,20 @@ dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001
 dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001 --apply
 ```
 
-**Known concurrency defect:** [#780](http://192.168.4.35:3000/admin/CLROS/issues/780)
-reproduces a lost concurrent unmanaged note in compiled apply. Until repaired,
-preview is safe; existing-body updates need fresh GET, preserved unmanaged text
-and labels, current `content_version`, conflict handling and exact readback.
-Earlier reviews used compiled creation and versioned API writes with scoped
-readback. The current manifest has 414 managed issues (17 epics, 397 children)
+**Qualified finite repair:** [#780](http://192.168.4.35:3000/admin/CLROS/issues/780)
+now refetches each issue before applying current-version content, reads content
+back immediately, and changes labels with additive/specific-label operations.
+Whole-label replacement has no version precondition on this server and is not
+used by synchronization. Conflicts fail without blindly replaying stale content;
+unmanaged labels and sticky ownership survive fresh reconciliation. Open issues
+with conflicting ownership markers fail before either marker can be deleted.
+Eleven focused checks and no-content-change live409 controls (including version
+zero) pass. Nonnegative versions are valid; missing/negative versions fail.
+The original focused controls remain in [step1558](../done/step1558.md);
+[step1624](../done/step1624.md) records the finite qualification. Comments are read once without paging
+and checked against the advertised count before evidence-based closure.
+
+The current manifest has 414 managed issues (17 epics, 397 children)
 plus 11 canonical supplemental descriptions. Step1563 adds seven OPS-style
 image-tooling successors (#802-#808) and updates 14 existing descriptions. The
 supplemental issues retain their original unkeyed identities and milestones.

@@ -71,6 +71,8 @@ public unsafe struct LinuxSyscallAdmission
     // Explicit preemptible service policy. MaximumCalls is then a per-hardware-
     // turn quota; only the trusted supervisor may renew it after a new turn.
     public bool ContinuingService;
+    // Explicit finite M10-018 full owner; never compatible with quota renewal.
+    public bool DiskStaticFull;
 }
 
 public unsafe struct LinuxSyscallGateState
@@ -122,13 +124,14 @@ public static unsafe partial class LinuxSyscallGateway
         if (state.CallsValue != 0 || state.BytesValue != 0 || state.TotalCallsValue != 0 || state.TotalBytesValue != 0 || state.TurnValue != 0 ||
             !Empty(state.Pending) || !EmptyExitTail(state.ExitTail) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
             admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
-            admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
+            admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.DiskStaticFull ? DiskStaticExecutionPolicy.MaximumCalls : admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
             admission.Scratch == null || admission.ScratchBytes < admission.MaximumWrite || admission.ScratchBytes > MaximumWrite ||
             (ulong)admission.Scratch > ~0UL - admission.ScratchBytes || access.Context == null ||
             access.PageAccess == null || access.CopyFromUser == null || access.Write == null)
             return LinuxSyscallGateStatus.InvalidAdmission;
-        if (admission.ContinuingService && (!admission.EnableThreads || !access.UserInterrupts))
+        if (admission.DiskStaticFull && (!admission.EnableThreads || !access.UserInterrupts || admission.ContinuingService) ||
+            admission.ContinuingService && (!admission.EnableThreads || !access.UserInterrupts))
             return LinuxSyscallGateStatus.InvalidAdmission;
         if (admission.EnableStartup != (access.Startup != null) ||
             admission.EnableDescriptors != (access.Descriptors != null) ||
@@ -285,7 +288,8 @@ public static unsafe partial class LinuxSyscallGateway
 
     private static void AccountBytes(ref LinuxSyscallGateState state, uint bytes)
     {
-        // Each turn is at most4096 calls *64KiB; Dispatch reserves lifetime
+        // Ordinary turns are at most4096 calls; finite DiskStaticFullV1 admits
+        // at most32768. Both *64KiB fit uint. Dispatch reserves lifetime
         // headroom before invoking any synchronous or deferred IO callback.
         state.BytesValue += bytes; state.TotalBytesValue += bytes;
     }
@@ -334,11 +338,20 @@ public static unsafe partial class LinuxSyscallGateway
         f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
     private static bool BlockingCall(ulong number) => number is 0 or 1 or 202 or 219
+#if !NOSTDLIB_EFI || M16_025_PROBE || M16_027_PROBE
+        or 2 or 4 or 6 or 8 or 17 or 257
+#endif
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        or 5 or 74 or 75 or 87 or 328
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         or 232 or 281
 #endif
         ;
     private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 4 or 5 or 6 or 8 or 16 or 17 or 20 or 22 or 72 or 79 or 89 or 257 or 293
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        or 73 or 74 or 75 or 87 or 328
+#endif
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         or 41 or 42 or 43 or 44 or 45 or 46 or 47 or 48 or 49 or 50 or 51 or 52 or 54 or 55 or 213 or 232 or 233 or 281 or 288 or 291
 #endif

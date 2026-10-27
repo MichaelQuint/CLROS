@@ -1,11 +1,26 @@
 # Boot Order
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
 ## Qualified Linux application path
 
 Steps1307/1351/1419/1556 qualify the bounded thread/runtime, socket, Kestrel and
 quota/churn profiles. Ordinary `VerifiedExit` remains terminal and application
 probes remain default off. The ordered source in `BootSequence.cs` is the
 authority; complete Gate14 and general app scheduling remain open.
+
+In the isolated M16-025 development profile, `PrepareOwnedReadOnlyDisk` reserves
+the separate disk backing before final firmware-map capture. After exit and
+ordinary network setup, the bounded outer bootstrap interleaves NIC/timer work
+with block/GPT/FAT mount progress. Descriptor attachment precedes native thread
+admission and worker entry. Quiescent retirement flushes buffered evidence,
+confirms block/filesystem shutdown and drains descriptor metadata before outer
+NIC/DMA teardown. Existing accepted profile order is preserved; this added path
+still requires original native and guest qualification.
 
 The earlier wiring checkpoints below were subsequently qualified in step1307.
 
@@ -841,7 +856,7 @@ QEMU smoke confirms the firmware-visible order in `artifacts/logs/qemu-smoke.log
 
 ## Known Limitations
 
-The current order is still a marker contract, not a full hardware boot sequence. It does not prove owned drivers, interrupts, page tables, storage, networking, or hosted workload launch.
+BootSequence is the authoritative ordered implementation for ordinary boot and explicit default-off profiles. Marker order alone does not qualify hardware or workloads; retain each profile's original source, native, guest and cleanup evidence. Current finite writable evidence and broader acceptance limits are recorded in Step1624 and the completion gates.
 
 The M02-009 byte contract is not a firmware-visible `BootSequence` phase. Its
 host marker correctly reports the live properties as false for the isolated

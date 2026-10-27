@@ -42,7 +42,9 @@ public static partial class QemuTranscripts
         }
         void Check(SignalWaitCall expected,ulong ready=0,bool child=false,bool handler=false)
         {
-            ulong identity=child?0x100000002UL:0x100000001UL;PollPair(identity,ready);
+            ulong identity=child?0x100000002UL:0x100000001UL;
+            // Process-wide exit dispatches before opportunistic network progress.
+            if(expected.Nr!=231)PollPair(identity,ready);
             if(expected.Nr==1&&expected.A0==1)
                 Exact("M16_005_WRITE fd=1 bytes=15 data="+(handler?"M16_HANDLER_OK!":"M16_SIGNALS_OK!"));
             int position=at;

@@ -12,6 +12,9 @@ namespace OS.Boot;
 // Coverage does not establish their provenance, readiness or native stack use.
 public struct FirstExitImageReferences
 {
+#if M16_025_PROBE
+    public ulong NativeDiskBarStart, NativeDiskArenaStart, NativeDiskArenaPages;
+#endif
     public ulong EntryCallback, DiagnosticCallback, FaultCallback;
     public ulong AdapterState, AdapterStateBytes;
     public ulong AllocatorState, AllocatorStateBytes;
@@ -250,7 +253,11 @@ public static unsafe class FirstExitPostExitDiagnostics
 /// </summary>
 public static unsafe class FirstExitRetainedMappings
 {
-    public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
+    public const ulong MaximumRanges =
+#if M16_025_PROBE
+        7 +
+#endif
+        FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
 #if M07_026_PROBE
         + 1
@@ -296,6 +303,9 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
+#if M16_025_PROBE
+        + 2
+#endif
 #if M07_026_PROBE
         + 1
 #endif
@@ -336,6 +346,13 @@ public static unsafe class FirstExitRetainedMappings
         + 1
 #endif
         ;
+    // Static and writable fixtures own32 descriptions, including bounded proc snapshots.
+    // Earlier profiles retain their original64-page admission ceiling.
+#if M10_017_PROBE || M10_018_PROBE || M16_027_PROBE
+    private const ulong MaximumDescriptorPages = 70;
+#else
+    private const ulong MaximumDescriptorPages = 64;
+#endif
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
     private const PageProtection Code = PageProtection.Read | PageProtection.Execute;
@@ -439,7 +456,17 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
             references.VirtioBarStart >= LowEnd - 0x4000) return false;
-        starts[7] = references.VirtioBarStart; lengths[7] = 0x4000; allocations = 8;
+        // Append after package, user tables, HPET and ECAM. A fixed index here
+        // overwrote earlier owners and omitted them from the overlap audit.
+        starts[allocations] = references.VirtioBarStart; lengths[allocations++] = 0x4000;
+#if M16_025_PROBE
+        if (references.NativeDiskBarStart < 0x100000 || (references.NativeDiskBarStart & 0x3fff) != 0 ||
+            references.NativeDiskBarStart >= LowEnd - 0x4000 || references.NativeDiskArenaStart < 4096 ||
+            (references.NativeDiskArenaStart & 4095) != 0 || references.NativeDiskArenaPages is 0 or >256 ||
+            references.NativeDiskArenaStart > 0x100000000UL - references.NativeDiskArenaPages * 4096) return false;
+        starts[allocations] = references.NativeDiskBarStart; lengths[allocations++] = 0x4000;
+        starts[allocations] = references.NativeDiskArenaStart; lengths[allocations++] = references.NativeDiskArenaPages * 4096;
+#endif
 #endif
 #if M05_APIC_SETUP_PROBE
         if (references.LocalApicPage < 0x100000 || references.LocalApicPage > 0xfffff000 || (references.LocalApicPage & 4095) != 0 ||
@@ -471,7 +498,7 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.LinuxMemoryCandidateStart; lengths[allocations++] = X64UserAddressSpace.MaximumTables * 4096UL;
 #endif
 #if M16_007_PROBE
-        if (references.LinuxDescriptorPages == 0 || references.LinuxDescriptorPages > 64 ||
+        if (references.LinuxDescriptorPages == 0 || references.LinuxDescriptorPages > MaximumDescriptorPages ||
             references.LinuxDescriptorStart < 4096 || (references.LinuxDescriptorStart & 4095) != 0 ||
             references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
         starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
@@ -503,6 +530,11 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = allocator;
 #if M07_026_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.NetworkArenaStart, 8, Data, PageCachePolicy.WriteBack);
+#if M16_025_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.NativeDiskArenaStart, references.NativeDiskArenaPages, Data, PageCachePolicy.WriteBack);
+        for (uint diskPage = 0; diskPage < 4; diskPage++)
+            pending[count++] = new SeparatePageFaultMappingRange(references.NativeDiskBarStart + diskPage * 4096, 1, Data, PageCachePolicy.Uncached);
+#endif
 #endif
         if (references.RuntimeSupportCode != 0) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
 #if M16_002_PROBE
@@ -547,7 +579,13 @@ public static unsafe class FirstExitRetainedMappings
         // writable. The rest of the admitted one-bus ECAM window stays read-only.
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, 48, PageProtection.Read, PageCachePolicy.Uncached);
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x30000, 1, Data, PageCachePolicy.Uncached);
+#if M16_025_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x31000, 7, PageProtection.Read, PageCachePolicy.Uncached);
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x38000, 1, Data, PageCachePolicy.Uncached);
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x39000, 199, PageProtection.Read, PageCachePolicy.Uncached);
+#else
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x31000, 207, PageProtection.Read, PageCachePolicy.Uncached);
+#endif
 #else
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, references.EcamPages, PageProtection.Read, PageCachePolicy.Uncached);
 #endif

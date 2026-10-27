@@ -5,6 +5,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 public static unsafe partial class LinuxSignalServices
 {
     public const uint RealtimeQueueCapacity = 4;
+    private const ulong TerminationRequested = 1, KernelTerminationPending = 2;
 
     internal static bool Ignored(State* s, uint signal)
     {
@@ -26,10 +27,40 @@ public static unsafe partial class LinuxSignalServices
         // can change before unmasking. Explicit sigaction(ignore) flushes it.
         if (!mask.Contains(signal) && Ignored(s, signal)) return 0;
         ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
-        if (signal < 32) { t->PendingStandard |= 1UL << (int)(signal - 1); return 0; }
+        if (signal < 32) { QueueStandard(t, signal, false); return 0; }
         if (t->RealtimeCount > RealtimeQueueCapacity) return -5;
         if (t->RealtimeCount == RealtimeQueueCapacity) return -11;
         t->Realtime[t->RealtimeCount++] = signal; return 0;
+    }
+
+    // Fixed owner-origin SIGTERM, never a process-kill ABI. The sticky request
+    // bit survives consumption/ignore until the actual generation unbinds.
+    internal static bool RequestTermination(State* s, ulong process, OSHostHandle identity, LinuxSignalMask mask)
+    {
+        if (!Bound(s, process, identity)) return false;
+        ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
+        if ((t->Termination & TerminationRequested) != 0) return false;
+        t->Termination |= TerminationRequested;
+        if (mask.Contains(15) || !Ignored(s, 15)) QueueStandard(t, 15, true);
+        return true;
+    }
+
+    private static void QueueStandard(ThreadState* t, uint signal, bool kernelTermination)
+    {
+        ulong bit = 1UL << (int)(signal - 1);
+        // Standard signals coalesce: the first pending occurrence owns siginfo.
+        if (signal == 15 && (t->PendingStandard & bit) == 0)
+            t->Termination = (t->Termination & ~KernelTerminationPending) | (kernelTermination ? KernelTerminationPending : 0);
+        t->PendingStandard |= bit;
+    }
+
+    internal static bool PendingCode(State* s, ulong process, OSHostHandle identity, uint signal, out int code)
+    {
+        code = -6; // Directed user signals retain SI_TKILL.
+        if (!Bound(s, process, identity) || signal is < 1 or > 64) return false;
+        ThreadState* t = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
+        if (signal == 15 && (t->Termination & KernelTerminationPending) != 0) code = 128; // SI_KERNEL.
+        return true;
     }
 
     // Return zero for no unblocked pending signal, one for a selected signal,
@@ -63,7 +94,9 @@ public static unsafe partial class LinuxSignalServices
         {
             ulong bit = 1UL << (int)(signal - 1);
             if ((t->PendingStandard & bit) == 0) return false;
-            t->PendingStandard &= ~bit; return true;
+            t->PendingStandard &= ~bit;
+            if (signal == 15) t->Termination &= ~KernelTerminationPending;
+            return true;
         }
         if (t->RealtimeCount > RealtimeQueueCapacity) return false;
         for (ulong i = 0; i < t->RealtimeCount; i++)
@@ -81,7 +114,12 @@ public static unsafe partial class LinuxSignalServices
         for (uint i = 0; i < s->Capacity; i++)
         {
             ThreadState* t = (ThreadState*)s->Threads + i;
-            if (signal < 32) { t->PendingStandard &= ~(1UL << (int)(signal - 1)); continue; }
+            if (signal < 32)
+            {
+                t->PendingStandard &= ~(1UL << (int)(signal - 1));
+                if (signal == 15) t->Termination &= ~KernelTerminationPending;
+                continue;
+            }
             ulong count = t->RealtimeCount;
             if (count > RealtimeQueueCapacity) continue; // Never walk beyond retained metadata.
             ulong keep = 0;

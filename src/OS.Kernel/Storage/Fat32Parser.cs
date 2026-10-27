@@ -9,6 +9,10 @@ public static class Fat32Parser
     public const uint MaximumSupportedSectorSize = 4096;
     public const byte DirectoryAttribute = 0x10;
 
+    /// <summary>Maximum clusters per directory walk in convenience calls.
+    /// Caller-scratch overloads use the supplied history length instead.</summary>
+    public const int DefaultDirectoryClusterBudget = 4096;
+
     private const uint Fat32ClusterMask = 0x0FFFFFFF;
     private const uint Fat32EndOfChain = 0x0FFFFFF8;
     private const uint Fat32BadCluster = 0x0FFFFFF7;
@@ -55,6 +59,21 @@ public static class Fat32Parser
         ulong partitionStartLba,
         Span<Fat32DirectoryEntry> entries)
     {
+        Span<uint> history = stackalloc uint[DefaultDirectoryClusterBudget];
+        return ReadRootDirectoryEntries(device, partitionStartLba, entries, history);
+    }
+
+    /// <summary>Synchronously enumerate with exclusive caller-owned cluster
+    /// history. Its length bounds the directory walk; contents are overwritten
+    /// and may be reused after return. Output exhaustion is not continuation;
+    /// retry starts a new walk. Empty/exhausted history fails with
+    /// DirectoryBudgetExceeded before reading another directory cluster.</summary>
+    public static Fat32DirectoryReadResult ReadRootDirectoryEntries(
+        IReadOnlyBlockDevice? device,
+        ulong partitionStartLba,
+        Span<Fat32DirectoryEntry> entries,
+        Span<uint> directoryHistory)
+    {
         if (device is null)
         {
             return Fat32DirectoryReadResult.Fail(Fat32Status.InvalidBlockDevice);
@@ -72,13 +91,27 @@ public static class Fat32Parser
             bpbResult.Bpb.RootCluster,
             entries,
             Fat32Status.RootDirectoryReadFailed,
-            Fat32Status.TruncatedDirectoryEntry);
+            Fat32Status.TruncatedDirectoryEntry,
+            directoryHistory);
     }
 
     public static Fat32FileLookupResult FindRootDirectoryEntry(
         IReadOnlyBlockDevice? device,
         ulong partitionStartLba,
         string? name)
+    {
+        Span<uint> history = stackalloc uint[DefaultDirectoryClusterBudget];
+        return FindRootDirectoryEntry(device, partitionStartLba, name, history);
+    }
+
+    /// <summary>Synchronously find one root entry using exclusive reusable
+    /// caller scratch. History length limits visited directory clusters;
+    /// exhaustion returns DirectoryBudgetExceeded, never a missing entry.</summary>
+    public static Fat32FileLookupResult FindRootDirectoryEntry(
+        IReadOnlyBlockDevice? device,
+        ulong partitionStartLba,
+        string? name,
+        Span<uint> directoryHistory)
     {
         if (!IsSupportedLookupName(name))
         {
@@ -103,7 +136,8 @@ public static class Fat32Parser
             name,
             Fat32Status.MissingFile,
             Fat32Status.RootDirectoryReadFailed,
-            Fat32Status.TruncatedDirectoryEntry);
+            Fat32Status.TruncatedDirectoryEntry,
+            directoryHistory);
     }
 
     public static Fat32FileLookupResult FindRootDirectory(
@@ -111,7 +145,19 @@ public static class Fat32Parser
         ulong partitionStartLba,
         string? directoryName)
     {
-        Fat32FileLookupResult lookup = FindRootDirectoryEntry(device, partitionStartLba, directoryName);
+        Span<uint> history = stackalloc uint[DefaultDirectoryClusterBudget];
+        return FindRootDirectory(device, partitionStartLba, directoryName, history);
+    }
+
+    /// <summary>Find a root directory with the same exclusive reusable
+    /// history and cluster budget as FindRootDirectoryEntry.</summary>
+    public static Fat32FileLookupResult FindRootDirectory(
+        IReadOnlyBlockDevice? device,
+        ulong partitionStartLba,
+        string? directoryName,
+        Span<uint> directoryHistory)
+    {
+        Fat32FileLookupResult lookup = FindRootDirectoryEntry(device, partitionStartLba, directoryName, directoryHistory);
         if (!lookup.Succeeded)
         {
             return lookup.Status == Fat32Status.MissingFile
@@ -132,12 +178,26 @@ public static class Fat32Parser
         ulong partitionStartLba,
         string? path)
     {
+        Span<uint> history = stackalloc uint[DefaultDirectoryClusterBudget];
+        return FindFirstLevelDirectoryEntry(device, partitionStartLba, path, history);
+    }
+
+    /// <summary>Find a first-level entry with exclusive reusable caller
+    /// history. Root and child walks each use its length as their cluster
+    /// budget; the same scratch is reused after the root walk completes.
+    /// Nested paths remain unsupported.</summary>
+    public static Fat32FileLookupResult FindFirstLevelDirectoryEntry(
+        IReadOnlyBlockDevice? device,
+        ulong partitionStartLba,
+        string? path,
+        Span<uint> directoryHistory)
+    {
         if (!TrySplitSingleLevelPath(path, out string directoryName, out string entryName))
         {
             return Fat32FileLookupResult.Fail(Fat32Status.UnsupportedNestedPath);
         }
 
-        Fat32FileLookupResult directoryLookup = FindRootDirectory(device, partitionStartLba, directoryName);
+        Fat32FileLookupResult directoryLookup = FindRootDirectory(device, partitionStartLba, directoryName, directoryHistory);
         if (!directoryLookup.Succeeded)
         {
             return directoryLookup;
@@ -150,7 +210,8 @@ public static class Fat32Parser
             entryName,
             Fat32Status.MissingFile,
             Fat32Status.DirectoryClusterReadFailed,
-            Fat32Status.DirectoryClusterShortRead);
+            Fat32Status.DirectoryClusterShortRead,
+            directoryHistory);
     }
 
     private static Fat32FileLookupResult FindDirectoryEntryInChain(
@@ -160,7 +221,8 @@ public static class Fat32Parser
         string? name,
         Fat32Status missingStatus,
         Fat32Status clusterReadFailedStatus,
-        Fat32Status clusterShortReadStatus)
+        Fat32Status clusterShortReadStatus,
+        Span<uint> visitedClusters)
     {
         Span<byte> requestedName = stackalloc byte[11];
         bool hasShortName = TryFormatShortName(name, requestedName);
@@ -175,21 +237,23 @@ public static class Fat32Parser
         byte longFileNameChecksum = 0;
         bool hasLongFileNameSequence = false;
 
-        DirectoryChainWalkState walk = CreateDirectoryChainWalkState(bpb);
-        if (!walk.Succeeded)
+        if (!IsDirectoryGeometrySupported(bpb))
         {
-            return Fat32FileLookupResult.Fail(walk.Status, bpb);
+            return Fat32FileLookupResult.Fail(Fat32Status.UnsupportedGeometry, bpb);
         }
 
-        Span<uint> visitedClusters = walk.UseStackVisited
-            ? stackalloc uint[walk.ClusterLimit]
-            : new uint[walk.ClusterLimit];
         Span<byte> fatBlock = stackalloc byte[bpb.BytesPerSector];
         uint currentCluster = startCluster;
         int visitedClusterCount = 0;
 
         while (true)
         {
+            Fat32Status visit = VisitDirectoryCluster(bpb, currentCluster, visitedClusters, ref visitedClusterCount);
+            if (visit != Fat32Status.Success)
+            {
+                return Fat32FileLookupResult.Fail(visit, bpb);
+            }
+
             DirectoryClusterRead read = ReadDirectoryCluster(
                 device,
                 bpb,
@@ -289,7 +353,7 @@ public static class Fat32Parser
                 bpb,
                 currentCluster,
                 visitedClusters,
-                ref visitedClusterCount,
+                visitedClusterCount,
                 fatBlock,
                 out uint nextCluster,
                 out BlockDeviceStatus blockStatus);
@@ -311,7 +375,21 @@ public static class Fat32Parser
         string? name,
         Span<byte> destination)
     {
-        Fat32FileLookupResult lookup = FindRootDirectoryEntry(device, partitionStartLba, name);
+        Span<uint> history = stackalloc uint[DefaultDirectoryClusterBudget];
+        return ReadRootFile(device, partitionStartLba, name, destination, history);
+    }
+
+    /// <summary>Read a whole root file, bounding its directory lookup with
+    /// exclusive reusable caller history. File-content chain scratch remains
+    /// separately bounded by the file's required cluster count.</summary>
+    public static Fat32FileReadResult ReadRootFile(
+        IReadOnlyBlockDevice? device,
+        ulong partitionStartLba,
+        string? name,
+        Span<byte> destination,
+        Span<uint> directoryHistory)
+    {
+        Fat32FileLookupResult lookup = FindRootDirectoryEntry(device, partitionStartLba, name, directoryHistory);
         if (!lookup.Succeeded)
         {
             return Fat32FileReadResult.Fail(lookup.Status, lookup.BlockStatus, lookup.Bpb);
@@ -337,7 +415,21 @@ public static class Fat32Parser
         string? path,
         Span<byte> destination)
     {
-        Fat32FileLookupResult lookup = FindFirstLevelDirectoryEntry(device, partitionStartLba, path);
+        Span<uint> history = stackalloc uint[DefaultDirectoryClusterBudget];
+        return ReadFirstLevelFile(device, partitionStartLba, path, destination, history);
+    }
+
+    /// <summary>Read a whole first-level file using one exclusive reusable
+    /// history buffer for the independent root and child directory walks.
+    /// Each walk is bounded by its length; file-content scratch is separate.</summary>
+    public static Fat32FileReadResult ReadFirstLevelFile(
+        IReadOnlyBlockDevice? device,
+        ulong partitionStartLba,
+        string? path,
+        Span<byte> destination,
+        Span<uint> directoryHistory)
+    {
+        Fat32FileLookupResult lookup = FindFirstLevelDirectoryEntry(device, partitionStartLba, path, directoryHistory);
         if (!lookup.Succeeded)
         {
             return Fat32FileReadResult.Fail(lookup.Status, lookup.BlockStatus, lookup.Bpb);
@@ -847,9 +939,18 @@ public static class Fat32Parser
             || !TryReadUInt16(bootSector, 22, out ushort fatSize16)
             || !TryReadUInt32(bootSector, 32, out uint totalSectors32)
             || !TryReadUInt32(bootSector, 36, out uint fatSize32)
+            || !TryReadUInt16(bootSector, 40, out ushort extendedFlags)
+            || !TryReadUInt16(bootSector, 42, out ushort fileSystemVersion)
             || !TryReadUInt32(bootSector, 44, out uint rootCluster))
         {
             return Fat32BpbParseResult.Fail(Fat32Status.CorruptBpb);
+        }
+
+        // This reader supports mirrored FAT0 at version zero only. Do not
+        // silently read stale FAT0 when the volume selects another copy.
+        if (extendedFlags != 0 || fileSystemVersion != 0)
+        {
+            return Fat32BpbParseResult.Fail(Fat32Status.UnsupportedGeometry);
         }
 
         byte sectorsPerCluster = bootSector[13];
@@ -1003,17 +1104,14 @@ public static class Fat32Parser
         uint startCluster,
         Span<Fat32DirectoryEntry> entries,
         Fat32Status clusterReadFailedStatus,
-        Fat32Status clusterShortReadStatus)
+        Fat32Status clusterShortReadStatus,
+        Span<uint> visitedClusters)
     {
-        DirectoryChainWalkState walk = CreateDirectoryChainWalkState(bpb);
-        if (!walk.Succeeded)
+        if (!IsDirectoryGeometrySupported(bpb))
         {
-            return Fat32DirectoryReadResult.Fail(walk.Status, bpb);
+            return Fat32DirectoryReadResult.Fail(Fat32Status.UnsupportedGeometry, bpb);
         }
 
-        Span<uint> visitedClusters = walk.UseStackVisited
-            ? stackalloc uint[walk.ClusterLimit]
-            : new uint[walk.ClusterLimit];
         Span<byte> fatBlock = stackalloc byte[bpb.BytesPerSector];
         uint currentCluster = startCluster;
         int visitedClusterCount = 0;
@@ -1021,6 +1119,12 @@ public static class Fat32Parser
 
         while (true)
         {
+            Fat32Status visit = VisitDirectoryCluster(bpb, currentCluster, visitedClusters, ref visitedClusterCount);
+            if (visit != Fat32Status.Success)
+            {
+                return Fat32DirectoryReadResult.Fail(visit, bpb);
+            }
+
             DirectoryClusterRead read = ReadDirectoryCluster(
                 device,
                 bpb,
@@ -1071,7 +1175,7 @@ public static class Fat32Parser
                 bpb,
                 currentCluster,
                 visitedClusters,
-                ref visitedClusterCount,
+                visitedClusterCount,
                 fatBlock,
                 out uint nextCluster,
                 out BlockDeviceStatus blockStatus);
@@ -1145,18 +1249,24 @@ public static class Fat32Parser
         return DirectoryClusterRead.Success(directory);
     }
 
-    private static DirectoryChainWalkState CreateDirectoryChainWalkState(Fat32Bpb bpb)
+    private static bool IsDirectoryGeometrySupported(Fat32Bpb bpb)
     {
-        if (bpb.ClusterSizeBytes > int.MaxValue
-            || bpb.SectorsPerCluster == 0
-            || bpb.ClusterCount == 0
-            || bpb.ClusterCount > int.MaxValue)
-        {
-            return DirectoryChainWalkState.Fail(Fat32Status.UnsupportedGeometry);
-        }
+        return bpb.ClusterSizeBytes <= int.MaxValue
+            && bpb.SectorsPerCluster != 0
+            && bpb.ClusterCount != 0;
+    }
 
-        int clusterLimit = checked((int)bpb.ClusterCount);
-        return DirectoryChainWalkState.Success(clusterLimit, useStackVisited: clusterLimit <= 256);
+    private static Fat32Status VisitDirectoryCluster(
+        Fat32Bpb bpb,
+        uint cluster,
+        Span<uint> history,
+        ref int count)
+    {
+        if (!IsValidDataCluster(bpb, cluster)) return Fat32Status.InvalidDirectoryCluster;
+        if (ContainsCluster(history[..count], cluster)) return Fat32Status.DirectoryClusterChainLoop;
+        if (count >= history.Length) return Fat32Status.DirectoryBudgetExceeded;
+        history[count++] = cluster;
+        return Fat32Status.Success;
     }
 
     private static Fat32Status MoveToNextDirectoryCluster(
@@ -1164,7 +1274,7 @@ public static class Fat32Parser
         Fat32Bpb bpb,
         uint currentCluster,
         Span<uint> visitedClusters,
-        ref int visitedClusterCount,
+        int visitedClusterCount,
         Span<byte> fatBlock,
         out uint nextCluster,
         out BlockDeviceStatus blockStatus)
@@ -1176,15 +1286,6 @@ public static class Fat32Parser
         {
             return Fat32Status.InvalidDirectoryCluster;
         }
-
-        if (visitedClusterCount >= visitedClusters.Length
-            || ContainsCluster(visitedClusters[..visitedClusterCount], currentCluster))
-        {
-            return Fat32Status.DirectoryClusterChainLoop;
-        }
-
-        visitedClusters[visitedClusterCount] = currentCluster;
-        visitedClusterCount++;
 
         FatEntryRead fatRead = ReadFatEntry(device, bpb, currentCluster, fatBlock);
         blockStatus = fatRead.BlockStatus;
@@ -1206,6 +1307,11 @@ public static class Fat32Parser
         if (ContainsCluster(visitedClusters[..visitedClusterCount], fatRead.NextCluster))
         {
             return Fat32Status.DirectoryClusterChainLoop;
+        }
+
+        if (visitedClusterCount >= visitedClusters.Length)
+        {
+            return Fat32Status.DirectoryBudgetExceeded;
         }
 
         nextCluster = fatRead.NextCluster;
@@ -1604,34 +1710,6 @@ public static class Fat32Parser
         public static DirectoryClusterRead Fail(Fat32Status status, BlockDeviceStatus blockStatus)
         {
             return new DirectoryClusterRead(status, blockStatus, Array.Empty<byte>());
-        }
-    }
-
-    private readonly struct DirectoryChainWalkState
-    {
-        private DirectoryChainWalkState(Fat32Status status, int clusterLimit, bool useStackVisited)
-        {
-            Status = status;
-            ClusterLimit = clusterLimit;
-            UseStackVisited = useStackVisited;
-        }
-
-        public Fat32Status Status { get; }
-
-        public int ClusterLimit { get; }
-
-        public bool UseStackVisited { get; }
-
-        public bool Succeeded => Status == Fat32Status.Success;
-
-        public static DirectoryChainWalkState Success(int clusterLimit, bool useStackVisited)
-        {
-            return new DirectoryChainWalkState(Fat32Status.Success, clusterLimit, useStackVisited);
-        }
-
-        public static DirectoryChainWalkState Fail(Fat32Status status)
-        {
-            return new DirectoryChainWalkState(status, 0, false);
         }
     }
 

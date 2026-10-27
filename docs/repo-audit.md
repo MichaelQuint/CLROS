@@ -1,5 +1,27 @@
 # Repository Audit
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1559](../done/step1559.md) records the active static-app admission split,
+retained Linux-reference observations and14-check block service host leaf.
+These development results do not advance guest storage or completion gates.
+
+The isolated read-service review adds source4 output-lifetime protection,
+bounded observation callbacks and native disk preparation/retirement paths.
+It found a cancelled completion could remain buffered after stopping; retirement
+now flushes that evidence before ordinary teardown. Dedicated disk call readers
+admit source4 while historical consumers keep their original rules. Native
+publication, stack/ABI review and complete fresh disk guests remain required.
+
 ## Current acceptance (October 23, 2026)
 
 [PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) merged at
@@ -336,7 +358,7 @@ artifacts, transient review-harness failures and the unchanged acceptance bounda
 
 ## Historical audit snapshots
 
-The #134/#136â€“#140/#633 bounded driver batch is qualified in
+The #134/#136–#140/#633 bounded driver batch is qualified in
 [step1162](../done/step1162.md): 4,422 full-host checks across 552 groups pass with
 zero reuse/input changes. Linked native review, IRQ/recovery/net guests, exact
 fixed-frame libpcap and eleven ancestor captures pass. M06's bounded packaged-read
@@ -811,6 +833,14 @@ The example app projects exist and currently emit deferred-status markers only:
 - `DiagnosticApp`
 
 ## Driver Status
+
+The next three status sections preserve the earlier parser/terminal-profile
+baseline through step1162. For current named finite Linux/Kestrel/readonly disk
+scopes, use `completion-gates.md` and steps1556/1571/1580. Step1612's writable
+pairing is host preparation; Step1624 now has a finite original Mechanical30
+write/cleanup pass. Full Blazor, actual BCL log/upload persistence across reboot
+and durability remain unqualified. Do not read the older categorical limits below as current
+denial of those specifically evidenced finite profiles.
 
 Owned COM1 configuration/output has accepted bounded guest and post-exit evidence. First-party APIC, general framebuffer, live PCI, virtio-blk and virtio-net drivers remain incomplete. Host-tested ACPI RSDP discovery/validation, RSDT/XSDT pointer-list parsing, MCFG-to-ECAM parsing, PCI ECAM address planning, PCI type-0 header parsing, PCI BAR metadata decoding, injected-reader PCI scanning, virtio PCI capability parsing/discovery, virtio initialization planning, virtio-blk split-ring descriptor materialization, and virtio-net queue/header metadata contracts exist. The opt-in ACPI physical discovery probe has live QEMU table-discovery markers, but these are not live hardware enumeration or driver evidence.
 

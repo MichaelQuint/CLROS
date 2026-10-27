@@ -164,6 +164,60 @@ internal static class StorageFat32ParserTests
             && result.Status == Fat32Status.InvalidBootSectorSignature);
     }
 
+    [HostTest("storage fat32 rejects active FAT before stale file bytes", HostLane.Fast, 37)]
+    private static bool TestRejectsActiveFatBeforeStaleBytes()
+    {
+        var device = CreateDivergentFatFixture();
+        WriteUInt16(device.BootSector, 40, 0x81);
+        byte[] output = new byte[SectorSize * 3];
+        output.AsSpan().Fill(0xCC);
+
+        Fat32FileReadResult result = Fat32Parser.ReadRootFile(device, PartitionStartLba, "CHAIN.BIN", output);
+
+        return HostCheck.Result(!result.Succeeded && result.Status == Fat32Status.UnsupportedGeometry
+            && result.BytesRead == 0 && device.ReadCount == 1 && output.AsSpan().IndexOfAnyExcept((byte)0xCC) < 0);
+    }
+
+    [HostTest("storage fat32 rejects unsupported FAT flags and version", HostLane.Fast, 38)]
+    private static bool TestRejectsUnsupportedFatModesAndVersion()
+    {
+        ushort[] flags = [0x80, 0x81, 0x82, 1, 0x100];
+        foreach (ushort value in flags)
+        {
+            var device = new SparseFat32BlockDevice(65525);
+            WriteUInt16(device.BootSector, 40, value);
+            Fat32BpbParseResult result = Fat32Parser.ReadBpb(device, PartitionStartLba);
+            if (result.Succeeded || result.Status != Fat32Status.UnsupportedGeometry || device.ReadCount != 1) return HostCheck.Result(false);
+        }
+
+        foreach (ushort value in new ushort[] { 1, 0x100, 0xFFFF })
+        {
+            var device = new SparseFat32BlockDevice(65525);
+            WriteUInt16(device.BootSector, 42, value);
+            Fat32BpbParseResult result = Fat32Parser.ReadBpb(device, PartitionStartLba);
+            if (result.Succeeded || result.Status != Fat32Status.UnsupportedGeometry || device.ReadCount != 1) return HostCheck.Result(false);
+        }
+
+        return HostCheck.Result(true);
+    }
+
+    [HostTest("storage fat32 mirrored mode retains distinct cluster bytes", HostLane.Fast, 39)]
+    private static bool TestMirroredModeDistinctClusterContents()
+    {
+        var device = CreateDivergentFatFixture();
+        device.WriteFatEntry(1, 20, 22);
+        device.WriteFatEntry(1, 22, 24);
+        device.WriteFatEntry(1, 24, Fat32EndOfChain);
+        byte[] output = new byte[SectorSize * 3];
+
+        Fat32FileReadResult result = Fat32Parser.ReadRootFile(device, PartitionStartLba, "CHAIN.BIN", output);
+
+        return HostCheck.Result(result.Succeeded && result.BytesRead == output.Length
+            && output.AsSpan(0, 512).IndexOfAnyExcept((byte)0xA1) < 0
+            && output.AsSpan(512, 512).IndexOfAnyExcept((byte)0xB2) < 0
+            && output.AsSpan(1024, 512).IndexOfAnyExcept((byte)0xC3) < 0);
+    }
+
     [HostTest("storage fat32 rejects unsupported sector size", HostLane.Fast, 2)]
     private static bool TestUnsupportedSectorSize()
     {
@@ -726,6 +780,151 @@ internal static class StorageFat32ParserTests
             && result.Status == Fat32Status.TruncatedDirectoryEntry);
     }
 
+    [HostTest("storage fat32 empty directory allocation is volume independent", HostLane.Fast, 40)]
+    private static bool TestEmptyDirectoryAllocationBound()
+    {
+        var small = new SparseFat32BlockDevice(65525);
+        var large = new SparseFat32BlockDevice(1_000_000);
+        // Warm both API paths before measuring this thread's managed allocations.
+        Fat32Parser.ReadRootDirectoryEntries(small, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty);
+        Fat32Parser.ReadRootDirectoryEntries(large, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty);
+        bool smallOk = MeasureEmptyDirectoryAllocations(small, out long smallBytes);
+        bool largeOk = MeasureEmptyDirectoryAllocations(large, out long largeBytes);
+        Console.WriteLine($"FAT_DIRECTORY_ALLOCATION smallClusters=65525 largeClusters=1000000 iterations=32 smallBytes={smallBytes} largeBytes={largeBytes}");
+        return HostCheck.Result(smallOk && largeOk && small.ReadCount == 66 && large.ReadCount == 66
+            && smallBytes <= 32 * 8192 && largeBytes <= smallBytes + 512);
+    }
+
+    [HostTest("storage fat32 directory exact and exceeded cluster budgets", HostLane.Fast, 41)]
+    private static bool TestDirectoryClusterBudgets()
+    {
+        var exact = CreateDeletedDirectoryChain(3);
+        Span<uint> history = stackalloc uint[3];
+        var complete = Fat32Parser.ReadRootDirectoryEntries(exact, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty, history);
+        var over = CreateDeletedDirectoryChain(3);
+        var exhausted = Fat32Parser.ReadRootDirectoryEntries(over, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty, history[..2]);
+        var lookup = Fat32Parser.FindRootDirectoryEntry(exact, PartitionStartLba, "ABSENT.BIN", history);
+
+        return HostCheck.Result(complete.Succeeded && complete.EntriesRead == 0 && !complete.ReachedEndMarker
+            && exhausted.Status == Fat32Status.DirectoryBudgetExceeded && !exhausted.Succeeded && !exhausted.ReachedEndMarker
+            && over.ReadCount == 5 && exact.ReadCount == 14 && lookup.Status == Fat32Status.MissingFile);
+    }
+
+    [HostTest("storage fat32 directory cycles remain distinct at budget boundary", HostLane.Fast, 42)]
+    private static bool TestDirectoryCycleAtBudgetBoundary()
+    {
+        var device = CreateDeletedDirectoryChain(2, loop: true);
+        Span<uint> history = stackalloc uint[2];
+        var enumeration = Fat32Parser.ReadRootDirectoryEntries(device, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty, history);
+        var lookup = Fat32Parser.FindRootDirectoryEntry(device, PartitionStartLba, "ABSENT.BIN", history);
+
+        return HostCheck.Result(enumeration.Status == Fat32Status.DirectoryClusterChainLoop
+            && lookup.Status == Fat32Status.DirectoryClusterChainLoop && device.ReadCount == 10);
+    }
+
+    [HostTest("storage fat32 directory output and scratch exhaustion differ", HostLane.Fast, 43)]
+    private static bool TestDirectoryOutputAndScratchExhaustion()
+    {
+        var device = new SparseFat32BlockDevice(65525);
+        byte[] directory = device.GetSector(device.FirstDataLba);
+        WriteDirectoryEntry(directory, 0, "FIRST   BIN", 0x20, 0, 0);
+        WriteDirectoryEntry(directory, 32, "SECOND  BIN", 0x20, 0, 0);
+        Fat32DirectoryEntry[] output = new Fat32DirectoryEntry[1];
+        Span<uint> history = stackalloc uint[1];
+        var outputFull = Fat32Parser.ReadRootDirectoryEntries(device, PartitionStartLba, output, history);
+        int afterOutput = device.ReadCount;
+        var noHistory = Fat32Parser.ReadRootDirectoryEntries(device, PartitionStartLba, output, Span<uint>.Empty);
+        Fat32DirectoryEntry[] larger = new Fat32DirectoryEntry[2];
+        var retry = Fat32Parser.ReadRootDirectoryEntries(device, PartitionStartLba, larger, history);
+
+        return HostCheck.Result(outputFull.Status == Fat32Status.DirectoryEntryBufferTooSmall
+            && noHistory.Status == Fat32Status.DirectoryBudgetExceeded && afterOutput == 2 && device.ReadCount == 5
+            && retry.Succeeded && retry.ReachedEndMarker && retry.EntriesRead == 2
+            && larger[0].ShortName == "FIRST.BIN" && larger[1].ShortName == "SECOND.BIN");
+    }
+
+    [HostTest("storage fat32 directory budgets preserve read failures and early end", HostLane.Fast, 44)]
+    private static bool TestDirectoryFailureAndEarlyEnd()
+    {
+        Span<uint> history = stackalloc uint[2];
+        var dataFailure = CreateDeletedDirectoryChain(2);
+        dataFailure.FailedLba = dataFailure.FirstDataLba + 1;
+        var data = Fat32Parser.ReadRootDirectoryEntries(dataFailure, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty, history);
+        var fatFailure = CreateDeletedDirectoryChain(2);
+        fatFailure.FailedLba = fatFailure.FirstFatLba;
+        var fat = Fat32Parser.ReadRootDirectoryEntries(fatFailure, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty, history);
+        var early = new SparseFat32BlockDevice(65525) { FailedLba = PartitionStartLba + ReservedSectorCount };
+        var end = Fat32Parser.ReadRootDirectoryEntries(early, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty, history[..1]);
+
+        return HostCheck.Result(data.Status == Fat32Status.RootDirectoryReadFailed && data.BlockStatus == BlockDeviceStatus.IoError
+            && fat.Status == Fat32Status.DirectoryFatReadFailed && fat.BlockStatus == BlockDeviceStatus.IoError
+            && !data.ReachedEndMarker && !fat.ReachedEndMarker && dataFailure.ReadCount == 4 && fatFailure.ReadCount == 3
+            && end.Succeeded && end.ReachedEndMarker && end.EntriesRead == 0 && early.ReadCount == 2);
+    }
+
+    [HostTest("storage fat32 caller directory history is reusable for nested lookup", HostLane.Fast, 45)]
+    private static bool TestReusableFirstLevelHistory()
+    {
+        var device = MemoryBlockDevice.FromImage(CreateFat32ImageWithChainedOsDirectory(), SectorSize);
+        Span<uint> history = stackalloc uint[2];
+        history.Fill(uint.MaxValue);
+        var limited = Fat32Parser.FindFirstLevelDirectoryEntry(device, PartitionStartLba, "OS/LATEOS.BIN", history[..1]);
+        var first = Fat32Parser.FindFirstLevelDirectoryEntry(device, PartitionStartLba, "OS/LATEOS.BIN", history);
+        var root = Fat32Parser.FindRootDirectory(device, PartitionStartLba, "OS", history);
+        var second = Fat32Parser.FindFirstLevelDirectoryEntry(device, PartitionStartLba, "OS/LATEOS.BIN", history);
+        var missing = Fat32Parser.FindFirstLevelDirectoryEntry(device, PartitionStartLba, "OS/ABSENT.BIN", history);
+
+        return HostCheck.Result(limited.Status == Fat32Status.DirectoryBudgetExceeded
+            && first.Succeeded && root.Succeeded && second.Succeeded && first.Entry.FirstCluster == ChainedDirectoryLateFileCluster
+            && second.Entry.FirstCluster == first.Entry.FirstCluster && missing.Status == Fat32Status.MissingFile);
+    }
+
+    [HostTest("storage fat32 file wrappers retain caller directory budgets", HostLane.Fast, 46)]
+    private static bool TestFileWrapperDirectoryBudgets()
+    {
+        var rootDevice = MemoryBlockDevice.FromImage(CreateFat32ImageWithChainedRootDirectory(), SectorSize);
+        var childDevice = MemoryBlockDevice.FromImage(CreateFat32ImageWithChainedOsDirectory(), SectorSize);
+        Span<uint> history = stackalloc uint[2];
+        byte[] output = new byte[1];
+        var rootLimited = Fat32Parser.ReadRootFile(rootDevice, PartitionStartLba, "LATE.BIN", output, history[..1]);
+        var root = Fat32Parser.ReadRootFile(rootDevice, PartitionStartLba, "LATE.BIN", output, history);
+        var childLimited = Fat32Parser.ReadFirstLevelFile(childDevice, PartitionStartLba, "OS/LATEOS.BIN", output, history[..1]);
+        var child = Fat32Parser.ReadFirstLevelFile(childDevice, PartitionStartLba, "OS/LATEOS.BIN", output, history);
+
+        return HostCheck.Result(rootLimited.Status == Fat32Status.DirectoryBudgetExceeded
+            && childLimited.Status == Fat32Status.DirectoryBudgetExceeded && root.Succeeded && root.BytesRead == 1
+            && child.Succeeded && child.BytesRead == 1);
+    }
+
+    private static bool MeasureEmptyDirectoryAllocations(SparseFat32BlockDevice device, out long allocated)
+    {
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        bool valid = true;
+        for (int i = 0; i < 32; i++)
+        {
+            var result = Fat32Parser.ReadRootDirectoryEntries(device, PartitionStartLba, Span<Fat32DirectoryEntry>.Empty);
+            valid &= result.Succeeded && result.ReachedEndMarker && result.EntriesRead == 0;
+        }
+
+        allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        return valid;
+    }
+
+    private static SparseFat32BlockDevice CreateDeletedDirectoryChain(int clusters, bool loop = false)
+    {
+        var device = new SparseFat32BlockDevice(65525);
+        for (uint index = 0; index < clusters; index++)
+        {
+            uint cluster = RootCluster + index;
+            device.GetSector(device.FirstDataLba + index).AsSpan().Fill(0xE5);
+            uint next = index + 1 < clusters ? cluster + 1 : loop ? RootCluster : Fat32EndOfChain;
+            device.WriteFatEntry(0, cluster, next);
+            device.WriteFatEntry(1, cluster, next);
+        }
+
+        return device;
+    }
+
     private static byte[] CreateValidFat32Image()
     {
         const ulong blockCount = PartitionStartLba + TotalSectors + 8;
@@ -1132,6 +1331,88 @@ internal static class StorageFat32ParserTests
     private static void WriteUInt32(byte[] image, int offset, uint value)
     {
         EndianPrimitives.WriteUInt32LittleEndian(image.AsSpan(offset, 4), value);
+    }
+
+    private static SparseFat32BlockDevice CreateDivergentFatFixture()
+    {
+        var device = new SparseFat32BlockDevice(65525);
+        WriteDirectoryEntry(device.GetSector(device.FirstDataLba), 0, "CHAIN   BIN", 0x20, 20, SectorSize * 3);
+        device.WriteFatEntry(0, 20, 22);
+        device.WriteFatEntry(0, 22, 24);
+        device.WriteFatEntry(0, 24, Fat32EndOfChain);
+        device.WriteFatEntry(1, 20, 23);
+        device.WriteFatEntry(1, 23, 25);
+        device.WriteFatEntry(1, 25, Fat32EndOfChain);
+        device.GetSector(device.FirstDataLba + 18).AsSpan().Fill(0xA1);
+        device.GetSector(device.FirstDataLba + 20).AsSpan().Fill(0xB2);
+        device.GetSector(device.FirstDataLba + 22).AsSpan().Fill(0xC3);
+        device.GetSector(device.FirstDataLba + 21).AsSpan().Fill(0xD4);
+        device.GetSector(device.FirstDataLba + 23).AsSpan().Fill(0xE5);
+        return device;
+    }
+
+    private sealed class SparseFat32BlockDevice : IReadOnlyBlockDevice
+    {
+        private readonly Dictionary<ulong, byte[]> sectors = new();
+        private readonly uint fatSectors;
+
+        public SparseFat32BlockDevice(uint clusterCount)
+        {
+            fatSectors = (clusterCount + 2 + 127) / 128;
+            uint totalSectors = ReservedSectorCount + FatCount * fatSectors + clusterCount;
+            Info = BlockDeviceInfo.Create(SectorSize, PartitionStartLba + totalSectors).Info;
+            BootSector = GetSector(PartitionStartLba);
+            WriteUInt16(BootSector, 11, (ushort)SectorSize);
+            BootSector[13] = 1;
+            WriteUInt16(BootSector, 14, ReservedSectorCount);
+            BootSector[16] = FatCount;
+            WriteUInt32(BootSector, 32, totalSectors);
+            WriteUInt32(BootSector, 36, fatSectors);
+            WriteUInt32(BootSector, 44, RootCluster);
+            BootSector[510] = 0x55;
+            BootSector[511] = 0xAA;
+        }
+
+        public BlockDeviceInfo Info { get; }
+        public byte[] BootSector { get; }
+        public ulong FirstFatLba => PartitionStartLba + ReservedSectorCount;
+        public ulong FirstDataLba => FirstFatLba + FatCount * fatSectors;
+        public int ReadCount { get; private set; }
+        public ulong? FailedLba { get; set; }
+
+        public byte[] GetSector(ulong lba)
+        {
+            if (!sectors.TryGetValue(lba, out byte[]? sector))
+            {
+                sector = new byte[SectorSize];
+                sectors.Add(lba, sector);
+            }
+
+            return sector;
+        }
+
+        public void WriteFatEntry(uint fatCopy, uint cluster, uint next)
+        {
+            ulong lba = FirstFatLba + fatCopy * fatSectors + cluster / 128;
+            WriteUInt32(GetSector(lba), (int)(cluster % 128) * 4, next);
+        }
+
+        public BlockReadResult ReadBlocks(ulong firstBlock, uint blockCount, Span<byte> destination)
+        {
+            ReadCount++;
+            BlockReadResult result = BlockDeviceRead.Validate(Info, firstBlock, blockCount, destination);
+            if (!result.Succeeded) return result;
+            if (FailedLba is ulong failed && failed >= firstBlock && failed - firstBlock < blockCount)
+                return BlockReadResult.Fail(BlockDeviceStatus.IoError);
+            for (uint index = 0; index < blockCount; index++)
+            {
+                Span<byte> block = destination.Slice((int)(index * SectorSize), (int)SectorSize);
+                if (sectors.TryGetValue(firstBlock + index, out byte[]? sector)) sector.AsSpan().CopyTo(block);
+                else block.Clear();
+            }
+
+            return result;
+        }
     }
 
     private sealed class MemoryBlockDevice : IReadOnlyBlockDevice

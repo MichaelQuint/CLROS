@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using OS.Kernel.Threading;
 using OS.Pal;
 using S = OS.Kernel.Threading.KernelThreadTable.Status;
@@ -9,6 +10,8 @@ using C = OS.Kernel.Threading.KernelThreadTable.Completion;
 internal static unsafe class KernelThreadTableTests
 {
     internal const ulong Key = 0x746872656164;
+    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "InspectRetainedStorage")]
+    private static extern S InspectStorage(ref KernelThreadTable table, ulong key, uint index, out ulong start, out ulong bytes, out uint count);
     internal sealed class Model : IDisposable
     {
         internal const int Bytes = 0x90000;
@@ -70,6 +73,34 @@ internal static unsafe class KernelThreadTableTests
         // No code or hardware borrows exist in this isolated host model. Discarding
         // the arena here is not evidence for production off-stack Release/Reap.
         public void Dispose() => NativeMemory.AlignedFree(Memory);
+    }
+
+    [HostTest("kernel.thread structural retained inventory authenticates original key self and actual queued worker lifetimes without effects")]
+    private static void StructuralRetainedInventory()
+    {
+        using Model m = new(); var live = m.Create(0).Identity; byte[] before = m.Snapshot();
+        for (uint i = 0; i < 15; i++)
+        {
+            HostCheck.Equal(S.Ok, InspectStorage(ref *m.Table, Key, i, out ulong start, out ulong bytes, out uint count));
+            HostCheck.Equal(15U, count); HostCheck.Equal(S.Ok, m.Table->InspectRetainedExtent(Key, 2, i, out ulong expected, out ulong expectedBytes));
+            HostCheck.True(start == expected && bytes == expectedBytes);
+            if (i is 9 or 10) HostCheck.True(bytes != 0);
+            if (i >= 11) HostCheck.True(start == 0 && bytes == 0);
+        }
+        HostCheck.Equal(S.InvalidStorage, InspectStorage(ref *m.Table, Key, 15, out ulong outside, out ulong length, out uint actual));
+        HostCheck.True(outside == 0 && length == 0 && actual == 15);
+        HostCheck.Equal(S.WrongOwner, InspectStorage(ref *m.Table, Key + 1, 0, out outside, out length, out actual));
+        HostCheck.True(outside == 0 && length == 0 && actual == 0);
+        KernelThreadTable copied = *m.Table;
+        HostCheck.Equal(S.CopiedOwner, InspectStorage(ref copied, Key, 0, out outside, out length, out actual));
+        HostCheck.True(outside == 0 && length == 0 && actual == 0); m.Same(before);
+        HostCheck.Equal(live.Value, m.Dispatch().Value); m.Exit(live);
+        HostCheck.Equal(S.Ok, m.Table->Reap(Key, 2, live, m.SupervisorRsp).Code);
+        HostCheck.Equal(S.Ok, InspectStorage(ref *m.Table, Key, 9, out outside, out length, out actual));
+        HostCheck.True(outside == 0 && length == 0 && actual == 15);
+        HostCheck.Equal(S.Ok, m.Table->Release(Key, 2, m.SupervisorRsp));
+        HostCheck.Equal(S.Uninitialized, InspectStorage(ref *m.Table, Key, 0, out outside, out length, out actual));
+        HostCheck.True(outside == 0 && length == 0 && actual == 0);
     }
 
     [HostTest("kernel.thread initialization rejects owner storage and alias failures atomically")]

@@ -95,6 +95,7 @@ public static partial class QemuTranscripts
             while(true)
             {
                 SocketTransportObservations();
+                if(DiskStaticObservations())continue;
                 if(!Starts("M16_012_POLL ") && !Starts("M16_012_WAKE "))break;
                 Need(socketObservations.TryGetValue(position,out var observed),"socket_observation_position");
                 if(observed.Kind==NativeAotSocketGuest.ObservationKind.Poll && observed.Identity!=(socketSelected?.Identity??0))break;
@@ -216,7 +217,7 @@ public static partial class QemuTranscripts
 
         private void SocketInstall(ulong fd,bool port,uint flags,int phase=0)
         {
-            Need(fd==(ulong)LowestFd() && fd is >=3 and <16 &&
+            Need(fd==(ulong)LowestFd() && fd>=3 && fd<(ulong)descriptorCapacity &&
                 (!port || socketDescriptions.Count(d=>d.Port && (socketDescriptors.ContainsValue(d) || history.Any(t=>!t.Reaped && t.Epoll==d)))<4),"socket_new_descriptor");
             var value=new SocketDescriptor(port,flags){Phase=phase};files.Add((int)fd);InstallDescriptorGeneration((int)fd);
             socketDescriptors.Add((int)fd,value);socketDescriptions.Add(value);
@@ -438,7 +439,8 @@ public static partial class QemuTranscripts
 
         private void SocketFinish()
         {
-            if(service)
+            if(staticFiles)Need((diskInventory is null?socketAccepts==3:socketAccepts is >0 and <=512) && socketSent>0 && socketReceived>0 && clones>=2,"static_socket_workload_lifetimes");
+            else if(service)
                 Need(socketAccepts>=10 && socketSent>0 && socketReceived>0 && clones>=2,"service_socket_workload_lifetimes");
             else if(containment)
                 Need(socketAccepts==3 && socketSent==containmentCapture!.Application.Queued+30 && socketReceived==33 && clones>=2 &&
@@ -447,7 +449,7 @@ public static partial class QemuTranscripts
                 socketBlocks>0 && socketResumes>0,"socket_vectors_workload_lifetimes");
             else Need(socketAccepts==4 && socketSent==65572 && socketReceived==61 && clones>=2 &&
                 (app!="NativeAotSocketSmokeAsync" || socketBlocks>0 && socketResumes>0),"socket_workload_lifetimes");
-            foreach(int fd in Enumerable.Range(0,16).Where(fd=>fd<3 || files.Contains(fd) || fd==pipeRead || fd==pipeWrite).ToArray())
+            foreach(int fd in Enumerable.Range(0,descriptorCapacity).Where(fd=>fd<3 || files.Contains(fd) || fd==pipeRead || fd==pipeWrite).ToArray())
             {
                 SocketTransportObservations();
                 var close=Row("M16_011_CLOSE","fd:dec","valueBits:dec");

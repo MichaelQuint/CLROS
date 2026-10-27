@@ -1,10 +1,243 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) The current managed HTTP fixture passes17 controls, including actual seven-server execution and independent console verification. Linuxr02 publishes the HTTP ELF but fails current-input admission on a legitimate0B package marker before HTTP/console execution. The narrow held-file repair is integrated; freshLinuxr03 and guest/browser/write gates remain pending.
+
+[Step1610](../done/step1610.md) Original v5r13 returns exact64KiB range30.9304945s and joins deliberate cancellation. Measured wholepoll22.1226843s is32.25%clock/36.00%supervisor/16.60%idle/15.15%other; it cannot justify an unmeasured polling policy or resolve full Blazor. The HTTP current-input repair passes16checks and is ready for a new Linux original; old failure remains failed.
+
+[Step1606](../done/step1606.md) Integrated MinimalApiLogUploadContract is a separate explicit --serve-once qualification app. It checks empty seeds, logs330B at startup, buffers an exact5126B upload before output, then writes/flushed-closes upload and appends to660B log. The independent HTTP owner requires complete responses, actual exit0, endpoint refusal and the unchanged console verifier. Partial failures retain actual bytes. This managed finite scope does not qualify continuous guest persistence; the original static server/package stays unchanged.
+
+[Step1605](../done/step1605.md) Original short timing r09 serves health, HEAD, the exact 64 KiB CoreLib range in 27.958s and final health, then intentionally cancels/joins. Readiness consumes 5.458806s of the 5.508793s measured post-network parent; this is not total HTTP attribution. The next v4 diagnostic separates refresh from wait scanning. Full A/B/browser and continuous service remain pending. Linux SQLite process-kill recovery r03 succeeds separately; guest persistence remains unqualified.
+
+[Step1604](../done/step1604.md) Original short r08 succeeds through exact64KiB range35.662s and deliberate joined cancellation. Extra-submit experiment delivers0submissions; it is retired. The next v3 diagnostic only attributes post-network descriptor readiness versus wait recording, with unchanged HTTP/guest budgets and aggregate boundaries. Actual full A/B/browser and continuous-service acceptance remain required before persistent log/upload/direct-SQLite product qualification.
+
+[Step1603](../done/step1603.md) Original r07 successfully serves the independently extracted64KiB CoreLib range in26.715s between successful health/HEAD/final-health calls. It intentionally cancels and joins, with endpoint refusal; full Blazor/browser and normal cleanup remain unqualified. A host-qualified sole-read replenishment experiment targets measured gaps while preserving original time budgets and fairness, and requires fresh timing before full A/B/browser repetitions. Persistent logs/uploads and actual direct SQLite remain subsequent guest acceptance work.
+
+[Step1600](../done/step1600.md) Full read r06 remains failed after113complete responses/6121425B; browser entry never occurred. The next explicit M10018Timing diagnostic checks health, CoreLib HEAD, bytes0-65535 and health using independent image bytes, then intentionally cancels/joins its runner. It supplies component timing only. Three fresh source-matched A/B boots and external Blazor/API rendering remain required; the product target continues until intentional stop.
+
+[Step1597](../done/step1597.md) Writable metadata/flock and source5 integration have focused host support. The full FAT32/Blazor read and external browser qualification remain required, followed by actual log/upload and SQLite synchronization/recovery. The service target is continuous operation until intentional stop/restart or documented fault/resource policy; finite fixture budgets are intermediate verification controls.
+
+[Step1594](../done/step1594.md) Step1594 preserves full r05 as failed after86 responses and timeout in dotnet.native.wasm body; CoreLib completes but browser never enters. Existing1700s matrix,240s header and5min browser bounds remain unchanged. No full disk Blazor, persistent MinimalApi logs/uploads or SQLite transaction gate advances. Root seeks a measured throughput repair; guarded writable host integration proceeds separately. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 scopes the next readonly native producer independently of guarded writable preparation. The first native BCL log/upload original failed after file I/O in incidental SHA reporting; MinimalApi logging/upload HTTP and persistence remain unqualified. Full r04 stays failed, and the loaded-directory repair still needs a fresh complete read/browser original.
+
+[Step1592](../done/step1592.md) Step1592 batches internal loaded-directory lookup at16 physical entries per selected turn, preserving case/alias ambiguity and full per-open chain validation. Host large-file ranges demonstrate no repeated metadata for retained handles; guest r04 timings remain failed-original diagnosis. No complete Blazor browser, dynamic log/upload HTTP, persistence or SQLite result follows until fresh original qualification.
+
+[Step1591](../done/step1591.md) Step1591 preserves full DiskA r04 atc3dbab92 as FAILED:83 responses/3,946,410 body bytes before1700-second matrix cancellation on HEAD dotnet.js. CoreLib GET succeeded2,009,369 bytes in347.6176668 seconds; no browser or complete cleanup follows. Source5 host implementation and native log/upload reference preparation do not qualify MinimalApi writes or full Blazor. The next measured read repair batches loaded directory parsing, retaining device boundaries and collision checks.
+
+[Step1590](../done/step1590.md) Fresh original ExitPending r03 atc3dbab92 passes its complete finite8-call exit/reset/cleanup wrapper. Full DiskA r04 is still in progress with the same cached-chain repair; earlier full r01-r03 remain failed. M10-027/#809 adds real FileStream log/upload measurement and later HTTP/persistence qualification, preserving separate NativeAOT, lock/flush and reboot evidence requirements. No complete Blazor or Gate14 acceptance is added.
+
+[Step1589](../done/step1589.md) preserves full DiskA r03 at91cd04cd as failed:64 responses/1,176,061 bytes, then CoreLib headers time out at240.005 seconds. Three repeated metadata calls consume214.996 seconds before open remains pending. The repair batches at most64 cached chain visits without changing request budgets or I/O turns. ExitPending r02 atfeb757b5 has guest success but failed original wrapper; the new cleanup clock requires another original. Three full source-matched A/B/browser captures remain pending.
+
+[Step1588](../done/step1588.md) assembles isolated host-only writable block/FAT/provider prerequisites.192 distinct controls pass, while genuine global-fd/source5/native log/upload/SQLite integration remains unfinished. This changes no full Blazor, Kestrel/Gate14 or persistence acceptance.
+
+[Step1587](../done/step1587.md) records a failed original mechanical ExitPending capture and its unqualified exit-before-poll repair. Separate full DiskA r03 at91cd04cd remains pending; full r01/r02 remain failed and no external Blazor demonstration is accepted. Writable descriptor preparation does not establish persistence, SQLite transactions or general Kestrel acceptance.
+
+[Step1586](../done/step1586.md) preserves full DiskA r02:35 responses through GET Microsoft.Extensions.Options.wasm26905B, then next HEAD fails. Packets show one connection, next request ACKed with a nonzero window and no FIN/RST; the live16MiB runner cap is a confirmed source defect and strongest explanation, not an observed original runner reason. Full-only128MiB and failure/runner receipts are repaired. Actual browser, remaining HTTP matrix and graceful cleanup still await original qualification.
+
+[Step1585](../done/step1585.md) records first full DiskA r01 at5dd6e6c0. The server listens at21484978800ns and captures31 HTTP responses through GET Microsoft.Extensions.Logging.Abstractions.wasm (28441 bytes), then the guest returns failure at about600s. The next HEAD/remaining asset matrix and external Blazor browser do not complete. HTTP receipt Complete=false; process exit99/requested=0 is not graceful shutdown or qualified service.
+
+[Step1581](../done/step1581.md) connects explicit `DiskStaticFullV1` through the
+original finite owner. The external peer sends health/config/status/items,
+then the independent asset GET/HEAD/range/conditional/confinement matrix, then
+simultaneous largest-asset and status requests, then a fresh Chromium session.
+The current publication produces114 asset requests and120 peer responses before
+the browser. Expected bytes come from independent FAT32 extraction.
+
+Full capture uses bounded multi-read/body-prefix joins and exact HTTP/TCP
+reconstruction. Original browser process, CDP traffic/bodies, rendered API and
+nonce values, screenshot and all artifact identities remain held through final
+source/native callbacks. Browser HTTP exchanges must match the reconstructed
+wire multiset; CDP IDs do not invent NAT/connection identities. Cache and service
+workers are disabled, and every admitted request uses the guest origin. No full
+guest/browser execution is qualified yet. The five-response development owner
+and existing accepted service profiles retain their separate limits and scope.
+
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
+[Step1579](../done/step1579.md) adds a114-exchange asset plan for the current
+45 published files plus five fixtures. Bounds are128 published files,2MiB/file,
+8MiB published and16MiB expected entities, at most320 requests. Read-completion
+counts are lower bounds from the retained8KiB prefix, not actual chunking proof.
+The five-response peer/consumer stays separate. Full capture/body/stream bounds,
+actual contiguous multi-read/body joins and browser integration remain unfinished.
+Fresh018r04 still fails its original receipt comparison after real responses;
+the comparison is repaired but fresh complete qualification remains required.
+
+[Step1578](../done/step1578.md) adds a separate original five-response disk
+consumer candidate: health, status/items JSON, the independently extracted host
+page and nonce. HTTP receipts/headers/entities must match one complete TCP flow;
+actual per-description queued sends follow the uniquely joined cold file reads.
+The original source/native/image/process owner remains mandatory. This small
+development contract does not qualify the complete framework/browser matrix,
+conditional/range/concurrent disk requests or the read milestone. Fresh original
+guests and all remaining batch gates precede closure.
+
+[Step1577](../done/step1577.md) adds complete value replay for the diagnostic
+disk/static leaf, including actual source4 FIFO wakes, retained file identity,
+original output ceilings and deferred completions. All original018r03 calls,
+reaps, file observations and copied sectors match. This does not rescue that
+failed original: a complete original parent/native/process/HTTP/packet owner,
+full45-asset framework/browser witness and remaining batch gates are pending.
+
+[Step1576](../done/step1576.md) retains original018r03 with five external200
+responses, including disk index/nonce, followed by owned SIGTERM/exit0 and
+cleanup. The outer command deliberately fails without the complete consumer.
+This diagnostic does not qualify full static middleware/Blazor or Gate14.
+
+## Static-file candidate development (2026-10-23)
+
+[Step1558](../done/step1558.md) starts the approved #780/#781/#782 and #768-#774
+batch. The separate `MinimalApiStaticFiles` v1 application uses upstream default-file/static middleware,
+physical `/app/wwwroot` and generated JSON DTOs. It admits HTML/CSS/JavaScript,
+JSON/text, WASM and bounded binary assets explicitly; directory listing, unknown
+extensions, native executables/config files and compressed sidecars are not
+served. The qualification profile sends `Cache-Control: no-store`; upstream
+range, ETag and Last-Modified behavior remains independently checked.
+
+The real Standalone Blazor client publishes with the pinned .NET11 SDK. This
+is development evidence, not CLROS static-file acceptance. #768 now retains the
+final separate-app Linux NativeAOT per-thread traces and HTTP matrix; #772 owns staged file
+APIs, and #773/#774 add live disk descriptors and an external browser witness.
+#775 remains the later sustained service and clean-shutdown milestone.
+
+Isolated read-service integration now includes confined FAT handles, disk
+descriptors, source4 thread waits and a separate retained block adapter. The
+mechanical M16-025 profile now reaches its exact59-call sequence and exit42 in
+original r08, whose outer command remains failed. Step1570 connects a complete
+original-consumer candidate with 30 focused checks passing unchanged; fresh
+capture remains required.
+Step1580 subsequently passes the original five-response M10-018 owner.
+Step1581 connects the explicit full candidate; its original full disk/HTTP and
+external Blazor execution with network/screenshot evidence remain required.
+[Step1571](../done/step1571.md) subsequently records three fresh complete
+mechanical consumer passes at `c66befd5` across both disk variants. Those59-call
+probes precede upstream HTTP and browser integration; #774 remains open.
+
 PR790 merged at `82656076` on October 23, 2026. Live tracker readback confirms
 #748, #225 and the finite #737 integration closed, following the step1481
 predecessors. Next are #226 evidence packaging and #227 complete local Gate14;
 neither issue is closed by the finite results below. [Current gate status](completion-gates.md#current-acceptance-october-23-2026)
 is the summary; the recipes and retained receipts here keep their exact scope.
+
+The frozen a34f0ce3 research run passes60 Linux HTTP observations over45 raw
+Blazor assets (5,922,507 bytes), including overlap, ranges and graceful shutdown.
+It retains its original app/source scope. The separate candidate's fresh
+publication at frozen1f8ee218 passes61 observations over the same45 asset bytes.
+The 8,641,616-byte ELF is
+`9AA36AF947CD3E319D42B39A3367B9ADD276D30040EDF0A81F71D44D45BAA848`.
+Independent LLVM22.1.3 section coverage confirms4,445,627 executable bytes,
+1,389,175 instructions and198 syscall continuations; no load padding gains
+instruction authority. [Step1559](../done/step1559.md) retains the earlier split.
+
+### Measured file ABI research boundary
+
+The final separate-app reference uses the pinned .NET11 RC2 musl server and real
+published client bytes. Its file observations below guide implementation;
+they do not qualify the CLROS syscall closure. Traces are retained under
+`artifacts/nativeaot-fat32-web-r01/reference-r03/artifacts/static-reference-r03`.
+The archive SHA256 is
+`927014F2432CEA56474EF99CB5755A8A2BF5EE77410669AAD7F01C93E5DB21C4`.
+Original sources, native compiler/runtime/package referents and the original
+tooling remain retained on the owned Linux builder for replay validation. The
+earlier a34 archive and failed attempts remain unchanged.
+
+| Linux x64 operation | Observed webroot contract | Existing adapter / next requirement |
+| --- | --- | --- |
+| `stat(4)`, `lstat(6)`, `fstat(5)` | Directory/file kind, length and modification time; path metadata precedes conditional/range decisions | Readonly disk metadata and confined generation-bound handles are implemented; full guest matrix qualification remains pending |
+| `open(2)`, `fcntl(72)`, `close(3)` | `O_RDONLY|O_NOCTTY|O_LARGEFILE|O_CLOEXEC`, then `F_SETFD(FD_CLOEXEC)` | Readonly disk ownership and last-close cleanup are implemented; race/error guest qualification remains pending |
+| `pread64(17)` |631 retained webroot calls; explicit offsets and16KiB requests, including510..1031 range | Readonly disk waits use owned continuations and revalidate before copy-out; full matrix and cancellation guests remain pending |
+| `flock(73)` | Shared/nonblocking advisory acquisition and unlock,100 calls | The readonly webroot route remains unsupported and upstream treats this as best effort except contention. Separate finite writable advisory-lock implementation does not qualify this web matrix, SQLite locking or guest service. |
+| `fadvise64(221)` |50 sequential hints with offset0/length0 | Unsupported today; pinned upstream explicitly permits an unsupported hint. Verify the selected errno/fallback in the guest profile |
+| `geteuid(107)` | Zero calls with uniform0444 files/0555 directories | The earlier0644 research run made106 calls. The final immutable mount contract avoids that path; this does not add a user subsystem |
+| `getdents64(217)`, `statfs(137)` | NUMA/cgroup startup observations outside the webroot; no webroot directory enumeration | Keep existing startup rejection/fallback scope separate from file service |
+| `sendfile(40)`, file-backed `mmap(9)`, watchers | No webroot use observed in this finite matrix | No success shim or general support is introduced; absence is not an exhaustive closure proof |
+
+Pinned source review follows
+[StaticFileContext](https://raw.githubusercontent.com/dotnet/aspnetcore/v11.0.0-rc.2.26504.105/src/Middleware/StaticFiles/src/StaticFileContext.cs),
+[PhysicalFileInfo](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/Microsoft.Extensions.FileProviders.Physical/src/PhysicalFileInfo.cs),
+[SafeFileHandle.Unix](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/System.Private.CoreLib/src/Microsoft/Win32/SafeHandles/SafeFileHandle.Unix.cs)
+and [System.Native PAL I/O](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/native/libs/System.Native/pal_io.c).
+The middleware derives validators from file metadata and uses the response's
+asynchronous file path. FileStream's Unix sharing lock and sequential advice
+have distinct fallback policies. Neither is evidence of durable write/locking
+semantics. The actual final native package inventory, traces and controlled
+guest behavior take precedence over a source-only inference.
+
+For #768, the required measured operations are readonly open/close, descriptor
+flags, metadata and positioned reads. The proposed readonly metadata contract
+uses the existing144-byte Linux x64 `stat` wire: inode at8, link count1 at16,
+mode at24 (`0100444` regular files, `040555` directories), size at48, block
+size4096 at56, known512-byte allocation blocks at64 and FAT modification seconds
+at88. Unavailable fields remain zero. `stat`, `lstat` and `fstat` agree for the
+same retained file. This is the contract implemented by
+`LinuxDescriptorServices.Disk.cs:DiskStatOutput` and covered by
+`LinuxDiskDescriptorServicesTests.Metadata`; it is not a completed guest matrix.
+The mount is confined to `/app/wwwroot`, paths are bounded by256 bytes and read
+requests by65536 bytes; successful short reads and zero-byte EOF remain distinct
+from errors. Generation checks must precede every eventual copy-out.
+
+The proposed error contract preserves existing readonly adapter distinctions:
+missing entries return `ENOENT`; non-directory traversal returns `ENOTDIR`;
+invalid/outside-root/unsupported-encoding paths return `EACCES`; write/create/
+truncate/append opens return `EROFS`; unsupported open flags or invalid offsets
+return `EINVAL`; invalid descriptors return `EBADF`; invalid output memory
+returns `EFAULT`. Descriptor and file-table exhaustion remain `EMFILE` and
+`ENFILE`, respectively; generation exhaustion returns `EOVERFLOW`. Corruption,
+device failure and unusable retained storage fail with `EIO`, never EOF.
+Cancellation returns `EINTR` and revokes later copying while owned I/O drains.
+These are source/host contracts; original guest race/error witnesses remain
+required by #770/#773/#774.
+
+Optional advice and sharing locks have separate proposed policies. The pinned
+[SafeFileHandle implementation](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/System.Private.CoreLib/src/Microsoft/Win32/SafeHandles/SafeFileHandle.Unix.cs)
+throws for advisory-lock contention (`EWOULDBLOCK`) while tolerating other lock
+errors. A readonly unsupported-lock response may therefore use `ENOTSUP`,
+subject to guest verification. Its sequential-advice caller uses
+[CheckFileCall](https://raw.githubusercontent.com/dotnet/runtime/v11.0.0-rc.2.26504.105/src/libraries/System.Private.CoreLib/src/System/IO/Strategies/FileStreamHelpers.Unix.cs)
+with the explicit `ENOTSUP` exception. This supports a proposed unsupported-hint
+policy, not admission of the current unknown-syscall `ENOSYS` response: native
+`posix_fadvise` uses its own error-return convention, so the final libc/PAL path
+and guest must establish the actual result. Unmeasured fallback errors remain
+unadmitted. Enumeration outside the startup contract, file-backed mappings,
+sendfile, watchers and write/locking/durability operations remain unsupported by
+this reference milestone; no unconditional-success substitutes are authorized.
+
+The retained r03 qualifier invokes the same independent `Validate` routine
+before its successful outer exit. A separate retained validation replay emits
+its validation PASS and then fails the unrelated archive-export wrapper with
+exit2; no standalone dotnet exit was captured. Preserve that failed wrapper.
+The original source/compiler/native paths remain provenance requirements, so
+validation on another checkout must not remap paths or substitute rebuilt
+inputs. Step1624 records the original review, commands and normal-harness tests.
+
+The new finite guest profile uses an explicit owner-only SIGTERM request to
+the retained initial generation after actual listener readiness and a bounded
+monotonic delay. The request is a kernel-origin signal, distinct from the Linux
+publisher's external `SI_USER` kill. It must preserve real wait completions,
+signal masks, handler/return and application shutdown continuations. Only actual
+APP_END/exit_group0 followed by off-stack reaps and native cleanup can pass;
+the timer does not establish completion of any HTTP/browser test. #775 retains
+its subsequent sustained-service scope.
 
 ## Current finite boundary
 

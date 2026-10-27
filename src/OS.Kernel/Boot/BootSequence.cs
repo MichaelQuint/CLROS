@@ -231,6 +231,39 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM10004Probe && firmwareAvailable &&
         context != null && prepare != null && prepare(context);
 
+    /// <summary>Enter only the separately admitted finite static-file profile
+    /// through its existing socket/thread/firmware ordering. The caller retains
+    /// every owner until real app exit, off-stack reap and explicit cleanup;
+    /// this gate establishes no HTTP, disk or lifecycle evidence.</summary>
+    public static unsafe bool RunOwnedStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, bool networkReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM10017Probe && OS.Kernel.Diagnostics.Probes.EnableM10004Probe &&
+        RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
+
+    /// <summary>Reserve combined read-only disk backing before firmware exit.
+    /// The callback retains all successful allocations, including rejected ones;
+    /// this gate establishes neither device readiness nor guest I/O.</summary>
+    public static unsafe bool PrepareOwnedReadOnlyDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16023Probe && OS.Kernel.Diagnostics.Probes.EnableM16024Probe &&
+        OS.Kernel.Diagnostics.Probes.EnableM16025Probe && !OS.Kernel.Diagnostics.Probes.EnableM16027Probe &&
+        firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Reserve the distinct writable owner before firmware exit. The
+    /// selected read-only compile parents supply shared mapping/descriptor
+    /// contracts; they do not start a second block owner. The callback retains
+    /// successful allocations even on rejection. No I/O or fit is implied.</summary>
+    public static unsafe bool PrepareOwnedWritableDisk(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16027Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe &&
+        firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Enter the disk application through the original socket and
+    /// firmware order. Prepared backing must belong to this boot; the callback
+    /// must complete its cooperative mount before starting any user worker.</summary>
+    public static unsafe bool RunOwnedDiskStaticFileApplication(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, bool networkReady, bool diskPrepared, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM10018Probe && OS.Kernel.Diagnostics.Probes.EnableM16025Probe && diskPrepared &&
+        RunOwnedLinuxSockets(startupReady, serviceStopped, firmwareRevoked, apicReady, networkReady, context, run);
+
     /// <summary>Run startup only after package verification and firmware revocation.</summary>
     public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
         void* context, delegate*<void*, bool> run) =>

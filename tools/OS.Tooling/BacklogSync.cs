@@ -86,7 +86,11 @@ public static class BacklogSync
             requested++;
             int number = Number(live, "number"); if (number <= 0) continue;
             string marker = BacklogContracts.EvidenceMarker(key);
-            var comments = await CollectionAsync(api, RepoPath + "/issues/" + number + "/comments", cancellation);
+            // This server returns the complete comment collection without pagination.
+            var comments = (await api("GET", RepoPath + "/issues/" + number + "/comments", null, cancellation))?.AsArray()
+                ?? throw new InvalidDataException("Missing issue comments");
+            if (live.ContainsKey("comments") && Number(live, "comments") != comments.Count)
+                throw new InvalidDataException("Issue comment inventory changed for '" + key + "'.");
             if (comments.Any(x => Text(x, "body").Contains(marker, StringComparison.Ordinal))) state.ReviewedClosures.Add(key);
         }
         output.WriteLine($"SYNC_REMOTE_READ labels={state.Labels.Count} milestones={state.Milestones.Count} keyedIssues={state.Issues.Count}");
@@ -145,6 +149,12 @@ public static class BacklogSync
             if (!remote.Issues.TryGetValue(key, out var live)) { if (apply) actions.Add("skipped", "issue:" + key); continue; }
             await Item("issue:" + key, async () =>
             {
+                int number = Number(live, "number");
+                if (apply)
+                {
+                    live = await ReadIssueAsync(api, number, key, cancellation);
+                    remote.Issues[key] = live;
+                }
                 if (Text(issue, "desiredState") == "closed") BacklogPolicy.AssertClosureAllowed(issue, manifest.IssueByKey, remote, !apply);
                 string body = BacklogPolicy.MergeBody(Text(live, "body"), key, BacklogPolicy.RenderBody(issue, manifest.IssueByKey, remote.Issues));
                 string[] labels = BacklogPolicy.DesiredLabels(issue, manifest.IssueByKey, remote, managed);
@@ -155,18 +165,51 @@ public static class BacklogSync
                 if (!labelsDiffer && !fieldsDiffer) { actions.Add("unchanged", "issue:" + key); return; }
                 if (!apply) { actions.Add("wouldUpdate", "issue:" + key); return; }
                 if (milestone <= 0) throw new InvalidDataException("Required milestone is unavailable");
-                int number = Number(live, "number");
                 if (fieldsDiffer)
                 {
-                    var payload = new JsonObject { ["title"] = Text(issue, "title"), ["body"] = body, ["milestone"] = milestone };
+                    var payload = new JsonObject { ["title"] = Text(issue, "title"), ["body"] = body, ["milestone"] = milestone,
+                        ["content_version"] = ContentVersion(live) };
                     if (state is not null) payload["state"] = state;
-                    live = (await api("PATCH", RepoPath + "/issues/" + number, payload, cancellation))!.AsObject();
+                    await api("PATCH", RepoPath + "/issues/" + number, payload, cancellation);
+                    live = await ReadIssueAsync(api, number, key, cancellation);
+                    if (Text(live, "title") != Text(issue, "title") || Text(live, "body") != body ||
+                        Number(live["milestone"], "id") != milestone || state is not null && Text(live, "state") != state)
+                        throw new InvalidDataException("Issue content readback differs for '" + key + "'; concurrent edits are not retried.");
+                    remote.Issues[key] = live;
                 }
                 if (labelsDiffer)
                 {
-                    var replaced = await ReplaceLabelsAsync(api, number, LabelIds(labels), cancellation);
-                    if (replaced.Count != labels.Length) throw new InvalidDataException("Gitea returned an unexpected label count after replacing labels for '" + key + "'.");
-                    live = (await api("GET", RepoPath + "/issues/" + number, null, cancellation))!.AsObject();
+                    // Label replacement has no version precondition on this server. Add only
+                    // missing labels and remove individual obsolete managed labels instead.
+                    for (int step = 0; ; step++)
+                    {
+                        live = await ReadIssueAsync(api, number, key, cancellation);
+                        remote.Issues[key] = live;
+                        labels = BacklogPolicy.DesiredLabels(issue, manifest.IssueByKey, remote, managed);
+                        string[] present = BacklogPolicy.RemoteLabels(live);
+                        string[] missing = labels.Except(present, StringComparer.Ordinal).ToArray();
+                        var obsolete = live["labels"]!.AsArray().FirstOrDefault(label =>
+                            managed.Contains(Text(label, "name")) && !labels.Contains(Text(label, "name"), StringComparer.Ordinal));
+                        if (missing.Length == 0 && obsolete is null) break;
+                        if (step > managed.Count) throw new InvalidDataException("Concurrent label changes prevented convergence for '" + key + "'.");
+                        if (missing.Length != 0)
+                            await api("POST", RepoPath + "/issues/" + number + "/labels", new JsonObject { ["labels"] = LabelIds(missing) }, cancellation);
+                        else
+                        {
+                            // The label endpoint has no version precondition. An open
+                            // owner's two-step handoff can change after this GET;
+                            // deleting either sticky label could erase its sole owner.
+                            if (Text(live, "state") == "open" && Text(obsolete, "name") is "agent:claimed" or "agent:review")
+                                throw new InvalidDataException("Open issue ownership labels conflict for '" + key + "'; preserve ownership and resolve the handoff explicitly.");
+                            await api("DELETE", RepoPath + "/issues/" + number + "/labels/" + Number(obsolete, "id"), null, cancellation);
+                        }
+                        var readback = await ReadIssueAsync(api, number, key, cancellation);
+                        string[] after = BacklogPolicy.RemoteLabels(readback);
+                        if (present.Where(name => !managed.Contains(name)).Any(name => !after.Contains(name, StringComparer.Ordinal)) ||
+                            missing.Any(name => !after.Contains(name, StringComparer.Ordinal)) ||
+                            missing.Length == 0 && after.Contains(Text(obsolete, "name"), StringComparer.Ordinal))
+                            throw new InvalidDataException("Issue label readback differs for '" + key + "'.");
+                    }
                 }
                 remote.Issues[key] = live; actions.Add("updated", "issue:" + key);
             });
@@ -201,6 +244,25 @@ public static class BacklogSync
     public static async Task<JsonArray> ReplaceLabelsAsync(BacklogApi api, int number, JsonArray ids, CancellationToken cancellation = default) =>
         (await api("PUT", RepoPath + "/issues/" + number + "/labels", new JsonObject { ["labels"] = ids.DeepClone() }, cancellation))?.AsArray()
         ?? throw new InvalidDataException("Missing label replacement response");
+
+    private static async Task<JsonObject> ReadIssueAsync(BacklogApi api, int number, string key, CancellationToken cancellation)
+    {
+        var issue = (await api("GET", RepoPath + "/issues/" + number, null, cancellation))?.AsObject()
+            ?? throw new InvalidDataException("Missing issue readback");
+        if (Number(issue, "number") != number || BacklogPolicy.HiddenKey(Text(issue, "body")) != key)
+            throw new InvalidDataException("Issue identity changed for '" + key + "'.");
+        return issue;
+    }
+
+    private static long ContentVersion(JsonObject issue)
+    {
+        if (issue["content_version"] is JsonValue value)
+        {
+            if (value.TryGetValue<long>(out long version) && version >= 0) return version;
+            if (value.TryGetValue<int>(out int small) && small >= 0) return small;
+        }
+        throw new InvalidDataException("A nonnegative current content_version is required before editing issue content.");
+    }
 
     public static IReadOnlyList<string> VerifyConvergence(BacklogManifest manifest, BacklogRemoteState remote)
     {
@@ -296,7 +358,7 @@ public static class BacklogSync
     private static string Scalar(string value) => value.Length >= 2 && (value[0] == '"' && value[^1] == '"' || value[0] == '\'' && value[^1] == '\'') ? value[1..^1] : value;
     private static async Task<JsonNode?> SendAsync(HttpClient client, string method, string path, JsonObject? body, CancellationToken cancellation)
     {
-        if (method is not ("GET" or "POST" or "PUT" or "PATCH") || !(path.StartsWith(RepoPath + "/", StringComparison.Ordinal) || method == "GET" && path == RepoPath) || path.Contains("..", StringComparison.Ordinal)) throw new InvalidOperationException("Invalid Gitea request scope");
+        if (method is not ("GET" or "POST" or "PUT" or "PATCH" or "DELETE") || !(path.StartsWith(RepoPath + "/", StringComparison.Ordinal) || method == "GET" && path == RepoPath) || path.Contains("..", StringComparison.Ordinal)) throw new InvalidOperationException("Invalid Gitea request scope");
         using HttpRequestMessage request = new(new HttpMethod(method), new Uri(BacklogContracts.BaseUrl + "/api/v1" + path));
         if (body is not null) request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);

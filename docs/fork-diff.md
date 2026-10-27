@@ -59,20 +59,25 @@ artifact hashes, machine-readable logs, and the applicable live guest evidence.
 
 ## Baseline Comparison
 
+The CLROS column records current named finite scopes in the completion gates;
+the reference column remains the pinned source comparison. Neither column
+qualifies arbitrary workloads or provider operation. Current writable evidence
+and remaining application/persistence limits are recorded in Step1624.
+
 | Area | CLROS | `references/SharpOS-main` | Decision |
 | --- | --- | --- | --- |
-| Product goal | Minimal, single-workload, cloud-first appliance for .NET 10 applications; no users, SSH, or remote administration by default. | General experimental C# OS with kernel-AOT, PE-app, and CoreCLR-hosted tiers plus interactive launcher/demo work. | Preserve the CLROS appliance and security model. |
+| Product goal | Minimal, single-workload, cloud-first appliance for .NET 11 applications; no users, SSH, or remote administration by default. | General experimental C# OS with kernel-AOT, PE-app, and CoreCLR-hosted tiers plus interactive launcher/demo work. | Preserve the CLROS appliance and security model. |
 | Build identity | `CLROS.slnx`; `OS.*` technical names retained. | `OS/OS.csproj` and SharpOS product naming. | Do not rename CLROS or wholesale import the SharpOS tree. |
-| Target framework | .NET 10 and C# 14 for normal managed projects. | Kernel and freestanding app properties target `net8.0` with C# 14. | Treat all runtime layouts/helpers as version-sensitive. |
-| Firmware path | EFI marker path, copied/normalized memory-map contracts, ACPI provenance, and host-tested readiness; no real first-party EBS transition. | Gated EBS experiment and a broader post-EBS substrate are reported. | Adapt ordering and failure tests only after CLROS owns stack, serial, reservations, paging, and firmware data. |
-| Boot stack/memory | Boot-region and free-list readiness exists; no live mutable allocator/paging transition. | Contains owned stack switch, physical allocator, pager, heap, and GC work. | Reimplement in bounded slices using explicit physical/virtual/device address types and W^X. |
-| Diagnostics | Host-tested plans/formatters for COM1, stubs, descriptor tables, faults, and panic; no live invocation or table loads. | Reports own UART, generated x64 stubs, IDT/fault paths, and post-EBS logs. | Reuse the phase order and test ideas, not firmware gates or permanent executable-writable allocation. |
-| NativeAOT runtime | Useful no-runtime helpers and helper-gap/readiness contracts; GC, dispatch, EH, cctors, thread statics, and full metadata handling remain incomplete. | Reports a non-moving GC, exceptions, interface/delegate dispatch, cctors, std, and PE app support. | Validate each .NET 10 helper independently before replacing any fail-fast stub. |
-| Platform/storage | ACPI/PCI/virtio/GPT/FAT/package code is predominantly host-tested parser/planner evidence. | Reports ACPI/HPET/PCI/AHCI/read-only FAT and app loading. | Prefer CLROS's virtio-blk cloud path; reuse FAT/PE edge cases and state-machine ideas. |
-| Networking | Frame, checksum, ARP/IP/UDP/DHCP/DNS/TCP/HTTP contracts and planners; no live NIC RX/TX. | Snapshot documentation says its network work is not complete. | Do not infer networking from SharpOS's hosted/app claims; implement live virtio-net first. |
-| Native applications | Manifest/package/mapping/invocation/lifecycle readiness only; no live entry invocation. | Reports NativeAOT PE apps, a launcher, and playable isolated GPL DOOM. | Define a versioned POD app ABI with opaque handles; never copy raw framebuffer/MMIO pointer handoff. |
-| Hosted .NET | `OSHost_*` contracts and host mocks only; no exported live PAL or hosted runtime. | README reports hosted PowerShell through an external modified CoreCLR; local build inputs for that fork are absent. | Use a separately versioned .NET 10 CoreCLR fork and keep its C/C++ outside first-party CLROS source. |
-| Kestrel/cloud | Mandatory future Minimal API milestone; no Kestrel, AWS, or Azure evidence. | No Kestrel or provider driver/proof path in the supplied snapshot. | QEMU/libvirt proof precedes independent AWS Nitro and Azure VM evidence. |
+| Target framework | .NET 11 and C# 14 for normal managed projects. | Kernel and freestanding app properties target `net8.0` with C# 14. | Treat all runtime layouts/helpers as version-sensitive. |
+| Firmware path | Ordinary VerifiedExit and named default-off profiles have bounded real firmware-exit and owned post-exit evidence. General workload/service gates remain separate. | Gated EBS experiment and a broader post-EBS substrate are reported. | Adapt ordering and failure tests only after CLROS owns stack, serial, reservations, paging, and firmware data. |
+| Boot stack/memory | Owned stack, page allocation and paging transitions have finite qualified profiles; general allocator/runtime guarantees need their own evidence. | Contains owned stack switch, physical allocator, pager, heap, and GC work. | Reimplement in bounded slices using explicit physical/virtual/device address types and W^X. |
+| Diagnostics | Owned COM1, selected descriptor/interrupt/fault paths and post-exit checks have finite guest evidence. Planner success alone supplies no live invocation proof. | Reports own UART, generated x64 stubs, IDT/fault paths, and post-EBS logs. | Reuse the phase order and test ideas, not firmware gates or permanent executable-writable allocation. |
+| NativeAOT runtime | Freestanding no-runtime helpers remain restricted. The pinned Linux NativeAOT route has finite Hello/runtime/GC/service profiles; arbitrary workloads remain unqualified. | Reports a non-moving GC, exceptions, interface/delegate dispatch, cctors, std, and PE app support. | Validate each pinned .NET 11 helper independently before replacing any fail-fast stub. |
+| Platform/storage | Bounded live ACPI/PCI/virtio/GPT/FAT/package profiles have exact original evidence. Continuing filesystem work has finite development witnesses; general storage and durability remain open. | Reports ACPI/HPET/PCI/AHCI/read-only FAT and app loading. | Prefer CLROS's virtio-blk cloud path; reuse FAT/PE edge cases and state-machine ideas. |
+| Networking | Named live virtio/TCP/socket and finite Kestrel profiles are qualified. General device, sustained service and provider networking require separate evidence. | Snapshot documentation says its network work is not complete. | Do not infer networking from SharpOS's hosted/app claims; implement live virtio-net first. |
+| Native applications | Pinned Linux NativeAOT Hello/runtime/socket and finite Kestrel fixtures execute in CLROS. Arbitrary PE applications and a general launcher remain unqualified. | Reports NativeAOT PE apps, a launcher, and playable isolated GPL DOOM. | Define a versioned POD app ABI with opaque handles; never copy raw framebuffer/MMIO pointer handoff. |
+| Hosted .NET | Future CoreCLR OSHost_* exports remain contracts/host mocks. The separately qualified finite Linux NativeAOT route does not implement that hosted PAL. | README reports hosted PowerShell through an external modified CoreCLR; local build inputs for that fork are absent. | Pin any future .NET 11 CoreCLR fork separately and keep its C/C++ outside first-party CLROS source. |
+| Kestrel/cloud | Named finite Kestrel scopes are accepted through Step1556. Complete local Gate14, AWS, Azure and production remain open. | No Kestrel or provider driver/proof path in the supplied snapshot. | QEMU/libvirt proof precedes independent AWS Nitro and Azure VM evidence. |
 | Evidence | CLROS gates require first-party artifacts, logs, hashes, and stable markers. | README, media, probe reports, and 143-step history belong to the reference. | Never change a CLROS gate from reference evidence. |
 
 ## High-Value Crosswalk
@@ -288,7 +293,7 @@ scope. This source review did not build, execute or import SharpOS code.
   absent.
 - The EBS experiment is a default-off, never-returning probe that halts rather
   than entering SharpOS's ordinary launcher.
-- The reference kernel/app tier is net8, while CLROS is a .NET 10 project.
+- The reference kernel/app tier is net8, while CLROS is a .NET 11 project.
 - No reference path proves live CLROS virtio, ENA, NVMe, VMBus, NetVSC,
   StorVSC, hosted .NET, Kestrel, AWS, Azure, or production behavior.
 
@@ -306,7 +311,7 @@ only to this complete pinned source tree.
 
 `Bootloader/Stage1.cs`, `Bootloader/Stage2.cs`, `IL2Asm/`, `CPUHelper/` and
 `RedPandaOS/Kernel/Init.cs` describe BIOS/x86 boot, a custom IL-to-NASM path,
-fixed addresses and a custom core library. CLROS uses UEFI/x64 and the .NET 10
+fixed addresses and a custom core library. CLROS uses UEFI/x64 and the .NET 11
 NativeAOT boundary. The useful comparison is explicit initialization order and
 failure dependencies, not the compiler, BIOS calls, ABI or memory layout.
 

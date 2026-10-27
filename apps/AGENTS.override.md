@@ -15,9 +15,11 @@ Apps under this tree are used to prove the single-workload CloudReady model:
 
 Projects target `net11.0`; their execution evidence differs. Hello, focused
 GC/ThreadPool, RuntimeSmoke/RuntimeMatrix, socket and finite Kestrel fixtures
-have CLROS guest qualification in steps1307 through1556. Other samples remain
-host-only. Check `docs/kestrel.md` and `docs/completion-gates.md` before claiming
-a profile; complete Gate14 and arbitrary hosted .NET support remain open.
+have finite CLROS guest qualification in steps1307 through1556. Other fixtures
+may have host, Linux-reference or development-guest evidence; they do not
+inherit those accepted scopes. Check `docs/kestrel.md` and
+`docs/completion-gates.md` before claiming a profile; complete Gate14 and
+arbitrary hosted .NET support remain open.
 
 ## Project Rules
 
@@ -44,6 +46,11 @@ Do not:
 - `NativeAotRuntimeSmoke` / `NativeAotRuntimeMatrix`: bounded upstream runtime behavior.
 - `NativeAotSocketSmoke` (sync/async modes) and `NativeAotSocketVectors`: measured socket/epoll fixtures.
 - `MinimalApiSmoke` / `MinimalApiService`: finite Kestrel health, service and churn profiles.
+- `MinimalApiStaticFiles`: separate physical-webroot/JSON candidate; original smoke
+  source/ELF/index admission stays unchanged. See step1559; guest acceptance pending.
+- `BlazorStaticFilesSmoke`: real Standalone browser WebAssembly client; generated
+  host HTML/CSS and raw SDK outputs belong under artifacts. Its host publish or
+  Linux asset fetch is separate from an external browser boot against CLROS.
 
 The following older examples retain their separate host/planning boundaries:
 

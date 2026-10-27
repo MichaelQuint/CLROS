@@ -49,6 +49,7 @@ internal static unsafe class LinuxThreadServicesTests
         internal uint Reads => User->Reads;
         internal uint Writes => User->Writes;
         internal uint FailedWrites => User->FailedWrites;
+        internal ulong UserContextBytes => (ulong)sizeof(UserMemory);
         internal void FailWrite(ulong address) => User->FailWriteAddress = address;
         internal void FailRead(ulong address) => User->FailReadAddress = address;
         internal byte* At(ulong address) => User->Bytes + address - UserBase;
@@ -74,7 +75,7 @@ internal static unsafe class LinuxThreadServicesTests
             {
                 Threads = Kernel.Table, ThreadKey = KernelThreadTableTests.Key, Slots = Slots, Workers = Workers,
                 Capacity = capacity, SlotBytes = (uint)sizeof(Services.Slot) * capacity, WorkerBytes = (uint)sizeof(Services.Worker) * capacity,
-                ProcessId = 101, ObservedMxcsrMask = 0xffbf, User = Access, CopyToUser = &CopyToUser,
+                ProcessId = 101, ObservedMxcsrMask = 0xffbf, User = Access, CopyToUser = &CopyToUser, UserContextBytes = (ulong)sizeof(UserMemory),
                 FirmwareExited = true, SingleOwnerValidated = true
             }));
             LinuxSyscallFrame frame = new() { Rip = UserBase + 0x100, Rsp = UserBase + 0x3000, Rflags = userInterrupts ? 0x202UL : 2,
@@ -165,6 +166,23 @@ internal static unsafe class LinuxThreadServicesTests
         public void Dispose() => Kernel.Dispose();
     }
 
+    [HostTest("linux.thread copied dynamic output preflights real missing pages then writes exact bytes after mapping")]
+    private static void DynamicOutputCapability()
+    {
+        using Model m = new(); using LinuxMemoryServicesTests.Owner memory = new(); memory.Begin();
+        const ulong page = LinuxMemoryServices.DynamicStart + 0x20000, address = page + 4096 - 64;
+        HostCheck.Equal((long)page, LinuxMemoryServices.Map(memory.State, page, 4096, 3, 0x100022, ulong.MaxValue, 0));
+        m.UseMemory(memory.Memory); new Span<byte>(memory.At(address), 64).Fill(0x91);
+        byte* source = stackalloc byte[144]; for (int i = 0; i < 144; i++) source[i] = (byte)(i * 37);
+        uint writes = m.Writes;
+        HostCheck.Equal((byte)0, m.UserCopyOut(m.Access.Context, address, source, 144));
+        HostCheck.True(m.Writes == writes && new ReadOnlySpan<byte>(memory.At(address), 64).IndexOfAnyExcept((byte)0x91) < 0);
+        HostCheck.Equal((long)(page + 4096), LinuxMemoryServices.Map(memory.State, page + 4096, 4096, 3, 0x100022, ulong.MaxValue, 0));
+        HostCheck.Equal((byte)1, m.UserCopyOut(m.Access.Context, address, source, 144));
+        for (uint i = 0; i < 144; i++) HostCheck.Equal(source[i], *memory.At(address + i));
+        HostCheck.Equal(writes + 1, m.Writes);
+    }
+
     private static bool UserRange(ulong address, uint bytes, bool write) => bytes != 0 &&
         address >= UserBase + (write ? 4096UL : 0) && bytes <= UserBytes && address - UserBase <= UserBytes - bytes;
 
@@ -199,11 +217,41 @@ internal static unsafe class LinuxThreadServicesTests
     [UnmanagedCallersOnly]
     private static byte CopyToUser(void* context, ulong address, byte* input, uint bytes)
     {
-        if (context == null || input == null || !UserRange(address, bytes, true)) return 0;
-        UserMemory* user = (UserMemory*)context; user->Writes++; user->LastWrite = address;
+        if (context == null || input == null || bytes == 0) return 0;
+        UserMemory* user = (UserMemory*)context;
+        bool direct = UserRange(address, bytes, true);
+        if (!direct)
+        {
+            if (address < 4096 || address >= LinuxSyscallGateway.UserEnd || bytes > LinuxSyscallGateway.UserEnd - address) return 0;
+            // Real test page tables/pool, not a permission flag which would
+            // make the newly-mapped-tail negative unconditionally fail later.
+            for (uint done = 0; done < bytes;)
+            {
+                uint chunk = Math.Min(bytes - done, 4096U - (uint)((address + done) & 4095));
+                if (!DynamicOutput(user, address + done, chunk, out _)) return 0;
+                done += chunk;
+            }
+        }
+        user->Writes++; user->LastWrite = address;
         if (address == user->FailWriteAddress) { user->FailedWrites++; return 0; }
-        for (uint i = 0; i < bytes; i++) user->Bytes[address - UserBase + i] = input[i];
+        if (direct) for (uint i = 0; i < bytes; i++) user->Bytes[address - UserBase + i] = input[i];
+        else for (uint done = 0; done < bytes;)
+        {
+            uint chunk = Math.Min(bytes - done, 4096U - (uint)((address + done) & 4095));
+            if (!DynamicOutput(user, address + done, chunk, out byte* target)) return 0;
+            new ReadOnlySpan<byte>(input + done, (int)chunk).CopyTo(new Span<byte>(target, (int)chunk)); done += chunk;
+        }
         return 1;
+    }
+
+    private static bool DynamicOutput(UserMemory* user, ulong address, uint bytes, out byte* target)
+    {
+        target = null; var memory = user->Memory;
+        if (memory.Tables == null || memory.Pool == null || !OS.Kernel.Memory.X64UserAddressSpace.TryReadLeaf(memory.Tables, memory.RootPhysical,
+            memory.TablePages, address, out ulong leaf) || (leaf & 7) != 7) return false;
+        ulong physical = (leaf & 0x000ffffffffff000) + (address & 4095), poolBytes = memory.PoolPages * 4096UL;
+        if (physical < memory.PoolPhysical || bytes > poolBytes || physical - memory.PoolPhysical > poolBytes - bytes) return false;
+        target = memory.Pool + physical - memory.PoolPhysical; return true;
     }
 
     [UnmanagedCallersOnly]

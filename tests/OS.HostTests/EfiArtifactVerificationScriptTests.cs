@@ -29,7 +29,7 @@ internal static class EfiArtifactVerificationScriptTests
     private const uint SerializerRva = TextRva + 0x100;
     private const uint SerializerEndRva = SerializerRva + 20;
     private const uint SerializerExpectedSuccessCookie = 0x53524c43;
-    private const int MaximumRuntimeFunctionRecords = 2048;
+    private const int MaximumRuntimeFunctionRecords = EfiContracts.MaximumRuntimeFunctionRecords;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
     private const string SerializerSymbol =
@@ -263,7 +263,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "EFI_ARTIFACT_RUNTIME_SCAN records=1 distinctUnwind=1 elapsedMs=",
                 StringComparison.Ordinal)
             && result.Output.Contains(
-                "maximumRecords=2048",
+                "maximumRecords=" + MaximumRuntimeFunctionRecords.ToString(CultureInfo.InvariantCulture),
                 StringComparison.Ordinal)
             && result.Output.Contains(
                 "EFI_ARTIFACT_SERIALIZER symbol=CLROS_X64_SerializeInstructionPublication section=.text rva=0x00001100 size=20 unwindRva=0x00003000 sha256=" +
@@ -3131,6 +3131,11 @@ internal static class EfiArtifactVerificationScriptTests
             "runtime-function-distinct-unwind-at-capacity",
             CreateRuntimeCapacityPe(MaximumRuntimeFunctionRecords));
 
+        // The original short timing producer crossed the old host-only bound.
+        // Exercise the complete distinct-unwind row scan, not just its header.
+        ProcessResult timingRegressionResult = RunFixtureWithEvidence(tempRoot,
+            "runtime-function-timing-regression-2055", CreateRuntimeCapacityPe(2055));
+
         byte[] runtimeOverCapacity = CreateValidPe();
         WriteDataDirectory(
             runtimeOverCapacity,
@@ -3194,7 +3199,9 @@ internal static class EfiArtifactVerificationScriptTests
         System.Text.RegularExpressions.MatchCollection runtimeScanMatches =
             System.Text.RegularExpressions.Regex.Matches(
                 runtimeAtCapacityResult.Output,
-                @"^EFI_ARTIFACT_RUNTIME_SCAN records=2048 distinctUnwind=2048 elapsedMs=([0-9]+) maximumRecords=2048\r?$",
+                @"^EFI_ARTIFACT_RUNTIME_SCAN records=" + MaximumRuntimeFunctionRecords +
+                    " distinctUnwind=" + MaximumRuntimeFunctionRecords + @" elapsedMs=([0-9]+) maximumRecords=" +
+                    MaximumRuntimeFunctionRecords + @"\r?$",
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant |
                     System.Text.RegularExpressions.RegexOptions.Multiline);
         bool runtimeAtCapacityModeledDistinctUnwind =
@@ -3269,6 +3276,9 @@ internal static class EfiArtifactVerificationScriptTests
             && runtimeAtCapacityModeledDistinctUnwind
             && runtimeScanBounded
             && runtimeAtCapacityBounded
+            && PassedVerifier(timingRegressionResult)
+            && timingRegressionResult.Output.Contains("EFI_ARTIFACT_RUNTIME_SCAN records=2055 distinctUnwind=2055 elapsedMs=",StringComparison.Ordinal)
+            && CompletedWithin("runtime-function-timing-regression-2055",timingRegressionResult,maximumVerifierProcessSafetyMilliseconds)
             && runtimeOverCapacityFailed
             && runtimeOverCapacityBounded;
     }

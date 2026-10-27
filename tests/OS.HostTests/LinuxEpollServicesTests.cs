@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Kernel.Compatibility.LinuxX64;
@@ -18,6 +19,10 @@ internal static unsafe class LinuxEpollServicesTests
     private const ulong Event = User + 0x1200, Output = User + 0x2000, Data = User + 0x1800;
     private const uint Edge = 0x80000000;
     private const ulong SignalKey = 0x65706f6c6c736967;
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "ThreadOwner")]
+    private static extern ref ulong DescriptorThreadOwner(ref Fds.State state);
+    [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "Self")]
+    private static extern ref ulong EpollSelf(ref Epoll.State state);
     private sealed class Model : IDisposable
     {
         internal readonly LinuxThreadServicesTests.Model Thread = new(futex: true);
@@ -30,7 +35,7 @@ internal static unsafe class LinuxEpollServicesTests
         private readonly uint RegistrationCapacity;
         private readonly Signals.State* SignalState;
         internal readonly OSHostHandle Parent;
-        internal Model(uint ports = 4, uint registrations = 8, bool signals = false)
+        internal Model(uint ports = 4, uint registrations = 8, bool signals = false, bool epoll = true)
         {
             RegistrationCapacity = registrations;
             Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut; Files.Begin();
@@ -40,7 +45,7 @@ internal static unsafe class LinuxEpollServicesTests
             Ports = (Epoll.Port*)NativeMemory.AllocZeroed(ports, (nuint)sizeof(Epoll.Port));
             Registrations = (Epoll.Registration*)NativeMemory.AllocZeroed(registrations, (nuint)sizeof(Epoll.Registration));
             HostCheck.True(Sockets.Begin(SocketState, Files.State, Endpoints, 8, new(10, 0, 2, 15), 8080));
-            HostCheck.True(Epoll.Begin(State, Files.State, Ports, ports, Registrations, registrations));
+            if (epoll) HostCheck.True(Epoll.Begin(State, Files.State, Ports, ports, Registrations, registrations));
             HostCheck.True(Thread.Service->EnablePipes(Key, 2, Files.State));
             if (signals)
             {
@@ -125,6 +130,88 @@ internal static unsafe class LinuxEpollServicesTests
         HostCheck.Equal(Tx.Status.Success, Tx.ConfigureClose(connection.Owner, 30_000_000_000)); return connection;
     }
 
+    private delegate bool MeasuredReadiness(ref LinuxThreadServices receiver, ulong key, ulong flags,
+        void* context, delegate* unmanaged<void*, ulong*, byte> clock, out ulong afterRefresh);
+    private struct RefreshClock
+    {
+        internal uint* Ready;
+        internal KernelThreadTable* Table;
+        internal OSHostHandle Parent;
+        internal ulong Time;
+        internal uint Calls;
+        internal byte Result;
+        internal bool Refreshed, Unwoken;
+    }
+    [UnmanagedCallersOnly]
+    private static byte ReadRefreshClock(void* context, ulong* value)
+    {
+        RefreshClock* clock = (RefreshClock*)context;
+        clock->Calls++;
+        clock->Refreshed = clock->Ready == null || *clock->Ready == 1;
+        clock->Unwoken = clock->Table == null ||
+            clock->Table->Inspect(KernelThreadTableTests.Key, 2, clock->Parent).Completion == KernelThreadTable.Completion.None;
+        *value = clock->Time; return clock->Result;
+    }
+    private static MeasuredReadiness BindMeasuredReadiness() => typeof(LinuxThreadServices)
+        .GetMethod("PollDescriptorReadinessMeasured", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+        .CreateDelegate<MeasuredReadiness>();
+
+    [HostTest("timing readiness boundary follows actual refresh before any retained epoll wake and clock failure retains effects")]
+    private static void MeasuredReadinessBoundary()
+    {
+        var poll = BindMeasuredReadiness();
+        foreach (bool clockSucceeds in new[] { true, false })
+        {
+            using Model m = new(); var child = m.Thread.Clone(); uint epoll = m.Create(); var pipe = m.Pipe();
+            HostCheck.Equal(0L, m.Control(epoll, 1, pipe.Read, 1, 77));
+            HostCheck.Equal(LinuxSyscallAction.Blocked, m.Call(281, epoll, Output, 1, ulong.MaxValue).Action); m.Park(m.Parent);
+            HostCheck.Equal(child.Value, m.Thread.Kernel.Dispatch().Value);
+            uint* ready = (uint*)((byte*)m.Registrations + Marshal.OffsetOf<Epoll.Registration>("Ready"));
+            HostCheck.Equal(0U, *ready);
+            byte data = 0x63; HostCheck.Equal(1L, m.Files.Admission.Pipes[0].Write(&data, 1, true, true));
+            RefreshClock clock = new() { Ready = ready, Table = m.Thread.Kernel.Table, Parent = m.Parent,
+                Time = 1234, Result = clockSucceeds ? (byte)1 : (byte)0 };
+            HostCheck.Equal(clockSucceeds, poll(ref *m.Thread.Service, Key, 2, &clock, &ReadRefreshClock, out ulong boundary));
+            HostCheck.Equal(clockSucceeds ? 1234UL : 0UL, boundary);
+            HostCheck.Equal(1U, clock.Calls); HostCheck.True(clock.Refreshed && clock.Unwoken);
+            HostCheck.Equal(1U, *ready); // A clock failure does not roll back real refresh effects.
+            HostCheck.Equal(clockSucceeds ? KernelThreadTable.Completion.Woken : KernelThreadTable.Completion.None,
+                m.Thread.Kernel.Inspect(m.Parent).Completion);
+            if (clockSucceeds)
+            {
+                m.Thread.Yield(child); HostCheck.Equal(m.Parent.Value, m.Thread.Kernel.Dispatch().Value);
+                HostCheck.Equal(1L, m.Complete().Value); HostCheck.Equal(77UL, m.Thread.Read64(Output + 4));
+                HostCheck.Equal(1L, m.Value(0, pipe.Read, Data, 1));
+            }
+            m.Drain();
+        }
+    }
+
+    [HostTest("timing readiness no epoll boundary accepts zero time and rejects foreign owner missing clock or failed refresh")]
+    private static void MeasuredReadinessAdmission()
+    {
+        var poll = BindMeasuredReadiness();
+        using Model m = new(epoll: false);
+        RefreshClock clock = new() { Result = 1 };
+        HostCheck.True(!poll(ref *m.Thread.Service, Key + 1, 2, &clock, &ReadRefreshClock, out ulong boundary) && boundary == 0);
+        HostCheck.True(!poll(ref *m.Thread.Service, Key, 0x202, &clock, &ReadRefreshClock, out boundary) && boundary == 0);
+        HostCheck.True(!poll(ref *m.Thread.Service, Key, 2, null, &ReadRefreshClock, out boundary) && boundary == 0);
+        HostCheck.True(!poll(ref *m.Thread.Service, Key, 2, &clock, null, out boundary) && boundary == 0);
+        HostCheck.Equal(0U, clock.Calls);
+        HostCheck.True(poll(ref *m.Thread.Service, Key, 2, &clock, &ReadRefreshClock, out boundary) && boundary == 0);
+        HostCheck.Equal(1U, clock.Calls); HostCheck.True(clock.Refreshed && clock.Unwoken);
+        ref ulong owner = ref DescriptorThreadOwner(ref *m.Files.State);
+        ulong original = owner;
+        try
+        {
+            owner ^= 2;
+            HostCheck.True(!poll(ref *m.Thread.Service, Key, 2, &clock, &ReadRefreshClock, out boundary) && boundary == 0);
+            HostCheck.Equal(1U, clock.Calls);
+        }
+        finally { owner = original; }
+        m.Drain();
+    }
+
     [HostTest("m16-012 epoll admission rejects dirty and aliased storage without publication", HostLane.Fast, 0)]
     private static void Admission()
     {
@@ -155,17 +242,18 @@ internal static unsafe class LinuxEpollServicesTests
             // refresh after the following corruption would now change the snapshot.
             HostCheck.Equal(1L, m.Files.Admission.Pipes[0].Write(&ready, 1, true, true));
             byte[] before = new ReadOnlySpan<byte>(m.Registrations, 8 * sizeof(Epoll.Registration)).ToArray();
-            ulong* changed = control switch
+            ref ulong changed = ref DescriptorThreadOwner(ref *m.Files.State);
+            if (control == 1) changed = ref m.Files.Memory.Memory.Tables[1];
+            else if (control == 2) changed = ref EpollSelf(ref *m.State);
+            ulong original = changed;
+            try
             {
-                0 => (ulong*)((byte*)m.Files.State + Marshal.OffsetOf<Fds.State>("ThreadOwner")),
-                1 => m.Files.Memory.Memory.Tables + 1,
-                _ => (ulong*)((byte*)m.State + Marshal.OffsetOf<Epoll.State>("Self"))
-            };
-            ulong original = *changed; *changed ^= 2;
-            HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key, 2));
-            HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
-            HostCheck.Equal(1U, m.Files.Admission.Pipes[0].BufferedBytes);
-            *changed = original;
+                changed ^= 2;
+                HostCheck.True(!m.Thread.Service->PollDescriptorReadiness(Key, 2));
+                HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));
+                HostCheck.Equal(1U, m.Files.Admission.Pipes[0].BufferedBytes);
+            }
+            finally { changed = original; }
             HostCheck.True(Fds.Audit(m.Files.State));
             HostCheck.True(Epoll.Refresh(m.State));
             HostCheck.True(!before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(m.Registrations, before.Length)));

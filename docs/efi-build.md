@@ -1,5 +1,293 @@
 # EFI Build
 
+## Selected writable control ceiling (step1624)
+
+The Mechanical30 M16-027 preparation checks actual native control size against
+the named2560-byte ceiling. Other profiles retain their8192-byte guard. Actual
+sizeof allocations and all allocator end checks remain; no reservation grows.
+Independent review of the prior29CF0609 image measures a2448-byte control and
+109136 of114688 arena bytes across21 independently16-aligned allocations.
+The selected ceiling gives a conservative109248 bytes, leaving5440. This is
+old selected-image evidence and a current fail-closed source contract; a new
+publication still needs its own emitted review.
+
+The current ordinary CD5D2A42 publication retains the2448-byte control and
+109136/114688-byte total across21 independently16-aligned allocations. Its
+schema-three provenance records timing=false. The d682 emitted review counts
+the descriptor1248-byte scratch and transport256-byte chunks: the conditional
+known worker path is30725/32768 bytes, leaving2043 bytes arithmetically under
+explicit callback, mapping, lifetime, IRQ and unresolved-path premises. This is
+neither an all-path stack bound nor a global noGC claim. The4e48acc1 host-only
+capture BAR repair reuses that review only after its full original verifier,
+14 source and4 output identities match. The fresh original Mechanical30/DiskA
+guest passes all30 calls and cleanup; the unfiltered full r04 naturally joins
+exit0 with7318 checks/918 fixtures, unchanged inputs and zero reuse. The current
+28b6 ordinary027 publication and1987-pair/327-item raw comparison retain those
+exact native bytes and runtime inputs; the Mechanical30 guest remains historical
+4e48 evidence. Fourteen selected final-source originals now pass their own
+complete consumers and guards. Final Root full r02 passes 7,319 checks with unchanged inputs and zero reuse.
+Closing review, tracker reconciliation and merge remain required; this CD5D review does not transfer across native selections.
+
+The two complete-policy project inventories now include the already-existing
+M10-018 and M16-027 timing children. Explicit-false rejection, parent closure,
+default-off policy, production profile and compile items remain unchanged.
+The corresponding independent test inventories and exact source identities
+are refreshed together. Host compilation alone does not qualify a new image.
+
+## Retained-range diagnostic publication (step1623)
+
+Source b7631af0 publishes the1242112-byte diagnostic image
+`29CF0609DB9A90647E5AB63DC43E26C17B540A09F073CC3EEB0E709C1F632079`,
+with map599FF0696D9B13D38C9879B81AFC60E5E416D6B7321E2D09C715B6A2D61C21AF.
+Its own original guest publication matches four compilation leaves; separate
+publication JSONs and all1031 source inputs retain their exact identities.
+The first publication failed because range syntax required missing freestanding
+`System.Range`/`System.Index`. Using the supported `Span.Slice` API repairs that
+compile error. Both original attempts are retained.
+
+Scoped review byte-joins47 unchanged bodies, including ten C/W scalar and28
+timing/native bodies. The selected retained descent grows1504 to1632 bytes;
+the earlier conditional estimate becomes32365/32768 bytes, leaving403 bytes
+under every earlier selected25/context/callback/descendant/terminal/effect/
+mapping/noIRQ premise. This is not a global stack or allocation proof. New port/
+filesystem and ordinal/carrier changes require their own emitted review.
+
+## One-turn writable diagnostic publication (step1622)
+
+```powershell
+dotnet run --project tools/OS.Tooling -- efi build --EnableM16027TimingProbe
+```
+
+The explicit switch implies the M16-027 parent and rejects an explicitly false
+parent. It defaults false and adds one reviewed source link to the evaluated
+ordinary writable inventory (327 to328 sources). The standalone diagnostic
+publication at `dd81324e` is1241088 bytes, SHA256
+`E9CF32CAB3AF6A99F1B6D0E842BD7E2664B3D29AA6930345B94A0230ACCD9BD1`.
+Original guest publication matches its four compilation leaves; publication
+JSONs remain separate. Step1622 retains all1030 raw source inputs unchanged.
+
+Scoped review authenticates direct32/64-bit HPET loads, fixed frames, transfer
+targets, preserved operation bodies and the expanded evidence extent. Its
+conservative conditional32237/32768-byte estimate retains the older selected
+25-range, callback, descendant, mapping, lifetime, effect and noIRQ assumptions.
+It is not a global stack/no-allocation proof or ordinary-profile emitted-byte
+identity. The normal RecordNativeWritableWait local/return spelling also
+changed; source-semantic equivalence alone does not establish emitted identity.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+## Writable clock repair publication (step1617)
+
+Fresh source `d3c6b005` publishes a1229824-byte Diagnostic M16-027 EFI,
+SHA256 `41C2F490059B863E1AD0FE89CC279650A69C6122490537FDDC010016513E7CB3`.
+Its verifier retains1023 source inputs and8 verifier inputs unchanged;2321
+runtime records contain1844 distinct unwind records. The live network clock
+guard stays unchanged; only the already-retired writable END caller selects the
+private owned clock core after its existing teardown checks.
+
+Original-byte audit preserves256866 instructions and44779 branch encodings.
+The expanded338 roots reach1525 runtime functions with zero instruction coverage
+gaps and304 retained indirect sites, including the separately discovered terminal
+Fault/NMI callback. These are census facts, not a complete native stack or
+allocation proof. Eight exact inline stack probes have conditional finite
+transfer summaries; entry capacity, mapping and interrupt obligations remain
+explicit. The selected mechanical build uses eight usable worker pages, sixteen
+switch pages and four timer IRQ pages; the web profile's sixteen worker pages
+cannot be substituted. See [step1617](../done/step1617.md) for evidence and failures.
+
+## Selected writable publication review (step1616)
+
+Original Diagnostic M16-027 publication at70697d6b produces1229824-byte EFI SHA256
+`9BFA103AC94CB19AE99777460E9957AA1BD4FE4DC5CA21B655A616B69C208558`.
+The verifier holds1022 source inputs and8 verifier inputs unchanged and checks
+PE32+x64 EFI subsystem10 with no import/bound/IAT/delay directories. Its2320
+runtime records contain1843 distinct unwind records. Four unavailable no-stdlib
+constructs were repaired in narrowly selected sources; no framework/runtime
+stubs or general GC/EH support were added.
+
+Independent original-byte review matches304 selected actual prologues/unwind
+frames (maximum direct frame2288bytes),603504-byte layout arithmetic and
+256899 emitted instruction byte sequences. The site census preserves44777
+relative/FF branches, call versus jump edges and four recursive components.
+It finds zero runtime instruction coverage gaps in the1167 direct-reachable
+functions. The188 indirect branches still need admitted targets and generated
+hardware-code entries. Decimal formatting and table walking need their bounded
+recursion arguments; the source5 Stage/Cancel/Finish cycle needs its exact
+Ready-result invariant. Pre-exit AllocatePages is outside post-exit closure.
+Direct frames/census do not establish complete no-allocation, IRQ, dynamic-stack
+or transitive-stack bounds. Fresh source-matched publication and guest evidence
+remain required after those obligations close.
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) The paired30/FS13 passes are host contracts, despite their Native lane classification. No B/C/P EFI compile links or native activation were added. Current native socket carriers and source4-only wait dispatch need explicit paired adaptation and emitted noGC/transitive-stack/lifecycle evidence before a writable guest.
+
+[Step1610](../done/step1610.md) Fresh v5r13 at830ef44c compiles/boots with2056runtime/1629unwind entries, EFI BADFE2F185D74E1DABDC34CF4DF56FC2E5F18CB6FCCC520DF32DD02F43808D3E. Scoped original prologue/unwind frames remain128B readiness/480B wake/240B servicepoll including return addresses. This excludes callees/dynamic allocation/IRQ/callback nesting and supplies no general ABI/whole-stack proof.
+
+[Step1606](../done/step1606.md) Timingr10 at12128da1 fails managed compilation inside fresh native publication with CS8786 before any guest or ELF. The measured readiness callback now uses delegate* unmanaged, matching the existing UnmanagedCallersOnly NativeDiskClock and disk-pump contract. Its host test callback uses the same ABI. One normalized source pin changes; clock placement, ownership, budgets and accepted ordinary profiles stay unchanged. A fresh committed -BuildEfi r11 is required.
+
+[Step1605](../done/step1605.md) The next short timing producer uses strict v4 fields readinessRefreshNs/readinessWaitScanNs, captured at one trusted post-refresh boundary and conserving postReadinessNs. The clock and fields compile only into the explicit timing profile; accepted ordinary profiles keep their original readiness path and layouts. Four reviewed normalized source pins follow the changed bytes. Fresh committed -BuildEfi timing r10 is required.
+
+[Step1604](../done/step1604.md) Original timingr08 at5cf3fcd1 verifies2057runtime/1630unwind entries and EFI5C86DAEA494E78DBF85FF506D11E43904166B7527AB8F62CD85DDC69825BE0DC. Image51A6575B100AE82D5EC2ABFA42336CD83BF4CF13B6AF81EF5D7C8FEF1B13B88A contains the unchanged server package. The next candidate retires the extra-submit route and updates five reviewed pins for a diagnostic-only clock partition. New source-matched BuildEfi is mandatory; host4096/kernel2048 capacities and default-off guards remain unchanged.
+
+[Step1603](../done/step1603.md) Original r07 at clean4efb1bc3 compiles and verifies2055runtime/1628unwind records, then runs the short guest diagnostic. EFI SHA2560B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF and image36A92BF15CE8BE4C0238101BBB81643CE5E46353EC4995DCE2F941AD3A34D393 retain exact original provenance. Three source pins now cover the host-qualified sole-read replenishment experiment and two added aggregate counters. New native publication and timingr08 are required; kernel unwind2048 and its disabled profile remain unchanged.
+
+[Step1602](../done/step1602.md) Original timing r06 at d6bd3919 completes native verification (2055 runtime/1628 unwind records) and image construction, then runner deadline admission fails before guest. EFI SHA256 0B264690788887ED9E11FC7234FDE51474BCAB5BC83F3AE93FC4200C4CC5C4AF. The runner repair changes no kernel, EFI source pin or metadata bound. A new committed -BuildEfi original remains mandatory; failed r03–r06 retain their original scope.
+
+[Step1601](../done/step1601.md) Host full-PE catalog admission is4096 (48KiB pdata; bounded managed List/Dictionary scan), separately from unchanged2048 kernel unwind snapshots. Timing/full/018 actual flags have allM04=false and no decoder startup call.23verifier checks pass including full4096distinct scan3ms,2055regression and4097rejection with unchanged1s scan criterion. Originalr02 failed2055/2048 before guest; a fresh native/original remains required.
+
+[Step1600](../done/step1600.md) The timing candidate changes reviewed source/project pins and adds an explicit default-off M10_018_TIMING_PROBE; host graph and focused controls pass. Its emitted native catalog/ABI/local-frame review and fresh guest are still pending. The previous b940 full count2047/2048 remains historical; no catalog limit was raised for this preparation. Writable EFI activation stays absent.
+
+[Step1597](../done/step1597.md) The b94028a8 full-read candidate has 2047 runtime entries and 1620 distinct unwind records under the unchanged 2048 admission cap. Automated compiler-metadata review joins the original image/map and reports local frames only, excluding whole-stack bounds. The writable integration and new exit-first package require their own committed producer and native qualification. Per-application manual disassembly is not a deployment requirement.
+
+[Step1594](../done/step1594.md) Step1594 retains full read r05 EFI92b68ac3a0ef05f89181642dd6f663a70958c258a193330e5b2350bbf6e44fe9 from source24f74824:2046 runtime records/1619 distinct unwind entries under the unchanged2048 cap. Emitted LookupStep/FileChainStep frames168B, FileChainOne264B and LookupOne56B are scoped local-frame facts, excluding callers/callees. Guarded writable host changes are excluded from this original; no writable native activation or catalogue-bound increase is accepted.
+
+[Step1593](../done/step1593.md) Step1593 repairs a test-only dependency; normalized FS production remains85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b. Scoped graph24.05s/0warnings/errors and60focused controls pass. The next emitted EFI/native stack/catalog review must match its committed source and producer copies; writable native activation remains absent.
+
+[Step1592](../done/step1592.md) Step1592 adds a bounded internal LookupStep wrapper and unchanged single-entry LookupOne helper without allocation, recursion or new stack buffers. The reviewed normalized filesystem source is85b4779d8c16baa895c79152d476a594e26eaa7cda098854c258d7abd09e4a1b. Existing2048native catalog bound remains unchanged; emitted native ABI/stack/catalog review and fresh original guests are still required. Guarded writable host imports do not activate new EFI links.
+
+[Step1591](../done/step1591.md) Step1591 adds source5 and retained-extent APIs only behind !NOSTDLIB_EFI or M16_027_PROBE guards. Existing025 native links/layouts remain unchanged; writable bootstrap, source5 activation, native ABI/stack review and actual write guests are unfinished. Focused host success and a CLI reference entry point are not EFI publication evidence.
+
+[Step1590](../done/step1590.md) Passing original ExitPending r03 atc3dbab92 uses EFI SHA2566dfaa7c7f4b8f18b195f0274b4d60a9c17ace1c4e3d94d9923ef35673e290b14, no imports,2010runtime records/1590distinct unwind below unchanged2048 limit. Original map/response/serializer/source/image/package joins pass in the complete wrapper. This does not supply full-profile or writable native stack/ABI acceptance; full r04 is a separate producer.
+
+[Step1589](../done/step1589.md) changes the reviewed filesystem, DiskEvidence and LinuxThreadRun sources. New publication must rejoin committed raw/normalized source, native image, stack/ABI and original guest evidence. The cached-chain64-step wrapper adds no stack buffer; cleanup uses a retained scalar start time after the control is scrubbed. Actual emitted bounds remain to be measured; prior2042/2048 runtime catalog counts are not current qualification.
+
+[Step1588](../done/step1588.md) imports writable host sources into a separate integration branch without adding EFI links or a writable probe. Host build/192 focused controls establish no native ABI, stack fit or guest authority. Native publication remains serialized behind the current original read qualification.
+
+[Step1587](../done/step1587.md) changes the reviewed native syscall-entry order: validated exit_group enters genuine shutdown before opportunistic polling. Other calls retain their pump. Exact source pins and focused admission checks accompany failure-only pending-exit diagnostics; native ABI/stack and a fresh original are still required. Full r03 continues independently at91cd04cd and must not inherit edits during its owned run.
+
+[Step1586](../done/step1586.md) retains original full r02 EFI at a692a4f4: no imports,2042 runtime records/1615 distinct unwind entries, SHA D1ABCA9F47F3CA4C5231FB6E8DD244A18927DD7A7BC10C40AE5A91B9D2E22FBB. Native/image preparation passes; the HTTP run later fails. The2048-record bound is unchanged. The new original ExitPending consumer still requires fresh selected native/source/ABI/stack and guest joins; host fixtures supply no native acceptance.
+
+[Step1585](../done/step1585.md) preserves the frozen5dd6e6c0 unfiltered full/native pass. The original full DiskA EFI has2032 runtime records/1605 distinct unwind entries and SHA4419557E3C237D90B29D4E515DD7D514F44F41702F980A2769A7A56A38F9784E; imports are absent and same-build source/object/map joins pass. Its later guest fails; publication is not full read/browser acceptance. The full-only finite UTC allowance is repaired to3600s with a reviewed Realtime source pin and source-admission controls. Ordinary600s/service continuing rules remain. The repaired EFI and new pending-exit observations still need original emitted-native/guest qualification.
+
+[Step1584](../done/step1584.md) changes copied host consumers only, joining
+pending-exit stages to real-observation-shaped sectors and reset values. No
+additional EFI input or source pin changes. Managed focused success does not
+compile or qualify step1583's pending native observation methods.
+
+[Step1583](../done/step1583.md) changes four reviewed M16-025 conditional inputs
+for canonical pending-exit observations, with matching source pins and focused
+host admission checks. No kernel control layout, profile default or compile item
+is added. The retained native disk owner grows only by scalar observations.
+Fresh selected EFI compilation, ABI/stack review and original guest qualification
+remain required; a managed graph build does not compile these EFI methods.
+
+[Step1582](../done/step1582.md) adds the full modifier to both complete project
+boot-policy inventories, retaining explicit parent/conflict rejection. Independent
+checks follow the disk-to-epoll/web parent graph and verify each bridge before
+using indirect exclusions. Reviewed entry-source identity now includes the three
+existing M10-018 descriptor-layout/output-observation preprocessor guards from
+472c70b3; String runtime behavior is unchanged. The failed full at e3382132 remains
+failed. Focused repairs pass; fresh unfiltered full/native verification is pending.
+
+[Step1581](../done/step1581.md) adds default-off `EnableM10018FullProbe` and
+`M10_018_FULL_PROBE`, requiring the existing disk/static parent. It uses that
+same authoritative boot phase and preserves all existing profile defaults.
+The reviewed C# policy selects32768 finite calls,1800s after listener readiness,
+120s shutdown grace and2100s total runtime, with no service quota renewal.
+32768 maximum64KiB accounted completions fit uint. Original serial policy must
+match the source-sealed selection. The explicit policy source link,76-entry
+probe catalog, canonical project shape, symbol inventory and affected reviewed
+source identities are updated together. Native/stack publication and guest
+qualification remain pending; a successful managed build does not supply them.
+
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
+[Step1579](../done/step1579.md) records fresh018r04 native verification at
+`6bbdcad2`:2031 runtime records/1604 unwind records, same exact EFI bytes as r03.
+Five disk/static responses and owned shutdown follow, but original outer receipt
+validation fails. The host hash-case/67-range repairs change no EFI body or arena.
+Fresh original consumption and full native/stack/batch gates remain required.
+
+[Step1578](../done/step1578.md) changes host consumer/peer code and separate
+C# mechanical lifecycle fixtures. It changes no live EFI body, arena or ABI.
+Fresh original native publication and guest consumption remain required. New
+interrupt/EOF/pending-exit byte vectors are not native or guest race acceptance.
+
+[Step1577](../done/step1577.md) adds host-only complete disk/static value
+replay; it changes no EFI producer body, arena or ABI. Original018r03 native
+and failed-command identities remain those recorded in step1576. No fresh
+native/guest acceptance follows from retrospective value inspection.
+
+[Step1576](../done/step1576.md) records original018r03 native verification and
+real application entry after removing redundant wait frames. Five diagnostic
+HTTP responses and exit0/cleanup follow; the outer command remains failed.
+This does not replace full native ABI/callback-stack or stable batch review.
+
+[Step1575](../done/step1575.md) records original018r02's verified2031-record
+image and exact native allocation arithmetic. The final metadata request exceeds
+the28-page arena by1120 bytes; reusing Slot.WaitCall removes1536 duplicate bytes
+without changing pool geometry. Fresh publication/guest evidence is still needed.
+
+[Step1574](../done/step1574.md) retains original018 r01 native compilation
+followed by artifact-verifier rejection of absent legacy web callbacks. The
+new policy requires static lifecycle plus018 cursor/completion/arming bodies
+with the same exact ownership/executable checks. No failed artifact is rescued.
+
+[Step1572](../done/step1572.md) adds explicit018 compilation of the existing
+static lifecycle leaf, a distinct disk gate and completion-time file records.
+Reviewed conditional source and project pins change; native/guest qualification
+for this integration remains separate from the mechanical step1571 results.
+
+## Disk profile development publication
+
+[Step1571](../done/step1571.md) retains three fresh complete owned mechanical
+captures at `c66befd5`. Each new publication verifies and emits identical EFI
+`492BE99AD2AA76DE38321ABC9B5B1C317B50BDA1FF47437FB9C20DF9B89AA453`;
+original native/source/image and runtime consumer joins pass. Step1570's native
+inventory therefore describes the same exact bytes. Complete callback/stack,
+error/concurrency, affected ancestors and whole-batch review remain outstanding.
+
+[Step1570](../done/step1570.md) retains original r08 at `38ba4446`, EFI
+`492BE99AD2AA76DE38321ABC9B5B1C317B50BDA1FF47437FB9C20DF9B89AA453`.
+Its mechanical calls reach exit42, but the outer command still failed. Retained
+LLVM22.1.3 bytes/unwind inventory covers 122 selected native bodies and reports
+direct-path frame sums separately from indirect callback and full stack review.
+This inventory is supplemental, not complete ABI/stack acceptance. A new owned
+consumer candidate joins original runner/packet inputs; fresh qualification is
+still required and must preserve all failed originals.
+
+[Step1569](../done/step1569.md) retains verified r07 EFI
+`05B0B93654CB41200F722F494EAAEA7B60448CACD3450A99EFC1DBF6AD7AB192`
+at committed `704cb0b3`. The mount succeeds before gateway admission rejects
+the first deferred stat. The reviewed gateway identity now includes only the
+conditional six-call blocking addition. Host controls pass; new original
+publication/execution and complete native/guest consumption are still required.
+
+[Step1565](../done/step1565.md) admits the reviewed conditional disk source
+closure. [Step1566](../done/step1566.md) records original ILC/link/artifact
+verification at `dbf04a61`, retaining EFI digest
+`7c463dd72f855cb2db209e6129e140f547dc370baa63fd4c082e78834f154cc9`.
+The actual guest then rejects before firmware exit because its declared
+54-range capacity exceeded the old image/table bound of 48. The conditional
+repair has focused source-profile coverage; it needs fresh native publication,
+ABI/stack review and owned guest evidence. A publication pass does not override
+that failed guest or qualify disk-to-HTTP service.
+[Step1567](../done/step1567.md) records the subsequent fresh publication/guest:
+the retained-map check passes, followed by memory-startup rejection. Its
+profile-specific construction-capacity repair and exact mechanical instruction
+metadata pass focused checks; another original publication/guest is required.
+[Step1568](../done/step1568.md) preserves further original r05/r06 failures after
+successful block startup. GPT and sector copies reach the mount, which rejects
+preserved zero timestamps. The explicit zero-metadata policy and failure-only
+diagnostics have fresh source identities; no failed capture is rescued by them.
+
 ## Latest qualified inputs
 
 [Step1556](../done/step1556.md), merged by PR790, is the latest finite
@@ -523,6 +811,11 @@ socket profile keeps its prepared-program and owned-peer requirements. The
 mechanical mode retains serial/summary/PCAP read locks, validates the complete
 firmware/APIC/NIC/startup/cleanup envelope and rejects TCP traffic. Its leaf
 requires the two-thread stolen pipe-readiness schedule through actual epoll.
+The exact leaf has no network poll pair before process-wide `exit_group` (231);
+every other syscall, including child exit60, retains its required poll pair.
+Identity, clock, ordinal, wait, signal-return and cleanup checks remain exact.
+Step1624 retains the failed pre-repair original and requires a fresh final-source
+original; an offline corrected replay supplies only parser regression evidence.
 Use fresh output paths for each invocation:
 
 ```powershell
@@ -3084,11 +3377,11 @@ termination of both processes and release of the sentinel, including when the
 parent exits while its descendant remains. These are controlled host checks;
 they preserve Job Object ownership and the output-drain and termination checks.
 
-The broader PE/link-evidence negative-fixture wrapper likewise allows 45
+The broader PE/link-evidence negative-fixture wrapper allows 120
 seconds for a verifier process to return its precise stable diagnostic. The
-same hard 45-second ceiling bounds each maximum-capacity verifier process,
+same existing hard 120-second ceiling bounds each maximum-capacity verifier process,
 while stable in-process markers separately require both the 4,096-token link
-response scan and the 2,048-record runtime-function scan to complete within
+response scan and the 4,096-record host runtime-function scan to complete within
 one second. The response timer accumulates tokenization, option-policy regexes,
 map-path parsing, and every token's object-path normalization/match pass, while
 pausing around linked-map authority-handle and identity-hash I/O. This

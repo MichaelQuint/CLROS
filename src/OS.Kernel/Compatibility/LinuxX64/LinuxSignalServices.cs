@@ -35,7 +35,7 @@ public static unsafe partial class LinuxSignalServices
         internal LinuxSyscallAccess User;
         internal delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         internal fixed ulong Actions[64 * 4];
-        internal fixed ulong Threads[(int)MaximumThreads * 13]; // ThreadState, one actual generation each.
+        internal fixed ulong Threads[(int)MaximumThreads * 14]; // ThreadState, one actual generation each.
     }
 
     /// <summary>Exact user-copy capabilities shared with the thread owner.
@@ -57,6 +57,9 @@ public static unsafe partial class LinuxSignalServices
         internal fixed ulong Frames[4];
         internal ulong PendingStandard, RealtimeCount;
         internal fixed uint Realtime[4];
+        // One owner request per bound generation; pending SIGTERM provenance
+        // is separate so consume/ignore never rearms the owner request.
+        internal ulong Termination;
     }
 
     /// <summary>Initialize one fresh metadata lifetime with IRQs disabled.
@@ -180,7 +183,7 @@ public static unsafe partial class LinuxSignalServices
     private static bool OnAlternate(AlternateStack stack, ulong rsp) => (stack.Flags & AutoDisarm) == 0 &&
         stack.Bytes != 0 && rsp > stack.Address && rsp - stack.Address <= stack.Bytes;
     private static bool Empty(State* s)
-    { for (uint i = 0; i < MaximumThreads * 13; i++) if (s->Threads[i] != 0) return false; return true; }
+    { for (uint i = 0; i < MaximumThreads * 14; i++) if (s->Threads[i] != 0) return false; return true; }
     private static bool Attached(State* s, ulong process) => Audit(s) && process != 0 && s->Process == process;
     private static bool Input(State* s, ulong address, byte* value, uint bytes) =>
         LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, s->User) && s->User.CopyFromUser(s->User.Context, address, value, bytes) == 1;

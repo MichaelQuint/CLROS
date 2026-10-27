@@ -1,10 +1,457 @@
 # Storage
 
+## Port and borrowed filesystem range batches (step1624)
+
+The borrowed filesystem now passes the original bounded candidate span through
+one retained port/engine batch. Its existing68-extent inventory remains the local
+exclusion source. A separate non-inlined helper checks local exclusions after
+the shared admission returns, so the two scratch inventories need not be live
+in the same frame. Scalar and batch queries still authenticate original epochs,
+the complete device tree, DMA and partition extents, every nonempty candidate,
+and all-zero inventories. Dirty, stale, stopped, cancelled and orphaned cleanup
+retention grants no new device or copy authority. No span, cache or token escapes.
+
+For the selected native8-operation/8-file/4-cache inventory (56 populated extents),
+the integrated source changes successful-path engine-entry counts from339 to9
+for the borrowed scalar query and243 to6 for25 candidates. Other admitted mount
+inventories have different counts. These are static call counts; achieved guest
+duration and emitted stack fit require fresh measurements.
+The earlier403-byte conditional native margin belongs to the step1623 image and
+does not qualify this candidate. Focused port20, borrowed-filesystem18 and paired
+lifetime1 controls pass with their own original producers; the18 filesystem
+controls use synthetic media despite their Native lane label.
+
+The afcc descriptor slice routes the existing13-pair base through one checked
+FS batch and validates the pair's two FS ranges before enumerating78 slots
+through W. One156-ulong/1248-byte scratch is reused. The d682 transport slice
+compacts nonempty extents into16-pair/256-byte chunks, preserving local
+exclusions and the nonborrowed FS scalar fallback. Focused controls and exact
+ordinary emitted reviews cover both slices; no measured speedup follows from
+the static call counts. On source4e48acc1 the original Mechanical30/DiskA guest
+passes all30 calls and complete cleanup with the reviewed CD5D2A42 PE. Its
+conditional known worker path remains30725/32768 bytes; this is not an all-path
+stack or noGC proof. The source-matched unfiltered full r04 passes7318 checks/918 fixtures, unchanged
+with zero reuse. Fourteen selected final-source originals now pass their own
+complete consumers and guards at28b6; final Root full r02 passes 7,319 checks, unchanged with zero reuse.
+Closing review, tracker reconciliation and merge remain pending. Earlier
+failed original runs remain failed; BCL, reboot persistence, physical durability,
+SQLite and full Blazor acceptance remain open.
+
+## Writable timing and copied media preparation (step1622)
+
+`EnableM16027TimingProbe` is default off and admits only the Mechanical30
+diagnostic. After the first actual source5 BEGIN, it measures one complete
+outer socket-network polling turn through a separately admitted HPET register.
+The normal owned clock and thread clock are unchanged. A caller-owned 216-byte
+timing area is embedded in the already admitted writable evidence allocation;
+the complete evidence extent grows from1304 to1528 bytes. Serialized hooks time
+the retained14-extent engine audit, paired descriptor audit and writable pump,
+count device exclusions and copy actual engine entry/exit progress. Reports
+include hook overhead, a raw-read count and adjacent-read calibration. Open
+scopes, overflow or ambiguous half-range deltas invalidate the report.
+
+Step1623 implements C's retained-range batch and W's eight-pair local inventory
+and original-span batch. C audits its fourteen extents once, then checks every
+nonzero candidate against every extent and the complete device tree. W uses a
+fixed128-byte inventory; C's separate non-inlined helper retains224 bytes.
+Malformed, empty, odd or over177-pair inventories reject; zero-size candidates
+still require original owner/epoch/device admission. No inventory or permission
+escapes the serialized call. Scalar failure and retained cleanup semantics stay
+separate from live submission and copy authority. At step1623, F's loops were unchanged.
+
+The fresh b7631af0 diagnostic remains FAILED at180 seconds/exit4:49 reads
+complete, but the first create has no COMPLETE, OUT, FLUSH or normal cleanup.
+Its one public-parser-checked turn has324095 engine audits,4.4831872 seconds of
+audit time and5.3845825 seconds outer time; the one engine call submits a read.
+These include diagnostic overhead and do not establish a speedup or whole-life
+attribution. Step1624 integrates the port/filesystem batch described above;
+those static counts do not measure achieved guest timing. Its fresh emitted
+stack fit remains mandatory.
+
+The copied BCL media inspector binds the exact prepared Write/Verify package
+to its own initial ESP entry, partitions every original IO/STATE position and
+replays IN/OUT values against independently extracted images. Write requires
+empty targets to become canonical660-byte logs and5126-byte uploads with an
+observed successful FLUSH frontier. Verify forbids every OUT publication and
+requires an identical entire image. Per-publication masks preserve FAT and
+directory reserved bits, root chains, unrelated entries, slack, guards and
+padding, including temporary changes later restored. Only target cluster/size
+fields, final target chains/data and FSInfo count/hint fields can change;
+new target tails must remain zero. These masks establish copied media
+consistency. They grant no syscall-input, creator/process, native/guest, reboot
+or physical durability authority.
+
+## Paired process storage queries
+
+The paired read/write branch collects the actual retained process ranges and
+checks them within one synchronous Boolean query. AuditWritableDisk,
+AuditDiskPair and the transport shape run once for that traversal. Every
+nonempty range still checks descriptor/package/user backing, both attachment
+inventories and all socket/epoll/network ranges. Writable-provider and borrowed
+filesystem range queries check the same candidates after that loop. Each
+authenticates its own retained tree once, then retains every candidate engine
+or port query and populated local extent exclusion. Their epochs remain
+independent. This is a synchronous Boolean result with no later authority.
+Zero-byte inventory entries retain their
+original skip behavior; malformed bounds and stale/invalid pairs fail closed.
+
+The serialized supervisor keeps all backing mapped through return. No callback,
+mutation, I/O, allocation or validation token escapes; a later call revalidates.
+Other attachment combinations, public single-range queries and scrubbed retired
+read-only cleanup retain their checked paths. Capacity bounds permit177 pairs
+and2,832 stack bytes; the current two-worker fixture uses25 pairs/400 bytes.
+Scoped emitted stack review covers the current two-worker/25-range fixture;
+larger-capacity and global bounds remain open. Development source, focused
+checks and native publication do not establish a passing writable guest.
+
+The borrowed FS batch accepts1..177 flat start/byte-count pairs and rejects
+odd, empty or oversized inventories, stale/retired mounts and missing ports.
+Even all-zero candidates require the original retained tree. Mount input epoch
+and port binding epoch remain distinct. Its private non-inlined scratch helper
+runs after shared admission returns; emitted frame and call/tail accounting
+must establish the actual stack lifetime. Scalar/direct-device FS APIs retain
+their original guards. Dirty, cancelled, stopped or held backing can remain
+structurally retained; that result grants no new I/O, user copy or release.
+
+The writable-provider batch has the same1..177-pair shape. Its complete scalar
+retained-owner audit finishes before the private candidate helper allocates its
+local inventory scratch. Every nonempty candidate still calls the complete
+mutation-engine retention query. Dirty, poisoned, retiring, orphaned and stopped
+backing keeps its original cleanup semantics until actual retirement; the query
+does not require a new live process or device borrow. For25 candidates with
+locks enabled, this removes repeated provider inventory audits and changes the
+source-level engine-query count from200 to32. Other pair/attachment audits are
+excluded from that calculation; it is not a measured execution speedup.
+
+## Cached directory scan turns
+
+The mutation engine can parse at most16 physical directory entries from the
+sector already loaded when its scan turn begins. Each entry still executes the
+original work-budget, VFAT, alias, collision and corruption checks. A phase,
+step, slot, sector, loaded-LBA, owner/epoch, request-generation, revision,
+device/pool epoch or cancellation change ends the batch immediately. A reset
+to the same sector also ends it. Completion of an outstanding device request
+and parsing remain separate turns; no next-sector submission is folded into
+the cached loop. Other scan/chain/free-space operations retain their bounds.
+Host controls and scoped native review do not establish a passing guest create.
+
+The separate BCL preparation command and its no-execution boundary are described
+in [the application model](app-model.md#prepared-bcl-logupload-instruction-lookup).
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+## Writable final clock and audit continuation (step1617)
+
+Source `d3c6b005` repairs the final writable END clock. Ordinary network clock
+callbacks retain their existing live phase admission. The final writable caller
+uses the same owned HPET core only after actual NIC retirement, phase3, returned
+pool ownership and the existing storage/user cleanup checks. The earlier
+`70697d6b` publication cannot satisfy that final phase and remains static evidence.
+
+The fresh native publication and conditional callback/stack receipts are retained
+in [step1617](../done/step1617.md). Its layout is unchanged after independently
+verified relative-call relocation; the raw layout function bytes differ. The
+expanded graph includes the terminal fault callback as well as disk, user-copy,
+clock and scheduler callbacks. Exact callback installation, generated entries,
+transitive stacks, guards and interrupt contexts remain under review. None of
+these receipts establishes an actual writable guest or durability.
+
+## Selected writable device integration (step1616)
+
+The default-off M16-027 native sources retain one serialized writable block
+owner and negotiate VERSION_1 plus FLUSH on slot7. The original emitted layout
+at70697d6b occupies603504bytes/148pages inside its256-page reservation. Its first
+page is DMA; the remaining owner, bootstrap, FAT engine, read port, borrowed
+web filesystem, writable provider and observations use bounded retained storage.
+The exact admitted package PID owns the writable attachment and locking scope.
+
+The native flow bootstraps the two-partition128MiB image before worker entry,
+then services source5 continuations cooperatively. User teardown requires actual
+workers reaped, storage quiesced and descriptors closed before device reset,
+bus-master disable and DMA scrub. STOP is an intermediate receipt; END follows
+user/pool and NIC cleanup. The new host consumer checks the full indexed row
+census, each copied IN/OUT sector, successful FLUSH frontiers, protected web/GPT
+bytes and independently extracted final files. These are implemented contracts;
+the first writable guest still awaits callback-complete emitted stack review.
+
+Mechanical30 creates/writes/removes its temporary file. LogUpload40 exercises
+the finite known log/upload syscall sequence. Neither is the actual NativeAOT
+MinimalApi app or SQLite engine. Guest FLUSH, cold reboot, physical durability
+and transactional recovery remain separate acceptance obligations.
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+## Step1615 retained process and writable-image contracts
+
+Finite paired storage now excludes the complete original process and kernel-thread inventory, prepared worker contexts/stacks, signals/futex backing, and bounded callback carriers. The structural inspectors call no user callback, global Audit or device operation. Active admission separately rejects failed/stopping owners; retained cleanup still excludes their storage. Writable attachment must match the admitted package PID and the actual attached thread process in either attachment order.
+
+After the original borrowed read-port, block owner and filesystem retire, a scrubbed local read-only receipt permits thread orphan cleanup while excluding every retained local extent. It grants no new I/O or backend borrow. New reads fail before backend calls, strict CanRetainStorage stays false, and actual cancel/close/detach/exit/reap controls confirm no late user copy. Writable pairs cannot use this read-only retirement path.
+
+The free-cluster search budget is independent of file-chain capacity. Synthetic592-cluster DB/608-cluster journal reads and growth controls select explicit engine work/free-search budgets;64 is the small search policy, not a64-cluster file limit. Those synthetic bytes are not valid SQLite transactions. The extracted bounded entry encoder keeps the snapshot planner host-only; selected no-stdlib compilation and emitted closure remain separate obligations.
+
+CombinedWebDataImageFixture.CloneForWrite holds the exact immutable original combined image/receipt/EFI/package, independently verifies extraction, and uses a fresh CreateNew128MiB working file. One retained read/write handle anchors its identity and permits actual writable opens. Revalidation protects original contents and working identity/link/length, while permitting changed working bytes. Dispose releases handles; actual child ownership, complete join, final modified-image inspection, FLUSH, reboot and durability evidence remain external requirements.
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) Both current paired30 and shared FS13 lifetime controls pass on the integrated base. Synthetic303104B DB/310816B journal footprints use150positioned writes/755fakeFLUSH, exact592+608clusters, fresh B/C/W owner and strict extraction. Explicit1M traversal work passes;100k rejects beforeOUT. These are synthetic host geometry/capacity controls, with no valid SQLite execution, physical persistence or guest write acceptance.
+
+[Step1610](../done/step1610.md) V5r13 serves exact64KiB and joins deliberate cancellation; no full read/browser or writable guest gate advances. Repaired HTTP reference holds actual current static-link inputs before publication and all fresh runtime/object/ELF inputs afterward, while preserving the original archive separately. Fresh Linuxr02, actual guest writes/reboot and SQLite synchronization/recovery remain pending.
+
+[Step1606](../done/step1606.md) The integrated finite managed HTTP log/upload fixture exercises actual FileStream writes/readbacks/Flush(true), including failure after the upload closes but before the second log append. Failed receipts retain330Blog/5126Bupload rather than imply rollback. Requested flushes and Windows host files supply no guest device-FLUSH, FAT32 reboot, or durability authority. The separate Linux SQLite recovery r03 boundary remains unchanged.
+
+[Step1605](../done/step1605.md) Fresh Linux SQLite recovery d938/r03 passes with an observed closed read-only journal witness, two live SQLite file handles, owned pidfd kill/join, absent reserved lock and exact recovered baseline. All 117 declared output hashes match the independently extracted 120-file original. This is Linux process-kill recovery using the explicitly verified archive dependency; no guest FAT32 write/reboot, physical flush or power-loss durability is qualified. Paired storage/TCP and actual HTTP log/upload remain separate implementation slices.
+
+[Step1604](../done/step1604.md) The Step1603 sole-copy replenishment experiment is retired: actualr08 delivers no additional submits. Current PollDiskReadiness restores the original immediate ready-peer yield after mandatory per-step flush, original4step/5ms quantum and existing ownership/round-robin/cancellation behavior.19actual thread controls pass. Additive LogUpload40-frame ELF/package APIs preserve original30-frame bytes; bounded per-call translation drives38real global calls/14writes/4sync barriers within existing20KiB user backing. Terminal429submitted/completed,37888OUTbytes completed/flush-acknowledged and independent exact FAT/extraction/guards pass host-only. Witness/exit remain metadata, not ELF execution or physical persistence.
+
+[Step1603](../done/step1603.md) A pending borrowed read may copy one completed data sector and submit exactly one next sector in the same poll only after mandatory flush/full wake scan and revalidation of its original worker, wait sequence, operation token, fd, mount/device epoch and sole request ownership. The original5ms elapsed clock includes both steps; budget expiry, final copy, close, cancellation, ready completion, any other queued/ready/orphan request or fault prevents replenishment. The newly submitted request is never polled in that call.24 actual thread controls pass; fresh guest measurement is pending. Imported writable EngineQueued retention retries only never-issued first Begin, preserving copied inputs and reservations without pumping/cancelling an empty token or replaying mutations.103 provider and40 actual global journal-order controls pass host-only; no guest flush or durability authority follows.
+
+[Step1600](../done/step1600.md) Borrowed filesystem reads use the real same-owner WritableBlockReadPort and mutation-engine arbitration. Busy preserves pending/ready work and prevents output/EOF; no fake read-only device state or second block owner is constructed. The combined128MiB fixture preserves the entire original ESP; data partition relocation changes only its two HiddenSectors fields. Actual candidate log660B/upload5126B fake-media controls cover14positioned writes,3realSync/FLUSH snapshots, clean owner teardown, cold generations and independent extraction. Guest persistence/reboot, global coexistence and SQLite durability remain pending.
+
+[Step1597](../done/step1597.md) Confined writable stat/lstat validate current regular-file chains or the actual mirrored root chain. Root metadata is an explicit mount policy (0700, uid/gid0, zero times), with a disjoint high-bit inode; files retain the existing 0600 policy. Source5 retains the original writable 144-byte output prefix and copied path across waits; cancellation never publishes late metadata. Nonblocking flock uses open descriptions and final borrower retirement, separately from process range locks. The structural read-range helper authenticates original engine/device epochs and partition bounds; it grants no live submission, second queue or durability authority.
+
+[Step1594](../done/step1594.md) Step1594 adds copied OpenFacts with actual validated cluster allocation, asynchronous fresh regular-file fstat and source5 metadata waits. Copy-out uses the original144-byte user prefix, current fd/description/process generations and full-chain validation; cancellation or numeric fd reuse grants no late copy or cursor change. Provider State grows to840B; allocation facts88B and stat metadata96B; continuing FAT State656B/file token72B stay unchanged. The finite candidate media control independently joins660B log/5126B upload after80OUT/53FLUSH fake-media completions. Copied observation validation reports held/unresolved/error/cancel/dirty facts without authenticating a physical device, process or durability. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 replaces a new collision-test call to Fat32Mutation with the readonly fixture independent VFAT encoder, preserving all vectors and production source85b4779d. Scoped readonly controls pass60checks (33FS/5profile/5source/17backlog). Failed native log/upload r01 contains actual FileStream writes/disposal and in-process reopen/readback before SHA256 abort; independent660B/5126B bytes match, but no distinct verifier or successful original exists. Raw requirements remain useful; persistence and physical flush remain unqualified.
+
+[Step1592](../done/step1592.md) Step1592 adds MaximumLoadedDirectorySteps=16 for internal mount/open name lookup over an already loaded512B sector. Unchanged LookupOne performs every physical-entry budget, VFAT, exact/folded/short-alias collision check. Continue only actual Work+1/Entry+1 under unchanged mount/op/device ownership, same component/sector and unchanged I/O counters; stop at16, boundary, waiting, pending metadata, completion/error, cancellation or no progress. Public DirectoryStep/Entry/OutputFull behavior is unchanged. A retained2-handle2,009,369B/3925fragmented-cluster host control reads246ranges in each direction:7850data-sector submissions/completions/copies,15700Drive polls, zero repeated FAT/directory reads. Cold stat-like open still validates the complete chain; this change is bounded scheduling, not a cache-authority shortcut or guest performance claim.
+
+[Step1591](../done/step1591.md) Step1591 implements source5 on the isolated writable host branch with genuine Park/Wake/Complete/Interrupt/exit paths. The complete provider tree is excluded from retained scheduler metadata/context/stack extents through an authenticated copied query. User read prefixes are pinned while waiting and revalidated before copy; clean pending interruption returns EINTR without mutation restart, known-ready results retain precedence, and dirty recovery returns EIO while retaining backing through drain.13 source5 controls and87 regressions pass; global19/image20/FAT70 controls pass. No EFI/native writable activation, physical flush or reboot durability is established. Full read r04 failed after83 responses at the unchanged1700-second matrix bound; expert analysis attributes the largest delay to one loaded directory entry per turn.
+
+[Step1590](../done/step1590.md) Fresh c3dbab92 ExitPending r03 passes complete original joins:8calls, pending next data sector,0committed data-sector copies, real reset retirement, submitted48/completed47/copied47 frozen through release, final memory restoration and fresh cleanup-end clock. This finite cancellation scope does not qualify other race variants, full Blazor, writes or durability. New #809 log/upload work starts with actual BCL contract measurement; FileStream best-effort lock or ignored sync errno never grants storage authority.
+
+[Step1589](../done/step1589.md) bounds cached FAT chain validation to at most64 existing steps per Pump. Batch stops on cache/device I/O, changed ownership/generation/operation, or no cluster progress; outstanding shared I/O permits only the original one step. No allocation, preloaded file body or weakened mirror/corruption validation is added. Worst-case prior-history comparisons remain64*4096.25 filesystem controls pass; native fit and fresh full reads remain required. Failed full r03 and unaccepted ExitPending r02 keep their original evidence.
+
+[Step1588](../done/step1588.md) imports the continuing writable block, bounded FAT planner/engine, deterministic BasicData fixture and retained provider into one isolated integration branch.192 distinct host controls pass over actual shared fake-media IN/OUT/FLUSH and retention paths. Existing readonly native links stay unchanged. No integrated source5, real guest write, reboot extraction, SQLite locking/sync or recovery acceptance follows.
+
+[Step1587](../done/step1587.md) records the failed first original ExitPending. Generation48/sector17857 completes during pre-dispatch polling before the strict observation; no stage1 was published and cleanup fails. The repair gives validated exit_group precedence over opportunistic progress, without withholding a device completion or weakening the pending predicate. Software-pending does not establish that hardware is still DMA-writing; actual reset/quiescence remains mandatory. Writable descriptor ownership expands by four exact paths only, with native/guest and synchronization acceptance pending. Separate unintegrated eabc11cb/40191220 retained-owner predicates allow structural dirty/orphan/stopped-original-owner audits while rejecting epoch ABA and final retirement;163 affected provider/engine/block controls pass. Strict clean-copy/live admission remains separate.
+
+[Step1586](../done/step1586.md) composes one exact ExitPending row snapshot with independent GPT/FAT/VFAT inventory, prep-open metadata classification and the ordered copied prefix of fragmented.bin. The single outstanding LBA must be its next sector; inode, full/leaf indexes, owner/generations, physical extents, clocks, FIFO and eight reset/sentinel stages join. The original wrapper retains firmware/native/image/packet/process obligations; only ExitPending launch is connected, with fresh execution pending. Separate writable predicate/observer/provider checkpoints remain unintegrated host preparation, with the retained observer-alias failure preserved and isolated396f82b7 source-owner repair passing112 affected storage controls; provider a18728f1 follows with154 affected controls passing.
+
+[Step1585](../done/step1585.md) adds the explicit eight-stage ExitPending leaf and finite two-slot FIFO. Child group shutdown queues the cancelled parked parent exactly once; the original disk capability survives until the parent's actual post-CommitExit stage. Exact ready/active counts, supervisor confirmation, generation reap and teardown-stage positions are required. The typed reset terminal admits only its same validated one outstanding request; default positive/018 readers stay drained-only. No original race is enabled. Separate unintegrated data-image3dcaca1d, authenticated mutation-receipt15f8895c, bounded free-cluster discovery c92d87b8 and writable-provider723c96d4 checkpoints retain host-only scopes. Discovery reads both FATs with explicit budgets and no reservation; growth rechecks selected candidates. Native fit, write integration, reboot persistence and SQLite synchronization/recovery remain pending.
+
+[Step1584](../done/step1584.md) joins all copied pending-exit IO observations to
+the unique block binding, raw-image capacity, every committed512-byte sector
+and the exact last outstanding generation/LBA. A separate reset-retirement API
+requires unchanged software counters, reset/readback, bus-master disable, DMA
+release and zero pool mask; it never synthesizes completion or copied data.
+The ordinary/full positive readers remain drained-only. Every IO row precedes
+stage1 in this selected source; missing, late, reordered and divergent rows fail.
+Seventy-four focused controls pass. Original firmware/source/native, scheduler,
+image receipt, user-memory, packet and process-owner joins still precede execution.
+
+[Step1583](../done/step1583.md) prepares canonical ExitPending observations.
+They authenticate the entire package and retain scalar worker/wait, fd/description/
+file, FS and actual pending block identities. Before/after the parent's genuine
+CommitExit, separate slot revocation and current backend snapshots preserve the
+original identity and cursor. Real Block.Stop/reset, bus-master disable, fence,
+DMA return/scrub/release and FS/orphan retirement precede a validated-alias read
+of every byte of the8KiB sentinel, while process/mutation guard remain attached.
+Process release and dynamic-memory/image-protection restoration follow it.
+Reset retirement never invents a used-ring completion or advances I/O counters.
+The strict copied consumer admits only the current source's unchanged software
+counter path, with no original/native/user-memory authority. Sixty focused host
+checks pass; EFI publication, complete race/sector/image/runner joins and actual
+guest observations remain pending. Original race launch still refuses.
+
+Separate SQLite checkpoints b71a2863/3281a45a/0bc80774 remain unintegrated:
+owned Windows process-kill recovery restores exact baseline bytes; a new Linux
+recovery runner is prepared but has not executed. The retained Windows journal
+has15 valid segments/68 records covering all67 changed DB pages and a separate
+zero-header uncommitted tail of4 records,72 distinct original pages overall.
+This is copied byte coverage, not per-page synchronization, physical durability
+or CLROS acceptance. Original Linux producer f61648c2 and its incomplete trace
+projection remain unchanged. The storage agent's continuing POD leaf performs
+actual IN/OUT/FLUSH with bounded caller storage; its native activation is pending.
+
+[Step1582](../done/step1582.md) retains isolated host writable descriptor
+checkpoint e09ee0ba and the pinned Linux SQLite contract experiment separately
+from guest acceptance. Actual SQLite writes use single-iovec `pwritev2` with
+`RWF_NOAPPEND`32 and include parent-directory fsync. The host fd leaf performs
+real block FLUSH for directory descriptions; Linux wire/guest activation is open.
+
+Guest activation will use a continuing sector-backed POD owner. The snapshot
+prototype retains ref-struct spans and cannot live in `NativeDiskOwner`; its
+64MiB snapshot also exceeds the1MiB disk-arena cap and16MiB retained-range cap,
+and alone fills the64MiB mapped-page cap before existing owners. The measured
+retained buffers total about68.163MiB before allocator padding. A writable device
+must negotiate real OUT/FLUSH without RO and own its queue exclusively; preserve
+the original readonly PCI0:7 asset disk. No cap expansion, whole-volume preload,
+volatile-journal durability or CLROS SQLite acceptance follows from host tests.
+
+[Step1581](../done/step1581.md) connects the full finite read candidate to the
+original disk/sector, syscall, HTTP and browser owners. Each positive HTTP body
+requires one uniquely identified fd generation's contiguous reads; every queued
+body prefix follows its supplying completions. Authenticated serial phase
+boundaries exclude earlier same-file reads on other connections. Same-phase
+ambiguity fails closed. Selected native/device evidence admits196608 records;
+ordinary mechanical/development limits remain65536. No full guest has passed.
+
+Successor host-only commits089e7bed (#798) and170e8bac (#799) remain isolated,
+unintegrated and unmerged. The mutation planner currently borrows an entire
+stable image snapshot plus bounded before/after-sector journal; that snapshot
+has no admitted guest backing in the36MiB application boundary. Writable fd
+preparation (#800) and the original pinned SQLite Linux reference (#791) proceed
+in two isolated agent checkouts. No FAT write, sync durability, reboot recovery,
+SQLite locking/transaction or persistent application acceptance follows.
+
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
+[Step1579](../done/step1579.md) adds safe exact race-package publication and
+explicit mechanical selection; the original race consumer is still absent, so
+execution refuses before launching a child. No new race or durability acceptance.
+Fresh018r04 serves the host page/nonce and shuts down, but its outer receipt
+identity check fails; the original remains failed after the hash-case repair.
+The two isolated successor branches prepare #798 writable block/flush and #791
+direct SQLite requirements while read qualification continues. Dependencies stay
+open; preparatory host code cannot activate writes or qualify durability.
+
+[Step1578](../done/step1578.md) adds original-owner candidates joining disk
+lifetimes and physical reads to five HTTP bodies. Host mutation controls reject
+live disk/NIC/root/pool aliases and out-of-lifetime IO clocks. New two-worker
+fixture/leaf controls encode an interrupted16-sector read, a zero-I/O EOF winner
+and exit with a pending read. These are host/byte contracts only. EOF is not a
+backend completion race; the exit sentinel is observed before death. Original
+race guests, post-quiescence sentinel/drain evidence and full read/browser batch
+qualification remain required. Writes, flush, persistence and SQLite are unchanged.
+
+[Step1577](../done/step1577.md) adds copied physical directory/FAT classification,
+unique positive file-sector assignment and complete disk/static wait replay.
+Original018r03 value inspection matches11 disk operations,2 file windows and
+12 sectors; the10 residuals are exact verified directory/FAT sectors inside
+actual pending-to-Woken intervals. All512 copied bytes match the held image.
+Data copies also precede their own final Woken event. Metadata classification
+does not reconstruct the FS cache. Interrupted/cancelled/close-reuse and
+pending-shutdown races remain unqualified; the positive consumer fails closed.
+No original failed run, issue or storage/write/durability/SQLite gate advances.
+
+[Step1576](../done/step1576.md) retains original018r03 at `e5a5c1c0`: five
+external HTTP200 responses,12 post-readiness sector copies, actual app exit0
+and disk/NIC cleanup. Index/nonce bodies match independent physical extraction
+and copied sectors. Complete018 validation is absent, so the original outer
+command remains failed. New copied inode/timestamp/extent inventory passes six
+portable controls and reports54 entries in that original image; it grants no
+native, device or execution authority. Full Blazor/browser and batch gates remain.
+
+[Step1575](../done/step1575.md) retains018r02's mounted-disk/pre-thread failure.
+Actual emitted allocations exceed the fixed metadata arena by1120 bytes. The
+observer now reuses the actual retained WaitCall instead of duplicating16 frames;
+no arena grows. Fresh native/app qualification and full cleanup remain pending.
+
+[Step1574](../done/step1574.md) adds018-only actual source4 WAKE/REPARK rows,
+including request generations, instead of inferring FIFO wake order from late
+completion. The first018 compile passed but native verification failed before
+boot; the repaired native policy and producer still need original qualification.
+
+## Read milestone development history (2026-10-24)
+
+[Step1573](../done/step1573.md) refreshes018's authenticated original cursor
+immediately before deferred completion, after older cursor owners commit.
+Original path/generation/inode/length stay retained; mismatches fail closed.
+This diagnostic observation repair is not guest or shared-cursor acceptance.
+
+[Step1572](../done/step1572.md) connects the original full static-server disk
+envelope and retains file observations across source4 parks. Disk-sector
+observation starts at actual successful listen, with explicit prior counters.
+At step1572 the five-response owner was incomplete. Step1580 supersedes that
+limitation with a complete original development pass; full Blazor remains open.
+
+[Step1571](../done/step1571.md) records original r09/r10/r11 at `c66befd5`:
+DiskA/DiskB/DiskA each passes the complete owned mechanical consumer with
+59 calls, 35 disk completions, 62 post-bootstrap sector copies, seven positive
+read windows, one instruction IRQ and exit42/cleanup. All three retain exact
+native/source, original image/package, serial/summary and independent packet
+joins. Repeated DiskA images match; DiskB changes only the measured nonce byte.
+The disk contains the complete published client assets, but this probe reads
+the mechanical fixture. Full disk HTTP/Blazor, actual cancellation/device-error/
+concurrent progress and stable native/full/ancestor batch qualification remain.
+
+[Step1570](../done/step1570.md) retains original r08 at `38ba4446`: the gateway
+repair reaches 59 calls, 35 disk completions, seven positive file-read windows
+and exit42/cleanup markers. The original outer command still fails because its
+consumer was disabled. New compiled value inspection joins exact startup,
+parent/allocator/NIC values, all 62 post-bootstrap sector copies, independently
+parsed file extents, current call windows, HPET timing and exact IRQ instructions.
+The new original-runner consumer keeps serial/summary/packet/image/EFI/package
+and source/native inputs held through final checks. Thirty focused capture/
+parent/leaf/sector/profile controls pass unchanged; a fresh original capture
+remains required. Error/cancellation guests, disk HTTP,
+Blazor and full batch/native/ancestor acceptance remain outstanding.
+
+[Step1569](../done/step1569.md) retains fresh r07 after the timestamp repair:
+mount and descriptor attachment pass (37 bootstrap sector copies), but the first
+stat's source4 Blocked result was rejected by the syscall gate. Disk profile
+admission now allows exactly open/stat/lstat/lseek/pread/openat to block, in
+addition to existing calls. Actual gateway/thread controls exercise parking,
+pumping, wake and one completion without replay; read/metadata results do not
+inflate output-byte accounting. New disk envelope checks require the exact
+65-map canonical startup and retired disk/NIC tail. They remain value checks;
+at that checkpoint the complete consumer was disabled. Step1570 records its
+subsequent candidate integration; another fresh guest remains necessary.
+
+[Step1568](../done/step1568.md) adds an explicit timestamp compatibility policy:
+an all-zero FAT write date/time yields `ModifiedSeconds=0` (unspecified).
+Every other pair must decode as valid Gregorian UTC under the existing fixture
+timezone policy. This permits preserved EFI/OS directory entries produced by
+the base image writer; its metadata and payload bytes are unchanged. VFAT names,
+chains, alias checks, confinement and nonzero invalid-date rejection remain.
+The [Microsoft FAT specification's date/time fields](https://cscie92.dce.harvard.edu/spring2024/Microsoft%20Extensible%20Firmware%20Initiative%20FAT32%20File%20System%20Specification%2C%20Version%201.03%2C%2020001206.pdf)
+define calendar write dates; the zero sentinel here is an explicit CLROS
+compatibility extension. Twenty-two FS checks pass, including mount/open/read,
+metadata and invalid-date controls. Complete disk guest acceptance remains open.
+
+[Step1558](../done/step1558.md) records development of #781/#782 host FAT repairs
+and #769's reproducible webroot fixtures. The host parser rejects unsupported
+FAT flags/version and offers reusable directory-history spans with a default
+4096-cluster budget. Directory budget exhaustion is distinct from a cycle or
+full output buffer. The 47 focused parser checks pass; the live numeric parser
+and its earlier guest scope are unchanged.
+
+The new host importer measures the prepared Blazor asset inventory, preserves
+EFI/package/manifest files, writes equal-layout DiskA/DiskB variants, and
+independently reconstructs file hashes and logical-order physical extents.
+Its six final native-lane host checks pass, including GPT consistency controls;
+real candidate binding remains pending. These are host results.
+[Step1559](../done/step1559.md) adds the polling-only retained block owner with
+14 focused host checks: one DMA lease, one sector in flight, bounded progress,
+token revocation/cancellation and reset quarantine. It does not yet bind a live
+combined device. Block/NIC must use separate BDF/BAR ownership with the active
+Linux timer; the one-shot private-IDT MSI-X profile is not the service owner.
+The isolated integration now has host-tested confined FAT files, descriptor
+requests and source4 scheduler waits. Pending output retains its original
+writable prefix until consume/cancel, and completion revalidates fd ownership
+before copying. The optional block observer borrows one POD observation and,
+for a copy candidate, one 512-byte payload synchronously. It cannot reenter any
+block mutator; rejection faults the owner and retains uncertain DMA. Native
+serial records are buffered outside callbacks and published after actual copy
+commit. These contracts still require combined guest device qualification.
+[Step1566](../done/step1566.md) adds a strict value-only mechanical file-call
+consumer, including source4 wait/request/completion/copy-ceiling associations
+and exit/reap/restore records. Indexed sector/NIC/timing/IRQ observations still
+require independent joins. The first original disk EFI verifies, but its guest
+rejects before exit; a conditional range-bound repair awaits a fresh guest.
+
+Continuing guest reads, application file descriptors and disk-backed HTTP remain
+#770 -> #771 -> #773 -> #774; writable files remain the following ladder.
+
 Current master has bounded post-exit block/GPT/FAT/package diagnostics through
 step1162, not continuing disk-to-Kestrel file service. As of October 23,
 #781 -> #782 host FAT fixes remain open and precede #769 disk fixtures; active
 development is not merged acceptance. The later #770/#771/#773 read-only service
-ladder remains planned. Finite Kestrel/quota acceptance in step1556 does not
+ladder is under isolated implementation. Finite Kestrel/quota acceptance in step1556 does not
 extend storage capabilities.
 
 ## October 19 host parser findings
@@ -26,7 +473,7 @@ do not invalidate its narrow accepted profile or prove a guest storage failure.
 [M16-025/#773](http://192.168.4.35:3000/admin/CLROS/issues/773) will connect
 continuing read-only block I/O, confined FAT32 ranges and Linux application
 descriptors. The [roadmap](workload-profiles.md#disk-backed-static-file-roadmap-2026-10-18)
-owns ordering behind current service qualification. This is new planned work;
+owns ordering behind current service qualification. This work is not yet qualified;
 the bounded M06 qualifications below remain accepted within their original scope.
 
 Today `LiveDeviceExistingIReadOnlyBlockDeviceContract` permits one attempted
@@ -52,6 +499,8 @@ external HTTP results. Writable files and the later `OSHost_*` PAL export path
 remain separate.
 
 ### Planned FAT-sector cache and resumable traversal
+
+Development through step1592 implements this caller-owned cache and cursor contract on the feature branch; merged acceptance still requires the original batch gates. Cached open-chain turns are bounded64 visits; internal directory lookup turns examine at most16 physical entries from one loaded sector, retaining every entry budget/VFAT/collision check. Device submission/completion/copy remains separate. Public enumeration still exposes one retained entry, including OutputFull retry. Each independent open validates the whole bounded file chain, while retained offset reads use its checked map without repeated FAT walks.
 
 [M16-024/#771](http://192.168.4.35:3000/admin/CLROS/issues/771) owns the
 bounded cache and internal directory cursors within the read-only webroot
@@ -296,7 +745,7 @@ Virtio storage readiness now includes a host-tested generic virtio initializatio
 
 Virtio-blk queue setup now has a host-tested command planner for queue 0 common-configuration setup. `OS.Storage.VirtioBlockQueueMmioSetupPlanner` consumes a successful block `VirtioDeviceDescriptor`, caller-provided queue size, physical descriptor/driver/device ring addresses, and caller-provided queue metadata, then emits deterministic future register commands without invoking a register accessor, mapping BARs, allocating DMA memory, publishing descriptors, configuring a live queue, notifying a device, or performing block I/O. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowPlanner` now bridges those planned commands to checked virtio PCI common-configuration register-window access metadata, preserving setup-plan and register-window failure provenance while still avoiding volatile/live MMIO and queue mutation. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowExecutor` can fake-execute that command stream over caller-owned common-configuration BAR-window bytes, staging expected device read values for queue size and notify offset, while still avoiding live MMIO, real barriers, DMA, queue ownership, and block I/O. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor` now adds explicit setup-write visibility metadata and gates the final `queue_enable` fake write on ordered-before-enable readiness. `OS.Storage.VirtioBlockReadOnlyReadSessionSetupGate` now makes that setup-barrier execution a required host-tested precondition before a read session can publish/notify descriptors.
 
-Storage is in the first contract and parser stage. The repository now has a minimal read-only block-device abstraction, a host-tested partition-relative block-device view, a host-tested GPT primary-header/first-partition parser, a host-tested caller-buffer GPT partition table parser with primary and backup header CRC32 plus partition-entry-array CRC32 validation, a host-tested caller-owned GPT partition selector over parsed descriptors, a host-tested GPT EFI System Partition selector/location result, a caller-buffer GPT ESP readiness path for package/manifest loaders with backup-GPT fallback plus primary/backup GPT table-source reporting and GPT scratch and manifest/package required/available byte reporting, a host-tested FAT32 BPB/root-directory parser with short 8.3 lookup plus VFAT long-file-name root lookup, FAT-chain-aware root and first-level directory lookup, and FAT-chain-aware file content reads, a host-tested in-memory OS package metadata parser with deterministic file-table enumeration, a tiny read-only package filesystem lookup/enumeration API, a host-tested loader that composes GPT ESP selection, FAT32 `OS/APP.PKG` reads, and package parsing over an `IReadOnlyBlockDevice`, a host-tested virtio-blk device-configuration parser for caller-provided capacity bytes, a host-tested virtio-blk device-configuration register-window fake capacity reader, a host-tested virtio-blk read-request layout/readiness contract, a host-tested virtio-blk read transaction planning contract, a host-tested virtqueue split-ring layout contract, a host-tested virtio-blk descriptor-chain publication metadata contract, a host-tested virtio-blk descriptor-chain writer for caller-owned split-ring memory, a host-tested virtio-blk used-ring completion/status parser for caller-owned used-ring and status-buffer bytes, a host-tested virtio-blk read lifecycle coordinator that composes planning, descriptor publication, and completion parsing over caller-owned buffers, a host-tested virtio-blk read-only device planner that validates `BlockDeviceInfo` sector geometry/ranges before publishing one lifecycle read request, a host-tested virtio-blk caller-owned descriptor ownership/free-list/reclaim contract, a host-tested virtio-blk publish planner that composes free-list selection with read publication and ownership marking, a host-tested virtio-blk reclaim planner that composes successful publication with caller-owned completion parsing and descriptor-state reclaim, a host-tested virtio-blk queue cursor planner that carries caller-owned available/used ring indexes through publish and reclaim, a host-tested virtio-blk read queue planner that composes block geometry/range validation with cursor publication and cursor reclaim completion, a host-tested virtio-blk read queue block-result projector for future `IReadOnlyBlockDevice` status metadata, a host-tested virtio-blk queue notification metadata planner plus checked notify-relative offset, register-window access planning, fake byte-span notify execution, explicit barrier-gated fake notify execution, a host-tested virtio-blk read-notify readiness executor that composes read queue publication, notification metadata, checked notify-offset planning, and barrier-gated fake notify execution, a host-tested virtio-blk read-notify completion planner that gates read queue completion/reclaim on successful read-notify readiness, a host-tested virtio-blk read-notify block-result projector that maps gated completion into future `BlockReadResult` metadata, a host-tested virtio-blk read pipeline composer over caller-owned buffers and fake notify bytes for future notify/completion flow, a host-tested virtio-blk read pipeline adapter that validates caller-owned request, destination, status, queue, descriptor-state, and notify-window buffers before delegating to that pipeline, a host-tested virtio-blk read session that carries caller-owned queue/cursor/descriptor state across repeated adapter reads, and a host-tested read-session setup gate that refuses descriptor publication until queue setup barrier execution succeeded and attempted `queue_enable`, a host-tested modern virtio PCI capability-list parser over caller-provided config bytes, and a host-tested virtio PCI discovery contract that can identify a modern virtio-blk PCI identity plus required capability metadata. These contracts can be validated before virtio-blk exists. Host image packaging can place manifest and app-package files into the ESP, and host tests now read a parser-valid generated `OS/APP.PKG` back through the same GPT ESP, FAT32, and `OsPackageLoader` stack. The guest OS cannot read those files from a real virtio block device yet.
+The following older read-only contracts are host parser/planner surfaces, separate from the default-off continuing block, FAT and descriptor work described above. The repository now has a minimal read-only block-device abstraction, a host-tested partition-relative block-device view, a host-tested GPT primary-header/first-partition parser, a host-tested caller-buffer GPT partition table parser with primary and backup header CRC32 plus partition-entry-array CRC32 validation, a host-tested caller-owned GPT partition selector over parsed descriptors, a host-tested GPT EFI System Partition selector/location result, a caller-buffer GPT ESP readiness path for package/manifest loaders with backup-GPT fallback plus primary/backup GPT table-source reporting and GPT scratch and manifest/package required/available byte reporting, a host-tested FAT32 BPB/root-directory parser with short 8.3 lookup plus VFAT long-file-name root lookup, FAT-chain-aware root and first-level directory lookup, and FAT-chain-aware file content reads, a host-tested in-memory OS package metadata parser with deterministic file-table enumeration, a tiny read-only package filesystem lookup/enumeration API, a host-tested loader that composes GPT ESP selection, FAT32 `OS/APP.PKG` reads, and package parsing over an `IReadOnlyBlockDevice`, a host-tested virtio-blk device-configuration parser for caller-provided capacity bytes, a host-tested virtio-blk device-configuration register-window fake capacity reader, a host-tested virtio-blk read-request layout/readiness contract, a host-tested virtio-blk read transaction planning contract, a host-tested virtqueue split-ring layout contract, a host-tested virtio-blk descriptor-chain publication metadata contract, a host-tested virtio-blk descriptor-chain writer for caller-owned split-ring memory, a host-tested virtio-blk used-ring completion/status parser for caller-owned used-ring and status-buffer bytes, a host-tested virtio-blk read lifecycle coordinator that composes planning, descriptor publication, and completion parsing over caller-owned buffers, a host-tested virtio-blk read-only device planner that validates `BlockDeviceInfo` sector geometry/ranges before publishing one lifecycle read request, a host-tested virtio-blk caller-owned descriptor ownership/free-list/reclaim contract, a host-tested virtio-blk publish planner that composes free-list selection with read publication and ownership marking, a host-tested virtio-blk reclaim planner that composes successful publication with caller-owned completion parsing and descriptor-state reclaim, a host-tested virtio-blk queue cursor planner that carries caller-owned available/used ring indexes through publish and reclaim, a host-tested virtio-blk read queue planner that composes block geometry/range validation with cursor publication and cursor reclaim completion, a host-tested virtio-blk read queue block-result projector for future `IReadOnlyBlockDevice` status metadata, a host-tested virtio-blk queue notification metadata planner plus checked notify-relative offset, register-window access planning, fake byte-span notify execution, explicit barrier-gated fake notify execution, a host-tested virtio-blk read-notify readiness executor that composes read queue publication, notification metadata, checked notify-offset planning, and barrier-gated fake notify execution, a host-tested virtio-blk read-notify completion planner that gates read queue completion/reclaim on successful read-notify readiness, a host-tested virtio-blk read-notify block-result projector that maps gated completion into future `BlockReadResult` metadata, a host-tested virtio-blk read pipeline composer over caller-owned buffers and fake notify bytes for future notify/completion flow, a host-tested virtio-blk read pipeline adapter that validates caller-owned request, destination, status, queue, descriptor-state, and notify-window buffers before delegating to that pipeline, a host-tested virtio-blk read session that carries caller-owned queue/cursor/descriptor state across repeated adapter reads, and a host-tested read-session setup gate that refuses descriptor publication until queue setup barrier execution succeeded and attempted `queue_enable`, a host-tested modern virtio PCI capability-list parser over caller-provided config bytes, and a host-tested virtio PCI discovery contract that can identify a modern virtio-blk PCI identity plus required capability metadata. These contracts can be validated independently of the live virtio-blk implementations. Host image packaging can place manifest and app-package files into the ESP, and host tests now read a parser-valid generated `OS/APP.PKG` back through the same GPT ESP, FAT32, and `OsPackageLoader` stack. These host contracts alone establish no live guest read; use the separately retained owned-profile evidence above for actual device behavior.
 
 The app-model side now has `OS.Manifest.NativeAppSelectionLoader`, which consumes the caller-buffer manifest loader and caller-buffer package loader over the same injected block-device image before building launch and descriptor metadata, preserving nested manifest/package GPT table-source and scratch size metadata. `OS.Manifest.VirtioBlockNativeAppSelectionPreflight` now gates that selection loader on a completed caller-owned virtio-blk read-session result, expected `BlockDeviceInfo` geometry, the completed read-session block-device adapter, and `NativeAppSelectionBootScratchPlan` success while preserving nested read-session, adapter-create, scratch, and selection provenance. Host tests now also prefill a full-disk read-session destination with a GPT/FAT/package image, adapt that caller-owned destination through `OS.Storage.VirtioBlockReadSessionBlockDevice`, and prove app selection reads the manifest-selected package descriptor from that source. `OS.Storage.OsPackageFileStagingPlanner` can copy an already-opened package file entry from caller-owned package bytes into caller-owned staging storage while rejecting open failures, empty files, invalid package ranges including source-range arithmetic overflow, short destinations, and default results. `OS.Storage.VirtioBlockPackageFileStagingPreflight` now preserves staging-destination capacity alongside package-buffer capacity and source file length, `OS.Storage.VirtioBlockPackageFileStagingPreflightDiagnosticFormatter` can format that composed result into a stable caller-owned `APP_PACKAGE_FILE_STAGING_PREFLIGHT` diagnostic marker, and `BootSequence.RunAppPackageFileStagingPreflightReadiness` turns the same package-file staging boundary into host-tested `APP_PACKAGE_FILE_STAGING_PREFLIGHT_READY` or status-coded `APP_PACKAGE_FILE_STAGING_PREFLIGHT_NOT_READY` markers. `OS.Kernel.Runtime.NativeAppPayloadStagingPlanner` can copy only the selected executable bytes from already-loaded package bytes into caller-owned staging storage after payload range planning. `OS.Kernel.Runtime.NativeAppPackageStagingReadinessPlanner` composes already-produced manifest, package, descriptor, staging, executable-memory, and invocation results into one host-tested readiness value while rejecting dependency failures, byte-count mismatches, entry-offset mismatches, and default results. `OS.Manifest.NativeAppEntryStagingPreflight` wraps that value so final `APP_ENTRY_READY` requires initialized caller-owned package-file staging and caller-owned payload staging evidence. `BootSequence.RunAppPackageStagingReadiness` can turn that composed readiness into host-tested `APP_PACKAGE_STAGING_READY` or status-coded `APP_PACKAGE_STAGING_NOT_READY` markers, and `BootSequence.RunAppSelectionPreflightReadiness` can turn the virtio-blk preflight result into host-tested `APP_SELECTION_PREFLIGHT_READY` or status-coded `APP_SELECTION_PREFLIGHT_NOT_READY` markers. This is storage/app-model composition evidence only; it is not live virtio-blk, boot-time package evidence, executable mapping, or app execution.
 
@@ -1270,7 +1719,7 @@ TEST_PASS drivers.virtio.descriptor.catalog.derive preserves no-live-device boun
 
 `HelloSharpFs` is a placeholder app and does not read packaged files yet.
 
-The in-memory block device lives only in host tests. The kernel contract is intentionally read-only and status-code oriented so virtio-blk can implement it later without pulling in host allocations or filesystem behavior.
+The in-memory device is host-test storage. The legacy IReadOnlyBlockDevice contract remains read-only and status-coded; this does not describe every kernel storage API. The separate default-off WritableBlockSession/continuing FAT path implements bounded writes and observed FLUSH frontiers, with original-run and persistence boundaries recorded above.
 
 `PartitionBlockDevice` is a host-tested offset/bounds adapter only. Its create-result default guard proves only that zero/default metadata is not accepted as a successful partition view. It does not prove real partition discovery from a live disk, virtio-blk reads, or FAT32 behavior by itself.
 
@@ -1278,7 +1727,7 @@ Host-side package building, host-side `APP.PKG` placement, generated-image packa
 
 The legacy block-device `GptParser` currently reads one block for the primary header and can scan the primary partition-entry array for the EFI System Partition, but it still does not enforce GPT CRCs. The newer caller-buffer `GptPartitionTableParser` validates primary and backup header CRC32 plus partition-entry-array CRC32 and enumerates non-empty partition descriptors into a supplied span without allocating parser-owned heap buffers. `GptPartitionSelector` selects by partition type GUID or unique partition GUID from those already-parsed descriptors and preserves duplicate-count and selected-range metadata, but it does not read disks or make boot policy decisions by itself. Caller-buffer package and manifest loader paths can fall back from a failed primary GPT location to a valid backup GPT location and report the selected primary/backup GPT table source plus GPT scratch required/available byte counts; their original legacy-parser entrypoints remain primary-only for compatibility until the boot path owns stable scratch buffers.
 
-The FAT32 parser follows root and first-level directory FAT chains for metadata lookup and entry enumeration, and follows FAT chains for file content reads. This remains host-tested over an injected `IReadOnlyBlockDevice`; it does not recurse through nested directories, support writes, or prove reads from a real virtio-blk device.
+The older injected IReadOnlyBlockDevice FAT32 parser follows root and first-level directory FAT chains for metadata lookup and entry enumeration, and follows FAT chains for file content reads. This remains host-tested over an injected `IReadOnlyBlockDevice`; it does not recurse through nested directories, support writes, or prove reads from a real virtio-blk device.
 
 The package filesystem API is a small parser wrapper, not a general filesystem. It enumerates the package file table only by deterministic zero-based index; it does not enumerate directories, perform path normalization beyond package-format validation, cache handles, allocate buffers, verify signatures, decompress data, or execute/load app payloads.
 
@@ -1296,8 +1745,8 @@ The package loader locates `OS/APP.PKG` through a GPT ESP and a first-level FAT3
 
 1. Preserve accepted GPT/FAT/package/IRQ receipts through step1162; do not reopen
    their bounded children for the new continuing service.
-2. After the current Kestrel service batch and #224, follow #768's measured file
-   contract and #769's read-only webroot fixture, then #770/#771/#773.
+2. Use #768's qualified measured Linux file contract and #769's host webroot
+   fixture as prerequisites for #770/#771/#773; they do not qualify guest HTTP.
 3. Qualify #774's real guest-disk-to-HTTP/browser path; #775 adds sustained load,
    failure recovery and shutdown. Neither automatically closes Gate7 or Gate14.
 4. Keep writable storage and later `OSHost_*` package-file exports separate.

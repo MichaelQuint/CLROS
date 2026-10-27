@@ -1,7 +1,37 @@
+using OS.Kernel.Threading;
+using OS.Pal;
+
 namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Request SIGTERM once for an exact retained thread generation.
+    /// The externally serialized process owner calls from restored supervisor
+    /// state with IRQs disabled, no current worker and no pending handoff.
+    /// Signals must already be attached. Success records the request and queues
+    /// SI_KERNEL(128), retaining an earlier coalesced signal's provenance;
+    /// blocked signals stay pending and an unblocked ignored action drops it.
+    /// A nonignored unmasked wait uses the existing deadline/completion winner.
+    /// This captures no user/syscall state, runs no handler, stages no shutdown
+    /// and grants no graceful-exit evidence. Duplicate/stale/invalid ownership
+    /// rejects unchanged. An interrupt failure retains the queued request and
+    /// fails this owner closed; it does not permit a second request.</summary>
+    public bool RequestTermination(ulong key, ulong flags, OSHostHandle retainedGeneration)
+    {
+        if (!Access(key, flags) || _failed || _stopping || _signals == null ||
+            _owner.Threads->Current.IsValid || _owner.Threads->HandoffPending ||
+            !Lookup(flags, retainedGeneration, out uint index)) return false;
+        Slot* target = _owner.Slots + index;
+        var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, retainedGeneration);
+        if (target->Exiting != 0 || state.State is not (KernelThreadTable.State.Ready or
+            KernelThreadTable.State.Waiting or KernelThreadTable.State.Pending) ||
+            !LinuxSignalServices.RequestTermination(_signals, _self, retainedGeneration, target->Mask)) return false;
+        if (target->Wait.IsValid && !target->Mask.Contains(15) && !LinuxSignalServices.Ignored(_signals, 15) &&
+            !InterruptWait(flags, target))
+        { _failed = true; return false; }
+        return true;
+    }
+
     /// <summary>Deliver an authenticated, completely captured CPL3 GP/PF to
     /// the actual running generation. The native owner supplies trusted trap,
     /// error and memory-reservation classification; the fault image itself is
@@ -60,7 +90,8 @@ public unsafe partial struct LinuxThreadServices
     /// Call only after complete capture or wait completion, before installing
     /// the full image. It resolves already completed wait/restart decisions;
     /// asynchronous capture remains the native owner's responsibility.
-    /// Directed tgkill siginfo uses this process PID/uid0 and SI_TKILL(-6).
+    /// Directed tgkill siginfo uses this process PID/uid0 and SI_TKILL(-6);
+    /// owner SIGTERM uses SI_KERNEL(128) with zero nonapplicable siginfo bytes.
     /// Job-control or rejected delivery retains the pending entry.</summary>
     public LinuxSignalServices.Delivery DeliverPendingSignals(ulong key, ulong flags)
     {
@@ -73,7 +104,9 @@ public unsafe partial struct LinuxThreadServices
             long pending = LinuxSignalServices.Next(_signals, _self, slot->Kernel, slot->Mask, out uint signal);
             if (pending < 0) { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
             if (pending == 0) return FinishUncaughtRestart(key, flags, slot);
-            var result = DeliverSignal(key, flags, signal, -6);
+            if (!LinuxSignalServices.PendingCode(_signals, _self, slot->Kernel, signal, out int code))
+            { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
+            var result = DeliverSignal(key, flags, signal, code);
             if (result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported) return result;
             if (!LinuxSignalServices.Consume(_signals, _self, slot->Kernel, signal))
             { _failed = true; return LinuxSignalServices.Delivery.Rejected; }

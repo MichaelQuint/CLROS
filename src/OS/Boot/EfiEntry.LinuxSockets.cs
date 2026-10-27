@@ -212,12 +212,99 @@ public static unsafe partial class EfiEntry
             internal fixed byte Input[1536], Output[1536];
         }
         private static LinuxSocketStorage s_linuxSocketStorage;
+#if M16_027_PROBE
+        // The whole direct IO carrier is separate from transport metadata and
+        // the user-copy carrier. Original Boot/NIC and all opaque referents
+        // retain their independent native mappings and lifetime obligations.
+        private struct LinuxSocketIoCarrier
+        {
+            internal ulong Self, NetworkArena;
+            internal Storage* Boot;
+            internal LinuxSocketStorage* Owner;
+            internal NetDevice.State* Device;
+        }
+        private static LinuxSocketIoCarrier s_linuxSocketIoCarrier;
+
+        // Independent original addresses and whole context sizes are checked
+        // at each native/pump boundary. Mutual equality between copied owners
+        // alone cannot bind the opaque callbacks to this boot's NIC and DMA.
+        private static bool LinuxSocketIoCurrent(Storage* state, LinuxSocketStorage* owner)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            fixed (NetworkOwnerStorage* hardware = &s_networkOwner)
+            fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
+            {
+                if (state != original || owner != network || carrier->Self != (ulong)carrier ||
+                    carrier->Boot != original || carrier->Owner != network || carrier->Device != &hardware->Device ||
+                    network->Boot != original || network->Device != &hardware->Device || network->Phase is not (1 or 2) ||
+                    original->NetworkPhase != 2 || carrier->NetworkArena != original->NetworkArena ||
+                    original->Memory.References.NetworkArenaStart != carrier->NetworkArena ||
+                    original->Memory.References.NetworkArenaPages != 8 || !hardware->Device.Running) return false;
+                var device = &hardware->Device; var pool = &hardware->Pool;
+                if (device->Self != (ulong)device || device->PoolEpoch != 226 || device->Input.Epoch != 226 ||
+                    device->Input.Pool != pool || device->Input.Mmio.Context != original || device->Input.Clock.Context != original ||
+                    device->Input.Clock.Read != (delegate* unmanaged<void*, ulong*, byte>)&ReadNetworkNanos || device->Ring.Context != original ||
+                    pool->Self != (ulong)pool || pool->Epoch != 226 || pool->Count != 8 ||
+                    pool->Slots != (OS.Drivers.DmaBufferSlot*)hardware->Metadata ||
+                    pool->Window.CpuVirtualBase != carrier->NetworkArena || pool->Window.PhysicalBase != carrier->NetworkArena ||
+                    pool->Window.DeviceBase != carrier->NetworkArena || pool->Window.ByteLength != 8 * Page ||
+                    device->Input.Common.VirtualStart != original->Memory.References.VirtioBarStart ||
+                    device->Input.Common.PhysicalStart != original->Memory.References.VirtioBarStart ||
+                    device->Input.Notify.VirtualStart != original->Memory.References.VirtioBarStart + 0x3000 ||
+                    device->Input.Notify.PhysicalStart != original->Memory.References.VirtioBarStart + 0x3000) return false;
+                return network->Phase == 1 || network->Network.OriginalIoContext == carrier &&
+                    network->Network.IoContextBytes == sizeof(LinuxSocketIoCarrier) && network->Network.Io.Context == carrier &&
+                    network->Network.Io.NowNanoseconds == (delegate*<void*, ulong>)&LinuxSocketNow &&
+                    network->Network.Io.Send == (delegate*<void*, byte*, uint, byte>)&LinuxSocketSendFrame;
+            }
+        }
+
+        private static void* PrepareLinuxSocketIoCarrier(Storage* state, LinuxSocketStorage* owner)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
+            {
+                if (state != original || owner != network || network->Boot != state || network->Phase != 1 ||
+                    network->Device == null || !network->Device->Running || state->NetworkArena < Page ||
+                    state->Memory.References.NetworkArenaStart != state->NetworkArena ||
+                    carrier->Self != 0 || carrier->Boot != null || carrier->Owner != null || carrier->Device != null ||
+                    carrier->NetworkArena != 0) return null;
+                carrier->Boot = state; carrier->Owner = network; carrier->Device = network->Device;
+                carrier->NetworkArena = state->NetworkArena; carrier->Self = (ulong)carrier;
+                return LinuxSocketIoCurrent(state, network) ? carrier : null;
+            }
+        }
+
+        private static LinuxSocketStorage* ResolveLinuxSocketIo(void* context)
+        {
+            fixed (Storage* original = &s_storage)
+            fixed (LinuxSocketStorage* network = &s_linuxSocketStorage)
+            fixed (LinuxSocketIoCarrier* carrier = &s_linuxSocketIoCarrier)
+            {
+                if (context != carrier || !LinuxSocketIoCurrent(original, network)) return null;
+                return network;
+            }
+        }
+#endif
 
         private static bool LinuxSocketImageMapped(SeparatePageFaultMappingRange* ranges, ulong count)
         {
             fixed (LinuxSocketStorage* owner = &s_linuxSocketStorage)
+#if M16_027_PROBE
+            fixed (LinuxSocketIoCarrier* io = &s_linuxSocketIoCarrier)
+            fixed (LinuxUserCarrier* user = &s_linuxUserCarrier)
+                return FirstExitImageMappings.Contains(ranges, count, (ulong)io, (ulong)sizeof(LinuxSocketIoCarrier),
+                    PageProtection.Read | PageProtection.Write) &&
+                    FirstExitImageMappings.Contains(ranges, count, (ulong)user, (ulong)sizeof(LinuxUserCarrier),
+                    PageProtection.Read | PageProtection.Write) &&
+                    FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(LinuxSocketStorage),
+                    PageProtection.Read | PageProtection.Write);
+#else
                 return FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(LinuxSocketStorage),
                     PageProtection.Read | PageProtection.Write);
+#endif
         }
 
         private static bool RunLinuxSocketNetwork(Storage* state, NetDevice.State* device)
@@ -228,7 +315,7 @@ public static unsafe partial class EfiEntry
                     !ReadNetworkTime(state, out o->Started)) return false;
                 o->Boot = state; o->Device = device; o->Phase = 1;
                 if (!ResolveLinuxSocketPeer(o)) return false;
-#if M10_004_PROBE && !M16_014_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                 if (!LinuxText(state, "TEST_START m10.004\r\n")) return LinuxWebRetainFailure(state, null, 2);
                 bool ran = BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
@@ -246,10 +333,21 @@ public static unsafe partial class EfiEntry
 #if M07_027_PROBE && M07_028_PROBE
                 if (!LinuxText(state, "TEST_START m07.027\r\nTEST_START m07.028\r\n")) return false;
 #endif
-                bool ran = CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
+                bool ran = CompleteLinuxRandomLifetime(state,
+#if M10_018_PROBE
+                    BootSequence.RunOwnedDiskStaticFileApplication(state->LinuxStartupPhase == 6,
+#elif M10_017_PROBE
+                    BootSequence.RunOwnedStaticFileApplication(state->LinuxStartupPhase == 6,
+#else
+                    BootSequence.RunOwnedLinuxSockets(state->LinuxStartupPhase == 6,
+#endif
                     state->ServiceLoop.IsStopped, state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
                     state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared,
-                    state->ApicPhase == 2, device->Running, state, &RunOwnedLinuxSyscalls));
+                    state->ApicPhase == 2, device->Running,
+#if M10_018_PROBE
+                    state->Memory.References.NativeDiskArenaStart != 0 && state->Memory.References.NativeDiskArenaPages != 0,
+#endif
+                    state, &RunOwnedLinuxSyscalls));
                 bool completed = ran;
 #if M16_014_PROBE
                 if (!ran && LinuxQuotaPolicy(state) && state->LinuxQuota == LinuxQuotaDisposition.CpuRestored &&
@@ -294,7 +392,9 @@ public static unsafe partial class EfiEntry
                         (LinuxEpollServices.Registration*)o->Registrations, 64) ||
                     TcpConnectionTable.InitializeOwned(&o->Table, (TcpConnectionTableEntry*)o->Entries, LinuxSocketConnections,
                         o->Generations, LinuxSocketConnections, state->NetworkArena ^ 0x4c534f434b455453UL) != TcpConnectionTable.OwnershipStatus.Success) return false;
+#if !M16_027_PROBE
                 if (!LinuxSocketServices.AttachMessageObserver(&o->Sockets, state, &ObserveLinuxSocketMessage)) return false;
+#endif
                 // A finite diagnostic seed from the admitted clock, not a
                 // production unpredictable TCP initial-sequence generator.
 #if M16_014_PROBE
@@ -304,13 +404,22 @@ public static unsafe partial class EfiEntry
                 uint sequence = ((uint)now & 0x3fff0000) | 0x10000;
                 TcpInitialSequence.Owner* sequenceOwner = null;
 #endif
-                var io = new TcpPassiveConnection.Operations { Context = o, NowNanoseconds = &LinuxSocketNow, Send = &LinuxSocketSendFrame,
+                var io = new TcpPassiveConnection.Operations {
+#if M16_027_PROBE
+                    Context = PrepareLinuxSocketIoCarrier(state, o),
+#else
+                    Context = o,
+#endif
+                    NowNanoseconds = &LinuxSocketNow, Send = &LinuxSocketSendFrame,
                     LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
                 if (!SocketNetwork.Begin(&o->Network, &o->Sockets, &o->Table, (SocketNetwork.Slot*)o->Slots, LinuxSocketConnections,
                     o->Buffers, LinuxSocketReceive, LinuxSocketSend, new(2, 0, 0, 0, 0, 1), o->Peer, new(10, 0, 2, 2), sequence, io,
                     compactTimeWait: Probes.EnableM16014Probe, sequence: sequenceOwner
 #if M16_014_PROBE
                     , measureLeases: LinuxQuotaPolicy(state)
+#endif
+#if M16_027_PROBE
+                    , ioContextBytes: (uint)sizeof(LinuxSocketIoCarrier)
 #endif
                     )) return false;
 #if M16_014_PROBE
@@ -365,6 +474,9 @@ public static unsafe partial class EfiEntry
 
         private static bool PumpLinuxSocketFrames(LinuxSocketStorage* o)
         {
+#if M16_027_PROBE
+            if (!LinuxSocketIoCurrent(o->Boot, o)) return false;
+#endif
             if (o->Phase != 2 || o->Failed != 0 || !o->Device->Running ||
                 NetDevice.Poll(o->Device, 8, out _) != NetDevice.Status.Success || !ObserveLinuxSocketLifetimes(o)) return false;
             Span<byte> input = new(o->Input, 1514), output = new(o->Output, 1514); o->Polls++;
@@ -662,14 +774,136 @@ public static unsafe partial class EfiEntry
         private static uint PackLinuxSocketAddress(Ipv4Address address) => ((uint)address.Octet0 << 24) |
             ((uint)address.Octet1 << 16) | ((uint)address.Octet2 << 8) | address.Octet3;
 
-        private static bool PollLinuxSocketNetwork(LinuxNativeControl* c, bool observe = true)
+        private static bool PollLinuxSocketNetwork(LinuxNativeControl* c,
+#if M10_018_TIMING_PROBE
+            NativeDiskPollCause cause,
+#endif
+            bool observe = true)
         {
+#if M16_025_PROBE && !M16_027_PROBE
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+#endif
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
+#if M10_018_TIMING_PROBE
+            {
+                bool timing = disk->TimingPhase == 1;
+                bool pollTracked = disk->TimingPhase != 2;
+                if (pollTracked && !disk->TimingDispatch.BeginPoll()) return false;
+                uint bucket = (uint)cause;
+                if (bucket >= 4) return false;
+                ulong started = 0, afterPre = 0, afterDisk = 0, afterRefresh = 0, afterReadiness = 0, finished = 0;
+                if (timing && !ReadNetworkTime(c->State, out started)) return false;
+                if (o->Boot != c->State || observe && !RecordLinuxSocketPoll(c) ||
+                    !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
+                    observe && !RecordLinuxSocketPoll(c)) return false;
+                if (timing && (!ReadNetworkTime(c->State, out afterPre) || afterPre < started ||
+                    disk->TimingPreNetwork > ~0UL - (afterPre - started) || disk->TimingNetworkCalls == ~0UL)) return false;
+                if (disk->Boot != c->State || !c->Process.PollDiskReadiness(c->Key, 2,
+                    new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush,
+                        Measurements = timing ? &disk->TimingPump : null })) return false;
+                if (timing && (!ReadNetworkTime(c->State, out afterDisk) || afterDisk < afterPre)) return false;
+                if (timing)
+                {
+                    if (!c->Process.PollDescriptorReadinessMeasured(c->Key, 2, disk, &NativeDiskClock, out afterRefresh) ||
+                        afterRefresh < afterDisk) return false;
+                }
+                else if (!c->Process.PollDescriptorReadiness(c->Key, 2)) return false;
+                // One diagnostic-only clock partitions the existing parent
+                // interval; its measurement overhead remains in that parent.
+                if (timing && (!ReadNetworkTime(c->State, out afterReadiness) || afterReadiness < afterRefresh)) return false;
+                if (!RecordLinuxSocketWaits(o, c)) return false;
+                if (timing)
+                {
+                    if (!ReadNetworkTime(c->State, out finished) || finished < afterReadiness ||
+                        disk->TimingPostNetwork > ~0UL - (finished - afterDisk) ||
+                        disk->TimingPostReadiness > ~0UL - (afterReadiness - afterDisk) ||
+                        disk->TimingReadinessRefresh > ~0UL - (afterRefresh - afterDisk) ||
+                        disk->TimingReadinessWaitScan > ~0UL - (afterReadiness - afterRefresh) ||
+                        disk->TimingPostWaitRecord > ~0UL - (finished - afterReadiness) ||
+                        disk->TimingNetworkTotal > ~0UL - (finished - started) ||
+                        disk->TimingDiskRound > ~0UL - (afterDisk - afterPre) ||
+                        disk->TimingCauseCalls[bucket] == ~0UL ||
+                        disk->TimingCauseTotal[bucket] > ~0UL - (finished - started) ||
+                        disk->TimingCausePre[bucket] > ~0UL - (afterPre - started) ||
+                        disk->TimingCauseDisk[bucket] > ~0UL - (afterDisk - afterPre) ||
+                        disk->TimingCausePost[bucket] > ~0UL - (finished - afterDisk)) return false;
+                    disk->TimingPreNetwork += afterPre - started;
+                    disk->TimingPostNetwork += finished - afterDisk;
+                    disk->TimingPostReadiness += afterReadiness - afterDisk;
+                    disk->TimingReadinessRefresh += afterRefresh - afterDisk;
+                    disk->TimingReadinessWaitScan += afterReadiness - afterRefresh;
+                    disk->TimingPostWaitRecord += finished - afterReadiness;
+                    disk->TimingNetworkCalls++;
+                    disk->TimingNetworkTotal += finished - started;
+                    disk->TimingDiskRound += afterDisk - afterPre;
+                    disk->TimingCauseCalls[bucket]++;
+                    disk->TimingCauseTotal[bucket] += finished - started;
+                    disk->TimingCausePre[bucket] += afterPre - started;
+                    disk->TimingCauseDisk[bucket] += afterDisk - afterPre;
+                    disk->TimingCausePost[bucket] += finished - afterDisk;
+                }
+                return !pollTracked || disk->TimingDispatch.EndPoll();
+            }
+#elif M16_027_PROBE
+#if M16_027_TIMING_PROBE
+            {
+                fixed (NativeWritableOwner* timing = &s_nativeWritable)
+                {
+                    if (!BeginNativeWritableTiming(timing, c, out bool started)) return false;
+                    bool result = PollNativeWritableNetworkTurn(c, o, observe);
+                    if (!started) return result;
+                    bool valid = OS.Kernel.Diagnostics.WritableStorageTiming.End(&timing->Evidence->Timing);
+                    bool emitted = EmitNativeWritableTiming(timing, valid);
+                    return result && valid && emitted;
+                }
+            }
+#else
+            {
+                if (!LinuxSocketIoCurrent(c->State, o) || observe && !RecordLinuxSocketPoll(c) ||
+                    !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
+                    observe && !RecordLinuxSocketPoll(c)) return false;
+                bool read = c->Process.PollDiskReadiness(c->Key, 2);
+                bool readSampled = SampleNativeWritableDisk(c->State);
+                if (!read || !readSampled) return false;
+                bool write = c->Process.PollWritableDiskReadiness(c->Key, 2);
+                bool writeSampled = SampleNativeWritableDisk(c->State);
+                if (!write || !writeSampled) return false;
+                bool descriptors = c->Process.PollDescriptorReadiness(c->Key, 2);
+                bool descriptorsSampled = SampleNativeWritableDisk(c->State);
+                return descriptors && descriptorsSampled && RecordLinuxSocketWaits(o, c);
+            }
+#endif
+#else
                 return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&
                     RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
                     (!observe || RecordLinuxSocketPoll(c)) &&
+#if M16_025_PROBE
+                    disk->Boot == c->State && c->Process.PollDiskReadiness(c->Key, 2,
+                        new() { Context = disk, Clock = &NativeDiskClock, Flush = &NativeDiskQuantumFlush }) &&
+#endif
                     c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
+#endif
         }
+
+#if M16_027_TIMING_PROBE
+        // Same original sequence as the ordinary027 arm. The separate method
+        // lets the diagnostic owner close its window on EVERY returned result.
+        private static bool PollNativeWritableNetworkTurn(LinuxNativeControl* c, LinuxSocketStorage* o, bool observe)
+        {
+            if (!LinuxSocketIoCurrent(c->State, o) || observe && !RecordLinuxSocketPoll(c) ||
+                !RecordLinuxSocketWaits(o, c) || !PumpLinuxSocketFrames(o) || !c->Process.AdvanceFutexClock(c->Key, 2) ||
+                observe && !RecordLinuxSocketPoll(c)) return false;
+            bool read = c->Process.PollDiskReadiness(c->Key, 2);
+            bool readSampled = SampleNativeWritableDisk(c->State);
+            if (!read || !readSampled) return false;
+            bool write = c->Process.PollWritableDiskReadiness(c->Key, 2);
+            bool writeSampled = SampleNativeWritableDisk(c->State);
+            if (!write || !writeSampled) return false;
+            bool descriptors = c->Process.PollDescriptorReadiness(c->Key, 2);
+            bool descriptorsSampled = SampleNativeWritableDisk(c->State);
+            return descriptors && descriptorsSampled && RecordLinuxSocketWaits(o, c);
+        }
+#endif
 
         private static bool ObserveLinuxSocketWaits(LinuxNativeControl* c)
         {
@@ -677,7 +911,7 @@ public static unsafe partial class EfiEntry
                 return o->Boot == c->State && RecordLinuxSocketWaits(o, c);
         }
 
-        // Observe only retained source3 waits after the real clock/readiness
+        // Observe retained waits after the real clock/readiness
         // mutation. This neither completes a wait nor changes scheduler state.
         private static bool RecordLinuxSocketWaits(LinuxSocketStorage* o, LinuxNativeControl* c)
         {
@@ -685,15 +919,40 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < c->Capacity; i++)
             {
                 var slot = c->Slots + i;
+#if M16_027_PROBE
+                bool disk = slot->WaitSource == 4, writable = slot->WaitSource == 5;
+                if (slot->WaitSource != 3 && !disk && !writable || !slot->Wait.IsValid) continue;
+                if (disk && !slot->DiskOperation.IsActive || writable && !slot->WritableDiskOperation.IsActive) return false;
+#elif M10_018_PROBE
+                bool disk = slot->WaitSource == 4;
+                if (slot->WaitSource != 3 && !disk || !slot->Wait.IsValid) continue;
+                if (disk && !slot->DiskOperation.IsActive) return false;
+#else
                 if (slot->WaitSource != 3 || !slot->Wait.IsValid) continue;
+#endif
                 if (!c->Process.Inspect(c->Key, 2, slot->Kernel, out var view)) return false;
                 if (view.Exiting) continue;
                 var observed = c->Threads.Inspect(c->Key, 2, view.Kernel);
                 if (!observed.Succeeded || !observed.Wait.IsValid || observed.Wait.Sequence != view.Wait.Sequence) return false;
                 if (observed.Completion == ThreadTable.Completion.None ||
                     o->WakeIdentities[i] == view.Kernel.Value && o->WakeSequences[i] == view.Wait.Sequence) continue;
-                if (!LinuxText(c->State, "M16_012_WAKE identity=") || !LinuxNumber(c->State, view.Kernel.Value) ||
+                if (!LinuxText(c->State,
+#if M16_027_PROBE
+                    disk || writable ? "M16_027_WAKE identity=" :
+#elif M10_018_PROBE
+                    disk ? "M16_025_WAKE identity=" :
+#endif
+                    "M16_012_WAKE identity=") || !LinuxNumber(c->State, view.Kernel.Value) ||
                     !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+#if M16_027_PROBE
+                    (disk || writable) && (!LinuxText(c->State, " source=") || !LinuxNumber(c->State, slot->WaitSource) ||
+                        !LinuxText(c->State, " requestOwner=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOperation.Owner : slot->DiskOperation.Owner) ||
+                        !LinuxText(c->State, " requestEpoch=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOperation.Epoch : slot->DiskOperation.Epoch) ||
+                        !LinuxText(c->State, " request=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOperation.Generation : slot->DiskOperation.Generation) ||
+                        !LinuxText(c->State, " outputPrefix=") || !LinuxNumber(c->State, writable ? slot->WritableDiskOutputBytes : slot->DiskOutputBytes)) ||
+#elif M10_018_PROBE
+                    disk && (!LinuxText(c->State, " request=") || !LinuxNumber(c->State, slot->DiskOperation.Generation)) ||
+#endif
                     !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)observed.Completion) ||
                     !LinuxText(c->State, " state=") || !LinuxNumber(c->State, (uint)observed.State) ||
                     !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")) return false;
@@ -708,7 +967,11 @@ public static unsafe partial class EfiEntry
             ulong until = now + 5_000_000;
             for (uint poll = 0; poll < 100_000; poll++)
             {
-                if (!PollLinuxSocketNetwork(c, false) || !ReadNetworkTime(c->State, out now)) return false;
+                if (!PollLinuxSocketNetwork(c,
+#if M10_018_TIMING_PROBE
+                    NativeDiskPollCause.Idle,
+#endif
+                    false) || !ReadNetworkTime(c->State, out now)) return false;
                 if (c->Threads.ReadyCount != 0 || now >= until) return RecordLinuxSocketPoll(c, true);
             }
             return false;
@@ -734,6 +997,9 @@ public static unsafe partial class EfiEntry
                     if (LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out _))
                     {
                         long closed = LinuxDescriptorServices.Dispatch(&state->LinuxDescriptors, new() { Number = 3, Argument0 = fd });
+#if M16_027_PROBE
+                        if (!SampleNativeWritableDisk(state)) return false;
+#endif
                         if (!LinuxText(state, "M16_011_CLOSE fd=") || !LinuxNumber(state, fd) ||
                             !LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)closed)) ||
                             !LinuxText(state, "\r\n") || closed != 0) return false;
@@ -787,13 +1053,23 @@ public static unsafe partial class EfiEntry
 
         private static ulong LinuxSocketNow(void* context)
         {
+#if M16_027_PROBE
+            var o = ResolveLinuxSocketIo(context);
+            if (o == null) return 0;
+#else
             var o = (LinuxSocketStorage*)context;
+#endif
             if (!ReadNetworkTime(o->Boot, out ulong now)) { o->Failed = 1; return 0; }
             return now;
         }
         private static byte LinuxSocketSendFrame(void* context, byte* frame, uint bytes)
         {
+#if M16_027_PROBE
+            var o = ResolveLinuxSocketIo(context);
+            if (o == null) return 2;
+#else
             var o = (LinuxSocketStorage*)context;
+#endif
             var sent = NetDevice.Send(o->Device, new ReadOnlySpan<byte>(frame, (int)bytes));
             if (sent == NetDevice.Status.Success) { o->Copied++; return 1; }
             if (sent == NetDevice.Status.Full) return 0;

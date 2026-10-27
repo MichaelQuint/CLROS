@@ -10,6 +10,7 @@
 
 	<ItemGroup>
 		<Compile Include="..\OS.Tooling\QemuContracts.cs" Link="QemuContracts.cs" />
+		<Compile Include="..\OS.Tooling\NativeFile.cs" Link="NativeFile.cs" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 	</ItemGroup>
 

@@ -306,6 +306,46 @@ internal static unsafe class LinuxSyscallGatewayTests
         }
     }
 
+    [HostTest("linux.gateway disk waits complete once without replay or output-byte accounting")]
+    private static void DiskWaitActions()
+    {
+        byte* scratch = stackalloc byte[64];
+        foreach (ulong number in new ulong[] { 2, 4, 5, 6, 8, 17, 257 })
+        {
+            Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model, scratch);
+            var frame = Frame(); frame.Number = number; frame.Argument2 = 5;
+            HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            HostCheck.True(state.Status == LinuxSyscallGateStatus.Blocked && state.Calls == 1 && model.ThreadCalls == 1);
+            HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Blocked)).Action);
+            HostCheck.True(state.Status == LinuxSyscallGateStatus.Blocked && state.Calls == 1 && state.TotalCalls == 1 &&
+                model.ThreadCalls == 1 && state.BytesWritten == 0 && state.TotalBytesWritten == 0);
+            long value = number is 2 or 257 ? 3 : number == 8 ? 123456 : number == 17 ? 5 : 0;
+            var completed = LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, value));
+            HostCheck.True(completed.Action == LinuxSyscallAction.Return && completed.Value == value &&
+                state.Status == LinuxSyscallGateStatus.Active && state.Calls == 1 && state.TotalCalls == 1 && model.ThreadCalls == 1);
+            HostCheck.True(state.BytesWritten == 0 && state.TotalBytesWritten == 0);
+            HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.CompleteBlocked(ref state, completed).Action);
+            HostCheck.True(state.Calls == 1 && model.ThreadCalls == 1);
+        }
+    }
+
+    [HostTest("linux.gateway disk wait extension still rejects unrelated blocked descriptor and thread calls")]
+    private static void UnrelatedBlockedCalls()
+    {
+        byte* scratch = stackalloc byte[64];
+        foreach (ulong number in new ulong[] { 3, 16, 20, 22, 24, 39, 41, 72, 79, 89, 293 })
+        {
+            Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model, scratch);
+            var frame = Frame(); frame.Number = number;
+            HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            HostCheck.True(state.Status == LinuxSyscallGateStatus.InvalidAdmission && state.Calls == 1 && model.ThreadCalls == 1);
+            HostCheck.True(state.BytesWritten == 0 && state.TotalBytesWritten == 0);
+            HostCheck.Equal(LinuxSyscallAction.Rejected,
+                LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return)).Action);
+        }
+    }
+
     [HostTest("m16-008 gateway routes all threaded fd mutations and counts blocked writes once after completion")]
     private static void ThreadDescriptors()
     {

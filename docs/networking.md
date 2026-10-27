@@ -1,5 +1,22 @@
 # Networking
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+## Step1615 bounded callback ownership
+
+The selected finite paired socket contract admits a copied whole message-observer carrier of8..65536bytes through the guarded four-argument AttachMessageObserver overload. Establish the actual Network first, then attach a distinct observer carrier before threads. The observer carrier and Network original IO carrier must be disjoint. Structural ownership checks neither call the observer nor imply authority over its opaque children; the native owner must independently retain and validate Boot/NIC/DMA/MMIO/code referents. Existing unpaired/025 signatures and layouts retain their compile boundaries. The actual writable native owner and its separate user-copy/IO/message carriers are still under implementation.
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) All30 current paired-global controls pass, including actual host packet/TCP/epoll interactions, dirty writes, held reads, reset and independent teardown. They establish finite host contracts. Complete outer process/carrier exclusion and a genuinely separate native callback carrier still precede actual writable web activation.
+
 ## Current network/service boundary (October 23, 2026)
 
 Finite TCP (step1332), Linux sockets/epoll (step1351), Kestrel health/UTC
@@ -421,7 +438,7 @@ Its separate receive negotiation selects VERSION_1+MRG_RXBUF solely to obtain
 the device-written buffer count on this QEMU backend. The driver posts one
 buffer and requires num_buffers=1; no multi-buffer assembly is implemented.
 
-The bounded #136â€“#140 batch is qualified in [step1162](../done/step1162.md):
+The bounded #136–#140 batch is qualified in [step1162](../done/step1162.md):
 4,422 full-host checks, linked native ABI/stack review, a 168-record guest receipt
 and an independent exact 60-byte frame in QEMU libpcap pass. The default-off
 `EnableM07VirtioNetProbe` binds modern PCI, negotiates VERSION_1 only, uses one
@@ -430,7 +447,7 @@ then transmits and reclaims one fixed experimental Ethernet frame. It resets,
 disables bus mastering, fences, releases descriptors/DMA and restores the original
 allocator/command. Eleven ancestor regressions pass. Continuing RX/I/O and live
 DHCP/DNS/TCP/HTTP remain incomplete; M07 and later gates stay open.
-Development history is in steps1158â€“1161.
+Development history is in steps1158–1161.
 
 ## Current Status
 

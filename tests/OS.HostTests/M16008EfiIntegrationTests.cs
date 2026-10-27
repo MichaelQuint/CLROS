@@ -68,7 +68,7 @@ internal static unsafe class M16008EfiIntegrationTests
                 "m16_013_explicit_false_prerequisite");
             foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe" or "EnableM07027Probe" or "EnableM07028Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
@@ -172,7 +172,7 @@ internal static unsafe class M16008EfiIntegrationTests
         HostCheck.Equal("state->CooperativePool+((NativeProgram.Entries+index*NativeProgram.WorkerStride)&~(Page-1))",
             string.Concat(lookup.ArgumentList.Arguments[1].Expression.DescendantTokens().Select(token => token.Text)));
 
-        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe"})
+        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe","EnableM10017Probe","EnableM16025Probe"})
         {
             var socketProfile=EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{[leaf]=true});
             symbols=socketProfile.Flags.Where(p=>p.Value).Select(p=>EfiContracts.ProbeSymbols[p.Key]).ToArray();
@@ -180,15 +180,55 @@ internal static unsafe class M16008EfiIntegrationTests
                 .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="FirstExitRetainedMappings");
             var capacity=socketRetained.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
                 .Single(n=>n.Identifier.Text=="MaximumRanges").Initializer!.Value;
-            ulong ranges=Sum(capacity);HostCheck.Equal(47UL,ranges);
-            HostCheck.True(ranges<=SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges,
+            bool disk=leaf=="EnableM16025Probe";
+            ulong ranges=Sum(capacity);HostCheck.Equal(disk?54UL:47UL,ranges);
+            var tableAdmission=Parse("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs").DescendantNodes()
+                .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="SeparateDisabledDefaultPageFaultPageTables");
+            var tableCapacity=tableAdmission.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
+                .Single(n=>n.Identifier.Text=="MaximumRetainedRanges").Initializer!.Value;
+            HostCheck.Equal(disk?54UL:48UL,Sum(tableCapacity));
+            HostCheck.True(ranges<=Sum(tableCapacity),
                 "the live NIC and Linux runtime union must fit actual image and table-builder admission");
+            var userTables=Parse("src/OS.Kernel/Memory/X64UserAddressSpace.cs").DescendantNodes()
+                .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="X64UserAddressSpace");
+            ExpressionSyntax UserCapacity(string name)=>userTables.Members.OfType<FieldDeclarationSyntax>()
+                .SelectMany(n=>n.Declaration.Variables).Single(n=>n.Identifier.Text==name).Initializer!.Value;
+            ulong userRanges=Sum(UserCapacity("MaximumRanges"));
+            HostCheck.Equal(leaf=="EnableM10017Probe"?384UL:disk?135UL:128UL,userRanges);
+            HostCheck.Equal(128UL,Sum(UserCapacity("MaximumTables")));
+            if(disk)HostCheck.True(65UL+64<userRanges,
+                "the measured disk static inventory must retain all64 mutable regions and candidate slack");
+            var bar=socketRetained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
+                .Single(n=>n.Right.ToString()=="references.VirtioBarStart");
+            HostCheck.Equal("starts[allocations]",bar.Left.ToString());
+            HostCheck.True(!socketRetained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
+                .Any(n=>n.Left.ToString()=="allocations" && n.Right.ToString()=="8"),
+                "device ownership must not discard package, image/table, clock or ECAM extents");
+            var descriptorLimit=socketRetained.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
+                .Single(n=>n.Identifier.Text=="MaximumDescriptorPages").Initializer!.Value;
+            HostCheck.Equal(leaf=="EnableM10017Probe"?70UL:64UL,Sum(descriptorLimit));
             var socketEntry=Parse("src/OS/Boot/EfiEntry.cs");
             var ledger=socketEntry.DescendantNodes().OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
                 .Single(n=>n.Identifier.Text=="LinuxLedgerCapacity").Initializer!.Value;
-            ulong ledgerCapacity=Sum(ledger);HostCheck.Equal(18UL,ledgerCapacity);
+            ulong ledgerCapacity=Sum(ledger);HostCheck.Equal(disk?19UL:18UL,ledgerCapacity);
             var seal=socketEntry.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(n=>n.Identifier.Text=="SealLinuxLedger");
             HostCheck.Equal(ledgerCapacity,5UL+(ulong)seal.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(n=>n.Expression.ToString()=="LinuxReservation"));
+        }
+
+        foreach (string leaf in new[] { "EnableM16027Probe", "EnableM10018Probe" })
+        {
+            var selected = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [leaf] = true });
+            symbols = selected.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key])
+                .Append("NOSTDLIB_EFI").ToArray();
+            var selectedPrepare = Parse("src/OS/Boot/EfiEntry.LinuxThreads.cs").DescendantNodes()
+                .OfType<MethodDeclarationSyntax>().Single(n => n.Identifier.Text == "LinuxNativePrepare");
+            var limit = selectedPrepare.DescendantNodes().OfType<BinaryExpressionSyntax>().Single(n =>
+                n.Left.ToString() == "(uint)sizeof(LinuxNativeControl)" && n.OperatorToken.Text == ">");
+            HostCheck.Equal(leaf == "EnableM16027Probe" ? "NativeProgram.WritableControlMaximumBytes" : "8192",
+                limit.Right.ToString());
+            HostCheck.Equal(1, selectedPrepare.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(n =>
+                n.Expression.ToString() == "LinuxNativeTake" &&
+                n.ArgumentList.Arguments[2].Expression.ToString() == "(uint)sizeof(LinuxNativeControl)"));
         }
 
         Microsoft.CodeAnalysis.SyntaxNode Parse(string path)

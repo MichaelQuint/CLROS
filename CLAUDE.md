@@ -1,5 +1,9 @@
 # CLROS Claude Agent Guide
 
+[Step1624](done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+[Step1614](done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
 This file is a compact guide for Claude agents working in this repository. The
 root operating contract remains `AGENTS.md`; use this file as a quick handoff,
 not as a replacement for canonical repo docs.
@@ -78,14 +82,28 @@ The repository has host-tested contracts and accepted QEMU/OVMF profiles for
 firmware-visible boot, bounded real firmware exit, owned post-exit diagnostics
 and subsystem use, and selected runtime operations. Each accepted profile has
 its own scope in `docs/completion-gates.md`; these results do not establish a
-general runtime or continuing platform services. Storage, PAL, app-model, and
-networking slices remain host-tested parser, planning, mock-table, or
-caller-owned-buffer evidence only.
+general runtime or continuing platform services. Named finite Linux NativeAOT,
+live TCP/socket and Kestrel scopes are recorded in steps1307 through1556.
+Step1571 adds complete mechanical readonly disk captures; step1580 qualifies
+the five-response disk/static development consumer. Full Blazor/browser and
+sustained-service acceptance remain open.
 
-Networking currently includes host-tested UDP/TCP checksum slices through
-active/passive handshakes, HTTP GET payload frames, and active close FIN/ACK
-frame generation. This is not live virtio-net I/O, a complete TCP stack,
-exported PAL sockets, hosted .NET, or Kestrel.
+Step1613 retains a separate phase-complete dispatch diagnostic with34 focused
+Fast passes. Its original native timing was pending; step1614 records the later
+actual timing result at its own source scope. Those frozen totals do not prove
+guest cleanup. Step1624 integrates port/filesystem, descriptor and transport
+batching, copied ordinals and fail-closed host repairs. On4e48acc1 its original
+Mechanical30/DiskA guest passes all30 calls and complete cleanup, with exact
+ordinary CD5D2A42 emitted-byte and conditional stack joins. The source-matched
+unfiltered full r04 naturally joins exit0 with7318 checks/918 fixtures, unchanged
+inputs and zero reuse. PR810 still requires the affected original guest/native
+regressions and closing review/tracker gates.
+
+Step1612's paired writable block/filesystem/TCP controls are host preparation,
+including fake media and managed HTTP processes. Complete native writable
+carriers, source5 integration, emitted closure/lifetime, guest writes/reboot
+and SQLite durability still require their own evidence. General hosting,
+exported socket PAL, isolation, cloud and production remain unqualified.
 
 Use `docs/completion-gates.md` and the latest `done/stepNN.md` for exact
 claim boundaries.

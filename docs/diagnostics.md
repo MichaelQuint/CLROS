@@ -1,5 +1,163 @@
 # Diagnostics
 
+## Shared QEMU fixture filesystem snapshots
+
+Test-only f3202d25 removes each rejection test's self-referencing directory
+link in nonrecursive `finally` cleanup. Both original link-rejection checks and
+the complete recursive filesystem snapshot remain. Sorting the returned array
+in place preserves ordinal comparison and avoids the extra LINQ materialization.
+
+The normal harness interaction control runs both link creators, checks that
+their immediate-parent entries are absent, then runs both original M01 snapshot
+checks in the same fresh subtree:
+
+```powershell
+dotnet run --project tests/OS.HostTests --no-build -- --lane native --filter QemuRunnerTests.Initialize --case "qemu writable directory link cleanup precedes full snapshots"
+```
+
+Use the current toolchain setup in [host requirements](host-requirements.md).
+Its `QEMU_LINK_SNAPSHOT_OBSERVATION` reports elapsed time, managed allocation
+across all process threads during the control, and process-lifetime peak working
+set. These are observations without new thresholds or increased budgets. The
+completed interaction and191-check affected-fixture runs in
+[Step1624](../done/step1624.md) do not replace fresh unfiltered qualification.
+
+## Fail-closed regression repairs (step1624)
+
+FiniteDescriptorTree classifies low, unaligned and noncanonical Disk/Mount
+pointers through its complete fail-closed path before dereferencing. Corruption
+controls use typed field access to the actual ThreadOwner field; the old marshaled
+offset crossed a bool-containing structure and targeted Disk instead. A separate
+real poisoned-pointer dispatch control verifies unchanged frame, copies and
+kernel ownership. Startup now checks the actual five copied payload bytes while
+retaining its explicit FailWrite/EFAULT negative. Syscall5 joins the existing
+positive asynchronous metadata census; unrelated blocked calls still reject.
+
+The unwind allocation assertion now reports actual successes and allocated bytes
+and checks backing first. Its64 warmups, two counter reads and measured calls
+remain unchanged. The original failure did not report those values and has no
+established allocator cause; the later isolated pass preserves that boundary.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+## Step1615 host runner diagnostics
+
+Reflection invocation preserves the actual inner exception instance and original throwing frame with ExceptionDispatchInfo. The declared return whitelist and awaited Task/ValueTask policy are unchanged. Epoll corruption controls use typed field accessors for managed state fields; Marshal.OffsetOf describes marshaled layout and was an invalid target for structs containing default-marshaled bools. Both old failures remain preserved; the correction does not retroactively identify their lost faulting stack frames or change a production ownership guard.
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) Frozen LinuxHTTP r02 archives56files/53declared outputs with Complete=false; publication succeeds but input retention rejects a legitimate0B marker before app execution. The reviewed narrow fix keeps every row held and verified. Originalv5r13 and failed fullBlazor remain unchanged; the separately developed phase-clipped dispatch diagnostic is not imported or run here.
+
+[Step1610](../done/step1610.md) Original v5r13 conserves2053calls and22.1226843s wholepoll=4.3650485pre+12.0609952WHOLEdisk+5.6966406post. Clock668/7.1349208s, other364/3.3509460s, supervisor719/7.9647914s, idle302/3.6720261s. Root independently hashes19originals and all exact sums. Polling does not account for the entire active phase; next attribution must bound the complete dispatch envelope before a production policy. No interval is relabelled pure guest CPU.
+
+[Step1606](../done/step1606.md) Preserve timingr10 as a pre-guest CS8786 failure with its original command, six committed producers and log. The v4 readiness callback ABI is corrected to the existing unmanaged clock convention; its single post-refresh/pre-scan boundary and all full-audit/overflow/population checks remain unchanged. The next original is r11; no r10 metric or guest success is inferred.
+
+[Step1605](../done/step1605.md) Original timing r09 retains its strict v3 receipt. New v4 adds readinessRefreshNs and readinessWaitScanNs, exactly conserving postReadinessNs, whose children still conserve postNetworkNs with postWaitRecordNs. Capture one trusted timestamp immediately after successful refresh before any scan, including no-epoll return; reject regressions/overflow/missing boundaries. Preserve all later audits and original budgets. Do not reinterpret v1-v3 originals as v4 or add children to their parent as independent time.
+
+[Step1604](../done/step1604.md) Retain originalr08 v2: health9.878s/HEAD12.192s/exact64KiBrange35.662s/finalhealth4.090s,0replenished/119budgetSkips. The ownership query precedes that budget check, so skips do not prove no budget existed before the query. Current v3 removes that experiment and records postReadinessNs plus postWaitRecordNs using one new intermediate clock; both children exactly sum to existing postNetworkNs for the same successful calls. Include measurement overhead and never add children again to their parent. Aggregate scope starts at listen and freezes after65536user-read bytes, not solely the range request. Preserve originalv1/v2 receipts without rewriting.
+
+[Step1603](../done/step1603.md) Original timingr07 completes health7.808s, CoreLib HEAD8.553s, exact range0..65535 in26.715s and final health2.567s. Its original16-field v1 aggregate is retained:1967calls/2361steps,446elapsed stops,971other-ready yields, zero failures. Do not reparse it as v2. New v2 adds replenished and replenishBudgetSkips to18 strict fields; the latter counts opportunities rejected by the original elapsed budget. flushedPastBudget measures cumulative call elapsed after flush, not individual slow flush duration. Component intervals overlap HTTP and device waits; do not sum them as independent latency.
+
+[Step1602](../done/step1602.md) Actual tooling-to-runner dry-runs cover both timing deadline boundaries and reject missing parents, duplicates and invalid deadlines. Receipts record runner and peer budgets. Exact response bytes/metadata, final health, deliberate cancellation, confirmed join and endpoint refusal remain mandatory after aggregate output. Timing r03–r06 failed before guest; r06 joined invalid-argument receipt and native/image identities are preserved. They supply no timing measurement.
+
+[Step1601](../done/step1601.md) Timingr01 failed canonical XML admission before compilation; r02 compiled but failed the former2048 host catalog cap with2055rows, before guest. Expert review and actual original flags separate the host scan from disabled M04kernel decoder. Host4096 full-row/over-bound controls pass; failed originals are preserved and fresh timing evidence is still pending.
+
+[Step1600](../done/step1600.md) M10_018_TIMING counts actual completed disk-user reads after real listen, freezes at65536B and prints one bounded aggregate. Optional supervisor-owned DiskPumpMeasurements records pump/scan/flush and exclusive disk-ready/other-ready/no-advance/elapsed/step-limit reasons without new per-step prints. Measurement boundaries add overhead; durations overlap existing serial/device intervals and are not hardware latency. A short intentional runner cancellation is diagnostic-only.
+
+[Step1597](../done/step1597.md) The revised ExitPending child makes exit_group its first and only syscall, with no preceding stdout witness. Its strict consumer rejects the old observer sequence and requires the real pending read, cancellation/reset and cleanup stages. This is a new package requiring fresh native evidence; the failed b94028a8 original remains failed. Disk progress uses separate flushed primitives, bounded extra steps and ready-worker yielding.
+
+[Step1594](../done/step1594.md) Step1594 records full r05 failure at request086 body: matrix cancellation=true, owner/caller=false, runner joined and terminated. Completed response count86 and bytes4139408 do not supply a complete HTTP/browser witness. Source/native/image/package/serial/packet/body/runner identities are retained together. Copied writable block observations preserve repeat monotonicity, actual publication/completion/copy and flush frontiers; unresolved requests and held IN payloads remain explicit and provide no original-process authority. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 preserves scoped-build failure2CS0103 (test accidentally referenced writable Fat32Mutation), then the corrected independent encoder and60focused passes. Linux log/upload r01 writev reports missing libssl then SIGABRT/exit134; actual file I/O occurred before reporting failure. Keep that ordering, failed receipt and verifier-not-launched; corrected transcripts require fresh original identity.
+
+[Step1592](../done/step1592.md) Step1592 retains expert r04 analysis as copied timing values:239 metadata waits868.224s,499 pread waits483.109s;2658 directory-copy-to-next-submit intervals736.525s versus578FAT intervals15.699s. This motivates bounded loaded-sector entry processing. It is not an original-run pass, UART benchmark or promised speedup. New actual poll/sector counts must be retained after repair; earlier failed originals remain unchanged.
+
+[Step1591](../done/step1591.md) Step1591 preserves the failed full r04 original and97 artifact identities, including83 HTTP bodies, exact failure083 and joined runner cancellation. HEAD dotnet.js was cancelled3.844538 seconds after start by the matrix token; the earlier CoreLib GET succeeded347.6176668 seconds after start. Do not confuse the240-second header bound with a body deadline, or host source5 controls with native event evidence.
+
+[Step1590](../done/step1590.md) The fresh original ExitPending r03 publishes all eight genuine teardown stages plus M16_025_EXIT_CLEANUP_END and passes exact full/leaf owner/epoch/index/phase joins. Its terminal clock1374779300 is sampled after final restoration; retained active-end1084928500 keeps its original earlier meaning. Original r02 lacks this witness and remains wrapper-failed. Only explicit ExitPending requires the new row.
+
+[Step1589](../done/step1589.md) adds M16_025_EXIT_CLEANUP_END owner=<original-request-owner> epoch=<original-request-epoch> clock=<fresh-HPET-nanoseconds> only to explicit ExitPending. It follows final stage8, pool/memory/canary checks and phase6 publication, before the retained BUDGET_END row. Its clock is fresh and within the existing300-second lifetime. The earlier network-end clock still describes network drain; r02 lacks this new witness and remains unaccepted.
+
+[Step1588](../done/step1588.md) retains exact isolated writable integration build/test logs: the first graph fails for an omitted Fat32Mutation dependency, then the complete graph and192 distinct controls pass. Duplicate selection of68 continuing controls is excluded from the distinct total. These normal-harness markers do not qualify native writable execution.
+
+[Step1587](../done/step1587.md) adds failure-only M16_025_EXIT_REJECT reasons:1 native owner/admission,2 parent wait,3 pending device/token,4 request/filesystem join,5 binding/sentinel. Embedded retained scalars are logged only after the boot-owner check; rejected request pointers are never dereferenced for diagnostics. No successful stage is fabricated. Original r01 has no such reason record and remains failed; its precise first rejected subcondition was not captured.
+
+[Step1586](../done/step1586.md) rejects impossible IRQ TIMING as well as TICK rows in the idle-only ExitPending path. Original consumption retains all indexed stage/IO records and no fabricated completion. Full-only runner serial capacity now shares128MiB with the final consumer; ordinary16MiB/service64MiB stay unchanged. HTTP failures save bounded stage/ordinal/error-chain/cancellation snapshots before owner cancellation and joined-runner diagnostics afterward. r02 lacks those receipts and remains failed.
+
+[Step1585](../done/step1585.md) adds copied finite FIFO/typed-terminal consumers, without changing markers, native paths or probe defaults. The ordinary5dd6e6c0 unfiltered full pass is6516 checks/882 fixture results; full DiskA r01 later emits native-return/service failures after31 HTTP captures, requested=0 and exit99. Original race launch remains refused.
+
+[Step1584](../done/step1584.md) adds the copied device/stage association with
+original row indexes. No marker, native path, probe default or launch policy
+changes. All IO must precede the selected pending-exit snapshot; a reset receipt
+does not count as a device completion. Original race execution remains refused.
+
+[Step1583](../done/step1583.md) adds observation-only pending-exit stages selected
+by the complete canonical package digest. Existing profiles/probe defaults are
+unchanged. Ordered cancellation/reset/sentinel/release records are preparatory;
+no original race runner accepts them yet and no guest race is qualified.
+
+[Step1582](../done/step1582.md) completes the full modifier's explicit project
+Diagnostic/default and VerifiedExit conflict inventories. Independent boot/probe
+surface whitelists and descendant/indirect-exclusion checks retain exact guards;
+standalone block/filesystem leaves still reject without their combined owner.
+No default probe or accepted guest profile is enabled by this repair.
+
+[Step1581](../done/step1581.md) adds catalog entry76,
+`app.nativeaot-disk-static-full-v1` / `EnableM10018FullProbe`. It defaults false
+and requires the existing disk/static parent. The exact `M10_018_POLICY`
+record binds the finite source-selected ceilings; it does not establish HTTP,
+browser, storage or cleanup success. Ordinary and development probes keep their
+existing limits and acceptance. See `qemu.md` for the candidate command.
+
+[Step1571](../done/step1571.md) records fresh r09/r10/r11 complete mechanical
+passes at `c66befd5`, each joining59 calls,35 waits,62 post-bootstrap sectors,
+seven file windows,74 transfers and37 IRQ epochs (36 drains, one instruction
+IRQ). Original capture/native/source/packet joins pass; earlier failures remain.
+Error/concurrency and disk HTTP/Blazor controls retain their pending scope.
+
+[Step1570](../done/step1570.md) preserves original r08: 59 file calls, 35 source4
+completions, 62 post-bootstrap sector copies, 74 transfers, 36 drained IRQs and
+one instruction IRQ reach exit42. The original outer command remains failed.
+Compiled report-only inspection now joins original file windows and sector
+bytes; fresh owned runner/native/packet validation remains separate.
+
+[Step1569](../done/step1569.md) retains r07's first actual disk descriptor call:
+nr4 reports source4/sequence1 but action2/status3, then exit99. The gate rejected
+a valid Blocked result before park/pump; no application disk I/O or completion
+row appears. The six-call admission repair has real gateway/thread controls.
+This failed original remains failed; it does not qualify application file reads.
+
+[Step1567](../done/step1567.md) records a second genuine disk diagnostic failure,
+at memory-startup after exit/NIC markers. The 135-entry M16-025 construction
+inventory preserves its existing dynamic/table quotas. The mechanical fixture
+now exposes 481 exact main instruction starts, independently decoded and joined
+to retained LLVM22.1.3 bytes without changing its ELF/package. These facts still
+need the complete native/IRQ/parent/sector/packet/runner consumer and fresh guests.
+[Step1568](../done/step1568.md) adds failure-only `M16_023_REJECTED` POD rows.
+They identify caller stage, original parser phase, block/FS failure status,
+submitted/completed/copied counters, active I/O, GPT array/header and partition
+status before cleanup. They perform no device operation or retry. The r06 row
+records 36 successful copies and a corrupt-directory mount result; independent
+image extraction identifies the all-zero EFI directory timestamp. The repair's
+focused checks do not relabel the failed capture or qualify complete disk service.
+
+The isolated M16-025 development profile records continuing read evidence as
+`M16_023_IO` rows: original owner/epoch/generation, LBA, cumulative sequence,
+ring indexes and clock. Copy rows contain exact 512-byte payloads only after
+the block owner's committed-copy counter agrees. `M16_025_COMPLETE` binds a
+resumed source4 wait to its original sequence, request generation and admitted
+output ceiling. The optional callback only copies into bounded retained records;
+serial output occurs after the pump returns and at quiescent retirement.
+These rows require independent image/native/parent/scheduler joins and confer
+no guest acceptance by themselves. Earlier consumers keep their wait-source rules.
+
 [Step1307](../done/step1307.md) completes the stable bounded thread/runtime batch:
 5,202 full-host checks, 44 strict batch captures across 32 profiles, three retained
 strict GC repetitions and 24 fresh ancestors. Exact original native joins,
@@ -2317,6 +2475,43 @@ it has all 73 ordered/unique markers and no post-terminal bytes. Fourteen altere
 copies and unselected-profile replay are rejected by the production parser on
 the host; these are not additional guest executions. Explicit profile selection
 and collecting-GC ancestry remain required. The fixture runs before firmware exit.
+
+## Disk dispatch timing window
+
+The explicit disk-read timing profile retains its original42-field
+`M10_018_TIMING` record. A separate11-field `M10_018_DISPATCH` record partitions
+the same listen-to-final65536B-copy window. The peer's v6 receipt requires both
+records and exact conservation:
+
+```text
+phaseNs = pollNs + dispatchNonPollNs + supervisorNonPollNs
+dispatchNonPollNs = dispatchNs - nestedPollNs
+```
+
+The complete supervisor dispatch invocation includes guest execution, kernel
+checks, transitions and synchronous logging. It is not pure guest CPU time.
+Nested polls are counted once. Entry/return sequences reject overlap, missing
+or wrong returns, regressing clocks/counters and overflow. Arm/Freeze reject an
+in-flight poll because its cumulative duration is published only on return.
+
+An invocation crossing either measurement boundary contributes only its
+intersection with the half-open window. One invocation crossing both counts
+once as clipped; an empty intersection contributes no envelope. The actual
+final-copy hook freezes before both aggregate dumps. `phaseComplete=1` means
+the measured partition is complete; `physicalActive=1` explicitly records that
+the containing dispatch has not yet returned. Its later return validates and
+clears the original sequence without changing frozen totals. A late fault still
+fails the owner, and the peer checks final serial status again after runner join.
+
+The arithmetic/parser/loopback tests establish host diagnostic contracts.
+Step1614 joins the first actual v6 native/guest run at cc2cad61, with all20
+original hashes checked and13 selected direct frames matched to original PE
+unwind/prologue bytes. This does not establish a transitive or whole-stack
+bound. The observed34.5754683s phase partitions into16.5062439s poll,
+13.3737262s dispatch outside poll and4.6954982s supervisor outside poll.
+The diagnostic uses deliberate joined cancellation and does not qualify normal
+shutdown, full Blazor or persistence. No polling policy changed; timing
+differences from earlier originals are not a demonstrated policy speedup.
 
 ## Owned subsystem result and panic profiles
 

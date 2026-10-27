@@ -73,7 +73,7 @@ public static unsafe partial class EfiEntry
                 !RunNetworkScheduledService(state))
 #endif
             { _ = LinuxText(state, "TEST_FAIL m07-026 service\r\n"); return false; }
-#if M10_004_PROBE && !M16_014_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
             return LinuxWebRetainFailure(state, null, 7);
 #else
 #if M16_014_PROBE
@@ -89,6 +89,14 @@ public static unsafe partial class EfiEntry
             }
 #endif
             state->NetworkPhase = 3;
+#if M16_027_PROBE
+            if (!WriteNativeWritableDiskCompletion(state)) return false;
+#elif M16_025_PROBE
+            if (!WriteNativeDiskCompletion(state)) return false;
+#endif
+#if M10_017_PROBE || M10_018_PROBE
+            if (!LinuxText(state, LinuxStaticFinish)) return false;
+#endif
             return LinuxText(state, "CLROS_M07_026_READY\r\nTEST_PASS m07-026\r\n")
 #if CLROS_LINUX_SOCKETS
                 && LinuxText(state, "CLROS_M16_011_READY\r\nTEST_PASS m16-011\r\n")
@@ -167,9 +175,17 @@ public static unsafe partial class EfiEntry
                 bool success = NetDevice.Start(device, admission) == NetDevice.Status.Success;
                 success = success && WriteNetworkRow(state, 0, page, ContinuingVirtioNet.BackingBytes, negotiated.Selected, 8) &&
                     RunNetworkExchanges(state, device);
-#if M10_004_PROBE && !M16_014_PROBE
+#if M10_004_PROBE && !M16_014_PROBE && !M10_017_PROBE && !M10_018_PROBE
                 return LinuxWebRetainFailure(state, null, success ? 5U : 6U);
 #else
+#if M16_027_PROBE
+                if (!NativeWritableDiskAllowsOuterTeardown(state)) return false;
+#elif M16_025_PROBE
+                // No NIC/DMA teardown may follow an uncertain disk stop. Disk
+                // backing and callbacks outlive pre-user bootstrap, including
+                // failed Linux metadata publication and rejected preparation.
+                if (!NativeDiskAllowsOuterTeardown(state)) return false;
+#endif
                 bool safe = !device->RequiresCleanup || NetDevice.Stop(device) == NetDevice.Status.Success;
                 safe &= device->Retired && pool->AllocatedMask == 0;
                 if (safe) for (uint i = 0; i < ContinuingVirtioNet.BackingBytes; i++) if (((byte*)page)[i] != 0) safe = false;
@@ -311,7 +327,16 @@ public static unsafe partial class EfiEntry
             nanos = 0;
             // The scheduler timestamps readiness before NIC admission. Only
             // that private bind call admits phase1; device callbacks require2.
-            if (state == null || (state->NetworkPhase != 2 && (!preparing || state->NetworkPhase != 1)) || state->ServicePhase != 2 ||
+            if (state == null || (state->NetworkPhase != 2 && (!preparing || state->NetworkPhase != 1))) return false;
+            return ReadOwnedNetworkClock(state, out nanos);
+        }
+
+        // Call only after the caller authenticates its exact network lifetime.
+        // HPET remains owned after NIC retirement; firmware access stays revoked.
+        private static bool ReadOwnedNetworkClock(Storage* state, out ulong nanos)
+        {
+            nanos = 0;
+            if (state == null || state->ServicePhase != 2 ||
                 state->AdapterConsole != null || state->AdapterServices != null ||
                 !OwnedMonotonicClock.Read(ref state->Clock) || state->Clock.Source != OwnedClockSource.Hpet ||
                 state->Clock.RecoveryAttempts > 1 || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;

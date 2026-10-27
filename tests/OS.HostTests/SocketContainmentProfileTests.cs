@@ -94,8 +94,19 @@ internal static class SocketContainmentProfileTests
         HostCheck.True(forbiddenNames.Take(Leaves.Length).SequenceEqual(Leaves));
         HostCheck.Equal("'$(EnableM16014Probe)' == 'true' and '$(EnableM10004Probe)' != 'true'",
             Error(project,"m16_014_requires_web_parent"));
+        HostCheck.Equal("'$(EnableM10018FullProbe)' == 'true' and '$(EnableM10018Probe)' != 'true'",
+            Error(project,"disk_static_full_parent_required"));
+        HostCheck.Equal("'$(EnableM10018Probe)' == 'true' and ('$(EnableM16025Probe)' != 'true' or '$(EnableM10004Probe)' != 'true')",
+            Error(project,"disk_static_prerequisite_missing"));
+        HostCheck.Equal("'$(EnableM16025Probe)' == 'true' and ('$(EnableM16023Probe)' != 'true' or '$(EnableM16024Probe)' != 'true' or '$(EnableM16012Probe)' != 'true')",
+            Error(project,"disk_read_prerequisite_missing"));
+        HostCheck.Equal("('$(EnableM16023Probe)' == 'true' or '$(EnableM16024Probe)' == 'true') and '$(EnableM16025Probe)' != 'true'",
+            Error(project,"disk_read_requires_combined_profile"));
         var forbidden = EfiContracts.DiagnosticProbes.Where(x => !expected.Contains(x))
-            .Select(x=>x=="EnableM16014Probe"?"EnableM10004Probe":x).ToHashSet(StringComparer.Ordinal);
+            .Select(x=>x switch{
+                "EnableM16014Probe" or "EnableM10017Probe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe"=>"EnableM10004Probe",
+                "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe"=>"EnableM16012Probe",
+                _=>x}).ToHashSet(StringComparer.Ordinal);
         HostCheck.True(forbidden.SetEquals(forbiddenNames.Skip(Leaves.Length)) &&
             forbiddenNames.Length == forbidden.Count + Leaves.Length && forbidden.Contains("EnableM16012Probe"));
     }

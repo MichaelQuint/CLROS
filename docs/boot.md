@@ -1,6 +1,31 @@
 # Boot
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
 ## Current boot scope
+
+[Step1572](../done/step1572.md) connects the default-off018 candidate through
+the existing disk-specific BootSequence gate. Mount precedes user entry and
+actual listen arms sector evidence; complete app qualification is pending.
+
+[Step1571](../done/step1571.md) records three original M16-025 mechanical
+captures passing the complete owned consumer across both disk variants. Each
+reaches59 calls,62 demand sectors, exit42 and confirmed owned cleanup. This
+finite opt-in child does not add a default launcher or full disk HTTP support.
+
+[Step1570](../done/step1570.md) retains r08's first complete mechanical file
+sequence through exit42 and disk/NIC cleanup markers. Its outer command remains
+failed; candidate full consumption requires a fresh original capture. Firmware,
+boot policy and previously accepted profiles retain their existing scope.
+
+[Step1569](../done/step1569.md) records original r07 reaching the mounted disk
+and first CPL3 stat, then failing because its valid deferred result was outside
+gateway blocking admission. The conditional six-call repair preserves older
+native profiles. Focused controls pass; complete original guest joins remain.
 
 Ordinary `VerifiedExit` performs owned post-firmware checks and halts. Explicit
 default-off Linux profiles progress through package staging, CPL3, scheduler,
@@ -9,6 +34,30 @@ upstream runtime and sockets to finite Kestrel service. Steps1307/1351/1419 and
 termination/cleanup and async churn. This does not add a default app launcher
 or complete local Gate14. Preserve the `BootSequence` phase order and original
 profile prerequisites. Older receipts below describe their original scope.
+
+The isolated M16-025 read-service integration adds an explicit
+`BootSequence.PrepareOwnedReadOnlyDisk` firmware preparation callback. It
+retains a separate PCI0:7 block owner; the NIC remains PCI0:6. After firmware
+exit and NIC initialization, bounded outer turns interleave network/timer
+progress with block and mount work before any Linux worker starts. Teardown
+requires quiescent workers, flushed observations and confirmed block/filesystem
+retirement before descriptor and outer network release. This profile still
+requires native and guest qualification; ordinary boot is unchanged.
+
+[Step1566](../done/step1566.md) preserves the first disk guest's pre-exit
+`preparation=30/0` rejection. Its 54 retained declarations exceeded the old
+48-range image/table admission. M16-025 now admits exactly that 54-range bound;
+earlier profiles retain 48. Page, table, permission and overlap bounds remain.
+The normal source-profile test now checks this combined profile explicitly.
+The next diagnostic moves past this check and records real exit/startup/NIC
+markers, then rejects memory admission. [Step1567](../done/step1567.md) retains
+that failure and its 65 static mappings. M16-025 now has 135 construction entries
+(128 plus seven); its 64 mutable-region quota and 128 table-page cap remain.
+Ordinary128 and web384 construction limits are unchanged. Complete guest
+qualification of both repairs remains pending.
+[Step1568](../done/step1568.md) retains the subsequent mount rejection after
+those admissions pass, plus its bounded failure diagnostics and timestamp
+compatibility repair. New original guest evidence is still required.
 
 M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,

@@ -12,7 +12,7 @@ public sealed class EfiProfile
         "M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival", "M05PciEnumeration", "M05VirtioNegotiation",
         "M05VirtqueuePolling", "M07VirtioNet", "M07ArpReceive", "M16002", "M16003"];
     private static readonly string[] SocketNetworkExtensions = ["M05ApicSetup", "M16004", "M16005", "M16006", "M16007",
-        "M16008", "M16009", "M16011", "M16012", "M16013", "M16014", "M10004", "M16019Unavailable", "M16019Invalid"];
+        "M16008", "M16009", "M16011", "M16012", "M16013", "M16014", "M10004", "M10017", "M16023", "M16024", "M16025", "M16027", "M16027Timing", "M10018", "M10018Full", "M10018Timing", "M16019Unavailable", "M16019Invalid"];
     private EfiProfile(string bootPolicy, Dictionary<string, bool> flags) { BootPolicy = bootPolicy; this.flags = flags; }
     public IEnumerable<string> CommandArguments() => new[] { "--boot-policy", BootPolicy }.Concat(flags.Where(p => p.Value).Select(p => "--" + p.Key));
 
@@ -23,6 +23,62 @@ public sealed class EfiProfile
         {
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
+        }
+        if (flags["EnableM16027TimingProbe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM16027Probe", out bool parent) && !parent)
+                throw new ToolFailure("writable_timing_explicit_false_prerequisite");
+            flags["EnableM16027Probe"] = true;
+        }
+        if (flags["EnableM16027Probe"])
+        {
+            foreach (string conflict in new[] { "EnableM10004Probe", "EnableM10017Probe", "EnableM10018Probe", "EnableM10018FullProbe", "EnableM10018TimingProbe" })
+                if (flags[conflict]) throw new ToolFailure("writable_disk_mechanical_profile_conflict", conflict);
+            if (explicitlySelected.TryGetValue("EnableM16025Probe", out bool parent) && !parent)
+                throw new ToolFailure("writable_disk_explicit_false_prerequisite");
+            flags["EnableM16025Probe"] = true;
+        }
+        if (flags["EnableM10018TimingProbe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM10018FullProbe", out bool parent) && !parent)
+                throw new ToolFailure("disk_timing_explicit_false_prerequisite");
+            flags["EnableM10018FullProbe"] = true;
+        }
+        if (flags["EnableM10018FullProbe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM10018Probe", out bool parent) && !parent)
+                throw new ToolFailure("disk_static_full_explicit_false_prerequisite");
+            flags["EnableM10018Probe"] = true;
+        }
+        if (flags["EnableM10018Probe"])
+        {
+            foreach (string required in new[] { "EnableM16025Probe", "EnableM10004Probe" })
+            {
+                if (explicitlySelected.TryGetValue(required, out bool selected) && !selected)
+                    throw new ToolFailure("disk_static_explicit_false_prerequisite", required);
+                flags[required] = true;
+            }
+        }
+        if (flags["EnableM16025Probe"])
+        {
+            foreach (string conflict in new[] { "M10017", "M16014", "M16013", "M07027", "M07028", "M09011", "M09012", "M16010", "M16019Unavailable", "M16019Invalid" })
+                if (flags[Full(conflict)]) throw new ToolFailure("disk_read_profile_conflict", conflict);
+            foreach (string required in new[] { "EnableM16023Probe", "EnableM16024Probe", "EnableM16012Probe" })
+            {
+                if (explicitlySelected.TryGetValue(required, out bool selected) && !selected)
+                    throw new ToolFailure("disk_read_explicit_false_prerequisite", required);
+                flags[required] = true;
+            }
+        }
+        else if (flags["EnableM16023Probe"] || flags["EnableM16024Probe"])
+            throw new ToolFailure("disk_read_requires_combined_profile", "EnableM16025Probe");
+        if (flags["EnableM10017Probe"])
+        {
+            if (flags["EnableM16014Probe"] || flags["EnableM16019UnavailableProbe"] || flags["EnableM16019InvalidProbe"])
+                throw new ToolFailure("static_files_profile_conflict");
+            if (explicitlySelected.TryGetValue("EnableM10004Probe", out bool parent) && !parent)
+                throw new ToolFailure("static_files_explicit_false_prerequisite", "EnableM10004Probe");
+            flags["EnableM10004Probe"] = true;
         }
         if (flags["EnableM16014Probe"])
         {
@@ -231,7 +287,8 @@ public sealed class EfiProfile
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
                     !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") &&
                     !(flags["EnableM16011Probe"] && flag.Key is "EnableM16011Probe" or "EnableM16012Probe" or "EnableM16013Probe" or "EnableM16014Probe" or "EnableM10004Probe") &&
-                    !(flags["EnableM10004Probe"] && flag.Key is "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe") &&
+                    !(flags["EnableM16025Probe"] && flag.Key is "EnableM16023Probe" or "EnableM16024Probe" or "EnableM16025Probe" or "EnableM16027Probe" or "EnableM16027TimingProbe" or "EnableM10018Probe" or "EnableM10018FullProbe" or "EnableM10018TimingProbe") &&
+                    !(flags["EnableM10004Probe"] && flag.Key is "EnableM10017Probe" or "EnableM16019UnavailableProbe" or "EnableM16019InvalidProbe") &&
                     !(containment && flag.Key is "EnableM07027Probe" or "EnableM07028Probe") &&
                     !(flags["EnableM07026Probe"] && (flag.Key == "EnableM07026Probe" || NetworkPrerequisites.Select(Full).Contains(flag.Key))) && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);

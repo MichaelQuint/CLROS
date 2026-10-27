@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <LangVersion>14.0</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <RuntimeFrameworkVersion>11.0.0-rc.2.26504.105</RuntimeFrameworkVersion>
+    <TargetLatestRuntimePatch>false</TargetLatestRuntimePatch>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <WasmFingerprintAssets>false</WasmFingerprintAssets>
+    <WasmFingerprintDotnetJs>false</WasmFingerprintDotnetJs>
+    <BlazorEnableCompression>false</BlazorEnableCompression>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="[11.0.0-rc.2.26504.105]" />
+  </ItemGroup>
+</Project>

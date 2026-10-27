@@ -1,5 +1,171 @@
 # CLROS Completion Gates
 
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) 79 distinct focused checks support current host preparation only: paired30, shared FS13, HTTP17, footprint2 and manifest17. Original LinuxHTTP r02 remains failed after successful publication/before app execution; its archived56files/53declared hashes are verified. No browser/guest write/reboot/SQLite durability or complete service gate advances.
+
+[Step1610](../done/step1610.md) V5r13 passes the short diagnostic with FullAndCleanupQualified=false; all19original identities and42metric fields are verified.007884 HTTP repair passes16HTTP and7console checks, with the first lease-collision failure preserved. No full/ordinary-cleanup/Blazor, guest write/reboot/SQLite/durability gate or issue closes. Fresh Linuxr02 is next; stable full-host/threeA-B/browser/ancestor/native review gates remain required.
+
+[Step1606](../done/step1606.md) Timingr10 is a pre-guest compilation failure, preserved without any metric or acceptance. A callback-convention repair and fresh originalr11 are required. The new finite managed HTTP log/upload fixture supplies host qualification only; Linux NativeAOT HTTP, guest FAT32 writes/reboot and SQLite power-loss durability remain open. No completion gate or issue closes.
+
+[Step1605](../done/step1605.md) Fresh Linux SQLite recovery r03 passes its process-kill contract, reserved-lock absence and exact independently verified recovery. GuestQualified, PowerLossQualified and DurabilityQualified remain false. Timing r09 passes only the four-response diagnostic with intentional cancellation; the next v4 measurement and all full A/B/browser/cleanup gates remain pending. No issue or completion gate closes.
+
+[Step1604](../done/step1604.md) Successful short diagnosticr08 does not qualify throughput improvement, full cleanup or Blazor:0replenished/119skips, range35.662s. Restore immediate ready-peer yield and measure the two post-network components before optimization.113focused current controls pass; no unfilteredfull claim. SQLite recoveryr02 proves its scoped publication/seed/spill/ownedkill/join stages but fails strictflock parsing before lock-clear/recovered reopen. Full A/B/browser, races/ancestors/full-host, continuing service, guest writes/reboot and SQLite recovery/durability remain open.
+
+[Step1603](../done/step1603.md) The original r07 short diagnostic succeeds through exact64KiB HTTP bytes, final health, deliberate cancellation/join and endpoint refusal. It explicitly grants no full-cleanup/Blazor acceptance.235 focused host controls support a subsequent sole-read replenishment experiment, pending a fresh original. Linux SQLite ef97/r05 fresh publication/writer/verifier passes with recorded archive reuse; c79 recovery fails during source retention before seed/kill/reopen. Full A/B/browser, fresh race/ancestor/full-host gates, continuing service, guest writes/reboot, SQLite locking/flush/recovery, cloud and production remain unaccepted.
+
+[Step1602](../done/step1602.md) The timing diagnostic reaches the actual runner in host dry-runs; nineteen focused controls pass. All timing originals through r06 stop before guest and remain failed. No read/Blazor/cleanup/persistence/SQLite/sustained-service gate closes. A fresh original must measure the selected path before any scheduling repair or full rerun.
+
+[Step1601](../done/step1601.md) Host catalog/profile controls establish no new guest milestone: timingr01/r02 stop before guest; fullr06 remains failed and browser never entered. The host4096 catalog change preserves kernel2048 unwind behavior. New timing/full/persistence/SQLite originals and stable acceptance gates remain required.
+
+[Step1600](../done/step1600.md) New shared-owner filesystem, combined image, cold media and timing controls are scoped host preparation. Full read r06 is failed; new short timing/native results are pending. Linux SQLite r04 is failed before publication. No full read/Blazor, sustained service, writable guest persistence, SQLite durability/recovery, cloud or production gate closes.
+
+[Step1597](../done/step1597.md) Fresh writable metadata, nonblocking flock and separate SQLite verifier/publication tooling are host development support. The revised exit-first race package still requires a fresh original; failed full/read-race runs remain failed. No write/flush, persistence, SQLite, read/browser or general-hosting gate closes. Complete product acceptance requires the continuously functioning integrated scenario in step1599.
+
+[Step1594](../done/step1594.md) Step1594 adds focused host writable metadata/thread, candidate media and copied-observation controls, preserving their exact scopes. Full read r05 is failed after86 responses; a completed large asset does not replace the required full HTTP/browser/cleanup original. Three complete source-matched A/B guests, affected regressions, stable unfiltered full/native review and reviewed scoped merge remain pending. No read, write/durability, SQLite, cloud or production gate advances. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 records60focused scoped-read passes and preserves failed native log/upload r01. Successful publication, correct extracted bytes and in-process writer readback do not replace a complete passing original with a distinct verifier. No read/browser, write/persistence, SQLite or larger gate advances; a fresh unchanged-budget read original is next.
+
+[Step1592](../done/step1592.md) Step1592 adds bounded loaded-directory parsing and focused collision/entry-budget/sector/LFN/cancellation controls. These host controls and the consolidated writable branch do not qualify fresh native or full disk/browser acceptance. Full r04 remains failed; three complete source-matched A/B/browser originals, affected race guests, stable unfiltered full/native/ancestor checks and reviewed merge remain outstanding.
+
+[Step1591](../done/step1591.md) Step1591 records guarded source5 implementation and focused host passes only; the existing accepted EFI profiles retain their links and layouts. Full DiskA r04 atc3dbab92 failed its1700-second matrix after83 responses, despite a successful2,009,369-byte CoreLib GET. No complete first-batch/read/Blazor, writable, sync/reboot, SQLite or larger gate advances. The passing finite ExitPending r03 keeps its original scope.
+
+[Step1590](../done/step1590.md) One fresh original ExitPending r03 atc3dbab92 passes its strict complete wrapper, including the independent cleanup clock. This finite race result does not close M16-025 or the read/Blazor batch. Full r04 remains pending; three complete A/B/browser originals and stable source-matched full/native/ancestor checks remain required. New log/upload issue #809 and source5 claims advance no gate.
+
+[Step1589](../done/step1589.md) does not advance a gate. Full DiskA r03 fails after64 responses at the unchanged240-second CoreLib header timeout; no browser or cleanup acceptance. ExitPending r02 reaches all eight guest stages but its original wrapper fails disk_exit_capture_stage_lifetime. New bounded traversal and fresh cleanup-terminal source need new original native/guest qualification. The frozen6516-check full retains its older source scope.
+
+[Step1588](../done/step1588.md) records isolated combined writable foundation build/192 distinct focused host passes and source5 ownership preparation. No source5 or native writable profile is implemented, and no guest/persistence/SQLite gate advances. First-batch read/Blazor originals remain a separate unfinished qualification.
+
+[Step1587](../done/step1587.md) preserves failed original ExitPending r01 at91cd04cd. A source ordering repair and bounded rejection diagnostics do not replace the required new original guest. Full DiskA r03 is still pending; no first-batch issue, full Blazor, writable, SQLite or broader gate advances from these changes.
+
+[Step1586](../done/step1586.md) keeps full DiskA r02 failed:35 HTTP responses, no browser, abrupt last observation629502029300ns and no cleanup terminal. Active16MiB runner capacity and exact16MiB+2740 log size explain a strong source/evidence match; the initiating runner error was lost. Full-only capacity is repaired to128MiB with first-error diagnostics. Connected ExitPending original ownership still needs fresh execution. No complete read/Blazor, writable guest, persistence, SQLite synchronization/recovery, Gate7/Gate14 or readiness acceptance.
+
+[Step1585](../done/step1585.md) records unfiltered full6516 checks across882 fixture results at5dd6e6c0, unchanged/zero reuse. Original full DiskA r01 then fails after31 HTTP responses at about600s, before requested shutdown/browser. These distinct results do not close the read batch. Copied finite FIFO/reset accounting, writable POD/data-image and process-lock tests grant no original race, full Blazor, writes/synchronization, reboot recovery or CLROS SQLite acceptance.
+
+[Step1584](../done/step1584.md) adds74 passing focused copied-contract and
+regression checks. Exact sector/reset joins grant no firmware/native/process,
+scheduler or user-memory authority. Full original disk/Blazor, actual races,
+writes, synchronization and SQLite acceptance remain open; no issue closes.
+
+[Step1583](../done/step1583.md) is pending-exit observation/copy-contract
+preparation only. Sixty focused checks and repo/contracts pass. No selected
+native publication or original race execution follows; launch remains refused.
+Separate Windows SQLite process-kill recovery and copied journal coverage do
+not qualify Linux recovery, guest writes, synchronization or power-loss durability.
+
+[Step1582](../done/step1582.md) preserves the failed unfiltered full run at
+`e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
+The complete diagnostic-policy declarations, independent descendant/conflict
+checks, reviewed entry-source pin and backlog contracts are repaired;121 focused
+checks pass unchanged. A fresh committed-source unfiltered full/native run is
+still required before guest qualification. First-batch issues remain open.
+
+[Step1581](../done/step1581.md) adds the explicitly selected, default-off
+`-EnableM10018FullProbe` candidate. Its finite policy, full asset HTTP peer,
+consecutive-read/send checks and original external Chromium capture are now
+connected. This is implementation with focused host evidence; no full guest or
+browser execution has passed yet. Step1580's five-response result retains its
+scope. Three full boots across DiskA/B, actual storage races/errors and stable
+full/native/ancestor verification still precede read-batch closure. Exactly two
+isolated agents continue writable descriptors and pinned SQLite reference work.
+
+[Step1580](../done/step1580.md) records fresh original018r05 at `592b6303`, DiskB:
+the original outer consumer passes native/source/image/process, 2,985 replayed
+calls, all12 post-readiness sector copies, five HTTP/TCP bodies and actual
+exit0/14 reaps/disk/NIC cleanup. This is the five-response development contract;
+full45-asset Blazor/browser, both-variant full repetitions, actual storage races
+and stable batch gates remain required. All failed originals stay failed.
+Exactly two isolated implementation agents continue direct SQLite publication
+and bounded FAT32 mutation preparation; no writable activation or durability
+acceptance follows. The full read profile will use a separately selected finite
+policy, preserving ordinary/017/mechanical/development limits.
+
+[Step1579](../done/step1579.md) retains original018r04 FAILED at receipt
+identity after five responses/cleanup. Host repairs, the explicit67-range parent
+and retrospective full replay do not rescue it. The114-exchange asset plan and
+race package/selection controls grant no guest/browser/durability authority. No
+issue, first-batch, Gate14, write or SQLite acceptance advances.
+
+[Step1578](../done/step1578.md) wires an original five-response disk/static
+consumer candidate and host failure/ownership controls. It has no fresh guest
+acceptance yet. Its explicit development scope cannot qualify the full Blazor
+browser or ten-issue batch. New interrupt/EOF/pending-exit fixtures also remain
+host-only. Original failures, issue states and all numbered gates are preserved.
+
+[Step1577](../done/step1577.md) validates copied full disk/static scheduler/file
+and sector values from original018r03. Its original outer command remains
+failed; retrospective value inspection cannot grant original execution or
+HTTP/browser authority. No018, issue, whole batch or numbered gate advances.
+
+[Step1576](../done/step1576.md) records five-response original disk HTTP
+diagnostics plus copied physical inventory. The original outer command remains
+failed; complete018/browser and all batch/numbered gates remain unfinished.
+
+[Step1572](../done/step1572.md) adds a diagnostic M10-018 disk/static candidate.
+It deliberately withholds complete-command success pending the full consumer;
+selection, focused checks and later diagnostics cannot advance a gate.
+
+## Current static-file implementation boundary (2026-10-24)
+
+[Step1571](../done/step1571.md) records three fresh original complete mechanical
+consumer passes at `c66befd5` across both disk variants. Each joins59 calls,
+62 demand sectors and seven read windows to held original native/source/image/
+runner/packet inputs. This advances the positive mechanical development witness;
+actual error/cancellation/concurrency controls, full native review, unfiltered
+full/ancestors and the disk HTTP/Blazor demonstration remain outstanding. No
+issue, whole-batch, write/SQLite or numbered gate closes from these captures.
+
+[Step1570](../done/step1570.md) preserves r08's successful mechanical guest
+markers and genuine failed outer command. New complete value joins accept its
+original 59 calls, 62 sector copies, seven read windows and one instruction IRQ.
+The connected original-runner/native/packet candidate has 30 focused checks passing unchanged
+and still requires a fresh source-matched guest. No earlier failed command is rescued, and no
+issue, disk HTTP/Blazor, write/SQLite or numbered gate advances here.
+
+[Step1569](../done/step1569.md) records r07 mounting/attaching after the zero-time
+repair, followed by first-stat gateway rejection and genuine exit99. Conditional
+blocking admission and exact disk startup/network/runner value checks now have
+focused host coverage. The complete consumer still rejects qualification; no
+storage/application gate or issue closes from this development checkpoint.
+
+[Step1558](../done/step1558.md) records host FAT/tracker repairs, reproducible
+webroot tooling and a published Standalone Blazor candidate. No completion gate
+advances from this development checkpoint. [Step1559](../done/step1559.md) adds
+Linux-reference research evidence and the host retained-block leaf, while the
+separate static app needs final publication and live integration. The accepted finite service scope in
+step1556 is preserved. #226/#227, disk-to-HTTP/browser qualification, sustained
+static service, writable FAT32 and SQLite remain open acceptance boundaries.
+
+Isolated read-service work adds confined FAT files, pending descriptor/thread
+ownership and a separate PCI0:7 disk adapter. Managed builds and focused host
+checks cover this development. C# compilation of the EFI source is not native
+publication or guest proof. Before step1570 the mechanical disk runner rejected
+qualification until complete parent, syscall, wait, sector, NIC and cleanup
+consumption. Its connected candidate still needs fresh validation. No disk issue
+closes from terminal markers or value-only reinspection alone.
+[Step1566](../done/step1566.md) records original disk publication, the failed
+pre-exit guest and its host-tested conditional capacity repair. Three fresh
+staged guests pass complete consumers at `5ceeb0c2`; the batch still needs a
+fresh stable unfiltered full. None of those staged receipts qualifies FAT32
+serving. The value-only mechanical disk leaf does not supply its outstanding
+native, parent, sector/image, NIC or IRQ instruction joins.
+[Step1567](../done/step1567.md) retains the next failed guest and its conditional
+memory-construction repair. Its 41 focused checks and unchanged mechanical
+ELF/package do not advance disk or whole-batch acceptance.
+[Step1568](../done/step1568.md) adds 51 focused FS/descriptor/wait/profile checks
+and retains the next genuine mount failure. Successful pre-mount sector counters
+alone do not qualify the missing complete consumer, disk-backed HTTP or Blazor.
+
+
 ## Current acceptance (October 23, 2026)
 
 [PR #790](http://192.168.4.35:3000/admin/CLROS/pulls/790) merged at

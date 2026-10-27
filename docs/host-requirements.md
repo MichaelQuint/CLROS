@@ -1,5 +1,151 @@
 # Host Requirements
 
+## Current-phase SDK selection after the October 25 restart
+
+The intentional Visual Studio update installed RC3. Finish the current PR810
+phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
+installed separately; leave the system RC3 installation intact:
+
+```powershell
+$clrosDotnet = 'C:\Users\AI\.codex\toolchains\dotnet-11.0.100-rc.2.26504.105'
+$env:DOTNET_ROOT = $clrosDotnet
+$env:DOTNET_ROOT_X64 = $clrosDotnet
+$env:DOTNET_HOST_PATH = Join-Path $clrosDotnet 'dotnet.exe'
+$env:PATH = "$clrosDotnet;$env:PATH"
+dotnet --version # 11.0.100-rc.2.26504.105
+dotnet --list-runtimes # NETCore.App and AspNetCore.App must both select RC2
+```
+
+Microsoft's release metadata and the downloaded win-x64 archive have matching
+SHA-512, independently checked before extraction. The restored host hash matches
+the retained original `07678CE60DD20ED36F1D25B88F6F51D8BF5A880442680A664690154EBE976AD9`.
+The SDK includes the exact RC2 NETCore, ASP.NET Core and Windows Desktop runtimes.
+Settings above apply only to the current terminal and its children. Step1624
+retains the download, runtime and producer evidence. The earlier Program Files
+selection below describes the October 13 installation; it now selects RC3.
+
+The interrupted full run is not a pass. Preserve it, rebuild with the exact RC2
+root and execute a fresh unfiltered full without reuse. Upgrade SDK/runtime/ILC
+and affected qualification together in a separate follow-on after this phase
+is merged; do not relax `global.json` or roll forward during this qualification.
+
+[Step1624](../done/step1624.md) integrates bounded port/filesystem and descriptor/transport range batches, copied syscall identity and fail-closed host repairs. Runtime code `28b6b454` passes the unfiltered Root full r02: 7,319 checks across 918 fixtures (808 Fast, 110 Native), 6,033 inventory cases, unchanged inputs and zero failures/reuse. The exact frozen closing metadata and Host42E/Tooling9B producers are retained; later documentation/backlog changes are a separate metadata delta requiring focused checks. All fourteen selected original recipes meet their own complete consumers and guards. Mechanical30 remains its historical `4e48acc1` guest plus current native equivalence, with conditional stack premises and no fresh28b6 Mechanical30 guest claim. Failed full r01, ordinary guests and timing diagnostics remain failed and retained. [PR810](http://192.168.4.35:3000/admin/CLROS/pulls/810) contains this batch and its published reviews; finite #780/#781/#782/#768/#769 have actual closure readbacks. Pending-read concurrency/cache qualification, complete guest-origin Blazor/browser, actual BCL logs/uploads, reboot persistence, SQLite locking/synchronization/transactions/recovery, physical durability and sustained service remain open.
+
+
+[Step1617](../done/step1617.md) repairs the writable final clock after verified NIC retirement and retains a fresh source-matched native publication. Expanded byte checks include callbacks and the terminal fault/NMI path; unresolved targets, conditional stack probes and interrupt bounds still precede guest activation. Nine focused Fast checks pass. Writable guest I/O, full Blazor, reboot persistence, SQLite durability and continuous service remain open; all original failures are preserved.
+
+
+[Step1615](../done/step1615.md) integrates full process/storage exclusion, exact writable PID binding, retired borrowed-filesystem cleanup, bounded socket observers, the separate FAT32 encoder and identity-bound mutable image clones. The coherent root graph passes353 Fast checks and one fake-media Native control, unchanged/zero reuse. Fresh Linux HTTP r04 at7c0fa44b passes ten responses, three startup rejections, canceled-body cleanup and a distinct console verifier;246 original files/241 declared output hashes are independently verified. Native writable activation, full Blazor, reboot persistence and SQLite durability remain open. Historical failures remain failed.
+
+
+[Step1614](../done/step1614.md) Actual v6 timing r14 passes four responses and exact64KiB with joined intentional cancellation:34.575s phase=16.506s poll+13.374s dispatch outside poll+4.695s supervisor outside poll. It does not qualify full Blazor or normal cleanup. LinuxHTTP r03 is independently joined FAILED before app launch; the pinned BusyBox setsid invocation repair passes19 Fast controls and requires freshLinuxr04. The P helper is integrated; its separate failed ordinary allocation experiment remains unimported/open.
+
+[Step1612](../done/step1612.md) Current root79 focused checks pass, including explicitly filtered full-lane paired30/FS13/HTTP17. The repaired native-input holder permits0B only for authenticated fresh publication rows; no descriptor-limit or initial hard-link policy changes. Linuxr02 parent1024/hard4096 restored, but1102/1146 boundary samples prove no peak/fit. Freshr03 is required.
+
+[Step1610](../done/step1610.md) Run managed HTTP and console reference owners serially: both intentionally acquire the same repository qualification lease. The first concurrent root attempt fails before server execution; its later serial16HTTP pass and7console pass do not erase that failure. Repaired Linux publication retains eight exact current tools, nine prelink static files and complete fresh inputs. Peak/4096-fit and actualLinuxr02 remain unmeasured.
+
+[Step1606](../done/step1606.md) MinimalApiLogUploadContract stays C#14/.NET11 with exact runtime pin and roll-forward disabled. Its owner builds the separate Web project explicitly and retains source/assets/output handles, actual owned managed children, bounded loopback HTTP, exact files and distinct unchanged console verification. HostLane.Native describes process orchestration here; it runs no native compiler or guest.
+
+[Step1605](../done/step1605.md) Linux SQLite recovery r03 succeeds with all held source/output lifetimes preserved. Only the owned native child raises soft RLIMIT_NOFILE from 1024 to 4096; parent soft 1024 and hard 4096 are verified before/after. Fresh publication reuses the explicitly verified nine-file SQLite archive dependency (zero fresh archive compiles). Independent post-join process audit is zero. This host procedure grants no guest or power-loss durability.
+
+[Step1604](../done/step1604.md) Current candidate passes113distinct focused controls:19disk-thread,3timing-peer,19writable-fixture,41global-writable,19writable-source5,5source-admission and7profile/actual-CLI, unchanged inputs/zero reuse. The strict v3 parser requires exact checked child-sum conservation and rejects originalv2 syntax. SQLite recoveryr02 explicitly logs childsoft/hard4096 and parentsoft1024 before/after; all publication holds succeed, but its later flock consumer fails. This is not unfiltered full, recovery or durability acceptance.
+
+[Step1603](../done/step1603.md) Root passes235 distinct focused checks:24 disk-thread,103 continuing writable provider,40 global writable descriptor,2 timing peer,7 profile/CLI,5 source-admission,15 readonly descriptor,34 SQLite contract and5 authority-file controls, all unchanged inputs/zero reuse. This is not an unfiltered full lane. Linux ordinary SQLite ef97/r05 passes actual fresh publication/writer/distinct verifier with explicitly reused verified original archives. Recovery c79/r01 fails while retaining publication sources; the later read-only builder audit reports soft1024/hard4096 file descriptors. Preserve the failed original and qualify any explicit invocation prerequisite separately.
+
+[Step1602](../done/step1602.md) Seven profile/CLI controls include the actual compiled runner at 240/600 seconds, dry-run output noncreation, original-build admission, missing parents, duplicates, invalid timing and unchanged full 2200/3600 admission. Two peer and ten existing runner controls also pass, unchanged inputs/zero reuse. These focused host checks do not establish unfiltered full or guest qualification. Peer budget min(480, runnerDeadline−30) preserves cancellation/join time.
+
+[Step1601](../done/step1601.md) The host PE verifier bounds catalog storage/scan at4096rows and48KiB pdata, using managed file-backed observations only. Distinct4096scan3ms satisfies unchanged1s parser criterion; existing120s fixture process guard stays unchanged. Kernel decoder2048 and selected M04isolation remain required.
+
+[Step1600](../done/step1600.md) Retain pinned .NET11/C#14. Short timing host checks retain exact independent response bytes and owned runner joining; component times include boundary overhead. SQLite compilation still defaults to two fresh600s attempts; original r04 timeout does not justify an increased deadline or unverified object reuse. Native/guest work remains serialized with confirmed child cleanup.
+
+[Step1597](../done/step1597.md) Focused host integration covers fresh confined path/root metadata, real source5 output lifetime and nonblocking flock. Exact graph/fixture commands, producer identities and preserved failures belong to step1597. Native publication remains serialized with guest work, and unchanged-input full/native/ancestor gates remain required at acceptance. Finite test limits are not the normal application runtime policy.
+
+[Step1594](../done/step1594.md) Step1594 preserves C#14/.NET11 pins and crypto/OpenSSL limitations while removing incidental app crypto from the finite storage fixture. Actual files must still be independently extracted and hashed by the host. The frozen revised native reference uses source1bb15b76 and matching five portable DLL versions; run it in a fresh Linux root under an exclusive builder lease. Host copied values do not establish guest durability. Separately, frozen1bb15b76 Linux log/upload r02 passes actual writer and distinct verifier plus independent660B/5126B extraction; trace projection remains incomplete and guest persistence remains unqualified.
+
+[Step1593](../done/step1593.md) Step1593 discovers that the finite Linux log/upload fixture SHA256 report requires an unavailable native OpenSSL library. Its writer completed file I/O/readback before exit134; the revised storage-only fixture removes incidental app crypto and retains independent host hashes. This grants no crypto/OpenSSL compatibility. Scoped readonly tests must not require successor writable production; committed producer versions/hashes remain mandatory.
+
+[Step1592](../done/step1592.md) Step1592 retains pinned .NET11/C#14 and bounded normal-harness controls; no toolchain, CPU, memory or runtime budget increases. The next full disk original must use committed source and matching original/copied portable producer ProductVersions/hashes. The Linux log/upload reference holds the exclusive native builder lease until joined; independent Windows host controls may continue.
+
+[Step1591](../done/step1591.md) Step1591 keeps pinned .NET11/C#14 and introduces linux log-upload-reference <original-socket-recipe-root> <fresh-artifacts-output>. The runner requires Linux and an exclusive builder lease, uses existing bounded owned publisher/session APIs, preserves failed outputs and retains original source/producer/recipe/native identities. Build portable tooling on the Windows host before export; the Linux reference is not CLROS persistence qualification.
+
+[Step1590](../done/step1590.md) Step1590 retains the committed c3dbab92 normal graph19.39s0warnings/errors, exact same-source MinimalApiSmoke/generator originals and copied producers, plus17fresh affected source checks. Fresh ExitPending r03 passes its complete original guest wrapper. Full r04 runs independently; host-only writable and FileStream preparation use separate checkouts and leave the native lease with root.
+
+[Step1589](../done/step1589.md) retains the exact full r03 request-timeout and ExitPending r02 strict-wrapper failures. Focused synthetic/host checks qualify only bounded traversal and terminal parsing. Native publication, guest producer and package provenance remain serialized; independent writable host work uses a separate checkout. No request/runtime timeout was raised.
+
+[Step1588](../done/step1588.md) adds one isolated writable integration checkout using the same pinned .NET11/C#14 tools. Its corrected complete graph passes with0 warnings/errors and192 distinct host controls. Host compilation does not select these new files into EFI or establish native fit, synchronization durability or SQLite acceptance.
+
+[Step1587](../done/step1587.md) preserves failed original ExitPending r01 and exact artifact hashes. Its root source repair has only focused host/admission support until fresh native/guest qualification. Full DiskA r03 runs independently at91cd04cd; toolchain pins and the finite full128MiB serial/3060s callback policies remain unchanged.
+
+[Step1586](../done/step1586.md) gives full disk capture one finite128MiB bound shared by live runner ingestion and final reads; ordinary16MiB and continuing-service64MiB remain. The actual original full callback deadline was already3060s and is unchanged. The frozen5dd6e6c0 full6516-check result retains its exact scope; current focused controls and failed a692a4f4 full r02 cannot promote it into a successful browser/demo result.
+
+[Step1585](../done/step1585.md) preserves the original5dd6e6c0 unfiltered full run:6516 checks,882 fixture results, zero failures/reuse,5823.320s wall/5778.093s worker. Full log SHA C0AAC4117ED5D31C7DFF247E1191FD6F04700A9A8DB87D11B7F23BD88C3216CE. The later first full guest fails independently; no browser execution or complete read-batch acceptance follows from host/native success.
+
+[Step1582](../done/step1582.md) preserves the failed unfiltered full run at
+`e3382132`:5412 checks,14 failures, zero reuse, with the native lane withheld.
+The complete diagnostic-policy declarations, independent descendant/conflict
+checks, reviewed entry-source pin and backlog contracts are repaired;121 focused
+checks pass unchanged. A fresh committed-source unfiltered full/native run is
+still required before guest qualification. First-batch issues remain open.
+
+[Step1581](../done/step1581.md) adds an original external browser capture for the
+full disk/static candidate. It requires installed Microsoft Edge or Google
+Chrome on Windows, started in an owned job with a fresh ignored profile and
+CDP endpoint. It records executable identity, process termination, protocol,
+network bodies, DOM and PNG screenshot under the original fresh evidence root.
+The5-minute browser deadline is inside the peer's1700-second deadline; full
+QEMU timeout defaults3000s and admits2200..3600s only with explicit full mode.
+No browser execution has passed yet. The Linux builder remains serialized;
+original retained recipes and persistent builder/seed owners must be preserved.
+
+## Full-lane build baseline
+
+Commit qualification changes before the final baseline build. Freeze that HEAD
+and rebuild the complete HostTests project-reference graph:
+
+```text
+dotnet build tests/OS.HostTests/OS.HostTests.csproj --no-incremental --nologo -m:1
+```
+
+The SDK embeds `SourceRevisionId` in assembly version metadata. A dependency
+built before the final commit can retain an earlier stamp; native fixtures that
+rebuild it then change its bytes during the full lane. Compare the producer and
+HostTests copied DLL hashes and product versions for `MinimalApiSmoke` and
+`OS.X64TextSerializerGenerator` before testing. Both versions must identify the
+frozen HEAD and each pair must have identical bytes. Keep HEAD, source and build
+inputs frozen until the run and its final validation finish.
+
+The retained r03 full run failed this guard after its fixtures rebuilt two older
+stamps. Its 6,388 checks across 864 fixtures do not establish full acceptance.
+After the corrected baseline at `5ceeb0c2`, the two rebuilding fixture groups
+and repository recovery pass 27 focused checks with unchanged dependency bytes.
+Those27 focused checks did not qualify the full lane; preserve that historical
+failed original. Current frozen-source full qualification is recorded in
+[Step1624](../done/step1624.md), with its own source and producer identities.
+
+## Static-file candidate host work (2026-10-23)
+
+[Step1558](../done/step1558.md) records a successful Standalone Blazor publication
+using the existing pinned SDK/runtime. The separate `MinimalApiStaticFiles`
+publication reuses the immutable original socket recipe and requires its complete
+retained evidence root; only app/output substitution is allowed. [Step1559](../done/step1559.md)
+preserves original web/service source admission and the earlier a34 research run. `nativeaot static-files prepare-client`
+retains raw SDK assets and generates host HTML/CSS; compression/debug sidecars
+are excluded from the disk fixture. The browser client uses the standard
+WebAssembly runtime and does not change the NativeAOT server architecture.
+The new Linux-only reference command is:
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot static-files qualify --recipe-root <original-socket-evidence-root> --output <fresh-directory> --webroot <prepared-webroot>
+dotnet run --project tools/OS.Tooling -- nativeaot static-files validate <evidence-directory>
+```
+
+It reuses the fixed-app publisher for MinimalApiStaticFiles, records per-thread file/HTTP
+traces, checks metadata/ranges/JSON/assets and owns shutdown. Its receipt remains
+Linux-reference evidence; the first complete successful invocation is pending.
+The development builder uses a fresh writable overlay over explicitly read-only
+archived layers, preserving the cleanup archive and original evidence.
+
+
 The shared host-validation project now lives under
 `src/OS.Std.NoRuntime.Shared`, alongside OS and OS.Kernel. It links existing
 audited source from `std/no-runtime/shared`. Existing solution commands
@@ -365,6 +511,30 @@ The historical `10.0.12` compiler qualification is recorded in
 [step1078](../done/step1078.md); the preceding SDK401/ILC108 development
 checkpoint is [step1077](../done/step1077.md). These are freestanding build
 inputs, not a hosted .NET runtime running inside CLROS.
+
+## Allocation-counter measurements on the pinned runtime
+
+The pinned CoreCLR at VMR commit
+`820230c386db5b0106c5430b3e5aee92a7826bf5` has a background-GC accounting defect:
+clearing an allocation context can add its unused tail to the reported
+`GC.GetAllocatedBytesForCurrentThread` count. See the [pinned counter](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/coreclr/vm/comutilnative.cpp#L858-L868),
+[context clearing](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/coreclr/gc/allocation.cpp#L1149-L1165)
+and upstream [fix proposal #134855](https://github.com/dotnet/runtime/pull/134855).
+The toolchain pin remains unchanged.
+
+Only the retained-engine query measurement currently requires one admitted
+1 MiB no-GC region around its unchanged 256 warm calls, counter reads and 64
+measured calls. It ends in `finally` before the next snapshot or assertion.
+Admission or termination failure fails the check; there is no retry, fallback,
+forced collection, tolerance or larger budget. Actual managed allocations
+still increase the counter and fail its exact zero assertion. Callback and
+complete state comparisons remain required. This is a host measurement
+precondition, not a global kernel allocation or guest claim.
+
+Step1623 preserves the original 6208/320-byte failures, a separate localization
+run and the guarded diagnostic. The final guarded provider cohort passes all
+116 checks. No observed allocation-context tail identifies the exact cause of
+each historical jump; the controlled result supports the accounting mechanism.
 
 ## C# host test runner
 
@@ -799,3 +969,24 @@ Historical baseline evidence from 2026-05-21:
 2. Validate the existing `.gitea/workflows/ci-smoke.yml` on a compatible Windows
    runner and retain its logs/artifacts. Workflow presence alone is not CI
    execution evidence.
+
+The prepared pinned SQLite reference CLI uses a fresh output directory on the Linux builder:
+
+```text
+linux sqlite-reference <recipe> <pinned-source-zip> <fresh-output>
+linux sqlite-recovery-reference <recipe> <pinned-source-zip> <fresh-output>
+linux sqlite-reference-with-archive <recipe> <pinned-source-zip> <reviewed-r03-artifacts> <fresh-output>
+linux sqlite-recovery-reference-with-archive <recipe> <pinned-source-zip> <reviewed-r03-artifacts> <fresh-output>
+```
+
+These commands route to the existing measured producer; the recovery run requires a separate fresh Linux root/publication. Preparation or a Linux-host success is not CLROS guest persistence or transaction durability evidence. See [step1597](../done/step1597.md).
+
+The explicit archive routes retain the pinned original dependency receipt,
+source, both object/archive outputs, recipes and toolchain identities; they
+report reused archives and zero fresh SQLite compiles while publishing a fresh
+application and running fresh processes. Recovery retains every source/output
+authority through its owned kill/join/reopen. Its original c79/r01 failed under
+the builder's1024 soft descriptor limit before recovery began. Originalr02 explicitly logs its child-only4096 limit and parent restoration;
+it reaches owned kill/join then fails strictflock parsing. Future runs must
+use fresh outputs and preserve all holds; this prerequisite is not yet a
+successful recovery result. See [step1603](../done/step1603.md).

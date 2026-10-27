@@ -302,6 +302,45 @@ internal static unsafe class LinuxStartupServicesTests
         public uint Reads, Copies, Fences, PartialCopyBytes;
         public bool FailCopy, FailClock, Regress;
     }
+    [HostTest("linux.startup brk shrink cannot invalidate retained disk output while nonoverlapping heap growth remains available")]
+    private static void DiskOutputBrkGuard()
+    {
+        foreach (bool failCopy in new[] { false, true }) DiskOutputBrkGuardCase(failCopy);
+    }
+
+    private static void DiskOutputBrkGuardCase(bool failCopy)
+    {
+        using var startup = new Owner(); startup.Begin();
+        HostCheck.Equal((long)Heap + 3 * 4096, startup.Call(12, Heap + 3 * 4096));
+        using var disk = new LinuxDiskThreadServicesTests.Owner(); uint fd = disk.Open();
+        var threads = disk.Thread;
+        threads.UseMemory(startup.Memory.Memory);
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(startup.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard));
+        try
+        {
+            const ulong target = Heap + 4096 + 128;
+            var bytes = new Span<byte>(startup.Memory.At(target - 1), 7); bytes.Fill(0xa5);
+            var child = threads.Clone(); disk.Begin(17, fd, target, 5); disk.Park();
+            HostCheck.Equal(child.Value, threads.Kernel.Dispatch().Value);
+            BrkRejected(startup, Heap + 4096);
+            HostCheck.Equal((long)Heap + 4 * 4096, startup.Call(12, Heap + 4 * 4096));
+            HostCheck.Equal((long)Heap + 3 * 4096, startup.Call(12, Heap + 3 * 4096));
+            disk.Ready(); BrkRejected(startup, Heap + 4096); // Held Ready still protects original backing.
+            // The model now copies actual mapped pool bytes. Its explicit
+            // failure control still rejects the final copy without late bytes.
+            if (failCopy) threads.FailWrite(target);
+            uint copies = threads.Writes, failed = threads.FailedWrites;
+            threads.Yield(child); HostCheck.Equal(failCopy ? -14L : 5L, disk.Consume());
+            HostCheck.True(threads.Writes == copies + 1 && threads.FailedWrites == failed + (failCopy ? 1U : 0) && disk.May(target, 5));
+            HostCheck.True(bytes[0] == 0xa5 && bytes[6] == 0xa5);
+            if (failCopy) HostCheck.True(bytes.IndexOfAnyExcept((byte)0xa5) < 0);
+            else HostCheck.True(bytes.Slice(1, 5).SequenceEqual(new byte[] { 0x5a, 0x45, 0x64, 0x07, 0x26 }));
+            threads.FailWrite(0);
+            HostCheck.Equal((long)Heap + 4096, startup.Call(12, Heap + 4096));
+        }
+        finally { HostCheck.True(LinuxMemoryServices.DetachMutationGuard(startup.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard)); }
+    }
+
     private sealed class Owner : IDisposable
     {
         public readonly LinuxMemoryServicesTests.Owner Memory;
@@ -652,6 +691,34 @@ internal static unsafe class LinuxStartupServicesTests
         owner.Context->FailCopy = false; owner.Context->Ticks = 10000 + admission.FrequencyHz;
         HostCheck.Equal(-5L, owner.Call(228, 0, Output)); HostCheck.True(!clock.IsAvailable);
         HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output), 16).IndexOfAnyExcept((byte)0xa5) == -1);
+    }
+
+    [HostTest("linux.startup full disk realtime exceeds600 then expires at3600 without copying while monotonic clocks survive")]
+    private static void FullDiskRealtime()
+    {
+        using var owner=new Owner();var admission=owner.Admission();
+        OS.Kernel.Platform.OwnedRealtimeClock.State clock=default;
+        const ulong anchor=10000,step=100000;
+        ulong maximum=DiskStaticExecutionPolicy.RealtimeMaximumElapsedSeconds;
+        HostCheck.True(OS.Kernel.Platform.OwnedRealtimeClock.Begin(ref clock,1_800_000_000,0,
+            anchor,admission.FrequencyHz,maximum));
+        admission.Realtime=&clock;admission.RequireRealtime=true;
+        HostCheck.True(LinuxStartupServices.Begin(owner.State,admission));
+        foreach(ulong elapsed in new ulong[]{601,30+2100,maximum-1})
+        {
+            owner.Context->Ticks=anchor+elapsed*admission.FrequencyHz-step;
+            HostCheck.Equal(0L,owner.Call(228,0,Output));
+            HostCheck.Equal(1_800_000_000L+(long)elapsed,*(long*)owner.Memory.At(Output));
+            HostCheck.Equal(0UL,*(ulong*)(owner.Memory.At(Output)+8));
+        }
+        new Span<byte>(owner.Memory.At(Output),16).Fill(0xa5);
+        owner.Context->Ticks=anchor+maximum*admission.FrequencyHz-step;
+        HostCheck.Equal(-5L,owner.Call(228,0,Output));HostCheck.True(!clock.IsAvailable && !clock.IsContinuing);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output),16).IndexOfAnyExcept((byte)0xa5)==-1);
+        HostCheck.Equal(-5L,owner.Call(228,0,Output));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Output),16).IndexOfAnyExcept((byte)0xa5)==-1);
+        HostCheck.Equal(0L,owner.Call(228,1,Output));
+        HostCheck.Equal(0L,owner.Call(228,6,Output));
     }
 
     [HostTest("linux.startup coarse monotonic clock uses live epoch with millisecond resolution and checked output")]
