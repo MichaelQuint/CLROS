@@ -1,5 +1,7 @@
 # Diagnostics
 
+[Step1631](../done/step1631.md) retains fresh complete Mechanical59 and ExitPending originals, plus the failed CloseReuse original whose strict physical pending interval was absent. A digest-bound, probe-only zero-or-one-step close boundary is implemented and reviewed; its fresh guest run is still pending. All110 coherent focused checks pass. The additive fault-image verifier authenticates four existing corrupt variants against an intact image; it does not yet execute a corrupt guest HTTP request. #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
+
 ## Shared QEMU fixture filesystem snapshots
 
 Test-only f3202d25 removes each rejection test's self-referencing directory

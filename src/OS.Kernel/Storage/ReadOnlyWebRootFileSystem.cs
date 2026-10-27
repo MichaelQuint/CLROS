@@ -33,7 +33,10 @@ public static unsafe class ReadOnlyWebRootFileSystem
     private const byte Free = 0, Working = 1, ReadyPhase = 2, Failed = 3, Cancelling = 4;
     private const byte Mounting = 1, Mounted = 2, Stopping = 3, Retired = 4, Faulted = 5;
     private const byte MountKind = 1, OpenKind = 2, ReadKind = 3, ScanKind = 4;
-    private const byte BpbIo = 1, DirectoryIo = 2, Fat0Io = 3, Fat1Io = 4, DataIo = 5;
+    private const byte BpbIo = 1, DirectoryIo = 2, Fat0Io = 3, Fat1Io = 4;
+    // Native diagnostics inspect this discriminator only under the original
+    // mount/operation generation; it never grants progress or copy authority.
+    internal const byte DataIo = 5;
 
     public enum Status : byte
     {

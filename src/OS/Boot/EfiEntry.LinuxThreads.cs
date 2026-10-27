@@ -587,6 +587,10 @@ public static unsafe partial class EfiEntry
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
             LinuxSyscallFrame call = *frame;
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+            if (!SelectNativeCloseReusePoll(c, index, call, out bool preserveClosePending))
+                return LinuxNativeAbort(c, index);
+#endif
 #if CLROS_LINUX_SOCKETS
             // A validated process-wide exit revokes waits before opportunistic
             // device progress. Dispatch the genuine shutdown first; the normal
@@ -595,7 +599,11 @@ public static unsafe partial class EfiEntry
             if (call.Number != 231 && !PollLinuxSocketNetwork(c,
                 call.Number == 228 ? NativeDiskPollCause.SyscallClock : NativeDiskPollCause.SyscallOther))
 #else
-            if (call.Number != 231 && !PollLinuxSocketNetwork(c))
+            if (call.Number != 231 && !PollLinuxSocketNetwork(c
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+                , preserveClosePending: preserveClosePending
+#endif
+                ))
 #endif
                 return LinuxNativeAbort(c, index);
 #endif
@@ -608,6 +616,13 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
+#endif
+#if M16_025_PROBE && !M16_027_PROBE && !M10_018_PROBE
+            if (preserveClosePending)
+            {
+                fixed (NativeDiskOwner* disk = &s_nativeDisk)
+                    if (!RequireNativeCloseReuseParentRead(c, disk, true)) return LinuxNativeAbort(c, index);
+            }
 #endif
 #if M16_025_PROBE && !M16_027_PROBE
             if (!ObserveNativeDiskExitCall(c, index, call)) return LinuxNativeAbort(c, index);

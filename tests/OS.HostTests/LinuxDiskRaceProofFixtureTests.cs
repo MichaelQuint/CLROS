@@ -44,16 +44,18 @@ internal static class LinuxDiskRaceProofFixtureTests
         string Read(string leaf) => File.ReadAllText(Path.Combine(root, "src/OS/Boot", leaf));
         static void Ordered(string text, params string[] steps)
         {
+            text = new string(text.Where(c => !char.IsWhiteSpace(c)).ToArray());
             int at = 0;
-            foreach (string step in steps)
+            foreach (string original in steps)
             {
+                string step = new(original.Where(c => !char.IsWhiteSpace(c)).ToArray());
                 int next = text.IndexOf(step, at, StringComparison.Ordinal);
                 HostCheck.True(next >= at, step); at = next + step.Length;
             }
         }
         string threads = Read("EfiEntry.LinuxThreads.cs");
         Ordered(threads, "LinuxSyscallFrame call = *frame;",
-            "if (call.Number != 231 && !PollLinuxSocketNetwork(c))",
+            "#else if (call.Number != 231 && !PollLinuxSocketNetwork(c",
             "ObserveNativeDiskExitCall(c, index, call)");
         Ordered(threads, "ObserveNativeDiskExitCall(c, index, call)", "LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame)");
         Ordered(threads, "ObserveNativeDiskExitCommit(c, index, false)", "c->Process.CommitExit(c->Key, 2, worker, out long clearTid)",
@@ -71,6 +73,56 @@ internal static class LinuxDiskRaceProofFixtureTests
         HostCheck.True(!evidence.Contains("CompletedCount++", StringComparison.Ordinal) && !evidence.Contains("Block.Poll(", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("M16_025_EXIT_REJECT reason=", StringComparison.Ordinal));
         HostCheck.True(evidence.Contains("now - started >= LinuxThreadExecutionBudget.RuntimeNanoseconds", StringComparison.Ordinal));
+    }
+
+    [HostTest("close reuse native boundary selects only the full canonical package and one callback-free disk step before real close")]
+    private static void CloseReuseNativeBoundary()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string sockets = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.LinuxSockets.cs"));
+        string threads = File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.LinuxThreads.cs"));
+        static string Compact(string text) => new(text.Where(c => !char.IsWhiteSpace(c)).ToArray());
+        static string Between(string text, string begin, string end)
+        {
+            int first = text.IndexOf(begin, StringComparison.Ordinal);
+            HostCheck.True(first >= 0, begin);
+            int last = text.IndexOf(end, first + begin.Length, StringComparison.Ordinal);
+            HostCheck.True(last > first, end); return text[first..last];
+        }
+        string selector = Between(sockets, "private static bool SelectNativeCloseReusePoll", "private static bool RequireNativeCloseReuseParentRead");
+        var words = System.Text.RegularExpressions.Regex.Matches(selector, @"digest\[(\d)\] != 0x([0-9a-f]{16})");
+        HostCheck.Equal(4, words.Count); byte[] admitted = new byte[32];
+        foreach (System.Text.RegularExpressions.Match word in words)
+            BinaryPrimitives.WriteUInt64LittleEndian(admitted.AsSpan(int.Parse(word.Groups[1].Value) * 8), Convert.ToUInt64(word.Groups[2].Value, 16));
+        byte[] canonical = F.CreatePackage("CloseReuse");
+        HostCheck.True(admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(canonical)));
+        foreach (string variant in F.Variants.Where(v => v != "CloseReuse"))
+            HostCheck.True(!admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(F.CreatePackage(variant))));
+        canonical[^1] ^= 1;
+        HostCheck.True(!admitted.AsSpan().SequenceEqual(System.Security.Cryptography.SHA256.HashData(canonical)));
+        string compactSelector = Compact(selector);
+        HostCheck.True(compactSelector.Contains("index!=1||call.Number!=3||call.Argument0!=3||c->State->LinuxBytes!=" + canonical.Length, StringComparison.Ordinal));
+        HostCheck.True(compactSelector.Contains("LinuxNativeCallOrdinal(c,index)==4", StringComparison.Ordinal));
+        string pump = Compact(Between(sockets, "private static bool PollNativeCloseReuseDiskReadiness", "private static bool PollLinuxSocketNetwork"));
+        const string oneStep = "c->Process.PollDiskReadiness(c->Key,2)";
+        HostCheck.Equal(1, pump.Split(oneStep, StringSplitOptions.None).Length - 1);
+        HostCheck.True(pump.Contains("if(!disk->Device.ReadPending&&!" + oneStep + ")returnfalse;", StringComparison.Ordinal));
+        HostCheck.True(!pump.Contains("new()", StringComparison.Ordinal) && !pump.Contains("NativeDiskQuantumFlush(", StringComparison.Ordinal));
+        int ready = pump.IndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", StringComparison.Ordinal);
+        int flush = pump.IndexOf("FlushNativeDiskEvidence(c->State)", StringComparison.Ordinal);
+        HostCheck.True(ready > pump.IndexOf(oneStep, StringComparison.Ordinal) && flush > ready &&
+            pump.LastIndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", StringComparison.Ordinal) > flush);
+        string compactThreads = Compact(threads), compactSockets = Compact(sockets);
+        const string scope = "#ifM16_025_PROBE&&!M16_027_PROBE&&!M10_018_PROBE";
+        HostCheck.True(compactSockets.Contains(scope, StringComparison.Ordinal) && compactThreads.Contains(scope, StringComparison.Ordinal));
+        HostCheck.True(compactThreads.Contains("#elseif(call.Number!=231&&!PollLinuxSocketNetwork(c" + scope +
+            ",preserveClosePending:preserveClosePending#endif))", StringComparison.Ordinal));
+        int select = compactThreads.IndexOf("SelectNativeCloseReusePoll(c,index,call,outboolpreserveClosePending)", StringComparison.Ordinal);
+        int poll = compactThreads.IndexOf("preserveClosePending:preserveClosePending", StringComparison.Ordinal);
+        int admittedAt = compactThreads.IndexOf("timingRead(state,&admitted)", poll, StringComparison.Ordinal);
+        int recheck = compactThreads.IndexOf("RequireNativeCloseReuseParentRead(c,disk,true)", admittedAt, StringComparison.Ordinal);
+        int dispatch = compactThreads.IndexOf("LinuxSyscallGateway.Dispatch(refc->Gates[index],ref*frame)", recheck, StringComparison.Ordinal);
+        HostCheck.True(select >= 0 && select < poll && poll < admittedAt && admittedAt < recheck && recheck < dispatch);
     }
 
     [HostTest("disk race packages are canonical deterministic two-worker cooperative children")]

@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1631](../done/step1631.md) retains fresh complete Mechanical59 and ExitPending originals, plus the failed CloseReuse original whose strict physical pending interval was absent. A digest-bound, probe-only zero-or-one-step close boundary is implemented and reviewed; its fresh guest run is still pending. All110 coherent focused checks pass. The additive fault-image verifier authenticates four existing corrupt variants against an intact image; it does not yet execute a corrupt guest HTTP request. #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
+
 [Step1630](../done/step1630.md) connects the strict CloseReuse original consumer in development source: canonical separate output buffers and replacement cursor, every physical transaction owned, same-row cancellation accounting, protected original runner and unchanged legacy defaults. Seventy coherent focused checks pass with unchanged inputs and zero reuse. No fresh native/guest result is claimed; #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
 
 [Step1628](../done/step1628.md) advances isolated #791 preparation with a measured typed `F_GETLK` returned-observation repair and48 focused Fast passes. Dependencies, blocked state, guest activation and acceptance remain unchanged. The current #770–#774 read/Blazor batch continues while this host preparation is retained.
