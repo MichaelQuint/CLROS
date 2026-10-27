@@ -135,12 +135,14 @@ public static class LinuxDiskRaceProofFixture
         if (close)
         {
             p.Call("main.replacement", 17, 3, ParentOutput, 1, 0, WaitPolicy.Disk, 1, 0); p.Fill(ParentOutput, 8192, Sentinel);
-            p.Call("main.duplicate", 0, 7, ParentOutput, 8, 8, WaitPolicy.Disk, 8);
-            p.MemoryByte(ParentOutput, Pattern(0)); p.MemoryByte(ParentOutput + 7, Pattern(7));
+            p.Call("main.duplicate", 0, 7, ChildOutput, 8, 8, WaitPolicy.Disk, 8);
+            p.MemoryByte(ChildOutput, Pattern(0)); p.MemoryByte(ChildOutput + 7, Pattern(7));
+            p.Call("main.replacement-cursor", 8, 3, 0, 1, 0, WaitPolicy.Disk);
             p.Call("main.replacement-stat", 5, 3, Stat, 0, 0); p.MemoryQword(Stat + 48, 0);
         }
         p.Call("main.cursor", 8, 7, 0, 1, close ? 8 : 8200, WaitPolicy.Disk);
         p.Call("main.independent-cursor", 8, 4, 0, 1, 0, WaitPolicy.Disk);
+        if (close) p.Fill(ParentOutput, 8192, Sentinel);
         foreach (uint fd in new uint[] { 3, 4, 7, 5, 6 }) p.Call("main.close" + fd, 3, fd, 0, 0, 0);
         p.Call("main.witness", 1, 1, ImageBase + 0x180, (uint)Witness(variant).Length, Witness(variant).Length);
         p.Syscall("main.exit", 231, 42, 0, 0, 0); p.JumpFailure();

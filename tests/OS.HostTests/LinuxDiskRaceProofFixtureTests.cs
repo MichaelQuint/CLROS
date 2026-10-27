@@ -176,6 +176,63 @@ internal static class LinuxDiskRaceProofFixtureTests
         }
     }
 
+    [HostTest("close reuse later real read preserves the parent sentinel and checks replacement and shared cursors")]
+    private static void CloseReuseDrainWitness()
+    {
+        byte[] elf = F.CreateElf("CloseReuse"); var main = F.Calls("CloseReuse");
+        var duplicate = main.Single(c => c.Role == "main.duplicate");
+        var decoded = Calls("CloseReuse").Single(c => c.Rip == duplicate.ReturnRip);
+        HostCheck.True(decoded is { Number: 0, A0: 7, A1: F.ChildOutput, A2: 8, A3: 0, A4: 0, A5: 0 } &&
+            duplicate is { Result: 8, Wait: F.WaitPolicy.Disk, OutputBytes: 8 });
+        var replacement = main.Single(c => c.Role == "main.replacement-cursor");
+        HostCheck.True(replacement is { Number: 8, A0: 3, A1: 0, A2: 1, Result: 0, Wait: F.WaitPolicy.Disk });
+        HostCheck.True(main.Single(c => c.Role == "main.cursor") is { A0: 7, Result: 8 } &&
+            main.Single(c => c.Role == "main.independent-cursor") is { A0: 4, Result: 0 });
+        string[] order = ["main.join", "main.replacement", "main.duplicate", "main.replacement-cursor",
+            "main.replacement-stat", "main.cursor", "main.independent-cursor", "main.close3"];
+        HostCheck.True(order.Select(role => main.Single(c => c.Role == role).ReturnRip).SequenceEqual(
+            order.Select(role => main.Single(c => c.Role == role).ReturnRip).Order()));
+        int at = checked((int)(duplicate.ReturnRip - F.ImageBase)) + 12;
+        // Decode the two actual RIP-relative loads and comparisons independently.
+        foreach ((ulong address, byte value) in new[] { (F.ChildOutput, (byte)0x13), (F.ChildOutput + 7, (byte)0x12) })
+        {
+            HostCheck.True(elf.AsSpan(at, 3).SequenceEqual(new byte[] { 0x0f, 0xb6, 0x05 }));
+            HostCheck.Equal(address, checked((ulong)((long)F.ImageBase + at + 7 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 3)))));
+            HostCheck.True(elf.AsSpan(at + 7, 2).SequenceEqual(new byte[] { 0x48, 0x3d }));
+            HostCheck.Equal((uint)value, BinaryPrimitives.ReadUInt32LittleEndian(elf.AsSpan(at + 9)));
+            HostCheck.Equal(F.FailureOffset, at + 19 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 15)));
+            at += 19;
+        }
+        HostCheck.True(F.InstructionRips("CloseReuse").Contains(F.ImageBase + (uint)at));
+    }
+
+    [HostTest("close reuse compares all parent sentinel bytes after the later data read and both cursor checks")]
+    private static void CloseReuseFinalSentinel()
+    {
+        byte[] elf = F.CreateElf("CloseReuse"); var main = F.Calls("CloseReuse");
+        // MOV EAX,A5; MOV EDI,404000; MOV ECX,8192; CLD; REPE SCASB.
+        // This is a sampled comparison, not a refill or proof of no transient writes.
+        byte[] compare = [0xb8, 0xa5, 0, 0, 0, 0xbf, 0, 0x40, 0x40, 0,
+            0xb9, 0, 0x20, 0, 0, 0xfc, 0xf3, 0xae];
+        List<int> positions = [];
+        int end = checked((int)(F.MainEndRip("CloseReuse") - F.ImageBase));
+        for (int at = F.EntryOffset; at + 24 <= end; at++)
+            if (elf.AsSpan(at, compare.Length).SequenceEqual(compare))
+            {
+                HostCheck.True(elf.AsSpan(at + 18, 2).SequenceEqual(new byte[] { 0x0f, 0x85 }));
+                HostCheck.Equal(F.FailureOffset, at + 24 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 20)));
+                positions.Add(at);
+            }
+        HostCheck.Equal(3, positions.Count);
+        int last = checked((int)(main.Single(c => c.Role == "main.independent-cursor").ReturnRip - F.ImageBase)) + 12;
+        HostCheck.Equal(last, positions[^1]);
+        HostCheck.True(F.ImageBase + (uint)positions[1] < main.Single(c => c.Role == "main.duplicate").ReturnRip);
+        HostCheck.True(elf.AsSpan(last + 24, 5).SequenceEqual(new byte[] { 0xb8, 3, 0, 0, 0 }));
+        HostCheck.True(main.Single(c => c.Role == "main.read") is { A1: F.ParentOutput, A2: 8192, Result: -9 });
+        HostCheck.True(main.Where(c => c.ReturnRip > main.Single(c => c.Role == "main.duplicate").ReturnRip)
+            .All(c => c.Number != 0 && c.Number != 17));
+    }
+
     [HostTest("disk lifecycle fixtures encode exact signal handlers EOF winner and nonreturning pending exit without timing loops")]
     private static void LifecycleVariants()
     {
