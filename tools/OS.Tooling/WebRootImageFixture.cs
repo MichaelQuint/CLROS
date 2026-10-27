@@ -33,6 +33,17 @@ public static class WebRootImageFixture
         string UtcTimestampPolicy, DiskFile[] WebRootFiles, DiskFile[] PreservedFiles, DiskFile Sentinel);
     public sealed record FaultReceipt(string Variant, string SourceSha256, string FinalSha256,
         string TargetPath, string ExpectedReadback);
+    /// <summary>Copied evidence for one fixed fixture mutation and its actual
+    /// independent extraction failure. Offsets address the original image's FAT
+    /// words. This is not a healthy inventory, device observation or guest result.</summary>
+    public sealed record FaultInspection(FaultReceipt Receipt, ulong PartitionFirstLba, ulong PartitionLastLba,
+        uint TargetFirstCluster, uint TargetBytes, string OriginalTargetSha256,
+        ulong Fat0WordOffset, ulong Fat1WordOffset, uint Fat0Before, uint Fat1Before,
+        uint Fat0After, uint Fat1After, int ChangedBytes)
+    {
+        public bool GrantsNativeDeviceOrProcessAuthority => false;
+        public bool GrantsGuestReadFailureAuthority => false;
+    }
 
     /// <summary>Measure sorted, plain, ASCII source files. Counts and byte limits
     /// are the actual inventory, not inflated runtime admission. Empty files are
@@ -231,6 +242,92 @@ public static class WebRootImageFixture
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
         return new(variant, positive.FinalSha256, hash, target, expected);
+    }
+
+    /// <summary>Hold distinct plain positive/fault images read-only and verify
+    /// an existing fixed-target fault receipt. The positive image must pass the
+    /// complete healthy inventory. Only the exact variant's directory deletion
+    /// bytes or first mirrored FAT words may differ; every other byte, including
+    /// EFI/package payloads, remains equal. Independently observe the declared
+    /// missing path or extraction failure without admitting a malformed image
+    /// as a healthy inventory. Invalid evidence throws ToolFailure; no files are
+    /// changed, device callbacks invoked, or guest failure authority granted.
+    /// Original consumers must separately prove their actual failure and cleanup.</summary>
+    public static FaultInspection VerifyFaultVariant(string repositoryRoot, string sourceImagePath,
+        Receipt positive, string faultImagePath, FaultReceipt expected)
+    {
+        if (positive is null || expected is null) throw new ToolFailure("webroot_image_fault_input");
+        string variant = expected.Variant;
+        Need(variant is "Missing" or "Truncated" or "Loop" or "MirrorMismatch", "fault_variant");
+        const string target = GuestRoot + "/fixture/fragmented.bin";
+        string failure = variant switch
+        {
+            "Missing" => "missing_path",
+            "Truncated" => "webroot_image_file_chain_length",
+            "Loop" => "webroot_image_chain_loop_or_crosslink",
+            _ => "webroot_image_fat_mirror"
+        };
+        Need(expected.TargetPath == target && expected.ExpectedReadback == failure &&
+            expected.SourceSha256 == positive.FinalSha256, "fault_receipt");
+        string root = Path.GetFullPath(repositoryRoot);
+        using AuthorityFiles inputs = new();
+        var source = inputs.Open(root, sourceImagePath, "positive fixture", "webroot_positive", MaximumImageBytes, singleLink: true);
+        var fault = inputs.Open(root, faultImagePath, "fault fixture", "webroot_fault", MaximumImageBytes, singleLink: true);
+        AuthorityFiles.RequireDistinct([source, fault]);
+        byte[] original = source.ReadBytes(MaximumImageBytes, "webroot_positive");
+        byte[] actual = fault.ReadBytes(MaximumImageBytes, "webroot_fault");
+        Need(Hash(original) == positive.FinalSha256, "fault_positive_identity");
+        Need(actual.Length == original.Length && Hash(actual) == expected.FinalSha256, "fault_identity");
+        // Do not weaken the healthy parser to extract around a malformed file.
+        _ = WebRootDiskInventory.Inspect(source.Path, original, positive);
+        var reader = new Reader(original);
+        var baseline = reader.Inventory();
+        Need(reader.FileEntries.TryGetValue(target, out Entry? entry), "fault_target");
+        Entry selected = entry!;
+        DiskFile originalTarget = baseline.Files.Single(f => f.Path == target);
+        int fat0 = checked((int)reader.Volume.FirstFatLba * 512 + (int)selected.Cluster * 4);
+        int fat1 = checked(fat0 + (int)reader.Volume.FatSectors * 512);
+        Dictionary<int, byte> edits = [];
+        if (variant == "Missing")
+            foreach (int offset in selected.SlotOffsets) edits.Add(offset, 0xe5);
+        else
+        {
+            uint value = variant == "Truncated" ? EndOfChain : selected.Cluster;
+            if (variant != "MirrorMismatch") Word(fat0, value);
+            Word(fat1, value);
+        }
+        int changed = 0, at = 0;
+        foreach (var (offset, value) in edits.OrderBy(e => e.Key))
+        {
+            Need(actual.AsSpan(at, offset - at).SequenceEqual(original.AsSpan(at, offset - at)) &&
+                actual[offset] == value, "fault_mutation_scope");
+            if (actual[offset] != original[offset]) changed++;
+            at = offset + 1;
+        }
+        Need(actual.AsSpan(at).SequenceEqual(original.AsSpan(at)), "fault_mutation_scope");
+        Need(changed != 0, "fault_not_observed");
+        bool observed = false;
+        if (variant == "Missing")
+        {
+            ImageInventory missing = new Reader(actual).Inventory();
+            observed = missing.Files.Length == baseline.Files.Length - 1 && !missing.Files.Any(f => f.Path == target) &&
+                baseline.Files.Where(f => f.Path != target).All(f => missing.Files.Any(other => SameFile(f, other)));
+        }
+        else
+        {
+            try { _ = new Reader(actual); }
+            catch (ToolFailure rejected) when (rejected.Reason == failure) { observed = true; }
+        }
+        Need(observed, "fault_not_observed");
+        inputs.VerifyUnchanged();
+        return new(expected, baseline.PartitionFirstLba, baseline.PartitionLastLba, selected.Cluster,
+            originalTarget.Bytes, originalTarget.Sha256, (ulong)fat0, (ulong)fat1,
+            U32(original, fat0), U32(original, fat1), U32(actual, fat0), U32(actual, fat1), changed);
+
+        void Word(int offset, uint value)
+        {
+            for (int i = 0; i < 4; i++) edits.Add(offset + i, unchecked((byte)(value >> (i * 8))));
+        }
     }
 
     private static bool SameFile(DiskFile a, DiskFile b) => a.Path == b.Path && a.Bytes == b.Bytes && a.Sha256 == b.Sha256 &&
