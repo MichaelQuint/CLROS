@@ -1,5 +1,7 @@
 # Storage
 
+[Step1630](../done/step1630.md) connects the strict CloseReuse original consumer in development source: canonical separate output buffers and replacement cursor, every physical transaction owned, same-row cancellation accounting, protected original runner and unchanged legacy defaults. Seventy coherent focused checks pass with unchanged inputs and zero reuse. No fresh native/guest result is claimed; #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
+
 ## Typed SQLite trace observations (step1628)
 
 The host reader accepts the measured successful `F_GETLK` `F_UNLCK/SEEK_SET`

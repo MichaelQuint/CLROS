@@ -1,5 +1,7 @@
 # Workload Profiles ADR
 
+[Step1630](../done/step1630.md) connects the strict CloseReuse original consumer in development source: canonical separate output buffers and replacement cursor, every physical transaction owned, same-row cancellation accounting, protected original runner and unchanged legacy defaults. Seventy coherent focused checks pass with unchanged inputs and zero reuse. No fresh native/guest result is claimed; #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
+
 [Step1628](../done/step1628.md) advances isolated #791 preparation with a measured typed `F_GETLK` returned-observation repair and48 focused Fast passes. Dependencies, blocked state, guest activation and acceptance remain unchanged. The current #770–#774 read/Blazor batch continues while this host preparation is retained.
 
 [Step1627](../done/step1627.md) retains the complete Progress original and independent entry-time witnesses; failed r01 remains failed. [Step1629](../done/step1629.md) adds the conditional staged017 native closure and three fresh guarded complete staged originals. The unchanged-input unfiltered full r03 passes 7,332 checks across 918 fixtures with zero reuse and qualifies the finite staged scope of #772 with the reviewed historical ancestors. #773 and #774 retain their exact dependencies and own continuing FAT32/browser acceptance; no staged result closes persistent logs/uploads, SQLite or sustained-service work.

@@ -1,7 +1,9 @@
 # QEMU
 
 <!-- step1625-progress-development -->
-[Step1627](../done/step1627.md) retains fresh guarded Progress r02, owner14172/session37575/exit0, with the complete consumer and independent device/entry-time census. EFI0871/image9088 match their retained bytes; runner termination after success markers is distinct from a natural guest-process exit. Original r01 (owner1, `disk_progress_device_overlap`) remains failed. Only Progress and ExitPending select original race consumers; CloseReuse and signal variants still refuse before a child launches. [Step1629](../done/step1629.md) retains the selected staged017 native review and three fresh complete originals r02-r04; failed r01 retains its outer-guard failure. The exact staged recipe uses `-BuildEfi -EnableM10017Probe`, package34D9/index5AAD, default RAM, unchanged600s and `invoke:null`. Each complete consumer and exactly one WEB_IMAGE_JOIN guard pass. QEMU runner termination after terminal success remains distinct from a natural child exit. The current unfiltered full r03 passes 7,332 checks across 918 fixtures, unchanged inputs and zero reuse, qualifying the finite staged scope of #772 with the reviewed historical ancestors.
+[Step1630](../done/step1630.md) connects the strict CloseReuse original consumer in development source: canonical separate output buffers and replacement cursor, every physical transaction owned, same-row cancellation accounting, protected original runner and unchanged legacy defaults. Seventy coherent focused checks pass with unchanged inputs and zero reuse. No fresh native/guest result is claimed; #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
+
+[Step1627](../done/step1627.md) retains fresh guarded Progress r02, owner14172/session37575/exit0, with the complete consumer and independent device/entry-time census. EFI0871/image9088 match their retained bytes; runner termination after success markers is distinct from a natural guest-process exit. Original r01 (owner1, `disk_progress_device_overlap`) remains failed. Development source now has separate Progress, CloseReuse and ExitPending original consumers; signal variants still refuse before child launch. CloseReuse remains unqualified until fresh native and original evidence. [Step1629](../done/step1629.md) retains the selected staged017 native review and three fresh complete originals r02-r04; failed r01 retains its outer-guard failure. The exact staged recipe uses `-BuildEfi -EnableM10017Probe`, package34D9/index5AAD, default RAM, unchanged600s and `invoke:null`. Each complete consumer and exactly one WEB_IMAGE_JOIN guard pass. QEMU runner termination after terminal success remains distinct from a natural child exit. The current unfiltered full r03 passes 7,332 checks across 918 fixtures, unchanged inputs and zero reuse, qualifying the finite staged scope of #772 with the reviewed historical ancestors.
 
 Full018 uses its separate continuing FAT32/HTTP/browser consumer and ordered DISK_IMAGE_JOIN then WEB_IMAGE_JOIN. Preserve its3000s outer/default RAM and nested1700s matrix/240s header/5min browser deadlines. Staged results cannot qualify this disk/browser scope.
 
@@ -201,8 +203,8 @@ It remains a failed original, with fresh complete execution still required.
 The new `linux disk-race-package <variant> <fresh-artifacts-output>` command
 publishes exact canonical Progress/CloseReuse/InterruptWins/CompletionWins/
 ExitPending bytes. `-LinuxDiskRaceVariant` is an explicit mechanical025-only
-selection. Actual race execution refuses before child launch until its original
-consumer exists; `-DryRun` selection and publication are not execution evidence.
+selection. Progress, CloseReuse and ExitPending have separate complete consumers
+in development source. Other races refuse before child launch; `-DryRun` selection and publication are not execution evidence.
 
 [Step1578](../done/step1578.md) replaces the018 placeholder with a separate
 original five-response consumer candidate. The peer uses one pooled connection

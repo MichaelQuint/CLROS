@@ -425,4 +425,57 @@ internal static class LinuxDiskParentTests
         }
         finally { NativeMemory.AlignedFree(stack); }
     }
+
+    [HostTest("disk CloseReuse startup requires its explicit65-range selection and preserves legacy copied BCL separation")]
+    private static void CloseReuseStartup()
+    {
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage("CloseReuse"), original = package.ToArray();
+        string[] rows = MappedStartupRows(package, 65), before = rows.ToArray();
+        string[] parent = QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskFiles: true, diskCloseReuse: true);
+        HostCheck.True(parent.SequenceEqual(rows[..^7]) && rows.SequenceEqual(before) && package.SequenceEqual(original));
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskFiles: true));
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskCloseReuse: true), "m16_004_disk_selection");
+        foreach (var flags in new[]
+        {
+            (Progress: true, Exit: false, Static: false, Writable: false, Log: false),
+            (Progress: false, Exit: true, Static: false, Writable: false, Log: false),
+            (Progress: false, Exit: false, Static: true, Writable: false, Log: false),
+            (Progress: false, Exit: false, Static: false, Writable: true, Log: false),
+            (Progress: false, Exit: false, Static: false, Writable: false, Log: true),
+            (Progress: false, Exit: false, Static: false, Writable: true, Log: true)
+        })
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskFiles: true,
+                diskStatic: flags.Static, diskExitPending: flags.Exit, writableDisk: flags.Writable,
+                logUpload: flags.Log, diskProgress: flags.Progress, diskCloseReuse: true), "m16_004_disk_selection");
+        foreach (string variant in LinuxDiskRaceProofFixture.Variants.Where(v => v != "CloseReuse"))
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows,
+                LinuxDiskRaceProofFixture.CreatePackage(variant), diskFiles: true, diskCloseReuse: true));
+        foreach (byte[] other in new[] { LinuxDiskFileProofFixture.CreatePackage(),
+            LinuxWritableDiskProofFixture.CreatePackage(), LinuxWritableDiskProofFixture.CreateLogUploadPackage() })
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, other, diskFiles: true, diskCloseReuse: true));
+        byte[] changed = package.ToArray(); changed[^1] ^= 1;
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, changed, diskFiles: true, diskCloseReuse: true));
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package[..^1], diskFiles: true, diskCloseReuse: true));
+        foreach (ulong ranges in new[] { 64UL, 66UL, 67UL })
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(MappedStartupRows(package, ranges),
+                package, diskFiles: true, diskCloseReuse: true), "m16_004_table_geometry");
+
+        // Keep the existing eight-argument core/delegate contract unchanged.
+        // The copied discriminator below is not a prepared public BCL program.
+        var selected = typeof(QemuTranscripts).GetMethod("ValidateLinuxStartupTailSelected",
+            BindingFlags.Static | BindingFlags.NonPublic)!.CreateDelegate<
+                Func<string[], byte[], bool, bool, bool, bool, bool,
+                    NativeAotLogUploadContract.ClrosPackageValues?, bool, bool, string[]>>();
+        foreach (string phase in new[] { "write", "verify" })
+        {
+            var (bclPackage, values) = CopiedBclPackage(phase);
+            string[] bclRows = MappedStartupRows(bclPackage, 67);
+            HostCheck.True(InspectStartupValues(bclRows, bclPackage, true, false, false, true, true, values)
+                .SequenceEqual(bclRows[..^7]));
+            DenyStartup(() => selected(bclRows, bclPackage, true, false, false, true, true, values, false, true),
+                "m16_004_disk_selection");
+        }
+        DenyStartup(() => InspectStartupValues(rows, package, true, false, false, false, false, null));
+        HostCheck.True(rows.SequenceEqual(before) && package.SequenceEqual(original));
+    }
 }

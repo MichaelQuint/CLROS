@@ -62,13 +62,13 @@ public static class NativeAotDiskSelection
 
     /// <summary>Require complete canonical bytes for one explicitly selected
     /// mechanical original consumer. Empty selection preserves the positive
-    /// fixture; Progress has the overlapping-read consumer and ExitPending
-    /// has the separate pending-reset consumer.
+    /// fixture; Progress checks overlapping reads, CloseReuse checks the detached
+    /// old token and later descriptor reads, and ExitPending checks pending reset.
     /// No package, image, process or native authority is granted here.</summary>
     public static void RequireMechanicalPackage(byte[] package,string raceVariant)
     {
         if(raceVariant.Length==0){LinuxDiskFileProofFixture.RequirePackage(package);return;}
-        if(raceVariant is not ("Progress" or "ExitPending"))throw new ToolFailure("disk_race_complete_consumer_required");
+        if(raceVariant is not ("Progress" or "CloseReuse" or "ExitPending"))throw new ToolFailure("disk_race_complete_consumer_required");
         if(LinuxDiskRaceProofFixture.PackageVariant(package)!=raceVariant)throw new ToolFailure("disk_race_selected_package");
     }
 

@@ -98,8 +98,10 @@ public static partial class QemuTranscripts
     [ "CLROS_M16_023_READY", "TEST_PASS m16.023", "CLROS_M16_024_READY", "TEST_PASS m16.024",
       "CLROS_M16_025_READY", "TEST_PASS m16.025" ];
 
-    private static Dictionary<string, ulong> ReadDiskFileEnd(string row, LinuxDiskExitPendingDeviceValues? pending = null)
+    private static Dictionary<string, ulong> ReadDiskFileEnd(string row, LinuxDiskExitPendingDeviceValues? pending = null,
+        NativeDiskReadObservations.Inspection? closeReuse = null)
     {
+        Need(closeReuse is null || pending is null,"disk_parent_selection");
         const string suffix = " device=retired fs=retired dma=zero descriptors=closed reservation=retained";
         Need(row.EndsWith(suffix, StringComparison.Ordinal), "disk_parent_cleanup");
         var end = ReadRecord(row[..^suffix.Length], "M16_025_END", "submitted:dec", "completed:dec", "copied:dec",
@@ -107,7 +109,7 @@ public static partial class QemuTranscripts
         Need(end["bootstrapCompleted"] >= 35 && end["bootstrapCopied"] == end["bootstrapCompleted"] &&
             end["submitted"] > end["bootstrapCompleted"] &&
             (pending is null ? end["submitted"] == end["completed"] : end["completed"] < ulong.MaxValue && end["submitted"] == end["completed"] + 1) &&
-            end["copied"] == end["completed"] && end["fsReads"] <= ulong.MaxValue - 34 &&
+            DiskReadCopyAccounting(end,closeReuse) && end["fsReads"] <= ulong.MaxValue - 34 &&
             end["fsReads"] + 34 == end["submitted"] && end["cacheHits"] <= long.MaxValue &&
             end["cacheMisses"] <= end["fsReads"], "disk_parent_counters");
         if (pending is not null)
@@ -146,5 +148,36 @@ public static partial class QemuTranscripts
         Need(rows is { Length: > 0 and <= 131072 } && rows.All(row => row is { Length: > 0 and <= 1536 } &&
             row.All(value => value is >= ' ' and <= '~')), "disk_parent_input");
         _ = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true);
+    }
+
+    internal static (WebParentReport Parent, LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device,
+        IReadOnlyList<(LinuxDiskRaceCall Call, LinuxDiskRaceWindow Window, IReadOnlyList<ulong> DeviceGenerations)> Requests)
+        InspectLinuxDiskCloseReuseRun(string root, QemuSmokeOptions options, QemuSmokePlan plan,
+            ProcessResult runner, AuthorityFile image, AuthorityFile efi, AuthorityFile package,
+            WebRootImageFixture.Receipt receipt, string qemu, string ovmf, Action verifyOwnedInputs)
+    {
+        Need(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant == "CloseReuse", "disk_runner_close_reuse_selection");
+        return InspectOriginalLinuxDiskRun(root, options, plan, runner, image, efi, package, qemu, ovmf, verifyOwnedInputs, rows =>
+        {
+            var report = InspectLinuxDiskCloseReuseCaptureValues(rows, package.ReadBytes(65536, "disk_package"),
+                image.ReadBytes(WebRootImageFixture.MaximumImageBytes, "disk_image"), receipt, image.Path);
+            return (report, SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true,
+                diskCloseReuse: report.Device).Proof);
+        });
+    }
+
+
+    // Only the explicit CloseReuse path supplies its same-row canonical
+    // leaf/transaction/cancel-scope inspection. Every existing default caller
+    // retains exact copied==completed accounting.
+    private static bool DiskReadCopyAccounting(Dictionary<string, ulong> end,
+        NativeDiskReadObservations.Inspection? closeReuse)
+    {
+        if (closeReuse is null) return end["copied"] == end["completed"];
+        var b = closeReuse.Counters;
+        return closeReuse.ResetRetirement is null && closeReuse.Cancelled <= 1 &&
+            end["submitted"] == b.Submitted && end["completed"] == b.Completed && end["copied"] == b.Copied &&
+            end["bootstrapCompleted"] == b.BootstrapCompleted && end["bootstrapCopied"] == b.BootstrapCopied &&
+            end["copied"] <= end["completed"] && end["completed"] - end["copied"] == closeReuse.Cancelled;
     }
 }

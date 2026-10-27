@@ -593,4 +593,383 @@ internal static class LinuxDiskCaptureTests
     private static ulong Field(string row,string key)=>ulong.Parse(row.Split(' ').Single(f=>f.StartsWith(key+"=",StringComparison.Ordinal))[(key.Length+1)..],CultureInfo.InvariantCulture);
     private static string Set(string row,string key,ulong value)=>string.Join(' ',row.Split(' ').Select(f=>f.StartsWith(key+"=",StringComparison.Ordinal)?key+"="+value.ToString(CultureInfo.InvariantCulture):f));
     private static string[] Change(string[] rows,int at,string key,ulong value) { var copy=rows.ToArray(); copy[at]=Set(copy[at],key,value); return copy; }
+
+    [HostTest("CloseReuse all IO owners separate detached data from overlapping reopen metadata", HostLane.Native)]
+    private static void CloseReuseTransactionOwners() => WithCapture(c =>
+    {
+        foreach (var mode in new[] { (Detached: true, Staging: false), (Detached: true, Staging: true), (Detached: false, Staging: false) })
+        {
+            string[] rows = CloseReuseWholeRows(c, mode.Detached, mode.Staging), before = rows.ToArray();
+            var report = CloseReuseWhole(c, rows);
+            HostCheck.True(rows.SequenceEqual(before) && report.Leaf.Variant == "CloseReuse" &&
+                !report.Leaf.CheckedUserMemoryOrAuxiliaryJoins && !report.Leaf.CheckedPostDeathSentinelOrOrphanDrain);
+            ulong[] assigned = report.Requests.SelectMany(r => r.DeviceGenerations).ToArray();
+            HostCheck.True(assigned.Distinct().Count() == assigned.Length &&
+                assigned.Order().SequenceEqual(report.Device.Rows.Where(r => r.Kind == NativeDiskReadObservations.Kind.Submitted)
+                    .Select(r => r.Generation).Order()));
+            var old = report.Requests.Single(r => r.Call.Spec.Role == "main.read");
+            var reopened = report.Requests.Single(r => r.Call.Spec.Role == "child.reopen");
+            HostCheck.True(old.Window.Value == -9 && old.Window.OutputBytes == 8192 &&
+                old.DeviceGenerations.Count == 1 && reopened.DeviceGenerations.Count == 2 &&
+                report.Requests.Where(r => r.Call.Spec.Role is "child.empty" or "main.replacement" or
+                    "main.replacement-cursor" or "main.cursor" or "main.independent-cursor")
+                    .All(r => r.DeviceGenerations.Count == 0));
+            int oldTerminal = report.Leaf.Auxiliary.Single(a => a.Text.StartsWith("M16_023_IO kind=1 ", StringComparison.Ordinal) &&
+                Field(a.Text, "generation") == old.DeviceGenerations[0]).RecordIndex;
+            HostCheck.True(mode.Detached ? oldTerminal > old.Window.CompletionRecordIndex :
+                oldTerminal < old.Window.CompletionRecordIndex &&
+                report.Leaf.Auxiliary.Any(a => a.Text.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) &&
+                    Field(a.Text, "generation") == reopened.DeviceGenerations[0] && a.RecordIndex < old.Window.CompletionRecordIndex));
+            HostCheck.Equal(mode.Staging ? 0UL : 1UL, report.Device.Cancelled);
+        }
+    });
+
+    [HostTest("CloseReuse rejects missing reassigned orphan stale and out-of-leaf physical owners", HostLane.Native)]
+    private static void CloseReuseTransactionRejections() => WithCapture(c =>
+    {
+        string[] rows = CloseReuseWholeRows(c); var report = CloseReuseWhole(c, rows);
+        var initial = report.Requests.Single(r => r.Call.Spec.Role == "prep.original");
+        var old = report.Requests.Single(r => r.Call.Spec.Role == "main.read");
+        int submit = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == initial.DeviceGenerations[0]);
+        // Remove a WHOLE metadata transaction and repair only synthetic device
+        // counters/ring numbering: reject the missing directory route, rather
+        // than merely failing a sequence gap in the observation parser.
+        var missing = rows.ToList(); missing.RemoveRange(submit, 3);
+        RejectCloseReuseWhole(c, RenumberCloseReuseIo(missing.ToArray()), "disk_close_reuse_metadata_route");
+        var reopened = report.Requests.Single(r => r.Call.Spec.Role == "child.reopen");
+        string[] reassigned = MoveCloseReuseTransaction(rows, submit, reopened.Window.CompletionRecordIndex,
+            Field(rows[reopened.Window.CompletionRecordIndex], "clock") - 100);
+        RejectCloseReuseWhole(c, reassigned, "disk_close_reuse_metadata_route");
+        // Reassign the same real sector bytes into a read-only interval before
+        // the old data submit. Its raw shape/hash/counters are valid, but a read
+        // has no directory/FAT ownership route.
+        string[] moved = MoveCloseReuseTransaction(rows, submit, old.Call.RecordIndex + 2,
+            Field(rows[old.Call.RecordIndex], "clock") + 50);
+        RejectCloseReuseWhole(c, moved, "disk_close_reuse_unowned_transaction");
+        int oldSubmit = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == old.DeviceGenerations[0]);
+        RejectCloseReuseWhole(c, Change(rows, oldSubmit, "owner", 8388616), "disk_observation_association");
+        RejectCloseReuseWhole(c, Change(rows, oldSubmit, "epoch", 2), "disk_observation_association");
+        int terminal = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=1 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == old.DeviceGenerations[0]);
+        RejectCloseReuseWhole(c, Change(rows, terminal, "generation", old.DeviceGenerations[0] + 1), "disk_observation_request_identity");
+        // A complete additional image-matching transaction after the last disk
+        // wait cannot be projected away or attached to the earlier detached token.
+        var later = report.Requests.Single(r => r.Call.Spec.Role == "main.duplicate");
+        int data = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == later.DeviceGenerations[0]);
+        string[] extra = rows.Skip(data).Take(3).ToArray();
+        int after = report.Requests.Max(r => r.Window.CompletionRecordIndex) + 2;
+        ulong clock = Field(rows[report.Requests.Max(r => r.Window.CompletionRecordIndex)], "clock") + 100;
+        for (int i = 0; i < extra.Length; i++) extra[i] = Set(extra[i], "clock", clock + (ulong)i);
+        var orphan = rows.ToList(); orphan.InsertRange(after, extra);
+        RejectCloseReuseWhole(c, RenumberCloseReuseIo(orphan.ToArray()), "disk_close_reuse_unowned_transaction");
+        var outside = rows.Concat(extra).ToArray();
+        RejectCloseReuseWhole(c, RenumberCloseReuseIo(outside), "disk_close_reuse_io_census");
+        // A different fragmented sector is real image data but not the required
+        // ordered prefix of this cancelled read.
+        var file = WebRootDiskInventory.Inspect(c.Path, c.Image, c.Receipt).Find("/app/wwwroot/fixture/fragmented.bin")!;
+        ulong wrong = file.Cover(0, 8192)[3].Lba;
+        var skipped = Change(rows, oldSubmit, "sector", wrong); skipped = Change(skipped, terminal, "sector", wrong);
+        RejectCloseReuseWhole(c, skipped, "disk_close_reuse_old_data_prefix");
+    });
+
+    [HostTest("CloseReuse metadata ambiguity uses copied table values without forging a sealed capture", HostLane.Native)]
+    private static void CloseReuseAmbiguousMetadata() => WithCapture(c =>
+    {
+        var report = CloseReuseWhole(c, CloseReuseWholeRows(c));
+        var one = report.Requests.Single(r => r.Call.Spec.Role == "prep.original");
+        var two = report.Requests.Single(r => r.Call.Spec.Role == "child.reopen");
+        // Independent forged WINDOW VALUES only: distinct calls, both spans cover
+        // one metadata transaction. The real entry never accepts this table from
+        // its caller; it constructs it from the canonical leaf.
+        int submitted = two.Call.RecordIndex + 2, terminal = submitted + 2;
+        var requests = new[] { (one.Call, one.Window with { CompletionRecordIndex = terminal + 10 }),
+            (two.Call, two.Window with { CompletionRecordIndex = terminal + 10 }) };
+        bool rejected = false;
+        try { CloseReuseInvoke("CloseReuseUniqueTransactionOwner", [requests, true, 6270UL, 42UL,
+            submitted, terminal, 42UL, Enumerable.Range(0, 16).Select(i => (ulong)i).ToArray()]); }
+        catch (ToolFailure error) { rejected = error.Reason == "disk_close_reuse_ambiguous_owner"; }
+        HostCheck.True(rejected);
+    });
+
+    [HostTest("CloseReuse malformed duplicate and repeated-pci bounds always throw ToolFailure", HostLane.Native)]
+    private static void CloseReuseBoundRejections() => WithCapture(c =>
+    {
+        string[] rows = CloseReuseWholeRows(c); int bound = Index(rows, "M16_023_BOUND ");
+        var duplicated = rows.ToList(); duplicated.Insert(bound, rows[bound]);
+        RejectCloseReuseWhole(c, duplicated.ToArray(), "disk_close_reuse_bound_count");
+        foreach (string value in new[] { "M16_023_BOUND owner=1", rows[bound].Replace(" pci=", " pciMissing=", StringComparison.Ordinal),
+            rows[bound].Replace(" pci=", " pci=0:7:0 pci=", StringComparison.Ordinal),
+            rows[bound].Replace(" pci=0:7:0", " pci=0:8:0", StringComparison.Ordinal), "M16_023_BOUND_extra" })
+        {
+            string[] changed = rows.ToArray(); changed[bound] = value;
+            RejectCloseReuseWhole(c, changed, "disk_close_reuse_bound_shape");
+        }
+    });
+
+    private static (QemuTranscripts.LinuxDiskRaceLeafReport Leaf, NativeDiskReadObservations.Inspection Device,
+        IReadOnlyList<(QemuTranscripts.LinuxDiskRaceCall Call, QemuTranscripts.LinuxDiskRaceWindow Window,
+            IReadOnlyList<ulong> DeviceGenerations)> Requests) CloseReuseWhole(Capture c, string[] rows) =>
+        ((QemuTranscripts.LinuxDiskRaceLeafReport, NativeDiskReadObservations.Inspection,
+          IReadOnlyList<(QemuTranscripts.LinuxDiskRaceCall, QemuTranscripts.LinuxDiskRaceWindow, IReadOnlyList<ulong>)>))
+        CloseReuseInvoke("InspectLinuxDiskCloseReuseTransactionsCandidateValues", [rows,
+            LinuxDiskRaceProofFixture.CreatePackage("CloseReuse"), 0x200000UL, 0x100000UL, c.Image, c.Receipt, c.Path,
+            new NativeDiskReadObservations.Boundary(8388608, 1, 37, 37,
+                37UL + (ulong)rows.Count(r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal)),
+                37UL + (ulong)rows.Count(r => r.StartsWith("M16_023_IO kind=1 ", StringComparison.Ordinal)),
+                37UL + (ulong)rows.Count(r => r.StartsWith("M16_023_IO kind=2 ", StringComparison.Ordinal))), 1_000_000UL]);
+
+    private static object CloseReuseInvoke(string name, object[] args)
+    {
+        var method = typeof(QemuTranscripts).GetMethod(name, System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
+        try { return method.Invoke(null, args)!; }
+        catch (System.Reflection.TargetInvocationException error) when (error.InnerException is not null)
+        { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw(); throw; }
+    }
+    private static void RejectCloseReuseWhole(Capture c, string[] rows, string reason)
+    {
+        bool rejected = false; try { CloseReuseWhole(c, rows); }
+        catch (ToolFailure error) { rejected = error.Reason == reason; }
+        HostCheck.True(rejected, reason);
+    }
+
+    private static string[] CloseReuseWholeRows(Capture c, bool detached = true, bool staging = false)
+    {
+        var inventory = WebRootDiskInventory.Inspect(c.Path, c.Image, c.Receipt);
+        ulong root = inventory.DirectorySectors.First(s => s.Path == "/app/wwwroot").Lba;
+        ulong directory = inventory.DirectorySectors.First(s => s.Path == "/app/wwwroot/fixture").Lba;
+        ulong data = inventory.Find("/app/wwwroot/fixture/fragmented.bin")!.Cover(0, 8192)[0].Lba;
+        string[] rows = LinuxDiskRaceTranscriptTests.Synthetic("CloseReuse").Select(original =>
+        {
+            string row = Regex.Replace(original, @"\b(clock|nanos|started)=([0-9]+)", m => m.Groups[1].Value + "=" +
+                (ulong.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture) * 10000).ToString(CultureInfo.InvariantCulture));
+            if (original.StartsWith("M16_008_BUDGET ", StringComparison.Ordinal)) row = Set(row, "nanos", Field(original, "nanos"));
+            if (row.StartsWith("M16_023_BOUND ", StringComparison.Ordinal)) row = Set(row, "capacity", (ulong)c.Image.Length / 512);
+            return row;
+        }).ToArray();
+        var leaf = QemuTranscripts.InspectLinuxDiskRaceLeaf(rows, LinuxDiskRaceProofFixture.CreatePackage("CloseReuse"), 0x200000, 0x100000);
+        var calls = leaf.Calls.ToDictionary(call => call.Spec.Role);
+        QemuTranscripts.LinuxDiskRaceWindow Window(string role) => leaf.Windows.Single(w => w.CallRecordIndex == calls[role].RecordIndex);
+        Dictionary<int, List<string>> insert = [];
+        void Add(int at, IEnumerable<string> values) { if (!insert.TryGetValue(at, out var list)) insert[at] = list = []; list.AddRange(values); }
+        ulong generation = 37, copied = 37;
+        string Io(uint kind, ulong gen, ulong sector, ulong sequence, uint bytes, ulong available, ulong consumed, ulong clock) =>
+            $"M16_023_IO kind={kind} owner=8388608 epoch=1 generation={gen} sector={sector} sequence={sequence} bytes={bytes} available={available} consumed={consumed} clock={clock}";
+        string[] Emit(ulong sector, ulong clock)
+        {
+            ulong gen = ++generation;
+            return [Io(0, gen, sector, gen, 512, gen, gen - 1, clock),
+                Io(1, gen, sector, gen, 512, gen, gen, clock + 10),
+                Io(2, gen, sector, ++copied, 512, gen, gen, clock + 20) + " copied=committed data=" +
+                    Convert.ToHexString(c.Image.AsSpan(checked((int)sector * 512), 512)).ToLowerInvariant()];
+        }
+        foreach (var call in calls.Values.Where(call => call.Spec.Wait == LinuxDiskRaceProofFixture.WaitPolicy.Disk || call.Spec.Role == "child.close"))
+        {
+            ulong clock = Field(rows[call.RecordIndex], "clock");
+            Add(call.RecordIndex + 1, [$"M16_008_SYSCALL_TIME identity={call.Identity} ordinal={call.Ordinal} nr={call.Spec.Number} entered={clock - 10} admitted={clock + 10} dispatched={clock + 20} prepared={clock + 30} periodFs=1000000"]);
+        }
+        foreach (string role in new[] { "prep.original", "prep.independent" })
+        {
+            var window = Window(role); ulong clock = Field(rows[window.CompletionRecordIndex], "clock") - 800;
+            Add(window.CompletionRecordIndex, Emit(root, clock)); Add(window.CompletionRecordIndex, Emit(directory, clock + 100));
+        }
+        var main = Window("main.read"); ulong old = ++generation;
+        Add(calls["child.tid"].RecordIndex - 1, [Io(0, old, data, old, 512, old, old - 1,
+            Field(rows[main.CallRecordIndex], "clock") + 100)]);
+        int retirementAt = detached ? main.CompletionRecordIndex + 2 : main.CompletionRecordIndex;
+        ulong retirementClock = Field(rows[main.CompletionRecordIndex], "clock") + (detached ? 100UL : 0UL) - (detached ? 0UL : 1000UL);
+        Add(retirementAt, [Io(1, old, data, old, staging ? 512U : 0U, old, old, retirementClock)]);
+        if (staging) Add(retirementAt, [Io(2, old, data, ++copied, 512, old, old, retirementClock + 10) + " copied=committed data=" +
+            Convert.ToHexString(c.Image.AsSpan(checked((int)data * 512), 512)).ToLowerInvariant()]);
+        int reopenedAt = detached ? Window("child.reopen").CompletionRecordIndex : main.CompletionRecordIndex;
+        ulong reopenedClock = detached ? Field(rows[Window("child.reopen").CompletionRecordIndex], "clock") - 800 : retirementClock + 100;
+        Add(reopenedAt, Emit(root, reopenedClock)); Add(reopenedAt, Emit(directory, reopenedClock + 100));
+        var duplicate = Window("main.duplicate"); Add(duplicate.CompletionRecordIndex,
+            Emit(data, Field(rows[duplicate.CompletionRecordIndex], "clock") - 300));
+        List<string> result = [];
+        for (int i = 0; i < rows.Length; i++) { if (insert.TryGetValue(i, out var values)) result.AddRange(values); result.Add(rows[i]); }
+        return result.ToArray();
+    }
+
+    private static string[] MoveCloseReuseTransaction(string[] rows, int from, int to, ulong clock)
+    {
+        var copy = rows.ToList(); string[] tx = copy.Skip(from).Take(3).Select((row, i) => Set(row, "clock", clock + (ulong)i)).ToArray();
+        copy.RemoveRange(from, 3); copy.InsertRange(to > from ? to - 3 : to, tx);
+        return RenumberCloseReuseIo(copy.ToArray());
+    }
+    private static string[] RenumberCloseReuseIo(string[] rows)
+    {
+        // ONLY independent synthetic mutations. Never normalize original evidence.
+        ulong submitted = 37, completed = 37, copied = 37, generation = 0;
+        return rows.Select(row =>
+        {
+            if (!row.StartsWith("M16_023_IO ", StringComparison.Ordinal)) return row;
+            ulong kind = Field(row, "kind"), sequence;
+            if (kind == 0) sequence = generation = ++submitted;
+            else sequence = kind == 1 ? ++completed : ++copied;
+            row = Set(Set(Set(row, "generation", generation), "sequence", sequence), "available", unchecked((ushort)submitted));
+            return Set(row, "consumed", unchecked((ushort)completed));
+        }).ToArray();
+    }
+
+    [HostTest("CloseReuse rejects a cancelled earlier data prefix before the actual close token", HostLane.Native)]
+    private static void CloseReuseEarlyCancelledPrefix() => WithCapture(c =>
+    {
+        string[] rows = CloseReuseWholeRows(c);
+        var baseline = CloseReuseWhole(c, rows);
+        var old = baseline.Requests.Single(r => r.Call.Spec.Role == "main.read");
+        ulong generation = old.DeviceGenerations.Single();
+        var file = WebRootDiskInventory.Inspect(c.Path, c.Image, c.Receipt)
+            .Find("/app/wwwroot/fixture/fragmented.bin")!;
+        var coverage = file.Cover(0, 8192);
+        int submitted = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=0 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == generation);
+        int validated = Array.FindIndex(rows, r => r.StartsWith("M16_023_IO kind=1 ", StringComparison.Ordinal) &&
+            Field(r, "generation") == generation);
+        HostCheck.True(submitted >= 0 && validated > submitted);
+        HostCheck.Equal(0UL, Field(rows[validated], "bytes"));
+        HostCheck.Equal(coverage[0].Lba, Field(rows[submitted], "sector"));
+        ulong clock = Field(rows[submitted], "clock");
+        string time = rows[old.Call.RecordIndex + 1];
+        HostCheck.Equal(1_000_000UL, Field(time, "periodFs")); // This vector's ticks equal nanoseconds.
+        HostCheck.True(clock >= 30 && Field(time, "dispatched") <= clock - 30);
+
+        // Both new rows precede the selected pending token and child.close.
+        // Their counter/generation placeholders are repaired only by the
+        // existing synthetic helper; no original evidence is normalized.
+        string earlierSubmit = Set(rows[submitted], "clock", clock - 30);
+        string earlierCancel = Set(rows[validated], "clock", clock - 20);
+        string[] changed = rows.ToArray();
+        changed[submitted] = Set(changed[submitted], "sector", coverage[1].Lba);
+        changed[validated] = Set(changed[validated], "sector", coverage[1].Lba);
+        var copy = changed.ToList();
+        copy.InsertRange(submitted, [earlierSubmit, earlierCancel]);
+
+        // Metadata, real later fd7 data, final sentinel/cursor recipe and the
+        // last-token close overlap remain unchanged. The old data sectors now
+        // form the correct prefix, but cancellation cannot precede another
+        // submission by that same read without an actual producer explanation.
+        RejectCloseReuseWhole(c, RenumberCloseReuseIo(copy.ToArray()), "disk_close_reuse_early_cancel");
+    });
+
+    [HostTest("CloseReuse full copied parent joins exact cancellation counters and preserves default equality", HostLane.Native)]
+    private static void CloseReuseFullParent() => WithCapture(c =>
+    {
+        foreach (var mode in new[] { (Detached: true, Staging: false), (Detached: true, Staging: true), (Detached: false, Staging: false) })
+        {
+            string[] rows = BuildCloseReuseFullRows(c, mode.Detached, mode.Staging), before = rows.ToArray();
+            var report = InspectCloseReuseFull(c, rows);
+            HostCheck.True(rows.SequenceEqual(before) && report.Parent.UserRoot == 0x200000 &&
+                report.Parent.KernelRoot == 0x100000 && report.Leaf.Variant == "CloseReuse" &&
+                !report.Leaf.CheckedUserMemoryOrAuxiliaryJoins && !report.Leaf.CheckedPostDeathSentinelOrOrphanDrain);
+            HostCheck.Equal(mode.Staging ? 0UL : 1UL, report.Device.Cancelled);
+            int end = Index(rows, "M16_025_END ");
+            HostCheck.Equal(report.Device.Counters.Submitted, Field(rows[end], "submitted"));
+            HostCheck.Equal(report.Device.Counters.Copied, Field(rows[end], "copied"));
+            HostCheck.Equal(report.Device.Cancelled, Field(rows[end], "completed") - Field(rows[end], "copied"));
+            if (!mode.Staging)
+            {
+                // The ordinary copied network entry never receives a typed
+                // CloseReuse inspection and must retain copied==completed.
+                bool rejected = false;
+                try { QemuTranscripts.InspectLinuxDiskNetworkForTests(rows); }
+                catch (ToolFailure error) { rejected = error.Reason == "disk_parent_counters"; }
+                HostCheck.True(rejected);
+            }
+            Array.Fill(rows, "changed");
+            HostCheck.True(report.Leaf.Calls.Count != 0 && report.Device.Rows.Count != 0);
+        }
+    });
+
+    [HostTest("CloseReuse full copied parent rejects mismatched roots counters clock layout and selection", HostLane.Native)]
+    private static void CloseReuseFullParentRejections() => WithCapture(c =>
+    {
+        string[] rows = BuildCloseReuseFullRows(c);
+        InspectCloseReuseFull(c, rows);
+        void Deny(string[] changed, string? reason = null, byte[]? package = null)
+        {
+            string? actual = null;
+            try { InspectCloseReuseFull(c, changed, package); }
+            catch (ToolFailure error) { actual = error.Reason; }
+            HostCheck.True(actual is not null && (reason is null || actual.Contains(reason, StringComparison.Ordinal)),
+                (reason ?? "ToolFailure") + " actual=" + actual);
+        }
+        int bound = Index(rows, "M16_023_BOUND "), end = Index(rows, "M16_025_END ");
+        Deny(Change(rows, bound, "pages", 89), "disk_capture_measured_layout");
+        Deny(Change(rows, bound, "arena", 0x10000000), "disk_capture_live_extents");
+        foreach (string field in new[] { "submitted", "completed", "copied", "fsReads" })
+            Deny(Change(rows, end, field, Field(rows[end], field) + 1));
+        Deny(Change(rows, end, "cacheMisses", ulong.MaxValue));
+        int tables = Index(rows, "M16_004_TABLES ");
+        Deny(Change(rows, tables, "root", Field(rows[tables], "root") + 4096));
+        int clock = Index(rows, "M16_003_CLOCK ");
+        Deny(Change(rows, clock, "period", 1000000));
+        string[] epoch = rows.Select(row => row.StartsWith("M16_023_BOUND ", StringComparison.Ordinal) ||
+            row.StartsWith("M16_023_IO ", StringComparison.Ordinal) ? Set(row, "epoch", 1) : row).ToArray();
+        Deny(epoch, "disk_capture_binding_counters");
+        Deny(rows.Where(row => !row.StartsWith("M16_025_END ", StringComparison.Ordinal)).ToArray());
+        Deny([..rows, rows[bound]]);
+        Deny(rows.Select(row => row.StartsWith("M16_008_BOUND ", StringComparison.Ordinal)
+            ? row.Replace("timer=idle-only", "timer=user-irq-and-idle", StringComparison.Ordinal) : row).ToArray());
+        Deny(rows, package: LinuxDiskRaceProofFixture.CreatePackage("Progress"));
+        Deny([null!]);
+    });
+
+    private static (QemuTranscripts.WebParentReport Parent, QemuTranscripts.LinuxDiskRaceLeafReport Leaf,
+        NativeDiskReadObservations.Inspection Device,
+        IReadOnlyList<(QemuTranscripts.LinuxDiskRaceCall Call, QemuTranscripts.LinuxDiskRaceWindow Window,
+            IReadOnlyList<ulong> DeviceGenerations)> Requests) InspectCloseReuseFull(Capture c, string[] rows, byte[]? package = null) =>
+        ((QemuTranscripts.WebParentReport, QemuTranscripts.LinuxDiskRaceLeafReport, NativeDiskReadObservations.Inspection,
+          IReadOnlyList<(QemuTranscripts.LinuxDiskRaceCall, QemuTranscripts.LinuxDiskRaceWindow, IReadOnlyList<ulong>)>))
+        CloseReuseInvoke("InspectLinuxDiskCloseReuseCaptureValues",
+            [rows, package ?? LinuxDiskRaceProofFixture.CreatePackage("CloseReuse"), c.Image, c.Receipt, c.Path]);
+
+    private static string[] BuildCloseReuseFullRows(Capture c, bool detached = true, bool staging = false)
+    {
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage("CloseReuse");
+        var view = LinuxElfPackage.Validate(package);
+        string[] copied = CloseReuseWholeRows(c, detached, staging);
+        var device = CloseReuseWhole(c, copied).Device;
+        var shell = c.Rows.ToList();
+        int first = shell.IndexOf("TEST_START m16-009"), last = shell.IndexOf("TEST_PASS m16-009");
+        shell.RemoveRange(first, last - first + 1);
+        void Replace(string prefix, string value) =>
+            shell[shell.FindIndex(row => row.StartsWith(prefix, StringComparison.Ordinal))] = value;
+        Replace("M16_002_STAGED ", $"M16_002_STAGED bytes={package.Length} payload={view.PayloadBytes} pages={(package.Length + 4095) / 4096} handlesClosed=2 reads=1");
+        Replace("M16_002_DIGEST ", "M16_002_DIGEST " +
+            Convert.ToHexString(SHA256.HashData(package.AsSpan((int)view.PayloadOffset, (int)view.PayloadBytes))).ToLowerInvariant());
+        Replace("M16_002_PACKAGE_DIGEST ", "M16_002_PACKAGE_DIGEST " + Convert.ToHexString(SHA256.HashData(package)).ToLowerInvariant());
+        string[] startup = LinuxDiskParentTests.MappedStartupRows(package, 65)[^7..];
+        startup[3] = Set(startup[3], "root", 2097152);
+        startup[4] = Set(startup[4], "old", 1048576);
+        int at = shell.IndexOf("TEST_START m16-004");
+        shell.RemoveRange(at, 7);
+        shell.InsertRange(at, startup);
+        List<string> leaf = [];
+        foreach (string original in copied)
+        {
+            string row = Regex.Replace(original, @"\b(clock|nanos|started)=([0-9]+)", match =>
+                match.Groups[1].Value + "=" + (10_000_000UL +
+                    ulong.Parse(match.Groups[2].Value, CultureInfo.InvariantCulture)).ToString(CultureInfo.InvariantCulture));
+            if (original.StartsWith("M16_008_BUDGET ", StringComparison.Ordinal))
+                row = Set(row, "nanos", Field(original, "nanos"));
+            if (row.StartsWith("M16_023_BOUND ", StringComparison.Ordinal))
+                row = $"M16_023_BOUND owner=8388608 epoch=5562286797237662465 arena=9437184 pages=90 bar=4026531840 capacity={c.Image.Length / 512} bootstrapCompleted=37 bootstrapCopied=37 clock={Field(row, "clock")} pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+            if (row.StartsWith("M16_023_IO ", StringComparison.Ordinal))
+                row = Set(row, "epoch", 5562286797237662465);
+            if (row.StartsWith("M16_008_SYSCALL_TIME ", StringComparison.Ordinal))
+            {
+                foreach (string field in new[] { "entered", "admitted", "dispatched", "prepared" })
+                    row = Set(row, field, (Field(original, field) + 10_000_000) / 1000);
+                row = Set(row, "periodFs", 1000000000);
+            }
+            leaf.Add(row);
+        }
+        shell.InsertRange(first, leaf);
+        var counters = device.Counters;
+        Replace("M16_025_END ", $"M16_025_END submitted={counters.Submitted} completed={counters.Completed} copied={counters.Copied} bootstrapCompleted=37 bootstrapCopied=37 fsReads={counters.Submitted - 34} cacheHits=20 cacheMisses=1 device=retired fs=retired dma=zero descriptors=closed reservation=retained");
+        return shell.ToArray();
+    }
 }

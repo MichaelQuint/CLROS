@@ -66,9 +66,9 @@ public static class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
-            // These two races have separate complete original consumers. Never
+            // Each admitted race has its own complete original consumer. Never
             // run another variant through the positive59-call consumer.
-            if(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant is not ("Progress" or "ExitPending") && !options.DryRun)
+            if(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant is not ("Progress" or "CloseReuse" or "ExitPending") && !options.DryRun)
                 throw new ToolFailure("disk_race_complete_consumer_required");
             bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
             bool writableDisk = NativeAotDiskSelection.WritableSelected(plan.Flags);
@@ -594,6 +594,13 @@ public static class QemuSmoke
                         var progress=QemuTranscripts.InspectLinuxDiskProgressRun(root,options,plan,runner,
                             diskImageInput!,diskEfiInput!,diskPackageInput!,diskImageReceipt!,qemu,ovmf,VerifyDiskInputs);
                         output.WriteLine($"TEST_PASS qemu.smoke.disk-progress calls={progress.Leaf.Calls.Count} requests={progress.Requests.Count} deviceProgress={progress.DevicePendingProgress.Count} schedulerReplay=false");
+                        return 0;
+                    }
+                    if(options.LinuxDiskRaceVariant=="CloseReuse")
+                    {
+                        var closeReuse=QemuTranscripts.InspectLinuxDiskCloseReuseRun(root,options,plan,runner,
+                            diskImageInput!,diskEfiInput!,diskPackageInput!,diskImageReceipt!,qemu,ovmf,VerifyDiskInputs);
+                        output.WriteLine($"TEST_PASS qemu.smoke.disk-close-reuse calls={closeReuse.Leaf.Calls.Count} requests={closeReuse.Requests.Count} cancelled={closeReuse.Device.Cancelled} schedulerReplay=false");
                         return 0;
                     }
                     var pending=QemuTranscripts.InspectLinuxDiskExitPendingRun(root,options,plan,runner,

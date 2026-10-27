@@ -254,18 +254,21 @@ public static partial class QemuTranscripts
 
     private static DiskCaptureParents ValidateLinuxDiskCaptureParents(string[] rows, byte[] package,
         LinuxDiskExitPendingDeviceValues? pending = null, bool writableDisk = false, bool logUpload = false,
-        NativeAotLogUploadProgram? logUploadProgram = null, bool diskProgress = false)
+        NativeAotLogUploadProgram? logUploadProgram = null, bool diskProgress = false,
+        NativeDiskReadObservations.Inspection? closeReuse = null)
     {
         Need((!logUpload || writableDisk) && (logUploadProgram is null || writableDisk && logUpload && pending is null) &&
             (!diskProgress || pending is null && !writableDisk && !logUpload && logUploadProgram is null),"writable_parent_selection");
-        var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending,writableDisk:writableDisk);
+        Need(closeReuse is null || pending is null && !diskProgress && !writableDisk && !logUpload && logUploadProgram is null &&
+            LinuxDiskRaceProofFixture.PackageVariant(package)=="CloseReuse","disk_close_reuse_parent_selection");
+        var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending,writableDisk:writableDisk,diskCloseReuse:closeReuse);
         int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
         int parentsEnd = owned + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
         int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - owned;
         int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
         string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
         original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null,
-            writableDisk:writableDisk,logUpload:logUpload,logUploadProgram:logUploadProgram,diskProgress:diskProgress);
+            writableDisk:writableDisk,logUpload:logUpload,logUploadProgram:logUploadProgram,diskProgress:diskProgress,diskCloseReuse:closeReuse is not null);
         original = ValidateLinuxElfTail(original, package!);
         string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
         int[] varying = [3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,
@@ -296,20 +299,22 @@ public static partial class QemuTranscripts
         Dictionary<string,ulong> BudgetEnd, Dictionary<string,ulong> End);
 
     private static unsafe DiskCaptureBinding ValidateLinuxDiskCaptureBinding(string[] rows,
-        DiskCaptureParents prepared, int imageBytes, LinuxDiskExitPendingDeviceValues? pending = null, bool diskProgress = false)
+        DiskCaptureParents prepared, int imageBytes, LinuxDiskExitPendingDeviceValues? pending = null, bool diskProgress = false,
+        NativeDiskReadObservations.Inspection? closeReuse = null)
     {
+        Need(closeReuse is null || pending is null && !diskProgress,"disk_close_reuse_binding_selection");
         var parent=prepared.Parent; var network=prepared.Network;
         var oldPages=prepared.OldPages; var nicBinding=prepared.NicBinding;
         string Unique(string prefix) { var found = rows.Where(r=>r.StartsWith(prefix, StringComparison.Ordinal)).ToArray(); Need(found.Length == 1, "disk_capture_unique_" + prefix); return found[0]; }
         const string diskSuffix = " pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
         string diskLine = Unique("M16_023_BOUND ");
         var disk = ReadRecord(diskLine[..^diskSuffix.Length], "M16_023_BOUND", "owner:dec", "epoch:dec", "arena:dec", "pages:dec", "bar:dec", "capacity:dec", "bootstrapCompleted:dec", "bootstrapCopied:dec", "clock:dec");
-        var end = ReadDiskFileEnd(Unique("M16_025_END "), pending);
+        var end = ReadDiskFileEnd(Unique("M16_025_END "), pending, closeReuse);
         Need(disk["epoch"] == 0x4d31365f30323301 && disk["capacity"] == (ulong)imageBytes / 512 &&
             disk["bootstrapCompleted"] == 37 && disk["bootstrapCopied"] == 37 &&
             end["bootstrapCompleted"] == disk["bootstrapCompleted"] && end["bootstrapCopied"] == disk["bootstrapCopied"], "disk_capture_binding_counters");
         Need(disk["pages"] == 90 && disk["owner"] <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_capture_measured_layout");
-        string threadSuffix = pending is null && !diskProgress ? " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack" : " timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
+        string threadSuffix = pending is null && !diskProgress && closeReuse is null ? " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack" : " timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
         string threadLine = Unique("M16_008_BOUND ");
         var thread = ReadRecord(threadLine[..^threadSuffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
         var budget = ReadRecord(Unique("M16_008_BUDGET "), "M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");

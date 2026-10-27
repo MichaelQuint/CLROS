@@ -621,7 +621,7 @@ internal static class LinuxDiskRaceTranscriptTests
             Call(1, "child.close"); Call(1, "child.reopen"); Supervisor(1, 3);
             Complete(0); Call(0, "main.pipe", block: true); Supervisor(0, 3);
             Complete(1); Disk(1, "child.empty"); Call(1, "child.notify"); Exit(1);
-            Complete(0); Call(0, "main.join"); Disk(0, "main.replacement"); Disk(0, "main.duplicate"); Call(0, "main.replacement-stat");
+            Complete(0); Call(0, "main.join"); Disk(0, "main.replacement"); Disk(0, "main.duplicate"); Disk(0, "main.replacement-cursor"); Call(0, "main.replacement-stat");
         }
         Disk(0, "main.cursor"); Disk(0, "main.independent-cursor");
         foreach (uint fd in new uint[] { 3, 4, 7, 5, 6 }) Call(0, "main.close" + fd);
@@ -658,5 +658,121 @@ internal static class LinuxDiskRaceTranscriptTests
         public string this[int index] => throw new InvalidOperationException("must reject bounds first");
         public IEnumerator<string> GetEnumerator() => throw new InvalidOperationException("must reject bounds first");
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [HostTest("CloseReuse copied close dispatch and later data token retain explicit sentinel authority cuts")]
+    private static void CloseReuseCopiedIntervals()
+    {
+        byte[] image = Enumerable.Range(0, 8192).Select(i => unchecked((byte)(i * 17 + 3))).ToArray();
+        string[] rows = CloseReuseWithDeviceValues(image), before = rows.ToArray();
+        var report = CloseReuseCandidate(rows, image);
+        HostCheck.True(report.Variant == "CloseReuse" && report.CheckedCalls &&
+            !report.CheckedUserMemoryOrAuxiliaryJoins && !report.CheckedPostDeathSentinelOrOrphanDrain &&
+            !report.CompletionWinnerProvesBackendDataRace && rows.SequenceEqual(before));
+        // This valid leaf deliberately returns -9 BEFORE the cancelled physical
+        // token's terminal row. Returning -9 is therefore not the drain barrier.
+        var main = report.Windows.Single(w => w.CallRecordIndex == report.MainReadCallIndex);
+        int cancelled = Index(rows, "M16_023_IO kind=1 owner=8388608 epoch=1 generation=38 ");
+        HostCheck.True(main.Value == -9 && main.OutputBytes == 8192 && cancelled > main.CompletionRecordIndex);
+
+        void Denied(string[] changed)
+        {
+            bool rejected = false;
+            try { CloseReuseCandidate(changed, image); } catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        int close = report.Calls.Single(c => c.Spec.Role == "child.close").RecordIndex;
+        int reopen = report.Calls.Single(c => c.Spec.Role == "child.reopen").RecordIndex;
+        int duplicate = report.Calls.Single(c => c.Spec.Role == "main.duplicate").RecordIndex;
+        int cursor = report.Calls.Single(c => c.Spec.Role == "main.replacement-cursor").RecordIndex;
+        Denied(Change(rows, main.CompletionRecordIndex, "request", main.RequestGeneration + 1));
+        Denied(Change(rows, main.CompletionRecordIndex, "sequence", main.Sequence + 1));
+        Denied(Change(rows, close, "identity", F.MainIdentity));
+        Denied(Change(rows, close, "ordinal", Field(rows[close], "ordinal") + 1));
+        Denied(Change(rows, reopen, "returnValueBits", 4));
+        Denied(Change(rows, cancelled, "generation", 39));
+        Denied(Change(rows, cancelled, "owner", 8388609));
+        Denied(rows.Where((_, i) => i != cancelled).ToArray());
+        int copy = Index(rows, "M16_023_IO kind=2 ");
+        Denied(rows.Where((_, i) => i != copy).ToArray());
+        var duplicateWindow = report.Windows.Single(w => w.CallRecordIndex == duplicate);
+        Denied(Change(rows, copy, "clock", Field(rows[duplicateWindow.CompletionRecordIndex], "clock") + 1));
+        // Keep TIME internally ordered but move the entire close dispatch beyond
+        // the old validation. The entry-only overlap must not pass this control.
+        ulong tooLate = Field(rows[cancelled], "clock") + 1;
+        string[] late = Change(rows, close + 1, "admitted", tooLate);
+        late = Change(late, close + 1, "dispatched", tooLate);
+        Denied(Change(late, close + 1, "prepared", tooLate));
+        Denied(Change(rows, close + 1, "identity", F.MainIdentity));
+        Denied(Change(rows, close + 1, "periodFs", 1));
+        // A CALL naming ParentOutput would contradict the new canonical fixture;
+        // this is not instrumentation of an actual hidden Output invocation.
+        Denied(Change(rows, duplicate, "a1", F.ParentOutput));
+        Denied(Change(rows, cursor, "returnValueBits", 8));
+        int shared = report.Calls.Single(c => c.Spec.Role == "main.cursor").RecordIndex;
+        Denied(Change(rows, shared, "returnValueBits", 9));
+        Denied(Change(rows, main.CompletionRecordIndex, "outputBytes", 0));
+        Denied(Change(rows, Index(rows, "M16_008_OWNER_END "), "userBacked", 1));
+        byte[] corrupt = image.ToArray(); corrupt[0] ^= 1;
+        bool divergent = false; try { CloseReuseCandidate(rows, corrupt); } catch (ToolFailure) { divergent = true; }
+        HostCheck.True(divergent);
+    }
+
+    private static QemuTranscripts.LinuxDiskRaceLeafReport CloseReuseCandidate(string[] rows, byte[] image)
+    {
+        var method = typeof(QemuTranscripts).GetMethod("InspectLinuxDiskCloseReuseCandidateValues",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        try
+        {
+            return (QemuTranscripts.LinuxDiskRaceLeafReport)method.Invoke(null,
+                [rows, F.CreatePackage("CloseReuse"), 0x200000UL, 0x100000UL, image,
+                 new NativeDiskReadObservations.Boundary(8388608, 1, 37, 37, 39, 39, 38),
+                 Enumerable.Range(0, 16).Select(i => (ulong)i).ToArray(), 1_000_000UL])!;
+        }
+        catch (System.Reflection.TargetInvocationException error) when (error.InnerException is not null)
+        { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error.InnerException).Throw(); throw; }
+    }
+
+    private static string[] CloseReuseWithDeviceValues(byte[] image)
+    {
+        // Independent finite component vector, not an original/full capture. Reuse
+        // the existing canonical leaf builder and public raw-sector observation
+        // parser. No prepared/native/parent object is fabricated.
+        string[] originalRows = Synthetic("CloseReuse");
+        string[] rows = originalRows.Select(row => string.Join(' ', row.Split(' ').Select(field =>
+        {
+            int equals = field.IndexOf('=');
+            if (equals > 0 && (field[..equals] is "clock" or "nanos") &&
+                ulong.TryParse(field.AsSpan(equals + 1), NumberStyles.None, CultureInfo.InvariantCulture, out ulong numeric))
+                return field[..(equals + 1)] + checked(numeric * 100).ToString(CultureInfo.InvariantCulture);
+            return field;
+        }))).ToArray();
+        int budget = Index(rows, "M16_008_BUDGET ");
+        rows = Change(rows, budget, "nanos", Field(originalRows[budget], "nanos"));
+        var leaf = Inspect(rows, F.CreatePackage("CloseReuse"));
+        var main = leaf.Windows.Single(w => w.CallRecordIndex == leaf.MainReadCallIndex);
+        var close = leaf.Calls.Single(c => c.Spec.Role == "child.close");
+        var child = leaf.Calls.Single(c => c.Spec.Role == "child.tid");
+        var later = leaf.Calls.Single(c => c.Spec.Role == "main.duplicate");
+        var completed = leaf.Windows.Single(w => w.CallRecordIndex == later.RecordIndex);
+        ulong first = Field(rows[main.CallRecordIndex], "clock") + 1;
+        ulong closing = Field(rows[close.RecordIndex], "clock");
+        ulong terminal = Field(rows[main.CompletionRecordIndex], "clock") + 1;
+        ulong data = Field(rows[later.RecordIndex], "clock") + 10;
+        string Io(uint kind, uint generation, uint sector, uint sequence, uint bytes, uint available, uint consumed, ulong clock) =>
+            $"M16_023_IO kind={kind} owner=8388608 epoch=1 generation={generation} sector={sector} sequence={sequence} bytes={bytes} available={available} consumed={consumed} clock={clock}";
+        Dictionary<int, string[]> insert = new()
+        {
+            [child.RecordIndex - 1] = [Io(0, 38, 1, 38, 512, 38, 37, first)],
+            [close.RecordIndex + 1] = [$"M16_008_SYSCALL_TIME identity={close.Identity} ordinal={close.Ordinal} nr=3 entered={closing - 10} admitted={closing + 10} dispatched={closing + 20} prepared={closing + 30} periodFs=1000000"],
+            [main.CompletionRecordIndex + 2] = [Io(1, 38, 1, 38, 0, 38, 38, terminal)],
+            [completed.CompletionRecordIndex] = [Io(0, 39, 0, 39, 512, 39, 38, data),
+                Io(1, 39, 0, 39, 512, 39, 39, data + 10),
+                Io(2, 39, 0, 38, 512, 39, 39, data + 20) + " copied=committed data=" +
+                    Convert.ToHexString(image.AsSpan(0, 512)).ToLowerInvariant()]
+        };
+        List<string> result = [];
+        for (int i = 0; i < rows.Length; i++) { if (insert.TryGetValue(i, out var extra)) result.AddRange(extra); result.Add(rows[i]); }
+        return result.ToArray();
     }
 }
