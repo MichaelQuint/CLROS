@@ -1,5 +1,10 @@
 # QEMU
 
+<!-- step1625-progress-development -->
+[Step1625](../done/step1625.md) connects only the Progress and ExitPending disk-race original consumers. CloseReuse and signal variants still refuse original execution before a child launches. Focused copied-image controls are host evidence; a fresh guarded Progress native/guest run remains pending.
+
+Create the exact fixture package with `dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll linux disk-race-package Progress artifacts/progress-candidate.pkg` using a fresh output path. The original mechanical selection adds `-LinuxDiskRaceVariant Progress` to its explicit M16-025 profile and must use that matching package. Preserve its180-second default, original source/native/ABI review, held inputs, image/packet joins and complete cleanup; fixture publication or dry-run output is not boot proof.
+
 ## Writable timing capture
 
 The step1623 source-matched b7631af0 original at

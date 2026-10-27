@@ -66,9 +66,9 @@ public static class QemuSmoke
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
-            // Only ExitPending has a complete original race consumer. Never
-            // run the positive59-call package under a requested race.
-            if(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant!="ExitPending" && !options.DryRun)
+            // These two races have separate complete original consumers. Never
+            // run another variant through the positive59-call consumer.
+            if(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant is not ("Progress" or "ExitPending") && !options.DryRun)
                 throw new ToolFailure("disk_race_complete_consumer_required");
             bool diskFiles = NativeAotDiskSelection.Selected(plan.Flags);
             bool writableDisk = NativeAotDiskSelection.WritableSelected(plan.Flags);
@@ -589,6 +589,13 @@ public static class QemuSmoke
                 }
                 if(options.HasDiskRaceSelection)
                 {
+                    if(options.LinuxDiskRaceVariant=="Progress")
+                    {
+                        var progress=QemuTranscripts.InspectLinuxDiskProgressRun(root,options,plan,runner,
+                            diskImageInput!,diskEfiInput!,diskPackageInput!,diskImageReceipt!,qemu,ovmf,VerifyDiskInputs);
+                        output.WriteLine($"TEST_PASS qemu.smoke.disk-progress calls={progress.Leaf.Calls.Count} requests={progress.Requests.Count} deviceProgress={progress.DevicePendingProgress.Count} schedulerReplay=false");
+                        return 0;
+                    }
                     var pending=QemuTranscripts.InspectLinuxDiskExitPendingRun(root,options,plan,runner,
                         diskImageInput!,diskEfiInput!,diskPackageInput!,diskImageReceipt!,qemu,ovmf,VerifyDiskInputs);
                     output.WriteLine($"TEST_PASS qemu.smoke.disk-exit-pending calls={pending.Leaf.Calls.Count} copiedDataSectors={pending.CopiedDataSectors.Count} outstanding=1 resetRetired=true");

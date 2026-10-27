@@ -254,16 +254,18 @@ public static partial class QemuTranscripts
 
     private static DiskCaptureParents ValidateLinuxDiskCaptureParents(string[] rows, byte[] package,
         LinuxDiskExitPendingDeviceValues? pending = null, bool writableDisk = false, bool logUpload = false,
-        NativeAotLogUploadProgram? logUploadProgram = null)
+        NativeAotLogUploadProgram? logUploadProgram = null, bool diskProgress = false)
     {
-        Need((!logUpload || writableDisk) && (logUploadProgram is null || writableDisk && logUpload && pending is null),"writable_parent_selection");
+        Need((!logUpload || writableDisk) && (logUploadProgram is null || writableDisk && logUpload && pending is null) &&
+            (!diskProgress || pending is null && !writableDisk && !logUpload && logUploadProgram is null),"writable_parent_selection");
         var network = SocketNetworkEnvelope(rows, true, mechanical: true, diskFiles: true, diskExitPending: pending,writableDisk:writableDisk);
         int owned = QemuContracts.M03OwnedSubsystemMarkers.Count;
         int parentsEnd = owned + 7 + M16LinuxStartupMarkers.Count + M16ServiceLoopMarkers.Count;
         int apicEnd = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - owned;
         int networkStart = apicEnd + QemuContracts.M07ArpReceiveMarkers.Count - QemuContracts.M05PciEnumerationMarkers.Count;
         string[] original = ValidateServiceLoopTail(rows[..parentsEnd], true);
-        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null,writableDisk:writableDisk,logUpload:logUpload,logUploadProgram:logUploadProgram);
+        original = ValidateLinuxStartupTail(original, package, diskFiles: true, diskExitPending: pending is not null,
+            writableDisk:writableDisk,logUpload:logUpload,logUploadProgram:logUploadProgram,diskProgress:diskProgress);
         original = ValidateLinuxElfTail(original, package!);
         string[] apic = [..original, ..rows[parentsEnd..apicEnd]];
         int[] varying = [3,9,10,19,20,21,22,23,24,..Enumerable.Range(66,10),77,78,82,83,87,88,89,93,94,
@@ -294,7 +296,7 @@ public static partial class QemuTranscripts
         Dictionary<string,ulong> BudgetEnd, Dictionary<string,ulong> End);
 
     private static unsafe DiskCaptureBinding ValidateLinuxDiskCaptureBinding(string[] rows,
-        DiskCaptureParents prepared, int imageBytes, LinuxDiskExitPendingDeviceValues? pending = null)
+        DiskCaptureParents prepared, int imageBytes, LinuxDiskExitPendingDeviceValues? pending = null, bool diskProgress = false)
     {
         var parent=prepared.Parent; var network=prepared.Network;
         var oldPages=prepared.OldPages; var nicBinding=prepared.NicBinding;
@@ -307,7 +309,7 @@ public static partial class QemuTranscripts
             disk["bootstrapCompleted"] == 37 && disk["bootstrapCopied"] == 37 &&
             end["bootstrapCompleted"] == disk["bootstrapCompleted"] && end["bootstrapCopied"] == disk["bootstrapCopied"], "disk_capture_binding_counters");
         Need(disk["pages"] == 90 && disk["owner"] <= 0x100000000UL - (ulong)sizeof(Block.State), "disk_capture_measured_layout");
-        string threadSuffix = pending is null ? " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack" : " timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
+        string threadSuffix = pending is null && !diskProgress ? " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack" : " timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
         string threadLine = Unique("M16_008_BOUND ");
         var thread = ReadRecord(threadLine[..^threadSuffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
         var budget = ReadRecord(Unique("M16_008_BUDGET "), "M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");

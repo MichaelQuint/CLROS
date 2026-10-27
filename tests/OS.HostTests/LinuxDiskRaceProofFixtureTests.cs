@@ -294,7 +294,7 @@ internal static class LinuxDiskRaceProofFixtureTests
     [HostTest("unconnected disk race variants refuse original execution before any child launches")]
     private static async Task OriginalOwnerRequired()
     {
-        foreach(string variant in F.Variants.Where(v=>v!="ExitPending"))
+        foreach(string variant in F.Variants.Where(v=>v!="Progress"&&v!="ExitPending"))
         {
             bool launched=false;using StringWriter output=new();
             var options=QemuSmokeOptions.Parse([..SelectionArguments,"-LinuxDiskRaceVariant",variant]);
@@ -308,19 +308,26 @@ internal static class LinuxDiskRaceProofFixtureTests
     [HostTest("disk mechanical package selection requires exact canonical bytes for its separate original consumer")]
     private static void OriginalPackageSelection()
     {
-        byte[] ordinary=LinuxDiskFileProofFixture.CreatePackage(),pending=F.CreatePackage("ExitPending");
+        byte[] ordinary=LinuxDiskFileProofFixture.CreatePackage();
         NativeAotDiskSelection.RequireMechanicalPackage(ordinary,"");
-        NativeAotDiskSelection.RequireMechanicalPackage(pending,"ExitPending");
         void Deny(byte[] package,string variant)
         {
             bool denied=false;try{NativeAotDiskSelection.RequireMechanicalPackage(package,variant);}catch(ToolFailure){denied=true;}
             HostCheck.True(denied);
         }
-        Deny(ordinary,"ExitPending");Deny(pending,"");
-        foreach(string variant in F.Variants.Where(v=>v!="ExitPending"))
-        {Deny(F.CreatePackage(variant),variant);Deny(F.CreatePackage(variant),"ExitPending");}
-        byte[] altered=pending.ToArray();altered[^1]^=1;Deny(altered,"ExitPending");
-        Deny(pending,"Unknown");
+        foreach(string variant in new[]{"Progress","ExitPending"})
+        {
+            byte[] package=F.CreatePackage(variant),before=package.ToArray();
+            NativeAotDiskSelection.RequireMechanicalPackage(package,variant);HostCheck.True(package.SequenceEqual(before));
+            Deny(ordinary,variant);Deny(package,"");Deny(package,variant=="Progress"?"ExitPending":"Progress");
+            byte[] altered=package.ToArray();altered[^1]^=1;Deny(altered,variant);
+            Deny(package[..^1],variant);Deny(package,"Unknown");Deny(package,variant.ToLowerInvariant());
+        }
+        foreach(string variant in F.Variants.Where(v=>v!="Progress"&&v!="ExitPending"))
+        {
+            byte[] package=F.CreatePackage(variant);
+            Deny(package,variant);Deny(package,"Progress");Deny(package,"ExitPending");
+        }
     }
 
     [HostTest("disk race package command publishes exact fresh artifact bytes and preserves rejected destinations")]

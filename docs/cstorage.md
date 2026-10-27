@@ -1,5 +1,8 @@
 # Storage
 
+<!-- step1625-progress-development -->
+[Step1625](../done/step1625.md) adds the Progress copied capture consumer and narrow original route. Every whole device transaction has one request owner; shared-cursor data follows parent commit, and child progress is joined to a submitted/unvalidated device interval. Focused host controls pass; no fresh Progress guest or live cold/warm cache qualification is claimed.
+
 ## Port and borrowed filesystem range batches (step1624)
 
 The borrowed filesystem now passes the original bounded candidate span through
