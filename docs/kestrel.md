@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1628](../done/step1628.md) adds typed host support for the measured SQLite `F_GETLK` returned-unlocked observation, with48 focused Fast checks and no native activation changes. This does not qualify guest SQLite locking/flush/recovery or persistent MinimalApi logs/uploads.
+
 <!-- step1625-progress-development -->
 [Step1627](../done/step1627.md) retains the fresh complete mechanical Progress pass while preserving failed r01. Current staged017 native publicationB5E54074 is a separate preparation result:1,873 methods/204,509 decoded instructions/zero gaps, with its enabled IRQ/signal/file paths still under ABI/stack review. Staged middleware originals and full guest-origin Blazor HTTP/browser qualification remain required; existing server/client bytes are unchanged.
 

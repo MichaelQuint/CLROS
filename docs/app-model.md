@@ -1,5 +1,13 @@
 # App Model
 
+## SQLite trace preparation (step1628)
+
+[Step1628](../done/step1628.md) repairs the typed host projection of a measured
+successful `F_GETLK` returned `F_UNLCK` row. Returned fields remain separate from
+input lock requests and convey no lock ownership. The48 focused Fast passes
+support trace preparation only; guest SQLite file/lock/flush/recovery behavior,
+persistent logs/uploads and continuously functioning applications remain open.
+
 ## Retained copied syscall identity (step1624)
 
 Explicit T/F overloads retain a supplied syscall ordinal and the original RIP

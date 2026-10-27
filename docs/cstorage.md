@@ -1,5 +1,17 @@
 # Storage
 
+## Typed SQLite trace observations (step1628)
+
+The host reader accepts the measured successful `F_GETLK` `F_UNLCK/SEEK_SET`
+returned shape. `StorageReturnedLock` retains its reported signed32-bit PID,
+including the nonzero ignored PID in the original row. `StorageEvent.ReturnedLock`
+is separate from the observed `F_SETLK` input in `Lock`; the original query and
+actual lock ownership cannot be inferred. Other returned lock types, commands,
+whence values and failed shapes remain unsupported by this typed projection.
+[Step1628](../done/step1628.md) retains48 focused Fast passes for the measured
+row, LP64 values, overflow, descriptor reuse/staleness and annotations. These
+values establish no guest syscall, synchronization or durability acceptance.
+
 <!-- step1625-progress-development -->
 [Step1627](../done/step1627.md) retains a fresh source-matched Progress complete-consumer pass and independent census:30 post-readiness transactions,9 request windows,4 data reads and2 exact child-entry witnesses. Bootstrap37 are boundary counters. Every whole transaction retains one request owner and independent sector coverage; shared cursor8200 and independent cursor0 reconcile. A witness is the adjacent identity-bound syscall-entry timestamp strictly between one main-read submit and completion validation, not printed row position, duration overlap, dispatch/completion or hardware busy time. Failed original r01 stays failed; #770–#774 and product storage acceptance remain open.
 
