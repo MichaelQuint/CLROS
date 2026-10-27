@@ -1,5 +1,13 @@
 # App Model
 
+## SQLite trace preparation (step1628)
+
+[Step1628](../done/step1628.md) repairs the typed host projection of a measured
+successful `F_GETLK` returned `F_UNLCK` row. Returned fields remain separate from
+input lock requests and convey no lock ownership. The48 focused Fast passes
+support trace preparation only; guest SQLite file/lock/flush/recovery behavior,
+persistent logs/uploads and continuously functioning applications remain open.
+
 ## Retained copied syscall identity (step1624)
 
 Explicit T/F overloads retain a supplied syscall ordinal and the original RIP
@@ -241,6 +249,10 @@ The pinned Windows client publication succeeds. Linux-reference file ABI,
 staged guest middleware and actual post-readiness disk HTTP remain separate
 qualification steps. The complete Blazor tree is not staged in the ELF/package:
 #772 keeps the small staged fixture; #774 must prove the real disk/browser path.
+[Step1629](../done/step1629.md) retains three fresh complete package-staged
+middleware originals and their conditional native review, with current full-host
+qualification still pending; the historical ancestors retain their independent source/consumer review. This does not qualify continuing
+FAT32 reads or external Blazor/API/nonce rendering.
 
 The isolated M16-025 mechanical package exercises a confined fragmented file,
 independent opens, shared duplicate offsets, positioned reads, metadata, EOF,

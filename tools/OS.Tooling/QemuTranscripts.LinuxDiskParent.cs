@@ -31,6 +31,21 @@ public static partial class QemuTranscripts
         });
     }
 
+    // Keep the explicitly selected Progress consumer on the same original
+    // process, firmware, file-hold and packet boundary as the other disk owners.
+    internal static LinuxDiskProgressCaptureInspection InspectLinuxDiskProgressRun(string root,QemuSmokeOptions options,
+        QemuSmokePlan plan,ProcessResult runner,AuthorityFile image,AuthorityFile efi,AuthorityFile package,
+        WebRootImageFixture.Receipt receipt,string qemu,string ovmf,Action verifyOwnedInputs)
+    {
+        Need(options.HasDiskRaceSelection && options.LinuxDiskRaceVariant=="Progress","disk_runner_progress_selection");
+        return InspectOriginalLinuxDiskRun(root,options,plan,runner,image,efi,package,qemu,ovmf,verifyOwnedInputs,rows=>
+        {
+            var report=InspectLinuxDiskProgressCaptureValues(rows,package.ReadBytes(65536,"disk_package"),
+                image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_image"),receipt,image.Path);
+            return(report,SocketNetworkEnvelope(rows,true,mechanical:true,diskFiles:true).Proof);
+        });
+    }
+
     private static T InspectOriginalLinuxDiskRun<T>(string root,QemuSmokeOptions options,QemuSmokePlan plan,
         ProcessResult runner,AuthorityFile image,AuthorityFile efi,AuthorityFile package,string qemu,string ovmf,
         Action verifyOwnedInputs,Func<string[],(T Report,SocketNetworkProof Network)> inspect)

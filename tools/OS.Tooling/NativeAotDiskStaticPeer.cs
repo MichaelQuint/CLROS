@@ -2,8 +2,11 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
+
+[assembly: InternalsVisibleTo("OS.HostTests")]
 
 namespace OS.Tooling;
 
@@ -35,9 +38,18 @@ public static class NativeAotDiskStaticPeer
     /// to a fresh artifacts directory; no redirects, proxy, decompression
     /// or external content can satisfy the requests. A competing bind, missing
     /// readiness, wrong response, timeout or incomplete cleanup fails.</summary>
-    public static async Task<Completion> RunAsync(string root,string serial,
+    public static Task<Completion> RunAsync(string root,string serial,
         Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation,
         WebRootDiskInventory.Inspection? fullInventory=null,Func<int,string,CancellationToken,Task>? browser=null)
+        =>RunCoreAsync(root,serial,runRunner,cancellation,fullInventory,browser,null);
+
+    // Host controls may observe copied ordinal/byte counts after a bounded
+    // positive read. The observer must return without blocking or throwing;
+    // no buffer or live HTTP object escapes. Production callers pass null.
+    internal static async Task<Completion> RunCoreAsync(string root,string serial,
+        Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation,
+        WebRootDiskInventory.Inspection? fullInventory,Func<int,string,CancellationToken,Task>? browser,
+        Action<int,long>? bodyRead)
     {
         root=Path.GetFullPath(root);serial=Path.GetFullPath(serial,root);
         bool full=fullInventory is not null;
@@ -132,7 +144,10 @@ public static class NativeAotDiskStaticPeer
                 stage="body";
                 using var source=await response.Content.ReadAsStreamAsync(matrix.Token);using MemoryStream body=new();byte[] buffer=new byte[8192];
                 for(int read;(read=await source.ReadAsync(buffer,matrix.Token))!=0;)
-                {if(body.Length+read>(full?DiskStaticHttpContract.MaximumAssetBytes:DiskStaticHttpContract.MaximumBodyBytes))throw new ToolFailure("disk_http_body_capacity");body.Write(buffer,0,read);}
+                {
+                    if(body.Length+read>(full?DiskStaticHttpContract.MaximumAssetBytes:DiskStaticHttpContract.MaximumBodyBytes))throw new ToolFailure("disk_http_body_capacity");
+                    body.Write(buffer,0,read);bodyRead?.Invoke(ordinal,body.Length);
+                }
                 long finished=Stopwatch.GetTimestamp();byte[] bytes=body.ToArray();
                 stage="record";
                 if(Interlocked.Add(ref totalBodyBytes,bytes.Length)>(full?DiskStaticHttpContract.MaximumExpectedBodyBytes:5*DiskStaticHttpContract.MaximumBodyBytes))

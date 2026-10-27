@@ -305,6 +305,70 @@ internal static class LinuxDiskParentTests
         Reject([.. Envelope(), "unknown"], "socket_parent_extra_record");
     }
 
+    [HostTest("disk startup admits exact Progress65 only through its explicit copied-value selection")]
+    private static void ProgressStartup()
+    {
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage("Progress"), original = package.ToArray();
+        string[] rows = MappedStartupRows(package, 65), before = rows.ToArray();
+        // Admission of copied rows does not execute the package or qualify a guest.
+        string[] parent = QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskFiles: true, diskProgress: true);
+        HostCheck.True(parent.SequenceEqual(before[..^7]));
+        HostCheck.True(rows.SequenceEqual(before) && package.SequenceEqual(original));
+    }
+
+    [HostTest("disk Progress startup rejects conflicting selections other canonical packages and changed bytes")]
+    private static void ProgressStartupAdmission()
+    {
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage("Progress");
+        string[] rows = MappedStartupRows(package, 65);
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package, diskFiles: true));
+        foreach (var flags in new[]
+        {
+            (Disk: false, Static: false, Exit: false, Writable: false, Log: false),
+            (Disk: true, Static: true, Exit: false, Writable: false, Log: false),
+            (Disk: true, Static: false, Exit: true, Writable: false, Log: false),
+            (Disk: true, Static: false, Exit: false, Writable: true, Log: false),
+            (Disk: true, Static: false, Exit: false, Writable: false, Log: true),
+            (Disk: true, Static: false, Exit: false, Writable: true, Log: true)
+        })
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package,
+                diskFiles: flags.Disk, diskStatic: flags.Static, diskExitPending: flags.Exit,
+                writableDisk: flags.Writable, logUpload: flags.Log, diskProgress: true), "m16_004_disk_selection");
+        foreach (string variant in LinuxDiskRaceProofFixture.Variants.Where(v => v != "Progress"))
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows,
+                LinuxDiskRaceProofFixture.CreatePackage(variant), diskFiles: true, diskProgress: true));
+        foreach (byte[] other in new[] { LinuxDiskFileProofFixture.CreatePackage(),
+            LinuxWritableDiskProofFixture.CreatePackage(), LinuxWritableDiskProofFixture.CreateLogUploadPackage() })
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, other, diskFiles: true, diskProgress: true));
+        byte[] changed = package.ToArray(); changed[^1] ^= 1;
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, changed, diskFiles: true, diskProgress: true));
+        DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(rows, package[..^1], diskFiles: true, diskProgress: true));
+    }
+
+    [HostTest("disk Progress startup retains exact65 and all image stack and table geometry guards")]
+    private static void ProgressStartupGeometry()
+    {
+        byte[] package = LinuxDiskRaceProofFixture.CreatePackage("Progress");
+        string[] rows = MappedStartupRows(package, 65), before = rows.ToArray();
+        foreach (int ranges in new[] { 64, 66, 67, 135 })
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(MappedStartupRows(package, (ulong)ranges),
+                package, diskFiles: true, diskProgress: true), "m16_004_table_geometry");
+        foreach (var change in new[]
+        {
+            (From: "loads=2", To: "loads=3", Reason: "m16_004_image_geometry"),
+            (From: "tlsFile=0 tlsMemory=0", To: "tlsFile=1 tlsMemory=1", Reason: "m16_004_image_geometry"),
+            (From: "root=16777216", To: "root=0", Reason: "m16_004_table_geometry"),
+            (From: "argc=2", To: "argc=0", Reason: "m16_004_stack_geometry")
+        })
+        {
+            string[] malformed = rows.Select(r => r.Replace(change.From, change.To, StringComparison.Ordinal)).ToArray();
+            HostCheck.True(!malformed.SequenceEqual(rows), "Progress geometry control must change its selected field");
+            DenyStartup(() => QemuTranscripts.ValidateLinuxStartupTail(malformed, package,
+                diskFiles: true, diskProgress: true), change.Reason);
+        }
+        HostCheck.True(rows.SequenceEqual(before));
+    }
+
     [HostTest("disk startup admits exact ExitPending bytes only through its explicit mechanical branch")]
     private static void ExitPendingStartup()
     {

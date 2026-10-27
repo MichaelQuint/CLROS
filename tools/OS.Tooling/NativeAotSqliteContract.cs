@@ -208,9 +208,18 @@ public static class NativeAotSqliteContract
     }
     public sealed record StorageLifetime(int Id,int Descriptor,string Kind,string Path,string OpenFlags,string Mode,int OpenLine,int? CloseLine);
     public sealed record StorageLock(string Type,string Whence,long Start,long Length);
+    /// <summary>Copied fields printed after a successful measured F_GETLK.
+    /// They describe its returned flock, not the unobserved input query or lock
+    /// ownership. ReportedPid is retained even when F_UNLCK makes it irrelevant.</summary>
+    public sealed record StorageReturnedLock(string Type,string Whence,long Start,long Length,int ReportedPid);
     // Flags retains syscall-specific values; flock never becomes a fcntl
     // StorageLock or supplies byte-range ownership from its file lock flags.
-    public sealed record StorageEvent(TraceCall Call,int LifetimeId,int Descriptor,string Kind,long? Count,long? Offset,long Returned,string Flags,StorageLock? Lock);
+    public sealed record StorageEvent(TraceCall Call,int LifetimeId,int Descriptor,string Kind,long? Count,long? Offset,long Returned,string Flags,StorageLock? Lock)
+    {
+        /// <summary>Returned F_GETLK fields only; Lock remains the separately
+        /// observed F_SETLK input. Neither value grants actual lock authority.</summary>
+        public StorageReturnedLock? ReturnedLock {get;init;}
+    }
     public sealed record JournalOrder(int LifetimeId,int DatabaseWrites,int? FirstJournalSync,int? ParentSync,int? HeaderWrite,
         int? LastJournalSync,int? DatabaseSync,int? Unlink,bool ClosedBeforeUnlink,bool CompleteSyncOrder);
     public sealed record StorageTrace(string Source,IReadOnlyList<StorageLifetime> Lifetimes,IReadOnlyList<StorageEvent> Events,
@@ -875,7 +884,9 @@ public static class NativeAotSqliteContract
     /// shapes are unsupported. Preserve unrelated unfinished rows as incomplete
     /// projection. Journal ordering describes successful observed syscalls only;
     /// truncated strace buffers do not prove payload bytes, physical flushes,
-    /// native/guest execution, crash recovery or transactional durability.</summary>
+    /// native/guest execution, crash recovery or transactional durability.
+    /// F_GETLK supports only the measured successful F_UNLCK/SEEK_SET returned
+    /// shape; strace does not expose its original input query here.</summary>
     public static StorageTrace InspectStorageTraceValues(IReadOnlyDictionary<string,string> files,string databasePath)
         =>InspectStorageTraceValuesCore(files,databasePath,killed:false);
 
@@ -951,7 +962,7 @@ public static class NativeAotSqliteContract
                 Need(int.TryParse(descriptor.Groups[1].Value,NumberStyles.None,CultureInfo.InvariantCulture,out int fd),"storage_descriptor");
                 if(!active.TryGetValue(fd,out int id)){Need(kind.Length==0,"storage_stale_descriptor");continue;}
                 var lifetime=lifetimes[id-1];Need(AnnotatedPath(args[0])==lifetime.Path,"storage_annotation");kind=lifetime.Kind;
-                long returned=Result(call);long? count=null,offset=null;string flags="";StorageLock? region=null;
+                long returned=Result(call);long? count=null,offset=null;string flags="";StorageLock? region=null;StorageReturnedLock? returnedLock=null;
                 switch(call.Syscall)
                 {
                     case "close":
@@ -968,6 +979,16 @@ public static class NativeAotSqliteContract
                     case "fcntl":
                         Need(args.Length==3,"storage_fcntl");flags=args[1];
                         if(flags=="F_SETFD")Need(args[2]=="FD_CLOEXEC" && returned==0,"storage_fcntl");
+                        else if(flags=="F_GETLK")
+                        {
+                            Need(returned==0,"storage_fcntl");
+                            var match=Regex.Match(args[2],@"^\{l_type=(F_UNLCK), l_whence=(SEEK_SET), l_start=(\d+), l_len=(\d+), l_pid=(-?\d+)\}$",RegexOptions.CultureInvariant);
+                            Need(match.Success,"storage_lock");
+                            Need(int.TryParse(match.Groups[5].Value,NumberStyles.AllowLeadingSign,CultureInfo.InvariantCulture,out int pid),"storage_lock");
+                            long start=Number(match.Groups[3].Value),length=Number(match.Groups[4].Value);
+                            Need(start<=long.MaxValue-length,"storage_lock");
+                            returnedLock=new(match.Groups[1].Value,match.Groups[2].Value,start,length,pid);
+                        }
                         else
                         {
                             Need(flags=="F_SETLK","storage_fcntl");
@@ -984,7 +1005,7 @@ public static class NativeAotSqliteContract
                     default:throw new ToolFailure("sqlite_contract_storage_operation_unsupported_"+call.Syscall);
                 }
                 if(count.HasValue)Need(count<=16*1024*1024 && offset<=long.MaxValue-count && returned<=count,"storage_io_result");
-                events.Add(new(call,id,fd,kind,count,offset,returned,flags,region));
+                events.Add(new(call,id,fd,kind,count,offset,returned,flags,region){ReturnedLock=returnedLock});
             }
             else if(kind.Length!=0)
             {

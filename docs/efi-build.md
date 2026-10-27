@@ -1,5 +1,12 @@
 # EFI Build
 
+[Step1629](../done/step1629.md) retains the exact B5E54074/2df449b8 staged017
+selected native closure (610 nodes) and three complete original staged runs.
+Its explicit source/LEA-slot callback, context/lifetime, interrupt, stack-probe
+and separate physical-stack premises remain mandatory. Earlier invalid bounds
+and failed original r01 remain preserved. This supplies no whole-boot, Full018
+or writable native approval; Full018 requires its own fresh publication/review.
+
 ## Selected writable control ceiling (step1624)
 
 The Mechanical30 M16-027 preparation checks actual native control size against

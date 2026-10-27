@@ -10,6 +10,247 @@ using F = OS.Tooling.LinuxDiskFileProofFixture;
 
 internal static class LinuxDiskCaptureTests
 {
+    [HostTest("Progress copied full capture joins independent sectors and owned child syscall entry inside a pending main device read",HostLane.Native)]
+    private static void ProgressCapture()=>WithCapture(c=>
+    {
+        byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress"),saved=package.ToArray();
+        string[] rows=BuildProgressRows(c),before=rows.ToArray();
+        var report=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+        var file=WebRootDiskInventory.Inspect(c.Path,c.Image,c.Receipt).Find("/app/wwwroot/fixture/fragmented.bin")!;
+        foreach(var expected in new[]{(Role:"main.read",Offset:0UL,Bytes:8192U),(Role:"child.duplicate",Offset:8192UL,Bytes:8U),
+            (Role:"main.pread",Offset:131000UL,Bytes:16U),(Role:"child.pread",Offset:65535UL,Bytes:512U)})
+        {
+            var request=report.Requests.Single(r=>r.Role==expected.Role);
+            HostCheck.Equal(expected.Offset,request.Offset);HostCheck.Equal(expected.Bytes,request.Bytes);
+            HostCheck.True(request.Sectors.SequenceEqual(file.Cover(expected.Offset,expected.Bytes).Select(s=>s.Lba)));
+            HostCheck.Equal(request.Sectors.Count,request.DeviceGenerations.Count);
+        }
+        HostCheck.Equal(LinuxDiskRaceProofFixture.Calls("Progress").Concat(LinuxDiskRaceProofFixture.Calls("Progress",true))
+            .Count(call=>call.Wait==LinuxDiskRaceProofFixture.WaitPolicy.Disk),report.Requests.Count);
+        ulong[] generations=report.Requests.SelectMany(r=>r.DeviceGenerations).ToArray();
+        HostCheck.Equal(report.Device.Rows.Count/3,generations.Length);HostCheck.Equal(generations.Length,generations.Distinct().Count());
+        HostCheck.Equal(rows.Count(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)),report.Device.Rows.Count);
+        var main=report.Requests.Single(r=>r.Role=="main.read");int first=Array.IndexOf(rows,"TEST_START m16-009");
+        int submit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==main.DeviceGenerations[0])-first;
+        int validated=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=1 ",StringComparison.Ordinal)&&Field(r,"generation")==main.DeviceGenerations[0])-first;
+        var child=report.DevicePendingProgress.Single(call=>call.Spec.Role=="child.tid");
+        ulong entry=Field(rows[first+child.RecordIndex+1],"entered")*1000;
+        HostCheck.True(Field(rows[first+submit],"clock")<entry&&entry<Field(rows[first+validated],"clock"));
+        var duplicate=report.Requests.Single(r=>r.Role=="child.duplicate");
+        HostCheck.True(Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&
+            Field(r,"generation")==duplicate.DeviceGenerations[0])-first>report.Leaf.MainReadCompletionIndex);
+        HostCheck.True(!report.CheckedOriginalExecution&&!report.CheckedSchedulerReplay&&!report.ReplayedArbitraryUserMemory);
+        HostCheck.Equal(c.Receipt.FinalSha256,report.ImageSha256);HostCheck.True(rows.SequenceEqual(before)&&package.SequenceEqual(saved));
+        bool immutable=false;try{((IList<ulong>)main.DeviceGenerations)[0]=0;}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
+        Array.Fill(rows,"changed");Array.Clear(package);HostCheck.True(main.DeviceGenerations[0]!=0&&child.Spec.Role=="child.tid");
+    });
+
+    [HostTest("Progress entry timing survives delayed serialization but requires strict main request clock boundaries",HostLane.Native)]
+    private static void ProgressEntryClock()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress");
+        var report=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+        ulong generation=report.Requests.Single(r=>r.Role=="main.read").DeviceGenerations[0];
+        int submit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        int validated=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=1 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        int timing=Index(rows,"M16_008_SYSCALL_TIME ");
+        var delayed=rows.ToList();string[] completion=delayed.GetRange(validated,2).ToArray();delayed.RemoveRange(validated,2);
+        delayed.InsertRange(timing-1,completion);
+        var observed=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(delayed.ToArray(),package,c.Image,c.Receipt,c.Path);
+        HostCheck.True(observed.DevicePendingProgress.Single().RecordIndex>
+            delayed.FindIndex(r=>r==completion[0])-delayed.IndexOf("TEST_START m16-009"));
+
+        // Align the physical endpoints to the fixture HPET quantum so exact
+        // equality, as well as either side, is tested without rounding aliases.
+        ulong low=(Field(rows[submit],"clock")/1000+1)*1000;
+        ulong high=Field(rows[validated],"clock")/1000*1000;
+        string[] aligned=Change(Change(rows,submit,"clock",low),validated,"clock",high);
+        foreach(ulong entry in new[]{low-1000,low,high,high+1000})
+        {
+            string[] boundary=aligned.ToArray();boundary[timing]=TimingAt(boundary[timing],entry/1000);
+            RejectProgress(c,boundary,"disk_progress_device_overlap");
+        }
+        // A long prelude crossing a transaction is not an entry witness.
+        string[] duration=aligned.ToArray();duration[timing]=TimingAt(duration[timing],low/1000-1);
+        foreach(string field in new[]{"admitted","dispatched","prepared"})duration[timing]=Set(duration[timing],field,high/1000+1);
+        RejectProgress(c,duration,"disk_progress_device_overlap");
+
+        // Entry inside another request's physical transaction cannot stand in
+        // for the uniquely owned main.read interval, even with intact sectors.
+        ulong foreign=report.Requests.Single(r=>r.Role=="main.pread").DeviceGenerations[0];
+        int foreignSubmit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==foreign);
+        ulong foreignClock=Field(rows[foreignSubmit],"clock");string[] other=rows.ToArray();
+        for(int i=foreignSubmit;i<other.Length;i++)
+            if(other[i].StartsWith("M16_023_IO ",StringComparison.Ordinal))
+                other[i]=Set(other[i],"clock",Field(other[i],"clock")+(i==foreignSubmit?0UL:i==foreignSubmit+1?1000UL:i==foreignSubmit+2?1001UL:2000UL));
+        other[timing]=TimingAt(other[timing],foreignClock/1000+1);
+        NativeDiskReadObservations.Inspect(other.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray(),c.Image,report.Device.Counters);
+        RejectProgress(c,other,"disk_progress_device_overlap");
+    });
+
+    [HostTest("Progress rejects absent malformed detached duplicated and foreign syscall timing even after a valid witness",HostLane.Native)]
+    private static void ProgressEntryIdentity()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);int timing=Index(rows,"M16_008_SYSCALL_TIME ");
+        RejectProgress(c,rows.Where((_,i)=>i!=timing).ToArray(),"disk_progress_device_overlap");
+        foreach(string field in new[]{"identity","ordinal","nr","periodFs"})
+            RejectProgress(c,Change(rows,timing,field,Field(rows[timing],field)+1));
+        RejectProgress(c,[..rows[..timing],rows[timing],..rows[timing..]],"disk_race_timing_order");
+        RejectProgress(c,Change(rows,timing,"prepared",Field(rows[timing],"entered")-1),"linux_syscall_timing_observation");
+        RejectProgress(c,Change(rows,timing,"entered",0),"disk_progress_syscall_timing");
+        string[] late=rows.ToArray();late[timing]=Set(late[timing],"prepared",ulong.MaxValue);
+        RejectProgress(c,late,"disk_progress_syscall_timing");
+        int later=Array.FindIndex(rows,timing+1,r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal));
+        RejectProgress(c,[..rows[..(later+1)],rows[timing],..rows[(later+1)..]],"linux_syscall_timing_observation");
+    });
+
+    private static string TimingAt(string row,ulong ticks)
+    {
+        foreach(string field in new[]{"entered","admitted","dispatched","prepared"})row=Set(row,field,ticks);
+        return row;
+    }
+
+    [HostTest("Progress copied capture rejects shared cursor submission before main commit despite valid whole device transactions",HostLane.Native)]
+    private static void ProgressSharedCursor()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress");
+        var report=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+        ulong generation=report.Requests.Single(r=>r.Role=="child.duplicate").DeviceGenerations.Single();
+        var earlier=rows.ToList();var transaction=earlier.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)&&Field(r,"generation")==generation).ToArray();
+        HostCheck.Equal(3,transaction.Length);earlier.RemoveAll(r=>transaction.Contains(r,StringComparer.Ordinal));
+        int completion=Array.IndexOf(rows,"TEST_START m16-009")+report.Leaf.MainReadCompletionIndex;
+        string mainComplete=rows[completion];int at=earlier.IndexOf(mainComplete);ulong clock=Field(mainComplete,"clock");
+        // Keep the device sequence and bytes valid while moving all three rows
+        // before the parent cursor commit; CALL/COMPLETE order is unchanged.
+        earlier.InsertRange(at,transaction.Select(r=>Set(r,"clock",clock)));
+        NativeDiskReadObservations.Inspect(earlier.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray(),c.Image,report.Device.Counters);
+        RejectProgress(c,earlier.ToArray(),"disk_progress_shared_cursor_commit");
+    });
+
+    [HostTest("Progress copied capture rejects corrupt bytes misassigned whole requests missing rows and unowned metadata",HostLane.Native)]
+    private static void ProgressTransactions()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress");
+        var report=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,package,c.Image,c.Receipt,c.Path);
+        ulong generation=report.Requests.Single(r=>r.Role=="main.read").DeviceGenerations[0];
+        int copy=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=2 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        var corrupt=rows.ToArray();int data=corrupt[copy].IndexOf(" data=",StringComparison.Ordinal)+6;
+        corrupt[copy]=corrupt[copy][..data]+(corrupt[copy][data]=='0'?'1':'0')+corrupt[copy][(data+1)..];RejectProgress(c,corrupt,"image_bytes");
+        var inventory=WebRootDiskInventory.Inspect(c.Path,c.Image,c.Receipt);
+        string[] wrong=rows.Select(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)&&Field(r,"generation")==generation?
+            IoSector(r,inventory.DirectorySectors[0].Lba,c.Image):r).ToArray();
+        NativeDiskReadObservations.Inspect(wrong.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray(),c.Image,report.Device.Counters);
+        RejectProgress(c,wrong,"disk_progress_transaction_owner");
+        int submit=Array.FindIndex(rows,r=>r.StartsWith("M16_023_IO kind=0 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        RejectProgress(c,rows.Where((_,i)=>i!=submit).ToArray(),"request_identity");
+        var noProgress=rows.ToList();string delayed=noProgress[submit];noProgress.RemoveAt(submit);
+        int validation=noProgress.FindIndex(r=>r.StartsWith("M16_023_IO kind=1 ",StringComparison.Ordinal)&&Field(r,"generation")==generation);
+        noProgress.Insert(validation,Set(delayed,"clock",Field(noProgress[validation],"clock")));
+        NativeDiskReadObservations.Inspect(noProgress.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray(),c.Image,report.Device.Counters);
+        RejectProgress(c,noProgress.ToArray(),"disk_progress_device_overlap");
+        ulong metadata=report.Requests.Single(r=>r.Role=="prep.original").DeviceGenerations.Single();
+        ulong asset=inventory.Find("/app/wwwroot/fixture/fragmented.bin")!.Cover(0,1)[0].Lba;
+        string[] unowned=rows.Select(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)&&Field(r,"generation")==metadata?IoSector(r,asset,c.Image):r).ToArray();
+        NativeDiskReadObservations.Inspect(unowned.Where(r=>r.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray(),c.Image,report.Device.Counters);
+        RejectProgress(c,unowned,"metadata_asset");
+    });
+
+    [HostTest("Progress copied full capture rejects wrong package startup IRQ policy and detached original rows",HostLane.Native)]
+    private static void ProgressAdmission()=>WithCapture(c=>
+    {
+        string[] rows=BuildProgressRows(c);QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,
+            LinuxDiskRaceProofFixture.CreatePackage("Progress"),c.Image,c.Receipt,c.Path);
+        RejectProgress(c,rows,"disk_progress_capture_package",LinuxDiskRaceProofFixture.CreatePackage("CloseReuse"));
+        byte[] changed=LinuxDiskRaceProofFixture.CreatePackage("Progress");changed[^1]^=1;RejectProgress(c,rows,"disk_race_package_identity",changed);
+        RejectProgress(c,Change(rows,Index(rows,"M16_004_TABLES "),"ranges",64),"m16_004_table_geometry");
+        RejectProgress(c,rows.Select(r=>r.Replace("timer=idle-only","timer=user-irq-and-idle",StringComparison.Ordinal)).ToArray());
+        int first=Array.IndexOf(rows,"TEST_START m16-009"),io=Index(rows,"M16_023_IO ");
+        RejectProgress(c,[..rows[..first],rows[io],..rows[first..]]);
+        RejectProgress(c,[..rows,"unowned metadata"]);
+    });
+
+    private static void RejectProgress(Capture c,string[] rows,string? reason=null,byte[]? package=null)
+    {
+        string? actual=null;try{_=QemuTranscripts.InspectLinuxDiskProgressCaptureValues(rows,
+            package??LinuxDiskRaceProofFixture.CreatePackage("Progress"),c.Image,c.Receipt,c.Path);}
+        catch(ToolFailure error){actual=error.Reason;}
+        HostCheck.True(actual is not null&&(reason is null||actual.Contains(reason,StringComparison.Ordinal)),reason+" actual="+actual);
+    }
+
+    // Reuse the complete parent and machine-code-derived Progress leaf. Only
+    // copied observation values are supplied; no device or guest is executed.
+    private static string[] BuildProgressRows(Capture c)
+    {
+        var inventory=WebRootDiskInventory.Inspect(c.Path,c.Image,c.Receipt);
+        var file=inventory.Find("/app/wwwroot/fixture/fragmented.bin")!;
+        byte[] package=LinuxDiskRaceProofFixture.CreatePackage("Progress");var view=LinuxElfPackage.Validate(package);
+        var shell=c.Rows.ToList();int first=shell.IndexOf("TEST_START m16-009"),last=shell.IndexOf("TEST_PASS m16-009");shell.RemoveRange(first,last-first+1);
+        void Replace(string prefix,string value)=>shell[shell.FindIndex(r=>r.StartsWith(prefix,StringComparison.Ordinal))]=value;
+        Replace("M16_002_STAGED ",$"M16_002_STAGED bytes={package.Length} payload={view.PayloadBytes} pages={(package.Length+4095)/4096} handlesClosed=2 reads=1");
+        Replace("M16_002_DIGEST ","M16_002_DIGEST "+Convert.ToHexString(SHA256.HashData(package.AsSpan((int)view.PayloadOffset,(int)view.PayloadBytes))).ToLowerInvariant());
+        Replace("M16_002_PACKAGE_DIGEST ","M16_002_PACKAGE_DIGEST "+Convert.ToHexString(SHA256.HashData(package)).ToLowerInvariant());
+        string[] startup=LinuxDiskParentTests.MappedStartupRows(package,65)[^7..];startup[3]=Set(startup[3],"root",2097152);startup[4]=Set(startup[4],"old",1048576);
+        int startupAt=shell.IndexOf("TEST_START m16-004");shell.RemoveRange(startupAt,7);shell.InsertRange(startupAt,startup);
+        var pending=new Dictionary<(ulong Identity,ulong Sequence),LinuxDiskRaceProofFixture.CallSpec>();
+        ulong generation=37,mainGeneration=0,duplicateClock=0;bool duplicateCopied=false;List<string> leaf=[];
+        var main=LinuxDiskRaceProofFixture.Calls("Progress").Single(call=>call.Role=="main.read");
+        var duplicate=LinuxDiskRaceProofFixture.Calls("Progress",true).Single(call=>call.Role=="child.duplicate");
+        var mainSectors=file.Cover(0,(uint)main.Result);
+        foreach(string original in LinuxDiskRaceTranscriptTests.Synthetic("Progress"))
+        {
+            string row=Regex.Replace(original,@"\b(clock|nanos|started)=([0-9]+)",m=>m.Groups[1].Value+"="+(10_000_000UL+ulong.Parse(m.Groups[2].Value,CultureInfo.InvariantCulture)*1000).ToString(CultureInfo.InvariantCulture));
+            if(original.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal))row=Set(row,"nanos",Field(original,"nanos"));
+            if(row.StartsWith("M16_023_BOUND ",StringComparison.Ordinal))row=$"M16_023_BOUND owner=8388608 epoch=5562286797237662465 arena=9437184 pages=90 bar=4026531840 capacity={c.Image.Length/512} bootstrapCompleted=37 bootstrapCopied=37 clock=10001000 pci=0:7:0 queue=0 outstanding=1 access=readonly progress=cooperative reservation=retained";
+            if(row.StartsWith("M16_008_CALL ",StringComparison.Ordinal)&&Field(row,"waitSource")==4)
+            {
+                ulong identity=Field(row,"identity");var spec=LinuxDiskRaceProofFixture.Calls("Progress",identity==LinuxDiskRaceProofFixture.ChildIdentity)[checked((int)Field(row,"ordinal")-1)];
+                pending.Add((identity,Field(row,"waitSequence")),spec);leaf.Add(row);
+                if(spec.Role=="main.read")Submit(mainSectors[0].Lba,Field(row,"clock")+1);
+                continue;
+            }
+            if(row.StartsWith("M16_025_COMPLETE ",StringComparison.Ordinal))
+            {
+                var spec=pending[(Field(row,"identity"),Field(row,"sequence"))];ulong clock=Field(row,"clock");
+                if(spec.Role is "prep.original" or "prep.independent")Emit(inventory.DirectorySectors[0].Lba,clock-3);
+                else if(spec.Role=="main.read")
+                {
+                    ulong at=clock-(ulong)(2+3*(mainSectors.Count-1));Finish(mainGeneration,mainSectors[0].Lba,at);at+=2;
+                    foreach(var sector in mainSectors.Skip(1)){Emit(sector.Lba,at);at+=3;}
+                    leaf.Add(row);duplicateClock=clock+1;continue;
+                }
+                else if(spec.Role=="child.duplicate")HostCheck.True(duplicateCopied);
+                else if(spec.Number==17)
+                {
+                    var sectors=file.Cover(spec.A3,(uint)spec.Result);ulong at=clock-(ulong)sectors.Count*3;
+                    foreach(var sector in sectors){Emit(sector.Lba,at);at+=3;}
+                }
+            }
+            leaf.Add(row);
+            if(row.StartsWith("M16_008_CALL ",StringComparison.Ordinal)&&
+                Field(row,"identity")==LinuxDiskRaceProofFixture.ChildIdentity&&Field(row,"ordinal")==1)
+            {
+                ulong ticks=Field(row,"clock")/1000;
+                leaf.Add($"M16_008_SYSCALL_TIME identity={Field(row,"identity")} ordinal=1 nr=186 entered={ticks} admitted={ticks} dispatched={ticks} prepared={ticks} periodFs=1000000000");
+            }
+            if(row.StartsWith("M16_008_RESUME ",StringComparison.Ordinal)&&duplicateClock!=0)
+            {
+                Emit(file.Cover((ulong)main.Result,(uint)duplicate.Result)[0].Lba,duplicateClock);
+                duplicateCopied=true;duplicateClock=0;
+            }
+        }
+        shell.InsertRange(first,leaf);
+        Replace("M16_025_END ",$"M16_025_END submitted={generation} completed={generation} copied={generation} bootstrapCompleted=37 bootstrapCopied=37 fsReads={generation-34} cacheHits=20 cacheMisses=1 device=retired fs=retired dma=zero descriptors=closed reservation=retained");
+        return shell.ToArray();
+        string Common(ulong gen,ulong sector)=>$"owner=8388608 epoch=5562286797237662465 generation={gen} sector={sector} sequence={gen} bytes=512 available={gen}";
+        void Submit(ulong sector,ulong clock){mainGeneration=++generation;leaf.Add($"M16_023_IO kind=0 {Common(generation,sector)} consumed={generation-1} clock={clock}");}
+        void Finish(ulong gen,ulong sector,ulong clock)
+        {
+            leaf.Add($"M16_023_IO kind=1 {Common(gen,sector)} consumed={gen} clock={clock}");
+            leaf.Add($"M16_023_IO kind=2 {Common(gen,sector)} consumed={gen} clock={clock+1} copied=committed data={Convert.ToHexString(c.Image.AsSpan(checked((int)sector*512),512)).ToLowerInvariant()}");
+        }
+        void Emit(ulong sector,ulong clock){ulong gen=++generation;leaf.Add($"M16_023_IO kind=0 {Common(gen,sector)} consumed={gen-1} clock={clock}");Finish(gen,sector,clock+1);}
+    }
+
     [HostTest("exit pending capture joins full parents independent inode metadata and exact abandoned data prefix",HostLane.Native)]
     private static void ExitPendingCapture()=>WithCapture(c=>
     {

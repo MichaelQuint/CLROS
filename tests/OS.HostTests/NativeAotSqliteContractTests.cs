@@ -684,6 +684,96 @@ internal static class NativeAotSqliteContractTests
         bool immutable=false;try{((IList<NativeAotSqliteContract.StorageLifetime>)value.Lifetimes).Clear();}catch(NotSupportedException){immutable=true;}HostCheck.True(immutable);
     }
 
+    [HostTest("sqlite copied storage trace preserves LP64 offsets and locks and rejects arithmetic overflow")]
+    private static void StorageTraceLp64()
+    {
+        // Synthetic argument boundaries only; no measured engine usage or lock ownership.
+        const long high=4294967301,wideLength=4294967296;
+        string original=StorageRows()["trace.17"];
+        const string write="}], 1, 4096, RWF_NOAPPEND) = 4096";
+        const string highWrite="}], 1, 4294967301, RWF_NOAPPEND) = 4096";
+        const string region="l_start=1073741825, l_len=1";
+        const string wideRegion="l_start=4294967301, l_len=4294967296";
+        string large=original.Replace(write,highWrite,StringComparison.Ordinal).Replace(region,wideRegion,StringComparison.Ordinal);
+        var value=NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(large),"/app/data/contract.db");
+        var positioned=value.Events.Single(e=>e.Kind=="database" && e.Call.Syscall=="pwritev2");
+        var locks=value.Events.Where(e=>e.Lock is not null).ToArray();
+        HostCheck.True(positioned.Offset==high && positioned.Count==4096 && positioned.Returned==4096 &&
+            positioned.Flags=="RWF_NOAPPEND" && locks.Length==2 &&
+            locks.All(e=>e.Lock==new NativeAotSqliteContract.StorageLock("F_WRLCK","SEEK_SET",high,wideLength)) &&
+            !value.GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority);
+        var zero=NativeAotSqliteContract.InspectStorageTraceValues(
+            StorageRows(large.Replace(wideRegion,"l_start=4294967301, l_len=0",StringComparison.Ordinal)),"/app/data/contract.db");
+        var toEnd=zero.Events.Where(e=>e.Lock is not null).ToArray();
+        HostCheck.True(toEnd.Length==2 && toEnd.All(e=>e.Lock==new NativeAotSqliteContract.StorageLock("F_WRLCK","SEEK_SET",high,0)) &&
+            !zero.GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority);
+        foreach(var control in new[]{
+            (large.Replace(highWrite,"}], 1, 9223372036854775807, RWF_NOAPPEND) = 4096",StringComparison.Ordinal),"storage_io_result"),
+            (large.Replace(wideRegion,"l_start=9223372036854775807, l_len=1",StringComparison.Ordinal),"storage_lock"),
+            (large.Replace(highWrite,"}], 1, 9223372036854775808, RWF_NOAPPEND) = 4096",StringComparison.Ordinal),"storage_number")})
+            Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(control.Item1),"/app/data/contract.db"),control.Item2);
+    }
+
+    private const string GetLockDatabase="/root/clros-sqlite-contract-recovery-native-r03/artifacts/sqlite-native-recovery-reference-r03/recovery.db";
+    // Exact verify-trace.9365:269; only the surrounding open/close rows below
+    // are synthetic. A returned F_UNLCK does not expose its original query.
+    private const string GetLockRow="1792901404.391374 fcntl(5</root/clros-sqlite-contract-recovery-native-r03/artifacts/sqlite-native-recovery-reference-r03/recovery.db>, F_GETLK, {l_type=F_UNLCK, l_whence=SEEK_SET, l_start=1073741825, l_len=1, l_pid=1792901399}) = 0";
+    private static Dictionary<string,string> GetLockRows(string? row=null)=>StorageRows(
+        $"1792901404.390000 open(\"{GetLockDatabase}\", O_RDWR|O_CLOEXEC) = 5<{GetLockDatabase}>\n"+
+        (row??GetLockRow)+$"\n1792901404.392000 close(5<{GetLockDatabase}>) = 0\n1792901404.393000 +++ exited with 0 +++\n");
+
+    [HostTest("sqlite storage trace preserves measured F_GETLK returned fields separately from input locks and ownership")]
+    private static void StorageTraceGetLockValues()
+    {
+        var input=GetLockRows();var trace=NativeAotSqliteContract.InspectTraceValues(input,GetLockDatabase);
+        HostCheck.True(trace.Rows.Any(r=>r.Raw==GetLockRow) && !trace.GrantsCompleteTraceOrExecutionAuthority);
+        var value=NativeAotSqliteContract.InspectStorageTraceValues(input,GetLockDatabase);input.Clear();
+        var observed=value.Events.Single(e=>e.Flags=="F_GETLK");
+        HostCheck.True(observed.Call.Syscall=="fcntl" && observed.Call.Result=="0" && observed.LifetimeId==1 && observed.Descriptor==5 &&
+            observed.Returned==0 && observed.Count is null && observed.Offset is null && observed.Lock is null &&
+            observed.ReturnedLock==new NativeAotSqliteContract.StorageReturnedLock("F_UNLCK","SEEK_SET",1073741825,1,1792901399) &&
+            !value.GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority);
+        var zero=NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(GetLockRow.Replace("l_pid=1792901399","l_pid=0",StringComparison.Ordinal)),GetLockDatabase);
+        HostCheck.Equal(0,zero.Events.Single(e=>e.Flags=="F_GETLK").ReturnedLock!.ReportedPid);
+        var wide=NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(GetLockRow.Replace("l_start=1073741825, l_len=1","l_start=4294967301, l_len=4294967296",StringComparison.Ordinal)),GetLockDatabase);
+        HostCheck.True(wide.Events.Single(e=>e.Flags=="F_GETLK").ReturnedLock==
+            new NativeAotSqliteContract.StorageReturnedLock("F_UNLCK","SEEK_SET",4294967301,4294967296,1792901399));
+        var legacy=NativeAotSqliteContract.InspectStorageTraceValues(StorageRows(),"/app/data/contract.db");
+        HostCheck.True(legacy.Events.All(e=>e.ReturnedLock is null) && legacy.Events.Count(e=>e.Flags=="F_SETLK" && e.Lock is not null)==2);
+    }
+
+    [HostTest("sqlite storage F_GETLK rejects unmeasured malformed returned locks and LP64 or pid overflow")]
+    private static void StorageTraceGetLockRejections()
+    {
+        foreach(var change in new[]{
+            ("F_GETLK","F_OFD_GETLK","storage_fcntl"),
+            ("l_type=F_UNLCK","l_type=F_WRLCK","storage_lock"),
+            ("l_whence=SEEK_SET","l_whence=SEEK_CUR","storage_lock"),
+            (", l_pid=1792901399","","storage_lock"),
+            ("l_pid=1792901399","l_pid=1792901399, l_pid=0","storage_lock"),
+            ("l_start=1073741825","l_start=-1","storage_lock"),
+            ("l_start=1073741825","l_start=9223372036854775808","storage_number"),
+            ("l_start=1073741825, l_len=1","l_start=9223372036854775807, l_len=1","storage_lock"),
+            ("l_len=1","l_len=9223372036854775808","storage_number"),
+            ("l_pid=1792901399","l_pid=2147483648","storage_lock"),
+            ("l_pid=1792901399","l_pid=-2147483649","storage_lock"),
+            (") = 0",") = -1 EIO (I/O error)","storage_fcntl")})
+            Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(GetLockRow.Replace(change.Item1,change.Item2,StringComparison.Ordinal)),GetLockDatabase),change.Item3);
+    }
+
+    [HostTest("sqlite storage F_GETLK joins exact live descriptor generations and rejects stale or mismatched annotations")]
+    private static void StorageTraceGetLockLifetime()
+    {
+        string earlyClose=$"1792901404.391000 close(5<{GetLockDatabase}>) = 0\n";
+        string reopen=$"1792901404.391100 open(\"{GetLockDatabase}\", O_RDWR|O_CLOEXEC) = 5<{GetLockDatabase}>\n";
+        var reused=NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(earlyClose+reopen+GetLockRow),GetLockDatabase);
+        HostCheck.True(reused.Lifetimes.Count==2 && reused.Lifetimes.All(l=>l.CloseLine.HasValue) &&
+            reused.Events.Single(e=>e.Flags=="F_GETLK").LifetimeId==2 && !reused.GrantsPayloadByteOrCompleteTraceOrDurabilityAuthority);
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(earlyClose+GetLockRow),GetLockDatabase),"storage_stale_descriptor");
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(GetLockRow.Replace("fcntl(5<","fcntl(6<",StringComparison.Ordinal)),GetLockDatabase),"storage_stale_descriptor");
+        Reject(()=>NativeAotSqliteContract.InspectStorageTraceValues(GetLockRows(GetLockRow.Replace(GetLockDatabase+">",GetLockDatabase+"-journal>",StringComparison.Ordinal)),GetLockDatabase),"storage_annotation");
+    }
+
     [HostTest("sqlite storage trace rejects stale descriptor attribution ambiguous owners and malformed measured operations")]
     private static void StorageTraceRejections()
     {

@@ -1,5 +1,12 @@
 # QEMU
 
+<!-- step1625-progress-development -->
+[Step1627](../done/step1627.md) retains fresh guarded Progress r02, owner14172/session37575/exit0, with the complete consumer and independent device/entry-time census. EFI0871/image9088 match their retained bytes; runner termination after success markers is distinct from a natural guest-process exit. Original r01 (owner1, `disk_progress_device_overlap`) remains failed. Only Progress and ExitPending select original race consumers; CloseReuse and signal variants still refuse before a child launches. [Step1629](../done/step1629.md) retains the selected staged017 native review and three fresh complete originals r02-r04; failed r01 retains its outer-guard failure. The exact staged recipe uses `-BuildEfi -EnableM10017Probe`, package34D9/index5AAD, default RAM, unchanged600s and `invoke:null`. Each complete consumer and exactly one WEB_IMAGE_JOIN guard pass. QEMU runner termination after terminal success remains distinct from a natural child exit. The current unfiltered full r03 passes 7,332 checks across 918 fixtures, unchanged inputs and zero reuse, qualifying the finite staged scope of #772 with the reviewed historical ancestors.
+
+Full018 uses its separate continuing FAT32/HTTP/browser consumer and ordered DISK_IMAGE_JOIN then WEB_IMAGE_JOIN. Preserve its3000s outer/default RAM and nested1700s matrix/240s header/5min browser deadlines. Staged results cannot qualify this disk/browser scope.
+
+Create the exact fixture package with `dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll linux disk-race-package Progress artifacts/progress-candidate.pkg` using a fresh output path. The original mechanical selection adds `-LinuxDiskRaceVariant Progress` to its explicit M16-025 profile and must use that matching package. Preserve its180-second default, original source/native/ABI review, held inputs, image/packet joins and complete cleanup; fixture publication or dry-run output is not boot proof.
+
 ## Writable timing capture
 
 The step1623 source-matched b7631af0 original at

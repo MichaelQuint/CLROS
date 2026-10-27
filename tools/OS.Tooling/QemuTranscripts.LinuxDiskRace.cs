@@ -9,6 +9,160 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
+    /// <summary>Copied request identity and independently extracted sector
+    /// coverage. Device generations belong to this entire call/wait window;
+    /// the immutable values confer no execution or live ownership authority.</summary>
+    public readonly record struct LinuxDiskProgressRequest(ulong Identity, ulong Ordinal, ulong Sequence,
+        ulong RequestGeneration, string Role, ulong Offset, uint Bytes, IReadOnlyList<ulong> Sectors,
+        IReadOnlyList<ulong> DeviceGenerations);
+
+    /// <summary>Complete copied Progress parent/image/device/request joins.
+    /// A progress witness is another worker's owned syscall-entry sample inside
+    /// a submitted but not yet validated main-read device transaction. It does
+    /// not establish syscall dispatch/completion or hardware busy time. Original files,
+    /// native/source, firmware, packets and process remain separate obligations.
+    /// No FIFO/fairness or arbitrary user-buffer emulation is claimed.</summary>
+    public sealed class LinuxDiskProgressCaptureInspection
+    {
+        public WebParentReport Parent { get; }
+        public LinuxDiskRaceLeafReport Leaf { get; }
+        public NativeDiskReadObservations.Inspection Device { get; }
+        public string ImageSha256 { get; }
+        public IReadOnlyList<LinuxDiskProgressRequest> Requests { get; }
+        public IReadOnlyList<LinuxDiskRaceCall> DevicePendingProgress { get; }
+        public bool CheckedOriginalExecution => false;
+        public bool CheckedSchedulerReplay => false;
+        public bool ReplayedArbitraryUserMemory => false;
+        internal LinuxDiskProgressCaptureInspection(WebParentReport parent, LinuxDiskRaceLeafReport leaf,
+            NativeDiskReadObservations.Inspection device, string hash, LinuxDiskProgressRequest[] requests,
+            LinuxDiskRaceCall[] progress)
+        { Parent=parent; Leaf=leaf; Device=device; ImageSha256=hash;
+          Requests=Array.AsReadOnly(requests); DevicePendingProgress=Array.AsReadOnly(progress); }
+    }
+
+    private sealed class ProgressRequest(LinuxDiskRaceWindow window, LinuxDiskRaceCall call,
+        bool metadata, ulong offset, uint bytes, ulong[] sectors)
+    {
+        internal readonly LinuxDiskRaceWindow Window=window;
+        internal readonly LinuxDiskRaceCall Call=call;
+        internal readonly bool Metadata=metadata;
+        internal readonly ulong Offset=offset;
+        internal readonly uint Bytes=bytes;
+        internal readonly ulong[] Sectors=sectors;
+        internal readonly List<ulong> Observed=[], Generations=[];
+    }
+
+    /// <summary>Synchronously borrow bounded already-framed ASCII rows, the
+    /// exact canonical Progress package and immutable original image/receipt.
+    /// Copy rows before strict startup, idle-only, parent, device and leaf joins.
+    /// Assign every whole submit/validate/copy transaction to exactly one request
+    /// using its complete interval and independent sector coverage; reject
+    /// ambiguous ownership instead of guessing FIFO. Shared cursor data starts
+    /// only after parent commit. Metadata is confined to preparation opens.
+    /// Malformed/divergent/incomplete observations throw ToolFailure. Results
+    /// own immutable values; original firmware/process/native/packets and held
+    /// input verification remain mandatory outside this value-only inspector.</summary>
+    public static LinuxDiskProgressCaptureInspection InspectLinuxDiskProgressCaptureValues(
+        IReadOnlyList<string> supplied, byte[] package, byte[] rawImage,
+        WebRootImageFixture.Receipt receipt, string originalImagePath)
+    {
+        int count=supplied?.Count??0;
+        Need(count is >0 and <=32768 && package is not null && rawImage is not null && receipt is not null,
+            "disk_progress_capture_input");
+        string[] rows=new string[count];
+        for(int i=0;i<count;i++)
+        {
+            string? row=supplied![i];
+            Need(row is {Length:>0 and <=1536} && row.All(c=>c is >= ' ' and <= '~'),"disk_progress_capture_row");
+            rows[i]=row!;
+        }
+        Need(Race.PackageVariant(package!)=="Progress","disk_progress_capture_package");
+        var image=ValidateLinuxDiskCaptureImage(rawImage!,receipt!,originalImagePath);
+        var inventory=WebRootDiskInventory.Inspect(originalImagePath,rawImage!,receipt!);
+        var parents=ValidateLinuxDiskCaptureParents(rows,package!,diskProgress:true);
+        var binding=ValidateLinuxDiskCaptureBinding(rows,parents,rawImage!.Length,diskProgress:true);
+        int first=Array.IndexOf(rows,"TEST_START m16-009"),last=Array.IndexOf(rows,"TEST_PASS m16-009");
+        Need(first>=0 && last>first && Array.LastIndexOf(rows,"TEST_START m16-009")==first &&
+            Array.LastIndexOf(rows,"TEST_PASS m16-009")==last,"disk_progress_capture_leaf_extent");
+        var leaf=InspectLinuxDiskRaceLeaf(rows[first..(last+1)],package!,parents.Parent.UserRoot,parents.Parent.KernelRoot);
+        var io=leaf.Auxiliary.Where(a=>a.Text.StartsWith("M16_023_IO ",StringComparison.Ordinal)).ToArray();
+        Need(io.Select(a=>first+a.RecordIndex).SequenceEqual(rows.Select((row,index)=>(row,index))
+            .Where(v=>v.row.StartsWith("M16_023_IO ",StringComparison.Ordinal)).Select(v=>v.index)),"disk_progress_io_inventory");
+        var b=binding.Disk;var end=binding.End;
+        var device=NativeDiskReadObservations.Inspect(io.Select(a=>a.Text).ToArray(),rawImage!,
+            new(b["owner"],b["epoch"],b["bootstrapCompleted"],b["bootstrapCopied"],end["submitted"],end["completed"],end["copied"]));
+        Need(device.Cancelled==0,"disk_progress_no_cancellations");
+        var file=inventory.Find("/app/wwwroot/fixture/fragmented.bin");
+        Need(file is not null && !file.IsDirectory && file.Bytes==WebRootImageFixture.FragmentedFixtureBytes,
+            "disk_progress_fragmented");
+        var main=leaf.Calls.Single(c=>c.Spec.Role=="main.read");
+        List<ProgressRequest> requests=[];
+        foreach(var window in leaf.Windows.Where(w=>w.Source==4))
+        {
+            var call=leaf.Calls.Single(c=>c.RecordIndex==window.CallRecordIndex);
+            bool metadata=call.Spec.Role is "prep.original" or "prep.independent";
+            bool read=call.Spec.Number is 0 or 17;
+            Need(metadata || read || call.Spec.Number==8,"disk_progress_request_kind");
+            ulong offset=call.Spec.Number==17?call.Spec.A3:call.Spec.Role=="child.duplicate"?(ulong)main.Spec.Result:0;
+            uint bytes=read?checked((uint)call.Spec.Result):0;
+            Need(!read || bytes>0 && offset<=file!.Bytes && bytes<=file.Bytes-offset,"disk_progress_read_extent");
+            ulong[] sectors=read?file!.Cover(offset,bytes).Select(s=>s.Lba).ToArray():[];
+            requests.Add(new(window,call,metadata,offset,bytes,sectors));
+        }
+        Need(requests.Count(r=>r.Metadata)==2 && requests.Count(r=>r.Bytes>0)==4,"disk_progress_request_inventory");
+        List<(ProgressRequest Owner,NativeDiskReadObservations.Observation Submit,
+            NativeDiskReadObservations.Observation Validated)> parentIntervals=[];
+        for(int i=0;i<device.Rows.Count;i+=3)
+        {
+            Need(i+2<device.Rows.Count && device.Rows[i].Kind==NativeDiskReadObservations.Kind.Submitted &&
+                device.Rows[i+1].Kind==NativeDiskReadObservations.Kind.CompletionValidated &&
+                device.Rows[i+2].Kind==NativeDiskReadObservations.Kind.Copied,"disk_progress_transaction");
+            var transaction=device.Rows[i];int submit=io[i].RecordIndex,validated=io[i+1].RecordIndex,copy=io[i+2].RecordIndex;
+            for(int n=i;n<i+3;n++)
+                Need(device.Rows[n].Clock>=b["clock"] && device.Rows[n].Clock<=parents.Network.End["end"] &&
+                    device.Rows[n].Sector>=image.PartitionFirstLba && device.Rows[n].Sector<=image.PartitionLastLba,
+                    "disk_progress_io_lifetime");
+            var owners=requests.Where(r=>r.Window.CallRecordIndex<submit && copy<r.Window.CompletionRecordIndex &&
+                (r.Metadata || r.Sectors.Contains(transaction.Sector))).ToArray();
+            Need(owners.Length==1,"disk_progress_transaction_owner");
+            var owner=owners[0];
+            Need(owner.Call.Spec.Role!="child.duplicate" || submit>leaf.MainReadCompletionIndex,
+                "disk_progress_shared_cursor_commit");
+            owner.Observed.Add(transaction.Sector);owner.Generations.Add(transaction.Generation);
+            if(owner.Call.Spec.Role=="main.read")parentIntervals.Add((owner,transaction,device.Rows[i+1]));
+        }
+        foreach(var request in requests)
+        {
+            if(request.Metadata) _=WebRootDiskInventory.ClassifyMetadata(inventory,rawImage!,request.Observed);
+            else Need(request.Observed.SequenceEqual(request.Sectors),"disk_progress_read_sector_window");
+        }
+        decimal Nanos(ulong ticks)=>decimal.Floor((decimal)ticks*parents.Clock["period"]/1_000_000);
+        var callsByIndex=leaf.Calls.ToDictionary(c=>c.RecordIndex);
+        Dictionary<int,decimal> entered=[];
+        foreach(var auxiliary in leaf.Auxiliary)
+        {
+            Need(!auxiliary.Text.StartsWith("M16_008_TIMING ",StringComparison.Ordinal),"disk_progress_irq_timing");
+            if(!auxiliary.Text.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal))continue;
+            Need(callsByIndex.TryGetValue(auxiliary.RecordIndex-1,out var call),"disk_progress_timing_owner");
+            var t=LinuxSyscallTiming(auxiliary.Text,call.Identity,call.Ordinal,call.Spec.Number);
+            Need(t["periodFs"]==parents.Clock["period"] && Nanos(t["entered"])>=binding.Budget["started"] &&
+                Nanos(t["prepared"])<=parents.Network.End["end"] &&
+                entered.TryAdd(call.RecordIndex,Nanos(t["entered"])),"disk_progress_syscall_timing");
+        }
+        // CALL/TIME serialization follows syscall-prelude polling. Only the
+        // adjacent, identity-bound entry sample locates the other worker in
+        // physical request time; neither row position nor duration overlap does.
+        var progress=leaf.Calls.Where(c=>c.Spec.Role is "child.tid" or "child.pin" or "child.disjoint-readonly" or
+            "child.disjoint-writable" or "child.notify" or "child.duplicate")
+            .Where(c=>entered.TryGetValue(c.RecordIndex,out decimal entry) &&
+                parentIntervals.Count(p=>p.Submit.Clock<entry && entry<p.Validated.Clock)==1).ToArray();
+        Need(progress.Length>0,"disk_progress_device_overlap");
+        var owned=requests.Select(r=>new LinuxDiskProgressRequest(r.Call.Identity,r.Call.Ordinal,r.Window.Sequence,
+            r.Window.RequestGeneration,r.Call.Spec.Role,r.Offset,r.Bytes,Array.AsReadOnly(r.Sectors.ToArray()),
+            Array.AsReadOnly(r.Generations.ToArray()))).ToArray();
+        return new(parents.Parent,leaf,device,image.Sha256,owned,progress);
+    }
+
     /// <summary>Copied joins for the exact ExitPending package. Parent, image,
     /// physical bounds, FIFO/stages, metadata and abandoned data-prefix checks
     /// are combined from one row snapshot. This retains no live owner or input

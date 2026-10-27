@@ -14,13 +14,17 @@ public static partial class QemuTranscripts
     /// A prepared log/upload program explicitly selects its pinned BCL phase;
     /// four loads alone never select it. Inputs remain caller-owned synchronous
     /// borrows, and the returned parent rows carry no source/process/device,
-    /// execution, original-capture or persistence authority.</summary>
+    /// execution, original-capture or persistence authority. Progress selects
+    /// only the canonical cooperative two-worker package; it grants no race
+    /// consumer or original-run admission.</summary>
     public static string[] ValidateLinuxStartupTail(string[] lines, byte[] package, bool diskFiles = false,bool diskStatic=false,
-        bool diskExitPending=false,bool writableDisk=false,bool logUpload=false,NativeAotLogUploadProgram? logUploadProgram=null)
+        bool diskExitPending=false,bool writableDisk=false,bool logUpload=false,NativeAotLogUploadProgram? logUploadProgram=null,
+        bool diskProgress=false)
     {
-        Need(logUploadProgram is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending,"m16_004_disk_selection");
+        Need((!diskProgress || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && logUploadProgram is null) &&
+            (logUploadProgram is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending),"m16_004_disk_selection");
         var preparedPackage=logUploadProgram is null?null:NativeAotLogUploadContract.InspectClrosPackage(package,logUploadProgram.Phase);
-        return ValidateLinuxStartupTailCore(lines,package,diskFiles,diskStatic,diskExitPending,writableDisk,logUpload,preparedPackage);
+        return ValidateLinuxStartupTailSelected(lines,package,diskFiles,diskStatic,diskExitPending,writableDisk,logUpload,preparedPackage,diskProgress);
     }
 
     // Copied-value core permits portable package/geometry controls without
@@ -28,15 +32,21 @@ public static partial class QemuTranscripts
     // a BCL phase through an actual prepared lookup and fixed package identity.
     internal static unsafe string[] ValidateLinuxStartupTailCore(string[] lines,byte[] package,bool diskFiles,bool diskStatic,
         bool diskExitPending,bool writableDisk,bool logUpload,NativeAotLogUploadContract.ClrosPackageValues? bclPackage)
+        => ValidateLinuxStartupTailSelected(lines,package,diskFiles,diskStatic,diskExitPending,writableDisk,logUpload,bclPackage,false);
+
+    private static unsafe string[] ValidateLinuxStartupTailSelected(string[] lines,byte[] package,bool diskFiles,bool diskStatic,
+        bool diskExitPending,bool writableDisk,bool logUpload,NativeAotLogUploadContract.ClrosPackageValues? bclPackage,bool diskProgress)
     {
         Need((!diskFiles || !diskStatic) && (!diskExitPending || diskFiles && !diskStatic) &&
             (!writableDisk || diskFiles && !diskStatic && !diskExitPending) && (!logUpload || writableDisk) &&
-            (bclPackage is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending),"m16_004_disk_selection");
+            (bclPackage is null || diskFiles && writableDisk && logUpload && !diskStatic && !diskExitPending) &&
+            (!diskProgress || diskFiles && !diskStatic && !diskExitPending && !writableDisk && !logUpload && bclPackage is null),"m16_004_disk_selection");
         if(bclPackage is not null)
             Need(bclPackage.Phase is "write" or "verify" && bclPackage.PackageBytes==package.Length &&
                 bclPackage.PackageSha256==Convert.ToHexString(SHA256.HashData(package)),"m16_004_log_upload_package");
         else if(writableDisk) { if(logUpload)LinuxWritableDiskProofFixture.RequireLogUploadPackage(package);else LinuxWritableDiskProofFixture.RequirePackage(package); }
         else if (diskExitPending) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="ExitPending","m16_004_disk_exit_package");
+        else if (diskProgress) Need(LinuxDiskRaceProofFixture.PackageVariant(package)=="Progress","m16_004_disk_progress_package");
         else if (diskFiles) LinuxDiskFileProofFixture.RequirePackage(package);
         if (diskStatic) NativeAotStaticFileProgram.RequirePackage(package,false);
         Need(lines.Length == QemuContracts.M03OwnedSubsystemMarkers.Count + 14, "m16_004_record_count");
