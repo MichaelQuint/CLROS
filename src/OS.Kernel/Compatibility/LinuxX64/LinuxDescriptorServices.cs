@@ -282,11 +282,19 @@ public static unsafe partial class LinuxDescriptorServices
     /// <summary>Check descriptor references and endpoint accounting under the
     /// same exclusive ownership. This does not prove supervisor mapping or
     /// package provenance; those remain admission responsibilities.</summary>
+    /// <summary>Validate the complete descriptor tree without changing it. The
+    /// serialized owner must retain its admitted buffers for the call; invalid
+    /// storage, references or backend ownership returns false. Scratch counts
+    /// belong only to this invocation and grant no retained authority.</summary>
     public static bool Audit(State* state)
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1) return false;
         var a = state->Owner;
         if (!Storage(state, a) || state->Active > a.DescriptorCount) return false;
+        // Storage bounds both counts by MaximumDescriptors. Count each checked
+        // slot once instead of rescanning all slots for every description.
+        uint* referenceCounts = stackalloc uint[(int)MaximumDescriptors];
+        for (uint i = 0; i < a.DescriptionCount; i++) referenceCounts[i] = 0;
         uint active = 0;
         for (uint i = 0; i < a.DescriptorCount; i++)
         {
@@ -294,12 +302,12 @@ public static unsafe partial class LinuxDescriptorServices
             if (slot.Description == 0) { if (slot.Flags != 0) return false; continue; }
             if (slot.Description > a.DescriptionCount || slot.Generation == 0 || (slot.Flags & ~1U) != 0) return false;
             active++;
+            referenceCounts[slot.Description - 1]++;
         }
         if (active != state->Active) return false;
         for (uint i = 0; i < a.DescriptionCount; i++)
         {
-            Description d = a.Descriptions[i]; uint references = 0;
-            for (uint j = 0; j < a.DescriptorCount; j++) if (a.Slots[j].Description == i + 1) references++;
+            Description d = a.Descriptions[i]; uint references = referenceCounts[i];
             if (d.References != references) return false;
             if (references == 0 && d.Borrowers == 0) { if (d.Type != 0) return false; continue; }
             bool borrowedKind = (Kind)d.Type is Kind.PipeRead or Kind.PipeWrite or Kind.Epoll;

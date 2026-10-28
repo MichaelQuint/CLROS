@@ -108,7 +108,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Threading\X64TimerInterrupt.cs"] = "563d63d2cd071b20c306e4669d088d9fbbad52ccdadb98bcecc54afbd7353857",
                 [@"..\..\std\no-runtime\shared\Ascii.cs"] = "c642f5b645ee332e1984ddba3d80e1dd42d09700c5d90aa185ca7c5e74567417",
                 [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "60bc8468c8b838dc79b14abdeede4904edf0165ae182addee3d802b93c83b49e",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "42b95e982f358f68d00f3c6c66c03461085e996f96b2fb9e1c6ab130a20b0813",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "608b33a4bc6bebb700ffe7d3ac2dc0fefdeb969cada4d65cbf836bc73f16c032",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Package.cs"] = "8799a29472a97004e1c62bdb75c6a9af1741ed747503fd15c84ef52176a9001a",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Paths.cs"] = "2807206b8dd2a8d0c107c296c49099eb0eb58053c24f8cfebdadd404e50800d9",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs"] = "752c43467e413502c805e604809c536bc67651d33040e5fa036334bc4a9b0958",
