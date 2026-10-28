@@ -1,9 +1,13 @@
 # Host Requirements
 
+[Step1635](../done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
+
+A diagnostic-only generated-driver child span now partitions the existing dispatch window without changing work, polling, evidence or budgets. Twenty-eight focused Root host checks pass; new native and original v7 qualification remain pending. This is no observed speedup or pure guest-CPU measurement. #770/#771/#773/#774 remain open; finish this entire read phase, merge/readback and recoverable cleanup, then pause before successor work.
+
 ## Current-phase SDK selection after the October 25 restart
 
-The intentional Visual Studio update installed RC3. Finish the current PR810
-phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
+The intentional Visual Studio update installed RC3. Finish the current first-ten
+read phase with the repository's unchanged RC2 pins. A complete verified RC2 SDK is
 installed separately; leave the system RC3 installation intact:
 
 ```powershell
@@ -24,8 +28,9 @@ Settings above apply only to the current terminal and its children. Step1624
 retains the download, runtime and producer evidence. The earlier Program Files
 selection below describes the October 13 installation; it now selects RC3.
 
-The interrupted full run is not a pass. Preserve it, rebuild with the exact RC2
-root and execute a fresh unfiltered full without reuse. Upgrade SDK/runtime/ILC
+The historical interrupted full run remains failed. Step1635 separately records
+the later sourcef27 RC2 unfiltered7359-check pass, with zero reuse and unchanged
+inputs. Preserve each original scope. Upgrade SDK/runtime/ILC
 and affected qualification together in a separate follow-on after this phase
 is merged; do not relax `global.json` or roll forward during this qualification.
 

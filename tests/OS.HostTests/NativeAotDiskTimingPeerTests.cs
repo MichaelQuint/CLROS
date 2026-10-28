@@ -192,6 +192,51 @@ internal static class NativeAotDiskTimingPeerTests
         " supervisorCalls=0 supervisorNs=0 supervisorPreNs=0 supervisorDiskNs=0 supervisorPostNs=0"+
         " idleCalls=0 idleNs=0 idlePreNs=0 idleDiskNs=0 idlePostNs=0\r\n";
     private const string Dispatch = "M10_018_DISPATCH bytes=65536 phaseNs=20000 pollNs=11200 dispatchNs=16000 nestedPollNs=10000 dispatchNonPollNs=6000 supervisorNonPollNs=2800 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
+    private const string Driver = "M10_018_DRIVER bytes=65536 phaseNs=20000 pollNs=11200 driverNs=12000 nestedPollNs=8000 driverNonPollNs=4000 dispatchShellNonPollNs=2000 completed=2 clipped=2 physicalActive=1 phaseComplete=1\r\n";
+
+    [HostTest("driver aggregate conserves complete dispatch and rejects missing malformed widened or negative child partitions")]
+    private static void DriverAggregate()
+    {
+        var polls = NativeAotDiskTimingPeer.InspectMetrics(Metrics);
+        var dispatch = NativeAotDiskTimingPeer.InspectDispatchMetrics(Dispatch, polls);
+        var driver = NativeAotDiskTimingPeer.InspectDriverMetrics(Driver, dispatch);
+        HostCheck.Equal(6000UL, driver["driverNonPollNs"] + driver["dispatchShellNonPollNs"]);
+        foreach (string bad in new[] { "", Driver + Driver, Driver.Replace("bytes=65536", "bytes=65535"),
+            Driver.Replace("phaseNs=20000", "phaseNs=20001"), Driver.Replace("pollNs=11200", "pollNs=11201"),
+            Driver.Replace("driverNs=12000", "driverNs=16001"), Driver.Replace("nestedPollNs=8000", "nestedPollNs=10001"),
+            Driver.Replace("driverNs=12000", "driverNs=6000"),
+            Driver.Replace("driverNs=12000", "driverNs=15000"), // Remaining poll2000 exceeds shell1000.
+            Driver.Replace("driverNonPollNs=4000", "driverNonPollNs=3999"),
+            Driver.Replace("dispatchShellNonPollNs=2000", "dispatchShellNonPollNs=2001"),
+            Driver.Replace("completed=2", "completed=02"), Driver.Replace("clipped=2", "clipped=3"),
+            Driver.Replace("physicalActive=1", "physicalActive=0"), Driver.Replace("phaseComplete=1", "phaseComplete=0"),
+            Driver.Replace("driverNs=12000", "driverNs=18446744073709551616"),
+            Driver.Replace(" nestedPollNs=8000", ""), Driver.Replace("clipped=2", "clipped=2 clipped=2") })
+        {
+            bool rejected = false; try { _ = NativeAotDiskTimingPeer.InspectDriverMetrics(bad, dispatch); } catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected, bad);
+        }
+        bool missingParent = false;
+        try { _ = NativeAotDiskTimingPeer.InspectDriverMetrics(Driver, new Dictionary<string, ulong>()); }
+        catch (ToolFailure) { missingParent = true; }
+        HostCheck.True(missingParent);
+    }
+
+    [HostTest("driver aggregate preserves zero child and maximum unsigned difference conservation without overflow")]
+    private static void DriverAggregateEdges()
+    {
+        var dispatch = NativeAotDiskTimingPeer.InspectDispatchMetrics(Dispatch, NativeAotDiskTimingPeer.InspectMetrics(Metrics));
+        string zero = Driver.Replace("driverNs=12000", "driverNs=0").Replace("nestedPollNs=8000", "nestedPollNs=0")
+            .Replace("driverNonPollNs=4000", "driverNonPollNs=0").Replace("dispatchShellNonPollNs=2000", "dispatchShellNonPollNs=6000");
+        HostCheck.Equal(6000UL, NativeAotDiskTimingPeer.InspectDriverMetrics(zero, dispatch)["dispatchShellNonPollNs"]);
+        var maximum = dispatch.ToDictionary(pair => pair.Key, pair => pair.Value);
+        maximum["phaseNs"] = maximum["dispatchNs"] = maximum["dispatchNonPollNs"] = ulong.MaxValue;
+        maximum["pollNs"] = maximum["nestedPollNs"] = maximum["supervisorNonPollNs"] = 0;
+        string row = Driver.Replace("phaseNs=20000", "phaseNs=18446744073709551615").Replace("pollNs=11200", "pollNs=0")
+            .Replace("driverNs=12000", "driverNs=18446744073709551614").Replace("nestedPollNs=8000", "nestedPollNs=0")
+            .Replace("driverNonPollNs=4000", "driverNonPollNs=18446744073709551614").Replace("dispatchShellNonPollNs=2000", "dispatchShellNonPollNs=1");
+        HostCheck.Equal(1UL, NativeAotDiskTimingPeer.InspectDriverMetrics(row, maximum)["dispatchShellNonPollNs"]);
+    }
 
     [HostTest("dispatch aggregate requires separate complete bounded conservation matching unchanged v5 polls and explicit active physical dispatch")]
     private static void DispatchAggregate()
@@ -328,7 +373,7 @@ internal static class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","late-fault","unconfirmed"})
+        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","late-fault","unconfirmed"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
@@ -351,9 +396,12 @@ internal static class NativeAotDiskTimingPeerTests
             HostCheck.Equal(mode=="good",actual.RootElement.GetProperty("Complete").GetBoolean());
             HostCheck.True(!actual.RootElement.GetProperty("FullAndCleanupQualified").GetBoolean() &&
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
-            HostCheck.Equal("clros-disk-read-timing-v6", actual.RootElement.GetProperty("Schema").GetString()!);
-            if (mode is "good" or "late-fault")
+            HostCheck.Equal("clros-disk-read-timing-v7", actual.RootElement.GetProperty("Schema").GetString()!);
+            if (mode is "good" or "late-fault" or "driver-late-change")
+            {
                 HostCheck.Equal(1UL, actual.RootElement.GetProperty("DispatchMetrics").GetProperty("phaseComplete").GetUInt64());
+                HostCheck.Equal(4000UL, actual.RootElement.GetProperty("DriverMetrics").GetProperty("driverNonPollNs").GetUInt64());
+            }
 
             async Task<ProcessResult> Stub(int port,CancellationToken cancellation)
             {
@@ -379,12 +427,15 @@ internal static class NativeAotDiskTimingPeerTests
                         if(!head)await context.Response.OutputStream.WriteAsync(entity,cancellation);
                         context.Response.Close();
                         if(i==3)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
-                            (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch));
+                            (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch)+
+                            (mode=="driver"?Driver.Replace("dispatchShellNonPollNs=2000","dispatchShellNonPollNs=2001"):
+                                mode=="driver-duplicate"?Driver+Driver:Driver));
                     }
                 }
                 catch(OperationCanceledException)when(cancellation.IsCancellationRequested)
                 {
                     if (mode == "late-fault") File.AppendAllText(serial, "TEST_FAIL disk.dispatch.bookkeeping late_end\r\n");
+                    if (mode == "driver-late-change") File.AppendAllText(serial, Driver);
                     return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};
                 }
                 finally{exited=true;listener.Stop();}

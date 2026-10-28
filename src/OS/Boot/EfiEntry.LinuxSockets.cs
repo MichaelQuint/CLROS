@@ -910,7 +910,7 @@ public static unsafe partial class EfiEntry
             {
                 bool timing = disk->TimingPhase == 1;
                 bool pollTracked = disk->TimingPhase != 2;
-                if (pollTracked && !disk->TimingDispatch.BeginPoll()) return false;
+                if (pollTracked && (!disk->TimingDispatch.BeginPoll() || !disk->TimingDriver.BeginPoll())) return false;
                 uint bucket = (uint)cause;
                 if (bucket >= 4) return false;
                 ulong started = 0, afterPre = 0, afterDisk = 0, afterRefresh = 0, afterReadiness = 0, finished = 0;
@@ -964,7 +964,7 @@ public static unsafe partial class EfiEntry
                     disk->TimingCauseDisk[bucket] += afterDisk - afterPre;
                     disk->TimingCausePost[bucket] += finished - afterDisk;
                 }
-                return !pollTracked || disk->TimingDispatch.EndPoll();
+                return !pollTracked || disk->TimingDriver.EndPoll() && disk->TimingDispatch.EndPoll();
             }
 #elif M16_027_PROBE
 #if M16_027_TIMING_PROBE

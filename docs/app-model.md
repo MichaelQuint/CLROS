@@ -1,5 +1,9 @@
 # App Model
 
+[Step1635](../done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
+
+A diagnostic-only generated-driver child span now partitions the existing dispatch window without changing work, polling, evidence or budgets. Twenty-eight focused Root host checks pass; new native and original v7 qualification remain pending. This is no observed speedup or pure guest-CPU measurement. #770/#771/#773/#774 remain open; finish this entire read phase, merge/readback and recoverable cleanup, then pause before successor work.
+
 ## SQLite trace preparation (step1628)
 
 [Step1628](../done/step1628.md) repairs the typed host projection of a measured

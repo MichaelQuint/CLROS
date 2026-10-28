@@ -306,7 +306,8 @@ public static unsafe partial class EfiEntry
                 {
                     if (disk->TimingPhase != 0) return false;
                     if (!ReadNetworkTime(c->State, out ulong armed) ||
-                        !disk->TimingDispatch.Arm(armed, disk->TimingNetworkTotal)) return false;
+                        !disk->TimingDispatch.Arm(armed, disk->TimingNetworkTotal) ||
+                        !disk->TimingDriver.Arm(armed, disk->TimingNetworkTotal)) return false;
                     disk->TimingPhase = 1; return true;
                 }
                 if (disk->TimingPhase == 2) return true;
@@ -315,7 +316,10 @@ public static unsafe partial class EfiEntry
                 if (disk->TimingReadBytes != 65536) return true;
                 if (!ReadNetworkTime(c->State, out ulong frozen) ||
                     !disk->TimingDispatch.Freeze(frozen, disk->TimingNetworkTotal) ||
-                    !disk->TimingDispatch.Inspect(out var dispatch) || !dispatch.PhysicalDispatchActiveAtFreeze) return false;
+                    !disk->TimingDriver.Freeze(frozen, disk->TimingNetworkTotal) ||
+                    !disk->TimingDispatch.Inspect(out var dispatch) || !dispatch.PhysicalDispatchActiveAtFreeze ||
+                    !disk->TimingDriver.Inspect(out var driver) || !driver.PhysicalDispatchActiveAtFreeze ||
+                    !disk->TimingDispatch.InspectChild(in disk->TimingDriver, out ulong driverNonPoll, out ulong shellNonPoll)) return false;
                 disk->TimingPhase = 2;
                 var p = disk->TimingPump;
                 if (disk->TimingPostReadiness > ~0UL - disk->TimingPostWaitRecord ||
@@ -379,6 +383,16 @@ public static unsafe partial class EfiEntry
                     LinuxText(c->State, " completed=") && LinuxNumber(c->State, dispatch.CompletedEnvelopes) &&
                     LinuxText(c->State, " clipped=") && LinuxNumber(c->State, dispatch.ClippedEnvelopes) &&
                     LinuxText(c->State, " physicalActive=") && LinuxNumber(c->State, dispatch.PhysicalDispatchActiveAtFreeze ? 1UL : 0UL) &&
+                    LinuxText(c->State, " phaseComplete=1\r\nM10_018_DRIVER bytes=") && LinuxNumber(c->State, disk->TimingReadBytes) &&
+                    LinuxText(c->State, " phaseNs=") && LinuxNumber(c->State, driver.PhaseNanoseconds) &&
+                    LinuxText(c->State, " pollNs=") && LinuxNumber(c->State, driver.PollNanoseconds) &&
+                    LinuxText(c->State, " driverNs=") && LinuxNumber(c->State, driver.DispatchNanoseconds) &&
+                    LinuxText(c->State, " nestedPollNs=") && LinuxNumber(c->State, driver.NestedPollNanoseconds) &&
+                    LinuxText(c->State, " driverNonPollNs=") && LinuxNumber(c->State, driverNonPoll) &&
+                    LinuxText(c->State, " dispatchShellNonPollNs=") && LinuxNumber(c->State, shellNonPoll) &&
+                    LinuxText(c->State, " completed=") && LinuxNumber(c->State, driver.CompletedEnvelopes) &&
+                    LinuxText(c->State, " clipped=") && LinuxNumber(c->State, driver.ClippedEnvelopes) &&
+                    LinuxText(c->State, " physicalActive=") && LinuxNumber(c->State, driver.PhysicalDispatchActiveAtFreeze ? 1UL : 0UL) &&
                     LinuxText(c->State, " phaseComplete=1\r\n");
             }
         }

@@ -1,5 +1,9 @@
 # Diagnostics
 
+[Step1635](../done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
+
+A diagnostic-only generated-driver child span now partitions the existing dispatch window without changing work, polling, evidence or budgets. Twenty-eight focused Root host checks pass; new native and original v7 qualification remain pending. This is no observed speedup or pure guest-CPU measurement. #770/#771/#773/#774 remain open; finish this entire read phase, merge/readback and recoverable cleanup, then pause before successor work.
+
 [Step1634](../done/step1634.md) connects the fixed `-WebRootFault Truncated` control to the complete Full018 HTTP/browser owner, preserving healthy A/B/A. Forty-three current focused checks pass, including the complete synthetic source4/ready-completion protocol, actual managed descriptor EIO/recovery and held image/receipt identity joins. Review found and corrected hash-casing and wait-source/completion-domain bugs; failed originals and earlier test cohorts remain separate. Current Full018 output/clock/block tuple components and disk-wait phase36624/65536 are conditional; whole native domains and fresh guest/browser originals remain pending. #770/#771/#773/#774, full guest-origin Blazor/browser, writes and SQLite remain open. The human phase boundary requires completing this batch, merge/readback and safe cleanup, then pausing before further development.
 
 [Step1632](../done/step1632.md) fixes the new CloseReuse evidence contract without changing existing logical clocks: an exact-package completion now has a separate adjacent, request-bound fresh wall-clock witness for physical IO comparisons. All112 coherent focused checks pass; a fresh native image and conditional data/instruction bindings are retained, while its strict original guest is pending. The failed controlled original remains failed. Full FAT32/Blazor/browser, #770/#771/#773/#774, writes and SQLite remain open.
@@ -2486,13 +2490,41 @@ and collecting-GC ancestry remain required. The fixture runs before firmware exi
 
 The explicit disk-read timing profile retains its original42-field
 `M10_018_TIMING` record. A separate11-field `M10_018_DISPATCH` record partitions
-the same listen-to-final65536B-copy window. The peer's v6 receipt requires both
+the same listen-to-final65536B-copy window. Historical v6 receipts require both
 records and exact conservation:
 
 ```text
 phaseNs = pollNs + dispatchNonPollNs + supervisorNonPollNs
 dispatchNonPollNs = dispatchNs - nestedPollNs
 ```
+
+The current v7 peer additionally requires one11-field `M10_018_DRIVER` record.
+Its child brackets only the actual generated-driver invocation inside the
+unchanged dispatch. Both counters use the same observed Arm/Freeze timestamps
+and cumulative poll window; neither can freeze across an active poll. The
+original parent, all checks and their order remain intact. The copied parser
+requires the following nonnegative subset and conservation rules:
+
+```text
+driverNs <= dispatchNs
+driverNestedPollNs <= nestedPollNs
+driverNestedPollNs <= driverNs
+nestedPollNs - driverNestedPollNs <= dispatchNs - driverNs
+driverNonPollNs = driverNs - driverNestedPollNs
+dispatchShellNonPollNs = (dispatchNs - driverNs) - (nestedPollNs - driverNestedPollNs)
+dispatchNonPollNs = driverNonPollNs + dispatchShellNonPollNs
+```
+
+Here `driverNestedPollNs` is the child record's `nestedPollNs`. Raw physical
+durations are not subtracted and clamped to simulate clipping. The kernel model
+requires the exact original phase start and cumulative-poll start, successful
+freeze of both counters and matching elapsed/poll totals. The native caller
+separately establishes actual nesting and the common serialized owner. Driver
+time includes worker/guest/kernel execution, transitions, logging and boundary
+overhead; its residual is not pure guest CPU. Source/runtime native qualification
+and a new original v7 diagnostic remain pending in Step1635; host checks and
+copied records do not supply them. Existing v5/v6 lines remain unchanged, while
+the current receipt schema is `clros-disk-read-timing-v7` with `DriverMetrics`.
 
 The complete supervisor dispatch invocation includes guest execution, kernel
 checks, transitions and synchronous logging. It is not pure guest CPU time.
@@ -2503,11 +2535,14 @@ in-flight poll because its cumulative duration is published only on return.
 An invocation crossing either measurement boundary contributes only its
 intersection with the half-open window. One invocation crossing both counts
 once as clipped; an empty intersection contributes no envelope. The actual
-final-copy hook freezes before both aggregate dumps. `phaseComplete=1` means
+final-copy hook freezes before all aggregate dumps. `phaseComplete=1` means
 the measured partition is complete; `physicalActive=1` explicitly records that
 the containing dispatch has not yet returned. Its later return validates and
 clears the original sequence without changing frozen totals. A late fault still
 fails the owner, and the peer checks final serial status again after runner join.
+The driver child follows the same sequence and late-return rules. The current
+peer waits for its complete third line and verifies all three immutable records
+after joining the original runner.
 
 The arithmetic/parser/loopback tests establish host diagnostic contracts.
 Step1614 joins the first actual v6 native/guest run at cc2cad61, with all20

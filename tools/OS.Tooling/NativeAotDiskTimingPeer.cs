@@ -17,8 +17,11 @@ public static class NativeAotDiskTimingPeer
     public const string Target = "/_framework/System.Private.CoreLib.wasm";
     public const string Marker = "M10_018_TIMING ";
     public const string DispatchMarker = "M10_018_DISPATCH ";
+    public const string DriverMarker = "M10_018_DRIVER ";
     private static readonly string[] DispatchFields = ["bytes", "phaseNs", "pollNs", "dispatchNs", "nestedPollNs",
         "dispatchNonPollNs", "supervisorNonPollNs", "completed", "clipped", "physicalActive", "phaseComplete"];
+    private static readonly string[] DriverFields = ["bytes", "phaseNs", "pollNs", "driverNs", "nestedPollNs",
+        "driverNonPollNs", "dispatchShellNonPollNs", "completed", "clipped", "physicalActive", "phaseComplete"];
     private static readonly string[] Fields = ["bytes", "calls", "steps", "pumpNs", "scanNs", "flushNs",
         "preNetworkNs", "postNetworkNs", "postReadinessNs", "readinessRefreshNs", "readinessWaitScanNs", "postWaitRecordNs", "networkCalls", "diskReady", "otherReady", "noAdvance",
         "elapsed", "stepLimit", "failures", "flushedPastBudget", "pollNs", "diskRoundNs",
@@ -111,6 +114,45 @@ public static class NativeAotDiskTimingPeer
         return new System.Collections.ObjectModel.ReadOnlyDictionary<string, ulong>(values);
     }
 
+    /// <summary>Validate the generated-driver child of the already validated
+    /// dispatch record. Subsets must be nonnegative and conserve the complete
+    /// dispatch non-poll total. Driver time includes worker, guest, kernel,
+    /// transitions, logging and measurement overhead; it is not guest-only CPU.
+    /// Copied records supply no source, nesting, late-return or guest authority.</summary>
+    public static IReadOnlyDictionary<string, ulong> InspectDriverMetrics(string text, IReadOnlyDictionary<string, ulong> dispatchMetrics)
+    {
+        Need(text.Length <= 32 * 1024 * 1024, "driver_extent");
+        string[] lines = text.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')
+            .Where(line => line.StartsWith(DriverMarker, StringComparison.Ordinal)).ToArray();
+        Need(lines.Length == 1 && lines[0].Length <= 1024, "driver_count");
+        string[] tokens = lines[0][DriverMarker.Length..].Split(' '); Need(tokens.Length == DriverFields.Length, "driver_fields");
+        Dictionary<string, ulong> values = new(StringComparer.Ordinal);
+        for (int i = 0; i < DriverFields.Length; i++)
+        {
+            string prefix = DriverFields[i] + "="; Need(tokens[i].StartsWith(prefix, StringComparison.Ordinal), "driver_field");
+            string number = tokens[i][prefix.Length..];
+            Need(number.Length is > 0 and <= 20 && (number.Length == 1 || number[0] != '0') && number.All(c => c is >= '0' and <= '9') &&
+                ulong.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out _), "driver_number");
+            values.Add(DriverFields[i], ulong.Parse(number, CultureInfo.InvariantCulture));
+        }
+        ulong phase = 0, poll = 0, dispatch = 0, parentPoll = 0, parentNonPoll = 0;
+        Need(dispatchMetrics.TryGetValue("phaseNs", out phase) && dispatchMetrics.TryGetValue("pollNs", out poll) &&
+            dispatchMetrics.TryGetValue("dispatchNs", out dispatch) && dispatchMetrics.TryGetValue("nestedPollNs", out parentPoll) &&
+            dispatchMetrics.TryGetValue("dispatchNonPollNs", out parentNonPoll), "driver_parent");
+        ulong driver = values["driverNs"], nested = values["nestedPollNs"];
+        Need(values["bytes"] == 65536 && phase > 0 && values["phaseNs"] == phase && values["pollNs"] == poll &&
+            poll <= phase && dispatch <= phase && parentPoll <= poll && parentPoll <= dispatch && parentNonPoll == dispatch - parentPoll &&
+            parentNonPoll <= phase - poll &&
+            driver <= dispatch && nested <= driver && nested <= parentPoll &&
+            parentPoll - nested <= dispatch - driver &&
+            values["driverNonPollNs"] == driver - nested && values["driverNonPollNs"] <= parentNonPoll &&
+            values["dispatchShellNonPollNs"] == (dispatch - driver) - (parentPoll - nested) &&
+            values["dispatchShellNonPollNs"] == parentNonPoll - values["driverNonPollNs"] &&
+            values["completed"] <= 10_000_000 && values["clipped"] is > 0 and <= 2 &&
+            values["physicalActive"] == 1 && values["phaseComplete"] == 1, "driver_partition");
+        return new System.Collections.ObjectModel.ReadOnlyDictionary<string, ulong>(values);
+    }
+
     /// <summary>Leaves thirty seconds inside the admitted runner deadline for
     /// owned cancellation and joining; the diagnostic itself never exceeds480s.</summary>
     public static int PeerTimeoutSeconds(int runnerTimeoutSeconds)
@@ -140,7 +182,7 @@ public static class NativeAotDiskTimingPeer
         using var owned=CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);deadline.CancelAfter(TimeSpan.FromSeconds(peerTimeoutSeconds));
         Task<ProcessResult> runner=runRunner(port,owned.Token);Task? peer=null;bool complete=false;List<object> rows=[];
-        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null;string? failure=null;
+        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null, driverMetrics=null;string? failure=null;
         try
         {
             peer=Observe();
@@ -153,8 +195,9 @@ public static class NativeAotDiskTimingPeer
             // but fail the diagnostic if later guest bookkeeping failed.
             string finalSerial = await ReadSerial(CancellationToken.None);
             InspectGuestStatus(finalSerial);
-            Need(metrics is not null && dispatchMetrics is not null && InspectMetrics(finalSerial).SequenceEqual(metrics) &&
-                InspectDispatchMetrics(finalSerial, metrics).SequenceEqual(dispatchMetrics), "final_metrics_changed");
+            Need(metrics is not null && dispatchMetrics is not null && driverMetrics is not null && InspectMetrics(finalSerial).SequenceEqual(metrics) &&
+                InspectDispatchMetrics(finalSerial, metrics).SequenceEqual(dispatchMetrics) &&
+                InspectDriverMetrics(finalSerial, dispatchMetrics).SequenceEqual(driverMetrics), "final_metrics_changed");
             using Socket stopped=new(AddressFamily.InterNetwork,SocketType.Stream,ProtocolType.Tcp);
             using var refusal=new CancellationTokenSource(TimeSpan.FromSeconds(5));bool refused=false;
             try{await stopped.ConnectAsync(IPAddress.Loopback,port,refusal.Token);}
@@ -173,10 +216,10 @@ public static class NativeAotDiskTimingPeer
             try
             {
                 using FileStream receipt=new(Path.Combine(directory,"diagnostic.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
-                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v6",Scope="diagnostic-only",Complete=complete,
+                await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v7",Scope="diagnostic-only",Complete=complete,
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
-                    Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
+                    Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,DriverMetrics=driverMetrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
                 receipt.Flush(true);
             }
             catch(IOException){}catch(UnauthorizedAccessException){}
@@ -196,9 +239,9 @@ public static class NativeAotDiskTimingPeer
             {
                 deadline.Token.ThrowIfCancellationRequested();
                 string text = await ReadSerial(deadline.Token); InspectGuestStatus(text);
-                if(text.Split('\n').Any(line=>line.StartsWith(DispatchMarker,StringComparison.Ordinal)) &&
-                    text.LastIndexOf('\n')>text.IndexOf(DispatchMarker,StringComparison.Ordinal))
-                { metrics=InspectMetrics(text);dispatchMetrics=InspectDispatchMetrics(text,metrics);break; }
+                if(text.Split('\n').Any(line=>line.StartsWith(DriverMarker,StringComparison.Ordinal)) &&
+                    text.LastIndexOf('\n')>text.IndexOf(DriverMarker,StringComparison.Ordinal))
+                { metrics=InspectMetrics(text);dispatchMetrics=InspectDispatchMetrics(text,metrics);driverMetrics=InspectDriverMetrics(text,dispatchMetrics);break; }
                 await Task.Delay(50,deadline.Token);
             }
 

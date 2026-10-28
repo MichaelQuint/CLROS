@@ -104,6 +104,10 @@ not additional capabilities claimed by this documentation update.
 <summary>Development progress and retained evidence</summary>
 
 <!-- Keep development updates here, below the project introduction. -->
+[Step1635](done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
+
+A diagnostic-only generated-driver child span now partitions the existing dispatch window without changing work, polling, evidence or budgets. Twenty-eight focused Root host checks pass; new native and original v7 qualification remain pending. This is no observed speedup or pure guest-CPU measurement. #770/#771/#773/#774 remain open; finish this entire read phase, merge/readback and recoverable cleanup, then pause before successor work.
+
 [Step1631](done/step1631.md) retains fresh complete Mechanical59 and ExitPending originals, plus the failed CloseReuse original whose strict physical pending interval was absent. A digest-bound, probe-only zero-or-one-step close boundary is implemented and reviewed; its fresh guest run is still pending. All110 coherent focused checks pass. The additive fault-image verifier authenticates four existing corrupt variants against an intact image; it does not yet execute a corrupt guest HTTP request. #770/#771/#773/#774, full FAT32/Blazor/browser, writes and SQLite remain open.
 
 <!-- step1625-progress-development -->

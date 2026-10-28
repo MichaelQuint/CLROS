@@ -490,7 +490,8 @@ public static unsafe partial class EfiEntry
             {
                 if (disk->Boot != c->State) return false;
                 if (disk->TimingPhase == 2)
-                    return disk->TimingDispatch.IsComplete && !disk->TimingDispatch.IsPhysicalDispatchActive && LinuxNativeDispatch(c);
+                    return disk->TimingDispatch.IsComplete && !disk->TimingDispatch.IsPhysicalDispatchActive &&
+                        disk->TimingDriver.IsComplete && !disk->TimingDriver.IsPhysicalDispatchActive && LinuxNativeDispatch(c);
                 if (!ReadNetworkTime(c->State, out ulong began) ||
                     !disk->TimingDispatch.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence)) return false;
                 bool returned = LinuxNativeDispatch(c);
@@ -498,6 +499,27 @@ public static unsafe partial class EfiEntry
                 // an immutable phase-complete line has already been printed.
                 if (!ReadNetworkTime(c->State, out ulong ended) ||
                     !disk->TimingDispatch.EndDispatch(sequence, ended, disk->TimingNetworkTotal)) return false;
+                return returned;
+            }
+        }
+
+        // This child brackets the original generated-driver invocation on the
+        // serialized supervisor. Arm/Freeze may happen inside that invocation;
+        // its later physical return must validate without changing frozen data.
+        // Boundary overhead stays measured. No sample controls work or polling.
+        private static bool LinuxNativeMeasuredDriver(LinuxNativeControl* c, uint index)
+        {
+            fixed (NativeDiskOwner* disk = &s_nativeDisk)
+            {
+                if (disk->Boot != c->State) return false;
+                if (disk->TimingPhase == 2)
+                    return disk->TimingDriver.IsComplete && !disk->TimingDriver.IsPhysicalDispatchActive &&
+                        ((delegate* unmanaged<uint>)(c->State->CooperativePool + index * NativeProgram.DriverStride))() == 1;
+                if (!disk->TimingDispatch.IsPhysicalDispatchActive || !ReadNetworkTime(c->State, out ulong began) ||
+                    !disk->TimingDriver.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence)) return false;
+                bool returned = ((delegate* unmanaged<uint>)(c->State->CooperativePool + index * NativeProgram.DriverStride))() == 1;
+                if (!disk->TimingDispatch.IsPhysicalDispatchActive || !ReadNetworkTime(c->State, out ulong ended) ||
+                    !disk->TimingDriver.EndDispatch(sequence, ended, disk->TimingNetworkTotal)) return false;
                 return returned;
             }
         }
@@ -512,7 +534,11 @@ public static unsafe partial class EfiEntry
             if (!next.Succeeded || next.State != KernelThreadTable.State.Running || index >= c->Capacity ||
                 next.Identity.Value != c->Plan.Bindings[index].Context.Identity) return false;
             c->Selected = index + 1;
+#if M10_018_TIMING_PROBE
+            bool returned = LinuxNativeMeasuredDriver(c, index);
+#else
             bool returned = ((delegate* unmanaged<uint>)(c->State->CooperativePool + index * NativeProgram.DriverStride))() == 1;
+#endif
             if (!returned || !CooperativeEqualContexts(c->Plan.Supervisor.Context, c->Plan.Witness) || !LinuxNativeObserve(c) ||
                 !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true)) return false;
             // Confirm even a staged failure, after actual return/restoration;
