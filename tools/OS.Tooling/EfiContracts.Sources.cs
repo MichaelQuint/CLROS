@@ -21,7 +21,7 @@ public static partial class EfiContracts
                 [@"Boot\EfiEntry.WritableDisk.cs"] = "565b22def6e55b578958d68dc5ef95873bc81399a287a19fbb470282f23d7161",
                 [@"Boot\EfiEntry.WritableDiskEvidence.cs"] = "e77ee478cf27f79fa8ebab2b3f9678b5ef2b932bc4c491270271d5b4d8fea14b",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Disk.cs"] = "8014e214463cbb41cc72a4eae99917834a05ff5528ad2b12aa50d42a6ae644c3",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "25e5b8558a4d3dfe302eab0931e0fea249da2273fa9cfbd882ec65512b51d031",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Disk.cs"] = "2f39a28f625ccdda99643aaff4db1965df7769a1a927cfd37fdfdc9a86bef905",
                 [@"..\OS.Kernel\Storage\ReadOnlyWebRootFileSystem.cs"] = "4546199d33b3e0bb5d2d405b6131fd9facda5d0714d1e8341a1f695fdb6bbb44",
                 [@"..\OS.Kernel\Storage\ContinuingReadOnlyBlockService.cs"] = "c36e37915793055909f7b54b53fae6be2a622eb84157bb2d15aee4ae4e1d6c50",
                 [@"Boot\EfiEntry.DiskEvidence.cs"] = "833c45c55ab4e6e71618cf71e38231adf7e3a49d064822f5b046274eb4f31419",
