@@ -1,5 +1,7 @@
 # Image Builder
 
+[Step1636](../done/step1636.md) records complete inner v7 diagnostic observations and the failed outer wrapper (an absent Full-only checkpoint). A bounded ordered-index range-admission change is in development after11 helper Fast controls; prospective Timing guards pass19 controls. Fresh source-matched native/full-host/HTTP/browser qualification remains required. No speedup or new read/Blazor acceptance is claimed; #770/#771/#773/#774 remain open.
+
 [Step1635](../done/step1635.md) preserves the first fresh Full018 DiskA run at `f27d42e2` as FAILED at the unchanged1700-second HTTP matrix budget:119 complete responses/8130864B, with the concurrent CoreLib response incomplete at819200/2009369B. The owned runner joined after cancellation; browser and normal guest cleanup were not reached. The same-source7359-check full-host pass and conditional native review do not override that failure.
 
 A diagnostic-only generated-driver child span now partitions the existing dispatch window without changing work, polling, evidence or budgets. Twenty-eight focused Root host checks pass; new native and original v7 qualification remain pending. This is no observed speedup or pure guest-CPU measurement. #770/#771/#773/#774 remain open; finish this entire read phase, merge/readback and recoverable cleanup, then pause before successor work.
