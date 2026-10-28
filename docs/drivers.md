@@ -8,6 +8,8 @@
 
 ## Current driver boundary
 
+[Step1639](../done/step1639.md) records Full/Timing-only bounded 1..4-sector reads within existing 4 KiB DMA backing; 512-byte sector geometry and legacy defaults remain unchanged. See [storage](cstorage.md). Current host and finite short results do not qualify complete continuing storage, browser startup or natural Full cleanup.
+
 Finite retained Virtio-net/TCP service is qualified in step1332 and exercised
 by the socket/Kestrel profiles through [step1556](../done/step1556.md). Bounded
 block/FAT/package diagnostics retain their separate step1162 scope. The older
