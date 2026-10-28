@@ -1,11 +1,173 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using System.Text.Json;
 using OS.Tooling;
+using Fds = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 using Fs = OS.Storage.ReadOnlyWebRootFileSystem;
 using I = OS.Tooling.WebRootDiskInventory;
 
 internal static class WebRootDiskInventoryTests
 {
+    [HostTest("truncated original held receipt join accepts exact bytes across hash casing and rejects wrong images or receipts", HostLane.Native)]
+    private static void TruncatedHeldReceipts() => WithInventory((root, directory, image, receipt, _, _) =>
+    {
+        string path=Path.Combine(directory,"held-truncated.raw"),metadata=Path.Combine(directory,"held-fault.json"),
+            wrongMetadata=Path.Combine(directory,"held-wrong-fault.json");
+        var fault=WebRootImageFixture.CreateFaultVariant(root,image,receipt,path,"Truncated");
+        var verified=I.VerifiedTruncated.Verify(root,image,receipt,path,fault);
+        File.WriteAllText(metadata,JsonSerializer.Serialize(fault));
+        File.WriteAllText(wrongMetadata,JsonSerializer.Serialize(fault with {TargetPath=I.Root+"/index.html"}));
+        using AuthorityFiles held=new();
+        var positive=held.Open(root,image,"positive image","held_positive",WebRootImageFixture.MaximumImageBytes,singleLink:true);
+        var actual=held.Open(root,path,"fault image","held_fault",WebRootImageFixture.MaximumImageBytes,singleLink:true);
+        var expected=held.Open(root,metadata,"fault receipt","held_receipt",4096,singleLink:true);
+        var wrong=held.Open(root,wrongMetadata,"wrong fault receipt","held_wrong_receipt",4096,singleLink:true);
+        HostCheck.Equal(verified.Baseline.ImageSha256,positive.Sha256.ToUpperInvariant());
+        QemuSmoke.RequireTruncatedReceipts(verified,positive,expected);
+        Reject(()=>QemuSmoke.RequireTruncatedReceipts(verified,actual,expected),"disk_truncated_receipt_identity");
+        Reject(()=>QemuSmoke.RequireTruncatedReceipts(verified,positive,wrong),"disk_truncated_receipt_identity");
+        held.VerifyUnchanged();verified.VerifyUnchanged();
+    });
+
+    [HostTest("corrupt stat to HTTP join rejects missing late duplicate wrong path and wrong generation observations")]
+    private static void FaultResponseJoin()
+    {
+        QemuTranscripts.DiskStaticOperation op = new(1, 2, 4, 7, 30, 40, 50, 144, -5);
+        QemuTranscripts.DiskStaticFault fault = new(I.VerifiedTruncated.Target, op);
+        var joined = QemuTranscripts.InspectDiskStaticFaultResponseValues([fault], 10, 20, 60);
+        HostCheck.True(joined.Count == 1 && joined[0] == fault);
+        var other = fault with { Operation = op with { Ordinal = 3, Request = 8, BeginRecordIndex = 35, WakeRecordIndex = 45, CompleteRecordIndex = 55 } };
+        HostCheck.Equal(2, QemuTranscripts.InspectDiskStaticFaultResponseValues([fault, other], 10, 20, 60).Count);
+        foreach (var invalid in new[]
+        {
+            fault with { Path = I.Root + "/index.html" },
+            fault with { Operation = op with { Identity = 0 } },
+            fault with { Operation = op with { Ordinal = 0 } },
+            fault with { Operation = op with { Request = 0 } },
+            fault with { Operation = op with { Number = 2 } },
+            fault with { Operation = op with { Value = -2 } },
+            fault with { Operation = op with { Value = 0 } },
+            fault with { Operation = op with { OutputPrefix = 143 } },
+            fault with { Operation = op with { BeginRecordIndex = 10 } },
+            fault with { Operation = op with { WakeRecordIndex = 30 } },
+            fault with { Operation = op with { CompleteRecordIndex = 40 } },
+            fault with { Operation = op with { CompleteRecordIndex = 60 } }
+        }) Reject(() => QemuTranscripts.InspectDiskStaticFaultResponseValues([invalid], 10, 0, 60));
+        Reject(() => QemuTranscripts.InspectDiskStaticFaultResponseValues([], 10, 20, 60));
+        Reject(() => QemuTranscripts.InspectDiskStaticFaultResponseValues([fault, fault], 10, 20, 60));
+        Reject(() => QemuTranscripts.InspectDiskStaticFaultResponseValues([fault], 10, 50, 60));
+        Reject(() => QemuTranscripts.InspectDiskStaticFaultResponseValues([fault], 10, 20, 20));
+    }
+
+    [HostTest("truncated HTTP selector requires complete fresh Full018 and preserves healthy defaults")]
+    private static void FaultSelection()
+    {
+        string[] args = ["-EnableM10018FullProbe", "-BuildEfi", "-LinuxElfPackage", "artifacts/full.pkg",
+            "-LinuxThreadingDisassembly", "artifacts/full.dump", "-WebRootFixture", "DiskA", "-WebRootAssets", "artifacts/full-root"];
+        var positive = QemuSmokeOptions.Parse(args); _ = QemuProfiles.Create(positive);
+        HostCheck.Equal("None", positive.WebRootFault);
+        var negative = QemuSmokeOptions.Parse([..args, "-WebRootFault", "Truncated"]); _ = QemuProfiles.Create(negative);
+        HostCheck.Equal(positive.TimeoutSeconds, negative.TimeoutSeconds);
+        foreach (string[] suffix in new[]
+        {
+            new[]{"-EnableM10018TimingProbe"}, new[]{"-BuildEfi:false"}, new[]{"-SkipImageBuild"},
+            new[]{"-GptImageVariant", "PrimaryHeaderCrcFault"}, new[]{"-PackageImageVariant", "ManifestHashFault"},
+            new[]{"-EnableM10018FullProbe:false"}, new[]{"-LinuxDiskRaceVariant", "CloseReuse"}
+        }) Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse([..args, "-WebRootFault", "Truncated", ..suffix])));
+        foreach (string[] suffix in new[] { new[]{"-WebRootFault", "Loop"}, new[]{"-WebRootFault", ""},
+            new[]{"-WebRootFault", "Truncated", "-WebRootFault", "None"} })
+        {
+            bool denied = false; try { _ = QemuSmokeOptions.Parse([..args, ..suffix]); } catch (ArgumentException) { denied = true; }
+            HostCheck.True(denied);
+        }
+    }
+
+    [HostTest("verified truncated control retains distinct actual and positive identities and refuses healthy substitution", HostLane.Native)]
+    private static void TruncatedAuthority() => WithInventory((root, directory, image, receipt, raw, actual) =>
+    {
+        string path = Path.Combine(directory, "typed-truncated.raw");
+        var fault = WebRootImageFixture.CreateFaultVariant(root, image, receipt, path, "Truncated");
+        var verified = I.VerifiedTruncated.Verify(root, image, receipt, path, fault);
+        byte[] changed = File.ReadAllBytes(path);
+        ulong fat = verified.Fault.Fat0WordOffset / 512;
+        HostCheck.Equal(receipt.FinalSha256, verified.Baseline.ImageSha256);
+        HostCheck.Equal(fault.FinalSha256, verified.ActualImageSha256);
+        HostCheck.True(verified.Baseline.ImageSha256 != verified.ActualImageSha256);
+        HostCheck.Equal(I.MetadataKind.Fat0, I.ClassifyMetadata(verified.Baseline, changed, [fat], verified)[0].Kind);
+        Reject(() => I.ClassifyMetadata(verified.Baseline, changed, [fat]), "webroot_disk_inventory_metadata_image");
+        Reject(() => I.ClassifyMetadata(verified.Baseline, raw, [fat], verified), "webroot_disk_inventory_truncated_values");
+        Reject(() => I.ClassifyMetadata(actual, changed, [fat], verified), "webroot_disk_inventory_truncated_values");
+        ulong targetData = verified.Baseline.Find(I.VerifiedTruncated.Target)!.Sectors[0].Lba;
+        Reject(() => I.ClassifyMetadata(verified.Baseline, changed, [targetData], verified), "webroot_disk_inventory_metadata_asset");
+        Reject(() => I.VerifiedTruncated.Verify(root, image, receipt, path, fault with { Variant = "Loop" }), "webroot_disk_inventory_truncated_input");
+        Reject(() => I.VerifiedTruncated.Verify(root, image, receipt, image, fault));
+        verified.VerifyUnchanged();
+        changed[^100] ^= 1; File.WriteAllBytes(path, changed);
+        Reject(verified.VerifyUnchanged, "webroot_image_fault_identity");
+    });
+
+    [HostTest("verified truncated context snapshots original receipt records and nested extent arrays", HostLane.Native)]
+    private static void TruncatedReceiptSnapshot() => WithInventory((root, directory, image, receipt, _, _) =>
+    {
+        string path = Path.Combine(directory, "snapshot-truncated.raw");
+        var fault = WebRootImageFixture.CreateFaultVariant(root, image, receipt, path, "Truncated");
+        var verified = I.VerifiedTruncated.Verify(root, image, receipt, path, fault);
+        var baseline = verified.Baseline;
+        var target = baseline.Find(I.VerifiedTruncated.Target)!;
+        byte[] content = target.CopyBytes();
+        var extents = target.Extents.ToArray(); var sectors = target.Sectors.ToArray();
+        string plan = JsonSerializer.Serialize(DiskStaticHttpContract.CreateTruncatedAssetPlan(verified));
+        int at = Array.FindIndex(receipt.WebRootFiles, f => f.Path == I.VerifiedTruncated.Target);
+        HostCheck.True(at >= 0 && receipt.WebRootFiles[at].Extents.Length > 0 &&
+            receipt.PreservedFiles.Length > 0 && receipt.PreservedFiles[0].Extents.Length > 0 && receipt.Sentinel.Extents.Length > 0);
+        var original = receipt.WebRootFiles[at];
+        original.Extents[0] = original.Extents[0] with { FirstCluster = 0, FirstLba = 0 };
+        receipt.WebRootFiles[at] = original with { Path = I.Root + "/changed.bin", Bytes = 0, Sha256 = Hash([]) };
+        var preserved = receipt.PreservedFiles[0];
+        preserved.Extents[0] = preserved.Extents[0] with { Clusters = 0 };
+        receipt.PreservedFiles[0] = preserved with { Path = "/changed", Bytes = 0 };
+        receipt.Sentinel.Extents[0] = receipt.Sentinel.Extents[0] with { FirstLba = 0 };
+
+        // Only the borrowed receipt was changed; the original image pair is
+        // still exact, so rechecking must use the context's private snapshot.
+        verified.VerifyUnchanged();
+        HostCheck.True(ReferenceEquals(baseline, verified.Baseline) && baseline.ImageSha256 == receipt.FinalSha256 &&
+            verified.ActualImageSha256 == fault.FinalSha256 && baseline.Find(I.Root + "/changed.bin") is null &&
+            target.CopyBytes().SequenceEqual(content) && target.Extents.SequenceEqual(extents) && target.Sectors.SequenceEqual(sectors));
+        HostCheck.Equal(plan, JsonSerializer.Serialize(DiskStaticHttpContract.CreateTruncatedAssetPlan(verified)));
+        HostCheck.True(!verified.Fault.GrantsNativeDeviceOrProcessAuthority && !verified.Fault.GrantsGuestReadFailureAuthority);
+    });
+
+    [HostTest("truncated full asset plan changes only fixed GET HEAD and never advertises healthy scope", HostLane.Native)]
+    private static void TruncatedPlan() => WithInventory((root, directory, image, receipt, _, _) =>
+    {
+        string path = Path.Combine(directory, "plan-truncated.raw");
+        var fault = WebRootImageFixture.CreateFaultVariant(root, image, receipt, path, "Truncated");
+        var verified = I.VerifiedTruncated.Verify(root, image, receipt, path, fault);
+        var positive = DiskStaticHttpContract.CreateAssetPlan(verified.Baseline);
+        var negative = DiskStaticHttpContract.CreateTruncatedAssetPlan(verified);
+        HostCheck.True(!positive.Truncated && negative.Truncated && positive.Scope != negative.Scope && positive.Schema != negative.Schema);
+        HostCheck.Equal(positive.Requests.Count, negative.Requests.Count);
+        HostCheck.Equal(fault.FinalSha256, negative.ImageSha256);
+        HostCheck.Equal(receipt.FinalSha256, positive.ImageSha256);
+        HostCheck.Equal(positive.PublishedInventorySha256, negative.PublishedInventorySha256);
+        int changes = 0;
+        for (int i = 0; i < positive.Requests.Count; i++)
+        {
+            var a = positive.Requests[i]; var b = negative.Requests[i];
+            if (a.Target == "/fixture/fragmented.bin")
+            {
+                changes++;
+                HostCheck.True(b.Method is "GET" or "HEAD" && b.Status == 404 && b.Asset is null && b.BodyBytes == 0 &&
+                    b.ContentLength == 0 && b.ContentRange is null && b.Headers.Count == 0 && b.BodySha256 == Hash([]));
+            }
+            else HostCheck.Equal(JsonSerializer.Serialize(a), JsonSerializer.Serialize(b));
+        }
+        HostCheck.Equal(2, changes);
+        HostCheck.Equal(positive.ExpectedBodyBytes - WebRootImageFixture.FragmentedFixtureBytes, negative.ExpectedBodyBytes);
+        verified.VerifyUnchanged();
+    });
+
     [HostTest("disk inventory joins45 published paths plus generated edges with actual short-slot inode and timestamps", HostLane.Native)]
     private static void CompleteInventory() => WebRootImageFixtureTests.WithImage((root, directory, image, source) =>
     {
@@ -210,6 +372,67 @@ internal static class WebRootDiskInventoryTests
         HostCheck.True(output.SequenceEqual(wanted));
         HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, other.File));
         Console.WriteLine($"WEBROOT_FAULT_FS variant=Truncated result=Truncated submitted={submitted} completed={completed} copied={copied} syntheticDevice=true guest=false");
+    });
+
+    [HostTest("actual managed descriptor stat and lstat report truncated EIO without output fd or stale completion and recover healthy metadata", HostLane.Native)]
+    private static unsafe void TruncatedDescriptorErrors() => WithInventory((root, directory, image, receipt, rawImage, actual) =>
+    {
+        string path = Path.Combine(directory, "descriptor-truncated.raw");
+        var fault = WebRootImageFixture.CreateFaultVariant(root, image, receipt, path, "Truncated");
+        var verified = I.VerifiedTruncated.Verify(root, image, receipt, path, fault);
+        using var owner = new LinuxDiskDescriptorServicesTests.Owner(storage: MountImage(File.ReadAllBytes(path), receipt));
+        const ulong pathAddress = LinuxThreadServicesTests.UserBase + 0x1200, output = LinuxThreadServicesTests.UserBase + 0x2000;
+        var old = new List<(Fds.DiskToken Token, OS.Kernel.Compatibility.LinuxX64.LinuxSyscallFrame Call)>();
+        foreach (ulong number in new[] { 4UL, 6UL })
+        {
+            owner.PutPath(I.VerifiedTruncated.Target);
+            new Span<byte>(owner.Thread.At(output), 144).Fill(0xa5);
+            uint writes = owner.Thread.Writes;
+            var call = owner.Call(number, pathAddress, output);
+            var begun = owner.Begin(call);
+            HostCheck.Equal(Fds.DiskProgress.Pending, begun.Progress);
+            var ready = owner.Ready(begun.Token);
+            HostCheck.True(ready.Progress == Fds.DiskProgress.Ready && ready.Failure == Fs.Status.Truncated);
+            var result = Fds.CompleteDisk(owner.Files.State, owner.ThreadOwner, owner.Worker, begun.Token, call);
+            HostCheck.True(result.Progress == Fds.DiskProgress.Immediate && result.Value == -5 && result.Failure == Fs.Status.Truncated);
+            HostCheck.True(owner.Thread.Writes == writes && new ReadOnlySpan<byte>(owner.Thread.At(output), 144).IndexOfAnyExcept((byte)0xa5) < 0 &&
+                !Fds.Capture(owner.Files.State, 3, out _));
+            old.Add((begun.Token, call));
+        }
+        HostCheck.True(owner.Storage.Disk.Reads[checked((int)(verified.Fault.Fat0WordOffset / 512))] > 0 &&
+            owner.Storage.Disk.Reads[checked((int)(verified.Fault.Fat1WordOffset / 512))] > 0);
+        foreach (var sector in actual.Find(I.VerifiedTruncated.Target)!.Sectors)
+            HostCheck.Equal(0U, owner.Storage.Disk.Reads[checked((int)sector.Lba)]);
+
+        // A new real healthy operation is live while both old result tokens
+        // are rejected. No guessed descriptor/memory generations are needed.
+        owner.PutPath(I.Root + "/index.html");
+        var healthyCall = owner.Call(4, pathAddress, output);
+        var healthy = owner.Begin(healthyCall);
+        HostCheck.Equal(Fds.DiskProgress.Pending, healthy.Progress);
+        uint before = owner.Thread.Writes;
+        ulong submitted = owner.Storage.Device->Submitted, copied = owner.Storage.Device->Copied;
+        foreach (var stale in old)
+        {
+            HostCheck.Equal(Fds.DiskProgress.Rejected, Fds.PollDisk(owner.Files.State, owner.ThreadOwner, stale.Token).Progress);
+            HostCheck.Equal(Fds.DiskProgress.Rejected,
+                Fds.CompleteDisk(owner.Files.State, owner.ThreadOwner, owner.Worker, stale.Token, stale.Call).Progress);
+        }
+        HostCheck.True(owner.Thread.Writes == before && owner.Storage.Device->Submitted == submitted && owner.Storage.Device->Copied == copied &&
+            new ReadOnlySpan<byte>(owner.Thread.At(output), 144).IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.Equal(Fds.DiskProgress.Ready, owner.Ready(healthy.Token).Progress);
+        var recovered = Fds.CompleteDisk(owner.Files.State, owner.ThreadOwner, owner.Worker, healthy.Token, healthyCall);
+        HostCheck.True(recovered.Progress == Fds.DiskProgress.Immediate && recovered.Value == 0 && recovered.Failure == Fs.Status.Success &&
+            owner.Thread.Writes == before + 1 && !Fds.Capture(owner.Files.State, 3, out _));
+        byte[] wire = new ReadOnlySpan<byte>(owner.Thread.At(output), 144).ToArray();
+        var expected = actual.Find(I.Root + "/index.html")!;
+        HostCheck.Equal(expected.Inode, BinaryPrimitives.ReadUInt64LittleEndian(wire.AsSpan(8)));
+        HostCheck.Equal((ulong)expected.Bytes, BinaryPrimitives.ReadUInt64LittleEndian(wire.AsSpan(48)));
+        HostCheck.Equal(0x8124U, BinaryPrimitives.ReadUInt32LittleEndian(wire.AsSpan(24)));
+        HostCheck.Equal(0L, owner.Run(owner.Call(6, pathAddress, output)));
+        HostCheck.True(owner.Thread.Writes == before + 2 && new ReadOnlySpan<byte>(owner.Thread.At(output), 144).SequenceEqual(wire) &&
+            !Fds.Capture(owner.Files.State, 3, out _));
+        verified.VerifyUnchanged();
     });
 
     private static unsafe ReadOnlyWebRootFileSystemTests.Fixture MountImage(byte[] raw, WebRootImageFixture.Receipt receipt)

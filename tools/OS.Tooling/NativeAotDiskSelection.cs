@@ -77,6 +77,10 @@ public static class NativeAotDiskSelection
         bool disk = Selected(flags);
         bool writable = WritableSelected(flags);
         bool race = options.HasDiskRaceSelection;
+        if(options.WebRootFault is not ("None" or "Truncated"))throw new ToolFailure("disk_webroot_fault");
+        if(options.WebRootFault=="Truncated" && (!FullStaticSelected(flags) || TimingSelected(flags) || writable || race ||
+            !options.BuildEfi || options.SkipImageBuild || options.GptImageVariant!="Intact" || options.PackageImageVariant!="Intact"))
+            throw new ToolFailure("disk_truncated_full_original_required");
         bool disassembly = !string.IsNullOrEmpty(options.WritableDiskDisassembly) || options.Explicit.Contains("WritableDiskDisassembly");
         if (!writable && (options.WritableDiskFixture.Length != 0 || options.Explicit.Contains("WritableDiskFixture") || disassembly))
             throw new ToolFailure("writable_disk_fixture_requires_profile");

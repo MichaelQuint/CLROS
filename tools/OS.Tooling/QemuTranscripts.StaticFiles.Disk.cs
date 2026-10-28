@@ -15,6 +15,8 @@ public static partial class QemuTranscripts
         ulong BootstrapCompleted, ulong BootstrapCopied, int ReadinessRecordIndex)
     {
         public bool FullProfile { get; init; }
+        public bool Truncated { get; init; }
+        public IReadOnlyList<DiskStaticFault> Faults { get; init; } = Array.Empty<DiskStaticFault>();
         public bool CheckedDeviceBytesOrHttp => false;
         public bool GrantsOriginalExecutionAuthority => false;
     }
@@ -24,6 +26,11 @@ public static partial class QemuTranscripts
     /// no unique request attribution. Values do not reconstruct the FS cache.</summary>
     public readonly record struct DiskStaticOperation(ulong Identity,ulong Ordinal,ulong Number,ulong Request,
         int BeginRecordIndex,int WakeRecordIndex,int CompleteRecordIndex,uint OutputPrefix,long Value);
+
+    /// <summary>Copied failed fixed-path stat and its authenticated source4
+    /// interval. This is a protocol fact; physical FAT bytes and queued HTTP
+    /// responses must independently join it before any negative acceptance.</summary>
+    public readonly record struct DiskStaticFault(string Path, DiskStaticOperation Operation);
 
     /// <summary>Successfully queued bytes in one original accepted socket's
     /// response stream. Offsets are per open description, never a reused fd;
@@ -44,16 +51,19 @@ public static partial class QemuTranscripts
     /// operations. This is a synchronous value join, not a process owner or an
     /// FS-cache replay. The caller retains original source/native/packet authority.</summary>
     public static DiskStaticSectorValues InspectNativeAotDiskStaticSectorValues(DiskStaticReplayReport replay,
-        WebRootDiskInventory.Inspection inventory,byte[] heldImage,NativeDiskReadObservations.Boundary final)
+        WebRootDiskInventory.Inspection inventory,byte[] heldImage,NativeDiskReadObservations.Boundary final,
+        WebRootDiskInventory.VerifiedTruncated? truncated=null)
     {
         Need(replay is not null && inventory is not null && replay.Operations.Count>0 && replay.Operations.Count<=(replay.FullProfile?DiskStaticExecutionPolicy.MaximumCalls:4096) &&
             final.Owner==replay.Owner && final.Epoch==replay.Epoch && final.BootstrapCompleted==replay.BootstrapCompleted &&
             final.BootstrapCopied==replay.BootstrapCopied,"disk_static_sector_boundary");
         ArgumentNullException.ThrowIfNull(replay);
         ArgumentNullException.ThrowIfNull(inventory);
+        Need(replay.Truncated==(truncated is not null),"disk_static_sector_fault_scope");
+        if(truncated is not null)truncated.RequireValues(inventory,heldImage);
         var device=NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r=>r.Text).ToArray(),heldImage,final,diskStaticFull:replay.FullProfile);
         var data=NativeDiskStaticReadWindows.Inspect(inventory,device,replay.DeviceRows.Select(r=>r.RecordIndex).ToArray(),replay.Reads);
-        var metadata=WebRootDiskInventory.ClassifyMetadata(inventory,heldImage,data.Residual.Select(c=>c.Observation.Sector).ToArray());
+        var metadata=WebRootDiskInventory.ClassifyMetadata(inventory,heldImage,data.Residual.Select(c=>c.Observation.Sector).ToArray(),truncated);
         var operations=replay.Operations.OrderBy(o=>o.BeginRecordIndex).ToArray();
         Need(operations.Select(o=>o.Request).Distinct().Count()==operations.Length,"disk_static_operation_requests");
         var byRequest=operations.ToDictionary(o=>o.Request);
@@ -79,6 +89,24 @@ public static partial class QemuTranscripts
             int at=Array.BinarySearch(begins,copy.SubmitRecordIndex);at=at>=0?at-1:~at-1;
             Need(at>=0 && ends[at]>copy.CopyRecordIndex,"disk_static_metadata_pending_interval");
         }
+        if(truncated is not null)
+        {
+            ulong inode=inventory.Find(WebRootDiskInventory.VerifiedTruncated.Target)!.Inode;
+            Need(replay.FullProfile && replay.Faults.Count>=2 && replay.Reads.All(r=>r.Inode!=inode),"disk_static_fault_read_inventory");
+            foreach(var fault in replay.Faults)
+            {
+                var op=fault.Operation;
+                Need(fault.Path==WebRootDiskInventory.VerifiedTruncated.Target && byRequest.TryGetValue(op.Request,out var actual) &&
+                    actual==op && op.Number is 4 or 6 && op.Value==-5,"disk_static_fault_operation");
+                // The mount and raw image are immutable in this scope. An
+                // earlier authenticated copy may fill the cache; neither an
+                // invented fresh read nor a guessed per-request cache is used.
+                foreach(ulong lba in new[]{truncated.Fault.Fat0WordOffset/512,truncated.Fault.Fat1WordOffset/512})
+                    Need(data.Residual.Any(c=>c.Observation.Sector==lba && c.CopyRecordIndex<op.WakeRecordIndex),
+                        "disk_static_fault_fat_observation");
+            }
+        }
+        else Need(replay.Faults.Count==0,"disk_static_unselected_fault");
         return new(device,data,metadata);
     }
 
@@ -90,13 +118,15 @@ public static partial class QemuTranscripts
     /// original image/native/process/packet/HTTP owners remain mandatory.</summary>
     public static DiskStaticReplayReport InspectNativeAotDiskStaticProtocolForTests(byte[] elf,
         ReadOnlySpan<byte> raw, Func<ulong,bool> instruction, Func<ulong,bool> syscallReturn,
-        ulong userRoot, ulong kernelRoot, WebRootDiskInventory.Inspection inventory,bool diskStaticFull=false)
+        ulong userRoot, ulong kernelRoot, WebRootDiskInventory.Inspection inventory,bool diskStaticFull=false,
+        WebRootDiskInventory.VerifiedTruncated? truncated=null)
     {
         Need(inventory is not null,"disk_static_inventory_missing");
         var output=NativeAotThreadingOutput.ReadWeb(raw,diskStaticFull);
         var capture=NativeAotSocketGuest.ReadDiskStaticReadiness(output,diskStaticFull);
         var replay=new ThreadingProtocol(NativeAotStaticFilePublisher.Application,Rows(output),elf,instruction,
-            syscallReturn,output.WriteLengths,userRoot,kernelRoot,socketCapture:capture,diskInventory:inventory,diskStaticFull:diskStaticFull);
+            syscallReturn,output.WriteLengths,userRoot,kernelRoot,socketCapture:capture,diskInventory:inventory,diskStaticFull:diskStaticFull,
+            diskTruncated:truncated);
         return replay.DiskStaticValidate();
     }
 
@@ -117,6 +147,8 @@ public static partial class QemuTranscripts
     private sealed partial class ThreadingProtocol
     {
         private readonly WebRootDiskInventory.Inspection? diskInventory;
+        private readonly WebRootDiskInventory.VerifiedTruncated? diskTruncated;
+        private readonly List<DiskStaticFault> diskFaults=[];
         private string StaticTag=>diskInventory is null?"M10_017":"M10_018";
         private readonly List<LinuxDiskAuxiliary> diskIo=[];
         private readonly List<NativeDiskStaticReadWindows.ReadWindow> diskReadWindows=[];
@@ -141,7 +173,8 @@ public static partial class QemuTranscripts
                 "disk_static_complete_observations");
             return new(StaticReport(protocol),Array.AsReadOnly(diskReadWindows.ToArray()),Array.AsReadOnly(diskOperations.ToArray()),
                 Array.AsReadOnly(diskSocketWrites.ToArray()),Array.AsReadOnly(diskIo.ToArray()),
-                diskOwner,diskEpoch,diskBootstrapCompleted,diskBootstrapCopied,diskReadyIndex) {FullProfile=diskStaticFull};
+                diskOwner,diskEpoch,diskBootstrapCompleted,diskBootstrapCopied,diskReadyIndex)
+                {FullProfile=diskStaticFull,Truncated=diskTruncated is not null,Faults=Array.AsReadOnly(diskFaults.ToArray())};
         }
 
         private void DiskStaticSocketQueued(Dictionary<string,ulong> call,int index)
@@ -301,8 +334,16 @@ public static partial class QemuTranscripts
                 p[^1] is not ('.' or ' ') && p.All(c=>c is >=(char)33 and <=(char)126 && !"\\:*?\"<>|".Contains(c)));
             Need(diskCompleting is null || valid,"disk_static_blocked_immediate_path");
             var entry=diskInventory!.Find(path);
+            bool truncated=diskTruncated is not null && path==WebRootDiskInventory.VerifiedTruncated.Target;
+            Need(!truncated || !open,"disk_static_truncated_open");
             long expected;ulong kind=0,inode=0,size=0,mode=0;
             if(!valid)expected=-13;
+            else if(truncated)
+            {
+                Need(!trailing && call["nr"] is 4 or 6 && diskCompleting is {Winner:1} && diskCompleting.Witness.Source==4 && diskCompleting.OutputPrefix>=144 &&
+                    memory.Covered(call["a1"],144,3),"disk_static_truncated_stat");
+                expected=-5;
+            }
             else if(open && (call[call["nr"]==257?"a2":"a1"]&(3UL|0x40|0x200|0x400))!=0)expected=-30;
             else if(open && (call[call["nr"]==257?"a2":"a1"]&~0xa8900UL)!=0)expected=-22;
             else if(entry is null)
@@ -324,6 +365,13 @@ public static partial class QemuTranscripts
             Need(call["valueBits"]==Bits(expected),"disk_static_path_result");
             Need(row["kind"]==kind && row["view"]==uint.MaxValue && row["inode"]==inode && row["bytes"]==size && row["mode"]==mode,
                 "disk_static_path_metadata");
+            if(truncated)
+            {
+                var op=diskOperations[^1];
+                Need(op.Request==diskCompleting!.Request && op.Identity==row["identity"] && op.Ordinal==row["ordinal"] &&
+                    op.Value==-5,"disk_static_truncated_operation");
+                diskFaults.Add(new(path,op));
+            }
             if(open && call["nr"]==257 && !text.StartsWith('/'))Need(call["a0"]==Bits(-100),"disk_static_relative_openat");
             staticPathCount++;return row;
         }

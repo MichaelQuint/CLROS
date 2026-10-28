@@ -19,9 +19,13 @@ public static partial class QemuTranscripts
         ProcessResult runner,NativeAotStaticFileProgram program,NativeAotDiskStaticPeer.Completion peer,
         AuthorityFile image,AuthorityFile efi,AuthorityFile package,AuthorityFile imageReceipt,
         WebRootImageFixture.Receipt receipt,WebRunnerContext context,Action verifyOriginalInputs,
-        Func<IReadOnlyList<StaticFileHttpWireMessage>,AuthorityFiles,IReadOnlyList<AuthorityFile>>? inspectOriginalBrowser=null)
+        Func<IReadOnlyList<StaticFileHttpWireMessage>,AuthorityFiles,IReadOnlyList<AuthorityFile>>? inspectOriginalBrowser=null,
+        WebRootDiskInventory.VerifiedTruncated? truncated=null)
     {
         RequireCompleteProcess(runner,"disk_static_runner_incomplete");
+        Need((options.WebRootFault=="Truncated")== (truncated is not null) && peer.Truncated==(truncated is not null),
+            "disk_static_original_fault_scope");
+        truncated?.VerifyUnchanged();
         bool full=NativeAotDiskSelection.FullStaticSelected(plan.Flags);
         Need(peer.FullProfile==full && (inspectOriginalBrowser is not null)==full,"disk_static_original_full_owner");
         int serialMaximum=full?DiskStaticCapturePolicy.SerialBytes:8*1024*1024,
@@ -48,7 +52,8 @@ public static partial class QemuTranscripts
             imageBytes=image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_static_image");
         var packageView=NativeAotStaticFileProgram.RequirePackage(packageBytes,false);
         _=LinuxElfImageFixture.Inspect(imageBytes,efi.ReadBytes(16*1024*1024,"disk_static_efi"),packageBytes);
-        var inventory=WebRootDiskInventory.Inspect(image.Path,imageBytes,receipt);
+        var inventory=truncated?.Baseline??WebRootDiskInventory.Inspect(image.Path,imageBytes,receipt);
+        truncated?.RequireValues(inventory,imageBytes);
         int bodies=full?4+DiskStaticHttpContract.CreateAssetPlan(inventory).Requests.Count+2:5;
         var bodyFiles=Enumerable.Range(0,bodies).Select(i=>Hold(Path.Combine(peer.Directory,i.ToString("D3",CultureInfo.InvariantCulture)+".body"),bodyMaximum,true)).ToArray();
         AuthorityFiles.RequireDistinct([image,efi,package,imageReceipt,serial,summary,pcap,http,stopped,..bodyFiles]);
@@ -69,7 +74,7 @@ public static partial class QemuTranscripts
         string[] rows=text[..^2].Split("\r\n",StringSplitOptions.None);
         Need(rows.All(r=>r.Length>0 && !Controls.IsMatch(r)),"disk_static_serial_rows");
         var replay=InspectNativeAotDiskStaticProtocolForTests(packageBytes.AsSpan((int)packageView.PayloadOffset,(int)packageView.PayloadBytes).ToArray(),
-            SocketRawLeaf(raw),program.IsInstruction,program.IsSyscallReturn,parent.UserRoot,parent.KernelRoot,inventory,full);
+            SocketRawLeaf(raw),program.IsInstruction,program.IsSyscallReturn,parent.UserRoot,parent.KernelRoot,inventory,full,truncated);
         int connections=full?replay.Static.Connections.Count:1;
         Need(connections is >0 and <=32 && (full || replay.Static.Connections.Count==1),"disk_static_connections");
         var envelope=SocketNetworkEnvelope(rows,true,staticFiles:true,diskFiles:true,diskStatic:true,diskStaticConnections:connections).Proof;
@@ -88,7 +93,7 @@ public static partial class QemuTranscripts
         var end=ReadDiskFileEnd(rows.Single(r=>r.StartsWith("M16_025_END ",StringComparison.Ordinal)));
         Need(end["bootstrapCompleted"]==disk["bootstrapCompleted"] && end["bootstrapCopied"]==disk["bootstrapCopied"],"disk_static_bootstrap_join");
         var sectors=InspectNativeAotDiskStaticSectorValues(replay,inventory,imageBytes,new(replay.Owner,replay.Epoch,
-            replay.BootstrapCompleted,replay.BootstrapCopied,end["submitted"],end["completed"],end["copied"]));
+            replay.BootstrapCompleted,replay.BootstrapCopied,end["submitted"],end["completed"],end["copied"]),truncated);
         InspectDiskStaticLiveBoundaryValues(parent,bound["pool"],PrefixRow(rows,"M07_ARP 2",4)[0],PrefixRow(rows,"M07_ARP 0",4)[3],
             disk["arena"],disk["pages"],disk["bar"],disk["owner"],disk["clock"],envelope.End["end"],sectors.Device.Rows);
         var budget=ReadRecord(rows.Single(r=>r.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal)),"M16_008_BUDGET",
@@ -101,7 +106,7 @@ public static partial class QemuTranscripts
         if(full)
         {
             var inspected=InspectNativeAotDiskStaticFullHttpValues(packetBytes,parent.FrameAnchor,parent.Arp,
-                envelope.Lifetimes.Select(l=>l.RemotePort).ToArray(),http.ReadBytes(httpMaximum,"disk_static_http"),bodyBytes,inventory,replay);
+                envelope.Lifetimes.Select(l=>l.RemotePort).ToArray(),http.ReadBytes(httpMaximum,"disk_static_http"),bodyBytes,inventory,replay,truncated);
             var browserFiles=inspectOriginalBrowser!(inspected.BrowserMessages,captured);
             Need(browserFiles.Count is >0 and <=272,"disk_static_browser_artifact_bound");
             AuthorityFiles.RequireDistinct([image,efi,package,imageReceipt,serial,summary,pcap,http,stopped,..bodyFiles,..browserFiles]);
@@ -120,7 +125,7 @@ public static partial class QemuTranscripts
             e["polls"],e["fresh"],e["retired"],e["start"],e["end"],e["maxDeadline"]),raw,out _);
         Need((ulong)wire.TcpRecords==w["accepted"]+w["tcpCopied"],"disk_static_wire_totals");
         ValidateUnselectedRecords(text,plan);
-        captured.VerifyUnchanged();verifyOriginalInputs();captured.VerifyUnchanged();
+        captured.VerifyUnchanged();verifyOriginalInputs();truncated?.VerifyUnchanged();captured.VerifyUnchanged();
         return new(replay,sectors,wire);
     }
 

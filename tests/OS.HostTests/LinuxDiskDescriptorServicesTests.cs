@@ -13,7 +13,7 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, Base = LinuxThreadServicesTests.UserBase;
     private const ulong Path = Base + 0x1200, Output = Base + 0x2000;
-    private sealed class Owner : IDisposable
+    internal sealed class Owner : IDisposable
     {
         internal readonly LinuxThreadServicesTests.Model Thread = new(futex: true);
         internal readonly LinuxDescriptorServicesTests.Owner Files = new(descriptors: 32, descriptions: 32);
@@ -27,9 +27,12 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         internal ulong ThreadOwner => (ulong)Thread.Service;
         internal Fds.DiskAdmission Admission => new() { Mount = Storage.Mount, Bindings = Bindings, Requests = Requests,
             Epoch = Storage.Input.Epoch, FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true, bool large = false)
+        // A supplied ready fixture is adopted and disposed by this owner. The
+        // default still constructs/mounts the same healthy eight-slot fixture.
+        internal Owner(bool attach = true, bool large = false, ReadOnlyWebRootFileSystemTests.Fixture? storage = null)
         {
-            Storage = new(slots: 8);
+            HostCheck.True(storage is null || !large && storage.Mount->Ready);
+            Storage = storage ?? new(slots: 8);
             if (large)
             {
                 const int bytes = 20000;
@@ -42,7 +45,7 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
                     for (int n = 0; n < 512 && i * 512 + n < bytes; n++) sector[n] = Payload(i * 512 + n);
                 }
             }
-            Storage.MountReady();
+            if (storage is null) Storage.MountReady();
             Files.Admission.User = Thread.DescriptorAccess; Files.Admission.CopyToUser = Thread.UserCopyOut; Files.Begin();
             HostCheck.True(Thread.Service->EnablePipes(Key, 2, Files.State));
             if (attach) HostCheck.True(Fds.AttachDisk(Files.State, Disk, Admission));

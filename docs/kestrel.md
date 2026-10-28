@@ -1,5 +1,7 @@
 # .NET 11 Minimal API and Kestrel Ledger
 
+[Step1634](../done/step1634.md) connects the fixed `-WebRootFault Truncated` control to the complete Full018 HTTP/browser owner, preserving healthy A/B/A. Forty-three current focused checks pass, including the complete synthetic source4/ready-completion protocol, actual managed descriptor EIO/recovery and held image/receipt identity joins. Review found and corrected hash-casing and wait-source/completion-domain bugs; failed originals and earlier test cohorts remain separate. Current Full018 output/clock/block tuple components and disk-wait phase36624/65536 are conditional; whole native domains and fresh guest/browser originals remain pending. #770/#771/#773/#774, full guest-origin Blazor/browser, writes and SQLite remain open. The human phase boundary requires completing this batch, merge/readback and safe cleanup, then pausing before further development.
+
 [Step1628](../done/step1628.md) adds typed host support for the measured SQLite `F_GETLK` returned-unlocked observation, with48 focused Fast checks and no native activation changes. This does not qualify guest SQLite locking/flush/recovery or persistent MinimalApi logs/uploads.
 
 <!-- step1625-progress-development -->

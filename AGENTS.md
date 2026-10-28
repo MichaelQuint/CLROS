@@ -139,6 +139,8 @@ and docs; update every affected statement, canonical record, parent checklist an
 Gitea summary/comment. Commit, push, review and merge verified scoped work, read
 back remote/master parity, and continue the authorized goal.
 
+The October27 human phase boundary overrides automatic continuation: finish the current first-ten batch (#770/#771/#773/#774 remain), including qualification, documentation/tracker/evidence, commit/push/review/merge, remote/master readback and safe workspace cleanup. Then pause the broader development goal and stop helper work before any next phase. Preserve unique changes, ignored evidence, failed originals and already-started future preparation recoverably; do not delete them to manufacture a clean workspace.
+
 Stage only intended files. Never use `git reset --hard` or discard unrelated
 changes. Preserve needed ignored evidence separately before any approved worktree
 archive; a Git snapshot does not retain ignored outputs. Confirm owned children

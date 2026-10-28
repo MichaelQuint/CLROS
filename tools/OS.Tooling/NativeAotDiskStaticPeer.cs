@@ -21,13 +21,14 @@ public static class NativeAotDiskStaticPeer
 
     public sealed class Completion
     {
-        internal Completion(int port,string directory,string hash,ProcessResult runner,bool full=false)
-        {Port=port;Directory=directory;ReceiptSha256=hash;Runner=runner;FullProfile=full;}
+        internal Completion(int port,string directory,string hash,ProcessResult runner,bool full=false,bool truncated=false)
+        {Port=port;Directory=directory;ReceiptSha256=hash;Runner=runner;FullProfile=full;Truncated=truncated;}
         public int Port {get;}
         public string Directory {get;}
         public string ReceiptSha256 {get;}
         public ProcessResult Runner {get;}
         public bool FullProfile {get;}
+        public bool Truncated {get;}
     }
 
     /// <summary>Start exactly one caller-supplied cancellable runner and a
@@ -40,8 +41,9 @@ public static class NativeAotDiskStaticPeer
     /// readiness, wrong response, timeout or incomplete cleanup fails.</summary>
     public static Task<Completion> RunAsync(string root,string serial,
         Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation,
-        WebRootDiskInventory.Inspection? fullInventory=null,Func<int,string,CancellationToken,Task>? browser=null)
-        =>RunCoreAsync(root,serial,runRunner,cancellation,fullInventory,browser,null);
+        WebRootDiskInventory.Inspection? fullInventory=null,Func<int,string,CancellationToken,Task>? browser=null,
+        WebRootDiskInventory.VerifiedTruncated? truncated=null)
+        =>RunCoreAsync(root,serial,runRunner,cancellation,fullInventory,browser,null,truncated);
 
     // Host controls may observe copied ordinal/byte counts after a bounded
     // positive read. The observer must return without blocking or throwing;
@@ -49,12 +51,14 @@ public static class NativeAotDiskStaticPeer
     internal static async Task<Completion> RunCoreAsync(string root,string serial,
         Func<int,CancellationToken,Task<ProcessResult>> runRunner,CancellationToken cancellation,
         WebRootDiskInventory.Inspection? fullInventory,Func<int,string,CancellationToken,Task>? browser,
-        Action<int,long>? bodyRead)
+        Action<int,long>? bodyRead,WebRootDiskInventory.VerifiedTruncated? truncated=null)
     {
         root=Path.GetFullPath(root);serial=Path.GetFullPath(serial,root);
         bool full=fullInventory is not null;
         if(full!=(browser is not null))throw new ToolFailure("disk_http_full_browser_owner_required");
-        var assetPlan=full?DiskStaticHttpContract.CreateAssetPlan(fullInventory!):null;
+        if(truncated is not null && (!full || !ReferenceEquals(fullInventory,truncated.Baseline)))throw new ToolFailure("disk_http_truncated_owner_required");
+        var assetPlan=truncated is not null?DiskStaticHttpContract.CreateTruncatedAssetPlan(truncated):
+            full?DiskStaticHttpContract.CreateAssetPlan(fullInventory!):null;
         string directory=serial+".disk-http";
         if(!directory.StartsWith(Path.Combine(root,"artifacts")+Path.DirectorySeparatorChar,
             OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) || Path.Exists(directory))
@@ -86,7 +90,7 @@ public static class NativeAotDiskStaticPeer
                 using FileStream output=new(Path.Combine(directory,"stopped.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
                 await JsonSerializer.SerializeAsync(output,new{Port=port,EndpointRefused=true,RunnerExit=result.ExitCode},cancellationToken:cancellation);output.Flush(true);
             }
-            return new(port,directory,NativeAotWebPayload.HashFile(Path.Combine(directory,"http.json")),result,full);
+            return new(port,directory,NativeAotWebPayload.HashFile(Path.Combine(directory,"http.json")),result,full,truncated is not null);
         }
         finally
         {
@@ -201,7 +205,7 @@ public static class NativeAotDiskStaticPeer
                     foreach(var item in assetPlan!.Requests)
                         _=await Request(client,rows.Count,item.Method,item.Target,item.Status,item.Headers,item.BodyBytes,item.BodySha256);
                     using HttpClient asset=Client(),json=Client();
-                    var largest=assetPlan.Assets.OrderByDescending(a=>a.Bytes).First();int at=rows.Count;
+                    var largest=DiskStaticHttpContract.ConcurrentAsset(assetPlan);int at=rows.Count;
                     var pending=new[]{Request(asset,at,"GET",largest.Target+"?clros-concurrent=asset",200,expectedBytes:largest.Bytes,expectedHash:largest.Sha256),
                         Request(json,at+1,"GET","/api/status?clros-concurrent=json",200)};
                     try{_=await Task.WhenAll(pending);}
@@ -217,7 +221,8 @@ public static class NativeAotDiskStaticPeer
             {
                 using FileStream receipt=new(Path.Combine(directory,"http.json"),FileMode.CreateNew,FileAccess.Write,FileShare.Read);
                 if(full)
-                    await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-http-full-v1",Scope="disk-static-full-v1",Port=port,Complete=complete,
+                    await JsonSerializer.SerializeAsync(receipt,new{Schema=truncated is null?"clros-disk-http-full-v1":"clros-disk-http-truncated-v1",
+                        Scope=truncated is null?"disk-static-full-v1":"disk-static-truncated-v1",Port=port,Complete=complete,
                         ClockFrequency=Stopwatch.Frequency,ImageSha256=assetPlan!.ImageSha256,PublishedInventorySha256=assetPlan.PublishedInventorySha256,
                         Responses=rows.OrderBy(r=>r.Ordinal).ToArray()},cancellationToken:CancellationToken.None);
                 else

@@ -156,6 +156,8 @@ Issue hygiene:
 - Add status, component, phase, and type labels.
 - Close issues only after posting evidence.
 
+The October27 human phase boundary overrides automatic continuation: finish the current first-ten batch (#770/#771/#773/#774 remain), including qualification, documentation/tracker/evidence, commit/push/review/merge, remote/master readback and safe workspace cleanup. Then pause the broader development goal and stop helper work before any next phase. Preserve unique changes, ignored evidence, failed originals and already-started future preparation recoverably; do not delete them to manufacture a clean workspace.
+
 ## Evidence Commands
 
 Common commands from `C:\Projects\CLROS`:

@@ -193,7 +193,8 @@ public static partial class QemuTranscripts
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0,NativeAotSocketGuest.Capture? socketCapture=null,
             uint webSettingsBytes=0,int webSettingsFd=-1,(ulong Identity,ulong Ordinal) webSettingsCall=default,NativeAotSocketContainmentGuest.Capture? containmentCapture=null,
             bool webLogQuota=false,WebControlInspection? webControls=null,bool configuredServiceMemory=false,bool serviceQuotaFailure=false,bool webRaceTransport=false,
-            WebRootDiskInventory.Inspection? diskInventory=null,bool diskStaticFull=false)
+            WebRootDiskInventory.Inspection? diskInventory=null,bool diskStaticFull=false,
+            WebRootDiskInventory.VerifiedTruncated? diskTruncated=null)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             containment=app==NativeAotSocketContainmentPublisher.Application;
@@ -203,6 +204,8 @@ public static partial class QemuTranscripts
             Need(diskInventory is null || staticFiles,"disk_static_replay_application");
             Need(!diskStaticFull || diskInventory is not null && staticFiles && !service,"disk_static_full_replay_mode");
             this.diskStaticFull=diskStaticFull; this.diskInventory=diskInventory;
+            Need(diskTruncated is null || diskStaticFull && ReferenceEquals(diskInventory,diskTruncated.Baseline),"disk_static_truncated_scope");
+            this.diskTruncated=diskTruncated;
             descriptorGenerations=new uint[descriptorCapacity];
             Need(!serviceQuotaFailure || service && configuredServiceMemory,"threading_service_quota_mode");
             this.serviceQuotaFailure=serviceQuotaFailure; quotaImageBytes=elf.Length;

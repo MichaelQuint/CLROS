@@ -61,6 +61,7 @@ public static class QemuSmoke
         AuthorityFile? diskImageInput = null, diskEfiInput = null, diskPackageInput = null, diskReceiptInput=null;
         EfiVerification? diskNative = null;
         WebRootImageFixture.Receipt? diskImageReceipt = null;
+        WebRootDiskInventory.VerifiedTruncated? diskTruncated = null;
         CombinedWebDataImageFixture.Receipt? writableReceipt = null;
         CombinedWebDataImageFixture.WorkingImage? writableWorking = null;
         try
@@ -225,12 +226,21 @@ public static class QemuSmoke
                     {
                         string assets = Path.GetFullPath(options.WebRootAssets, root);
                         var inventory = WebRootImageFixture.SnapshotPublishedRoot(assets);
-                        string webImage = Path.GetFullPath(writableDisk ? options.Image + ".web.raw" : options.Image, root);
+                        string webImage = Path.GetFullPath(writableDisk ? options.Image + ".web.raw" :
+                            options.WebRootFault=="Truncated"?options.Image+".positive.raw":options.Image, root);
                         diskImageReceipt = WebRootImageFixture.Apply(root, Path.GetFullPath(imageOutput, root), assets, inventory,
                             webImage, options.WebRootFixture);
                         WebRootImageFixture.Verify(webImage, diskImageReceipt);
                         using (var receipt = new FileStream(webImage + ".webroot.json", FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                             System.Text.Json.JsonSerializer.Serialize(receipt, diskImageReceipt);
+                        if(options.WebRootFault=="Truncated")
+                        {
+                            string faultImage=Path.GetFullPath(options.Image,root);
+                            var fault=WebRootImageFixture.CreateFaultVariant(root,webImage,diskImageReceipt,faultImage,"Truncated");
+                            using(var receipt=new FileStream(faultImage+".fault.json",FileMode.CreateNew,FileAccess.Write,FileShare.Read))
+                            {System.Text.Json.JsonSerializer.Serialize(receipt,fault);receipt.Flush(true);}
+                            diskTruncated=WebRootDiskInventory.VerifiedTruncated.Verify(root,webImage,diskImageReceipt,faultImage,fault);
+                        }
                         if (writableDisk)
                         {
                             string dataImage = Path.GetFullPath(options.Image + ".data.raw", root);
@@ -281,10 +291,20 @@ public static class QemuSmoke
                     AuthorityFiles.RequireDistinct(image, efi, package);
                     if(diskStatic)
                     {
-                        diskReceiptInput=diskInputs.Open(root,Path.GetFullPath(options.Image+".webroot.json",root),"disk image receipt","disk_image_receipt",16*1024*1024,singleLink:true);
+                        diskReceiptInput=diskInputs.Open(root,Path.GetFullPath(options.Image+
+                            (diskTruncated is null?".webroot.json":".positive.raw.webroot.json"),root),"disk image receipt","disk_image_receipt",16*1024*1024,singleLink:true);
                         AuthorityFiles.RequireDistinct(image,efi,package,diskReceiptInput);
                         if(diskReceiptInput.ReadUtf8(16*1024*1024,"disk_image_receipt")!=System.Text.Json.JsonSerializer.Serialize(diskImageReceipt))
                             throw new ToolFailure("disk_image_receipt_identity");
+                        if(diskTruncated is not null)
+                        {
+                            var positive=diskInputs.Open(root,Path.GetFullPath(options.Image+".positive.raw",root),"positive disk image","disk_positive",WebRootImageFixture.MaximumImageBytes,singleLink:true);
+                            var faultReceipt=diskInputs.Open(root,Path.GetFullPath(options.Image+".fault.json",root),"fault disk receipt","disk_fault_receipt",4096,singleLink:true);
+                            AuthorityFiles.RequireDistinct(image,efi,package,diskReceiptInput,positive,faultReceipt);
+                            RequireTruncatedReceipts(diskTruncated,positive,faultReceipt);
+                            diskTruncated.RequireValues(diskTruncated.Baseline,image.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_fault_image"));
+                            diskTruncated.VerifyUnchanged();
+                        }
                     }
                     byte[] packageBytes = package.ReadBytes(diskStatic ? OS.Manifest.LinuxElfPackage.MaximumBytes : 65536, "disk_package");
                     if (writableDisk) NativeAotDiskSelection.RequireWritablePackage(packageBytes, options.WritableDiskFixture);
@@ -437,7 +457,7 @@ public static class QemuSmoke
                     if(NativeAotDiskSelection.FullStaticSelected(plan.Flags))
                     {
                         if(diskImageInput is null || diskImageReceipt is null)throw new ToolFailure("disk_full_image_owner_required");
-                        var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                        var inventory=diskTruncated?.Baseline??WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
                         if(NativeAotDiskSelection.TimingSelected(plan.Flags))
                         {
                             var diagnostic=await NativeAotDiskTimingPeer.RunAsync(root,options.SerialLog,RunSocketRunner,inventory,options.TimeoutSeconds,cancellation);
@@ -450,7 +470,7 @@ public static class QemuSmoke
                             return 0;
                         }
                         diskStaticPeer=await NativeAotDiskStaticPeer.RunAsync(root,options.SerialLog,RunSocketRunner,cancellation,inventory,
-                            async (port,directory,token)=>{diskBrowser=await NativeAotDiskStaticBrowser.RunAsync(root,port,directory,inventory,token);});
+                            async (port,directory,token)=>{diskBrowser=await NativeAotDiskStaticBrowser.RunAsync(root,port,directory,inventory,token);},diskTruncated);
                     }
                     else diskStaticPeer = await NativeAotDiskStaticPeer.RunAsync(root, options.SerialLog, RunSocketRunner, cancellation);
                     runner = diskStaticPeer.Runner;
@@ -553,7 +573,8 @@ public static class QemuSmoke
             if (diskFiles)
             {
                 diskInputs!.VerifyUnchanged(); diskNative!.VerifyHeldInputs();
-                WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
+                if(diskTruncated is null)WebRootImageFixture.Verify(Path.GetFullPath(options.Image, root), diskImageReceipt!);
+                else diskTruncated.VerifyUnchanged();
                 if (runner.ExitCode != 0) return runner.ExitCode;
                 if (diskStatic)
                 {
@@ -574,11 +595,11 @@ public static class QemuSmoke
                                 "original disk browser evidence","disk_browser_original_capture",NativeAotDiskStaticBrowser.MaximumProtocolBytes,allowEmpty:true,singleLink:true)).ToArray();
                             if(browserFiles.Length is 0 or >272 || browserFiles.Sum(f=>f.Length)>128*1024*1024 ||
                                 browserFiles.Any(f=>Path.GetDirectoryName(f.Path)!=diskBrowser.Directory))throw new ToolFailure("disk_full_browser_artifact_inventory");
-                            var inventory=WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
+                            var inventory=diskTruncated?.Baseline??WebRootDiskInventory.Inspect(diskImageInput.Path,diskImageInput.ReadBytes(WebRootImageFixture.MaximumImageBytes,"disk_full_browser_image"),diskImageReceipt);
                             _=NativeAotDiskStaticBrowser.ValidateOriginal(diskBrowser,inventory,QemuTranscripts.InspectDiskStaticBrowserWireValues(messages));
                             diskBrowser.VerifyUnchanged();return browserFiles;
-                        }:null);
-                    output.WriteLine($"TEST_PASS qemu.smoke.disk-static scope={original.Http.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} {(diskBrowser is null?"blazor_qualified=false":"blazor_booted=true")}");
+                        }:null,diskTruncated);
+                    output.WriteLine($"TEST_PASS qemu.smoke.{(diskTruncated is null?"disk-static":"disk-static-truncated")} scope={original.Http.Scope} calls={original.Replay.Static.Protocol.Calls} sectors={original.Sectors.Device.Counters.Copied-original.Sectors.Device.Counters.BootstrapCopied} responses={original.Http.Responses} {(diskBrowser is null?"blazor_qualified=false":"blazor_booted=true")}");
                     return 0;
                 }
                 void VerifyDiskInputs()
@@ -700,6 +721,17 @@ public static class QemuSmoke
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
         finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); serviceInputs?.Dispose(); serviceNative?.Dispose(); writableWorking?.Dispose(); diskInputs?.Dispose(); diskNative?.Dispose(); }
+    }
+
+    // The original owner holds these files and all four identities unchanged
+    // through final acceptance. Hash text casing carries no byte identity;
+    // receipt JSON remains the exact original serialization, without rewriting.
+    internal static void RequireTruncatedReceipts(WebRootDiskInventory.VerifiedTruncated truncated,
+        AuthorityFile positive,AuthorityFile faultReceipt)
+    {
+        if(!string.Equals(positive.Sha256,truncated.Baseline.ImageSha256,StringComparison.OrdinalIgnoreCase) ||
+            faultReceipt.ReadUtf8(4096,"disk_fault_receipt")!=System.Text.Json.JsonSerializer.Serialize(truncated.Fault.Receipt))
+            throw new ToolFailure("disk_truncated_receipt_identity");
     }
 
     // Reject aliases before builders create any output. The runner repeats
