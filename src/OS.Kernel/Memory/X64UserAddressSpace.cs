@@ -137,8 +137,18 @@ public static unsafe class X64UserAddressSpace
                         }
                         // Admission bounded this whole physical span. Its aligned
                         // offset changes address bits only; flags stay identical.
-                        if ((leaf & ~0x60UL) != rangeEntry + (va - rangeStart)) return false;
-                        leaves++;
+                        ulong expected = rangeEntry + (va - rangeStart);
+                        if ((leaf & ~0x60UL) != expected) return false;
+                        // Only batch inside this admitted range and this PT.
+                        // Every lane is still checked, including an absent leaf;
+                        // no cached authority survives this synchronous audit.
+                        ulong remaining = (rangeBytes - (va - rangeStart)) / Page;
+                        uint lanes = remaining < 8 ? (uint)remaining : 8;
+                        if (lanes > 512 - ti) lanes = 512 - ti;
+                        for (uint lane = 1; lane < lanes; lane++)
+                            if ((tables[pt * 512 + ti + lane] & ~0x60UL) != expected + lane * Page) return false;
+                        ti += lanes - 1;
+                        leaves += lanes;
                     }
                 }
             }
