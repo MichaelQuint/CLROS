@@ -79,6 +79,106 @@ internal static class NativeAotDiskTimingPeerTests
     [UnsafeAccessor(UnsafeAccessorKind.Field, Name = "_completed")]
     private static extern ref ulong CompletedDispatchCount(ref LinuxThreadServices.DiskDispatchMeasurements value);
 
+    [HostTest("dispatch child partitions completed nested driver and shell nonpoll time without double subtraction")]
+    private static void DispatchChildPartition()
+    {
+        LinuxThreadServices.DiskDispatchMeasurements parent = default, child = default;
+        ulong outer = 0, inner = 0;
+        HostCheck.True(parent.BeginDispatch(80, 48, out outer) && child.BeginDispatch(90, 49, out inner));
+        HostCheck.True(parent.Arm(100, 50) && child.Arm(100, 50));
+        HostCheck.True(child.EndDispatch(inner, 130, 56) && parent.EndDispatch(outer, 150, 60));
+        HostCheck.True(parent.BeginDispatch(160, 65, out outer) && child.BeginDispatch(170, 66, out inner));
+        HostCheck.True(child.EndDispatch(inner, 180, 68) && parent.EndDispatch(outer, 190, 69));
+        HostCheck.True(child.Freeze(200, 75) && parent.Freeze(200, 75));
+        ChildPartition(parent, child, 32, 34); // D80/PD14, V40/PV8; parent nonpoll66.
+    }
+
+    [HostTest("dispatch child clips both window boundaries and preserves partition across valid late physical returns")]
+    private static void DispatchChildClips()
+    {
+        LinuxThreadServices.DiskDispatchMeasurements parent = default, child = default;
+        ulong outer = 0, inner = 0;
+        HostCheck.True(parent.BeginDispatch(90, 48, out outer) && child.BeginDispatch(95, 49, out inner));
+        HostCheck.True(parent.Arm(100, 50) && child.Arm(100, 50));
+        HostCheck.True(child.Freeze(160, 60) && parent.Freeze(160, 60));
+        ChildPartition(parent, child, 50, 0);
+        HostCheck.True(child.EndDispatch(inner, 170, 60) && parent.EndDispatch(outer, 180, 60));
+        ChildPartition(parent, child, 50, 0);
+        HostCheck.True(!child.EndDispatch(inner, 190, 60));
+        ChildRejected(parent, child); // A late bookkeeping fault still revokes completeness.
+        HostCheck.True(parent.Inspect(out var totals));
+        Partition(totals, 60, 10, 60, 10, 0, 1, true);
+    }
+
+    [HostTest("dispatch child requires exact original window and successful freeze with zero failure outputs")]
+    private static void DispatchChildWindowRejections()
+    {
+        var parent = FrozenDispatch(100, 50, 60, 10);
+        var child = FrozenDispatch(100, 50, 40, 6);
+        LinuxThreadServices.DiskDispatchMeasurements empty = default, armed = default;
+        HostCheck.True(armed.Arm(100, 50));
+        ChildRejected(parent, empty); ChildRejected(empty, child);
+        ChildRejected(parent, armed); ChildRejected(armed, child);
+        ChildRejected(parent, FrozenDispatch(101, 50, 40, 6)); // Equal duration, different start.
+        ChildRejected(parent, FrozenDispatch(100, 51, 40, 6)); // Equal poll delta, different base.
+        ChildRejected(parent, FrozenDispatch(100, 50, 40, 6, 99, 20));
+        ChildRejected(parent, FrozenDispatch(100, 50, 40, 6, 100, 19));
+        var failed = child;
+        HostCheck.True(!failed.BeginPoll()); ChildRejected(parent, failed);
+        failed = parent;
+        HostCheck.True(!failed.EndDispatch(1, 201, 70)); ChildRejected(failed, child);
+        ChildPartition(parent, child, 34, 16); // Rejections do not mutate the valid pair.
+    }
+
+    [HostTest("dispatch child rejects impossible subsets without clamping and conserves zero and maximum unsigned totals")]
+    private static void DispatchChildSubsetBoundaries()
+    {
+        var parent = FrozenDispatch(100, 50, 60, 10);
+        ChildRejected(parent, FrozenDispatch(100, 50, 61, 10)); // V>D.
+        ChildRejected(parent, FrozenDispatch(100, 50, 40, 11)); // PV>PD.
+        ChildRejected(FrozenDispatch(100, 50, 60, 15), FrozenDispatch(100, 50, 55, 5)); // Shell poll10 exceeds shell5.
+        LinuxThreadServices.DiskDispatchMeasurements invalid = default;
+        ulong sequence = 0;
+        HostCheck.True(invalid.Arm(100, 50) && invalid.BeginDispatch(100, 50, out sequence));
+        HostCheck.True(!invalid.EndDispatch(sequence, 110, 65)); // A child cannot freeze V<PV.
+        ChildRejected(parent, invalid);
+        var zero = FrozenDispatch(0, 0, 0, 0, 0, 0);
+        ChildPartition(zero, zero, 0, 0); // A frozen empty window is distinct from default.
+        parent = FrozenDispatch(0, 0, ulong.MaxValue, 0, ulong.MaxValue, 0);
+        var child = FrozenDispatch(0, 0, ulong.MaxValue - 1, 0, ulong.MaxValue, 0);
+        ChildPartition(parent, child, ulong.MaxValue - 1, 1);
+        parent = FrozenDispatch(0, 0, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue, ulong.MaxValue);
+        child = FrozenDispatch(0, 0, 0, 0, ulong.MaxValue, ulong.MaxValue);
+        ChildPartition(parent, child, 0, 0);
+    }
+
+    private static LinuxThreadServices.DiskDispatchMeasurements FrozenDispatch(ulong start, ulong pollStart,
+        ulong dispatch, ulong nestedPoll, ulong phase = 100, ulong poll = 20)
+    {
+        LinuxThreadServices.DiskDispatchMeasurements value = default;
+        ulong sequence = 0;
+        HostCheck.True(value.Arm(start, pollStart) && value.BeginDispatch(start, pollStart, out sequence) &&
+            value.EndDispatch(sequence, start + dispatch, pollStart + nestedPoll) && value.Freeze(start + phase, pollStart + poll));
+        return value;
+    }
+
+    private static void ChildPartition(in LinuxThreadServices.DiskDispatchMeasurements parent,
+        in LinuxThreadServices.DiskDispatchMeasurements child, ulong expectedDriver, ulong expectedShell)
+    {
+        HostCheck.True(parent.InspectChild(in child, out ulong driver, out ulong shell));
+        HostCheck.Equal(expectedDriver, driver); HostCheck.Equal(expectedShell, shell);
+        HostCheck.True(parent.Inspect(out var totals));
+        HostCheck.Equal(totals.DispatchNonPollNanoseconds, driver + shell);
+    }
+
+    private static void ChildRejected(in LinuxThreadServices.DiskDispatchMeasurements parent,
+        in LinuxThreadServices.DiskDispatchMeasurements child)
+    {
+        ulong driver = ulong.MaxValue, shell = ulong.MaxValue;
+        HostCheck.True(!parent.InspectChild(in child, out driver, out shell));
+        HostCheck.Equal(0UL, driver); HostCheck.Equal(0UL, shell);
+    }
+
     private static void Partition(LinuxThreadServices.DiskDispatchTotals t, ulong phase, ulong poll, ulong dispatch, ulong nested, ulong completed, ulong clipped, bool active)
     {
         HostCheck.True(t.PhaseNanoseconds == phase && t.PollNanoseconds == poll && t.DispatchNanoseconds == dispatch &&
