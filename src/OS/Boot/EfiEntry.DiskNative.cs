@@ -260,7 +260,9 @@ public static unsafe partial class EfiEntry
                     var a = new Fs.Admission { Device = &o->Device, Epoch = NativeDiskEpoch, PartitionFirst = o->Partition.FirstLba,
                         PartitionLast = o->Partition.LastLba, Operations = o->Operations, Files = o->Files, Cache = o->Cache,
                         OperationCount = NativeDiskSlots, FileCount = NativeDiskSlots, CacheCount = NativeDiskCaches, DirectoryEntryBudget = 4096 };
-                    if (Fs.Start(&o->Mount, a) != Fs.Status.Pending) return NativeDiskFail(o);
+                    uint dataSectors = OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ||
+                        OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe ? 4U : 1U;
+                    if (Fs.Start(&o->Mount, a, dataSectors) != Fs.Status.Pending) return NativeDiskFail(o);
                     o->Phase = 6;
                 }
                 return NativeDiskProgress.Pending;

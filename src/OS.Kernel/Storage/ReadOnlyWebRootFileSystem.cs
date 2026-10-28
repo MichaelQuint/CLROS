@@ -159,7 +159,7 @@ public static unsafe class ReadOnlyWebRootFileSystem
         internal Block.ReadToken IoToken;
         internal ulong IoGeneration;
         internal uint IoIndex, NextVictim;
-        internal byte Phase;
+        internal byte Phase, DataReadSectors;
         internal bool IoActive;
         internal Status Failure;
         internal ulong Reads, Hits, Misses;
@@ -231,11 +231,17 @@ public static unsafe class ReadOnlyWebRootFileSystem
     /// and /app/wwwroot resolution using operation0. Pending requires PumpMount.
     /// No supplied buffer is device DMA; block Copy borrows sector scratch only
     /// through a pump call. Invalid admission has no effects.</summary>
-    public static Status Start(Mount* m, in Admission input)
+    public static Status Start(Mount* m, in Admission input) => Start(m, input, 1);
+
+    /// <summary>Opt into at most four contiguous data sectors per owned request.
+    /// Metadata, partial sectors and borrowed backends retain single-sector I/O.
+    /// Uses existing caller range storage; invalid bounds leave admission untouched.</summary>
+    public static Status Start(Mount* m, in Admission input, uint maximumDataReadSectors)
     {
         Admission a = input;
-        if (!Admit(m, a)) return Status.InvalidAccess;
+        if (maximumDataReadSectors is 0 or > 4 || !Admit(m, a)) return Status.InvalidAccess;
         m->Self = (ulong)m; m->Input = a; m->DeviceEpoch = a.Device->Input.Epoch;
+        m->DataReadSectors = (byte)maximumDataReadSectors;
         m->PoolEpoch = a.Device->PoolEpoch; return Initialize(m, a);
     }
 
@@ -558,9 +564,11 @@ public static unsafe class ReadOnlyWebRootFileSystem
         return entry;
     }
 
-    private static Status ReadSector(Mount* m, Operation* o, ulong lba, byte action)
+    private static Status ReadSector(Mount* m, Operation* o, ulong lba, byte action, uint sectors = 1)
     {
-        if (lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast) return Fail(m, o, Status.CorruptFile);
+        if (sectors is 0 or > 4 || (sectors != 1 && action != DataIo) ||
+            lba < m->Input.PartitionFirst || lba > m->Input.PartitionLast ||
+            sectors - 1 > m->Input.PartitionLast - lba) return Fail(m, o, Status.CorruptFile);
         if (m->IoActive) return Status.Busy;
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (m->ReadPort != null)
@@ -572,21 +580,28 @@ public static unsafe class ReadOnlyWebRootFileSystem
         }
 #endif
         Block.ReadToken token = default;
-        var status = Block.Submit(m->Input.Device, lba, &token);
+        var status = Block.Submit(m->Input.Device, lba, sectors, &token);
         if (status == Block.Status.Busy) return Status.Busy;
         if (status != Block.Status.Success) return Fail(m, o, DeviceFault(m));
-        m->IoToken = token; return Submitted(m, o, action);
+        m->IoToken = token; return Submitted(m, o, action, sectors);
     }
 
-    private static Status Submitted(Mount* m, Operation* o, byte action)
+    private static Status Submitted(Mount* m, Operation* o, byte action, uint sectors = 1)
     {
         m->IoIndex = o->Index; m->IoGeneration = o->Generation; m->IoActive = true;
-        o->Waiting = action; m->Reads++; return Status.Pending;
+        // Actions occupy the low nibble; the bounded length uses its spare bits.
+        o->Waiting = (byte)(action | ((sectors - 1) << 4)); m->Reads += sectors; return Status.Pending;
     }
 
     private static Status CompleteIo(Mount* m, Operation* o)
     {
         if (!m->IoActive || m->IoIndex != o->Index || m->IoGeneration != o->Generation) return Fail(m, o, Status.InvalidState);
+        byte action = (byte)(o->Waiting & 15);
+        uint sectors = (uint)(o->Waiting >> 4) + 1, requestedBytes = sectors * 512;
+        bool direct = sectors > 1;
+        if (sectors > 4 || direct && (action != DataIo || o->Filled > o->Wanted ||
+            requestedBytes > o->Wanted - o->Filled || o->Wanted > o->Storage.RangeCapacity ||
+            ((o->Offset + o->Filled) & 511) != 0)) return Fail(m, o, Status.InvalidState);
 #if !NOSTDLIB_EFI || M16_027_PROBE
         if (m->ReadPort != null)
         {
@@ -606,11 +621,12 @@ public static unsafe class ReadOnlyWebRootFileSystem
         if (status == Block.Status.Pending) return Status.Pending;
         if (status == Block.Status.Cancelled && o->Phase == Cancelling)
         { m->IoActive = false; o->Waiting = 0; Release(m, o); return Status.Cancelled; }
-        if (status != Block.Status.Ready) return Fail(m, o, DeviceFault(m));
-        if (Block.Copy(m->Input.Device, m->IoToken, new Span<byte>(o->Storage.Sector, 512)) != Block.Status.Success)
+        if (status != Block.Status.Ready || completion.Bytes != requestedBytes) return Fail(m, o, DeviceFault(m));
+        if (Block.Copy(m->Input.Device, m->IoToken,
+            new Span<byte>(direct ? o->Storage.Range + o->Filled : o->Storage.Sector, (int)requestedBytes)) != Block.Status.Success)
             return Fail(m, o, DeviceFault(m));
         }
-        m->IoActive = false; byte action = o->Waiting; o->Waiting = 0;
+        m->IoActive = false; o->Waiting = 0;
         if (o->Phase == Cancelling) { Release(m, o); return Status.Cancelled; }
         if (action == BpbIo)
         {
@@ -635,6 +651,12 @@ public static unsafe class ReadOnlyWebRootFileSystem
             o->FatStage = 3; return Status.Pending;
         }
         if (action != DataIo) return Fail(m, o, Status.InvalidState);
+        if (direct)
+        {
+            o->Filled += requestedBytes;
+            if (o->Filled == o->Wanted) { o->Phase = ReadyPhase; return Status.Ready; }
+            return Status.Pending;
+        }
         uint skip = (uint)((o->Offset + o->Filled) & 511);
         uint count = 512 - skip; if (count > o->Wanted - o->Filled) count = o->Wanted - o->Filled;
         for (uint i = 0; i < count; i++) o->Storage.Range[o->Filled + i] = o->Storage.Sector[skip + i];
@@ -650,7 +672,31 @@ public static unsafe class ReadOnlyWebRootFileSystem
         uint map = (uint)(position / clusterBytes); if (map >= f->ClusterCount) return Fail(m, o, Status.CorruptFile);
         ulong lba = 0;
         if (Chain.ClusterFirstLba(m->Volume, f->Clusters[map], ref lba) != LiveFat32Status.Success) return Fail(m, o, Status.CorruptFile);
-        return ReadSector(m, o, lba + (position % clusterBytes) / 512, DataIo);
+        lba += (position % clusterBytes) / 512;
+        uint sectors = 1, maximum = m->DataReadSectors;
+#if !NOSTDLIB_EFI || M16_027_PROBE
+        if (m->ReadPort != null) maximum = 1;
+#endif
+        // The complete chain was validated on open. Cross a cluster boundary
+        // only when its retained mapping gives the next physical sector.
+        if ((position & 511) == 0 && maximum > 1)
+        {
+            uint whole = (o->Wanted - o->Filled) / 512;
+            if (maximum > whole) maximum = whole;
+            while (sectors < maximum)
+            {
+                ulong nextPosition = position + sectors * 512UL;
+                uint nextMap = (uint)(nextPosition / clusterBytes);
+                ulong nextLba = 0;
+                if (nextMap >= f->ClusterCount ||
+                    Chain.ClusterFirstLba(m->Volume, f->Clusters[nextMap], ref nextLba) != LiveFat32Status.Success)
+                    return Fail(m, o, Status.CorruptFile);
+                nextLba += (nextPosition % clusterBytes) / 512;
+                if (nextLba != lba + sectors) break;
+                sectors++;
+            }
+        }
+        return ReadSector(m, o, lba, DataIo, sectors);
     }
 
     private static Status FileChainStep(Mount* m, Operation* o)

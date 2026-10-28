@@ -89,6 +89,63 @@ internal static unsafe class X64UserAddressSpaceTests
         CheckAdmission(Ranges(), X64UserAddressSpaceStatus.InsufficientTables, 4);
     }
 
+    [HostTest("table coverage matches scalar bucket sets for shuffled sparse ranges sharing and crossing PT and directory boundaries")]
+    private static void SharedBucketCoverage()
+    {
+        X64UserMappingRange[] ranges =
+        [
+            Mapping(0x40003000, 0x3000000, 2), Mapping(0x3ffff000, 0x4000000, 2),
+            Mapping(0x401ff000, 0x5000000, 2), Mapping(0x40009000, 0x6000000, 2),
+            Mapping(0x1ff000, 0x7000000, 2), Mapping(0x80005000, 0x8000000)
+        ];
+        // Seven distinct PT buckets (including the arena), three directories,
+        // PML4 and PDPT. The sparse gaps must not consume table pages.
+        for (int order = 0; order < 2; order++)
+        {
+            CheckAdmission(ranges, X64UserAddressSpaceStatus.Ready, 12);
+            CheckAdmission(ranges, X64UserAddressSpaceStatus.InsufficientTables, 11);
+            Array.Reverse(ranges);
+        }
+    }
+
+    [HostTest("table coverage includes implicit arena first middle last and sharing a PT at exact capacity")]
+    private static void ArenaBucketCoverage()
+    {
+        X64UserMappingRange[][] placements =
+        [
+            [Mapping(Root + 0x600000, 0x3000000), Mapping(Root + 0x200000, 0x4000000)],
+            [Mapping(Root + 0x200000, 0x3000000), Mapping(Root - 0x400000, 0x4000000)],
+            [Mapping(Root - 0x400000, 0x3000000), Mapping(Root - 0x800000, 0x4000000)]
+        ];
+        foreach (var ranges in placements)
+        {
+            CheckAdmission(ranges, X64UserAddressSpaceStatus.Ready, 6);
+            CheckAdmission(ranges, X64UserAddressSpaceStatus.InsufficientTables, 5);
+        }
+        // Both later inputs share the arena's PT. In the second vector, the
+        // arena lies between an earlier PT and an adjacent same-PT mapping.
+        CheckAdmission([Mapping(Root + 0x20000, 0x3000000), Mapping(Root + 0x10000, 0x4000000)],
+            X64UserAddressSpaceStatus.Ready, 4);
+        X64UserMappingRange[] sharing = [Mapping(Root + 5 * 4096, 0x3000000), Mapping(Root - 4096, 0x4000000)];
+        CheckAdmission(sharing, X64UserAddressSpaceStatus.Ready, 5);
+        CheckAdmission(sharing, X64UserAddressSpaceStatus.InsufficientTables, 4);
+    }
+
+    [HostTest("table coverage matches scalar sets through final UserEnd bucket with holes and exact table capacity")]
+    private static void LastBucketCoverage()
+    {
+        X64UserMappingRange[] ranges =
+        [
+            Mapping(X64UserAddressSpace.UserEnd - 4096, 0x3000000), Mapping(0x40000000, 0x4000000),
+            Mapping(X64UserAddressSpace.UserEnd - 0x201000, 0x5000000, 2),
+            Mapping(X64UserAddressSpace.UserEnd - 0x10000, 0x6000000)
+        ];
+        // The crossing pair and final-page mapping share the final PT and
+        // directory. Its exclusive bucket end is 32768, not a wrapped index.
+        CheckAdmission(ranges, X64UserAddressSpaceStatus.Ready, 9);
+        CheckAdmission(ranges, X64UserAddressSpaceStatus.InsufficientTables, 8);
+    }
+
     private static X64UserMappingRange Mapping(ulong va, ulong pa, ulong pages = 1) => new()
     { VirtualStart = va, PhysicalStart = pa, Pages = pages, Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = true };
 

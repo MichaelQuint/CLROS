@@ -61,9 +61,10 @@ public static partial class QemuTranscripts
         ArgumentNullException.ThrowIfNull(inventory);
         Need(replay.Truncated==(truncated is not null),"disk_static_sector_fault_scope");
         if(truncated is not null)truncated.RequireValues(inventory,heldImage);
-        var device=NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r=>r.Text).ToArray(),heldImage,final,diskStaticFull:replay.FullProfile);
+        var device=NativeDiskReadObservations.Inspect(replay.DeviceRows.Select(r=>r.Text).ToArray(),heldImage,final,
+            diskStaticFull:replay.FullProfile,allowMultiSector:true);
         var data=NativeDiskStaticReadWindows.Inspect(inventory,device,replay.DeviceRows.Select(r=>r.RecordIndex).ToArray(),replay.Reads);
-        var metadata=WebRootDiskInventory.ClassifyMetadata(inventory,heldImage,data.Residual.Select(c=>c.Observation.Sector).ToArray(),truncated);
+        var metadata=WebRootDiskInventory.ClassifyMetadata(inventory,heldImage,data.Residual.Select(c=>c.Observation.DataSector).ToArray(),truncated);
         var operations=replay.Operations.OrderBy(o=>o.BeginRecordIndex).ToArray();
         Need(operations.Select(o=>o.Request).Distinct().Count()==operations.Length,"disk_static_operation_requests");
         var byRequest=operations.ToDictionary(o=>o.Request);
@@ -102,7 +103,7 @@ public static partial class QemuTranscripts
                 // earlier authenticated copy may fill the cache; neither an
                 // invented fresh read nor a guessed per-request cache is used.
                 foreach(ulong lba in new[]{truncated.Fault.Fat0WordOffset/512,truncated.Fault.Fat1WordOffset/512})
-                    Need(data.Residual.Any(c=>c.Observation.Sector==lba && c.CopyRecordIndex<op.WakeRecordIndex),
+                    Need(data.Residual.Any(c=>c.Observation.DataSector==lba && c.CopyRecordIndex<op.WakeRecordIndex),
                         "disk_static_fault_fat_observation");
             }
         }

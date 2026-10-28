@@ -195,13 +195,9 @@ public static unsafe class X64UserAddressSpace
             (ulong)tables > ~0UL - pages * Page || conditions.Validate() != X64PageTableEntryStatus.Success)
             return X64UserAddressSpaceStatus.InvalidInput;
         if (Overlap((ulong)ranges, count * (ulong)sizeof(X64UserMappingRange), (ulong)tables, pages * Page)) return X64UserAddressSpaceStatus.OverlappingRanges;
-        // One bit per 2MiB slot, bounded by the VA policy rather than backing
-        // size. Reservations are not passed here and create no table/leaf cost.
-        byte* slots = stackalloc byte[4096]; byte* directories = stackalloc byte[64];
         uint* virtualOrder = stackalloc uint[(int)MaximumRanges + 1];
         uint* physicalOrder = stackalloc uint[(int)MaximumRanges + 1];
-        for (uint i = 0; i < 4096; i++) slots[i] = 0;
-        for (uint i = 0; i < 64; i++) directories[i] = 0;
+        uint arenaAt = 0;
         required = 2;
         for (uint i = 0; i <= count; i++)
         {
@@ -226,15 +222,25 @@ public static unsafe class X64UserAddressSpace
                 for (uint j = i; j > physicalAt; j--) physicalOrder[j] = physicalOrder[j - 1];
                 virtualOrder[virtualAt] = i; physicalOrder[physicalAt] = i;
             }
+            else arenaAt = virtualAt;
             leaves += range.Pages;
             if (leaves > 32768) return X64UserAddressSpaceStatus.InvalidRange;
-            uint first = (uint)(range.VirtualStart >> 21), last = (uint)((range.VirtualStart + range.Pages * Page - 1) >> 21);
-            for (uint slot = first; slot <= last; slot++)
-            {
-                byte mask = (byte)(1 << (int)(slot & 7));
-                if ((slots[slot >> 3] & mask) == 0) { slots[slot >> 3] |= mask; required++; }
-                if (directories[slot / 512] == 0) { directories[slot / 512] = 1; required++; }
-            }
+        }
+        // The virtual prefix is now disjoint and sorted. Insert the implicit
+        // arena by rank without reading ranges[count]. Count each covered 2MiB
+        // and 1GiB bucket once, including adjacent ranges sharing a bucket.
+        // No bitmap initialization or per-bucket walk is needed; every range,
+        // encoding and overlap check above and every PTE audit remain intact.
+        uint nextSlot = 0, nextDirectory = 0;
+        for (uint rank = 0; rank <= count; rank++)
+        {
+            var range = rank == arenaAt ? Arena(root, pages) : ranges[virtualOrder[rank < arenaAt ? rank : rank - 1]];
+            uint first = (uint)(range.VirtualStart >> 21);
+            uint end = (uint)((range.VirtualStart + range.Pages * Page - 1) >> 21) + 1;
+            uint firstDirectory = first >> 9, endDirectory = ((end - 1) >> 9) + 1;
+            required += end - (first > nextSlot ? first : nextSlot);
+            required += endDirectory - (firstDirectory > nextDirectory ? firstDirectory : nextDirectory);
+            nextSlot = end; nextDirectory = endDirectory;
         }
         return required <= pages ? X64UserAddressSpaceStatus.Ready : X64UserAddressSpaceStatus.InsufficientTables;
     }

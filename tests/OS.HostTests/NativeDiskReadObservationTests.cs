@@ -7,6 +7,66 @@ internal static class NativeDiskReadObservationTests
 {
     private sealed record Fixture(byte[] Image, List<string> Rows, Reads.Boundary Boundary);
 
+    [HostTest("disk multi-sector evidence preserves one physical counter and exact bounded payload chunks")]
+    private static void MultiSector()
+    {
+        foreach (uint count in new[] { 2U, 3U, 4U })
+        {
+            var f = MultiVector(count); var value = Reads.Inspect(f.Rows, f.Image, f.Boundary, allowMultiSector: true);
+            HostCheck.Equal(1UL, value.Counters.Copied); HostCheck.Equal((int)count + 2, value.Rows.Count);
+            HostCheck.Equal(1, value.Rows.Count(r => r.Kind == Reads.Kind.Copied));
+            HostCheck.Equal((int)count - 1, value.Rows.Count(r => r.Kind == Reads.Kind.CopyChunk));
+            for (uint chunk = 0; chunk < count; chunk++)
+            {
+                var row = value.Rows[(int)chunk + 2];
+                HostCheck.True(row.Sector == 1 && row.DataSector == 1 + chunk && row.ChunkIndex == chunk && row.Bytes == count * 512);
+                HostCheck.True(Convert.FromHexString(row.DataHex).AsSpan().SequenceEqual(f.Image.AsSpan((int)(1 + chunk) * 512, 512)));
+                HostCheck.True(f.Rows[(int)chunk + 2].Length <= Reads.MaximumRowChars);
+            }
+            Reject(f); // Existing consumers must explicitly select the new contract.
+        }
+        var cancelled = MultiVector(4, true);
+        var result = Reads.Inspect(cancelled.Rows, cancelled.Image, cancelled.Boundary, allowMultiSector: true);
+        HostCheck.True(result.Cancelled == 1 && result.Counters.Copied == 0 && result.Rows.Count == 2);
+    }
+
+    [HostTest("disk multi-sector evidence rejects incomplete reordered mismatched oversized and divergent chunks")]
+    private static void MultiSectorRejected()
+    {
+        var f = MultiVector(4);
+        void Deny(IReadOnlyList<string> rows, byte[]? image = null)
+        {
+            bool rejected = false;
+            try { _ = Reads.Inspect(rows, image ?? f.Image, f.Boundary, allowMultiSector: true); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        for (int i = 0; i < f.Rows.Count; i++) { var rows = f.Rows.ToList(); rows.RemoveAt(i); Deny(rows); }
+        foreach (string key in new[] { "generation", "sector", "sequence", "bytes", "available", "consumed", "chunk" })
+            Deny(Replace(f.Rows, 3, Set(f.Rows[3], key, "0")));
+        Deny(Replace(f.Rows, 3, Set(f.Rows[3], "kind", "2")));
+        Deny(Replace(f.Rows, 2, Set(f.Rows[2], "kind", "3")));
+        Deny([..f.Rows, f.Rows[^1]]);
+        var reordered = f.Rows.ToList(); (reordered[3], reordered[4]) = (reordered[4], reordered[3]); Deny(reordered);
+        Deny(Replace(f.Rows, 0, Set(f.Rows[0], "bytes", "2560")));
+        Deny(Replace(f.Rows, 0, Set(f.Rows[0], "sector", "6")));
+        Deny(Replace(f.Rows, 1, Set(f.Rows[1], "bytes", "512")));
+        for (int sector = 1; sector <= 4; sector++)
+        { var changed = f.Image.ToArray(); changed[sector * 512] ^= 1; Deny(f.Rows, changed); }
+    }
+
+    private static Fixture MultiVector(uint sectors, bool cancelled = false)
+    {
+        byte[] image = Enumerable.Range(0, 8 * 512).Select(i => unchecked((byte)(i * 31 ^ i >> 8))).ToArray();
+        string Head(uint kind, uint bytes) => FormattableString.Invariant($"M16_023_IO kind={kind} owner=4194312 epoch=1193046 generation=1 sector=1 sequence=1 bytes={bytes} available=1 consumed={(kind == 0 ? 0 : 1)} clock=100");
+        List<string> rows = [Head(0, sectors * 512), Head(1, cancelled ? 0 : sectors * 512)];
+        if (!cancelled)
+            for (uint chunk = 0; chunk < sectors; chunk++)
+                rows.Add(Head(chunk == 0 ? 2U : 3U, sectors * 512) + " copied=committed chunk=" + N(chunk) +
+                    " data=" + Convert.ToHexString(image.AsSpan((int)(chunk + 1) * 512, 512)).ToLowerInvariant());
+        return new(image, rows, new(4194312, 1193046, 0, 0, 1, 1, cancelled ? 0UL : 1UL));
+    }
+
     [HostTest("disk reset retirement keeps the exact last pending submit without inventing completion or copied bytes")]
     private static void PendingReset()
     {

@@ -5,11 +5,13 @@ namespace OS.Storage;
 /// <summary>Exclusive polling-only modern Virtio block owner. One serialized
 /// supervisor caller retains the state, callbacks, UC MMIO and coherent WB DMA
 /// backing until Stop succeeds. Negotiation and actual mapping/device authority
-/// belong to the adapter. One 512-byte IN request is outstanding at a time; no
+/// belong to the adapter. One IN request is outstanding at a time: legacy calls
+/// select512 bytes, explicit reads select at most4 sectors in the same DMA page. No
 /// interrupts, writes, hidden allocation, synchronous wait or caller pointer is
 /// retained. Poll performs one observation so other services can keep running.</summary>
 public static unsafe class ContinuingReadOnlyBlockService
 {
+    public const uint MaximumReadSectors = VirtioBlkDmaLayout.MaximumReadSectors;
     public enum Status : byte
     {
         Uninitialized, Success, InvalidAccess, UnsupportedFeatures, InvalidState,
@@ -54,7 +56,7 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// Stop. Perform bounded work in the serialized supervisor context; never
     /// throw, reenter or mutate this owner or the borrowed bytes. Metadata and
     /// payload are borrowed only until return; copy facts or hash synchronously.
-    /// Payload is null except CopyReady, which borrows exactly512 validated DMA
+    /// Payload is null except CopyReady, which borrows exactlyObservation.Bytes validated DMA
     /// bytes before any destination write. Rejection faults without releasing DMA
     /// or publishing success. Fault/Stop never invoke this callback.</summary>
     public struct ObservationAccess
@@ -117,6 +119,7 @@ public static unsafe class ContinuingReadOnlyBlockService
         internal byte ConfigGeneration, Phase;
         internal bool DeviceOwned, ReturnedToCpu, Scrubbed, Discard, Observing, ObservationReentered;
         internal Status Failure;
+        internal byte RequestSectors;
         internal ulong SubmittedCount, CompletedCount, CopiedCount, CancelledCount, PollCount;
         public readonly bool Running => Phase is >= IdlePhase and <= ReadyPhase;
         public readonly bool ReadPending => Phase == PendingPhase;
@@ -125,6 +128,8 @@ public static unsafe class ContinuingReadOnlyBlockService
         public readonly bool RequiresCleanup => Self != 0 && Phase is >= StartingPhase and <= FaultPhase;
         public readonly Status LastFailure => Failure;
         public readonly ulong SectorCount => Capacity;
+        /// <summary>Last retained request's data length, not readiness or copy authority.</summary>
+        public readonly uint RequestBytes => RequestSectors * VirtioBlkDmaLayout.DataBytes;
         public readonly ulong Submitted => SubmittedCount;
         public readonly ulong Completed => CompletedCount;
         public readonly ulong Copied => CopiedCount;
@@ -189,13 +194,22 @@ public static unsafe class ContinuingReadOnlyBlockService
     /// admitted output is cleared before any other rejection or publication.
     /// Observer rejection after notification retains published DMA but no token.</summary>
     public static Status Submit(State* s, ulong sector, ReadToken* token)
+        => Submit(s, sector, 1, token);
+
+    /// <summary>Publish one contiguous1..4-sector IN request in the existing
+    /// retained DMA page. Legacy Submit selects1. Invalid count or capacity span
+    /// returns SectorOutOfRange without publication; no deadline or ownership rule
+    /// changes. Token storage and callback lifetimes follow the legacy contract.</summary>
+    public static Status Submit(State* s, ulong sector, uint sectors, ReadToken* token)
     {
         if (RejectReentry(s)) return Status.ObservationRejected;
         if (!Running(s)) return Status.InvalidState;
         if (!MetadataOutput(s, (ulong)token, (ulong)sizeof(ReadToken))) return Status.InvalidStorage;
         *token = default;
         if (s->Phase != IdlePhase) return Status.Busy;
-        if (sector >= s->Capacity) return Status.SectorOutOfRange;
+        if (sectors is 0 or > MaximumReadSectors || sector >= s->Capacity || sectors > s->Capacity - sector)
+            return Status.SectorOutOfRange;
+        uint bytes = sectors * VirtioBlkDmaLayout.DataBytes;
         if (s->RequestGeneration == ~0UL) return Status.GenerationExhausted;
         Status status = CheckUnchanged(s); if (status != Status.Success) return Fault(s, status);
         status = ReadClock(s, out ulong now); if (status != Status.Success) return Fault(s, status);
@@ -206,21 +220,22 @@ public static unsafe class ContinuingReadOnlyBlockService
         *(uint*)(data + VirtioBlkDmaLayout.RequestOffset + 4) = 0;
         *(ulong*)(data + VirtioBlkDmaLayout.RequestOffset + 8) = sector;
         data[VirtioBlkDmaLayout.StatusOffset] = 0xff;
-        for (uint i = 0; i < 512; i++) data[VirtioBlkDmaLayout.DataOffset + i] = 0;
+        for (uint i = 0; i < bytes; i++) data[VirtioBlkDmaLayout.DataOffset + i] = 0;
         Descriptor(data, address + VirtioBlkDmaLayout.RequestOffset, 16, 1, 1);
-        Descriptor(data + 16, address + VirtioBlkDmaLayout.DataOffset, 512, 3, 2);
+        Descriptor(data + 16, address + VirtioBlkDmaLayout.DataOffset, bytes, 3, 2);
         Descriptor(data + 32, address + VirtioBlkDmaLayout.StatusOffset, 1, 2, 0);
         ushort* available = (ushort*)(data + s->Queue.Layout.Rings.AvailableRing.Offset);
         available[2 + (s->AvailableIndex & 7)] = 0;
         if (!Fence(s)) return Fault(s, Status.OrderingFailed);
-        s->RequestGeneration++; s->RequestSector = sector; s->Deadline = now + s->Input.CompletionTimeoutNanos;
+        s->RequestGeneration++; s->RequestSector = sector; s->RequestSectors = (byte)sectors;
+        s->Deadline = now + s->Input.CompletionTimeoutNanos;
         s->Discard = false; s->Phase = PendingPhase;
         s->AvailableIndex = unchecked((ushort)(s->AvailableIndex + 1));
         available[1] = s->AvailableIndex; s->SubmittedCount++;
         if (!Fence(s)) return Fault(s, Status.OrderingFailed);
         var a = s->Input.Access.Queue;
         if (a.Write16(a.Context, s->NotifyAddress, 0) != 1) return Fault(s, Status.WriteFailed);
-        if (!Observe(s, ObservationKind.Submitted, s->SubmittedCount, 512, null)) return Fault(s, Status.ObservationRejected);
+        if (!Observe(s, ObservationKind.Submitted, s->SubmittedCount, bytes, null)) return Fault(s, Status.ObservationRejected);
         *token = Token(s); return Status.Success;
     }
 
@@ -240,6 +255,9 @@ public static unsafe class ContinuingReadOnlyBlockService
         if (!Running(s)) return Status.InvalidState;
         if (!MetadataOutput(s, (ulong)completion, (ulong)sizeof(Completion))) return Status.InvalidStorage;
         *completion = default;
+        if ((s->Phase is PendingPhase or ReadyPhase) && (s->RequestSectors == 0 || s->RequestSectors > MaximumReadSectors))
+            return Fault(s, Status.InvalidCompletion);
+        uint bytes = s->RequestBytes;
         if (s->PollCount != ~0UL) s->PollCount++;
         Status status = DeviceStatus(s); if (status != Status.Success) return Fault(s, status);
         var a = s->Input.Access.Queue;
@@ -256,14 +274,14 @@ public static unsafe class ContinuingReadOnlyBlockService
             ulong element = used + 4 + (ulong)(s->UsedConsumed & 7) * 8;
             if (a.Read32(a.Context, element, &id) != 1 || a.Read32(a.Context, element + 4, &length) != 1 ||
                 a.Read8(a.Context, cpu + VirtioBlkDmaLayout.StatusOffset, &deviceStatus) != 1) return Fault(s, Status.ReadFailed);
-            var checkedCompletion = UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, id, length, deviceStatus);
+            var checkedCompletion = UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, id, length, deviceStatus, s->RequestSectors);
             if (checkedCompletion != VirtioBlkReadStatus.Success) return Fault(s, CompletionStatus(checkedCompletion));
             status = DeviceStatus(s); if (status != Status.Success) return Fault(s, status);
             status = ReadClock(s, out _); if (status != Status.Success) return Fault(s, status);
             s->UsedConsumed = index; s->CompletedCount++; s->Deadline = 0;
-            if (!Observe(s, ObservationKind.CompletionValidated, s->CompletedCount, s->Discard ? 0u : 512u, null))
+            if (!Observe(s, ObservationKind.CompletionValidated, s->CompletedCount, s->Discard ? 0u : bytes, null))
                 return Fault(s, Status.ObservationRejected);
-            *completion = new(Token(s), s->RequestSector, s->Discard ? 0u : 512u);
+            *completion = new(Token(s), s->RequestSector, s->Discard ? 0u : bytes);
             if (s->Discard)
             {
                 s->CancelledCount++; s->Discard = false; s->Phase = IdlePhase; return Status.Cancelled;
@@ -272,11 +290,11 @@ public static unsafe class ContinuingReadOnlyBlockService
         }
         status = ReadClock(s, out ulong now); if (status != Status.Success) return Fault(s, status);
         if (s->Phase == PendingPhase) return now >= s->Deadline ? Fault(s, Status.Timeout) : Status.Pending;
-        if (s->Phase == ReadyPhase) { *completion = new(Token(s), s->RequestSector, 512); return Status.Ready; }
+        if (s->Phase == ReadyPhase) { *completion = new(Token(s), s->RequestSector, bytes); return Status.Ready; }
         return Status.Idle;
     }
 
-    /// <summary>Copy exactly512 validated bytes to exclusive ordinary RAM, then
+    /// <summary>Copy the exact retained request length to exclusive ordinary RAM, then
     /// revoke the token and admit the next read. Short/aliased output preserves
     /// Ready for retry. All status/config/index/fence checks precede the copy.
     /// CopyReady observation precedes destination writes; its sequence becomes
@@ -289,15 +307,17 @@ public static unsafe class ContinuingReadOnlyBlockService
         if (!Matches(s, token) || s->Phase == IdlePhase) return Status.StaleToken;
         if (s->Discard) return Status.Cancelled;
         if (s->Phase != ReadyPhase) return Status.Pending;
-        if (destination.Length < 512) return Status.ShortBuffer;
+        if (s->RequestSectors == 0 || s->RequestSectors > MaximumReadSectors) return Fault(s, Status.InvalidCompletion);
+        uint bytes = s->RequestBytes;
+        if ((uint)destination.Length < bytes) return Status.ShortBuffer;
         fixed (byte* output = destination)
         {
-            if (!CallerBuffer(s, (ulong)output, 512)) return Status.InvalidStorage;
+            if (!CallerBuffer(s, (ulong)output, bytes)) return Status.InvalidStorage;
             Status status = CheckUnchanged(s); if (status != Status.Success) return Fault(s, status);
             if (!Fence(s)) return Fault(s, Status.OrderingFailed);
             byte* source = (byte*)(s->Queue.Layout.Range.CpuVirtualAddress + VirtioBlkDmaLayout.DataOffset);
-            if (!Observe(s, ObservationKind.CopyReady, s->CopiedCount + 1, 512, source)) return Fault(s, Status.ObservationRejected);
-            for (uint i = 0; i < 512; i++) output[i] = source[i];
+            if (!Observe(s, ObservationKind.CopyReady, s->CopiedCount + 1, bytes, source)) return Fault(s, Status.ObservationRejected);
+            for (uint i = 0; i < bytes; i++) output[i] = source[i];
         }
         s->CopiedCount++; s->Phase = IdlePhase; return Status.Success;
     }

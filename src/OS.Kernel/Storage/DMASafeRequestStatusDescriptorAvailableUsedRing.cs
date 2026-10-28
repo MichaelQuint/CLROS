@@ -12,6 +12,9 @@ public readonly struct VirtioBlkDmaLayout
     public const ushort QueueSize = 8;
     public const uint PageBytes = 4096, RequestOffset = 256, RequestBytes = 16,
         StatusOffset = 272, StatusBytes = 1, DataOffset = 512, DataBytes = 512;
+    // Explicit continuing reads may use more of the same retained data area.
+    // DataBytes remains the legacy single-sector wire contract.
+    public const uint MaximumReadSectors = 4, MaximumReadBytes = MaximumReadSectors * DataBytes;
     public readonly DmaAddressRange Range;
     public readonly VirtqueueSplitRingPlan Rings;
     public bool IsInitialized => Range.IsInitialized && Rings.QueueSize == QueueSize;
@@ -35,7 +38,7 @@ public static unsafe class DMASafeRequestStatusDescriptorAvailableUsedRing
         if (!rings.Succeeded || rings.Plan.EndOffset > VirtioBlkDmaLayout.RequestOffset ||
             VirtioBlkDmaLayout.RequestOffset + VirtioBlkDmaLayout.RequestBytes > VirtioBlkDmaLayout.StatusOffset ||
             VirtioBlkDmaLayout.StatusOffset + VirtioBlkDmaLayout.StatusBytes > VirtioBlkDmaLayout.DataOffset ||
-            VirtioBlkDmaLayout.DataOffset + VirtioBlkDmaLayout.DataBytes > range.ByteLength)
+            VirtioBlkDmaLayout.DataOffset + VirtioBlkDmaLayout.MaximumReadBytes > range.ByteLength)
             return VirtioBlkDmaStatus.InvalidLayout;
         layout = new(range, rings.Plan);
         return VirtioBlkDmaStatus.Success;

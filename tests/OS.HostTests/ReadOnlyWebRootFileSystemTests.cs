@@ -353,6 +353,57 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, chain)); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
     }
 
+    [HostTest("webroot.fs selected data batching crosses contiguous clusters but stops at fragmentation and partial sectors")]
+    private static void BatchedDataReads()
+    {
+        foreach (bool fragmented in new[] { false, true })
+        {
+            using var f = new Fixture(dataReadSectors: 4); LongIndex(f, 10);
+            uint[] chain = [10, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032];
+            if (fragmented) chain[5] = 2000;
+            for (int i = 0; i < chain.Length; i++)
+            {
+                f.Disk.SetFat(chain[i], i == chain.Length - 1 ? 0x0fffffffU : chain[i + 1]);
+                byte[] sector = f.Disk.Sector(f.Disk.Data(chain[i]));
+                for (int j = 0; j < 512; j++) sector[j] = Payload(i * 512 + j);
+            }
+            f.MountReady(); var file = f.Open("/app/wwwroot/index.html");
+            foreach (var range in new[] { (Offset: 0UL, Bytes: 5120U), (Offset: 3UL, Bytes: 2600U), (Offset: 511UL, Bytes: 4609U) })
+            {
+                ulong before = f.Device->Submitted; byte[] output = new byte[range.Bytes];
+                f.Read(file.File, range.Offset, range.Bytes, output, range.Bytes);
+                for (int i = 0; i < output.Length; i++) HostCheck.Equal(Payload((int)range.Offset + i), output[i]);
+                HostCheck.True(f.Device->Submitted - before is >= 3 and <= 5);
+                if (!fragmented && range.Offset == 0) HostCheck.Equal(4UL, f.Device->Submitted - before);
+            }
+            HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+        }
+    }
+
+    [HostTest("webroot.fs multi-sector cancellation publishes no result and invalid batching leaves admission untouched")]
+    private static void BatchedCancellation()
+    {
+        using var f = new Fixture(dataReadSectors: 4); LongIndex(f, 10);
+        var before = new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount)).ToArray();
+        foreach (uint bound in new[] { 0U, 5U })
+        {
+            HostCheck.Equal(Fs.Status.InvalidAccess, Fs.Start(f.Mount, f.Input, bound));
+            HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount))));
+        }
+        f.MountReady(); var file = f.Open("/app/wwwroot/index.html"); Fs.OperationToken token = default;
+        HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, file.File, 512, 2048, &token));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+        HostCheck.True(f.Device->ReadPending); ulong copied = f.Device->Copied;
+        HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(f.Mount, token));
+        HostCheck.Equal(Fs.Status.Cancelled, f.Drive(token)); HostCheck.Equal(copied, f.Device->Copied);
+        byte[] output = Enumerable.Repeat((byte)0xa5, 2048).ToArray(); uint bytes = 77;
+        HostCheck.True(Fs.CopyRead(f.Mount, token, output, &bytes) != Fs.Status.Success);
+        HostCheck.True(output.All(v => v == 0xa5) && bytes == 77);
+        f.Read(file.File, 512, 2048, output, 2048);
+        HostCheck.True(output.All(v => v == 0));
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+    }
+
     private static void LongIndex(Fixture f, uint clusters)
     {
         byte[] directory = f.Disk.Sector(f.Disk.Data(4));
@@ -1042,10 +1093,18 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
     {
         if (!h->Pending) return;
         var disk = (Disk)GCHandle.FromIntPtr(h->DiskHandle).Target!;
-        ulong lba = h->Sector; disk.Reads[lba]++;
-        if (disk.Sectors.TryGetValue(lba, out var bytes)) bytes.CopyTo(new Span<byte>(h->Data + 512, 512)); else new Span<byte>(h->Data + 512, 512).Clear();
-        bool failure = lba == disk.FailLba; h->Data[272] = failure ? (byte)1 : (byte)0;
-        byte* used = h->Data + 152 + (h->Produced & 7) * 8; *(uint*)used = 0; *(uint*)(used + 4) = failure ? 1U : 513U;
+        uint length = *(uint*)(h->Data + 24);
+        HostCheck.True(length is >= 512 and <= 2048 && length % 512 == 0);
+        bool failure = false;
+        for (uint offset = 0; offset < length; offset += 512)
+        {
+            ulong lba = h->Sector + offset / 512; disk.Reads[lba]++;
+            if (disk.Sectors.TryGetValue(lba, out var bytes)) bytes.CopyTo(new Span<byte>(h->Data + 512 + offset, 512));
+            else new Span<byte>(h->Data + 512 + offset, 512).Clear();
+            failure |= lba == disk.FailLba;
+        }
+        h->Data[272] = failure ? (byte)1 : (byte)0;
+        byte* used = h->Data + 152 + (h->Produced & 7) * 8; *(uint*)used = 0; *(uint*)(used + 4) = failure ? 1U : length + 1;
         h->Produced++; *(ushort*)(h->Data + 150) = unchecked((ushort)h->Produced); h->Pending = false;
     }
 
@@ -1072,10 +1131,12 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         private readonly Fs.Admission input;
         internal Fs.Admission Input => input;
         private uint arenaAt;
+        private readonly uint dataReadSectors;
         internal uint UsedArenaBytes => arenaAt;
         internal Fixture(uint cacheSlots = 2, uint workBudget = 65536, uint history = 4096, uint map = 4096, uint clusters = 65525, bool collision = false, uint slots = 2,
-            Block.ObservationAccess observation = default)
+            Block.ObservationAccess observation = default, uint dataReadSectors = 1)
         {
+            this.dataReadSectors = dataReadSectors;
             HostCheck.True(slots is >= 2 and <= 8);
             arenaCapacity = slots == 2 ? (uint)ArenaBytes : 1048576U;
             Arena = (byte*)NativeMemory.AlignedAlloc(arenaCapacity, 4096);
@@ -1119,7 +1180,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         }
         internal Fs.Status StartMount()
         {
-            Fs.Status status = Fs.Start(Mount, input);
+            Fs.Status status = Fs.Start(Mount, input, dataReadSectors);
             for (int i = 0; i < 10000 && status == Fs.Status.Pending; i++) { Tick(); status = Fs.PumpMount(Mount); }
             return status;
         }

@@ -359,13 +359,20 @@ public static unsafe partial class EfiEntry
             // A read admitted before arming retains its earlier scope.
             if (evidence->Generation != observation->Generation) return 1;
             bool copy = observation->Kind == Block.ObservationKind.CopyReady;
-            if (evidence->Count == NativeDiskEvidenceCapacity || evidence->Total == SelectedNativeDiskEvidenceLimit ||
-                (copy ? bytes == null || observation->Bytes != 512 : bytes != null))
+            uint slots = copy ? observation->Bytes / 512 : 1;
+            if (slots is 0 or > 4 || evidence->Count > NativeDiskEvidenceCapacity - slots ||
+                evidence->Total > SelectedNativeDiskEvidenceLimit - slots ||
+                (copy ? bytes == null || observation->Bytes != slots * 512 : bytes != null))
             { evidence->Failed = true; return 0; }
-            NativeDiskRecord* record = &evidence->A + evidence->Count;
-            record->Observation = *observation;
-            if (copy) for (uint i = 0; i < 512; i++) record->Bytes[i] = bytes[i];
-            evidence->Count++; evidence->Total++; return 1;
+            // Reserve the complete group before accepting CopyReady. Each slot
+            // holds one payload sector of the SAME physical transaction.
+            for (uint chunk = 0; chunk < slots; chunk++)
+            {
+                NativeDiskRecord* record = &evidence->A + evidence->Count + chunk;
+                record->Observation = *observation;
+                if (copy) for (uint i = 0; i < 512; i++) record->Bytes[i] = bytes[chunk * 512 + i];
+            }
+            evidence->Count += slots; evidence->Total += slots; return 1;
         }
 
         private static bool ArmNativeDiskEvidence(NativeDiskOwner* o)
@@ -399,24 +406,43 @@ public static unsafe partial class EfiEntry
             {
                 if (o->Boot != state || o->Evidence.Failed) return false;
                 NativeDiskEvidence* evidence = &o->Evidence;
-                for (uint i = 0; i < evidence->Count; i++)
+                for (uint i = 0; i < evidence->Count;)
                 {
                     NativeDiskRecord* record = &evidence->A + i;
                     var value = record->Observation;
-                    if (value.Kind == Block.ObservationKind.CopyReady && o->Device.Copied != value.Sequence ||
-                        !ReadNetworkTime(state, out ulong now) || !WriteNativeDiskRecord(state, record, now))
+                    uint slots = value.Kind == Block.ObservationKind.CopyReady ? value.Bytes / 512 : 1;
+                    if (slots is 0 or > 4 || slots > evidence->Count - i ||
+                        value.Kind == Block.ObservationKind.CopyReady && value.Bytes != slots * 512)
                     { evidence->Failed = true; return false; }
+                    for (uint chunk = 1; chunk < slots; chunk++)
+                        if (!SameNativeDiskObservation(value, record[chunk].Observation))
+                        { evidence->Failed = true; return false; }
+                    if (value.Kind == Block.ObservationKind.CopyReady && o->Device.Copied != value.Sequence ||
+                        !ReadNetworkTime(state, out ulong now))
+                    { evidence->Failed = true; return false; }
+                    for (uint chunk = 0; chunk < slots; chunk++)
+                    {
+                        if (!WriteNativeDiskRecord(state, record + chunk, now, chunk))
+                        { evidence->Failed = true; return false; }
+                        record[chunk] = default;
+                    }
                     if (value.Kind == Block.ObservationKind.CopyReady) evidence->CopiedRecords++;
-                    *record = default;
+                    i += slots;
                 }
                 evidence->Count = 0; return true;
             }
         }
 
-        private static bool WriteNativeDiskRecord(Storage* state, NativeDiskRecord* record, ulong now)
+        private static bool SameNativeDiskObservation(Block.Observation a, Block.Observation b) =>
+            a.Kind == b.Kind && a.Owner == b.Owner && a.Epoch == b.Epoch && a.Generation == b.Generation &&
+            a.Sector == b.Sector && a.Sequence == b.Sequence && a.Bytes == b.Bytes &&
+            a.AvailableIndex == b.AvailableIndex && a.ConsumedIndex == b.ConsumedIndex;
+
+        private static bool WriteNativeDiskRecord(Storage* state, NativeDiskRecord* record, ulong now, uint chunk)
         {
             var value = record->Observation;
-            if (!LinuxText(state, "M16_023_IO kind=") || !LinuxNumber(state, (uint)value.Kind) ||
+            uint kind = chunk == 0 ? (uint)value.Kind : 3U;
+            if (!LinuxText(state, "M16_023_IO kind=") || !LinuxNumber(state, kind) ||
                 !LinuxText(state, " owner=") || !LinuxNumber(state, value.Owner) ||
                 !LinuxText(state, " epoch=") || !LinuxNumber(state, value.Epoch) ||
                 !LinuxText(state, " generation=") || !LinuxNumber(state, value.Generation) ||
@@ -428,7 +454,9 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " clock=") || !LinuxNumber(state, now)) return false;
             if (value.Kind == Block.ObservationKind.CopyReady)
             {
-                if (!LinuxText(state, " copied=committed data=")) return false;
+                if (!LinuxText(state, " copied=committed")) return false;
+                if (value.Bytes != 512 && (!LinuxText(state, " chunk=") || !LinuxNumber(state, chunk))) return false;
+                if (!LinuxText(state, " data=")) return false;
                 const string hex = "0123456789abcdef";
                 for (uint i = 0; i < 512; i++)
                     if (!LinuxByte(state, (byte)hex[record->Bytes[i] >> 4]) ||
