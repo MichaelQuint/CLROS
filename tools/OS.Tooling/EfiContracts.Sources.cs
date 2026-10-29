@@ -101,7 +101,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Threading\KernelThreadEntry.cs"] = "cea8e30c38d329c978bad322297642a5ea9639fc652dce4329d101506fc429e4",
                 [@"..\OS.Kernel\Threading\KernelThreadProgram.cs"] = "ec97f0ddcee776ce52e0b015acf209d7d50086583735bc5b70828e791809babc",
                 [@"..\OS.Kernel\Threading\X64ThreadContext.cs"] = "ac030297621b3d4159369ce1e67468567b280fbc06e781fdd6b22a9c79aee030",
-                [@"..\OS.Kernel\Threading\ThreadContextSwitch.cs"] = "b8295e1ddbd9f5c272069668d2adcb23a987eae71dd704df2e4ee6464f10d7f1",
+                [@"..\OS.Kernel\Threading\ThreadContextSwitch.cs"] = "bcf32d5323b4fba17bc6b28d0fdd7e04d4c90bffab0c94af8f0cdfe3a780cf01",
                 [@"..\OS.Kernel\Threading\DeadlineQueue.cs"] = "d96a50d47f05d6114702578acd91585e14852e6aa71b313f74d445686d891ef2",
                 [@"..\OS.Kernel\Threading\SchedulerTimer.cs"] = "5c1ac2b28b5d4a57291c00d0b9325404a96cf0672c5d30515ec11a36abaec004",
                 [@"..\OS.Kernel\Pal\OSHostHandle.cs"] = "d6fd1790d8c87d318a3ad998a29643e5b99c6d695928ca3428ec7732451e1088",

@@ -407,6 +407,15 @@ public static unsafe class ThreadContextSwitch
         public bool Valid => _valid && _position == _limit;
         public void Bytes(ulong value, int count)
         {
+            // Little-endian x64 instruction fields; the unaligned read stays
+            // inside the admitted, exclusively owned ordinary-memory extent.
+            if (_compare && _output != null && count == 8 &&
+                _position <= _limit && _limit - _position >= 8)
+            {
+                if (*(ulong*)(_output + _position) != value) _valid = false;
+                _position += 8;
+                return;
+            }
             for (int i = 0; i < count; i++, _position++)
             {
                 if (_position >= _limit) { _valid = false; continue; }
