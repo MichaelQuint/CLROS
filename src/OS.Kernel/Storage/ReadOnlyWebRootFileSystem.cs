@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using OS.Drivers;
 using OS.Std.Binary;
 using OS.Std.Time;
@@ -73,15 +72,10 @@ public static unsafe class ReadOnlyWebRootFileSystem
         internal byte Phase;
     }
 
-    [StructLayout(LayoutKind.Explicit, Size = 48)]
     private struct ImmutableDirectoryRecord
     {
-        [FieldOffset(0)] internal ulong MountOwner;
-        [FieldOffset(8)] internal ulong MountEpoch;
-        [FieldOffset(16)] internal ulong DeviceEpoch;
-        [FieldOffset(24)] internal ulong PoolEpoch;
-        [FieldOffset(32)] internal ulong Lba;
-        [FieldOffset(40)] internal byte Phase; // Working never hits; ReadyPhase publishes last.
+        internal ulong MountOwner, MountEpoch, DeviceEpoch, PoolEpoch, Lba;
+        internal ulong Phase; // Working never hits; ReadyPhase publishes last.
     }
 
     /// <summary>Caller-owned handle slot and immutable checked cluster map.
@@ -261,9 +255,9 @@ public static unsafe class ReadOnlyWebRootFileSystem
     }
 
     /// <summary>Exact contiguous ordinary-RAM backing for1..5 protected directory
-    /// sectors. Zero means an unsupported slot count; no memory is accessed.</summary>
+    /// sectors. Zero means an unsupported slot count or record size; no memory is accessed.</summary>
     public static uint ImmutableDirectoryCacheBytes(uint slots) =>
-        slots is 0 or > MaximumImmutableDirectoryCacheSlots ? 0 : slots * (48 + 512);
+        slots is 0 or > MaximumImmutableDirectoryCacheSlots || sizeof(ImmutableDirectoryRecord) != 48 ? 0 : slots * (48 + 512);
 
     /// <summary>Opt in to completed-requested-sector reuse on immutable media.
     /// Call once after Start and before any mount I/O. The caller exclusively

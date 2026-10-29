@@ -17,6 +17,9 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(uint.MaxValue));
         Type record = typeof(Fs).GetNestedType("ImmutableDirectoryRecord", System.Reflection.BindingFlags.NonPublic)!;
         HostCheck.Equal(48, Marshal.SizeOf(record));
+        var fields = record.GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        HostCheck.Equal(6, fields.Length);
+        foreach (var field in fields) HostCheck.True(field.FieldType == typeof(ulong));
         foreach (var item in new[] { ("MountOwner", 0L), ("MountEpoch", 8L), ("DeviceEpoch", 16L), ("PoolEpoch", 24L), ("Lba", 32L), ("Phase", 40L) })
             HostCheck.Equal(item.Item2, Marshal.OffsetOf(record, item.Item1).ToInt64());
         using var f = new Fixture(directoryCacheSlots: 5);
@@ -210,10 +213,10 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         finally { NativeMemory.AlignedFree(backing); }
     });
 
-    private static int DirectoryCachePhases(Fixture f, byte phase)
+    private static int DirectoryCachePhases(Fixture f, ulong phase)
     {
         int count = 0;
-        for (uint i = 0; i < f.DirectoryCacheSlots; i++) if (f.DirectoryCacheBacking[i * 48 + 40] == phase) count++;
+        for (uint i = 0; i < f.DirectoryCacheSlots; i++) if (*(ulong*)(f.DirectoryCacheBacking + i * 48 + 40) == phase) count++;
         return count;
     }
 
@@ -1168,7 +1171,7 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
             if (sink->CheckDirectoryCache)
             {
                 sink->CheckedDirectoryCache = true;
-                for (uint i = 0; i < sink->CacheSlots; i++) sink->Bad |= sink->CacheBacking[i * 48 + 40] == 2;
+                for (uint i = 0; i < sink->CacheSlots; i++) sink->Bad |= *(ulong*)(sink->CacheBacking + i * 48 + 40) == 2;
                 sink->Bad |= new ReadOnlySpan<byte>(sink->CacheBacking + sink->CacheSlots * 48,
                     (int)(sink->CacheSlots * 512)).IndexOfAnyExcept((byte)0xa5) >= 0;
             }
