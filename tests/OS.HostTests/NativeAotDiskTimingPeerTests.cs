@@ -5,7 +5,7 @@ using OS.Tooling;
 using OS.Kernel.Compatibility.LinuxX64;
 using System.Runtime.CompilerServices;
 
-internal static class NativeAotDiskTimingPeerTests
+internal static partial class NativeAotDiskTimingPeerTests
 {
     [HostTest("dispatch window partitions completed envelopes and supervisor polls without subtracting nested polls twice")]
     private static void DispatchPartition()
@@ -373,7 +373,7 @@ internal static class NativeAotDiskTimingPeerTests
         string applied=Path.Combine(dir,"timing.raw");
         var receipt=WebRootImageFixture.Apply(root,image,source,WebRootImageFixture.SnapshotPublishedRoot(source),applied);
         var inventory=WebRootDiskInventory.Inspect(applied,File.ReadAllBytes(applied),receipt);
-        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","late-fault","unconfirmed"})
+        foreach(string mode in new[]{"good","body","etag","metrics","dispatch","driver","driver-duplicate","driver-late-change","selection","selection-late-change","late-fault","unconfirmed"})
             Check(mode).GetAwaiter().GetResult();
 
         async Task Check(string mode)
@@ -397,6 +397,8 @@ internal static class NativeAotDiskTimingPeerTests
             HostCheck.True(!actual.RootElement.GetProperty("FullAndCleanupQualified").GetBoolean() &&
                 actual.RootElement.GetProperty("RunnerJoined").GetBoolean());
             HostCheck.Equal("clros-disk-read-timing-v7", actual.RootElement.GetProperty("Schema").GetString()!);
+            HostCheck.Equal("clros-thread-dispatch-selection-v1", actual.RootElement.GetProperty("SelectionSchema").GetString()!);
+            if (mode == "good") HostCheck.Equal(4, actual.RootElement.GetProperty("Selections").GetArrayLength());
             if (mode is "good" or "late-fault" or "driver-late-change")
             {
                 HostCheck.Equal(1UL, actual.RootElement.GetProperty("DispatchMetrics").GetProperty("phaseComplete").GetUInt64());
@@ -429,13 +431,15 @@ internal static class NativeAotDiskTimingPeerTests
                         if(i==3)File.AppendAllText(serial,(mode=="metrics"?Metrics+Metrics:Metrics)+
                             (mode=="dispatch"?Dispatch.Replace("nestedPollNs=10000","nestedPollNs=20000"):Dispatch)+
                             (mode=="driver"?Driver.Replace("dispatchShellNonPollNs=2000","dispatchShellNonPollNs=2001"):
-                                mode=="driver-duplicate"?Driver+Driver:Driver));
+                                mode=="driver-duplicate"?Driver+Driver:Driver)+
+                             (mode=="selection"?SelectionStream.Replace("sequence=2", "sequence=02"):SelectionStream));
                     }
                 }
                 catch(OperationCanceledException)when(cancellation.IsCancellationRequested)
                 {
                     if (mode == "late-fault") File.AppendAllText(serial, "TEST_FAIL disk.dispatch.bookkeeping late_end\r\n");
                     if (mode == "driver-late-change") File.AppendAllText(serial, Driver);
+                    if (mode == "selection-late-change") File.AppendAllText(serial, SelectionStream);
                     return new(-1,"synthetic-runner-cancelled","",false,false,true,TimeSpan.Zero){TerminationConfirmed=mode!="unconfirmed"};
                 }
                 finally{exited=true;listener.Stop();}

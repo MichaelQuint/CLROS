@@ -491,14 +491,17 @@ public static unsafe partial class EfiEntry
                 if (disk->Boot != c->State) return false;
                 if (disk->TimingPhase == 2)
                     return disk->TimingDispatch.IsComplete && !disk->TimingDispatch.IsPhysicalDispatchActive &&
-                        disk->TimingDriver.IsComplete && !disk->TimingDriver.IsPhysicalDispatchActive && LinuxNativeDispatch(c);
+                        disk->TimingDriver.IsComplete && !disk->TimingDriver.IsPhysicalDispatchActive && LinuxNativeDispatch(c, 0);
                 if (!ReadNetworkTime(c->State, out ulong began) ||
                     !disk->TimingDispatch.BeginDispatch(began, disk->TimingNetworkTotal, out ulong sequence)) return false;
-                bool returned = LinuxNativeDispatch(c);
+                bool returned = LinuxNativeDispatch(c, sequence);
                 // A later bookkeeping fault fails the original owner even if
                 // an immutable phase-complete line has already been printed.
                 if (!ReadNetworkTime(c->State, out ulong ended) ||
                     !disk->TimingDispatch.EndDispatch(sequence, ended, disk->TimingNetworkTotal)) return false;
+                if (returned && disk->TimingPhase == 2 &&
+                    (!LinuxText(c->State, "M10_018_SELECTED_END version=1 lastSequence=") ||
+                     !LinuxNumber(c->State, sequence) || !LinuxText(c->State, "\r\n"))) return false;
                 return returned;
             }
         }
@@ -525,7 +528,11 @@ public static unsafe partial class EfiEntry
         }
 #endif
 
+#if M10_018_TIMING_PROBE
+        private static bool LinuxNativeDispatch(LinuxNativeControl* c, ulong sequence)
+#else
         private static bool LinuxNativeDispatch(LinuxNativeControl* c)
+#endif
         {
             if (c->Selected != 0 || !LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) ||
                 !CooperativeAuditPool(c->State, true) || c->Timer.IsPrepared) return false;
@@ -533,6 +540,14 @@ public static unsafe partial class EfiEntry
             uint index = (uint)next.Identity.Value - 1;
             if (!next.Succeeded || next.State != KernelThreadTable.State.Running || index >= c->Capacity ||
                 next.Identity.Value != c->Plan.Bindings[index].Context.Identity) return false;
+#if M10_018_TIMING_PROBE
+            ulong selected = 0, selectionEpoch = 0;
+            if (sequence != 0)
+            {
+                if (c->Threads.Current.Value != next.Identity.Value || !LinuxNativeTimingRead(c, &selected)) return false;
+                selectionEpoch = c->Epoch;
+            }
+#endif
             c->Selected = index + 1;
 #if M10_018_TIMING_PROBE
             bool returned = LinuxNativeMeasuredDriver(c, index);
@@ -556,8 +571,26 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
             if (!LinuxNativeTimingWrite(c, next.Identity.Value)) c->Failed = 1;
 #endif
+#if M10_018_TIMING_PROBE
+            if (sequence != 0 && !LinuxNativeSelectionWrite(c, sequence, next.Identity.Value, selectionEpoch, selected))
+            { c->Failed = 1; return false; }
+#endif
             return !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
         }
+
+#if M10_018_TIMING_PROBE
+        // One raw-clock sample follows validated selection on the serialized
+        // supervisor. Publish only after the unchanged driver and confirmation
+        // return; IRQs may advance the epoch. Failure rejects the diagnostic,
+        // and neither this record nor its timestamps grant execution authority.
+        private static bool LinuxNativeSelectionWrite(LinuxNativeControl* c, ulong sequence, ulong identity, ulong selectionEpoch, ulong selected) =>
+            LinuxText(c->State, "M10_018_SELECTED version=1 sequence=") && LinuxNumber(c->State, sequence) &&
+            LinuxText(c->State, " identity=") && LinuxNumber(c->State, identity) &&
+            LinuxText(c->State, " selectionEpoch=") && LinuxNumber(c->State, selectionEpoch) &&
+            LinuxText(c->State, " returnEpoch=") && LinuxNumber(c->State, c->Epoch) &&
+            LinuxText(c->State, " selected=") && LinuxNumber(c->State, selected) &&
+            LinuxText(c->State, " periodFs=") && LinuxNumber(c->State, c->State->Clock.PeriodFemtoseconds) && LinuxText(c->State, "\r\n");
+#endif
 
 #if M16_009_PROBE
         // Raw HPET reads avoid the owner/CPU/pool observations being measured.

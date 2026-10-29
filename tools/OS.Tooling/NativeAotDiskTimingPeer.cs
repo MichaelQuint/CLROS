@@ -12,7 +12,7 @@ namespace OS.Tooling;
 /// range and health, followed by intentional runner cancellation and joining.
 /// Original image extraction supplies expected bytes. This observation grants
 /// neither full HTTP/browser qualification nor guest shutdown/cleanup acceptance.</summary>
-public static class NativeAotDiskTimingPeer
+public static partial class NativeAotDiskTimingPeer
 {
     public const string Target = "/_framework/System.Private.CoreLib.wasm";
     public const string Marker = "M10_018_TIMING ";
@@ -182,7 +182,8 @@ public static class NativeAotDiskTimingPeer
         using var owned=CancellationTokenSource.CreateLinkedTokenSource(cancellation);
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(owned.Token);deadline.CancelAfter(TimeSpan.FromSeconds(peerTimeoutSeconds));
         Task<ProcessResult> runner=runRunner(port,owned.Token);Task? peer=null;bool complete=false;List<object> rows=[];
-        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null, driverMetrics=null;string? failure=null;
+        IReadOnlyDictionary<string,ulong>? metrics=null, dispatchMetrics=null, driverMetrics=null;
+        IReadOnlyList<SelectionObservation>? selections=null;string? failure=null;
         try
         {
             peer=Observe();
@@ -198,6 +199,7 @@ public static class NativeAotDiskTimingPeer
             Need(metrics is not null && dispatchMetrics is not null && driverMetrics is not null && InspectMetrics(finalSerial).SequenceEqual(metrics) &&
                 InspectDispatchMetrics(finalSerial, metrics).SequenceEqual(dispatchMetrics) &&
                 InspectDriverMetrics(finalSerial, dispatchMetrics).SequenceEqual(driverMetrics), "final_metrics_changed");
+            Need(selections is not null && InspectSelections(finalSerial).SequenceEqual(selections), "final_selections_changed");
             using Socket stopped=new(AddressFamily.InterNetwork,SocketType.Stream,ProtocolType.Tcp);
             using var refusal=new CancellationTokenSource(TimeSpan.FromSeconds(5));bool refused=false;
             try{await stopped.ConnectAsync(IPAddress.Loopback,port,refusal.Token);}
@@ -219,7 +221,8 @@ public static class NativeAotDiskTimingPeer
                 await JsonSerializer.SerializeAsync(receipt,new{Schema="clros-disk-read-timing-v7",Scope="diagnostic-only",Complete=complete,
                     FullAndCleanupQualified=false,Port=port,RunnerTimeoutSeconds=runnerTimeoutSeconds,PeerTimeoutSeconds=peerTimeoutSeconds,
                     ImageSha256=inventory.ImageSha256,Asset=asset,ClockFrequency=Stopwatch.Frequency,
-                    Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,DriverMetrics=driverMetrics,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
+                    Responses=rows,Metrics=metrics,DispatchMetrics=dispatchMetrics,DriverMetrics=driverMetrics,
+                    SelectionSchema="clros-thread-dispatch-selection-v1",Selections=selections,Failure=failure,RunnerJoined=true,Runner=joined,JoinFault=joinFault},cancellationToken:CancellationToken.None);
                 receipt.Flush(true);
             }
             catch(IOException){}catch(UnauthorizedAccessException){}
@@ -240,8 +243,15 @@ public static class NativeAotDiskTimingPeer
                 deadline.Token.ThrowIfCancellationRequested();
                 string text = await ReadSerial(deadline.Token); InspectGuestStatus(text);
                 if(text.Split('\n').Any(line=>line.StartsWith(DriverMarker,StringComparison.Ordinal)) &&
-                    text.LastIndexOf('\n')>text.IndexOf(DriverMarker,StringComparison.Ordinal))
-                { metrics=InspectMetrics(text);dispatchMetrics=InspectDispatchMetrics(text,metrics);driverMetrics=InspectDriverMetrics(text,dispatchMetrics);break; }
+                    text.LastIndexOf('\n')>text.IndexOf(DriverMarker,StringComparison.Ordinal) &&
+                    text.Split('\n').Any(line=>line.StartsWith(SelectionEndMarker,StringComparison.Ordinal)) &&
+                    text.LastIndexOf('\n')>text.IndexOf(SelectionEndMarker,StringComparison.Ordinal))
+                {
+                    metrics=InspectMetrics(text);dispatchMetrics=InspectDispatchMetrics(text,metrics);driverMetrics=InspectDriverMetrics(text,dispatchMetrics);
+                    selections=InspectSelections(text);
+                    Need((ulong)selections.Count>=dispatchMetrics["completed"]+dispatchMetrics["clipped"],"selection_dispatch_count");
+                    break;
+                }
                 await Task.Delay(50,deadline.Token);
             }
 
