@@ -9,6 +9,230 @@ using OS.Storage;
 
 internal static unsafe class ReadOnlyWebRootFileSystemTests
 {
+    [HostTest("webroot.fs immutable-directory-cache admission is explicit disjoint and before all mount IO")]
+    private static void ImmutableCacheAdmission()
+    {
+        HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(0)); HostCheck.Equal(560U, Fs.ImmutableDirectoryCacheBytes(1));
+        HostCheck.Equal(2800U, Fs.ImmutableDirectoryCacheBytes(5)); HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(6));
+        HostCheck.Equal(0U, Fs.ImmutableDirectoryCacheBytes(uint.MaxValue));
+        Type record = typeof(Fs).GetNestedType("ImmutableDirectoryRecord", System.Reflection.BindingFlags.NonPublic)!;
+        HostCheck.Equal(48, Marshal.SizeOf(record));
+        foreach (var item in new[] { ("MountOwner", 0L), ("MountEpoch", 8L), ("DeviceEpoch", 16L), ("PoolEpoch", 24L), ("Lba", 32L), ("Phase", 40L) })
+            HostCheck.Equal(item.Item2, Marshal.OffsetOf(record, item.Item1).ToInt64());
+        using var f = new Fixture(directoryCacheSlots: 5);
+        byte[] untouched = new ReadOnlySpan<byte>(f.DirectoryCacheBacking, 2800).ToArray();
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(f.Mount, f.DirectoryCacheBacking, 2800, 5));
+        HostCheck.Equal(Fs.Status.Pending, Fs.Start(f.Mount, f.Input));
+        foreach (ulong address in new ulong[] { (ulong)f.Operations[0].Storage.Sector, (ulong)f.Operations[1].Storage.Range,
+            (ulong)f.Mount, (ulong)f.Cache[0].Data, (ulong)f.Data, (ulong)(f.DirectoryCacheBacking + 1) })
+            HostCheck.Equal(Fs.Status.InvalidStorage, Fs.EnableImmutableDirectoryCache(f.Mount, (byte*)address, 2800, 5));
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(f.Mount, f.DirectoryCacheBacking, 2799, 5));
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(f.Mount, f.DirectoryCacheBacking, 2800, 6));
+        HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking, 2800).SequenceEqual(untouched));
+        HostCheck.Equal(0UL, f.Mount->SectorReads);
+        HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableDirectoryCache(f.Mount, f.DirectoryCacheBacking, 2800, 5));
+        byte[] enabled = new ReadOnlySpan<byte>(f.DirectoryCacheBacking, 2800).ToArray();
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(f.Mount, f.DirectoryCacheBacking, 2800, 5));
+        HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking, 2800).SequenceEqual(enabled));
+        using var late = new Fixture(directoryCacheSlots: 5);
+        HostCheck.Equal(Fs.Status.Pending, Fs.Start(late.Mount, late.Input));
+        HostCheck.Equal(Fs.Status.Pending, Fs.PumpMount(late.Mount));
+        HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(late.Mount, late.DirectoryCacheBacking, 2800, 5));
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache protected hits preserve parsing and never evict or prefetch")]
+    private static void ImmutableCacheReuse()
+    {
+        using var f = new Fixture(directoryCacheSlots: 5);
+        f.Disk.NoDirectoryEnd(); f.Disk.SetFat(8, 20); f.Disk.SetFat(20, 0x0fffffff); f.Disk.Sector(f.Disk.Data(20)).AsSpan().Clear();
+        f.MountReady(); HostCheck.Equal(0, DirectoryCachePhases(f, 2)); // MountKind never fills.
+        var cold = CacheOpen(f, "/app/wwwroot/index.html", out uint coldWork);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, cold.File)); HostCheck.Equal(5, DirectoryCachePhases(f, 2));
+        ulong reads = f.Mount->SectorReads, submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied;
+        var warm = CacheOpen(f, "/app/wwwroot/index.html", out uint warmWork);
+        HostCheck.Equal(coldWork, warmWork); HostCheck.True(coldWork != 0 && cold.Info.Inode == warm.Info.Inode && cold.Info.Length == warm.Info.Length);
+        HostCheck.Equal(reads, f.Mount->SectorReads); NoIo(f, submitted, completed, copied);
+        HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, warm.File));
+        byte[] protectedBytes = new ReadOnlySpan<byte>(f.DirectoryCacheBacking, 2800).ToArray();
+        uint outside = f.Disk.Reads[f.Disk.Data(5)];
+        for (int i = 0; i < 2; i++)
+        {
+            var nested = f.Open("/app/wwwroot/fixture/info.txt"); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, nested.File));
+        }
+        HostCheck.Equal(outside + 2, f.Disk.Reads[f.Disk.Data(5)]); // Sixth distinct directory stays a physical miss.
+        HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking, 2800).SequenceEqual(protectedBytes));
+        HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking - 16, 16).IndexOfAnyExcept((byte)0xc7) < 0);
+        HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking + 2800, 16).IndexOfAnyExcept((byte)0xc7) < 0);
+        HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache publishes only after accepted physical copy")]
+    private static void ImmutableCacheCopyPublication()
+    {
+        for (int rejected = 0; rejected < 2; rejected++)
+        {
+            FsObservation sink = default;
+            using var f = new Fixture(directoryCacheSlots: 5, observation: new() { Context = &sink, Observe = &ObserveSector });
+            sink.Device = f.Device; new Span<byte>(f.DirectoryCacheBacking, 2800).Fill(0xa5); f.MountReady();
+            var token = BeginLookup(f, "/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token));
+            HostCheck.Equal(1, DirectoryCachePhases(f, 1)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+            sink.CacheBacking = f.DirectoryCacheBacking; sink.CacheSlots = 5; sink.CheckDirectoryCache = true; sink.Reject = rejected != 0;
+            ulong before = f.Device->Copied; f.Tick(); Fs.Status status = Fs.Poll(f.Mount, token);
+            HostCheck.True(sink.CheckedDirectoryCache && !sink.Bad);
+            if (rejected == 0)
+            {
+                HostCheck.Equal(Fs.Status.Pending, status); HostCheck.Equal(before + 1, f.Device->Copied);
+                HostCheck.Equal(1, DirectoryCachePhases(f, 2));
+                HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking + 5 * 48, 512).SequenceEqual(f.Disk.Sector(f.Disk.Data(4))));
+                HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+            }
+            else
+            {
+                HostCheck.Equal(Fs.Status.DeviceFailed, status); HostCheck.Equal(before, f.Device->Copied);
+                HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+                HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking + 5 * 48, 5 * 512).IndexOfAnyExcept((byte)0xa5) < 0);
+            }
+        }
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache replays VFAT collisions and budgets through original parser")]
+    private static void ImmutableCacheParserErrors()
+    {
+        for (int mode = 0; mode < 3; mode++)
+        {
+            using var f = new Fixture(directoryCacheSlots: 5, collision: mode == 1, workBudget: mode == 2 ? 7U : 65536U);
+            if (mode == 0) f.Disk.Sector(f.Disk.Data(4))[13] ^= 1;
+            f.MountReady(); uint observed = 0;
+            for (int repeat = 0; repeat < 2; repeat++)
+            {
+                var token = BeginLookup(f, "/app/wwwroot/index.html");
+                HostCheck.Equal(mode == 0 ? Fs.Status.CorruptDirectory : mode == 1 ? Fs.Status.Ambiguous : Fs.Status.TraversalBudgetExceeded, f.Drive(token));
+                HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token));
+                if (repeat == 0) observed = f.Disk.Reads[f.Disk.Data(4)];
+                else HostCheck.Equal(observed, f.Disk.Reads[f.Disk.Data(4)]);
+            }
+        }
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache preserves End before a failing next sector and required cold failures")]
+    private static void ImmutableCacheEndBoundary()
+    {
+        for (int removeEnd = 0; removeEnd < 2; removeEnd++)
+        {
+            using var f = new Fixture(directoryCacheSlots: 5);
+            f.Disk.SetFat(8, 20); f.Disk.SetFat(20, 0x0fffffff); f.Disk.FailLba = f.Disk.Data(20);
+            if (removeEnd != 0) f.Disk.NoDirectoryEnd();
+            f.MountReady();
+            if (removeEnd == 0)
+            {
+                for (int repeat = 0; repeat < 2; repeat++)
+                {
+                    var file = f.Open("/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+                }
+                HostCheck.Equal(0U, f.Disk.Reads[f.Disk.Data(20)]);
+            }
+            else
+            {
+                var token = BeginLookup(f, "/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.DeviceFailed, f.Drive(token));
+                HostCheck.Equal(1U, f.Disk.Reads[f.Disk.Data(20)]); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+            }
+        }
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache cold faults cancellation and stale tokens never publish")]
+    private static void ImmutableCacheCancellation()
+    {
+        using (var f = new Fixture(directoryCacheSlots: 5))
+        {
+            new Span<byte>(f.DirectoryCacheBacking, 2800).Fill(0xa5); f.MountReady();
+            var token = BeginLookup(f, "/app/wwwroot/index.html"); var other = BeginLookup(f, "/app/wwwroot/empty.bin");
+            HostCheck.Equal(Fs.Status.Pending, Fs.Poll(f.Mount, token)); HostCheck.Equal(1, DirectoryCachePhases(f, 1));
+            HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, other)); HostCheck.Equal(1, DirectoryCachePhases(f, 1));
+            HostCheck.Equal(Fs.Status.Pending, Fs.Cancel(f.Mount, token)); HostCheck.Equal(Fs.Status.Cancelled, f.Drive(token));
+            HostCheck.Equal(1UL, f.Device->Cancelled);
+            HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+            HostCheck.True(new ReadOnlySpan<byte>(f.DirectoryCacheBacking + 5 * 48, 5 * 512).IndexOfAnyExcept((byte)0xa5) < 0);
+            ulong submitted = f.Device->Submitted, completed = f.Device->Completed, copied = f.Device->Copied, cancelled = f.Device->Cancelled;
+            HostCheck.Equal(Fs.Status.StaleToken, Fs.Poll(f.Mount, token)); NoIo(f, submitted, completed, copied, cancelled);
+        }
+        using (var f = new Fixture(directoryCacheSlots: 5))
+        {
+            f.MountReady(); var warm = f.Open("/app/wwwroot/index.html"); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, warm.File));
+            HostCheck.True(DirectoryCachePhases(f, 2) != 0); f.Disk.FailLba = f.Disk.Data(5);
+            var token = BeginLookup(f, "/app/wwwroot/fixture/info.txt"); HostCheck.Equal(Fs.Status.DeviceFailed, f.Drive(token));
+            HostCheck.Equal(0, DirectoryCachePhases(f, 1)); HostCheck.Equal(0, DirectoryCachePhases(f, 2));
+        }
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache backing is excluded from outputs and cleared for a new mount")]
+    private static void ImmutableCacheOwnership()
+    {
+        byte* backing = (byte*)NativeMemory.AlignedAlloc(2800, 16);
+        try
+        {
+            using (var f = new Fixture())
+            {
+                MountWithDirectoryCache(f, backing); var token = BeginLookup(f, "/app/wwwroot/index.html");
+                HostCheck.Equal(Fs.Status.Ready, f.Drive(token)); byte[] ready = new ReadOnlySpan<byte>(backing, 2800).ToArray();
+                HostCheck.Equal(Fs.Status.InvalidStorage, Fs.CopyOpen(f.Mount, token, (Fs.OpenResult*)backing));
+                HostCheck.True(new ReadOnlySpan<byte>(backing, 2800).SequenceEqual(ready));
+                Fs.OpenResult file = default; HostCheck.Equal(Fs.Status.Success, Fs.CopyOpen(f.Mount, token, &file));
+                HostCheck.Equal(Fs.Status.Pending, Fs.BeginRead(f.Mount, file.File, 0, 1, &token)); HostCheck.Equal(Fs.Status.Ready, f.Drive(token));
+                uint bytes = 99; HostCheck.Equal(Fs.Status.InvalidStorage, Fs.CopyRead(f.Mount, token, new Span<byte>(backing + 2799, 1), &bytes));
+                HostCheck.Equal(99U, bytes); HostCheck.True(new ReadOnlySpan<byte>(backing, 2800).SequenceEqual(ready));
+                HostCheck.Equal(Fs.Status.Cancelled, Fs.Cancel(f.Mount, token)); HostCheck.Equal(Fs.Status.Success, Fs.Close(f.Mount, file.File));
+                HostCheck.Equal(Fs.Status.Success, Fs.Stop(f.Mount));
+                ready.AsSpan().CopyTo(new Span<byte>(backing, 2800)); // Returned backing may contain an old ready generation.
+            }
+            using (var fresh = new Fixture())
+            {
+                MountWithDirectoryCache(fresh, backing); fresh.Disk.FailLba = fresh.Disk.Data(4);
+                var token = BeginLookup(fresh, "/app/wwwroot/index.html");
+                HostCheck.Equal(Fs.Status.DeviceFailed, fresh.Drive(token)); // Old mount payload cannot bypass a new cold request.
+            }
+        }
+        finally { NativeMemory.AlignedFree(backing); }
+    }
+
+    [HostTest("webroot.fs immutable-directory-cache rejects the actual borrowed writable backend")]
+    private static void ImmutableCacheBorrowed() => CombinedWebDataImageFixtureTests.WithImage((_, _, _, _, path, receipt) =>
+    {
+        using var f = new ReadOnlyWebRootWritableBlockTests.Fixture(System.IO.File.ReadAllBytes(path), receipt);
+        byte* backing = (byte*)NativeMemory.AlignedAlloc(2800, 16);
+        try
+        {
+            new Span<byte>(backing, 2800).Fill(0xa5);
+            byte[] mount = new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount)).ToArray();
+            HostCheck.Equal(Fs.Status.InvalidAccess, Fs.EnableImmutableDirectoryCache(f.Mount, backing, 2800, 5));
+            HostCheck.True(new ReadOnlySpan<byte>(f.Mount, sizeof(Fs.Mount)).SequenceEqual(mount));
+            HostCheck.True(new ReadOnlySpan<byte>(backing, 2800).IndexOfAnyExcept((byte)0xa5) < 0);
+        }
+        finally { NativeMemory.AlignedFree(backing); }
+    });
+
+    private static int DirectoryCachePhases(Fixture f, byte phase)
+    {
+        int count = 0;
+        for (uint i = 0; i < f.DirectoryCacheSlots; i++) if (f.DirectoryCacheBacking[i * 48 + 40] == phase) count++;
+        return count;
+    }
+
+    private static Fs.OpenResult CacheOpen(Fixture f, string path, out uint work)
+    {
+        var token = BeginLookup(f, path); HostCheck.Equal(Fs.Status.Ready, f.Drive(token));
+        work = Field<Fs.Operation, uint>(*OperationFor(f, token), "Work");
+        Fs.OpenResult result = default; HostCheck.Equal(Fs.Status.Success, Fs.CopyOpen(f.Mount, token, &result)); return result;
+    }
+
+    private static void MountWithDirectoryCache(Fixture f, byte* backing)
+    {
+        HostCheck.Equal(Fs.Status.Pending, Fs.Start(f.Mount, f.Input));
+        HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableDirectoryCache(f.Mount, backing, 2800, 5));
+        Fs.Status status = Fs.Status.Pending;
+        for (int i = 0; i < 10000 && status == Fs.Status.Pending; i++) { f.Tick(); status = Fs.PumpMount(f.Mount); }
+        HostCheck.Equal(Fs.Status.Ready, status);
+    }
+
     [HostTest("webroot.fs internal lookup selects at most16 loaded physical entries without IO or another operation progress")]
     private static void LoadedLookupBound()
     {
@@ -189,8 +413,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         }
         throw new InvalidOperationException("lookup did not reach loaded sector");
     }
-    private static void NoIo(Fixture f, ulong submitted, ulong completed, ulong copied)
-    { HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed); HostCheck.Equal(copied, f.Device->Copied); HostCheck.Equal(0UL, f.Device->Cancelled); }
+    private static void NoIo(Fixture f, ulong submitted, ulong completed, ulong copied, ulong cancelled = 0)
+    { HostCheck.Equal(submitted, f.Device->Submitted); HostCheck.Equal(completed, f.Device->Completed); HostCheck.Equal(copied, f.Device->Copied); HostCheck.Equal(cancelled, f.Device->Cancelled); }
 
     [HostTest("webroot.fs CoreLib sized fragmented maps isolate metadata walks from retained independent 8KiB reads")]
     private static void LargeFragmentedReadWork()
@@ -927,6 +1151,9 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal Block.Observation Candidate;
         internal ulong Submitted, Completed, CopyCandidates;
         internal bool Reject, Bad;
+        internal byte* CacheBacking;
+        internal uint CacheSlots;
+        internal bool CheckDirectoryCache, CheckedDirectoryCache;
         internal fixed byte Payload[512];
     }
     [UnmanagedCallersOnly]
@@ -938,6 +1165,13 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         else if (observation->Kind == Block.ObservationKind.CompletionValidated) sink->Completed++;
         else
         {
+            if (sink->CheckDirectoryCache)
+            {
+                sink->CheckedDirectoryCache = true;
+                for (uint i = 0; i < sink->CacheSlots; i++) sink->Bad |= sink->CacheBacking[i * 48 + 40] == 2;
+                sink->Bad |= new ReadOnlySpan<byte>(sink->CacheBacking + sink->CacheSlots * 48,
+                    (int)(sink->CacheSlots * 512)).IndexOfAnyExcept((byte)0xa5) >= 0;
+            }
             sink->CopyCandidates++; sink->Candidate = *observation;
             sink->Bad |= observation->Kind != Block.ObservationKind.CopyReady || payload == null || observation->Bytes != 512 ||
                 observation->Sequence != sink->Device->Copied + 1;
@@ -1126,6 +1360,8 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal readonly Fs.Operation* Operations;
         internal readonly Fs.FileHandle* Files;
         internal readonly Fs.CacheSlot* Cache;
+        internal readonly byte* DirectoryCacheBacking;
+        internal readonly uint DirectoryCacheSlots;
         internal readonly Disk Disk;
         internal ulong DrivePolls; // Host Drive/Poll calls only; excludes Begin/Copy and PumpMount.
         private readonly Fs.Admission input;
@@ -1134,9 +1370,10 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         private readonly uint dataReadSectors;
         internal uint UsedArenaBytes => arenaAt;
         internal Fixture(uint cacheSlots = 2, uint workBudget = 65536, uint history = 4096, uint map = 4096, uint clusters = 65525, bool collision = false, uint slots = 2,
-            Block.ObservationAccess observation = default, uint dataReadSectors = 1)
+            Block.ObservationAccess observation = default, uint dataReadSectors = 1, uint directoryCacheSlots = 0)
         {
             this.dataReadSectors = dataReadSectors;
+            DirectoryCacheSlots = directoryCacheSlots;
             HostCheck.True(slots is >= 2 and <= 8);
             arenaCapacity = slots == 2 ? (uint)ArenaBytes : 1048576U;
             Arena = (byte*)NativeMemory.AlignedAlloc(arenaCapacity, 4096);
@@ -1170,6 +1407,12 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
                 Files[i].Clusters = (uint*)Take(map * 4); Files[i].ClusterCapacity = map;
             }
             for (uint i = 0; i < cacheSlots; i++) Cache[i].Data = Take(512);
+            if (directoryCacheSlots != 0)
+            {
+                uint bytes = Fs.ImmutableDirectoryCacheBytes(directoryCacheSlots); HostCheck.True(bytes != 0);
+                byte* guarded = Take(bytes + 32); new Span<byte>(guarded, (int)bytes + 32).Fill(0xc7);
+                DirectoryCacheBacking = guarded + 16;
+            }
             input = new() { Device = Device, Epoch = lifetime, PartitionFirst = ReadOnlyWebRootFileSystemTests.Disk.Partition, PartitionLast = Disk.Last,
                 Operations = Operations, OperationCount = slots, Files = Files, FileCount = slots, Cache = Cache, CacheCount = cacheSlots, DirectoryEntryBudget = workBudget };
         }
@@ -1181,6 +1424,9 @@ internal static unsafe class ReadOnlyWebRootFileSystemTests
         internal Fs.Status StartMount()
         {
             Fs.Status status = Fs.Start(Mount, input, dataReadSectors);
+            if (status == Fs.Status.Pending && DirectoryCacheSlots != 0)
+                HostCheck.Equal(Fs.Status.Success, Fs.EnableImmutableDirectoryCache(Mount, DirectoryCacheBacking,
+                    Fs.ImmutableDirectoryCacheBytes(DirectoryCacheSlots), DirectoryCacheSlots));
             for (int i = 0; i < 10000 && status == Fs.Status.Pending; i++) { Tick(); status = Fs.PumpMount(Mount); }
             return status;
         }

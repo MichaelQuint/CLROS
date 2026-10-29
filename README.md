@@ -104,7 +104,7 @@ not additional capabilities claimed by this documentation update.
 <summary>Development progress and retained evidence</summary>
 
 <!-- Keep development updates here, below the project introduction. -->
-[Step1652](done/step1652.md) The host-only Flock check now captures all64 rounds' primitive return/status, allocation and device counters before separate exact assertions; no warmup, tiering or allowance changes. Isolated diagnostic1/1 and wholefixture116/116 pass, with zero allocation/device/cursor changes. Earlier fullB928 remains FAILED and unexplained/not reproduced:812 Fast fixtures,6182 passed/1 failed, no Native fixtures. One fresh unfiltered full is required. Native runtimebab067aa retains its original publication29DC/localEDC/wholeF08/peerC22 identities and margins6088/8/6912; binding to the new host requires unchanged relevant-input/config/leaf checks before and after full, including fresh evaluation. No cause-fixed, speedup, guest, read-issue, cleanup or durability grant. Complete qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
+[Step1653](done/step1653.md) The changed immutable directory cache passes 99 focused checks across six fixtures; its own native/full/guest qualification remains pending. The predecessor HOST abf passes 7,420 unfiltered checks across 922 fixtures (110 Native, zero reuse), with all 2,111 retained native inputs exact. Its first Short and both strict readbacks pass, but 32.0444593 seconds versus the prior 26.8077276 seconds demonstrates no speedup. No new Full trial is granted. Earlier failures remain preserved and the Flock failure remains unexplained. Finish qualified read-phase merge/parity/recovery, then pause before writes/SQLite.
 
 [Step1648](done/step1648.md) Source3147392e passes the unfiltered host lane:7409 checks/922 fixtures/110Native, zero reuse, unchanged source/producers/HEAD; repo/contracts pass. Conditional Full/Timing/M16 native reviews retain complete own-profile parents; Timing adds456 stack bytes/all5 domains/all15 phases and4096 image bytes. Timing original1592/30145/55f200/0 returns0, but independent BASE1598/318876/1 remains FAILED: a historical3724B CRLF baseline was normalized to3607B LF while its raw pin stayed unchanged. No BASE receipt, late input recheck, suffix, replay or selection success is claimed. Production observations only:3723 verification calls/4.3945814s in30.1823409s, including measurement overhead; no causal dominance or repair benefit. Expert advice preserves this failure and prospectively copies baseline bytes verbatim. Assets199–201 retain the earlier closed native/focused checkpoint and require178–198; they exclude this later full/original/failure frontier. The four read issues, full Blazor/browser/cleanup, writes/SQLite/#775/#226/#227 and Gate14 remain open. Continue a source-guided read repair, then qualify/merge/recover the read phase and pause.
 
@@ -177,6 +177,10 @@ Historical Step1635 diagnostic checkpoint: a generated-driver child span partiti
 [Step1587](done/step1587.md) preserves the first original ExitPending failure: syscall-entry polling consumed the outstanding sector before the strict pending observation, and cleanup failed without an accepted terminal. Validated process-wide exit now precedes opportunistic polling; failure-only reason codes retain pending-state scalars. This repair still needs a fresh source-matched guest. Full DiskA r03 runs separately at committed91cd04cd; its result remains pending. The next writable descriptor scope is claimed without advancing write or SQLite acceptance.
 
 </details>
+
+<details>
+<summary>Read milestone roadmap and historical checkpoints</summary>
+
 
 The approved next milestone serves an actual Standalone Blazor WebAssembly app
 from a FAT32 webroot through the NativeAOT MinimalApi. Persistent logs/uploads
@@ -323,6 +327,9 @@ batch acceptance remain unfinished.
 Use the [managed issue manifest](.gitea/backlog/clros-issues.json) for exact
 acceptance and dependencies, and the [LAN tracker](http://192.168.4.35:3000/admin/CLROS/issues)
 for live state and ownership. Older planning text is not implementation evidence.
+
+
+</details>
 
 ## Build and test
 

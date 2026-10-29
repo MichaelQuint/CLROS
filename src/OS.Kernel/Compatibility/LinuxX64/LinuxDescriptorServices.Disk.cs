@@ -1096,7 +1096,20 @@ public static unsafe partial class LinuxDescriptorServices
         else if (index == 3) { start = (ulong)a.Cache; bytes = a.CacheCount * (ulong)sizeof(Fs.CacheSlot); }
         else if (index < 52)
         {
-            uint op = (index - 4) / 6, part = (index - 4) % 6; if (op >= a.OperationCount) return;
+            uint op = (index - 4) / 6, part = (index - 4) % 6;
+            // The first unused sixth scratch-range position names the separate
+            // immutable directory backing. No operation buffer is borrowed and
+            // the existing bounded extent inventory keeps its capacity.
+            if (part == 5)
+            {
+                if (op == 0)
+                {
+                    start = (ulong)m->ImmutableDirectoryCacheBacking;
+                    bytes = Fs.ImmutableDirectoryCacheBytes(m->ImmutableDirectoryCacheSlots);
+                }
+                return;
+            }
+            if (op >= a.OperationCount) return;
             var s = a.Operations[op].Storage;
             if (part == 0) { start = (ulong)s.Path; bytes = 256; }
             else if (part == 1) { start = (ulong)s.Sector; bytes = 512; }

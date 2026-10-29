@@ -20,6 +20,9 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
         private const uint NativeDiskSlots = 8, NativeDiskCaches = 4;
+#if M10_018_PROBE
+        private const uint NativeDiskDirectoryCaches = 5;
+#endif
         private const ulong NativeDiskEpoch = 0x4d31365f30323301;
         private enum NativeDiskProgress : byte { Rejected, Pending, Ready }
 #if M10_018_TIMING_PROBE
@@ -49,6 +52,9 @@ public static unsafe partial class EfiEntry
             internal Fs.Operation* Operations;
             internal Fs.FileHandle* Files;
             internal Fs.CacheSlot* Cache;
+#if M10_018_PROBE
+            internal byte* DirectoryCache;
+#endif
             internal LinuxDescriptorServices.DiskBinding* Bindings;
             internal LinuxDescriptorServices.DiskRequest* Requests;
             internal byte* Sector;
@@ -99,6 +105,12 @@ public static unsafe partial class EfiEntry
             { var data = (byte*)NativeDiskTake(ref cursor, 512); if (o != null) cache[i].Data = data; }
             if (o != null)
             { o->Sector = sector; o->Entries = entries; o->Operations = operations; o->Files = files; o->Cache = cache; o->Bindings = bindings; o->Requests = requests; }
+#if M10_018_PROBE
+            // Separate immutable-media cache backing fits the existing arena's
+            // tail; the four paired FAT caches and operation buffers stay owned.
+            var directoryCache = (byte*)NativeDiskTake(ref cursor, Fs.ImmutableDirectoryCacheBytes(NativeDiskDirectoryCaches));
+            if (o != null) o->DirectoryCache = directoryCache;
+#endif
             return cursor - start;
         }
 
@@ -264,6 +276,13 @@ public static unsafe partial class EfiEntry
                     uint dataSectors = OS.Kernel.Diagnostics.Probes.EnableM10018FullProbe ||
                         OS.Kernel.Diagnostics.Probes.EnableM10018TimingProbe ? 4U : 1U;
                     if (Fs.Start(&o->Mount, a, dataSectors) != Fs.Status.Pending) return NativeDiskFail(o);
+#if M10_018_PROBE
+                    // This frozen fixture has no writer. Configure before mount
+                    // I/O; only ordinary mounted lookups may publish sectors.
+                    if (Fs.EnableImmutableDirectoryCache(&o->Mount, o->DirectoryCache,
+                        Fs.ImmutableDirectoryCacheBytes(NativeDiskDirectoryCaches), NativeDiskDirectoryCaches) != Fs.Status.Success)
+                        return NativeDiskFail(o);
+#endif
                     o->Phase = 6;
                 }
                 return NativeDiskProgress.Pending;

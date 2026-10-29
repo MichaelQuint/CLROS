@@ -284,6 +284,41 @@ internal static unsafe class LinuxDiskDescriptorServicesTests
         o.PutPath("/app/fixture.data"); HostCheck.Equal(Fds.DiskProgress.NotHandled, o.Begin(o.Call(2, Path)).Progress);
     }
 
+    [HostTest("linux.disk retained extents protect immutable directory backing from descriptor aliases")]
+    private static void ImmutableDirectoryBacking()
+    {
+        var storage = new ReadOnlyWebRootFileSystemTests.Fixture(slots: 8, directoryCacheSlots: 5);
+        storage.MountReady();
+        using Owner o = new(attach: false, storage: storage);
+        uint bytes = Fs.ImmutableDirectoryCacheBytes(storage.DirectoryCacheSlots);
+        byte[] before = new ReadOnlySpan<byte>(storage.DirectoryCacheBacking, (int)bytes).ToArray();
+        var invalid = o.Admission;
+        invalid.Bindings = (Fds.DiskBinding*)storage.DirectoryCacheBacking;
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        invalid = o.Admission;
+        invalid.Requests = (Fds.DiskRequest*)(storage.DirectoryCacheBacking + bytes - 8);
+        HostCheck.True(!Fds.AttachDisk(o.Files.State, o.Disk, invalid));
+        HostCheck.True(new ReadOnlySpan<byte>(storage.DirectoryCacheBacking, (int)bytes).SequenceEqual(before));
+        HostCheck.True(Fds.AttachDisk(o.Files.State, o.Disk, o.Admission));
+        uint matches = 0;
+        for (uint i = 0; i < Fds.DiskExtentCount; i++)
+        {
+            Fds.DiskExtentAt(o.Files.State, i, out ulong start, out ulong length);
+            if (start != (ulong)storage.DirectoryCacheBacking) continue;
+            HostCheck.Equal((ulong)bytes, length); matches++;
+        }
+        HostCheck.Equal(1U, matches);
+        uint fd = o.Open();
+        HostCheck.Equal(32L, o.Run(o.Call(0, fd, Output, 32)));
+        HostCheck.Equal(0L, o.Core(3, fd));
+        ulong reads = storage.Mount->SectorReads;
+        fd = o.Open();
+        HostCheck.Equal(reads, storage.Mount->SectorReads);
+        HostCheck.Equal(32L, o.Run(o.Call(0, fd, Output, 32)));
+        HostCheck.Equal(0L, o.Core(3, fd));
+        HostCheck.True(Fds.Audit(o.Files.State));
+    }
+
     [HostTest("linux.disk stat lstat fstat retain FAT inode mtime and checked block allocation")]
     private static void Metadata()
     {
